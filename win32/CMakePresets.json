@@ -1,0 +1,24 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 19,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "Debug",
+      "displayName": "Debug (Native Host)",
+      "generator": "Ninja",
+      "description": "Hostアーキテクチャ用のデバッグビルド（x64 Native Toolsならx64, ARM64 Native ToolsならARM64）",
+      "binaryDir": "build/native/Debug",
+      "cacheVariables": {}
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Debug",
+      "configurePreset": "Debug"
+    }
+  ]
+}

@@ -13,4 +13,5 @@
       "file": "agent/development.md"
     }
   ],
+  "cmake.sourceDirectory": "${workspaceFolder}/win32"
 }

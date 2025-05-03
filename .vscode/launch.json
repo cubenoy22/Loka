@@ -2,16 +2,40 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug DesktopApp (ARM64)",
+      "name": "Debug Declara (Native-Debug)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/win32/DesktopApp/ARM64/Debug/DesktopApp.exe",
+      "program": "${workspaceFolder}/win32/build/native/Debug/Declara.exe",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/win32/DesktopApp/ARM64/Debug",
+      "cwd": "${workspaceFolder}/win32/build/native/Debug",
       "environment": [],
       "console": "externalTerminal",
-      "preLaunchTask": "Build DesktopApp (MSBuild)"
+      "preLaunchTask": "Build (Native-Debug)"
+    },
+    {
+      "name": "Debug Declara (x64-Debug)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/win32/build/x64/Debug/Declara.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/win32/build/x64/Debug",
+      "environment": [],
+      "console": "externalTerminal",
+      "preLaunchTask": "Build (x64-Debug)"
+    },
+    {
+      "name": "Debug Declara (ARM64-Debug)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/win32/build/ARM64/Debug/Declara.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/win32/build/ARM64/Debug",
+      "environment": [],
+      "console": "externalTerminal",
+      "preLaunchTask": "Build (ARM64-Debug)"
     }
   ]
 }
