@@ -1,4 +1,5 @@
-// SnapshotベースのシンプルなUIフレームワーク仕様（C++）
+#ifndef DECLARA_PAGE_HPP
+#define DECLARA_PAGE_HPP
 
 #include "App.hpp"
 #include "Property.hpp"
@@ -9,12 +10,9 @@
 #include <string>
 #include <vector>
 
-// ==============================
-// 基本クラス・コンセプト
-// ==============================
+class Window;
+class Renderer;
 
-// Page: 画面単位の抽象基底クラス
-class Window; // 追加: Window前方宣言
 class Page
 {
 public:
@@ -26,16 +24,11 @@ public:
     for (size_t i = 0; i < components_.size(); ++i)
       delete components_[i];
   }
-
-  // Window参照のgetter（操作はしない設計）
   Window *getHostWindow() const { return window_; }
-
-  // UIContextを渡してPageContextを再構築
   void buildContext()
   {
     PageBuilder b;
     build(b);
-    // C++98ではmove不可、swapで所有権を移譲
     std::vector<Component *> tmp = b.build();
     components_.swap(tmp);
   }
@@ -47,41 +40,31 @@ public:
 
 protected:
   std::vector<Component *> components_;
-  Window *window_; // 追加: 自分をホストするWindow参照
+  Window *window_;
 };
-
-// ==============================
-// PageBuilder: UI部品の登録専用（create系のみ公開）
-// ==============================
 
 class PageBuilder
 {
 public:
   PageBuilder() {}
-
   void Text(const std::string &text)
   {
     components.push_back(new TextComponent(text));
   }
-
   void TextInput(State<std::string> *state)
   {
     components.push_back(new TextInputComponent(state));
   }
-
   void Button(const ButtonOptions &opts)
   {
     components.push_back(new ButtonComponent(opts.label, opts.enabled, opts.onClick));
   }
-
-  // PageContextを生成し、内部componentsをmoveで渡す
   std::vector<Component *> build()
   {
     std::vector<Component *> tmp;
-    tmp.swap(components); // C++98流の所有権移譲
+    tmp.swap(components);
     return tmp;
   }
-
   ~PageBuilder()
   {
     for (size_t i = 0; i < components.size(); ++i)
@@ -91,3 +74,5 @@ public:
 private:
   std::vector<Component *> components;
 };
+
+#endif // DECLARA_PAGE_HPP

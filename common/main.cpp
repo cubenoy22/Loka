@@ -1,4 +1,4 @@
-#include "Page.cpp"
+#include "Page.hpp"
 #include "Button.hpp"
 #include "Renderer.hpp"
 #include "App.hpp"
