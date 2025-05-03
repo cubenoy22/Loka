@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug DesktopApp (ARM64)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/win32/DesktopApp/ARM64/Debug/DesktopApp.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/win32/DesktopApp/ARM64/Debug",
+      "environment": [],
+      "console": "externalTerminal",
+      "preLaunchTask": "Build DesktopApp (MSBuild)"
+    }
+  ]
+}
