@@ -13,5 +13,9 @@
       "file": "agent/development.md"
     }
   ],
-  "cmake.sourceDirectory": "${workspaceFolder}/win32"
+  "cmake.sourceDirectory": "${workspaceFolder}/win32",
+  "cSpell.words": [
+    "Jetpack",
+    "Renderable"
+  ]
 }
