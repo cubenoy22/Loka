@@ -5,6 +5,8 @@
 #include <vector>
 #include "Property.hpp"
 #include "Renderer.hpp"
+#include "PropertyUtil.hpp"
+#include "PropertyType.hpp"
 
 struct ButtonOptions
 {
@@ -12,14 +14,17 @@ struct ButtonOptions
   PropBase *enabled;
   void (*onClick)();
 
+public:
   ButtonOptions() : enabled(&TRUE), onClick(0) {}
   ButtonOptions &setLabel(const std::string &l)
   {
     label = l;
     return *this;
   }
-  ButtonOptions &setEnabled(PropBase *e)
+  template <typename T>
+  ButtonOptions &setEnabled(T *e)
   {
+    DECLARA_STATIC_BOOL_PROP_GUARD(T);
     enabled = e;
     return *this;
   }
@@ -44,13 +49,7 @@ public:
       : label(label), enabled(enabled), onClick(onClick) {}
   void render(Renderer *renderer)
   {
-    bool isEnabled = true;
-    StaticProp<bool> *staticProp = dynamic_cast<StaticProp<bool> *>(enabled);
-    if (staticProp)
-      isEnabled = staticProp->get();
-    DerivedProp<bool, std::string> *derived = dynamic_cast<DerivedProp<bool, std::string> *>(enabled);
-    if (derived)
-      isEnabled = derived->get();
+    bool isEnabled = getBoolProp(enabled);
     renderer->createButton(label, isEnabled, onClick);
   }
   void updateProps() {}
