@@ -174,3 +174,28 @@ class FormPage : public Page {
 UI は静的なまま保持され、差分更新や動的な UI 再構築は今後の拡張テーマとしています。
 
 この設計により、Page 単位での明快な責務分離と、シンプルな UI ライフサイクル管理を実現しています。
+
+## 9. マルチウィンドウ・Window 抽象化設計の思想（2025-05）
+
+- **Window は ButtonComponent 同様に完全抽象化し、Renderer バックエンドで実装を切り替える設計**
+  - OS 固有の Window（HWND 等）を直接扱わず、Window 抽象クラスを介して管理
+  - WindowOptions で宣言的にウィンドウ属性（例: タイトル）を指定し、PropBase\*型で動的バインドも可能
+  - setTitle は DECLARA_STATIC_STRING_PROP_GUARD で型安全に制約
+- **App はマルチウィンドウを一元管理し、addWindow(Page\*, const WindowOptions&)で新規 Window を生成**
+  - Page やコールバックから宣言的に新 Window を開く API 設計
+  - addWindow の戻り値は void（命令型操作を排除し、宣言的な UI 設計を優先）
+  - WindowID やネイティブハンドル取得は将来の拡張ポイントとして別 API で検討
+- **WindowOptions/Window の設計は Window.hpp に集約し、ButtonOptions と同じ思想で型安全・宣言的な API を実現**
+  - ButtonOptions の setEnabled と同様、WindowOptions の setTitle も型ガードで静的安全性を担保
+  - PropBase\*経由でタイトルの動的更新やバインドも柔軟に対応
+- **App インスタンスはグローバル参照で OK（1 プロセス 1App 前提）**
+  - Page→Window→App の参照も理論上たどれる構造
+
+---
+
+### 設計意図まとめ
+
+- UI/Window の生成・管理を宣言的・型安全に行うことで、C++98 環境でも現代的な UI 設計思想（Compose/SwiftUI 的）を再現
+- プラットフォームごとの Window 生成・Renderer 連携はバックエンド実装で切り替え、コア API は中立的・拡張性重視
+- Cocoa/Win32/Toolbox 等の文化的設計思想も意識し、App が Window を一元管理する構造を採用
+- すべての API 設計は「宣言的・型安全・責務分離・拡張性」を重視

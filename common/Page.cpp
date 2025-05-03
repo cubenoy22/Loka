@@ -14,25 +14,40 @@
 // ==============================
 
 // Page: 画面単位の抽象基底クラス
+class Window; // 追加: Window前方宣言
 class Page
 {
 public:
-  Page() {}
+  Page(Window *hostWindow = 0) : window_(hostWindow) {}
   virtual void build(PageBuilder &b) = 0;
   virtual std::string serialize() { return ""; }
-  virtual ~Page() {}
+  virtual ~Page()
+  {
+    for (size_t i = 0; i < components_.size(); ++i)
+      delete components_[i];
+  }
+
+  // Window参照のgetter（操作はしない設計）
+  Window *getHostWindow() const { return window_; }
 
   // UIContextを渡してPageContextを再構築
-  void buildContext(UIContext *ctx)
+  void buildContext()
   {
     PageBuilder b;
     build(b);
-    context_ = PageContext(b.buildContextValue(ctx)); // 値型でswap
+    // C++98ではmove不可、swapで所有権を移譲
+    std::vector<Component *> tmp = b.build();
+    components_.swap(tmp);
   }
-  void renderAll() { context_.renderAll(); }
+  void renderAll(Renderer *renderer)
+  {
+    for (size_t i = 0; i < components_.size(); ++i)
+      components_[i]->render(renderer);
+  }
 
 protected:
-  PageContext context_;
+  std::vector<Component *> components_;
+  Window *window_; // 追加: 自分をホストするWindow参照
 };
 
 // ==============================
@@ -60,18 +75,12 @@ public:
   }
 
   // PageContextを生成し、内部componentsをmoveで渡す
-  PageContext *buildContext(UIContext *ctx)
+  std::vector<Component *> build()
   {
-    return new PageContext(std::move(components), ctx);
+    std::vector<Component *> tmp;
+    tmp.swap(components); // C++98流の所有権移譲
+    return tmp;
   }
-
-  // PageContextを値型で返す
-  PageContext buildContextValue(UIContext *ctx)
-  {
-    return PageContext(std::move(components), ctx);
-  }
-
-  // build中はUIContextや描画処理は一切呼ばないこと（設計意図）
 
   ~PageBuilder()
   {
@@ -81,35 +90,4 @@ public:
 
 private:
   std::vector<Component *> components;
-};
-
-// PageContext: build後のUI部品を保持し、描画やUIContextとのやりとりを担当
-class PageContext
-{
-public:
-  PageContext() : context_(0) {}
-  PageContext(std::vector<Component *> components, UIContext *ctx)
-      : components_(components), context_(ctx) {}
-  void renderAll()
-  {
-    for (size_t i = 0; i < components_.size(); ++i)
-      components_[i]->render(context_->renderer);
-  }
-  void swap(PageContext &other)
-  {
-    components_.swap(other.components_);
-    UIContext *tmp = context_;
-    context_ = other.context_;
-    other.context_ = tmp;
-  }
-  ~PageContext()
-  {
-    for (size_t i = 0; i < components_.size(); ++i)
-      delete components_[i];
-  }
-
-private:
-  // components_はbuild後にmoveで受け取り、以降は絶対に変更しない（immutable設計意図）
-  std::vector<Component *> components_;
-  UIContext *context_;
 };
