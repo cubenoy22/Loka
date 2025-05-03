@@ -16,9 +16,9 @@ class Renderer;
 class Page
 {
 public:
-  Page(Window *hostWindow = 0) : window_(hostWindow) {}
-  virtual void build(PageBuilder &b) = 0;
-  virtual std::string serialize() { return ""; }
+  Page(Window *hostWindow = 0)
+      : window_(hostWindow), transaction_() {}
+
   virtual ~Page()
   {
     for (size_t i = 0; i < components_.size(); ++i)
@@ -38,7 +38,14 @@ public:
       components_[i]->render(renderer);
   }
 
+  // ページ内の Transaction を commit するラッパー
+  virtual bool commitTransaction() { return transaction_.commit(); }
+
+  // buildは純粋仮想関数に
+  virtual void build(PageBuilder &b) = 0;
+
 protected:
+  Transaction transaction_;
   std::vector<Component *> components_;
   Window *window_;
 };

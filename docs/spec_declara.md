@@ -62,6 +62,20 @@
 - **連鎖的な伝播が続いた場合でも、無限ループを検知して安全に停止**。
 - **安定化（全ての Prop が確定）を待ってから自動反映するため、軽量かつ安定した UI 更新が可能**。
 
+## PropBase::recompute について
+
+- すべての Prop（State, StaticProp, DerivedProp など）は、基底クラス PropBase の`virtual bool recompute()`を実装する。
+- **recompute()の役割：**
+  - 「このプロパティの値を再計算し、値が変化した場合は true を返す」
+  - 依存する State や DerivedProp の値が変化したとき、UI や他の Prop に伝播させるための“再評価フック”となる。
+- **State<T>の recompute()：**
+  - 通常は「外部から set()で値が変わるだけ」なので、recompute()は何もしない（false を返すだけ）。
+- **DerivedProp<T, S>の recompute()：**
+  - 依存元（State や他の Prop）の値が変わったとき、evalFn で新しい値を計算し、変化があれば true を返す。
+  - これにより「依存関係の伝播」「UI の自動更新」が実現できる。
+- **Transaction::commit()などで dirty な Prop を再評価する際に呼ばれる。**
+  - これにより「値の伝播」「UI の再描画」「コールバックの発火」などが安全かつ効率的に行える。
+
 ## 4. UI 構成
 
 ### Renderer

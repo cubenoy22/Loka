@@ -16,13 +16,11 @@ class Renderer
 {
 public:
   virtual ~Renderer() {}
-  virtual void clearUI() {}
   virtual void processEvents() {}
   virtual void createText(const std::string &) {}
   virtual void createTextInput(void *) {}
   virtual void createButton(const std::string &, bool, void (*)()) {}
   virtual void setButtonEnabled(const std::string &, bool) {}
-  virtual void showMessage(const std::string &) {}
 };
 
 #endif // DECLARA_RENDERER_HPP

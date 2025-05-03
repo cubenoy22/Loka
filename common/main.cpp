@@ -8,11 +8,7 @@
 class FormPage : public Page
 {
 public:
-  FormPage()
-      : name(),
-        isEnabled(&name, &FormPage::evaluateLength)
-  {
-  }
+  FormPage() : Page(), name(&transaction_, ""), isValid(&transaction_, &name, &FormPage::evaluateLength) {}
 
   static bool evaluateLength(const std::string &s)
   {
@@ -26,17 +22,14 @@ public:
   {
     b.Text("名前を入力してください");
     b.TextInput(&name);
-    isEnabled = DerivedProp<bool, std::string>(&name, &FormPage::evaluateLength);
     b.Button(
         ButtonOptions()
             .setLabel("送信")
-            .setEnabled(&isEnabled)
+            .setEnabled(&isValid)
             .setOnClick(&FormPage::onSendClick));
   }
-
-private:
   State<std::string> name;
-  DerivedProp<bool, std::string> isEnabled;
+  DerivedProp<bool, std::string> isValid;
 };
 
 class MyRenderer : public Renderer
@@ -46,9 +39,11 @@ class MyRenderer : public Renderer
 
 int main()
 {
-  App app;
-  app.setRenderer(new MyRenderer());
-  app.setPage(new FormPage());
+  MyRenderer renderer;
+  Window window(&renderer);
+  FormPage page;
+  window.setPage(&page);
+  App app(&window);
   app.run();
   return 0;
 }

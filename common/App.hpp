@@ -6,47 +6,19 @@
 #include <string>
 #include "Window.hpp"
 #include <vector>
+#include "PlatformContext.hpp"
+#include "EmptyContext.hpp"
 
 class Renderer;
 class PageBuilder;
 class Page;
 class PageContext;
 
-class UIContext
-{
-public:
-  Renderer *renderer;
-};
-
 class App
 {
 public:
-  App() : currentPage(0) { context.renderer = 0; }
-  void setPage(Page *page)
-  {
-    currentPage = page;
-    rerender();
-  }
-  void rerender()
-  {
-    if (currentPage)
-    {
-      currentPage->buildContext(&context);
-      context.renderer->clearUI();
-      if (Transaction::commit())
-      {
-        currentPage->renderAll();
-      }
-    }
-  }
-  void run()
-  {
-    while (true)
-      context.renderer->processEvents();
-  }
-  void setRenderer(Renderer *r) { context.renderer = r; }
-
-  // 🦊 新規: マルチウィンドウAPI
+  App(Window* w) : window(w) {}
+  // 必要ならウィンドウ管理APIのみ残す
   virtual void addWindow(Page *page, const WindowOptions &options)
   {
     // 仮実装: Window生成はプラットフォームごとに差し替え予定
@@ -56,12 +28,16 @@ public:
     //     w->setPage(page);
     //     windows.push_back(w);
   }
+  void run() {
+    // 必要に応じて初回描画
+    window->rerender();
+    while (true) window->renderer()->processEvents();
+  }
 
 protected:
-  std::vector<Window *> windows; // 追加: 全ウィンドウを管理
+  std::vector<Window *> windows; // 複数ウィンドウ対応用
 private:
-  Page *currentPage;
-  UIContext context;
+  Window* window;
 };
 
 #endif // DECLARA_APP_HPP

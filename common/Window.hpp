@@ -4,6 +4,7 @@
 #include <string>
 #include "Property.hpp"
 #include "PropertyType.hpp"
+#include "Page.hpp"
 
 // WindowOptions: 動的タイトル対応・型安全な宣言的ウィンドウオプション
 struct WindowOptions
@@ -25,9 +26,33 @@ class Page;
 class Window
 {
 public:
-  virtual ~Window() {}
-  virtual void setPage(Page *page) = 0;
-  // 将来: WindowIDやネイティブハンドル取得APIも追加可
+  Window(Renderer *renderer) : renderer_(renderer), page_(0) {}
+  void setPage(Page *page)
+  {
+    page_ = page;
+    rerender();
+  }
+  void rerender()
+  {
+    if (page_)
+    {
+      page_->buildContext();
+      if (page_->commitTransaction())
+      {
+        page_->renderAll(renderer_);
+      }
+    }
+  }
+  Renderer *renderer() const { return renderer_; }
+  Page *page() const { return page_; }
+
+  // visibility: ウィンドウの表示/非表示状態を表す共通プロパティ
+  // State<bool>やStaticProp<bool>などを想定
+  BindableProp<bool> *visibility;
+
+private:
+  Renderer *renderer_;
+  Page *page_;
 };
 
 #endif // DECLARA_WINDOW_HPP

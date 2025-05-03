@@ -10,12 +10,12 @@
 class Transaction
 {
 public:
-  static void markDirty(PropBase *prop)
+  void markDirty(PropBase *prop)
   {
     dirtyProps.push_back(prop);
   }
 
-  static void markDirtyDependents(void *statePtr)
+  void markDirtyDependents(void *statePtr)
   {
     for (int i = 0; i < (int)allProps.size(); ++i)
     {
@@ -23,7 +23,7 @@ public:
     }
   }
 
-  static bool commit()
+  bool commit()
   {
     bool changed = false;
     bool anyChanged = false;
@@ -45,14 +45,14 @@ public:
     return anyChanged;
   }
 
-  static void registerProp(PropBase *prop)
+  void registerProp(PropBase *prop)
   {
     allProps.push_back(prop);
   }
 
 private:
-  static std::vector<PropBase *> dirtyProps;
-  static std::vector<PropBase *> allProps;
+  std::vector<PropBase *> dirtyProps;
+  std::vector<PropBase *> allProps;
 };
 
 #endif // DECLARA_TRANSACTION_HPP
