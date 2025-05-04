@@ -11,7 +11,6 @@ set(SOURCES
   src/Win32App.cpp       # Win32App.cppを追加
   src/Win32Window.cpp    # Win32Window.cppも追加
   ../common/main.cpp
-  ../common/State.cpp
 )
 
 add_executable(Declara WIN32 ${SOURCES})

@@ -10,7 +10,7 @@ class Renderable
 {
 public:
   virtual void render(Renderer *renderer) = 0;
-  virtual void updateProps() = 0;
+  virtual void updateStates() = 0;
   virtual ~Renderable() {}
 };
 

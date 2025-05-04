@@ -3,7 +3,6 @@
 
 #include <string>
 #include "Renderer.hpp"
-#include "Property.hpp"
 #include "Button.hpp" // Component基底クラスを参照
 
 class TextInputComponent : public Component
@@ -14,7 +13,7 @@ public:
   {
     // 仮実装: renderer->createTextInput(state_);
   }
-  void updateProps() {}
+  void updateStates() {}
 
 private:
   State<std::string> *state_;

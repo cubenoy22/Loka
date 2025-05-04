@@ -1,17 +1,11 @@
 #ifndef DECLARA_APP_HPP
 #define DECLARA_APP_HPP
 
-#include "Property.hpp"
 #include <string>
 #include "Window.hpp"
 #include <vector>
-#include "PlatformContext.hpp"
-#include "EmptyContext.hpp"
 
-class Renderer;
-class PageBuilder;
 class Page;
-class PageContext;
 
 class App
 {

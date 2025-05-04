@@ -2,30 +2,19 @@
 #define DECLARA_BUTTON_HPP
 
 #include <string>
-#include <vector>
-#include "Property.hpp"
+#include "State.hpp"
 #include "Renderer.hpp"
-#include "PropertyUtil.hpp"
-#include "PropertyType.hpp"
 
-// 前方宣言
-class BindablePropBase;
-
-// グローバル変数として定義（クラス内静的メンバではなく）
-static StaticProp<bool> BUTTON_DEFAULT_ENABLED(true);
+// グローバル定数State（常に有効なボタン用）
+static State<bool> BUTTON_DEFAULT_ENABLED(true);
 
 struct ButtonOptions
 {
   std::string label;
-  BindablePropBase *enabled;
+  State<bool> *enabled;
   void (*onClick)();
 
-public:
-  ButtonOptions() : label(""), enabled(NULL), onClick(NULL)
-  {
-    // デフォルト値をコンストラクタで設定
-    enabled = &BUTTON_DEFAULT_ENABLED; // グローバル変数を使用
-  }
+  ButtonOptions() : label(""), enabled(&BUTTON_DEFAULT_ENABLED), onClick(NULL) {}
   ButtonOptions &setLabel(const std::string &l)
   {
     label = l;
@@ -34,7 +23,6 @@ public:
   template <typename T>
   ButtonOptions &setEnabled(T *e)
   {
-    DECLARA_STATIC_BOOL_PROP_GUARD(T);
     enabled = e;
     return *this;
   }
@@ -55,17 +43,17 @@ public:
 class ButtonComponent : public Component
 {
 public:
-  ButtonComponent(const std::string &label, BindablePropBase *enabled, void (*onClick)())
+  ButtonComponent(const std::string &label, State<bool> *enabled, void (*onClick)())
       : label(label), enabled(enabled), onClick(onClick) {}
   void render(Renderer *renderer)
   {
-    bool isEnabled = getBoolProp(enabled);
+    bool isEnabled = enabled ? enabled->get() : true;
     renderer->createButton(label, isEnabled, onClick);
   }
-  void updateProps() {}
-  void setEnabledProp(BindablePropBase *prop) { enabled = prop; }
+  void updateStates() {}
+  void setEnabledState(State<bool> *state) { enabled = state; }
   std::string label;
-  BindablePropBase *enabled;
+  State<bool> *enabled;
   void (*onClick)();
 };
 

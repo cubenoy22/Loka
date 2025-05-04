@@ -13,7 +13,7 @@ public:
   {
     // 仮実装: renderer->createText(text_);
   }
-  void updateProps() {}
+  void updateStates() {}
 
 private:
   std::string text_;

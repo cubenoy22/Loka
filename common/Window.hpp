@@ -3,21 +3,18 @@
 
 #include <string>
 #include "Page.hpp"
-#include "Property.hpp"
+#include "State.hpp"
 
 class Page;
 class Renderer;
-class PropBase;
 
 // WindowOptions: 動的タイトル対応・型安全な宣言的ウィンドウオプション
 struct WindowOptions
 {
-  PropBase *title;
+  State<std::string> *title;
   WindowOptions() : title(0) {}
-  template <typename T>
-  WindowOptions &setTitle(T *t)
+  WindowOptions &setTitle(State<std::string> *t)
   {
-    DECLARA_STATIC_STRING_PROP_GUARD(T);
     title = t;
     return *this;
   }
@@ -27,7 +24,8 @@ struct WindowOptions
 class Window
 {
 public:
-  Window(Renderer *renderer) : renderer_(renderer), page_(0) {}
+  // Initialize visibility pointer in the constructor initializer list
+  Window(Renderer *renderer) : renderer_(renderer), page_(0), visibility(true) {}
   void setPage(Page *page)
   {
     page_ = page;
@@ -45,8 +43,7 @@ public:
   Page *page() const { return page_; }
 
   // visibility: ウィンドウの表示/非表示状態を表す共通プロパティ
-  // State<bool>やStaticProp<bool>などを想定
-  BindableProp<bool> *visibility;
+  State<bool> *visibility;
 
 private:
   Renderer *renderer_;

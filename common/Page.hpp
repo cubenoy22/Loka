@@ -1,7 +1,6 @@
 #ifndef DECLARA_PAGE_HPP
 #define DECLARA_PAGE_HPP
 
-#include "Property.hpp"
 #include "Button.hpp"
 #include "Text.hpp"
 #include "TextInput.hpp"

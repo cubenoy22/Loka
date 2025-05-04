@@ -12,11 +12,11 @@ Win32Window::Win32Window(Renderer *renderer, HWND hwnd)
     : Window(renderer), hwnd_(hwnd)
 {
   // visibilityプロパティの変更を監視
-  if (visibility)
-  {
-    // C++98: static関数＋thisポインタ渡しでコールバック
-    visibility->bind(&Win32Window::VisibilityChangedThunk, this, true, false);
-  }
+  // if (visibility->get())
+  // {
+  //   // C++98: static関数＋thisポインタ渡しでコールバック
+  //   visibility->bind(&Win32Window::VisibilityChangedThunk, this);
+  // }
 }
 
 // static thunk for BindableProp<bool>::OnChangeFn
