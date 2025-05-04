@@ -1,47 +1,41 @@
 #ifndef DECLARA_STATE_HPP
 #define DECLARA_STATE_HPP
 
-#include "Property.hpp"
+#include "BaseTypes.hpp" // BaseTypesから基本クラスをインポート
 #include "ValueHolder.hpp"
 #include <vector>
 
-class Transaction;
-
-class StateBase
-{
-public:
-  virtual ~StateBase() {}
-  // 型消去: ValueHolderBase経由で値をセット
-  virtual void setValue(const ValueHolderBase &) = 0;
-};
+class Tracker; // 前方宣言
 
 template <typename T>
 class State : public StateBase
 {
 public:
-  State(Transaction *tx, const T &initial = T()) : tx_(tx), value(initial) {}
+  State(const T &initial = T()) : value(initial), tracker_(nullptr) {}
   void set(const T &v)
   {
     if (value != v)
     {
       value = v;
-      if (tx_)
-        tx_->markDirtyDependents(this);
+      notifyStateChanged();
     }
   }
   T get() const { return value; }
-  void setValue(const T &v) { value = v; }
-  void setValue(const ValueHolderBase &v)
+  void setValue(const T &v) { set(v); }
+  void setValue(const ValueHolderBase &v) override
   {
     const ValueHolder<T> *vh = dynamic_cast<const ValueHolder<T> *>(&v);
     if (vh)
-      value = vh->value;
+      set(vh->value);
   }
+  void bindTracker(Tracker *tracker) override { tracker_ = tracker; }
+
+  // トラッカー通知関数のインライン実装を避け、前方宣言のみに
+  void notifyStateChanged();
 
 private:
-  Transaction *tx_;
+  Tracker *tracker_;
   T value;
-  friend class Transaction;
 };
 
 #endif // DECLARA_STATE_HPP

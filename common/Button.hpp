@@ -8,14 +8,24 @@
 #include "PropertyUtil.hpp"
 #include "PropertyType.hpp"
 
+// 前方宣言
+class BindablePropBase;
+
+// グローバル変数として定義（クラス内静的メンバではなく）
+static StaticProp<bool> BUTTON_DEFAULT_ENABLED(true);
+
 struct ButtonOptions
 {
   std::string label;
-  PropBase *enabled;
+  BindablePropBase *enabled;
   void (*onClick)();
 
 public:
-  ButtonOptions() : enabled(&TRUE), onClick(0) {}
+  ButtonOptions() : label(""), enabled(NULL), onClick(NULL)
+  {
+    // デフォルト値をコンストラクタで設定
+    enabled = &BUTTON_DEFAULT_ENABLED; // グローバル変数を使用
+  }
   ButtonOptions &setLabel(const std::string &l)
   {
     label = l;
@@ -45,7 +55,7 @@ public:
 class ButtonComponent : public Component
 {
 public:
-  ButtonComponent(const std::string &label, PropBase *enabled, void (*onClick)())
+  ButtonComponent(const std::string &label, BindablePropBase *enabled, void (*onClick)())
       : label(label), enabled(enabled), onClick(onClick) {}
   void render(Renderer *renderer)
   {
@@ -53,9 +63,9 @@ public:
     renderer->createButton(label, isEnabled, onClick);
   }
   void updateProps() {}
-  void setEnabledProp(PropBase *prop) { enabled = prop; }
+  void setEnabledProp(BindablePropBase *prop) { enabled = prop; }
   std::string label;
-  PropBase *enabled;
+  BindablePropBase *enabled;
   void (*onClick)();
 };
 

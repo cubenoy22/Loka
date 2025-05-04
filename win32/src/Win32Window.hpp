@@ -9,8 +9,7 @@
 class Win32Window : public Window
 {
 public:
-  Win32Window(Renderer *renderer, HWND hwnd = 0)
-      : Window(renderer), hwnd_(hwnd) {}
+  Win32Window(Renderer *renderer, HWND hwnd = 0);
 
   HWND hwnd() const { return hwnd_; }
 

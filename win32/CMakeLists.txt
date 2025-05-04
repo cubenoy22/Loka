@@ -1,13 +1,20 @@
 cmake_minimum_required(VERSION 3.15)
 project(Declara LANGUAGES CXX)
 
-# ソース自動収集（main.c + 将来のcommon/*.c）
-file(GLOB WIN32_SOURCES
-    src/main.cpp
-    ../common/*.cpp
+# C++98互換
+set(CMAKE_CXX_STANDARD 98)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ソースファイル
+set(SOURCES
+  src/main.cpp
+  src/Win32App.cpp       # Win32App.cppを追加
+  src/Win32Window.cpp    # Win32Window.cppも追加
+  ../common/main.cpp
+  ../common/State.cpp
 )
 
-add_executable(Declara ${WIN32_SOURCES})
+add_executable(Declara WIN32 ${SOURCES})
 
 # 出力バイナリ名を明示
 set_target_properties(Declara PROPERTIES OUTPUT_NAME "Declara")

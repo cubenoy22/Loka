@@ -2,7 +2,6 @@
 #define DECLARA_PAGE_HPP
 
 #include "Property.hpp"
-#include "Transaction.hpp"
 #include "Button.hpp"
 #include "Text.hpp"
 #include "TextInput.hpp"
@@ -48,7 +47,7 @@ class Page
 {
 public:
   Page(Window *hostWindow = 0)
-      : window_(hostWindow), transaction_() {}
+      : window_(hostWindow) {}
 
   virtual ~Page()
   {
@@ -69,14 +68,10 @@ public:
       components_[i]->render(renderer);
   }
 
-  // ページ内の Transaction を commit するラッパー
-  virtual bool commitTransaction() { return transaction_.commit(); }
-
   // buildは純粋仮想関数に
   virtual void build(PageBuilder &b) = 0;
 
 protected:
-  Transaction transaction_;
   std::vector<Component *> components_;
   Window *window_;
 };

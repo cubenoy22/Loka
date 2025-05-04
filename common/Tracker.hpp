@@ -6,10 +6,9 @@
 #include <map>
 #include <memory>
 #include <string>
+#include "BaseTypes.hpp"
 #include "ValueHolder.hpp"
 
-class PropBase;
-class StateBase;
 class PagePropsBase;
 
 class Tracker
@@ -20,20 +19,37 @@ public:
   virtual void defer(std::function<void()> fn) = 0;
   virtual void markDirty(PropBase *prop) = 0;
   virtual bool end(PagePropsBase *props) = 0;
-  virtual void registerProp(PropBase *dependent, StateBase *dependency) = 0;
+  virtual void registerProp(BindablePropBase *dependent, StateBase *dependency) = 0; // PropBase*→BindablePropBase*に変更
+  virtual TrackerPhase phase() const = 0;                                            // 実行ステータス取得
   virtual ~Tracker() {}
 };
 
-// 標準実装例（骨格のみ）
 class StdTracker : public Tracker
 {
 public:
+  StdTracker(const std::vector<StateBase *> &states, const std::vector<BindablePropBase *> &props)
+  {
+    for (StateBase *s : states)
+    {
+      s->bindTracker(this);
+    }
+    for (BindablePropBase *prop : props)
+    {
+      std::vector<StateBase *> deps = prop->getDependencyStates();
+      for (StateBase *dep : deps)
+      {
+        registerProp(prop, dep);
+      }
+    }
+  }
+  StdTracker() {}
   void begin() override
   {
     dirtyProps.clear();
     deferred.clear();
     dryRunValues.clear();
     dryRunDirty.clear();
+    phase_ = TRACKER_PRECOMMIT;
   }
   void set(StateBase *s, const void *v) override
   {
@@ -82,24 +98,29 @@ public:
       if (s && vh)
         s->setValue(*vh);
     }
+    // commitフェーズ開始
+    phase_ = TRACKER_COMMIT;
+    // commit時: dirtyPropsが空ならtrue
+    // deferredHandlersを持つPropのcommitコールバックを発火するため、
+    // dirtyPropsが空でも全Propを走査する必要がある場合はここで実装
     // deferredを実行
     for (size_t i = 0; i < deferred.size(); ++i)
     {
       deferred[i]();
     }
+    phase_ = TRACKER_IDLE;
     deferred.clear();
     dryRunValues.clear();
     dryRunDirty.clear();
-    // 仮実装: dirtyPropsが空ならtrue
     return dirtyProps.empty();
   }
   // 依存元を明示的に受け取るregisterProp
-  void registerProp(PropBase *dependent, StateBase *dependency) override
+  void registerProp(BindablePropBase *dependent, StateBase *dependency) override
   {
     dependents[dependency].push_back(dependent);
   }
   // 複数依存元を一括登録できるAPIを追加
-  void registerProp(PropBase *dependent, const std::vector<StateBase *> &dependencies)
+  void registerProp(BindablePropBase *dependent, const std::vector<StateBase *> &dependencies)
   {
     for (size_t i = 0; i < dependencies.size(); ++i)
     {
@@ -122,6 +143,7 @@ public:
     }
     return false;
   }
+  TrackerPhase phase() const { return phase_; }
   ~StdTracker() {}
 
 private:
@@ -129,14 +151,17 @@ private:
   std::vector<std::function<void()>> deferred;
   std::map<StateBase *, std::unique_ptr<ValueHolderBase>> dryRunValues; // 型安全な仮状態
   std::map<PropBase *, bool> dryRunDirty;                               // 仮dirtyフラグ
-  std::map<StateBase *, std::vector<PropBase *>> dependents;            // 依存グラフ
+  std::map<StateBase *, std::vector<BindablePropBase *>> dependents;    // 依存グラフ型をBindablePropBase*に変更
+  TrackerPhase phase_ = TRACKER_IDLE;
   void markDependentsDirty(StateBase *s)
   {
     // Stateの依存Propをdirtyにする
-    std::vector<PropBase *> &deps = dependents[s];
+    std::vector<BindablePropBase *> &deps = dependents[s];
     for (size_t i = 0; i < deps.size(); ++i)
     {
-      markDirty(deps[i]);
+      // BindablePropBase* → PropBase* へのキャスト
+      PropBase *prop = static_cast<PropBase *>(deps[i]);
+      markDirty(prop);
     }
   }
 };

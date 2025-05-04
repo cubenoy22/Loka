@@ -3,9 +3,9 @@
 
 #include "Property.hpp"
 
-// PropBase* から安全にbool値を取得するユーティリティ関数
+// BindablePropBase* から安全にbool値を取得するユーティリティ関数
 // StaticProp<bool>やDerivedProp<bool, S>なら get()、それ以外は true を返す（デフォルト有効）
-inline bool getBoolProp(PropBase *prop)
+inline bool getBoolProp(BindablePropBase *prop)
 {
   // StaticProp<bool>
   StaticProp<bool> *s = dynamic_cast<StaticProp<bool> *>(prop);

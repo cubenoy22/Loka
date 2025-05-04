@@ -38,10 +38,7 @@ public:
     if (page_)
     {
       page_->buildContext();
-      if (page_->commitTransaction())
-      {
-        page_->renderAll(renderer_);
-      }
+      page_->renderAll(renderer_);
     }
   }
   Renderer *renderer() const { return renderer_; }

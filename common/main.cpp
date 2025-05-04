@@ -1,24 +1,33 @@
-#include "Page.hpp"
+#include "Property.hpp" // 基本クラスを含むヘッダを先に
+#include "Tracker.hpp"  // 次にTrackerを含むヘッダ
+#include "Page.hpp"     // より詳細なコンポーネント
 #include "Button.hpp"
 #include "Renderer.hpp"
 #include "App.hpp"
-#include "Property.hpp"
-#include "Tracker.hpp"
 #include <string>
 #include <iostream>
 
 // C++98互換: 2倍値計算用のグローバル関数
 static int doubleFn(const int &v) { return v * 2; }
 
+// StaticPropのグローバルインスタンス
+StaticProp<bool> TRUE(true);
+StaticProp<bool> FALSE(false);
+
 class FormPage : public Page
 {
 public:
-  FormPage() : Page(), name(&transaction_, ""), isValid(&transaction_, &name, &FormPage::evaluateLength) {}
+  FormPage()
+      : Page(),
+        name(""),
+        isValid(&name, &FormPage::evaluateLength),
+        tracker({&name}, {&isValid}) {}
   static bool evaluateLength(const std::string &s);
   static void onSendClick();
   void build(PageBuilder &b);
   State<std::string> name;
   DerivedProp<bool, std::string> isValid;
+  StdTracker tracker;
 };
 bool FormPage::evaluateLength(const std::string &s) { return s.length() >= 3; }
 void FormPage::onSendClick() {}
@@ -30,35 +39,77 @@ void FormPage::build(PageBuilder &b)
 }
 
 // --- BMICalcPage: BMI計算ページの例 ---
-// convertablestate.md方針に従い、ConvertableState廃止＋DerivedPropで整理
-static double strToDouble(const std::string &s) { return atof(s.c_str()); }
-static std::string doubleToStr(const double &v)
-{
-  char buf[32];
-  sprintf(buf, "%.2f", v);
-  return std::string(buf);
-}
-
 class BMICalcPage : public Page
 {
 public:
   BMICalcPage()
       : Page(),
-        heightStr(&transaction_, "170.0"),
-        weightStr(&transaction_, "60.0"),
-        height(&transaction_, &heightStr, strToDouble),
-        weight(&transaction_, &weightStr, strToDouble),
-        bmi(&transaction_, &height, BMICalcPage::calcBMI) {}
-
-  static double calcBMI(const double &h)
+        heightStr("170.0"),
+        weightStr("60.0"),
+        height(&heightStr, strToDouble),
+        weight(&weightStr, strToDouble),
+        // BMIPropStructを使用して、複数引数から計算
+        bmi({&heightStr, &weightStr}, BMIMultiArgCalcBMI),
+        tracker({&heightStr, &weightStr}, {&height, &weight, &bmi})
   {
-    // 仮: 体重は固定値で
-    double w = 60.0;
+  }
+
+  static double strToDouble(const std::string &s) { return atof(s.c_str()); }
+  static std::string doubleToStr(const double &v)
+  {
+    char buf[32];
+    sprintf(buf, "%.2f", v);
+    return std::string(buf);
+  }
+
+  // 複数引数を持つ構造体への変換関数
+  struct BMIArgs
+  {
+    std::string heightStr;
+    std::string weightStr;
+  };
+
+  // DerivedPropStructのfillStruct特殊化
+  class BMIPropStruct : public DerivedPropStruct<double, BMIArgs>
+  {
+  public:
+    BMIPropStruct(const std::vector<StateBase *> &states, EvalFn eval)
+        : DerivedPropStruct<double, BMIArgs>(states, eval),
+          heightStrState((State<std::string> *)states[0]),
+          weightStrState((State<std::string> *)states[1]) {}
+
+  protected:
+    BMIArgs getStruct() const override
+    {
+      BMIArgs args;
+      args.heightStr = heightStrState->get();
+      args.weightStr = weightStrState->get();
+      return args;
+    }
+
+  private:
+    State<std::string> *heightStrState;
+    State<std::string> *weightStrState;
+  };
+
+  static double BMIMultiArgCalcBMI(const BMIArgs &args)
+  {
+    double h = strToDouble(args.heightStr);
+    double w = strToDouble(args.weightStr);
     if (h <= 0)
       return 0.0;
     double m = h / 100.0;
     return w / (m * m);
   }
+
+  static double calcBMI(const double &h, const double &w)
+  {
+    if (h <= 0)
+      return 0.0;
+    double m = h / 100.0;
+    return w / (m * m);
+  }
+
   void build(PageBuilder &b)
   {
     b.Text("身長(cm)を入力してください");
@@ -72,7 +123,8 @@ public:
   State<std::string> weightStr;
   DerivedProp<double, std::string> height;
   DerivedProp<double, std::string> weight;
-  DerivedProp<double, double> bmi;
+  BMIPropStruct bmi; // 型を変更: 特定の実装クラスに
+  StdTracker tracker;
 };
 
 class MyRenderer : public Renderer
@@ -80,35 +132,17 @@ class MyRenderer : public Renderer
   // ...仮実装...
 };
 
-void testStatePolymorphism()
-{
-  State<int> s_int(nullptr, 42);
-  State<bool> s_bool(nullptr, true);
-  State<std::string> s_str(nullptr, "senko");
-  struct MyUrl
-  {
-    std::string url;
-    MyUrl(const std::string &u) : url(u) {}
-  };
-  State<MyUrl> s_url(nullptr, MyUrl("https://senko.dev"));
-
-  // 型消去で値をセット
-  s_int.setValue(ValueHolder<int>(123));
-  s_bool.setValue(ValueHolder<bool>(false));
-  s_str.setValue(ValueHolder<std::string>("もふもふ"));
-  s_url.setValue(ValueHolder<MyUrl>(MyUrl("https://mofmof.ai")));
-
-  std::cout << "int: " << s_int.get() << std::endl;
-  std::cout << "bool: " << (s_bool.get() ? "true" : "false") << std::endl;
-  std::cout << "str: " << s_str.get() << std::endl;
-  std::cout << "url: " << s_url.get().url << std::endl;
-}
-
 void testTrackerPropagation()
 {
-  StdTracker tracker;
-  State<int> s_int(NULL, 10);
-  DerivedProp<int, int> doubleProp(&tracker, &s_int, doubleFn);
+  // 新設計に合わせて修正：先にState/Propを作成
+  State<int> s_int(10);
+  DerivedProp<int, int> doubleProp(&s_int, doubleFn);
+
+  // 最後にStateとPropを配列でTrackerに渡す
+  std::vector<StateBase *> states = {&s_int};
+  std::vector<BindablePropBase *> props = {&doubleProp};
+  StdTracker tracker(states, props);
+
   struct DoublePropCallback
   {
     static void onChange(int v, void *)
@@ -117,16 +151,22 @@ void testTrackerPropagation()
     }
   };
   doubleProp.bind(DoublePropCallback::onChange, NULL, false);
-  s_int.setValue(21);
+  s_int.set(21);
   std::cout << "s_int: " << s_int.get() << std::endl;
   std::cout << "doubleProp: " << doubleProp.get() << std::endl;
 }
 
 void testDeferredSideEffect()
 {
-  StdTracker tracker;
-  State<int> s_int(NULL, 5);
-  DerivedProp<int, int> doubleProp(&tracker, &s_int, doubleFn);
+  // 新設計に合わせて修正
+  State<int> s_int(5);
+  DerivedProp<int, int> doubleProp(&s_int, doubleFn);
+
+  // StateとPropを配列でTrackerに渡す
+  std::vector<StateBase *> states = {&s_int};
+  std::vector<BindablePropBase *> props = {&doubleProp};
+  StdTracker tracker(states, props);
+
   struct DeferredCallback
   {
     static void onDeferred()
@@ -135,7 +175,7 @@ void testDeferredSideEffect()
     }
   };
   tracker.defer(DeferredCallback::onDeferred);
-  s_int.setValue(7);
+  s_int.set(7);
   std::cout << "s_int: " << s_int.get() << std::endl;
   std::cout << "doubleProp: " << doubleProp.get() << std::endl;
 }
@@ -143,9 +183,15 @@ void testDeferredSideEffect()
 // TextInputのonChange模擬イベント
 void testTextInputOnChange()
 {
-  StdTracker tracker;
-  State<std::string> name(&tracker, "");
-  DerivedProp<bool, std::string> isValid(&tracker, &name, FormPage::evaluateLength);
+  // 新設計に合わせて修正
+  State<std::string> name("");
+  DerivedProp<bool, std::string> isValid(&name, FormPage::evaluateLength);
+
+  // StateとPropを配列でTrackerに渡す
+  std::vector<StateBase *> states = {&name};
+  std::vector<BindablePropBase *> props = {&isValid};
+  StdTracker tracker(states, props);
+
   struct ValidCallback
   {
     static void onChange(bool v, void *)
@@ -176,10 +222,16 @@ struct AutoTransactionGuard
 // 複数変更をまとめてコミットする例
 void testBatchTransaction()
 {
-  StdTracker tracker;
-  State<int> s1(NULL, 1);
-  State<int> s2(NULL, 2);
-  DerivedProp<int, int> sumProp(&tracker, &s1, doubleFn); // s1のみ依存例
+  // 新設計に合わせて修正
+  State<int> s1(1);
+  State<int> s2(2);
+  DerivedProp<int, int> sumProp(&s1, doubleFn); // s1のみ依存例
+
+  // StateとPropを配列でTrackerに渡す
+  std::vector<StateBase *> states = {&s1, &s2};
+  std::vector<BindablePropBase *> props = {&sumProp};
+  StdTracker tracker(states, props);
+
   tracker.begin();
   s1.set(10);
   s2.set(20);
@@ -190,9 +242,15 @@ void testBatchTransaction()
 // RAIIスコープでのトランザクション例
 void testRAIITransaction()
 {
-  StdTracker tracker;
-  State<int> s(NULL, 0);
-  DerivedProp<int, int> doubleProp(&tracker, &s, doubleFn);
+  // 新設計に合わせて修正
+  State<int> s(0);
+  DerivedProp<int, int> doubleProp(&s, doubleFn);
+
+  // StateとPropを配列でTrackerに渡す
+  std::vector<StateBase *> states = {&s};
+  std::vector<BindablePropBase *> props = {&doubleProp};
+  StdTracker tracker(states, props);
+
   {
     AutoTransactionGuard _(&tracker);
     s.set(50);
@@ -210,17 +268,20 @@ void testDerivedPropStruct()
     int age;
     bool agree;
   };
-  // State群
-  State<std::string> name(NULL, "");
-  State<std::string> email(NULL, "");
-  State<int> age(NULL, 0);
-  State<bool> agree(NULL, false);
+
+  // 新設計に合わせて修正：先にState/Propを作成
+  State<std::string> name("");
+  State<std::string> email("");
+  State<int> age(0);
+  State<bool> agree(false);
+
   // StateBase*配列
   std::vector<StateBase *> deps;
   deps.push_back(&name);
   deps.push_back(&email);
   deps.push_back(&age);
   deps.push_back(&agree);
+
   // 構造体に値を詰める関数（C++98:手動で）
   struct FormStructUtil
   {
@@ -234,17 +295,26 @@ void testDerivedPropStruct()
       return f;
     }
   };
-  // バリデーション関数
-  static bool validate(const FormInputs &f)
+
+  // バリデーション関数 - スタティック関数をローカルスコープで定義できないのでグローバルにする
+  struct FormValidator
   {
-    return !f.name.empty() && !f.email.empty() && f.age >= 18 && f.agree;
-  }
-  // DerivedPropStruct生成
+    static bool validate(const FormInputs &f)
+    {
+      return !f.name.empty() && !f.email.empty() && f.age >= 18 && f.agree;
+    }
+  };
+
+  // DerivedPropStruct生成（新設計：Trackerなし）
   class MyDerivedPropStruct : public DerivedPropStruct<bool, FormInputs>
   {
   public:
-    MyDerivedPropStruct(Tracker *t, const std::vector<StateBase *> &s)
-        : DerivedPropStruct<bool, FormInputs>(t, s, &validate), n((State<std::string> *)s[0]), e((State<std::string> *)s[1]), a((State<int> *)s[2]), g((State<bool> *)s[3]) {}
+    MyDerivedPropStruct(const std::vector<StateBase *> &s)
+        : DerivedPropStruct<bool, FormInputs>(s, &FormValidator::validate),
+          n((State<std::string> *)s[0]),
+          e((State<std::string> *)s[1]),
+          a((State<int> *)s[2]),
+          g((State<bool> *)s[3]) {}
 
   protected:
     FormInputs getStruct() const
@@ -256,13 +326,20 @@ void testDerivedPropStruct()
     State<int> *a;
     State<bool> *g;
   };
-  StdTracker tracker;
-  MyDerivedPropStruct isValid(&tracker, deps);
+
+  // 新設計のMyDerivedPropStructを生成（Trackerなし）
+  MyDerivedPropStruct isValid(deps);
+
+  // Trackerを初期化しdepsとisValidをbind
+  std::vector<BindablePropBase *> props = {&isValid};
+  StdTracker tracker(deps, props);
+
   struct Callback
   {
     static void onChange(bool v, void *) { std::cout << "[Struct] isValid: " << (v ? "OK" : "NG") << std::endl; }
   };
   isValid.bind(Callback::onChange, NULL, false);
+
   // 値を変えてみる
   name.set("senko");
   email.set("");
@@ -275,41 +352,6 @@ void testDerivedPropStruct()
   agree.set(true);       // OK
 }
 
-// --- テンプレート量産方式（DerivedProp2/3）サンプル ---
-void testDerivedProp2()
-{
-  State<int> a(NULL, 1);
-  State<int> b(NULL, 2);
-  static int sumFn(const int &x, const int &y) { return x + y; }
-  DerivedProp2<int, int, int> sumProp(NULL, &a, &b, sumFn);
-  struct Callback
-  {
-    static void onChange(int v, void *) { std::cout << "[Prop2] sum: " << v << std::endl; }
-  };
-  sumProp.bind(Callback::onChange, NULL, false);
-  a.set(10);
-  b.set(20);
-  a.set(5);
-  b.set(7);
-}
-void testDerivedProp3()
-{
-  State<int> x(NULL, 1), y(NULL, 2), z(NULL, 3);
-  static int prodFn(const int &a, const int &b, const int &c) { return a * b * c; }
-  DerivedProp3<int, int, int, int> prodProp(NULL, &x, &y, &z, prodFn);
-  struct Callback
-  {
-    static void onChange(int v, void *) { std::cout << "[Prop3] prod: " << v << std::endl; }
-  };
-  prodProp.bind(Callback::onChange, NULL, false);
-  x.set(2);
-  y.set(3);
-  z.set(4);
-  x.set(1);
-  y.set(1);
-  z.set(1);
-}
-
 int main()
 {
   MyRenderer renderer;
@@ -318,14 +360,11 @@ int main()
   window.setPage(&page);
   App app(&window);
   app.run();
-  testStatePolymorphism();
   testTrackerPropagation();
   testDeferredSideEffect();
   testBatchTransaction();
   testRAIITransaction();
   testTextInputOnChange();
   testDerivedPropStruct();
-  testDerivedProp2();
-  testDerivedProp3();
   return 0;
 }

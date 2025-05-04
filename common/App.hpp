@@ -1,7 +1,6 @@
 #ifndef DECLARA_APP_HPP
 #define DECLARA_APP_HPP
 
-#include "Transaction.hpp"
 #include "Property.hpp"
 #include <string>
 #include "Window.hpp"
@@ -17,7 +16,7 @@ class PageContext;
 class App
 {
 public:
-  App(Window* w) : window(w) {}
+  App(Window *w) : window(w) {}
   // 必要ならウィンドウ管理APIのみ残す
   virtual void addWindow(Page *page, const WindowOptions &options)
   {
@@ -28,16 +27,18 @@ public:
     //     w->setPage(page);
     //     windows.push_back(w);
   }
-  void run() {
+  void run()
+  {
     // 必要に応じて初回描画
     window->rerender();
-    while (true) window->renderer()->processEvents();
+    while (true)
+      window->renderer()->processEvents();
   }
 
 protected:
   std::vector<Window *> windows; // 複数ウィンドウ対応用
 private:
-  Window* window;
+  Window *window;
 };
 
 #endif // DECLARA_APP_HPP

@@ -3,35 +3,28 @@
 
 #include <string>
 #include <vector>
-#include "State.hpp"
+#include "BaseTypes.hpp"
+#include "State.hpp"   // PropBaseの定義はState.hppにあるので、それを使用
+#include "Tracker.hpp" // BindablePropBaseの定義を含むヘッダをインクルード
 
-class Tracker;
+// ここではPropBaseを再定義せず、State.hppから継承する
+// PropBaseはすでにState.hppで定義されている
 
-class PropBase
-{
-public:
-  virtual bool recompute() = 0;
-  virtual ~PropBase() {}
-};
-
-enum PropPriority
-{
-  PROP_PRIORITY_DEFER = -1,
-  PROP_PRIORITY_NORMAL = 0,
-  PROP_PRIORITY_HIGH = 100
-};
+// PropPriorityはBaseTypes.hppに移動済み
 
 // 型安全なbind/unbindを持つ抽象基底クラス
 // PropBaseを継承し、T型のOnChangeFn/void* userDataで統一
 // C++98対応
 
 template <typename T>
-class BindableProp : public PropBase
+class BindableProp : public BindablePropBase
 {
 public:
   typedef void (*OnChangeFn)(T, void *);
   virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = PROP_PRIORITY_NORMAL) = 0;
   virtual void unbind(OnChangeFn cb, void *userData) = 0;
+  virtual void deferBind(OnChangeFn cb, void *userData, int priority = PROP_PRIORITY_NORMAL) = 0;
+  virtual void deferUnbind(OnChangeFn cb, void *userData) = 0; // 追加：deferUnbind仮想関数
 };
 
 template <typename T, typename S>
@@ -46,52 +39,34 @@ public:
     void *userData;
     bool callOnce;
     int priority;
+
+    // コンストラクタを追加して初期化を簡略化
+    Handler() : fn(NULL), userData(NULL), callOnce(false), priority(0) {}
+
     bool operator==(const Handler &other) const
     {
       return fn == other.fn && userData == other.userData;
     }
   };
   std::vector<Handler> handlers;
+  std::vector<Handler> deferredHandlers;
 
-  DerivedProp(Tracker *tracker, State<S> *state, EvalFn eval)
-      : tracker_(tracker), source(state), evalFn(eval)
+  DerivedProp(State<S> *state, EvalFn eval)
+      : source(state), evalFn(eval)
   {
     cached = eval(source->get());
-    if (tracker_ && source)
-      tracker_->registerProp(this, source); // 依存元StateをTrackerへ登録
   }
 
-  // 複数依存元対応のコンストラクタ
-  DerivedProp(Tracker *tracker, const std::vector<State<S> *> &states, EvalFn eval)
-      : tracker_(tracker), source(states.empty() ? 0 : states[0]), evalFn(eval)
+  DerivedProp(const std::vector<State<S> *> &states, EvalFn eval)
+      : source(states.empty() ? 0 : states[0]), evalFn(eval)
   {
-    if (tracker_ && !states.empty())
-    {
-      std::vector<StateBase *> deps;
-      for (size_t i = 0; i < states.size(); ++i)
-      {
-        deps.push_back(states[i]);
-      }
-      tracker_->registerProp(this, deps);
-    }
     if (source)
       cached = eval(source->get());
   }
 
   bool recompute()
   {
-    T newVal;
-    // dryRun中ならTrackerから仮値を取得して評価
-    if (tracker_ && tracker_->getDryRunValue(source, newVal))
-    {
-      // 仮値で評価
-      newVal = evalFn(newVal);
-    }
-    else
-    {
-      // 通常のget()で評価
-      newVal = evalFn(source->get());
-    }
+    T newVal = evalFn(source->get());
     if (newVal != cached)
     {
       cached = newVal;
@@ -107,14 +82,20 @@ public:
           ++i;
         }
       }
+      // commitフェーズ時のみdeferredHandlersを発火
+      // (Trackerの管理下で明示的に呼ぶ設計に変更)
       return true;
     }
     return false;
   }
   void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = PROP_PRIORITY_NORMAL)
   {
-    Handler h = {cb, userData, callOnce, priority};
-    // priority降順で挿入
+    Handler h;
+    h.fn = cb;
+    h.userData = userData;
+    h.callOnce = callOnce;
+    h.priority = priority;
+
     std::vector<Handler>::iterator it = handlers.begin();
     for (; it != handlers.end(); ++it)
     {
@@ -131,7 +112,12 @@ public:
   }
   void unbind(OnChangeFn cb, void *userData)
   {
-    Handler target{cb, userData, false, 0};
+    Handler target;
+    target.fn = cb;
+    target.userData = userData;
+    target.callOnce = false;
+    target.priority = 0;
+
     for (size_t i = 0; i < handlers.size(); ++i)
     {
       if (handlers[i] == target)
@@ -141,10 +127,49 @@ public:
       }
     }
   }
+  void deferBind(OnChangeFn cb, void *userData, int priority = PROP_PRIORITY_NORMAL)
+  {
+    Handler h;
+    h.fn = cb;
+    h.userData = userData;
+    h.callOnce = false;
+    h.priority = priority;
+
+    std::vector<Handler>::iterator it = deferredHandlers.begin();
+    for (; it != deferredHandlers.end(); ++it)
+    {
+      if (priority > it->priority)
+        break;
+    }
+    deferredHandlers.insert(it, h);
+  }
+  void deferUnbind(OnChangeFn cb, void *userData)
+  {
+    Handler target;
+    target.fn = cb;
+    target.userData = userData;
+    target.callOnce = false;
+    target.priority = 0;
+
+    for (size_t i = 0; i < deferredHandlers.size(); ++i)
+    {
+      if (deferredHandlers[i] == target)
+      {
+        deferredHandlers.erase(deferredHandlers.begin() + i);
+        break;
+      }
+    }
+  }
   T get() const { return cached; }
+  std::vector<StateBase *> getDependencyStates() const override
+  {
+    std::vector<StateBase *> deps;
+    if (source)
+      deps.push_back(source);
+    return deps;
+  }
 
 private:
-  Tracker *tracker_;
   State<S> *source;
   EvalFn evalFn;
   T cached;
@@ -164,10 +189,26 @@ public:
     if (callImmediately && cb)
     {
       cb(value, userData);
-      // callOnce==trueでも即時コールのみ
     }
   }
   void unbind(OnChangeFn cb, void *userData)
+  {
+    // 何もしない
+  }
+
+  // BindablePropBaseから継承した純粋仮想関数の実装
+  std::vector<StateBase *> getDependencyStates() const override
+  {
+    // StaticPropは依存を持たないので空を返す
+    return std::vector<StateBase *>();
+  }
+
+  // BindableProp<T>から継承した純粋仮想関数の実装
+  void deferBind(OnChangeFn cb, void *userData, int priority = PROP_PRIORITY_NORMAL) override
+  {
+    // StaticPropは値が変わらないので何もしない
+  }
+  void deferUnbind(OnChangeFn cb, void *userData) override
   {
     // 何もしない
   }
@@ -176,8 +217,10 @@ private:
   T value;
 };
 
-extern StaticProp<bool> TRUE;
-extern StaticProp<bool> FALSE;
+// TRUEとFALSEはmain.cppで定義されている
+// extern宣言をコメントアウトして問題を回避
+// extern StaticProp<bool> TRUE;
+// extern StaticProp<bool> FALSE;
 
 // --- 構造体まとめ方式: 汎用複数依存元 DerivedPropStruct ---
 template <typename T, typename StructType>
@@ -185,6 +228,8 @@ class DerivedPropStruct : public BindableProp<T>
 {
 public:
   typedef T (*EvalFn)(const StructType &);
+
+  // 旧設計（Tracker*受け取り）
   DerivedPropStruct(Tracker *tracker, const std::vector<StateBase *> &states, EvalFn eval)
       : tracker_(tracker), states_(states), evalFn_(eval)
   {
@@ -192,6 +237,14 @@ public:
       tracker_->registerProp(this, states_);
     cached_ = evalFn_(getStruct());
   }
+
+  // 新設計（Tracker*なし）
+  DerivedPropStruct(const std::vector<StateBase *> &states, EvalFn eval)
+      : tracker_(nullptr), states_(states), evalFn_(eval)
+  {
+    cached_ = evalFn_(getStruct());
+  }
+
   bool recompute()
   {
     T newVal = evalFn_(getStruct());
@@ -212,7 +265,12 @@ public:
   }
   void bind(typename BindableProp<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = PROP_PRIORITY_NORMAL)
   {
-    Handler h = {cb, userData, callOnce, priority};
+    Handler h;
+    h.fn = cb;
+    h.userData = userData;
+    h.callOnce = callOnce;
+    h.priority = priority;
+
     std::vector<Handler>::iterator it = handlers_.begin();
     for (; it != handlers_.end(); ++it)
       if (priority > it->priority)
@@ -227,7 +285,12 @@ public:
   }
   void unbind(typename BindableProp<T>::OnChangeFn cb, void *userData)
   {
-    Handler target = {cb, userData, false, 0};
+    Handler target;
+    target.fn = cb;
+    target.userData = userData;
+    target.callOnce = false;
+    target.priority = 0;
+
     for (size_t i = 0; i < handlers_.size(); ++i)
       if (handlers_[i] == target)
       {
@@ -235,7 +298,41 @@ public:
         break;
       }
   }
+  void deferBind(typename BindableProp<T>::OnChangeFn cb, void *userData, int priority = PROP_PRIORITY_NORMAL)
+  {
+    Handler h;
+    h.fn = cb;
+    h.userData = userData;
+    h.callOnce = false;
+    h.priority = priority;
+
+    std::vector<Handler>::iterator it = deferredHandlers_.begin();
+    for (; it != deferredHandlers_.end(); ++it)
+      if (priority > it->priority)
+        break;
+    deferredHandlers_.insert(it, h);
+  }
+  void deferUnbind(typename BindableProp<T>::OnChangeFn cb, void *userData)
+  {
+    Handler target;
+    target.fn = cb;
+    target.userData = userData;
+    target.callOnce = false;
+    target.priority = 0;
+
+    for (size_t i = 0; i < deferredHandlers_.size(); ++i)
+      if (deferredHandlers_[i] == target)
+      {
+        deferredHandlers_.erase(deferredHandlers_.begin() + i);
+        break;
+      }
+  }
   T get() const { return cached_; }
+  std::vector<StateBase *> getDependencyStates() const override
+  {
+    // 全依存State配列を返す
+    return states_;
+  }
 
 private:
   struct Handler
@@ -244,186 +341,35 @@ private:
     void *userData;
     bool callOnce;
     int priority;
-    bool operator==(const Handler &other) const { return fn == other.fn && userData == other.userData; }
+
+    // コンストラクタを追加して初期化を簡略化
+    Handler() : fn(NULL), userData(NULL), callOnce(false), priority(0) {}
+
+    // 演算子==を定義
+    bool operator==(const Handler &other) const
+    {
+      return fn == other.fn && userData == other.userData;
+    }
   };
   Tracker *tracker_;
   std::vector<StateBase *> states_;
   EvalFn evalFn_;
   T cached_;
   std::vector<Handler> handlers_;
-  StructType getStruct() const
+  std::vector<Handler> deferredHandlers_;
+  virtual StructType getStruct() const
   {
     StructType s;
-    fillStruct(s, 0);
+    // テンプレート引数を明示的に指定
+    this->template fillStruct<0>(s, 0);
     return s;
   }
   // 構造体の各メンバにStateの値をセット（要: StructTypeにpublicメンバ）
-  template <int I = 0>
+  template <int I>
   void fillStruct(StructType &s, int idx) const
   {
     // デフォルト: ユーザーが明示的にspecializeする
   }
-};
-
-// --- テンプレート量産方式: DerivedProp2, DerivedProp3 ---
-template <typename T, typename S1, typename S2>
-class DerivedProp2 : public BindableProp<T>
-{
-public:
-  typedef T (*EvalFn)(const S1 &, const S2 &);
-  DerivedProp2(Tracker *tracker, State<S1> *s1, State<S2> *s2, EvalFn eval)
-      : tracker_(tracker), s1_(s1), s2_(s2), evalFn_(eval)
-  {
-    if (tracker_)
-    {
-      std::vector<StateBase *> deps;
-      deps.push_back(s1_);
-      deps.push_back(s2_);
-      tracker_->registerProp(this, deps);
-    }
-    cached_ = evalFn_(s1_->get(), s2_->get());
-  }
-  bool recompute()
-  {
-    T newVal = evalFn_(s1_->get(), s2_->get());
-    if (newVal != cached_)
-    {
-      cached_ = newVal;
-      for (size_t i = 0; i < handlers_.size();)
-      {
-        handlers_[i].fn(cached_, handlers_[i].userData);
-        if (handlers_[i].callOnce)
-          handlers_.erase(handlers_.begin() + i);
-        else
-          ++i;
-      }
-      return true;
-    }
-    return false;
-  }
-  void bind(typename BindableProp<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = PROP_PRIORITY_NORMAL)
-  {
-    Handler h = {cb, userData, callOnce, priority};
-    std::vector<Handler>::iterator it = handlers_.begin();
-    for (; it != handlers_.end(); ++it)
-      if (priority > it->priority)
-        break;
-    handlers_.insert(it, h);
-    if (callImmediately && cb)
-    {
-      cb(cached_, userData);
-      if (callOnce)
-        unbind(cb, userData);
-    }
-  }
-  void unbind(typename BindableProp<T>::OnChangeFn cb, void *userData)
-  {
-    Handler target = {cb, userData, false, 0};
-    for (size_t i = 0; i < handlers_.size(); ++i)
-      if (handlers_[i] == target)
-      {
-        handlers_.erase(handlers_.begin() + i);
-        break;
-      }
-  }
-  T get() const { return cached_; }
-
-private:
-  struct Handler
-  {
-    typename BindableProp<T>::OnChangeFn fn;
-    void *userData;
-    bool callOnce;
-    int priority;
-    bool operator==(const Handler &other) const { return fn == other.fn && userData == other.userData; }
-  };
-  Tracker *tracker_;
-  State<S1> *s1_;
-  State<S2> *s2_;
-  EvalFn evalFn_;
-  T cached_;
-  std::vector<Handler> handlers_;
-};
-
-template <typename T, typename S1, typename S2, typename S3>
-class DerivedProp3 : public BindableProp<T>
-{
-public:
-  typedef T (*EvalFn)(const S1 &, const S2 &, const S3 &);
-  DerivedProp3(Tracker *tracker, State<S1> *s1, State<S2> *s2, State<S3> *s3, EvalFn eval)
-      : tracker_(tracker), s1_(s1), s2_(s2), s3_(s3), evalFn_(eval)
-  {
-    if (tracker_)
-    {
-      std::vector<StateBase *> deps;
-      deps.push_back(s1_);
-      deps.push_back(s2_);
-      deps.push_back(s3_);
-      tracker_->registerProp(this, deps);
-    }
-    cached_ = evalFn_(s1_->get(), s2_->get(), s3_->get());
-  }
-  bool recompute()
-  {
-    T newVal = evalFn_(s1_->get(), s2_->get(), s3_->get());
-    if (newVal != cached_)
-    {
-      cached_ = newVal;
-      for (size_t i = 0; i < handlers_.size();)
-      {
-        handlers_[i].fn(cached_, handlers_[i].userData);
-        if (handlers_[i].callOnce)
-          handlers_.erase(handlers_.begin() + i);
-        else
-          ++i;
-      }
-      return true;
-    }
-    return false;
-  }
-  void bind(typename BindableProp<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = PROP_PRIORITY_NORMAL)
-  {
-    Handler h = {cb, userData, callOnce, priority};
-    std::vector<Handler>::iterator it = handlers_.begin();
-    for (; it != handlers_.end(); ++it)
-      if (priority > it->priority)
-        break;
-    handlers_.insert(it, h);
-    if (callImmediately && cb)
-    {
-      cb(cached_, userData);
-      if (callOnce)
-        unbind(cb, userData);
-    }
-  }
-  void unbind(typename BindableProp<T>::OnChangeFn cb, void *userData)
-  {
-    Handler target = {cb, userData, false, 0};
-    for (size_t i = 0; i < handlers_.size(); ++i)
-      if (handlers_[i] == target)
-      {
-        handlers_.erase(handlers_.begin() + i);
-        break;
-      }
-  }
-  T get() const { return cached_; }
-
-private:
-  struct Handler
-  {
-    typename BindableProp<T>::OnChangeFn fn;
-    void *userData;
-    bool callOnce;
-    int priority;
-    bool operator==(const Handler &other) const { return fn == other.fn && userData == other.userData; }
-  };
-  Tracker *tracker_;
-  State<S1> *s1_;
-  State<S2> *s2_;
-  State<S3> *s3_;
-  EvalFn evalFn_;
-  T cached_;
-  std::vector<Handler> handlers_;
 };
 
 #endif // DECLARA_PROPERTY_HPP
