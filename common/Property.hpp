@@ -52,17 +52,45 @@ public:
   };
   std::vector<Handler> handlers;
 
-  DerivedProp(Transaction *tx, State<S> *state, EvalFn eval)
-      : tx_(tx), source(state), evalFn(eval)
+  DerivedProp(Tracker *tracker, State<S> *state, EvalFn eval)
+      : tracker_(tracker), source(state), evalFn(eval)
   {
     cached = eval(source->get());
-    if (tx_)
-      tx_->registerProp(this);
+    if (tracker_ && source)
+      tracker_->registerProp(this, source); // 依存元StateをTrackerへ登録
+  }
+
+  // 複数依存元対応のコンストラクタ
+  DerivedProp(Tracker *tracker, const std::vector<State<S> *> &states, EvalFn eval)
+      : tracker_(tracker), source(states.empty() ? 0 : states[0]), evalFn(eval)
+  {
+    if (tracker_ && !states.empty())
+    {
+      std::vector<StateBase *> deps;
+      for (size_t i = 0; i < states.size(); ++i)
+      {
+        deps.push_back(states[i]);
+      }
+      tracker_->registerProp(this, deps);
+    }
+    if (source)
+      cached = eval(source->get());
   }
 
   bool recompute()
   {
-    T newVal = evalFn(source->get());
+    T newVal;
+    // dryRun中ならTrackerから仮値を取得して評価
+    if (tracker_ && tracker_->getDryRunValue(source, newVal))
+    {
+      // 仮値で評価
+      newVal = evalFn(newVal);
+    }
+    else
+    {
+      // 通常のget()で評価
+      newVal = evalFn(source->get());
+    }
     if (newVal != cached)
     {
       cached = newVal;
@@ -115,7 +143,7 @@ public:
   T get() const { return cached; }
 
 private:
-  Transaction *tx_;
+  Tracker *tracker_;
   State<S> *source;
   EvalFn evalFn;
   T cached;
