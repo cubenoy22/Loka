@@ -1,7 +1,6 @@
 #ifndef DECLARA_PAGE_HPP
 #define DECLARA_PAGE_HPP
 
-#include "App.hpp"
 #include "Property.hpp"
 #include "Transaction.hpp"
 #include "Button.hpp"
@@ -12,6 +11,38 @@
 
 class Window;
 class Renderer;
+
+class PageBuilder
+{
+public:
+  PageBuilder() {}
+  void Text(const std::string &text)
+  {
+    components.push_back(new TextComponent(text));
+  }
+  void TextInput(State<std::string> *state)
+  {
+    components.push_back(new TextInputComponent(state));
+  }
+  void Button(const ButtonOptions &opts)
+  {
+    components.push_back(new ButtonComponent(opts.label, opts.enabled, opts.onClick));
+  }
+  std::vector<Component *> build()
+  {
+    std::vector<Component *> tmp;
+    tmp.swap(components);
+    return tmp;
+  }
+  ~PageBuilder()
+  {
+    for (size_t i = 0; i < components.size(); ++i)
+      delete components[i];
+  }
+
+private:
+  std::vector<Component *> components;
+};
 
 class Page
 {
@@ -48,38 +79,6 @@ protected:
   Transaction transaction_;
   std::vector<Component *> components_;
   Window *window_;
-};
-
-class PageBuilder
-{
-public:
-  PageBuilder() {}
-  void Text(const std::string &text)
-  {
-    components.push_back(new TextComponent(text));
-  }
-  void TextInput(State<std::string> *state)
-  {
-    components.push_back(new TextInputComponent(state));
-  }
-  void Button(const ButtonOptions &opts)
-  {
-    components.push_back(new ButtonComponent(opts.label, opts.enabled, opts.onClick));
-  }
-  std::vector<Component *> build()
-  {
-    std::vector<Component *> tmp;
-    tmp.swap(components);
-    return tmp;
-  }
-  ~PageBuilder()
-  {
-    for (size_t i = 0; i < components.size(); ++i)
-      delete components[i];
-  }
-
-private:
-  std::vector<Component *> components;
 };
 
 #endif // DECLARA_PAGE_HPP

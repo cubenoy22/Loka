@@ -5,6 +5,8 @@
 #include "ValueHolder.hpp"
 #include <vector>
 
+class Transaction;
+
 class StateBase
 {
 public:

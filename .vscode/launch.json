@@ -12,30 +12,6 @@
       "environment": [],
       "console": "externalTerminal",
       "preLaunchTask": "Build (Native-Debug)"
-    },
-    {
-      "name": "Debug Declara (x64-Debug)",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/win32/build/x64/Debug/Declara.exe",
-      "args": [],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/win32/build/x64/Debug",
-      "environment": [],
-      "console": "externalTerminal",
-      "preLaunchTask": "Build (x64-Debug)"
-    },
-    {
-      "name": "Debug Declara (ARM64-Debug)",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/win32/build/ARM64/Debug/Declara.exe",
-      "args": [],
-      "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/win32/build/ARM64/Debug",
-      "environment": [],
-      "console": "externalTerminal",
-      "preLaunchTask": "Build (ARM64-Debug)"
     }
   ]
 }

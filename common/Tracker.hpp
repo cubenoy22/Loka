@@ -7,9 +7,8 @@
 #include <memory>
 #include <string>
 #include "ValueHolder.hpp"
-#include "Property.hpp"
 
-// 前方宣言
+class PropBase;
 class StateBase;
 class PagePropsBase;
 

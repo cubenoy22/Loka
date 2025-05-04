@@ -2,9 +2,12 @@
 #define DECLARA_WINDOW_HPP
 
 #include <string>
-#include "Property.hpp"
-#include "PropertyType.hpp"
 #include "Page.hpp"
+#include "Property.hpp"
+
+class Page;
+class Renderer;
+class PropBase;
 
 // WindowOptions: 動的タイトル対応・型安全な宣言的ウィンドウオプション
 struct WindowOptions
@@ -21,8 +24,6 @@ struct WindowOptions
   // 将来: setMinimizable(bool) など拡張可
 };
 
-// Window: 完全抽象ウィンドウ（Rendererバックエンドで実装）
-class Page;
 class Window
 {
 public:

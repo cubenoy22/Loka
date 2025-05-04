@@ -3,8 +3,9 @@
 
 #include <string>
 #include <vector>
-#include "Transaction.hpp"
 #include "State.hpp"
+
+class Tracker;
 
 class PropBase
 {

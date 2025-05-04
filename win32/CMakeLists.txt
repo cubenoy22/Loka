@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
-project(Declara LANGUAGES C)
+project(Declara LANGUAGES CXX)
 
 # ソース自動収集（main.c + 将来のcommon/*.c）
 file(GLOB WIN32_SOURCES
-    src/main.c
-    ../common/*.c
+    src/main.cpp
+    ../common/*.cpp
 )
 
 add_executable(Declara ${WIN32_SOURCES})
@@ -15,6 +15,7 @@ set_target_properties(Declara PROPERTIES OUTPUT_NAME "Declara")
 # Windows サブシステム指定（GUIアプリ用）
 if(MSVC)
     set_target_properties(Declara PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
+    target_compile_options(Declara PRIVATE /utf-8)
 endif()
 
 # インクルードパスにcommon/を追加

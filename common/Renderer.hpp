@@ -3,6 +3,8 @@
 
 #include <string>
 
+class Renderer;
+
 // Renderable: 描画可能なUI部品の抽象基底クラス
 class Renderable
 {
