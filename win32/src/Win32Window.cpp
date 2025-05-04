@@ -11,20 +11,17 @@ namespace
 Win32Window::Win32Window(Renderer *renderer, HWND hwnd)
     : Window(renderer), hwnd_(hwnd)
 {
-  // visibilityプロパティの変更を監視
-  // if (visibility->get())
-  // {
-  //   // C++98: static関数＋thisポインタ渡しでコールバック
-  //   visibility->bind(&Win32Window::VisibilityChangedThunk, this);
-  // }
+  // visibilityステートの変更を監視
+  // C++98: static関数＋thisポインタ渡しでコールバック（State対応）
+  visibility.bind(&Win32Window::VisibilityChangedThunk, this);
 }
 
-// static thunk for BindableProp<bool>::OnChangeFn
-void Win32Window::VisibilityChangedThunk(bool visible, void *userData)
+// static thunk for State<bool>::OnChangeFn
+void Win32Window::VisibilityChangedThunk(void *userData)
 {
   Win32Window *self = static_cast<Win32Window *>(userData);
   if (self)
-    self->onVisibilityChanged(visible);
+    self->onVisibilityChanged(self->visibility.get());
 }
 
 void Win32Window::onVisibilityChanged(bool visible)

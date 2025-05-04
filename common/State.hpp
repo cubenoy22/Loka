@@ -4,14 +4,8 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include "Tracker.hpp" // Trackerの定義を使うためにインクルード
 
-// TrackerのPhase定義
-enum TrackerPhase
-{
-  TRACKER_IDLE = 0,
-  TRACKER_PRECOMMIT = 1,
-  TRACKER_COMMIT = 2
-};
 // State系のbind/unbind等で使う優先度enum
 enum StatePriority
 {
@@ -173,10 +167,11 @@ public:
       dependencies.push_back(dep);
     this->value = evalFn();
   }
-  // setter完全禁止
-  void set(const T &) = delete;
-  void setValue(const T &) = delete;
-  void setValue(const ValueHolderBase &) = delete;
+  // setter完全禁止 - オーバーライドではなく隠蔽実装
+private:
+  // 親クラスを隠蔽、privateで空実装
+  void set(const T &v) override {}
+  void setValue(const T &v) override {}
 
   // 依存State列挙（Tracker等から呼ばれる）
   std::vector<StateBase *> getDependencyStates() const override

@@ -24,7 +24,7 @@ struct WindowOptions
 class Window
 {
 public:
-  // Initialize visibility pointer in the constructor initializer list
+  // Windowクラスのコンストラクタでvisibilityを適切に初期化
   Window(Renderer *renderer) : renderer_(renderer), page_(0), visibility(true) {}
   void setPage(Page *page)
   {
@@ -43,7 +43,7 @@ public:
   Page *page() const { return page_; }
 
   // visibility: ウィンドウの表示/非表示状態を表す共通プロパティ
-  State<bool> *visibility;
+  State<bool> visibility;
 
 private:
   Renderer *renderer_;

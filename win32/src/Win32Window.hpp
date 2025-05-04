@@ -27,8 +27,8 @@ protected:
 private:
   void createNativeWindow();
   void destroyNativeWindow();
-  void onVisibilityChanged(bool visible);                           // visibility変更時のコールバック
-  static void VisibilityChangedThunk(bool visible, void *userData); // BindableProp<bool>用thunk
+  void onVisibilityChanged(bool visible);             // visibility変更時のコールバック
+  static void VisibilityChangedThunk(void *userData); // State<bool>用thunk
   // 他にもWin32固有のメンバを追加可能
 };
 
