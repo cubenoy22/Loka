@@ -3,6 +3,7 @@
 
 #include "App.hpp"
 #include <windows.h>
+#include "Win32Window.hpp"
 
 class Win32App : public App
 {
@@ -13,6 +14,7 @@ public:
 private:
   HINSTANCE hInstance_;
   int nCmdShow_;
+  Win32Window *mainWindow_;
   // 必要に応じてHWNDやWindow管理メンバを追加
 };
 

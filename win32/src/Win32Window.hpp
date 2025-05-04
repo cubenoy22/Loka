@@ -14,13 +14,18 @@ public:
 
   HWND hwnd() const { return hwnd_; }
 
+  // --- 追加: Win32 WndProc ---
+  static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
   // 必要に応じてWindowの仮想関数をオーバーライド
   // 例:
   // void setPage(Page* page) override { /* TODO: 実装 */ }
   // void rerender() override { /* TODO: 実装 */ }
 
-private:
+protected:
   HWND hwnd_;
+
+private:
   void createNativeWindow();
   void destroyNativeWindow();
   void onVisibilityChanged(bool visible);                           // visibility変更時のコールバック
