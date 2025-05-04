@@ -200,6 +200,116 @@ void testRAIITransaction()
   std::cout << "[RAII] s=" << s.get() << ", doubleProp=" << doubleProp.get() << std::endl;
 }
 
+// --- 構造体まとめ方式（DerivedPropStruct）サンプル ---
+void testDerivedPropStruct()
+{
+  struct FormInputs
+  {
+    std::string name;
+    std::string email;
+    int age;
+    bool agree;
+  };
+  // State群
+  State<std::string> name(NULL, "");
+  State<std::string> email(NULL, "");
+  State<int> age(NULL, 0);
+  State<bool> agree(NULL, false);
+  // StateBase*配列
+  std::vector<StateBase *> deps;
+  deps.push_back(&name);
+  deps.push_back(&email);
+  deps.push_back(&age);
+  deps.push_back(&agree);
+  // 構造体に値を詰める関数（C++98:手動で）
+  struct FormStructUtil
+  {
+    static FormInputs make(const State<std::string> &n, const State<std::string> &e, const State<int> &a, const State<bool> &g)
+    {
+      FormInputs f;
+      f.name = n.get();
+      f.email = e.get();
+      f.age = a.get();
+      f.agree = g.get();
+      return f;
+    }
+  };
+  // バリデーション関数
+  static bool validate(const FormInputs &f)
+  {
+    return !f.name.empty() && !f.email.empty() && f.age >= 18 && f.agree;
+  }
+  // DerivedPropStruct生成
+  class MyDerivedPropStruct : public DerivedPropStruct<bool, FormInputs>
+  {
+  public:
+    MyDerivedPropStruct(Tracker *t, const std::vector<StateBase *> &s)
+        : DerivedPropStruct<bool, FormInputs>(t, s, &validate), n((State<std::string> *)s[0]), e((State<std::string> *)s[1]), a((State<int> *)s[2]), g((State<bool> *)s[3]) {}
+
+  protected:
+    FormInputs getStruct() const
+    {
+      return FormStructUtil::make(*n, *e, *a, *g);
+    }
+    State<std::string> *n;
+    State<std::string> *e;
+    State<int> *a;
+    State<bool> *g;
+  };
+  StdTracker tracker;
+  MyDerivedPropStruct isValid(&tracker, deps);
+  struct Callback
+  {
+    static void onChange(bool v, void *) { std::cout << "[Struct] isValid: " << (v ? "OK" : "NG") << std::endl; }
+  };
+  isValid.bind(Callback::onChange, NULL, false);
+  // 値を変えてみる
+  name.set("senko");
+  email.set("");
+  age.set(20);
+  agree.set(true);       // email空→NG
+  email.set("senko@ai"); // OK
+  age.set(15);           // NG
+  age.set(22);           // OK
+  agree.set(false);      // NG
+  agree.set(true);       // OK
+}
+
+// --- テンプレート量産方式（DerivedProp2/3）サンプル ---
+void testDerivedProp2()
+{
+  State<int> a(NULL, 1);
+  State<int> b(NULL, 2);
+  static int sumFn(const int &x, const int &y) { return x + y; }
+  DerivedProp2<int, int, int> sumProp(NULL, &a, &b, sumFn);
+  struct Callback
+  {
+    static void onChange(int v, void *) { std::cout << "[Prop2] sum: " << v << std::endl; }
+  };
+  sumProp.bind(Callback::onChange, NULL, false);
+  a.set(10);
+  b.set(20);
+  a.set(5);
+  b.set(7);
+}
+void testDerivedProp3()
+{
+  State<int> x(NULL, 1), y(NULL, 2), z(NULL, 3);
+  static int prodFn(const int &a, const int &b, const int &c) { return a * b * c; }
+  DerivedProp3<int, int, int, int> prodProp(NULL, &x, &y, &z, prodFn);
+  struct Callback
+  {
+    static void onChange(int v, void *) { std::cout << "[Prop3] prod: " << v << std::endl; }
+  };
+  prodProp.bind(Callback::onChange, NULL, false);
+  x.set(2);
+  y.set(3);
+  z.set(4);
+  x.set(1);
+  y.set(1);
+  z.set(1);
+}
+
 int main()
 {
   MyRenderer renderer;
@@ -214,5 +324,8 @@ int main()
   testBatchTransaction();
   testRAIITransaction();
   testTextInputOnChange();
+  testDerivedPropStruct();
+  testDerivedProp2();
+  testDerivedProp3();
   return 0;
 }
