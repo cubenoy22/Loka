@@ -11,7 +11,6 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-// コンストラクタを修正: Win32App*、Renderer*、titleStateを受け取り、Window基底に渡す
 Win32Window::Win32Window(Win32App *app, Renderer *renderer, const std::string &title, HWND hwnd)
     : Window(renderer, app, title), hwnd_(hwnd), app_(app)
 {
@@ -93,6 +92,11 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     {
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
+      // 背景を白で塗りつぶす
+      RECT rc;
+      GetClientRect(hwnd, &rc);
+      FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
+      // 既存の描画
       TextOutA(hdc, 20, 20, "Developer", 9);
       EndPaint(hwnd, &ps);
       break;
