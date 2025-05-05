@@ -28,9 +28,9 @@ class Window
 public:
   // Windowクラスのコンストラクタでvisibilityとtitleを初期化
   Window(Renderer *renderer, App *app, const std::string &title = "")
-      : renderer_(renderer), scene_(0), visibility(true), app_(app), title("")
+      : renderer_(renderer), scene_(0), visibility(false), app_(app), title("")
   {
-    std::vector<StateBase *> states = {&this->title, &visibility};
+    std::vector<StateBase *> states = {&this->title, &this->visibility};
     tracker_ = new StdTracker(states); // 監視対象Stateを渡して初期化
     this->title.set(title);
   }
