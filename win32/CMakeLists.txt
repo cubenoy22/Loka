@@ -15,14 +15,24 @@ set(SOURCES
   ../common/core/Tracker.cpp  # Tracker.cppをビルド対象に追加（core配下に変更）
 )
 
-add_executable(Declara WIN32 ${SOURCES})
+option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)
+if(USE_CONSOLE_SUBSYSTEM)
+  add_executable(Declara ${SOURCES})
+else()
+  add_executable(Declara WIN32 ${SOURCES})
+endif()
 
 # 出力バイナリ名を明示
 set_target_properties(Declara PROPERTIES OUTPUT_NAME "Declara")
 
 # Windows サブシステム指定（GUIアプリ用）
+option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)
 if(MSVC)
-    set_target_properties(Declara PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
+    if(USE_CONSOLE_SUBSYSTEM)
+        set_target_properties(Declara PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE")
+    else()
+        set_target_properties(Declara PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
+    endif()
     target_compile_options(Declara PRIVATE /utf-8)
 endif()
 

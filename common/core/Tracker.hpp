@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 // 必要な前方宣言
 class StateBase;
@@ -22,7 +23,6 @@ class Tracker
 {
 public:
   virtual void begin() = 0;
-  virtual void set(StateBase *s, const void *v) = 0; // 型安全なsetのみ
   virtual void defer(void (*fn)(void *), void *userData) = 0;
   virtual void markDirty(StateBase *state) = 0;
   virtual bool end() = 0;
@@ -37,7 +37,6 @@ public:
   StdTracker(const std::vector<StateBase *> &states);
   StdTracker();
   void begin() override;
-  void set(StateBase *s, const void *v) override;
   void defer(void (*fn)(void *), void *userData) override;
   void markDirty(StateBase *state) override;
   bool end() override;
@@ -50,6 +49,7 @@ private:
   std::vector<std::pair<void (*)(void *), void *>> deferred;
   std::map<StateBase *, std::vector<StateBase *>> dependents;
   TrackerPhase phase_;
+  std::unordered_set<StateBase *> visiting_; // 循環依存検出用
 };
 
 #endif // DECLARA_TRACKER_HPP

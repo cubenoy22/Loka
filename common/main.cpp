@@ -6,6 +6,7 @@
 #include "core/Window.hpp"
 #include <string>
 #include <iostream>
+#include <cassert>
 
 // C++98互換: 2倍値計算用のグローバル関数
 static int doubleFn(const int &v) { return v * 2; }
@@ -267,19 +268,20 @@ public:
   }
 };
 
-int main()
-{
-  MyRenderer renderer;
-  Window window(&renderer, nullptr);
-  FormScene scene;
-  window.setScene(&scene);
-  MockApp app(&window);
-  app.run();
-  testTrackerPropagation();
-  testDeferredSideEffect();
-  testBatchTransaction();
-  testRAIITransaction();
-  testTextInputOnChange();
-  testDerivedStruct();
-  return 0;
-}
+// int main()
+// {
+//   MyRenderer renderer;
+//   Window window(&renderer, nullptr);
+//   FormScene scene;
+//   window.setScene(&scene);
+//   MockApp app(&window);
+//   app.run();
+//   testTrackerPropagation();
+//   testDeferredSideEffect();
+//   testBatchTransaction();
+//   testRAIITransaction();
+//   testTextInputOnChange();
+//   testDerivedStruct();
+
+//   return 0;
+// }

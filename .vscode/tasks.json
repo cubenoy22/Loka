@@ -2,37 +2,70 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build (x64-Debug)",
+      "label": "Configure (Native-Debug-Console)",
       "type": "shell",
       "command": "cmake",
       "args": [
-        "--build",
-        "win32/build/x64"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
+        "-S",
+        "win32",
+        "-B",
+        "win32/build/native/Debug",
+        "-DUSE_CONSOLE_SUBSYSTEM=ON"
+      ]
     },
     {
-      "label": "Build (ARM64-Debug)",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "win32/build/ARM64"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Build (Native-Debug)",
+      "label": "Build (Native-Debug-Console)",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "win32/build/native/Debug"
       ],
-      "group": "build",
-      "problemMatcher": "$gcc"
+      "dependsOn": [
+        "Configure (Native-Debug-Console)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Configure (Native-Debug-GUI)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "win32",
+        "-B",
+        "win32/build/native/Debug",
+        "-DUSE_CONSOLE_SUBSYSTEM=OFF"
+      ]
+    },
+    {
+      "label": "Build (Native-Debug-GUI)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "win32/build/native/Debug"
+      ],
+      "dependsOn": [
+        "Configure (Native-Debug-GUI)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Config & Build (Native-Debug-GUI)",
+      "dependsOn": [
+        "Configure (Native-Debug-GUI)",
+        "Build (Native-Debug-GUI)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Config & Build (Native-Debug-Console)",
+      "dependsOn": [
+        "Configure (Native-Debug-Console)",
+        "Build (Native-Debug-Console)"
+      ],
+      "group": "build"
     }
   ]
 }

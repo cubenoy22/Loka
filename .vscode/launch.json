@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Declara (Native-Debug)",
+      "name": "Debug Declara (WinMain)",
       "type": "cppvsdbg",
       "request": "launch",
       "program": "${workspaceFolder}/win32/build/native/Debug/Declara.exe",
@@ -11,7 +11,19 @@
       "cwd": "${workspaceFolder}/win32/build/native/Debug",
       "environment": [],
       "console": "externalTerminal",
-      "preLaunchTask": "Build (Native-Debug)"
+      "preLaunchTask": "Build (Native-Debug-GUI)"
+    },
+    {
+      "name": "Debug Declara (main)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/win32/build/native/Debug/Declara.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/win32/build/native/Debug",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "Build (Native-Debug-Console)"
     }
   ]
 }

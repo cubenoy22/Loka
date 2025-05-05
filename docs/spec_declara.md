@@ -45,7 +45,8 @@
 
 ### Tracker
 
-- dirty な DerivedState を追跡し、2 フェーズ（dryRun→commit）で安全に伝播・副作用管理
+- 依存伝播の管理・制御を担う抽象クラス。自動伝播や循環依存検出の有無・方式は実装（例：StdTracker）ごとに異なる。
+- dirty な DerivedState を追跡し、2 フェーズ（dryRun→commit）で安全に伝播・副作用管理（※この挙動は StdTracker 等の実装例）。
 - Tracker::defer(fn)で副作用（UI 更新等）を commit 時に一括発火
 
 ---

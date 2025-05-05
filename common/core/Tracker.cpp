@@ -26,12 +26,6 @@ void StdTracker::begin()
   phase_ = TRACKER_PRECOMMIT;
 }
 
-void StdTracker::set(StateBase *s, const void *v)
-{
-  // 型安全なsetは利用側でキャストして呼ぶ
-  markDirty(s);
-}
-
 void StdTracker::defer(void (*fn)(void *), void *userData)
 {
   deferred.push_back(std::make_pair(fn, userData));
@@ -39,12 +33,33 @@ void StdTracker::defer(void (*fn)(void *), void *userData)
 
 void StdTracker::markDirty(StateBase *state)
 {
+  // 循環依存検出: すでに伝播中なら警告を出してreturn
+  if (visiting_.count(state))
+  {
+    fprintf(stderr, "[Declara] 循環依存検出: StateBase %p\n", (void *)state);
+    return;
+  }
+  visiting_.insert(state);
+  // すでにdirtyなら何もしない
   for (size_t i = 0; i < dirtyStates.size(); ++i)
   {
     if (dirtyStates[i] == state)
+    {
+      visiting_.erase(state);
       return;
+    }
   }
   dirtyStates.push_back(state);
+  // 依存先も再帰的にdirty化
+  auto it = dependents.find(state);
+  if (it != dependents.end())
+  {
+    for (auto dependent : it->second)
+    {
+      markDirty(dependent);
+    }
+  }
+  visiting_.erase(state);
 }
 
 bool StdTracker::end()
@@ -57,7 +72,19 @@ bool StdTracker::end()
     for (size_t i = 0; i < current.size(); ++i)
     {
       StateBase *s = current[i];
-      s->recompute();
+      bool changed = s->recompute();
+      if (changed)
+      {
+        // 依存先（dependents）をdirtyにする
+        auto it = dependents.find(s);
+        if (it != dependents.end())
+        {
+          for (auto dependent : it->second)
+          {
+            markDirty(dependent);
+          }
+        }
+      }
     }
   }
   phase_ = TRACKER_COMMIT;

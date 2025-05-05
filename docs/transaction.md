@@ -7,6 +7,8 @@
 
 ## 1. Tracker 抽象クラス構造
 
+Declara! の Tracker は「依存伝播の管理・制御を担う抽象クラス」です。自動伝播や循環依存検出の有無・方式は実装（例：StdTracker）ごとに異なります。
+
 ```cpp
 class Tracker {
 public:
@@ -24,6 +26,7 @@ public:
 
 ## 2. 標準実装例（StdTracker）
 
+- 依存グラフを管理し、push 型自動伝播・循環依存検出・2 フェーズ副作用管理などを実装
 - dirtyProps による再評価
 - deferSet による再帰的評価の保留
 - dryRun + commit
