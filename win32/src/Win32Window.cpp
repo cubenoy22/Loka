@@ -2,6 +2,7 @@
 #include "Win32App.hpp"
 #include <windows.h>
 #include <string>
+#include "core/Window.hpp"
 
 namespace
 {

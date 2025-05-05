@@ -2,8 +2,8 @@
 #define DECLARA_TEXT_HPP
 
 #include <string>
-#include "Renderer.hpp"
-#include "Button.hpp" // Component基底クラスを参照
+#include "app/Renderer.hpp"
+#include "app/Button.hpp" // Component基底クラスを参照
 
 class TextComponent : public Component
 {

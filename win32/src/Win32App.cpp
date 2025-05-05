@@ -2,6 +2,7 @@
 #include "Win32Window.hpp" // Win32Window クラスの定義をインクルード
 #include <windows.h>
 #include <stdexcept> // for std::runtime_error
+#include "core/App.hpp"
 
 // コンストラクタ: App(nullptr) は仮。mainWindow_は削除したので初期化不要
 Win32App::Win32App(HINSTANCE hInstance, int nCmdShow)

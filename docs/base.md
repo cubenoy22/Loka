@@ -23,6 +23,29 @@ project-root/
 
 ---
 
+## モジュール分割方針・common ディレクトリ構成
+
+Declara! の共通ロジックは、用途ごとに下記のように整理しています。
+
+- **DeclaraCore** ... App や State など宣言的 UI のコア機能
+- **DeclaraApp** ... デスクトップ・モバイルアプリ向け UI 部品
+- **DeclaraGame** ... 2D/3D ゲーム開発向け（現状は未実装）
+
+`common/` 配下の構成:
+
+```
+common/
+  core/   ... App, State, Scene, Tracker, Window などコア機能
+  app/    ... Button, Renderer, Text, TextInput などアプリ向け部品
+  game/   ... （将来追加予定）
+  その他  ... 上記に該当しない共通ファイル
+```
+
+- モジュール分割は今後さらに進める予定です。
+- 詳細な設計意図や API 例は docs/spec_declara.md も参照してください。
+
+---
+
 ## コア API 設計（State/DerivedState/MutableState/Tracker）
 
 - **State<T>**：値の保持のみ。不変。getter のみ。

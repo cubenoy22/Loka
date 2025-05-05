@@ -1,9 +1,9 @@
 #ifndef DECLARA_EMPTYCONTEXT_HPP
 #define DECLARA_EMPTYCONTEXT_HPP
 
-#include "Renderer.hpp"
+#include "app/Renderer.hpp"
 #include "PlatformContext.hpp"
-#include "Window.hpp"
+#include "core/Window.hpp"
 
 // EmptyRenderer: 何もしないRenderer 実装
 class EmptyRenderer : public Renderer

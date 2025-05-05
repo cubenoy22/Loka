@@ -1,9 +1,9 @@
 #ifndef DECLARA_SCENE_HPP
 #define DECLARA_SCENE_HPP
 
-#include "Button.hpp"
-#include "Text.hpp"
-#include "TextInput.hpp"
+#include "app/Button.hpp"
+#include "app/Text.hpp"
+#include "app/TextInput.hpp"
 #include <string>
 #include <vector>
 

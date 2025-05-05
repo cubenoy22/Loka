@@ -2,8 +2,8 @@
 #define DECLARA_BUTTON_HPP
 
 #include <string>
-#include "State.hpp"
-#include "Renderer.hpp"
+#include "core/State.hpp"
+#include "app/Renderer.hpp"
 
 // グローバル定数State（常に有効なボタン用）
 static State<bool> BUTTON_DEFAULT_ENABLED(true);

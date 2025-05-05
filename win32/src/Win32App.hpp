@@ -1,7 +1,7 @@
 #ifndef DECLARA_WIN32APP_HPP
 #define DECLARA_WIN32APP_HPP
 
-#include "App.hpp"
+#include "core/App.hpp"
 #include <windows.h>
 // #include "Win32Window.hpp" // Win32Window.hpp から Win32App を前方宣言したので、ここでは不要かも (循環参照防止)
 class Win32Window; // 前方宣言で十分

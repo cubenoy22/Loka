@@ -1,8 +1,8 @@
 #ifndef DECLARA_WIN32WINDOW_HPP
 #define DECLARA_WIN32WINDOW_HPP
 
-#include "Window.hpp"
-#include "Renderer.hpp"
+#include "core/Window.hpp"
+#include "app/Renderer.hpp"
 #include <windows.h>
 
 class Win32App;

@@ -1,9 +1,9 @@
-#include "Tracker.hpp" // 次にTrackerを含むヘッダ
-#include "Scene.hpp"
-#include "Button.hpp"
-#include "Renderer.hpp"
-#include "App.hpp"
-#include "Window.hpp"
+#include "core/Tracker.hpp"
+#include "core/Scene.hpp"
+#include "app/Button.hpp"
+#include "app/Renderer.hpp"
+#include "core/App.hpp"
+#include "core/Window.hpp"
 #include <string>
 #include <iostream>
 
