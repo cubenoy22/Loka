@@ -106,7 +106,9 @@ void testTrackerPropagation()
     }
   };
   doubleProp.bind((StateBase::OnChangeFn)DoublePropCallback::onChange, NULL, false);
+  tracker.begin();
   s_int.set(21);
+  tracker.end();
   std::cout << "s_int: " << s_int.get() << std::endl;
   std::cout << "doubleProp: " << doubleProp.get() << std::endl;
 }
@@ -125,7 +127,9 @@ void testDeferredSideEffect()
     }
   };
   tracker.defer(DeferredCallback::onDeferred, NULL);
+  tracker.begin();
   s_int.set(7);
+  tracker.end();
   std::cout << "s_int: " << s_int.get() << std::endl;
   std::cout << "doubleProp: " << doubleProp.get() << std::endl;
 }
@@ -208,7 +212,6 @@ void testDerivedStruct()
         FormInputs f = {name.get(), email.get(), age.get(), agree.get()};
         return !f.name.empty() && !f.email.empty() && f.age >= 18 && f.agree;
       });
-  // --- C++98対応: deps + isValid をまとめて渡す ---
   StateBase *deps2[5];
   for (size_t i = 0; i < deps.size(); ++i)
     deps2[i] = deps[i];
@@ -216,22 +219,32 @@ void testDerivedStruct()
   StdTracker tracker(std::vector<StateBase *>(deps2, deps2 + 5));
   struct Callback
   {
-    static void onChange(void *userData)
+    static void onChange(bool v, void *)
     {
-      DerivedState<bool> *isValid = (DerivedState<bool> *)userData;
-      std::cout << "[Struct] isValid: " << (isValid->get() ? "OK" : "NG") << std::endl;
+      std::cout << "[isValid] changed: " << v << std::endl;
     }
   };
-  isValid.bind(Callback::onChange, &isValid, false);
+  isValid.bind((StateBase::OnChangeFn)Callback::onChange, &isValid, false);
+  tracker.begin();
   name.set("senko");
   email.set("");
   age.set(20);
   agree.set(true);
+  tracker.end();
+
+  tracker.begin();
   email.set("senko@ai");
   age.set(15);
+  tracker.end();
+
+  tracker.begin();
   age.set(22);
   agree.set(false);
+  tracker.end();
+
+  tracker.begin();
   agree.set(true);
+  tracker.end();
 }
 
 // モック用の具象App実装
