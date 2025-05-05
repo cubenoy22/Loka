@@ -5,7 +5,7 @@
 Declara! は C++98 互換・型安全・明示的依存管理を重視した、現代的な宣言的 UI フレームワークです。
 
 - **コア設計**：State/MutableState/DerivedState/Tracker による状態管理・依存伝播
-- **UI 設計**：Page/Component/Renderer で構成される宣言的 UI
+- **UI 設計**：Scene/Component/Renderer で構成される宣言的 UI
 - **クロスプラットフォーム**：Win32, Mac OS Classic (Toolbox/CFM/PPC) など複数環境に対応
 
 ---
@@ -28,7 +28,7 @@ project-root/
 - **State<T>**：値の保持のみ。不変。getter のみ。
 - **MutableState<T>**：State<T>を継承。set()で値を変更可能。
 - **DerivedState<T>**：複数の State/DerivedState に依存し、EvalFn で値を自動合成・再計算。
-- **Tracker**：依存グラフ・伝播・副作用管理の司令塔。Page ごとに独立して持つ。
+- **Tracker**：依存グラフ・伝播・副作用管理の司令塔。Scene ごとに独立して持つ。
 
 ---
 

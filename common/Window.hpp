@@ -2,10 +2,10 @@
 #define DECLARA_WINDOW_HPP
 
 #include <string>
-#include "Page.hpp"
+#include "Scene.hpp"
 #include "State.hpp"
 
-class Page;
+class Scene;
 class Renderer;
 class App;
 
@@ -26,24 +26,24 @@ class Window
 {
 public:
   // Windowクラスのコンストラクタでvisibilityを適切に初期化
-  Window(Renderer *renderer, App *app) : renderer_(renderer), page_(0), visibility(true), app_(app) {}
+  Window(Renderer *renderer, App *app) : renderer_(renderer), scene_(0), visibility(true), app_(app) {}
   virtual ~Window() = default;
 
-  void setPage(Page *page)
+  void setScene(Scene *scene)
   {
-    page_ = page;
+    scene_ = scene;
     rerender();
   }
   void rerender()
   {
-    if (page_)
+    if (scene_)
     {
-      page_->buildContext();
-      page_->renderAll(renderer_);
+      scene_->buildContext();
+      scene_->renderAll(renderer_);
     }
   }
   Renderer *renderer() const { return renderer_; }
-  Page *page() const { return page_; }
+  Scene *scene() const { return scene_; }
 
   void setApp(App *app) { app_ = app; }
   App *getApp() const { return app_; }
@@ -53,7 +53,7 @@ public:
 
 private:
   Renderer *renderer_;
-  Page *page_;
+  Scene *scene_;
   App *app_; // App をポインタで保持
 };
 

@@ -2,7 +2,7 @@
 
 ## 1. アーキテクチャ概要
 
-- **宣言的 UI 設計**：Page/Component/Renderer で構成。状態（State/MutableState/DerivedState）を中心に UI を再構築。
+- **宣言的 UI 設計**：Scene/Component/Renderer で構成。状態（State/MutableState/DerivedState）を中心に UI を再構築。
 - **状態管理**：State<T>（不変）、MutableState<T>（set 可能）、DerivedState<T>（合成・再計算）
 - **依存伝播**：Tracker が依存グラフ・伝播・副作用を一元管理
 - **C++98 互換**：型安全・明示的依存管理・関数ポインタ/ファンクタで柔軟に対応
@@ -13,13 +13,13 @@
 
 ### App
 
-- UIContext と Page\*を保持
-- setPage(), rerender(), run() などで UI 全体を管理
+- UIContext と Scene\*を保持
+- setScene(), rerender(), run() などで UI 全体を管理
 
-### Page / PageBuilder
+### Scene / SceneBuilder
 
-- Page は build(PageBuilder&)で UI レイアウトを宣言
-- PageBuilder は Component\*インスタンスを所有し、renderAll()で Renderer に送信
+- Scene は build(SceneBuilder&)で UI レイアウトや世界の状態を宣言
+- SceneBuilder は Component\*インスタンスを所有し、renderAll()で Renderer に送信
 
 ### Component
 
@@ -53,16 +53,16 @@
 ## 4. サンプルコード
 
 ```cpp
-class FormPage : public Page {
+class FormScene : public Scene {
   MutableState<std::string> name;
   DerivedState<bool> isEnabled;
   Tracker tracker;
   // ...
-  FormPage() :
+  FormScene() :
     name(""),
     isEnabled({ &name }, [&]() { return name.get().length() >= 3; }),
     tracker({ &name }, { &isEnabled }) {}
-  void build(PageBuilder& b) {
+  void build(SceneBuilder& b) {
     b.TextInput(&name);
     b.Button(ButtonOptions().setLabel("送信").setEnabled(&isEnabled));
   }
@@ -73,7 +73,7 @@ class FormPage : public Page {
 
 ## 5. 設計思想まとめ
 
-- **Page 単位で状態・依存伝播・副作用を一元管理**
+- **Scene 単位で状態・依存伝播・副作用を一元管理**
 - **Tracker 差し替えで伝播戦略や履歴管理も柔軟**
 - **C++98 でも実現可能な最小構成**
 - **副作用や伝播の粒度を明示的に制御できる**

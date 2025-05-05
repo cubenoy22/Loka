@@ -14,7 +14,7 @@ public:
   virtual void set(StateBase* s, const Value& v) = 0;
   virtual void defer(std::function<void()> fn) = 0;
   virtual void markDirty(PropBase* prop) = 0;
-  virtual bool end(PagePropsBase* props) = 0;
+  virtual bool end(ScenePropsBase* props) = 0;
   virtual void registerProp(PropBase* p) = 0;
   virtual ~Tracker() {}
 };
@@ -39,7 +39,7 @@ class StdTracker : public Tracker {
 
 ## 3. 複数 Tracker の選択・差し替え
 
-- Page ごとに異なる Tracker（例: DirtyListTracker, HashTracker, RecordingTracker など）を選択可能
+- Scene ごとに異なる Tracker（例: DirtyListTracker, HashTracker, RecordingTracker など）を選択可能
 - 用途に応じて伝播戦略や履歴管理を柔軟に切り替えられる
 
 ---

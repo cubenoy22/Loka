@@ -1,5 +1,5 @@
 #include "Tracker.hpp" // 次にTrackerを含むヘッダ
-#include "Page.hpp"    // より詳細なコンポーネント
+#include "Scene.hpp"
 #include "Button.hpp"
 #include "Renderer.hpp"
 #include "App.hpp"
@@ -16,34 +16,34 @@ static int doubleFn(const int &v) { return v * 2; }
 State<bool> TRUE(true);
 State<bool> FALSE(false);
 
-class FormPage : public Page
+class FormScene : public Scene
 {
 public:
-  FormPage()
-      : Page(),
+  FormScene()
+      : Scene(),
         name(""),
         isValid({&name}, [&]()
                 { return name.get().length() >= 3; }),
         tracker({&name}, {&isValid}) {}
   static bool evaluateLength(const std::string &s) { return s.length() >= 3; }
   static void onSendClick() {}
-  void build(PageBuilder &b)
+  void build(SceneBuilder &b)
   {
     b.Text("名前を入力してください");
     b.TextInput(&name);
-    b.Button(ButtonOptions().setLabel("送信").setEnabled(&isValid).setOnClick(&FormPage::onSendClick));
+    b.Button(ButtonOptions().setLabel("送信").setEnabled(&isValid).setOnClick(&FormScene::onSendClick));
   }
   MutableState<std::string> name;
   DerivedState<bool> isValid;
   StdTracker tracker;
 };
 
-// --- BMICalcPage: BMI計算ページの例 ---
-class BMICalcPage : public Page
+// --- BMICalcScene: BMI計算シーンの例 ---
+class BMICalcScene : public Scene
 {
 public:
-  BMICalcPage()
-      : Page(),
+  BMICalcScene()
+      : Scene(),
         heightStr("170.0"),
         weightStr("60.0"),
         height({&heightStr}, [&]()
@@ -70,7 +70,7 @@ public:
     double m = h / 100.0;
     return w / (m * m);
   }
-  void build(PageBuilder &b)
+  void build(SceneBuilder &b)
   {
     b.Text("身長(cm)を入力してください");
     b.TextInput(&heightStr);
@@ -134,7 +134,7 @@ void testTextInputOnChange()
 {
   MutableState<std::string> name("");
   DerivedState<bool> isValid({&name}, [&]()
-                             { return FormPage::evaluateLength(name.get()); });
+                             { return FormScene::evaluateLength(name.get()); });
   StdTracker tracker({&name}, {&isValid});
   struct ValidCallback
   {
@@ -253,8 +253,8 @@ int main()
 {
   MyRenderer renderer;
   Window window(&renderer, nullptr);
-  FormPage page;
-  window.setPage(&page);
+  FormScene scene;
+  window.setScene(&scene);
   MockApp app(&window);
   app.run();
   testTrackerPropagation();
