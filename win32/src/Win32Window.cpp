@@ -16,7 +16,7 @@ Win32Window::Win32Window(Win32App *app, Renderer *renderer, const std::string &t
     : Window(renderer, app, title), hwnd_(hwnd), app_(app)
 {
   // visibilityステートの変更を監視
-  visibility.bind(&Win32Window::VisibilityChangedThunk, this);
+  this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);
   // Window::title自体の変更も監視
   this->title.deferBind(&Win32Window::TitleChangedThunk, this);
 }
@@ -126,21 +126,21 @@ void Win32Window::createNativeWindow()
   // --- タイトルをWindow::titleから取得 ---
   HWND hwnd = CreateWindowA(
       kWndClassName,
-      title.get().c_str(),
+      this->title.get().c_str(),
       WS_OVERLAPPEDWINDOW,
       100, 100, 320, 200,
       nullptr, nullptr, GetModuleHandle(nullptr),
       this);
   if (hwnd)
   {
-    hwnd_ = hwnd;
+    this->hwnd_ = hwnd;
     // --- 追加: ボタン生成 ---
-    buttonHwnd_ = CreateWindowA(
+    this->buttonHwnd_ = CreateWindowA(
         "BUTTON",
         "Click me!",
         WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
         50, 120, 200, 40, // x, y, width, height
-        hwnd_,
+        this->hwnd_,
         (HMENU)1001, // コントロールID
         GetModuleHandle(nullptr),
         NULL);
@@ -151,9 +151,9 @@ void Win32Window::createNativeWindow()
 
 void Win32Window::destroyNativeWindow()
 {
-  if (hwnd_)
+  if (this->hwnd_)
   {
-    DestroyWindow(hwnd_);
-    hwnd_ = nullptr;
+    DestroyWindow(this->hwnd_);
+    this->hwnd_ = nullptr;
   }
 }
