@@ -32,7 +32,6 @@ protected:
 private:
   void createNativeWindow();
   void destroyNativeWindow();
-  void onVisibilityChanged(bool visible); // visibility変更時のコールバック
   static void VisibilityChangedThunk(void *userData);
   static void TitleChangedThunk(void *userData);
 };

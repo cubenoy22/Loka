@@ -25,8 +25,27 @@ Win32Window::Win32Window(Win32App *app, Renderer *renderer, const std::string &t
 void Win32Window::VisibilityChangedThunk(void *userData)
 {
   Win32Window *self = static_cast<Win32Window *>(userData);
-  if (self)
-    self->onVisibilityChanged(self->visibility.get());
+  if (!self)
+    return;
+  bool visible = self->visibility.get();
+  if (visible)
+  {
+    if (!self->hwnd_)
+    {
+      self->createNativeWindow();
+    }
+    else
+    {
+      ShowWindow(self->hwnd_, SW_SHOW);
+    }
+  }
+  else
+  {
+    if (self->hwnd_)
+    {
+      self->destroyNativeWindow();
+    }
+  }
 }
 
 // --- タイトル変更時のthunk ---
@@ -37,28 +56,6 @@ void Win32Window::TitleChangedThunk(void *userData)
   {
     // Window基底のtitle値をウィンドウに反映
     SetWindowTextA(self->hwnd_, self->title.get().c_str());
-  }
-}
-
-void Win32Window::onVisibilityChanged(bool visible)
-{
-  if (visible)
-  {
-    if (!hwnd_)
-    {
-      createNativeWindow();
-    }
-    else
-    {
-      ShowWindow(hwnd_, SW_SHOW);
-    }
-  }
-  else
-  {
-    if (hwnd_)
-    {
-      destroyNativeWindow();
-    }
   }
 }
 
