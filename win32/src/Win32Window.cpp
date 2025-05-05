@@ -1,4 +1,5 @@
 #include "Win32Window.hpp"
+#include "Win32App.hpp"
 #include <windows.h>
 #include <string>
 
@@ -8,8 +9,9 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-Win32Window::Win32Window(Renderer *renderer, HWND hwnd)
-    : Window(renderer), hwnd_(hwnd)
+// コンストラクタを修正: Win32App* を受け取り、メンバに保存
+Win32Window::Win32Window(Win32App *app, Renderer *renderer, HWND hwnd)
+    : Window(renderer, app), hwnd_(hwnd), app_(app)
 {
   // visibilityステートの変更を監視
   // C++98: static関数＋thisポインタ渡しでコールバック（State対応）
@@ -75,6 +77,10 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     }
     case WM_DESTROY:
       self->hwnd_ = nullptr;
+      if (self->app_)
+      {                                                        // app_ポインタが有効か確認
+        self->app_->windowClosed(static_cast<Window *>(self)); // 明示的にWindowポインタにキャスト
+      }
       break;
     default:
       return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -100,12 +106,12 @@ void Win32Window::createNativeWindow()
       "Developer",
       WS_OVERLAPPEDWINDOW,
       100, 100, 320, 200,
-      nullptr, nullptr, GetModuleHandle(nullptr), this);
-  hwnd_ = hwnd;
-  if (hwnd_)
+      nullptr, nullptr, GetModuleHandle(nullptr),
+      this); // lParamにthis (Win32Window*) を渡す
+  if (hwnd)  // hwnd_ではなくローカル変数hwndでチェック
   {
-    ShowWindow(hwnd_, SW_SHOW);
-    UpdateWindow(hwnd_);
+    ShowWindow(hwnd, SW_SHOW);
+    UpdateWindow(hwnd);
   }
 }
 

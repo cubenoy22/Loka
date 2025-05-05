@@ -7,6 +7,7 @@
 
 class Page;
 class Renderer;
+class App;
 
 // WindowOptions: 動的タイトル対応・型安全な宣言的ウィンドウオプション
 struct WindowOptions
@@ -25,7 +26,9 @@ class Window
 {
 public:
   // Windowクラスのコンストラクタでvisibilityを適切に初期化
-  Window(Renderer *renderer) : renderer_(renderer), page_(0), visibility(true) {}
+  Window(Renderer *renderer, App *app) : renderer_(renderer), page_(0), visibility(true), app_(app) {}
+  virtual ~Window() = default;
+
   void setPage(Page *page)
   {
     page_ = page;
@@ -42,12 +45,16 @@ public:
   Renderer *renderer() const { return renderer_; }
   Page *page() const { return page_; }
 
+  void setApp(App *app) { app_ = app; }
+  App *getApp() const { return app_; }
+
   // visibility: ウィンドウの表示/非表示状態を表す共通プロパティ
-  State<bool> visibility;
+  MutableState<bool> visibility;
 
 private:
   Renderer *renderer_;
   Page *page_;
+  App *app_; // App をポインタで保持
 };
 
 #endif // DECLARA_WINDOW_HPP

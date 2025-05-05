@@ -3,6 +3,7 @@
 #include "Button.hpp"
 #include "Renderer.hpp"
 #include "App.hpp"
+#include "Window.hpp"
 #include <string>
 #include <iostream>
 
@@ -228,13 +229,33 @@ void testDerivedStruct()
   agree.set(true);
 }
 
+// モック用の具象App実装
+class MockApp : public App
+{
+public:
+  MockApp(Window *w) : App(w) {}
+
+  // App::quit の実装
+  void quit() override
+  {
+    // モック実装、何もしない
+  }
+
+  // App::windowClosed の実装
+  void windowClosed(Window *window) override
+  {
+    // モック実装、基底クラスの実装を呼び出す
+    App::windowClosed(window);
+  }
+};
+
 int main()
 {
   MyRenderer renderer;
-  Window window(&renderer);
+  Window window(&renderer, nullptr);
   FormPage page;
   window.setPage(&page);
-  App app(&window);
+  MockApp app(&window);
   app.run();
   testTrackerPropagation();
   testDeferredSideEffect();

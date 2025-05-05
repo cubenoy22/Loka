@@ -5,11 +5,14 @@
 #include "Renderer.hpp"
 #include <windows.h>
 
+class Win32App;
+
 // 🦊 Win32固有のWindow実装
 class Win32Window : public Window
 {
 public:
-  Win32Window(Renderer *renderer, HWND hwnd = 0);
+  // コンストラクタ引数に Win32App* を追加
+  Win32Window(Win32App *app, Renderer *renderer, HWND hwnd = 0);
 
   HWND hwnd() const { return hwnd_; }
 
@@ -23,6 +26,7 @@ public:
 
 protected:
   HWND hwnd_;
+  Win32App *app_; // <-- Win32Appへのポインタを追加
 
 private:
   void createNativeWindow();

@@ -11,6 +11,7 @@ set(SOURCES
   src/Win32App.cpp       # Win32App.cppを追加
   src/Win32Window.cpp    # Win32Window.cppも追加
   ../common/main.cpp
+  ../common/App.cpp      # App.cppをビルド対象に追加
   ../common/Tracker.cpp  # Tracker.cppをビルド対象に追加
 )
 

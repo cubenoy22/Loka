@@ -1,38 +1,27 @@
 #ifndef DECLARA_APP_HPP
 #define DECLARA_APP_HPP
 
-#include <string>
-#include "Window.hpp"
 #include <vector>
+#include <memory> // std::unique_ptr を使用
 
-class Page;
+class Window; // 前方宣言
 
 class App
 {
 public:
-  App(Window *w) : window(w) {}
-  // 必要ならウィンドウ管理APIのみ残す
-  virtual void addWindow(Page *page, const WindowOptions &options)
-  {
-    // 仮実装: Window生成はプラットフォームごとに差し替え予定
-    // ここではWindow*生成・PageへのsetHostWindowを想定
-    // 例: Window* w = new PlatformWindow(options);
-    //     page->setHostWindow(w);
-    //     w->setPage(page);
-    //     windows.push_back(w);
-  }
-  void run()
-  {
-    // 必要に応じて初回描画
-    window->rerender();
-    while (true)
-      window->renderer()->processEvents();
-  }
+  App(Window *w);
+  virtual ~App() = default;
+
+  virtual void run();
+  virtual void quit() = 0;
+  virtual void windowClosed(Window *window);
 
 protected:
-  std::vector<Window *> windows; // 複数ウィンドウ対応用
+  std::vector<Window *> windows;
+  bool quitWhenLastWindowClosed_ = true;
+
 private:
-  Window *window;
+  Window *mainWindow_; // Window をポインタで保持
 };
 
 #endif // DECLARA_APP_HPP
