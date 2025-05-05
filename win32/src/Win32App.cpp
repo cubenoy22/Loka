@@ -45,17 +45,22 @@ void Win32App::run() /*override*/ // .cpp側にはoverride不要
 
   // Appの管理リストに追加（明示的なキャストを追加）
   windows.push_back(static_cast<Window *>(mainWindow));
-  // Appのprivateなwindowメンバーをどうするか？ (現状アクセス不可)
-  // もしApp::windowを使いたいなら、protectedにするかセッターが必要
 
-  // ウィンドウの実体を作成・表示 (visibility.set(true)経由が望ましいかも)
-  mainWindow->visibility.set(true); // これで createNativeWindow が呼ばれるはず
+  // Trackerのbegin/endでState変更をトランザクション化
+  if (mainWindow->getTracker())
+  {
+    mainWindow->getTracker()->begin();
+    mainWindow->visibility.set(true); // これで createNativeWindow が呼ばれるはず
+    mainWindow->getTracker()->end();
+  }
+  else
+  {
+    mainWindow->visibility.set(true);
+  }
 
   // mainWindow が有効か確認 (createNativeWindow内でhwnd_がセットされる)
   if (!mainWindow->hwnd())
   {
-    // エラー処理: ウィンドウが作成できなかった
-    // windowsリストから削除し、deleteする
     windows.pop_back();
     delete mainWindow;
     throw std::runtime_error("Failed to create native window handle.");
