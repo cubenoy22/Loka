@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <string>
 #include "core/Window.hpp"
+#include "core/Tracker.hpp"
 
 namespace
 {
@@ -10,13 +11,14 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-// コンストラクタを修正: Win32App* を受け取り、メンバに保存
-Win32Window::Win32Window(Win32App *app, Renderer *renderer, HWND hwnd)
-    : Window(renderer, app), hwnd_(hwnd), app_(app)
+// コンストラクタを修正: Win32App*、Renderer*、titleStateを受け取り、Window基底に渡す
+Win32Window::Win32Window(Win32App *app, Renderer *renderer, const std::string &title, HWND hwnd)
+    : Window(renderer, app, title), hwnd_(hwnd), app_(app)
 {
   // visibilityステートの変更を監視
-  // C++98: static関数＋thisポインタ渡しでコールバック（State対応）
   visibility.bind(&Win32Window::VisibilityChangedThunk, this);
+  // Window::title自体の変更も監視
+  this->title.deferBind(&Win32Window::TitleChangedThunk, this);
 }
 
 // static thunk for State<bool>::OnChangeFn
@@ -25,6 +27,17 @@ void Win32Window::VisibilityChangedThunk(void *userData)
   Win32Window *self = static_cast<Win32Window *>(userData);
   if (self)
     self->onVisibilityChanged(self->visibility.get());
+}
+
+// --- タイトル変更時のthunk ---
+void Win32Window::TitleChangedThunk(void *userData)
+{
+  Win32Window *self = static_cast<Win32Window *>(userData);
+  if (self && self->hwnd_)
+  {
+    // Window基底のtitle値をウィンドウに反映
+    SetWindowTextA(self->hwnd_, self->title.get().c_str());
+  }
 }
 
 void Win32Window::onVisibilityChanged(bool visible)
@@ -68,6 +81,17 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
   {
     switch (msg)
     {
+    case WM_COMMAND:
+      if (LOWORD(wParam) == 1001 && HIWORD(wParam) == BN_CLICKED)
+      {
+        if (self->getTracker())
+        {
+          self->getTracker()->begin();
+          self->title.set("CLICKED!");
+          self->getTracker()->end();
+        }
+      }
+      break;
     case WM_PAINT:
     {
       PAINTSTRUCT ps;
@@ -102,15 +126,27 @@ void Win32Window::createNativeWindow()
     RegisterClassA(&wc);
     g_classRegistered = true;
   }
+  // --- タイトルをWindow::titleから取得 ---
   HWND hwnd = CreateWindowA(
       kWndClassName,
-      "Developer",
+      title.get().c_str(),
       WS_OVERLAPPEDWINDOW,
       100, 100, 320, 200,
       nullptr, nullptr, GetModuleHandle(nullptr),
-      this); // lParamにthis (Win32Window*) を渡す
-  if (hwnd)  // hwnd_ではなくローカル変数hwndでチェック
+      this);
+  if (hwnd)
   {
+    hwnd_ = hwnd;
+    // --- 追加: ボタン生成 ---
+    buttonHwnd_ = CreateWindowA(
+        "BUTTON",
+        "Click me!",
+        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+        50, 120, 200, 40, // x, y, width, height
+        hwnd_,
+        (HMENU)1001, // コントロールID
+        GetModuleHandle(nullptr),
+        NULL);
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
   }

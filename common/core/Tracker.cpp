@@ -1,15 +1,18 @@
 #include "Tracker.hpp"
 #include "State.hpp"
 
-StdTracker::StdTracker(const std::vector<StateBase *> &states, const std::vector<StateBase *> &derivedStates)
+StdTracker::StdTracker(const std::vector<StateBase *> &states)
     : phase_(TRACKER_IDLE)
 {
-  for (size_t i = 0; i < derivedStates.size(); ++i)
+  for (size_t i = 0; i < states.size(); ++i)
   {
-    std::vector<StateBase *> deps = derivedStates[i]->getDependencyStates();
-    for (size_t j = 0; j < deps.size(); ++j)
+    std::vector<StateBase *> deps = states[i]->getDependencyStates();
+    if (!deps.empty())
     {
-      registerDependency(derivedStates[i], deps[j]);
+      for (size_t j = 0; j < deps.size(); ++j)
+      {
+        registerDependency(states[i], deps[j]);
+      }
     }
   }
 }

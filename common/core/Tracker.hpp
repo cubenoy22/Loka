@@ -34,7 +34,7 @@ public:
 class StdTracker : public Tracker
 {
 public:
-  StdTracker(const std::vector<StateBase *> &states, const std::vector<StateBase *> &derivedStates);
+  StdTracker(const std::vector<StateBase *> &states);
   StdTracker();
   void begin() override;
   void set(StateBase *s, const void *v) override;

@@ -118,6 +118,11 @@ protected:
       else
         ++i;
     }
+    // deferBindで登録されたハンドラも呼ぶ
+    for (size_t i = 0; i < deferredHandlers.size(); ++i)
+    {
+      deferredHandlers[i].cb(deferredHandlers[i].userData);
+    }
   }
 
 protected:

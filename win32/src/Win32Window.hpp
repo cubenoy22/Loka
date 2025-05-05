@@ -11,8 +11,8 @@ class Win32App;
 class Win32Window : public Window
 {
 public:
-  // コンストラクタ引数に Win32App* を追加
-  Win32Window(Win32App *app, Renderer *renderer, HWND hwnd = 0);
+  // WindowOptionsのtitleを受け取れるように拡張
+  Win32Window(Win32App *app, Renderer *renderer, const std::string &title, HWND hwnd = 0);
 
   HWND hwnd() const { return hwnd_; }
 
@@ -26,14 +26,15 @@ public:
 
 protected:
   HWND hwnd_;
-  Win32App *app_; // <-- Win32Appへのポインタを追加
+  HWND buttonHwnd_; // --- 追加: ボタン用HWND
+  Win32App *app_;   // <-- Win32Appへのポインタを追加
 
 private:
   void createNativeWindow();
   void destroyNativeWindow();
-  void onVisibilityChanged(bool visible);             // visibility変更時のコールバック
-  static void VisibilityChangedThunk(void *userData); // State<bool>用thunk
-  // 他にもWin32固有のメンバを追加可能
+  void onVisibilityChanged(bool visible); // visibility変更時のコールバック
+  static void VisibilityChangedThunk(void *userData);
+  static void TitleChangedThunk(void *userData);
 };
 
 #endif // DECLARA_WIN32WINDOW_HPP

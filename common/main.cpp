@@ -24,7 +24,7 @@ public:
         name(""),
         isValid({&name}, [&]()
                 { return name.get().length() >= 3; }),
-        tracker({&name}, {&isValid}) {}
+        tracker({&name, &isValid}) {}
   static bool evaluateLength(const std::string &s) { return s.length() >= 3; }
   static void onSendClick() {}
   void build(SceneBuilder &b)
@@ -52,7 +52,7 @@ public:
                { return strToDouble(weightStr.get()); }),
         bmi({&heightStr, &weightStr}, [&]()
             { return BMIMultiArgCalcBMI(heightStr.get(), weightStr.get()); }),
-        tracker({&heightStr, &weightStr}, {&height, &weight, &bmi}) {}
+        tracker({&heightStr, &weightStr, &height, &weight, &bmi}) {}
 
   static double strToDouble(const std::string &s) { return atof(s.c_str()); }
   static std::string doubleToStr(const double &v)
@@ -97,7 +97,7 @@ void testTrackerPropagation()
   MutableState<int> s_int(10);
   DerivedState<int> doubleProp({&s_int}, [&]()
                                { return s_int.get() * 2; });
-  StdTracker tracker({&s_int}, {&doubleProp});
+  StdTracker tracker({&s_int, &doubleProp});
   struct DoublePropCallback
   {
     static void onChange(int v, void *)
@@ -116,7 +116,7 @@ void testDeferredSideEffect()
   MutableState<int> s_int(5);
   DerivedState<int> doubleProp({&s_int}, [&]()
                                { return s_int.get() * 2; });
-  StdTracker tracker({&s_int}, {&doubleProp});
+  StdTracker tracker({&s_int, &doubleProp});
   struct DeferredCallback
   {
     static void onDeferred(void *)
@@ -135,7 +135,7 @@ void testTextInputOnChange()
   MutableState<std::string> name("");
   DerivedState<bool> isValid({&name}, [&]()
                              { return FormScene::evaluateLength(name.get()); });
-  StdTracker tracker({&name}, {&isValid});
+  StdTracker tracker({&name, &isValid});
   struct ValidCallback
   {
     static void onChange(void *userData)
@@ -166,7 +166,7 @@ void testBatchTransaction()
   MutableState<int> s2(2);
   DerivedState<int> sumProp({&s1}, [&]()
                             { return s1.get() * 2; });
-  StdTracker tracker({&s1, &s2}, {&sumProp});
+  StdTracker tracker({&s1, &s2, &sumProp});
   tracker.begin();
   s1.set(10);
   s2.set(20);
@@ -179,7 +179,7 @@ void testRAIITransaction()
   MutableState<int> s(0);
   DerivedState<int> doubleProp({&s}, [&]()
                                { return s.get() * 2; });
-  StdTracker tracker({&s}, {&doubleProp});
+  StdTracker tracker({&s, &doubleProp});
   {
     AutoTransactionGuard _(&tracker);
     s.set(50);
@@ -208,7 +208,12 @@ void testDerivedStruct()
         FormInputs f = {name.get(), email.get(), age.get(), agree.get()};
         return !f.name.empty() && !f.email.empty() && f.age >= 18 && f.agree;
       });
-  StdTracker tracker(deps, {&isValid});
+  // --- C++98対応: deps + isValid をまとめて渡す ---
+  StateBase *deps2[5];
+  for (size_t i = 0; i < deps.size(); ++i)
+    deps2[i] = deps[i];
+  deps2[deps.size()] = &isValid;
+  StdTracker tracker(std::vector<StateBase *>(deps2, deps2 + 5));
   struct Callback
   {
     static void onChange(void *userData)

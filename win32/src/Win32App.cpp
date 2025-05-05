@@ -37,8 +37,7 @@ void Win32App::windowClosed(Window *window)
 void Win32App::run() /*override*/ // .cpp側にはoverride不要
 {
   // 最初のウィンドウを作成
-  // コンストラクタに this (Win32App*) を渡す
-  Win32Window *mainWindow = new Win32Window(this, nullptr);
+  Win32Window *mainWindow = new Win32Window(this, nullptr, "Developer Window");
   if (!mainWindow)
   {
     throw std::runtime_error("Failed to create main window object.");

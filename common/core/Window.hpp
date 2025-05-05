@@ -4,6 +4,7 @@
 #include <string>
 #include "Scene.hpp"
 #include "State.hpp"
+#include "core/Tracker.hpp"
 
 class Scene;
 class Renderer;
@@ -12,9 +13,9 @@ class App;
 // WindowOptions: 動的タイトル対応・型安全な宣言的ウィンドウオプション
 struct WindowOptions
 {
-  State<std::string> *title;
-  WindowOptions() : title(0) {}
-  WindowOptions &setTitle(State<std::string> *t)
+  std::string title;
+  WindowOptions() : title("") {}
+  WindowOptions &setTitle(const std::string &t)
   {
     title = t;
     return *this;
@@ -25,9 +26,27 @@ struct WindowOptions
 class Window
 {
 public:
-  // Windowクラスのコンストラクタでvisibilityを適切に初期化
-  Window(Renderer *renderer, App *app) : renderer_(renderer), scene_(0), visibility(true), app_(app) {}
+  // Windowクラスのコンストラクタでvisibilityとtitleを初期化
+  Window(Renderer *renderer, App *app, const std::string &title = "")
+      : renderer_(renderer), scene_(0), visibility(true), app_(app), title("")
+  {
+    std::vector<StateBase *> states = {&this->title, &visibility};
+    tracker_ = new StdTracker(states); // 監視対象Stateを渡して初期化
+    this->title.set(title);
+  }
   virtual ~Window() = default;
+
+  // タイトル変更時のthunk（State<std::string>用）
+  static void TitleChangedThunk(void *userData)
+  {
+    Window *self = static_cast<Window *>(userData);
+    if (self)
+    {
+      // Stateから値を取得しtitleに反映
+      // ここではState<std::string>*が必要だが、
+      // 実装側で適切にキャストして使うこと
+    }
+  }
 
   void setScene(Scene *scene)
   {
@@ -50,11 +69,16 @@ public:
 
   // visibility: ウィンドウの表示/非表示状態を表す共通プロパティ
   MutableState<bool> visibility;
+  // --- 追加: ウィンドウタイトルの状態 ---
+  MutableState<std::string> title;
 
-private:
+  Tracker *getTracker() const { return tracker_; }
+
+protected:
   Renderer *renderer_;
   Scene *scene_;
-  App *app_; // App をポインタで保持
+  App *app_;         // App をポインタで保持
+  Tracker *tracker_; // --- Window専用のtrackerを追加
 };
 
 #endif // DECLARA_WINDOW_HPP
