@@ -10,7 +10,8 @@
         "win32",
         "-B",
         "win32/build/native/Debug",
-        "-DUSE_CONSOLE_SUBSYSTEM=ON"
+        "-DUSE_CONSOLE_SUBSYSTEM=ON",
+        "-DTEST_BUILD=ON"
       ]
     },
     {

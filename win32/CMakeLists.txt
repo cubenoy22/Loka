@@ -46,3 +46,8 @@ include_directories(
 # 例: cmake -G "Visual Studio 17 2022" -A ARM64 ..
 
 # ビルドタイプ（Debug/Release）はCMAKE_BUILD_TYPEまたはIDEで選択
+
+option(TEST_BUILD "Enable test build mode" OFF)
+if(TEST_BUILD)
+  add_definitions(-DTEST_BUILD)
+endif()

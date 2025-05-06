@@ -20,6 +20,7 @@ class Tracker; // 前方宣言
 class StateBase
 {
 public:
+  Tracker *currentTracker = nullptr;
   virtual ~StateBase() {}
   // 依存State列挙（循環依存検出の余地あり）
   virtual std::vector<StateBase *> getDependencyStates() const { return {}; }
@@ -148,10 +149,16 @@ class MutableState : public State<T>
 {
 public:
   using State<T>::State;
-  // State<T>のset系をpublicに再公開
-  using State<T>::set;
   using State<T>::setValue;
-  // Stateは不変、MutableStateのみ外部からset可能
+  void set(const T &v)
+  {
+#ifdef TEST_BUILD
+    printf("[MutableState::set] this=%p\n", (void *)this);
+#endif
+    State<T>::set(v);
+    if (this->currentTracker)
+      this->currentTracker->markDirty(this);
+  }
 };
 
 // --- DerivedState: State<T>の機能を最大限活用して簡素化 ---
@@ -172,17 +179,16 @@ public:
       dependencies.push_back(dep);
     this->value = evalFn();
   }
+
+  std::vector<StateBase *> getDependencyStates() const override
+  {
+    return dependencies;
+  }
   // setter完全禁止 - オーバーライドではなく隠蔽実装
 private:
   // 親クラスを隠蔽、privateで空実装
   void set(const T &v) override {}
   void setValue(const T &v) override {}
-
-  // 依存State列挙（Tracker等から呼ばれる）
-  std::vector<StateBase *> getDependencyStates() const override
-  {
-    return dependencies;
-  }
   // 再計算（依存元が変化したときに呼ぶ）
   bool recompute() override
   {
@@ -195,7 +201,7 @@ private:
     }
     return false;
   }
-  // get()は親のままでOK
+
 private:
   std::vector<StateBase *> dependencies;
   EvalFn evalFn;
