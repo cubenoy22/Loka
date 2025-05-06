@@ -4,7 +4,7 @@
 #include <string>
 #include "Scene.hpp"
 #include "State.hpp"
-#include "core/Tracker.hpp"
+#include "core/StateTracker.hpp"
 
 class Scene;
 class Renderer;
@@ -31,7 +31,7 @@ public:
       : renderer_(renderer), scene_(0), visibility(false), app_(app), title("")
   {
     std::vector<StateBase *> states = {&this->title, &this->visibility};
-    tracker_ = new StdTracker(states); // 監視対象Stateを渡して初期化
+    tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
     this->title.set(title);
   }
   virtual ~Window() = default;
@@ -72,13 +72,13 @@ public:
   // --- 追加: ウィンドウタイトルの状態 ---
   MutableState<std::string> title;
 
-  Tracker *getTracker() const { return tracker_; }
+  StateTracker *getTracker() const { return tracker_; }
 
 protected:
   Renderer *renderer_;
   Scene *scene_;
-  App *app_;         // App をポインタで保持
-  Tracker *tracker_; // --- Window専用のtrackerを追加
+  App *app_;              // App をポインタで保持
+  StateTracker *tracker_; // --- Window専用のtrackerを追加
 };
 
 #endif // DECLARA_WINDOW_HPP

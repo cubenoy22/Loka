@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include "core/State.hpp"
-#include "core/Tracker.hpp"
+#include "core/StateTracker.hpp"
 #include "core/Scene.hpp"
 #include "app/Button.hpp"
 #include "app/Renderer.hpp"
@@ -39,7 +39,7 @@ void testDependencyPropagationCases()
   DerivedState b(&a);
   DerivedState c(&b);
   std::vector<StateBase *> states = {&a, &b, &c};
-  StdTracker tracker(states);
+  PushStateTracker tracker(states);
   tracker.begin();
   a.set(10);
   tracker.end();
@@ -53,7 +53,7 @@ void testDependencyPropagationCases()
   DerivedState d1(&s);
   DerivedState d2(&s);
   std::vector<StateBase *> states2 = {&s, &d1, &d2};
-  StdTracker tracker2(states2);
+  PushStateTracker tracker2(states2);
   tracker2.begin();
   s.set(5);
   tracker2.end();
@@ -69,7 +69,7 @@ void testDependencyPropagationCases()
   MutableState<int> s2;
   DerivedState d3(&s2);
   std::vector<StateBase *> states3 = {&s, &d1, &d2, &s2, &d3};
-  StdTracker tracker3(states3);
+  PushStateTracker tracker3(states3);
   tracker3.begin();
   s.set(100);
   s2.set(200);
@@ -95,7 +95,7 @@ void testTrackerPropagation()
   {
     printf("[test] doubleProp.getDependencyStates()[%zu]=%p\n", i, (void *)deps[i]);
   }
-  StdTracker tracker({&s_int, &doubleProp});
+  PushStateTracker tracker({&s_int, &doubleProp});
   // ...既存のデバッグ出力...
   printf("[before begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp.get());
   tracker.begin();
@@ -118,7 +118,7 @@ void testDeferredSideEffect()
   MutableState<int> s_int(5);
   DerivedState<int> doubleProp({&s_int}, [&]()
                                { return s_int.get() * 2; });
-  StdTracker tracker({&s_int, &doubleProp});
+  PushStateTracker tracker({&s_int, &doubleProp});
   struct DeferredCallback
   {
     static void onDeferred(void *)
@@ -143,7 +143,7 @@ void testTextInputOnChange()
   MutableState<std::string> name("");
   DerivedState<bool> isValid({&name}, [&]()
                              { return name.get().length() >= 3; });
-  StdTracker tracker({&name, &isValid});
+  PushStateTracker tracker({&name, &isValid});
   struct ValidCallback
   {
     static void onChange(void *userData)
@@ -170,8 +170,8 @@ void testTextInputOnChange()
 
 struct AutoTransactionGuard
 {
-  StdTracker *tracker;
-  AutoTransactionGuard(StdTracker *t) : tracker(t) { tracker->begin(); }
+  PushStateTracker *tracker;
+  AutoTransactionGuard(PushStateTracker *t) : tracker(t) { tracker->begin(); }
   ~AutoTransactionGuard() { tracker->end(); }
 };
 
@@ -182,7 +182,7 @@ void testBatchTransaction()
   MutableState<int> s2(2);
   DerivedState<int> sumProp({&s1}, [&]()
                             { return s1.get() * 2; });
-  StdTracker tracker({&s1, &s2, &sumProp});
+  PushStateTracker tracker({&s1, &s2, &sumProp});
   tracker.begin();
   s1.set(10);
   s2.set(20);
@@ -200,7 +200,7 @@ void testRAIITransaction()
   MutableState<int> s(0);
   DerivedState<int> doubleProp({&s}, [&]()
                                { return s.get() * 2; });
-  StdTracker tracker({&s, &doubleProp});
+  PushStateTracker tracker({&s, &doubleProp});
   {
     AutoTransactionGuard _(&tracker);
     s.set(50);
@@ -237,7 +237,7 @@ void testDerivedStruct()
   for (size_t i = 0; i < deps.size(); ++i)
     deps2[i] = deps[i];
   deps2[deps.size()] = &isValid;
-  StdTracker tracker(std::vector<StateBase *>(deps2, deps2 + 5));
+  PushStateTracker tracker(std::vector<StateBase *>(deps2, deps2 + 5));
   struct Callback
   {
     static void onChange(bool v, void *)

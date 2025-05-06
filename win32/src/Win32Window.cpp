@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <string>
 #include "core/Window.hpp"
-#include "core/Tracker.hpp"
+#include "core/StateTracker.hpp"
 
 namespace
 {

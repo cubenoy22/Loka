@@ -1,7 +1,7 @@
-#include "Tracker.hpp"
+#include "StateTracker.hpp"
 #include "State.hpp"
 
-StdTracker::StdTracker(const std::vector<StateBase *> &states)
+PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
     : phase_(TRACKER_IDLE), states_(states)
 {
   for (size_t i = 0; i < states.size(); ++i)
@@ -17,9 +17,9 @@ StdTracker::StdTracker(const std::vector<StateBase *> &states)
   }
 }
 
-StdTracker::StdTracker() : phase_(TRACKER_IDLE) {}
+PushStateTracker::PushStateTracker() : phase_(TRACKER_IDLE) {}
 
-void StdTracker::begin()
+void PushStateTracker::begin()
 {
   for (auto *s : states_)
     s->currentTracker = this;
@@ -35,12 +35,12 @@ void StdTracker::begin()
   phase_ = TRACKER_PRECOMMIT;
 }
 
-void StdTracker::defer(void (*fn)(void *), void *userData)
+void PushStateTracker::defer(void (*fn)(void *), void *userData)
 {
   deferred.push_back(std::make_pair(fn, userData));
 }
 
-void StdTracker::markDirty(StateBase *state)
+void PushStateTracker::markDirty(StateBase *state)
 {
 #ifdef TEST_BUILD
   printf("[markDirty] state=%p\n", (void *)state);
@@ -93,7 +93,7 @@ void StdTracker::markDirty(StateBase *state)
   visiting_.erase(state);
 }
 
-bool StdTracker::end()
+bool PushStateTracker::end()
 {
 #ifdef TEST_BUILD
   printf("[end] dependents.size()=%zu\n", dependents.size());
@@ -147,7 +147,7 @@ bool StdTracker::end()
   return dirtyStates.empty();
 }
 
-void StdTracker::registerDependency(StateBase *dependent, StateBase *dependency)
+void PushStateTracker::registerDependency(StateBase *dependent, StateBase *dependency)
 {
 #ifdef TEST_BUILD
   printf("[registerDependency] dependent=%p, dependency=%p\n", (void *)dependent, (void *)dependency);
@@ -162,9 +162,9 @@ void StdTracker::registerDependency(StateBase *dependent, StateBase *dependency)
 #endif
 }
 
-TrackerPhase StdTracker::phase() const
+TrackerPhase PushStateTracker::phase() const
 {
   return phase_;
 }
 
-StdTracker::~StdTracker() {}
+PushStateTracker::~PushStateTracker() {}

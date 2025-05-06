@@ -14,14 +14,14 @@
 
 ---
 
-## 依存グラフと Tracker の役割
+## 依存グラフと StateTracker の役割
 
-Declara! の Tracker は「依存伝播の管理・制御を担う抽象クラス」です。自動伝播や循環依存検出の有無・方式は実装（例：StdTracker）ごとに異なります。
+Declara! の StateTracker は「依存伝播の管理・制御を担う抽象クラス」です。自動伝播や循環依存検出の有無・方式は実装（例：PushStateTracker）ごとに異なります。
 
 - DerivedState の依存関係は明示的にリストで指定
-- 依存元の値が変わると、Tracker（例：StdTracker）が依存先を dirty にマークし、end() で再計算・コールバック発火
+- 依存元の値が変わると、StateTracker（例：PushStateTracker）が依存先を dirty にマークし、end() で再計算・コールバック発火
 - 副作用（UI 更新・システムコール等）は defer で登録し、commit 時（end）にのみ発火
-- 自動伝播や循環依存検出の有無・方式は Tracker 実装ごとに異なる
+- 自動伝播や循環依存検出の有無・方式は StateTracker 実装ごとに異なる
 
 ---
 

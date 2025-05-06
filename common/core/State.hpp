@@ -4,7 +4,7 @@
 #include <vector>
 #include <functional>
 #include <memory>
-#include "Tracker.hpp" // Trackerの定義を使うためにインクルード
+#include "StateTracker.hpp"
 
 // State系のbind/unbind等で使う優先度enum
 enum StatePriority
@@ -14,13 +14,13 @@ enum StatePriority
   STATE_PRIORITY_HIGH = 100
 };
 
-class Tracker; // 前方宣言
+class StateTracker;
 
 // StateBase: 依存管理・バインドAPIを統合
 class StateBase
 {
 public:
-  Tracker *currentTracker = nullptr;
+  StateTracker *currentTracker = nullptr;
   virtual ~StateBase() {}
   // 依存State列挙（循環依存検出の余地あり）
   virtual std::vector<StateBase *> getDependencyStates() const { return {}; }

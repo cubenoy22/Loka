@@ -1,5 +1,5 @@
-#ifndef DECLARA_TRACKER_HPP
-#define DECLARA_TRACKER_HPP
+#ifndef DECLARA_STATETRACKER_HPP
+#define DECLARA_STATETRACKER_HPP
 
 #include <vector>
 #include <functional>
@@ -8,10 +8,9 @@
 #include <string>
 #include <unordered_set>
 
-// 必要な前方宣言
 class StateBase;
 
-// TrackerのPhase定義
+// StateTrackerのPhase定義
 enum TrackerPhase
 {
   TRACKER_IDLE = 0,
@@ -19,7 +18,7 @@ enum TrackerPhase
   TRACKER_COMMIT = 2
 };
 
-class Tracker
+class StateTracker
 {
 public:
   virtual void begin() = 0;
@@ -28,14 +27,14 @@ public:
   virtual bool end() = 0;
   virtual void registerDependency(StateBase *dependent, StateBase *dependency) = 0;
   virtual TrackerPhase phase() const = 0;
-  virtual ~Tracker() {}
+  virtual ~StateTracker() {}
 };
 
-class StdTracker : public Tracker
+class PushStateTracker : public StateTracker
 {
 public:
-  StdTracker(const std::vector<StateBase *> &states);
-  StdTracker();
+  PushStateTracker(const std::vector<StateBase *> &states);
+  PushStateTracker();
   void begin() override;
   void defer(void (*fn)(void *), void *userData) override;
   void markDirty(StateBase *state) override;
@@ -45,7 +44,7 @@ public:
    */
   void registerDependency(StateBase *dependent, StateBase *dependency) override;
   TrackerPhase phase() const override;
-  ~StdTracker();
+  ~PushStateTracker();
 
 private:
   /// dirtyStates: トランザクション中にdirtyなStateを管理（伝播バッファ）
@@ -62,4 +61,4 @@ private:
   std::vector<StateBase *> states_;
 };
 
-#endif // DECLARA_TRACKER_HPP
+#endif // DECLARA_STATETRACKER_HPP

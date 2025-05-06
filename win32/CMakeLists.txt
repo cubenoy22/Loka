@@ -12,7 +12,7 @@ set(SOURCES
   src/Win32Window.cpp    # Win32Window.cppも追加
   ../common/main.cpp
   ../common/core/App.cpp      # App.cppをビルド対象に追加（core配下に変更）
-  ../common/core/Tracker.cpp  # Tracker.cppをビルド対象に追加（core配下に変更）
+  ../common/core/StateTracker.cpp  # StateTracker.cppをビルド対象に追加（core配下に変更）
 )
 
 option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)

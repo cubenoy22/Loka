@@ -1,16 +1,16 @@
-# Declara! Tracker 詳細仕様・実装リファレンス
+# Declara! StateTracker 詳細仕様・実装リファレンス
 
-このドキュメントは、Declara! の Tracker（依存伝播・副作用管理）の詳細な仕様・API・実装例・拡張案をまとめた技術リファレンスです。
+このドキュメントは、Declara! の StateTracker（依存伝播・副作用管理）の詳細な仕様・API・実装例・拡張案をまとめた技術リファレンスです。
 全体設計や思想・比較は docs/architecture_state_tracker.md を参照してください。
 
 ---
 
-## 1. Tracker 抽象クラス構造
+## 1. StateTracker 抽象クラス構造
 
-Declara! の Tracker は「依存伝播の管理・制御を担う抽象クラス」です。自動伝播や循環依存検出の有無・方式は実装（例：StdTracker）ごとに異なります。
+Declara! の StateTracker は「依存伝播の管理・制御を担う抽象クラス」です。自動伝播や循環依存検出の有無・方式は実装（例：PushStateTracker）ごとに異なります。
 
 ```cpp
-class Tracker {
+class StateTracker {
 public:
   virtual void begin() = 0;
   virtual void set(StateBase* s, const Value& v) = 0;
@@ -18,13 +18,13 @@ public:
   virtual void markDirty(PropBase* prop) = 0;
   virtual bool end(ScenePropsBase* props) = 0;
   virtual void registerProp(PropBase* p) = 0;
-  virtual ~Tracker() {}
+  virtual ~StateTracker() {}
 };
 ```
 
 ---
 
-## 2. 標準実装例（StdTracker）
+## 2. 標準実装例（PushStateTracker）
 
 - 依存グラフを管理し、push 型自動伝播・循環依存検出・2 フェーズ副作用管理などを実装
 - dirtyProps による再評価
@@ -33,16 +33,16 @@ public:
 - copyTo + Component 通知（updateProps）
 
 ```cpp
-class StdTracker : public Tracker {
+class PushStateTracker : public StateTracker {
   // begin/end による安定評価 + 再描画伝播が行われる
 };
 ```
 
 ---
 
-## 3. 複数 Tracker の選択・差し替え
+## 3. 複数 StateTracker の選択・差し替え
 
-- Scene ごとに異なる Tracker（例: DirtyListTracker, HashTracker, RecordingTracker など）を選択可能
+- Scene ごとに異なる StateTracker（例: DirtyListStateTracker, HashStateTracker, RecordingStateTracker など）を選択可能
 - 用途に応じて伝播戦略や履歴管理を柔軟に切り替えられる
 
 ---
@@ -50,7 +50,7 @@ class StdTracker : public Tracker {
 ## 4. 依存伝播・副作用管理の詳細
 
 - 依存リストは明示的に指定（DerivedProp のコンストラクタで依存元 State/Prop を渡す）
-- 依存元の値が変わると Tracker が依存先を dirty にマークし、end() で再計算・コールバック発火
+- 依存元の値が変わると StateTracker が依存先を dirty にマークし、end() で再計算・コールバック発火
 - 副作用（UI 更新・システムコール等）は defer で登録し、commit 時（end）にのみ発火
 - dryRun 中は副作用を発火しない
 
@@ -60,8 +60,8 @@ class StdTracker : public Tracker {
 
 ```cpp
 struct AutoTransactionGuard {
-  StdTracker* tracker;
-  AutoTransactionGuard(StdTracker* t) : tracker(t) { tracker->begin(); }
+  PushStateTracker* tracker;
+  AutoTransactionGuard(PushStateTracker* t) : tracker(t) { tracker->begin(); }
   ~AutoTransactionGuard() { tracker->end(nullptr); }
 };
 ```

@@ -1,4 +1,4 @@
-#include "core/Tracker.hpp"
+#include "core/StateTracker.hpp"
 #include "core/Scene.hpp"
 #include "app/Button.hpp"
 #include "app/Renderer.hpp"
@@ -30,7 +30,7 @@ public:
   }
   MutableState<std::string> name;
   DerivedState<bool> isValid;
-  StdTracker tracker;
+  PushStateTracker tracker;
 };
 
 // --- BMICalcScene: BMI計算シーンの例 ---
@@ -79,5 +79,5 @@ public:
   DerivedState<double> height;
   DerivedState<double> weight;
   DerivedState<double> bmi;
-  StdTracker tracker;
+  PushStateTracker tracker;
 };
