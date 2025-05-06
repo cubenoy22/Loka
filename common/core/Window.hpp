@@ -58,7 +58,6 @@ public:
     if (scene_)
     {
       scene_->buildContext();
-      scene_->renderAll(context_);
     }
   }
   PlatformContext *context() const { return context_; }

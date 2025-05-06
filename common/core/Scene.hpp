@@ -67,11 +67,6 @@ public:
     std::vector<Component *> tmp = b.build();
     components_.swap(tmp);
   }
-  void renderAll(PlatformContext *context)
-  {
-    for (size_t i = 0; i < components_.size(); ++i)
-      components_[i]->render(context);
-  }
 
   // buildは純粋仮想関数に
   virtual void build(SceneBuilder &b) = 0;

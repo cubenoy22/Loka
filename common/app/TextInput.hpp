@@ -9,10 +9,6 @@ class TextInputComponent : public Component
 {
 public:
   TextInputComponent(State<std::string> *state) : state_(state) {}
-  void render(PlatformContext *context)
-  {
-    // 仮実装: context->createTextInput(state_);
-  }
   void updateStates() {}
 
 private:

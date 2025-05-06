@@ -9,10 +9,6 @@ class TextComponent : public Component
 {
 public:
   TextComponent(const std::string &text) : text_(text) {}
-  void render(PlatformContext *context)
-  {
-    // 仮実装: context->createText(text_);
-  }
   void updateStates() {}
 
 private:

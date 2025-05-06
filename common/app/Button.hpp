@@ -34,7 +34,7 @@ struct ButtonOptions
 };
 
 // Component: すべてのUI部品の共通基底クラス
-class Component : public Renderable
+class Component
 {
 public:
   virtual ~Component() {}
@@ -45,11 +45,6 @@ class ButtonComponent : public Component
 public:
   ButtonComponent(const std::string &label, State<bool> *enabled, void (*onClick)())
       : label(label), enabled(enabled), onClick(onClick) {}
-  void render(PlatformContext *context)
-  {
-    bool isEnabled = enabled ? enabled->get() : true;
-    context->createButton(label, isEnabled, onClick);
-  }
   void updateStates() {}
   void setEnabledState(State<bool> *state) { enabled = state; }
   std::string label;
