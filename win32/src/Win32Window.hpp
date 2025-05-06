@@ -2,7 +2,7 @@
 #define DECLARA_WIN32WINDOW_HPP
 
 #include "core/Window.hpp"
-#include "app/Renderer.hpp"
+#include "app/PlatformContext.hpp"
 #include <windows.h>
 
 class Win32App;
@@ -12,7 +12,7 @@ class Win32Window : public Window
 {
 public:
   // WindowOptionsのtitleを受け取れるように拡張
-  Win32Window(Win32App *app, Renderer *renderer, const std::string &title, HWND hwnd = 0);
+  Win32Window(Win32App *app, PlatformContext *context, const std::string &title, HWND hwnd = 0);
 
   HWND hwnd() const { return hwnd_; }
 

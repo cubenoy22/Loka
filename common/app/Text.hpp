@@ -2,16 +2,16 @@
 #define DECLARA_TEXT_HPP
 
 #include <string>
-#include "app/Renderer.hpp"
+#include "app/PlatformContext.hpp"
 #include "app/Button.hpp" // Component基底クラスを参照
 
 class TextComponent : public Component
 {
 public:
   TextComponent(const std::string &text) : text_(text) {}
-  void render(Renderer *renderer)
+  void render(PlatformContext *context)
   {
-    // 仮実装: renderer->createText(text_);
+    // 仮実装: context->createText(text_);
   }
   void updateStates() {}
 

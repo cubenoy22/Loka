@@ -1,7 +1,7 @@
 #include "core/StateTracker.hpp"
 #include "core/Scene.hpp"
 #include "app/Button.hpp"
-#include "app/Renderer.hpp"
+#include "app/PlatformContext.hpp"
 #include "core/App.hpp"
 #include "core/Window.hpp"
 #include <string>

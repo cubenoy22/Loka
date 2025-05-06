@@ -8,7 +8,7 @@
 #include <vector>
 
 class Window;
-class Renderer;
+class PlatformContext;
 
 /**
  * SceneBuilder: UIや世界の状態を宣言的に構築するビルダー。
@@ -67,10 +67,10 @@ public:
     std::vector<Component *> tmp = b.build();
     components_.swap(tmp);
   }
-  void renderAll(Renderer *renderer)
+  void renderAll(PlatformContext *context)
   {
     for (size_t i = 0; i < components_.size(); ++i)
-      components_[i]->render(renderer);
+      components_[i]->render(context);
   }
 
   // buildは純粋仮想関数に

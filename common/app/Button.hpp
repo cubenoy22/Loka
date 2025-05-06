@@ -3,7 +3,7 @@
 
 #include <string>
 #include "core/State.hpp"
-#include "app/Renderer.hpp"
+#include "app/PlatformContext.hpp"
 
 // グローバル定数State（常に有効なボタン用）
 static State<bool> BUTTON_DEFAULT_ENABLED(true);
@@ -45,10 +45,10 @@ class ButtonComponent : public Component
 public:
   ButtonComponent(const std::string &label, State<bool> *enabled, void (*onClick)())
       : label(label), enabled(enabled), onClick(onClick) {}
-  void render(Renderer *renderer)
+  void render(PlatformContext *context)
   {
     bool isEnabled = enabled ? enabled->get() : true;
-    renderer->createButton(label, isEnabled, onClick);
+    context->createButton(label, isEnabled, onClick);
   }
   void updateStates() {}
   void setEnabledState(State<bool> *state) { enabled = state; }

@@ -7,7 +7,7 @@
 #include "core/StateTracker.hpp"
 
 class Scene;
-class Renderer;
+class PlatformContext;
 class App;
 
 // WindowOptions: 動的タイトル対応・型安全な宣言的ウィンドウオプション
@@ -27,8 +27,8 @@ class Window
 {
 public:
   // Windowクラスのコンストラクタでvisibilityとtitleを初期化
-  Window(Renderer *renderer, App *app, const std::string &title = "")
-      : renderer_(renderer), scene_(0), visibility(false), app_(app), title("")
+  Window(PlatformContext *context, App *app, const std::string &title = "")
+      : context_(context), scene_(0), visibility(false), app_(app), title("")
   {
     std::vector<StateBase *> states = {&this->title, &this->visibility};
     tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
@@ -58,10 +58,10 @@ public:
     if (scene_)
     {
       scene_->buildContext();
-      scene_->renderAll(renderer_);
+      scene_->renderAll(context_);
     }
   }
-  Renderer *renderer() const { return renderer_; }
+  PlatformContext *context() const { return context_; }
   Scene *scene() const { return scene_; }
 
   void setApp(App *app) { app_ = app; }
@@ -75,7 +75,7 @@ public:
   StateTracker *getTracker() const { return tracker_; }
 
 protected:
-  Renderer *renderer_;
+  PlatformContext *context_;
   Scene *scene_;
   App *app_;              // App をポインタで保持
   StateTracker *tracker_; // --- Window専用のtrackerを追加

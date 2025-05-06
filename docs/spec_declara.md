@@ -2,7 +2,7 @@
 
 ## 1. アーキテクチャ概要
 
-- **宣言的 UI 設計**：Scene/Component/Renderer で構成。状態（State/MutableState/DerivedState）を中心に UI を再構築。
+- **宣言的 UI 設計**：Scene/Component/PlatformContext で構成。状態（State/MutableState/DerivedState）を中心に UI を再構築。
 - **状態管理**：State<T>（不変）、MutableState<T>（set 可能）、DerivedState<T>（合成・再計算）
 - **依存伝播**：Tracker が依存グラフ・伝播・副作用を一元管理
 - **C++98 互換**：型安全・明示的依存管理・関数ポインタ/ファンクタで柔軟に対応
@@ -19,11 +19,11 @@
 ### Scene / SceneBuilder
 
 - Scene は build(SceneBuilder&)で UI レイアウトや世界の状態を宣言
-- SceneBuilder は Component\*インスタンスを所有し、renderAll()で Renderer に送信
+- SceneBuilder は Component\*インスタンスを所有し、renderAll()で PlatformContext に送信
 
 ### Component
 
-- virtual void render(Renderer\*)を持つ抽象基底クラス
+- virtual void render(PlatformContext\*)を持つ抽象基底クラス
 - ButtonComponent などの派生クラスは状態を持ち、描画可能な UI 部品をカプセル化
 
 ---

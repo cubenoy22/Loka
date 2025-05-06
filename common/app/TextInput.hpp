@@ -2,16 +2,16 @@
 #define DECLARA_TEXTINPUT_HPP
 
 #include <string>
-#include "Renderer.hpp"
+#include "app/PlatformContext.hpp"
 #include "Button.hpp" // Component基底クラスを参照
 
 class TextInputComponent : public Component
 {
 public:
   TextInputComponent(State<std::string> *state) : state_(state) {}
-  void render(Renderer *renderer)
+  void render(PlatformContext *context)
   {
-    // 仮実装: renderer->createTextInput(state_);
+    // 仮実装: context->createTextInput(state_);
   }
   void updateStates() {}
 
