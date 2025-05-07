@@ -6,95 +6,70 @@
 #include "app/TextInput.hpp"
 #include <string>
 #include <vector>
+#include "core/ComponentGroup.hpp"
+#include "core/ComponentGroupBuilder.hpp"
 
-class Window;
 class PlatformContext;
 
 /**
  * SceneBuilder: UIや世界の状態を宣言的に構築するビルダー。
  * Scene: "ページ"に限定されない、抽象的な「世界」や「状態」の単位。
  *   - 画面遷移やアプリの状態だけでなく、ゲームや仮想空間など多様な「シーン」表現に応用可能な設計。
- *   - build(SceneBuilder&) でシーン内の構成要素を宣言する。
+ *   - compose(SceneBuilder&) でシーン内の構成要素を宣言する。
  */
-class SceneBuilder
+class SceneBuilder : public ComponentGroupBuilder<Component2>
 {
 public:
   SceneBuilder() {}
-  void Text(const std::string &text)
+  SceneBuilder &Text(const std::string &text)
   {
     components.push_back(new TextComponent(text));
+    return *this;
   }
-  void TextInput(State<std::string> *state)
+  SceneBuilder &TextInput(State<std::string> *state)
   {
     components.push_back(new TextInputComponent(state));
+    return *this;
   }
-  void Button(const ButtonOptions &opts)
+  SceneBuilder &Button(const ButtonOptions &opts)
   {
     components.push_back(new ButtonComponent(opts.label, opts.enabled, opts.onClick));
+    return *this;
   }
-  std::vector<Component2 *> build()
-  {
-    std::vector<Component2 *> tmp;
-    tmp.swap(components);
-    return tmp;
-  }
-  ~SceneBuilder()
-  {
-    for (size_t i = 0; i < components.size(); ++i)
-      delete components[i];
-  }
-
-private:
-  std::vector<Component2 *> components;
-};
-
-// コールバック用ファンクタ基底クラス（C++98流）
-struct DiscardCallback
-{
-  virtual void operator()(bool canDiscard) = 0;
-  virtual ~DiscardCallback() {}
 };
 
 class Scene
 {
 public:
-  Scene(Window *hostWindow = 0)
-      : window_(hostWindow) {}
-
-  virtual ~Scene()
+  Scene()
+      : group_(0)
   {
-    for (size_t i = 0; i < components_.size(); ++i)
-      delete components_[i];
+    SceneBuilder builder;
+    compose(builder);
+    group_ = builder.buildPtr();
   }
-  Window *getHostWindow() const { return window_; }
-  void buildContext()
-  {
-    SceneBuilder b;
-    build(b);
-    std::vector<Component2 *> tmp = b.build();
-    components_.swap(tmp);
-  }
-
+  virtual ~Scene() { delete group_; }
+  const ComponentGroup<Component2> *getComponentGroup() const { return group_; }
   // --- ライフサイクルフック ---
   virtual void onCreate() {}
   virtual void onAttach() {}
   virtual void onDetach() {}
   virtual void onDestroy() {}
-  virtual bool isDiscardable() const { return true; }
-  // 非同期破棄確認: ファンクタでコールバック
-  virtual void requestDiscard(DiscardCallback *callback)
-  {
-    if (callback)
-      (*callback)(true);
-  }
-  // TODO: 破棄確認中にトランザクションが中断された場合のフック
-  virtual void onDiscardRequestAborted() {}
-  // buildは純粋仮想関数に
-  virtual void build(SceneBuilder &b) = 0;
-
+  // virtual bool isDiscardable() const { return true; }
+  // virtual void requestDiscard(DiscardCallback *callback)
+  // {
+  //   if (callback)
+  //     (*callback)(true);
+  // }
+  // virtual void onDiscardRequestAborted() {}
+  // --- UI構成宣言API ---
+  virtual void compose(SceneBuilder &b) {}
+  // --- API拡張例 ---
+  // // シリアライズ・リセット等の拡張もここで追加可能
+  // virtual std::string serialize() const { /* ... */ }
+  // virtual void reset() { /* ... */ }
 protected:
-  std::vector<Component2 *> components_;
-  Window *window_;
+  ComponentGroup<Component2> *group_;
 };
 
 #endif // DECLARA_SCENE_HPP

@@ -4,7 +4,7 @@
 
 // --- SceneManager: シーン遷移・ライフサイクル制御の中枢 ---
 SceneManager::SceneManager(SceneManagerDelegate *delegate)
-    : currentScene_(0), delegate(delegate), window_(0), discardCallback_(this, &pendingTransactions, &discardRequestingScene_) {}
+    : currentScene_(0), delegate(delegate), window_(0) /*, discardCallback_(this, &pendingTransactions, &discardRequestingScene_)*/ {}
 
 void SceneManager::commitTransaction(SceneTransaction *t)
 {
@@ -28,7 +28,7 @@ void SceneManager::commitTransaction(SceneTransaction *t)
         std::cout << "[DEBUG] About to call onDiscardRequestAborted on Scene at " << sceneToAbort << std::endl;
 
         // 通常の呼び出し
-        discardRequestingScene_->onDiscardRequestAborted(); // 重要: 強制キャンセル前に呼ぶべき
+        // discardRequestingScene_->onDiscardRequestAborted(); // 重要: 強制キャンセル前に呼ぶべき
 
         // --- メソッド呼び出し後のログ ---
         std::cout << "[DEBUG] After onDiscardRequestAborted call on Scene at " << sceneToAbort << std::endl;
@@ -77,7 +77,7 @@ void SceneManager::commitTransaction(SceneTransaction *t)
 
 void SceneManager::handleNextTransaction(bool forceAborted)
 {
-  discardCallback_.forceAborted = forceAborted;
+  // discardCallback_.forceAborted = forceAborted;
   std::cout << "[SceneManager::handleNextTransaction] called. pendingTransactions.size()=" << pendingTransactions.size() << ", currentScene_=" << currentScene_.get() << ", discardRequestingScene_=" << discardRequestingScene_ << ", forceAborted=" << forceAborted << std::endl;
   if (pendingTransactions.empty())
     return;
@@ -96,7 +96,7 @@ void SceneManager::handleNextTransaction(bool forceAborted)
   //     handleNextTransaction(false);
   //   return;
   // }
-  if (oldScene && !oldScene->isDiscardable())
+  if (oldScene /* && !oldScene->isDiscardable()*/)
   {
     std::cout << "[SceneManager::handleNextTransaction] oldScene not discardable. discardRequestingScene_=" << discardRequestingScene_ << std::endl;
     if (discardRequestingScene_ == oldScene)
@@ -106,7 +106,7 @@ void SceneManager::handleNextTransaction(bool forceAborted)
       // sceneB_abort->aborted のアドレスもテスト側で出力して比較すること
       if (oldScene)
       {
-        oldScene->onDiscardRequestAborted();
+        // oldScene->onDiscardRequestAborted();
         std::cout << "[SceneManager::handleNextTransaction] after onDiscardRequestAborted, oldScene=" << oldScene << std::endl;
       }
       // discardRequestループ防止: popしてdiscardRequestingScene_もリセット
@@ -129,7 +129,7 @@ void SceneManager::handleNextTransaction(bool forceAborted)
       return;
     }
     discardRequestingScene_ = oldScene;
-    oldScene->requestDiscard(&discardCallback_);
+    // oldScene->requestDiscard(&discardCallback_);
     std::cout << "[SceneManager::handleNextTransaction] discardRequest issued for oldScene=" << oldScene << std::endl;
     return;
   }
@@ -156,7 +156,7 @@ void SceneManager::swapScene(Scene *oldScene, Scene *newScene)
     if (discardRequestingScene_)
     {
       std::cout << "[SceneManager::swapScene] onDiscardRequestAborted() for discardRequestingScene_=" << discardRequestingScene_ << std::endl;
-      discardRequestingScene_->onDiscardRequestAborted();
+      // discardRequestingScene_->onDiscardRequestAborted();
     }
     discardRequestingScene_ = 0; // 自己遷移時もリセットしてループ防止
     if (!pendingTransactions.empty())
@@ -191,7 +191,7 @@ void SceneManager::cancelAllTransactions()
   if (discardRequestingScene_)
   {
     std::cout << "[SceneManager::cancelAllTransactions] onDiscardRequestAborted() for discardRequestingScene_=" << discardRequestingScene_ << std::endl;
-    discardRequestingScene_->onDiscardRequestAborted();
+    // discardRequestingScene_->onDiscardRequestAborted();
     discardRequestingScene_ = 0;
   }
   for (size_t i = 0; i < pendingTransactions.size(); ++i)
@@ -212,28 +212,28 @@ SceneManagerDelegate *SceneManager::getDelegate() const { return delegate; }
 void SceneManager::setWindow(Window *w) { window_ = w; }
 Window *SceneManager::getWindow() const { return window_; }
 
-void SceneManagerDiscardCallback::operator()(bool canDiscard)
-{
-  std::cout << "[SceneManagerDiscardCallback::operator()] called. canDiscard=" << canDiscard << ", forceAborted=" << forceAborted << std::endl;
-  std::cout << "[DEBUG] SceneManagerDiscardCallback::operator(): discardRequestingScenePtr=" << discardRequestingScenePtr << ", *discardRequestingScenePtr=" << (discardRequestingScenePtr ? *discardRequestingScenePtr : 0) << std::endl;
+// void SceneManagerDiscardCallback::operator()(bool canDiscard)
+// {
+//   std::cout << "[SceneManagerDiscardCallback::operator()] called. canDiscard=" << canDiscard << ", forceAborted=" << forceAborted << std::endl;
+//   std::cout << "[DEBUG] SceneManagerDiscardCallback::operator(): discardRequestingScenePtr=" << discardRequestingScenePtr << ", *discardRequestingScenePtr=" << (discardRequestingScenePtr ? *discardRequestingScenePtr : 0) << std::endl;
 
-  if (canDiscard)
-  {
-    std::cout << "[SceneManagerDiscardCallback] canDiscard==true, handleNextTransaction() called." << std::endl;
-    manager->handleNextTransaction(forceAborted);
-    forceAborted = false; // 1回使ったらリセット
-  }
-  else
-  {
-    std::cout << "[SceneManagerDiscardCallback] canDiscard==false, トランザクションを残したまま次へ進む." << std::endl;
-    // discardable でない場合はトランザクションをpopしない（設計意図）
-    // NG時にdiscardRequestingSceneはリセットするが、トランザクションは保持しておく
-    if (discardRequestingScenePtr)
-    {
-      std::cout << "[DEBUG] SceneManagerDiscardCallback: reset *discardRequestingScenePtr from " << *discardRequestingScenePtr << " to 0" << std::endl;
-      *discardRequestingScenePtr = 0;
-    }
-    forceAborted = false; // NG時もリセット
-  }
-  // delete this; // ローカルシングルトン方式なので不要
-}
+//   if (canDiscard)
+//   {
+//     std::cout << "[SceneManagerDiscardCallback] canDiscard==true, handleNextTransaction() called." << std::endl;
+//     manager->handleNextTransaction(forceAborted);
+//     forceAborted = false; // 1回使ったらリセット
+//   }
+//   else
+//   {
+//     std::cout << "[SceneManagerDiscardCallback] canDiscard==false, トランザクションを残したまま次へ進む." << std::endl;
+//     // discardable でない場合はトランザクションをpopしない（設計意図）
+//     // NG時にdiscardRequestingSceneはリセットするが、トランザクションは保持しておく
+//     if (discardRequestingScenePtr)
+//     {
+//       std::cout << "[DEBUG] SceneManagerDiscardCallback: reset *discardRequestingScenePtr from " << *discardRequestingScenePtr << " to 0" << std::endl;
+//       *discardRequestingScenePtr = 0;
+//     }
+//     forceAborted = false; // NG時もリセット
+//   }
+//   // delete this; // ローカルシングルトン方式なので不要
+// }

@@ -279,17 +279,17 @@ class TestSceneA : public Scene
 {
 public:
   TestSceneA() : Scene(), discardable(true) {}
-  void build(SceneBuilder &b)
+  void compose(SceneBuilder &b)
   {
     b.Text("[A] This is Test Scene A");
   }
-  bool isDiscardable() const { return discardable; }
-  void requestDiscard(DiscardCallback *cb)
-  {
-    std::cout << "[A] Save dialog: Discard OK (auto)\n";
-    if (cb)
-      (*cb)(true); // Always OK
-  }
+  // bool isDiscardable() const { return discardable; }
+  // void requestDiscard(DiscardCallback *cb)
+  // {
+  //   std::cout << "[A] Save dialog: Discard OK (auto)\n";
+  //   if (cb)
+  //     (*cb)(true); // Always OK
+  // }
   void onAttach() { std::cout << "[A] onAttach\n"; }
   void onDetach() { std::cout << "[A] onDetach\n"; }
   void onDiscardRequestAborted() { std::cout << "[A] onDiscardRequestAborted (emergency save!)\n"; }
@@ -300,27 +300,27 @@ class TestSceneB : public Scene
 {
 public:
   TestSceneB() : Scene(), discardable(false), discardRequested(false) {}
-  void build(SceneBuilder &b)
+  void compose(SceneBuilder &b)
   {
     b.Text("[B] This is Test Scene B");
   }
-  bool isDiscardable() const { return discardable; }
-  void requestDiscard(DiscardCallback *cb)
-  {
-    std::cout << "[B] Save dialog: Discard not allowed → 1st: NG, 2nd: OK\n";
-    if (!discardRequested)
-    {
-      discardRequested = true;
-      if (cb)
-        (*cb)(false); // 1st: NG
-    }
-    else
-    {
-      discardable = true; // 2nd以降はdiscardableに
-      if (cb)
-        (*cb)(true); // 2nd: OK
-    }
-  }
+  // bool isDiscardable() const { return discardable; }
+  // void requestDiscard(DiscardCallback *cb)
+  // {
+  //   std::cout << "[B] Save dialog: Discard not allowed → 1st: NG, 2nd: OK\n";
+  //   if (!discardRequested)
+  //   {
+  //     discardRequested = true;
+  //     if (cb)
+  //       (*cb)(false); // 1st: NG
+  //   }
+  //   else
+  //   {
+  //     discardable = true; // 2nd以降はdiscardableに
+  //     if (cb)
+  //       (*cb)(true); // 2nd: OK
+  //   }
+  // }
   void onAttach() { std::cout << "[B] onAttach\n"; }
   void onDetach() { std::cout << "[B] onDetach\n"; }
   void onDiscardRequestAborted() { std::cout << "[B] onDiscardRequestAborted (emergency save!)\n"; }
@@ -347,11 +347,11 @@ void testSceneManagerTransaction()
   struct TestSceneB_Abort : public TestSceneB
   {
     bool aborted = false;
-    void onDiscardRequestAborted() override
-    {
-      aborted = true;
-      std::cout << "[B] onDiscardRequestAborted (aborted by override)\n";
-    }
+    // void onDiscardRequestAborted() override
+    // {
+    //   aborted = true;
+    //   std::cout << "[B] onDiscardRequestAborted (aborted by override)\n";
+    // }
   };
   TestSceneB_Abort *sceneB_abort;
 

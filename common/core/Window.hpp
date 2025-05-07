@@ -61,7 +61,6 @@ public:
     Scene *scene = sceneManager_.getCurrentScene() ? sceneManager_.getCurrentScene()->get() : 0;
     if (scene)
     {
-      scene->buildContext();
       // ここで描画処理やPlatformContext連携を行う場合は適宜追加
     }
   }

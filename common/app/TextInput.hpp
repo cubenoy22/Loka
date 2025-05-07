@@ -3,6 +3,7 @@
 
 #include <string>
 #include "core/PlatformContext.hpp"
+#include "core/Component.hpp"
 #include "Button.hpp" // Component2基底クラスを参照
 
 class TextInputComponent : public Component2

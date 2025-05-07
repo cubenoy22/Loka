@@ -22,11 +22,16 @@ public:
         tracker({&name, &isValid}) {}
   static bool evaluateLength(const std::string &s) { return s.length() >= 3; }
   static void onSendClick() {}
-  void build(SceneBuilder &b)
+  void compose(SceneBuilder &builder)
   {
-    b.Text("名前を入力してください");
-    b.TextInput(&name);
-    b.Button(ButtonOptions().setLabel("送信").setEnabled(&isValid).setOnClick(&FormScene::onSendClick));
+    builder
+        .Text("名前を入力してください")
+        .TextInput(&name)
+        .Button(
+            ButtonOptions()
+                .setLabel("送信")
+                .setEnabled(&isValid)
+                .setOnClick(&FormScene::onSendClick));
   }
   MutableState<std::string> name;
   DerivedState<bool> isValid;
@@ -65,7 +70,7 @@ public:
     double m = h / 100.0;
     return w / (m * m);
   }
-  void build(SceneBuilder &b)
+  void compose(SceneBuilder &b)
   {
     b.Text("身長(cm)を入力してください");
     b.TextInput(&heightStr);

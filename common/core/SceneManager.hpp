@@ -33,21 +33,21 @@ public:
 };
 
 // SceneManager固有の状態を持つコールバック
-class SceneManagerDiscardCallback : public DiscardCallback
-{
-public:
-  SceneManagerDiscardCallback(SceneManager *mgr,
-                              std::vector<SceneTransaction *> *transactions,
-                              Scene **discardRequestingScene)
-      : manager(mgr), pendingTransactions(transactions), discardRequestingScenePtr(discardRequestingScene), forceAborted(false) {}
+// class SceneManagerDiscardCallback : public DiscardCallback
+// {
+// public:
+//   SceneManagerDiscardCallback(SceneManager *mgr,
+//                               std::vector<SceneTransaction *> *transactions,
+//                               Scene **discardRequestingScene)
+//       : manager(mgr), pendingTransactions(transactions), discardRequestingScenePtr(discardRequestingScene), forceAborted(false) {}
 
-  void operator()(bool canDiscard) override;
-  bool forceAborted; // 強制割り込みフラグ
-private:
-  SceneManager *manager;
-  std::vector<SceneTransaction *> *pendingTransactions;
-  Scene **discardRequestingScenePtr;
-};
+//   void operator()(bool canDiscard) override;
+//   bool forceAborted; // 強制割り込みフラグ
+// private:
+//   SceneManager *manager;
+//   std::vector<SceneTransaction *> *pendingTransactions;
+//   Scene **discardRequestingScenePtr;
+// };
 
 // --- SceneManager: シーン遷移・ライフサイクル制御の中枢 ---
 class SceneManager
@@ -71,7 +71,7 @@ protected:
   SceneManagerDelegate *delegate;
   Window *window_; // PlatformContext連携用
   Scene *discardRequestingScene_ = 0;
-  SceneManagerDiscardCallback discardCallback_;
+  // SceneManagerDiscardCallback discardCallback_;
 };
 
 #endif // DECLARA_SCENEMANAGER_HPP

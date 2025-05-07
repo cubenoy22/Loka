@@ -2,6 +2,7 @@
 #define DECLARA_TEXT_HPP
 
 #include <string>
+#include "core/Component.hpp"
 #include "core/PlatformContext.hpp"
 #include "app/Button.hpp" // Component2基底クラスを参照
 
