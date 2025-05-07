@@ -10,19 +10,6 @@ App::App(Window *w) : mainWindow_(w)
   }
 }
 
-void App::run()
-{
-  if (mainWindow_)
-  {
-    mainWindow_->rerender();
-  }
-  // メインループの仮実装
-  while (!windows.empty())
-  {
-    // プラットフォーム固有のイベント処理を想定
-  }
-}
-
 // App::windowClosed の実装
 void App::windowClosed(Window *window)
 {

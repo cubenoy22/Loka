@@ -2,9 +2,8 @@
 #define DECLARA_APP_HPP
 
 #include <vector>
-#include <memory> // std::unique_ptr を使用
 
-class Window; // 前方宣言
+class Window;
 
 class App
 {
@@ -12,7 +11,7 @@ public:
   App(Window *w);
   virtual ~App() = default;
 
-  virtual void run();
+  virtual void run() = 0;
   virtual void quit() = 0;
   virtual void windowClosed(Window *window);
 
