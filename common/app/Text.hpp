@@ -2,7 +2,7 @@
 #define DECLARA_TEXT_HPP
 
 #include <string>
-#include "app/PlatformContext.hpp"
+#include "core/PlatformContext.hpp"
 #include "app/Button.hpp" // Component基底クラスを参照
 
 class TextComponent : public Component

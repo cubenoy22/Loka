@@ -2,7 +2,7 @@
 #define DECLARA_WIN32WINDOW_HPP
 
 #include "core/Window.hpp"
-#include "app/PlatformContext.hpp"
+#include "core/PlatformContext.hpp"
 #include <windows.h>
 
 class Win32App;

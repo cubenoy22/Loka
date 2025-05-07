@@ -3,7 +3,7 @@
 
 #include <string>
 #include "core/State.hpp"
-#include "app/PlatformContext.hpp"
+#include "core/PlatformContext.hpp"
 
 // グローバル定数State（常に有効なボタン用）
 static State<bool> BUTTON_DEFAULT_ENABLED(true);

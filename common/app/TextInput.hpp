@@ -2,7 +2,7 @@
 #define DECLARA_TEXTINPUT_HPP
 
 #include <string>
-#include "app/PlatformContext.hpp"
+#include "core/PlatformContext.hpp"
 #include "Button.hpp" // Component基底クラスを参照
 
 class TextInputComponent : public Component
