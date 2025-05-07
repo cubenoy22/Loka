@@ -5,6 +5,7 @@
 #include "Scene.hpp"
 #include "State.hpp"
 #include "core/StateTracker.hpp"
+#include "SceneManager.hpp"
 
 class Scene;
 class PlatformContext;
@@ -28,7 +29,7 @@ class Window
 public:
   // Windowクラスのコンストラクタでvisibilityとtitleを初期化
   Window(PlatformContext *context, App *app, const std::string &title = "")
-      : context_(context), scene_(0), visibility(false), app_(app), title("")
+      : context_(context), app_(app), title("")
   {
     std::vector<StateBase *> states = {&this->title, &this->visibility};
     tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
@@ -50,18 +51,23 @@ public:
 
   void setScene(Scene *scene)
   {
-    scene_ = scene;
-    rerender();
+    // SceneManager経由でトランザクションとして切り替え
+    Scene *from = sceneManager_.getCurrentScene() ? sceneManager_.getCurrentScene()->get() : 0;
+    sceneManager_.commitTransaction(new SceneTransaction(from, scene));
   }
   void rerender()
   {
-    if (scene_)
+    // SceneManager経由で現在のSceneを取得
+    Scene *scene = sceneManager_.getCurrentScene() ? sceneManager_.getCurrentScene()->get() : 0;
+    if (scene)
     {
-      scene_->buildContext();
+      scene->buildContext();
+      // ここで描画処理やPlatformContext連携を行う場合は適宜追加
     }
   }
   PlatformContext *context() const { return context_; }
-  Scene *scene() const { return scene_; }
+  Scene *scene() const { return sceneManager_.getCurrentScene() ? sceneManager_.getCurrentScene()->get() : 0; }
+  SceneManager *sceneManager() { return &sceneManager_; }
 
   void setApp(App *app) { app_ = app; }
   App *getApp() const { return app_; }
@@ -75,9 +81,9 @@ public:
 
 protected:
   PlatformContext *context_;
-  Scene *scene_;
   App *app_;              // App をポインタで保持
   StateTracker *tracker_; // --- Window専用のtrackerを追加
+  SceneManager sceneManager_;
 };
 
 #endif // DECLARA_WINDOW_HPP

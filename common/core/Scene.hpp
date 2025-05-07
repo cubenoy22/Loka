@@ -48,6 +48,13 @@ private:
   std::vector<Component *> components;
 };
 
+// コールバック用ファンクタ基底クラス（C++98流）
+struct DiscardCallback
+{
+  virtual void operator()(bool canDiscard) = 0;
+  virtual ~DiscardCallback() {}
+};
+
 class Scene
 {
 public:
@@ -68,6 +75,20 @@ public:
     components_.swap(tmp);
   }
 
+  // --- ライフサイクルフック ---
+  virtual void onCreate() {}
+  virtual void onAttach() {}
+  virtual void onDetach() {}
+  virtual void onDestroy() {}
+  virtual bool isDiscardable() const { return true; }
+  // 非同期破棄確認: ファンクタでコールバック
+  virtual void requestDiscard(DiscardCallback *callback)
+  {
+    if (callback)
+      (*callback)(true);
+  }
+  // TODO: 破棄確認中にトランザクションが中断された場合のフック
+  virtual void onDiscardRequestAborted() {}
   // buildは純粋仮想関数に
   virtual void build(SceneBuilder &b) = 0;
 

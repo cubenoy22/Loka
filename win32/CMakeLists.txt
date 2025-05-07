@@ -10,9 +10,10 @@ set(SOURCES
   src/main.cpp
   src/Win32App.cpp       # Win32App.cppを追加
   src/Win32Window.cpp    # Win32Window.cppも追加
-  ../common/main.cpp
   ../common/core/App.cpp      # App.cppをビルド対象に追加（core配下に変更）
   ../common/core/StateTracker.cpp  # StateTracker.cppをビルド対象に追加（core配下に変更）
+  ../common/core/SceneManager.cpp  # ← ここを必ず追加！
+  ../common/core/SceneManager2.cpp
 )
 
 option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)

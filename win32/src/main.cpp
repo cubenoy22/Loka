@@ -10,6 +10,7 @@
 #include "core/App.hpp"
 #include "core/Window.hpp"
 #include <string>
+#include "core/SceneManager2.hpp"
 
 void testDependencyPropagationCases()
 {
@@ -273,6 +274,169 @@ void testDerivedStruct()
   printf("==== [testDerivedStruct] end ====\n");
 }
 
+// Test dummy Scene (English output for console compatibility)
+class TestSceneA : public Scene
+{
+public:
+  TestSceneA() : Scene(), discardable(true) {}
+  void build(SceneBuilder &b)
+  {
+    b.Text("[A] This is Test Scene A");
+  }
+  bool isDiscardable() const { return discardable; }
+  void requestDiscard(DiscardCallback *cb)
+  {
+    std::cout << "[A] Save dialog: Discard OK (auto)\n";
+    if (cb)
+      (*cb)(true); // Always OK
+  }
+  void onAttach() { std::cout << "[A] onAttach\n"; }
+  void onDetach() { std::cout << "[A] onDetach\n"; }
+  void onDiscardRequestAborted() { std::cout << "[A] onDiscardRequestAborted (emergency save!)\n"; }
+  bool discardable;
+};
+
+class TestSceneB : public Scene
+{
+public:
+  TestSceneB() : Scene(), discardable(false), discardRequested(false) {}
+  void build(SceneBuilder &b)
+  {
+    b.Text("[B] This is Test Scene B");
+  }
+  bool isDiscardable() const { return discardable; }
+  void requestDiscard(DiscardCallback *cb)
+  {
+    std::cout << "[B] Save dialog: Discard not allowed → 1st: NG, 2nd: OK\n";
+    if (!discardRequested)
+    {
+      discardRequested = true;
+      if (cb)
+        (*cb)(false); // 1st: NG
+    }
+    else
+    {
+      discardable = true; // 2nd以降はdiscardableに
+      if (cb)
+        (*cb)(true); // 2nd: OK
+    }
+  }
+  void onAttach() { std::cout << "[B] onAttach\n"; }
+  void onDetach() { std::cout << "[B] onDetach\n"; }
+  void onDiscardRequestAborted() { std::cout << "[B] onDiscardRequestAborted (emergency save!)\n"; }
+  bool discardable;
+  bool discardRequested;
+};
+
+void testSceneManagerTransaction()
+{
+  std::cout << "\n==== [testSceneManagerTransaction/SceneManager2] start ====\n";
+  // PlatformContext *dummyContext = 0;
+  // Window win(dummyContext, 0, "テストウィンドウ");
+  // SceneManager *mgr = win.sceneManager();
+  // mgr->setWindow(&win);
+
+  // SceneManager2を直接使う
+  SceneManager2 mgr;
+
+  // TestSceneA/Bは1インスタンスずつ使い回す
+  TestSceneA *sceneA = new TestSceneA();
+  TestSceneB *sceneB = new TestSceneB();
+
+  // --- 共通で使うテスト用Scene定義 ---
+  struct TestSceneB_Abort : public TestSceneB
+  {
+    bool aborted = false;
+    void onDiscardRequestAborted() override
+    {
+      aborted = true;
+      std::cout << "[B] onDiscardRequestAborted (aborted by override)\n";
+    }
+  };
+  TestSceneB_Abort *sceneB_abort;
+
+  std::cout << "--- シーンAへ ---\n";
+  mgr.commitTransaction(0, sceneA);
+  assert(mgr.getCurrentScene() == sceneA);
+
+  std::cout << "--- シーンBへ ---\n";
+  mgr.commitTransaction(sceneA, sceneB);
+  assert(mgr.getCurrentScene() == sceneB);
+
+  // std::cout << "--- シーンAへ（Bの破棄不可→2回目でOK）---\n";
+  // mgr.commitTransaction(sceneB, sceneA);   // 1回目（NG）
+  // assert(mgr.getCurrentScene() == sceneB); // まだBのまま
+  // mgr.commitTransaction(sceneB, sceneA);   // 2回目（OK）
+  // assert(mgr.getCurrentScene() == sceneA); // ここでAに遷移
+
+  // 連打シミュレーション（常に同じsceneBを使い回す）
+  std::cout << "--- 連打シミュレーション ---\n";
+  for (int i = 0; i < 3; ++i)
+  {
+    mgr.commitTransaction(mgr.getCurrentScene(), sceneB);
+    assert(mgr.getCurrentScene() == sceneB);
+  }
+
+  // --- discardRequest中にcommitTransaction（強制キャンセル）テスト ---
+  // SceneManager2はデリゲート/割り込み未実装のためスキップ
+  /*
+  std::cout << "--- discardRequest中にcommitTransaction（強制キャンセル）テスト ---\n";
+  sceneB_abort = new TestSceneB_Abort();
+  std::cout << "[test] Created sceneB_abort=" << sceneB_abort << std::endl;
+  mgr.commitTransaction(sceneA, sceneB_abort); // Bへ
+  assert(mgr.getCurrentScene() == sceneB_abort);
+  mgr.commitTransaction(sceneB_abort, sceneA); // Aへ（1回目: NG）
+  // すぐにさらにBへ（強制キャンセル）
+  std::cout << "[test] Before force cancel: sceneB_abort=" << sceneB_abort << ", aborted=" << sceneB_abort->aborted << std::endl;
+  mgr.commitTransaction(sceneA, sceneB_abort); // 強制キャンセル
+  std::cout << "[test] After force cancel: sceneB_abort=" << sceneB_abort << ", aborted=" << sceneB_abort->aborted << std::endl;
+  // onDiscardRequestAbortedが呼ばれたか検証
+  assert(sceneB_abort->aborted);
+  */
+
+  // --- 2回連続でfalse（常にNG）テスト ---
+  // std::cout << "--- 2回連続でfalse（常にNG）テスト ---\n";
+  // struct TestSceneB_AlwaysNG : public TestSceneB
+  // {
+  //   bool isDiscardable() const override { return false; }
+  //   void requestDiscard(DiscardCallback *cb) override
+  //   {
+  //     std::cout << "[B] Save dialog: Always NG\n";
+  //     if (cb)
+  //       (*cb)(false);
+  //   }
+  // };
+  // TestSceneB_AlwaysNG *sceneB_ng = new TestSceneB_AlwaysNG();
+  // mgr.commitTransaction(sceneA, sceneB_ng);
+  // assert(mgr.getCurrentScene() == sceneB_ng);
+  // mgr.commitTransaction(sceneB_ng, sceneA);   // 1回目: NG
+  // assert(mgr.getCurrentScene() == sceneB_ng); // まだBのまま
+  // mgr.commitTransaction(sceneB_ng, sceneA);   // 2回目: NG
+  // assert(mgr.getCurrentScene() == sceneB_ng); // まだBのまま
+
+  // --- delegate未設定・割り込みcommitTransactionテスト ---
+  // SceneManager2はデリゲート未実装のためスキップ
+  /*
+  std::cout << "--- delegate未設定: 割り込みcommitTransactionは即座に遷移しない ---\n";
+  TestSceneB *sceneB_pending = new TestSceneB();
+  mgr.commitTransaction(sceneA, sceneB_pending); // Bへ
+  assert(mgr.getCurrentScene() == sceneB_pending);
+  mgr.commitTransaction(sceneB_pending, sceneA); // 1回目: NG
+  assert(mgr.getCurrentScene() == sceneB_pending); // まだBのまま
+  mgr.commitTransaction(sceneB_pending, sceneA); // 2回目: OK
+  assert(mgr.getCurrentScene() == sceneA); // ここでAに遷移
+  */
+
+  // --- shouldOverridePending=false/true delegateテスト ---
+  // SceneManager2はデリゲート未実装のためスキップ
+  /*
+  std::cout << "--- shouldOverridePending=false delegate: 割り込みcommitTransactionは即座に遷移しない ---\n";
+  std::cout << "--- shouldOverridePending=true delegate: 強制キャンセルが即時発動する ---\n";
+  */
+
+  std::cout << "--- [testSceneManagerTransaction/SceneManager2] end ---\n";
+}
+
 // --- Win32Window/Win32App設計に基づき、WinMainを最小構成に整理 ---
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -290,5 +454,6 @@ int main()
   testRAIITransaction();
   testTextInputOnChange();
   testDerivedStruct();
+  testSceneManagerTransaction();
   return 0;
 }
