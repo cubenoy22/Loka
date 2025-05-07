@@ -3,9 +3,9 @@
 
 #include <string>
 #include "core/PlatformContext.hpp"
-#include "app/Button.hpp" // Component基底クラスを参照
+#include "app/Button.hpp" // Component2基底クラスを参照
 
-class TextComponent : public Component
+class TextComponent : public Component2
 {
 public:
   TextComponent(const std::string &text) : text_(text) {}

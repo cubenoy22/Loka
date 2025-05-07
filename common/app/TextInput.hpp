@@ -3,9 +3,9 @@
 
 #include <string>
 #include "core/PlatformContext.hpp"
-#include "Button.hpp" // Component基底クラスを参照
+#include "Button.hpp" // Component2基底クラスを参照
 
-class TextInputComponent : public Component
+class TextInputComponent : public Component2
 {
 public:
   TextInputComponent(State<std::string> *state) : state_(state) {}

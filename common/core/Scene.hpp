@@ -32,9 +32,9 @@ public:
   {
     components.push_back(new ButtonComponent(opts.label, opts.enabled, opts.onClick));
   }
-  std::vector<Component *> build()
+  std::vector<Component2 *> build()
   {
-    std::vector<Component *> tmp;
+    std::vector<Component2 *> tmp;
     tmp.swap(components);
     return tmp;
   }
@@ -45,7 +45,7 @@ public:
   }
 
 private:
-  std::vector<Component *> components;
+  std::vector<Component2 *> components;
 };
 
 // コールバック用ファンクタ基底クラス（C++98流）
@@ -71,7 +71,7 @@ public:
   {
     SceneBuilder b;
     build(b);
-    std::vector<Component *> tmp = b.build();
+    std::vector<Component2 *> tmp = b.build();
     components_.swap(tmp);
   }
 
@@ -93,7 +93,7 @@ public:
   virtual void build(SceneBuilder &b) = 0;
 
 protected:
-  std::vector<Component *> components_;
+  std::vector<Component2 *> components_;
   Window *window_;
 };
 

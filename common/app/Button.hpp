@@ -33,14 +33,14 @@ struct ButtonOptions
   }
 };
 
-// Component: すべてのUI部品の共通基底クラス
-class Component
+// Component2: すべてのUI部品の共通基底クラス
+class Component2
 {
 public:
-  virtual ~Component() {}
+  virtual ~Component2() {}
 };
 
-class ButtonComponent : public Component
+class ButtonComponent : public Component2
 {
 public:
   ButtonComponent(const std::string &label, State<bool> *enabled, void (*onClick)())
