@@ -278,7 +278,7 @@ void testDerivedStruct()
 class TestSceneA : public Scene
 {
 public:
-  TestSceneA() : Scene(), discardable(true) {}
+  TestSceneA() : Scene(new SceneHost()), discardable(true) {}
   void compose(SceneBuilder &b)
   {
     b.Text("[A] This is Test Scene A");
@@ -299,7 +299,7 @@ public:
 class TestSceneB : public Scene
 {
 public:
-  TestSceneB() : Scene(), discardable(false), discardRequested(false) {}
+  TestSceneB() : Scene(new SceneHost()), discardable(false), discardRequested(false) {}
   void compose(SceneBuilder &b)
   {
     b.Text("[B] This is Test Scene B");

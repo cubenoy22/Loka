@@ -11,6 +11,9 @@
 
 class PlatformContext;
 
+// SceneHost: Sceneのホスト役。相互参照・include地獄回避のためのラッパー。
+class SceneHost;
+
 /**
  * SceneBuilder: UIや世界の状態を宣言的に構築するビルダー。
  * Scene: "ページ"に限定されない、抽象的な「世界」や「状態」の単位。
@@ -38,10 +41,15 @@ public:
   }
 };
 
+// SceneHost: Sceneのホスト役。相互参照・include地獄回避のためのラッパー。
+class SceneHost
+{
+};
+
 class Scene
 {
 public:
-  Scene()
+  Scene(SceneHost *host)
       : group_(0)
   {
     SceneBuilder builder;

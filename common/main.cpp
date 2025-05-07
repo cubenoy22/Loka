@@ -15,7 +15,7 @@ class FormScene : public Scene
 {
 public:
   FormScene()
-      : Scene(),
+      : Scene(new SceneHost()),
         name(""),
         isValid({&name}, [&]()
                 { return name.get().length() >= 3; }),
@@ -43,7 +43,7 @@ class BMICalcScene : public Scene
 {
 public:
   BMICalcScene()
-      : Scene(),
+      : Scene(new SceneHost()),
         heightStr("170.0"),
         weightStr("60.0"),
         height({&heightStr}, [&]()
