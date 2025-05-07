@@ -8,7 +8,7 @@ class Window;
 class App
 {
 public:
-  App(Window *w);
+  App();
   virtual ~App() = default;
 
   virtual void run() = 0;
@@ -18,9 +18,6 @@ public:
 protected:
   std::vector<Window *> windows;
   bool quitWhenLastWindowClosed_ = true;
-
-private:
-  Window *mainWindow_; // Window をポインタで保持
 };
 
 #endif // DECLARA_APP_HPP

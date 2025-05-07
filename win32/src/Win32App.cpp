@@ -4,12 +4,11 @@
 #include <stdexcept> // for std::runtime_error
 #include "core/App.hpp"
 
-// コンストラクタ: App(nullptr) は仮。mainWindow_は削除したので初期化不要
 Win32App::Win32App(HINSTANCE hInstance, int nCmdShow)
-    : App(nullptr), hInstance_(hInstance), nCmdShow_(nCmdShow)
+    : App(), hInstance_(hInstance), nCmdShow_(nCmdShow)
 {
   // App基底クラスのwindowポインタをどう扱うかは要検討
-  // 現状は nullptr のまま
+  // 現状は windows ベクターのみ利用
 }
 
 // デストラクタ: override を追加

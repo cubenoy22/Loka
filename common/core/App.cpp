@@ -2,13 +2,7 @@
 #include "Window.hpp"
 #include <algorithm> // std::remove用
 
-App::App(Window *w) : mainWindow_(w)
-{
-  if (mainWindow_)
-  {
-    windows.push_back(mainWindow_);
-  }
-}
+App::App() {}
 
 // App::windowClosed の実装
 void App::windowClosed(Window *window)
