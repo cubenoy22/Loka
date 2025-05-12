@@ -150,12 +150,20 @@ class MutableState : public State<T>
 public:
   using State<T>::State;
   using State<T>::setValue;
-  void set(const T &v)
+  void set(const T &v, bool forceUpdate = false)
   {
 #ifdef TEST_BUILD
     printf("[MutableState::set] this=%p\n", (void *)this);
 #endif
-    State<T>::set(v);
+    if (forceUpdate)
+    {
+      State<T>::set(v);
+      this->notifyStateChanged(); // 値が同じでも必ず通知
+    }
+    else
+    {
+      State<T>::set(v);
+    }
     if (this->currentTracker)
       this->currentTracker->markDirty(this);
   }
