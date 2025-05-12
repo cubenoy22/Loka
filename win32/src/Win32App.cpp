@@ -4,15 +4,15 @@
 #include <stdexcept> // for std::runtime_error
 #include "core/App.hpp"
 
-Win32App::Win32App(HINSTANCE hInstance, int nCmdShow)
-    : App(), hInstance_(hInstance), nCmdShow_(nCmdShow)
+Win32App::Win32App(AppBuilder &builder, HINSTANCE hInstance, int nCmdShow)
+    : App(composeComponents(builder)), hInstance_(hInstance), nCmdShow_(nCmdShow)
 {
   // App基底クラスのwindowポインタをどう扱うかは要検討
-  // 現状は windows ベクターのみ利用
+  // 現状は group_ のみ利用
 }
 
 // デストラクタ: override を追加
-Win32App::~Win32App() /*override*/ // .cpp側にはoverride不要
+Win32App::~Win32App()
 {
   // windowsベクター内のウィンドウは App::windowClosed で削除されるか、
   // App のデストラクタで解放されるべき (App.hppに仮想デストラクタ追加済み)
@@ -33,37 +33,9 @@ void Win32App::windowClosed(Window *window)
   // Win32固有の後処理があればここに追加
 }
 
-void Win32App::run() /*override*/ // .cpp側にはoverride不要
+void Win32App::run()
 {
-  // 最初のウィンドウを作成
-  Win32Window *mainWindow = new Win32Window(this, nullptr, "Developer Window");
-  if (!mainWindow)
-  {
-    throw std::runtime_error("Failed to create main window object.");
-  }
-
-  // Appの管理リストに追加（明示的なキャストを追加）
-  windows.push_back(static_cast<Window *>(mainWindow));
-
-  // Trackerのbegin/endでState変更をトランザクション化
-  if (mainWindow->getTracker())
-  {
-    mainWindow->getTracker()->begin();
-    mainWindow->visibility.set(true); // これで createNativeWindow が呼ばれるはず
-    mainWindow->getTracker()->end();
-  }
-  else
-  {
-    mainWindow->visibility.set(true);
-  }
-
-  // mainWindow が有効か確認 (createNativeWindow内でhwnd_がセットされる)
-  if (!mainWindow->hwnd())
-  {
-    windows.pop_back();
-    delete mainWindow;
-    throw std::runtime_error("Failed to create native window handle.");
-  }
+  App::run();
 
   // Win32メッセージループ
   MSG msg;

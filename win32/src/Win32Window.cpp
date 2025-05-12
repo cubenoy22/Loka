@@ -4,6 +4,7 @@
 #include <string>
 #include "core/Window.hpp"
 #include "core/StateTracker.hpp"
+#include "core/AutoTransactionGuard.hpp"
 
 namespace
 {
@@ -11,8 +12,8 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-Win32Window::Win32Window(Win32App *app, PlatformContext *context, const std::string &title, HWND hwnd)
-    : Window(context, app, title), hwnd_(hwnd), app_(app)
+Win32Window::Win32Window(Win32App *app, PlatformContext *context, const std::string &title, HWND hwnd, bool visible)
+    : Window(context, app, title, visible), hwnd_(hwnd), app_(app)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);
@@ -160,4 +161,10 @@ void Win32Window::destroyNativeWindow()
     DestroyWindow(this->hwnd_);
     this->hwnd_ = nullptr;
   }
+}
+
+void Win32Window::onRun()
+{
+  AutoTransactionGuard _(this->getTracker());
+  this->visibility.set(true, true);
 }

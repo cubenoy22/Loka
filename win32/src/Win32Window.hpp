@@ -2,27 +2,24 @@
 #define DECLARA_WIN32WINDOW_HPP
 
 #include "core/Window.hpp"
-#include "core/PlatformContext.hpp"
 #include <windows.h>
+#include <string>
 
 class Win32App;
+class PlatformContext;
 
 // 🦊 Win32固有のWindow実装
 class Win32Window : public Window
 {
 public:
-  // WindowOptionsのtitleを受け取れるように拡張
-  Win32Window(Win32App *app, PlatformContext *context, const std::string &title, HWND hwnd = 0);
+  // WindowOptionsのtitle/visibleを受け取れるように拡張
+  Win32Window(Win32App *app, PlatformContext *context, const std::string &title, HWND hwnd = 0, bool visible = true);
 
   HWND hwnd() const { return hwnd_; }
 
-  // --- 追加: Win32 WndProc ---
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-  // 必要に応じてWindowの仮想関数をオーバーライド
-  // 例:
-  // void setPage(Page* page) override { /* TODO: 実装 */ }
-  // void rerender() override { /* TODO: 実装 */ }
+  virtual void onRun();
 
 protected:
   HWND hwnd_;

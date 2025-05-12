@@ -1,15 +1,16 @@
 #include <windows.h>
-#include "Win32App.hpp"
+#include <string>
 #include <iostream>
 #include <cassert>
+#include "Win32App.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "core/Scene.hpp"
 #include "app/Button.hpp"
 #include "core/PlatformContext.hpp"
+#include "Win32PlatformContext.hpp"
 #include "core/App.hpp"
 #include "core/Window.hpp"
-#include <string>
 #include "core/SceneManager2.hpp"
 
 void testDependencyPropagationCases()
@@ -440,7 +441,15 @@ void testSceneManagerTransaction()
 // --- Win32Window/Win32App設計に基づき、WinMainを最小構成に整理 ---
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-  Win32App app(hInstance, nCmdShow);
+  Win32PlatformContext platformContext;
+  App app(
+      AppBuilder(&platformContext)
+          .Window(
+              WindowOptions()
+                  .setTitle("DEVELOPERS!")
+                  .setVisibility(true)),
+      hInstance,
+      nCmdShow);
   app.run();
   return 0;
 }

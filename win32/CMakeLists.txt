@@ -10,6 +10,7 @@ set(SOURCES
   src/main.cpp
   src/Win32App.cpp       # Win32App.cppを追加
   src/Win32Window.cpp    # Win32Window.cppも追加
+  src/Win32PlatformContext.cpp   # Win32PlatformContext.cppを追加
   ../common/core/App.cpp      # App.cppをビルド対象に追加（core配下に変更）
   ../common/core/StateTracker.cpp  # StateTracker.cppをビルド対象に追加（core配下に変更）
   ../common/core/SceneManager.cpp  # ← ここを必ず追加！

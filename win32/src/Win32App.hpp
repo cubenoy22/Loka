@@ -3,20 +3,19 @@
 
 #include "core/App.hpp"
 #include <windows.h>
-// #include "Win32Window.hpp" // Win32Window.hpp から Win32App を前方宣言したので、ここでは不要かも (循環参照防止)
-class Win32Window; // 前方宣言で十分
+
+class Win32Window;
 
 class Win32App : public App
 {
 public:
-  Win32App(HINSTANCE hInstance, int nCmdShow);
-  ~Win32App() override; // override を追加
-  void run() override;  // override を追加
+  Win32App(AppBuilder &builder, HINSTANCE hInstance, int nCmdShow);
+  ~Win32App() override;
+  void run() override;
 
   // --- Appからのオーバーライド ---
-  void quit() override;                       // <-- 再度追加
-  void windowClosed(Window *window) override; // <-- 再度追加
-  // addWindow は必要ならオーバーライド
+  void quit() override;
+  void windowClosed(Window *window) override;
 
 private:
   HINSTANCE hInstance_;

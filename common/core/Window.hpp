@@ -2,10 +2,10 @@
 #define DECLARA_WINDOW_HPP
 
 #include <string>
-#include "Scene.hpp"
 #include "State.hpp"
 #include "core/StateTracker.hpp"
 #include "SceneManager.hpp"
+#include "core/AppComponent.hpp" // AppComponentを継承するためにインクルード追加
 
 class Scene;
 class PlatformContext;
@@ -15,25 +15,32 @@ class App;
 struct WindowOptions
 {
   std::string title;
-  WindowOptions() : title("") {}
+  bool visible;
+  WindowOptions() : title(""), visible(true) {}
   WindowOptions &setTitle(const std::string &t)
   {
     title = t;
     return *this;
   }
+  WindowOptions &setVisibility(bool v)
+  {
+    visible = v;
+    return *this;
+  }
   // 将来: setMinimizable(bool) など拡張可
 };
 
-class Window
+class Window : public AppComponent
 {
 public:
   // Windowクラスのコンストラクタでvisibilityとtitleを初期化
-  Window(PlatformContext *context, App *app, const std::string &title = "")
+  Window(PlatformContext *context, App *app, const std::string &title = "", bool visible = true)
       : context_(context), app_(app), title("")
   {
     std::vector<StateBase *> states = {&this->title, &this->visibility};
     tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
     this->title.set(title);
+    this->visibility.set(visible);
   }
   virtual ~Window() = default;
 
@@ -77,6 +84,8 @@ public:
   MutableState<std::string> title;
 
   StateTracker *getTracker() const { return tracker_; }
+
+  virtual void onRun() {}
 
 protected:
   PlatformContext *context_;
