@@ -4,7 +4,7 @@
 #include <string>
 #include "core/Window.hpp"
 #include "core/StateTracker.hpp"
-#include "core/AutoTransactionGuard.hpp"
+#include "core/util/AutoTransactionGuard.hpp"
 #include "core/Scene.hpp"
 
 namespace

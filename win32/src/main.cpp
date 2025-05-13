@@ -14,7 +14,7 @@
 #include "core/SceneManager2.hpp"
 #include "core/util/ScopedPtr.hpp"
 #include "core/AppConfigurable.hpp"
-#include "core/AutoTransactionGuard.hpp"
+#include "core/util/AutoTransactionGuard.hpp"
 
 void testDependencyPropagationCases()
 {

@@ -2,7 +2,7 @@
 #include "Window.hpp"
 #include <algorithm>
 #include <iostream>
-#include "AutoTransactionGuard.hpp"
+#include "util/AutoTransactionGuard.hpp"
 
 // AppBuilder::Window メソッドの実装（Window抽象クラス問題の修正）
 AppBuilder &AppBuilder::Window(Scene *initialScene, const WindowOptions &opts)
