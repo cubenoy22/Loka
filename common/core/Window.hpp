@@ -31,13 +31,18 @@ struct WindowOptions
 class Window : public AppComponent
 {
 public:
-  Window(PlatformContext *context, const WindowOptions &options = WindowOptions())
+  Window(PlatformContext *context, Scene *initialScene = nullptr, const WindowOptions &options = WindowOptions())
       : context_(context), title("")
   {
+    options_ = options;
     std::vector<StateBase *> states = {&this->title, &this->visibility};
     tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
     this->title.set(options.title);
     this->visibility.set(options.visible);
+    if (initialScene)
+    {
+      sceneManager_.commitTransaction(nullptr, initialScene);
+    }
   }
   virtual ~Window() = default;
 
@@ -50,12 +55,18 @@ public:
 
   StateTracker *getTracker() const { return tracker_; }
 
-  virtual void onRun() {}
+  // onRunは廃止
+
+  virtual void onCreate() {}
+  virtual void onShow() {}
+  virtual void onHide() {}
+  virtual void onDestroy() {}
 
 protected:
   PlatformContext *context_;
   StateTracker *tracker_;
   SceneManager2 sceneManager_;
+  WindowOptions options_;
 };
 
 #endif // DECLARA_WINDOW_HPP

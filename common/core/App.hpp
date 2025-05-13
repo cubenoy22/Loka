@@ -24,6 +24,8 @@ protected:
   ComponentGroup<AppComponent> *group_;
   bool quitWhenLastWindowClosed_ = true;
   AppConfigurable *config_;
+
+  void reflectInitialVisibilityChunks();
 };
 
 #endif // DECLARA_APP_HPP

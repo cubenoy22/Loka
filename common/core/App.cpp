@@ -2,6 +2,7 @@
 #include "Window.hpp"
 #include <algorithm>
 #include <iostream>
+#include "AutoTransactionGuard.hpp"
 
 // AppBuilder::Window メソッドの実装（Window抽象クラス問題の修正）
 AppBuilder &AppBuilder::Window(const WindowOptions &opts)
@@ -31,15 +32,25 @@ void App::run()
     config_->configure(builder);
     group_ = new ComponentGroup<AppComponent>(builder.build());
   }
-  if (group_)
+  reflectInitialVisibilityChunks();
+}
+
+// --- visibility chunk反映をprivate関数に分離 ---
+void App::reflectInitialVisibilityChunks()
+{
+  if (!group_)
+    return;
+  const std::vector<AppComponent *> &comps = group_->getComponents();
+  for (auto *comp : comps)
   {
-    const std::vector<AppComponent *> &comps = group_->getComponents();
-    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+    Window *win = dynamic_cast<Window *>(comp);
+    if (win && win->visibility.get())
     {
-      Window *win = dynamic_cast<Window *>(*it);
-      if (win && win->visibility.get())
+      StateTracker *tracker = win->getTracker();
+      if (tracker)
       {
-        win->onRun(); // 派生Windowで初期表示を保証
+        AutoTransactionGuard _(tracker);
+        win->visibility.set(true, true);
       }
     }
   }

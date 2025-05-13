@@ -33,15 +33,14 @@ void Win32Window::VisibilityChangedThunk(void *userData)
     {
       self->createNativeWindow();
     }
-    else
-    {
-      ShowWindow(self->hwnd_, SW_SHOW);
-    }
+    if (self->hwnd_)
+      self->onShow();
   }
   else
   {
     if (self->hwnd_)
     {
+      self->onHide(); // 非表示直前にonHideを呼ぶ
       self->destroyNativeWindow();
     }
   }
@@ -102,6 +101,8 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       break;
     }
     case WM_DESTROY:
+      // --- onDestroyイベントをここで一元的に呼ぶ ---
+      self->onDestroy();
       self->hwnd_ = nullptr;
       if (self->app_)
       {                                                        // app_ポインタが有効か確認
@@ -127,7 +128,6 @@ void Win32Window::createNativeWindow()
     RegisterClassA(&wc);
     g_classRegistered = true;
   }
-  // --- タイトルをWindow::titleから取得 ---
   HWND hwnd = CreateWindowA(
       kWndClassName,
       this->title.get().c_str(),
@@ -138,18 +138,17 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
-    // --- 追加: ボタン生成 ---
     this->buttonHwnd_ = CreateWindowA(
         "BUTTON",
         "Click me!",
         WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        50, 120, 200, 40, // x, y, width, height
+        50, 120, 200, 40,
         this->hwnd_,
-        (HMENU)1001, // コントロールID
+        (HMENU)1001,
         GetModuleHandle(nullptr),
         NULL);
-    ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
+    this->onCreate();
   }
 }
 
@@ -162,8 +161,22 @@ void Win32Window::destroyNativeWindow()
   }
 }
 
-void Win32Window::onRun()
+void Win32Window::onCreate()
 {
-  AutoTransactionGuard _(this->getTracker());
-  this->visibility.set(true, true);
+  Window::onCreate();
+  if (this->options_.visible)
+  {
+    this->visibility.set(true, true);
+  }
+}
+
+void Win32Window::onShow()
+{
+  if (this->hwnd_)
+    ShowWindow(this->hwnd_, SW_SHOW);
+}
+
+void Win32Window::onHide()
+{
+  // Win32ではdestroyNativeWindowで破棄するため、ここでSW_HIDEは不要
 }
