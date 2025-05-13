@@ -22,9 +22,9 @@ void SceneManager2::commitTransaction(Scene *from, Scene *to)
   handleNextTransaction(); // 追加: 追加直後に即時遷移
 }
 
-Scene *SceneManager2::getCurrentScene() const
+const State<Scene *> &SceneManager2::getCurrentScene() const
 {
-  return currentScene_.get();
+  return currentScene_;
 }
 
 const std::vector<std::pair<Scene *, Scene *>> &SceneManager2::getPendingTransactions() const

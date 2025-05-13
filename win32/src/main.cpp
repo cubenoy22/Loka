@@ -354,11 +354,11 @@ void testSceneManagerTransaction()
 
   std::cout << "--- シーンAへ ---\n";
   mgr.commitTransaction(0, sceneA);
-  assert(mgr.getCurrentScene() == sceneA);
+  assert(mgr.getCurrentScene().get() == sceneA);
 
   std::cout << "--- シーンBへ ---\n";
   mgr.commitTransaction(sceneA, sceneB);
-  assert(mgr.getCurrentScene() == sceneB);
+  assert(mgr.getCurrentScene().get() == sceneB);
 
   // std::cout << "--- シーンAへ（Bの破棄不可→2回目でOK）---\n";
   // mgr.commitTransaction(sceneB, sceneA);   // 1回目（NG）
@@ -370,8 +370,8 @@ void testSceneManagerTransaction()
   std::cout << "--- 連打シミュレーション ---\n";
   for (int i = 0; i < 3; ++i)
   {
-    mgr.commitTransaction(mgr.getCurrentScene(), sceneB);
-    assert(mgr.getCurrentScene() == sceneB);
+    mgr.commitTransaction(mgr.getCurrentScene().get(), sceneB);
+    assert(mgr.getCurrentScene().get() == sceneB);
   }
 
   // --- discardRequest中にcommitTransaction（強制キャンセル）テスト ---

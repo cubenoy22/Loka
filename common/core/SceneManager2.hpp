@@ -15,10 +15,11 @@ public:
   // トランザクション追加
   void commitTransaction(Scene *from, Scene *to);
   // 現在のシーン取得
-  Scene *getCurrentScene() const;
+  const State<Scene *> &getCurrentScene() const;
+
+protected:
   // ペンディングトランザクション取得
   const std::vector<std::pair<Scene *, Scene *>> &getPendingTransactions() const;
-
   // トランザクション進行
   void handleNextTransaction();
   // 副作用: シーン切り替え

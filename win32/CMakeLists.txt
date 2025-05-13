@@ -13,7 +13,6 @@ set(SOURCES
   src/Win32PlatformContext.cpp   # Win32PlatformContext.cppを追加
   ../common/core/App.cpp      # App.cppをビルド対象に追加（core配下に変更）
   ../common/core/StateTracker.cpp  # StateTracker.cppをビルド対象に追加（core配下に変更）
-  ../common/core/SceneManager.cpp  # ← ここを必ず追加！
   ../common/core/SceneManager2.cpp
 )
 
