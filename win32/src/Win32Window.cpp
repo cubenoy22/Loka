@@ -12,12 +12,11 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-Win32Window::Win32Window(Win32App *app, PlatformContext *context, const std::string &title, HWND hwnd, bool visible)
-    : Window(context, app, title, visible), hwnd_(hwnd), app_(app)
+Win32Window::Win32Window(PlatformContext *context, const WindowOptions &opts, HWND hwnd)
+    : Window(context, opts.title, opts.visible), hwnd_(hwnd), app_(NULL)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);
-  // Window::title自体の変更も監視
   this->title.deferBind(&Win32Window::TitleChangedThunk, this);
 }
 

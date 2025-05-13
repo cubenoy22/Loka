@@ -5,17 +5,20 @@
 #include <windows.h>
 #include <string>
 
-class Win32App;
 class PlatformContext;
+class App;
 
 // 🦊 Win32固有のWindow実装
 class Win32Window : public Window
 {
 public:
-  // WindowOptionsのtitle/visibleを受け取れるように拡張
-  Win32Window(Win32App *app, PlatformContext *context, const std::string &title, HWND hwnd = 0, bool visible = true);
+  // WindowOptionsごと受け取る形に変更
+  Win32Window(PlatformContext *context, const WindowOptions &opts, HWND hwnd = 0);
 
   HWND hwnd() const { return hwnd_; }
+
+  // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
+  void setApp(App *app) { app_ = app; }
 
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -24,7 +27,7 @@ public:
 protected:
   HWND hwnd_;
   HWND buttonHwnd_; // --- 追加: ボタン用HWND
-  Win32App *app_;   // <-- Win32Appへのポインタを追加
+  App *app_;        // アプリケーションインスタンスの参照
 
 private:
   void createNativeWindow();

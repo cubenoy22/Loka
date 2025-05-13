@@ -4,28 +4,26 @@
 #include <vector>
 #include "core/ComponentGroup.hpp"
 #include "core/AppComponent.hpp"
+#include "core/AppConfigurable.hpp"
+#include <cassert>
 
 class Window;
+class AppBuilder;
 
 class App : public AppComponent
 {
 public:
-  explicit App(ComponentGroup<AppComponent> *group);
+  explicit App(AppConfigurable *config);
   virtual ~App();
 
   virtual void run();
   virtual void quit() = 0;
   virtual void windowClosed(Window *window);
 
-  // AppBuilderからAppComponent群を構築する仮想関数
-  virtual ComponentGroup<AppComponent> *composeComponents(AppBuilder &builder)
-  {
-    return new ComponentGroup<AppComponent>(builder.build());
-  }
-
 protected:
   ComponentGroup<AppComponent> *group_;
   bool quitWhenLastWindowClosed_ = true;
+  AppConfigurable *config_;
 };
 
 #endif // DECLARA_APP_HPP

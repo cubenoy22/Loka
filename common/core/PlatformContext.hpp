@@ -1,6 +1,10 @@
 #ifndef DECLARA_PLATFORMCONTEXT_HPP
 #define DECLARA_PLATFORMCONTEXT_HPP
 
+#include <windows.h>
+// AppConfigurableを前方宣言に変更して循環参照を解消
+class AppConfigurable;
+
 class PlatformContext;
 class Scene;
 class App;
@@ -20,9 +24,10 @@ public:
   virtual void onSceneDestroy(class Scene *scene) = 0;
 
   // Appインスタンス取得用の純粋仮想関数を追加
-  virtual App *getApp(AppBuilder &builder) const = 0;
+  virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const = 0;
 
   // Window生成ファクトリーメソッド（サブクラス実装必須）
+  // app_がnullの場合はassertで即座に失敗させる設計にする
   virtual Window *createWindow(const WindowOptions &opts) = 0;
 };
 

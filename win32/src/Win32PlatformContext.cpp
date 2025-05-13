@@ -1,24 +1,22 @@
 #include "Win32PlatformContext.hpp"
-#include "Win32Window.hpp" // Win32Windowの実装があれば
-#include "core/Window.hpp" // Windowクラスの宣言を明示的に追加
+#include "Win32Window.hpp"          // Win32Windowの実装があれば
+#include "core/Window.hpp"          // Windowクラスの宣言を明示的に追加
+#include "core/AppConfigurable.hpp" // AppConfigurableの宣言を明示的に追加
 
 // 明示的なデフォルトコンストラクタ・デストラクタ実装（リンカエラー回避用）
-Win32PlatformContext::Win32PlatformContext() : app_(nullptr) {}
-Win32PlatformContext::~Win32PlatformContext() { delete app_; }
+Win32PlatformContext::Win32PlatformContext() {}
+Win32PlatformContext::~Win32PlatformContext() {}
 
-App *Win32PlatformContext::getApp(AppBuilder &builder) const
+App *Win32PlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const
 {
-  if (!app_)
-  {
-    // HINSTANCE, nCmdShowは本来外部から渡すべき。ここではstub値
-    app_ = new Win32App(builder, nullptr, 0);
-  }
-  return app_;
+  App *app = new Win32App(config, hInstance, nCmdShow);
+  return app;
 }
 
 Window *Win32PlatformContext::createWindow(const WindowOptions &opts)
 {
-  return new Win32Window(app_, this, opts.title, /*hwnd=*/0, opts.visible);
+  // App*不要。必要ならWindowHost等で管理
+  return new Win32Window(this, opts, /*hwnd=*/0);
 }
 
 void Win32PlatformContext::onSceneCreate(Scene *scene) { /* stub: implement as needed */ }

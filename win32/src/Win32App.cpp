@@ -4,11 +4,10 @@
 #include <stdexcept> // for std::runtime_error
 #include "core/App.hpp"
 
-Win32App::Win32App(AppBuilder &builder, HINSTANCE hInstance, int nCmdShow)
-    : App(composeComponents(builder)), hInstance_(hInstance), nCmdShow_(nCmdShow)
+Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
+    : App(config), hInstance_(hInstance), nCmdShow_(nCmdShow)
 {
-  // App基底クラスのwindowポインタをどう扱うかは要検討
-  // 現状は group_ のみ利用
+  // App基底クラスですでにconfig_が初期化されているのでここでは不要
 }
 
 // デストラクタ: override を追加
@@ -35,7 +34,22 @@ void Win32App::windowClosed(Window *window)
 
 void Win32App::run()
 {
+  // 基底クラスの実行
   App::run();
+
+  // 各ウィンドウにこのアプリインスタンスへの参照を設定する
+  if (group_)
+  {
+    const std::vector<AppComponent *> &comps = group_->getComponents();
+    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+    {
+      Win32Window *win32Win = dynamic_cast<Win32Window *>(*it);
+      if (win32Win)
+      {
+        win32Win->setApp(this);
+      }
+    }
+  }
 
   // Win32メッセージループ
   MSG msg;

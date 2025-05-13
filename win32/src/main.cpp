@@ -12,6 +12,8 @@
 #include "core/App.hpp"
 #include "core/Window.hpp"
 #include "core/SceneManager2.hpp"
+#include "core/util/ScopedPtr.hpp"
+#include "core/AppConfigurable.hpp"
 
 void testDependencyPropagationCases()
 {
@@ -438,19 +440,26 @@ void testSceneManagerTransaction()
   std::cout << "--- [testSceneManagerTransaction/SceneManager2] end ---\n";
 }
 
-// --- Win32Window/Win32App設計に基づき、WinMainを最小構成に整理 ---
+class MyAppConfig : public AppConfigurable
+{
+public:
+  MyAppConfig(PlatformContext *ctx)
+      : AppConfigurable(ctx) {}
+  void configure(AppBuilder &builder)
+  {
+    builder.Window(
+        WindowOptions()
+            .setTitle("DEVELOPERS!")
+            .setVisibility(true));
+  }
+};
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
   Win32PlatformContext platformContext;
-  App app(
-      AppBuilder(&platformContext)
-          .Window(
-              WindowOptions()
-                  .setTitle("DEVELOPERS!")
-                  .setVisibility(true)),
-      hInstance,
-      nCmdShow);
-  app.run();
+  MyAppConfig config(&platformContext);
+  ScopedPtr<App>(platformContext.createApp(&config, hInstance, nCmdShow))
+      ->run();
   return 0;
 }
 

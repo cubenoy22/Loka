@@ -9,7 +9,6 @@
 
 class Scene;
 class PlatformContext;
-class App;
 
 // WindowOptions: 動的タイトル対応・型安全な宣言的ウィンドウオプション
 struct WindowOptions
@@ -34,8 +33,8 @@ class Window : public AppComponent
 {
 public:
   // Windowクラスのコンストラクタでvisibilityとtitleを初期化
-  Window(PlatformContext *context, App *app, const std::string &title = "", bool visible = true)
-      : context_(context), app_(app), title("")
+  Window(PlatformContext *context, const std::string &title = "", bool visible = true)
+      : context_(context), title("")
   {
     std::vector<StateBase *> states = {&this->title, &this->visibility};
     tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
@@ -75,9 +74,6 @@ public:
   Scene *scene() const { return sceneManager_.getCurrentScene() ? sceneManager_.getCurrentScene()->get() : 0; }
   SceneManager *sceneManager() { return &sceneManager_; }
 
-  void setApp(App *app) { app_ = app; }
-  App *getApp() const { return app_; }
-
   // visibility: ウィンドウの表示/非表示状態を表す共通プロパティ
   MutableState<bool> visibility;
   // --- 追加: ウィンドウタイトルの状態 ---
@@ -89,7 +85,6 @@ public:
 
 protected:
   PlatformContext *context_;
-  App *app_;              // App をポインタで保持
   StateTracker *tracker_; // --- Window専用のtrackerを追加
   SceneManager sceneManager_;
 };

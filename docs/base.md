@@ -114,6 +114,30 @@ common/
 
 ---
 
+## C++98 における RAII・リソース管理方針（ScopedPtr の利用）
+
+Declara! では C++98 環境においても delete 漏れや例外時のリソースリークを防ぐため、
+独自の RAII スマートポインタ `ScopedPtr`（`common/core/util/ScopedPtr.hpp`）を標準で利用します。
+
+- **手動 delete は禁止**し、リソース管理は必ずスコープベースで行う（NSAutoreleasePool 的思想）
+- 例外安全・RAII 徹底のため、`ScopedPtr<T>` で動的リソースを管理
+- スマートポインタ未使用時は、必ず設計上の理由を明記すること
+- C++11 以降の`std::unique_ptr`と同等の使い方が可能
+
+### 例
+
+```cpp
+#include "core/util/ScopedPtr.hpp"
+// ...
+ScopedPtr<App> app(platformContext.getApp(...));
+app->run(); // スコープ終了時に自動delete
+```
+
+- 詳細は `common/core/util/ScopedPtr.hpp` を参照
+- この方針により、C++98 でも delete 漏れ・例外時のリークを防止できます
+
+---
+
 ## 参考
 
 - 詳細な状態管理・依存伝播設計は `docs/architecture_state_tracker.md` を参照

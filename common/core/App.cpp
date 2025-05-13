@@ -12,8 +12,8 @@ AppBuilder &AppBuilder::Window(const WindowOptions &opts)
   return *this;
 }
 
-App::App(ComponentGroup<AppComponent> *group)
-    : group_(group)
+App::App(AppConfigurable *config)
+    : group_(0), config_(config)
 {
 }
 
@@ -25,13 +25,18 @@ App::~App()
 
 void App::run()
 {
-  // App基底クラスの共通run処理（必要に応じて拡張）
+  if (!group_ && config_)
+  {
+    AppBuilder builder(config_->getPlatformContext());
+    config_->configure(builder);
+    group_ = new ComponentGroup<AppComponent>(builder.build());
+  }
   if (group_)
   {
     const std::vector<AppComponent *> &comps = group_->getComponents();
-    for (AppComponent *comp : comps)
+    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
     {
-      Window *win = dynamic_cast<Window *>(comp);
+      Window *win = dynamic_cast<Window *>(*it);
       if (win && win->visibility.get())
       {
         win->onRun(); // 派生Windowで初期表示を保証
