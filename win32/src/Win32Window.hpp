@@ -13,9 +13,7 @@ class Win32Window : public Window
 {
 public:
   // WindowOptionsごと受け取る形に変更
-  Win32Window(PlatformContext *context, const WindowOptions &opts, HWND hwnd = 0);
-
-  HWND hwnd() const { return hwnd_; }
+  Win32Window(PlatformContext *context, const WindowOptions &opts);
 
   // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
   void setApp(App *app) { app_ = app; }

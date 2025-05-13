@@ -12,8 +12,8 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-Win32Window::Win32Window(PlatformContext *context, const WindowOptions &opts, HWND hwnd)
-    : Window(context, opts), hwnd_(hwnd), app_(NULL)
+Win32Window::Win32Window(PlatformContext *context, const WindowOptions &opts)
+    : Window(context, nullptr, opts), hwnd_(nullptr), app_(NULL)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);

@@ -15,8 +15,7 @@ App *Win32PlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstanc
 
 Window *Win32PlatformContext::createWindow(const WindowOptions &opts)
 {
-  // App*不要。必要ならWindowHost等で管理
-  return new Win32Window(this, opts, /*hwnd=*/0);
+  return new Win32Window(this, opts);
 }
 
 void Win32PlatformContext::onSceneCreate(Scene *scene) { /* stub: implement as needed */ }
