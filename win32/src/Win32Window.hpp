@@ -12,8 +12,7 @@ class App;
 class Win32Window : public Window
 {
 public:
-  // WindowOptionsごと受け取る形に変更
-  Win32Window(PlatformContext *context, const WindowOptions &opts);
+  Win32Window(PlatformContext *context, Scene *initialScene, const WindowOptions &opts);
 
   // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
   void setApp(App *app) { app_ = app; }

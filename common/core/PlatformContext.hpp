@@ -28,7 +28,7 @@ public:
 
   // Window生成ファクトリーメソッド（サブクラス実装必須）
   // app_がnullの場合はassertで即座に失敗させる設計にする
-  virtual Window *createWindow(const WindowOptions &opts) = 0;
+  virtual Window *createWindow(Scene *initialScene, const WindowOptions &opts) = 0;
 };
 
 #endif // DECLARA_PLATFORMCONTEXT_HPP

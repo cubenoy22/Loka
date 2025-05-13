@@ -5,6 +5,7 @@
 #include "core/Window.hpp"
 #include "core/StateTracker.hpp"
 #include "core/AutoTransactionGuard.hpp"
+#include "core/Scene.hpp"
 
 namespace
 {
@@ -12,8 +13,8 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-Win32Window::Win32Window(PlatformContext *context, const WindowOptions &opts)
-    : Window(context, nullptr, opts), hwnd_(nullptr), app_(NULL)
+Win32Window::Win32Window(PlatformContext *context, Scene *initialScene, const WindowOptions &opts)
+    : Window(context, initialScene, opts), hwnd_(nullptr), app_(NULL)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);

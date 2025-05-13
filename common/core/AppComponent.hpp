@@ -9,6 +9,7 @@
 class Window;
 class PlatformContext;
 struct WindowOptions;
+class Scene;
 
 // --- AppComponent: アプリ全体の構成要素の基底クラス（今後拡張可） ---
 class AppComponent
@@ -33,7 +34,7 @@ public:
     return *this;
   }
 
-  AppBuilder &Window(const WindowOptions &opts); // 実装を別ファイルに分離
+  AppBuilder &Window(Scene *initialScene, const WindowOptions &opts);
 
   std::vector<AppComponent *> build()
   {

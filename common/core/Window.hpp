@@ -39,6 +39,8 @@ public:
     tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
     this->title.set(options.title);
     this->visibility.set(options.visible);
+    sceneManager_.getCurrentScene().deferBindWithOld(
+        (State<Scene *>::OnChangeWithOldFn) & Window::onSceneChangedThunk, this);
     if (initialScene)
     {
       sceneManager_.commitTransaction(nullptr, initialScene);
@@ -55,12 +57,41 @@ public:
 
   StateTracker *getTracker() const { return tracker_; }
 
-  // onRunは廃止
-
   virtual void onCreate() {}
   virtual void onShow() {}
   virtual void onHide() {}
   virtual void onDestroy() {}
+
+private:
+  static void onSceneChangedThunk(const Scene *oldScene, const Scene *newScene, void *userData)
+  {
+    Window *self = static_cast<Window *>(userData);
+    if (self)
+      self->onSceneChanged(oldScene, newScene);
+  }
+  void onSceneChanged(const Scene *oldScene, const Scene *newScene)
+  {
+    Scene *oldS = const_cast<Scene *>(oldScene);
+    Scene *newS = const_cast<Scene *>(newScene);
+    if (oldS && oldS != newS)
+    {
+      oldS->onDetach();
+      if (context_)
+        context_->onSceneDetach(oldS);
+      oldS->onDestroy();
+      if (context_)
+        context_->onSceneDestroy(oldS);
+    }
+    if (newS && oldS != newS)
+    {
+      newS->onCreate();
+      if (context_)
+        context_->onSceneCreate(newS);
+      newS->onAttach();
+      if (context_)
+        context_->onSceneAttach(newS);
+    }
+  }
 
 protected:
   PlatformContext *context_;

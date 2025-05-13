@@ -28,8 +28,8 @@ public:
   typedef void (*OnChangeFn)(void *userData);
   virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) {}
   virtual void unbind(OnChangeFn cb, void *userData) {}
-  virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) {}
-  virtual void deferUnbind(OnChangeFn cb, void *userData) {}
+  virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const {}
+  virtual void deferUnbind(OnChangeFn cb, void *userData) const {}
   // 再計算（DerivedStateでオーバーライド）
   virtual bool recompute() { return false; }
 };
@@ -73,26 +73,33 @@ public:
       }
     }
   }
-  void deferBind(OnChangeFn cb, void *userData, int priority = 0) override
+  void deferBind(OnChangeFn cb, void *userData, int priority = 0) const override
   {
     Handler h{cb, userData, false, priority};
     auto it = deferredHandlers.begin();
     for (; it != deferredHandlers.end(); ++it)
       if (priority > it->priority)
         break;
-    deferredHandlers.insert(it, h);
+    const_cast<std::vector<Handler> &>(deferredHandlers).insert(it, h);
   }
-  void deferUnbind(OnChangeFn cb, void *userData) override
+  void deferUnbind(OnChangeFn cb, void *userData) const override
   {
     Handler target{cb, userData, false, 0};
     for (size_t i = 0; i < deferredHandlers.size(); ++i)
     {
       if (deferredHandlers[i] == target)
       {
-        deferredHandlers.erase(deferredHandlers.begin() + i);
+        const_cast<std::vector<Handler> &>(deferredHandlers).erase(deferredHandlers.begin() + i);
         break;
       }
     }
+  }
+
+  typedef void (*OnChangeWithOldFn)(T oldValue, T newValue, void *userData);
+  void deferBindWithOld(OnChangeWithOldFn cb, void *userData, int priority = 0) const
+  {
+    OldNewCtx *ctx = new OldNewCtx{this->get(), cb, userData, this};
+    this->deferBind(&OldNewThunk, ctx, priority);
   }
 
 protected:
@@ -141,6 +148,25 @@ protected:
   std::vector<Handler> handlers;
   std::vector<Handler> deferredHandlers;
   T value;
+
+private:
+  struct OldNewCtx
+  {
+    T lastValue;
+    OnChangeWithOldFn cb;
+    void *userData;
+    const State<T> *state;
+  };
+  static void OldNewThunk(void *ud)
+  {
+    OldNewCtx *ctx = static_cast<OldNewCtx *>(ud);
+    T newValue = ctx->state->get();
+    if (ctx->lastValue != newValue)
+    {
+      ctx->cb(ctx->lastValue, newValue, ctx->userData);
+      ctx->lastValue = newValue;
+    }
+  }
 };
 
 // --- 新規: MutableState ---

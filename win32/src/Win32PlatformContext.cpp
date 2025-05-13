@@ -13,12 +13,24 @@ App *Win32PlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstanc
   return app;
 }
 
-Window *Win32PlatformContext::createWindow(const WindowOptions &opts)
+Window *Win32PlatformContext::createWindow(Scene *initialScene, const WindowOptions &opts)
 {
-  return new Win32Window(this, opts);
+  return new Win32Window(this, initialScene, opts);
 }
 
-void Win32PlatformContext::onSceneCreate(Scene *scene) { /* stub: implement as needed */ }
-void Win32PlatformContext::onSceneAttach(Scene *scene) { /* stub: implement as needed */ }
-void Win32PlatformContext::onSceneDetach(Scene *scene) { /* stub: implement as needed */ }
-void Win32PlatformContext::onSceneDestroy(Scene *scene) { /* stub: implement as needed */ }
+void Win32PlatformContext::onSceneCreate(Scene *scene)
+{
+  printf("[Win32PlatformContext] onSceneCreate called: %p\n", (void *)scene);
+}
+void Win32PlatformContext::onSceneAttach(Scene *scene)
+{
+  printf("[Win32PlatformContext] onSceneAttach called: %p\n", (void *)scene);
+}
+void Win32PlatformContext::onSceneDetach(Scene *scene)
+{
+  printf("[Win32PlatformContext] onSceneDetach called: %p\n", (void *)scene);
+}
+void Win32PlatformContext::onSceneDestroy(Scene *scene)
+{
+  printf("[Win32PlatformContext] onSceneDestroy called: %p\n", (void *)scene);
+}

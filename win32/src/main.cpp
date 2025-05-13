@@ -470,6 +470,7 @@ public:
   void configure(AppBuilder &builder)
   {
     builder.Window(
+        new FormScene(),
         WindowOptions()
             .setTitle("DEVELOPERS!")
             .setVisibility(true));
