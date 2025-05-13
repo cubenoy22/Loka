@@ -1,6 +1,6 @@
 #include <vector>
 #include "SceneManager2.hpp"
-#include "StateUtil.hpp"
+#include "util/StateUtil.hpp"
 #include <cassert>
 
 SceneManager2::SceneManager2()
