@@ -11,33 +11,6 @@
 // C++98互換: 2倍値計算用のグローバル関数
 static int doubleFn(const int &v) { return v * 2; }
 
-class FormScene : public Scene
-{
-public:
-  FormScene()
-      : Scene(new SceneHost()),
-        name(""),
-        isValid({&name}, [&]()
-                { return name.get().length() >= 3; }),
-        tracker({&name, &isValid}) {}
-  static bool evaluateLength(const std::string &s) { return s.length() >= 3; }
-  static void onSendClick() {}
-  void compose(SceneBuilder &builder)
-  {
-    builder
-        .Text("名前を入力してください")
-        .TextInput(&name)
-        .Button(
-            ButtonOptions()
-                .setLabel("送信")
-                .setEnabled(&isValid)
-                .setOnClick(&FormScene::onSendClick));
-  }
-  MutableState<std::string> name;
-  DerivedState<bool> isValid;
-  PushStateTracker tracker;
-};
-
 // --- BMICalcScene: BMI計算シーンの例 ---
 class BMICalcScene : public Scene
 {
