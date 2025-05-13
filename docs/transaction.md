@@ -59,11 +59,13 @@ class PushStateTracker : public StateTracker {
 ## 5. RAII による自動トランザクション管理（C++例）
 
 ```cpp
-struct AutoTransactionGuard {
-  PushStateTracker* tracker;
-  AutoTransactionGuard(PushStateTracker* t) : tracker(t) { tracker->begin(); }
-  ~AutoTransactionGuard() { tracker->end(nullptr); }
-};
+#include "core/AutoTransactionGuard.hpp"
+// 利用例:
+// PushStateTracker tracker(...);
+// {
+//   AutoTransactionGuard _(tracker);
+//   // 状態変更...
+// } // スコープ終了時に自動でend()
 ```
 
 ---

@@ -14,6 +14,7 @@
 #include "core/SceneManager2.hpp"
 #include "core/util/ScopedPtr.hpp"
 #include "core/AppConfigurable.hpp"
+#include "core/AutoTransactionGuard.hpp"
 
 void testDependencyPropagationCases()
 {
@@ -171,13 +172,6 @@ void testTextInputOnChange()
   std::cout << "isValid: " << (isValid.get() ? "OK" : "NG") << std::endl;
   printf("==== [testTextInputOnChange] end ====\n");
 }
-
-struct AutoTransactionGuard
-{
-  PushStateTracker *tracker;
-  AutoTransactionGuard(PushStateTracker *t) : tracker(t) { tracker->begin(); }
-  ~AutoTransactionGuard() { tracker->end(); }
-};
 
 void testBatchTransaction()
 {
