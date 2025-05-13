@@ -13,7 +13,7 @@ namespace
 }
 
 Win32Window::Win32Window(PlatformContext *context, const WindowOptions &opts, HWND hwnd)
-    : Window(context, opts.title, opts.visible), hwnd_(hwnd), app_(NULL)
+    : Window(context, opts), hwnd_(hwnd), app_(NULL)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);

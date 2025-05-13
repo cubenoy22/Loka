@@ -32,14 +32,13 @@ struct WindowOptions
 class Window : public AppComponent
 {
 public:
-  // Windowクラスのコンストラクタでvisibilityとtitleを初期化
-  Window(PlatformContext *context, const std::string &title = "", bool visible = true)
+  Window(PlatformContext *context, const WindowOptions &options = WindowOptions())
       : context_(context), title("")
   {
     std::vector<StateBase *> states = {&this->title, &this->visibility};
     tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
-    this->title.set(title);
-    this->visibility.set(visible);
+    this->title.set(options.title);
+    this->visibility.set(options.visible);
   }
   virtual ~Window() = default;
 
