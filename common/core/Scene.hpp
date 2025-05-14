@@ -8,6 +8,10 @@
 #include <vector>
 #include "core/ComponentGroup.hpp"
 #include "core/ComponentGroupBuilder.hpp"
+#include "core/LayoutEngine.hpp"
+#include "core/SceneComponent.hpp"
+#include "core/TreedSceneComponent.hpp"
+#include "core/SolidTreeSceneComponent.hpp"
 
 class PlatformContext;
 
@@ -20,10 +24,11 @@ class SceneHost;
  *   - 画面遷移やアプリの状態だけでなく、ゲームや仮想空間など多様な「シーン」表現に応用可能な設計。
  *   - compose(SceneBuilder&) でシーン内の構成要素を宣言する。
  */
-class SceneBuilder : public ComponentGroupBuilder<Component2>
+class SceneBuilder : public ComponentGroupBuilder<SceneComponent>
 {
 public:
   SceneBuilder() {}
+  // 今後: TreedSceneComponent/Leaf/Box等の追加APIを拡張
   SceneBuilder &Text(const std::string &text)
   {
     components.push_back(new TextComponent(text));
@@ -37,6 +42,13 @@ public:
   SceneBuilder &Button(const ButtonOptions &opts)
   {
     components.push_back(new ButtonComponent(opts.label, opts.enabled, opts.onClick));
+    return *this;
+  }
+  // Solid.js風ツリー型UIノードの追加（compose関数でネスト可）
+  SceneBuilder &SolidTree(void (*composeFn)(SolidTreeSceneComponent &) = 0)
+  {
+    SolidTreeSceneComponent *tree = composeFn ? new SolidTreeSceneComponent(composeFn) : new SolidTreeSceneComponent();
+    components.push_back(tree);
     return *this;
   }
 };
@@ -57,7 +69,7 @@ public:
     group_ = builder.buildPtr();
   }
   virtual ~Scene() { delete group_; }
-  const ComponentGroup<Component2> *getComponentGroup() const { return group_; }
+  const ComponentGroup<SceneComponent> *getComponentGroup() const { return group_; }
   // --- ライフサイクルフック ---
   virtual void onCreate() {}
   virtual void onAttach() {}
@@ -77,7 +89,7 @@ public:
   // virtual std::string serialize() const { /* ... */ }
   // virtual void reset() { /* ... */ }
 protected:
-  ComponentGroup<Component2> *group_;
+  ComponentGroup<SceneComponent> *group_;
 };
 
 #endif // DECLARA_SCENE_HPP

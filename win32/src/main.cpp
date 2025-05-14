@@ -15,6 +15,7 @@
 #include "core/util/ScopedPtr.hpp"
 #include "core/AppConfigurable.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
+#include "core/util/StateUtil.hpp"
 
 void testDependencyPropagationCases()
 {
@@ -438,29 +439,42 @@ void testSceneManagerTransaction()
 class FormScene : public Scene
 {
 public:
+  struct IsValidFunctor
+  {
+    FormScene *self;
+    static MutableState<std::string> *static_name_ptr;
+    IsValidFunctor(FormScene *s) : self(s) {}
+    bool operator()() const
+    {
+      return self->name.get().length() >= 3;
+    }
+  };
   FormScene()
       : Scene(new SceneHost()),
-        name(""),
-        isValid({&name}, [&]()
-                { return name.get().length() >= 3; }),
-        tracker({&name, &isValid}) {}
-  static bool evaluateLength(const std::string &s) { return s.length() >= 3; }
+        name(""), isValid(std::vector<StateBase *>(1, &name), IsValidFunctor(this)), tracker(makeStateVector(&name, &isValid, 0)) {}
   static void onSendClick() {}
+  // 新規: SolidTreeのネストcompose例
+  static void ComposeRoot(SolidTreeSceneComponent &node)
+  {
+    node.addChild(new TextComponent("名前を入力してください"));
+    node.addChild(new ButtonComponent("送信", 0, &FormScene::onSendClick));
+    // さらにネスト例
+    node.addChild(new SolidTreeSceneComponent(&FormScene::ComposeSubTree));
+  }
+  static void ComposeSubTree(SolidTreeSceneComponent &node)
+  {
+    node.addChild(new TextComponent("(サブツリー: 補足説明)"));
+  }
   void compose(SceneBuilder &builder)
   {
-    builder
-        .Text("名前を入力してください")
-        .TextInput(&name)
-        .Button(
-            ButtonOptions()
-                .setLabel("送信")
-                .setEnabled(&isValid)
-                .setOnClick(&FormScene::onSendClick));
+    builder.SolidTree(&FormScene::ComposeRoot);
   }
   MutableState<std::string> name;
   DerivedState<bool> isValid;
   PushStateTracker tracker;
+  static void setNamePtr(FormScene *self) { IsValidFunctor::static_name_ptr = &self->name; }
 };
+MutableState<std::string> *FormScene::IsValidFunctor::static_name_ptr = 0;
 
 class MyAppConfig : public AppConfigurable
 {

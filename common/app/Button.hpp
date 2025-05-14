@@ -4,7 +4,7 @@
 #include <string>
 #include "core/State.hpp"
 #include "core/PlatformContext.hpp"
-#include "core/Component.hpp"
+#include "core/SceneComponent.hpp"
 
 // グローバル定数State（常に有効なボタン用）
 static State<bool> BUTTON_DEFAULT_ENABLED(true);
@@ -35,7 +35,7 @@ struct ButtonOptions
 };
 
 // Component2: すべてのUI部品の共通基底クラス
-class Component2 : public Component
+class Component2 : public SceneComponent
 {
 public:
   virtual ~Component2() {}
