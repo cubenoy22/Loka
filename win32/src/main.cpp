@@ -449,9 +449,15 @@ public:
       return self->name.get().length() >= 3;
     }
   };
-  FormScene()
+  FormScene(PlatformContext *platform)
       : Scene(new SceneHost()),
-        name(""), isValid(std::vector<StateBase *>(1, &name), IsValidFunctor(this)), tracker(makeStateVector(&name, &isValid, 0)) {}
+        name(""),
+        isValid(std::vector<StateBase *>(1, &name), IsValidFunctor(this)),
+        tracker(makeStateVector(&name, &isValid, 0)),
+        context_(platform ? platform->createSceneContextForScene(this) : nullptr)
+  {
+    // 親クラスで platform (ctx) の null 保証済みのため、ここでの assert は不要
+  }
   static void onSendClick() {}
   // 新規: SolidTreeのネストcompose例
   static void ComposeRoot(SolidTreeSceneComponent &node)
@@ -472,6 +478,7 @@ public:
   MutableState<std::string> name;
   DerivedState<bool> isValid;
   PushStateTracker tracker;
+  SceneContext *context_;
   static void setNamePtr(FormScene *self) { IsValidFunctor::static_name_ptr = &self->name; }
 };
 MutableState<std::string> *FormScene::IsValidFunctor::static_name_ptr = 0;
@@ -484,11 +491,22 @@ public:
   void configure(AppBuilder &builder)
   {
     builder.Window(
-        new FormScene(),
+        new FormScene(getPlatformContext()),
         WindowOptions()
             .setTitle("DEVELOPERS!")
             .setVisibility(true));
   }
+};
+
+class AppConfigurable
+{
+protected:
+  PlatformContext *ctx_;
+
+public:
+  AppConfigurable(PlatformContext *ctx) : ctx_(ctx) { assert(ctx && "AppConfigurable: ctx must not be null"); }
+  virtual void configure(AppBuilder &builder) = 0;
+  PlatformContext *getPlatformContext() const { return ctx_; }
 };
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)

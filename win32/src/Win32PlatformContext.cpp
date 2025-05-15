@@ -1,7 +1,8 @@
 #include "Win32PlatformContext.hpp"
-#include "Win32Window.hpp"          // Win32Windowの実装があれば
-#include "core/Window.hpp"          // Windowクラスの宣言を明示的に追加
-#include "core/AppConfigurable.hpp" // AppConfigurableの宣言を明示的に追加
+#include "Win32Window.hpp"
+#include "core/Window.hpp"
+#include "core/AppConfigurable.hpp"
+#include "Win32SceneContext.hpp"
 
 // 明示的なデフォルトコンストラクタ・デストラクタ実装（リンカエラー回避用）
 Win32PlatformContext::Win32PlatformContext() {}
@@ -18,19 +19,7 @@ Window *Win32PlatformContext::createWindow(Scene *initialScene, const WindowOpti
   return new Win32Window(this, initialScene, opts);
 }
 
-void Win32PlatformContext::onSceneCreate(Scene *scene)
+SceneContext *Win32PlatformContext::createSceneContextForScene(Scene *scene) const
 {
-  printf("[Win32PlatformContext] onSceneCreate called: %p\n", (void *)scene);
-}
-void Win32PlatformContext::onSceneAttach(Scene *scene)
-{
-  printf("[Win32PlatformContext] onSceneAttach called: %p\n", (void *)scene);
-}
-void Win32PlatformContext::onSceneDetach(Scene *scene)
-{
-  printf("[Win32PlatformContext] onSceneDetach called: %p\n", (void *)scene);
-}
-void Win32PlatformContext::onSceneDestroy(Scene *scene)
-{
-  printf("[Win32PlatformContext] onSceneDestroy called: %p\n", (void *)scene);
+  return scene ? new Win32SceneContext(scene) : nullptr;
 }

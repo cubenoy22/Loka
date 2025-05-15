@@ -12,6 +12,7 @@
 #include "core/SceneComponent.hpp"
 #include "core/TreedSceneComponent.hpp"
 #include "core/SolidTreeSceneComponent.hpp"
+#include "core/SceneContext.hpp"
 
 class PlatformContext;
 
@@ -61,35 +62,50 @@ class SceneHost
 class Scene
 {
 public:
+  enum ScenePhase
+  {
+    ATTACHED,
+    DETACHED
+  };
+
   Scene(SceneHost *host)
-      : group_(0)
+      : group_(nullptr), currentPhase(DETACHED), context_(nullptr)
   {
     SceneBuilder builder;
     compose(builder);
     group_ = builder.buildPtr();
   }
-  virtual ~Scene() { delete group_; }
+  virtual ~Scene()
+  {
+    delete group_;
+    delete context_;
+  }
   const ComponentGroup<SceneComponent> *getComponentGroup() const { return group_; }
-  // --- ライフサイクルフック ---
-  virtual void onCreate() {}
-  virtual void onAttach() {}
-  virtual void onDetach() {}
-  virtual void onDestroy() {}
-  // virtual bool isDiscardable() const { return true; }
-  // virtual void requestDiscard(DiscardCallback *callback)
-  // {
-  //   if (callback)
-  //     (*callback)(true);
-  // }
-  // virtual void onDiscardRequestAborted() {}
+
+  // --- SceneContext管理 ---
+  void setContext(SceneContext *ctx) { context_ = ctx; }
+  SceneContext *getContext() const { return context_; }
+
+protected:
+  ComponentGroup<SceneComponent> *group_;
+  SceneContext *context_;
+  MutableState<ScenePhase> currentPhase;
+
+public:
   // --- UI構成宣言API ---
   virtual void compose(SceneBuilder &b) {}
+
+  // --- シーン切り替えフック ---
+  virtual void onAttach() { currentPhase.set(ATTACHED); }
+  virtual void onDetach() { currentPhase.set(DETACHED); }
+
+  // 外部向け: State<ScenePhase>参照を返す
+  const State<ScenePhase> &phase() const { return currentPhase; }
+
   // --- API拡張例 ---
   // // シリアライズ・リセット等の拡張もここで追加可能
   // virtual std::string serialize() const { /* ... */ }
   // virtual void reset() { /* ... */ }
-protected:
-  ComponentGroup<SceneComponent> *group_;
 };
 
 #endif // DECLARA_SCENE_HPP

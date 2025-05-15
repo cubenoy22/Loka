@@ -16,11 +16,8 @@ public:
   ~Win32PlatformContext();
   App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const override;
 
-  // Scene ライフサイクルイベント (PlatformContext純粋仮想の実装)
-  void onSceneCreate(Scene *scene) override;
-  void onSceneAttach(Scene *scene) override;
-  void onSceneDetach(Scene *scene) override;
-  void onSceneDestroy(Scene *scene) override;
+  // SceneContext取得API（プラットフォームごとに実装）
+  SceneContext *createSceneContextForScene(Scene *scene) const override;
 
   Window *createWindow(Scene *initialScene, const WindowOptions &opts) override;
 };

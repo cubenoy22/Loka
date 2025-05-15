@@ -6,6 +6,7 @@
 #include "core/StateTracker.hpp"
 #include "core/AppComponent.hpp"
 #include "core/SceneManager2.hpp"
+#include "core/util/StateUtil.hpp"
 
 class Scene;
 class PlatformContext;
@@ -35,16 +36,13 @@ public:
       : context_(context), title("")
   {
     options_ = options;
-    std::vector<StateBase *> states = {&this->title, &this->visibility};
-    tracker_ = new PushStateTracker(states); // 監視対象Stateを渡して初期化
+    tracker_ = new PushStateTracker(makeStateVector(&title, &visibility, 0));
     this->title.set(options.title);
     this->visibility.set(options.visible);
     sceneManager_.getCurrentScene().deferBindWithOld(
         (State<Scene *>::OnChangeWithOldFn) & Window::onSceneChangedThunk, this);
     if (initialScene)
-    {
       sceneManager_.commitTransaction(nullptr, initialScene);
-    }
   }
   virtual ~Window() = default;
 
@@ -76,20 +74,10 @@ private:
     if (oldS && oldS != newS)
     {
       oldS->onDetach();
-      if (context_)
-        context_->onSceneDetach(oldS);
-      oldS->onDestroy();
-      if (context_)
-        context_->onSceneDestroy(oldS);
     }
     if (newS && oldS != newS)
     {
-      newS->onCreate();
-      if (context_)
-        context_->onSceneCreate(newS);
       newS->onAttach();
-      if (context_)
-        context_->onSceneAttach(newS);
     }
   }
 
