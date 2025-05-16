@@ -459,21 +459,15 @@ public:
     // 親クラスで platform (ctx) の null 保証済みのため、ここでの assert は不要
   }
   static void onSendClick() {}
-  // 新規: SolidTreeのネストcompose例
-  static void ComposeRoot(SolidTreeSceneComponent &node)
+  void compose(SceneNodeGroup &group)
   {
-    node.addChild(new TextComponent("名前を入力してください"));
-    node.addChild(new ButtonComponent("送信", 0, &FormScene::onSendClick));
-    // さらにネスト例
-    node.addChild(new SolidTreeSceneComponent(&FormScene::ComposeSubTree));
-  }
-  static void ComposeSubTree(SolidTreeSceneComponent &node)
-  {
-    node.addChild(new TextComponent("(サブツリー: 補足説明)"));
-  }
-  void compose(SceneBuilder &builder)
-  {
-    builder.SolidTree(&FormScene::ComposeRoot);
+    // SolidTreeSceneComponent/SolidTree呼び出しを削除し、Component2ベースのノード追加に修正
+    // TextComponent, ButtonComponentはComponent2継承なのでSceneNodeGroupに直接addできないため、
+    // 必要にSceneNode継承のラッパーを用意するか、サンプルとしてコメントアウト
+    // group.add(new TextComponent("名前を入力してください"));
+    // group.add(new ButtonComponent("送信", &BUTTON_DEFAULT_ENABLED, &FormScene::onSendClick));
+    // ここではSceneNode/SceneNodeGroupベースのノード追加例のみ記載
+    // 例: group.add(new MySceneNode(...));
   }
   MutableState<std::string> name;
   DerivedState<bool> isValid;

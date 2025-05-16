@@ -3,6 +3,7 @@
 
 #include <set>
 #include "core/State.hpp"
+class SceneNodeGroup;
 
 // --- SceneNodeAllocator: NodeT専用のノード生成インターフェース ---
 template <class NodeT>
@@ -83,11 +84,22 @@ private:
 class SceneNode
 {
 public:
-  enum NodeReuseHint
+  enum NodeReuseCategory
   {
-    Default,  // 通常再利用
-    Stable,   // 差分チェック不要（絶対に変わらない）
-    Singleton // 解放しない（ViewModel的）
+    Reuse_Default, // グループの設定を使う（個別指定で上書き可）
+    Reuse_OneShot,
+    Reuse_FrequentlyUse,
+    Reuse_Singleton,
+    Reuse_FollowParent // 親グループの設定を常に強制継承（個別指定不可）
+  };
+
+  enum NodeReuseHeuristic
+  {
+    ReuseHeuristic_Default, // グループの設定を使う（個別指定で上書き可）
+    ReuseHeuristic_None,
+    ReuseHeuristic_LRU,
+    ReuseHeuristic_MRU,
+    ReuseHeuristic_FollowParent // 親グループの設定を常に強制継承（個別指定不可）
   };
 
   enum Phase
@@ -100,13 +112,9 @@ public:
     DESTROYED
   };
 
-  SceneNode()
-      : reuseHint_(Default), reusePriority_(50), currentPhase_(CREATED) {}
+  SceneNode(NodeReuseCategory cat = Reuse_OneShot, NodeReuseHeuristic heur = ReuseHeuristic_None)
+      : reuseCategory_(cat), reuseHeuristic_(heur), reusePriority_(50), currentPhase_(CREATED), parentGroup_(nullptr) {}
   virtual ~SceneNode() {}
-
-  // --- NodeReuseHint: 再利用ヒント ---
-  NodeReuseHint getReuseHint() const { return reuseHint_; }
-  void setReuseHint(NodeReuseHint hint) { reuseHint_ = hint; }
 
   // --- reusePriority: 再利用優先度（0=即解放, 50=標準, 100=温存/最優先） ---
   int getReusePriority() const { return reusePriority_; }
@@ -115,14 +123,22 @@ public:
   // --- Phase: ライフサイクル状態 ---
   const State<Phase> &phase() const { return currentPhase_; }
 
-protected:
-  void setPhase(Phase p) { currentPhase_.set(p); }
-  template <class AllocatorType, class NodeT, class GroupType>
-  friend class SceneNodeController;
+  // --- NodeReuseCategory: 再利用カテゴリ ---
+  NodeReuseCategory getReuseCategory() const;
+  void setReuseCategory(NodeReuseCategory cat) { reuseCategory_ = cat; }
 
-  NodeReuseHint reuseHint_;
+  // --- NodeReuseHeuristic: 再利用ヒューリスティック ---
+  NodeReuseHeuristic getReuseHeuristic() const;
+  void setReuseHeuristic(NodeReuseHeuristic heur) { reuseHeuristic_ = heur; }
+
+protected:
+  NodeReuseCategory reuseCategory_;
+  NodeReuseHeuristic reuseHeuristic_;
   int reusePriority_; // 0-100, デフォルト50
   MutableState<Phase> currentPhase_;
+  SceneNodeGroup *parentGroup_; // FollowParent用
+  template <class AllocatorType, class NodeT, class GroupType>
+  friend class SceneNodeController;
 };
 
 // --- SceneNodeController: GroupごとPool設計にリファクタ ---

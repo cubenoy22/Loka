@@ -10,10 +10,16 @@ class SceneNodeGroup
 public:
   // NodePool型定義
   typedef SceneNodePool<SceneNode> PoolType;
+  // Node再利用カテゴリ・ヒューリスティック
+  typedef SceneNode::NodeReuseCategory NodeReuseCategory;
+  typedef SceneNode::NodeReuseHeuristic NodeReuseHeuristic;
 
-  // NodePoolを外部注入 or デフォルト生成
-  SceneNodeGroup(PoolType *pool = 0)
-      : nodePool_(pool ? pool : new SceneNodeDefaultPool<SceneNode>()) {}
+  // NodePoolを外部注入 or デフォルト生成 + Stateバインド + 再利用戦略指定
+  SceneNodeGroup(PoolType *pool = 0,
+                 NodeReuseCategory cat = SceneNode::Reuse_Default,
+                 NodeReuseHeuristic heur = SceneNode::ReuseHeuristic_Default)
+      : nodePool_(pool ? pool : new SceneNodeDefaultPool<SceneNode>()),
+        boundState_(0), reuseCategory_(cat), reuseHeuristic_(heur), parentGroup_(0) {}
   virtual ~SceneNodeGroup()
   {
     clear();
@@ -53,6 +59,26 @@ public:
   PoolType *nodePool() { return nodePool_; }
   const PoolType *nodePool() const { return nodePool_; }
 
+  // StateバインドAPI（defer/observe用）
+  void bindDefer(StateBase *state) { boundState_ = state; }
+  StateBase *boundState() const { return boundState_; }
+
+  // Node再利用カテゴリ・ヒューリスティックのgetter/setter
+  NodeReuseCategory getReuseCategory() const
+  {
+    if (reuseCategory_ == SceneNode::Reuse_FollowParent && parentGroup_)
+      return parentGroup_->getReuseCategory();
+    return reuseCategory_;
+  }
+  void setReuseCategory(NodeReuseCategory cat) { reuseCategory_ = cat; }
+  NodeReuseHeuristic getReuseHeuristic() const
+  {
+    if (reuseHeuristic_ == SceneNode::ReuseHeuristic_FollowParent && parentGroup_)
+      return parentGroup_->getReuseHeuristic();
+    return reuseHeuristic_;
+  }
+  void setReuseHeuristic(NodeReuseHeuristic heur) { reuseHeuristic_ = heur; }
+
   // イテレータ提供
   typedef std::set<SceneNode *>::iterator iterator;
   typedef std::set<SceneNode *>::const_iterator const_iterator;
@@ -64,6 +90,11 @@ public:
 protected:
   std::set<SceneNode *> nodes_;
   PoolType *nodePool_; // グループ単位のNodePool
+  // Stateバインド用メンバ
+  StateBase *boundState_;
+  NodeReuseCategory reuseCategory_;
+  NodeReuseHeuristic reuseHeuristic_;
+  SceneNodeGroup *parentGroup_;
 };
 
 // --- NodeGroupScope: RAIIで所属グループを一時切替 ---
@@ -86,8 +117,5 @@ private:
   // C++98: スレッドローカル不可。グローバルstaticで簡易実装。
   static SceneNodeGroup *currentGroup_;
 };
-
-// グローバルstatic変数の定義
-SceneNodeGroup *NodeGroupScope::currentGroup_ = 0;
 
 #endif // DECLARA_SCENENODEGROUP_HPP

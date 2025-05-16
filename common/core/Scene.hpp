@@ -10,9 +10,8 @@
 #include "core/ComponentGroupBuilder.hpp"
 #include "core/LayoutEngine.hpp"
 #include "core/SceneComponent.hpp"
-#include "core/TreedSceneComponent.hpp"
-#include "core/SolidTreeSceneComponent.hpp"
 #include "core/SceneContext.hpp"
+#include "core/SceneNodeGroup.hpp"
 
 class PlatformContext;
 
@@ -29,7 +28,6 @@ class SceneBuilder : public ComponentGroupBuilder<SceneComponent>
 {
 public:
   SceneBuilder() {}
-  // 今後: TreedSceneComponent/Leaf/Box等の追加APIを拡張
   SceneBuilder &Text(const std::string &text)
   {
     components.push_back(new TextComponent(text));
@@ -43,13 +41,6 @@ public:
   SceneBuilder &Button(const ButtonOptions &opts)
   {
     components.push_back(new ButtonComponent(opts.label, opts.enabled, opts.onClick));
-    return *this;
-  }
-  // Solid.js風ツリー型UIノードの追加（compose関数でネスト可）
-  SceneBuilder &SolidTree(void (*composeFn)(SolidTreeSceneComponent &) = 0)
-  {
-    SolidTreeSceneComponent *tree = composeFn ? new SolidTreeSceneComponent(composeFn) : new SolidTreeSceneComponent();
-    components.push_back(tree);
     return *this;
   }
 };
@@ -69,31 +60,31 @@ public:
   };
 
   Scene(SceneHost *host)
-      : group_(nullptr), currentPhase(DETACHED), context_(nullptr)
+      : rootGroup_(new SceneNodeGroup()), currentPhase(DETACHED), context_(nullptr)
   {
-    SceneBuilder builder;
-    compose(builder);
-    group_ = builder.buildPtr();
+    // 直接SceneNode/SceneNodeGroupを構築する設計に統一
+    compose(*rootGroup_);
   }
   virtual ~Scene()
   {
-    delete group_;
+    delete rootGroup_;
     delete context_;
   }
-  const ComponentGroup<SceneComponent> *getComponentGroup() const { return group_; }
+  SceneNodeGroup *getRootGroup() { return rootGroup_; }
+  const SceneNodeGroup *getRootGroup() const { return rootGroup_; }
 
   // --- SceneContext管理 ---
   void setContext(SceneContext *ctx) { context_ = ctx; }
   SceneContext *getContext() const { return context_; }
 
 protected:
-  ComponentGroup<SceneComponent> *group_;
+  SceneNodeGroup *rootGroup_;
   SceneContext *context_;
   MutableState<ScenePhase> currentPhase;
 
 public:
   // --- UI構成宣言API ---
-  virtual void compose(SceneBuilder &b) {}
+  virtual void compose(SceneNodeGroup &group) {}
 
   // --- シーン切り替えフック ---
   virtual void onAttach() { currentPhase.set(ATTACHED); }

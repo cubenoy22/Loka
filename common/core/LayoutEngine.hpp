@@ -1,12 +1,11 @@
 #ifndef DECLARA_LAYOUTENGINE_HPP
 #define DECLARA_LAYOUTENGINE_HPP
 
-#include "core/TreedSceneComponent.hpp"
 #include <vector>
 #include <string>
 
 // --- Box: 縦横アラインメント・サイズ指定可能なレイアウトエンジン ---
-class Box : public TreedSceneComponent
+class Box /*/: public TreedSceneComponent*/
 {
 public:
   enum class Direction
