@@ -346,6 +346,8 @@ struct ScopedTracker {
 ### NodePresence・ライフサイクルフック
 
 - NodePresence（Attached/Detached/Purged）や created/destroyed/recycled 等の状態を State<T>で管理。
+  - ※現状の実装では `SceneNode::Phase` で presence/lifecycle の両方をカバーしており、enum・State 管理の 2 軸で十分柔軟かつ拡張性もある。
+  - 必要に応じて enum/State を拡張するだけで詳細な状態遷移や OS 固有管理にも対応可能。
 - SceneNodeContext（type ごと singleton）に伝えることで、OS/バックエンド連携も容易。
 - created: 新規生成, destroyed: 完全解放, recycled: プールから再利用、などの 3 値で十分柔軟。
 - これを State<NodePresence>や State<NodeLifecycle>で管理し、必要に応じてコールバック/フックを発火。

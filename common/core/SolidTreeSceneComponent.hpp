@@ -3,6 +3,7 @@
 
 #include "core/TreedSceneComponent.hpp"
 #include "core/StateTracker.hpp"
+#include "core/SceneNode.hpp"
 #include <vector>
 #include <functional>
 
@@ -11,20 +12,25 @@ class SolidTreeSceneComponent : public TreedSceneComponent
 {
 public:
   typedef void (*ComposeFn)(SolidTreeSceneComponent &);
+  // --- SceneNodeController型定義（今後の拡張用） ---
+  typedef SceneNodeController<SceneNodeAllocator<SceneNode>, SceneNode> ControllerType;
 
   SolidTreeSceneComponent()
-      : tracker_(), dirty_(true) {}
+      : tracker_(), dirty_(true), controller_(nullptr) {}
 
   // 新規: compose関数を受け取るコンストラクタ
   SolidTreeSceneComponent(ComposeFn fn)
-      : tracker_(), dirty_(true)
+      : tracker_(), dirty_(true), controller_(nullptr)
   {
     if (fn)
       fn(*this);
   }
   // C++11以降ならstd::functionやラムダも可。C++98互換のため関数ポインタ優先。
 
-  virtual ~SolidTreeSceneComponent() {}
+  virtual ~SolidTreeSceneComponent()
+  {
+    delete controller_;
+  }
 
   // Solid.js風: ローカルStateTrackerで差分検知
   void markDirty() { dirty_ = true; }
@@ -51,6 +57,8 @@ public:
 protected:
   PushStateTracker tracker_;
   bool dirty_;
+  // --- SceneNodeControllerメンバ（今後の拡張用） ---
+  ControllerType *controller_;
 };
 
 #endif // DECLARA_SOLIDTREESCENECOMPONENT_HPP

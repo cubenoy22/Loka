@@ -2,6 +2,7 @@
 #define DECLARA_SCENENODE_HPP
 
 #include <set>
+#include "core/State.hpp"
 
 // --- SceneNodeAllocator: NodeT専用のノード生成インターフェース ---
 template <class NodeT>
@@ -71,6 +72,52 @@ public:
 
 private:
   std::set<NodeT *> nodes_;
+};
+
+// --- SceneNode: UIツリーの最小単位（再利用ヒント対応） ---
+class SceneNode
+{
+public:
+  enum NodeReuseHint
+  {
+    Default,  // 通常再利用
+    Stable,   // 差分チェック不要（絶対に変わらない）
+    Singleton // 解放しない（ViewModel的）
+  };
+
+  enum Phase
+  {
+    CREATED,
+    ATTACHED,
+    DETACHED,
+    RECYCLED,
+    PURGED,
+    DESTROYED
+  };
+
+  SceneNode()
+      : reuseHint_(Default), reusePriority_(50), currentPhase_(CREATED) {}
+  virtual ~SceneNode() {}
+
+  // --- NodeReuseHint: 再利用ヒント ---
+  NodeReuseHint getReuseHint() const { return reuseHint_; }
+  void setReuseHint(NodeReuseHint hint) { reuseHint_ = hint; }
+
+  // --- reusePriority: 再利用優先度（0=即解放, 50=標準, 100=温存/最優先） ---
+  int getReusePriority() const { return reusePriority_; }
+  void setReusePriority(int pri) { reusePriority_ = pri; }
+
+  // --- Phase: ライフサイクル状態 ---
+  const State<Phase> &phase() const { return currentPhase_; }
+
+protected:
+  void setPhase(Phase p) { currentPhase_.set(p); }
+  template <class, class>
+  friend class SceneNodeController;
+
+  NodeReuseHint reuseHint_;
+  int reusePriority_; // 0-100, デフォルト50
+  MutableState<Phase> currentPhase_;
 };
 
 // --- SceneNodeController: Poolも必須引数に変更 ---
