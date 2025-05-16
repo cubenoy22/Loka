@@ -12,6 +12,7 @@ set(SOURCES
   src/Win32Window.cpp
   src/Win32PlatformContext.cpp
   src/Win32SceneContext.cpp
+  src/Tests.cpp
   ../common/core/App.cpp
   ../common/core/StateTracker.cpp
   ../common/core/SceneManager2.cpp
