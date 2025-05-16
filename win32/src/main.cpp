@@ -498,16 +498,7 @@ public:
   }
 };
 
-class AppConfigurable
-{
-protected:
-  PlatformContext *ctx_;
-
-public:
-  AppConfigurable(PlatformContext *ctx) : ctx_(ctx) { assert(ctx && "AppConfigurable: ctx must not be null"); }
-  virtual void configure(AppBuilder &builder) = 0;
-  PlatformContext *getPlatformContext() const { return ctx_; }
-};
+// AppConfigurableはcore/AppConfigurable.hppで定義されているため、ここでの再定義は不要です
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
