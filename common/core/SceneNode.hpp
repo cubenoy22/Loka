@@ -9,8 +9,12 @@ template <class NodeT>
 class SceneNodeAllocator
 {
 public:
+  typedef NodeT NodeType;
   virtual ~SceneNodeAllocator() {}
   virtual NodeT *allocNode(void *userInfo = 0) = 0;
+  // 型安全なInitInfo用のデフォルト実装（必要に応じてサブクラスでオーバーロード）
+  template <typename InitInfo>
+  NodeT *allocNode(const InitInfo &info) { return 0; }
 };
 
 // --- SceneNodeReusePool: NodeT専用の再利用・一時保持戦略 ---
@@ -34,6 +38,7 @@ public:
 
 // --- SceneNodeDeallocator: SceneNode*専用の解放戦略 ---
 class SceneNode;
+class SceneNodeGroup;
 class SceneNodeDeallocator
 {
 public:
@@ -112,7 +117,7 @@ public:
 
 protected:
   void setPhase(Phase p) { currentPhase_.set(p); }
-  template <class, class>
+  template <class AllocatorType, class NodeT, class GroupType>
   friend class SceneNodeController;
 
   NodeReuseHint reuseHint_;
@@ -120,36 +125,42 @@ protected:
   MutableState<Phase> currentPhase_;
 };
 
-// --- SceneNodeController: Poolも必須引数に変更 ---
-template <class AllocatorType, class NodeT = typename AllocatorType::NodeType>
+// --- SceneNodeController: GroupごとPool設計にリファクタ ---
+template <class AllocatorType, class NodeT = typename AllocatorType::NodeType, class GroupType = SceneNodeGroup>
 class SceneNodeController
 {
 public:
   typedef NodeT NodeType;
   typedef SceneNodeReusePool<NodeT> ReusePoolType;
   typedef SceneNodePool<NodeT> PoolType;
+  typedef GroupType GroupTypeAlias;
+
   SceneNodeController(
       AllocatorType *allocator,
       ReusePoolType *reusePool,
       SceneNodeDeallocator *deallocator,
-      PoolType *nodePool)
-      : allocator_(allocator), reusePool_(reusePool), deallocator_(deallocator), nodePool_(nodePool) {}
+      GroupType *group)
+      : allocator_(allocator), reusePool_(reusePool), deallocator_(deallocator), group_(group) {}
 
-  NodeType *acquireNode(void *userInfo = 0)
+  // 型安全なacquireNode: メンバ関数テンプレート
+  template <typename InitInfo>
+  NodeType *acquireNode(const InitInfo &info)
   {
     NodeType *node = reusePool_->pop();
     if (node)
     {
-      nodePool_->add(node);
+      group_->nodePool()->add(node);
+      // 必要に応じてinfoをnodeに反映（サブクラスで拡張）
       return node;
     }
-    node = allocator_->allocNode(userInfo);
-    nodePool_->add(node);
+    node = allocator_->allocNode(info);
+    group_->nodePool()->add(node);
     return node;
   }
+
   void releaseNode(NodeType *node)
   {
-    nodePool_->remove(node);
+    group_->nodePool()->remove(node);
     reusePool_->push(node);
     deallocator_->scheduleDelete(node);
   }
@@ -158,7 +169,7 @@ private:
   AllocatorType *allocator_;
   ReusePoolType *reusePool_;
   SceneNodeDeallocator *deallocator_;
-  PoolType *nodePool_;
+  GroupType *group_;
 };
 
 #endif // DECLARA_SCENENODE_HPP

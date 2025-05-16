@@ -10,6 +10,9 @@ public:
   Win32SceneContext(Scene *scene); // Scene* を受け取るコンストラクタに変更
   virtual ~Win32SceneContext();
   // 必要に応じてWin32固有のリソース管理APIを追加
+  // --- SceneNodeContext生成・再取得API ---
+  virtual SceneNodeContext *getNodeContext(SceneNode *node) { return 0; }
+
 private:
   Scene *scene_; // Scene への非所有ポインタ参照
 };

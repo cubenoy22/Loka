@@ -13,7 +13,7 @@ class SolidTreeSceneComponent : public TreedSceneComponent
 public:
   typedef void (*ComposeFn)(SolidTreeSceneComponent &);
   // --- SceneNodeController型定義（今後の拡張用） ---
-  typedef SceneNodeController<SceneNodeAllocator<SceneNode>, SceneNode> ControllerType;
+  typedef SceneNodeController<SceneNodeAllocator<SceneNode>> ControllerType;
 
   SolidTreeSceneComponent()
       : tracker_(), dirty_(true), controller_(nullptr) {}
