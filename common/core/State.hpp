@@ -173,8 +173,7 @@ private:
 // - UIイベント（ボタン押下・通知・トリガー等）や「値を持たない状態変化」を表現するための汎用State
 // - EmitterStateなどのイベント系Stateの基底としても利用
 // - テスト・アプリ本体・拡張ライブラリ等、あらゆる箇所で「型安全なイベント伝播」を実現
-// bind/unbind/deferBind/deferUnbindはStateBaseのまま
-// get/set等は持たない
+// State<T>と同じバインドAPI・ハンドラ管理を持つ
 //
 template <>
 class State<void> : public StateBase
@@ -182,6 +181,55 @@ class State<void> : public StateBase
 public:
   State() {}
   virtual ~State() {}
+
+  void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) override
+  {
+    Handler h{cb, userData, callOnce, priority};
+    auto it = handlers.begin();
+    for (; it != handlers.end(); ++it)
+      if (priority > it->priority)
+        break;
+    handlers.insert(it, h);
+    if (callImmediately && cb)
+    {
+      cb(userData);
+      if (callOnce)
+        unbind(cb, userData);
+    }
+  }
+  void unbind(OnChangeFn cb, void *userData) override
+  {
+    Handler target{cb, userData, false, 0};
+    for (size_t i = 0; i < handlers.size(); ++i)
+    {
+      if (handlers[i] == target)
+      {
+        handlers.erase(handlers.begin() + i);
+        break;
+      }
+    }
+  }
+  void deferBind(OnChangeFn cb, void *userData, int priority = 0) const override
+  {
+    Handler h{cb, userData, false, priority};
+    auto it = deferredHandlers.begin();
+    for (; it != deferredHandlers.end(); ++it)
+      if (priority > it->priority)
+        break;
+    const_cast<std::vector<Handler> &>(deferredHandlers).insert(it, h);
+  }
+  void deferUnbind(OnChangeFn cb, void *userData) const override
+  {
+    Handler target{cb, userData, false, 0};
+    for (size_t i = 0; i < deferredHandlers.size(); ++i)
+    {
+      if (deferredHandlers[i] == target)
+      {
+        const_cast<std::vector<Handler> &>(deferredHandlers).erase(deferredHandlers.begin() + i);
+        break;
+      }
+    }
+  }
 
 protected:
   // イベント通知API - EmitterStateなどの派生クラスが使用
