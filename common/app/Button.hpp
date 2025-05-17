@@ -6,6 +6,7 @@
 #include "core/PlatformContext.hpp"
 #include "core/SceneComponent.hpp"
 #include "core/SceneNode.hpp"
+#include "core/util/SceneNodeAttachScope.hpp"
 
 // グローバル定数State（常に有効なボタン用）
 static State<bool> BUTTON_DEFAULT_ENABLED(true);
@@ -13,7 +14,10 @@ static State<bool> BUTTON_DEFAULT_ENABLED(true);
 class SceneNodeButton : public SceneNode
 {
 public:
-  SceneNodeButton() : text_(""), enabled_(&BUTTON_DEFAULT_ENABLED) {}
+  SceneNodeButton() : text_(""), enabled_(&BUTTON_DEFAULT_ENABLED)
+  {
+    SceneNodeAttachScope::autoAttach(this);
+  }
 
   SceneNodeButton *setEnabled(State<bool> *state)
   {

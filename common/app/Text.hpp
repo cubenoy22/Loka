@@ -4,11 +4,15 @@
 #include <string>
 #include "core/PlatformContext.hpp"
 #include "core/SceneNode.hpp"
+#include "core/util/SceneNodeAttachScope.hpp"
 
 class SceneNodeText : public SceneNode
 {
 public:
-  explicit SceneNodeText(State<std::string> *text) : text_(text) {}
+  explicit SceneNodeText(State<std::string> *text) : text_(text)
+  {
+    SceneNodeAttachScope::autoAttach(this);
+  }
   State<std::string> *text() const { return text_; }
   SceneNodeText *setText(State<std::string> *text)
   {

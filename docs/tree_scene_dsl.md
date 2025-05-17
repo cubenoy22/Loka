@@ -177,6 +177,22 @@ group.compose(builder);
 
 ---
 
+## 2a. RAII スコープによる自動ノード登録（2025-05-17 仕様追加）
+
+- **SceneNodeAttachScope** による RAII スコープ管理を導入。
+  - `SceneNodeAttachScope`のスコープ内で生成された SceneNode 派生オブジェクトは、
+    スコープの種類（SceneNodeGroup または LayoutSceneNode）に応じて自動的に`add`/`addChild`される。
+  - これにより、`group.add()`や`layout->addChild()`の呼び忘れによるメモリリーク・所有権の曖昧さを防止。
+  - スコープはネスト可能で、最も内側のスコープが優先される（スタック管理）。
+- 主要な SceneNode 派生クラス（SceneNodeButton, SceneNodeText, SceneNodeTextInput 等）は、
+  コンストラクタで`SceneNodeAttachScope::autoAttach(this);`を呼ぶことで自動登録が有効化されている。
+- これにより、compose/ビルダー API 内でノードを生成するだけで、
+  所属先グループ・レイアウトへの登録が自動化され、宣言的かつ安全な UI ツリー構築が可能。
+- 旧来の`group.add()`や`layout->addChild()`による手動登録も引き続き利用可能だが、
+  新規実装・推奨パターンは RAII スコープ＋自動登録方式。
+
+---
+
 ## 3. Key/Props/State の設計・バインド指針
 
 - Props 基底クラスに`std::string key`を持たせ、動的構造でも安定した再利用を担保

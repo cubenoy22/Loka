@@ -72,14 +72,16 @@ namespace SceneTests
 
     void compose(SceneNodeGroup &group)
     {
-      // ※注意: ここでnewしたノードは必ずgroup.add()しないとリークするので要注意！
+      SceneNodeAttachScope _(AttachTarget::Group, &group);
       SceneNodeButton *btn = new SceneNodeButton();
       btn->setText("Increment");
-      group.add(new IncrementNode(&count, &btn->clickEvent, &tracker));
-      group.add(
-          (new LayoutSceneNode())
-              ->addChild(new SceneNodeText(countStr))
-              ->addChild(btn));
+      new IncrementNode(&count, &btn->clickEvent, &tracker);
+      LayoutSceneNode *layout = new LayoutSceneNode();
+      {
+        SceneNodeAttachScope _(AttachTarget::Layout, layout);
+        new SceneNodeText(countStr);
+        layout->addChild(btn);
+      }
     }
 
     MutableState<int> count;

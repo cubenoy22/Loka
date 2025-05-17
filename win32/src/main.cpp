@@ -29,14 +29,15 @@ public:
       : SceneNode(Reuse_Singleton), count_(count), trigger_(trigger), tracker_(tracker)
   {
     assert(tracker_ && "StateTracker must not be null");
-  }
-  void update(SceneContext &ctx)
-  {
     if (trigger_)
-    {
-      AutoTransactionGuard _(tracker_);
-      count_->set(count_->get() + 1);
-    }
+      trigger_->deferBind(&IncrementNode::onTrigger, this);
+  }
+
+  static void onTrigger(void *userData)
+  {
+    IncrementNode *self = static_cast<IncrementNode *>(userData);
+    AutoTransactionGuard _(self->tracker_);
+    self->count_->set(self->count_->get() + 1);
   }
 
 private:
@@ -61,14 +62,17 @@ public:
 
   void compose(SceneNodeGroup &group)
   {
-    // ※注意: ここでnewしたノードは必ずgroup.add()しないとリークするので要注意！
+    SceneNodeAttachScope _(AttachTarget::Group, &group);
     SceneNodeButton *btn = new SceneNodeButton();
     btn->setText("Increment");
-    group.add(new IncrementNode(&count, &btn->clickEvent, &tracker));
-    group.add(
-        (new LayoutSceneNode())
-            ->addChild(new SceneNodeText(countStr))
-            ->addChild(btn));
+    new IncrementNode(&count, &btn->clickEvent, &tracker);
+
+    LayoutSceneNode *layout = new LayoutSceneNode();
+    {
+      SceneNodeAttachScope _(AttachTarget::Layout, layout);
+      new SceneNodeText(countStr);
+      layout->addChild(btn);
+    }
   }
 
   static FormScene *s_instance;
