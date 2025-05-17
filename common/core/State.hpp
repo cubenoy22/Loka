@@ -169,6 +169,72 @@ private:
   }
 };
 
+// State<void>特殊化: 値は持たず、イベント伝播専用
+// - UIイベント（ボタン押下・通知・トリガー等）や「値を持たない状態変化」を表現するための汎用State
+// - EmitterStateなどのイベント系Stateの基底としても利用
+// - テスト・アプリ本体・拡張ライブラリ等、あらゆる箇所で「型安全なイベント伝播」を実現
+// bind/unbind/deferBind/deferUnbindはStateBaseのまま
+// get/set等は持たない
+//
+template <>
+class State<void> : public StateBase
+{
+public:
+  State() {}
+  virtual ~State() {}
+
+protected:
+  // イベント通知API - EmitterStateなどの派生クラスが使用
+  void notifyStateChanged()
+  {
+    for (size_t i = 0; i < handlers.size();)
+    {
+      handlers[i].cb(handlers[i].userData);
+      if (handlers[i].callOnce)
+        handlers.erase(handlers.begin() + i);
+      else
+        ++i;
+    }
+    // deferBindで登録されたハンドラも呼ぶ
+    for (size_t i = 0; i < deferredHandlers.size(); ++i)
+    {
+      deferredHandlers[i].cb(deferredHandlers[i].userData);
+    }
+  }
+
+  struct Handler
+  {
+    OnChangeFn cb;
+    void *userData;
+    bool callOnce;
+    int priority;
+    bool operator==(const Handler &other) const
+    {
+      return cb == other.cb && userData == other.userData;
+    }
+  };
+  std::vector<Handler> handlers;
+  std::vector<Handler> deferredHandlers;
+};
+
+// --- EmitterState: 値を持たない純粋なイベントState ---
+//
+// 設計意図:
+// - EmitterStateはOSやプラットフォームのイベント（例:ボタンクリック）をemit()で受けるだけの純粋なイベントState。
+// - SceneNodeButton等が持つclickEventは、各プラットフォームのSceneNodeContextがOSコールバックでemit()を呼ぶ。
+// - Declara!側ではこのEmitterStateにbindDeferした各方面にイベントが伝播される。
+// - EmitterStateは値やフラグを一切持たず、emit()でnotifyStateChanged()を呼ぶだけ。
+// - 利用側はemitted()やconsume()等を意識せず、bindDeferで副作用を記述するだけでよい。
+class EmitterState : public State<void>
+{
+public:
+  EmitterState() {}
+  void emit()
+  {
+    notifyStateChanged();
+  }
+};
+
 // --- 新規: MutableState ---
 template <typename T>
 class MutableState : public State<T>
@@ -242,41 +308,6 @@ private:
   }
   std::vector<StateBase *> dependencies;
   EvalFn *evalFn;
-};
-
-// --- EmitterState: 一度だけ発火するイベント的なState ---
-//
-// 設計意図:
-// - EmitterStateはOSやプラットフォームのイベント（例:ボタンクリック）をemit()で受けるだけの純粋なイベントState。
-// - SceneNodeButton等が持つclickEventは、各プラットフォームのSceneNodeContextがOSコールバックでemit()を呼ぶ。
-// - Declara!側ではこのEmitterStateにbindDeferした各方面にイベントが伝播される。
-// - EmitterStateはイベント伝播後、内部で自動的にconsume()（protected）を呼ぶことで、何度でも再発火できる。
-// - 利用側はemitted()やconsume()を意識せず、bindDeferで副作用を記述するだけでよい。
-class EmitterState : public State<void>
-{
-public:
-  EmitterState() : emitted_(false)
-  {
-    // priority=-1で自身のconsumeをdeferBind
-    this->deferBind(&EmitterState::autoConsumeThunk, this, -1);
-  }
-  void emit()
-  {
-    emitted_ = true;
-    notifyStateChanged();
-  }
-
-protected:
-  void consume() { emitted_ = false; }
-
-private:
-  bool emitted_;
-  static void autoConsumeThunk(void *userData)
-  {
-    EmitterState *self = static_cast<EmitterState *>(userData);
-    if (self)
-      self->consume();
-  }
 };
 
 #endif // DECLARA_STATE_HPP

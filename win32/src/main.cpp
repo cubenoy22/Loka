@@ -19,6 +19,7 @@
 #include "core/LayoutSceneNode.hpp"
 #include "core/components/logic/format.hpp"
 #include "Tests.hpp"
+#include "SceneTests.hpp"
 
 // --- IncrementNode: trigger発火時にcountを+1するロジック専用SceneNode（EmitterState対応） ---
 class IncrementNode : public SceneNode
@@ -112,5 +113,6 @@ int main()
   testTextInputOnChange();
   testDerivedStruct();
   testSceneManagerTransaction();
+  SceneTests::runAll();
   return 0;
 }

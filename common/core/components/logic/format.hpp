@@ -4,10 +4,14 @@
 #include <string>
 #include "core/State.hpp"
 
+// 数値型専用のフォーマッタ関数テンプレート定義
+template <typename T>
+std::string formatValue(T val, const std::string &fmt);
+
 // StrFormatState: State<int>やState<T>を指定フォーマットでState<std::string>に変換するノード
 // C++98対応・UIレス
 // ※本テンプレートはint/double等の数値型専用。Tが未対応型の場合はformatValue未定義でコンパイルエラー。
-// bindDeferを使うことで複数State更新時の効率化も可能。
+// deferBindを使うことで複数State更新時の効率化も可能。
 
 template <typename T>
 class StrFormatState : public State<std::string>
@@ -18,12 +22,12 @@ public:
   {
     updateValue();
     if (in_)
-      in_->bindDefer(&StrFormatState::onInputChanged, this);
+      in_->deferBind(&StrFormatState::onInputChanged, this);
   }
   ~StrFormatState()
   {
     if (in_)
-      in_->unbind(&StrFormatState::onInputChanged, this);
+      in_->deferUnbind(&StrFormatState::onInputChanged, this);
   }
   static void onInputChanged(void *userData)
   {
@@ -31,29 +35,40 @@ public:
     if (self)
       self->updateValue();
   }
+
+private:
   void updateValue()
   {
-    // 数値型(int/double等)の文字列化用途であれば64バイトで十分安全。
-    // 例: 64bit整数や指数表記doubleでも64文字を超えることはまずない。
-    // フォーマットや型が将来的に拡張される場合は動的バッファ化も検討可。
-    char buf[64];
-    formatValue(buf, sizeof(buf), in_ ? in_->get() : T());
-    this->setValue(std::string(buf));
+    if (in_)
+      State<std::string>::set(formatValue(in_->get(), fmt_));
   }
-
-protected:
-  void formatValue(char *buf, size_t bufsize, int v)
-  {
-    snprintf(buf, bufsize, fmt_.c_str(), v);
-  }
-  void formatValue(char *buf, size_t bufsize, double v)
-  {
-    snprintf(buf, bufsize, fmt_.c_str(), v);
-  }
-  // 他の型は必要に応じて特殊化
-private:
   State<T> *in_;
   std::string fmt_;
 };
+
+// 数値型専用のフォーマッタ（特殊化して対応型を増やせる）
+template <>
+inline std::string formatValue(int val, const std::string &fmt)
+{
+  char buf[256];
+  snprintf(buf, sizeof(buf), fmt.c_str(), val);
+  return std::string(buf);
+}
+
+template <>
+inline std::string formatValue(float val, const std::string &fmt)
+{
+  char buf[256];
+  snprintf(buf, sizeof(buf), fmt.c_str(), val);
+  return std::string(buf);
+}
+
+template <>
+inline std::string formatValue(double val, const std::string &fmt)
+{
+  char buf[256];
+  snprintf(buf, sizeof(buf), fmt.c_str(), val);
+  return std::string(buf);
+}
 
 #endif // DECLARA_COMPONENTS_LOGIC_FORMAT_HPP
