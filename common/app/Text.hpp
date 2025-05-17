@@ -2,18 +2,22 @@
 #define DECLARA_TEXT_HPP
 
 #include <string>
-#include "core/Component.hpp"
 #include "core/PlatformContext.hpp"
-#include "app/Button.hpp" // Component2基底クラスを参照
+#include "core/SceneNode.hpp"
 
-class TextComponent : public Component2
+class SceneNodeText : public SceneNode
 {
 public:
-  TextComponent(const std::string &text) : text_(text) {}
-  void updateStates() {}
+  explicit SceneNodeText(State<std::string> *text) : text_(text) {}
+  State<std::string> *text() const { return text_; }
+  SceneNodeText *setText(State<std::string> *text)
+  {
+    text_ = text;
+    return this;
+  }
 
-private:
-  std::string text_;
+protected:
+  State<std::string> *text_;
 };
 
 #endif // DECLARA_TEXT_HPP

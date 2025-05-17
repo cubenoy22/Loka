@@ -195,38 +195,43 @@ public:
   }
 };
 
-// --- DerivedState: State<T>の機能を最大限活用して簡素化 ---
+// --- DerivedState: State<T>のC++98対応実装 ---
 template <typename T>
 class DerivedState : public State<T>
 {
 public:
-  using EvalFn = std::function<T()>;
-  DerivedState(const std::vector<StateBase *> &deps, EvalFn eval)
-      : State<T>(eval()), dependencies(deps), evalFn(eval)
+  // 評価式用の純粋仮想基底クラス（C++98対応: operator()はconst参照可）
+  struct EvalFn
   {
-    this->value = evalFn();
+    virtual ~EvalFn() {}
+    virtual T operator()() = 0;
+  };
+  DerivedState(const std::vector<StateBase *> &deps, EvalFn *eval)
+      : State<T>(eval ? (*eval)() : T()), dependencies(deps), evalFn(eval)
+  {
+    this->value = evalFn ? (*evalFn)() : T();
   }
-  DerivedState(StateBase *dep, EvalFn eval)
-      : State<T>(eval()), evalFn(eval)
+  DerivedState(StateBase *dep, EvalFn *eval)
+      : State<T>(eval ? (*eval)() : T()), evalFn(eval)
   {
     if (dep)
       dependencies.push_back(dep);
-    this->value = evalFn();
+    this->value = evalFn ? (*evalFn)() : T();
   }
 
-  std::vector<StateBase *> getDependencyStates() const override
+  std::vector<StateBase *> getDependencyStates() const
   {
     return dependencies;
   }
-  // setter完全禁止 - オーバーライドではなく隠蔽実装
+
 private:
-  // 親クラスを隠蔽、privateで空実装
-  void set(const T &v) override {}
-  void setValue(const T &v) override {}
-  // 再計算（依存元が変化したときに呼ぶ）
-  bool recompute() override
+  void set(const T &v) {}
+  void setValue(const T &v) {}
+  bool recompute()
   {
-    T newVal = evalFn();
+    if (!evalFn)
+      return false;
+    T newVal = (*evalFn)();
     if (newVal != this->value)
     {
       this->value = newVal;
@@ -235,10 +240,43 @@ private:
     }
     return false;
   }
+  std::vector<StateBase *> dependencies;
+  EvalFn *evalFn;
+};
+
+// --- EmitterState: 一度だけ発火するイベント的なState ---
+//
+// 設計意図:
+// - EmitterStateはOSやプラットフォームのイベント（例:ボタンクリック）をemit()で受けるだけの純粋なイベントState。
+// - SceneNodeButton等が持つclickEventは、各プラットフォームのSceneNodeContextがOSコールバックでemit()を呼ぶ。
+// - Declara!側ではこのEmitterStateにbindDeferした各方面にイベントが伝播される。
+// - EmitterStateはイベント伝播後、内部で自動的にconsume()（protected）を呼ぶことで、何度でも再発火できる。
+// - 利用側はemitted()やconsume()を意識せず、bindDeferで副作用を記述するだけでよい。
+class EmitterState : public State<void>
+{
+public:
+  EmitterState() : emitted_(false)
+  {
+    // priority=-1で自身のconsumeをdeferBind
+    this->deferBind(&EmitterState::autoConsumeThunk, this, -1);
+  }
+  void emit()
+  {
+    emitted_ = true;
+    notifyStateChanged();
+  }
+
+protected:
+  void consume() { emitted_ = false; }
 
 private:
-  std::vector<StateBase *> dependencies;
-  EvalFn evalFn;
+  bool emitted_;
+  static void autoConsumeThunk(void *userData)
+  {
+    EmitterState *self = static_cast<EmitterState *>(userData);
+    if (self)
+      self->consume();
+  }
 };
 
 #endif // DECLARA_STATE_HPP

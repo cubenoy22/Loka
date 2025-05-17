@@ -1,0 +1,104 @@
+#ifndef DECLARA_LAYOUTSCENENODE_HPP
+#define DECLARA_LAYOUTSCENENODE_HPP
+
+#include "core/SceneNode.hpp"
+#include <vector>
+
+// --- Box: 縦横アラインメント・サイズ指定可能なレイアウトエンジン ---
+class Box /*/: public TreedSceneComponent*/
+{
+public:
+  enum Direction
+  {
+    Vertical,
+    Horizontal
+  };
+  enum Alignment
+  {
+    Start,
+    Center,
+    End,
+    Stretch
+  };
+
+  Box(Direction dir = Vertical)
+  {
+    direction = dir;
+    alignment = Start;
+    width = -1;
+    height = -1;
+  }
+
+  Box &setDirection(Direction dir)
+  {
+    direction = dir;
+    return *this;
+  }
+  Box &setAlignment(Alignment align)
+  {
+    alignment = align;
+    return *this;
+  }
+  Box &setWidth(int w)
+  {
+    width = w;
+    return *this;
+  }
+  Box &setHeight(int h)
+  {
+    height = h;
+    return *this;
+  }
+
+  // 差分検知・再描画
+  // void update() override
+  // {
+  //   // レイアウト計算（仮実装）
+  //   for (auto *c : children)
+  //   {
+  //     if (c->isDirty())
+  //       c->update();
+  //   }
+  // }
+
+  // ...描画・レイアウト計算用の追加メソッド...
+
+protected:
+  Direction direction;
+  Alignment alignment;
+  int width, height; // -1: 自動
+};
+
+// --- LayoutSceneNode: Boxレイアウトを担うSceneNode ---
+class LayoutSceneNode : public SceneNode
+{
+public:
+  LayoutSceneNode(Box::Direction dir = Box::Vertical)
+      : box_(dir) {}
+
+  LayoutSceneNode *addChild(SceneNode *child)
+  {
+    children_.push_back(child);
+    return this;
+  }
+
+  void setDirection(Box::Direction dir) { box_.setDirection(dir); }
+  void setAlignment(Box::Alignment align) { box_.setAlignment(align); }
+  void setWidth(int w) { box_.setWidth(w); }
+  void setHeight(int h) { box_.setHeight(h); }
+
+  // レイアウト計算・配置処理（仮実装）
+  void layout()
+  {
+    // ここでbox_の設定に従いchildren_を配置する
+    // 実際の描画や座標計算はbackendで拡張予定
+  }
+
+  const std::vector<SceneNode *> &children() const { return children_; }
+
+protected:
+  Box box_;
+  std::vector<SceneNode *> children_;
+};
+
+#endif // DECLARA_LAYOUTSCENENODE_HPP

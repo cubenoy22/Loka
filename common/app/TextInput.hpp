@@ -3,16 +3,17 @@
 
 #include <string>
 #include "core/PlatformContext.hpp"
-#include "core/Component.hpp"
-#include "Button.hpp" // Component2基底クラスを参照
+#include "core/SceneNode.hpp"
 
-class TextInputComponent : public Component2
+// --- SceneNodeTextInput: SceneNodeラッパー ---
+class SceneNodeTextInput : public SceneNode
 {
 public:
-  TextInputComponent(State<std::string> *state) : state_(state) {}
-  void updateStates() {}
+  SceneNodeTextInput(State<std::string> *state) : state_(state) {}
+  void setState(State<std::string> *state) { state_ = state; }
+  State<std::string> *state() const { return state_; }
 
-private:
+protected:
   State<std::string> *state_;
 };
 

@@ -17,7 +17,32 @@
 #include "core/util/AutoTransactionGuard.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/LayoutSceneNode.hpp"
+#include "core/components/logic/format.hpp"
 #include "Tests.hpp"
+
+// --- IncrementNode: trigger発火時にcountを+1するロジック専用SceneNode（EmitterState対応） ---
+class IncrementNode : public SceneNode
+{
+public:
+  IncrementNode(MutableState<int> *count, EmitterState *trigger, StateTracker *tracker)
+      : SceneNode(Reuse_Singleton), count_(count), trigger_(trigger), tracker_(tracker)
+  {
+    assert(tracker_ && "StateTracker must not be null");
+  }
+  void update(SceneContext &ctx)
+  {
+    if (trigger_)
+    {
+      AutoTransactionGuard _(tracker_);
+      count_->set(count_->get() + 1);
+    }
+  }
+
+private:
+  MutableState<int> *count_;
+  EmitterState *trigger_;
+  StateTracker *tracker_;
+};
 
 // --- FormScene: シンプルなカウンター ---
 class FormScene : public Scene
@@ -27,31 +52,29 @@ public:
       : Scene(new SceneHost()),
         count(0),
         tracker(makeStateVector(&count, 0)),
-        context_(platform ? platform->createSceneContextForScene(this) : nullptr)
+        context_(platform ? platform->createSceneContextForScene(this) : 0),
+        countStr(new StrFormatState<int>(&count, "Count: %d"))
   {
     s_instance = this;
   }
+
   void compose(SceneNodeGroup &group)
   {
-    LayoutSceneNode *layout = new LayoutSceneNode();
-    // カウント表示
-    layout->addChild(new SceneNodeText(std::string("Count: ") + std::to_string(count.get())));
-    // インクリメントボタン
-    layout->addChild(
-        (new SceneNodeButton(ButtonProps()
-                                 .setText("Increment")
-                                 .setOnClick(&FormScene::onIncrementClicked))));
-    group.add(layout);
+    // ※注意: ここでnewしたノードは必ずgroup.add()しないとリークするので要注意！
+    SceneNodeButton *btn = new SceneNodeButton();
+    btn->setText("Increment");
+    group.add(new IncrementNode(&count, &btn->clickEvent, &tracker));
+    group.add(
+        (new LayoutSceneNode())
+            ->addChild(new SceneNodeText(countStr))
+            ->addChild(btn));
   }
-  static void onIncrementClicked()
-  {
-    if (s_instance)
-      s_instance->count.set(s_instance->count.get() + 1);
-  }
+
   static FormScene *s_instance;
   MutableState<int> count;
   PushStateTracker tracker;
   SceneContext *context_;
+  StrFormatState<int> *countStr;
 };
 FormScene *FormScene::s_instance = 0;
 

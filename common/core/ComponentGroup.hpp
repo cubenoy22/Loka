@@ -1,7 +1,6 @@
 #ifndef DECLARA_COMPONENT_GROUP_HPP
 #define DECLARA_COMPONENT_GROUP_HPP
 #include <vector>
-#include "core/Component.hpp"
 
 template <typename T>
 class ComponentGroup

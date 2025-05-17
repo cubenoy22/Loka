@@ -83,27 +83,32 @@ void testTrackerPropagation()
 {
   printf("\n==== [testTrackerPropagation] start ====\n");
   MutableState<int> s_int(10);
-  DerivedState<int> doubleProp({&s_int}, [&]()
-                               { return s_int.get() * 2; });
-  printf("[test] s_int=%p, doubleProp=%p\n", (void *)&s_int, (void *)&doubleProp);
-  auto deps = doubleProp.getDependencyStates();
+  struct DoublePropEval : public DerivedState<int>::EvalFn
+  {
+    MutableState<int> *s;
+    DoublePropEval(MutableState<int> *s_) : s(s_) {}
+    int operator()() { return s->get() * 2; }
+  };
+  DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
+  printf("[test] s_int=%p, doubleProp=%p\n", (void *)&s_int, (void *)doubleProp);
+  std::vector<StateBase *> deps = doubleProp->getDependencyStates();
   for (size_t i = 0; i < deps.size(); ++i)
   {
     printf("[test] doubleProp.getDependencyStates()[%zu]=%p\n", i, (void *)deps[i]);
   }
-  PushStateTracker tracker({&s_int, &doubleProp});
-  printf("[before begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp.get());
+  PushStateTracker tracker(std::vector<StateBase *>{&s_int, doubleProp});
+  printf("[before begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
   tracker.begin();
-  printf("[after begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp.get());
+  printf("[after begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
   s_int.set(21);
-  printf("[after set] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp.get());
+  printf("[after set] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
   tracker.end();
-  printf("[after end] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp.get());
+  printf("[after end] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
 
   assert(s_int.get() == 21);
-  assert(doubleProp.get() == 42);
+  assert(doubleProp->get() == 42);
   std::cout << "s_int: " << s_int.get() << std::endl;
-  std::cout << "doubleProp: " << doubleProp.get() << std::endl;
+  std::cout << "doubleProp: " << doubleProp->get() << std::endl;
   printf("==== [testTrackerPropagation] end ====\n");
 }
 
@@ -111,9 +116,14 @@ void testDeferredSideEffect()
 {
   printf("\n==== [testDeferredSideEffect] start ====\n");
   MutableState<int> s_int(5);
-  DerivedState<int> doubleProp({&s_int}, [&]()
-                               { return s_int.get() * 2; });
-  PushStateTracker tracker({&s_int, &doubleProp});
+  struct DoublePropEval : public DerivedState<int>::EvalFn
+  {
+    MutableState<int> *s;
+    DoublePropEval(MutableState<int> *s_) : s(s_) {}
+    int operator()() { return s->get() * 2; }
+  };
+  DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
+  PushStateTracker tracker({&s_int, doubleProp});
   struct DeferredCallback
   {
     static void onDeferred(void *)
@@ -126,9 +136,9 @@ void testDeferredSideEffect()
   s_int.set(7);
   tracker.end();
   assert(s_int.get() == 7);
-  assert(doubleProp.get() == 14);
+  assert(doubleProp->get() == 14);
   std::cout << "s_int: " << s_int.get() << std::endl;
-  std::cout << "doubleProp: " << doubleProp.get() << std::endl;
+  std::cout << "doubleProp: " << doubleProp->get() << std::endl;
   printf("==== [testDeferredSideEffect] end ====\n");
 }
 
@@ -136,9 +146,14 @@ void testTextInputOnChange()
 {
   printf("\n==== [testTextInputOnChange] start ====\n");
   MutableState<std::string> name("");
-  DerivedState<bool> isValid({&name}, [&]()
-                             { return name.get().length() >= 3; });
-  PushStateTracker tracker({&name, &isValid});
+  struct IsValidEval : public DerivedState<bool>::EvalFn
+  {
+    MutableState<std::string> *n;
+    IsValidEval(MutableState<std::string> *n_) : n(n_) {}
+    bool operator()() { return n->get().length() >= 3; }
+  };
+  DerivedState<bool> *isValid = new DerivedState<bool>(std::vector<StateBase *>(1, &name), new IsValidEval(&name));
+  PushStateTracker tracker({&name, isValid});
   struct ValidCallback
   {
     static void onChange(void *userData)
@@ -147,19 +162,19 @@ void testTextInputOnChange()
       std::cout << "[isValid] changed: " << (isValid->get() ? "OK" : "NG") << std::endl;
     }
   };
-  isValid.bind(ValidCallback::onChange, &isValid, false);
+  isValid->bind(ValidCallback::onChange, isValid, false);
   std::cout << "[TextInput] name.set(\"ab\")" << std::endl;
   tracker.begin();
   name.set("ab");
   tracker.end();
-  assert(isValid.get() == false);
-  std::cout << "isValid: " << (isValid.get() ? "OK" : "NG") << std::endl;
+  assert(isValid->get() == false);
+  std::cout << "isValid: " << (isValid->get() ? "OK" : "NG") << std::endl;
   std::cout << "[TextInput] name.set(\"senko\")" << std::endl;
   tracker.begin();
   name.set("senko");
   tracker.end();
-  assert(isValid.get() == true);
-  std::cout << "isValid: " << (isValid.get() ? "OK" : "NG") << std::endl;
+  assert(isValid->get() == true);
+  std::cout << "isValid: " << (isValid->get() ? "OK" : "NG") << std::endl;
   printf("==== [testTextInputOnChange] end ====\n");
 }
 
@@ -167,18 +182,23 @@ void testBatchTransaction()
 {
   printf("\n==== [testBatchTransaction] start ====\n");
   MutableState<int> s1(1);
+  struct SumPropEval : public DerivedState<int>::EvalFn
+  {
+    MutableState<int> *s;
+    SumPropEval(MutableState<int> *s_) : s(s_) {}
+    int operator()() { return s->get() * 2; }
+  };
+  DerivedState<int> *sumProp = new DerivedState<int>(std::vector<StateBase *>(1, &s1), new SumPropEval(&s1));
   MutableState<int> s2(2);
-  DerivedState<int> sumProp({&s1}, [&]()
-                            { return s1.get() * 2; });
-  PushStateTracker tracker({&s1, &s2, &sumProp});
+  PushStateTracker tracker({&s1, &s2, sumProp});
   tracker.begin();
   s1.set(10);
   s2.set(20);
   tracker.end();
   assert(s1.get() == 10);
   assert(s2.get() == 20);
-  assert(sumProp.get() == 20);
-  std::cout << "[Batch] s1=" << s1.get() << ", s2=" << s2.get() << ", sumProp=" << sumProp.get() << std::endl;
+  assert(sumProp->get() == 20);
+  std::cout << "[Batch] s1=" << s1.get() << ", s2=" << s2.get() << ", sumProp=" << sumProp->get() << std::endl;
   printf("==== [testBatchTransaction] end ====\n");
 }
 
@@ -186,16 +206,21 @@ void testRAIITransaction()
 {
   printf("\n==== [testRAIITransaction] start ====\n");
   MutableState<int> s(0);
-  DerivedState<int> doubleProp({&s}, [&]()
-                               { return s.get() * 2; });
-  PushStateTracker tracker({&s, &doubleProp});
+  struct DoublePropEval : public DerivedState<int>::EvalFn
+  {
+    MutableState<int> *s;
+    DoublePropEval(MutableState<int> *s_) : s(s_) {}
+    int operator()() { return s->get() * 2; }
+  };
+  DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s), new DoublePropEval(&s));
+  PushStateTracker tracker({&s, doubleProp});
   {
     AutoTransactionGuard _(&tracker);
     s.set(50);
   }
   assert(s.get() == 50);
-  assert(doubleProp.get() == 100);
-  std::cout << "[RAII] s=" << s.get() << ", doubleProp=" << doubleProp.get() << std::endl;
+  assert(doubleProp->get() == 100);
+  std::cout << "[RAII] s=" << s.get() << ", doubleProp=" << doubleProp->get() << std::endl;
   printf("==== [testRAIITransaction] end ====\n");
 }
 
@@ -213,18 +238,29 @@ void testDerivedStruct()
   MutableState<std::string> email("");
   MutableState<int> age(0);
   MutableState<bool> agree(false);
-  std::vector<StateBase *> deps = {&name, &email, &age, &agree};
-  DerivedState<bool> isValid(
-      deps,
-      [&]()
-      {
-        FormInputs f = {name.get(), email.get(), age.get(), agree.get()};
-        return !f.name.empty() && !f.email.empty() && f.age >= 18 && f.agree;
-      });
+  std::vector<StateBase *> deps;
+  deps.push_back(&name);
+  deps.push_back(&email);
+  deps.push_back(&age);
+  deps.push_back(&agree);
+  struct IsValidEval : public DerivedState<bool>::EvalFn
+  {
+    MutableState<std::string> *name;
+    MutableState<std::string> *email;
+    MutableState<int> *age;
+    MutableState<bool> *agree;
+    IsValidEval(MutableState<std::string> *n, MutableState<std::string> *e, MutableState<int> *a, MutableState<bool> *ag)
+        : name(n), email(e), age(a), agree(ag) {}
+    bool operator()()
+    {
+      return !name->get().empty() && !email->get().empty() && age->get() >= 18 && agree->get();
+    }
+  };
+  DerivedState<bool> *isValid = new DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));
   StateBase *deps2[5];
   for (size_t i = 0; i < deps.size(); ++i)
     deps2[i] = deps[i];
-  deps2[deps.size()] = &isValid;
+  deps2[deps.size()] = isValid;
   PushStateTracker tracker(std::vector<StateBase *>(deps2, deps2 + 5));
   struct Callback
   {
@@ -233,31 +269,31 @@ void testDerivedStruct()
       std::cout << "[isValid] changed: " << v << std::endl;
     }
   };
-  isValid.bind((StateBase::OnChangeFn)Callback::onChange, &isValid, false);
+  isValid->bind((StateBase::OnChangeFn)Callback::onChange, isValid, false);
   tracker.begin();
   name.set("senko");
   email.set("");
   age.set(20);
   agree.set(true);
   tracker.end();
-  assert(isValid.get() == false); // emailが空
+  assert(isValid->get() == false); // emailが空
 
   tracker.begin();
   email.set("senko@ai");
   age.set(15);
   tracker.end();
-  assert(isValid.get() == false); // ageが未満
+  assert(isValid->get() == false); // ageが未満
 
   tracker.begin();
   age.set(22);
   agree.set(false);
   tracker.end();
-  assert(isValid.get() == false); // agreeがfalse
+  assert(isValid->get() == false); // agreeがfalse
 
   tracker.begin();
   agree.set(true);
   tracker.end();
-  assert(isValid.get() == true); // 全てOK
+  assert(isValid->get() == true); // 全てOK
   printf("==== [testDerivedStruct] end ====\n");
 }
 
