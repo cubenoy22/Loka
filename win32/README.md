@@ -50,6 +50,8 @@
 ## 5. 注意点・Tips
 
 - サブシステム切り替え時は必ず Config & Build タスクから再ビルドしてください（CMake のキャッシュが残るため）
+- **テストやコード修正時は、必ず `cmake --build win32/build/native/Debug` でビルドし、`win32/build/native/Debug/Declara.exe` でテスト実行して動作確認してください**
+  - 修正の妥当性・テスト通過を毎回確認するため、手動ビルド＆テスト実行を徹底してください
 - ビルドエラー時は `cmake --build win32/build/native/Debug` で手動ビルド・エラー確認も可能
 - タスクや launch.json の構成はプロジェクトの運用方針に合わせて随時見直してください
 

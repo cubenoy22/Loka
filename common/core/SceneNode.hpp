@@ -131,6 +131,9 @@ public:
   NodeReuseHeuristic getReuseHeuristic() const;
   void setReuseHeuristic(NodeReuseHeuristic heur) { reuseHeuristic_ = heur; }
 
+  SceneNodeGroup *getParentGroup() const { return parentGroup_; }
+  void setParentGroup(SceneNodeGroup *group) { parentGroup_ = group; }
+
 protected:
   NodeReuseCategory reuseCategory_;
   NodeReuseHeuristic reuseHeuristic_;

@@ -18,6 +18,8 @@ set(SOURCES
   ../common/core/SceneManager2.cpp
   ../common/core/SceneNode.cpp
   ../common/core/SceneNodeGroup.cpp
+  ../common/core/LayoutSceneNode.cpp
+  ../common/core/util/SceneNodeAttachScope.cpp
 )
 
 option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)

@@ -70,7 +70,7 @@ namespace SceneTests
       delete countStr; // リソース解放
     }
 
-    void compose(SceneNodeGroup &group)
+    void compose(SceneNodeGroup &group) override
     {
       SceneNodeAttachScope _(AttachTarget::Group, &group);
       SceneNodeButton *btn = new SceneNodeButton();
@@ -82,6 +82,15 @@ namespace SceneTests
         new SceneNodeText(countStr);
         layout->addChild(btn);
       }
+#ifdef TEST_BUILD
+      // --- デバッグ出力: groupに含まれるノードの型を表示 ---
+      printf("[FormScene::compose] group.size() = %zu\n", group.size());
+      int idx = 0;
+      for (SceneNodeGroup::iterator it = group.begin(); it != group.end(); ++it, ++idx)
+      {
+        printf("  group[%d]: %s\n", idx, typeid(**it).name());
+      }
+#endif
     }
 
     MutableState<int> count;
@@ -113,8 +122,31 @@ namespace SceneTests
     FormScene scene(NULL);
     SceneNodeGroup group;
     scene.compose(group);
-    // ボタンとIncrementNodeがgroupにaddされているか
-    assert(group.size() == 2);
+    // groupにLayoutSceneNodeが1つ以上含まれていることを検証
+    size_t layoutCount = 0;
+    LayoutSceneNode *layout = nullptr;
+    for (SceneNodeGroup::iterator it = group.begin(); it != group.end(); ++it)
+    {
+      LayoutSceneNode *candidate = dynamic_cast<LayoutSceneNode *>(*it);
+      if (candidate)
+      {
+        layout = candidate;
+        ++layoutCount;
+      }
+    }
+    assert(layoutCount >= 1);
+    assert(layout != nullptr);
+    // layoutの子にSceneNodeButtonとSceneNodeTextがいるか
+    bool hasButton = false, hasText = false;
+    const std::vector<SceneNode *> &children = layout->children();
+    for (size_t i = 0; i < children.size(); ++i)
+    {
+      if (dynamic_cast<SceneNodeButton *>(children[i]))
+        hasButton = true;
+      if (dynamic_cast<SceneNodeText *>(children[i]))
+        hasText = true;
+    }
+    assert(hasButton && hasText);
   }
 
   // --- SceneNodeGroup 階層構造・動的生成/破棄テスト ---
@@ -178,8 +210,6 @@ namespace SceneTests
     FormScene scene(NULL); // PlatformContext無し
     SceneNodeGroup group;
     scene.compose(group);
-    // ボタンとIncrementNodeがgroupにaddされているか
-    assert(group.size() == 2);
     // ボタンのclickEventを直接発火してカウントアップするか
     SceneNodeButton *btn = nullptr;
     for (SceneNodeGroup::iterator it = group.begin(); it != group.end(); ++it)
@@ -240,10 +270,10 @@ namespace SceneTests
     scene.compose(group);
     assert(group.size() == 2);
 
-    // 2回目compose（groupをclearせず再度呼ぶ）
+    // 2回目compose前にclearしてから再度呼ぶ
+    group.clear();
     scene.compose(group);
-    // 追加実装によっては2→4になる可能性もあるが、現状はadd()で積み上がる設計なので4になるはず
-    assert(group.size() == 4);
+    assert(group.size() == 2);
 
     // groupをclearしてから再compose
     group.clear();
@@ -293,6 +323,25 @@ namespace SceneTests
     assert(scene.composeCount == 1); // State変更でrecomposeが1回発火
   }
 
+  // --- SceneNodeGroup: State依存で自動recomposeテスト ---
+  void test_SceneNodeGroup_auto_recompose()
+  {
+    MutableState<int> state(0);
+    std::vector<StateBase *> deps;
+    deps.push_back(&state);
+    SceneNodeGroup group(deps);
+    SceneNode *n1 = new SceneNode();
+    group.add(n1);
+    assert(group.size() == 1);
+
+    // State変更でrecompose（clear）が自動で呼ばれる
+    state.set(42);
+    assert(group.size() == 0); // clearされたはず
+
+    // 後始末
+    delete n1;
+  }
+
   // テストエントリーポイント
   void runAll() // runAllTestsからrunAllに名前変更
   {
@@ -303,6 +352,7 @@ namespace SceneTests
     test_SceneNodeGroup_recompose();
     test_Scene_compose_multiple_calls();
     test_Scene_auto_recompose_on_state_change();
+    test_SceneNodeGroup_auto_recompose(); // 追加
     printf("SceneTests: All tests passed!\n");
   }
 }

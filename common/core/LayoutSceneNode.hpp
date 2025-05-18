@@ -2,6 +2,8 @@
 #define DECLARA_LAYOUTSCENENODE_HPP
 
 #include "core/SceneNode.hpp"
+#include "core/SceneNodeGroup.hpp"
+#include "core/util/SceneNodeAttachScope.hpp"
 #include <vector>
 
 // --- Box: 縦横アラインメント・サイズ指定可能なレイアウトエンジン ---
@@ -73,12 +75,29 @@ protected:
 class LayoutSceneNode : public SceneNode
 {
 public:
-  LayoutSceneNode(Box::Direction dir = Box::Vertical)
-      : box_(dir) {}
+  LayoutSceneNode(Box::Direction dir = Box::Vertical);
 
   LayoutSceneNode *addChild(SceneNode *child)
   {
-    children_.push_back(child);
+    if (child)
+    {
+      // Remove from previous parent group if needed
+      if (child->getParentGroup() && child->getParentGroup() != reinterpret_cast<SceneNodeGroup *>(this))
+      {
+        child->getParentGroup()->remove(child);
+      }
+      // Remove from previous parent in this layout (avoid duplicates)
+      for (std::vector<SceneNode *>::iterator it = children_.begin(); it != children_.end(); ++it)
+      {
+        if (*it == child)
+        {
+          children_.erase(it);
+          break;
+        }
+      }
+      children_.push_back(child);
+      child->setParentGroup(reinterpret_cast<SceneNodeGroup *>(this)); // treat as group for parent pointer
+    }
     return this;
   }
 
