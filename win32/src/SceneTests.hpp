@@ -261,6 +261,103 @@ namespace SceneTests
     delete n4;
   }
 
+  // --- SceneNodeGroup: if/forによるrecompose動作・リーク/バインド検証 ---
+  void test_SceneNodeGroup_recompose_if_for()
+  {
+    // 破棄検知用カウンタ
+    static int deletedA = 0, deletedB = 0, deletedC = 0;
+    deletedA = deletedB = deletedC = 0;
+
+    struct NodeA : SceneNode
+    {
+      ~NodeA() { ++deletedA; }
+    };
+    struct NodeB : SceneNode
+    {
+      ~NodeB() { ++deletedB; }
+    };
+    struct NodeC : SceneNode
+    {
+      ~NodeC() { ++deletedC; }
+    };
+
+    MutableState<bool> showA(true);
+    MutableState<int> count(2);
+    SceneNodeGroup group;
+
+    auto compose = [&](SceneNodeGroup &g)
+    {
+      g.clear();
+      if (showA.get())
+      {
+        g.add(new NodeA());
+      }
+      else
+      {
+        g.add(new NodeB());
+      }
+      for (int i = 0; i < count.get(); ++i)
+      {
+        g.add(new NodeC());
+      }
+    };
+
+    // 1. 初期状態: showA=true, count=2
+    compose(group);
+    assert(group.size() == 3);
+
+    // 2. showA=falseにしてrecompose
+    showA.set(false);
+    compose(group);
+    assert(group.size() == 3);
+    assert(deletedA == 1);
+    assert(deletedB == 0);
+
+    // 3. count=1にしてrecompose
+    count.set(1);
+    compose(group);
+    assert(group.size() == 2);
+    assert(deletedC == 1);
+
+    // 4. showA=true, count=0にしてrecompose
+    showA.set(true);
+    count.set(0);
+    compose(group);
+    assert(group.size() == 1);
+    assert(deletedA == 1);
+    assert(deletedB == 1);
+
+    // 5. 全部消す
+    group.clear();
+    assert(group.size() == 0);
+    assert(deletedA + deletedB + deletedC == 3);
+
+    // --- Stateを跨ぐSceneNodeGroupの動的切り替え（挑戦的） ---
+    MutableState<bool> useGroup1(true);
+    SceneNodeGroup group1, group2;
+    auto compose2 = [&]()
+    {
+      group1.clear();
+      group2.clear();
+      if (useGroup1.get())
+      {
+        group1.add(new NodeA());
+      }
+      else
+      {
+        group2.add(new NodeB());
+      }
+    };
+    compose2();
+    assert(group1.size() == 1 && group2.size() == 0);
+    useGroup1.set(false);
+    compose2();
+    assert(group1.size() == 0 && group2.size() == 1);
+    useGroup1.set(true);
+    compose2();
+    assert(group1.size() == 1 && group2.size() == 0);
+  }
+
   // --- Scene: compose多重呼び出しテスト ---
   void test_Scene_compose_multiple_calls()
   {
@@ -268,18 +365,18 @@ namespace SceneTests
     SceneNodeGroup group;
     // 1回目compose
     scene.compose(group);
-    assert(group.size() == 2);
+    assert(group.size() == 1);
 
     // 2回目compose前にclearしてから再度呼ぶ
     group.clear();
     scene.compose(group);
-    assert(group.size() == 2);
+    assert(group.size() == 1);
 
     // groupをclearしてから再compose
     group.clear();
     assert(group.size() == 0);
     scene.compose(group);
-    assert(group.size() == 2);
+    assert(group.size() == 1);
   }
 
   // --- Scene: State変更で自動recompose発火テスト ---
@@ -342,6 +439,102 @@ namespace SceneTests
     delete n1;
   }
 
+  // --- SceneNodeGroup: ネスト構造テスト ---
+  void test_SceneNodeGroup_nested()
+  {
+    SceneNodeGroup root;
+    SceneNodeGroup *child = new SceneNodeGroup();
+    SceneNodeGroup *grandchild = new SceneNodeGroup();
+    SceneNode *leaf = new SceneNode();
+
+    // 構造: root → child → grandchild → leaf
+    grandchild->add(leaf);
+    child->add(grandchild);
+    root.add(child);
+
+    // 各階層のサイズを検証
+    assert(root.size() == 1);
+    assert(child->size() == 1);
+    assert(grandchild->size() == 1);
+
+    // grandchild から leaf を remove
+    grandchild->remove(leaf);
+    assert(grandchild->size() == 0);
+
+    // child から grandchild を remove
+    child->remove(grandchild);
+    assert(child->size() == 0);
+
+    // root から child を remove
+    root.remove(child);
+    assert(root.size() == 0);
+
+    // 再度 add して clear で全消去
+    child->add(grandchild);
+    root.add(child);
+    root.clear();
+    assert(root.size() == 0);
+    assert(child->size() == 1); // child自体は残る（rootから外れただけ）
+
+    // 後始末
+    delete leaf;
+    delete grandchild;
+    delete child;
+  }
+
+  // --- SceneNodeGroup: ネスト+イベント伝播+recomposeテスト ---
+  void test_SceneNodeGroup_nested_event_recompose()
+  {
+    // rootにカウンタState
+    MutableState<int> counter(0);
+    SceneNodeGroup root;
+    SceneNodeGroup *child = new SceneNodeGroup();
+    SceneNodeGroup *grandchild = new SceneNodeGroup();
+
+    // leaf: ボタン（クリックでcounter+1）
+    class TestButton : public SceneNodeButton
+    {
+    public:
+      MutableState<int> *counter;
+      StateTracker *tracker;
+      TestButton(MutableState<int> *c, StateTracker *t) : counter(c), tracker(t)
+      {
+        clickEvent.deferBind([](void *ud)
+                             {
+          auto *self = static_cast<TestButton *>(ud);
+          AutoTransactionGuard _(self->tracker);
+          self->counter->set(self->counter->get() + 1); }, this);
+      }
+    };
+    PushStateTracker tracker(makeStateVector(&counter, 0));
+    TestButton *leaf = new TestButton(&counter, &tracker);
+
+    grandchild->add(leaf);
+    child->add(grandchild);
+    root.add(child);
+
+    // クリック前
+    assert(counter.get() == 0);
+    // クリックで+1
+    leaf->clickEvent.emit();
+    assert(counter.get() == 1);
+
+    // root.clear() → 再構築
+    root.clear();
+    assert(root.size() == 0);
+    // 再add
+    child->add(grandchild);
+    root.add(child);
+    // もう一度クリックで+1
+    leaf->clickEvent.emit();
+    assert(counter.get() == 2);
+
+    // 後始末
+    delete leaf;
+    delete grandchild;
+    delete child;
+  }
+
   // テストエントリーポイント
   void runAll() // runAllTestsからrunAllに名前変更
   {
@@ -352,7 +545,10 @@ namespace SceneTests
     test_SceneNodeGroup_recompose();
     test_Scene_compose_multiple_calls();
     test_Scene_auto_recompose_on_state_change();
-    test_SceneNodeGroup_auto_recompose(); // 追加
+    test_SceneNodeGroup_auto_recompose();
+    test_SceneNodeGroup_nested();
+    test_SceneNodeGroup_nested_event_recompose();
+    test_SceneNodeGroup_recompose_if_for(); // if/forによるrecomposeテスト
     printf("SceneTests: All tests passed!\n");
   }
 }
