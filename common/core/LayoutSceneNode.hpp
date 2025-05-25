@@ -4,7 +4,12 @@
 #include "core/SceneNode.hpp"
 #include "core/SceneNodeGroup.hpp"
 #include "core/util/SceneNodeAttachScope.hpp"
+#include "core/SceneNodeFactory.hpp"
 #include <vector>
+
+struct LayoutSceneNodeTypeTag
+{
+};
 
 // --- Box: 縦横アラインメント・サイズ指定可能なレイアウトエンジン ---
 class Box /*/: public TreedSceneComponent*/
@@ -75,6 +80,8 @@ protected:
 class LayoutSceneNode : public SceneNode
 {
 public:
+  typedef LayoutSceneNodeTypeTag TypeTag;
+
   LayoutSceneNode(Box::Direction dir = Box::Vertical);
 
   LayoutSceneNode *addChild(SceneNode *child)
@@ -120,4 +127,24 @@ protected:
   std::vector<SceneNode *> children_;
 };
 
+struct LayoutSceneNodeProps : public NodePropsBase<LayoutSceneNodeProps>
+{
+  typedef LayoutSceneNodeTypeTag TypeTag;
+
+  // 必要に応じてレイアウト方向やサイズ等のプロパティを追加可能
+  // 例: int direction, int spacing, ...
+  static SceneNode *createNode(const LayoutSceneNodeProps &props);
+
+  bool operator<(const PropsBase &rhs) const
+  {
+    // 現状は全インスタンス同一扱い（拡張時は比較ロジック追加）
+    return false;
+  }
+};
+
+inline SceneNode *LayoutSceneNodeProps::createNode(const LayoutSceneNodeProps &props) { return new LayoutSceneNode(); }
+
 #endif // DECLARA_LAYOUTSCENENODE_HPP
+
+// --- LayoutSceneNodeDefinition: LayoutSceneNodeProps/LayoutSceneNode専用の具象版 ---
+typedef NodeDefinition<LayoutSceneNodeProps, LayoutSceneNode> LayoutSceneNodeDefinition;

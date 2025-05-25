@@ -66,6 +66,10 @@ public:
     SceneNodeDefaultPool<SceneNode> *defPool = dynamic_cast<SceneNodeDefaultPool<SceneNode> *>(nodePool_);
     if (defPool)
       defPool->clear();
+    // for (SceneNode *node : nodes_)
+    // {
+    //   delete node;
+    // }
     nodes_.clear();
   }
   bool contains(SceneNode *node) const

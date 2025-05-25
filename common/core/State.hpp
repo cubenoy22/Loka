@@ -358,4 +358,13 @@ private:
   EvalFn *evalFn;
 };
 
+// State<T> の静的インスタンス生成ユーティリティ
+// 例: auto* s = StaticState<int>(42);
+template <typename T>
+static State<T> *StaticState(const T &value)
+{
+  static State<T> s(value);
+  return &s;
+}
+
 #endif // DECLARA_STATE_HPP

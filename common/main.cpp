@@ -1,27 +1,47 @@
 #include "core/StateTracker.hpp"
 #include "core/Scene.hpp"
 #include "app/Button.hpp"
+#include "app/TextInput.hpp"
 #include "core/PlatformContext.hpp"
 #include "core/App.hpp"
 #include "core/Window.hpp"
+#include "core/util/SceneNodeUtil.hpp"
 #include <string>
 #include <iostream>
 #include <cassert>
-
-// C++98互換: 2倍値計算用のグローバル関数
-static int doubleFn(const int &v) { return v * 2; }
 
 // --- BMICalcScene: BMI計算シーンのSceneNodeベース実装 ---
 class BMICalcScene : public Scene
 {
 public:
+  // --- Eval functors for DerivedState ---
+  struct HeightEval : public DerivedState<double>::EvalFn
+  {
+    MutableState<std::string> *str;
+    HeightEval(MutableState<std::string> *s) : str(s) {}
+    double operator()() { return BMICalcScene::strToDouble(str->get()); }
+  };
+  struct WeightEval : public DerivedState<double>::EvalFn
+  {
+    MutableState<std::string> *str;
+    WeightEval(MutableState<std::string> *s) : str(s) {}
+    double operator()() { return BMICalcScene::strToDouble(str->get()); }
+  };
+  struct BMIEval : public DerivedState<double>::EvalFn
+  {
+    MutableState<std::string> *hStr;
+    MutableState<std::string> *wStr;
+    BMIEval(MutableState<std::string> *h, MutableState<std::string> *w) : hStr(h), wStr(w) {}
+    double operator()() { return BMICalcScene::BMIMultiArgCalcBMI(hStr->get(), wStr->get()); }
+  };
+
   BMICalcScene()
       : Scene(new SceneHost()),
         heightStr("170.0"),
         weightStr("60.0"),
-        height({&heightStr}, &strToDoubleThunk),
-        weight({&weightStr}, &strToDoubleThunk),
-        bmi({&heightStr, &weightStr}, &BMIMultiArgCalcBMIThunk),
+        height({&heightStr}, new HeightEval(&heightStr)),
+        weight({&weightStr}, new WeightEval(&weightStr)),
+        bmi({&heightStr, &weightStr}, new BMIEval(&heightStr, &weightStr)),
         tracker({&heightStr, &weightStr, &height, &weight, &bmi}) {}
 
   // C++98: DerivedStateの関数ポインタ用staticラッパ
@@ -53,11 +73,11 @@ public:
 
   void compose(SceneNodeGroup &group)
   {
-    group.add(new SceneNodeText("身長(cm)を入力してください"));
-    group.add(new SceneNodeTextInput(&heightStr));
-    group.add(new SceneNodeText("体重(kg)を入力してください"));
-    group.add(new SceneNodeTextInput(&weightStr));
-    group.add(new SceneNodeText("BMI: " + doubleToStr(bmi.get())));
+    group.add(NodeAs(TextDefinition(TextProps().setText("身長(cm)を入力してください"))));
+    group.add(NodeAs(TextInputDefinition(TextInputProps().setText(&heightStr))));
+    group.add(NodeAs(TextDefinition(TextProps().setText("体重(kg)を入力してください"))));
+    group.add(NodeAs(TextInputDefinition(TextInputProps().setText(&weightStr))));
+    group.add(NodeAs(TextDefinition(TextProps().setText("BMI: " + doubleToStr(bmi.get())))));
     // ...ボタン等追加可...
   }
 

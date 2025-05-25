@@ -28,16 +28,15 @@ public:
   Scene(SceneHost *host)
       : rootGroup_(new SceneNodeGroup()), currentPhase(DETACHED), context_(nullptr)
   {
-    // 直接SceneNode/SceneNodeGroupを構築する設計に統一
-    compose(*rootGroup_);
   }
+  Scene(const Scene &) = delete;
   virtual ~Scene()
   {
     delete rootGroup_;
     delete context_;
   }
-  SceneNodeGroup *getRootGroup() { return rootGroup_; }
-  const SceneNodeGroup *getRootGroup() const { return rootGroup_; }
+  virtual SceneNodeGroup *getRootGroup() { return rootGroup_; }
+  virtual const SceneNodeGroup *getRootGroup() const { return rootGroup_; }
 
   // --- SceneContext管理 ---
   void setContext(SceneContext *ctx) { context_ = ctx; }
@@ -50,7 +49,7 @@ protected:
 
 public:
   // --- UI構成宣言API ---
-  virtual void compose(SceneNodeGroup &group) {}
+  virtual void compose(SceneNodeGroup &group) = 0;
 
   // --- シーン切り替えフック ---
   virtual void onAttach() { currentPhase.set(ATTACHED); }

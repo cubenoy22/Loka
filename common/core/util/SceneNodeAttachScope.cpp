@@ -4,14 +4,19 @@
 #include "core/LayoutSceneNode.hpp"
 
 std::vector<AttachTarget> attachTargetStack;
-
-#include <cstdio>
-
+int AttachScopeGuard::scopeDepth = 0;
+AttachTarget AttachScopeGuard::prevTarget = {AttachTarget::Group, nullptr};
 void SceneNodeAttachScope::autoAttach(SceneNode *node)
 {
   AttachTarget t = current();
-  // Debug output
-  printf("[autoAttach] node=%p type=%s target=%p\n", node, t.type == AttachTarget::Group ? "Group" : "Layout", t.ptr);
+#ifdef TEST_BUILD
+  printf("[autoAttach] node=%p type=%s ", node, typeid(*node).name());
+  if (t.ptr)
+    printf("target=%d ptr=%p\n", (int)t.type, t.ptr);
+  else
+    printf("target=NULL ptr=NULL\n");
+#endif
+
   if (t.ptr)
   {
     if (t.type == AttachTarget::Group)
@@ -21,6 +26,22 @@ void SceneNodeAttachScope::autoAttach(SceneNode *node)
     else if (t.type == AttachTarget::Layout)
     {
       static_cast<LayoutSceneNode *>(t.ptr)->addChild(node);
+    }
+  }
+}
+
+// 明示的にスコープを閉じる関数
+void SceneNodeAttachScope::endScope()
+{
+  if (!attachTargetStack.empty())
+  {
+    // 現在のスコープのターゲットを削除
+    attachTargetStack.pop_back();
+
+    // スコープ深度を減らす（AttachScopeGuardと合わせて管理）
+    if (AttachScopeGuard::scopeDepth > 0)
+    {
+      AttachScopeGuard::scopeDepth--;
     }
   }
 }
