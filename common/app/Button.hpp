@@ -41,6 +41,13 @@ struct ButtonProps : public NodePropsBase<ButtonProps>
     enabled = e;
     return *this;
   }
+  int hash() const
+  {
+    int h = 17;
+    h = h * 31 + (int)(long)text;
+    h = h * 31 + (int)(long)enabled;
+    return h;
+  }
   bool operator<(const PropsBase &rhs) const
   {
     const ButtonProps *b = dynamic_cast<const ButtonProps *>(&rhs);

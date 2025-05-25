@@ -32,6 +32,12 @@ struct TextProps : public NodePropsBase<TextProps>
     text = StaticState<std::string>(std::string(s));
     return *this;
   }
+  int hash() const
+  {
+    int h = 17;
+    h = h * 31 + (int)(long)text;
+    return h;
+  }
   bool operator<(const PropsBase &rhs) const
   {
     const TextProps *b = dynamic_cast<const TextProps *>(&rhs);

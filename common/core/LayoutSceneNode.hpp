@@ -135,6 +135,12 @@ struct LayoutSceneNodeProps : public NodePropsBase<LayoutSceneNodeProps>
   // 例: int direction, int spacing, ...
   static SceneNode *createNode(const LayoutSceneNodeProps &props);
 
+  int hash() const
+  {
+    // 現状は全インスタンス同一扱いなので定数値
+    return 0;
+  }
+
   bool operator<(const PropsBase &rhs) const
   {
     // 現状は全インスタンス同一扱い（拡張時は比較ロジック追加）

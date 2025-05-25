@@ -44,6 +44,14 @@ struct TextInputProps : public NodePropsBase<TextInputProps>
     onChange = e;
     return *this;
   }
+  int hash() const
+  {
+    int h = 17;
+    h = h * 31 + (int)(long)text;
+    h = h * 31 + (int)(long)enabled;
+    h = h * 31 + (int)(long)onChange;
+    return h;
+  }
   static SceneNode *createNode(const TextInputProps &props);
   bool operator<(const PropsBase &rhs) const
   {

@@ -30,6 +30,15 @@ struct IncrementNodeProps : public NodePropsBase<IncrementNodeProps>
       return trigger < p->trigger;
     return tracker < p->tracker;
   }
+  int hash() const
+  {
+    // ポインタ値をintにキャストして組み合わせる（C++98範囲で簡易実装）
+    int h = 17;
+    h = h * 31 + (int)(long)count;
+    h = h * 31 + (int)(long)trigger;
+    h = h * 31 + (int)(long)tracker;
+    return h;
+  }
   static SceneNode *createNode(const IncrementNodeProps &props);
 };
 
