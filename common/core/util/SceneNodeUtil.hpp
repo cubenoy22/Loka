@@ -7,9 +7,6 @@
 class SceneNode;
 class SceneNodeGroup;
 
-// NodeDefinitionラップ用の簡易マクロ（C++98対応）
-#define NODE(DefType, PropsExpr) Node(DefType(PropsExpr))
-
 // 汎用DSL生成関数（NodeDefinitionインスタンスを引数1つで渡す方式）
 template <typename DefinitionT>
 
