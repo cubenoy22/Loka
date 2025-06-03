@@ -1,7 +1,7 @@
 #include "core/SceneNode.hpp"
 #include "core/util/SceneNodeAttachScope.hpp"
 #include "core/SceneNodeGroup.hpp"
-#include "core/LayoutSceneNode.hpp"
+#include "app/LayoutSceneNode.hpp"
 
 std::vector<AttachTarget> attachTargetStack;
 int AttachScopeGuard::scopeDepth = 0;

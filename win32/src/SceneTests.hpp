@@ -8,7 +8,7 @@
 #include "core/Scene.hpp"
 #include "core/SceneNodeGroup.hpp"
 #include "core/SceneContext.hpp"
-#include "core/LayoutSceneNode.hpp"
+#include "app/LayoutSceneNode.hpp"
 #include "app/Button.hpp"
 #include "core/components/logic/format.hpp"
 #include "core/util/SceneNodeUtil.hpp"

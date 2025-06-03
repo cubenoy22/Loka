@@ -18,7 +18,7 @@ set(SOURCES
   ../common/core/SceneManager2.cpp
   ../common/core/SceneNode.cpp
   ../common/core/SceneNodeGroup.cpp
-  ../common/core/LayoutSceneNode.cpp
+  ../common/app/LayoutSceneNode.cpp
   ../common/core/util/SceneNodeAttachScope.cpp
 )
 

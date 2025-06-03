@@ -17,7 +17,7 @@
 #include "core/AppConfigurable.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
 #include "core/util/StateUtil.hpp"
-#include "core/LayoutSceneNode.hpp"
+#include "app/LayoutSceneNode.hpp"
 #include "core/components/logic/format.hpp"
 #include "Tests.hpp"
 #include "SceneTests.hpp"

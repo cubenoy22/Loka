@@ -7,7 +7,7 @@
 #include "core/PlatformContext.hpp"
 #include "core/components/logic/format.hpp"
 #include "core/util/StateUtil.hpp"
-#include "core/LayoutSceneNode.hpp"
+#include "app/LayoutSceneNode.hpp"
 #include "app/Button.hpp"
 #include "app/Text.hpp"
 #include "IncrementNode.hpp"
@@ -33,9 +33,7 @@ public:
       : Scene(new SceneHost()),
         props(),
         tracker(makeStateVector(&props.count, 0)),
-        context_(platform ? platform->createSceneContextForScene(this) : nullptr)
-  {
-  }
+        context_(platform ? platform->createSceneContextForScene(this) : nullptr) {}
 
   void compose(SceneNodeGroup &group) override
   {
@@ -46,7 +44,7 @@ public:
     {
       ScopedAttach _(AttachTarget::Layout, &layout);
       SceneNodeText *textNode = NodeAs(TextDefinition(TextProps().setText(static_cast<State<std::string> *>(props.countStr))), false);
-      layout->addChild(btn);
+      *layout << btn;
     }
   }
 

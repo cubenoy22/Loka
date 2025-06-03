@@ -168,4 +168,10 @@ private:
   static SceneNodeGroup *currentGroup_;
 };
 
+inline SceneNodeGroup &operator<<(SceneNodeGroup &group, SceneNode *node)
+{
+  group.add(node);
+  return group;
+}
+
 #endif // DECLARA_SCENENODEGROUP_HPP

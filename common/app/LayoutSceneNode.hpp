@@ -1,11 +1,12 @@
 #ifndef DECLARA_LAYOUTSCENENODE_HPP
 #define DECLARA_LAYOUTSCENENODE_HPP
 
-#include "core/SceneNode.hpp"
-#include "core/SceneNodeGroup.hpp"
 #include "core/util/SceneNodeAttachScope.hpp"
 #include "core/SceneNodeFactory.hpp"
+#include "app/ContainerSceneNode.hpp"
 #include <vector>
+
+class SceneNode;
 
 struct LayoutSceneNodeTypeTag
 {
@@ -77,36 +78,12 @@ protected:
 };
 
 // --- LayoutSceneNode: Boxレイアウトを担うSceneNode ---
-class LayoutSceneNode : public SceneNode
+class LayoutSceneNode : public ContainerSceneNode
 {
 public:
   typedef LayoutSceneNodeTypeTag TypeTag;
 
   LayoutSceneNode(Box::Direction dir = Box::Vertical);
-
-  LayoutSceneNode *addChild(SceneNode *child)
-  {
-    if (child)
-    {
-      // Remove from previous parent group if needed
-      if (child->getParentGroup() && child->getParentGroup() != reinterpret_cast<SceneNodeGroup *>(this))
-      {
-        child->getParentGroup()->remove(child);
-      }
-      // Remove from previous parent in this layout (avoid duplicates)
-      for (std::vector<SceneNode *>::iterator it = children_.begin(); it != children_.end(); ++it)
-      {
-        if (*it == child)
-        {
-          children_.erase(it);
-          break;
-        }
-      }
-      children_.push_back(child);
-      child->setParentGroup(reinterpret_cast<SceneNodeGroup *>(this)); // treat as group for parent pointer
-    }
-    return this;
-  }
 
   void setDirection(Box::Direction dir) { box_.setDirection(dir); }
   void setAlignment(Box::Alignment align) { box_.setAlignment(align); }
@@ -120,11 +97,8 @@ public:
     // 実際の描画や座標計算はbackendで拡張予定
   }
 
-  const std::vector<SceneNode *> &children() const { return children_; }
-
 protected:
   Box box_;
-  std::vector<SceneNode *> children_;
 };
 
 struct LayoutSceneNodeProps : public NodePropsBase<LayoutSceneNodeProps>
@@ -150,7 +124,8 @@ struct LayoutSceneNodeProps : public NodePropsBase<LayoutSceneNodeProps>
 
 inline SceneNode *LayoutSceneNodeProps::createNode(const LayoutSceneNodeProps &props) { return new LayoutSceneNode(); }
 
-#endif // DECLARA_LAYOUTSCENENODE_HPP
-
-// --- LayoutSceneNodeDefinition: LayoutSceneNodeProps/LayoutSceneNode専用の具象版 ---
+#include "core/SceneNodeFactory.hpp"
+struct LayoutSceneNodeProps;
 typedef NodeDefinition<LayoutSceneNodeProps, LayoutSceneNode> LayoutSceneNodeDefinition;
+
+#endif // DECLARA_LAYOUTSCENENODE_HPP
