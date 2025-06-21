@@ -1,5 +1,4 @@
 #include "Tests.hpp"
-#include <iostream>
 #include <cassert>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
@@ -12,7 +11,7 @@
 void testDependencyPropagationCases()
 {
   printf("\n==== [testDependencyPropagationCases] start ====\n");
-  std::cout << "testDependencyPropagationCases" << std::endl;
+  printf("testDependencyPropagationCases\n");
   // --- 多段依存 A→B→C ---
   MutableState<int> a;
   struct DerivedState : public StateBase
@@ -75,7 +74,7 @@ void testDependencyPropagationCases()
   printf("[TEST] 依存分離: d1=%d, d2=%d, d3=%d (期待値: 101, 101, 201)\n", d1.value, d2.value, d3.value);
   assert(d1.value == 101 && d2.value == 101);
   assert(d3.value == 201);
-  std::cout << "All dependency propagation tests passed." << std::endl;
+  printf("All dependency propagation tests passed.\n");
   printf("==== [testDependencyPropagationCases] end ====\n");
 }
 
@@ -107,8 +106,8 @@ void testTrackerPropagation()
 
   assert(s_int.get() == 21);
   assert(doubleProp->get() == 42);
-  std::cout << "s_int: " << s_int.get() << std::endl;
-  std::cout << "doubleProp: " << doubleProp->get() << std::endl;
+  printf("s_int: %d\n", s_int.get());
+  printf("doubleProp: %d\n", doubleProp->get());
   printf("==== [testTrackerPropagation] end ====\n");
 }
 
@@ -128,7 +127,7 @@ void testDeferredSideEffect()
   {
     static void onDeferred(void *)
     {
-      std::cout << "[deferred] UI redraw or log: commit completed!" << std::endl;
+      printf("[deferred] UI redraw or log: commit completed!\n");
     }
   };
   tracker.defer(DeferredCallback::onDeferred, NULL);
@@ -137,8 +136,8 @@ void testDeferredSideEffect()
   tracker.end();
   assert(s_int.get() == 7);
   assert(doubleProp->get() == 14);
-  std::cout << "s_int: " << s_int.get() << std::endl;
-  std::cout << "doubleProp: " << doubleProp->get() << std::endl;
+  printf("s_int: %d\n", s_int.get());
+  printf("doubleProp: %d\n", doubleProp->get());
   printf("==== [testDeferredSideEffect] end ====\n");
 }
 
@@ -159,22 +158,21 @@ void testTextInputOnChange()
     static void onChange(void *userData)
     {
       DerivedState<bool> *isValid = (DerivedState<bool> *)userData;
-      std::cout << "[isValid] changed: " << (isValid->get() ? "OK" : "NG") << std::endl;
+      printf("[isValid] changed: %s\n", isValid->get() ? "OK" : "NG");
     }
   };
-  isValid->bind(ValidCallback::onChange, isValid, false);
-  std::cout << "[TextInput] name.set(\"ab\")" << std::endl;
+  printf("[TextInput] name.set(\"ab\")\n");
   tracker.begin();
   name.set("ab");
   tracker.end();
   assert(isValid->get() == false);
-  std::cout << "isValid: " << (isValid->get() ? "OK" : "NG") << std::endl;
-  std::cout << "[TextInput] name.set(\"senko\")" << std::endl;
+  printf("isValid: %s\n", isValid->get() ? "OK" : "NG");
+  printf("[TextInput] name.set(\"senko\")\n");
   tracker.begin();
   name.set("senko");
   tracker.end();
   assert(isValid->get() == true);
-  std::cout << "isValid: " << (isValid->get() ? "OK" : "NG") << std::endl;
+  printf("isValid: %s\n", isValid->get() ? "OK" : "NG");
   printf("==== [testTextInputOnChange] end ====\n");
 }
 
@@ -198,7 +196,7 @@ void testBatchTransaction()
   assert(s1.get() == 10);
   assert(s2.get() == 20);
   assert(sumProp->get() == 20);
-  std::cout << "[Batch] s1=" << s1.get() << ", s2=" << s2.get() << ", sumProp=" << sumProp->get() << std::endl;
+  printf("[Batch] s1=%d, s2=%d, sumProp=%d\n", s1.get(), s2.get(), sumProp->get());
   printf("==== [testBatchTransaction] end ====\n");
 }
 
@@ -220,7 +218,7 @@ void testRAIITransaction()
   }
   assert(s.get() == 50);
   assert(doubleProp->get() == 100);
-  std::cout << "[RAII] s=" << s.get() << ", doubleProp=" << doubleProp->get() << std::endl;
+  printf("[RAII] s=%d, doubleProp=%d\n", s.get(), doubleProp->get());
   printf("==== [testRAIITransaction] end ====\n");
 }
 
@@ -266,7 +264,7 @@ void testDerivedStruct()
   {
     static void onChange(bool v, void *)
     {
-      std::cout << "[isValid] changed: " << v << std::endl;
+      printf("[isValid] changed: %s\n", v ? "true" : "false");
     }
   };
   isValid->bind((StateBase::OnChangeFn)Callback::onChange, isValid, false);

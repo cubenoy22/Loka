@@ -1,7 +1,6 @@
 #include "Win32App.hpp"
 #include "Win32Window.hpp" // Win32Window クラスの定義をインクルード
 #include <windows.h>
-#include <stdexcept> // for std::runtime_error
 #include "core/App.hpp"
 
 Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)

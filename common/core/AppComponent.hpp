@@ -2,7 +2,6 @@
 #define DECLARA_APPCOMPONENT_HPP
 
 #include <vector>
-#include <stdexcept>
 #include <cassert>
 
 // 前方宣言（循環include防止）

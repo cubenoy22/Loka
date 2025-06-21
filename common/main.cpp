@@ -7,7 +7,6 @@
 #include "core/Window.hpp"
 #include "core/util/SceneNodeUtil.hpp"
 #include <string>
-#include <iostream>
 #include <cassert>
 
 // --- BMICalcScene: BMI計算シーンのSceneNodeベース実装 ---

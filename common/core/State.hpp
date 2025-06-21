@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <functional>
-#include <memory>
 #include "StateTracker.hpp"
 
 // State系のbind/unbind等で使う優先度enum

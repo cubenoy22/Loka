@@ -1,6 +1,5 @@
 #include <windows.h>
 #include <string>
-#include <iostream>
 #include <cassert>
 #include "Win32App.hpp"
 #include "core/State.hpp"
