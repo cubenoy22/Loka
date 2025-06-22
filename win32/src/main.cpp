@@ -22,8 +22,6 @@
 #include "SceneTests.hpp"
 #include "core/SceneNodeFactory.hpp"
 #include "core/util/SceneNodeUtil.hpp"
-#include "IncrementNode.hpp"
-#include "FormScene.hpp"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
