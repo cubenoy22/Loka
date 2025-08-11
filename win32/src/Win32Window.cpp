@@ -4,8 +4,9 @@
 #include <string>
 #include "core/Window.hpp"
 #include "core/StateTracker.hpp"
+
+#include "core2/scene/Scene.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
-#include "core/Scene.hpp"
 
 namespace
 {
@@ -13,7 +14,7 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-Win32Window::Win32Window(PlatformContext *context, Scene *initialScene, const WindowOptions &opts)
+Win32Window::Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts)
     : Window(context, initialScene, opts), hwnd_(nullptr), app_(NULL)
 {
   // visibilityステートの変更を監視

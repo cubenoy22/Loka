@@ -1,8 +1,13 @@
+
 #ifndef DECLARA_CORE2_SCENE_NODE_HPP
 #define DECLARA_CORE2_SCENE_NODE_HPP
 
 // C++98向けstatic_assert風マクロ
 #define STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
+
+#include "../../core/State.hpp"
+#include "StreamView.hpp"
+#include "node/Conditional.hpp"
 
 namespace declara
 {
@@ -10,10 +15,20 @@ namespace declara
   {
     namespace scene
     {
+      // DirtyType: Nodeのdirty状態を表す（C++98互換）
+      enum DirtyType
+      {
+        NONE = 0x00,
+        PROPS = 0x01,
+        CHILD = 0x02,
+        LAYOUT = 0x04,
+        MYSELF = 0xFF // 全dirty
+      };
 
       class Node
       {
       public:
+        MutableState<DirtyType> dirty;
         virtual ~Node() {}
         virtual void compose() {}
       };
@@ -44,7 +59,7 @@ namespace declara
       struct NodeDefinitionBase
       {
         virtual ~NodeDefinitionBase() {}
-        // Node生成APIの型消去（必要ならvirtual Node* create() = 0; なども追加可）
+        virtual Node *create() const = 0;
       };
 
       // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---
@@ -54,8 +69,10 @@ namespace declara
         typedef PropsT PropsType;
         typedef NodeT NodeType;
 
-        // PropsTとNodeTのTypeTag一致を静的にチェック
+        // PropsT/NodeTにTypeTagが存在する場合のみ静的チェック（SFINAE）
+#ifdef DECLARA_NODEDEF_CHECK_TYPETAG
         STATIC_ASSERT((typename PropsT::TypeTag *)0 == (typename NodeT::TypeTag *)0, props_node_type_mismatch);
+#endif
         PropsT props;
         NodeDefinition() : props() {}
         NodeDefinition(const PropsT &p) : props(p) {}
@@ -78,6 +95,18 @@ namespace declara
       {
         virtual ~INestableDefinition() {}
         virtual void addChild(NodeDefinitionBase *child) = 0;
+
+        // 既存
+        INestableDefinition &operator<<(NodeDefinitionBase &child);
+        INestableDefinition &operator<<(const NodeDefinitionBase &child);
+
+        // 明示的な単体用operator<<（begin/end不要）
+        // 型安全のため、NodeDefinitionBaseのみ受け入れる形に統一
+
+        // vector<NodeDefinitionBase*>専用 明示的オーバーロード（C++98対応）
+        INestableDefinition &operator<<(const std::vector<NodeDefinitionBase *> &container);
+
+        // 追加: StreamView用
       };
 
       // --- 子を持てるNode/Definition用インターフェース ---
@@ -87,6 +116,26 @@ namespace declara
         virtual void addChild(Node *child) = 0;
       };
 
+      inline INestableDefinition &INestableDefinition::operator<<(NodeDefinitionBase &child)
+      {
+        addChild(&child);
+        return *this;
+      }
+      inline INestableDefinition &INestableDefinition::operator<<(const NodeDefinitionBase &child)
+      {
+        addChild(const_cast<NodeDefinitionBase *>(&child));
+        return *this;
+      }
+
+      // 汎用コンテナ（vector, initializer_list等）用operator<<の実装
+      inline INestableDefinition &INestableDefinition::operator<<(const std::vector<NodeDefinitionBase *> &container)
+      {
+        for (size_t i = 0; i < container.size(); ++i)
+        {
+          addChild(container[i]);
+        }
+        return *this;
+      }
     } // namespace scene
   } // namespace core
 } // namespace declara

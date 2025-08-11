@@ -1,9 +1,11 @@
 #include "App.hpp"
 #include "Window.hpp"
+#include "PlatformContext.hpp"
 #include "util/AutoTransactionGuard.hpp"
+#include "core2/scene/Scene.hpp"
 
 // AppBuilder::Window メソッドの実装（Window抽象クラス問題の修正）
-AppBuilder &AppBuilder::Window(Scene *initialScene, const WindowOptions &opts)
+AppBuilder &AppBuilder::Window(declara::core::scene::Scene *initialScene, const WindowOptions &opts)
 {
   AppComponent *window = context_->createWindow(initialScene, opts);
   components_.push_back(window);

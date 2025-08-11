@@ -2,8 +2,8 @@
 #define DECLARA_APP2_BUTTON_HPP
 
 #include <string>
-#include "core2/scene/Node.hpp"
 #include "core/State.hpp"
+#include "core2/scene/Node.hpp"
 
 namespace declara
 {
@@ -13,12 +13,23 @@ namespace declara
     {
     };
 
-    struct ButtonProps : public core::scene::NodePropsBase<ButtonProps>
+    class IButtonProps
+    {
+    public:
+      typedef ButtonTypeTag TypeTag;
+      virtual ~IButtonProps() {}
+      virtual State<std::string> *getText() const = 0;
+      virtual State<bool> *getEnabled() const = 0;
+      virtual EmitterState *getOnClick() const = 0;
+    };
+
+    struct ButtonProps : public declara::core::scene::NodePropsBase<ButtonProps>, public IButtonProps
     {
       typedef ButtonTypeTag TypeTag;
       State<std::string> *text;
       State<bool> *enabled;
-      ButtonProps() : text(0), enabled(0) {}
+      EmitterState *onClick;
+      ButtonProps() : text(0), enabled(0), onClick(0) {}
       ButtonProps &setText(State<std::string> *t)
       {
         text = t;
@@ -39,14 +50,24 @@ namespace declara
         enabled = e;
         return *this;
       }
+      ButtonProps &setOnClick(EmitterState *e)
+      {
+        onClick = e;
+        return *this;
+      }
+      // --- IButtonProps 実装 ---
+      State<std::string> *getText() const override { return text; }
+      State<bool> *getEnabled() const override { return enabled; }
+      EmitterState *getOnClick() const override { return onClick; }
       int hash() const
       {
         int h = 17;
         h = h * 31 + (int)(long)text;
         h = h * 31 + (int)(long)enabled;
+        h = h * 31 + (int)(long)onClick;
         return h;
       }
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const declara::core::scene::PropsBase &rhs) const
       {
         const ButtonProps *b = dynamic_cast<const ButtonProps *>(&rhs);
         if (!b)
@@ -57,24 +78,24 @@ namespace declara
       }
     };
 
-    class ButtonNode : public core::scene::Node
+    class ButtonNode : public declara::core::scene::Node
     {
     public:
       typedef ButtonTypeTag TypeTag;
-      ButtonProps props;
+      const ButtonProps &props;
       ButtonNode(const ButtonProps &p) : props(p) {}
     };
 
-    struct ButtonDefinition : public core::scene::NodeDefinition<ButtonProps, ButtonNode>
+    struct ButtonDefinition : public declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>
     {
       ButtonDefinition() : NodeDefinition() {}
-      ButtonDefinition(const ButtonProps &p) : NodeDefinition(p) {}
-      using core::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
+      ButtonDefinition(ButtonProps &p) : NodeDefinition(p) {}
+      using declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };
     // DSL向け短縮名
     typedef ButtonDefinition Button;
 
-    inline ButtonNode *createNode(const ButtonProps &props)
+    inline ButtonNode *createNode(ButtonProps &props)
     {
       return new ButtonNode(props);
     }

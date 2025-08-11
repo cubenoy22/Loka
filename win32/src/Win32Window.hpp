@@ -8,11 +8,22 @@
 class PlatformContext;
 class App;
 
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      class Scene;
+    }
+  }
+}
+
 // 🦊 Win32固有のWindow実装
 class Win32Window : public Window
 {
 public:
-  Win32Window(PlatformContext *context, Scene *initialScene, const WindowOptions &opts);
+  Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts);
 
   // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
   void setApp(App *app) { app_ = app; }

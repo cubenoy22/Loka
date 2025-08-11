@@ -8,7 +8,17 @@
 #include "core/SceneManager2.hpp"
 #include "core/util/StateUtil.hpp"
 
-class Scene;
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      class Scene;
+    }
+  }
+}
+
 class PlatformContext;
 
 struct WindowOptions
@@ -32,7 +42,7 @@ struct WindowOptions
 class Window : public AppComponent
 {
 public:
-  Window(PlatformContext *context, Scene *initialScene = nullptr, const WindowOptions &options = WindowOptions())
+  Window(PlatformContext *context, declara::core::scene::Scene *initialScene = nullptr, const WindowOptions &options = WindowOptions())
       : context_(context), title("")
   {
     options_ = options;
@@ -40,14 +50,14 @@ public:
     this->title.set(options.title);
     this->visibility.set(options.visible);
     sceneManager_.getCurrentScene().deferBindWithOld(
-        (State<Scene *>::OnChangeWithOldFn) & Window::onSceneChangedThunk, this);
+        (State<declara::core::scene::Scene *>::OnChangeWithOldFn) & Window::onSceneChangedThunk, this);
     if (initialScene)
       sceneManager_.commitTransaction(nullptr, initialScene);
   }
   virtual ~Window() = default;
 
   PlatformContext *context() const { return context_; }
-  Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
+  declara::core::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
   SceneManager2 *sceneManager() { return &sceneManager_; }
 
   MutableState<bool> visibility;
@@ -61,23 +71,24 @@ public:
   virtual void onDestroy() {}
 
 private:
-  static void onSceneChangedThunk(const Scene *oldScene, const Scene *newScene, void *userData)
+  static void onSceneChangedThunk(const declara::core::scene::Scene *oldScene, const declara::core::scene::Scene *newScene, void *userData)
   {
     Window *self = static_cast<Window *>(userData);
     if (self)
       self->onSceneChanged(oldScene, newScene);
   }
-  void onSceneChanged(const Scene *oldScene, const Scene *newScene)
+  void onSceneChanged(const declara::core::scene::Scene *oldScene, const declara::core::scene::Scene *newScene)
   {
-    Scene *oldS = const_cast<Scene *>(oldScene);
-    Scene *newS = const_cast<Scene *>(newScene);
+    declara::core::scene::Scene *oldS = const_cast<declara::core::scene::Scene *>(oldScene);
+    declara::core::scene::Scene *newS = const_cast<declara::core::scene::Scene *>(newScene);
+    // TODO: observableにする
     if (oldS && oldS != newS)
     {
-      oldS->onDetach();
+      // oldS->onDetach();
     }
     if (newS && oldS != newS)
     {
-      newS->onAttach();
+      // newS->onAttach();
     }
   }
 

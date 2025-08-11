@@ -8,7 +8,17 @@
 class Window;
 class PlatformContext;
 struct WindowOptions;
-class Scene;
+
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      class Scene;
+    }
+  }
+}
 
 // --- AppComponent: アプリ全体の構成要素の基底クラス（今後拡張可） ---
 class AppComponent
@@ -33,7 +43,7 @@ public:
     return *this;
   }
 
-  AppBuilder &Window(Scene *initialScene, const WindowOptions &opts);
+  AppBuilder &Window(declara::core::scene::Scene *initialScene, const WindowOptions &opts);
 
   std::vector<AppComponent *> build()
   {

@@ -1,7 +1,7 @@
 #ifndef DECLARA_SCENEMANAGER2_HPP
 #define DECLARA_SCENEMANAGER2_HPP
 
-#include "Scene.hpp"
+#include "core2/scene/Scene.hpp"
 #include "State.hpp"
 #include "StateTracker.hpp"
 #include <vector>
@@ -13,21 +13,21 @@ public:
   ~SceneManager2();
 
   // トランザクション追加
-  void commitTransaction(Scene *from, Scene *to);
+  void commitTransaction(declara::core::scene::Scene *from, declara::core::scene::Scene *to);
   // 現在のシーン取得
-  const State<Scene *> &getCurrentScene() const;
+  const State<declara::core::scene::Scene *> &getCurrentScene() const;
 
 protected:
   // ペンディングトランザクション取得
-  const std::vector<std::pair<Scene *, Scene *>> &getPendingTransactions() const;
+  const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>> &getPendingTransactions() const;
   // トランザクション進行
   void handleNextTransaction();
   // 副作用: シーン切り替え
-  void swapScene(Scene *oldScene, Scene *newScene);
+  void swapScene(declara::core::scene::Scene *oldScene, declara::core::scene::Scene *newScene);
 
 private:
-  MutableState<Scene *> currentScene_;
-  MutableState<std::vector<std::pair<Scene *, Scene *>>> pendingTransactions_;
+  MutableState<declara::core::scene::Scene *> currentScene_;
+  MutableState<std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>>> pendingTransactions_;
   PushStateTracker tracker_;
 };
 

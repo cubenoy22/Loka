@@ -42,14 +42,6 @@ namespace declara
       {
         children.push_back(child);
       }
-      // DSL用operator<<
-      BoxDefinition &operator<<(core::scene::NodeDefinitionBase &child)
-      {
-        addChild(&child);
-        return *this;
-      }
-      // Node生成APIも明示的に引き継ぎ
-      using core::scene::NodeDefinition<BoxProps, BoxNode>::create;
     };
     // DSL向け短縮名
     typedef BoxDefinition Box;

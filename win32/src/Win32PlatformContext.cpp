@@ -2,7 +2,6 @@
 #include "Win32Window.hpp"
 #include "core/Window.hpp"
 #include "core/AppConfigurable.hpp"
-#include "Win32SceneContext.hpp"
 
 // 明示的なデフォルトコンストラクタ・デストラクタ実装（リンカエラー回避用）
 Win32PlatformContext::Win32PlatformContext() {}
@@ -14,12 +13,7 @@ App *Win32PlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstanc
   return app;
 }
 
-Window *Win32PlatformContext::createWindow(Scene *initialScene, const WindowOptions &opts)
+Window *Win32PlatformContext::createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts)
 {
   return new Win32Window(this, initialScene, opts);
-}
-
-SceneContext *Win32PlatformContext::createSceneContextForScene(Scene *scene) const
-{
-  return scene ? new Win32SceneContext(scene) : nullptr;
 }

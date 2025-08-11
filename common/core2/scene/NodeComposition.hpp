@@ -2,6 +2,7 @@
 #define DECLARA_CORE2_SCENE_NODECOMPOSITION_HPP
 
 #include <vector>
+#include "core2/scene/node/Conditional.hpp"
 
 namespace declara
 {
@@ -9,19 +10,10 @@ namespace declara
   {
     namespace scene
     {
-
       // 遅延評価イテレータアダプタ例
       // （本体は別ファイルで実装推奨。ここでは型宣言のみ）
       template <class It>
       class StreamView;
-
-      // group関数: 複数ノードをまとめて返す（NodeList型を想定）
-      template <typename NodeListT>
-      NodeListT &group(NodeListT &nodes)
-      {
-        // パススルー。意図明示のための補助関数
-        return nodes;
-      }
 
       struct NodeComposition
       {
@@ -33,6 +25,20 @@ namespace declara
         {
           root = &x;
           return x;
+        }
+
+        template <typename T>
+        declara::core::scene::ConditionalDefinition conditional(const State<bool> &condition, T &x)
+        {
+          extern T Empty;
+          return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
+        }
+
+        template <typename T>
+        declara::core::scene::ConditionalDefinition conditional(State<bool> &condition, T &x)
+        {
+          extern T Empty;
+          return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
         }
 
         // vector等から遅延評価ストリームを生成
@@ -48,9 +54,20 @@ namespace declara
           return StreamView<It>(begin, end);
         }
 
-        // group関数をメンバとしても提供
-        template <typename NodeListT>
-        NodeListT &group(NodeListT &nodes) { return group<NodeListT>(nodes); }
+        template <typename T>
+        T &group(T &x) { return x; }
+
+        template <typename Stream, typename Func>
+        auto map(const Stream &stream, Func func) -> decltype(stream.map(func))
+        {
+          return stream.map(func);
+        }
+
+        template <typename Stream, typename Pred>
+        auto filter(const Stream &stream, Pred pred) -> decltype(stream.filter(pred))
+        {
+          return stream.filter(pred);
+        }
       };
 
     } // namespace scene

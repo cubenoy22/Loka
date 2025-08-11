@@ -11,6 +11,12 @@ namespace declara
     namespace scene
     {
 
+      // --- FilterIterator/MapIteratorの前方宣言 ---
+      template <class It, class FilterFunc>
+      class FilterIterator;
+      template <class It, class MapFunc>
+      class MapIterator;
+
       // C++98対応: 遅延評価イテレータアダプタ
       // - filter/map/eachチェーンをサポート
       // - 中間配列を作らず、走査時に評価
@@ -20,7 +26,7 @@ namespace declara
       {
       public:
         typedef It iterator;
-        typedef typename std::iterator_traits<It>::value_type value_type;
+        typedef typename It::value_type value_type;
 
         StreamView(It begin, It end) : begin_(begin), end_(end) {}
 
@@ -72,7 +78,8 @@ namespace declara
       class FilterIterator
       {
       public:
-        typedef typename std::iterator_traits<It>::value_type value_type;
+        typedef It iterator;
+        typedef typename It::value_type value_type;
         FilterIterator(It cur, It end, const FilterFunc &f)
             : cur_(cur), end_(end), func_(f) { advance(); }
         value_type operator*() const { return *cur_; }
@@ -98,6 +105,7 @@ namespace declara
       class MapIterator
       {
       public:
+        typedef MapIterator<It, MapFunc> iterator;
         typedef typename MapFunc::result_type value_type;
         MapIterator(It cur, const MapFunc &f) : cur_(cur), func_(f) {}
         value_type operator*() const { return func_(*cur_); }

@@ -5,27 +5,34 @@
 
 class AppConfigurable;
 class PlatformContext;
-class Scene;
 class App;
 class AppBuilder;
 class Window;
 class SceneContext;
 struct WindowOptions;
 
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      class Scene;
+    }
+  }
+}
+
 class PlatformContext
 {
 public:
   virtual ~PlatformContext() {}
-
-  // SceneContext生成API（必ず新規インスタンスを返す。共有リソースは実装側で管理すること）
-  virtual SceneContext *createSceneContextForScene(Scene *scene) const = 0;
 
   // Appインスタンス取得用の純粋仮想関数を追加
   virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const = 0;
 
   // Window生成ファクトリーメソッド（サブクラス実装必須）
   // app_がnullの場合はassertで即座に失敗させる設計にする
-  virtual Window *createWindow(Scene *initialScene, const WindowOptions &opts) = 0;
+  virtual Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts) = 0;
 };
 
 #endif // DECLARA_PLATFORMCONTEXT_HPP

@@ -11,15 +11,10 @@ set(SOURCES
   src/Win32App.cpp
   src/Win32Window.cpp
   src/Win32PlatformContext.cpp
-  src/Win32SceneContext.cpp
   src/Tests.cpp
   ../common/core/App.cpp
   ../common/core/StateTracker.cpp
   ../common/core/SceneManager2.cpp
-  ../common/core/SceneNode.cpp
-  ../common/core/SceneNodeGroup.cpp
-  ../common/app/LayoutSceneNode.cpp
-  ../common/core/util/SceneNodeAttachScope.cpp
 )
 
 option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)
