@@ -6,15 +6,14 @@ set(CMAKE_CXX_STANDARD 98)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ソースファイル
+file(GLOB_RECURSE COMMON_SOURCES ../common/*.cpp)
 set(SOURCES
   src/main.cpp
   src/Win32App.cpp
   src/Win32Window.cpp
   src/Win32PlatformContext.cpp
   src/Tests.cpp
-  ../common/core/App.cpp
-  ../common/core/StateTracker.cpp
-  ../common/core/SceneManager2.cpp
+  ${COMMON_SOURCES}
 )
 
 option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)
