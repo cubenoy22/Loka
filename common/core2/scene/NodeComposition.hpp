@@ -3,6 +3,8 @@
 
 #include <vector>
 #include "core2/scene/node/Conditional.hpp"
+#include "core2/scene/Node.hpp"
+#include "core2/scene/StreamView.hpp"
 
 namespace declara
 {
@@ -10,23 +12,48 @@ namespace declara
   {
     namespace scene
     {
-      // 遅延評価イテレータアダプタ例
-      // （本体は別ファイルで実装推奨。ここでは型宣言のみ）
-      template <class It>
-      class StreamView;
-
       struct NodeComposition
       {
-        // UIツリーのルートノードを保持
-        void *root; // 仮: 実際はSceneNodeGroup*やNode*等に差し替え予定
+      private:
+        // アリーナ: compose中に作られた全てのDefinitionのコピーを所有する
+        std::vector<NodeDefinitionBase *> arena_;
+        NodeDefinitionBase *root_;
 
-        template <typename T>
-        T &declare(T &x)
+      public:
+        NodeComposition() : root_(nullptr) {}
+
+        ~NodeComposition()
         {
-          root = &x;
-          return x;
+          for (size_t i = 0; i < arena_.size(); ++i)
+          {
+            delete arena_[i];
+          }
         }
 
+        // アリーナにDefinitionのコピーを作成し、そのポインタを返す
+        template <typename T>
+        T *copyToArena(const T &def)
+        {
+          T *newDef = new T(def); // コピーコンストラクタでヒープにコピー
+          arena_.push_back(newDef);
+          return newDef;
+        }
+
+        // ルートノードを宣言する
+        template <typename T>
+        T &declare(const T &def)
+        {
+          T *newRoot = this->copyToArena(def);
+          this->root_ = newRoot;
+          return *newRoot;
+        }
+
+        // Nodeツリーを生成する
+        Node *createNodeTree() const;
+
+        NodeDefinitionBase *root() const { return root_; }
+
+        // --- 既存のDSL用メソッド ---
         template <typename T>
         declara::core::scene::ConditionalDefinition conditional(const State<bool> &condition, T &x)
         {
@@ -41,13 +68,12 @@ namespace declara
           return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
         }
 
-        // vector等から遅延評価ストリームを生成
         template <typename T>
         StreamView<typename std::vector<T>::const_iterator> stream(const std::vector<T> &v)
         {
           return StreamView<typename std::vector<T>::const_iterator>(v.begin(), v.end());
         }
-        // begin/endイテレータからも生成可能
+
         template <typename It>
         StreamView<It> stream(It begin, It end)
         {
