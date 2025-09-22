@@ -35,12 +35,16 @@ namespace declara
 
     struct BoxDefinition : public core::scene::NodeDefinition<BoxProps, BoxNode>, public core::scene::INestableDefinition
     {
-      std::vector<core::scene::NodeDefinitionBase *> children;
+      std::vector<core::scene::NodeDefinitionBase *> children_;
       BoxDefinition() : NodeDefinition() {}
       BoxDefinition(const BoxProps &p) : NodeDefinition(p) {}
-      void addChild(core::scene::NodeDefinitionBase *child)
+      virtual void addChild(core::scene::NodeDefinitionBase *child)
       {
-        children.push_back(child);
+        children_.push_back(child);
+      }
+      virtual const std::vector<core::scene::NodeDefinitionBase *> &getChildren() const
+      {
+        return children_;
       }
     };
     // DSL向け短縮名

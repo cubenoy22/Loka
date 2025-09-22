@@ -1,4 +1,3 @@
-
 #ifndef DECLARA_CORE2_SCENE_NODE_HPP
 #define DECLARA_CORE2_SCENE_NODE_HPP
 
@@ -25,12 +24,17 @@ namespace declara
         MYSELF = 0xFF // 全dirty
       };
 
+      struct NodeContext; // Opaque type
+
       class Node
       {
       public:
+        NodeContext *context;
         MutableState<DirtyType> dirty;
         virtual ~Node() {}
         virtual void compose() {}
+
+        Node() : context(nullptr), dirty(NONE) {}
       };
 
       // --- 汎用Props基底 ---
@@ -95,6 +99,7 @@ namespace declara
       {
         virtual ~INestableDefinition() {}
         virtual void addChild(NodeDefinitionBase *child) = 0;
+        virtual const std::vector<NodeDefinitionBase *> &getChildren() const = 0;
 
         // 既存
         INestableDefinition &operator<<(NodeDefinitionBase &child);

@@ -18,6 +18,8 @@ namespace declara
     namespace scene
     {
       class Scene;
+      class Node;
+      struct NodeContext;
     }
   }
 }
@@ -33,6 +35,8 @@ public:
   // Window生成ファクトリーメソッド（サブクラス実装必須）
   // app_がnullの場合はassertで即座に失敗させる設計にする
   virtual Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts) = 0;
+
+  virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const = 0;
 };
 
 #endif // DECLARA_PLATFORMCONTEXT_HPP
