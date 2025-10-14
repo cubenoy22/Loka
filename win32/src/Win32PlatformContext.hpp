@@ -27,6 +27,8 @@ public:
   App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const override;
 
   Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts) override;
+
+  declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const override;
 };
 
 #endif // DECLARA_WIN32PLATFORMCONTEXT_HPP

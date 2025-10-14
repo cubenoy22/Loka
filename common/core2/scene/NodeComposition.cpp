@@ -45,7 +45,7 @@ namespace declara
 
       Node *NodeComposition::createNodeTree() const
       {
-        return createNodeRecursive(this->root);
+        return createNodeRecursive(this->root());
       }
 
     }

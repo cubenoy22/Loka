@@ -26,6 +26,13 @@ namespace declara
 
       struct NodeContext; // Opaque type
 
+      // Minimal NodeContext implementation
+      struct NodeContext
+      {
+        // TODO: Add actual context data
+        virtual ~NodeContext() {}
+      };
+
       class Node
       {
       public:
