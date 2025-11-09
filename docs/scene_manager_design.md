@@ -1,69 +1,80 @@
-# Declara! Scene 管理・トランザクション設計思想まとめ
+# SceneManager2 設計ノート（2025-11）
 
-## 1. 設計の背景
-
-- Scene の切り替え・管理は、UI/アプリ/ゲームの「状態遷移」の根幹。
-- 連打や非同期遷移、保存ダイアログなど、現代的な UI/UX 要件に耐える堅牢な仕組みが必要。
-- C++98 互換・型安全・明示的な依存管理を重視しつつ、現代的なトランザクション/ライフサイクル制御を導入。
+`common/core/SceneManager2.*` を中心に、現状の Scene 遷移制御と今後強化したいポイントをまとめる。
 
 ---
 
-## 2. コアコンポーネントの責務
+## 1. 現状の構造
 
-| クラス               | 役割・責務                                                                                                                            |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| SceneManager         | Scene 遷移・ライフサイクル制御の中枢。トランザクション型で順次遷移・競合判定・discardable 判定も担う                                  |
-| SceneTransaction     | Scene 遷移リクエストのカプセル化。from/to で多重遷移防止も実現                                                                        |
-| SceneManagerDelegate | 競合時の判定・通知用インタフェース（shouldOverridePending）                                                                           |
-| Scene                | 世界そのもの。ライフサイクルフック（onCreate/onAttach/onDetach/onDestroy/isDiscardable/requestDiscard/onDiscardRequestAborted）を持つ |
+| モジュール | 役割 | 主要メンバ |
+| --- | --- | --- |
+| `SceneManager2` | Window 1 枚あたり 1 つ保持。Scene の差し替えとトランザクションキューを管理。 | `MutableState<Scene*> currentScene_`, `MutableState<std::vector<std::pair<Scene*, Scene*>>> pendingTransactions_`, `PushStateTracker tracker_` |
+| `Window` | `SceneManager2` を内包し、`sceneManager()->commitTransaction(...)` を外部 API にする。 | `SceneManager2 sceneManager_` |
+| `declara::core::scene::Scene` | SceneLifecycle を `MutableState<SceneLifecycle>` で保持。compose は Solid-mode 仕様に合わせて `NodeComposition` を受ける予定。 | `MutableState<SceneLifecycle> lifecycle_` |
 
----
-
-## 3. トランザクション型遷移フロー
-
-1. **commitTransaction**
-
-   - 新たな SceneTransaction をスタックに積む
-   - 既に pending があれば shouldOverridePending で競合判定。override なら cancelAllTransactions
-   - どちらの場合も順番待ちで積む
-
-2. **handleNextTransaction**
-
-   - スタック先頭の Transaction を処理
-   - from/to チェックで多重遷移防止
-   - 現 Scene が discardable でなければ requestDiscard（C++98 流ファンクタでコールバック）
-   - discardable なら swapScene で切り替え、トランザクション pop
-   - 次があれば再帰的に処理
-
-3. **swapScene**
-
-   - old.onDetach(), currentScene.set(new), new.onAttach()
-
-4. **requestDiscard 中のキャンセル**
-   - override/cancelAllTransactions 時は onDiscardRequestAborted を呼び、コールバックも安全に破棄
+`SceneManager2` は旧仕様の `SceneTransaction`/`SceneManagerDelegate` を廃止し、「単純な from/to キュー + Tracker による再描画通知」に縮約している。
 
 ---
 
-## 4. 設計上の工夫・ポイント
+## 2. 遷移フロー
 
-- **多重遷移防止**：from/to チェックで「今の Scene からの遷移か」を厳密に判定
-- **discardable 判定・保存ダイアログ**：isDiscardable/requestDiscard でユーザーの保存可否を柔軟に制御
-- **C++98 流ファンクタコールバック**：ラムダが使えない環境でも状態付きコールバックを安全に実現
-- **コールバックのローカルシングルトン化**：new/delete 不要、メモリリークなし
-- **MutableState<T>::set()のトランザクションラップ**：StateTracker::begin()/end()で依存伝播・副作用管理を徹底
+1. **commitTransaction(from, to)**  
+   - `pendingTransactions_` に `(from, to)` を push。  
+   - `PushStateTracker` で begin/end しているので、`pendingTransactions_` のバインダー（UI 側のログ等）が自動で通知される。  
+   - push 後に `handleNextTransaction()` を即座に呼ぶ。
+
+2. **handleNextTransaction()**  
+   - `pendingTransactions_.get()` の先頭を確認。無ければ終了。  
+   - `swapScene(currentScene_.get(), tx.to)` を呼ぶ。  
+   - `pendingTransactions_` から 1 件 pop して終了。  
+   - 先頭を処理しただけで再帰/ループはしていないため、複数遷移を一度に消化したい場合は `commitTransaction` が連続で呼ばれる前提。
+
+3. **swapScene(old, next)**  
+   - 現状は `currentScene_.set(next)` をトランザクションで包むだけ。  
+   - `Scene::getLifecycleState()` を書き換える処理や `onAttach/onDetach` はコメントアウトされており、今後 `SceneLifecycle` State 経由で通知する計画。
 
 ---
 
-## 5. 典型的な利用シナリオ
+## 3. Window / Scene との連携
 
-- 連打や非同期遷移でも「順番待ち」で安全に処理
-- 保存ダイアログ表示中にさらに遷移リクエストが来ても、onDiscardRequestAborted で緊急保存や通知が可能
-- SceneManager/Window/Scene/PlatformContext が明確に責務分離され、拡張・保守も容易
+- `Window` のコンストラクタで `SceneManager2` を初期化し、`sceneManager_.getCurrentScene()` を `State<Scene*>` として公開している。  
+- `Window::scene()` は `sceneManager_.getCurrentScene().get()` の薄いラッパー。  
+- `declara_design_minutes.md` の Solid-mode 仕様では「Window::mount(CompositeNode&)」を最小スコープとして扱う計画なので、SceneManager2 は「Window 単位の Scene スロット」を維持する役割に専念させる。
 
 ---
 
-## 6. まとめ
+## 4. 既知の課題
 
-この Scene 管理設計は、
-「現代的な UI/UX 要件」「型安全・依存管理」「C++98 互換」「拡張性・保守性」
-すべてを両立するための骨格思想に基づいている。
+1. **ライフサイクル通知の不在**  
+   - `Scene::lifecycle_` (MutableState) を `SceneManager2::swapScene` から書き換えていない。  
+   - 旧 onAttach/onDetach を State 化することで、`Scene` 側が `bind` してライフサイクルフックを再構築できるよう整理する。
+
+2. **discardable/requestDiscard の未実装**  
+   - 旧仕様で想定していた「保存ダイアログが閉じるまで遷移保留」の仕組みは現実装にはない。  
+   - 必要になった時点で `(Scene*, PendingAction)` の構造に拡張し、`Scene` が `EmitterState` ベースで完了通知を返す案。
+
+3. **複数トランザクションの一括処理**  
+   - 今は 1 件ずつ pop するだけ。`commitTransaction` を連打すると毎回 `handleNextTransaction` が呼ばれるため、一連の遷移が長い場合に多少オーバーヘッドがある。  
+   - まとめて処理するなら `while (!pending.empty()) swapScene(...)` に変える or `StateTracker::defer` で次の tick に回す。
+
+4. **SceneContext との橋渡し**  
+   - `PlatformContext::createSceneContextForScene` などの抽象はまだ存在しない。Scene 差し替え時にネイティブリソースを安全に破棄するフックを追加する必要がある。
+
+---
+
+## 5. 今後の ToDo（優先度順）
+
+1. `SceneManager2::swapScene` で `SceneLifecycle` State を `ON_DETACH` / `ON_ATTACH` / `ON_DESTROY` へ更新し、`Scene` 側が subscribe できるようにする。  
+2. `Window::mount()`（Solid-mode）実装時に `SceneManager2` を差し替えやすいよう、`Scene*` ではなく `CompositeNode`/`NodeComposition` を持てるよう API を見直す。  
+3. 保存ダイアログや確認ダイアログを統合するための `requestDiscard` プロトコルを `EmitterState` ベースで再定義。  
+4. `SceneManager2` の単体テストを `win32/src/SceneTests.hpp` 相当の場所に追加し、`pendingTransactions_` の挙動や Tracker 連携を自動検証する。
+
+---
+
+## 6. 参照
+
+- `common/core/SceneManager2.hpp`
+- `common/core/SceneManager2.cpp`
+- `common/core/Window.hpp`
+- `common/core2/scene/Scene.hpp`
+- `docs/declara_design_minutes.md`（Solid-mode の Window/Scene 設計方針）
