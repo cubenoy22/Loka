@@ -139,13 +139,14 @@ struct NodeDefinition : public NodeDefinitionBase {
 
 ### ❌ 未実装（Not Yet / Design Only）
 
-#### 5. **Host Interfaces（設計のみ）**
+#### 5. **Platform-specific NodeContext 実装**
 
 ```cpp
-// 設計書に記載あるが実装未確認
-struct TextHost { static TextHandle* create(...); };
-struct ButtonHost { static ButtonHandle* create(...); };
-struct EditTextHost { static EditTextHandle* create(...); };
+// Node/Props/NodeDefinition の基盤は完成（common/core2/scene/Node.hpp）
+// プラットフォーム別のNodeContext実装が必要:
+// - Win32ButtonContext (HWND wrapper)
+// - NSButtonContext (NSButton wrapper)
+// - など
 ```
 
 #### 6. **Layout（deferred-bounds）**
@@ -199,44 +200,136 @@ struct EditTextHost { static EditTextHandle* create(...); };
 
 -
 
-### Minimal Host Interfaces（擬似コード・最新版）
+### 既存の Node/Props パターン（実装済み）
+
+**設計書の「Host Interfaces」は不要。** 既存の `Node + Props + NodeContext` パターンで完結する。
 
 ```cpp
-// Text
-struct TextHandle;
-struct TextHost {
-  static TextHandle* create(/* parent */);
-  static void destroy(TextHandle*);
-  static void setText(TextHandle*, const char*);
-  static void setBounds(TextHandle*, int x, int y, int w, int h);
+// 例: ButtonNode の実装パターン（common/app2/Button.hpp）
+
+// 1. Props: State参照を保持
+struct ButtonProps : public NodePropsBase<ButtonProps> {
+  State<std::string>* text;
+  State<bool>* enabled;
+  EmitterState* onClick;  // ← OSイベントはemit()で伝播
+
+  ButtonProps& setText(State<std::string>* t) { text = t; return *this; }
+  ButtonProps& setOnClick(EmitterState* e) { onClick = e; return *this; }
 };
 
-// Button（EmitterState統一）
-struct ButtonHandle;
-struct ButtonProps { 
-  EmitterState* onClick;  // OS側でemit()を呼ぶだけ
-};
-struct ButtonHost {
-  static ButtonHandle* create(/* parent */);
-  static void destroy(ButtonHandle*);
-  static void setText(ButtonHandle*, const char*);
-  static void setEnabled(ButtonHandle*, bool);
-  static void setBounds(ButtonHandle*, int x, int y, int w, int h);
-  // OS側: click -> props.onClick->emit()
+// 2. Node: Props参照を保持、NodeContextで実際のHost管理
+class ButtonNode : public Node {
+public:
+  const ButtonProps& props;
+  ButtonNode(const ButtonProps& p) : props(p) {}
+  // NodeContext* context; // ← OS固有のウィジェット/ビューを保持
 };
 
-// EditText
-struct EditTextHandle;
-struct EditTextHost {
-  static EditTextHandle* create(/* parent */);
-  static void destroy(EditTextHandle*);
-  static void setText(EditTextHandle*, const char*);
-  static void setBounds(EditTextHandle*, int x, int y, int w, int h);
-  // OS側: change -> State<string>.set(newValue)（正規化はOS側）
+// 3. Definition: Arena用のファクトリ
+struct ButtonDefinition : public NodeDefinition<ButtonProps, ButtonNode> {
+  // create() で new ButtonNode(props) を返す
+};
+typedef ButtonDefinition Button;  // DSL糖衣
+```
+
+**NodeContext の責務:**
+
+- OS 固有のウィジェット（NSView, HWND 等）を保持
+- Props の State に bind して、変化を OS ウィジェットに反映
+- OS イベントを EmitterState::emit() で Declara! 側に伝播
+
+**ルール:**
+
+- **Props は State へのポインタだけ**を持つ（値のコピーなし）
+- **Node は Props の const 参照**を保持（不変）
+- **NodeContext が State を購読**し、OS ウィジェットを更新
+- **OS → Declara!** は `EmitterState::emit()` で一方向伝播
+
+**例: OS 側の実装（擬似コード）**
+
+```cpp
+// Win32ButtonContext（NodeContextの実装）
+class Win32ButtonContext : public NodeContext {
+  HWND hwnd;
+  const ButtonProps& props;
+
+  Win32ButtonContext(const ButtonProps& p) : props(p) {
+    hwnd = CreateWindow("BUTTON", ...);
+
+    // Props の State を購読（一点更新）
+    if (props.text) {
+      props.text->bind(&Win32ButtonContext::updateText, this);
+    }
+    if (props.enabled) {
+      props.enabled->bind(&Win32ButtonContext::updateEnabled, this);
+    }
+  }
+
+  static void updateText(void* ctx) {
+    Win32ButtonContext* self = (Win32ButtonContext*)ctx;
+    SetWindowText(self->hwnd, self->props.text->get().c_str());
+  }
+
+  // OSイベント→Declara!
+  void onOSClick() {
+    if (props.onClick) {
+      props.onClick->emit();  // ← これだけ！
+    }
+  }
 };
 ```
 
-> 旧「BoxLayoutNode（最小仕様）」と「これで“実用最小アプリ”？」は、最新の **deferred-bounds**（レイアウト）と **Action 統一**ポリシーに統合済み。必要事項はそれぞれの章を参照。
+**メリット:**
+
+- ✅ Host Interface 層が不要（Node + NodeContext で完結）
+- ✅ Props は State ポインタだけ（軽量・コピーなし）
+- ✅ OS 固有の実装は NodeContext 継承で隠蔽
+- **Node は Props の const 参照**を保持（不変）
+- **NodeContext が State を購読**し、OS ウィジェットを更新
+- **OS → Declara!** は `EmitterState::emit()` で一方向伝播
+
+**例: OS 側の実装（擬似コード）**
+
+```cpp
+// Win32ButtonContext（NodeContextの実装）
+class Win32ButtonContext : public NodeContext {
+  HWND hwnd;
+  const ButtonProps& props;
+
+  Win32ButtonContext(const ButtonProps& p) : props(p) {
+    hwnd = CreateWindow("BUTTON", ...);
+
+    // Props の State を購読（一点更新）
+    if (props.text) {
+      props.text->bind(&Win32ButtonContext::updateText, this);
+    }
+    if (props.enabled) {
+      props.enabled->bind(&Win32ButtonContext::updateEnabled, this);
+    }
+  }
+
+  static void updateText(void* ctx) {
+    Win32ButtonContext* self = (Win32ButtonContext*)ctx;
+    SetWindowText(self->hwnd, self->props.text->get().c_str());
+  }
+
+  // OSイベント→Declara!
+  void onOSClick() {
+    if (props.onClick) {
+      props.onClick->emit();  // ← これだけ！
+    }
+  }
+};
+```
+
+**メリット:**
+
+- ✅ Host Interface 層が不要（Node + NodeContext で完結）
+- ✅ Props は State ポインタだけ（軽量・コピーなし）
+- ✅ OS 固有の実装は NodeContext 継承で隠蔽
+- ✅ Arena パターンと完全に整合
+
+> 旧「BoxLayoutNode（最小仕様）」は、**deferred-bounds**（レイアウト）ポリシーに統合済み。
 
 ## 2025-11-06 — NodeComposition / compose（Arena & One‑shot 版）［内部実装向け］
 
@@ -244,7 +337,42 @@ struct EditTextHost {
 
 - **compose は初回の一度だけ実行**（One‑shot）。
 - `NodeComposition` は **Arena（ヒープ）** として `std::vector` でノード/バインディングを蓄積。
-- **ensure 系は不要**。`operator<<` で Arena に**追記**していくストリームモデル。
+- **引数で NodeComposition を受け取る方式**を採用（戻り値方式は不採用）
+
+### 設計判断：なぜ戻り値ではなく引数方式か
+
+**検討した方式 A: 戻り値（不採用）**
+
+```cpp
+class CompositeNode {
+  NodeDefinition compose() {  // ← 戻り値で返す
+    return Button().setText("OK");
+  }
+};
+```
+
+**問題点:**
+
+- NodeDefinition のコピーコストが大きい（Props + 子配列）
+- 68k/PPC 等の古い ABI では NRVO が不完全で、コピーが多発
+- 一時オブジェクトの管理が複雑
+
+**採用した方式 B: 引数（現行）**
+
+```cpp
+class CompositeNode {
+  void compose(NodeComposition& c) {  // ← Arena を引数で受け取る
+    c.declare(Button().setText("OK"));
+  }
+};
+```
+
+**メリット:**
+
+- ✅ コピーなし：Arena に直接 push
+- ✅ C++98/古い ABI でも安定動作
+- ✅ メモリ配置が明確（Arena 一発管理）
+- ✅ NRVO に依存しない
 
 ### NodeComposition（最小 API：Arena）
 
@@ -513,566 +641,43 @@ public:
 
 - 既存の `BoxLayoutNode::layout(...)` は**不要**になり、この方式に置き換え。
 - headless コンポーネントは影響なし（非可視・レイアウト対象外）。
-- `bindDefer` は `Debounced<T>` に近いが、**フレーム内バッチ化（micro‑tick）専用**である点が異なる。
 
-## 2025-11-06 — State Variants を PlatformContext で生成（Debounce/Throttle/Defer を統合）
+## 将来拡張：State Variants（Debounce/Throttle 等）
 
-### 方針 / Policy
+MVP では`deferBind()`で基本的な遅延実行を実現。将来的に以下の State バリエーションを PlatformContext 経由で提供可能：
 
-- デバウンスやスロットル等は **State のバリエーション**で表現。個別クラス（`Debounced<T>` 等）は廃止。
-- 生成は **PlatformContext** 経由：各 OS の **アイドル時間/ランループ/高精度タイマ** を最適活用可能にする。
-- 実装されていない種類は **enum 設定で判別**し、フォールバック（＝ Plain）または TODO を返す。
+- **Debounced**: 最後の変化のみ反映（タイマーベース）
+- **Throttled**: 一定期間に 1 回だけ適用
+- **Buffered**: 複数の値をバッファリング
+- **Sampled**: 一定間隔でサンプリング
 
-### API（擬似コード）
-
-```cpp
-enum class StateKind { Plain, Deferred, Debounced, Throttled, Buffered, Sampled };
-
-struct StateParams {
-  // 任意（未使用は0）
-  int deferMicroticks;   // micro‑tick 何回先でまとめて適用（frame内集約）
-  int debounceMs;        // 最後だけ適用までの待機時間
-  int throttleMs;        // 最大適用頻度
-  int bufferSize;        // バッファリング（0=なし）
-  int sampleMs;          // サンプリング間隔
-};
-
-class PlatformContext {
-public:
-  template<class T>
-  State<T> createState(StateKind kind, const StateParams& p, const T& initial);
-};
-```
-
-### 使い方イメージ
+実装時は各 OS のタイマー/ランループ機構を活用。
 
 ```cpp
-auto& params  = ctx.createState<Params>(StateKind::Plain,     {/*...*/}, {});
-auto& work    = ctx.createState<Work  >(StateKind::Debounced,  {.debounceMs=120}, {});
-auto& result  = ctx.createState<Result>(StateKind::Plain,     {/*...*/}, {});
-
-// 派生は純粋計算（core内）
-Computed<Work> built = derive(params, BuildWork);
-// built の変化を work へ転送（State同士のbindはコアの小さなユーティリティで）
-bind_state(built, work);
-
-// Heavy/I-O は headless で out.set()
-HeadlessNode（HeadlessProcessorの役割を内包）::connect(work, result, GravityCalc);
-```
-
-### 実装メモ / Scheduling
-
-- **Debounced**: OS タイマ/RunLoop で遅延実行。再入は最後のタスクだけ有効。
-- **Throttled**: 前回適用時刻から `throttleMs` 経過でのみ適用。
-- **Deferred**: **frame 内の micro‑tick** 終了でまとめて適用（`bindDefer` 相当）。
-- **Buffered/Sampled**: 将来用。未実装なら `StateKind` チェックでフォールバック。
-
-### エラー/状態（TODO）
-
-- 値の世界を壊さずに扱うため、以下のいずれかを採用：
-  - `State<Expected<T>>`（`ok()/error()`）
-  - `struct { T value; Status status; Error err; }` で `State<>` 化（`Status={Ok,Pending,Error,Cancelled,Timeout}`）
-- 方針は MVP 後に決定。現状は `Result` と `Status` を別 State で持つのが簡潔。
-```cpp
-enum class ComposeState { Idle, Composing, Composed };
-
-class NodeComposition {
-public:
-  ComposeState state() const;
-  // compose内から“登録だけ”する（実行はライフサイクルで）
-  void onAttach(Action a);
-  void onStable(Action a);
-  void onAction(Action a);
+// Solid（既定）: one-shot compose
+class SolidNode : public CompositeNode {
+  void compose(NodeComposition& c) {
+    // 初回のみ実行、State変化は bind で一点更新
+  }
 };
 
-class CompositeNode {
-public:
-  virtual void compose(NodeComposition& c) = 0; // pure
-  virtual void onComposed() {}                  // optional（deferred once）
-  virtual void onAttach() {}                    // optional（Host/Binder接続後）
-  virtual void onDetach() {}                    // optional（解放前）
-};
-```
-
-### Sequencing（実行順）
-
-1. `state=idle` → `composing`（`compose`実行・フック登録のみ）
-2. Arena 確定 → Host 生成/Bind 接続 → `state=composed`
-3. `onAttach()` を **親 → 子の順**で呼ぶ（購読開始）
-4. micro‑tick 安定 → `onComposed()` を **親 → 子**で一度だけ呼ぶ（defer 実行）
-5. 以降、`onAction` キューを tick 毎に処理
-6. 破棄時に **子 → 親の逆順**で `onDetach()`
-
-### Headless と Hooks の関係
-
-- HeadlessNode は `onAttach()` で **購読開始／初回ジョブ投げ**、`onComposed()` で **集約後の初期再計算**、`onDetach()` で **キャンセル/解除**。
-- `bindDefer(...)` は `composed` 以降にのみ発火（compose 中は積むだけ）。
-
-### 安全規約
-
-- `composing` 中は `State.set()`・Host setter は**禁止**（検出で defer）。
-- `onComposed()`／`onAttach()` からの `State.set()` は OK（一点更新が走る）。
-- Hooks 内で再入/循環が起これば **次 micro‑tick に後送り**（無限ループ抑止）。
-
-## 2025-11-07 — React‑mode 解禁時の差分（Solid→React の可逆ブリッジ）
-
-### モード方針
-
-- `CompositionPolicy` を導入：`SolidOneShot`（既定） / `ReactRerender`（解禁時）。
-- **サブツリー単位で切替**できる `ModeScope(policy)` を DSL に追加（既定は Solid）。
-
-### 何が変わるか（ハイライト）
-
-1. **compose の再入**
-
-   - Solid: one‑shot（初回だけ push）。
-   - React: **再評価可**（props/state の変化で `compose()` 相当が再実行）。
-   - 対応：`NodeComposition` に **memo/bail‑out** を復活（Key 付き）。
-
-2. **State の所有範囲**
-
-   - Solid: `useState(slot)` はスコープ限定、**ツリーの外へ波及しない**。
-   - React: コンポーネント局所の state が **再 compose を誘発**。
-   - 対応：`useStateReact<T>()` を追加（再 compose トリガ）。Solid 用 `useState<T>()` は既存のまま。
-
-3. **Effect 语義**
-
-   - Solid: `bindDefer/onStable` 中心（micro‑tick 終端）。
-   - React: `useEffect`/`useLayoutEffect` 風の **依存配列**で実行管理。
-   - 対応：`EffectDeps(deps...)` を React‑mode 時だけ有効化。Solid では従来 hook を推奨。
-
-4. **Reconciliation（差分）**
-
-   - Solid: diff/apply なし、**setter 一点更新**。
-   - React: **Key 付き子リスト**での VTree 差分（再生成/再利用）。
-   - 対応：`Key` を NodeProps に標準化、`children` は **keyed 配列**を前提に shallow‑diff。
-
-5. **Layout**
-
-   - Solid: **deferred‑bounds**（layout()不要）。
-   - React: そのまま使える（**再 compose 後も** bounds 計算は micro‑tick に集約）。
-   - 結論：レイアウトは **方式不変**（再 compose が増えても bindDefer が吸収）。
-
-6. **HeadlessNode（Controller）**
-
-   - Solid: onAttach/onStable + bindDefer で駆動。
-   - React: そのまま **不変**。再 compose しても Headless は **Action/State ベース**なので再生成不要（Key で保持）。
-
-7. **スケジューリング**
-
-   - Solid: PlatformContext の StateVariant（Deferred/Debounced/Throttled）。
-   - React: 追加で **batched updates**（複数 set をひとまとめ）をサブツリー単位で有効化。
-   - 対応：`BatchScope{enabled=true}` を React‑mode 時に自動付与。
-
-### API スケッチ
-
-```cpp
-enum class CompositionPolicy { SolidOneShot, ReactRerender };
-
-struct ModeScopeProps { CompositionPolicy policy; };
-NodeComposition& operator<<(const ModeScopeProps&);
-
-// React専用の局所State（再composeをトリガ）
-template<class T> ReactState<T>& useStateReact(const T& initial);
-
-// 依存配列つきEffect（React‑modeでのみ有効）
-EffectHandle EffectDeps(void (*fn)(), const DepList& deps);
-```
-
-### 推奨ルール（回帰リスクを避ける）
-
-- **副作用は compose に書かない**（Solid でも React でも同じ）。
-- **Headless にロジック集約**：UI は state を束ねるだけ。React‑mode でも Controller 設計を維持。
-- **Key の安定化**：React サブツリーでは children に **安定 Key**を必須化。
-- **混在 OK**：重い領域は Solid（one‑shot）、頻繁に条件分岐やリスト入替がある領域だけ React。
-
-### マイグレーション手順（段階導入）
-
-1. まず **Solid の既存実装**を維持。
-2. React が欲しいサブツリーに `ModeScope{ReactRerender}` を被せる。
-3. その配下で `useStateReact` / `EffectDeps` / `BatchScope` を解禁。
-4. パフォーマンスが落ちる場合は **StateVariant（Debounced/Deferred）** で再 compose 頻度を絞る。
-
-## 2025-11-07 — React Islands via NodeComposition Subclass（Solid の中に React 方式を局所導入）
-
-### ねらい
-
-- **Solid 親の中に React 的再 compose を局所解禁**する“島（Island）”。
-- 既存の Solid ルール（one‑shot/一点更新）を壊さずに、**サブツリーだけ**再 compose 可能に。
-
-### 仕組み（要約）
-
-- `NodeComposition` を **サブクラス化**して Island 用の振る舞いを追加：
-  - `useStateReact<T>()`：この Island 内に所有され、**変化で recompose を要求**する局所 state。
-  - `bindDeferReact(...)`：Island 内の変化を **micro‑tick 終端に集約**し、**一度だけ recompose**。
-  - **伝播ゲート**：Island 内の内部 `State<T>` は **外部への即時伝播を止める**（外部は安定後の `Computed<T>` などで受け取る）。
-- Island 自身が **自分のスロット配下を再 compose**（Arena の同一スロットに**子アリーナを差し替え**）。
-- Host 再利用は **Key** で担保（なければ生成し直し）。
-
-### 擬似 API
-
-```cpp
-class ReactNodeComposition : public NodeComposition {
-public:
-  template<class T> ReactState<T>& useStateReact(const T& init);
-  void requestRecompose();                 // island内で再composeを要求
-  void bindDeferReact(Action a);           // micro-tick安定で一発
-  void gatePropagation(bool enabled=true); // 外側への直伝播を抑止
-};
-
+// React Island（将来）: 局所的な再compose
 class ReactIsland : public CompositeNode {
-public:
-  void compose(ReactNodeComposition& c) {  // ← NodeCompositionの派生を受ける
-    c.gatePropagation(true);
-
-    // island-local states
-    ReactState<int>& local = c.useStateReact<int>(0);
-
-    // 変化を安定後にまとめて再compose
-    c.bindDeferReact(Action{&ReactIsland::recomposeOnce, this});
-
-    // ここに通常通り UI/Headless を push（内部は自由に recompose）
-    c << Text(/* ... */) << Button(/* ... */) << Box(/* ... */);
-  }
-private:
-  static void recomposeOnce(void* self);
-};
-```
-
-### 実行の流れ
-
-1. Solid 親が通常どおり build → **ReactIsland の初回 compose**（one‑shot）
-2. Island 内部の `ReactState` が変化 → **bindDeferReact** が **micro‑tick 終端**に `requestRecompose()` を 1 回だけ発火
-3. Island は **自スロット配下だけ**を再 compose（外側は不変）。Key で Host を再利用
-4. 安定後、必要な外向き値は **Computed 経由で一括反映**（伝播ゲート解除ポイント）
-
-### 併存性
-
-- Island の中にさらに Island をネスト可（Solid↔React↔Solid…の入れ子）。
-- レイアウトは既存の **deferred‑bounds** を継続使用（再 compose 後も micro‑tick 集約で安全）。
-
-### 安全規約（簡易）
-
-- Island 内の `State.set()` は **外部へ直伝播しない**（gatePropagation 有効時）。
-- 外部へ出したい値は **Derived/Computed** を経由し、**Island 安定後**に一度だけ反映。
-- 無限再 compose は **micro‑tick 単位の一度きり**で抑止。次回以降は新たな変化が必要。
-
-## 2025-11-07 — P0 Decisions（Solid-only build / 当面の確定方針）
-
-### Reuse（再利用）
-
-- **いまは不要**。Solid.js の **one-shot** 前提で **都度再生成**。
-- `LazyColumn` などの再利用系は **React-mode/Island** 実装時に設計（Parking）。
-
-### Bounds（境界/サイズ）
-
-- **Host 透過**を優先：macOS なら **NSView 等の既存 bounds をそのまま反映**。
-- レイアウトは当面 **Box だけ**で運用。`deferred-bounds` の親 → 子配布ルールは現状のまま。
-
-### Threading（スレッド）
-
-- **考慮不要**。`State.set()` を呼ぶ箇所は **すべてメインスレッド**に限定。
-- OS イベントは Host 側でメインに正規化してから `set()`（ロック/ワーカースレッドをコアに持ち込まない）。
-
-### Lifecycle（最小）
-
-- フェーズは **composing → composed** の 2 段で十分。
-- 使用するフックは `** / **` を基本（`onComposed` は任意）。
-- **Headless は RAII**：不要になった UI と同時に破棄。グローバルに走らせたい処理は **Window 直下/ App 直下** に配置して寿命を延ばす。
-
-### 備考
-
-- 上記は **Solid-only の実用最小を早く完成**させるための暫定 P0。React-mode 解禁時に必要な再利用/Keys/Effect 依存は Island 節の指針に従って追加する。
-
-## 2025-11-07 — SizeSpec（Absolute / MatchParent）— P0 最小ルール
-
-### 目的
-
-- MVP 段階では **サイズ指定は二択**に限定し、実装と挙動を安定化させる。
-
-### 定義
-
-```cpp
-enum class SizeSpec { Absolute, MatchParent };
-
-struct Size { SizeSpec spec; int value; /* Absolute時のみ有効 */ };
-
-struct LayoutProps { Size width; Size height; };
-```
-
-### ルール
-
-- **Absolute**: `value` をそのまま `w/h` に採用。
-- **MatchParent**: 親の `Bounds.w/h` をそのまま子に配布（deferred-bounds の確定後に一括）。
-- **wrap/content-measure/ratio/weight/constraint**: Parking（将来拡張）。
-
-### 備考
-
-- Host 透過（例: NSView/NSControl）の `bounds` と整合することを前提に設計。
-- BoxLayout では `gap` と方向（水平/垂直）だけを用い、子サイズは上記二択で決定する。
-
-NodeSpec Headless(const HeadlessProps& p);
-```
-
-### 例（公開 API 側の書き味）
-
-```cpp
-class MyGreatNode : public CompositeNode {
-  NodeSpec compose() override {
-    auto gravity = useState<Result>({}); // Windowスコープ/ローカルなど既定の所有規約
-    return Box({ .vertical=true, .gap=8 }, {
-      Headless({ .params=soManyParams, .out=gravity }),
-      Text({ .bind=gravity }),
-      Button({ .onClick = Action{ &Self::inc, this } })
-    });
-  }
-private:
-  static void inc(void* selfV);
-};
-```
-
-### Mount（Window 側の責務）
-
-- `Window::mount(NodeSpec root)` が **一度だけ**呼ばれ、内部で **Arena に変換 →Host 生成 →Binder 接続**。
-- 以後の更新は **State.set() → Binder 一点更新**。`NodeSpec` の再評価は不要（Solid one‑shot）。
-
-### Headless の扱い
-
-- `Headless` は **表示を持たない NodeSpec** だが、**State.set() を通じた“本作用”に参加**。
-- Fragment の子として返すだけでよい（Window は可視/不可視を区別せず処理）。
-
-### 互換 / 内部実装
-
-- 既存の **Arena & NodeComposition** は **内部実装**として継続利用可能（`NodeSpec` からビルド）。
-- 将来 React‑mode/Island を導入する際は、`NodeSpec` の **差し替え/部分再評価**を Island スコープに限定して実装。
-
-### メリット
-
-- 外部 API が**極小で直感的**（`compose()->NodeSpec`）。
-- Solid 哲学（one‑shot・一点更新）と矛盾しない。
-- Headless のみの構成（表示ゼロ）も自然に書ける。
-
-> **注**: **Classic/PPC/68k などコピーに厳しい環境では**、この Spec‑first は**無効化**し、後述の **Builder 公開（**\`\`**）** を採用する。
-
----
-
-## 2025-11-07 — NodeSpec→Arena ビルド（内部）
-
-### 手順（One‑shot）
-
-1. `NodeSpec` を先行走査して **サイズ見積もり**（Arena の予約）。
-2. 前順 or 幅優先で **Item を POD として配置**（`kind/props/parent/firstChild/nextSibling`）。
-3. 1 回目の走査で **Host 生成**、2 回目で **Binder 接続**、最後に **deferred‑bounds 配布**。
-
-### Key/ID
-
-- Solid one‑shot では **不要**。React‑mode 時に Island 内部のみ導入。
-
-### 注意
-
-- Props の寿命は **Window スコープ ≥Host 寿命** を満たすこと（`void* props` の C++98 互換要件）。
-
----
-
-## 2025-11-07 — 既存章との整合
-
-- 「NodeComposition / compose（Arena & One‑shot 版）」と「DSL 最終案」は**内部実装向け**として残置。
-- 公開 API は **Spec‑first** を基本に説明する。
-
-### 結論
-
-- `operator<<` は**撤廃**。**明示 API のみ**に統一して曖昧さを排除。
-- \`\`\*\* は 1 コール=1 ノード\*\*（複数は不可）。
-- ` で Composite を compose。` はグルーピング/Fragment 用途。
-- headless は `か` で等価に扱える。
-
-### サンプル（最小）
-
-```cpp
-class MyGreatNode : public CompositeNode {
-  void compose(NodeComposition& c) override {
-    auto me = c.current();
-    auto& gravity = c.useState<Result>(me, {});
-
-    c.declare(Headless{ .params=soManyParams, .out=gravity });
-    c.declare(Text{ .bind=gravity });
-    c.declare(Button{ /* onClick=Action{...} */ });
-    c.declare(Box{ .vertical=true, .gap=8 }); // last-wins layout
+  void compose(ReactNodeComposition& c) {
+    // ReactState変化で再composeトリガー
+    // Key付きで子を再利用
   }
 };
 ```
 
-### 方針
+### 実装時の要件
 
-- **書き味は常に“明示”**：push のつもりが無視される、などの曖昧さを排除。
-- `child(...)` は `node.compose(c.makeChild(...))` の糖衣で、**意味のねじれがない**。
-- `scope{...}` は Fragment/グループとしてだけ動き、**Host を持たない**。
+- **Key**: 子ノードの識別・再利用に使用
+- **Reconciliation**: Key 付き差分アルゴリズム
+- **局所化**: Island 内部の変化は外部に即座伝播させない
+- **micro-tick 統合**: 既存の deferBind メカニズムと整合
 
-### Parking（将来検討）
-
-- `compose()` が **単一ノードを返す \*\***\`\`\***\* 形式**の糖衣（leaf 向け）。
-- `declare(child())` のような二段糖衣。
-- Island/React-mode 時の `recompose()` 用ショートハンド。
-
-## 2025-11-07 — PPC/68k 向けのコピー回避ガイド（Spec-first 最適化）
-
-### 目的
-
-- C++98 + 古い ABI（NRVO 不完全・小オブジェクトでもコピー多発）の環境で、`NodeSpec` まわりの**無駄コピーを極小化**する。
-
-### 方針（結論）
-
-1. **NodeSpec は極小 POD**（≲16 バイト）：`kind(1) + childCount(2) + props(ptr) + children(ptr)` 程度。
-2. **children は配列“へのポインタ”\*\***で持つ（配列本体は\***\*アリーナ**）。深いコピーを禁止。
-3. **アリーナ（SpecArena）に一発配置**：`Fragment/Box` ヘルパは**呼出時に子配列を Arena へ placement-new**し、`NodeSpec.children`はそのポインタを指す。
-4. **NRVO に依存しない API**：`FragmentN(a,b,...)`（N=0..4）等の固定長ヘルパで**一時配列を作らない**。N 超過は `FragmentFrom(Arena, span)` を使う。
-
-### 参考 API（C++98 互換）
-
-```cpp
-struct NodeSpec {
-  uint8_t kind; uint16_t childCount; // pack可
-  const void* props;                  // props先頭
-  const NodeSpec* children;           // Arena内配列
-};
-
-struct SpecArena { void* bump; size_t cap; };
-
-inline const NodeSpec* ArenaPushChildren(SpecArena& A, const NodeSpec* src, int n);
-
-inline NodeSpec Fragment0() { return NodeSpec{K_Fragment,0,0,0}; }
-inline NodeSpec Fragment1(const NodeSpec& a, SpecArena& A) {
-  const NodeSpec* ch = ArenaPushChildren(A, &a, 1);
-  return NodeSpec{K_Fragment,1,0,ch};
-}
-inline NodeSpec Fragment2(const NodeSpec& a,const NodeSpec& b, SpecArena& A) {
-  NodeSpec tmp[2] = {a,b};
-  const NodeSpec* ch = ArenaPushChildren(A, tmp, 2); // ここで一回だけコピー→Arena
-  return NodeSpec{K_Fragment,2,0,ch};
-}
-// N>4 は FragmentFrom(A, span) を用意
-```
-
-### 実装ノート
-
-- **props はポインタ**（所有は Window/長寿命側）。`std::string`等は置かない（Atom/インターン化）
-- **children は index 方式**でも可：`childrenIndex, childCount` → Arena の先頭からのオフセット
-- **compose()はアロケーション禁止**：配列確保は**必ず Arena 経由**。一時配列は最大 N 要素の自動変数のみ
-- **Window::mount(root)** 直後に Arena は読み取りのみ →**破棄禁止**。Host/Binder 構築が終わるまで有効
-
-### 代替（さらに厳しい 68k 向け）
-
-- `SpecWriter` モードを用意：`compose(SpecWriter& w)` に切替えると**直接 Arena に emplace**（ツリー値の返りは使わない）
-- Public API はそのまま `compose()->NodeSpec`、Classic ビルドだけ `#ifdef CLASSIC` で Writer 版を使用
-
-> 要点：**値ツリーは POD の見かけ**に留め、**実体は Arena に一回だけ配置**。戻り値や関数間受け渡しで“構造体の深いコピー”を絶対に発生させない。
-
-## 2025-11-07 — Public API 再考：Builder（NodeComposition）を公開する案
-
-### 結論
-
-- **MVP/Classic 互換を最優先**するなら、**NodeComposition/NodeBuilder をそのまま公開**するのが最もシンプルで安全。
-- `compose(NodeBuilder&)` で **直接 Arena へ記述**（コピーゼロ／NRVO 依存なし）。
-- **Spec‑first（NodeSpec 戻り値）\*\***は\***\*モダン環境向けの糖衣**として**オプション**に格下げ。
-
-### 公開 API（Builder 版）
-
-```cpp
-class NodeBuilder { /* (= NodeComposition) */
-  // child/declare/scope/useState/afterStable/onAttach ... （<< は無し）
-};
-
-class CompositeNode {
-public:
-  virtual void compose(NodeBuilder& b) = 0; // 公開・安定API（推奨）
-};
-
-class Window {
-public:
-  void mount(CompositeNode& root) {
-    NodeBuilder b; // Arenaを内包
-    root.compose(b);
-    build_from_arena(b); // Host生成→Binder接続→deferred-bounds
-  }
-};
-```
-
-### 糖衣アダプタ（必要なら）
-
-```cpp
-// モダン環境のみ: compose() -> NodeSpec を提供
-#ifdef DECLARA_ENABLE_NODESPEC
-struct NodeSpec { /* ... */ };
-
-class CompositeNodeSpec : public CompositeNode {
-public:
-  virtual NodeSpec compose_spec() = 0; // 糖衣
-  void compose(NodeBuilder& b) final {  // 互換レイヤ
-    NodeSpec s = compose_spec();
-    emit_to_builder(b, s);              // NodeSpec -> Builder へ一括書込
-  }
-};
-#endif
-```
-
-### 方針の利点
-
-- **コピー発生ポイントが消える**（Builder 直書き）。
-- 1 つの公開 API（`compose(NodeBuilder&)`）で**全環境**をカバー。
-- 必要に応じて Spec‑first を**ビルドフラグで有効化**できる（書き味を選択可能）。
-
-### まとめ
-
-- **公開 API ＝ Builder**、**Spec‑first ＝オプション**。これで**PPC/68k**でも安心、かつモダン開発でも書き味を犠牲にしない。
-
-## 2025-11-07 — Dirty Flags（micro‑tick 集約）— 最小設計
-
-### 結論
-
-- \`\`\*\* 単体は“意味を知らない”\*\*（純粋な値更新）。
-- **Dirty は Binder 登録時に意味付け**：どの `State` が変わったら **どのスコープ/処理を dirty にするか** を **購読（bind）時に宣言**する。
-- 実際のフラグセットは **通知経路（Binder）で行う**。`set()`→ 購読先へ通知 → 購読側が **DirtyMask** を立てる →**micro‑tick 終端**で一括処理。
-
-### 目的
-
-- Solid 一点更新の思想を崩さず、**高コストの再計算（例：layout/measure/reflow/logics）だけ**を **まとめて遅延**させる。
-
-### Dirty 種別（最小）
-
-```cpp
-enum class DirtyKind : uint8_t { None=0, Visual=1, Layout=2, Measure=4, Logic=8 };
-struct DirtyMask { uint8_t bits; };
-```
-
-### Binder 登録時に“意味”を付与
-
-```cpp
-// NodeBuilder 内の例
-void bind(State<T>& s, HostSetter<T> setVisual) {
-  // 値変化→即時で Host setter を叩く（Visual）
-  registry.add(s, {DirtyKind::Visual}, [=](const T& v){ setVisual(v); });
-}
-
-void bindDefer(State<Bounds>& parent, Action reflow) {
-  // 親Bounds変化→Layout dirty → micro‑tick終端で reflow()
-  registry.add(parent, {DirtyKind::Layout}, /*no immediate set*/, reflow /*deferred*/);
-}
-
-void bindLogic(State<X>& in, Action compute) {
-  // 入力変化→Logic dirty → 安定後に一度だけ重計算
-  registry.add(in, {DirtyKind::Logic}, /*no immediate set*/, compute);
-}
-```
-
-### 実行モデル
-
-1. `State.set()` が走る（意味は付けない）。
-2. 購読テーブルが発火し、**即時系**（Visual）のみ **その場で setter** を叩く。
-3. 同時に、購読エントリが **対象スコープの DirtyMask** にビットを立てる。
-4. **micro‑tick 終端**で、各スコープの DirtyMask を見て順に処理：
-   - `Measure` → `Layout` → `Logic` の順など **決め打ちの優先度**で一度だけ実行。
-   - 実行中にさらに set が来ても **次の micro‑tick**に後送り。
-5. フレーム境界でマスクをクリア。
+> 詳細は実際に必要になった時点で設計。現状は Solid 実装に集中。
 
 ### 既定マッピング（当面のルール）
 
