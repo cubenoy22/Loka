@@ -56,9 +56,9 @@ namespace declara
         return *this;
       }
       // --- IButtonProps 実装 ---
-      State<std::string> *getText() const override { return text; }
-      State<bool> *getEnabled() const override { return enabled; }
-      EmitterState *getOnClick() const override { return onClick; }
+      virtual State<std::string> *getText() const { return text; }
+      virtual State<bool> *getEnabled() const { return enabled; }
+      virtual EmitterState *getOnClick() const { return onClick; }
       int hash() const
       {
         int h = 17;

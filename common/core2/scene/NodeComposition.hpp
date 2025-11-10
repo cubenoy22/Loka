@@ -20,7 +20,7 @@ namespace declara
         NodeDefinitionBase *root_;
 
       public:
-        NodeComposition() : root_(nullptr) {}
+        NodeComposition() : root_(0) {}
 
         ~NodeComposition()
         {
@@ -83,17 +83,6 @@ namespace declara
         template <typename T>
         T &group(T &x) { return x; }
 
-        template <typename Stream, typename Func>
-        auto map(const Stream &stream, Func func) -> decltype(stream.map(func))
-        {
-          return stream.map(func);
-        }
-
-        template <typename Stream, typename Pred>
-        auto filter(const Stream &stream, Pred pred) -> decltype(stream.filter(pred))
-        {
-          return stream.filter(pred);
-        }
       };
 
     } // namespace scene

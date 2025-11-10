@@ -17,12 +17,12 @@ void testDependencyPropagationCases()
   struct DerivedState : public StateBase
   {
     StateBase *dep;
-    int value = 0;
-    DerivedState(StateBase *d) : dep(d) {}
-    bool recompute() override
+    int value;
+    DerivedState(StateBase *d) : dep(d), value(0) {}
+    virtual bool recompute()
     {
-      auto *s = dynamic_cast<MutableState<int> *>(dep);
-      auto *d2 = dynamic_cast<DerivedState *>(dep);
+      MutableState<int> *s = dynamic_cast<MutableState<int> *>(dep);
+      DerivedState *d2 = dynamic_cast<DerivedState *>(dep);
       int old = value;
       if (s)
         value = s->get() + 1;
@@ -31,11 +31,14 @@ void testDependencyPropagationCases()
       printf("recompute: state=%p, old=%d, new=%d\n", (void *)this, old, value);
       return value != old;
     }
-    std::vector<StateBase *> getDependencyStates() const override { return {dep}; }
+    virtual std::vector<StateBase *> getDependencyStates() const
+    {
+      return makeStateVector(dep, 0);
+    }
   };
   DerivedState b(&a);
   DerivedState c(&b);
-  std::vector<StateBase *> states = {&a, &b, &c};
+  std::vector<StateBase *> states = makeStateVector(&a, &b, &c, 0);
   PushStateTracker tracker(states);
   tracker.begin();
   a.set(10);
@@ -49,7 +52,7 @@ void testDependencyPropagationCases()
   MutableState<int> s;
   DerivedState d1(&s);
   DerivedState d2(&s);
-  std::vector<StateBase *> states2 = {&s, &d1, &d2};
+  std::vector<StateBase *> states2 = makeStateVector(&s, &d1, &d2, 0);
   PushStateTracker tracker2(states2);
   tracker2.begin();
   s.set(5);
@@ -65,7 +68,7 @@ void testDependencyPropagationCases()
   // --- 依存していないDerivedが影響を受けない ---
   MutableState<int> s2;
   DerivedState d3(&s2);
-  std::vector<StateBase *> states3 = {&s, &d1, &d2, &s2, &d3};
+  std::vector<StateBase *> states3 = makeStateVector(&s, &d1, &d2, &s2, &d3, 0);
   PushStateTracker tracker3(states3);
   tracker3.begin();
   s.set(100);
@@ -95,7 +98,8 @@ void testTrackerPropagation()
   {
     printf("[test] doubleProp.getDependencyStates()[%zu]=%p\n", i, (void *)deps[i]);
   }
-  PushStateTracker tracker(std::vector<StateBase *>{&s_int, doubleProp});
+  std::vector<StateBase *> trackerStates = makeStateVector(&s_int, doubleProp, 0);
+  PushStateTracker tracker(trackerStates);
   printf("[before begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
   tracker.begin();
   printf("[after begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
@@ -122,7 +126,8 @@ void testDeferredSideEffect()
     int operator()() { return s->get() * 2; }
   };
   DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
-  PushStateTracker tracker({&s_int, doubleProp});
+  std::vector<StateBase *> trackerStatesDeferred = makeStateVector(&s_int, doubleProp, 0);
+  PushStateTracker tracker(trackerStatesDeferred);
   struct DeferredCallback
   {
     static void onDeferred(void *)
@@ -152,7 +157,8 @@ void testTextInputOnChange()
     bool operator()() { return n->get().length() >= 3; }
   };
   DerivedState<bool> *isValid = new DerivedState<bool>(std::vector<StateBase *>(1, &name), new IsValidEval(&name));
-  PushStateTracker tracker({&name, isValid});
+  std::vector<StateBase *> trackerStatesText = makeStateVector(&name, isValid, 0);
+  PushStateTracker tracker(trackerStatesText);
   struct ValidCallback
   {
     static void onChange(void *userData)
@@ -188,7 +194,8 @@ void testBatchTransaction()
   };
   DerivedState<int> *sumProp = new DerivedState<int>(std::vector<StateBase *>(1, &s1), new SumPropEval(&s1));
   MutableState<int> s2(2);
-  PushStateTracker tracker({&s1, &s2, sumProp});
+  std::vector<StateBase *> trackerStatesBatch = makeStateVector(&s1, &s2, sumProp, 0);
+  PushStateTracker tracker(trackerStatesBatch);
   tracker.begin();
   s1.set(10);
   s2.set(20);
@@ -211,7 +218,8 @@ void testRAIITransaction()
     int operator()() { return s->get() * 2; }
   };
   DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s), new DoublePropEval(&s));
-  PushStateTracker tracker({&s, doubleProp});
+  std::vector<StateBase *> trackerStatesRAII = makeStateVector(&s, doubleProp, 0);
+  PushStateTracker tracker(trackerStatesRAII);
   {
     AutoTransactionGuard _(&tracker);
     s.set(50);

@@ -29,7 +29,7 @@ namespace declara
       typedef EmptyTypeTag TypeTag;
       const EmptyProps &props;
       EmptyNode(const EmptyProps &p) : props(p) {}
-      void compose() override {}
+      virtual void compose() {}
     };
 
     // 空ノードのDefinition
@@ -40,7 +40,7 @@ namespace declara
       using core::scene::NodeDefinition<EmptyProps, EmptyNode>::create;
     };
     // DSL向け短縮名
-    using Empty = EmptyDefinition;
+    typedef EmptyDefinition Empty;
   } // namespace app
 } // namespace declara
 

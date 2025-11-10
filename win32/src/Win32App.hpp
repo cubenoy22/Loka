@@ -10,13 +10,13 @@ class Win32App : public App
 {
 protected:
   Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow);
-  ~Win32App() override;
+  virtual ~Win32App();
   friend class Win32PlatformContext;
 
 public:
-  void run() override;
-  void quit() override;
-  void windowClosed(Window *window) override;
+  virtual void run();
+  virtual void quit();
+  virtual void windowClosed(Window *window);
 
 private:
   HINSTANCE hInstance_;

@@ -17,7 +17,7 @@ namespace declara
       {
         if (!def)
         {
-          return nullptr;
+          return 0;
         }
 
         // 1. Nodeインスタンスを生成

@@ -12,7 +12,7 @@ static std::vector<StateBase *> makeStateVector(StateBase *first, ...)
   std::vector<StateBase *> v;
   va_list args;
   va_start(args, first);
-  for (StateBase *s = first; s != NULL; s = va_arg(args, StateBase *))
+  for (StateBase *s = first; s != 0; s = va_arg(args, StateBase *))
   {
     if (s) // 念のためNULLチェック（終端判定だけでなく、NULLポインタ自体を除外する）
       v.push_back(s);

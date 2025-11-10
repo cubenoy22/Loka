@@ -24,11 +24,11 @@ class Win32PlatformContext : public PlatformContext
 public:
   Win32PlatformContext();
   ~Win32PlatformContext();
-  App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const override;
+  virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
 
-  Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts) override;
+  virtual Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts);
 
-  declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const override;
+  virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const;
 };
 
 #endif // DECLARA_WIN32PLATFORMCONTEXT_HPP

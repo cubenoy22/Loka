@@ -5,7 +5,7 @@
 #include <functional>
 #include <map>
 #include <string>
-#include <unordered_set>
+#include <set>
 
 class StateBase;
 
@@ -34,28 +34,28 @@ class PushStateTracker : public StateTracker
 public:
   PushStateTracker(const std::vector<StateBase *> &states);
   PushStateTracker();
-  void begin() override;
-  void defer(void (*fn)(void *), void *userData) override;
-  void markDirty(StateBase *state) override;
-  bool end() override;
+  void begin();
+  void defer(void (*fn)(void *), void *userData);
+  void markDirty(StateBase *state);
+  bool end();
   /**
    * @brief 依存グラフ（依存元→依存先）を構築する。通常はDerivedStateの依存関係から自動生成される。
    */
-  void registerDependency(StateBase *dependent, StateBase *dependency) override;
-  TrackerPhase phase() const override;
+  void registerDependency(StateBase *dependent, StateBase *dependency);
+  TrackerPhase phase() const;
   ~PushStateTracker();
 
 private:
   /// dirtyStates: トランザクション中にdirtyなStateを管理（伝播バッファ）
   std::vector<StateBase *> dirtyStates;
   /// deferred: commit時に一括発火する副作用コールバック
-  std::vector<std::pair<void (*)(void *), void *>> deferred;
+  std::vector<std::pair<void (*)(void *), void *> > deferred;
   /// dependents: 依存グラフ（依存元→依存先リスト）。registerDependencyで構築され、依存伝播の起点となる。
   std::map<StateBase *, std::vector<StateBase *>> dependents;
   /// phase_: Trackerの現在のトランザクションフェーズ
   TrackerPhase phase_;
   /// visiting_: 再帰伝播時の循環依存検出用一時セット
-  std::unordered_set<StateBase *> visiting_;
+  std::set<StateBase *> visiting_;
   /// states_: Trackerが管理する全State群（begin()/end()でcurrentTrackerをセット）
   std::vector<StateBase *> states_;
 };

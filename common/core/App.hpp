@@ -22,7 +22,7 @@ public:
 
 protected:
   ComponentGroup<AppComponent> *group_;
-  bool quitWhenLastWindowClosed_ = true;
+  bool quitWhenLastWindowClosed_;
   AppConfigurable *config_;
 
   void reflectInitialVisibilityChunks();

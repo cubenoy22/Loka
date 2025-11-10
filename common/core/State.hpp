@@ -19,10 +19,10 @@ class StateTracker;
 class StateBase
 {
 public:
-  StateTracker *currentTracker = nullptr;
+  StateBase() : currentTracker(0) {}
   virtual ~StateBase() {}
   // 依存State列挙（循環依存検出の余地あり）
-  virtual std::vector<StateBase *> getDependencyStates() const { return {}; }
+  virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
   // バインド/購読API
   typedef void (*OnChangeFn)(void *userData);
   virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) {}
@@ -31,6 +31,9 @@ public:
   virtual void deferUnbind(OnChangeFn cb, void *userData) const {}
   // 再計算（DerivedStateでオーバーライド）
   virtual bool recompute() { return false; }
+
+public:
+  StateTracker *currentTracker;
 };
 
 // State<T>: StateBaseを継承し、値の保持・購読APIを実装
@@ -45,10 +48,10 @@ public:
   virtual T get() const { return value; }
 
 public:
-  void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) override
+  virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
   {
-    Handler h{cb, userData, callOnce, priority};
-    auto it = handlers.begin();
+    Handler h = {cb, userData, callOnce, priority};
+    typename std::vector<Handler>::iterator it = handlers.begin();
     for (; it != handlers.end(); ++it)
       if (priority > it->priority)
         break;
@@ -60,9 +63,9 @@ public:
         unbind(cb, userData);
     }
   }
-  void unbind(OnChangeFn cb, void *userData) override
+  virtual void unbind(OnChangeFn cb, void *userData)
   {
-    Handler target{cb, userData, false, 0};
+    Handler target = {cb, userData, false, 0};
     for (size_t i = 0; i < handlers.size(); ++i)
     {
       if (handlers[i] == target)
@@ -72,23 +75,25 @@ public:
       }
     }
   }
-  void deferBind(OnChangeFn cb, void *userData, int priority = 0) const override
+  virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
   {
-    Handler h{cb, userData, false, priority};
-    auto it = deferredHandlers.begin();
-    for (; it != deferredHandlers.end(); ++it)
+    Handler h = {cb, userData, false, priority};
+    std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
+    typename std::vector<Handler>::iterator it = ref.begin();
+    for (; it != ref.end(); ++it)
       if (priority > it->priority)
         break;
-    const_cast<std::vector<Handler> &>(deferredHandlers).insert(it, h);
+    ref.insert(it, h);
   }
-  void deferUnbind(OnChangeFn cb, void *userData) const override
+  virtual void deferUnbind(OnChangeFn cb, void *userData) const
   {
-    Handler target{cb, userData, false, 0};
-    for (size_t i = 0; i < deferredHandlers.size(); ++i)
+    Handler target = {cb, userData, false, 0};
+    std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
+    for (size_t i = 0; i < ref.size(); ++i)
     {
-      if (deferredHandlers[i] == target)
+      if (ref[i] == target)
       {
-        const_cast<std::vector<Handler> &>(deferredHandlers).erase(deferredHandlers.begin() + i);
+        ref.erase(ref.begin() + i);
         break;
       }
     }
@@ -97,7 +102,11 @@ public:
   typedef void (*OnChangeWithOldFn)(T oldValue, T newValue, void *userData);
   void deferBindWithOld(OnChangeWithOldFn cb, void *userData, int priority = 0) const
   {
-    OldNewCtx *ctx = new OldNewCtx{this->get(), cb, userData, this};
+    OldNewCtx *ctx = new OldNewCtx();
+    ctx->lastValue = this->get();
+    ctx->cb = cb;
+    ctx->userData = userData;
+    ctx->state = this;
     this->deferBind(&OldNewThunk, ctx, priority);
   }
 
@@ -113,7 +122,7 @@ protected:
   virtual void setValue(const T &v) { set(v); }
   // setValue(const ValueHolderBase&)は不要になったので削除
   // バインドAPI: 値が変わったらcbを呼ぶ
-  std::vector<StateBase *> getDependencyStates() const override { return {}; }
+  virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
   // 通知
   void notifyStateChanged()
   {
@@ -181,10 +190,10 @@ public:
   State() {}
   virtual ~State() {}
 
-  void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) override
+  virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
   {
-    Handler h{cb, userData, callOnce, priority};
-    auto it = handlers.begin();
+    Handler h = {cb, userData, callOnce, priority};
+    typename std::vector<Handler>::iterator it = handlers.begin();
     for (; it != handlers.end(); ++it)
       if (priority > it->priority)
         break;
@@ -196,9 +205,9 @@ public:
         unbind(cb, userData);
     }
   }
-  void unbind(OnChangeFn cb, void *userData) override
+  virtual void unbind(OnChangeFn cb, void *userData)
   {
-    Handler target{cb, userData, false, 0};
+    Handler target = {cb, userData, false, 0};
     for (size_t i = 0; i < handlers.size(); ++i)
     {
       if (handlers[i] == target)
@@ -208,23 +217,25 @@ public:
       }
     }
   }
-  void deferBind(OnChangeFn cb, void *userData, int priority = 0) const override
+  virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
   {
-    Handler h{cb, userData, false, priority};
-    auto it = deferredHandlers.begin();
-    for (; it != deferredHandlers.end(); ++it)
+    Handler h = {cb, userData, false, priority};
+    std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
+    typename std::vector<Handler>::iterator it = ref.begin();
+    for (; it != ref.end(); ++it)
       if (priority > it->priority)
         break;
-    const_cast<std::vector<Handler> &>(deferredHandlers).insert(it, h);
+    ref.insert(it, h);
   }
-  void deferUnbind(OnChangeFn cb, void *userData) const override
+  virtual void deferUnbind(OnChangeFn cb, void *userData) const
   {
-    Handler target{cb, userData, false, 0};
-    for (size_t i = 0; i < deferredHandlers.size(); ++i)
+    Handler target = {cb, userData, false, 0};
+    std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
+    for (size_t i = 0; i < ref.size(); ++i)
     {
-      if (deferredHandlers[i] == target)
+      if (ref[i] == target)
       {
-        const_cast<std::vector<Handler> &>(deferredHandlers).erase(deferredHandlers.begin() + i);
+        ref.erase(ref.begin() + i);
         break;
       }
     }
@@ -287,7 +298,8 @@ template <typename T>
 class MutableState : public State<T>
 {
 public:
-  using State<T>::State;
+  MutableState() : State<T>() {}
+  explicit MutableState(const T &initial) : State<T>(initial) {}
   using State<T>::setValue;
   void set(const T &v, bool forceUpdate = false)
   {

@@ -16,7 +16,7 @@ SceneManager2::~SceneManager2() {}
 void SceneManager2::commitTransaction(declara::core::scene::Scene *from, declara::core::scene::Scene *to)
 {
   tracker_.begin();
-  std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>> txns = pendingTransactions_.get();
+  std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > txns = pendingTransactions_.get();
   txns.push_back(std::make_pair(from, to));
   pendingTransactions_.set(txns);
   tracker_.end();
@@ -28,21 +28,21 @@ const State<declara::core::scene::Scene *> &SceneManager2::getCurrentScene() con
   return currentScene_;
 }
 
-const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>> &SceneManager2::getPendingTransactions() const
+const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > &SceneManager2::getPendingTransactions() const
 {
   return pendingTransactions_.get();
 }
 
 void SceneManager2::handleNextTransaction()
 {
-  const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>> &txns = pendingTransactions_.get();
+  const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > &txns = pendingTransactions_.get();
   if (txns.empty())
     return;
   declara::core::scene::Scene *oldScene = currentScene_.get();
   declara::core::scene::Scene *newScene = txns.front().second;
   swapScene(oldScene, newScene);
   tracker_.begin();
-  std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>> nextTxns = pendingTransactions_.get();
+  std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > nextTxns = pendingTransactions_.get();
   nextTxns.erase(nextTxns.begin());
   pendingTransactions_.set(nextTxns);
   tracker_.end();

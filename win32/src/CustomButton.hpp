@@ -10,9 +10,10 @@ namespace declara
 
     struct CustomButtonProps
     {
-      State<bool> *checked = nullptr;
-      State<std::string> *label = nullptr;
-      EmitterState *onClick = nullptr;
+      State<bool> *checked;
+      State<std::string> *label;
+      EmitterState *onClick;
+      CustomButtonProps() : checked(0), label(0), onClick(0) {}
     };
 
     class CustomButton : public Button

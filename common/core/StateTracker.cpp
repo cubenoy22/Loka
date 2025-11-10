@@ -21,13 +21,13 @@ PushStateTracker::PushStateTracker() : phase_(TRACKER_IDLE) {}
 
 void PushStateTracker::begin()
 {
-  for (auto *s : states_)
-    s->currentTracker = this;
+  for (size_t i = 0; i < states_.size(); ++i)
+    states_[i]->currentTracker = this;
 #ifdef TEST_BUILD
   printf("[begin] dependents.size()=%zu\n", dependents.size());
-  for (auto &pair : dependents)
+  for (std::map<StateBase *, std::vector<StateBase *>>::iterator it = dependents.begin(); it != dependents.end(); ++it)
   {
-    printf("[begin] dependents key=%p\n", (void *)pair.first);
+    printf("[begin] dependents key=%p\n", (void *)it->first);
   }
 #endif
   dirtyStates.clear();
@@ -53,19 +53,20 @@ void PushStateTracker::markDirty(StateBase *state)
   visiting_.insert(state);
 #ifdef TEST_BUILD
   printf("[markDirty] dependents.size()=%zu\n", dependents.size());
-  for (auto &pair : dependents)
+  for (std::map<StateBase *, std::vector<StateBase *>>::iterator itDep = dependents.begin(); itDep != dependents.end(); ++itDep)
   {
-    printf("[markDirty] dependents key=%p\n", (void *)pair.first);
+    printf("[markDirty] dependents key=%p\n", (void *)itDep->first);
   }
 #endif
-  auto it = dependents.find(state);
+  std::map<StateBase *, std::vector<StateBase *>>::iterator it = dependents.find(state);
   if (it != dependents.end())
   {
 #ifdef TEST_BUILD
     printf("[markDirty] dependents[%p] has %zu items\n", (void *)state, it->second.size());
 #endif
-    for (auto dependent : it->second)
+    for (size_t i = 0; i < it->second.size(); ++i)
     {
+      StateBase *dependent = it->second[i];
 #ifdef TEST_BUILD
       printf("[markDirty] state=%p -> dependent=%p\n", (void *)state, (void *)dependent);
 #endif
@@ -97,9 +98,9 @@ bool PushStateTracker::end()
 {
 #ifdef TEST_BUILD
   printf("[end] dependents.size()=%zu\n", dependents.size());
-  for (auto &pair : dependents)
+  for (std::map<StateBase *, std::vector<StateBase *>>::iterator it = dependents.begin(); it != dependents.end(); ++it)
   {
-    printf("[end] dependents key=%p\n", (void *)pair.first);
+    printf("[end] dependents key=%p\n", (void *)it->first);
   }
 #endif
   size_t maxIter = 1000;
@@ -121,11 +122,12 @@ bool PushStateTracker::end()
       if (changed)
       {
         // 依存先（dependents）をdirtyにする
-        auto it = dependents.find(s);
+        std::map<StateBase *, std::vector<StateBase *>>::iterator it = dependents.find(s);
         if (it != dependents.end())
         {
-          for (auto dependent : it->second)
+          for (size_t j = 0; j < it->second.size(); ++j)
           {
+            StateBase *dependent = it->second[j];
 #ifdef TEST_BUILD
             printf("[end] propagate dirty: %p -> %p\n", (void *)s, (void *)dependent);
 #endif
@@ -141,8 +143,8 @@ bool PushStateTracker::end()
     deferred[i].first(deferred[i].second);
   }
   phase_ = TRACKER_IDLE;
-  for (auto *s : states_)
-    s->currentTracker = nullptr;
+  for (size_t i = 0; i < states_.size(); ++i)
+    states_[i]->currentTracker = 0;
   deferred.clear();
   return dirtyStates.empty();
 }
@@ -155,9 +157,9 @@ void PushStateTracker::registerDependency(StateBase *dependent, StateBase *depen
   dependents[dependency].push_back(dependent);
 #ifdef TEST_BUILD
   printf("[registerDependency] dependents.size()=%zu\n", dependents.size());
-  for (auto &pair : dependents)
+  for (std::map<StateBase *, std::vector<StateBase *>>::iterator it = dependents.begin(); it != dependents.end(); ++it)
   {
-    printf("[registerDependency] dependents key=%p\n", (void *)pair.first);
+    printf("[registerDependency] dependents key=%p\n", (void *)it->first);
   }
 #endif
 }

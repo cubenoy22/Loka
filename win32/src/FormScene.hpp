@@ -32,7 +32,7 @@ public:
       : Scene(new SceneHost()),
         props(),
         tracker(makeStateVector(&props.count, 0)),
-        context_(platform ? platform->createSceneContextForScene(this) : nullptr) {}
+        context_(platform ? platform->createSceneContextForScene(this) : 0) {}
 
   void compose(SceneNodeGroup &group) override
   {
@@ -83,41 +83,13 @@ public:
   FormScene(/*PlatformContext *platform*/)
       : Scene(), props() /*, tracker(...)*/ {}
 
-  void compose(declara::core::scene::NodeComposition c) override
+  virtual void compose(declara::core::scene::NodeComposition c)
   {
-    using declara::app::Box;
-    using declara::app::Button;
-    using declara::app::ButtonProps;
-    // 実用的ではないサンプル: fruits配列をmapでButtonに変換しBoxに<<する
-    std::vector<std::string> fruits = {"Apple", "Banana", "Cherry"};
-    struct FruitToButton
-    {
-      typedef declara::app::ButtonDefinition result_type;
-      result_type operator()(const std::string &name) const
-      {
-        declara::app::ButtonProps props;
-        props.setText(name);
-        return declara::app::ButtonDefinition(props);
-      }
-    };
-    auto fruitButtons = c.map(c.stream(fruits), FruitToButton());
-    std::vector<declara::core::scene::NodeDefinitionBase *> fruitButtonsVec;
-    {
-      std::vector<declara::app::ButtonDefinition> tmp = fruitButtons.toVector();
-      for (size_t i = 0; i < tmp.size(); ++i)
-      {
-        fruitButtonsVec.push_back(&tmp[i]);
-      }
-    }
-    Box box;
-    box << fruitButtonsVec;
-    box << c.conditional(StaticState(false), c.group(Button()));
-    box << Button(ButtonProps().setText("").setOnClick(&onClickState));
-    Box groupBox;
-    groupBox << Button(ButtonProps());
-    box << static_cast<declara::core::scene::NodeDefinitionBase &>(groupBox);
-    box << Button();
-    c.declare(box);
+    declara::app::ButtonProps buttonProps;
+    buttonProps.setText(std::string("Placeholder"));
+    buttonProps.setOnClick(&onClickState);
+    declara::app::ButtonDefinition button(buttonProps);
+    c.declare(button);
   }
 };
 

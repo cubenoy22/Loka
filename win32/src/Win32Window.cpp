@@ -15,7 +15,7 @@ namespace
 }
 
 Win32Window::Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts)
-    : Window(context, initialScene, opts), hwnd_(nullptr), app_(NULL)
+    : Window(context, initialScene, opts), hwnd_(NULL), app_(NULL)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);
@@ -61,7 +61,7 @@ void Win32Window::TitleChangedThunk(void *userData)
 
 LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  Win32Window *self = nullptr;
+  Win32Window *self = NULL;
   if (msg == WM_NCCREATE)
   {
     CREATESTRUCT *cs = reinterpret_cast<CREATESTRUCT *>(lParam);
@@ -105,7 +105,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     case WM_DESTROY:
       // --- onDestroyイベントをここで一元的に呼ぶ ---
       self->onDestroy();
-      self->hwnd_ = nullptr;
+      self->hwnd_ = NULL;
       if (self->app_)
       {                                                        // app_ポインタが有効か確認
         self->app_->windowClosed(static_cast<Window *>(self)); // 明示的にWindowポインタにキャスト
@@ -123,9 +123,10 @@ void Win32Window::createNativeWindow()
 {
   if (!g_classRegistered)
   {
-    WNDCLASSA wc = {};
+    WNDCLASSA wc;
+    ZeroMemory(&wc, sizeof(wc));
     wc.lpfnWndProc = Win32Window::WndProc;
-    wc.hInstance = GetModuleHandle(nullptr);
+    wc.hInstance = GetModuleHandle(NULL);
     wc.lpszClassName = kWndClassName;
     RegisterClassA(&wc);
     g_classRegistered = true;
@@ -135,7 +136,7 @@ void Win32Window::createNativeWindow()
       this->title.get().c_str(),
       WS_OVERLAPPEDWINDOW,
       100, 100, 320, 200,
-      nullptr, nullptr, GetModuleHandle(nullptr),
+      NULL, NULL, GetModuleHandle(NULL),
       this);
   if (hwnd)
   {
@@ -147,7 +148,7 @@ void Win32Window::createNativeWindow()
         50, 120, 200, 40,
         this->hwnd_,
         (HMENU)1001,
-        GetModuleHandle(nullptr),
+        GetModuleHandle(NULL),
         NULL);
     UpdateWindow(hwnd);
     this->onCreate();
@@ -159,7 +160,7 @@ void Win32Window::destroyNativeWindow()
   if (this->hwnd_)
   {
     DestroyWindow(this->hwnd_);
-    this->hwnd_ = nullptr;
+    this->hwnd_ = NULL;
   }
 }
 

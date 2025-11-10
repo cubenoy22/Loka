@@ -19,7 +19,7 @@ public:
 
 protected:
   // ペンディングトランザクション取得
-  const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>> &getPendingTransactions() const;
+  const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > &getPendingTransactions() const;
   // トランザクション進行
   void handleNextTransaction();
   // 副作用: シーン切り替え
@@ -27,7 +27,7 @@ protected:
 
 private:
   MutableState<declara::core::scene::Scene *> currentScene_;
-  MutableState<std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *>>> pendingTransactions_;
+  MutableState<std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > > pendingTransactions_;
   PushStateTracker tracker_;
 };
 

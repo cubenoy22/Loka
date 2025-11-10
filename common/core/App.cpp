@@ -3,6 +3,7 @@
 #include "PlatformContext.hpp"
 #include "util/AutoTransactionGuard.hpp"
 #include "core2/scene/Scene.hpp"
+#include <algorithm>
 
 // AppBuilder::Window メソッドの実装（Window抽象クラス問題の修正）
 AppBuilder &AppBuilder::Window(declara::core::scene::Scene *initialScene, const WindowOptions &opts)
@@ -13,7 +14,7 @@ AppBuilder &AppBuilder::Window(declara::core::scene::Scene *initialScene, const 
 }
 
 App::App(AppConfigurable *config)
-    : group_(0), config_(config)
+    : group_(0), quitWhenLastWindowClosed_(true), config_(config)
 {
 }
 
@@ -40,8 +41,9 @@ void App::reflectInitialVisibilityChunks()
   if (!group_)
     return;
   const std::vector<AppComponent *> &comps = group_->getComponents();
-  for (auto *comp : comps)
+  for (size_t i = 0; i < comps.size(); ++i)
   {
+    AppComponent *comp = comps[i];
     Window *win = dynamic_cast<Window *>(comp);
     if (win && win->visibility.get())
     {

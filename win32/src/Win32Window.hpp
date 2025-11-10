@@ -31,15 +31,15 @@ public:
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
   // --- Windowのイベントハンドラを明示的にoverride ---
-  void onShow() override;
-  void onHide() override;
+  virtual void onShow();
+  virtual void onHide();
 
 protected:
   HWND hwnd_;
   HWND buttonHwnd_; // --- 追加: ボタン用HWND
   App *app_;        // アプリケーションインスタンスの参照
 
-  void onCreate() override;
+  virtual void onCreate();
 
 private:
   void createNativeWindow();

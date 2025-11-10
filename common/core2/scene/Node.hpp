@@ -41,7 +41,7 @@ namespace declara
         virtual ~Node() {}
         virtual void compose() {}
 
-        Node() : context(nullptr), dirty(NONE) {}
+        Node() : context(0), dirty(NONE) {}
       };
 
       // --- 汎用Props基底 ---

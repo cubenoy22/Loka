@@ -19,7 +19,7 @@ public:
   {
     components.swap(src);
   }
-  explicit ComponentGroup(std::vector<T *> &&src)
+  explicit ComponentGroup(std::vector<T *> src)
   {
     components.swap(src);
   }

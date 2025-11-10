@@ -22,7 +22,7 @@ namespace declara
 
       public:
         explicit StaticSceneController(Scene *scene, IPlatformController *platformController)
-            : Controller(scene), platformController_(platformController), rootNode_(nullptr)
+            : Controller(scene), platformController_(platformController), rootNode_(0)
         {
         }
 

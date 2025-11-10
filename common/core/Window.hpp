@@ -42,7 +42,7 @@ struct WindowOptions
 class Window : public AppComponent
 {
 public:
-  Window(PlatformContext *context, declara::core::scene::Scene *initialScene = nullptr, const WindowOptions &options = WindowOptions())
+  Window(PlatformContext *context, declara::core::scene::Scene *initialScene = 0, const WindowOptions &options = WindowOptions())
       : context_(context), title("")
   {
     options_ = options;
@@ -52,9 +52,9 @@ public:
     sceneManager_.getCurrentScene().deferBindWithOld(
         (State<declara::core::scene::Scene *>::OnChangeWithOldFn) & Window::onSceneChangedThunk, this);
     if (initialScene)
-      sceneManager_.commitTransaction(nullptr, initialScene);
+      sceneManager_.commitTransaction(0, initialScene);
   }
-  virtual ~Window() = default;
+  virtual ~Window() {}
 
   PlatformContext *context() const { return context_; }
   declara::core::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
