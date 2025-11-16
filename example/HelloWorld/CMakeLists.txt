@@ -3,7 +3,6 @@ project(DeclaraHelloWin32 LANGUAGES CXX)
 
 set(HELLOWORLD_SOURCES
   src/main.cpp
-  src/FormScene.cpp
 )
 
 if(NOT TARGET DeclaraWin32Core)
