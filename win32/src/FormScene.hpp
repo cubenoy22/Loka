@@ -56,6 +56,8 @@ private:
 */
 
 // --- 新namespace版: core2/scene, app2 などに切り替え ---
+#include <cstdio>
+#include <string>
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "app2/Button.hpp"
@@ -70,7 +72,7 @@ private:
 struct FormSceneProps
 {
   MutableState<int> count;
-  // StrFormatState<int> *countStr;
+  MutableState<std::string> buttonLabel;
 };
 
 class FormScene : public declara::core::scene::Scene
@@ -79,9 +81,14 @@ public:
   FormSceneProps props;
   EmitterState onClickState;
   // PushStateTracker tracker;
+  int clickCount_;
 
   FormScene(/*PlatformContext *platform*/)
-      : Scene(), props() /*, tracker(...)*/ {}
+      : Scene(), props(), clickCount_(0) /*, tracker(...)*/
+  {
+    props.buttonLabel.set(std::string("Click me"), true);
+    onClickState.deferBind(&FormScene::onButtonClicked, this);
+  }
 
   virtual void compose(declara::core::scene::NodeComposition &c)
   {
@@ -90,11 +97,23 @@ public:
     declara::app::BoxDefinition &root = c.declare(box);
 
     declara::app::ButtonProps buttonProps;
-    buttonProps.setText(std::string("Placeholder"));
+    buttonProps.setText(static_cast<State<std::string> *>(&props.buttonLabel));
     buttonProps.setOnClick(&onClickState);
     declara::app::ButtonDefinition button(buttonProps);
 
     root << *c.copyToArena(button);
+  }
+
+private:
+  static void onButtonClicked(void *userData)
+  {
+    FormScene *self = static_cast<FormScene *>(userData);
+    if (!self)
+      return;
+    ++self->clickCount_;
+    char buf[64];
+    sprintf(buf, "Clicked %d", self->clickCount_);
+    self->props.buttonLabel.set(std::string(buf), true);
   }
 };
 
@@ -106,7 +125,7 @@ public:
   void configure(AppBuilder &builder)
   {
     builder.Window(
-        new declara::core::scene::Scene(),
+        new FormScene(),
         WindowOptions()
             .setTitle("DEVELOPERS!")
             .setVisibility(true));

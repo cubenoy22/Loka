@@ -15,15 +15,19 @@ namespace declara
     namespace scene
     {
       class Scene;
+      class StaticSceneController;
     }
   }
 }
+
+class Win32ScenePlatformController;
 
 // 🦊 Win32固有のWindow実装
 class Win32Window : public Window
 {
 public:
   Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts);
+  virtual ~Win32Window();
 
   // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
   void setApp(App *app) { app_ = app; }
@@ -36,8 +40,7 @@ public:
 
 protected:
   HWND hwnd_;
-  HWND buttonHwnd_; // --- 追加: ボタン用HWND
-  App *app_;        // アプリケーションインスタンスの参照
+  App *app_; // アプリケーションインスタンスの参照
 
   virtual void onCreate();
 
@@ -46,6 +49,12 @@ private:
   void destroyNativeWindow();
   static void VisibilityChangedThunk(void *userData);
   static void TitleChangedThunk(void *userData);
+  void mountScene();
+  void teardownScene();
+  bool handleCommand(WPARAM wParam, LPARAM lParam);
+
+  declara::core::scene::StaticSceneController *sceneController_;
+  Win32ScenePlatformController *scenePlatformController_;
 };
 
 #endif // DECLARA_WIN32WINDOW_HPP

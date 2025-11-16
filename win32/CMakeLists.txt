@@ -11,6 +11,7 @@ set(SOURCES
   src/main.cpp
   src/Win32App.cpp
   src/Win32Window.cpp
+  src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
   src/Tests.cpp
   ${COMMON_SOURCES}

@@ -1,0 +1,192 @@
+#include "Win32ScenePlatformController.hpp"
+#include <windows.h>
+#include "app2/Box.hpp"
+#include "app2/Button.hpp"
+
+namespace
+{
+  const int kButtonHeight = 32;
+  const int kVerticalSpacing = 12;
+}
+
+Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
+    : rootHwnd_(rootHwnd)
+{
+}
+
+Win32ScenePlatformController::~Win32ScenePlatformController()
+{
+  clearContexts();
+}
+
+void Win32ScenePlatformController::materialize(declara::core::scene::Node *rootNode)
+{
+  clearContexts();
+  if (!rootHwnd_ || !rootNode)
+  {
+    return;
+  }
+
+  LayoutState state;
+  state.x = 20;
+  state.y = 20;
+  state.width = 260;
+  layoutNode(rootNode, state);
+}
+
+void Win32ScenePlatformController::synchronize()
+{
+  // Solid-mode（固定ツリー）では即時反映済みのため、現状何もしない。
+}
+
+void Win32ScenePlatformController::destroy()
+{
+  clearContexts();
+}
+
+bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
+{
+  if (HIWORD(wParam) != BN_CLICKED)
+  {
+    return false;
+  }
+
+  HWND target = reinterpret_cast<HWND>(lParam);
+  std::map<HWND, ButtonContext *>::iterator it = buttonMap_.find(target);
+  if (it == buttonMap_.end())
+  {
+    return false;
+  }
+  return it->second->handleCommand(wParam, lParam);
+}
+
+int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, const LayoutState &state)
+{
+  if (!node)
+  {
+    return state.y;
+  }
+
+  if (declara::app::BoxNode *box = dynamic_cast<declara::app::BoxNode *>(node))
+  {
+    LayoutState childState = state;
+    const std::vector<declara::core::scene::Node *> &children = box->getChildren();
+    for (size_t i = 0; i < children.size(); ++i)
+    {
+      childState.y = layoutNode(children[i], childState);
+    }
+    return childState.y;
+  }
+
+  if (declara::app::ButtonNode *button = dynamic_cast<declara::app::ButtonNode *>(node))
+  {
+    ButtonContext *ctx = new ButtonContext(rootHwnd_, state.x, state.y, state.width, button);
+    contexts_.push_back(ctx);
+    buttonMap_[ctx->hwnd()] = ctx;
+
+    LayoutState nextState = state;
+    nextState.y = state.y + kButtonHeight + kVerticalSpacing;
+    return nextState.y;
+  }
+
+  return state.y;
+}
+
+void Win32ScenePlatformController::clearContexts()
+{
+  for (size_t i = 0; i < contexts_.size(); ++i)
+  {
+    if (contexts_[i])
+    {
+      contexts_[i]->destroy();
+      delete contexts_[i];
+    }
+  }
+  contexts_.clear();
+  buttonMap_.clear();
+}
+
+Win32ScenePlatformController::ButtonContext::ButtonContext(HWND parent, int x, int y, int width, declara::app::ButtonNode *node)
+    : node_(node),
+      hwnd_(NULL),
+      textState_(0)
+{
+  DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON;
+  hwnd_ = CreateWindowExA(
+      0,
+      "BUTTON",
+      "",
+      style,
+      x,
+      y,
+      width,
+      kButtonHeight,
+      parent,
+      reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
+      GetModuleHandle(NULL),
+      NULL);
+  bindText();
+}
+
+Win32ScenePlatformController::ButtonContext::~ButtonContext()
+{
+  unbindText();
+}
+
+void Win32ScenePlatformController::ButtonContext::destroy()
+{
+  unbindText();
+  if (hwnd_)
+  {
+    DestroyWindow(hwnd_);
+    hwnd_ = NULL;
+  }
+}
+
+bool Win32ScenePlatformController::ButtonContext::handleCommand(WPARAM, LPARAM)
+{
+  if (node_ && node_->props.onClick)
+  {
+    node_->props.onClick->emit();
+    return true;
+  }
+  return false;
+}
+
+void Win32ScenePlatformController::ButtonContext::bindText()
+{
+  if (!node_)
+    return;
+  textState_ = node_->props.text;
+  if (textState_)
+  {
+    textState_->bind(&ButtonContext::TextChangedThunk, this, true);
+  }
+}
+
+void Win32ScenePlatformController::ButtonContext::unbindText()
+{
+  if (textState_)
+  {
+    textState_->unbind(&ButtonContext::TextChangedThunk, this);
+    textState_ = 0;
+  }
+}
+
+void Win32ScenePlatformController::ButtonContext::applyText()
+{
+  if (!hwnd_ || !textState_)
+  {
+    return;
+  }
+  SetWindowTextA(hwnd_, textState_->get().c_str());
+}
+
+void Win32ScenePlatformController::ButtonContext::TextChangedThunk(void *userData)
+{
+  ButtonContext *self = static_cast<ButtonContext *>(userData);
+  if (self)
+  {
+    self->applyText();
+  }
+}

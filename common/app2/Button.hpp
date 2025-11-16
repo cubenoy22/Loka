@@ -82,7 +82,7 @@ namespace declara
     {
     public:
       typedef ButtonTypeTag TypeTag;
-      const ButtonProps &props;
+      ButtonProps props;
       ButtonNode(const ButtonProps &p) : props(p) {}
     };
 

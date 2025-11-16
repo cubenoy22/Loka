@@ -6,7 +6,9 @@
 #include "core/StateTracker.hpp"
 
 #include "core2/scene/Scene.hpp"
+#include "core2/scene/StaticSceneController.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
+#include "Win32ScenePlatformController.hpp"
 
 namespace
 {
@@ -15,11 +17,16 @@ namespace
 }
 
 Win32Window::Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts)
-    : Window(context, initialScene, opts), hwnd_(NULL), app_(NULL)
+    : Window(context, initialScene, opts), hwnd_(NULL), app_(NULL), sceneController_(0), scenePlatformController_(0)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);
   this->title.deferBind(&Win32Window::TitleChangedThunk, this);
+}
+
+Win32Window::~Win32Window()
+{
+  teardownScene();
 }
 
 // static thunk for State<bool>::OnChangeFn
@@ -79,14 +86,9 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     switch (msg)
     {
     case WM_COMMAND:
-      if (LOWORD(wParam) == 1001 && HIWORD(wParam) == BN_CLICKED)
+      if (self->handleCommand(wParam, lParam))
       {
-        if (self->getTracker())
-        {
-          self->getTracker()->begin();
-          self->title.set("CLICKED!");
-          self->getTracker()->end();
-        }
+        return 0;
       }
       break;
     case WM_PAINT:
@@ -141,17 +143,9 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
-    this->buttonHwnd_ = CreateWindowA(
-        "BUTTON",
-        "Click me!",
-        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-        50, 120, 200, 40,
-        this->hwnd_,
-        (HMENU)1001,
-        GetModuleHandle(NULL),
-        NULL);
     UpdateWindow(hwnd);
     this->onCreate();
+    this->mountScene();
   }
 }
 
@@ -159,6 +153,7 @@ void Win32Window::destroyNativeWindow()
 {
   if (this->hwnd_)
   {
+    teardownScene();
     DestroyWindow(this->hwnd_);
     this->hwnd_ = NULL;
   }
@@ -182,4 +177,43 @@ void Win32Window::onShow()
 void Win32Window::onHide()
 {
   // Win32ではdestroyNativeWindowで破棄するため、ここでSW_HIDEは不要
+}
+
+void Win32Window::mountScene()
+{
+  if (sceneController_ || !this->hwnd_)
+  {
+    return;
+  }
+  declara::core::scene::Scene *currentScene = this->scene();
+  if (!currentScene)
+  {
+    return;
+  }
+  scenePlatformController_ = new Win32ScenePlatformController(this->hwnd_);
+  sceneController_ = new declara::core::scene::StaticSceneController(currentScene, scenePlatformController_);
+  sceneController_->run();
+}
+
+void Win32Window::teardownScene()
+{
+  if (sceneController_)
+  {
+    delete sceneController_;
+    sceneController_ = 0;
+  }
+  if (scenePlatformController_)
+  {
+    delete scenePlatformController_;
+    scenePlatformController_ = 0;
+  }
+}
+
+bool Win32Window::handleCommand(WPARAM wParam, LPARAM lParam)
+{
+  if (!scenePlatformController_)
+  {
+    return false;
+  }
+  return scenePlatformController_->handleCommand(wParam, lParam);
 }
