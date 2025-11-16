@@ -9,6 +9,7 @@
 #include "core2/scene/StaticSceneController.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
+#include "core/strings/Strings.hpp"
 
 namespace
 {
@@ -61,8 +62,13 @@ void Win32Window::TitleChangedThunk(void *userData)
   Win32Window *self = static_cast<Win32Window *>(userData);
   if (self && self->hwnd_)
   {
-    // Window基底のtitle値をウィンドウに反映
-    SetWindowTextA(self->hwnd_, self->title.get().c_str());
+    // Window基底のtitle値(UTF-8)をUTF-16に変換して反映
+    const std::string &t = self->title.get();
+    std::wstring w;
+    if (declara::core::strings::utf8_to_wstring(t, w))
+      SetWindowTextW(self->hwnd_, w.c_str());
+    else
+      SetWindowTextA(self->hwnd_, t.c_str());
   }
 }
 
