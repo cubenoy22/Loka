@@ -2,7 +2,6 @@
 #define DECLARA_CORE2_SCENE_NODECOMPOSITION_HPP
 
 #include <vector>
-#include "core2/scene/node/Conditional.hpp"
 #include "core2/scene/Node.hpp"
 #include "core2/scene/StreamView.hpp"
 
@@ -82,7 +81,6 @@ namespace declara
 
         template <typename T>
         T &group(T &x) { return x; }
-
       };
 
     } // namespace scene

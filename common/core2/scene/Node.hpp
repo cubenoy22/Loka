@@ -9,7 +9,6 @@
 
 #include "../../core/State.hpp"
 #include "StreamView.hpp"
-#include "node/Conditional.hpp"
 
 namespace declara
 {
@@ -179,6 +178,73 @@ namespace declara
         }
         return *this;
       }
+    } // namespace scene
+  } // namespace core
+} // namespace declara
+
+// Conditional.hppの実装をインクルード（前方宣言後）
+#include "node/Conditional.hpp"
+
+// ConditionalNode のインライン実装
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      inline ConditionalProps::ConditionalProps(State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
+          : condition(cond), trueDef(tDef), falseDef(fDef) {}
+
+      inline ConditionalProps::ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
+          : condition(const_cast<State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
+
+      inline ConditionalNode::ConditionalNode(const ConditionalProps &p)
+          : props(p), activeNode(0)
+      {
+        if (props.condition)
+        {
+          props.condition->deferBind(&ConditionalNode::onConditionChanged, this);
+        }
+        updateActiveNode();
+      }
+
+      inline ConditionalNode::~ConditionalNode()
+      {
+        if (props.condition)
+        {
+          props.condition->deferUnbind(&ConditionalNode::onConditionChanged, this);
+        }
+      }
+
+      inline void ConditionalNode::onConditionChanged(void *userData)
+      {
+        ConditionalNode *self = static_cast<ConditionalNode *>(userData);
+        if (self)
+          self->updateActiveNode();
+      }
+
+      inline void ConditionalNode::compose()
+      {
+        updateActiveNode();
+        if (activeNode)
+          activeNode->compose();
+      }
+
+      inline void ConditionalNode::updateActiveNode()
+      {
+        if (props.condition && props.trueDef && props.falseDef)
+        {
+          if (props.condition->get())
+            activeNode = props.trueDef->create();
+          else
+            activeNode = props.falseDef->create();
+        }
+      }
+
+      inline ConditionalDefinition::ConditionalDefinition(const ConditionalProps &p) : props(p) {}
+
+      inline Node *ConditionalDefinition::create() const { return new ConditionalNode(props); }
+
     } // namespace scene
   } // namespace core
 } // namespace declara

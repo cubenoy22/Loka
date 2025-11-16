@@ -2,7 +2,6 @@
 #define DECLARA_CORE2_SCENE_NODE_CONDITIONAL_HPP
 
 #include "core/State.hpp"
-#include "core2/scene/Node.hpp"
 
 namespace declara
 {
@@ -10,68 +9,37 @@ namespace declara
   {
     namespace scene
     {
+      // 前方宣言
+      class Node;
+      struct NodeDefinitionBase;
+
       struct ConditionalProps
       {
         State<bool> *condition;
         NodeDefinitionBase *trueDef;
         NodeDefinitionBase *falseDef;
-        ConditionalProps(State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
-            : condition(cond), trueDef(tDef), falseDef(fDef) {}
-        ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
-            : condition(const_cast<State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
+        ConditionalProps(State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
+        ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
       };
 
       // ConditionalNode: 条件分岐ノード
-      class ConditionalNode : public declara::core::scene::Node
+      class ConditionalNode : public Node
       {
       public:
         ConditionalProps props;
-        declara::core::scene::Node *activeNode;
-        ConditionalNode(const ConditionalProps &p)
-            : props(p), activeNode(0)
-        {
-          if (props.condition)
-          {
-            props.condition->deferBind(&ConditionalNode::onConditionChanged, this);
-          }
-          updateActiveNode();
-        }
-        ~ConditionalNode()
-        {
-          if (props.condition)
-          {
-            props.condition->deferUnbind(&ConditionalNode::onConditionChanged, this);
-          }
-        }
-        static void onConditionChanged(void *userData)
-        {
-          ConditionalNode *self = static_cast<ConditionalNode *>(userData);
-          if (self)
-            self->updateActiveNode();
-        }
-        void compose()
-        {
-          updateActiveNode();
-          if (activeNode)
-            activeNode->compose();
-        }
-        void updateActiveNode()
-        {
-          if (props.condition && props.trueDef && props.falseDef)
-          {
-            if (props.condition->get())
-              activeNode = props.trueDef->create();
-            else
-              activeNode = props.falseDef->create();
-          }
-        }
+        Node *activeNode;
+        ConditionalNode(const ConditionalProps &p);
+        ~ConditionalNode();
+        static void onConditionChanged(void *userData);
+        void compose();
+        void updateActiveNode();
       };
 
-      struct ConditionalDefinition : public declara::core::scene::NodeDefinitionBase
+      struct ConditionalDefinition : public NodeDefinitionBase
       {
         ConditionalProps props;
-        ConditionalDefinition(const ConditionalProps &p) : props(p) {}
-        declara::core::scene::Node *create() const { return new ConditionalNode(props); }
+        ConditionalDefinition(const ConditionalProps &p);
+        Node *create() const;
       };
 
     } // namespace scene
