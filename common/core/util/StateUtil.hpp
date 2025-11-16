@@ -3,10 +3,10 @@
 #include <vector>
 #include <cstdarg>
 
-// StateBaseの前方宣言
+// Forward declaration for StateBase
 class StateBase;
 
-// 可変長引数でStateBase*のvectorを生成（C++98互換）
+// Build a vector<StateBase*> using varargs (C++98-friendly)
 static std::vector<StateBase *> makeStateVector(StateBase *first, ...)
 {
   std::vector<StateBase *> v;
@@ -14,7 +14,7 @@ static std::vector<StateBase *> makeStateVector(StateBase *first, ...)
   va_start(args, first);
   for (StateBase *s = first; s != 0; s = va_arg(args, StateBase *))
   {
-    if (s) // 念のためNULLチェック（終端判定だけでなく、NULLポインタ自体を除外する）
+    if (s) // exclude null pointers as well as terminator
       v.push_back(s);
   }
   va_end(args);

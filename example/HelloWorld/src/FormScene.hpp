@@ -1,0 +1,84 @@
+#ifndef DECLARA_FORM_SCENE_HPP
+#define DECLARA_FORM_SCENE_HPP
+
+#include "core/State.hpp"
+#include <cstdio>
+#include <string>
+#include "core2/scene/Scene.hpp"
+// NodeComposition is included in the implementation file
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      struct NodeComposition;
+    }
+  }
+}
+#include "app2/Button.hpp"
+#include "app2/Box.hpp"
+#include "app2/Empty.hpp"
+#include "core/AppComponent.hpp"
+#include "core/AppConfigurable.hpp"
+#include "core/Window.hpp"
+
+// Forward declaration
+class FormScene;
+
+// Global function definition
+static void FormScene_onButtonClicked(void *userData);
+
+struct FormSceneProps
+{
+  MutableState<int> count;
+  MutableState<std::string> buttonLabel;
+};
+
+class FormScene : public declara::core::scene::Scene
+{
+public:
+  FormSceneProps props;
+  EmitterState onClickState;
+  int clickCount_;
+
+  FormScene()
+      : Scene(), props(), clickCount_(0)
+  {
+    props.buttonLabel.set(std::string("Click me"), true);
+    onClickState.deferBind(&FormScene_onButtonClicked, this);
+  }
+
+  virtual void compose(declara::core::scene::NodeComposition &c);
+
+  friend void FormScene_onButtonClicked(void *userData);
+};
+
+// Implementation
+static void FormScene_onButtonClicked(void *userData)
+{
+  FormScene *self = static_cast<FormScene *>(userData);
+  if (!self)
+    return;
+  ++self->clickCount_;
+  char buf[64];
+  sprintf(buf, "Clicked %d", self->clickCount_);
+  self->props.buttonLabel.set(std::string(buf), true);
+}
+
+class MyAppConfig : public AppConfigurable
+{
+public:
+  MyAppConfig(PlatformContext *ctx)
+      : AppConfigurable(ctx) {}
+  void configure(AppBuilder &builder)
+  {
+    builder.Window(
+        new FormScene(),
+        WindowOptions()
+            .setTitle("DEVELOPERS!")
+            .setVisibility(true));
+  }
+};
+
+#endif // DECLARA_FORM_SCENE_HPP

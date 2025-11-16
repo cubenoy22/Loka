@@ -1,8 +1,19 @@
 #ifndef DECLARA_CORE2_SCENE_SCENE_HPP
 #define DECLARA_CORE2_SCENE_SCENE_HPP
 
-#include "core2/scene/NodeComposition.hpp"
 #include "core/State.hpp"
+
+// 前方宣言のみ。詳細は利用側の実装ファイルでincludeする
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      struct NodeComposition;
+    }
+  }
+}
 
 enum SceneLifecycle
 {

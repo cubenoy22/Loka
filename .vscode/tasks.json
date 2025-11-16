@@ -2,69 +2,73 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Configure (Native-Debug-Console)",
+      "label": "Configure HelloWorld (Native-Debug-Console)",
       "type": "shell",
       "command": "cmake",
       "args": [
         "-S",
-        "win32",
+        "example/HelloWorld",
         "-B",
-        "win32/build/native/Debug",
+        "example/HelloWorld/build/native",
         "-DUSE_CONSOLE_SUBSYSTEM=ON",
         "-DTEST_BUILD=ON"
       ]
     },
     {
-      "label": "Build (Native-Debug-Console)",
+      "label": "Build HelloWorld (Native-Debug-Console)",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
-        "win32/build/native/Debug"
+        "example/HelloWorld/build/native",
+        "--config",
+        "Debug"
       ],
       "dependsOn": [
-        "Configure (Native-Debug-Console)"
+        "Configure HelloWorld (Native-Debug-Console)"
       ],
       "group": "build"
     },
     {
-      "label": "Configure (Native-Debug-GUI)",
+      "label": "Configure HelloWorld (Native-Debug-GUI)",
       "type": "shell",
       "command": "cmake",
       "args": [
         "-S",
-        "win32",
+        "example/HelloWorld",
         "-B",
-        "win32/build/native/Debug",
+        "example/HelloWorld/build/native",
         "-DUSE_CONSOLE_SUBSYSTEM=OFF"
       ]
     },
     {
-      "label": "Build (Native-Debug-GUI)",
+      "label": "Build HelloWorld (Native-Debug-GUI)",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
-        "win32/build/native/Debug"
+        "example/HelloWorld/build/native",
+        "--config",
+        "Debug"
       ],
       "dependsOn": [
-        "Configure (Native-Debug-GUI)"
-      ],
-      "group": "build"
-    },
-    {
-      "label": "Config & Build (Native-Debug-GUI)",
-      "dependsOn": [
-        "Configure (Native-Debug-GUI)",
-        "Build (Native-Debug-GUI)"
+        "Configure HelloWorld (Native-Debug-GUI)"
       ],
       "group": "build"
     },
     {
-      "label": "Config & Build (Native-Debug-Console)",
+      "label": "Config & Build HelloWorld (Native-Debug-GUI)",
       "dependsOn": [
-        "Configure (Native-Debug-Console)",
-        "Build (Native-Debug-Console)"
+        "Configure HelloWorld (Native-Debug-GUI)",
+        "Build HelloWorld (Native-Debug-GUI)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Config & Build HelloWorld (Native-Debug-Console)",
+      "dependsOn": [
+        "Configure HelloWorld (Native-Debug-Console)",
+        "Build HelloWorld (Native-Debug-Console)"
       ],
       "group": "build"
     }

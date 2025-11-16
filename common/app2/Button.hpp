@@ -13,6 +13,9 @@ namespace declara
     {
     };
 
+    // Forward declaration
+    class ButtonNode;
+
     class IButtonProps
     {
     public:
@@ -26,6 +29,7 @@ namespace declara
     struct ButtonProps : public declara::core::scene::NodePropsBase<ButtonProps>, public IButtonProps
     {
       typedef ButtonTypeTag TypeTag;
+      typedef ButtonNode NodeType;
       State<std::string> *text;
       State<bool> *enabled;
       EmitterState *onClick;
@@ -89,7 +93,7 @@ namespace declara
     struct ButtonDefinition : public declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>
     {
       ButtonDefinition() : NodeDefinition() {}
-      ButtonDefinition(ButtonProps &p) : NodeDefinition(p) {}
+      ButtonDefinition(const ButtonProps &p) : NodeDefinition(p) {}
       using declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };
     // DSL向け短縮名

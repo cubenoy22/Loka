@@ -9,7 +9,7 @@ namespace declara
   {
     namespace scene
     {
-      // 前方宣言
+      // Forward declarations
       class Node;
       struct NodeDefinitionBase;
 
@@ -22,7 +22,7 @@ namespace declara
         ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
       };
 
-      // ConditionalNode: 条件分岐ノード
+      // ConditionalNode: node that switches by condition
       class ConditionalNode : public Node
       {
       public:

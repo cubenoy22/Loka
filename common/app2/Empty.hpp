@@ -1,8 +1,8 @@
 #ifndef DECLARA_APP2_EMPTY_HPP
 #define DECLARA_APP2_EMPTY_HPP
 
-// Carbon/Toolbox流の空ノード定義
-// Button/Boxと同じinterface/命名規則に準拠
+// Empty node definition following Carbon/Toolbox style
+// Follows same interface/naming conventions as Button/Box
 
 #include "core2/scene/Node.hpp"
 
@@ -10,19 +10,24 @@ namespace declara
 {
   namespace app
   {
-    // 空ノード用TypeTag
+    // TypeTag for Empty node
     class EmptyTypeTag
     {
     };
 
-    // 空ノード用Props（NodePropsBaseを継承、TypeTag付き）
+    // Forward declaration
+    class EmptyNode;
+
+    // Props for Empty node (inherits NodePropsBase, with TypeTag)
     struct EmptyProps : public core::scene::NodePropsBase<EmptyProps>
     {
       typedef EmptyTypeTag TypeTag;
+      typedef EmptyNode NodeType;
+      EmptyProps() {}
       bool operator<(const core::scene::PropsBase &rhs) const { return false; }
     };
 
-    // 空ノード本体
+    // Empty node body
     class EmptyNode : public core::scene::Node
     {
     public:
@@ -32,14 +37,14 @@ namespace declara
       virtual void compose() {}
     };
 
-    // 空ノードのDefinition
+    // Definition for Empty node
     struct EmptyDefinition : public core::scene::NodeDefinition<EmptyProps, EmptyNode>
     {
       EmptyDefinition() : NodeDefinition() {}
-      EmptyDefinition(EmptyProps &p) : NodeDefinition(p) {}
+      EmptyDefinition(const EmptyProps &p) : NodeDefinition(p) {}
       using core::scene::NodeDefinition<EmptyProps, EmptyNode>::create;
     };
-    // DSL向け短縮名
+    // Short name for DSL
     typedef EmptyDefinition Empty;
   } // namespace app
 } // namespace declara

@@ -8,40 +8,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ソースファイル
 file(GLOB_RECURSE COMMON_SOURCES ../common/*.cpp)
 set(SOURCES
-  src/main.cpp
   src/Win32App.cpp
   src/Win32Window.cpp
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
   src/Tests.cpp
-  ${COMMON_SOURCES}
 )
 
-option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)
-if(USE_CONSOLE_SUBSYSTEM)
-  add_executable(Declara ${SOURCES})
-else()
-  add_executable(Declara WIN32 ${SOURCES})
-endif()
+add_library(DeclaraWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
+target_include_directories(DeclaraWin32Core PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../common
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
-# 出力バイナリ名を明示
-set_target_properties(Declara PROPERTIES OUTPUT_NAME "Declara")
-
-# Windows サブシステム指定（GUIアプリ用）
-option(USE_CONSOLE_SUBSYSTEM "Use console subsystem (main entrypoint)" OFF)
+# Windows 固有の警告抑制など（必要なら追加）
 if(MSVC)
-    if(USE_CONSOLE_SUBSYSTEM)
-        set_target_properties(Declara PROPERTIES LINK_FLAGS "/SUBSYSTEM:CONSOLE")
-    else()
-        set_target_properties(Declara PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
-    endif()
-    target_compile_options(Declara PRIVATE /utf-8)
+    target_compile_options(DeclaraWin32Core PRIVATE /utf-8)
 endif()
-
-# インクルードパスにcommon/を追加
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common
-)
 
 # アーキテクチャ切替例（x86/x64/ARM64）
 # cmake -A Win32|x64|ARM64 で指定可能

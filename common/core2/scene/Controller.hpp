@@ -3,6 +3,7 @@
 
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/Node.hpp"
+#include "core2/scene/NodeComposition.hpp"
 
 namespace declara
 {

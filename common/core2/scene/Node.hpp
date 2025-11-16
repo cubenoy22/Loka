@@ -1,14 +1,14 @@
 #ifndef DECLARA_CORE2_SCENE_NODE_HPP
 #define DECLARA_CORE2_SCENE_NODE_HPP
 
-// C++98向けstatic_assert風マクロ
+// static_assert-like macro for C++98
 #define STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
 
 #include <cstddef>
 #include <vector>
 
 #include "../../core/State.hpp"
-#include "StreamView.hpp"
+// StreamView is only needed by NodeComposition; avoid including here to reduce coupling
 
 namespace declara
 {
@@ -16,14 +16,14 @@ namespace declara
   {
     namespace scene
     {
-      // DirtyType: Nodeのdirty状態を表す（C++98互換）
-      enum DirtyType
+      // NodeDirtyFlags: flags for node dirtiness (C++98-friendly)
+      enum NodeDirtyFlags
       {
-        NONE = 0x00,
-        PROPS = 0x01,
-        CHILD = 0x02,
-        LAYOUT = 0x04,
-        MYSELF = 0xFF // 全dirty
+        NODE_DIRTY_NONE = 0x00,
+        NODE_DIRTY_PROPS = 0x01,
+        NODE_DIRTY_CHILD = 0x02,
+        NODE_DIRTY_LAYOUT = 0x04,
+        NODE_DIRTY_MYSELF = 0xFF // 全dirty
       };
 
       struct NodeContext; // Opaque type
@@ -39,14 +39,14 @@ namespace declara
       {
       public:
         NodeContext *context;
-        MutableState<DirtyType> dirty;
+        MutableState<NodeDirtyFlags> dirty;
         virtual ~Node() {}
         virtual void compose() {}
 
-        Node() : context(0), dirty(NONE) {}
+        Node() : context(0), dirty(NODE_DIRTY_NONE) {}
       };
 
-      // --- 汎用Props基底 ---
+      // --- Generic Props base ---
       struct PropsBase
       {
         virtual ~PropsBase() {}
@@ -55,14 +55,14 @@ namespace declara
         virtual bool operator<(const PropsBase &rhs) const = 0;
       };
 
-      // --- テンプレート共通化: NodePropsBase ---
+      // --- NodePropsBase (templated common base) ---
       template <class PropsT>
       struct NodePropsBase : public PropsBase
       {
         static Node *createNode(const PropsBase &base)
         {
           const PropsT &props = static_cast<const PropsT &>(base);
-          return PropsT::createNode(props);
+          return new typename PropsT::NodeType(props);
         }
         static NodeFactoryFunc staticFactory() { return &NodePropsBase::createNode; }
         NodeFactoryFunc nodeFactory() const { return staticFactory(); }
@@ -82,7 +82,7 @@ namespace declara
         typedef PropsT PropsType;
         typedef NodeT NodeType;
 
-        // PropsT/NodeTにTypeTagが存在する場合のみ静的チェック（SFINAE）
+        // Optional static check when PropsT/NodeT have TypeTag (via SFINAE)
 #ifdef DECLARA_NODEDEF_CHECK_TYPETAG
         STATIC_ASSERT((typename PropsT::TypeTag *)0 == (typename NodeT::TypeTag *)0, props_node_type_mismatch);
 #endif
@@ -103,27 +103,27 @@ namespace declara
         Node *create() const { return new NodeT(props); }
       };
 
-      // --- 子を持てるNodeDefinition用インターフェース ---
+      // --- Interface for nestable NodeDefinition ---
       struct INestableDefinition
       {
         virtual ~INestableDefinition() {}
         virtual void addChild(NodeDefinitionBase *child) = 0;
         virtual const std::vector<NodeDefinitionBase *> &getChildren() const = 0;
 
-        // 既存
+        // Overloads
         INestableDefinition &operator<<(NodeDefinitionBase &child);
         INestableDefinition &operator<<(const NodeDefinitionBase &child);
 
-        // 明示的な単体用operator<<（begin/end不要）
-        // 型安全のため、NodeDefinitionBaseのみ受け入れる形に統一
+        // Explicit single element operator<< (no begin/end)
+        // Type-safe: accept only NodeDefinitionBase
 
-        // vector<NodeDefinitionBase*>専用 明示的オーバーロード（C++98対応）
+        // vector<NodeDefinitionBase*> explicit overload (C++98)
         INestableDefinition &operator<<(const std::vector<NodeDefinitionBase *> &container);
 
-        // 追加: StreamView用
+        // For future extensibility
       };
 
-      // --- 子を持てるNode/Definition用インターフェース ---
+      // --- Interface for nestable Node/Definition ---
       struct INestable
       {
         virtual ~INestable() {}
@@ -131,7 +131,7 @@ namespace declara
         virtual const std::vector<Node *> &getChildren() const = 0;
       };
 
-      // --- 子を保持するNodeのヘルパー実装 ---
+      // --- Helper node which owns children ---
       class NestableNode : public Node, public INestable
       {
       public:
@@ -169,7 +169,7 @@ namespace declara
         return *this;
       }
 
-      // 汎用コンテナ（vector, initializer_list等）用operator<<の実装
+      // operator<< implementation for generic containers (e.g., vector)
       inline INestableDefinition &INestableDefinition::operator<<(const std::vector<NodeDefinitionBase *> &container)
       {
         for (size_t i = 0; i < container.size(); ++i)
@@ -182,71 +182,6 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-// Conditional.hppの実装をインクルード（前方宣言後）
-#include "node/Conditional.hpp"
-
-// ConditionalNode のインライン実装
-namespace declara
-{
-  namespace core
-  {
-    namespace scene
-    {
-      inline ConditionalProps::ConditionalProps(State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
-          : condition(cond), trueDef(tDef), falseDef(fDef) {}
-
-      inline ConditionalProps::ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
-          : condition(const_cast<State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
-
-      inline ConditionalNode::ConditionalNode(const ConditionalProps &p)
-          : props(p), activeNode(0)
-      {
-        if (props.condition)
-        {
-          props.condition->deferBind(&ConditionalNode::onConditionChanged, this);
-        }
-        updateActiveNode();
-      }
-
-      inline ConditionalNode::~ConditionalNode()
-      {
-        if (props.condition)
-        {
-          props.condition->deferUnbind(&ConditionalNode::onConditionChanged, this);
-        }
-      }
-
-      inline void ConditionalNode::onConditionChanged(void *userData)
-      {
-        ConditionalNode *self = static_cast<ConditionalNode *>(userData);
-        if (self)
-          self->updateActiveNode();
-      }
-
-      inline void ConditionalNode::compose()
-      {
-        updateActiveNode();
-        if (activeNode)
-          activeNode->compose();
-      }
-
-      inline void ConditionalNode::updateActiveNode()
-      {
-        if (props.condition && props.trueDef && props.falseDef)
-        {
-          if (props.condition->get())
-            activeNode = props.trueDef->create();
-          else
-            activeNode = props.falseDef->create();
-        }
-      }
-
-      inline ConditionalDefinition::ConditionalDefinition(const ConditionalProps &p) : props(p) {}
-
-      inline Node *ConditionalDefinition::create() const { return new ConditionalNode(props); }
-
-    } // namespace scene
-  } // namespace core
-} // namespace declara
+// Conditional node inline implementations removed from this header to reduce coupling
 
 #endif // DECLARA_CORE2_SCENE_NODE_HPP

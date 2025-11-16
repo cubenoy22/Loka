@@ -2,28 +2,28 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Declara (WinMain)",
+      "name": "Debug HelloWorld (WinMain)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/win32/build/native/Debug/Declara.exe",
+      "program": "${workspaceFolder}/example/HelloWorld/build/native/Debug/DeclaraHelloWin32.exe",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/win32/build/native/Debug",
+      "cwd": "${workspaceFolder}/example/HelloWorld/build/native/Debug",
       "environment": [],
       "console": "externalTerminal",
-      "preLaunchTask": "Build (Native-Debug-GUI)"
+      "preLaunchTask": "Build HelloWorld (Native-Debug-GUI)"
     },
     {
-      "name": "Debug Declara (main)",
+      "name": "Debug HelloWorld (main)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/win32/build/native/Debug/Declara.exe",
+      "program": "${workspaceFolder}/example/HelloWorld/build/native/Debug/DeclaraHelloWin32.exe",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/win32/build/native/Debug",
+      "cwd": "${workspaceFolder}/example/HelloWorld/build/native/Debug",
       "environment": [],
       "console": "integratedTerminal",
-      "preLaunchTask": "Build (Native-Debug-Console)"
+      "preLaunchTask": "Build HelloWorld (Native-Debug-Console)"
     }
   ]
 }

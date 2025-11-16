@@ -12,6 +12,10 @@ namespace declara
     struct BoxTypeTag
     {
     };
+
+    // Forward declaration
+    class BoxNode;
+
     struct BoxProps : public core::scene::NodePropsBase<BoxProps>
     {
       // レイアウト用プロパティ（例: direction, spacing など）
@@ -19,6 +23,7 @@ namespace declara
       // int direction;
       // int spacing;
       typedef BoxTypeTag TypeTag;
+      typedef BoxNode NodeType;
       BoxProps() {}
       int hash() const { return 0; }
       bool operator<(const core::scene::PropsBase &rhs) const { return false; }

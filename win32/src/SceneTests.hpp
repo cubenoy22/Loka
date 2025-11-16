@@ -13,7 +13,6 @@
 #include "core/components/logic/format.hpp"
 #include "core/util/SceneNodeUtil.hpp"
 #include "../src/IncrementNode.hpp"
-#include "FormScene.hpp"
 #include "core/SceneNodeFactory.hpp"
 
 static SceneNodeFactory g_testFactory;

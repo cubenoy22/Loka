@@ -4,6 +4,7 @@
 #include <vector>
 #include "core2/scene/Node.hpp"
 #include "core2/scene/StreamView.hpp"
+#include "core2/scene/node/Conditional.hpp"
 
 namespace declara
 {
@@ -14,7 +15,7 @@ namespace declara
       struct NodeComposition
       {
       private:
-        // アリーナ: compose中に作られた全てのDefinitionのコピーを所有する
+        // Arena: owns copies of all definitions created during compose
         std::vector<NodeDefinitionBase *> arena_;
         NodeDefinitionBase *root_;
 
@@ -29,7 +30,7 @@ namespace declara
           }
         }
 
-        // アリーナにDefinitionのコピーを作成し、そのポインタを返す
+        // Make a copy of the definition in the arena and return pointer
         template <typename T>
         T *copyToArena(const T &def)
         {
@@ -38,7 +39,7 @@ namespace declara
           return newDef;
         }
 
-        // ルートノードを宣言する
+        // Declare root node
         template <typename T>
         T &declare(const T &def)
         {
@@ -47,12 +48,12 @@ namespace declara
           return *newRoot;
         }
 
-        // Nodeツリーを生成する
+        // Create node tree
         Node *createNodeTree() const;
 
         NodeDefinitionBase *root() const { return root_; }
 
-        // --- 既存のDSL用メソッド ---
+        // --- DSL helpers ---
         template <typename T>
         declara::core::scene::ConditionalDefinition conditional(const State<bool> &condition, T &x)
         {

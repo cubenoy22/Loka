@@ -5,7 +5,7 @@
 #include <functional>
 #include "StateTracker.hpp"
 
-// State系のbind/unbind等で使う優先度enum
+// Priority enum used for State's bind/unbind
 enum StatePriority
 {
   STATE_PRIORITY_DEFER = -1,
@@ -15,29 +15,29 @@ enum StatePriority
 
 class StateTracker;
 
-// StateBase: 依存管理・バインドAPIを統合
+// StateBase: Unified dependency management and bind API
 class StateBase
 {
 public:
   StateBase() : currentTracker(0) {}
   virtual ~StateBase() {}
-  // 依存State列挙（循環依存検出の余地あり）
+  // Enumerate dependent States (room for circular dependency detection)
   virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
-  // バインド/購読API
+  // Bind/subscribe API
   typedef void (*OnChangeFn)(void *userData);
   virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) {}
   virtual void unbind(OnChangeFn cb, void *userData) {}
   virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const {}
   virtual void deferUnbind(OnChangeFn cb, void *userData) const {}
-  // 再計算（DerivedStateでオーバーライド）
+  // Recompute (overridden by DerivedState)
   virtual bool recompute() { return false; }
 
 public:
   StateTracker *currentTracker;
 };
 
-// State<T>: StateBaseを継承し、値の保持・購読APIを実装
-// bindTrackerは削除
+// State<T>: Inherits StateBase, implements value holding and subscribe API
+// bindTracker removed
 
 template <typename T>
 class State : public StateBase
@@ -120,10 +120,10 @@ protected:
     }
   }
   virtual void setValue(const T &v) { set(v); }
-  // setValue(const ValueHolderBase&)は不要になったので削除
-  // バインドAPI: 値が変わったらcbを呼ぶ
+  // setValue(const ValueHolderBase&) removed as no longer needed
+  // Bind API: Call cb when value changes
   virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
-  // 通知
+  // Notify
   void notifyStateChanged()
   {
     for (size_t i = 0; i < handlers.size();)
@@ -177,11 +177,11 @@ private:
   }
 };
 
-// State<void>特殊化: 値は持たず、イベント伝播専用
-// - UIイベント（ボタン押下・通知・トリガー等）や「値を持たない状態変化」を表現するための汎用State
-// - EmitterStateなどのイベント系Stateの基底としても利用
-// - テスト・アプリ本体・拡張ライブラリ等、あらゆる箇所で「型安全なイベント伝播」を実現
-// State<T>と同じバインドAPI・ハンドラ管理を持つ
+// State<void> specialization: No value held, event propagation only
+// - Generic State for expressing UI events (button clicks, notifications, triggers, etc.) or "state changes without value"
+// - Also used as base for event-based States like EmitterState
+// - Realizes "type-safe event propagation" everywhere: tests, app body, extension libraries, etc.
+// Has the same bind API and handler management as State<T>
 //
 template <>
 class State<void> : public StateBase
@@ -242,7 +242,7 @@ public:
   }
 
 protected:
-  // イベント通知API - EmitterStateなどの派生クラスが使用
+  // Event notification API - Used by derived classes like EmitterState
   void notifyStateChanged()
   {
     for (size_t i = 0; i < handlers.size();)
@@ -253,7 +253,7 @@ protected:
       else
         ++i;
     }
-    // deferBindで登録されたハンドラも呼ぶ
+    // Also call handlers registered with deferBind
     for (size_t i = 0; i < deferredHandlers.size(); ++i)
     {
       deferredHandlers[i].cb(deferredHandlers[i].userData);
@@ -275,14 +275,14 @@ protected:
   std::vector<Handler> deferredHandlers;
 };
 
-// --- EmitterState: 値を持たない純粋なイベントState ---
+// --- EmitterState: Pure event State without value ---
 //
-// 設計意図:
-// - EmitterStateはOSやプラットフォームのイベント（例:ボタンクリック）をemit()で受けるだけの純粋なイベントState。
-// - SceneNodeButton等が持つclickEventは、各プラットフォームのSceneNodeContextがOSコールバックでemit()を呼ぶ。
-// - Declara!側ではこのEmitterStateにbindDeferした各方面にイベントが伝播される。
-// - EmitterStateは値やフラグを一切持たず、emit()でnotifyStateChanged()を呼ぶだけ。
-// - 利用側はemitted()やconsume()等を意識せず、bindDeferで副作用を記述するだけでよい。
+// Design intent:
+// - EmitterState is a pure event State that only receives OS/platform events (e.g., button clicks) via emit().
+// - clickEvent held by SceneNodeButton etc. is called by OS callbacks from each platform's SceneNodeContext.
+// - On the Declara! side, events are propagated to all parties that bindDefer to this EmitterState.
+// - EmitterState holds no value or flags, just calls notifyStateChanged() via emit().
+// - Users don't need to worry about emitted() or consume(), just describe side effects with bindDefer.
 class EmitterState : public State<void>
 {
 public:
@@ -293,7 +293,7 @@ public:
   }
 };
 
-// --- 新規: MutableState ---
+// --- New: MutableState ---
 template <typename T>
 class MutableState : public State<T>
 {
@@ -320,12 +320,12 @@ public:
   }
 };
 
-// --- DerivedState: State<T>のC++98対応実装 ---
+// --- DerivedState: C++98-compatible implementation of State<T> ---
 template <typename T>
 class DerivedState : public State<T>
 {
 public:
-  // 評価式用の純粋仮想基底クラス（C++98対応: operator()はconst参照可）
+  // Pure virtual base class for evaluation expression (C++98-compatible: operator() can be const reference)
   struct EvalFn
   {
     virtual ~EvalFn() {}
@@ -369,8 +369,8 @@ private:
   EvalFn *evalFn;
 };
 
-// State<T> の静的インスタンス生成ユーティリティ
-// 例: auto* s = StaticState<int>(42);
+// Utility for creating static instances of State<T>
+// Example: auto* s = StaticState<int>(42);
 template <typename T>
 static State<T> *StaticState(const T &value)
 {
