@@ -12,13 +12,14 @@ set(SOURCES
   src/Win32Window.cpp
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
-  src/Tests.cpp
+  ../tests/Tests.cpp
 )
 
 add_library(DeclaraWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
 target_include_directories(DeclaraWin32Core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../common
   ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/../tests
 )
 
 # Windows 固有の警告抑制など（必要なら追加）

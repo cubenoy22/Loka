@@ -22,6 +22,7 @@ endif()
 target_include_directories(DeclaraHelloWin32 PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../../common
   ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests
 )
 
 target_link_libraries(DeclaraHelloWin32 PRIVATE DeclaraWin32Core)

@@ -12,7 +12,7 @@
 #include "app/Button.hpp"
 #include "core/components/logic/format.hpp"
 #include "core/util/SceneNodeUtil.hpp"
-#include "../src/IncrementNode.hpp"
+#include "../win32/src/IncrementNode.hpp"
 #include "core/SceneNodeFactory.hpp"
 
 static SceneNodeFactory g_testFactory;
