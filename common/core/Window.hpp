@@ -43,7 +43,7 @@ class Window : public AppComponent
 {
 public:
   Window(PlatformContext *context, declara::core::scene::Scene *initialScene = 0, const WindowOptions &options = WindowOptions())
-      : context_(context), title("")
+      : context_(context), title(""), initialScene_(initialScene)
   {
     options_ = options;
     tracker_ = new PushStateTracker(makeStateVector(static_cast<StateBase *>(&title), static_cast<StateBase *>(&visibility), 0));
@@ -55,7 +55,7 @@ public:
   virtual ~Window() {}
 
   PlatformContext *context() const { return context_; }
-  declara::core::scene::Scene *scene() const { return 0; }
+  declara::core::scene::Scene *scene() const { return initialScene_; }
   SceneManager2 *sceneManager() { return &sceneManager_; }
 
   MutableState<bool> visibility;
@@ -74,6 +74,7 @@ protected:
   StateTracker *tracker_;
   SceneManager2 sceneManager_;
   WindowOptions options_;
+  declara::core::scene::Scene *initialScene_;
 };
 
 #endif // DECLARA_WINDOW_HPP
