@@ -5,6 +5,11 @@
 #include "core/util/AutoTransactionGuard.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/SceneManager2.hpp"
+#include "core2/scene/NodeComposition.hpp"
+#include "core2/scene/StaticSceneController.hpp"
+#include "core2/scene/PlatformController.hpp"
+#include "app2/Box.hpp"
+#include "app2/Button.hpp"
 
 // --- main.cppから移動したテスト関数をここに実装 ---
 
@@ -309,4 +314,76 @@ void testSceneManagerTransaction()
   SceneManager2 mgr;
   // ...必要に応じてテスト内容を追加...
   printf("--- [testSceneManagerTransaction/SceneManager2] end ---\n");
+}
+
+void testNodeCompositionTree()
+{
+  using namespace declara::core::scene;
+  using namespace declara::app;
+
+  NodeComposition composition;
+  BoxProps boxProps;
+  BoxDefinition box(boxProps);
+  BoxDefinition &root = composition.declare(box);
+
+  ButtonProps buttonProps;
+  buttonProps.setText("Hello");
+  ButtonDefinition button(buttonProps);
+
+  root << *composition.copyToArena(button);
+
+  Node *tree = composition.createNodeTree();
+  assert(tree != NULL);
+
+  BoxNode *boxNode = dynamic_cast<BoxNode *>(tree);
+  assert(boxNode != NULL);
+  const std::vector<Node *> &children = boxNode->getChildren();
+  assert(children.size() == 1);
+  ButtonNode *buttonNode = dynamic_cast<ButtonNode *>(children[0]);
+  assert(buttonNode != NULL);
+
+  delete tree;
+}
+
+void testStaticSceneControllerRun()
+{
+  using namespace declara::core::scene;
+  using namespace declara::app;
+
+  class DummyScene : public Scene
+  {
+  public:
+    virtual void compose(NodeComposition &composition)
+    {
+      ButtonProps buttonProps;
+      buttonProps.setText("Controller");
+      ButtonDefinition button(buttonProps);
+      composition.declare(button);
+    }
+  };
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
+    virtual void materialize(Node *rootNode)
+    {
+      lastMaterialized_ = rootNode;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() { destroyed_ = true; }
+
+    Node *lastMaterialized_;
+    bool destroyed_;
+  };
+
+  DummyScene scene;
+  DummyPlatformController platform;
+  {
+    StaticSceneController controller(&scene, &platform);
+    controller.run();
+    assert(platform.lastMaterialized_ != 0);
+    assert(!platform.destroyed_);
+  }
+  assert(platform.destroyed_);
 }

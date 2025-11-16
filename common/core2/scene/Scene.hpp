@@ -23,7 +23,7 @@ namespace declara
       public:
         Scene() : lifecycle_(ON_CREATE) {}
         virtual ~Scene() {}
-        virtual void compose(NodeComposition c) {}
+        virtual void compose(NodeComposition &c) {}
 
         // 外部公開: State*として取得
         State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }

@@ -36,6 +36,8 @@ int main()
   testTextInputOnChange();
   testDerivedStruct();
   testSceneManagerTransaction();
+  testNodeCompositionTree();
+  testStaticSceneControllerRun();
   // SceneTests::runAll();
   return 0;
 }

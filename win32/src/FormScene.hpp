@@ -83,13 +83,18 @@ public:
   FormScene(/*PlatformContext *platform*/)
       : Scene(), props() /*, tracker(...)*/ {}
 
-  virtual void compose(declara::core::scene::NodeComposition c)
+  virtual void compose(declara::core::scene::NodeComposition &c)
   {
+    declara::app::BoxProps boxProps;
+    declara::app::BoxDefinition box(boxProps);
+    declara::app::BoxDefinition &root = c.declare(box);
+
     declara::app::ButtonProps buttonProps;
     buttonProps.setText(std::string("Placeholder"));
     buttonProps.setOnClick(&onClickState);
     declara::app::ButtonDefinition button(buttonProps);
-    c.declare(button);
+
+    root << *c.copyToArena(button);
   }
 };
 

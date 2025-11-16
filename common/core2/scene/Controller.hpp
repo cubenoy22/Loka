@@ -36,11 +36,14 @@ namespace declara
         // compose戦略ごとにオーバーライド
         virtual void compose()
         {
-          if (scene_)
+          if (!scene_)
           {
-            declara::core::scene::NodeComposition c;
-            scene_->compose(c);
+            return;
           }
+          clear();
+          declara::core::scene::NodeComposition composition;
+          scene_->compose(composition);
+          rootNode_ = composition.createNodeTree();
         }
 
         // ノードツリーのルート取得

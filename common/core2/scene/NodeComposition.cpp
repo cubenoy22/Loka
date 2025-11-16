@@ -29,15 +29,15 @@ namespace declara
 
         if (nestableDef && nestableNode)
         {
-          // 3. 子Definitionを再帰的にNodeに変換し、親Nodeに追加
-          //    (INestableDefinitionが子のリストを返すメソッドを持つ必要がある)
-          // const std::vector<NodeDefinitionBase*>& children = nestableDef->getChildren();
-          // for (size_t i = 0; i < children.size(); ++i) {
-          //   Node* childNode = createNodeRecursive(children[i]);
-          //   if (childNode) {
-          //     nestableNode->addChild(childNode);
-          //   }
-          // }
+          const std::vector<NodeDefinitionBase *> &children = nestableDef->getChildren();
+          for (size_t i = 0; i < children.size(); ++i)
+          {
+            Node *childNode = createNodeRecursive(children[i]);
+            if (childNode)
+            {
+              nestableNode->addChild(childNode);
+            }
+          }
         }
 
         return node;

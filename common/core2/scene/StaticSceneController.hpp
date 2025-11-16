@@ -18,11 +18,10 @@ namespace declara
       {
       private:
         IPlatformController *platformController_;
-        Node *rootNode_;
 
       public:
         explicit StaticSceneController(Scene *scene, IPlatformController *platformController)
-            : Controller(scene), platformController_(platformController), rootNode_(0)
+            : Controller(scene), platformController_(platformController)
         {
         }
 
@@ -31,25 +30,24 @@ namespace declara
           if (platformController_)
           {
             platformController_->destroy();
+            platformController_ = 0;
           }
-          delete rootNode_; // Nodeツリーの解放
         }
 
         // UIの構築と実行を開始する
         void run()
         {
-          if (scene_ && platformController_)
+          if (!scene_ || !platformController_)
           {
-            // 1. composeを呼び出してNodeDefinitionツリーを構築
-            NodeComposition composition;
-            scene_->compose(composition);
+            return;
+          }
 
-            // 2. NodeDefinitionツリーから永続的なNodeツリーを生成
-            //    (NodeCompositionにcreateNodeTree()のようなメソッドがあると仮定)
-            // rootNode_ = composition.createNodeTree();
+          compose();
 
-            // 3. PlatformControllerにNodeツリーを渡し、UIの初回生成を依頼
-            // platformController_->materialize(rootNode_);
+          Node *rootNode = root();
+          if (rootNode)
+          {
+            platformController_->materialize(rootNode);
           }
         }
       };

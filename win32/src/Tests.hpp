@@ -9,5 +9,7 @@ void testBatchTransaction();
 void testRAIITransaction();
 void testDerivedStruct();
 void testSceneManagerTransaction();
+void testNodeCompositionTree();
+void testStaticSceneControllerRun();
 
 #endif // DECLARA_TESTS_HPP

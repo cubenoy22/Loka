@@ -4,6 +4,9 @@
 // C++98向けstatic_assert風マクロ
 #define STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
 
+#include <cstddef>
+#include <vector>
+
 #include "../../core/State.hpp"
 #include "StreamView.hpp"
 #include "node/Conditional.hpp"
@@ -126,6 +129,34 @@ namespace declara
       {
         virtual ~INestable() {}
         virtual void addChild(Node *child) = 0;
+        virtual const std::vector<Node *> &getChildren() const = 0;
+      };
+
+      // --- 子を保持するNodeのヘルパー実装 ---
+      class NestableNode : public Node, public INestable
+      {
+      public:
+        NestableNode() : Node() {}
+        virtual ~NestableNode()
+        {
+          for (size_t i = 0; i < children_.size(); ++i)
+          {
+            delete children_[i];
+          }
+        }
+
+        virtual void addChild(Node *child)
+        {
+          if (child)
+          {
+            children_.push_back(child);
+          }
+        }
+
+        virtual const std::vector<Node *> &getChildren() const { return children_; }
+
+      protected:
+        std::vector<Node *> children_;
       };
 
       inline INestableDefinition &INestableDefinition::operator<<(NodeDefinitionBase &child)

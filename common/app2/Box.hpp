@@ -24,12 +24,12 @@ namespace declara
       bool operator<(const core::scene::PropsBase &rhs) const { return false; }
     };
 
-    class BoxNode : public core::scene::Node
+    class BoxNode : public core::scene::NestableNode
     {
     public:
       typedef BoxTypeTag TypeTag;
       BoxProps props;
-      BoxNode(const BoxProps &p) : props(p) {}
+      BoxNode(const BoxProps &p) : core::scene::NestableNode(), props(p) {}
       // レイアウトロジックは今後追加
     };
 
