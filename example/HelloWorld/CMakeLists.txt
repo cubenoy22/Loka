@@ -26,3 +26,8 @@ target_include_directories(DeclaraHelloWin32 PRIVATE
 )
 
 target_link_libraries(DeclaraHelloWin32 PRIVATE DeclaraWin32Core)
+
+# Use UTF-8 source/execution charset on MSVC to avoid codepage warnings
+if(MSVC)
+  target_compile_options(DeclaraHelloWin32 PRIVATE /utf-8)
+endif()
