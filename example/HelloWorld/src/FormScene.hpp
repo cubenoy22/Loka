@@ -9,9 +9,6 @@
 #include "app2/Button.hpp"
 #include "app2/Box.hpp"
 #include "app2/Empty.hpp"
-#include "core/AppComponent.hpp"
-#include "core/AppConfigurable.hpp"
-#include "core/Window.hpp"
 
 // Forward declaration
 class FormScene;
@@ -66,20 +63,5 @@ static void FormScene_onButtonClicked(void *userData)
   sprintf(buf, "Clicked %d", self->clickCount_);
   self->props.buttonLabel.set(std::string(buf), true);
 }
-
-class MyAppConfig : public AppConfigurable
-{
-public:
-  MyAppConfig(PlatformContext *ctx)
-      : AppConfigurable(ctx) {}
-  void configure(AppBuilder &builder)
-  {
-    builder.Window(
-        new FormScene(),
-        WindowOptions()
-            .setTitle("DEVELOPERS!")
-            .setVisibility(true));
-  }
-};
 
 #endif // DECLARA_FORM_SCENE_HPP
