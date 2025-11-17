@@ -10,6 +10,6 @@ void testRAIITransaction();
 void testDerivedStruct();
 void testSceneManagerTransaction();
 void testNodeCompositionTree();
-void testStaticSceneControllerRun();
+void testStaticNodeManagerRun();
 
 #endif // DECLARA_TESTS_HPP

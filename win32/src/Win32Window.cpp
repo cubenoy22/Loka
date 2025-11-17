@@ -6,7 +6,7 @@
 #include "core/StateTracker.hpp"
 
 #include "core2/scene/Scene.hpp"
-#include "core2/scene/StaticSceneController.hpp"
+#include "core2/scene/NodeManager.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "core/strings/Strings.hpp"
@@ -18,7 +18,7 @@ namespace
 }
 
 Win32Window::Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts)
-    : Window(context, initialScene, opts), hwnd_(NULL), app_(NULL), sceneController_(0), scenePlatformController_(0)
+    : Window(context, initialScene, opts), hwnd_(NULL), app_(NULL), nodeManager_(0), scenePlatformController_(0)
 {
   // visibilityステートの変更を監視
   this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);
@@ -187,7 +187,7 @@ void Win32Window::onHide()
 
 void Win32Window::mountScene()
 {
-  if (sceneController_ || !this->hwnd_)
+  if (nodeManager_ || !this->hwnd_)
   {
     return;
   }
@@ -197,16 +197,16 @@ void Win32Window::mountScene()
     return;
   }
   scenePlatformController_ = new Win32ScenePlatformController(this->hwnd_);
-  sceneController_ = new declara::core::scene::StaticSceneController(currentScene, scenePlatformController_);
-  sceneController_->run();
+  nodeManager_ = new declara::core::scene::StaticNodeManager();
+  nodeManager_->mount(currentScene, scenePlatformController_);
 }
 
 void Win32Window::teardownScene()
 {
-  if (sceneController_)
+  if (nodeManager_)
   {
-    delete sceneController_;
-    sceneController_ = 0;
+    delete nodeManager_;
+    nodeManager_ = 0;
   }
   if (scenePlatformController_)
   {

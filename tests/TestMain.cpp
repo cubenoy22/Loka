@@ -11,7 +11,7 @@ int main()
   testDerivedStruct();
   testSceneManagerTransaction();
   testNodeCompositionTree();
-  testStaticSceneControllerRun();
+  testStaticNodeManagerRun();
   // SceneTests::runAll();
   return 0;
 }

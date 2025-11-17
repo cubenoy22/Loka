@@ -6,7 +6,7 @@
 #include "core/util/StateUtil.hpp"
 #include "core/SceneManager2.hpp"
 #include "core2/scene/NodeComposition.hpp"
-#include "core2/scene/StaticSceneController.hpp"
+#include "core2/scene/NodeManager.hpp"
 #include "core2/scene/PlatformController.hpp"
 #include "app2/Box.hpp"
 #include "app2/Button.hpp"
@@ -345,7 +345,7 @@ void testNodeCompositionTree()
   delete tree;
 }
 
-void testStaticSceneControllerRun()
+void testStaticNodeManagerRun()
 {
   using namespace declara::core::scene;
   using namespace declara::app;
@@ -380,8 +380,8 @@ void testStaticSceneControllerRun()
   DummyScene scene;
   DummyPlatformController platform;
   {
-    StaticSceneController controller(&scene, &platform);
-    controller.run();
+    StaticNodeManager manager;
+    manager.mount(&scene, &platform);
     assert(platform.lastMaterialized_ != 0);
     assert(!platform.destroyed_);
   }

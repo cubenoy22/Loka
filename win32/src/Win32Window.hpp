@@ -15,7 +15,7 @@ namespace declara
     namespace scene
     {
       class Scene;
-      class StaticSceneController;
+      class StaticNodeManager;
     }
   }
 }
@@ -53,7 +53,7 @@ private:
   void teardownScene();
   bool handleCommand(WPARAM wParam, LPARAM lParam);
 
-  declara::core::scene::StaticSceneController *sceneController_;
+  declara::core::scene::StaticNodeManager *nodeManager_;
   Win32ScenePlatformController *scenePlatformController_;
 };
 

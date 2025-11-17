@@ -8,8 +8,8 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 ## 1. 現状サマリ
 
 - `Scene`（`common/core2/scene/Scene.hpp`）は `NodeComposition` を受け取る `compose(NodeComposition)` 形式に更新済み。`MutableState<SceneLifecycle>` を内包。
-- `Controller` / `StaticSceneController` / `IPlatformController` の骨格は追加済み（`Controller.hpp`, `StaticSceneController.hpp`, `PlatformController.hpp`）。  
-  - ただし `StaticSceneController::run()` 内の `composition.createNodeTree()` と `platformController_->materialize()` は未着手。
+- `StaticNodeManager` / `IPlatformController` の骨格は追加済み（`NodeManager.hpp`, `PlatformController.hpp`）。  
+  - Solid-mode では `StaticNodeManager::mount()` が `NodeComposition::createNodeTree()` でツリーを生成し、`materialize()` を呼び出す。
 - `Node`, `NodePropsBase`, `NodeDefinition`, `NodeComposition`（Arena）は `core2` にまとまり、`common/app2/Button.hpp` などの UI ノードはここを前提にしている。
 - `SceneManager2` は Window 側で Scene スロットを差し替えるのみで、まだ core2 Controller とは繋いでいない。
 
@@ -45,17 +45,16 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 ---
 
-## 3. Controller / Platform 構成メモ
+## 3. ノード管理 / Platform 構成メモ
 
-- `Controller` … Scene のライフサイクル State に bind し、`ON_ATTACH` で `compose()` を実行する基底。  
-- `StaticSceneController` … Solid-mode 用。`NodeComposition` を組み、`NodeContext`/Platform に初回 materialize させる役。  
+- `StaticNodeManager` … Solid-mode 用の実装。`Scene::compose` を呼んで `NodeComposition` を構築し、`NodeContext`/Platform に初回 materialize させる役。今後 `INodeManager` を実装した Dynamic 型に差し替え予定。  
 - `IPlatformController` … Node ツリーを受け取って OS へ反映する抽象。Win32/macOS ごとに実装予定。  
 - Window から見た流れ：
   1. `SceneManager2` が Scene を差し替える。
-  2. `SceneLifecycle` State を `ON_ATTACH` にすると Controller が compose。
-  3. Controller は `IPlatformController::materialize(rootNode_)` を呼ぶ。
+  2. ノード管理層（StaticNodeManagerなど）が `Scene::compose()` を実行し、`NodeComposition` からノードツリーを生成。
+  3. 生成したルートを `IPlatformController::materialize(rootNode_)` へ渡す。
 
-当面は Window 1 枚 = Controller 1 つ = Scene 1 つで十分。複数 Scene を切り替えたい場合は `SceneManager2` が Controller を差し替える案が有力。
+当面は Window 1 枚 = ノード管理 1 つ = Scene 1 つで十分。複数 Scene を切り替えたい場合は `SceneManager2` が NodeManager を差し替える案が有力。
 
 ---
 
