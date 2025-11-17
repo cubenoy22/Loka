@@ -12,7 +12,6 @@ set(SOURCES
   src/Win32Window.cpp
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
-  ../tests/Tests.cpp
 )
 
 add_library(DeclaraWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})

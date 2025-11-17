@@ -14,7 +14,6 @@
 #include "core/util/AutoTransactionGuard.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/components/logic/format.hpp"
-#include "Tests.hpp"
 #include "FormScene.hpp"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -26,18 +25,3 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   return 0;
 }
 
-int main()
-{
-  testDependencyPropagationCases();
-  testTrackerPropagation();
-  testDeferredSideEffect();
-  testBatchTransaction();
-  testRAIITransaction();
-  testTextInputOnChange();
-  testDerivedStruct();
-  testSceneManagerTransaction();
-  testNodeCompositionTree();
-  testStaticSceneControllerRun();
-  // SceneTests::runAll();
-  return 0;
-}

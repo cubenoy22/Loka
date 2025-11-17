@@ -3,6 +3,8 @@ project(DeclaraHelloWin32 LANGUAGES CXX)
 
 set(HELLOWORLD_SOURCES
   src/main.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
 )
 
 if(NOT TARGET DeclaraWin32Core)
