@@ -41,16 +41,15 @@ public:
 
   virtual void compose(declara::core::scene::NodeComposition &c)
   {
-    declara::app::BoxProps boxProps;
-    declara::app::BoxDefinition box(boxProps);
-    declara::app::BoxDefinition &root = c.declare(box);
+    using namespace declara::app;
 
-    declara::app::ButtonProps buttonProps;
-    buttonProps.setText(static_cast<State<std::string> *>(&props.buttonLabel));
-    buttonProps.setOnClick(&onClickState);
-    declara::app::ButtonDefinition button(buttonProps);
-
-    root << *c.copyToArena(button);
+    Box root;
+    root << *c.store(
+        Button(
+            ButtonProps()
+                .setText(&props.buttonLabel)
+                .setOnClick(&onClickState)));
+    c.declare(root);
   }
 
   friend void FormScene_onButtonClicked(void *userData);

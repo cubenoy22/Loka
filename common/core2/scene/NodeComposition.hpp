@@ -30,9 +30,9 @@ namespace declara
           }
         }
 
-        // Make a copy of the definition in the arena and return pointer
+        // Store a copy of the definition in the arena and return pointer
         template <typename T>
-        T *copyToArena(const T &def)
+        T *store(const T &def)
         {
           T *newDef = new T(def); // コピーコンストラクタでヒープにコピー
           arena_.push_back(newDef);
@@ -43,7 +43,7 @@ namespace declara
         template <typename T>
         T &declare(const T &def)
         {
-          T *newRoot = this->copyToArena(def);
+          T *newRoot = this->store(def);
           this->root_ = newRoot;
           return *newRoot;
         }

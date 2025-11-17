@@ -330,7 +330,7 @@ void testNodeCompositionTree()
   buttonProps.setText("Hello");
   ButtonDefinition button(buttonProps);
 
-  root << *composition.copyToArena(button);
+  root << *composition.store(button);
 
   Node *tree = composition.createNodeTree();
   assert(tree != NULL);
