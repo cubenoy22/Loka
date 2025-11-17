@@ -17,10 +17,7 @@ namespace declara
       class Node;
     }
   }
-}
 
-namespace declara
-{
   namespace app
   {
     class BoxNode;
