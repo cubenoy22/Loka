@@ -35,9 +35,7 @@ public:
     c.declare(
         Box() << c.group(
             F() << IncrementLogic(
-                      IncrementLogicProps()
-                          .setLabel(&props.buttonLabel)
-                          .setTrigger(&onClickState))
+                      IncrementLogicProps(&props.buttonLabel, &onClickState))
                 << Button(
                        ButtonProps()
                            .setText(&props.buttonLabel)

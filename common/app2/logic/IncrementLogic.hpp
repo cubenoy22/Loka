@@ -22,18 +22,8 @@ namespace declara
       typedef IncrementLogicNode NodeType;
       MutableState<std::string> *labelState;
       EmitterState *trigger;
-      IncrementLogicProps() : labelState(0), trigger(0) {}
-
-      IncrementLogicProps &setLabel(MutableState<std::string> *state)
-      {
-        labelState = state;
-        return *this;
-      }
-      IncrementLogicProps &setTrigger(EmitterState *e)
-      {
-        trigger = e;
-        return *this;
-      }
+      IncrementLogicProps(MutableState<std::string> *state, EmitterState *e)
+          : labelState(state), trigger(e) {}
 
       bool operator<(const core::scene::PropsBase &rhs) const
       {
@@ -89,7 +79,6 @@ namespace declara
 
     struct IncrementLogicDefinition : public core::scene::NodeDefinition<IncrementLogicProps, IncrementLogicNode>
     {
-      IncrementLogicDefinition() : NodeDefinition() {}
       IncrementLogicDefinition(const IncrementLogicProps &p) : NodeDefinition(p) {}
     };
 
