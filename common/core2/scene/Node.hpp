@@ -71,9 +71,49 @@ namespace declara
       // --- NodeDefinitionの型消去基底 ---
       struct NodeDefinitionBase
       {
-        virtual ~NodeDefinitionBase() {}
+      public:
+        typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
+
+        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0) {}
+        NodeDefinitionBase(const NodeDefinitionBase &) : cleanupHook_(0), cleanupContext_(0) {}
+        NodeDefinitionBase &operator=(const NodeDefinitionBase &)
+        {
+          this->cleanupHook_ = 0;
+          this->cleanupContext_ = 0;
+          return *this;
+        }
+        virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
         virtual Node *create() const = 0;
         virtual NodeDefinitionBase *clone() const = 0;
+
+        void setCleanupHook(CleanupHook hook, void *context)
+        {
+          this->cleanupHook_ = hook;
+          this->cleanupContext_ = context;
+        }
+        void clearCleanupHook()
+        {
+          this->cleanupHook_ = 0;
+          this->cleanupContext_ = 0;
+        }
+
+      protected:
+        void invokeCleanupHook()
+        {
+          if (!this->cleanupHook_)
+          {
+            return;
+          }
+          CleanupHook hook = this->cleanupHook_;
+          void *context = this->cleanupContext_;
+          this->cleanupHook_ = 0;
+          this->cleanupContext_ = 0;
+          hook(this, context);
+        }
+
+      private:
+        CleanupHook cleanupHook_;
+        void *cleanupContext_;
       };
 
       // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---
@@ -116,6 +156,7 @@ namespace declara
         // Overloads
         INestableDefinition &operator<<(NodeDefinitionBase &child);
         INestableDefinition &operator<<(const NodeDefinitionBase &child);
+        INestableDefinition &operator<<(NodeDefinitionBase *ownedChild);
 
         // Explicit single element operator<< (no begin/end)
         // Type-safe: accept only NodeDefinitionBase
@@ -262,6 +303,12 @@ namespace declara
         {
           addChild(container[i]);
         }
+        return *this;
+      }
+
+      inline INestableDefinition &INestableDefinition::operator<<(NodeDefinitionBase *ownedChild)
+      {
+        addOwnedChild(ownedChild);
         return *this;
       }
     } // namespace scene

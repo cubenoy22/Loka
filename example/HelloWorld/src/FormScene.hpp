@@ -31,16 +31,16 @@ public:
   {
     using namespace declara::app;
 
-    Box root;
-    root << IncrementLogic(
-        IncrementLogicProps()
-            .setLabel(&props.buttonLabel)
-            .setTrigger(&onClickState));
-    root << Button(
-        ButtonProps()
-            .setText(&props.buttonLabel)
-            .setOnClick(&onClickState));
-    c.declare(root);
+    c.declare(
+        Box() << c.group(
+            Box() << IncrementLogic(
+                         IncrementLogicProps()
+                             .setLabel(&props.buttonLabel)
+                             .setTrigger(&onClickState))
+                  << Button(
+                         ButtonProps()
+                             .setText(&props.buttonLabel)
+                             .setOnClick(&onClickState))));
   }
 };
 

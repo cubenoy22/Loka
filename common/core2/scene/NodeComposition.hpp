@@ -2,6 +2,7 @@
 #define DECLARA_CORE2_SCENE_NODECOMPOSITION_HPP
 
 #include <vector>
+#include <cassert>
 #include "core2/scene/Node.hpp"
 #include "core2/scene/StreamView.hpp"
 #include "core2/scene/node/Conditional.hpp"
@@ -18,6 +19,33 @@ namespace declara
         // Arena: owns copies of all definitions created during compose
         std::vector<NodeDefinitionBase *> arena_;
         NodeDefinitionBase *root_;
+        NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
+        {
+          NodeDefinitionBase *cloned = def.clone();
+          cloned->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
+          arena_.push_back(cloned);
+          return cloned;
+        }
+        static void cleanupStoredNode(NodeDefinitionBase *node, void *context)
+        {
+          if (!node || !context)
+          {
+            return;
+          }
+          NodeComposition *self = static_cast<NodeComposition *>(context);
+          self->releaseStoredNode(node);
+        }
+        void releaseStoredNode(NodeDefinitionBase *node)
+        {
+          for (size_t i = 0; i < arena_.size(); ++i)
+          {
+            if (arena_[i] == node)
+            {
+              arena_[i] = 0;
+              break;
+            }
+          }
+        }
 
       public:
         NodeComposition() : root_(0) {}
@@ -26,7 +54,13 @@ namespace declara
         {
           for (size_t i = 0; i < arena_.size(); ++i)
           {
-            delete arena_[i];
+            NodeDefinitionBase *node = arena_[i];
+            if (!node)
+            {
+              continue;
+            }
+            node->clearCleanupHook();
+            delete node;
           }
         }
 
@@ -34,18 +68,29 @@ namespace declara
         template <typename T>
         T *store(const T &def)
         {
-          T *newDef = new T(def);
-          arena_.push_back(newDef);
-          return newDef;
+          return static_cast<T *>(storeBase(def));
         }
+        NodeDefinitionBase *store(const NodeDefinitionBase &def) { return storeBase(def); }
 
         // Declare root node
         template <typename T>
         T &declare(const T &def)
         {
-          T *newRoot = store(def);
+          T *newRoot = this->store(def);
           this->root_ = newRoot;
           return *newRoot;
+        }
+        NodeDefinitionBase &declare(const NodeDefinitionBase &def)
+        {
+          NodeDefinitionBase *newRoot = this->store(def);
+          this->root_ = newRoot;
+          return *newRoot;
+        }
+        NodeDefinitionBase &declare(const INestableDefinition &def)
+        {
+          const NodeDefinitionBase *base = dynamic_cast<const NodeDefinitionBase *>(&def);
+          assert(base && "Nestable definitions must derive from NodeDefinitionBase");
+          return this->declare(*base);
         }
 
         // Create node tree
@@ -81,7 +126,16 @@ namespace declara
         }
 
         template <typename T>
-        T &group(T &x) { return x; }
+        T *group(const T &x)
+        {
+          return this->store(x);
+        }
+        NodeDefinitionBase *group(const INestableDefinition &x)
+        {
+          const NodeDefinitionBase *base = dynamic_cast<const NodeDefinitionBase *>(&x);
+          assert(base && "Nestable definitions must derive from NodeDefinitionBase");
+          return this->store(*base);
+        }
       };
 
     } // namespace scene
