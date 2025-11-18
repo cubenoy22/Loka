@@ -9,7 +9,7 @@
 #include "app2/Box.hpp"
 #include "app2/Empty.hpp"
 #include "app2/Fragment.hpp"
-#include "app2/logic/IncrementLogic.hpp"
+#include "IncrementLogic.hpp"
 
 struct FormSceneProps
 {
