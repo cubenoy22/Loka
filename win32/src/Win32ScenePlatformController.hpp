@@ -36,6 +36,7 @@ public:
   virtual void destroy();
 
   bool handleCommand(WPARAM wParam, LPARAM lParam);
+  void relayout(int clientWidth, int clientHeight);
 
 private:
   struct LayoutState
@@ -43,6 +44,7 @@ private:
     int x;
     int y;
     int width;
+    int height;
   };
 
   class NodeContext
@@ -74,9 +76,14 @@ private:
   };
 
   int layoutNode(declara::core::scene::Node *node, const LayoutState &state);
+  void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
+  int measureClientWidth(int requestedWidth) const;
 
   HWND rootHwnd_;
+  declara::core::scene::Node *rootNode_;
+  int clientWidth_;
+  int clientHeight_;
   std::vector<NodeContext *> contexts_;
   std::map<HWND, ButtonContext *> buttonMap_;
 };

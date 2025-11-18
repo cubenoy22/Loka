@@ -13,7 +13,7 @@ namespace
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
-    : rootHwnd_(rootHwnd)
+    : rootHwnd_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
 }
 
@@ -24,17 +24,19 @@ Win32ScenePlatformController::~Win32ScenePlatformController()
 
 void Win32ScenePlatformController::materialize(declara::core::scene::Node *rootNode)
 {
-  clearContexts();
-  if (!rootHwnd_ || !rootNode)
+  rootNode_ = rootNode;
+  if (!rootHwnd_ || !rootNode_)
   {
     return;
   }
 
-  LayoutState state;
-  state.x = 20;
-  state.y = 20;
-  state.width = 260;
-  layoutNode(rootNode, state);
+  RECT rc;
+  if (GetClientRect(rootHwnd_, &rc))
+  {
+    clientWidth_ = rc.right - rc.left;
+    clientHeight_ = rc.bottom - rc.top;
+  }
+  performLayout(clientWidth_, clientHeight_);
 }
 
 void Win32ScenePlatformController::synchronize()
@@ -45,6 +47,9 @@ void Win32ScenePlatformController::synchronize()
 void Win32ScenePlatformController::destroy()
 {
   clearContexts();
+  rootNode_ = 0;
+  clientWidth_ = 0;
+  clientHeight_ = 0;
 }
 
 bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
@@ -61,6 +66,45 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
     return false;
   }
   return it->second->handleCommand(wParam, lParam);
+}
+
+void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
+{
+  if (!rootNode_)
+  {
+    return;
+  }
+  if (clientWidth <= 0 || clientHeight <= 0)
+  {
+    RECT rc;
+    if (rootHwnd_ && GetClientRect(rootHwnd_, &rc))
+    {
+      clientWidth = rc.right - rc.left;
+      clientHeight = rc.bottom - rc.top;
+    }
+  }
+  clientWidth_ = clientWidth;
+  clientHeight_ = clientHeight;
+  performLayout(clientWidth_, clientHeight_);
+}
+
+void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight)
+{
+  clearContexts();
+  if (!rootNode_ || !rootHwnd_)
+  {
+    return;
+  }
+  LayoutState state;
+  state.x = 20;
+  state.y = 20;
+  state.width = measureClientWidth(clientWidth) - 40;
+  if (state.width < 0)
+  {
+    state.width = 0;
+  }
+  state.height = clientHeight > 0 ? clientHeight - 40 : 0;
+  layoutNode(rootNode_, state);
 }
 
 int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, const LayoutState &state)
@@ -149,6 +193,20 @@ void Win32ScenePlatformController::clearContexts()
   }
   contexts_.clear();
   buttonMap_.clear();
+}
+
+int Win32ScenePlatformController::measureClientWidth(int requestedWidth) const
+{
+  if (requestedWidth > 0)
+  {
+    return requestedWidth;
+  }
+  RECT rc;
+  if (rootHwnd_ && GetClientRect(rootHwnd_, &rc))
+  {
+    return rc.right - rc.left;
+  }
+  return 260;
 }
 
 Win32ScenePlatformController::ButtonContext::ButtonContext(HWND parent, int x, int y, int width, declara::app::ButtonNode *node)

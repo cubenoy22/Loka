@@ -97,6 +97,14 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         return 0;
       }
       break;
+    case WM_SIZE:
+      if (self->scenePlatformController_)
+      {
+        int width = LOWORD(lParam);
+        int height = HIWORD(lParam);
+        self->scenePlatformController_->relayout(width, height);
+      }
+      return 0;
     case WM_PAINT:
     {
       PAINTSTRUCT ps;
