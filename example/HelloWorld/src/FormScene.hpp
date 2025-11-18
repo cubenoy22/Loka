@@ -8,6 +8,7 @@
 #include "app2/Button.hpp"
 #include "app2/Box.hpp"
 #include "app2/Empty.hpp"
+#include "app2/Fragment.hpp"
 #include "app2/logic/IncrementLogic.hpp"
 
 struct FormSceneProps
@@ -33,14 +34,14 @@ public:
 
     c.declare(
         Box() << c.group(
-            Box() << IncrementLogic(
-                         IncrementLogicProps()
-                             .setLabel(&props.buttonLabel)
-                             .setTrigger(&onClickState))
-                  << Button(
-                         ButtonProps()
-                             .setText(&props.buttonLabel)
-                             .setOnClick(&onClickState))));
+            F() << IncrementLogic(
+                      IncrementLogicProps()
+                          .setLabel(&props.buttonLabel)
+                          .setTrigger(&onClickState))
+                << Button(
+                       ButtonProps()
+                           .setText(&props.buttonLabel)
+                           .setOnClick(&onClickState))));
   }
 };
 

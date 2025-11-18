@@ -2,6 +2,7 @@
 #include <windows.h>
 #include "app2/Box.hpp"
 #include "app2/Button.hpp"
+#include "core2/scene/Node.hpp"
 
 namespace
 {
@@ -67,10 +68,10 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return state.y;
   }
 
-  if (declara::app::BoxNode *box = dynamic_cast<declara::app::BoxNode *>(node))
+  if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
   {
     LayoutState childState = state;
-    const std::vector<declara::core::scene::Node *> &children = box->getChildren();
+    const std::vector<declara::core::scene::Node *> &children = nestable->getChildren();
     for (size_t i = 0; i < children.size(); ++i)
     {
       childState.y = layoutNode(children[i], childState);
