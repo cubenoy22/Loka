@@ -1,13 +1,18 @@
 #include "Win32ScenePlatformController.hpp"
 #include <windows.h>
+#include <vector>
 #include "app2/Box.hpp"
 #include "app2/Button.hpp"
+#include "app2/EditText.hpp"
 #include "app2/RowColumn.hpp"
+#include "app2/Text.hpp"
 #include "core2/scene/Node.hpp"
 
 namespace
 {
   const int kButtonHeight = 32;
+  const int kEditTextHeight = 24;
+  const int kTextHeight = 20;
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
 }
@@ -54,18 +59,27 @@ void Win32ScenePlatformController::destroy()
 
 bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
 {
-  if (HIWORD(wParam) != BN_CLICKED)
-  {
-    return false;
-  }
-
   HWND target = reinterpret_cast<HWND>(lParam);
-  std::map<HWND, ButtonContext *>::iterator it = buttonMap_.find(target);
-  if (it == buttonMap_.end())
+  WORD code = HIWORD(wParam);
+  if (code == BN_CLICKED)
   {
-    return false;
+    std::map<HWND, ButtonContext *>::iterator it = buttonMap_.find(target);
+    if (it == buttonMap_.end())
+    {
+      return false;
+    }
+    return it->second->handleCommand(wParam, lParam);
   }
-  return it->second->handleCommand(wParam, lParam);
+  if (code == EN_CHANGE)
+  {
+    std::map<HWND, EditTextContext *>::iterator itEdit = editMap_.find(target);
+    if (itEdit == editMap_.end())
+    {
+      return false;
+    }
+    return itEdit->second->handleCommand(wParam, lParam);
+  }
+  return false;
 }
 
 void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
@@ -178,6 +192,27 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return nextState.y;
   }
 
+  if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
+  {
+    EditTextContext *ctx = new EditTextContext(rootHwnd_, state.x, state.y, state.width, edit);
+    contexts_.push_back(ctx);
+    editMap_[ctx->hwnd()] = ctx;
+
+    LayoutState nextState = state;
+    nextState.y = state.y + kEditTextHeight + kVerticalSpacing;
+    return nextState.y;
+  }
+
+  if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
+  {
+    TextContext *ctx = new TextContext(rootHwnd_, state.x, state.y, state.width, text);
+    contexts_.push_back(ctx);
+
+    LayoutState nextState = state;
+    nextState.y = state.y + kTextHeight + kVerticalSpacing;
+    return nextState.y;
+  }
+
   return state.y;
 }
 
@@ -193,6 +228,7 @@ void Win32ScenePlatformController::clearContexts()
   }
   contexts_.clear();
   buttonMap_.clear();
+  editMap_.clear();
 }
 
 int Win32ScenePlatformController::measureClientWidth(int requestedWidth) const
@@ -288,6 +324,223 @@ void Win32ScenePlatformController::ButtonContext::applyText()
 void Win32ScenePlatformController::ButtonContext::TextChangedThunk(void *userData)
 {
   ButtonContext *self = static_cast<ButtonContext *>(userData);
+  if (self)
+  {
+    self->applyText();
+  }
+}
+
+Win32ScenePlatformController::TextContext::TextContext(HWND parent, int x, int y, int width, declara::app::TextNode *node)
+    : node_(node), hwnd_(NULL), textState_(0)
+{
+  DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
+  hwnd_ = CreateWindowExA(
+      0,
+      "STATIC",
+      "",
+      style,
+      x,
+      y,
+      width,
+      kTextHeight,
+      parent,
+      NULL,
+      GetModuleHandle(NULL),
+      NULL);
+  bindText();
+}
+
+Win32ScenePlatformController::TextContext::~TextContext()
+{
+  unbindText();
+}
+
+void Win32ScenePlatformController::TextContext::destroy()
+{
+  unbindText();
+  if (hwnd_)
+  {
+    DestroyWindow(hwnd_);
+    hwnd_ = NULL;
+  }
+}
+
+void Win32ScenePlatformController::TextContext::bindText()
+{
+  if (!node_)
+  {
+    return;
+  }
+  textState_ = node_->props.text;
+  if (textState_)
+  {
+    textState_->bind(&TextContext::TextChangedThunk, this, true);
+  }
+}
+
+void Win32ScenePlatformController::TextContext::unbindText()
+{
+  if (textState_)
+  {
+    textState_->unbind(&TextContext::TextChangedThunk, this);
+    textState_ = 0;
+  }
+}
+
+void Win32ScenePlatformController::TextContext::applyText()
+{
+  if (!hwnd_ || !textState_)
+  {
+    return;
+  }
+  SetWindowTextA(hwnd_, textState_->get().c_str());
+}
+
+void Win32ScenePlatformController::TextContext::TextChangedThunk(void *userData)
+{
+  TextContext *self = static_cast<TextContext *>(userData);
+  if (self)
+  {
+    self->applyText();
+  }
+}
+
+Win32ScenePlatformController::EditTextContext::EditTextContext(HWND parent, int x, int y, int width, declara::app::EditTextNode *node)
+    : node_(node), hwnd_(NULL), textState_(0), applyingFromState_(false), updatingFromControl_(false)
+{
+  DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;
+  hwnd_ = CreateWindowExA(
+      WS_EX_CLIENTEDGE,
+      "EDIT",
+      "",
+      style,
+      x,
+      y,
+      width,
+      kEditTextHeight,
+      parent,
+      NULL,
+      GetModuleHandle(NULL),
+      NULL);
+  bindText();
+}
+
+Win32ScenePlatformController::EditTextContext::~EditTextContext()
+{
+  unbindText();
+}
+
+void Win32ScenePlatformController::EditTextContext::destroy()
+{
+  unbindText();
+  if (hwnd_)
+  {
+    DestroyWindow(hwnd_);
+    hwnd_ = NULL;
+  }
+}
+
+bool Win32ScenePlatformController::EditTextContext::handleCommand(WPARAM wParam, LPARAM)
+{
+  WORD code = HIWORD(wParam);
+  if (code == EN_CHANGE)
+  {
+    if (!applyingFromState_)
+    {
+      syncStateFromControl();
+    }
+    return true;
+  }
+  return false;
+}
+
+void Win32ScenePlatformController::EditTextContext::bindText()
+{
+  if (!node_)
+  {
+    return;
+  }
+  textState_ = node_->props.text;
+  if (textState_)
+  {
+    textState_->bind(&EditTextContext::TextChangedThunk, this, true);
+  }
+}
+
+void Win32ScenePlatformController::EditTextContext::unbindText()
+{
+  if (textState_)
+  {
+    textState_->unbind(&EditTextContext::TextChangedThunk, this);
+    textState_ = 0;
+  }
+}
+
+void Win32ScenePlatformController::EditTextContext::applyText()
+{
+  if (!hwnd_ || !textState_)
+  {
+    return;
+  }
+  if (updatingFromControl_)
+  {
+    return;
+  }
+  int currentLen = GetWindowTextLengthA(hwnd_);
+  std::vector<char> buffer(currentLen + 1);
+  if (currentLen >= 0)
+  {
+    GetWindowTextA(hwnd_, &buffer[0], currentLen + 1);
+  }
+  else
+  {
+    buffer.assign(1, '\0');
+  }
+  std::string currentText(&buffer[0]);
+  const std::string &desired = textState_->get();
+  if (currentText == desired)
+  {
+    return;
+  }
+  DWORD selStart = 0;
+  DWORD selEnd = 0;
+  SendMessageA(hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&selStart), reinterpret_cast<LPARAM>(&selEnd));
+  applyingFromState_ = true;
+  SetWindowTextA(hwnd_, desired.c_str());
+  SendMessageA(hwnd_, EM_SETSEL, selStart, selEnd);
+  applyingFromState_ = false;
+}
+
+void Win32ScenePlatformController::EditTextContext::syncStateFromControl()
+{
+  if (!textState_ || !hwnd_)
+  {
+    return;
+  }
+  MutableState<std::string> *mutableState = dynamic_cast<MutableState<std::string> *>(textState_);
+  if (!mutableState)
+  {
+    return;
+  }
+  int len = GetWindowTextLengthA(hwnd_);
+  if (len < 0)
+  {
+    len = 0;
+  }
+  std::vector<char> buffer(len + 1);
+  GetWindowTextA(hwnd_, &buffer[0], len + 1);
+  std::string newValue(&buffer[0]);
+  if (mutableState->get() != newValue)
+  {
+    updatingFromControl_ = true;
+    mutableState->set(newValue);
+    updatingFromControl_ = false;
+  }
+}
+
+void Win32ScenePlatformController::EditTextContext::TextChangedThunk(void *userData)
+{
+  EditTextContext *self = static_cast<EditTextContext *>(userData);
   if (self)
   {
     self->applyText();

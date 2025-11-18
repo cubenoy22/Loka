@@ -151,7 +151,7 @@ void Win32Window::createNativeWindow()
       kWndClassName,
       this->title.get().c_str(),
       WS_OVERLAPPEDWINDOW,
-      100, 100, 320, 200,
+      100, 100, 320, 320,
       NULL, NULL, GetModuleHandle(NULL),
       this);
   if (hwnd)

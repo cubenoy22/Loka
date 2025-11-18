@@ -22,6 +22,8 @@ namespace declara
   {
     class BoxNode;
     class ButtonNode;
+    class TextNode;
+    class EditTextNode;
   }
 }
 
@@ -75,6 +77,49 @@ private:
     State<std::string> *textState_;
   };
 
+  class TextContext : public NodeContext
+  {
+  public:
+    TextContext(HWND parent, int x, int y, int width, declara::app::TextNode *node);
+    virtual ~TextContext();
+
+    virtual void destroy();
+
+  private:
+    void bindText();
+    void unbindText();
+    void applyText();
+    static void TextChangedThunk(void *userData);
+
+    declara::app::TextNode *node_;
+    HWND hwnd_;
+    State<std::string> *textState_;
+  };
+
+  class EditTextContext : public NodeContext
+  {
+  public:
+    EditTextContext(HWND parent, int x, int y, int width, declara::app::EditTextNode *node);
+    virtual ~EditTextContext();
+
+    virtual void destroy();
+    HWND hwnd() const { return hwnd_; }
+    bool handleCommand(WPARAM wParam, LPARAM lParam);
+
+  private:
+    void bindText();
+    void unbindText();
+    void applyText();
+    void syncStateFromControl();
+    static void TextChangedThunk(void *userData);
+
+    declara::app::EditTextNode *node_;
+    HWND hwnd_;
+    State<std::string> *textState_;
+    bool applyingFromState_;
+    bool updatingFromControl_;
+  };
+
   int layoutNode(declara::core::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
@@ -86,6 +131,7 @@ private:
   int clientHeight_;
   std::vector<NodeContext *> contexts_;
   std::map<HWND, ButtonContext *> buttonMap_;
+  std::map<HWND, EditTextContext *> editMap_;
 };
 
 #endif // DECLARA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP
