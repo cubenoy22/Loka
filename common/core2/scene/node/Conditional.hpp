@@ -40,6 +40,7 @@ namespace declara
         ConditionalProps props;
         ConditionalDefinition(const ConditionalProps &p);
         Node *create() const;
+        virtual NodeDefinitionBase *clone() const { return new ConditionalDefinition(*this); }
       };
 
     } // namespace scene

@@ -83,6 +83,13 @@ common/
 - **DerivedState<T>**：複数の State/DerivedState に依存し、EvalFn で値を自動合成・再計算。
 - **Tracker**：依存グラフ・伝播・副作用管理の司令塔。Scene ごとに独立して持つ。
 
+## NodeComposition / NodeOwner (Arena)
+
+- Scene の `compose(NodeComposition&)` は Solid.js 型を基準に **1 ライフサイクル 1 回** 実行され、`NodeComposition` が `declare()` されたツリーを **NodeOwner (Arena)** として保持する。
+- `NodeDefinition` の `clone()` は props と子ノードを再帰的に複製し、`NodeComposition` が所有権を独占する。呼び出し側は一時構築で OK。
+- `NodeComposition::createNodeTree()` で初めて実体 `Node` を new し、`NodeManager`/`PlatformController` がライフサイクルを管理する。React/Compose 型へ拡張する場合も `NodeComposition` を “compose 結果” として差分比較に利用できる。
+
+
 ---
 
 ## 開発・ビルド環境

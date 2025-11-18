@@ -32,16 +32,14 @@ public:
     using namespace declara::app;
 
     Box root;
-    root << *c.store(
-        IncrementLogic(
-            IncrementLogicProps()
-                .setLabel(&props.buttonLabel)
-                .setTrigger(&onClickState)));
-    root << *c.store(
-        Button(
-            ButtonProps()
-                .setText(&props.buttonLabel)
-                .setOnClick(&onClickState)));
+    root << IncrementLogic(
+        IncrementLogicProps()
+            .setLabel(&props.buttonLabel)
+            .setTrigger(&onClickState));
+    root << Button(
+        ButtonProps()
+            .setText(&props.buttonLabel)
+            .setOnClick(&onClickState));
     c.declare(root);
   }
 };

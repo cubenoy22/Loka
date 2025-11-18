@@ -38,18 +38,25 @@ namespace declara
       // レイアウトロジックは今後追加
     };
 
-    struct BoxDefinition : public core::scene::NodeDefinition<BoxProps, BoxNode>, public core::scene::INestableDefinition
+    struct BoxDefinition : public core::scene::NodeDefinition<BoxProps, BoxNode>, public core::scene::NestableDefinitionBase
     {
-      std::vector<core::scene::NodeDefinitionBase *> children_;
-      BoxDefinition() : NodeDefinition() {}
-      BoxDefinition(const BoxProps &p) : NodeDefinition(p) {}
-      virtual void addChild(core::scene::NodeDefinitionBase *child)
+      typedef core::scene::NodeDefinition<BoxProps, BoxNode> BaseType;
+
+      BoxDefinition() : BaseType(), NestableDefinitionBase() {}
+      BoxDefinition(const BoxProps &p) : BaseType(p), NestableDefinitionBase() {}
+      BoxDefinition(const BoxDefinition &other) : BaseType(other), NestableDefinitionBase(other) {}
+      BoxDefinition &operator=(const BoxDefinition &other)
       {
-        children_.push_back(child);
+        if (this != &other)
+        {
+          BaseType::operator=(other);
+          core::scene::NestableDefinitionBase::operator=(other);
+        }
+        return *this;
       }
-      virtual const std::vector<core::scene::NodeDefinitionBase *> &getChildren() const
+      virtual core::scene::NodeDefinitionBase *clone() const
       {
-        return children_;
+        return new BoxDefinition(*this);
       }
     };
     // DSL向け短縮名

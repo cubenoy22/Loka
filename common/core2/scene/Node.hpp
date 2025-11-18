@@ -73,6 +73,7 @@ namespace declara
       {
         virtual ~NodeDefinitionBase() {}
         virtual Node *create() const = 0;
+        virtual NodeDefinitionBase *clone() const = 0;
       };
 
       // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---
@@ -101,6 +102,7 @@ namespace declara
           return *this;
         }
         Node *create() const { return new NodeT(props); }
+        virtual NodeDefinitionBase *clone() const { return new NodeDefinition(*this); }
       };
 
       // --- Interface for nestable NodeDefinition ---
@@ -108,6 +110,7 @@ namespace declara
       {
         virtual ~INestableDefinition() {}
         virtual void addChild(NodeDefinitionBase *child) = 0;
+        virtual void addOwnedChild(NodeDefinitionBase *child) { addChild(child); }
         virtual const std::vector<NodeDefinitionBase *> &getChildren() const = 0;
 
         // Overloads
@@ -121,6 +124,89 @@ namespace declara
         INestableDefinition &operator<<(const std::vector<NodeDefinitionBase *> &container);
 
         // For future extensibility
+      };
+
+      // --- Helper base class for nestable definitions owning children ---
+      class NestableDefinitionBase : public INestableDefinition
+      {
+      public:
+        NestableDefinitionBase() : children_() {}
+        NestableDefinitionBase(const NestableDefinitionBase &other) : children_()
+        {
+          this->copyChildrenFrom(other);
+        }
+        NestableDefinitionBase &operator=(const NestableDefinitionBase &other)
+        {
+          if (this != &other)
+          {
+            this->copyChildrenFrom(other);
+          }
+          return *this;
+        }
+        virtual ~NestableDefinitionBase()
+        {
+          this->clearChildren();
+        }
+
+        virtual void addChild(NodeDefinitionBase *child)
+        {
+          if (!child)
+          {
+            return;
+          }
+          children_.push_back(child->clone());
+        }
+
+        virtual void addOwnedChild(NodeDefinitionBase *child)
+        {
+          if (!child)
+          {
+            return;
+          }
+          children_.push_back(child);
+        }
+
+        virtual const std::vector<NodeDefinitionBase *> &getChildren() const
+        {
+          return children_;
+        }
+
+      protected:
+        void clearChildren()
+        {
+          for (size_t i = 0; i < children_.size(); ++i)
+          {
+            delete children_[i];
+          }
+          children_.clear();
+        }
+
+        void copyChildrenFrom(const NestableDefinitionBase &other)
+        {
+          std::vector<NodeDefinitionBase *> newChildren;
+          const std::vector<NodeDefinitionBase *> &otherChildren = other.children_;
+          try
+          {
+            for (size_t i = 0; i < otherChildren.size(); ++i)
+            {
+              NodeDefinitionBase *child = otherChildren[i] ? otherChildren[i]->clone() : 0;
+              newChildren.push_back(child);
+            }
+          }
+          catch (...)
+          {
+            for (size_t i = 0; i < newChildren.size(); ++i)
+            {
+              delete newChildren[i];
+            }
+            throw;
+          }
+          clearChildren();
+          children_ = newChildren;
+        }
+
+      private:
+        std::vector<NodeDefinitionBase *> children_;
       };
 
       // --- Interface for nestable Node/Definition ---

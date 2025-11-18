@@ -67,12 +67,13 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 ---
 
-## 5. NodeComposition 所有権
+## 5. NodeComposition と NodeOwner（Arena）設計
 
-- `NodeComposition` は 1 compose あたり 1 つ生成し、Arena 内に `NodeDefinition` と Props を丸ごとコピーする。  
-- `declare()` で登録したルートは `root()` から取得。`createNodeTree()` で実行時 Node ツリーを new する。  
-- Controller/Window 側は「現在の NodeComposition（または root Node）へのポインタ」を持つだけにし、破棄時は `delete rootNode` + `delete composition` を呼べば良い。  
-- 旧 `SceneNodeGroup` は利用しない。全て `core2` の Arena ベースに寄せる。
+- `NodeComposition` は Scene の `compose()` 実行ごとに 1 回生成され、**NodeOwner（Arena）** として `NodeDefinition` ツリーを丸ごとコピーして保持する。  
+- `declare()`/`store()` に渡された `NodeDefinition` の所有権は `NodeComposition` に移る。呼び出し側はスタック上の一時オブジェクトを渡すだけで良い。  
+- `NodeDefinition` のコピー（clone）は子ノードも再帰的に複製し、`NodeComposition` 側の Arena ベクタで生涯管理する。二重 delete を避けるため、`NodeDefinition` 同士で所有権を共有しない。  
+- 実体 `Node` の生成は `NodeComposition::createNodeTree()` で行い、生成された `Node` の寿命は NodeManager/PlatformController が管理する。Props/Node のライフサイクルを Composition から切り離し、React 型への拡張も見据える。  
+- 将来的に React/Compose 型へ拡張する場合も、`NodeComposition` を “compose の戻り値” とみなし、`NodeManager` が複数の Composition を比較して差分適用する構造にする。
 
 ---
 

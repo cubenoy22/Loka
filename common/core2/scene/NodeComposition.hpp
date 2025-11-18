@@ -34,7 +34,7 @@ namespace declara
         template <typename T>
         T *store(const T &def)
         {
-          T *newDef = new T(def); // コピーコンストラクタでヒープにコピー
+          T *newDef = new T(def);
           arena_.push_back(newDef);
           return newDef;
         }
@@ -43,7 +43,7 @@ namespace declara
         template <typename T>
         T &declare(const T &def)
         {
-          T *newRoot = this->store(def);
+          T *newRoot = store(def);
           this->root_ = newRoot;
           return *newRoot;
         }
