@@ -2,12 +2,14 @@
 #include <windows.h>
 #include "app2/Box.hpp"
 #include "app2/Button.hpp"
+#include "app2/RowColumn.hpp"
 #include "core2/scene/Node.hpp"
 
 namespace
 {
   const int kButtonHeight = 32;
   const int kVerticalSpacing = 12;
+  const int kHorizontalSpacing = 12;
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
@@ -66,6 +68,48 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
   if (!node)
   {
     return state.y;
+  }
+
+  if (declara::app::RowNode *row = dynamic_cast<declara::app::RowNode *>(node))
+  {
+    const std::vector<declara::core::scene::Node *> &children = row->getChildren();
+    if (children.empty())
+    {
+      return state.y;
+    }
+    LayoutState childState = state;
+    const size_t childCount = children.size();
+    const int childCountInt = static_cast<int>(childCount);
+    const int gap = kHorizontalSpacing;
+    const int spacingTotal = gap * (childCountInt > 0 ? childCountInt - 1 : 0);
+    int availableWidth = state.width - spacingTotal;
+    if (availableWidth < 0)
+    {
+      availableWidth = 0;
+    }
+    const int baseWidth = childCountInt > 0 ? availableWidth / childCountInt : 0;
+    int remainder = childCountInt > 0 ? availableWidth - baseWidth * childCountInt : 0;
+    int currentX = state.x;
+    int maxY = state.y;
+    for (size_t i = 0; i < childCount; ++i)
+    {
+      int childWidth = baseWidth;
+      if (remainder > 0)
+      {
+        childWidth += 1;
+        remainder -= 1;
+      }
+      childState.x = currentX;
+      childState.y = state.y;
+      childState.width = childWidth;
+      int childY = layoutNode(children[i], childState);
+      if (childY > maxY)
+      {
+        maxY = childY;
+      }
+      currentX += childWidth + gap;
+    }
+    return maxY;
   }
 
   if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
