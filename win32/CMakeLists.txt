@@ -12,9 +12,9 @@ set(SOURCES
   src/Win32Window.cpp
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
-  src/Win32ButtonContext.cpp
-  src/Win32TextContext.cpp
-  src/Win32EditTextContext.cpp
+  src/context/Win32ButtonContext.cpp
+  src/context/Win32TextContext.cpp
+  src/context/Win32EditTextContext.cpp
 )
 
 add_library(DeclaraWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})

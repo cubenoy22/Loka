@@ -4,9 +4,9 @@
 #include <windows.h>
 #include <map>
 #include "core2/scene/PlatformController.hpp"
-#include "Win32ButtonContext.hpp"
-#include "Win32TextContext.hpp"
-#include "Win32EditTextContext.hpp"
+#include "context/Win32ButtonContext.hpp"
+#include "context/Win32TextContext.hpp"
+#include "context/Win32EditTextContext.hpp"
 
 namespace declara
 {
