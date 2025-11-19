@@ -11,6 +11,7 @@
 #include "app2/Fragment.hpp"
 #include "app2/RowColumn.hpp"
 #include "app2/Text.hpp"
+#include "BmiCalculatorComponent.hpp"
 
 class FormScene : public declara::core::scene::Scene
 {
@@ -29,17 +30,14 @@ public:
   virtual void compose(declara::core::scene::NodeComposition &c)
   {
     using namespace declara::app;
+    using namespace helloworld;
 
     c.declare(
-        VStack()
+        HStack()
         << c.group(
-               F()
-               << Text(TextProps().setText("BMI Calculator"))
-               << Text(TextProps().setText("Height (cm)"))
-               << EditText(EditTextProps().setText(&heightInput_))
-               << Text(TextProps().setText("Weight (kg)"))
-               << EditText(EditTextProps().setText(&weightInput_))
-               << Text(TextProps().setText(&bmiResult_))));
+               VStack()
+               << Text(TextProps().setText("BMI Calculator")))
+        << BmiCalculator(c, BmiCalculatorProps(&heightInput_, &weightInput_, &bmiResult_)));
   }
 
 private:
