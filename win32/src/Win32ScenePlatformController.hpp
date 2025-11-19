@@ -3,10 +3,10 @@
 
 #include <windows.h>
 #include <map>
-#include <string>
-#include "core/State.hpp"
 #include "core2/scene/PlatformController.hpp"
-#include "core2/scene/NativeNodeContext.hpp"
+#include "Win32ButtonContext.hpp"
+#include "Win32TextContext.hpp"
+#include "Win32EditTextContext.hpp"
 
 namespace declara
 {
@@ -49,95 +49,6 @@ private:
     int height;
   };
 
-  class ControlContext : public declara::core::scene::NativeNodeContext
-  {
-  public:
-    ControlContext() : destroyed_(false) {}
-    virtual ~ControlContext()
-    {
-      destroy();
-    }
-
-    virtual void destroy()
-    {
-      if (destroyed_)
-      {
-        return;
-      }
-      destroyed_ = true;
-      onDestroy();
-    }
-
-  protected:
-    virtual void onDestroy() = 0;
-
-  private:
-    bool destroyed_;
-  };
-
-  class ButtonContext : public ControlContext
-  {
-  public:
-    ButtonContext(HWND parent, int x, int y, int width, declara::app::ButtonNode *node);
-    virtual ~ButtonContext();
-
-    HWND hwnd() const { return hwnd_; }
-    bool handleCommand(WPARAM wParam, LPARAM lParam);
-
-  private:
-    void bindText();
-    void unbindText();
-    void applyText();
-    static void TextChangedThunk(void *userData);
-    virtual void onDestroy();
-
-    declara::app::ButtonNode *node_;
-    HWND hwnd_;
-    State<std::string> *textState_;
-  };
-
-  class TextContext : public ControlContext
-  {
-  public:
-    TextContext(HWND parent, int x, int y, int width, declara::app::TextNode *node);
-    virtual ~TextContext();
-
-  private:
-    void bindText();
-    void unbindText();
-    void applyText();
-    static void TextChangedThunk(void *userData);
-    virtual void onDestroy();
-
-    declara::app::TextNode *node_;
-    HWND hwnd_;
-    State<std::string> *textState_;
-  };
-
-  class EditTextContext : public ControlContext
-  {
-  public:
-    EditTextContext(HWND parent, int x, int y, int width, declara::app::EditTextNode *node);
-    virtual ~EditTextContext();
-
-    HWND hwnd() const { return hwnd_; }
-    bool handleCommand(WPARAM wParam, LPARAM lParam);
-
-  private:
-    void bindText();
-    void unbindText();
-    void applyText();
-    void syncStateFromControl();
-    static void TextChangedThunk(void *userData);
-    virtual void onDestroy();
-
-    declara::app::EditTextNode *node_;
-    HWND hwnd_;
-    State<std::string> *textState_;
-    bool applyingFromState_;
-    bool updatingFromControl_;
-  };
-
   int layoutNode(declara::core::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
@@ -148,8 +59,8 @@ private:
   declara::core::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
-  std::map<HWND, ButtonContext *> buttonMap_;
-  std::map<HWND, EditTextContext *> editMap_;
+  std::map<HWND, Win32ButtonContext *> buttonMap_;
+  std::map<HWND, Win32EditTextContext *> editMap_;
 };
 
 #endif // DECLARA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP

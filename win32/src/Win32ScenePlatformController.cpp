@@ -63,7 +63,7 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   WORD code = HIWORD(wParam);
   if (code == BN_CLICKED)
   {
-    std::map<HWND, ButtonContext *>::iterator it = buttonMap_.find(target);
+    std::map<HWND, Win32ButtonContext *>::iterator it = buttonMap_.find(target);
     if (it == buttonMap_.end())
     {
       return false;
@@ -72,7 +72,7 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   }
   if (code == EN_CHANGE)
   {
-    std::map<HWND, EditTextContext *>::iterator itEdit = editMap_.find(target);
+    std::map<HWND, Win32EditTextContext *>::iterator itEdit = editMap_.find(target);
     if (itEdit == editMap_.end())
     {
       return false;
@@ -183,7 +183,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
   if (declara::app::ButtonNode *button = dynamic_cast<declara::app::ButtonNode *>(node))
   {
-    ButtonContext *ctx = new ButtonContext(rootHwnd_, state.x, state.y, state.width, button);
+    Win32ButtonContext *ctx = new Win32ButtonContext(rootHwnd_, state.x, state.y, state.width, kButtonHeight, button);
     button->setContext(ctx);
     buttonMap_[ctx->hwnd()] = ctx;
 
@@ -194,7 +194,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
   if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
   {
-    EditTextContext *ctx = new EditTextContext(rootHwnd_, state.x, state.y, state.width, edit);
+    Win32EditTextContext *ctx = new Win32EditTextContext(rootHwnd_, state.x, state.y, state.width, kEditTextHeight, edit);
     edit->setContext(ctx);
     editMap_[ctx->hwnd()] = ctx;
 
@@ -205,7 +205,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
   if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
   {
-    TextContext *ctx = new TextContext(rootHwnd_, state.x, state.y, state.width, text);
+    Win32TextContext *ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, kTextHeight, text);
     text->setContext(ctx);
 
     LayoutState nextState = state;
@@ -254,301 +254,3 @@ int Win32ScenePlatformController::measureClientWidth(int requestedWidth) const
   return 260;
 }
 
-Win32ScenePlatformController::ButtonContext::ButtonContext(HWND parent, int x, int y, int width, declara::app::ButtonNode *node)
-    : node_(node),
-      hwnd_(NULL),
-      textState_(0)
-{
-  DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON;
-  hwnd_ = CreateWindowExA(
-      0,
-      "BUTTON",
-      "",
-      style,
-      x,
-      y,
-      width,
-      kButtonHeight,
-      parent,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
-      GetModuleHandle(NULL),
-      NULL);
-  bindText();
-}
-
-Win32ScenePlatformController::ButtonContext::~ButtonContext()
-{
-}
-
-void Win32ScenePlatformController::ButtonContext::onDestroy()
-{
-  unbindText();
-  if (hwnd_)
-  {
-    DestroyWindow(hwnd_);
-    hwnd_ = NULL;
-  }
-}
-
-bool Win32ScenePlatformController::ButtonContext::handleCommand(WPARAM, LPARAM)
-{
-  if (node_ && node_->props.onClick)
-  {
-    node_->props.onClick->emit();
-    return true;
-  }
-  return false;
-}
-
-void Win32ScenePlatformController::ButtonContext::bindText()
-{
-  if (!node_)
-    return;
-  textState_ = node_->props.text;
-  if (textState_)
-  {
-    textState_->bind(&ButtonContext::TextChangedThunk, this, true);
-  }
-}
-
-void Win32ScenePlatformController::ButtonContext::unbindText()
-{
-  if (textState_)
-  {
-    textState_->unbind(&ButtonContext::TextChangedThunk, this);
-    textState_ = 0;
-  }
-}
-
-void Win32ScenePlatformController::ButtonContext::applyText()
-{
-  if (!hwnd_ || !textState_)
-  {
-    return;
-  }
-  SetWindowTextA(hwnd_, textState_->get().c_str());
-}
-
-void Win32ScenePlatformController::ButtonContext::TextChangedThunk(void *userData)
-{
-  ButtonContext *self = static_cast<ButtonContext *>(userData);
-  if (self)
-  {
-    self->applyText();
-  }
-}
-
-Win32ScenePlatformController::TextContext::TextContext(HWND parent, int x, int y, int width, declara::app::TextNode *node)
-    : node_(node), hwnd_(NULL), textState_(0)
-{
-  DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
-  hwnd_ = CreateWindowExA(
-      0,
-      "STATIC",
-      "",
-      style,
-      x,
-      y,
-      width,
-      kTextHeight,
-      parent,
-      NULL,
-      GetModuleHandle(NULL),
-      NULL);
-  bindText();
-}
-
-Win32ScenePlatformController::TextContext::~TextContext()
-{
-}
-
-void Win32ScenePlatformController::TextContext::onDestroy()
-{
-  unbindText();
-  if (hwnd_)
-  {
-    DestroyWindow(hwnd_);
-    hwnd_ = NULL;
-  }
-}
-
-void Win32ScenePlatformController::TextContext::bindText()
-{
-  if (!node_)
-  {
-    return;
-  }
-  textState_ = node_->props.text;
-  if (textState_)
-  {
-    textState_->bind(&TextContext::TextChangedThunk, this, true);
-  }
-}
-
-void Win32ScenePlatformController::TextContext::unbindText()
-{
-  if (textState_)
-  {
-    textState_->unbind(&TextContext::TextChangedThunk, this);
-    textState_ = 0;
-  }
-}
-
-void Win32ScenePlatformController::TextContext::applyText()
-{
-  if (!hwnd_ || !textState_)
-  {
-    return;
-  }
-  SetWindowTextA(hwnd_, textState_->get().c_str());
-}
-
-void Win32ScenePlatformController::TextContext::TextChangedThunk(void *userData)
-{
-  TextContext *self = static_cast<TextContext *>(userData);
-  if (self)
-  {
-    self->applyText();
-  }
-}
-
-Win32ScenePlatformController::EditTextContext::EditTextContext(HWND parent, int x, int y, int width, declara::app::EditTextNode *node)
-    : node_(node), hwnd_(NULL), textState_(0), applyingFromState_(false), updatingFromControl_(false)
-{
-  DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;
-  hwnd_ = CreateWindowExA(
-      WS_EX_CLIENTEDGE,
-      "EDIT",
-      "",
-      style,
-      x,
-      y,
-      width,
-      kEditTextHeight,
-      parent,
-      NULL,
-      GetModuleHandle(NULL),
-      NULL);
-  bindText();
-}
-
-Win32ScenePlatformController::EditTextContext::~EditTextContext()
-{
-}
-
-void Win32ScenePlatformController::EditTextContext::onDestroy()
-{
-  unbindText();
-  if (hwnd_)
-  {
-    DestroyWindow(hwnd_);
-    hwnd_ = NULL;
-  }
-}
-
-bool Win32ScenePlatformController::EditTextContext::handleCommand(WPARAM wParam, LPARAM)
-{
-  WORD code = HIWORD(wParam);
-  if (code == EN_CHANGE)
-  {
-    if (!applyingFromState_)
-    {
-      syncStateFromControl();
-    }
-    return true;
-  }
-  return false;
-}
-
-void Win32ScenePlatformController::EditTextContext::bindText()
-{
-  if (!node_)
-  {
-    return;
-  }
-  textState_ = node_->props.text;
-  if (textState_)
-  {
-    textState_->bind(&EditTextContext::TextChangedThunk, this, true);
-  }
-}
-
-void Win32ScenePlatformController::EditTextContext::unbindText()
-{
-  if (textState_)
-  {
-    textState_->unbind(&EditTextContext::TextChangedThunk, this);
-    textState_ = 0;
-  }
-}
-
-void Win32ScenePlatformController::EditTextContext::applyText()
-{
-  if (!hwnd_ || !textState_)
-  {
-    return;
-  }
-  if (updatingFromControl_)
-  {
-    return;
-  }
-  int currentLen = GetWindowTextLengthA(hwnd_);
-  std::vector<char> buffer(currentLen + 1);
-  if (currentLen >= 0)
-  {
-    GetWindowTextA(hwnd_, &buffer[0], currentLen + 1);
-  }
-  else
-  {
-    buffer.assign(1, '\0');
-  }
-  std::string currentText(&buffer[0]);
-  const std::string &desired = textState_->get();
-  if (currentText == desired)
-  {
-    return;
-  }
-  DWORD selStart = 0;
-  DWORD selEnd = 0;
-  SendMessageA(hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&selStart), reinterpret_cast<LPARAM>(&selEnd));
-  applyingFromState_ = true;
-  SetWindowTextA(hwnd_, desired.c_str());
-  SendMessageA(hwnd_, EM_SETSEL, selStart, selEnd);
-  applyingFromState_ = false;
-}
-
-void Win32ScenePlatformController::EditTextContext::syncStateFromControl()
-{
-  if (!textState_ || !hwnd_)
-  {
-    return;
-  }
-  MutableState<std::string> *mutableState = dynamic_cast<MutableState<std::string> *>(textState_);
-  if (!mutableState)
-  {
-    return;
-  }
-  int len = GetWindowTextLengthA(hwnd_);
-  if (len < 0)
-  {
-    len = 0;
-  }
-  std::vector<char> buffer(len + 1);
-  GetWindowTextA(hwnd_, &buffer[0], len + 1);
-  std::string newValue(&buffer[0]);
-  if (mutableState->get() != newValue)
-  {
-    updatingFromControl_ = true;
-    mutableState->set(newValue);
-    updatingFromControl_ = false;
-  }
-}
-
-void Win32ScenePlatformController::EditTextContext::TextChangedThunk(void *userData)
-{
-  EditTextContext *self = static_cast<EditTextContext *>(userData);
-  if (self)
-  {
-    self->applyText();
-  }
-}
