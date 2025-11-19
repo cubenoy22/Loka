@@ -184,7 +184,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
   if (declara::app::ButtonNode *button = dynamic_cast<declara::app::ButtonNode *>(node))
   {
     ButtonContext *ctx = new ButtonContext(rootHwnd_, state.x, state.y, state.width, button);
-    contexts_.push_back(ctx);
+    button->setContext(ctx);
     buttonMap_[ctx->hwnd()] = ctx;
 
     LayoutState nextState = state;
@@ -195,7 +195,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
   if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
   {
     EditTextContext *ctx = new EditTextContext(rootHwnd_, state.x, state.y, state.width, edit);
-    contexts_.push_back(ctx);
+    edit->setContext(ctx);
     editMap_[ctx->hwnd()] = ctx;
 
     LayoutState nextState = state;
@@ -206,7 +206,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
   if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
   {
     TextContext *ctx = new TextContext(rootHwnd_, state.x, state.y, state.width, text);
-    contexts_.push_back(ctx);
+    text->setContext(ctx);
 
     LayoutState nextState = state;
     nextState.y = state.y + kTextHeight + kVerticalSpacing;
@@ -218,17 +218,26 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
 void Win32ScenePlatformController::clearContexts()
 {
-  for (size_t i = 0; i < contexts_.size(); ++i)
-  {
-    if (contexts_[i])
-    {
-      contexts_[i]->destroy();
-      delete contexts_[i];
-    }
-  }
-  contexts_.clear();
   buttonMap_.clear();
   editMap_.clear();
+  clearNodeContexts(rootNode_);
+}
+
+void Win32ScenePlatformController::clearNodeContexts(declara::core::scene::Node *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
+  {
+    const std::vector<declara::core::scene::Node *> &children = nestable->getChildren();
+    for (size_t i = 0; i < children.size(); ++i)
+    {
+      clearNodeContexts(children[i]);
+    }
+  }
+  node->setContext(0);
 }
 
 int Win32ScenePlatformController::measureClientWidth(int requestedWidth) const
@@ -269,10 +278,9 @@ Win32ScenePlatformController::ButtonContext::ButtonContext(HWND parent, int x, i
 
 Win32ScenePlatformController::ButtonContext::~ButtonContext()
 {
-  unbindText();
 }
 
-void Win32ScenePlatformController::ButtonContext::destroy()
+void Win32ScenePlatformController::ButtonContext::onDestroy()
 {
   unbindText();
   if (hwnd_)
@@ -352,10 +360,9 @@ Win32ScenePlatformController::TextContext::TextContext(HWND parent, int x, int y
 
 Win32ScenePlatformController::TextContext::~TextContext()
 {
-  unbindText();
 }
 
-void Win32ScenePlatformController::TextContext::destroy()
+void Win32ScenePlatformController::TextContext::onDestroy()
 {
   unbindText();
   if (hwnd_)
@@ -427,10 +434,9 @@ Win32ScenePlatformController::EditTextContext::EditTextContext(HWND parent, int 
 
 Win32ScenePlatformController::EditTextContext::~EditTextContext()
 {
-  unbindText();
 }
 
-void Win32ScenePlatformController::EditTextContext::destroy()
+void Win32ScenePlatformController::EditTextContext::onDestroy()
 {
   unbindText();
   if (hwnd_)

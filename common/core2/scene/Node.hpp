@@ -26,13 +26,24 @@ namespace declara
         NODE_DIRTY_MYSELF = 0xFF // 全dirty
       };
 
-      struct NodeContext; // Opaque type
+      class Node; // forward declaration for NodeContext owner
 
       // Minimal NodeContext implementation
       struct NodeContext
       {
-        // TODO: Add actual context data
+      public:
+        NodeContext() : owner_(0) {}
+        explicit NodeContext(Node *owner) : owner_(owner) {}
         virtual ~NodeContext() {}
+
+        void setOwner(Node *owner) { owner_ = owner; }
+        Node *owner() const { return owner_; }
+
+      private:
+        NodeContext(const NodeContext &);
+        NodeContext &operator=(const NodeContext &);
+
+        Node *owner_;
       };
 
       class Node
@@ -40,10 +51,36 @@ namespace declara
       public:
         NodeContext *context;
         MutableState<NodeDirtyFlags> dirty;
-        virtual ~Node() {}
+        virtual ~Node()
+        {
+          if (context)
+          {
+            delete context;
+            context = 0;
+          }
+        }
         virtual void compose() {}
 
         Node() : context(0), dirty(NODE_DIRTY_NONE) {}
+
+        void setContext(NodeContext *ctx)
+        {
+          if (context == ctx)
+          {
+            return;
+          }
+          if (context)
+          {
+            delete context;
+          }
+          context = ctx;
+          if (context)
+          {
+            context->setOwner(this);
+          }
+        }
+
+        NodeContext *getContext() const { return context; }
       };
 
       // --- Generic Props base ---

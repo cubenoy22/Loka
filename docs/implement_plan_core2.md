@@ -19,8 +19,9 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 ### 2.1 Node/Component ローカル State 管理
 
-- `Node` 内で `MutableState` を生成し、Node の寿命に合わせて破棄する API（仮: `Node::useState<T>()`）を追加する。
-- Arena 構築中の一時 State をどう保持するか（NodeComposition 内に `stateArena_` を追加するか、Node が自前 new/delete するか）を決める。
+- `NodeContext` を Node ヒープとして拡張し、`useState<T>()`/簡易アロケータを提供する。`Node` は `NodeContext` 経由でローカル State/ネイティブハンドルを保持する。
+- Compose 中の短命キャッシュは `NodeComposition` で扱うが、長寿命 State は NodeContext か Scene メンバーに閉じるルールを徹底する。
+- 将来 `NativeNodeContext` を派生させ、HWND/NSView などの OS ハンドルと優先度メタデータを格納。Platform 側が優先度を見てリソース破棄できるようにする。
 
 ### 2.2 Props in/out 設計
 
@@ -36,7 +37,7 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 ### 2.4 UI コンポーネントの compose テスト
 
 - `Scene` サブクラスを作り、`Button`/`Box` など `common/app2` のノードを `NodeComposition` に宣言してツリー生成まで確認する。
-- Win32 側で `PlatformContext::createNodeContext` が `NodeContext` のスタブしか返していないので、最低限の HWND ラッパーを用意する。
+- Win32 側で `PlatformContext::createNodeContext` が `NodeContext` のスタブしか返していないので、`NativeNodeContext`（HWND/priority/イベント購読の束ね役）を用意する。
 
 ### 2.5 再 compose / 差分
 
@@ -60,7 +61,8 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 ## 4. State 所有・ライフサイクル指針
 
-- **Node メンバー State**: Node の寿命と一致。`Node` デストラクタで `ScopedPtr` などを使って解放。  
+- **NodeContext State**: Node の寿命と一致。`NodeContext` に `useState`/アロケータを実装してローカル State を確保し、NodeContext 破棄で自動解放。  
+- **NativeNodeContext**: OS ハンドル・GPU リソース・優先度メタデータを保持。Platform が優先度の低い Node からリソース破棄できる。  
 - **Props が保持する State**: 親/Scene が所有。Node が消えても State は残り、他の Node と共有可能。  
 - **EmitterState**: OS → Declara! イベントの橋渡しなので、基本的に Scene/Window の長寿命オブジェクトが所有。
 - ルールは「最も長生きするコンポーネントが所有する」。これで参照切れ・use-after-free を防ぐ。
@@ -81,3 +83,12 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 - `State<T>` API（`deferBind`, `deferBindWithOld`）は Solid-mode の micro tick と親和性が高い。NodeContext から直接使えるよう、ドキュメントは `docs/architecture_state_tracker.md` に集約済み。
 - `SceneNodeGroup` / `AttachScope` 系のドキュメントは削除したため、本メモが core2 設計の一次情報になる。
+
+---
+
+## 7. NodeContext / NativeNodeContext メモ
+
+- `NodeContext` を **Node 専用ヒープ**として扱う。`useState<T>()` や小さなオブジェクトアロケータを提供し、ローカル state や headless ノードのバッファをここに置く。`Node` 破棄時に Context ごと解放されるため、Compose DSL に副作用を持ち込まなくて済む。
+- `NativeNodeContext` は `NodeContext` を継承/内包し、HWND/NSView/HBITMAP などプラットフォーム固有ハンドルと `priority`/`memoryCostBytes`/`persistent`/`releaseRequested` を保持。Declara! 側は中身を参照せず「ネイティブ側の opaque container」として扱い、Platform 実装が必要に応じてフィールドを使う。
+- Loader 系ノード（例: ImageLoader, QRLoader）は Scene から受け取った `State<Request>` と `State<Handle>` を橋渡ししつつ、非同期処理のハンドルを `NodeContext` に保存する。非表示になったら Context 破棄で自動的にキャンセル/解放できる。
+- `ComponentContext`（未実装）を用意し、Scene/カスタムコンポーネントの `compose` から NodeContext へアクセスできるフックを提供する予定。DSL 自体には NodeContext を露出せず、コンポーネント抽象で橋渡しする。

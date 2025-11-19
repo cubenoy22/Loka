@@ -3,6 +3,7 @@
 #include "core/Window.hpp"
 #include "core/AppConfigurable.hpp"
 #include "core2/scene/Node.hpp"
+#include "core2/scene/NativeNodeContext.hpp"
 
 // 明示的なデフォルトコンストラクタ・デストラクタ実装（リンカエラー回避用）
 Win32PlatformContext::Win32PlatformContext() {}
@@ -21,6 +22,10 @@ Window *Win32PlatformContext::createWindow(declara::core::scene::Scene *initialS
 
 declara::core::scene::NodeContext *Win32PlatformContext::createNodeContext(declara::core::scene::Node *node) const
 {
-  // TODO: 実際のNodeContext実装が必要
-  return new declara::core::scene::NodeContext();
+  declara::core::scene::NativeNodeContext *context = new declara::core::scene::NativeNodeContext();
+  if (context)
+  {
+    context->setOwner(node);
+  }
+  return context;
 }
