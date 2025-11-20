@@ -4,9 +4,9 @@
 #include <string>
 #include "core/State.hpp"
 #include "core2/scene/NodeComposition.hpp"
-#include "app2/EditText.hpp"
-#include "app2/Text.hpp"
-#include "app2/RowColumn.hpp"
+#include "app/EditText.hpp"
+#include "app/Text.hpp"
+#include "app/RowColumn.hpp"
 
 namespace helloworld
 {

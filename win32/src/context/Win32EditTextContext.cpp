@@ -1,6 +1,6 @@
 #include "Win32EditTextContext.hpp"
 #include <vector>
-#include "app2/EditText.hpp"
+#include "app/EditText.hpp"
 #include "core/State.hpp"
 
 Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, declara::app::EditTextNode *node)

@@ -1,5 +1,5 @@
 #include "Win32TextContext.hpp"
-#include "app2/Text.hpp"
+#include "app/Text.hpp"
 #include "core/State.hpp"
 
 Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, declara::app::TextNode *node)

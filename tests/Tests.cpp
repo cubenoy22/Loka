@@ -8,8 +8,8 @@
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/NodeManager.hpp"
 #include "core2/scene/PlatformController.hpp"
-#include "app2/Box.hpp"
-#include "app2/Button.hpp"
+#include "app/Box.hpp"
+#include "app/Button.hpp"
 
 // --- main.cppから移動したテスト関数をここに実装 ---
 

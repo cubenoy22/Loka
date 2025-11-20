@@ -10,7 +10,7 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 - `Scene`（`common/core2/scene/Scene.hpp`）は `NodeComposition` を受け取る `compose(NodeComposition)` 形式に更新済み。`MutableState<SceneLifecycle>` を内包。
 - `StaticNodeManager` / `IPlatformController` の骨格は追加済み（`NodeManager.hpp`, `PlatformController.hpp`）。  
   - Solid-mode では `StaticNodeManager::mount()` が `NodeComposition::createNodeTree()` でツリーを生成し、`materialize()` を呼び出す。
-- `Node`, `NodePropsBase`, `NodeDefinition`, `NodeComposition`（Arena）は `core2` にまとまり、`common/app2/Button.hpp` などの UI ノードはここを前提にしている。
+- `Node`, `NodePropsBase`, `NodeDefinition`, `NodeComposition`（Arena）は `core2` にまとまり、`common/app/Button.hpp` などの UI ノードはここを前提にしている。
 - `SceneManager2` は Window 側で Scene スロットを差し替えるのみで、まだ core2 Controller とは繋いでいない。
 
 ---
@@ -36,7 +36,7 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 ### 2.4 UI コンポーネントの compose テスト
 
-- `Scene` サブクラスを作り、`Button`/`Box` など `common/app2` のノードを `NodeComposition` に宣言してツリー生成まで確認する。
+- `Scene` サブクラスを作り、`Button`/`Box` など `common/app` のノードを `NodeComposition` に宣言してツリー生成まで確認する。
 - Win32 側で `PlatformContext::createNodeContext` が `NodeContext` のスタブしか返していないので、`NativeNodeContext`（HWND/priority/イベント購読の束ね役）を用意する。
 
 ### 2.5 再 compose / 差分

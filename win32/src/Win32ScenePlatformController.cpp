@@ -1,11 +1,11 @@
 #include "Win32ScenePlatformController.hpp"
 #include <windows.h>
 #include <vector>
-#include "app2/Box.hpp"
-#include "app2/Button.hpp"
-#include "app2/EditText.hpp"
-#include "app2/RowColumn.hpp"
-#include "app2/Text.hpp"
+#include "app/Box.hpp"
+#include "app/Button.hpp"
+#include "app/EditText.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 #include "core2/scene/Node.hpp"
 
 namespace
@@ -253,4 +253,3 @@ int Win32ScenePlatformController::measureClientWidth(int requestedWidth) const
   }
   return 260;
 }
-

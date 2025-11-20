@@ -341,7 +341,7 @@ struct NodeDefinition : public NodeDefinitionBase {
 **設計書の「Host Interfaces」は不要。** 既存の `Node + Props + NodeContext` パターンで完結する。
 
 ```cpp
-// 例: ButtonNode の実装パターン（common/app2/Button.hpp）
+// 例: ButtonNode の実装パターン（common/app/Button.hpp）
 
 // 1. Props: State参照を保持
 struct ButtonProps : public NodePropsBase<ButtonProps> {

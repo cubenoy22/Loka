@@ -7,10 +7,10 @@
 #include <cstdlib>
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/NodeComposition.hpp"
-#include "app2/EditText.hpp"
-#include "app2/Fragment.hpp"
-#include "app2/RowColumn.hpp"
-#include "app2/Text.hpp"
+#include "app/EditText.hpp"
+#include "app/Fragment.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 #include "BmiCalculatorComponent.hpp"
 
 class FormScene : public declara::core::scene::Scene
