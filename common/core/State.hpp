@@ -386,7 +386,6 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-using declara::core::DerivedState;
 using declara::core::EmitterState;
 using declara::core::MutableState;
 using declara::core::State;

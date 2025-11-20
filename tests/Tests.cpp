@@ -90,13 +90,13 @@ void testTrackerPropagation()
 {
   printf("\n==== [testTrackerPropagation] start ====\n");
   MutableState<int> s_int(10);
-  struct DoublePropEval : public DerivedState<int>::EvalFn
+  struct DoublePropEval : public declara::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
+  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
   printf("[test] s_int=%p, doubleProp=%p\n", (void *)&s_int, (void *)doubleProp);
   std::vector<StateBase *> deps = doubleProp->getDependencyStates();
   for (size_t i = 0; i < deps.size(); ++i)
@@ -124,13 +124,13 @@ void testDeferredSideEffect()
 {
   printf("\n==== [testDeferredSideEffect] start ====\n");
   MutableState<int> s_int(5);
-  struct DoublePropEval : public DerivedState<int>::EvalFn
+  struct DoublePropEval : public declara::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
+  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
   std::vector<StateBase *> trackerStatesDeferred = makeStateVector(&s_int, doubleProp, 0);
   declara::core::PushStateTracker tracker(trackerStatesDeferred);
   struct DeferredCallback
@@ -155,20 +155,20 @@ void testTextInputOnChange()
 {
   printf("\n==== [testTextInputOnChange] start ====\n");
   MutableState<std::string> name("");
-  struct IsValidEval : public DerivedState<bool>::EvalFn
+  struct IsValidEval : public declara::core::DerivedState<bool>::EvalFn
   {
     MutableState<std::string> *n;
     IsValidEval(MutableState<std::string> *n_) : n(n_) {}
     bool operator()() { return n->get().length() >= 3; }
   };
-  DerivedState<bool> *isValid = new DerivedState<bool>(std::vector<StateBase *>(1, &name), new IsValidEval(&name));
+  declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(std::vector<StateBase *>(1, &name), new IsValidEval(&name));
   std::vector<StateBase *> trackerStatesText = makeStateVector(&name, isValid, 0);
   declara::core::PushStateTracker tracker(trackerStatesText);
   struct ValidCallback
   {
     static void onChange(void *userData)
     {
-      DerivedState<bool> *isValid = (DerivedState<bool> *)userData;
+      declara::core::DerivedState<bool> *isValid = (declara::core::DerivedState<bool> *)userData;
       printf("[isValid] changed: %s\n", isValid->get() ? "OK" : "NG");
     }
   };
@@ -191,13 +191,13 @@ void testBatchTransaction()
 {
   printf("\n==== [testBatchTransaction] start ====\n");
   MutableState<int> s1(1);
-  struct SumPropEval : public DerivedState<int>::EvalFn
+  struct SumPropEval : public declara::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     SumPropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  DerivedState<int> *sumProp = new DerivedState<int>(std::vector<StateBase *>(1, &s1), new SumPropEval(&s1));
+  declara::core::DerivedState<int> *sumProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s1), new SumPropEval(&s1));
   MutableState<int> s2(2);
   std::vector<StateBase *> trackerStatesBatch = makeStateVector(&s1, &s2, sumProp, 0);
   declara::core::PushStateTracker tracker(trackerStatesBatch);
@@ -216,13 +216,13 @@ void testRAIITransaction()
 {
   printf("\n==== [testRAIITransaction] start ====\n");
   MutableState<int> s(0);
-  struct DoublePropEval : public DerivedState<int>::EvalFn
+  struct DoublePropEval : public declara::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  DerivedState<int> *doubleProp = new DerivedState<int>(std::vector<StateBase *>(1, &s), new DoublePropEval(&s));
+  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s), new DoublePropEval(&s));
   std::vector<StateBase *> trackerStatesRAII = makeStateVector(&s, doubleProp, 0);
   declara::core::PushStateTracker tracker(trackerStatesRAII);
   {
@@ -254,7 +254,7 @@ void testDerivedStruct()
   deps.push_back(&email);
   deps.push_back(&age);
   deps.push_back(&agree);
-  struct IsValidEval : public DerivedState<bool>::EvalFn
+  struct IsValidEval : public declara::core::DerivedState<bool>::EvalFn
   {
     MutableState<std::string> *name;
     MutableState<std::string> *email;
@@ -267,7 +267,7 @@ void testDerivedStruct()
       return !name->get().empty() && !email->get().empty() && age->get() >= 18 && agree->get();
     }
   };
-  DerivedState<bool> *isValid = new DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));
+  declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));
   StateBase *deps2[5];
   for (size_t i = 0; i < deps.size(); ++i)
     deps2[i] = deps[i];
