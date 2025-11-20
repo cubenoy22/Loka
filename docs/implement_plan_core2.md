@@ -90,5 +90,6 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 - `NodeContext` を **Node 専用ヒープ**として扱う。`useState<T>()` や小さなオブジェクトアロケータを提供し、ローカル state や headless ノードのバッファをここに置く。`Node` 破棄時に Context ごと解放されるため、Compose DSL に副作用を持ち込まなくて済む。
 - `NativeNodeContext` は `NodeContext` を継承/内包し、HWND/NSView/HBITMAP などプラットフォーム固有ハンドルと `priority`/`memoryCostBytes`/`persistent`/`releaseRequested` を保持。Declara! 側は中身を参照せず「ネイティブ側の opaque container」として扱い、Platform 実装が必要に応じてフィールドを使う。
+- Global/Scene ヒープで共有したいリソース（Image など）は `State< Managed<ResourceRecord> >` で扱う。`Managed<T>` が参照カウンタ/カスタム releaser を提供するので、State の set/unset だけで retain/release を保証できる。
 - Loader 系ノード（例: ImageLoader, QRLoader）は Scene から受け取った `State<Request>` と `State<Handle>` を橋渡ししつつ、非同期処理のハンドルを `NodeContext` に保存する。非表示になったら Context 破棄で自動的にキャンセル/解放できる。
 - `ComponentContext`（未実装）を用意し、Scene/カスタムコンポーネントの `compose` から NodeContext へアクセスできるフックを提供する予定。DSL 自体には NodeContext を露出せず、コンポーネント抽象で橋渡しする。

@@ -112,6 +112,35 @@ struct NodeComposition {
 - `declare()` が設計書の **単一ノード宣言** に該当
 - NRVO 不要・コピー回避は `copyToArena()` の **明示的ヒープ管理** で達成
 
+#### 4. **Managed<T>（`common/core/Managed.hpp`）**
+
+```cpp
+template<typename T>
+class Managed {
+public:
+  typedef void (*ReleaserFn)(T*, void*);
+
+  static Managed<T> Wrap(T* value,
+                         ReleaserFn releaser = &Managed::DefaultDelete,
+                         void* userData = 0);
+  bool isValid() const;
+  int useCount() const;
+  T* get() const;
+  void reset(); // refcount-- / 0でreleaser
+};
+```
+
+**実装の特徴:**
+
+- ✅ **Intrusive ref-count**: コピー/代入で retain/release。`State<Managed<ImageHandle> >` がそのまま書ける。
+- ✅ **カスタム解放**: `ReleaserFn` で ImageCache/Platform が優先度・LRU に応じた破棄トリガを受け取れる。
+- ✅ **値比較対応**: `==`/`!=` 実装済みなので `State<T>` の比較にもフィット。C++98 専用でも扱いやすい。
+
+**利用シナリオ:**
+
+- Image/QR ローダーが `Managed<ImageRecord>` を返し、`State` に乗せた参照カウントで使用中リソースを保護。
+- NodeContext が `Managed<NativeNodeContext>` を保持し、`reset()` でネイティブリソースを即座に返却。
+
 ### ⚠️ 部分実装（Partial / Needs Integration）
 
 #### 4. **Node/NodeDefinition（`common/core2/scene/Node.hpp`）**
