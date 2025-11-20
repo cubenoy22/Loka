@@ -46,7 +46,7 @@ public:
       : context_(context), title(""), initialScene_(initialScene)
   {
     options_ = options;
-    tracker_ = new PushStateTracker(makeStateVector(static_cast<StateBase *>(&title), static_cast<StateBase *>(&visibility), 0));
+    tracker_ = new declara::core::PushStateTracker(makeStateVector(static_cast<StateBase *>(&title), static_cast<StateBase *>(&visibility), 0));
     this->title.set(options.title);
     this->visibility.set(options.visible);
     if (initialScene)
@@ -61,7 +61,7 @@ public:
   MutableState<bool> visibility;
   MutableState<std::string> title;
 
-  StateTracker *getTracker() const { return tracker_; }
+  declara::core::StateTracker *getTracker() const { return tracker_; }
 
   virtual void onCreate() {}
   virtual void onShow() {}
@@ -71,7 +71,7 @@ public:
 private:
 protected:
   PlatformContext *context_;
-  StateTracker *tracker_;
+  declara::core::StateTracker *tracker_;
   SceneManager2 sceneManager_;
   WindowOptions options_;
   declara::core::scene::Scene *initialScene_;

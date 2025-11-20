@@ -5,9 +5,9 @@
 // StateTracker用RAIIトランザクションガード
 struct AutoTransactionGuard
 {
-  PushStateTracker *tracker;
-  AutoTransactionGuard(StateTracker *t)
-      : tracker(dynamic_cast<PushStateTracker *>(t))
+  declara::core::PushStateTracker *tracker;
+  AutoTransactionGuard(declara::core::StateTracker *t)
+      : tracker(dynamic_cast<declara::core::PushStateTracker *>(t))
   {
     if (tracker)
       tracker->begin();

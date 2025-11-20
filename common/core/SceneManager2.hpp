@@ -28,7 +28,7 @@ protected:
 private:
   MutableState<declara::core::scene::Scene *> currentScene_;
   MutableState<std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > > pendingTransactions_;
-  PushStateTracker tracker_;
+  declara::core::PushStateTracker tracker_;
 };
 
 #endif // DECLARA_SCENEMANAGER2_HPP

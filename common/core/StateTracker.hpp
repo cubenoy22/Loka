@@ -68,9 +68,6 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-using declara::core::PushStateTracker;
 using declara::core::StateBase;
-using declara::core::StateTracker;
-using declara::core::TrackerPhase;
 
 #endif // DECLARA_STATETRACKER_HPP

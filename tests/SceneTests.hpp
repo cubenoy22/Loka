@@ -66,7 +66,7 @@ namespace SceneTests
     }
 
     MutableState<int> count;
-    PushStateTracker tracker;
+    declara::core::PushStateTracker tracker;
     SceneContext *context_; // テストではNULLになることも許容
     StrFormatState<int> *countStr;
   };
@@ -78,7 +78,7 @@ namespace SceneTests
   {
     MutableState<int> count(0);
     EmitterState trigger;
-    PushStateTracker tracker(makeStateVector(&count, 0));
+    declara::core::PushStateTracker tracker(makeStateVector(&count, 0));
     IncrementNodeProps props;
     props.count = &count;
     props.trigger = &trigger;
@@ -447,7 +447,7 @@ namespace SceneTests
   public:
     int composeCount;
     MutableState<int> state;
-    PushStateTracker tracker;
+    declara::core::PushStateTracker tracker;
 
     TestableScene() : Scene(new SceneHost()), state(0), tracker(makeStateVector(&state, 0))
     {
@@ -476,7 +476,7 @@ namespace SceneTests
     TestableScene scene;
     assert(scene.composeCount == 0); // コンストラクタ後は0
     {
-      AutoTransactionGuard _(static_cast<StateTracker *>(&scene.tracker));
+      AutoTransactionGuard _(static_cast<declara::core::StateTracker *>(&scene.tracker));
       scene.state.set(42);
     }
     assert(scene.composeCount == 1); // State変更でrecomposeが1回発火
@@ -553,8 +553,8 @@ namespace SceneTests
     {
     public:
       MutableState<int> *counter;
-      StateTracker *tracker;
-      TestButton(MutableState<int> *c, StateTracker *t)
+      declara::core::StateTracker *tracker;
+      TestButton(MutableState<int> *c, declara::core::StateTracker *t)
           : SceneNodeButton(ButtonProps()), counter(c), tracker(t)
       {
         clickEvent.deferBind([](void *ud)
@@ -564,7 +564,7 @@ namespace SceneTests
           self->counter->set(self->counter->get() + 1); }, this);
       }
     };
-    PushStateTracker tracker(makeStateVector(&counter, 0));
+    declara::core::PushStateTracker tracker(makeStateVector(&counter, 0));
     TestButton *leaf = new TestButton(&counter, &tracker);
 
     grandchild->add(leaf);

@@ -47,7 +47,7 @@ void App::reflectInitialVisibilityChunks()
     Window *win = dynamic_cast<Window *>(comp);
     if (win && win->visibility.get())
     {
-      StateTracker *tracker = win->getTracker();
+      declara::core::StateTracker *tracker = win->getTracker();
       if (tracker)
       {
         AutoTransactionGuard _(tracker);

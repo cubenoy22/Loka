@@ -1,7 +1,12 @@
 #include "StateTracker.hpp"
 #include "State.hpp"
 
-PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
+namespace declara
+{
+  namespace core
+  {
+
+    PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
     : phase_(TRACKER_IDLE), states_(states)
 {
   for (size_t i = 0; i < states.size(); ++i)
@@ -149,7 +154,7 @@ bool PushStateTracker::end()
   return dirtyStates.empty();
 }
 
-void PushStateTracker::registerDependency(StateBase *dependent, StateBase *dependency)
+    void PushStateTracker::registerDependency(StateBase *dependent, StateBase *dependency)
 {
 #ifdef TEST_BUILD
   printf("[registerDependency] dependent=%p, dependency=%p\n", (void *)dependent, (void *)dependency);
@@ -164,9 +169,12 @@ void PushStateTracker::registerDependency(StateBase *dependent, StateBase *depen
 #endif
 }
 
-TrackerPhase PushStateTracker::phase() const
+    TrackerPhase PushStateTracker::phase() const
 {
   return phase_;
 }
 
-PushStateTracker::~PushStateTracker() {}
+    PushStateTracker::~PushStateTracker() {}
+
+  } // namespace core
+} // namespace declara
