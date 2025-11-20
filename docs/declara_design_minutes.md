@@ -227,8 +227,115 @@ struct NodeDefinition : public NodeDefinitionBase {
 
 ### TODO（最小で実用的にする）
 
--
+- Managed<T> の循環参照パターンの整理（必要なら Group/Weak 的な仕組みで一方向参照を徹底）
+- Headless/Loader コンポーネントは ErrorSink を依存として要求し、プラットフォーム差異なくエラー経路を統一
+- ConditionalDefinition/ConditionalNode の本実装（コンストラクタ/compose/更新）と `NodeComposition::conditional` のデフォルト false ケース用 Empty 定義
+- MutableState の通知タイミングを micro-tick 終端に揃える（`PushStateTracker::end()` 後に副作用を集約）か、現行の即時通知を仕様として明記
+- DerivedState::EvalFn の所有/破棄ポリシー（リーク防止）と依存登録の再考（動的依存差し替えが必要なら API を追加）
+- Node.dirty と IPlatformController::synchronize の結線（差分更新での再描画/レイアウト経路を確定）
+- Scene.lifecycle_ の書き込み場所を決定（SceneManager2 で ON_ATTACH/ON_DETACH をセットするか、ライフサイクルイベントを無効化と明記）
 
+---
+
+## ErrorSink 設計メモ（Image/Loader 系リソース向け）
+
+- 背景:
+  - ImageLoader / ImageProvider が URL・Data など複数 State を束ねると、読み込み失敗・メモリ枯渇・Cancellation など**複数のエラー**がほぼ同時に発生し得る。
+  - `State<Error>` だと上書きで潰れるし、`State<std::vector<Error> >` は Scene DSL から扱いづらい。
+  - Android 的な「トースト」「ダイアログ」など、**順次処理** or **リアルタイム通知**をモードごとに切り替えられるメカニズムが必要。
+
+- コンセプト: `ErrorSink`
+  - Window/Scene 単位で 1 つ以上用意できる**イベントキュー**。
+  - Producer（ImageLoader/QRLoader/PlatformController 等）は `ErrorSink::push(const ErrorEvent &evt)` を呼ぶだけでよい。
+  - `ErrorSinkScope`（仮）を導入し、特定の compose/ノードサブツリーにローカルな Sink を差し込めるようにする。これにより「どの ImageLoader が失敗したか」などを容易にトレースでき、エラー時の UI も局所化できる。
+  - Headless コンポーネントは `ErrorSink child(&currentTaskContext, parentSink)` のようにローカル Sink を生成し、その中で発生したエラーは `currentTaskContext`（`State<Request>` や `ResumableTask`）を payload に含めたうえで親へ forward/flush する。処理中のタスク情報が ErrorEvent に必ず載るので、ユーザーにも「どのダウンロードで失敗したか」が提示できる。
+  - Consumer は 2 パターンをサポート:
+    1. **Pull 型** … `bool tryPop(ErrorEvent *out)` で順次処理。UI コンポーネントが1つずつダイアログを出したいときに使う。
+    2. **Push/通知型** … `EmitterState` や `State<ErrorEvent>` と連動させ、トーストのように即時通知。Sink 内部で `EmitterState` を保持し、新規 push ごとに emit。
+  - `ErrorEvent` には以下を含める:
+    - `ErrorDomain`（例: kErrorDomainImage, kErrorDomainIO）
+    - `ErrorCode`（enum or int）
+    - `std::string message`（ユーザー向け or デバッグ向け）
+    - `Managed<void>` payload（失敗したリソースハンドルや再試行用 Request を格納）
+    - `Severity` / `RecoveryHint` など（Toast/ダイアログ振り分け用）
+
+- 所有と露出:
+  - `PlatformContext` がデフォルトの Sink を提供（`PlatformContext::errorSink()`）。
+  - Scene / Headless コンポーネントは `NodeComposition` 経由で `ErrorSink*` を受け取る。要求された Sink を渡さないと compose できないルールにすれば、エラーを握りつぶせなくなる。
+  - Sink 自体は `Managed<ErrorSink>` で共有しても良いが、基本は Singleton/Window 固定でもOK。
+
+- Resumable / retry:
+  - `ErrorEvent` の payload として `Managed<Request>` などを入れておき、Consumer が `retry()` できるようにする。
+  - Sink 側は `markResolved(eventId)` などを持ち、再実行後に同じエラーを重複表示しない仕組みを追加予定。
+  - OS / Platform ごとの非同期処理を共通化するために `ResumableTask`（pause/resume/cancel を備えた抽象）を用意し、ImageLoader のような Headless コンポーネントがタスク実行をプラットフォームに委譲できるようにする。マルチスレッド IO や Priority をここで吸収する。
+
+- UI への統合例:
+  1. `ErrorHost`（仮）コンポーネントが `ErrorSink*` を受け取り `deferBind` でイベントを購読 → `StateQueue` に積んで独自 UI を表示。
+  2. Platform 固有（Win32 のトースト）に直接繋ぐ場合は `Win32PlatformController` が Sink を監視し、`MessageBox` などを開く。
+  3. `withErrorSinkScope(ErrorSink* parent, ErrorSink* local, composeFn)` のようなAPIで局所的に Sink を差し替え、エラーパスのタグ付けや親Sinkとのネストを可能にする。エラーイベントには `path`/`labels` を含め、ダイアログで「BMIカードの画像読み込みに失敗」のように絞って表示できるようにする。
+  4. `ErrorEvent` へ `std::vector<std::string> tags` を含め、Headless コンポーネントは `"bmi-card.image-loader"` のようなタグを付与。親 Sink が必要に応じてタグにマッチするものだけを再掲示したり、デバッグログへ振り分けたりできる。
+
+- TODO:
+  - `ErrorSink` の API スケッチ（push / tryPop / bindNewEvent など）をヘッダ化。
+- `ImageLoader` 実装時に最初の Producer を追加し、Sink へエラーを送るフローを実証。
+- Sink と `StateTracker` の整合（push 時に `StateTracker::defer()` を使い、micro-tick 末尾で UI 通知するか？）を決める。
+
+---
+
+## ImageLoader / Image アクセス設計
+
+- `Image` 型:
+  - `struct Image { Managed<ImageRecord> handle; }` のように `Managed<T>` を内包した軽量値。`Image::Empty()` シングルトンを用意し、`State<Image>` が常に有効値を持つようにする。
+  - `ImageRecord` には `NativeImageHandle`（NSImage/HBITMAP 等）、`memoryCost`, `size`, `mutableToken` などを格納。Global/Scene キャッシュで共有し、refcount 0 で破棄。
+- `ImageLoaderRequest`:
+  - `enum SourceType { URL, DATA, FILE_HANDLE, PLATFORM_NATIVE };`
+  - `struct ImageLoaderRequest { SourceType type; std::string url; Managed<BinaryData> bytes; Size desiredSize; float scale; int priority; bool allowDiskCache; }`
+  - `State<ImageLoaderRequest>` をNodeが受け、変更時に ResumableTask で新規ロードを実行。
+- `ImageLoader` / `ImageProvider`:
+  - Headless component。Props: `State<ImageLoaderRequest>* request; State<Image>* outImage; ErrorSink* errorSink; ResumableTaskFactory* taskFactory;`
+  - `compose()` で `request` を bind → 変更時に `Image::Empty()` を outImage へ set → `taskFactory->create(request)` で非同期ロード開始。
+  - 成功: decode 結果を `Managed<ImageRecord>` にラップして `outImage->set(newImage)`。
+  - 失敗: `ErrorSink` へ `ErrorEvent{domain=kImage, code=kDecodeFailed, payload=Managed<Request> }` を push。`ResumableTask` を payload に含めれば「Retry」ボタンで `resume()` が呼べる。
+  - キャンセル/再リクエスト時は `ResumableTask::cancel()` で OS 側 I/O を止める。
+- `ImageInfo` / `BitmapAccess`:
+  - `bool ImageInfo(const Image& image, ImageInfoResult* out, ErrorSink* sink)` … `out` には width/height/scale/format/alpha を格納。情報がキャッシュされていなければ `ResumableTask` で取得し、失敗時に sink へ通知。
+  - `bool BitmapAccess(const Image& image, BitmapAccessRequest* req, ErrorSink* sink)` … CPU メモリへマップし、`req->callback(BitmapView view)` でピクセルへアクセス。書き込みを許可すると `Mutable` モードとなり、終了後に Platform へアップロード。非対応フォーマットの場合は sink へエラーを送る。
+  - いずれも宣言的 API として DSL に露出させず、NodeContext/Platform 層が必要時に呼ぶ想定。
+- 再サイジング/ミューテーション:
+  - `ImageInfo` の設定値（`desiredSize` 等）が変更されたら `ImageLoader` が新しい `ImageRecord` を生成して `State<Image>` を更新。既存 Image の Mutable 編集が必要な場合は `ResumableTask` によってバックグラウンドで再アップロードし、結果を同じ `Image` ハンドルへ反映。失敗時は `ErrorSink` 経由で通知。
+- DSL への統合:
+  - UI ノード（`ImageNode` 等）は `State<Image>*` を受け取るだけ。`Image::Empty()` の場合はプレースホルダを描画。
+  - `ImageDialog`, `ImagePreview` など複数のコンポーネントが同じ `State<Image>` を共有しても refcount で安全に管理される。
+
+---
+
+## BlobLoader / BlobStream / Streaming バッファリング
+
+- `Blob` 型:
+  - `struct Blob { Managed<BlobRecord> handle; }` として Image と同じく `Managed` で実体を共有。`Blob::Empty()` を用意し、`State<Blob>` が null を扱わない。
+  - `BlobRecord` には `MutableState<size_t> size`, `MutableState<bool> isLoading`, `MutableState<bool> isCompleted`, `MutableState<bool> isMutable`, `MutableState<float> progress` を揃える。`Blob::UnknownProgress()` (= -1.0f) を `IsIndeterminate` と同じ意味の定数にし、FTP や規模不明のストリーミングで indeterminate progress bar を表示する際に使える。`BlobInfo(&blob, &info)` を後日用意して Scene からメタ情報を取得可能にする。
+- `BlobLoaderRequest`:
+  - `enum BlobSource { kSourceUrl, kSourceFile, kSourceMemory, kSourceStream };`
+  - `struct BlobLoaderRequest { BlobSource source; std::string url; std::string filePath; Managed<BinaryData> memory; size_t expectedSize; int priority; bool incremental; }`
+  - `State<BlobLoaderRequest>` を bind し、変更時に I/O タスクを更新。
+- `BlobLoader`:
+  - Props: `State<BlobLoaderRequest>* request; State<Blob>* outBlob; ErrorSink* errorSink; ResumableTaskFactory* taskFactory;`
+  - 振る舞い:
+    1. 新しい request でタスクを作成し、Platform 固有の I/O API（Win32ならReadFile/URLMon、macOSならCFReadStream 等）を別スレッドで扱う。
+    2. ロード開始時に `isLoading=true`, `isCompleted=false`, `progress=0 or Blob::UnknownProgress()` を設定し、完了/失敗で `ErrorSink` に通知。成功時は `BlobRecord` を更新して `outBlob->set(newBlob)`、`progress=1`（長さ不明 or incremental なら `UnknownProgress()`）をセット。
+    3. `incremental` が true の場合は `onChunk` 的なイベントを `State<BlobChunk>` や `EmitterState<BlobChunk>` で配信し、ストリーム再生（WebRTC/動画/音声）に備える。
+- `BlobBuffer` / `BlobStream`:
+  - `BlobBuffer(&bufferState, &latestBlob, &errorSink)` のような headless component を用意し、`State<Blob>` を ring buffer や double buffer に流し込む。
+  - `State<BlobStreamRequest>` を受けとり、`latestBlob` が更新されるたびに `bufferState` へ追加。`bufferState` は `State<BlobStream>`（内部に queue を持つ操作オブジェクト）として expose。
+  - WebRTC などのリアルタイム用途では `BlobStream` 上で `State<BlobFrame>` を発行し続ける。`BlobStream` 自体が `EmitterState` を内包して新着データを通知するイメージ。
+- 典型的な使い方:
+  1. `State<BlobLoaderRequest> request; State<Blob> blob;`
+  2. `BlobLoader(&request, &blob, &errorSink);`
+  3. `BlobBuffer(&buffer, &blob, &errorSink);`
+  4. UI ノード/コンポーネントは `buffer` から `State<BlobChunk>` を subscribe して audio/video 再生 or ファイル一覧などを更新。
+- Win32 での配布:
+  - アプリに同梱するデータは `Program Files\MyApp\assets\` のような固定パスか、`%LOCALAPPDATA%` へ展開したキャッシュを参照。BlobLoaderRequest に `kSourceFile` + `filePath` を渡せば、Win32 側で `CreateFileW + ReadFile`、macOS なら `NSFileHandle` などを使って同じ API で扱える。
+  - パッケージ埋め込みリソース（リソースDLLやRCファイル）を読みたい場合は `kSourceResource` を追加し、Win32 の `FindResource/LoadResource` を内部で行う。
 ### 既存の Node/Props パターン（実装済み）
 
 **設計書の「Host Interfaces」は不要。** 既存の `Node + Props + NodeContext` パターンで完結する。
