@@ -391,6 +391,5 @@ using declara::core::MutableState;
 using declara::core::State;
 using declara::core::StateBase;
 using declara::core::StatePriority;
-using declara::core::StaticState;
 
 #endif // DECLARA_STATE_HPP

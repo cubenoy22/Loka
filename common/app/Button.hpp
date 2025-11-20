@@ -41,12 +41,12 @@ namespace declara
       }
       ButtonProps &setText(const std::string &s)
       {
-        text = StaticState<std::string>(s);
+        text = declara::core::StaticState<std::string>(s);
         return *this;
       }
       ButtonProps &setText(const char *s)
       {
-        text = StaticState<std::string>(std::string(s));
+        text = declara::core::StaticState<std::string>(std::string(s));
         return *this;
       }
       ButtonProps &setEnabled(State<bool> *e)
