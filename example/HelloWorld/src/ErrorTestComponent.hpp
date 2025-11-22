@@ -4,7 +4,6 @@
 #include <string>
 #include "core/State.hpp"
 #include "core2/scene/NodeComposition.hpp"
-#include "app/Button.hpp"
 #include "app/MsgBox.hpp"
 
 namespace helloworld
@@ -42,23 +41,16 @@ namespace helloworld
     declara::app::MsgBoxShow(NULL, props);
   }
 
-  inline declara::core::scene::NodeDefinitionBase *ErrorTest(declara::core::scene::NodeComposition &c, const ErrorTestProps &props)
+  inline void ErrorTestSetup(const ErrorTestProps &props)
   {
-    using namespace declara::app;
-
-    // Bind trigger
     if (props.trigger)
     {
       props.trigger->bind(&ErrorTestTrigger, new ErrorTestProps(props), false);
     }
-
-    // Bind show flag to display dialog
     if (props.show)
     {
       props.show->bind(&ErrorTestShowChanged, new ErrorTestProps(props), false);
     }
-
-    return c.declare(Button(ButtonProps().setText("Show Error").setOnClick(props.trigger)));
   }
 
 } // namespace helloworld

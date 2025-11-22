@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/NodeComposition.hpp"
+#include "app/Button.hpp"
 #include "app/EditText.hpp"
 #include "app/Fragment.hpp"
 #include "app/RowColumn.hpp"
@@ -44,7 +45,14 @@ public:
                VStack()
                << Text(TextProps().setText("BMI Calculator")))
         << BmiCalculator(c, BmiCalculatorProps(&heightInput_, &weightInput_, &bmiResult_))
-        << ErrorTest(c, ErrorTestProps().title(&errorTitle_).body(&errorBody_).show(&showError_).trigger(&onShowError_)));
+        << Button(ButtonProps().setText("Show Error").setOnClick(&onShowError_)));
+
+    ErrorTestProps errProps;
+    errProps.title = &errorTitle_;
+    errProps.body = &errorBody_;
+    errProps.show = &showError_;
+    errProps.trigger = &onShowError_;
+    ErrorTestSetup(errProps);
   }
 
 private:
