@@ -29,8 +29,6 @@ public:
   {
     heightInput_.bind(&FormScene::InputChangedThunk, this, false);
     weightInput_.bind(&FormScene::InputChangedThunk, this, false);
-    onShowError_.bind(&FormScene::ShowErrorThunk, this, false);
-    showError_.bind(&FormScene::ShowErrorChangedThunk, this, false);
     updateBmi();
   }
 
@@ -104,28 +102,7 @@ private:
   MutableState<std::string> errorBody_;
   EmitterState onShowError_;
 
-  static void ShowErrorThunk(void *userData)
-  {
-    FormScene *self = static_cast<FormScene *>(userData);
-    if (!self)
-      return;
-    self->errorTitle_.set("Error");
-    self->errorBody_.set("This is a sample error dialog.");
-    self->showError_.set(true, true);
-  }
-
-  static void ShowErrorChangedThunk(void *userData)
-  {
-    FormScene *self = static_cast<FormScene *>(userData);
-    if (!self)
-      return;
-    if (self->showError_.get())
-    {
-      declara::app::MsgBoxProps props;
-      props.setTitle(&self->errorTitle_).setBody(&self->errorBody_).setShow(&self->showError_);
-      declara::app::MsgBoxShow(NULL, props);
-    }
-  }
+  // Error handling is delegated to ErrorTestSetup
 };
 
 #endif // DECLARA_FORM_SCENE_HPP
