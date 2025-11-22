@@ -16,6 +16,27 @@ namespace helloworld
     EmitterState *trigger;
     ErrorTestProps()
         : title(0), body(0), show(0), trigger(0) {}
+
+    ErrorTestProps &setTitle(MutableState<std::string> *t)
+    {
+      title = t;
+      return *this;
+    }
+    ErrorTestProps &setBody(MutableState<std::string> *b)
+    {
+      body = b;
+      return *this;
+    }
+    ErrorTestProps &setShow(MutableState<bool> *s)
+    {
+      show = s;
+      return *this;
+    }
+    ErrorTestProps &setTrigger(EmitterState *e)
+    {
+      trigger = e;
+      return *this;
+    }
   };
 
   inline void ErrorTestTrigger(void *userData)

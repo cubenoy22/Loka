@@ -17,7 +17,7 @@ public:
     builder.Window(
         new FormScene(),
         WindowOptions()
-            .setTitle("DEVELOPERS!")
+            .setTitle("LokaSample")
             .setVisibility(true));
   }
 };

@@ -2,21 +2,30 @@
 #define DECLARA_APP_MSGBOX_HPP
 
 #include <string>
-#include <windows.h>
 #include "core/State.hpp"
 
 namespace declara
 {
   namespace app
   {
+    enum class MsgBoxIcon
+    {
+      Error,
+      Warning,
+      Information,
+      Question,
+      None
+    };
+
     struct MsgBoxProps
     {
       State<std::string> *title;
       State<std::string> *body;
       MutableState<bool> *show;
       MutableState<int> *result; // optional
+      MsgBoxIcon icon;
       MsgBoxProps()
-          : title(0), body(0), show(0), result(0)
+          : title(0), body(0), show(0), result(0), icon(MsgBoxIcon::Error)
       {
       }
       MsgBoxProps &setTitle(State<std::string> *t)
@@ -39,25 +48,16 @@ namespace declara
         result = r;
         return *this;
       }
+      MsgBoxProps &setIcon(MsgBoxIcon i)
+      {
+        icon = i;
+        return *this;
+      }
     };
 
-    // Headless helper: when show->get() is true, shows MessageBox and resets show to false.
-    inline void MsgBoxShow(HWND hwnd, const MsgBoxProps &props)
-    {
-      if (!props.show || !props.title || !props.body)
-        return;
-      if (!props.show->get())
-        return;
-
-      const std::string &t = props.title->get();
-      const std::string &b = props.body->get();
-      int res = MessageBoxA(hwnd ? hwnd : GetActiveWindow(), b.c_str(), t.c_str(), MB_OK | MB_ICONERROR);
-      if (props.result)
-      {
-        props.result->set(res, true);
-      }
-      props.show->set(false, true);
-    }
+    // Headless helper: when show->get() is true, shows platform dialog and resets show to false.
+    // Platform-specific implementations should live under each platform directory.
+    void MsgBoxShow(void *nativeWindowHandle, const MsgBoxProps &props);
   } // namespace app
 } // namespace declara
 

@@ -40,17 +40,18 @@ public:
     c.declare(
         HStack()
         << c.group(
-               VStack()
-               << Text(TextProps().setText("BMI Calculator")))
-        << BmiCalculator(c, BmiCalculatorProps(&heightInput_, &weightInput_, &bmiResult_))
-        << Button(ButtonProps().setText("Show Error").setOnClick(&onShowError_)));
+               VStack() << c.group(
+                   F()
+                   << Text(TextProps().setText("Loka Sample"))
+                   << Button(ButtonProps().setText("Show Error").setOnClick(&onShowError_))))
+        << BmiCalculator(c, BmiCalculatorProps(&heightInput_, &weightInput_, &bmiResult_)));
 
-    ErrorTestProps errProps;
-    errProps.title = &errorTitle_;
-    errProps.body = &errorBody_;
-    errProps.show = &showError_;
-    errProps.trigger = &onShowError_;
-    ErrorTestSetup(errProps);
+    ErrorTestSetup(
+        ErrorTestProps()
+            .setTitle(&errorTitle_)
+            .setBody(&errorBody_)
+            .setShow(&showError_)
+            .setTrigger(&onShowError_));
   }
 
 private:
