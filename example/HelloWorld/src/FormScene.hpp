@@ -11,9 +11,8 @@
 #include "app/Fragment.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
-#include "app/Button.hpp"
-#include "app/MsgBox.hpp"
 #include "BmiCalculatorComponent.hpp"
+#include "ErrorTestComponent.hpp"
 
 class FormScene : public declara::core::scene::Scene
 {
@@ -45,11 +44,7 @@ public:
                VStack()
                << Text(TextProps().setText("BMI Calculator")))
         << BmiCalculator(c, BmiCalculatorProps(&heightInput_, &weightInput_, &bmiResult_))
-        << Button(ButtonProps()
-                      .setText("Show Error")
-                      .setOnClick(&onShowError_)));
-
-    // MsgBoxShow は showError_ の変化時に thunk 内で呼ぶ
+        << ErrorTest(c, ErrorTestProps().title(&errorTitle_).body(&errorBody_).show(&showError_).trigger(&onShowError_)));
   }
 
 private:
