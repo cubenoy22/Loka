@@ -49,9 +49,9 @@ namespace declara
       if (!props.show->get())
         return;
 
-      std::wstring wtitle(props.title->get().begin(), props.title->get().end());
-      std::wstring wbody(props.body->get().begin(), props.body->get().end());
-      int res = MessageBoxW(hwnd, wbody.c_str(), wtitle.c_str(), MB_OK | MB_ICONERROR);
+      const std::string &t = props.title->get();
+      const std::string &b = props.body->get();
+      int res = MessageBoxA(hwnd ? hwnd : GetActiveWindow(), b.c_str(), t.c_str(), MB_OK | MB_ICONERROR);
       if (props.result)
       {
         props.result->set(res, true);
