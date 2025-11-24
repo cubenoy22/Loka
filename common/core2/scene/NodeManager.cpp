@@ -27,22 +27,6 @@ namespace
     }
   }
 
-  // Recursively materialize all nodes (pre-order)
-  void materializeRecursive(declara::core::scene::Node *node, declara::core::scene::IPlatformController *controller)
-  {
-    if (!node || !controller)
-      return;
-    // Parent-first materialize
-    controller->materialize(node);
-    declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
-    if (!nestable)
-      return;
-    const std::vector<declara::core::scene::Node *> &children = nestable->getChildren();
-    for (size_t i = 0; i < children.size(); ++i)
-    {
-      materializeRecursive(children[i], controller);
-    }
-  }
 }
 
 namespace declara
@@ -86,8 +70,8 @@ namespace declara
         }
         // 初回compose（Solid.js型）: ルートから全Composableを再帰compose
         composeRecursive(rootNode_);
-        // materializeも親→子で再帰
-        materializeRecursive(rootNode_, platformController_);
+        // materializeはルートからプラットフォームコントローラーに委譲
+        platformController_->materialize(rootNode_);
         return true;
       }
 
