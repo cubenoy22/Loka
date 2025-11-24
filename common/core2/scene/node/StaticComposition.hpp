@@ -10,22 +10,17 @@ namespace declara
   {
     namespace scene
     {
-      typedef NodeDefinitionBase *(*StaticComposeFunc)(NodeComposition &, void *);
-
+      // Forward declaration so StaticCompositionProps can alias NodeType
+      class StaticCompositionNode;
       struct StaticCompositionProps : public NodePropsBase<StaticCompositionProps>
       {
-        StaticComposeFunc compose;
-        void *userData;
-        StaticCompositionProps() : compose(0), userData(0) {}
-        StaticCompositionProps(StaticComposeFunc f, void *ud) : compose(f), userData(ud) {}
+        StaticCompositionProps() {}
+        // Required alias for NodePropsBase to construct nodes
+        typedef StaticCompositionNode NodeType; // forward-declared below
         bool operator<(const PropsBase &rhs) const
         {
           const StaticCompositionProps *p = dynamic_cast<const StaticCompositionProps *>(&rhs);
-          if (!p)
-            return false;
-          if (compose != p->compose)
-            return compose < p->compose;
-          return userData < p->userData;
+          return p ? false : false;
         }
       };
 
@@ -36,19 +31,15 @@ namespace declara
         StaticCompositionNode(const StaticCompositionProps &p) : ComposableNode(), props(p) {}
         virtual ~StaticCompositionNode() {}
 
+        // Build node definitions into composition container (default: no children)
+        // Making this non-pure allows instantiation via NodeDefinition<StaticCompositionProps, StaticCompositionNode>
+        virtual void composeNode(NodeComposition &c) {}
+
         virtual void compose()
         {
           clearChildren();
-          if (!props.compose)
-            return;
           NodeComposition c;
-          NodeDefinitionBase *def = props.compose(c, props.userData);
-          if (!def)
-          {
-            def = c.root();
-          }
-          if (!def)
-            return;
+          this->composeNode(c);
           Node *child = c.createNodeTree();
           if (child)
           {

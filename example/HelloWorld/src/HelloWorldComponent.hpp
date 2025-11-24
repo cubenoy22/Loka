@@ -1,7 +1,10 @@
 #ifndef DECLARA_HELLOWORLD_COMPONENT_HPP
 #define DECLARA_HELLOWORLD_COMPONENT_HPP
 
-#include "core2/scene/node/ComposableNode.hpp"
+#include "core2/scene/node/StaticComposition.hpp"
+#include "app/Fragment.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 
 namespace helloworld
 {
@@ -9,31 +12,27 @@ namespace helloworld
   {
   };
 
-  struct HelloWorldProps : public declara::core::scene::NodePropsBase<HelloWorldProps>
+  // StaticCompositionProps 拡張: 今は空。必要に応じて拡張可。
+  struct HelloWorldProps : public declara::core::scene::StaticCompositionProps
   {
     typedef HelloWorldTypeTag TypeTag;
-    typedef class HelloWorldNode NodeType;
-
-    bool operator<(const declara::core::scene::PropsBase &rhs) const
-    {
-      const HelloWorldProps *p = dynamic_cast<const HelloWorldProps *>(&rhs);
-      if (!p)
-        return false;
-      return false;
-    }
   };
 
-  class HelloWorldNode : public declara::core::scene::ComposableNode
+  class HelloWorldNode : public declara::core::scene::StaticCompositionNode
   {
   public:
     typedef HelloWorldTypeTag TypeTag;
     HelloWorldProps props;
-    HelloWorldNode(const HelloWorldProps &p) : ComposableNode(), props(p) {}
+    HelloWorldNode(const HelloWorldProps &p) : StaticCompositionNode(HelloWorldProps(p)), props(p) {}
     virtual ~HelloWorldNode() {}
 
-    virtual void compose()
+    virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
-      // TODO: move existing BMI/Error UI here
+      using namespace declara::app;
+      c.declare(
+          VStack()
+          << Text(TextProps().setText("Hello, Declara!"))
+          << Text(TextProps().setText("StaticCompositionNode prototype")));
     }
   };
 
