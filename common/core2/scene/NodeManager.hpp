@@ -10,6 +10,7 @@ namespace declara
       class Scene;
       class Node;
       class IPlatformController;
+      class ComposableNode;
 
       // 抽象ノード管理インターフェース（今後のReact型等にも差し替え可能）
       class INodeManager
@@ -39,7 +40,7 @@ namespace declara
         void clearNodeTree();
 
         Scene *scene_;
-        Node *rootNode_;
+        ComposableNode *rootNode_;
         IPlatformController *platformController_;
       };
 

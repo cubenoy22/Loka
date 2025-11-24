@@ -2,6 +2,7 @@
 #define DECLARA_CORE2_SCENE_SCENE_HPP
 
 #include "core/State.hpp"
+#include "core2/scene/Node.hpp" // NodeDefinitionBase 使用のため定義を取得
 
 enum SceneLifecycle
 {
@@ -22,17 +23,41 @@ namespace declara
       class Scene
       {
       public:
-        Scene() : lifecycle_(ON_CREATE) {}
-        virtual ~Scene() {}
-        virtual void compose(NodeComposition &c) {}
+        // ルート未指定は禁止
+        Scene() = delete;
+        // ルート定義ポインタを所有 (生ポインタをそのまま保持し destructor で delete)
+        explicit Scene(NodeDefinitionBase *def) : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def) {}
+        // ルート定義を clone して所有するオーバーロード
+        explicit Scene(const NodeDefinitionBase &def) : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()) {}
+        virtual ~Scene()
+        {
+          if (rootDefinition_)
+          {
+            delete rootDefinition_;
+            rootDefinition_ = 0;
+          }
+        }
+
+        NodeDefinitionBase *getRootDefinition() const { return rootDefinition_; }
 
         // 外部公開: State*として取得
         State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
+        State<bool> *getAttachedState() { return &attached_; }
+
+        // 公開ラッパ: 外部から安全にライフサイクル/アタッチ状態を更新する用途
+        // (SceneManager2 以外での最小限の操作許可。副作用管理は呼び出し側で StateTracker を利用する想定)
+        void updateAttached(bool v) { setAttached(v); }
+        void updateLifecycle(SceneLifecycle v) { setLifecycle(v); }
 
       protected:
-        MutableState<SceneLifecycle> lifecycle_;
+        void setAttached(bool v) { attached_.set(v, true); }
+        void setLifecycle(SceneLifecycle v) { lifecycle_.set(v, true); }
 
-        // SceneManager2からlifecycle_を書き換え可能に
+        MutableState<SceneLifecycle> lifecycle_;
+        MutableState<bool> attached_;
+        NodeDefinitionBase *rootDefinition_;
+
+        // SceneManager2からlifecycle_/attachedを書き換え可能に
         friend class SceneManager2;
       };
 

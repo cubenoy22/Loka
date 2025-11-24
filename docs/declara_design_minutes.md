@@ -334,8 +334,26 @@ struct NodeDefinition : public NodeDefinitionBase {
   3. `BlobBuffer(&buffer, &blob, &errorSink);`
   4. UI ノード/コンポーネントは `buffer` から `State<BlobChunk>` を subscribe して audio/video 再生 or ファイル一覧などを更新。
 - Win32 での配布:
-  - アプリに同梱するデータは `Program Files\MyApp\assets\` のような固定パスか、`%LOCALAPPDATA%` へ展開したキャッシュを参照。BlobLoaderRequest に `kSourceFile` + `filePath` を渡せば、Win32 側で `CreateFileW + ReadFile`、macOS なら `NSFileHandle` などを使って同じ API で扱える。
+  - アプリに同梱するデータは `Program Files\\MyApp\\assets\\` のような固定パスか、`%LOCALAPPDATA%` へ展開したキャッシュを参照。BlobLoaderRequest に `kSourceFile` + `filePath` を渡せば、Win32 側で `CreateFileW + ReadFile`、macOS なら `NSFileHandle` などを使って同じ API で扱える。
   - パッケージ埋め込みリソース（リソースDLLやRCファイル）を読みたい場合は `kSourceResource` を追加し、Win32 の `FindResource/LoadResource` を内部で行う。
+
+---
+
+## Graphics / Multimedia モジュール構想
+
+- **パッケージ層（案）**
+  - `declara.graphics.cpu` … QuickDraw / GDI / CoreGraphics など CPU ラスタライズ系を集約し、BitmapAccess/Blob と連携。
+  - `declara.graphics.gpu` … OpenGL / OpenGL ES / Direct3D / Vulkan / Metal を束ね、ImageRecord の GPU ハンドルを管理。
+  - `declara.ui.platform` … NSView / NSImage / HWND などの OS 固有 UI を PlatformContext で隠蔽。Declara! API からは見えない。
+  - `declara.multimedia` … ゲーム、動画、MV（OpenGL + MIDI 再生など）を統合。リアルタイム/オフライン両対応でカスタムアニメーションカーブやタイムラインを扱う。
+- **Image の架け橋**
+  - `Image` は CPU/GPU いずれのハンドルも内包できる。QR コードなど CPU 生成のビットマップも `ImageRecord` に格納して GPU テクスチャへアップロード可能。
+- **NativeStyle / NativeAnimation**
+  - key-value 形式でスタイル/アニメーションを指定し、PlatformContext が理解できるキーだけ適用。未対応キーは無視。
+  - `platform` を指定すれば CoreAnimation 固有のオプションや `declara.multimedia` 独自カーブを渡せる。Web/SSG 向けには CSS 相当への変換を想定。
+- **隠蔽ポリシー**
+  - すべての OS 固有実装は PlatformContext に閉じ込める。Declara! コアやアプリは抽象 API だけを参照。
+
 ### 既存の Node/Props パターン（実装済み）
 
 **設計書の「Host Interfaces」は不要。** 既存の `Node + Props + NodeContext` パターンで完結する。

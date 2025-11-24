@@ -4,7 +4,7 @@
 #include "core/AppComponent.hpp"
 #include "core/AppConfigurable.hpp"
 #include "core/Window.hpp"
-#include "FormScene.hpp"
+#include "HelloWorldComponent.hpp"
 
 class MyAppConfig : public AppConfigurable
 {
@@ -15,7 +15,7 @@ public:
   virtual void configure(AppBuilder &builder)
   {
     builder.Window(
-        new FormScene(),
+        new declara::core::scene::Scene(helloworld::HelloWorld()),
         WindowOptions()
             .setTitle("LokaSample")
             .setVisibility(true));

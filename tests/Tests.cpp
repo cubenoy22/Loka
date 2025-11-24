@@ -10,6 +10,7 @@
 #include "core2/scene/PlatformController.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/Empty.hpp"
 
 // --- main.cppから移動したテスト関数をここに実装 ---
 
@@ -350,18 +351,6 @@ void testStaticNodeManagerRun()
   using namespace declara::core::scene;
   using namespace declara::app;
 
-  class DummyScene : public Scene
-  {
-  public:
-    virtual void compose(NodeComposition &composition)
-    {
-      ButtonProps buttonProps;
-      buttonProps.setText("Controller");
-      ButtonDefinition button(buttonProps);
-      composition.declare(button);
-    }
-  };
-
   class DummyPlatformController : public IPlatformController
   {
   public:
@@ -377,7 +366,7 @@ void testStaticNodeManagerRun()
     bool destroyed_;
   };
 
-  DummyScene scene;
+  Scene scene{Empty()}; // Brace init to avoid most vexing parse
   DummyPlatformController platform;
   {
     StaticNodeManager manager;

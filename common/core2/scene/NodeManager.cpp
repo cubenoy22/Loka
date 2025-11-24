@@ -2,6 +2,7 @@
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/PlatformController.hpp"
+#include "core2/scene/node/ComposableNode.hpp"
 
 namespace declara
 {
@@ -29,9 +30,21 @@ namespace declara
           return false;
         }
 
+        NodeDefinitionBase *def = scene_->getRootDefinition();
+        if (!def)
+        {
+          return false;
+        }
+
         NodeComposition composition;
-        scene_->compose(composition);
-        rootNode_ = composition.createNodeTree();
+        composition.declare(*def);
+        rootNode_ = dynamic_cast<ComposableNode *>(composition.createNodeTree());
+        if (!rootNode_)
+        {
+          return false; // ルートがComposableNodeでない場合は失敗
+        }
+        // 初回compose（Solid.js型）
+        rootNode_->compose();
         if (rootNode_)
         {
           platformController_->materialize(rootNode_);

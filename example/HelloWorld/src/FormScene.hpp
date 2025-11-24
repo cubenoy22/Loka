@@ -12,6 +12,7 @@
 #include "app/Fragment.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include "app/Empty.hpp"
 #include "BmiCalculatorComponent.hpp"
 #include "ErrorTestComponent.hpp"
 
@@ -19,7 +20,7 @@ class FormScene : public declara::core::scene::Scene
 {
 public:
   FormScene()
-      : Scene(),
+      : Scene(declara::app::Empty()),
         heightInput_("170.0"),
         weightInput_("60.0"),
         bmiResult_("BMI: --"),

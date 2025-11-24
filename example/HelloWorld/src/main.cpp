@@ -14,7 +14,6 @@
 #include "core/util/AutoTransactionGuard.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/components/logic/format.hpp"
-#include "FormScene.hpp"
 #include "MyAppConfig.hpp"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -25,4 +24,3 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       ->run();
   return 0;
 }
-

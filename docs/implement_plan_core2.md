@@ -57,6 +57,12 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 当面は Window 1 枚 = ノード管理 1 つ = Scene 1 つで十分。複数 Scene を切り替えたい場合は `SceneManager2` が NodeManager を差し替える案が有力。
 
+### 3.1 コンポーネント再利用パターン
+
+- Fragment 型（例: `BmiCalculatorComponent`）は DSL の断片をそのまま返す軽量パターン。Scene の一部を共有したいときにパフォーマンス低下なく使える。
+- Headless 型（例: `IncrementLogic`）は `compose(NodeComposition&)` を持つコンポーネント。`NodeComposition` を引数で受け取ることで、将来的な `c.useState` や headless ノードの閉じ込めが可能になり、React 型の再 compose を Solid-mode 内に内包できる。
+- 用途に応じて両方を使い分ける。UI断片なら Fragment 型、ロジックや I/O をまとめたい場合は Headless 型に compose を持たせる。
+
 ---
 
 ## 4. State 所有・ライフサイクル指針
