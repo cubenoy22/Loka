@@ -71,6 +71,79 @@
         "Build HelloWorld (Native-Debug-Console)"
       ],
       "group": "build"
+    },
+    {
+      "label": "Configure HelloWorld (Native-Release-Console)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "example/HelloWorld",
+        "-B",
+        "example/HelloWorld/build/native-release",
+        "-DUSE_CONSOLE_SUBSYSTEM=ON",
+        "-DTEST_BUILD=ON",
+        "-DCMAKE_BUILD_TYPE=Release"
+      ]
+    },
+    {
+      "label": "Build HelloWorld (Native-Release-Console)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "example/HelloWorld/build/native-release",
+        "--config",
+        "Release"
+      ],
+      "dependsOn": [
+        "Configure HelloWorld (Native-Release-Console)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Configure HelloWorld (Native-Release-GUI)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S",
+        "example/HelloWorld",
+        "-B",
+        "example/HelloWorld/build/native-release",
+        "-DUSE_CONSOLE_SUBSYSTEM=OFF",
+        "-DCMAKE_BUILD_TYPE=Release"
+      ]
+    },
+    {
+      "label": "Build HelloWorld (Native-Release-GUI)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "example/HelloWorld/build/native-release",
+        "--config",
+        "Release"
+      ],
+      "dependsOn": [
+        "Configure HelloWorld (Native-Release-GUI)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Config & Build HelloWorld (Native-Release-GUI)",
+      "dependsOn": [
+        "Configure HelloWorld (Native-Release-GUI)",
+        "Build HelloWorld (Native-Release-GUI)"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "Config & Build HelloWorld (Native-Release-Console)",
+      "dependsOn": [
+        "Configure HelloWorld (Native-Release-Console)",
+        "Build HelloWorld (Native-Release-Console)"
+      ],
+      "group": "build"
     }
   ]
 }

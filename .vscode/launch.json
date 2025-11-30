@@ -14,6 +14,18 @@
       "preLaunchTask": "Build HelloWorld (Native-Debug-GUI)"
     },
     {
+      "name": "Release HelloWorld (WinMain)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/example/HelloWorld/build/native-release/Release/DeclaraHelloWin32.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/example/HelloWorld/build/native-release/Release",
+      "environment": [],
+      "console": "externalTerminal",
+      "preLaunchTask": "Build HelloWorld (Native-Release-GUI)"
+    },
+    {
       "name": "Debug HelloWorld (main)",
       "type": "cppvsdbg",
       "request": "launch",
@@ -24,6 +36,18 @@
       "environment": [],
       "console": "integratedTerminal",
       "preLaunchTask": "Build HelloWorld (Native-Debug-Console)"
+    },
+    {
+      "name": "Release HelloWorld (main)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/example/HelloWorld/build/native-release/Release/DeclaraHelloWin32.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}/example/HelloWorld/build/native-release/Release",
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "Build HelloWorld (Native-Release-Console)"
     }
   ]
 }
