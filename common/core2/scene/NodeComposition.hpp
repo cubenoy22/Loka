@@ -6,6 +6,7 @@
 #include "core2/scene/Node.hpp"
 #include "core2/scene/StreamView.hpp"
 #include "core2/scene/node/Conditional.hpp"
+#include "core2/scene/ComponentContext.hpp"
 
 namespace declara
 {
@@ -19,6 +20,7 @@ namespace declara
         // Arena: owns copies of all definitions created during compose
         std::vector<NodeDefinitionBase *> arena_;
         NodeDefinitionBase *root_;
+        ComponentContext *context_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
           NodeDefinitionBase *cloned = def.clone();
@@ -48,7 +50,7 @@ namespace declara
         }
 
       public:
-        NodeComposition() : root_(0) {}
+        NodeComposition() : root_(0), context_(0) {}
 
         ~NodeComposition()
         {
@@ -91,6 +93,27 @@ namespace declara
           const NodeDefinitionBase *base = dynamic_cast<const NodeDefinitionBase *>(&def);
           assert(base && "Nestable definitions must derive from NodeDefinitionBase");
           return this->declare(*base);
+        }
+
+        void setContext(ComponentContext *context) { context_ = context; }
+        ComponentContext *componentContext() const { return context_; }
+        bool hasContext() const { return context_ != 0; }
+
+        template <typename T>
+        void useContext(const ContextDefinition<T> &definition, T &value)
+        {
+          if (!context_)
+          {
+            return;
+          }
+          context_->provide(definition, value);
+        }
+
+        template <typename T>
+        T &requireContext(const ContextDefinition<T> &definition) const
+        {
+          assert(context_ && "NodeComposition::requireContext requires ComponentContext");
+          return context_->require(definition);
         }
 
         // Create node tree

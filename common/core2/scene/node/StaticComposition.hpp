@@ -35,10 +35,11 @@ namespace declara
         // Making this non-pure allows instantiation via NodeDefinition<StaticCompositionProps, StaticCompositionNode>
         virtual void composeNode(NodeComposition &c) {}
 
-        virtual void compose()
+        virtual void composeWithContext(ComponentContext &context)
         {
           clearChildren();
           NodeComposition c;
+          c.setContext(&context);
           this->composeNode(c);
           Node *child = c.createNodeTree();
           if (child)

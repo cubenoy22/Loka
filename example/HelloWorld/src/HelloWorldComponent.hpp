@@ -2,9 +2,12 @@
 #define DECLARA_HELLOWORLD_COMPONENT_HPP
 
 #include "core2/scene/node/StaticComposition.hpp"
+#include "core2/scene/ContextDefinition.hpp"
 #include "app/Fragment.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include "HelloWorldContext.hpp"
+#include "ChangeContextButton.hpp"
 
 namespace helloworld
 {
@@ -23,17 +26,29 @@ namespace helloworld
   public:
     typedef HelloWorldTypeTag TypeTag;
     HelloWorldProps props;
-    HelloWorldNode(const HelloWorldProps &p) : StaticCompositionNode(HelloWorldProps(p)), props(p) {}
-    virtual ~HelloWorldNode() {}
+    HelloWorldNode(const HelloWorldProps &p) : StaticCompositionNode(HelloWorldProps(p)), props(p), messageState_(0) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
+      using namespace declara::core::scene;
+      HelloWorldContext &context = this->useContext(HelloWorldContextDefinition(), CONTEXT_PLACEMENT_BOUNDARY);
+      c.useContext(HelloWorldContextDefinition(), context);
+      messageState_ = &context.message;
+
       using namespace declara::app;
+      TextProps prototype;
+      prototype.setText("StaticCompositionNode prototype");
+      TextProps message;
+      message.setText(messageState_ ? messageState_ : &context.message);
       c.declare(
           VStack()
-          << Text(TextProps().setText("Hello, Declara!"))
-          << Text(TextProps().setText("StaticCompositionNode prototype")));
+          << Text(prototype)
+          << Text(message)
+          << ChangeContextButtonNode());
     }
+
+  private:
+    declara::core::MutableState<std::string> *messageState_;
   };
 
   struct HelloWorldDefinition : public declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode>

@@ -10,6 +10,7 @@ int main()
   testTextInputOnChange();
   testDerivedStruct();
   testSceneManagerTransaction();
+  testComponentContext();
   testNodeCompositionTree();
   testStaticNodeManagerRun();
   // SceneTests::runAll();

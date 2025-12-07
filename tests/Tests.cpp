@@ -5,6 +5,7 @@
 #include "core/util/AutoTransactionGuard.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/SceneManager2.hpp"
+#include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/NodeManager.hpp"
 #include "core2/scene/PlatformController.hpp"
@@ -317,12 +318,75 @@ void testSceneManagerTransaction()
   printf("--- [testSceneManagerTransaction/SceneManager2] end ---\n");
 }
 
+void testComponentContext()
+{
+  printf("\n==== [testComponentContext] start ====\n");
+  using declara::core::scene::ComponentContext;
+  using declara::core::scene::ContextDefinition;
+  using declara::core::scene::NodeComposition;
+
+  struct Shared
+  {
+    int value;
+  };
+  struct ChildOnly
+  {
+    int value;
+  };
+  struct Override
+  {
+    int value;
+  };
+
+  ContextDefinition<Shared> sharedDef;
+  ContextDefinition<ChildOnly> childOnlyDef;
+  ContextDefinition<Override> overrideDef;
+  ContextDefinition<Shared> sharedDefCopy = sharedDef;
+  assert(sharedDefCopy.id() == sharedDef.id());
+
+  Shared shared = {42};
+  Override rootOverride = {1};
+  ComponentContext root;
+  root.provide(sharedDef, shared);
+  root.provide(overrideDef, rootOverride);
+
+  ComponentContext child(&root);
+  Shared &sharedRef = child.require(sharedDef);
+  assert(sharedRef.value == 42);
+  ChildOnly childOnly = {7};
+  child.provide(childOnlyDef, childOnly);
+  ChildOnly &childRef = child.require(childOnlyDef);
+  assert(childRef.value == 7);
+  Override localOverride = {99};
+  child.provide(overrideDef, localOverride);
+  Override &overrideRef = child.require(overrideDef);
+  assert(overrideRef.value == 99);
+
+  ComponentContext grandChild(&child);
+  Override &inheritOverride = grandChild.require(overrideDef);
+  assert(inheritOverride.value == 99);
+  Shared &inheritShared = grandChild.require(sharedDef);
+  assert(inheritShared.value == 42);
+  ChildOnly *inheritedChild = grandChild.get(childOnlyDef);
+  assert(inheritedChild && inheritedChild->value == 7);
+  assert(grandChild.contains(sharedDef));
+  assert(!grandChild.contains(ContextDefinition<int>()));
+
+  ComponentContext ctxForComposition;
+  declara::core::scene::NodeComposition composition;
+  composition.setContext(&ctxForComposition);
+  composition.useContext(sharedDef, shared);
+  Shared &fromComposition = ctxForComposition.require(sharedDef);
+  assert(fromComposition.value == 42);
+  printf("--- [testComponentContext] end ---\n");
+}
+
 void testNodeCompositionTree()
 {
   using namespace declara::core::scene;
   using namespace declara::app;
 
-  NodeComposition composition;
+  declara::core::scene::NodeComposition composition;
   BoxProps boxProps;
   BoxDefinition box(boxProps);
   BoxDefinition &root = composition.declare(box);
