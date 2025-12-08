@@ -49,10 +49,7 @@ namespace declara
           }
         }
 
-      public:
-        NodeComposition() : root_(0), context_(0) {}
-
-        ~NodeComposition()
+        void destroyArena()
         {
           for (size_t i = 0; i < arena_.size(); ++i)
           {
@@ -64,7 +61,14 @@ namespace declara
             node->clearCleanupHook();
             delete node;
           }
+          arena_.clear();
+          root_ = 0;
         }
+
+      public:
+        NodeComposition() : root_(0), context_(0) {}
+
+        ~NodeComposition() { this->destroyArena(); }
 
         // Store a copy of the definition in the arena and return pointer
         template <typename T>
@@ -98,6 +102,12 @@ namespace declara
         void setContext(ComponentContext *context) { context_ = context; }
         ComponentContext *componentContext() const { return context_; }
         bool hasContext() const { return context_ != 0; }
+
+        void reset()
+        {
+          this->destroyArena();
+          context_ = 0;
+        }
 
         template <typename T>
         void useContext(const ContextDefinition<T> &definition, T &value)

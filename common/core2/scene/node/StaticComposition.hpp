@@ -37,11 +37,10 @@ namespace declara
 
         virtual void composeWithContext(ComponentContext &context)
         {
-          clearChildren();
-          NodeComposition c;
-          c.setContext(&context);
-          this->composeNode(c);
-          Node *child = c.createNodeTree();
+          this->clearChildren();
+          NodeComposition &composition = this->beginComposition(context);
+          this->composeNode(composition);
+          Node *child = composition.createNodeTree();
           if (child)
           {
             this->addChild(child);

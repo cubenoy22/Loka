@@ -6,6 +6,7 @@
 #include "../Node.hpp"
 #include "../ComponentContext.hpp"
 #include "../ContextDefinition.hpp"
+#include "../NodeComposition.hpp"
 
 namespace declara
 {
@@ -40,6 +41,16 @@ namespace declara
         virtual void composeWithContext(ComponentContext &context) = 0;
 
         ComponentContext *componentContext() const { return currentContext_; }
+
+        NodeComposition &beginComposition(ComponentContext &context)
+        {
+          composition_.reset();
+          composition_.setContext(&context);
+          return composition_;
+        }
+
+        NodeComposition &composition() { return composition_; }
+        const NodeComposition &composition() const { return composition_; }
 
         template <class T>
         T &useContext(const ContextDefinition<T> &definition, ContextPlacement placement = CONTEXT_PLACEMENT_BOUNDARY)
@@ -192,6 +203,7 @@ namespace declara
 
         ComponentContext *currentContext_;
         std::vector<OwnedContext> ownedContexts_;
+        NodeComposition composition_;
       };
 
     } // namespace scene
