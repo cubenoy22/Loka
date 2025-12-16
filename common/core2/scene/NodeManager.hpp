@@ -40,7 +40,7 @@ namespace declara
         void clearNodeTree();
 
         Scene *scene_;
-        ComposableNode *rootNode_;
+        Node *rootNode_;
         IPlatformController *platformController_;
       };
 

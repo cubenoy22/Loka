@@ -8,6 +8,7 @@
 namespace
 {
   void composeRecursive(declara::core::scene::ComposableNode *node, declara::core::scene::ComponentContext &context);
+  void composeFromNode(declara::core::scene::Node *node, declara::core::scene::ComponentContext &context);
 
   void traverseChildren(const std::vector<declara::core::scene::Node *> &children, declara::core::scene::ComponentContext &context)
   {
@@ -41,6 +42,24 @@ namespace
       return;
     const std::vector<declara::core::scene::Node *> &children = nestable->getChildren();
     traverseChildren(children, context);
+  }
+
+  void composeFromNode(declara::core::scene::Node *node, declara::core::scene::ComponentContext &context)
+  {
+    if (!node)
+      return;
+    declara::core::scene::ComposableNode *composable = dynamic_cast<declara::core::scene::ComposableNode *>(node);
+    if (composable)
+    {
+      composeRecursive(composable, context);
+      return;
+    }
+    declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
+    if (nestable)
+    {
+      const std::vector<declara::core::scene::Node *> &children = nestable->getChildren();
+      traverseChildren(children, context);
+    }
   }
 
 }
@@ -79,14 +98,14 @@ namespace declara
 
         NodeComposition composition;
         composition.declare(*def);
-        rootNode_ = dynamic_cast<ComposableNode *>(composition.createNodeTree());
+        rootNode_ = composition.createNodeTree();
         if (!rootNode_)
         {
-          return false; // ルートがComposableNodeでない場合は失敗
+          return false;
         }
         // 初回compose（Solid.js型）: ルートから全Composableを再帰compose
         ComponentContext rootContext;
-        composeRecursive(rootNode_, rootContext);
+        composeFromNode(rootNode_, rootContext);
         // materializeはルートからプラットフォームコントローラーに委譲
         platformController_->materialize(rootNode_);
         return true;
