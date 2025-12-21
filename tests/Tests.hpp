@@ -12,5 +12,7 @@ void testSceneManagerTransaction();
 void testComponentContext();
 void testNodeCompositionTree();
 void testStaticNodeManagerRun();
+void testLokaCoreString();
+void testLokaCoreCollections();
 
 #endif // DECLARA_TESTS_HPP

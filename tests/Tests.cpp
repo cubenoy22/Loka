@@ -1,5 +1,6 @@
 #include "Tests.hpp"
 #include <cassert>
+#include <string>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
@@ -12,6 +13,11 @@
 #include "app/Box.hpp"
 #include "app/Button.hpp"
 #include "app/Empty.hpp"
+#include "core/Managed.hpp"
+#include "loka/core/String.hpp"
+#include "loka/core/Value.hpp"
+#include "loka/platform/StringUTF8.hpp"
+#include "loka/platform/String.hpp"
 
 // --- main.cppから移動したテスト関数をここに実装 ---
 
@@ -439,4 +445,74 @@ void testStaticNodeManagerRun()
     assert(!platform.destroyed_);
   }
   assert(platform.destroyed_);
+}
+
+void testLokaCoreString()
+{
+  printf("\n==== [testLokaCoreString] start ====\n");
+  loka::core::String hello = loka::core::String::Literal("Hello");
+  loka::core::String space = loka::core::String::Literal(" ");
+  loka::core::String world = loka::core::String::Literal("World");
+  loka::core::String message = hello + space + world;
+  class StubPlatformString : public loka::platform::String
+  {
+  public:
+    explicit StubPlatformString(const std::string &value) : storage_(value) {}
+    virtual bool appendUtf8(std::string &out) const
+    {
+      out.append(storage_);
+      return true;
+    }
+
+  private:
+    std::string storage_;
+  };
+  Managed<loka::platform::String> stubHandle = Managed<loka::platform::String>::Wrap(new StubPlatformString("!"));
+  message = message + loka::core::String::FromPlatform(stubHandle);
+  const std::string expected = "Hello World!";
+  std::string flattened;
+  assert(loka::platform::CollectUtf8(message, flattened));
+  assert(flattened == expected);
+  printf("[Loka::core::String] combined='%s'\n", flattened.c_str());
+  loka::core::String concat = loka::core::String::Literal("Prefix ") + message + loka::core::String::Literal(" Suffix");
+  std::string concatUtf8;
+  assert(loka::platform::CollectUtf8(concat, concatUtf8));
+  assert(concatUtf8 == "Prefix Hello World! Suffix");
+  loka::core::String greetingFormat = loka::core::String::Format("%1, %2!", "Hello", loka::core::String::Literal("Declarative UI"));
+  std::string greetingUtf8;
+  assert(loka::platform::CollectUtf8(greetingFormat, greetingUtf8));
+  assert(greetingUtf8 == "Hello, Declarative UI!");
+  printf("==== [testLokaCoreString] end ====\n");
+}
+
+void testLokaCoreCollections()
+{
+  printf("\n==== [testLokaCoreCollections] start ====\n");
+  loka::core::Array numbers;
+  numbers.pushBack(loka::core::Value(10L));
+  numbers.pushBack(loka::core::Value(20L));
+  loka::core::Array copy = numbers;
+  copy.pushBack(loka::core::Value(30L));
+  assert(numbers.size() == 2);
+  assert(copy.size() == 3);
+  loka::core::Dictionary dict;
+  dict.set(loka::core::String::Literal("title"), loka::core::Value(loka::core::String::Literal("inventory")));
+  dict.set(loka::core::String::Literal("count"), loka::core::Value(static_cast<long>(numbers.size())));
+  dict.set(loka::core::String::Literal("items"), loka::core::Value(numbers));
+  loka::core::Value dictValue(dict);
+  loka::core::Dictionary extracted = dictValue.asDictionary();
+  const loka::core::Value *itemsValue = extracted.find(loka::core::String::Literal("items"));
+  assert(itemsValue != 0);
+  loka::core::Array extractedItems = itemsValue->asArray();
+  assert(extractedItems.size() == numbers.size());
+  const loka::core::Value *titleValue = extracted.find(loka::core::String::Literal("title"));
+  assert(titleValue != 0);
+  std::string titleUtf8;
+  assert(loka::platform::CollectUtf8(titleValue->asString(), titleUtf8));
+  assert(titleUtf8 == "inventory");
+  bool removed = extracted.remove(loka::core::String::Literal("title"));
+  assert(removed);
+  assert(!extracted.hasKey(loka::core::String::Literal("title")));
+  printf("[Loka::core::Dictionary] keys after remove=%zu\n", extracted.size());
+  printf("==== [testLokaCoreCollections] end ====\n");
 }

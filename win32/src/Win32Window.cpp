@@ -9,7 +9,9 @@
 #include "core2/scene/NodeManager.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
-#include "core/strings/Strings.hpp"
+#include "loka/core/String.hpp"
+#include "loka/platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 
 namespace
 {
@@ -63,12 +65,20 @@ void Win32Window::TitleChangedThunk(void *userData)
   if (self && self->hwnd_)
   {
     // Window基底のtitle値(UTF-8)をUTF-16に変換して反映
-    const std::string &t = self->title.get();
-    std::wstring w;
-    if (declara::core::strings::utf8_to_wstring(t, w))
-      SetWindowTextW(self->hwnd_, w.c_str());
+    // title は std::string なので CollectUtf8 はそのまま append
+    std::string buffer = self->title.get();
+    if (buffer.empty())
+    {
+      SetWindowTextW(self->hwnd_, L"");
+      return;
+    }
+    loka::core::String titleString(buffer);
+    Managed<loka::platform::String> handle = loka::win32::CreateWin32String(titleString);
+    loka::win32::Win32String *win32String = handle.isValid() ? dynamic_cast<loka::win32::Win32String *>(handle.get()) : 0;
+    if (win32String)
+      SetWindowTextW(self->hwnd_, win32String->c_str());
     else
-      SetWindowTextA(self->hwnd_, t.c_str());
+      SetWindowTextA(self->hwnd_, buffer.c_str());
   }
 }
 
