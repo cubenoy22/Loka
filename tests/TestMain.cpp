@@ -13,6 +13,8 @@ int main()
   testComponentContext();
   testNodeCompositionTree();
   testStaticNodeManagerRun();
+  testLokaCoreString();
+  testLokaCoreCollections();
   // SceneTests::runAll();
   return 0;
 }
