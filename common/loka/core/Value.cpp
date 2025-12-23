@@ -1,6 +1,7 @@
 #include "loka/core/Value.hpp"
 
 #include <cassert>
+#include <new>
 
 #include "loka/platform/StringUTF8.hpp"
 
@@ -8,37 +9,44 @@ namespace loka
 {
   namespace core
   {
-    Value::Value() : valueType(ValueTypeNull), boolValue(false), intValue(0), doubleValue(0.0), stringValue(), arrayStorage(), dictionaryStorage()
+    Value::Value() : valueType(ValueTypeNull)
     {
     }
 
-    Value::Value(bool b) : valueType(ValueTypeBool), boolValue(b), intValue(b ? 1 : 0), doubleValue(b ? 1.0 : 0.0), stringValue(), arrayStorage(), dictionaryStorage()
+    Value::Value(bool b) : valueType(ValueTypeBool)
     {
+      this->storage.boolValue = b;
     }
 
-    Value::Value(long n) : valueType(ValueTypeInt), boolValue(n != 0), intValue(n), doubleValue(static_cast<double>(n)), stringValue(), arrayStorage(), dictionaryStorage()
+    Value::Value(long n) : valueType(ValueTypeInt)
     {
+      this->storage.intValue = n;
     }
 
-    Value::Value(double d) : valueType(ValueTypeDouble), boolValue(d != 0.0), intValue(static_cast<long>(d)), doubleValue(d), stringValue(), arrayStorage(), dictionaryStorage()
+    Value::Value(double d) : valueType(ValueTypeDouble)
     {
+      this->storage.doubleValue = d;
     }
 
-    Value::Value(const String &s) : valueType(ValueTypeString), boolValue(false), intValue(0), doubleValue(0.0), stringValue(s), arrayStorage(), dictionaryStorage()
+    Value::Value(const String &s) : valueType(ValueTypeNull)
     {
+      new (this->storage.stringValue) String(s);
+      this->valueType = ValueTypeString;
     }
 
-    Value::Value(const Array &array) : valueType(ValueTypeNull), boolValue(false), intValue(0), doubleValue(0.0), stringValue(), arrayStorage(), dictionaryStorage()
+    Value::Value(const Array &array) : valueType(ValueTypeNull)
     {
-      this->setArray(array);
+      new (this->storage.arrayValue) Managed<ArrayStorage>(array.getHandle());
+      this->valueType = ValueTypeArray;
     }
 
-    Value::Value(const Dictionary &dictionary) : valueType(ValueTypeNull), boolValue(false), intValue(0), doubleValue(0.0), stringValue(), arrayStorage(), dictionaryStorage()
+    Value::Value(const Dictionary &dictionary) : valueType(ValueTypeNull)
     {
-      this->setDictionary(dictionary);
+      new (this->storage.dictionaryValue) Managed<DictionaryStorage>(dictionary.getHandle());
+      this->valueType = ValueTypeDictionary;
     }
 
-    Value::Value(const Value &other) : valueType(ValueTypeNull), boolValue(false), intValue(0), doubleValue(0.0), stringValue(), arrayStorage(), dictionaryStorage()
+    Value::Value(const Value &other) : valueType(ValueTypeNull)
     {
       this->copyFrom(other);
     }
@@ -47,7 +55,7 @@ namespace loka
     {
       if (this != &other)
       {
-        this->releaseRefs();
+        this->destroyActive();
         this->copyFrom(other);
       }
       return *this;
@@ -55,12 +63,25 @@ namespace loka
 
     Value::~Value()
     {
-      this->releaseRefs();
+      this->destroyActive();
     }
 
-    Value Value::Null()
+    const Value &Value::Null()
     {
-      return Value();
+      static const Value nullValue;
+      return nullValue;
+    }
+
+    const Value &Value::True()
+    {
+      static const Value trueValue(true);
+      return trueValue;
+    }
+
+    const Value &Value::False()
+    {
+      static const Value falseValue(false);
+      return falseValue;
     }
 
     ValueType Value::type() const
@@ -78,11 +99,11 @@ namespace loka
       switch (this->valueType)
       {
       case ValueTypeBool:
-        return this->boolValue;
+        return this->storage.boolValue;
       case ValueTypeInt:
-        return this->intValue != 0;
+        return this->storage.intValue != 0;
       case ValueTypeDouble:
-        return this->doubleValue != 0.0;
+        return this->storage.doubleValue != 0.0;
       default:
         break;
       }
@@ -94,11 +115,11 @@ namespace loka
       switch (this->valueType)
       {
       case ValueTypeInt:
-        return this->intValue;
+        return this->storage.intValue;
       case ValueTypeBool:
-        return this->boolValue ? 1 : 0;
+        return this->storage.boolValue ? 1 : 0;
       case ValueTypeDouble:
-        return static_cast<long>(this->doubleValue);
+        return static_cast<long>(this->storage.doubleValue);
       default:
         break;
       }
@@ -110,11 +131,11 @@ namespace loka
       switch (this->valueType)
       {
       case ValueTypeDouble:
-        return this->doubleValue;
+        return this->storage.doubleValue;
       case ValueTypeInt:
-        return static_cast<double>(this->intValue);
+        return static_cast<double>(this->storage.intValue);
       case ValueTypeBool:
-        return this->boolValue ? 1.0 : 0.0;
+        return this->storage.boolValue ? 1.0 : 0.0;
       default:
         break;
       }
@@ -124,114 +145,104 @@ namespace loka
     const String &Value::asString() const
     {
       assert(this->valueType == ValueTypeString && "Value::asString requires string type");
-      return this->stringValue;
+      return *this->stringSlot();
     }
 
     Array Value::asArray() const
     {
-      if (this->valueType != ValueTypeArray || !this->arrayStorage.isValid())
+      if (this->valueType != ValueTypeArray)
         return Array();
-      return Array(this->arrayStorage);
+      return Array(*this->arraySlot());
     }
 
     Dictionary Value::asDictionary() const
     {
-      if (this->valueType != ValueTypeDictionary || !this->dictionaryStorage.isValid())
+      if (this->valueType != ValueTypeDictionary)
         return Dictionary();
-      return Dictionary(this->dictionaryStorage);
-    }
-
-    void Value::setBool(bool b)
-    {
-      this->releaseRefs();
-      this->valueType = ValueTypeBool;
-      this->boolValue = b;
-      this->intValue = b ? 1 : 0;
-      this->doubleValue = b ? 1.0 : 0.0;
-      this->stringValue = String();
-    }
-
-    void Value::setInt(long n)
-    {
-      this->releaseRefs();
-      this->valueType = ValueTypeInt;
-      this->intValue = n;
-      this->boolValue = n != 0;
-      this->doubleValue = static_cast<double>(n);
-      this->stringValue = String();
-    }
-
-    void Value::setDouble(double d)
-    {
-      this->releaseRefs();
-      this->valueType = ValueTypeDouble;
-      this->doubleValue = d;
-      this->boolValue = d != 0.0;
-      this->intValue = static_cast<long>(d);
-      this->stringValue = String();
-    }
-
-    void Value::setString(const String &s)
-    {
-      this->releaseRefs();
-      this->valueType = ValueTypeString;
-      this->stringValue = s;
-      this->boolValue = false;
-      this->intValue = 0;
-      this->doubleValue = 0.0;
-    }
-
-    void Value::setArray(const Array &array)
-    {
-      this->releaseRefs();
-      this->valueType = ValueTypeArray;
-      this->arrayStorage = array.getHandle();
-      this->dictionaryStorage.reset();
-    }
-
-    void Value::setDictionary(const Dictionary &dictionary)
-    {
-      this->releaseRefs();
-      this->valueType = ValueTypeDictionary;
-      this->dictionaryStorage = dictionary.getHandle();
-      this->arrayStorage.reset();
-    }
-
-    void Value::reset()
-    {
-      this->releaseRefs();
-      this->valueType = ValueTypeNull;
-      this->boolValue = false;
-      this->intValue = 0;
-      this->doubleValue = 0.0;
-      this->stringValue = String();
-    }
-
-    void Value::releaseRefs()
-    {
-      if (this->valueType == ValueTypeArray)
-        this->arrayStorage.reset();
-      else if (this->valueType == ValueTypeDictionary)
-        this->dictionaryStorage.reset();
+      return Dictionary(*this->dictionarySlot());
     }
 
     void Value::copyFrom(const Value &other)
     {
-      this->valueType = other.valueType;
-      this->boolValue = other.boolValue;
-      this->intValue = other.intValue;
-      this->doubleValue = other.doubleValue;
-      this->stringValue = other.stringValue;
-      this->arrayStorage = Managed<ArrayStorage>();
-      this->dictionaryStorage = Managed<DictionaryStorage>();
-      if (other.valueType == ValueTypeArray)
+      switch (other.valueType)
       {
-        this->arrayStorage = other.arrayStorage;
+      case ValueTypeNull:
+        this->valueType = ValueTypeNull;
+        break;
+      case ValueTypeBool:
+        this->storage.boolValue = other.storage.boolValue;
+        this->valueType = ValueTypeBool;
+        break;
+      case ValueTypeInt:
+        this->storage.intValue = other.storage.intValue;
+        this->valueType = ValueTypeInt;
+        break;
+      case ValueTypeDouble:
+        this->storage.doubleValue = other.storage.doubleValue;
+        this->valueType = ValueTypeDouble;
+        break;
+      case ValueTypeString:
+        new (this->storage.stringValue) String(*other.stringSlot());
+        this->valueType = ValueTypeString;
+        break;
+      case ValueTypeArray:
+        new (this->storage.arrayValue) Managed<ArrayStorage>(*other.arraySlot());
+        this->valueType = ValueTypeArray;
+        break;
+      case ValueTypeDictionary:
+        new (this->storage.dictionaryValue) Managed<DictionaryStorage>(*other.dictionarySlot());
+        this->valueType = ValueTypeDictionary;
+        break;
       }
-      else if (other.valueType == ValueTypeDictionary)
+    }
+
+    void Value::destroyActive()
+    {
+      switch (this->valueType)
       {
-        this->dictionaryStorage = other.dictionaryStorage;
+      case ValueTypeString:
+        this->stringSlot()->~String();
+        break;
+      case ValueTypeArray:
+        this->arraySlot()->~Managed<ArrayStorage>();
+        break;
+      case ValueTypeDictionary:
+        this->dictionarySlot()->~Managed<DictionaryStorage>();
+        break;
+      default:
+        break;
       }
+      this->valueType = ValueTypeNull;
+    }
+
+    String *Value::stringSlot()
+    {
+      return reinterpret_cast<String *>(this->storage.stringValue);
+    }
+
+    const String *Value::stringSlot() const
+    {
+      return reinterpret_cast<const String *>(this->storage.stringValue);
+    }
+
+    Managed<ArrayStorage> *Value::arraySlot()
+    {
+      return reinterpret_cast<Managed<ArrayStorage> *>(this->storage.arrayValue);
+    }
+
+    const Managed<ArrayStorage> *Value::arraySlot() const
+    {
+      return reinterpret_cast<const Managed<ArrayStorage> *>(this->storage.arrayValue);
+    }
+
+    Managed<DictionaryStorage> *Value::dictionarySlot()
+    {
+      return reinterpret_cast<Managed<DictionaryStorage> *>(this->storage.dictionaryValue);
+    }
+
+    const Managed<DictionaryStorage> *Value::dictionarySlot() const
+    {
+      return reinterpret_cast<const Managed<DictionaryStorage> *>(this->storage.dictionaryValue);
     }
 
     ArrayStorage::ArrayStorage() : values()

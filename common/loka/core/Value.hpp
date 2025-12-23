@@ -14,6 +14,8 @@ namespace loka
   {
     class Array;
     class Dictionary;
+    struct ArrayStorage;
+    struct DictionaryStorage;
 
     enum ValueType
     {
@@ -40,7 +42,9 @@ namespace loka
       Value &operator=(const Value &other);
       ~Value();
 
-      static Value Null();
+      static const Value &Null();
+      static const Value &True();
+      static const Value &False();
 
       ValueType type() const;
       bool isNull() const;
@@ -52,24 +56,29 @@ namespace loka
       Array asArray() const;
       Dictionary asDictionary() const;
 
-      void setBool(bool b);
-      void setInt(long n);
-      void setDouble(double d);
-      void setString(const String &s);
-      void setArray(const Array &array);
-      void setDictionary(const Dictionary &dictionary);
-
     private:
       ValueType valueType;
-      bool boolValue;
-      long intValue;
-      double doubleValue;
-      String stringValue;
-      Managed<struct ArrayStorage> arrayStorage;
-      Managed<struct DictionaryStorage> dictionaryStorage;
+      union Storage
+      {
+        bool boolValue;
+        long intValue;
+        double doubleValue;
+        char stringValue[sizeof(String)];
+        char arrayValue[sizeof(Managed<ArrayStorage>)];
+        char dictionaryValue[sizeof(Managed<DictionaryStorage>)];
+      } storage;
 
-      void reset();
-      void releaseRefs();
+      // TODO: Investigate pooling for heavier payload slots if profiling shows gains.
+      // TODO: Consider light wrapper types around Array/Dictionary to enforce typed views without changing the core Value container.
+      // TODO: std::vector works for now; abstract the storage layer only if legacy toolchains require a custom container.
+
+      String *stringSlot();
+      const String *stringSlot() const;
+      Managed<ArrayStorage> *arraySlot();
+      const Managed<ArrayStorage> *arraySlot() const;
+      Managed<DictionaryStorage> *dictionarySlot();
+      const Managed<DictionaryStorage> *dictionarySlot() const;
+      void destroyActive();
       void copyFrom(const Value &other);
       friend class Array;
       friend class Dictionary;
