@@ -28,25 +28,22 @@ namespace loka
       this->storage.doubleValue = d;
     }
 
-    Value::Value(const String &s) : valueType(ValueTypeNull)
+    Value::Value(const String &s) : valueType(ValueTypeString)
     {
       new (this->storage.stringValue) String(s);
-      this->valueType = ValueTypeString;
     }
 
-    Value::Value(const Array &array) : valueType(ValueTypeNull)
+    Value::Value(const Array &array) : valueType(ValueTypeArray)
     {
       new (this->storage.arrayValue) Managed<ArrayStorage>(array.getHandle());
-      this->valueType = ValueTypeArray;
     }
 
-    Value::Value(const Dictionary &dictionary) : valueType(ValueTypeNull)
+    Value::Value(const Dictionary &dictionary) : valueType(ValueTypeDictionary)
     {
       new (this->storage.dictionaryValue) Managed<DictionaryStorage>(dictionary.getHandle());
-      this->valueType = ValueTypeDictionary;
     }
 
-    Value::Value(const Value &other) : valueType(ValueTypeNull)
+    Value::Value(const Value &other) : valueType(other.valueType)
     {
       this->copyFrom(other);
     }
