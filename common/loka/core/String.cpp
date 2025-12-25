@@ -72,6 +72,13 @@ namespace loka
       return handle_;
     }
 
+    Managed<platform::GraphemeString> String::graphemeHandle() const
+    {
+      if (!handle_.isValid())
+        return Managed<platform::GraphemeString>();
+      return handle_->createGraphemeString();
+    }
+
     String String::operator+(const String &rhs) const
     {
       return Concat(*this, rhs);

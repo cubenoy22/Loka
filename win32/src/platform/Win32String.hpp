@@ -23,6 +23,7 @@ namespace loka
       bool empty() const;
 
       virtual bool appendUtf8(std::string &out) const;
+      virtual Managed<loka::platform::GraphemeString> createGraphemeString() const;
 
     private:
       std::wstring storage_;

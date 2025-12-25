@@ -66,6 +66,11 @@ namespace loka
       return appendWideToUtf8(this->storage_.c_str(), this->storage_.size(), out);
     }
 
+    Managed<loka::platform::GraphemeString> Win32String::createGraphemeString() const
+    {
+      return Managed<loka::platform::GraphemeString>();
+    }
+
     bool MaterializeWideString(const loka::core::String &logical, std::wstring &out)
     {
       out.clear();

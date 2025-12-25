@@ -11,6 +11,7 @@ namespace loka
   namespace platform
   {
     class String;
+    class GraphemeString;
   }
 
   namespace core
@@ -32,6 +33,7 @@ namespace loka
 
       bool empty() const;
       const Managed<platform::String> &handle() const;
+      Managed<platform::GraphemeString> graphemeHandle() const;
 
       String operator+(const String &rhs) const;
       String &operator+=(const String &rhs);
