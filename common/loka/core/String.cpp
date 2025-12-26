@@ -67,16 +67,38 @@ namespace loka
       return !handle_.isValid();
     }
 
-    const Managed<platform::String> &String::handle() const
+    StringBuffer String::buffer() const
     {
-      return handle_;
+      return bufferWithEncoding(StringEncodingUtf16);
     }
 
-    Managed<platform::GraphemeString> String::graphemeHandle() const
+    StringBuffer String::bufferWithEncoding(StringEncoding encoding) const
     {
-      if (!handle_.isValid())
-        return Managed<platform::GraphemeString>();
-      return handle_->createGraphemeString();
+      StringBuffer buffer(encoding);
+      buffer.setPlatformHandle(handle_);
+      std::string utf8;
+      if (!platform::CollectUtf8(*this, utf8))
+        return StringBuffer(encoding);
+      if (!buffer.assignFromUtf8(utf8))
+        return StringBuffer(encoding);
+      return buffer;
+    }
+
+    bool String::assignToBuffer(StringBuffer &buffer) const
+    {
+      buffer.setPlatformHandle(handle_);
+      std::string utf8;
+      if (!platform::CollectUtf8(*this, utf8))
+        return false;
+      return buffer.assignFromUtf8(utf8, false);
+    }
+
+    bool String::requiredUnits(StringEncoding encoding, std::size_t &units) const
+    {
+      std::string utf8;
+      if (!platform::CollectUtf8(*this, utf8))
+        return false;
+      return StringBuffer::CountUnitsFromUtf8(utf8, encoding, units);
     }
 
     String String::operator+(const String &rhs) const

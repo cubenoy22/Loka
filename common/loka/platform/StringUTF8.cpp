@@ -1,5 +1,6 @@
 #include "loka/platform/StringUTF8.hpp"
 #include "loka/platform/String.hpp"
+#include "loka/core/StringAccess.hpp"
 
 namespace loka
 {
@@ -7,7 +8,7 @@ namespace loka
   {
     bool CollectUtf8(const core::String &source, std::string &out)
     {
-      const Managed<String> &handle = source.handle();
+      const Managed<String> &handle = core::StringAccess::handle(source);
       if (!handle.isValid())
         return true;
       return handle->appendUtf8(out);

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "core/Managed.hpp"
+#include "loka/core/StringBuffer.hpp"
 
 namespace loka
 {
@@ -32,8 +33,10 @@ namespace loka
       static String FromPlatform(const Managed<platform::String> &platformValue);
 
       bool empty() const;
-      const Managed<platform::String> &handle() const;
-      Managed<platform::GraphemeString> graphemeHandle() const;
+      StringBuffer buffer() const;
+      StringBuffer bufferWithEncoding(StringEncoding encoding) const;
+      bool assignToBuffer(StringBuffer &buffer) const;
+      bool requiredUnits(StringEncoding encoding, std::size_t &units) const;
 
       String operator+(const String &rhs) const;
       String &operator+=(const String &rhs);
@@ -59,6 +62,7 @@ namespace loka
       static String ToStringSegment(const Managed<platform::String> &platformValue);
 
       Managed<platform::String> handle_;
+      friend class StringAccess;
     };
 
   } // namespace core
