@@ -3,16 +3,24 @@
 #include <vector>
 #include <cstdarg>
 
-// Forward declaration for StateBase
-class StateBase;
-
-// Build a vector<StateBase*> using varargs (C++98-friendly)
-static std::vector<StateBase *> makeStateVector(StateBase *first, ...)
+// Forward declaration for StateBase in its proper namespace
+namespace declara
 {
-  std::vector<StateBase *> v;
+  namespace core
+  {
+    class StateBase;
+  }
+}
+
+// Build a vector<StateBase*> using varargs (C++98-friendly). Use typedefs to avoid nested template closers.
+typedef declara::core::StateBase StateBaseType;
+typedef std::vector<StateBaseType *> StateVector;
+static StateVector makeStateVector(StateBaseType *first, ...)
+{
+  StateVector v;
   va_list args;
   va_start(args, first);
-  for (StateBase *s = first; s != 0; s = va_arg(args, StateBase *))
+  for (StateBaseType *s = first; s != 0; s = va_arg(args, StateBaseType *))
   {
     if (s) // exclude null pointers as well as terminator
       v.push_back(s);

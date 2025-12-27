@@ -436,7 +436,8 @@ void testStaticNodeManagerRun()
     bool destroyed_;
   };
 
-  Scene scene{Empty()}; // Brace init to avoid most vexing parse
+  Empty emptyDef;
+  Scene scene(emptyDef);
   DummyPlatformController platform;
   {
     StaticNodeManager manager;

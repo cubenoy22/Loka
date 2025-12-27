@@ -23,8 +23,7 @@ namespace declara
       class Scene
       {
       public:
-        // ルート未指定は禁止
-        Scene() = delete;
+        // ルート未指定は禁止 (C++98-compatible: declare private, no definition)
         // ルート定義ポインタを所有 (生ポインタをそのまま保持し destructor で delete)
         explicit Scene(NodeDefinitionBase *def) : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def) {}
         // ルート定義を clone して所有するオーバーロード
@@ -59,6 +58,10 @@ namespace declara
 
         // SceneManager2からlifecycle_/attachedを書き換え可能に
         friend class SceneManager2;
+
+      private:
+        // Default constructor intentionally not implemented to forbid rootless scenes
+        Scene();
       };
 
     } // namespace scene

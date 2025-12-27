@@ -2,6 +2,38 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Build: macOS App",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "macos-debug"],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: macOS Tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "macos-tests"],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Win32 App",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "win32-debug"],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 Tests",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "win32-tests"],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "Configure HelloWorld (Native-Debug-Console)",
       "type": "shell",
       "command": "cmake",

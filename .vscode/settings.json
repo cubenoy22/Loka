@@ -1,9 +1,5 @@
 {
-  "cmake.sourceDirectory": "${workspaceFolder}/win32",
-  "cmake.preferredGenerators": [
-    "Ninja"
-  ],
-  "cmake.buildDirectory": "${workspaceFolder}/win32/build",
+  "cmake.useCMakePresets": "always",
   "cSpell.words": [
     "DECLARA",
     "Jetpack",

@@ -2,52 +2,42 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug HelloWorld (WinMain)",
-      "type": "cppvsdbg",
+      "name": "Run (macOS)",
+      "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/example/HelloWorld/build/native/Debug/DeclaraHelloWin32.exe",
-      "args": [],
+      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/DeclaraHelloMacOS",
+      "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/example/HelloWorld/build/native/Debug",
-      "environment": [],
-      "console": "externalTerminal",
-      "preLaunchTask": "Build HelloWorld (Native-Debug-GUI)"
+      "MIMode": "lldb",
+      "preLaunchTask": "Build: macOS App"
     },
     {
-      "name": "Release HelloWorld (WinMain)",
-      "type": "cppvsdbg",
+      "name": "Test (macOS)",
+      "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/example/HelloWorld/build/native-release/Release/DeclaraHelloWin32.exe",
-      "args": [],
+      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/DeclaraTestsMacOS",
+      "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/example/HelloWorld/build/native-release/Release",
-      "environment": [],
-      "console": "externalTerminal",
-      "preLaunchTask": "Build HelloWorld (Native-Release-GUI)"
+      "MIMode": "lldb",
+      "preLaunchTask": "Build: macOS Tests"
     },
     {
-      "name": "Debug HelloWorld (main)",
+      "name": "Run (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/example/HelloWorld/build/native/Debug/DeclaraHelloWin32.exe",
-      "args": [],
+      "program": "${workspaceFolder}/build/win32/Debug/DeclaraHelloWin32.exe",
+      "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/example/HelloWorld/build/native/Debug",
-      "environment": [],
-      "console": "integratedTerminal",
-      "preLaunchTask": "Build HelloWorld (Native-Debug-Console)"
+      "preLaunchTask": "Build: Win32 App"
     },
     {
-      "name": "Release HelloWorld (main)",
+      "name": "Test (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/example/HelloWorld/build/native-release/Release/DeclaraHelloWin32.exe",
-      "args": [],
+      "program": "${workspaceFolder}/build/win32/Debug/DeclaraTestsWin32.exe",
+      "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
-      "cwd": "${workspaceFolder}/example/HelloWorld/build/native-release/Release",
-      "environment": [],
-      "console": "integratedTerminal",
-      "preLaunchTask": "Build HelloWorld (Native-Release-Console)"
+      "preLaunchTask": "Build: Win32 Tests"
     }
   ]
 }

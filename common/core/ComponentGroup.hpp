@@ -1,5 +1,6 @@
 #ifndef DECLARA_COMPONENT_GROUP_HPP
 #define DECLARA_COMPONENT_GROUP_HPP
+#include "core/AppComponent.hpp"
 #include <vector>
 
 template <typename T>
@@ -10,7 +11,7 @@ class ComponentGroup
   // T が Component の派生型でない場合、static_cast によりコンパイルエラーとなります。
   void _type_check()
   {
-    Component *p = static_cast<T *>(0);
+    AppComponent *p = static_cast<T *>(0);
     (void)p;
   }
 

@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.15)
 project(DeclaraHelloWin32 LANGUAGES CXX)
 
+# If not building on Windows, provide a no-op target so tasks succeed gracefully.
+if(NOT WIN32)
+  add_custom_target(DeclaraHelloWin32 ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "DeclaraHelloWin32 is Windows-only. Skipping build on this platform."
+  )
+  return()
+endif()
+
 set(HELLOWORLD_SOURCES
   src/main.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp

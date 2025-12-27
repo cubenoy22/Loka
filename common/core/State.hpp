@@ -198,7 +198,7 @@ namespace declara
       virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
       {
         Handler h = {cb, userData, callOnce, priority};
-        typename std::vector<Handler>::iterator it = handlers.begin();
+        std::vector<Handler>::iterator it = handlers.begin();
         for (; it != handlers.end(); ++it)
           if (priority > it->priority)
             break;
@@ -226,7 +226,7 @@ namespace declara
       {
         Handler h = {cb, userData, false, priority};
         std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
-        typename std::vector<Handler>::iterator it = ref.begin();
+        std::vector<Handler>::iterator it = ref.begin();
         for (; it != ref.end(); ++it)
           if (priority > it->priority)
             break;
