@@ -25,7 +25,7 @@
       "name": "Run (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/win32/Debug/DeclaraHelloWin32.exe",
+      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/DeclaraHelloWin32.exe",
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 App"
@@ -34,7 +34,7 @@
       "name": "Test (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/win32/Debug/DeclaraTestsWin32.exe",
+      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/DeclaraTestsWin32.exe",
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 Tests"
