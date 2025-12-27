@@ -1,0 +1,10 @@
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: Cpp98
+# Keep formatting conservative to avoid breaking C++98 parsing
+SpacesInAngles: false
+BinPackParameters: false
+BinPackArguments: false
+AllowShortFunctionsOnASingleLine: None
+SortIncludes: false
+NamespaceIndentation: None

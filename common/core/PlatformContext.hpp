@@ -1,7 +1,11 @@
 #ifndef DECLARA_PLATFORMCONTEXT_HPP
 #define DECLARA_PLATFORMCONTEXT_HPP
-
+#if defined(_WIN32) || defined(WIN32)
 #include <windows.h>
+#else
+// Provide a placeholder type for non-Windows builds
+typedef void *HINSTANCE;
+#endif
 
 class AppConfigurable;
 class PlatformContext;

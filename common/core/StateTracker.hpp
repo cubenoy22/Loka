@@ -51,18 +51,22 @@ namespace declara
       ~PushStateTracker();
 
     private:
+      // Typedefs to avoid nested template closers in C++98
+      typedef std::vector<StateBase *> StateList;
+      typedef std::pair<void (*)(void *), void *> DeferredEntry;
+      typedef std::map<StateBase *, StateList> DependencyMap;
       /// dirtyStates: トランザクション中にdirtyなStateを管理（伝播バッファ）
-      std::vector<StateBase *> dirtyStates;
+      StateList dirtyStates;
       /// deferred: commit時に一括発火する副作用コールバック
-      std::vector<std::pair<void (*)(void *), void *>> deferred;
+      std::vector<DeferredEntry> deferred;
       /// dependents: 依存グラフ（依存元→依存先リスト）。registerDependencyで構築され、依存伝播の起点となる。
-      std::map<StateBase *, std::vector<StateBase *>> dependents;
+      DependencyMap dependents;
       /// phase_: Trackerの現在のトランザクションフェーズ
       TrackerPhase phase_;
       /// visiting_: 再帰伝播時の循環依存検出用一時セット
       std::set<StateBase *> visiting_;
       /// states_: Trackerが管理する全State群（begin()/end()でcurrentTrackerをセット）
-      std::vector<StateBase *> states_;
+      StateList states_;
     };
 
   } // namespace core
