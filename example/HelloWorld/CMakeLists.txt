@@ -40,3 +40,23 @@ target_link_libraries(DeclaraHelloWin32 PRIVATE DeclaraWin32Core)
 if(MSVC)
   target_compile_options(DeclaraHelloWin32 PRIVATE /utf-8)
 endif()
+
+# Test target (console app)
+set(WIN32_TEST_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
+)
+
+add_executable(DeclaraTestsWin32 ${WIN32_TEST_SOURCES})
+
+target_include_directories(DeclaraTestsWin32 PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../tests
+)
+
+target_link_libraries(DeclaraTestsWin32 PRIVATE DeclaraWin32Core)
+
+if(MSVC)
+  target_compile_options(DeclaraTestsWin32 PRIVATE /utf-8)
+endif()
