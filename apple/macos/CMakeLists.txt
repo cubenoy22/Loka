@@ -20,30 +20,30 @@ target_include_directories(DeclaraAppleMacOSAppKit INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}
 )
 
-set(DECLARA_MACOS_SOURCES
-  src/main.mm
+file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
+
+set(DECLARA_MACOS_CORE_SOURCES
+  src/MacApp.mm
+  src/MacPlatformContext.mm
+  src/MacScenePlatformController.mm
+  src/MacWindow.mm
+  src/context/MacButtonContext.mm
+  src/context/MacEditTextContext.mm
+  src/context/MacTextContext.mm
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-if(TEST_BUILD)
-  list(APPEND DECLARA_MACOS_SOURCES
-    ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
-  )
-endif()
+add_library(DeclaraMacOSCore STATIC ${DECLARA_MACOS_CORE_SOURCES} ${COMMON_SOURCES})
 
-file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
-
-add_executable(DeclaraHelloMacOS ${DECLARA_MACOS_SOURCES} ${COMMON_SOURCES})
-
-target_include_directories(DeclaraHelloMacOS PRIVATE
+target_include_directories(DeclaraMacOSCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
-  ${PROJECT_SOURCE_DIR}/tests
   ${CMAKE_CURRENT_LIST_DIR}/src
+  ${CMAKE_CURRENT_LIST_DIR}/src/context
 )
 
-target_link_libraries(DeclaraHelloMacOS PRIVATE DeclaraAppleMacOSAppKit)
+target_link_libraries(DeclaraMacOSCore PUBLIC DeclaraAppleMacOSAppKit)
 
-target_compile_options(DeclaraHelloMacOS PRIVATE "-fobjc-arc")
+target_compile_options(DeclaraMacOSCore PRIVATE "-fobjc-arc")
 
 set(DECLARA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp

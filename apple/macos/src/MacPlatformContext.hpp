@@ -1,0 +1,17 @@
+#ifndef DECLARA_MAC_PLATFORM_CONTEXT_HPP
+#define DECLARA_MAC_PLATFORM_CONTEXT_HPP
+
+#include "core/PlatformContext.hpp"
+
+class MacPlatformContext : public PlatformContext
+{
+public:
+  MacPlatformContext();
+  virtual ~MacPlatformContext();
+
+  virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
+  virtual Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts);
+  virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const;
+};
+
+#endif // DECLARA_MAC_PLATFORM_CONTEXT_HPP
