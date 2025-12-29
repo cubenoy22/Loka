@@ -71,7 +71,7 @@ MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width
   }
 
   field_ = (__bridge void *)field;
-  delegate_ = (__bridge void *)delegate;
+  delegate_ = (__bridge_retained void *)delegate;
   bindText();
 }
 
@@ -84,8 +84,12 @@ MacEditTextContext::~MacEditTextContext()
     [field setDelegate:nil];
     [field removeFromSuperview];
   }
+  if (delegate_)
+  {
+    CFRelease(delegate_);
+    delegate_ = 0;
+  }
   field_ = 0;
-  delegate_ = 0;
 }
 
 void MacEditTextContext::handleTextDidChange()

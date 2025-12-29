@@ -76,9 +76,13 @@ MacWindow::~MacWindow()
     [window setDelegate:nil];
     [window close];
   }
+  if (delegate_)
+  {
+    CFRelease(delegate_);
+    delegate_ = 0;
+  }
   window_ = 0;
   contentView_ = 0;
-  delegate_ = 0;
 }
 
 void MacWindow::VisibilityChangedThunk(void *userData)
@@ -146,7 +150,7 @@ void MacWindow::createNativeWindow()
 
   window_ = (__bridge void *)window;
   contentView_ = (__bridge void *)contentView;
-  delegate_ = (__bridge void *)delegate;
+  delegate_ = (__bridge_retained void *)delegate;
 
   [window makeKeyAndOrderFront:nil];
   this->onCreate();
@@ -194,9 +198,13 @@ void MacWindow::handleWindowWillClose()
   closing_ = true;
   teardownScene();
   this->onDestroy();
+  if (delegate_)
+  {
+    CFRelease(delegate_);
+    delegate_ = 0;
+  }
   window_ = 0;
   contentView_ = 0;
-  delegate_ = 0;
   if (app_)
   {
     app_->windowClosed(static_cast<Window *>(this));

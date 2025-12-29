@@ -57,7 +57,7 @@ MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, in
   }
 
   button_ = (__bridge void *)button;
-  target_ = (__bridge void *)target;
+  target_ = (__bridge_retained void *)target;
   bindText();
 }
 
@@ -71,8 +71,12 @@ MacButtonContext::~MacButtonContext()
     [button setAction:nil];
     [button removeFromSuperview];
   }
+  if (target_)
+  {
+    CFRelease(target_);
+    target_ = 0;
+  }
   button_ = 0;
-  target_ = 0;
 }
 
 void MacButtonContext::handlePress()
