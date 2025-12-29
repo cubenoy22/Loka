@@ -15,7 +15,7 @@
       "name": "Test (macOS)",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/macos/Debug/example/HelloWorld/DeclaraTestsMacOS",
+      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/DeclaraTestsMacOS",
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "MIMode": "lldb",
