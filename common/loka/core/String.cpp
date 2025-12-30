@@ -67,6 +67,31 @@ namespace loka
       return !handle_.isValid();
     }
 
+    StringCompareResult String::compare(const String &other, bool allowAllocateBuffer) const
+    {
+      if (handle_ == other.handle_)
+        return StringCompareEqual;
+      if (!allowAllocateBuffer)
+        return StringCompareBufferRequired;
+
+      std::string left;
+      if (!platform::CollectUtf8(*this, left))
+        return StringCompareBufferRequired;
+
+      std::string right;
+      if (!platform::CollectUtf8(other, right))
+        return StringCompareBufferRequired;
+
+      if (left.size() != right.size())
+        return StringCompareNotEqual;
+      return left == right ? StringCompareEqual : StringCompareNotEqual;
+    }
+
+    bool String::equals(const String &other) const
+    {
+      return compare(other, true) == StringCompareEqual;
+    }
+
     StringBuffer String::buffer() const
     {
       return bufferWithEncoding(StringEncodingUtf16);

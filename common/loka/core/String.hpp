@@ -17,6 +17,13 @@ namespace loka
 
   namespace core
   {
+    enum StringCompareResult
+    {
+      StringCompareEqual = 0,
+      StringCompareNotEqual,
+      StringCompareBufferRequired
+    };
+
     class String
     {
     public:
@@ -33,6 +40,8 @@ namespace loka
       static String FromPlatform(const Managed<platform::String> &platformValue);
 
       bool empty() const;
+      StringCompareResult compare(const String &other, bool allowAllocateBuffer) const;
+      bool equals(const String &other) const;
       StringBuffer buffer() const;
       StringBuffer bufferWithEncoding(StringEncoding encoding) const;
       bool assignToBuffer(StringBuffer &buffer) const;
