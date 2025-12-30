@@ -1,40 +1,8 @@
 #include "MacEditTextContext.hpp"
+#include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/EditText.hpp"
 #include "core/State.hpp"
-
-namespace
-{
-  NSString *CreateNSStringFromUtf8(const std::string &value)
-  {
-    if (value.empty())
-    {
-      return @"";
-    }
-    NSString *string = [NSString stringWithUTF8String:value.c_str()];
-    if (string)
-    {
-      return string;
-    }
-    NSData *data = [NSData dataWithBytes:value.data() length:value.size()];
-    string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    return string ? string : @"";
-  }
-
-  std::string Utf8FromNSString(NSString *string)
-  {
-    if (!string)
-    {
-      return std::string();
-    }
-    const char *bytes = [string UTF8String];
-    if (!bytes)
-    {
-      return std::string();
-    }
-    return std::string(bytes);
-  }
-}
 
 @interface DeclaraTextFieldDelegate : NSObject <NSTextFieldDelegate>
 @property(nonatomic, assign) MacEditTextContext *owner;
@@ -134,13 +102,13 @@ void MacEditTextContext::applyText()
     return;
   }
   const std::string &desired = textState_->get();
-  std::string current = Utf8FromNSString([field stringValue]);
+  std::string current = declara::macos::Utf8FromNSString([field stringValue]);
   if (current == desired)
   {
     return;
   }
   applyingFromState_ = true;
-  [field setStringValue:CreateNSStringFromUtf8(desired)];
+  [field setStringValue:declara::macos::CreateNSStringFromUtf8(desired)];
   applyingFromState_ = false;
 }
 
@@ -157,7 +125,7 @@ void MacEditTextContext::syncStateFromControl()
     return;
   }
   updatingFromControl_ = true;
-  mutableState->set(Utf8FromNSString([field stringValue]), true);
+  mutableState->set(declara::macos::Utf8FromNSString([field stringValue]), true);
   updatingFromControl_ = false;
 }
 

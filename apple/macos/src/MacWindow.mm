@@ -1,28 +1,10 @@
 #include "MacWindow.hpp"
 #include "MacApp.hpp"
 #include "MacScenePlatformController.hpp"
+#include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "core2/scene/NodeManager.hpp"
 #include "core2/scene/Scene.hpp"
-
-namespace
-{
-  NSString *CreateNSStringFromUtf8(const std::string &value)
-  {
-    if (value.empty())
-    {
-      return @"";
-    }
-    NSString *string = [NSString stringWithUTF8String:value.c_str()];
-    if (string)
-    {
-      return string;
-    }
-    NSData *data = [NSData dataWithBytes:value.data() length:value.size()];
-    string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    return string ? string : @"";
-  }
-}
 
 @interface DeclaraFlippedView : NSView
 @end
@@ -122,7 +104,7 @@ void MacWindow::TitleChangedThunk(void *userData)
     return;
   }
   NSWindow *window = (__bridge NSWindow *)self->window_;
-  [window setTitle:CreateNSStringFromUtf8(self->title.get())];
+  [window setTitle:declara::macos::CreateNSStringFromUtf8(self->title.get())];
 }
 
 void MacWindow::createNativeWindow()
@@ -139,7 +121,7 @@ void MacWindow::createNativeWindow()
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
                                                      defer:NO];
-  [window setTitle:CreateNSStringFromUtf8(this->title.get())];
+  [window setTitle:declara::macos::CreateNSStringFromUtf8(this->title.get())];
 
   DeclaraFlippedView *contentView = [[DeclaraFlippedView alloc] initWithFrame:NSMakeRect(0, 0, frame.size.width, frame.size.height)];
   [window setContentView:contentView];

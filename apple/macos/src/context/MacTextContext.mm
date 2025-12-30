@@ -1,26 +1,8 @@
 #include "MacTextContext.hpp"
+#include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Text.hpp"
 #include "core/State.hpp"
-
-namespace
-{
-  NSString *CreateNSStringFromUtf8(const std::string &value)
-  {
-    if (value.empty())
-    {
-      return @"";
-    }
-    NSString *string = [NSString stringWithUTF8String:value.c_str()];
-    if (string)
-    {
-      return string;
-    }
-    NSData *data = [NSData dataWithBytes:value.data() length:value.size()];
-    string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    return string ? string : @"";
-  }
-}
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, declara::app::TextNode *node)
     : node_(node), label_(0), textState_(0)
@@ -81,7 +63,7 @@ void MacTextContext::applyText()
   {
     return;
   }
-  [label setStringValue:CreateNSStringFromUtf8(textState_->get())];
+  [label setStringValue:declara::macos::CreateNSStringFromUtf8(textState_->get())];
 }
 
 void MacTextContext::TextChangedThunk(void *userData)

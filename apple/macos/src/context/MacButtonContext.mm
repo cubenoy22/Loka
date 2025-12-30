@@ -1,26 +1,9 @@
 #include "MacButtonContext.hpp"
+#include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Button.hpp"
 #include "core/State.hpp"
 
-namespace
-{
-  NSString *CreateNSStringFromUtf8(const std::string &value)
-  {
-    if (value.empty())
-    {
-      return @"";
-    }
-    NSString *string = [NSString stringWithUTF8String:value.c_str()];
-    if (string)
-    {
-      return string;
-    }
-    NSData *data = [NSData dataWithBytes:value.data() length:value.size()];
-    string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    return string ? string : @"";
-  }
-}
 
 @interface DeclaraButtonTarget : NSObject
 @property(nonatomic, assign) MacButtonContext *owner;
@@ -116,7 +99,7 @@ void MacButtonContext::applyText()
   {
     return;
   }
-  [button setTitle:CreateNSStringFromUtf8(textState_->get())];
+  [button setTitle:declara::macos::CreateNSStringFromUtf8(textState_->get())];
 }
 
 void MacButtonContext::TextChangedThunk(void *userData)
