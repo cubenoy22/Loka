@@ -263,6 +263,7 @@ namespace declara
         {
           std::vector<NodeDefinitionBase *> newChildren;
           const std::vector<NodeDefinitionBase *> &otherChildren = other.children_;
+#if defined(__EXCEPTIONS)
           try
           {
             for (size_t i = 0; i < otherChildren.size(); ++i)
@@ -279,6 +280,13 @@ namespace declara
             }
             throw;
           }
+#else
+          for (size_t i = 0; i < otherChildren.size(); ++i)
+          {
+            NodeDefinitionBase *child = otherChildren[i] ? otherChildren[i]->clone() : 0;
+            newChildren.push_back(child);
+          }
+#endif
           clearChildren();
           children_ = newChildren;
         }

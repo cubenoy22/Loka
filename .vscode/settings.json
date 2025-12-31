@@ -1,6 +1,10 @@
 {
   "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
   "cmake.useCMakePresets": "always",
+  "cmake.configureEnvironment": {
+    "RETRO68_TOOLCHAIN_DIR": "${env:HOME}/Retro68-build/toolchain/m68k-apple-macos/cmake",
+    "PATH": "${env:HOME}/Retro68-build/toolchain/bin:${env:PATH}"
+  },
   "cSpell.words": [
     "DECLARA",
     "Jetpack",

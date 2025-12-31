@@ -1,6 +1,7 @@
 #ifndef DECLARA_COMPONENT_GROUP_HPP
 #define DECLARA_COMPONENT_GROUP_HPP
 #include "core/AppComponent.hpp"
+#include <cstddef>
 #include <vector>
 
 template <typename T>
@@ -26,7 +27,7 @@ public:
   }
   virtual ~ComponentGroup()
   {
-    for (size_t i = 0; i < components.size(); ++i)
+    for (std::size_t i = 0; i < components.size(); ++i)
       delete components[i];
   }
   const std::vector<T *> &getComponents() const { return components; }

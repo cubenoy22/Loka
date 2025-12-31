@@ -5,7 +5,7 @@ if(APPLE)
   enable_language(OBJCXX)
 endif()
 
-if(NOT WIN32 AND NOT APPLE)
+if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
   add_custom_target(DeclaraHelloWorld ALL
     COMMAND ${CMAKE_COMMAND} -E echo "DeclaraHelloWorld has no supported platform target here."
   )
@@ -83,4 +83,54 @@ if(APPLE)
 
   target_link_libraries(DeclaraHelloMacOS PRIVATE DeclaraMacOSCore)
   target_compile_options(DeclaraHelloMacOS PRIVATE "-fobjc-arc")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+  set(RETRO_SOURCES
+    src/ToolboxMain.cpp
+  )
+
+  add_application(DeclaraHelloClassic ${RETRO_SOURCES})
+
+  target_include_directories(DeclaraHelloClassic PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
+  )
+
+  target_link_libraries(DeclaraHelloClassic PRIVATE DeclaraAppleToolboxCore)
+
+  set_target_properties(DeclaraHelloClassic PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+
+  target_compile_options(DeclaraHelloClassic PRIVATE
+    -Os
+    -ffunction-sections
+    -fdata-sections
+    -fno-exceptions
+  )
+  target_link_options(DeclaraHelloClassic PRIVATE
+    -Wl,--gc-sections
+  )
+
+  option(DECLARA_CLASSIC_STRIP "Strip Classic Mac binaries after link" ON)
+  if(DECLARA_CLASSIC_STRIP)
+    find_program(RETRO68_STRIP
+      NAMES m68k-apple-macos-strip powerpc-apple-macos-strip
+      HINTS
+        "$ENV{RETRO68_BUILD_DIR}/toolchain/bin"
+        "${RETRO68_BUILD_DIR}/toolchain/bin"
+        "${RETRO68_TOOLCHAIN_DIR}/../bin"
+    )
+    if(RETRO68_STRIP)
+      add_custom_command(TARGET DeclaraHelloClassic POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+          -DSTRIP_TOOL="${RETRO68_STRIP}"
+          -DSTRIP_INPUT="$<TARGET_FILE:DeclaraHelloClassic>.gdb"
+          -P "${CMAKE_SOURCE_DIR}/cmake/strip_classic.cmake"
+        COMMENT "Stripping Classic debug binary"
+      )
+    endif()
+  endif()
 endif()

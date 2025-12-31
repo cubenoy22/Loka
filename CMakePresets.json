@@ -25,6 +25,34 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
+    },
+    {
+      "name": "retro68-base",
+      "displayName": "Retro68 (base)",
+      "description": "Base Retro68 configuration using env vars.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-retro68",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
+        "RETRO68_TOOLCHAIN_DIR": "$env{RETRO68_TOOLCHAIN_DIR}",
+        "RETRO68_CPU": "$env{RETRO68_CPU}"
+      }
+    },
+    {
+      "name": "retro68-debug",
+      "displayName": "Retro68 (Debug)",
+      "inherits": "retro68-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "retro68-release",
+      "displayName": "Retro68 (Release)",
+      "inherits": "retro68-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ],
   "buildPresets": [
