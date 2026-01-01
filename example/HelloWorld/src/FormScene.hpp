@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/NodeComposition.hpp"
-#include "app/EditText.hpp"
 #include "app/Fragment.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"

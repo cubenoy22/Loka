@@ -87,7 +87,7 @@ endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
   set(RETRO_SOURCES
-    src/ToolboxMain.cpp
+    src/main.cpp
   )
 
   add_application(DeclaraHelloClassic ${RETRO_SOURCES})
@@ -98,6 +98,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
   )
 
   target_link_libraries(DeclaraHelloClassic PRIVATE DeclaraAppleToolboxCore)
+
+  target_compile_definitions(DeclaraHelloClassic PRIVATE DECLARA_RETRO68=1)
 
   set_target_properties(DeclaraHelloClassic PROPERTIES
     CXX_STANDARD 98

@@ -1,26 +1,18 @@
-#include <windows.h>
-#include <string>
-#include <cassert>
-#include "Win32App.hpp"
-#include "core/State.hpp"
-#include "core/StateTracker.hpp"
-#include "core/PlatformContext.hpp"
-#include "Win32PlatformContext.hpp"
-#include "core/App.hpp"
-#include "core/Window.hpp"
-#include "core/SceneManager2.hpp"
-#include "core/util/ScopedPtr.hpp"
-#include "core/AppConfigurable.hpp"
-#include "core/util/AutoTransactionGuard.hpp"
-#include "core/util/StateUtil.hpp"
-#include "core/components/logic/format.hpp"
+#include "loka/platform/Main.hpp"
 #include "MyAppConfig.hpp"
 
+#if defined(_WIN32) || defined(WIN32)
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-  Win32PlatformContext platformContext;
-  MyAppConfig config(&platformContext);
-  ScopedPtr<App>(platformContext.createApp(&config, hInstance, nCmdShow))
-      ->run();
-  return 0;
+  return loka::platform::RunApp<MyAppConfig>(hInstance, nCmdShow);
 }
+#elif defined(DECLARA_RETRO68)
+int main(int argc, char **argv)
+{
+  (void)argc;
+  (void)argv;
+  return loka::platform::RunApp<MyAppConfig>();
+}
+#else
+#error Unsupported platform for HelloWorld main.cpp
+#endif
