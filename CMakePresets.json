@@ -17,6 +17,15 @@
       }
     },
     {
+      "name": "macos-release",
+      "displayName": "macOS Release (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "build/macos/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
       "name": "win32-debug",
       "displayName": "Win32 Debug (Ninja)",
       "generator": "Ninja",
@@ -24,6 +33,15 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "win32-release",
+      "displayName": "Win32 Release (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "build/win32/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
@@ -64,6 +82,13 @@
       ]
     },
     {
+      "name": "macos-release",
+      "configurePreset": "macos-release",
+      "targets": [
+        "DeclaraHelloMacOS"
+      ]
+    },
+    {
       "name": "macos-tests",
       "configurePreset": "macos-debug",
       "targets": [
@@ -73,6 +98,13 @@
     {
       "name": "win32-debug",
       "configurePreset": "win32-debug",
+      "targets": [
+        "DeclaraHelloWin32"
+      ]
+    },
+    {
+      "name": "win32-release",
+      "configurePreset": "win32-release",
       "targets": [
         "DeclaraHelloWin32"
       ]
