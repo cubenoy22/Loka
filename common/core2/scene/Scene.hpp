@@ -2,6 +2,7 @@
 #define DECLARA_CORE2_SCENE_SCENE_HPP
 
 #include "core/State.hpp"
+#include <cassert>
 #include "core2/scene/Node.hpp" // NodeDefinitionBase 使用のため定義を取得
 
 enum SceneLifecycle
@@ -25,9 +26,16 @@ namespace declara
       public:
         // ルート未指定は禁止 (C++98-compatible: declare private, no definition)
         // ルート定義ポインタを所有 (生ポインタをそのまま保持し destructor で delete)
-        explicit Scene(NodeDefinitionBase *def) : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def) {}
+        explicit Scene(NodeDefinitionBase *def) : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def)
+        {
+          assert(def && "Scene requires a root definition");
+          assert(def->isBoundary() && "Scene root must be a Boundary definition");
+        }
         // ルート定義を clone して所有するオーバーロード
-        explicit Scene(const NodeDefinitionBase &def) : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()) {}
+        explicit Scene(const NodeDefinitionBase &def) : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone())
+        {
+          assert(def.isBoundary() && "Scene root must be a Boundary definition");
+        }
         virtual ~Scene()
         {
           if (rootDefinition_)

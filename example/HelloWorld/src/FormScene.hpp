@@ -7,10 +7,10 @@
 #include <cstdlib>
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/NodeComposition.hpp"
+#include "core2/scene/node/StaticComposition.hpp"
 #include "app/Fragment.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
-#include "app/Empty.hpp"
 #include "BmiCalculatorComponent.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
 
@@ -18,7 +18,7 @@ class FormScene : public declara::core::scene::Scene
 {
 public:
   FormScene()
-      : Scene(declara::app::Empty()),
+      : Scene(declara::core::scene::StaticCompositionBoundary(declara::core::scene::StaticCompositionProps())),
         heightInput_("170.0"),
         weightInput_("60.0"),
         bmiResult_("BMI: --")

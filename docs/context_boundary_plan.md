@@ -21,4 +21,6 @@
 ## TODO
 - [ ] `exposeContext` のようなラッパを追加して DSL の呼び味を統一する。
 - [x] Boundary (ComposableNode) に専用の `NodeComposition` メンバーを追加し、NodeManager を薄くする。（`ComposableNode::beginComposition` で境界ごとのアリーナを使い回せるようになった。）
+- [x] BoundaryNode を導入し、境界ごとに `StateTracker` を所有できるようにする（StaticCompositionBoundary を派生させる）。
+- [ ] Window close request を Scene/Root controller に委譲し、未保存時のキャンセル判断をできるようにする。
 - [ ] Context を Headless Node として表現する `ContextDefinition/ContextNode` の設計を検討する。

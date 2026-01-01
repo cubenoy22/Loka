@@ -42,6 +42,7 @@ namespace declara
       void begin();
       void defer(void (*fn)(void *), void *userData);
       void markDirty(StateBase *state);
+      void addState(StateBase *state);
       bool end();
       /**
        * @brief 依存グラフ（依存元→依存先）を構築する。通常はDerivedStateの依存関係から自動生成される。

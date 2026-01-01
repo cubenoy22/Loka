@@ -122,6 +122,7 @@ namespace declara
         virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
         virtual Node *create() const = 0;
         virtual NodeDefinitionBase *clone() const = 0;
+        virtual bool isBoundary() const { return false; }
 
         void setCleanupHook(CleanupHook hook, void *context)
         {

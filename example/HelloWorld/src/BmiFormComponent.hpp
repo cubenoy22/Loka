@@ -28,7 +28,7 @@ namespace helloworld
     typedef BmiFormTypeTag TypeTag;
     BmiFormProps props;
     BmiFormNode(const BmiFormProps &p)
-        : StaticCompositionNode(BmiFormProps(p)),
+        : declara::core::scene::StaticCompositionNode(BmiFormProps(p)),
           props(p),
           heightInput_("170.0"),
           weightInput_("60.0"),
@@ -95,9 +95,9 @@ namespace helloworld
     MutableState<std::string> bmiResult_;
   };
 
-  struct BmiFormDefinition : public declara::core::scene::NodeDefinition<BmiFormProps, BmiFormNode>
+  struct BmiFormDefinition : public declara::core::scene::BoundaryDefinition<BmiFormProps, BmiFormNode>
   {
-    BmiFormDefinition() : NodeDefinition<BmiFormProps, BmiFormNode>() {}
+    BmiFormDefinition() : BoundaryDefinition<BmiFormProps, BmiFormNode>() {}
   };
 
   inline BmiFormDefinition BmiForm()

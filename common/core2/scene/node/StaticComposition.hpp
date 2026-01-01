@@ -2,7 +2,7 @@
 #define DECLARA_CORE2_SCENE_NODE_STATICCOMPOSITION_HPP
 
 #include "../NodeComposition.hpp"
-#include "ComposableNode.hpp"
+#include "Boundary.hpp"
 
 namespace declara
 {
@@ -10,8 +10,9 @@ namespace declara
   {
     namespace scene
     {
-      // Forward declaration so StaticCompositionProps can alias NodeType
-      class StaticCompositionNode;
+      // Forward declaration so props can alias NodeType
+      class StaticCompositionBoundaryNode;
+      typedef StaticCompositionBoundaryNode StaticCompositionNode;
       struct StaticCompositionProps : public NodePropsBase<StaticCompositionProps>
       {
         StaticCompositionProps() {}
@@ -24,12 +25,12 @@ namespace declara
         }
       };
 
-      class StaticCompositionNode : public ComposableNode
+      class StaticCompositionBoundaryNode : public BoundaryNode
       {
       public:
         StaticCompositionProps props;
-        StaticCompositionNode(const StaticCompositionProps &p) : ComposableNode(), props(p) {}
-        virtual ~StaticCompositionNode() {}
+        StaticCompositionBoundaryNode(const StaticCompositionProps &p) : BoundaryNode(), props(p) {}
+        virtual ~StaticCompositionBoundaryNode() {}
 
         // Build node definitions into composition container (default: no children)
         // Making this non-pure allows instantiation via NodeDefinition<StaticCompositionProps, StaticCompositionNode>
@@ -54,9 +55,20 @@ namespace declara
         StaticCompositionDefinition(const StaticCompositionProps &p) : NodeDefinition<StaticCompositionProps, StaticCompositionNode>(p) {}
       };
 
+      struct StaticCompositionBoundaryDefinition : public BoundaryDefinition<StaticCompositionProps, StaticCompositionBoundaryNode>
+      {
+        StaticCompositionBoundaryDefinition() : BoundaryDefinition<StaticCompositionProps, StaticCompositionBoundaryNode>() {}
+        StaticCompositionBoundaryDefinition(const StaticCompositionProps &p) : BoundaryDefinition<StaticCompositionProps, StaticCompositionBoundaryNode>(p) {}
+      };
+
       inline StaticCompositionDefinition StaticComposition(const StaticCompositionProps &p)
       {
         return StaticCompositionDefinition(p);
+      }
+
+      inline StaticCompositionBoundaryDefinition StaticCompositionBoundary(const StaticCompositionProps &p)
+      {
+        return StaticCompositionBoundaryDefinition(p);
       }
 
     } // namespace scene

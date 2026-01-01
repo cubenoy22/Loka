@@ -26,7 +26,8 @@ namespace helloworld
   public:
     typedef HelloWorldTypeTag TypeTag;
     HelloWorldProps props;
-    HelloWorldNode(const HelloWorldProps &p) : StaticCompositionNode(HelloWorldProps(p)), props(p) {}
+    HelloWorldNode(const HelloWorldProps &p)
+        : declara::core::scene::StaticCompositionNode(HelloWorldProps(p)), props(p) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -47,9 +48,9 @@ namespace helloworld
     }
   };
 
-  struct HelloWorldDefinition : public declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode>
+  struct HelloWorldDefinition : public declara::core::scene::BoundaryDefinition<HelloWorldProps, HelloWorldNode>
   {
-    HelloWorldDefinition() : NodeDefinition<HelloWorldProps, HelloWorldNode>() {}
+    HelloWorldDefinition() : BoundaryDefinition<HelloWorldProps, HelloWorldNode>() {}
   };
 
   inline HelloWorldDefinition HelloWorld()

@@ -99,6 +99,34 @@ namespace declara
       visiting_.erase(state);
     }
 
+    void PushStateTracker::addState(StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < states_.size(); ++i)
+      {
+        if (states_[i] == state)
+        {
+          return;
+        }
+      }
+      states_.push_back(state);
+      std::vector<StateBase *> deps = state->getDependencyStates();
+      if (!deps.empty())
+      {
+        for (size_t j = 0; j < deps.size(); ++j)
+        {
+          registerDependency(state, deps[j]);
+        }
+      }
+      if (phase_ != TRACKER_IDLE)
+      {
+        state->currentTracker = this;
+      }
+    }
+
     bool PushStateTracker::end()
     {
 #ifdef TEST_BUILD
