@@ -4,7 +4,7 @@
 #include "core/AppComponent.hpp"
 #include "core/AppConfigurable.hpp"
 #include "core/Window.hpp"
-#include "HelloWorldComponent.hpp"
+#include "BmiFormComponent.hpp"
 
 class MyAppConfig : public AppConfigurable
 {
@@ -15,7 +15,7 @@ public:
   virtual void configure(AppBuilder &builder)
   {
     builder.Window(
-        new declara::core::scene::Scene(helloworld::HelloWorld()),
+        new declara::core::scene::Scene(helloworld::BmiForm()),
         WindowOptions()
             .setTitle("LokaSample")
             .setVisibility(true));

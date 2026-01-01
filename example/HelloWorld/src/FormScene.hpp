@@ -7,14 +7,13 @@
 #include <cstdlib>
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/NodeComposition.hpp"
-#include "app/Button.hpp"
 #include "app/EditText.hpp"
 #include "app/Fragment.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/Empty.hpp"
 #include "BmiCalculatorComponent.hpp"
-#include "ErrorTestComponent.hpp"
+#include "core/util/AutoTransactionGuard.hpp"
 
 class FormScene : public declara::core::scene::Scene
 {
@@ -23,10 +22,7 @@ public:
       : Scene(declara::app::Empty()),
         heightInput_("170.0"),
         weightInput_("60.0"),
-        bmiResult_("BMI: --"),
-        showError_(false),
-        errorTitle_(""),
-        errorBody_("")
+        bmiResult_("BMI: --")
   {
     heightInput_.bind(&FormScene::InputChangedThunk, this, false);
     weightInput_.bind(&FormScene::InputChangedThunk, this, false);
@@ -43,16 +39,8 @@ public:
         << c.group(
                VStack() << c.group(
                    F()
-                   << Text(TextProps().setText("Loka Sample"))
-                   << Button(ButtonProps().setText("Show Error").setOnClick(&onShowError_))))
+                   << Text(TextProps().setText("Loka Sample"))))
         << BmiCalculator(c, BmiCalculatorProps(&heightInput_, &weightInput_, &bmiResult_)));
-
-    ErrorTestSetup(
-        ErrorTestProps()
-            .setTitle(&errorTitle_)
-            .setBody(&errorBody_)
-            .setShow(&showError_)
-            .setTrigger(&onShowError_));
   }
 
 private:
@@ -93,18 +81,14 @@ private:
         label = buf;
       }
     }
+    AutoTransactionGuard guard(bmiResult_.currentTracker);
     bmiResult_.set(label, true);
   }
 
   MutableState<std::string> heightInput_;
   MutableState<std::string> weightInput_;
   MutableState<std::string> bmiResult_;
-  MutableState<bool> showError_;
-  MutableState<std::string> errorTitle_;
-  MutableState<std::string> errorBody_;
-  EmitterState onShowError_;
-
-  // Error handling is delegated to ErrorTestSetup
+  // Error handling removed; MsgBox is not used.
 };
 
 #endif // DECLARA_FORM_SCENE_HPP
