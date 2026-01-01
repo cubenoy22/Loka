@@ -6,6 +6,7 @@
 #include "../Node.hpp"
 #include "ComposableNode.hpp"
 #include "../ComponentContext.hpp"
+#include "core/Managed.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateUtil.hpp"
 
@@ -23,6 +24,7 @@ namespace declara
         virtual ~BoundaryNode()
         {
           clearOwnedStates();
+          clearOwnedStateHandles();
         }
 
         declara::core::StateTracker *tracker() { return &tracker_; }
@@ -37,6 +39,18 @@ namespace declara
         MutableState<T> &useState(const T &initial)
         {
           return useStateWithValue(initial);
+        }
+
+        template <class T>
+        Managed<MutableState<T> > useManagedState()
+        {
+          return useManagedStateWithValue(T());
+        }
+
+        template <class T>
+        Managed<MutableState<T> > useManagedState(const T &initial)
+        {
+          return useManagedStateWithValue(initial);
         }
 
       protected:
@@ -91,6 +105,20 @@ namespace declara
         }
 
       private:
+        struct StateHandleBase
+        {
+          virtual ~StateHandleBase() {}
+          virtual StateBase *state() const = 0;
+        };
+
+        template <class T>
+        struct StateHandle : public StateHandleBase
+        {
+          Managed<MutableState<T> > handle;
+          explicit StateHandle(const Managed<MutableState<T> > &h) : handle(h) {}
+          StateBase *state() const { return handle.get(); }
+        };
+
         template <class T>
         MutableState<T> &useStateWithValue(const T &initial)
         {
@@ -98,6 +126,16 @@ namespace declara
           ownedStates_.push_back(state);
           tracker_.addState(state);
           return *state;
+        }
+
+        template <class T>
+        Managed<MutableState<T> > useManagedStateWithValue(const T &initial)
+        {
+          Managed<MutableState<T> > handle = Managed<MutableState<T> >::Wrap(new MutableState<T>(initial));
+          StateHandleBase *entry = new StateHandle<T>(handle);
+          ownedStateHandles_.push_back(entry);
+          tracker_.addState(entry->state());
+          return handle;
         }
 
         void clearOwnedStates()
@@ -109,8 +147,18 @@ namespace declara
           ownedStates_.clear();
         }
 
+        void clearOwnedStateHandles()
+        {
+          for (size_t i = 0; i < ownedStateHandles_.size(); ++i)
+          {
+            delete ownedStateHandles_[i];
+          }
+          ownedStateHandles_.clear();
+        }
+
         declara::core::PushStateTracker tracker_;
         std::vector<StateBase *> ownedStates_;
+        std::vector<StateHandleBase *> ownedStateHandles_;
       };
 
       template <class PropsT, class NodeT>

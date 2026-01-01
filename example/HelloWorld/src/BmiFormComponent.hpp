@@ -30,12 +30,15 @@ namespace helloworld
     BmiFormNode(const BmiFormProps &p)
         : declara::core::scene::StaticCompositionNode(BmiFormProps(p)),
           props(p),
-          heightInput_("170.0"),
-          weightInput_("60.0"),
-          bmiResult_("BMI: --")
+          heightInput_(0),
+          weightInput_(0),
+          bmiResult_(0)
     {
-      heightInput_.bind(&BmiFormNode::InputChangedThunk, this, false);
-      weightInput_.bind(&BmiFormNode::InputChangedThunk, this, false);
+      heightInput_ = &this->useState<std::string>("170.0");
+      weightInput_ = &this->useState<std::string>("60.0");
+      bmiResult_ = &this->useState<std::string>("BMI: --");
+      heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
+      weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       updateBmi();
     }
 
@@ -45,7 +48,7 @@ namespace helloworld
       c.declare(
           VStack()
           << Text(TextProps().setText("Loka Sample"))
-          << BmiCalculator(c, BmiCalculatorProps(&heightInput_, &weightInput_, &bmiResult_)));
+          << BmiCalculator(c, BmiCalculatorProps(heightInput_, weightInput_, bmiResult_)));
     }
 
   private:
@@ -72,8 +75,8 @@ namespace helloworld
 
     void updateBmi()
     {
-      double heightCm = parseDouble(heightInput_.get());
-      double weightKg = parseDouble(weightInput_.get());
+      double heightCm = parseDouble(heightInput_->get());
+      double weightKg = parseDouble(weightInput_->get());
       std::string label("BMI: --");
       if (heightCm > 0.0 && weightKg > 0.0)
       {
@@ -86,13 +89,13 @@ namespace helloworld
           label = buf;
         }
       }
-      AutoTransactionGuard guard(bmiResult_.currentTracker);
-      bmiResult_.set(label, true);
+      AutoTransactionGuard guard(bmiResult_->currentTracker);
+      bmiResult_->set(label, true);
     }
 
-    MutableState<std::string> heightInput_;
-    MutableState<std::string> weightInput_;
-    MutableState<std::string> bmiResult_;
+    MutableState<std::string> *heightInput_;
+    MutableState<std::string> *weightInput_;
+    MutableState<std::string> *bmiResult_;
   };
 
   struct BmiFormDefinition : public declara::core::scene::BoundaryDefinition<BmiFormProps, BmiFormNode>

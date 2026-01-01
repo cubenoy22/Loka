@@ -21,4 +21,5 @@
 - [x] Boundary (ComposableNode) に専用の `NodeComposition` メンバーを追加し、Boundary ごとに compose を完結する。（`ComposableNode::beginComposition` で境界ごとのアリーナを使い回せるようになった。）
 - [x] BoundaryNode を導入し、境界ごとに `StateTracker` を所有できるようにする（StaticCompositionBoundary を派生させる）。
 - [ ] Window close request を Scene/Root controller に委譲し、未保存時のキャンセル判断をできるようにする。
+- [ ] MutableState の生成を Boundary 経由に限定し、Tracker 登録漏れを文法レベルで防ぐ（StateAllocatable + friend の設計検討）。
 - [ ] Context を Headless Node として表現する `ContextDefinition/ContextNode` の設計を検討する。
