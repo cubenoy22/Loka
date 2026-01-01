@@ -87,7 +87,7 @@ common/
 
 - Scene の `compose(NodeComposition&)` は Solid.js 型を基準に **1 ライフサイクル 1 回** 実行され、`NodeComposition` が `declare()` されたツリーを **NodeOwner (Arena)** として保持する。
 - `NodeDefinition` の `clone()` は props と子ノードを再帰的に複製し、`NodeComposition` が所有権を独占する。呼び出し側は一時構築で OK。
-- `NodeComposition::createNodeTree()` で初めて実体 `Node` を new し、`NodeManager`/`PlatformController` がライフサイクルを管理する。React/Compose 型へ拡張する場合も `NodeComposition` を “compose 結果” として差分比較に利用できる。
+- `NodeComposition::createNodeTree()` で初めて実体 `Node` を new し、`Scene`/`PlatformController` がライフサイクルを管理する。React/Compose 型へ拡張する場合も `NodeComposition` を “compose 結果” として差分比較に利用できる。
 
 
 ---

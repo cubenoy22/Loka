@@ -31,14 +31,19 @@ namespace declara
           clearOwnedContexts();
         }
 
-        virtual void compose(ComponentContext &context)
+        virtual void compose(ComponentContext &context, ComposeEvent event)
         {
           ContextScope scope(this, &context);
-          this->composeWithContext(context);
+          this->composeWithContext(context, event);
+        }
+
+        virtual void compose(ComponentContext &context)
+        {
+          this->compose(context, COMPOSE_EVENT_ATTACH);
         }
 
       protected:
-        virtual void composeWithContext(ComponentContext &context) = 0;
+        virtual void composeWithContext(ComponentContext &context, ComposeEvent event) = 0;
 
         ComponentContext *componentContext() const { return currentContext_; }
 

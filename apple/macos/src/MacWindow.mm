@@ -3,7 +3,6 @@
 #include "MacScenePlatformController.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
-#include "core2/scene/NodeManager.hpp"
 #include "core2/scene/Scene.hpp"
 
 @interface DeclaraFlippedView : NSView
@@ -43,7 +42,7 @@
 @end
 
 MacWindow::MacWindow(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts)
-    : Window(context, initialScene, opts), window_(0), contentView_(0), delegate_(0), app_(0), closing_(false), nodeManager_(0), scenePlatformController_(0)
+    : Window(context, initialScene, opts), window_(0), contentView_(0), delegate_(0), app_(0), closing_(false), scenePlatformController_(0)
 {
   this->visibility.deferBind(&MacWindow::VisibilityChangedThunk, this);
   this->title.deferBind(&MacWindow::TitleChangedThunk, this);
@@ -206,7 +205,7 @@ void MacWindow::handleWindowDidResize()
 
 void MacWindow::mountScene()
 {
-  if (nodeManager_ || !window_ || !contentView_)
+  if (scenePlatformController_ || !window_ || !contentView_)
   {
     return;
   }
@@ -216,16 +215,15 @@ void MacWindow::mountScene()
     return;
   }
   scenePlatformController_ = new MacScenePlatformController(contentView_);
-  nodeManager_ = new declara::core::scene::StaticNodeManager();
-  nodeManager_->mount(currentScene, scenePlatformController_);
+  currentScene->mount(scenePlatformController_);
 }
 
 void MacWindow::teardownScene()
 {
-  if (nodeManager_)
+  declara::core::scene::Scene *currentScene = this->scene();
+  if (currentScene)
   {
-    delete nodeManager_;
-    nodeManager_ = 0;
+    currentScene->unmount();
   }
   if (scenePlatformController_)
   {

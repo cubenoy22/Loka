@@ -8,11 +8,10 @@
 #include "core/SceneManager2.hpp"
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/NodeComposition.hpp"
-#include "core2/scene/NodeManager.hpp"
 #include "core2/scene/PlatformController.hpp"
+#include "core2/scene/node/StaticComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
-#include "app/Empty.hpp"
 #include "core/Managed.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Value.hpp"
@@ -416,10 +415,9 @@ void testNodeCompositionTree()
   delete tree;
 }
 
-void testStaticNodeManagerRun()
+void testSceneMountLifecycle()
 {
   using namespace declara::core::scene;
-  using namespace declara::app;
 
   class DummyPlatformController : public IPlatformController
   {
@@ -436,15 +434,13 @@ void testStaticNodeManagerRun()
     bool destroyed_;
   };
 
-  Empty emptyDef;
-  Scene scene(emptyDef);
+  Scene scene(StaticCompositionBoundary(StaticCompositionProps()));
   DummyPlatformController platform;
-  {
-    StaticNodeManager manager;
-    manager.mount(&scene, &platform);
-    assert(platform.lastMaterialized_ != 0);
-    assert(!platform.destroyed_);
-  }
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  assert(platform.lastMaterialized_ != 0);
+  assert(!platform.destroyed_);
+  scene.updateAttached(false);
   assert(platform.destroyed_);
 }
 

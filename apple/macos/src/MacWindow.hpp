@@ -12,7 +12,7 @@ namespace declara
   {
     namespace scene
     {
-      class StaticNodeManager;
+      class Scene;
     }
   }
 }
@@ -48,7 +48,6 @@ private:
   App *app_;
   bool closing_;
 
-  declara::core::scene::StaticNodeManager *nodeManager_;
   MacScenePlatformController *scenePlatformController_;
 };
 

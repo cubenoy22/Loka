@@ -12,7 +12,7 @@ int main()
   testSceneManagerTransaction();
   testComponentContext();
   testNodeCompositionTree();
-  testStaticNodeManagerRun();
+  testSceneMountLifecycle();
   testLokaCoreString();
   testLokaCoreCollections();
   // SceneTests::runAll();

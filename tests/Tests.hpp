@@ -11,7 +11,7 @@ void testDerivedStruct();
 void testSceneManagerTransaction();
 void testComponentContext();
 void testNodeCompositionTree();
-void testStaticNodeManagerRun();
+void testSceneMountLifecycle();
 void testLokaCoreString();
 void testLokaCoreCollections();
 

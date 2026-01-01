@@ -36,8 +36,12 @@ namespace declara
         // Making this non-pure allows instantiation via NodeDefinition<StaticCompositionProps, StaticCompositionNode>
         virtual void composeNode(NodeComposition &c) {}
 
-        virtual void composeWithContext(ComponentContext &context)
+        virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
         {
+          if (event != COMPOSE_EVENT_ATTACH)
+          {
+            return;
+          }
           this->clearChildren();
           NodeComposition &composition = this->beginComposition(context);
           this->composeNode(composition);
@@ -45,6 +49,7 @@ namespace declara
           if (child)
           {
             this->addChild(child);
+            composeTree(child, context, event);
           }
         }
       };

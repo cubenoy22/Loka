@@ -26,6 +26,14 @@ namespace declara
         NODE_DIRTY_MYSELF = 0xFF // 全dirty
       };
 
+      // ComposeEvent: describes why compose was invoked.
+      enum ComposeEvent
+      {
+        COMPOSE_EVENT_ATTACH = 0,
+        COMPOSE_EVENT_UPDATE = 1,
+        COMPOSE_EVENT_DETACH = 2
+      };
+
       class Node; // forward declaration for NodeContext owner
 
       // Minimal NodeContext implementation

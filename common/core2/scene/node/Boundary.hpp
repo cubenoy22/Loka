@@ -5,6 +5,7 @@
 #include <vector>
 #include "../Node.hpp"
 #include "ComposableNode.hpp"
+#include "../ComponentContext.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateUtil.hpp"
 
@@ -39,6 +40,32 @@ namespace declara
         }
 
       protected:
+        static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event)
+        {
+          if (!node)
+          {
+            return;
+          }
+          ComposableNode *composable = dynamic_cast<ComposableNode *>(node);
+          ComponentContext *contextForChildren = &parentContext;
+          ComponentContext nodeContext(&parentContext);
+          if (composable)
+          {
+            composable->compose(nodeContext, event);
+            contextForChildren = &nodeContext;
+          }
+          INestable *nestable = dynamic_cast<INestable *>(node);
+          if (!nestable)
+          {
+            return;
+          }
+          const std::vector<Node *> &children = nestable->getChildren();
+          for (size_t i = 0; i < children.size(); ++i)
+          {
+            composeTree(children[i], *contextForChildren, event);
+          }
+        }
+
         void registerState(StateBase *state)
         {
           tracker_.addState(state);
