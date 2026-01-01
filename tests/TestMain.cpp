@@ -1,3 +1,4 @@
+#include "SceneTests.hpp"
 #include "Tests.hpp"
 
 int main()
@@ -13,8 +14,9 @@ int main()
   testComponentContext();
   testNodeCompositionTree();
   testSceneMountLifecycle();
+  testSceneBoundaryNestedCompose();
   testLokaCoreString();
   testLokaCoreCollections();
-  // SceneTests::runAll();
+  SceneTests::runAll();
   return 0;
 }

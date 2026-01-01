@@ -12,7 +12,6 @@ class PlatformContext;
 class App;
 class AppBuilder;
 class Window;
-class SceneContext;
 struct WindowOptions;
 
 namespace declara

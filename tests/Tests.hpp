@@ -12,6 +12,7 @@ void testSceneManagerTransaction();
 void testComponentContext();
 void testNodeCompositionTree();
 void testSceneMountLifecycle();
+void testSceneBoundaryNestedCompose();
 void testLokaCoreString();
 void testLokaCoreCollections();
 
