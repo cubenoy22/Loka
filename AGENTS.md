@@ -1,6 +1,7 @@
 # Project rules
 
 - C++98 only; avoid newer syntax unless explicitly justified for design discussion.
+- Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.
 - C++ exceptions are disabled; do not add `try`/`catch` or rely on throwing.
 - Prefer explicit error handling and nothrow/nullable patterns in Classic builds.
 - Use `assert` for contract violations (e.g., null PlatformContext); do not throw.
