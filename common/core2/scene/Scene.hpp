@@ -27,19 +27,18 @@ namespace declara
       class Scene
       {
       public:
-        // ルート未指定は禁止 (C++98-compatible: declare private, no definition)
-        // ルート定義ポインタを所有 (生ポインタをそのまま保持し destructor で delete)
-        explicit Scene(NodeDefinitionBase *def)
+        // Boundary 定義のみを受け付ける (compile-time check via IsBoundaryDefinition)
+        template <class DefT>
+        explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
             : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), mounted_(false), composed_(false)
         {
           assert(def && "Scene requires a root definition");
-          assert(def->isBoundary() && "Scene root must be a Boundary definition");
         }
         // ルート定義を clone して所有するオーバーロード
-        explicit Scene(const NodeDefinitionBase &def)
+        template <class DefT>
+        explicit Scene(const DefT &def, typename DefT::IsBoundaryDefinition * = 0)
             : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), mounted_(false), composed_(false)
         {
-          assert(def.isBoundary() && "Scene root must be a Boundary definition");
         }
         virtual ~Scene()
         {

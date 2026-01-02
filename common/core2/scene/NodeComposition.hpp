@@ -7,6 +7,7 @@
 #include "core2/scene/StreamView.hpp"
 #include "core2/scene/node/Conditional.hpp"
 #include "core2/scene/ComponentContext.hpp"
+#include "core2/scene/StateOwner.hpp"
 
 namespace declara
 {
@@ -109,23 +110,6 @@ namespace declara
           context_ = 0;
         }
 
-        template <typename T>
-        void useContext(const ContextDefinition<T> &definition, T &value)
-        {
-          if (!context_)
-          {
-            return;
-          }
-          context_->provide(definition, value);
-        }
-
-        template <typename T>
-        T &requireContext(const ContextDefinition<T> &definition) const
-        {
-          assert(context_ && "NodeComposition::requireContext requires ComponentContext");
-          return context_->require(definition);
-        }
-
         // Create node tree
         Node *createNodeTree() const;
 
@@ -168,6 +152,47 @@ namespace declara
           const NodeDefinitionBase *base = dynamic_cast<const NodeDefinitionBase *>(&x);
           assert(base && "Nestable definitions must derive from NodeDefinitionBase");
           return this->store(*base);
+        }
+
+        template <typename T>
+        MutableState<T> &useState(const T &initial)
+        {
+          assert(context_ && "NodeComposition::useState requires ComponentContext");
+          IStateOwner *stateOwner = context_->stateOwner();
+          assert(stateOwner && "NodeComposition::useState requires Boundary owner");
+          MutableState<T> *state = new MutableState<T>(initial);
+          stateOwner->adoptState(state);
+          return *state;
+        }
+
+        template <typename T>
+        MutableState<T> &useState()
+        {
+          return useState(T());
+        }
+
+        template <typename T>
+        T *findBoundary() const
+        {
+          if (!context_)
+          {
+            return 0;
+          }
+          ComponentContext *ctx = context_;
+          while (ctx)
+          {
+            Node *owner = ctx->owner();
+            if (owner)
+            {
+              T *typed = dynamic_cast<T *>(owner);
+              if (typed)
+              {
+                return typed;
+              }
+            }
+            ctx = ctx->parent();
+          }
+          return 0;
         }
       };
 

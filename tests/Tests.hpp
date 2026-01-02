@@ -9,7 +9,6 @@ void testBatchTransaction();
 void testRAIITransaction();
 void testDerivedStruct();
 void testSceneManagerTransaction();
-void testComponentContext();
 void testNodeCompositionTree();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();

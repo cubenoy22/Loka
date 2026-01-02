@@ -11,7 +11,6 @@ int main()
   testTextInputOnChange();
   testDerivedStruct();
   testSceneManagerTransaction();
-  testComponentContext();
   testNodeCompositionTree();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();

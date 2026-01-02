@@ -17,7 +17,7 @@ namespace declara
     namespace scene
     {
       // BoundaryNode: owns a local tracker for its subtree.
-      class BoundaryNode : public ComposableNode
+      class BoundaryNode : public ComposableNode, public IStateOwner
       {
       public:
         BoundaryNode() : ComposableNode(), tracker_() {}
@@ -54,6 +54,16 @@ namespace declara
         }
 
       protected:
+        virtual void adoptState(StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          ownedStates_.push_back(state);
+          tracker_.addState(state);
+        }
+
         static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event)
         {
           if (!node)
@@ -123,8 +133,7 @@ namespace declara
         MutableState<T> &useStateWithValue(const T &initial)
         {
           MutableState<T> *state = new MutableState<T>(initial);
-          ownedStates_.push_back(state);
-          tracker_.addState(state);
+          adoptState(state);
           return *state;
         }
 
@@ -165,6 +174,7 @@ namespace declara
       struct BoundaryDefinition : public NodeDefinition<PropsT, NodeT>
       {
         typedef NodeDefinition<PropsT, NodeT> BaseType;
+        typedef int IsBoundaryDefinition;
         BoundaryDefinition() : BaseType() {}
         BoundaryDefinition(const PropsT &p) : BaseType(p) {}
         virtual NodeDefinitionBase *clone() const { return new BoundaryDefinition(*this); }

@@ -1,9 +1,10 @@
 #ifndef DECLARA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 #define DECLARA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 
+#include <cassert>
 #include "core2/scene/node/StaticComposition.hpp"
 #include "app/Button.hpp"
-#include "HelloWorldContext.hpp"
+#include "HelloWorldBoundary.hpp"
 
 namespace helloworld
 {
@@ -11,7 +12,7 @@ namespace helloworld
   {
   public:
     ChangeContextButton(const declara::core::scene::StaticCompositionProps &props)
-        : declara::core::scene::StaticCompositionNode(props), context_(0), toggleEvent_() {}
+        : declara::core::scene::StaticCompositionNode(props), boundary_(0), toggleEvent_() {}
     virtual ~ChangeContextButton()
     {
       toggleEvent_.unbind(&ChangeContextButton::HandleToggleThunk, this);
@@ -19,7 +20,8 @@ namespace helloworld
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
-      context_ = &this->useContext(HelloWorldContextDefinition(), declara::core::scene::CONTEXT_PLACEMENT_BOUNDARY);
+      boundary_ = c.findBoundary<HelloWorldBoundary>();
+      assert(boundary_ && "ChangeContextButton requires HelloWorldBoundary");
       toggleEvent_.unbind(&ChangeContextButton::HandleToggleThunk, this);
       toggleEvent_.bind(&ChangeContextButton::HandleToggleThunk, this, false);
       using namespace declara::app;
@@ -32,19 +34,18 @@ namespace helloworld
   private:
     void handleToggle()
     {
-      HelloWorldContext *ctx = context_;
-      if (!ctx)
+      if (!boundary_)
       {
-        ctx = &this->useContext(HelloWorldContextDefinition(), declara::core::scene::CONTEXT_PLACEMENT_BOUNDARY);
+        return;
       }
-      const std::string current = ctx->message.get();
+      const std::string current = boundary_->messageState().get();
       if (current == "Hello, Declara!")
       {
-        ctx->message.set("Context says hi!");
+        boundary_->messageState().set("Context says hi!");
       }
       else
       {
-        ctx->message.set("Hello, Declara!");
+        boundary_->messageState().set("Hello, Declara!");
       }
     }
 
@@ -57,7 +58,7 @@ namespace helloworld
       }
     }
 
-    HelloWorldContext *context_;
+    HelloWorldBoundary *boundary_;
     declara::core::EmitterState toggleEvent_;
   };
 
