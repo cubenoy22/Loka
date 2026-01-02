@@ -50,9 +50,12 @@
       "description": "Base Retro68 configuration using env vars.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build-retro68",
+      "environment": {
+        "PATH": "$env{HOME}/Retro68-build/toolchain/bin:$penv{PATH}"
+      },
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
-        "RETRO68_TOOLCHAIN_DIR": "$env{RETRO68_TOOLCHAIN_DIR}",
+        "RETRO68_TOOLCHAIN_DIR": "$env{HOME}/Retro68-build/toolchain/m68k-apple-macos/cmake",
         "RETRO68_CPU": "$env{RETRO68_CPU}"
       }
     },
