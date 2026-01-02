@@ -10,23 +10,16 @@
 
 namespace helloworld
 {
-  struct HelloWorldTypeTag
-  {
-  };
+  class HelloWorldNode;
 
-  // StaticCompositionProps 拡張: 今は空。必要に応じて拡張可。
-  struct HelloWorldProps : public declara::core::scene::StaticCompositionProps
-  {
-    typedef HelloWorldTypeTag TypeTag;
-  };
+  typedef declara::core::scene::StaticCompositionPropsFor<HelloWorldNode> HelloWorldProps;
 
-  class HelloWorldNode : public declara::core::scene::StaticCompositionNode, public HelloWorldBoundary
+  class HelloWorldNode : public declara::core::scene::StaticCompositionNodeFor<HelloWorldNode>, public HelloWorldBoundary
   {
   public:
-    typedef HelloWorldTypeTag TypeTag;
     HelloWorldProps props;
     HelloWorldNode(const HelloWorldProps &p)
-        : declara::core::scene::StaticCompositionNode(HelloWorldProps(p)), props(p), message_(0) {}
+        : declara::core::scene::StaticCompositionNodeFor<HelloWorldNode>(HelloWorldProps(p)), props(p), message_(0) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -57,14 +50,9 @@ namespace helloworld
     MutableState<std::string> *message_;
   };
 
-  struct HelloWorldDefinition : public declara::core::scene::BoundaryDefinition<HelloWorldProps, HelloWorldNode>
+  inline declara::core::scene::BoundaryDefinition<HelloWorldProps, HelloWorldNode> HelloWorld()
   {
-    HelloWorldDefinition() : BoundaryDefinition<HelloWorldProps, HelloWorldNode>() {}
-  };
-
-  inline HelloWorldDefinition HelloWorld()
-  {
-    return HelloWorldDefinition();
+    return declara::core::scene::StaticCompositionBoundary<HelloWorldNode>();
   }
 
 } // namespace helloworld

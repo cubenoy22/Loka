@@ -14,22 +14,15 @@
 
 namespace helloworld
 {
-  struct BmiFormTypeTag
-  {
-  };
+  class BmiFormNode;
+  typedef declara::core::scene::StaticCompositionPropsFor<BmiFormNode> BmiFormProps;
 
-  struct BmiFormProps : public declara::core::scene::StaticCompositionProps
-  {
-    typedef BmiFormTypeTag TypeTag;
-  };
-
-  class BmiFormNode : public declara::core::scene::StaticCompositionNode
+  class BmiFormNode : public declara::core::scene::StaticCompositionNodeFor<BmiFormNode>
   {
   public:
-    typedef BmiFormTypeTag TypeTag;
     BmiFormProps props;
     BmiFormNode(const BmiFormProps &p)
-        : declara::core::scene::StaticCompositionNode(BmiFormProps(p)),
+        : declara::core::scene::StaticCompositionNodeFor<BmiFormNode>(BmiFormProps(p)),
           props(p),
           heightInput_(0),
           weightInput_(0),
@@ -40,19 +33,20 @@ namespace helloworld
       // State is initialized lazily in composeNode via NodeComposition::useState.
     }
 
+    virtual void prepareNode(declara::core::scene::NodeComposition &c)
+    {
+      heightInput_ = &c.useState<std::string>("170.0");
+      weightInput_ = &c.useState<std::string>("60.0");
+      bmiResult_ = &c.useState<std::string>("BMI: --");
+      message_ = &c.useState<std::string>("Hello, Declara!");
+      heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
+      weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
+      toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
+      updateBmi();
+    }
+
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
-      if (!heightInput_)
-      {
-        heightInput_ = &c.useState<std::string>("170.0");
-        weightInput_ = &c.useState<std::string>("60.0");
-        bmiResult_ = &c.useState<std::string>("BMI: --");
-        message_ = &c.useState<std::string>("Hello, Declara!");
-        heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
-        weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
-        toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
-        updateBmi();
-      }
       using namespace declara::app;
       c.declare(
           VStack()
@@ -135,14 +129,9 @@ namespace helloworld
     EmitterState toggleEvent_;
   };
 
-  struct BmiFormDefinition : public declara::core::scene::BoundaryDefinition<BmiFormProps, BmiFormNode>
+  inline declara::core::scene::BoundaryDefinition<BmiFormProps, BmiFormNode> BmiForm()
   {
-    BmiFormDefinition() : BoundaryDefinition<BmiFormProps, BmiFormNode>() {}
-  };
-
-  inline BmiFormDefinition BmiForm()
-  {
-    return BmiFormDefinition();
+    return declara::core::scene::StaticCompositionBoundary<BmiFormNode>();
   }
 
 } // namespace helloworld

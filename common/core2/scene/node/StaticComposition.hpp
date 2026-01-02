@@ -11,13 +11,13 @@ namespace declara
     namespace scene
     {
       // Forward declaration so props can alias NodeType
-      class StaticCompositionBoundaryNode;
-      typedef StaticCompositionBoundaryNode StaticCompositionNode;
+      template <class PropsT>
+      class StaticCompositionBoundaryNodeBase;
+
       struct StaticCompositionProps : public NodePropsBase<StaticCompositionProps>
       {
         StaticCompositionProps() {}
-        // Required alias for NodePropsBase to construct nodes
-        typedef StaticCompositionNode NodeType; // forward-declared below
+        typedef StaticCompositionBoundaryNodeBase<StaticCompositionProps> NodeType;
         bool operator<(const PropsBase &rhs) const
         {
           const StaticCompositionProps *p = dynamic_cast<const StaticCompositionProps *>(&rhs);
@@ -25,12 +25,29 @@ namespace declara
         }
       };
 
-      class StaticCompositionBoundaryNode : public BoundaryNode
+      typedef StaticCompositionBoundaryNodeBase<StaticCompositionProps> StaticCompositionBoundaryNode;
+      typedef StaticCompositionBoundaryNode StaticCompositionNode;
+
+      // Helper props for static composition boundary nodes with no custom fields.
+      template <class NodeT>
+      struct StaticCompositionPropsFor : public NodePropsBase<StaticCompositionPropsFor<NodeT> >
+      {
+        typedef NodeT NodeType;
+        bool operator<(const PropsBase &rhs) const
+        {
+          const StaticCompositionPropsFor<NodeT> *p = dynamic_cast<const StaticCompositionPropsFor<NodeT> *>(&rhs);
+          return p ? false : false;
+        }
+      };
+
+      template <class PropsT>
+      class StaticCompositionBoundaryNodeBase : public BoundaryNode
       {
       public:
-        StaticCompositionProps props;
-        StaticCompositionBoundaryNode(const StaticCompositionProps &p) : BoundaryNode(), props(p) {}
-        virtual ~StaticCompositionBoundaryNode() {}
+        PropsT props;
+        StaticCompositionBoundaryNodeBase(const PropsT &p)
+            : BoundaryNode(), props(p) {}
+        virtual ~StaticCompositionBoundaryNodeBase() {}
 
         // Build node definitions into composition container (default: no children)
         // Making this non-pure allows instantiation via NodeDefinition<StaticCompositionProps, StaticCompositionNode>
@@ -44,12 +61,13 @@ namespace declara
           }
           this->clearChildren();
           NodeComposition &composition = this->beginComposition(context);
+          this->prepareNode(composition);
           this->composeNode(composition);
           Node *child = composition.createNodeTree();
           if (child)
           {
             this->addChild(child);
-            composeTree(child, context, event);
+            this->composeTree(child, context, event);
           }
         }
       };
@@ -75,6 +93,29 @@ namespace declara
       {
         return StaticCompositionBoundaryDefinition(p);
       }
+
+      template <class NodeT>
+      inline BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT> StaticCompositionBoundary()
+      {
+        return BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT>();
+      }
+
+      template <class NodeT>
+      inline BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT> StaticCompositionBoundary(const StaticCompositionPropsFor<NodeT> &p)
+      {
+        return BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT>(p);
+      }
+
+      // Helper base class for nodes using StaticCompositionPropsFor<NodeT>.
+      template <class NodeT>
+      class StaticCompositionNodeFor : public StaticCompositionBoundaryNodeBase<StaticCompositionPropsFor<NodeT> >
+      {
+      public:
+        typedef StaticCompositionPropsFor<NodeT> PropsType;
+        StaticCompositionNodeFor(const PropsType &p)
+            : StaticCompositionBoundaryNodeBase<StaticCompositionPropsFor<NodeT> >(p) {}
+        virtual ~StaticCompositionNodeFor() {}
+      };
 
     } // namespace scene
   } // namespace core

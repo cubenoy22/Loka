@@ -43,6 +43,7 @@ namespace declara
 
       protected:
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event) = 0;
+        virtual void prepareNode(NodeComposition &c) { (void)c; }
 
         ComponentContext *componentContext() const { return currentContext_; }
 
@@ -81,7 +82,8 @@ namespace declara
               previousOwner = node->currentContext_->owner();
               node->currentContext_->setOwner(n);
               previousStateOwner = node->currentContext_->stateOwner();
-              node->currentContext_->setStateOwner(dynamic_cast<IStateOwner *>(n));
+              IStateOwner *currentOwner = dynamic_cast<IStateOwner *>(n);
+              node->currentContext_->setStateOwner(currentOwner ? currentOwner : previousStateOwner);
             }
           }
           ~ContextScope()

@@ -387,21 +387,14 @@ namespace
   int g_rootComposeCount = 0;
   int g_childComposeCount = 0;
 
-  struct ChildBoundaryTypeTag
-  {
-  };
+  class ChildBoundaryNode;
+  typedef declara::core::scene::StaticCompositionPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
-  struct ChildBoundaryProps : public declara::core::scene::StaticCompositionProps
-  {
-    typedef ChildBoundaryTypeTag TypeTag;
-  };
-
-  class ChildBoundaryNode : public declara::core::scene::StaticCompositionNode
+  class ChildBoundaryNode : public declara::core::scene::StaticCompositionNodeFor<ChildBoundaryNode>
   {
   public:
-    typedef ChildBoundaryTypeTag TypeTag;
     ChildBoundaryNode(const ChildBoundaryProps &p)
-        : declara::core::scene::StaticCompositionNode(ChildBoundaryProps(p)) {}
+        : declara::core::scene::StaticCompositionNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -410,31 +403,19 @@ namespace
     }
   };
 
-  struct ChildBoundaryDefinition : public declara::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode>
+  declara::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
   {
-    ChildBoundaryDefinition() : BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode>() {}
-  };
-
-  ChildBoundaryDefinition ChildBoundary()
-  {
-    return ChildBoundaryDefinition();
+    return declara::core::scene::StaticCompositionBoundary<ChildBoundaryNode>();
   }
 
-  struct RootBoundaryTypeTag
-  {
-  };
+  class RootBoundaryNode;
+  typedef declara::core::scene::StaticCompositionPropsFor<RootBoundaryNode> RootBoundaryProps;
 
-  struct RootBoundaryProps : public declara::core::scene::StaticCompositionProps
-  {
-    typedef RootBoundaryTypeTag TypeTag;
-  };
-
-  class RootBoundaryNode : public declara::core::scene::StaticCompositionNode
+  class RootBoundaryNode : public declara::core::scene::StaticCompositionNodeFor<RootBoundaryNode>
   {
   public:
-    typedef RootBoundaryTypeTag TypeTag;
     RootBoundaryNode(const RootBoundaryProps &p)
-        : declara::core::scene::StaticCompositionNode(RootBoundaryProps(p)) {}
+        : declara::core::scene::StaticCompositionNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -443,14 +424,9 @@ namespace
     }
   };
 
-  struct RootBoundaryDefinition : public declara::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode>
+  declara::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
   {
-    RootBoundaryDefinition() : BoundaryDefinition<RootBoundaryProps, RootBoundaryNode>() {}
-  };
-
-  RootBoundaryDefinition RootBoundary()
-  {
-    return RootBoundaryDefinition();
+    return declara::core::scene::StaticCompositionBoundary<RootBoundaryNode>();
   }
 }
 
