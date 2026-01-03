@@ -6,6 +6,7 @@
 #include "core2/scene/Node.hpp" // NodeDefinitionBase 使用のため定義を取得
 #include "core2/scene/PlatformController.hpp"
 #include "core2/scene/ComponentContext.hpp"
+#include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/node/Boundary.hpp"
 
 class Window;
@@ -36,12 +37,11 @@ namespace declara
         {
           assert(def && "Scene requires a root definition");
         }
-        // NodeDefinitionBase からの構築（Runtime boundary check）
+        // NodeDefinitionBase からの構築（非Boundaryは自動ラップ）
         explicit Scene(NodeDefinitionBase *def)
             : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
         {
           assert(def && "Scene requires a root definition");
-          assert(def->isBoundary() && "Scene root must be a Boundary definition");
         }
         // ルート定義を clone して所有するオーバーロード
         template <class DefT>
@@ -129,6 +129,38 @@ namespace declara
         friend class SceneManager2;
 
       private:
+        class RootBoundaryWrapper : public BoundaryNode
+        {
+        public:
+          explicit RootBoundaryWrapper(NodeDefinitionBase *def) : def_(def) {}
+          virtual ~RootBoundaryWrapper() {}
+
+        protected:
+          virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
+          {
+            if (event != COMPOSE_EVENT_ATTACH)
+            {
+              return;
+            }
+            this->clearChildren();
+            if (!def_)
+            {
+              return;
+            }
+            NodeComposition &composition = this->beginComposition(context);
+            composition.declare(*def_);
+            Node *child = composition.createNodeTree();
+            if (child)
+            {
+              this->addChild(child);
+              this->composeTree(child, context, event, this);
+            }
+          }
+
+        private:
+          NodeDefinitionBase *def_;
+        };
+
         void ensureRootNode()
         {
           if (rootNode_)
@@ -136,7 +168,14 @@ namespace declara
             return;
           }
           assert(rootDefinition_ && "Scene requires a root definition");
-          rootNode_ = rootDefinition_->create();
+          if (rootDefinition_->isBoundary())
+          {
+            rootNode_ = rootDefinition_->create();
+          }
+          else
+          {
+            rootNode_ = new RootBoundaryWrapper(rootDefinition_);
+          }
           assert(rootNode_ && "Scene failed to create root node");
           BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(rootNode_);
           assert(boundary && "Scene root must be a Boundary node");

@@ -7,7 +7,8 @@
 #include "core/State.hpp"
 #include "core/Window.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
-#include "core2/scene/node/StaticComposition.hpp"
+#include "core2/scene/node/Group.hpp"
+#include "core2/scene/node/Boundary.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
@@ -16,19 +17,20 @@
 namespace helloworld
 {
   class BmiFormNode;
-  typedef declara::core::scene::StaticCompositionPropsFor<BmiFormNode> BmiFormProps;
+  typedef declara::core::scene::GroupPropsFor<BmiFormNode> BmiFormProps;
 
-  class BmiFormNode : public declara::core::scene::StaticCompositionNodeFor<BmiFormNode>
+  class BmiFormNode : public declara::core::scene::GroupNodeBase<BmiFormProps>
   {
   public:
     BmiFormProps props;
     BmiFormNode(const BmiFormProps &p)
-        : declara::core::scene::StaticCompositionNodeFor<BmiFormNode>(BmiFormProps(p)),
+        : declara::core::scene::GroupNodeBase<BmiFormProps>(BmiFormProps(p)),
           props(p),
           heightInput_(0),
           weightInput_(0),
           bmiResult_(0),
           message_(0),
+          boundary_(0),
           toggleEvent_()
     {
       // State is initialized lazily in composeNode via NodeComposition::useState.
@@ -40,6 +42,7 @@ namespace helloworld
       weightInput_ = &c.useState<std::string>("60.0");
       bmiResult_ = &c.useState<std::string>("BMI: --");
       message_ = &c.useState<std::string>("Hello, Loka!");
+      boundary_ = c.findBoundary<declara::core::scene::BoundaryNode>();
       heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
@@ -102,7 +105,11 @@ namespace helloworld
       AutoTransactionGuard guard(message_->currentTracker);
       message_->set(next, true);
 
-      declara::core::scene::Scene *scene = this->getScene();
+      if (!boundary_)
+      {
+        return;
+      }
+      declara::core::scene::Scene *scene = boundary_->getScene();
       if (!scene)
       {
         return;
@@ -148,12 +155,13 @@ namespace helloworld
     MutableState<std::string> *weightInput_;
     MutableState<std::string> *bmiResult_;
     MutableState<std::string> *message_;
+    declara::core::scene::BoundaryNode *boundary_;
     EmitterState toggleEvent_;
   };
 
-  inline declara::core::scene::BoundaryDefinition<BmiFormProps, BmiFormNode> BmiForm()
+  inline declara::core::scene::NodeDefinition<BmiFormProps, BmiFormNode> BmiForm()
   {
-    return declara::core::scene::StaticCompositionBoundary<BmiFormNode>();
+    return declara::core::scene::NodeDefinition<BmiFormProps, BmiFormNode>();
   }
 
 } // namespace helloworld

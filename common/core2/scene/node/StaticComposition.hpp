@@ -40,6 +40,12 @@ namespace declara
         }
       };
 
+      // Alias to avoid exposing "Static" in user code.
+      template <class NodeT>
+      struct BoundaryPropsFor : public StaticCompositionPropsFor<NodeT>
+      {
+      };
+
       template <class PropsT>
       class StaticCompositionBoundaryNodeBase : public BoundaryNode
       {
@@ -106,6 +112,19 @@ namespace declara
         return BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT>(p);
       }
 
+      // Alias to avoid exposing "Static" in user code.
+      template <class NodeT>
+      inline BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT> Boundary()
+      {
+        return BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT>();
+      }
+
+      template <class NodeT>
+      inline BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT> Boundary(const BoundaryPropsFor<NodeT> &p)
+      {
+        return BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT>(p);
+      }
+
       // Helper base class for nodes using StaticCompositionPropsFor<NodeT>.
       template <class NodeT>
       class StaticCompositionNodeFor : public StaticCompositionBoundaryNodeBase<StaticCompositionPropsFor<NodeT> >
@@ -115,6 +134,17 @@ namespace declara
         StaticCompositionNodeFor(const PropsType &p)
             : StaticCompositionBoundaryNodeBase<StaticCompositionPropsFor<NodeT> >(p) {}
         virtual ~StaticCompositionNodeFor() {}
+      };
+
+      // Alias for boundary nodes without exposing "Static" in user code.
+      template <class NodeT>
+      class BoundaryNodeFor : public StaticCompositionNodeFor<NodeT>
+      {
+      public:
+        typedef StaticCompositionPropsFor<NodeT> PropsType;
+        BoundaryNodeFor(const PropsType &p)
+            : StaticCompositionNodeFor<NodeT>(p) {}
+        virtual ~BoundaryNodeFor() {}
       };
 
     } // namespace scene

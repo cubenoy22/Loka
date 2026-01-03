@@ -3,7 +3,8 @@
 
 #include <cassert>
 #include <string>
-#include "core2/scene/node/Composition.hpp"
+#include "core2/scene/node/Group.hpp"
+#include "core2/scene/node/Boundary.hpp"
 #include "core/Window.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
 #include "app/Button.hpp"
@@ -12,13 +13,13 @@
 namespace helloworld
 {
   class ChangeContextButton;
-  typedef declara::core::scene::CompositionPropsFor<ChangeContextButton> ChangeContextButtonProps;
+  typedef declara::core::scene::GroupPropsFor<ChangeContextButton> ChangeContextButtonProps;
 
-  class ChangeContextButton : public declara::core::scene::CompositionNodeBase<ChangeContextButtonProps>
+  class ChangeContextButton : public declara::core::scene::GroupNodeBase<ChangeContextButtonProps>
   {
   public:
     ChangeContextButton(const ChangeContextButtonProps &props)
-        : declara::core::scene::CompositionNodeBase<ChangeContextButtonProps>(props), boundary_(0), toggleEvent_() {}
+        : declara::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), boundaryNode_(0), toggleEvent_() {}
     virtual ~ChangeContextButton()
     {
     }
@@ -26,6 +27,7 @@ namespace helloworld
     virtual void prepareNode(declara::core::scene::NodeComposition &c)
     {
       this->boundary_ = c.findBoundary<HelloWorldBoundary>();
+      this->boundaryNode_ = c.findBoundary<declara::core::scene::BoundaryNode>();
       assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
       this->toggleEvent_.bind(&ChangeContextButton::HandleToggleThunk, this, false);
     }
@@ -56,7 +58,11 @@ namespace helloworld
         this->boundary_->messageState().set("Hello, Loka!");
       }
 
-      declara::core::scene::Scene *scene = this->boundary_->getScene();
+      if (!boundaryNode_)
+      {
+        return;
+      }
+      declara::core::scene::Scene *scene = this->boundaryNode_->getScene();
       if (!scene)
       {
         return;
@@ -88,6 +94,7 @@ namespace helloworld
     }
 
     HelloWorldBoundary *boundary_;
+    declara::core::scene::BoundaryNode *boundaryNode_;
     declara::core::EmitterState toggleEvent_;
   };
 

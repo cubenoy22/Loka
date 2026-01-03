@@ -389,13 +389,13 @@ namespace
   int g_childComposeCount = 0;
 
   class ChildBoundaryNode;
-  typedef declara::core::scene::StaticCompositionPropsFor<ChildBoundaryNode> ChildBoundaryProps;
+  typedef declara::core::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
-  class ChildBoundaryNode : public declara::core::scene::StaticCompositionNodeFor<ChildBoundaryNode>
+  class ChildBoundaryNode : public declara::core::scene::BoundaryNodeFor<ChildBoundaryNode>
   {
   public:
     ChildBoundaryNode(const ChildBoundaryProps &p)
-        : declara::core::scene::StaticCompositionNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
+        : declara::core::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -406,17 +406,17 @@ namespace
 
   declara::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
   {
-    return declara::core::scene::StaticCompositionBoundary<ChildBoundaryNode>();
+    return declara::core::scene::Boundary<ChildBoundaryNode>();
   }
 
   class RootBoundaryNode;
-  typedef declara::core::scene::StaticCompositionPropsFor<RootBoundaryNode> RootBoundaryProps;
+  typedef declara::core::scene::BoundaryPropsFor<RootBoundaryNode> RootBoundaryProps;
 
-  class RootBoundaryNode : public declara::core::scene::StaticCompositionNodeFor<RootBoundaryNode>
+  class RootBoundaryNode : public declara::core::scene::BoundaryNodeFor<RootBoundaryNode>
   {
   public:
     RootBoundaryNode(const RootBoundaryProps &p)
-        : declara::core::scene::StaticCompositionNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
+        : declara::core::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -427,7 +427,7 @@ namespace
 
   declara::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
   {
-    return declara::core::scene::StaticCompositionBoundary<RootBoundaryNode>();
+    return declara::core::scene::Boundary<RootBoundaryNode>();
   }
 }
 

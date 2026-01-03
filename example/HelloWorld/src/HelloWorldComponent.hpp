@@ -2,7 +2,7 @@
 #define DECLARA_HELLOWORLD_COMPONENT_HPP
 
 #include <cassert>
-#include "core2/scene/node/StaticComposition.hpp"
+#include "core2/scene/node/Group.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "ChangeContextButton.hpp"
@@ -12,14 +12,14 @@ namespace helloworld
 {
   class HelloWorldNode;
 
-  typedef declara::core::scene::StaticCompositionPropsFor<HelloWorldNode> HelloWorldProps;
+  typedef declara::core::scene::GroupPropsFor<HelloWorldNode> HelloWorldProps;
 
-  class HelloWorldNode : public declara::core::scene::StaticCompositionNodeFor<HelloWorldNode>, public HelloWorldBoundary
+  class HelloWorldNode : public declara::core::scene::GroupNodeBase<HelloWorldProps>, public HelloWorldBoundary
   {
   public:
     HelloWorldProps props;
     HelloWorldNode(const HelloWorldProps &p)
-        : declara::core::scene::StaticCompositionNodeFor<HelloWorldNode>(HelloWorldProps(p)), props(p), message_(0) {}
+        : declara::core::scene::GroupNodeBase<HelloWorldProps>(HelloWorldProps(p)), props(p), message_(0) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -30,7 +30,7 @@ namespace helloworld
 
       using namespace declara::app;
       TextProps prototype;
-      prototype.setText("StaticCompositionNode prototype");
+      prototype.setText("Loka Prototype");
       TextProps message;
       message.setText(message_);
       c.declare(
@@ -50,9 +50,9 @@ namespace helloworld
     MutableState<std::string> *message_;
   };
 
-  inline declara::core::scene::BoundaryDefinition<HelloWorldProps, HelloWorldNode> HelloWorld()
+  inline declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode> HelloWorld()
   {
-    return declara::core::scene::StaticCompositionBoundary<HelloWorldNode>();
+    return declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode>();
   }
 
 } // namespace helloworld

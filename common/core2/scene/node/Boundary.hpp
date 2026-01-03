@@ -98,6 +98,7 @@ namespace declara
           ComposableNode *composable = dynamic_cast<ComposableNode *>(node);
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);
+          nodeContext.setStateOwner(parentContext.stateOwner());
           if (composable)
           {
             composable->compose(nodeContext, event);

@@ -10,6 +10,7 @@
 - UI layers should follow platform-native naming and conventions; core stays neutral.
 - Classic Mac UI uses Toolbox/Control Manager APIs; avoid Carbon/Cocoa in Classic paths.
 - MutableState<T>::set() must be wrapped in a StateTracker transaction (use RAII guard).
+- Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
