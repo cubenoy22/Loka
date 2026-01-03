@@ -79,7 +79,8 @@ void MacButtonContext::bindText()
   textState_ = static_cast<State<std::string> *>(node_->props.text);
   if (textState_)
   {
-    textState_->bind(&MacButtonContext::TextChangedThunk, this, true);
+    textState_->deferBind(&MacButtonContext::TextChangedThunk, this);
+    applyText();
   }
 }
 
@@ -87,7 +88,7 @@ void MacButtonContext::unbindText()
 {
   if (textState_)
   {
-    textState_->unbind(&MacButtonContext::TextChangedThunk, this);
+    textState_->deferUnbind(&MacButtonContext::TextChangedThunk, this);
     textState_ = 0;
   }
 }

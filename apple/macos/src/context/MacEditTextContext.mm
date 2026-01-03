@@ -77,7 +77,8 @@ void MacEditTextContext::bindText()
   textState_ = static_cast<State<std::string> *>(node_->props.text);
   if (textState_)
   {
-    textState_->bind(&MacEditTextContext::TextChangedThunk, this, true);
+    textState_->deferBind(&MacEditTextContext::TextChangedThunk, this);
+    applyText();
   }
 }
 
@@ -85,7 +86,7 @@ void MacEditTextContext::unbindText()
 {
   if (textState_)
   {
-    textState_->unbind(&MacEditTextContext::TextChangedThunk, this);
+    textState_->deferUnbind(&MacEditTextContext::TextChangedThunk, this);
     textState_ = 0;
   }
 }

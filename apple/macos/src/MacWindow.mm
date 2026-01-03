@@ -50,6 +50,8 @@ MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
 
 MacWindow::~MacWindow()
 {
+  this->visibilityState().deferUnbind(&MacWindow::VisibilityChangedThunk, this);
+  this->titleState().deferUnbind(&MacWindow::TitleChangedThunk, this);
   teardownScene();
   NSWindow *window = (__bridge NSWindow *)window_;
   if (window)

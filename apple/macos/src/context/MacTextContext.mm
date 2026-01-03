@@ -43,7 +43,8 @@ void MacTextContext::bindText()
   textState_ = static_cast<State<std::string> *>(node_->props.text);
   if (textState_)
   {
-    textState_->bind(&MacTextContext::TextChangedThunk, this, true);
+    textState_->deferBind(&MacTextContext::TextChangedThunk, this);
+    applyText();
   }
 }
 
@@ -51,7 +52,7 @@ void MacTextContext::unbindText()
 {
   if (textState_)
   {
-    textState_->unbind(&MacTextContext::TextChangedThunk, this);
+    textState_->deferUnbind(&MacTextContext::TextChangedThunk, this);
     textState_ = 0;
   }
 }
