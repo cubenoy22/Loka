@@ -6,6 +6,8 @@
 #include "StateTracker.hpp"
 #include <vector>
 
+class Window;
+
 class SceneManager2
 {
 public:
@@ -25,10 +27,15 @@ protected:
   // 副作用: シーン切り替え
   void swapScene(declara::core::scene::Scene *oldScene, declara::core::scene::Scene *newScene);
 
+public:
+  void setWindow(Window *window) { window_ = window; }
+  Window *window() const { return window_; }
+
 private:
   MutableState<declara::core::scene::Scene *> currentScene_;
   MutableState<std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > > pendingTransactions_;
   declara::core::PushStateTracker tracker_;
+  Window *window_;
 };
 
 #endif // DECLARA_SCENEMANAGER2_HPP

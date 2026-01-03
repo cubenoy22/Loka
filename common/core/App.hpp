@@ -1,14 +1,13 @@
 #ifndef DECLARA_APP_HPP
 #define DECLARA_APP_HPP
 
-#include <vector>
 #include "core/ComponentGroup.hpp"
 #include "core/AppComponent.hpp"
 #include "core/AppConfigurable.hpp"
 #include <cassert>
 
 class Window;
-class AppBuilder;
+class AppComposition;
 
 class App : public AppComponent
 {

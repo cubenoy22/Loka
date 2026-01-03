@@ -13,9 +13,9 @@ App *MacPlatformContext::createApp(AppConfigurable *config, HINSTANCE, int) cons
   return new MacApp(config);
 }
 
-Window *MacPlatformContext::createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts)
+Window *MacPlatformContext::createWindow(const WindowProps &props)
 {
-  return new MacWindow(this, initialScene, opts);
+  return new MacWindow(this, props);
 }
 
 declara::core::scene::NodeContext *MacPlatformContext::createNodeContext(declara::core::scene::Node *node) const

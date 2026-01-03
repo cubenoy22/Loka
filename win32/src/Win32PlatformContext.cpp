@@ -15,9 +15,9 @@ App *Win32PlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstanc
   return app;
 }
 
-Window *Win32PlatformContext::createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts)
+Window *Win32PlatformContext::createWindow(const WindowProps &props)
 {
-  return new Win32Window(this, initialScene, opts);
+  return new Win32Window(this, props);
 }
 
 declara::core::scene::NodeContext *Win32PlatformContext::createNodeContext(declara::core::scene::Node *node) const

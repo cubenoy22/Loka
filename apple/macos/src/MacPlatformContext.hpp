@@ -10,7 +10,7 @@ public:
   virtual ~MacPlatformContext();
 
   virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
-  virtual Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts);
+  virtual Window *createWindow(const WindowProps &props);
   virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const;
 };
 

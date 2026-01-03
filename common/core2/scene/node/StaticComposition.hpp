@@ -67,7 +67,7 @@ namespace declara
           if (child)
           {
             this->addChild(child);
-            this->composeTree(child, context, event);
+            this->composeTree(child, context, event, this);
           }
         }
       };

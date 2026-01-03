@@ -11,7 +11,7 @@ class ToolboxWindow : public Window
 public:
   ToolboxWindow(PlatformContext *context,
                 declara::core::scene::Scene *initialScene,
-                const WindowOptions &opts);
+                const WindowProps &props);
   virtual ~ToolboxWindow();
 
   void setApp(App *app);

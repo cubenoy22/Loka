@@ -10,9 +10,8 @@ typedef void *HINSTANCE;
 class AppConfigurable;
 class PlatformContext;
 class App;
-class AppBuilder;
 class Window;
-struct WindowOptions;
+struct WindowProps;
 
 namespace declara
 {
@@ -37,7 +36,7 @@ public:
 
   // Window生成ファクトリーメソッド（サブクラス実装必須）
   // app_がnullの場合はassertで即座に失敗させる設計にする
-  virtual Window *createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts) = 0;
+  virtual Window *createWindow(const WindowProps &props) = 0;
 
   virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const = 0;
 };

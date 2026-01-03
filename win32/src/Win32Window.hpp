@@ -25,7 +25,7 @@ class Win32ScenePlatformController;
 class Win32Window : public Window
 {
 public:
-  Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts);
+  Win32Window(PlatformContext *context, const WindowProps &props);
   virtual ~Win32Window();
 
   // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）

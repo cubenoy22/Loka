@@ -17,14 +17,13 @@ namespace
 }
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context,
-                             declara::core::scene::Scene *initialScene,
-                             const WindowOptions &opts)
-    : Window(context, initialScene, opts), app_(0), window_(0)
+                             const WindowProps &props)
+    : Window(context, props), app_(0), window_(0)
 {
   Rect bounds;
   SetRect(&bounds, 60, 60, 420, 300);
 
-  std::string title = opts.title.empty() ? "Declara" : opts.title;
+  std::string title = this->titleState().get().empty() ? "Declara" : this->titleState().get();
   Str255 titleStr;
   CopyToPascalString(title, titleStr);
 

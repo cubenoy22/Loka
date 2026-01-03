@@ -16,11 +16,13 @@ namespace declara
   {
     namespace scene
     {
+      class Scene;
+
       // BoundaryNode: owns a local tracker for its subtree.
       class BoundaryNode : public ComposableNode, public IStateOwner
       {
       public:
-        BoundaryNode() : ComposableNode(), tracker_() {}
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0) {}
         virtual ~BoundaryNode()
         {
           clearOwnedStates();
@@ -28,6 +30,18 @@ namespace declara
         }
 
         declara::core::StateTracker *tracker() { return &tracker_; }
+        Scene *scene() const { return scene_; }
+        Scene *getScene() const
+        {
+          if (scene_)
+          {
+            return scene_;
+          }
+          return parentBoundary_ ? parentBoundary_->getScene() : 0;
+        }
+        void setScene(Scene *scene) { scene_ = scene; }
+        BoundaryNode *parentBoundary() const { return parentBoundary_; }
+        void setParentBoundary(BoundaryNode *parent) { parentBoundary_ = parent; }
 
         template <class T>
         MutableState<T> &useState()
@@ -64,11 +78,22 @@ namespace declara
           tracker_.addState(state);
         }
 
-        static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event)
+        static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
         {
           if (!node)
           {
             return;
+          }
+          BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(node);
+          BoundaryNode *nextBoundary = currentBoundary;
+          if (boundary)
+          {
+            boundary->setParentBoundary(currentBoundary);
+            if (currentBoundary)
+            {
+              boundary->setScene(currentBoundary->getScene());
+            }
+            nextBoundary = boundary;
           }
           ComposableNode *composable = dynamic_cast<ComposableNode *>(node);
           ComponentContext *contextForChildren = &parentContext;
@@ -86,7 +111,7 @@ namespace declara
           const std::vector<Node *> &children = nestable->getChildren();
           for (size_t i = 0; i < children.size(); ++i)
           {
-            composeTree(children[i], *contextForChildren, event);
+            composeTree(children[i], *contextForChildren, event, nextBoundary);
           }
         }
 
@@ -168,6 +193,8 @@ namespace declara
         declara::core::PushStateTracker tracker_;
         std::vector<StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
+        Scene *scene_;
+        BoundaryNode *parentBoundary_;
       };
 
       template <class PropsT, class NodeT>

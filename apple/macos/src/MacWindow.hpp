@@ -20,7 +20,7 @@ namespace declara
 class MacWindow : public Window
 {
 public:
-  MacWindow(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts);
+  MacWindow(PlatformContext *context, const WindowProps &props);
   virtual ~MacWindow();
 
   void setApp(App *app) { app_ = app; }

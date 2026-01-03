@@ -19,12 +19,12 @@ namespace
   static const char *kWndClassName = "DevWndClass";
 }
 
-Win32Window::Win32Window(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts)
-    : Window(context, initialScene, opts), hwnd_(NULL), app_(NULL), scenePlatformController_(0)
+Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
+    : Window(context, props), hwnd_(NULL), app_(NULL), scenePlatformController_(0)
 {
   // visibilityステートの変更を監視
-  this->visibility.deferBind(&Win32Window::VisibilityChangedThunk, this);
-  this->title.deferBind(&Win32Window::TitleChangedThunk, this);
+  this->visibilityState().deferBind(&Win32Window::VisibilityChangedThunk, this);
+  this->titleState().deferBind(&Win32Window::TitleChangedThunk, this);
 }
 
 Win32Window::~Win32Window()
@@ -38,7 +38,7 @@ void Win32Window::VisibilityChangedThunk(void *userData)
   Win32Window *self = static_cast<Win32Window *>(userData);
   if (!self)
     return;
-  bool visible = self->visibility.get();
+  bool visible = self->visibilityState().get();
   if (visible)
   {
     if (!self->hwnd_)
@@ -66,7 +66,7 @@ void Win32Window::TitleChangedThunk(void *userData)
   {
     // Window基底のtitle値(UTF-8)をUTF-16に変換して反映
     // title は std::string なので CollectUtf8 はそのまま append
-    std::string buffer = self->title.get();
+    std::string buffer = self->titleState().get();
     if (buffer.empty())
     {
       SetWindowTextW(self->hwnd_, L"");
@@ -159,7 +159,7 @@ void Win32Window::createNativeWindow()
   }
   HWND hwnd = CreateWindowA(
       kWndClassName,
-      this->title.get().c_str(),
+      this->titleState().get().c_str(),
       WS_OVERLAPPEDWINDOW,
       100, 100, 320, 320,
       NULL, NULL, GetModuleHandle(NULL),
@@ -186,9 +186,9 @@ void Win32Window::destroyNativeWindow()
 void Win32Window::onCreate()
 {
   Window::onCreate();
-  if (this->options_.visible)
+  if (this->visibilityState().get())
   {
-    this->visibility.set(true, true);
+    this->visibilityState().set(true, true);
   }
 }
 

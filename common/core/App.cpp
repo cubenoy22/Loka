@@ -1,17 +1,10 @@
 #include "App.hpp"
 #include "Window.hpp"
 #include "PlatformContext.hpp"
+#include "AppComposition.hpp"
 #include "util/AutoTransactionGuard.hpp"
 #include "core2/scene/Scene.hpp"
 #include <algorithm>
-
-// AppBuilder::Window メソッドの実装（Window抽象クラス問題の修正）
-AppBuilder &AppBuilder::Window(declara::core::scene::Scene *initialScene, const WindowOptions &opts)
-{
-  AppComponent *window = context_->createWindow(initialScene, opts);
-  components_.push_back(window);
-  return *this;
-}
 
 App::App(AppConfigurable *config)
     : group_(0), quitWhenLastWindowClosed_(true), config_(config)
@@ -28,9 +21,9 @@ void App::run()
 {
   if (!group_ && config_)
   {
-    AppBuilder builder(config_->getPlatformContext());
-    config_->configure(builder);
-    group_ = new ComponentGroup<AppComponent>(builder.build());
+    AppComposition composition(config_->getPlatformContext());
+    config_->compose(composition);
+    group_ = new ComponentGroup<AppComponent>(composition.build());
   }
   reflectInitialVisibilityChunks();
 }
@@ -45,13 +38,13 @@ void App::reflectInitialVisibilityChunks()
   {
     AppComponent *comp = comps[i];
     Window *win = dynamic_cast<Window *>(comp);
-    if (win && win->visibility.get())
+    if (win && win->visibilityState().get())
     {
       declara::core::StateTracker *tracker = win->getTracker();
       if (tracker)
       {
         AutoTransactionGuard _(tracker);
-        win->visibility.set(true, true);
+        win->visibilityState().set(true, true);
       }
     }
   }

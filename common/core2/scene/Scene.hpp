@@ -8,6 +8,8 @@
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/node/Boundary.hpp"
 
+class Window;
+
 enum SceneLifecycle
 {
   ON_CREATE = 0,
@@ -30,14 +32,21 @@ namespace declara
         // Boundary 定義のみを受け付ける (compile-time check via IsBoundaryDefinition)
         template <class DefT>
         explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), mounted_(false), composed_(false)
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
         {
           assert(def && "Scene requires a root definition");
+        }
+        // NodeDefinitionBase からの構築（Runtime boundary check）
+        explicit Scene(NodeDefinitionBase *def)
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
+        {
+          assert(def && "Scene requires a root definition");
+          assert(def->isBoundary() && "Scene root must be a Boundary definition");
         }
         // ルート定義を clone して所有するオーバーロード
         template <class DefT>
         explicit Scene(const DefT &def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), mounted_(false), composed_(false)
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
         {
         }
         virtual ~Scene()
@@ -51,6 +60,8 @@ namespace declara
         }
 
         NodeDefinitionBase *getRootDefinition() const { return rootDefinition_; }
+        Window *getWindow() const { return window_; }
+        void setWindow(Window *window) { window_ = window; }
 
         // 外部公開: State*として取得
         State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
@@ -110,6 +121,7 @@ namespace declara
         NodeDefinitionBase *rootDefinition_;
         Node *rootNode_;
         IPlatformController *platformController_;
+        Window *window_;
         bool mounted_;
         bool composed_;
 
@@ -128,6 +140,8 @@ namespace declara
           assert(rootNode_ && "Scene failed to create root node");
           BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(rootNode_);
           assert(boundary && "Scene root must be a Boundary node");
+          boundary->setScene(this);
+          boundary->setParentBoundary(0);
         }
 
         void composeIfNeeded(ComposeEvent event)

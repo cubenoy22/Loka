@@ -13,9 +13,9 @@ App *ToolboxPlatformContext::createApp(AppConfigurable *config, HINSTANCE, int) 
   return new ToolboxApp(config);
 }
 
-Window *ToolboxPlatformContext::createWindow(declara::core::scene::Scene *initialScene, const WindowOptions &opts)
+Window *ToolboxPlatformContext::createWindow(const WindowProps &props)
 {
-  return new ToolboxWindow(this, initialScene, opts);
+  return new ToolboxWindow(this, props);
 }
 
 declara::core::scene::NodeContext *ToolboxPlatformContext::createNodeContext(declara::core::scene::Node *node) const

@@ -41,11 +41,11 @@
 }
 @end
 
-MacWindow::MacWindow(PlatformContext *context, declara::core::scene::Scene *initialScene, const WindowOptions &opts)
-    : Window(context, initialScene, opts), window_(0), contentView_(0), delegate_(0), app_(0), closing_(false), scenePlatformController_(0)
+MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
+    : Window(context, props), window_(0), contentView_(0), delegate_(0), app_(0), closing_(false), scenePlatformController_(0)
 {
-  this->visibility.deferBind(&MacWindow::VisibilityChangedThunk, this);
-  this->title.deferBind(&MacWindow::TitleChangedThunk, this);
+  this->visibilityState().deferBind(&MacWindow::VisibilityChangedThunk, this);
+  this->titleState().deferBind(&MacWindow::TitleChangedThunk, this);
 }
 
 MacWindow::~MacWindow()
@@ -73,7 +73,7 @@ void MacWindow::VisibilityChangedThunk(void *userData)
   {
     return;
   }
-  bool visible = self->visibility.get();
+  bool visible = self->visibilityState().get();
   if (visible)
   {
     if (!self->window_)
@@ -103,7 +103,7 @@ void MacWindow::TitleChangedThunk(void *userData)
     return;
   }
   NSWindow *window = (__bridge NSWindow *)self->window_;
-  [window setTitle:declara::macos::CreateNSStringFromUtf8(self->title.get())];
+  [window setTitle:declara::macos::CreateNSStringFromUtf8(self->titleState().get())];
 }
 
 void MacWindow::createNativeWindow()
@@ -120,7 +120,7 @@ void MacWindow::createNativeWindow()
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
                                                      defer:NO];
-  [window setTitle:declara::macos::CreateNSStringFromUtf8(this->title.get())];
+  [window setTitle:declara::macos::CreateNSStringFromUtf8(this->titleState().get())];
 
   DeclaraFlippedView *contentView = [[DeclaraFlippedView alloc] initWithFrame:NSMakeRect(0, 0, frame.size.width, frame.size.height)];
   [window setContentView:contentView];
@@ -151,9 +151,9 @@ void MacWindow::destroyNativeWindow()
 void MacWindow::onCreate()
 {
   Window::onCreate();
-  if (this->options_.visible)
+  if (this->visibilityState().get())
   {
-    this->visibility.set(true, true);
+    this->visibilityState().set(true, true);
   }
 }
 

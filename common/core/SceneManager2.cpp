@@ -7,7 +7,8 @@
 SceneManager2::SceneManager2()
     : currentScene_(0),
       pendingTransactions_(),
-      tracker_(makeStateVector(&currentScene_, &pendingTransactions_, 0))
+      tracker_(makeStateVector(&currentScene_, &pendingTransactions_, 0)),
+      window_(0)
 {
 }
 
@@ -62,12 +63,14 @@ void SceneManager2::swapScene(declara::core::scene::Scene *oldScene, declara::co
   tracker_.begin();
   if (oldScene)
   {
+    oldScene->setWindow(0);
     oldScene->updateAttached(false);
     oldScene->updateLifecycle(ON_DETACH);
   }
   currentScene_.set(newScene);
   if (newScene)
   {
+    newScene->setWindow(window_);
     newScene->updateAttached(true);
     newScene->updateLifecycle(ON_ATTACH);
   }
