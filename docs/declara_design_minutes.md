@@ -1,4 +1,4 @@
-# Declara! 設計メモ（最小仕様 / Solid‑mode）
+# Loka 設計メモ（最小仕様 / Solid‑mode）
 
 > **まず動く最小**に再縮約。仮想 DOM や global diff/apply はやめて、**Solid.js 型の微粒度リアクティブ**で直接 Host を更新する。
 
@@ -148,7 +148,7 @@ public:
 ```cpp
 class Node {
   NodeContext* context;
-  MutableState<DirtyType> dirty;  // PROPS/CHILD/LAYOUT/MYSELF
+  MutableState<NodeDirtyFlags> dirty;  // PROPS/CHILD/LAYOUT/MYSELF
   virtual void compose() {}
 };
 
@@ -156,7 +156,7 @@ class Node {
 template<class PropsT, class NodeT>
 struct NodeDefinition : public NodeDefinitionBase {
   PropsType props;
-  Node* create() const { return PropsT::createNode(props); }
+  Node* create() const { return new NodeT(props); }
 };
 ```
 
@@ -344,7 +344,7 @@ struct NodeDefinition : public NodeDefinitionBase {
 - **パッケージ層（案）**
   - `declara.graphics.cpu` … QuickDraw / GDI / CoreGraphics など CPU ラスタライズ系を集約し、BitmapAccess/Blob と連携。
   - `declara.graphics.gpu` … OpenGL / OpenGL ES / Direct3D / Vulkan / Metal を束ね、ImageRecord の GPU ハンドルを管理。
-  - `declara.ui.platform` … NSView / NSImage / HWND などの OS 固有 UI を PlatformContext で隠蔽。Declara! API からは見えない。
+  - `declara.ui.platform` … NSView / NSImage / HWND などの OS 固有 UI を PlatformContext で隠蔽。Loka API からは見えない。
   - `declara.multimedia` … ゲーム、動画、MV（OpenGL + MIDI 再生など）を統合。リアルタイム/オフライン両対応でカスタムアニメーションカーブやタイムラインを扱う。
 - **Image の架け橋**
   - `Image` は CPU/GPU いずれのハンドルも内包できる。QR コードなど CPU 生成のビットマップも `ImageRecord` に格納して GPU テクスチャへアップロード可能。
@@ -352,7 +352,7 @@ struct NodeDefinition : public NodeDefinitionBase {
   - key-value 形式でスタイル/アニメーションを指定し、PlatformContext が理解できるキーだけ適用。未対応キーは無視。
   - `platform` を指定すれば CoreAnimation 固有のオプションや `declara.multimedia` 独自カーブを渡せる。Web/SSG 向けには CSS 相当への変換を想定。
 - **隠蔽ポリシー**
-  - すべての OS 固有実装は PlatformContext に閉じ込める。Declara! コアやアプリは抽象 API だけを参照。
+  - すべての OS 固有実装は PlatformContext に閉じ込める。Loka コアやアプリは抽象 API だけを参照。
 
 ### 既存の Node/Props パターン（実装済み）
 
@@ -390,7 +390,7 @@ typedef ButtonDefinition Button;  // DSL糖衣
 
 - OS 固有のウィジェット（NSView, HWND 等）を保持
 - Props の State に bind して、変化を OS ウィジェットに反映
-- OS イベントを EmitterState::emit() で Declara! 側に伝播
+- OS イベントを EmitterState::emit() で Loka 側に伝播
 
 ---
 
@@ -398,7 +398,7 @@ typedef ButtonDefinition Button;  // DSL糖衣
 
 - **NodeContext は Node のヒープ**として再定義。`NodeContext::useState<T>()` やシンプルな allocator を追加し、コンポーネント内のローカル state・タイマ・非同期ハンドルをここに閉じ込める。`Node` 破棄時に Context ごと掃除できるため、Compose DSL に副作用が流れ込まない。
 - **NativeNodeContext** は NodeContext を継承 or 内包し、HWND/NSView/GPU リソースと `priority`/`memoryCost` を保持。PlatformController は `priority` を見てメモリが逼迫したときに低優先度ハンドルから破棄できる。ImageLoader/QRLoader もここにハンドルや pending request を置く。
-- Declara! コアは NativeNodeContext のフィールド（`priority`, `memoryCostBytes`, `persistent`, `releaseRequested` など）を参照せず、あくまで opaque な箱として扱う。プラットフォーム実装（Win32/macOS）が必要に応じて優先度・コスト情報を読んでリソースを管理する。
+- Loka コアは NativeNodeContext のフィールド（`priority`, `memoryCostBytes`, `persistent`, `releaseRequested` など）を参照せず、あくまで opaque な箱として扱う。プラットフォーム実装（Win32/macOS）が必要に応じて優先度・コスト情報を読んでリソースを管理する。
 - **ComponentContext（仮）**: Scene/カスタムコンポーネントの `compose` から NodeContext にアクセスさせる橋渡しを検討中。DSL (`NodeComposition`) はあくまで Definition 構築専用にし、ランタイム state への入口は ComponentContext→NodeContext の経路だけに限定する。
 - **State 所有ルール**を更新：短命 state は NodeContext、長命/共有 state は Scene/親 props、グローバルキャッシュは PlatformContext が持つ。優先度や解放戦略は NativeNodeContext + Platform 側で制御。
 
@@ -407,7 +407,7 @@ typedef ButtonDefinition Button;  // DSL糖衣
 - **Props は State へのポインタだけ**を持つ（値のコピーなし）
 - **Node は Props の const 参照**を保持（不変）
 - **NodeContext が State を購読**し、OS ウィジェットを更新
-- **OS → Declara!** は `EmitterState::emit()` で一方向伝播
+- **OS → Loka** は `EmitterState::emit()` で一方向伝播
 
 **例: OS 側の実装（擬似コード）**
 
@@ -434,7 +434,7 @@ class Win32ButtonContext : public NodeContext {
     SetWindowText(self->hwnd, self->props.text->get().c_str());
   }
 
-  // OSイベント→Declara!
+  // OSイベント→Loka
   void onOSClick() {
     if (props.onClick) {
       props.onClick->emit();  // ← これだけ！
@@ -450,7 +450,7 @@ class Win32ButtonContext : public NodeContext {
 - ✅ OS 固有の実装は NodeContext 継承で隠蔽
 - **Node は Props の const 参照**を保持（不変）
 - **NodeContext が State を購読**し、OS ウィジェットを更新
-- **OS → Declara!** は `EmitterState::emit()` で一方向伝播
+- **OS → Loka** は `EmitterState::emit()` で一方向伝播
 
 **例: OS 側の実装（擬似コード）**
 
@@ -477,7 +477,7 @@ class Win32ButtonContext : public NodeContext {
     SetWindowText(self->hwnd, self->props.text->get().c_str());
   }
 
-  // OSイベント→Declara!
+  // OSイベント→Loka
   void onOSClick() {
     if (props.onClick) {
       props.onClick->emit();  // ← これだけ！

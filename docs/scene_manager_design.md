@@ -10,7 +10,7 @@
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SceneManager2`               | Window 1 枚あたり 1 つ保持。Scene の差し替えとトランザクションキューを管理。                                                   | `MutableState<Scene*> currentScene_`, `MutableState<std::vector<std::pair<Scene*, Scene*>>> pendingTransactions_`, `PushStateTracker tracker_` |
 | `Window`                      | `SceneManager2` を内包し、`sceneManager()->commitTransaction(...)` を外部 API にする。                                         | `SceneManager2 sceneManager_`                                                                                                                  |
-| `declara::core::scene::Scene` | SceneLifecycle を `MutableState<SceneLifecycle>` で保持。compose は Solid-mode 仕様に合わせて `NodeComposition` を受ける予定。 | `MutableState<SceneLifecycle> lifecycle_`                                                                                                      |
+| `declara::core::scene::Scene` | SceneLifecycle を `MutableState<SceneLifecycle>` で保持。BoundaryNode をルートとして管理。非Boundaryルートは自動ラップ。 | `MutableState<SceneLifecycle> lifecycle_`, `BoundaryNode* rootNode_`                                                                                                      |
 
 `SceneManager2` は旧仕様の `SceneTransaction`/`SceneManagerDelegate` を廃止し、「単純な from/to キュー + Tracker による再描画通知」に縮約している。
 
@@ -32,8 +32,8 @@
    - 先頭を処理しただけで再帰/ループはしていないため、複数遷移を一度に消化したい場合は `commitTransaction` が連続で呼ばれる前提。
 
 3. **swapScene(old, next)**
-   - 現状は `currentScene_.set(next)` をトランザクションで包むだけ。
-   - `Scene::getLifecycleState()` を書き換える処理や `onAttach/onDetach` はコメントアウトされており、今後 `SceneLifecycle` State 経由で通知する計画。
+   - `currentScene_.set(next)` をトランザクションで包み、`Scene::updateAttached` と `Scene::updateLifecycle` を更新する。
+   - Lifecycle は `SceneLifecycle` State 経由で通知する。
 
 ---
 
@@ -47,10 +47,9 @@
 
 ## 4. 既知の課題
 
-1. **ライフサイクル通知の不在**
+1. **ライフサイクル通知の整理**
 
-   - `Scene::lifecycle_` (MutableState) を `SceneManager2::swapScene` から書き換えていない。
-   - 旧 onAttach/onDetach を State 化することで、`Scene` 側が `bind` してライフサイクルフックを再構築できるよう整理する。
+   - `SceneManager2::swapScene` で `Scene::updateAttached` と `Scene::updateLifecycle` を書き換える方針で実装済み。
 
 2. **discardable/requestDiscard の未実装**
 

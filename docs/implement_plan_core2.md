@@ -1,81 +1,89 @@
-# core2 実装・設計進捗メモ（2025-11）
+# core2 実装・設計進捗メモ
 
-Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。  
-`declara_design_minutes.md` のメモと突き合わせて、どこを掘ればいいかを明確にする。
-
----
-
-## 1. 現状サマリ
-
-- `Scene`（`common/core2/scene/Scene.hpp`）は `NodeComposition` を受け取る `compose(NodeComposition)` 形式に更新済み。`MutableState<SceneLifecycle>` を内包。
-- `Scene` / `IPlatformController` の骨格は追加済み（`Scene.hpp`, `PlatformController.hpp`）。  
-  - Solid-mode では `Scene::mount()` が `NodeComposition::createNodeTree()` でツリーを生成し、`materialize()` を呼び出す。
-- `Node`, `NodePropsBase`, `NodeDefinition`, `NodeComposition`（Arena）は `core2` にまとまり、`common/app/Button.hpp` などの UI ノードはここを前提にしている。
-- `SceneManager2` は Window 側で Scene スロットを差し替えるのみで、まだ core2 Controller とは繋いでいない。
+Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 ---
 
-## 2. 優先タスク
+## 1. 現状サマリ（実装済み）
 
-### 2.1 Node/Component ローカル State 管理
+### アーキテクチャ
+- **BoundaryNode**: 状態境界。ローカルの `PushStateTracker` を所有。`useState` で状態を登録。
+- **GroupNode**: 非Boundary。状態は親Boundaryに委譲（`stateOwner` 経由）。
+- **Scene**: `mount()`/`unmount()` でライフサイクル管理。非Boundaryルートは `RootBoundaryWrapper` で自動ラップ。
+- **NodeComposition**: compose中のArena + DSL窓口（`useState`, `findBoundary`, `declare` 等）。
 
-- `NodeContext` を Node ヒープとして拡張し、`useState<T>()`/簡易アロケータを提供する。`Node` は `NodeContext` 経由でローカル State/ネイティブハンドルを保持する。
-- Compose 中の短命キャッシュは `NodeComposition` で扱うが、長寿命 State は NodeContext か Scene メンバーに閉じるルールを徹底する。
-- 将来 `NativeNodeContext` を派生させ、HWND/NSView などの OS ハンドルと優先度メタデータを格納。Platform 側が優先度を見てリソース破棄できるようにする。
+### DSL
+```cpp
+// Boundary定義
+class MyNode : public BoundaryNodeFor<MyNode> { ... };
+inline BoundaryDefinition<...> MyBoundary() { return Boundary<MyNode>(); }
 
-### 2.2 Props in/out 設計
+// Group定義
+class MyNode : public GroupNodeBase<MyProps> { ... };
+inline NodeDefinition<...> MyGroup() { return NodeDefinition<...>(); }
+```
 
-- Props が `State<T>*` を in/out できる基本パターンを整理。  
-  - 例: EditText は `State<std::string>* text`（双方向）、Button は `EmitterState* onClick`。  
-- `State` を Node ローカルに閉じたいケース（Headless ノードなど）のガイドラインを docs に追記する。
-
-### 2.3 ノードツリーの所有と取得
-
-- `NodeComposition::createNodeTree()` は現在子ノード処理がコメントアウトされている。`INestableDefinition::getChildren()` を実装し、実際に子を複製する。
-- `Controller::root()` から生成済み Node ツリーへアクセスできるようにし、Window 側が PlatformContext に渡せるようにする。
-
-### 2.4 UI コンポーネントの compose テスト
-
-- `Scene` サブクラスを作り、`Button`/`Box` など `common/app` のノードを `NodeComposition` に宣言してツリー生成まで確認する。
-- Win32 側で `PlatformContext::createNodeContext` が `NodeContext` のスタブしか返していないので、`NativeNodeContext`（HWND/priority/イベント購読の束ね役）を用意する。
-
-### 2.5 再 compose / 差分
-
-- 初期バージョンは Solid-mode（一次 compose + 直接更新）に集中。State 変化で再 compose する場合は Arena を作り直す想定。
-- React 型の diff 戦略は `DynamicSceneController` に逃し、今は ToDo として残す。
+### App層との連携
+- **WindowDefinition/WindowProps**: App層のDefinition-Propsパターン（NodeDefinitionとは別基底）。
+- **AppComposition**: App構成用DSL。`c.declare(WindowDef(WindowProps().scene(...).title(...).visible(...)))` でWindow宣言。
 
 ---
 
-## 3. ノード管理 / Platform 構成メモ
+## 2. 完了タスク
 
-- `Scene` … Solid-mode 用の実装。`NodeComposition` を構築し、`NodeContext`/Platform に初回 materialize させる役。今後 Dynamic 型に差し替え予定。  
-- `IPlatformController` … Node ツリーを受け取って OS へ反映する抽象。Win32/macOS ごとに実装予定。  
+- [x] BoundaryNode 導入、StateTracker 所有
+- [x] useState 実装（NodeComposition経由、Tracker自動登録）
+- [x] findBoundary<T>() 実装（親Boundary検索）
+- [x] ContextDefinition/ComponentContext::provide/require 廃止
+- [x] Scene: 非Boundaryルートの自動ラップ
+- [x] DSL命名整理（StaticComposition* → Boundary*/Group*）
+- [x] WindowDefinition/AppComposition 導入
+
+---
+
+## 3. 残タスク
+
+### 3.1 Props in/out 設計
+
+- Props が `State<T>*` を in/out できる基本パターンを整理。
+  - 例: EditText は `State<std::string>* text`（双方向）、Button は `EmitterState* onClick`。
+
+### 3.2 再 compose / 差分
+
+- 初期バージョンは Solid-mode（一次 compose + 直接更新）に集中。
+- React 型の diff 戦略は Boundary 内で閉じて実装可能な設計。
+
+---
+
+## 4. ノード管理 / Platform 構成メモ
+
+- `Scene`: BoundaryNodeをルートとして保持。非Boundaryルートは `RootBoundaryWrapper` で自動ラップ。
+- `IPlatformController`: Node ツリーを受け取って OS へ反映する抽象。Win32/macOS/Toolbox ごとに実装。
 - Window から見た流れ：
   1. `SceneManager2` が Scene を差し替える。
-  2. `Scene` が `NodeComposition` からノードツリーを生成。
-  3. 生成したルートを `IPlatformController::materialize(rootNode_)` へ渡す。
+  2. `Scene::mount()` が BoundaryNode をルートにツリーを生成。
+  3. 生成したルートを `IPlatformController::onChange(rootNode_, flags)` へ渡す。
 
 当面は Window 1 枚 = Scene 1 つで十分。複数 Scene を切り替えたい場合は `SceneManager2` が Scene を差し替える。
 
-### 3.1 コンポーネント再利用パターン
+### 4.1 コンポーネント再利用パターン
 
-- Fragment 型（例: `BmiCalculatorComponent`）は DSL の断片をそのまま返す軽量パターン。Scene の一部を共有したいときにパフォーマンス低下なく使える。
-- Headless 型（例: `IncrementLogic`）は `compose(NodeComposition&)` を持つコンポーネント。`NodeComposition` を引数で受け取ることで、将来的な `c.useState` や headless ノードの閉じ込めが可能になり、React 型の再 compose を Solid-mode 内に内包できる。
-- 用途に応じて両方を使い分ける。UI断片なら Fragment 型、ロジックや I/O をまとめたい場合は Headless 型に compose を持たせる。
+- **Fragment 型**（例: `BmiCalculatorComponent`）: DSL の断片をそのまま返す軽量パターン。
+- **GroupNode**: `composeNode(NodeComposition&)` を持つ非Boundary。状態は親Boundaryに委譲。
+- **BoundaryNode**: 状態境界。ローカルの StateTracker を所有し、React型の再composeを内包可能。
 
 ---
 
-## 4. State 所有・ライフサイクル指針
+## 5. State 所有・ライフサイクル指針
 
-- **NodeContext State**: Node の寿命と一致。`NodeContext` に `useState`/アロケータを実装してローカル State を確保し、NodeContext 破棄で自動解放。  
-- **NativeNodeContext**: OS ハンドル・GPU リソース・優先度メタデータを保持。Platform が優先度の低い Node からリソース破棄できる。  
-- **Props が保持する State**: 親/Scene が所有。Node が消えても State は残り、他の Node と共有可能。  
-- **EmitterState**: OS → Declara! イベントの橋渡しなので、基本的に Scene/Window の長寿命オブジェクトが所有。
+- **BoundaryNode State**: Boundary の寿命と一致。`useState` で確保し、Boundary 破棄で自動解放。
+- **Props が保持する State**: 親/Scene が所有。Node が消えても State は残り、他の Node と共有可能。
+- **EmitterState**: OS → Loka イベントの橋渡しなので、基本的に Scene/Window の長寿命オブジェクトが所有。
 - ルールは「最も長生きするコンポーネントが所有する」。これで参照切れ・use-after-free を防ぐ。
 
 ---
 
-## 5. NodeComposition と NodeOwner（Arena）設計
+## 6. NodeComposition と Arena 設計
 
 - `NodeComposition` は Scene の `compose()` 実行ごとに 1 回生成され、**NodeOwner（Arena）** として `NodeDefinition` ツリーを丸ごとコピーして保持する。  
 - `declare()`/`store()` に渡された `NodeDefinition` の所有権は `NodeComposition` に移る。呼び出し側はスタック上の一時オブジェクトを渡すだけで良い。  
@@ -85,22 +93,21 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 
 ---
 
-## 6. その他メモ
+## 7. その他メモ
 
-- `State<T>` API（`deferBind`, `deferBindWithOld`）は Solid-mode の micro tick と親和性が高い。NodeContext から直接使えるよう、ドキュメントは `docs/architecture_state_tracker.md` に集約済み。
-- `SceneNodeGroup` / `AttachScope` 系のドキュメントは削除したため、本メモが core2 設計の一次情報になる。
+- `State<T>` API（`deferBind`, `deferBindWithOld`）は Solid-mode の micro tick と親和性が高い。ドキュメントは `docs/architecture_state_tracker.md` に集約済み。
 
 ---
 
-## 7. NodeContext / NativeNodeContext メモ
+## 8. 将来検討: NativeNodeContext
 
-- `NodeContext` を **Node 専用ヒープ**として扱う。`useState<T>()` や小さなオブジェクトアロケータを提供し、ローカル state や headless ノードのバッファをここに置く。`Node` 破棄時に Context ごと解放されるため、Compose DSL に副作用を持ち込まなくて済む。
-- `NativeNodeContext` は `NodeContext` を継承/内包し、HWND/NSView/HBITMAP などプラットフォーム固有ハンドルと `priority`/`memoryCostBytes`/`persistent`/`releaseRequested` を保持。Declara! 側は中身を参照せず「ネイティブ側の opaque container」として扱い、Platform 実装が必要に応じてフィールドを使う。
-- Global/Scene ヒープで共有したいリソース（Image など）は `State< Managed<ResourceRecord> >` で扱う。`Managed<T>` が参照カウンタ/カスタム releaser を提供するので、State の set/unset だけで retain/release を保証できる。
-- Loader 系ノード（例: ImageLoader, QRLoader）は Scene から受け取った `State<Request>` と `State<Handle>` を橋渡ししつつ、非同期処理のハンドルを `NodeContext` に保存する。非表示になったら Context 破棄で自動的にキャンセル/解放できる。
-- `ComponentContext`（未実装）を用意し、Scene/カスタムコンポーネントの `compose` から NodeContext へアクセスできるフックを提供する予定。DSL 自体には NodeContext を露出せず、コンポーネント抽象で橋渡しする。
+- BoundaryNode の拡張として、HWND/NSView などプラットフォーム固有ハンドルを保持する `NativeNodeContext` を検討。
+- `priority`/`memoryCostBytes` を保持し、Platform が優先度の低い Node からリソース破棄可能に。
+- Global/Scene ヒープで共有したいリソース（Image など）は `State< Managed<ResourceRecord> >` で扱う。
 
-## 8. ErrorSink / エラーハンドリング指針
+---
+
+## 9. ErrorSink / エラーハンドリング指針
 
 - `ImageLoader` など高頻度でエラーを吐くノードは共通の `ErrorSink` を参照。
 - `ErrorSink` は Window/Scene 単位のキュー型。`push(ErrorEvent)` で Producer から受信し、`tryPop()` または `EmitterState` 経由で Consumer に流す。
@@ -113,7 +120,7 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 - `ErrorSinkScope`（仮）を用意し、特定の compose スコープ内でローカル Sink を生成→親 Sink にネストさせる。エラーイベントには `path`/`labels` を含め、どのコンポーネントの I/O で失敗したかを追跡しやすくする。
 - Headless コンポーネントは `ErrorSink child(currentTaskContext, parentSink)` を受け取り、ローカルで発生したエラーを `child.push()` → 内部で currentTaskContext を payload に含めた上で parentSink へ forward。`ErrorEvent` の `tags` フィールドで `"image-loader"`, `"blob-loader"` など分類しておく。
 
-## 9. ImageLoader / Image アクセス
+## 10. ImageLoader / Image アクセス
 
 - `Image` は `Managed<ImageRecord>` を包む値型。`Image::Empty()` を初期値にし、`State<Image>` が null を扱わなくて済むようにする。
 - `ImageLoaderRequest` は URL/Data/FileHandle を含むユニオンと、`desiredSize`/`scale`/`priority`/`cachePolicy` などのヒントを持つ。`State<ImageLoaderRequest>` が更新されるたびに新しいロードタスクを生成。
@@ -129,7 +136,7 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
 - `ImageInfo(Image, outInfo, ErrorSink)` と `BitmapAccess(Image, request, ErrorSink)` を用意し、NodeContext が必要に応じてメタ情報取得や CPU アクセスを要求できる。非対応フォーマットやロック不可のときは Sink へ通知。
 - 変更不可 Image に対してミューテーション要求が来た場合は `ErrorSink` へエラーを投げる。Mutable 対応 Image は `BitmapAccess` が write flag を受け取り、ResumableTask 経由でバックグラウンド更新する。
 
-## 10. BlobLoader / BlobStream 基盤
+## 11. BlobLoader / BlobStream 基盤
 
 - `Blob` も `Managed<BlobRecord>` で実体を共有し、`Blob::Empty()` を初期値にする。`BlobRecord` には `MutableState<size_t> size`, `MutableState<bool> isLoading`, `MutableState<bool> isCompleted`, `MutableState<bool> isMutable`, `MutableState<float> progress` を保持。`Blob::UnknownProgress()` (= -1.0f) を `IsIndeterminate` と同義の定数として公開し、FTP/ストリーミングのように最大サイズ不明な場合のプログレスバーに使う。
 - `BlobLoaderRequest` は URL/File/Memory/Resource などのソースと `expectedSize`, `priority`, `incremental` フラグを持つ。`State<BlobLoaderRequest>` を headless component に渡す。
@@ -143,3 +150,27 @@ Solid-mode（`common/core2/scene`）の進行状況と課題を一本化。
   - WebRTC/WebSocket などの連続データは `BlobStream` を介して push/pull できる。
 - Asset 配布:
   - Win32 では Program Files 配下や `%LOCALAPPDATA%` へアセットを配置し、`kSourceFile` で読み込む。パッケージリソースは `kSourceResource` として `FindResource/LoadResource` を内部で行う。
+
+---
+
+## 12. 次の検討事項（優先度高）
+
+現在検討中の、優先度の高いタスクリスト。
+
+- **DSLの改善: modifierの導入**
+  - `Text("...").padding(5).onClick(...)` のように、メソッドチェーンでプロパティやレイアウト修飾子を指定できる、より流れるような(fluent)インターフェースを目指す。
+  - これにより、`TextProps` のような中間オブジェクトの記述を削減し、宣言的なUI記述をさらに強化する。
+
+- **DSLの改善: 動的レンダリング**
+  - **リスト生成:** `map`/`filter` のようなStream APIライクな操作で、`State` が持つコレクションから動的にUIコンポーネントのリストを生成する。
+  - **条件分岐:** Solid.jsの `<Show>` や `<For>` に相当する、`If(condition, ...)` や `Loop(items, ...)` のような制御フローコンポーネントを導入する。
+
+- **論理文字列への移行**
+  - 現在の `std::string` ベースから、多言語対応やプラットフォーム間の差異を吸収できる、より抽象化された文字列クラスへの移行を進める。
+
+- **Stateベースのエラーハンドリングと分析**
+  - セクション9, 10, 11で検討した `ErrorSink`, `BlobLoader` を実装し、非同期処理のエラー通知やリソースロードの失敗をリアクティブに処理する機構を完成させる。
+
+- **実装例の拡充**
+  - **画像ビューア:** `Blob` と `ImageLoader` の具体的な利用例として、画像表示コンポーネントを実装する。
+  - **MyTracker:** `OpenMacTracker` のような外部アプリを参考に、編集可能なTrackerアプリをサンプルとして作成する。
