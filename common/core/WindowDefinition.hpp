@@ -30,7 +30,7 @@ struct WindowDefinition : public WindowDefinitionBase
     if (!resolved.initialScene && resolved.rootDefinition)
     {
       declara::core::scene::NodeDefinitionBase *def = resolved.rootDefinition->clone();
-      resolved.setScene(new declara::core::scene::Scene(def));
+      resolved.scene(new declara::core::scene::Scene(def));
     }
     return context->createWindow(resolved);
   }

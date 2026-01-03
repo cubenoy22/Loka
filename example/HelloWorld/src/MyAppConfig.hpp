@@ -14,10 +14,10 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    WindowProps props;
-    props.setScene(helloworld::BmiForm());
-    props.setTitle("LokaSample").setVisibility(true);
-    c.Window(props);
+    c.declare(WindowDef(WindowProps()
+                            .scene(helloworld::BmiForm())
+                            .title("LokaSample")
+                            .visible(true)));
   }
 };
 

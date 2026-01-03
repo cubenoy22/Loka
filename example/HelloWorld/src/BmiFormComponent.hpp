@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "core/State.hpp"
+#include "core/Window.hpp"
 #include "core/util/AutoTransactionGuard.hpp"
 #include "core2/scene/node/StaticComposition.hpp"
 #include "app/Button.hpp"
@@ -38,7 +39,7 @@ namespace helloworld
       heightInput_ = &c.useState<std::string>("170.0");
       weightInput_ = &c.useState<std::string>("60.0");
       bmiResult_ = &c.useState<std::string>("BMI: --");
-      message_ = &c.useState<std::string>("Hello, Declara!");
+      message_ = &c.useState<std::string>("Hello, Loka!");
       heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
@@ -93,13 +94,34 @@ namespace helloworld
       {
         return;
       }
-      std::string next = "Hello, Declara!";
-      if (message_->get() == "Hello, Declara!")
+      std::string next = "Hello, Loka!";
+      if (message_->get() == "Hello, Loka!")
       {
-        next = "Context says hi!";
+        next = "Loka says hi!";
       }
       AutoTransactionGuard guard(message_->currentTracker);
       message_->set(next, true);
+
+      declara::core::scene::Scene *scene = this->getScene();
+      if (!scene)
+      {
+        return;
+      }
+      Window *window = scene->getWindow();
+      if (!window)
+      {
+        return;
+      }
+      AutoTransactionGuard titleGuard(window->titleState().currentTracker);
+      const std::string title = window->titleState().get();
+      if (title == "LokaSample")
+      {
+        window->titleState().set("LokaSample*");
+      }
+      else
+      {
+        window->titleState().set("LokaSample");
+      }
     }
 
     void updateBmi()

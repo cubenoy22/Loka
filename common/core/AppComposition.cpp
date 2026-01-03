@@ -15,17 +15,6 @@ AppComposition::~AppComposition()
   windows_.clear();
 }
 
-AppComposition &AppComposition::add(AppComponent *comp)
-{
-  components_.push_back(comp);
-  return *this;
-}
-
-AppComposition &AppComposition::Window(const WindowProps &props)
-{
-  return declare(WindowDef(props));
-}
-
 AppComposition &AppComposition::declare(const WindowDefinitionBase &def)
 {
   windows_.push_back(def.clone());

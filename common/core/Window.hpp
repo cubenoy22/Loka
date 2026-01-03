@@ -24,8 +24,8 @@ class PlatformContext;
 
 struct WindowProps
 {
-  MutableState<std::string> *title;
-  MutableState<bool> *visibility;
+  MutableState<std::string> *titleStatePtr;
+  MutableState<bool> *visibilityStatePtr;
   std::string initialTitle;
   bool initialVisibility;
   bool hasInitialTitle;
@@ -34,8 +34,8 @@ struct WindowProps
   declara::core::scene::NodeDefinitionBase *rootDefinition;
 
   WindowProps()
-      : title(0),
-        visibility(0),
+      : titleStatePtr(0),
+        visibilityStatePtr(0),
         initialTitle(""),
         initialVisibility(true),
         hasInitialTitle(false),
@@ -46,8 +46,8 @@ struct WindowProps
   }
 
   WindowProps(const WindowProps &rhs)
-      : title(rhs.title),
-        visibility(rhs.visibility),
+      : titleStatePtr(rhs.titleStatePtr),
+        visibilityStatePtr(rhs.visibilityStatePtr),
         initialTitle(rhs.initialTitle),
         initialVisibility(rhs.initialVisibility),
         hasInitialTitle(rhs.hasInitialTitle),
@@ -76,8 +76,8 @@ struct WindowProps
     {
       return *this;
     }
-    title = rhs.title;
-    visibility = rhs.visibility;
+    titleStatePtr = rhs.titleStatePtr;
+    visibilityStatePtr = rhs.visibilityStatePtr;
     initialTitle = rhs.initialTitle;
     initialVisibility = rhs.initialVisibility;
     hasInitialTitle = rhs.hasInitialTitle;
@@ -95,33 +95,33 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &setTitle(const std::string &t)
+  WindowProps &title(const std::string &t)
   {
     initialTitle = t;
     hasInitialTitle = true;
     return *this;
   }
 
-  WindowProps &setVisibility(bool v)
+  WindowProps &visible(bool v)
   {
     initialVisibility = v;
     hasInitialVisibility = true;
     return *this;
   }
 
-  WindowProps &setTitleState(MutableState<std::string> *state)
+  WindowProps &titleState(MutableState<std::string> *state)
   {
-    title = state;
+    titleStatePtr = state;
     return *this;
   }
 
-  WindowProps &setVisibilityState(MutableState<bool> *state)
+  WindowProps &visibilityState(MutableState<bool> *state)
   {
-    visibility = state;
+    visibilityStatePtr = state;
     return *this;
   }
 
-  WindowProps &setScene(declara::core::scene::Scene *scene)
+  WindowProps &scene(declara::core::scene::Scene *scene)
   {
     initialScene = scene;
     if (rootDefinition)
@@ -132,7 +132,7 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &setScene(const declara::core::scene::NodeDefinitionBase &def)
+  WindowProps &scene(const declara::core::scene::NodeDefinitionBase &def)
   {
     if (rootDefinition)
     {
@@ -156,13 +156,13 @@ public:
         visibility_(&visibilityStorage_),
         initialScene_(props.initialScene)
   {
-    if (props.title)
+    if (props.titleStatePtr)
     {
-      title_ = props.title;
+      title_ = props.titleStatePtr;
     }
-    if (props.visibility)
+    if (props.visibilityStatePtr)
     {
-      visibility_ = props.visibility;
+      visibility_ = props.visibilityStatePtr;
     }
     tracker_ = new declara::core::PushStateTracker(makeStateVector(static_cast<StateBase *>(title_), static_cast<StateBase *>(visibility_), 0));
     if (props.hasInitialTitle)

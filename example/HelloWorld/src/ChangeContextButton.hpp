@@ -2,7 +2,10 @@
 #define DECLARA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 
 #include <cassert>
+#include <string>
 #include "core2/scene/node/Composition.hpp"
+#include "core/Window.hpp"
+#include "core/util/AutoTransactionGuard.hpp"
 #include "app/Button.hpp"
 #include "HelloWorldBoundary.hpp"
 
@@ -44,13 +47,34 @@ namespace helloworld
         return;
       }
       const std::string current = this->boundary_->messageState().get();
-      if (current == "Hello, Declara!")
+      if (current == "Hello, Loka!")
       {
-        this->boundary_->messageState().set("Context says hi!");
+        this->boundary_->messageState().set("Loka says hi!");
       }
       else
       {
-        this->boundary_->messageState().set("Hello, Declara!");
+        this->boundary_->messageState().set("Hello, Loka!");
+      }
+
+      declara::core::scene::Scene *scene = this->boundary_->getScene();
+      if (!scene)
+      {
+        return;
+      }
+      Window *window = scene->getWindow();
+      if (!window)
+      {
+        return;
+      }
+      AutoTransactionGuard guard(window->titleState().currentTracker);
+      const std::string title = window->titleState().get();
+      if (title == "LokaSample")
+      {
+        window->titleState().set("LokaSample*");
+      }
+      else
+      {
+        window->titleState().set("LokaSample");
       }
     }
 

@@ -25,7 +25,7 @@ namespace helloworld
     {
       if (!message_)
       {
-        message_ = &c.useState<std::string>("Hello, Declara!");
+        message_ = &c.useState<std::string>("Hello, Loka!");
       }
 
       using namespace declara::app;

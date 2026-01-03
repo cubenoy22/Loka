@@ -12,8 +12,6 @@ public:
   explicit AppComposition(PlatformContext *context);
   ~AppComposition();
 
-  AppComposition &add(AppComponent *comp);
-  AppComposition &Window(const WindowProps &props);
   AppComposition &declare(const WindowDefinitionBase &def);
 
   std::vector<AppComponent *> build();
@@ -22,6 +20,7 @@ public:
   void setContext(PlatformContext *ctx);
 
 private:
+  AppComposition &add(AppComponent *comp);
   std::vector<AppComponent *> components_;
   std::vector<WindowDefinitionBase *> windows_;
   PlatformContext *context_;
