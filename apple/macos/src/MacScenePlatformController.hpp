@@ -20,7 +20,7 @@ public:
   explicit MacScenePlatformController(void *rootView);
   virtual ~MacScenePlatformController();
 
-  virtual void materialize(declara::core::scene::Node *rootNode);
+  virtual void onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
 

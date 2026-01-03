@@ -64,8 +64,9 @@ namespace SceneTests
     {
     public:
       DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-      virtual void materialize(Node *rootNode)
+      virtual void onChange(Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
       {
+        (void)flags;
         lastMaterialized_ = rootNode;
       }
       virtual void synchronize() {}

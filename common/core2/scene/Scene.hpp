@@ -144,7 +144,7 @@ namespace declara
           assert(boundary && "Scene root must be a Boundary node");
           ComponentContext rootContext;
           boundary->compose(rootContext, event);
-          platformController_->materialize(rootNode_);
+          platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL);
           composed_ = true;
         }
 

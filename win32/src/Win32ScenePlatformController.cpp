@@ -27,8 +27,9 @@ Win32ScenePlatformController::~Win32ScenePlatformController()
   clearContexts();
 }
 
-void Win32ScenePlatformController::materialize(declara::core::scene::Node *rootNode)
+void Win32ScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
 {
+  (void)flags;
   rootNode_ = rootNode;
   if (!rootHwnd_ || !rootNode_)
   {

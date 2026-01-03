@@ -23,7 +23,8 @@ namespace declara
         NODE_DIRTY_PROPS = 0x01,
         NODE_DIRTY_CHILD = 0x02,
         NODE_DIRTY_LAYOUT = 0x04,
-        NODE_DIRTY_MYSELF = 0xFF // 全dirty
+        NODE_DIRTY_MYSELF = 0xFF, // 全dirty
+        NODE_DIRTY_INITIAL = 0x100
       };
 
       // ComposeEvent: describes why compose was invoked.

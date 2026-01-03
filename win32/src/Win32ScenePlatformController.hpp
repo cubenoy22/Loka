@@ -33,7 +33,7 @@ public:
   explicit Win32ScenePlatformController(HWND rootHwnd);
   virtual ~Win32ScenePlatformController();
 
-  virtual void materialize(declara::core::scene::Node *rootNode);
+  virtual void onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
 

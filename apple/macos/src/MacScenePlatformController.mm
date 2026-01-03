@@ -30,8 +30,9 @@ MacScenePlatformController::~MacScenePlatformController()
   clearContexts();
 }
 
-void MacScenePlatformController::materialize(declara::core::scene::Node *rootNode)
+void MacScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
 {
+  (void)flags;
   rootNode_ = rootNode;
   if (!rootView_ || !rootNode_)
   {
