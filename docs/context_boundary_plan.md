@@ -1,29 +1,103 @@
-# Context & Boundary Plan (WIP)
+# Context & Boundary 設計
 
-## 現状整理
-- NodeComposition は compose 中に `NodeDefinition` を clone する“スナップショット”。実体の Node/Context は ComposableNode (Boundary) が保持する。
-- Context API: `ComposableNode::useContext(def, placement)` で Context を自生。`ContextPlacement` (BOUNDARY/ROOT) で所属を切替。
+## 現状（実装済み）
 
-## 目標
-1. **Boundary 正式化**
-   - ComposableNode が自前の `NodeComposition`/Context を持ち、Boundary ごとに compose→materialize を完結。
+### Boundary アーキテクチャ
+- **BoundaryNode**: 状態境界。ローカルの `PushStateTracker` を所有し、`useState` で状態を登録。
+- **GroupNode**: 非Boundary。状態は親Boundaryに委譲（`stateOwner` 経由）。
+- **Scene**: ルートが非Boundaryなら `RootBoundaryWrapper` で自動ラップ。
 
-2. **Context DSL の簡素化**
-   - `this->useContext` + `c.useContext` をヘルパひとつ (`exposeContext`) で済ませ、DSL からは 1 行で Context を提供できるようにする。
-   - Context を NodeDefinition/Headless と同じ仕組みに寄せ、`ContextDefinition -> ContextNode` のペアで扱う。
+### DSL構造
+```cpp
+// Boundary定義
+class MyNode : public BoundaryNodeFor<MyNode> { ... };
+inline BoundaryDefinition<...> MyBoundary() { return Boundary<MyNode>(); }
 
-3. **所有権の明確化**
-   - Scene が root Boundary を所有し、Window は Scene の差替えのみ意識。
-   - Context/Node は各 Boundary (ComposableNode) が完全に所有し、NodeComposition は compose 中のみ生きる一時オブジェクトにとどめる。
+// Group定義（非Boundary）
+class MyNode : public GroupNodeBase<MyProps> { ... };
+inline NodeDefinition<...> MyGroup() { return NodeDefinition<...>(); }
+```
+
+### 状態管理
+```cpp
+void composeNode(NodeComposition& c) {
+  // useState - 最寄りのBoundaryに登録
+  auto& count = c.useState<int>(0);
+
+  // findBoundary - 型付き親Boundary検索
+  auto* ctx = c.findBoundary<HelloWorldBoundary>();
+  if (ctx) ctx->messageState().set("...");
+}
+```
+
+### Context API → 廃止済み
+- `ContextDefinition` / `ComponentContext::provide/require` は削除。
+- 共有状態は `findBoundary<T>()` で親Boundaryのインターフェースを検索。
+
+## 設計原則
+
+1. **登場人物を最小に**: `useState` + `findBoundary` だけ
+2. **Boundary = 状態境界**: Solid.js的/React的どちらのReconciler戦略も収容可能
+3. **コンパイル時エラー優先**: テンプレート/継承で誤用を静的に防ぐ
+4. **1MBで動く設計**: Classic Mac OS でも余裕で動くシンプルさ
 
 ## TODO
-- [ ] `exposeContext` のようなラッパを追加して DSL の呼び味を統一する。
-- [x] Boundary (ComposableNode) に専用の `NodeComposition` メンバーを追加し、Boundary ごとに compose を完結する。（`ComposableNode::beginComposition` で境界ごとのアリーナを使い回せるようになった。）
-- [x] BoundaryNode を導入し、境界ごとに `StateTracker` を所有できるようにする（StaticCompositionBoundary を派生させる）。
-- [ ] Window close request を Scene/Root controller に委譲し、未保存時のキャンセル判断をできるようにする。
-- [ ] MutableState の生成を Boundary 経由に限定し、Tracker 登録漏れを文法レベルで防ぐ（StateAllocatable + friend の設計検討）。
-- [ ] ContextDefinition/ComponentContext の公開 API を廃止し、findBoundary に集約する。
+- [x] BoundaryNode 導入、StateTracker 所有
+- [x] useState 実装（Tracker自動登録）
+- [x] ContextDefinition/ComponentContext 廃止、findBoundary に集約
+- [x] Scene: 非Boundaryルートの自動ラップ (RootBoundaryWrapper)
+- [x] DSL命名整理 (Boundary/Group)
+- [ ] Window close request を Scene/Root に委譲
 
 ## Notes
-- findBoundary は compose の親子順に依存するため、親 Boundary が先に compose される設計を前提とする。
-- [ ] Context を Headless Node として表現する `ContextDefinition/ContextNode` の設計を検討する。
+- findBoundary は compose の親子順に依存（親が先に compose される前提）。
+- BoundaryNode は将来的に Reconciler 戦略（Solid/React型）を差し替え可能な設計。
+
+---
+
+## 将来検討: DSLショートハンド
+
+現状のDSLを壊さず、追加オーバーロードで対応可能。コミュニティの反応を見て優先度を決める。
+
+### 1. Props省略ショートハンド
+```cpp
+// 現状
+Text(TextProps().setText("Hello"))
+
+// 追加案
+Text("Hello")
+```
+
+### 2. State Props 直接渡し
+```cpp
+// 現状
+EditText(EditTextProps().setText(props.input))
+
+// 追加案
+EditText(props.input)  // State<string>* を直接
+```
+
+### 3. prepareNode/composeNode 統一
+```cpp
+// 現状: 2つのフック
+virtual void prepareNode(NodeComposition& c);
+virtual void composeNode(NodeComposition& c);
+
+// 検討: 1つに統一（useState を composeNode 内で呼べる）
+```
+
+### 4. 名前空間エイリアス
+```cpp
+namespace loka = declara::core::scene;
+class MyNode : public loka::BoundaryNodeFor<MyNode>
+```
+
+### 5. Fragment マクロ/ヘルパー
+```cpp
+// 現状
+VStack layout;
+layout << Text(...);
+return c.group(layout);
+
+// 検討: ワンライナー化
+```
