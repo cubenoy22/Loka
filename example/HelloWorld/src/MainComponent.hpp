@@ -31,7 +31,7 @@ namespace helloworld
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
       message_ = &c.useState<std::string>("Hello, Loka!");
-      this->bindSafe(toggleEvent_, this, &MainNode::toggleMessage);
+      this->bindForUi(toggleEvent_, this, &MainNode::toggleMessage);
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)

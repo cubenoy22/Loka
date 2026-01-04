@@ -94,7 +94,7 @@ namespace declara
           {
             if (emitter_)
             {
-              emitter_->unbind(&Invoke, this);
+              emitter_->deferUnbind(&Invoke, this);
             }
           }
 
@@ -110,11 +110,11 @@ namespace declara
         };
 
         template <class NodeT>
-        void bindSafe(declara::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
+        void bindForUi(declara::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
         {
           CallbackEntry<NodeT> *entry = new CallbackEntry<NodeT>(node, &emitter, method);
           callbacks_.push_back(entry);
-          emitter.bind(&CallbackEntry<NodeT>::Invoke, entry, false);
+          emitter.deferBind(&CallbackEntry<NodeT>::Invoke, entry);
         }
 
         struct AttachedContext

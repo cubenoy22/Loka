@@ -27,7 +27,7 @@ namespace helloworld
     {
       this->boundary_ = c.findBoundary<RootBoundary>();
       assert(this->boundary_ && "ChangeContextButton requires RootBoundary");
-      this->bindSafe(toggleEvent_, this, &ChangeContextButton::handleToggle);
+      this->bindForUi(toggleEvent_, this, &ChangeContextButton::handleToggle);
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
