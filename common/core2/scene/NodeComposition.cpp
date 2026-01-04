@@ -1,5 +1,8 @@
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/Node.hpp"
+#include "core2/scene/Scene.hpp"
+#include "core2/scene/node/Boundary.hpp"
+#include "core/Window.hpp"
 
 namespace declara
 {
@@ -46,6 +49,29 @@ namespace declara
       Node *NodeComposition::createNodeTree() const
       {
         return createNodeRecursive(this->root());
+      }
+
+      BoundaryNode *NodeComposition::boundary() const
+      {
+        BoundaryNode *boundary = this->findBoundary<BoundaryNode>();
+        assert(boundary && "NodeComposition::boundary requires BoundaryNode");
+        return boundary;
+      }
+
+      Scene *NodeComposition::scene() const
+      {
+        BoundaryNode *owner = boundary();
+        Scene *scene = owner ? owner->getScene() : 0;
+        assert(scene && "NodeComposition::scene requires Scene");
+        return scene;
+      }
+
+      ::Window *NodeComposition::window() const
+      {
+        Scene *scene = this->scene();
+        ::Window *window = scene ? scene->getWindow() : 0;
+        assert(window && "NodeComposition::window requires Window");
+        return window;
       }
 
     }

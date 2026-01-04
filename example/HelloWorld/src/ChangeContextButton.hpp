@@ -4,7 +4,6 @@
 #include <cassert>
 #include <string>
 #include "core2/scene/node/Group.hpp"
-#include "core2/scene/node/Boundary.hpp"
 #include "core/Window.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "app/Button.hpp"
@@ -19,7 +18,7 @@ namespace helloworld
   {
   public:
     ChangeContextButton(const ChangeContextButtonProps &props)
-        : declara::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), boundaryNode_(0), toggleEvent_() {}
+        : declara::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), window_(0), toggleEvent_() {}
     virtual ~ChangeContextButton()
     {
     }
@@ -27,8 +26,9 @@ namespace helloworld
     virtual void prepareNode(declara::core::scene::NodeComposition &c)
     {
       this->boundary_ = c.findBoundary<HelloWorldBoundary>();
-      this->boundaryNode_ = c.findBoundary<declara::core::scene::BoundaryNode>();
+      this->window_ = c.window();
       assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
+      assert(this->window_ && "ChangeContextButton requires a Window");
       this->toggleEvent_.bind(&ChangeContextButton::HandleToggleThunk, this, false);
     }
 
@@ -44,10 +44,8 @@ namespace helloworld
   private:
     void handleToggle()
     {
-      if (!this->boundary_)
-      {
-        return;
-      }
+      assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
+      assert(this->window_ && "ChangeContextButton requires a Window");
       const std::string current = this->boundary_->messageState().get();
       if (current == "Hello, Loka!")
       {
@@ -58,29 +56,15 @@ namespace helloworld
         this->boundary_->messageState().set("Hello, Loka!");
       }
 
-      if (!boundaryNode_)
-      {
-        return;
-      }
-      declara::core::scene::Scene *scene = this->boundaryNode_->getScene();
-      if (!scene)
-      {
-        return;
-      }
-      Window *window = scene->getWindow();
-      if (!window)
-      {
-        return;
-      }
-      StateTrackerGuard _(window->getTracker());
-      const std::string title = window->titleState().get();
+      StateTrackerGuard _(window_->getTracker());
+      const std::string title = window_->titleState().get();
       if (title == "LokaSample")
       {
-        window->titleState().set("LokaSample*");
+        window_->titleState().set("LokaSample*");
       }
       else
       {
-        window->titleState().set("LokaSample");
+        window_->titleState().set("LokaSample");
       }
     }
 
@@ -94,7 +78,7 @@ namespace helloworld
     }
 
     HelloWorldBoundary *boundary_;
-    declara::core::scene::BoundaryNode *boundaryNode_;
+    Window *window_;
     declara::core::EmitterState toggleEvent_;
   };
 

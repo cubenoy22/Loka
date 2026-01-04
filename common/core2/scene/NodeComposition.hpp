@@ -9,12 +9,17 @@
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/StateOwner.hpp"
 
+class Window;
+
 namespace declara
 {
   namespace core
   {
     namespace scene
     {
+      class BoundaryNode;
+      class Scene;
+
       struct NodeComposition
       {
       private:
@@ -103,6 +108,9 @@ namespace declara
         void setContext(ComponentContext *context) { context_ = context; }
         ComponentContext *componentContext() const { return context_; }
         bool hasContext() const { return context_ != 0; }
+        BoundaryNode *boundary() const;
+        Scene *scene() const;
+        ::Window *window() const;
 
         void reset()
         {

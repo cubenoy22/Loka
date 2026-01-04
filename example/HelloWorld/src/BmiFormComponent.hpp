@@ -32,6 +32,7 @@ namespace helloworld
           bmiResult_(0),
           message_(0),
           boundary_(0),
+          window_(0),
           toggleEvent_()
     {
       // State is initialized lazily in composeNode via NodeComposition::useState.
@@ -43,8 +44,10 @@ namespace helloworld
       weightInput_ = &c.useState<std::string>("60.0");
       bmiResult_ = &c.useState<std::string>("BMI: --");
       message_ = &c.useState<std::string>("Hello, Loka!");
-      boundary_ = c.findBoundary<declara::core::scene::BoundaryNode>();
+      boundary_ = c.boundary();
+      window_ = c.window();
       assert(boundary_ && "BmiFormNode requires a BoundaryNode");
+      assert(window_ && "BmiFormNode requires a Window");
       heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
@@ -109,31 +112,19 @@ namespace helloworld
         message_->set(next, true);
       }
 
-      if (!boundary_)
+      assert(boundary_ && "BmiFormNode toggleMessage requires a BoundaryNode");
+      assert(window_ && "BmiFormNode toggleMessage requires a Window");
       {
-        return;
-      }
-      declara::core::scene::Scene *scene = boundary_->getScene();
-      if (!scene)
-      {
-        return;
-      }
-      Window *window = scene->getWindow();
-      if (!window)
-      {
-        return;
-      }
-      {
-        StateTrackerGuard _(window->getTracker());
-        const std::string title = window->titleState().get();
+        StateTrackerGuard _(window_->getTracker());
+        const std::string title = window_->titleState().get();
 
         if (title == "LokaSample")
         {
-          window->titleState().set("LokaSample*");
+          window_->titleState().set("LokaSample*");
         }
         else
         {
-          window->titleState().set("LokaSample");
+          window_->titleState().set("LokaSample");
         }
       }
     }
@@ -163,6 +154,7 @@ namespace helloworld
     MutableState<std::string> *bmiResult_;
     MutableState<std::string> *message_;
     declara::core::scene::BoundaryNode *boundary_;
+    Window *window_;
     EmitterState toggleEvent_;
   };
 
