@@ -68,6 +68,11 @@ void MacEditTextContext::handleTextDidChange()
   }
 }
 
+void *MacEditTextContext::nativeField() const
+{
+  return field_;
+}
+
 void MacEditTextContext::bindText()
 {
   if (!node_)

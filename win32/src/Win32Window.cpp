@@ -157,7 +157,8 @@ void Win32Window::createNativeWindow()
     RegisterClassA(&wc);
     g_classRegistered = true;
   }
-  HWND hwnd = CreateWindowA(
+  HWND hwnd = CreateWindowExA(
+      WS_EX_CONTROLPARENT,
       kWndClassName,
       this->titleState().get().c_str(),
       WS_OVERLAPPEDWINDOW,

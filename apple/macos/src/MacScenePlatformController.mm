@@ -21,7 +21,12 @@ namespace
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
-    : rootView_(rootView), rootNode_(0), clientWidth_(0), clientHeight_(0)
+    : rootView_(rootView),
+      rootNode_(0),
+      clientWidth_(0),
+      clientHeight_(0),
+      firstEditField_(0),
+      lastEditField_(0)
 {
 }
 
@@ -87,6 +92,8 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
   {
     return;
   }
+  firstEditField_ = 0;
+  lastEditField_ = 0;
   LayoutState state;
   state.x = 20;
   state.y = 20;
@@ -97,6 +104,7 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
   }
   state.height = clientHeight > 0 ? clientHeight - 40 : 0;
   layoutNode(rootNode_, state);
+  finalizeKeyLoop();
 }
 
 int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, const LayoutState &state)
@@ -173,6 +181,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
   {
     MacEditTextContext *ctx = new MacEditTextContext(rootView_, state.x, state.y, state.width, kEditTextHeight, edit);
     edit->setContext(ctx);
+    registerEditField(ctx->nativeField());
 
     LayoutState nextState = state;
     nextState.y = state.y + kEditTextHeight + kVerticalSpacing;
@@ -190,6 +199,50 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
   }
 
   return state.y;
+}
+
+void MacScenePlatformController::registerEditField(void *field)
+{
+  if (!field)
+  {
+    return;
+  }
+  NSTextField *textField = (__bridge NSTextField *)field;
+  if (!firstEditField_)
+  {
+    firstEditField_ = field;
+  }
+  if (lastEditField_)
+  {
+    NSTextField *lastField = (__bridge NSTextField *)lastEditField_;
+    [lastField setNextKeyView:textField];
+  }
+  lastEditField_ = field;
+}
+
+void MacScenePlatformController::finalizeKeyLoop()
+{
+  if (!firstEditField_ || !lastEditField_)
+  {
+    return;
+  }
+  if (firstEditField_ == lastEditField_)
+  {
+    return;
+  }
+  NSTextField *firstField = (__bridge NSTextField *)firstEditField_;
+  NSTextField *lastField = (__bridge NSTextField *)lastEditField_;
+  [lastField setNextKeyView:firstField];
+
+  if (rootView_)
+  {
+    NSView *view = (__bridge NSView *)rootView_;
+    NSWindow *window = [view window];
+    if (window)
+    {
+      [window setInitialFirstResponder:firstField];
+    }
+  }
 }
 
 void MacScenePlatformController::clearContexts()

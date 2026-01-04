@@ -54,6 +54,11 @@ void Win32App::run()
   MSG msg;
   while (GetMessage(&msg, NULL, 0, 0))
   {
+    HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
+    if (root && IsDialogMessage(root, &msg))
+    {
+      continue;
+    }
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }

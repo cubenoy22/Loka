@@ -19,6 +19,7 @@ public:
   virtual ~MacEditTextContext();
 
   void handleTextDidChange();
+  void *nativeField() const;
 
 private:
   void bindText();

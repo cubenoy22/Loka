@@ -40,11 +40,15 @@ private:
   void clearContexts();
   void clearNodeContexts(declara::core::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
+  void registerEditField(void *field);
+  void finalizeKeyLoop();
 
   void *rootView_;
   declara::core::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
+  void *firstEditField_;
+  void *lastEditField_;
 };
 
 #endif // DECLARA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
