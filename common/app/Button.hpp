@@ -30,45 +30,45 @@ namespace declara
     {
       typedef ButtonTypeTag TypeTag;
       typedef ButtonNode NodeType;
-      State<std::string> *text;
-      State<bool> *enabled;
-      EmitterState *onClick;
-      ButtonProps() : text(0), enabled(0), onClick(0) {}
-      ButtonProps &setText(State<std::string> *t)
+      State<std::string> *text_;
+      State<bool> *enabled_;
+      EmitterState *onClick_;
+      ButtonProps() : text_(0), enabled_(0), onClick_(0) {}
+      ButtonProps &text(State<std::string> *t)
       {
-        text = t;
+        this->text_ = t;
         return *this;
       }
-      ButtonProps &setText(const std::string &s)
+      ButtonProps &text(const std::string &s)
       {
-        text = declara::core::StaticState<std::string>(s);
+        this->text_ = declara::core::StaticState<std::string>(s);
         return *this;
       }
-      ButtonProps &setText(const char *s)
+      ButtonProps &text(const char *s)
       {
-        text = declara::core::StaticState<std::string>(std::string(s));
+        this->text_ = declara::core::StaticState<std::string>(std::string(s));
         return *this;
       }
-      ButtonProps &setEnabled(State<bool> *e)
+      ButtonProps &enabled(State<bool> *e)
       {
-        enabled = e;
+        this->enabled_ = e;
         return *this;
       }
-      ButtonProps &setOnClick(EmitterState *e)
+      ButtonProps &onClick(EmitterState *e)
       {
-        onClick = e;
+        this->onClick_ = e;
         return *this;
       }
       // --- IButtonProps 実装 ---
-      virtual State<std::string> *getText() const { return text; }
-      virtual State<bool> *getEnabled() const { return enabled; }
-      virtual EmitterState *getOnClick() const { return onClick; }
+      virtual State<std::string> *getText() const { return text_; }
+      virtual State<bool> *getEnabled() const { return enabled_; }
+      virtual EmitterState *getOnClick() const { return onClick_; }
       int hash() const
       {
         int h = 17;
-        h = h * 31 + (int)(long)text;
-        h = h * 31 + (int)(long)enabled;
-        h = h * 31 + (int)(long)onClick;
+        h = h * 31 + (int)(long)text_;
+        h = h * 31 + (int)(long)enabled_;
+        h = h * 31 + (int)(long)onClick_;
         return h;
       }
       bool operator<(const declara::core::scene::PropsBase &rhs) const
@@ -76,9 +76,9 @@ namespace declara
         const ButtonProps *b = dynamic_cast<const ButtonProps *>(&rhs);
         if (!b)
           return false;
-        if (text != b->text)
-          return text < b->text;
-        return enabled < b->enabled;
+        if (text_ != b->text_)
+          return text_ < b->text_;
+        return enabled_ < b->enabled_;
       }
     };
 
@@ -94,6 +94,37 @@ namespace declara
     {
       ButtonDefinition() : NodeDefinition() {}
       ButtonDefinition(const ButtonProps &p) : NodeDefinition(p) {}
+      ButtonDefinition(const char *text) : NodeDefinition()
+      {
+        this->props.text_ = declara::core::StaticState<std::string>(std::string(text));
+      }
+      ButtonDefinition(State<std::string> *text) : NodeDefinition()
+      {
+        this->props.text_ = text;
+      }
+      ButtonDefinition(const char *text, EmitterState *onClick) : NodeDefinition()
+      {
+        this->props.text_ = declara::core::StaticState<std::string>(std::string(text));
+        this->props.onClick_ = onClick;
+      }
+      ButtonDefinition(State<std::string> *text, EmitterState *onClick) : NodeDefinition()
+      {
+        this->props.text_ = text;
+        this->props.onClick_ = onClick;
+      }
+
+      ButtonDefinition &onClick(EmitterState *e)
+      {
+        this->props.onClick_ = e;
+        return *this;
+      }
+
+      ButtonDefinition &enabled(State<bool> *b)
+      {
+        this->props.enabled_ = b;
+        return *this;
+      }
+
       using declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };
     // DSL向け短縮名

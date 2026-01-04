@@ -19,48 +19,53 @@ namespace declara
     {
       typedef TextTypeTag TypeTag;
       typedef TextNode NodeType;
-      State<std::string> *text;
+      State<std::string> *text_;
       MutableState<std::string> ownedText;
       bool ownsText;
-      TextProps() : text(0), ownedText(), ownsText(false) {}
+      TextProps() : text_(0), ownedText(), ownsText(false) {}
+      TextProps(const std::string &value) : text_(0), ownedText(value), ownsText(true)
+      {
+        text_ = &ownedText;
+      }
+      TextProps(State<std::string> *state) : text_(state), ownedText(), ownsText(false) {}
       TextProps(const TextProps &other)
-          : text(other.text), ownedText(other.ownedText), ownsText(other.ownsText)
+          : text_(other.text_), ownedText(other.ownedText), ownsText(other.ownsText)
       {
         if (ownsText)
         {
-          text = &ownedText;
+          text_ = &ownedText;
         }
       }
       TextProps &operator=(const TextProps &other)
       {
         if (this != &other)
         {
-          text = other.text;
+          text_ = other.text_;
           ownedText = other.ownedText;
           ownsText = other.ownsText;
           if (ownsText)
           {
-            text = &ownedText;
+            text_ = &ownedText;
           }
         }
         return *this;
       }
-      TextProps &setText(State<std::string> *state)
+      TextProps &text(State<std::string> *state)
       {
-        text = state;
+        this->text_ = state;
         ownsText = false;
         return *this;
       }
-      TextProps &setText(const std::string &value)
+      TextProps &text(const std::string &value)
       {
         ownedText = MutableState<std::string>(value);
-        text = &ownedText;
+        this->text_ = &ownedText;
         ownsText = true;
         return *this;
       }
-      TextProps &setText(const char *value)
+      TextProps &text(const char *value)
       {
-        return setText(std::string(value));
+        return text(std::string(value));
       }
       bool operator<(const core::scene::PropsBase &rhs) const
       {
@@ -69,7 +74,7 @@ namespace declara
         {
           return false;
         }
-        return text < other->text;
+        return text_ < other->text_;
       }
     };
 
@@ -85,6 +90,9 @@ namespace declara
     {
       TextDefinition() : NodeDefinition() {}
       TextDefinition(const TextProps &p) : NodeDefinition(p) {}
+      TextDefinition(const std::string &value) : NodeDefinition(TextProps(value)) {}
+      TextDefinition(const char *value) : NodeDefinition(TextProps(value)) {}
+      TextDefinition(State<std::string> *state) : NodeDefinition(TextProps(state)) {}
     };
 
     typedef TextDefinition Text;

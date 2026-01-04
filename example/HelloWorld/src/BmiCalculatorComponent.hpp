@@ -27,12 +27,12 @@ namespace helloworld
   {
     using namespace declara::app;
     VStack layout;
-    layout << Text(TextProps().setText("BMI Calculator"))
-           << Text(TextProps().setText("Height (cm)"))
-           << EditText(EditTextProps().setText(props.heightInput))
-           << Text(TextProps().setText("Weight (kg)"))
-           << EditText(EditTextProps().setText(props.weightInput))
-           << Text(TextProps().setText(props.bmiResult));
+    layout << Text("BMI Calculator")
+           << Text("Height (cm)")
+           << EditText(props.heightInput)
+           << Text("Weight (kg)")
+           << EditText(props.weightInput)
+           << Text(props.bmiResult);
     return c.group(layout);
   }
 } // namespace helloworld

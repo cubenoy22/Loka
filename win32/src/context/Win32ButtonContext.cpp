@@ -36,9 +36,9 @@ Win32ButtonContext::~Win32ButtonContext()
 
 bool Win32ButtonContext::handleCommand(WPARAM, LPARAM)
 {
-  if (node_ && node_->props.onClick)
+  if (node_ && node_->props.onClick_)
   {
-    node_->props.onClick->emit();
+    node_->props.onClick_->emit();
     return true;
   }
   return false;
@@ -48,7 +48,7 @@ void Win32ButtonContext::bindText()
 {
   if (!node_)
     return;
-  textState_ = static_cast<State<std::string> *>(node_->props.text);
+  textState_ = static_cast<State<std::string> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32ButtonContext::TextChangedThunk, this, true);

@@ -19,11 +19,12 @@ namespace declara
     {
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
-      State<std::string> *text;
-      EditTextProps() : text(0) {}
-      EditTextProps &setText(State<std::string> *state)
+      State<std::string> *text_;
+      EditTextProps() : text_(0) {}
+      EditTextProps(State<std::string> *state) : text_(state) {}
+      EditTextProps &text(State<std::string> *state)
       {
-        text = state;
+        this->text_ = state;
         return *this;
       }
       bool operator<(const core::scene::PropsBase &rhs) const
@@ -33,7 +34,7 @@ namespace declara
         {
           return false;
         }
-        return text < other->text;
+        return text_ < other->text_;
       }
     };
 
@@ -49,6 +50,7 @@ namespace declara
     {
       EditTextDefinition() : NodeDefinition() {}
       EditTextDefinition(const EditTextProps &p) : NodeDefinition(p) {}
+      EditTextDefinition(State<std::string> *state) : NodeDefinition(EditTextProps(state)) {}
     };
 
     typedef EditTextDefinition EditText;

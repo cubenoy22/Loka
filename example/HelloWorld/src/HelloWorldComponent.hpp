@@ -29,14 +29,10 @@ namespace helloworld
       }
 
       using namespace declara::app;
-      TextProps prototype;
-      prototype.setText("Loka Prototype");
-      TextProps message;
-      message.setText(message_);
       c.declare(
           VStack()
-          << Text(prototype)
-          << Text(message)
+          << Text("Loka Prototype")
+          << Text(message_)
           << ChangeContextButtonNode());
     }
 

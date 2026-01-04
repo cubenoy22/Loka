@@ -335,7 +335,7 @@ void testNodeCompositionTree()
   BoxDefinition &root = composition.declare(box);
 
   ButtonProps buttonProps;
-  buttonProps.setText("Hello");
+  buttonProps.text("Hello");
   ButtonDefinition button(buttonProps);
 
   root << button;

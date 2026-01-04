@@ -36,8 +36,8 @@ namespace helloworld
     {
       using namespace declara::app;
       ButtonProps props;
-      props.setText("Toggle Message");
-      props.setOnClick(&this->toggleEvent_);
+      props.text("Toggle Message");
+      props.onClick(&this->toggleEvent_);
       c.declare(Button(props));
     }
 

@@ -53,7 +53,7 @@ void Win32EditTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<std::string> *>(node_->props.text);
+  textState_ = static_cast<State<std::string> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32EditTextContext::TextChangedThunk, this, true);

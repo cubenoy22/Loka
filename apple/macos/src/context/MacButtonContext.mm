@@ -64,9 +64,9 @@ MacButtonContext::~MacButtonContext()
 
 void MacButtonContext::handlePress()
 {
-  if (node_ && node_->props.onClick)
+  if (node_ && node_->props.onClick_)
   {
-    node_->props.onClick->emit();
+    node_->props.onClick_->emit();
   }
 }
 
@@ -76,7 +76,7 @@ void MacButtonContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<std::string> *>(node_->props.text);
+  textState_ = static_cast<State<std::string> *>(node_->props.text_);
   if (textState_)
   {
     textState_->deferBind(&MacButtonContext::TextChangedThunk, this);

@@ -54,9 +54,9 @@ namespace helloworld
       using namespace declara::app;
       c.declare(
           VStack()
-          << Text(TextProps().setText("Loka Sample"))
-          << Text(TextProps().setText(message_))
-          << Button(ButtonProps().setText("Toggle Message").setOnClick(&toggleEvent_))
+          << Text("Loka Sample")
+          << Text(message_)
+          << Button("Toggle Message", &toggleEvent_)
           << BmiCalculator(c, BmiCalculatorProps(heightInput_, weightInput_, bmiResult_)));
     }
 
