@@ -1,8 +1,8 @@
 #ifndef LOKA_CORE2_RUNTIME_ERROR_SINK_HPP
 #define LOKA_CORE2_RUNTIME_ERROR_SINK_HPP
 
-#include <string>
 #include <vector>
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -21,9 +21,9 @@ namespace declara
       {
         ErrorDomain domain;
         int code;
-        std::string message;
-        std::string context;
-        std::vector<std::string> tags;
+        loka::core::String message;
+        loka::core::String context;
+        std::vector<loka::core::String> tags;
         ErrorEvent() : domain(ERROR_DOMAIN_GENERIC), code(0), message(), context(), tags() {}
       };
 
@@ -38,17 +38,17 @@ namespace declara
         void setParent(ErrorSink *parent) { parent_ = parent; }
         ErrorSink *parent() const { return parent_; }
 
-        void addTag(const std::string &tag)
+        void addTag(const loka::core::String &tag)
         {
           for (size_t i = 0; i < inheritedTags_.size(); ++i)
           {
-            if (inheritedTags_[i] == tag)
+            if (inheritedTags_[i].equals(tag))
               return;
           }
           inheritedTags_.push_back(tag);
         }
 
-        void setTaskLabel(const std::string &label) { taskLabel_ = label; }
+        void setTaskLabel(const loka::core::String &label) { taskLabel_ = label; }
 
         void push(const ErrorEvent &event)
         {
@@ -68,8 +68,8 @@ namespace declara
       private:
         std::vector<ErrorEvent> events_;
         ErrorSink *parent_;
-        std::vector<std::string> inheritedTags_;
-        std::string taskLabel_;
+        std::vector<loka::core::String> inheritedTags_;
+        loka::core::String taskLabel_;
       };
     } // namespace runtime
   }   // namespace core

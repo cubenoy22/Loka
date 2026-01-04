@@ -218,3 +218,5 @@ win32/DesktopApp/*.VC.VC.opendb
 
 # End of https://www.toptal.com/developers/gitignore/api/node,macos,linux
 compile_commands.json
+CMakeUserPresets.json
+build-retro68-release/

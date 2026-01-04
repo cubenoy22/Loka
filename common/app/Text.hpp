@@ -1,7 +1,6 @@
 #ifndef LOKA_APP2_TEXT_HPP
 #define LOKA_APP2_TEXT_HPP
 
-#include <string>
 #include "core/State.hpp"
 #include "core2/scene/Node.hpp"
 #include "loka/core/String.hpp"
@@ -24,12 +23,12 @@ namespace declara
       MutableState<loka::core::String> ownedText;
       bool ownsText;
       TextProps() : text_(0), ownedText(), ownsText(false) {}
-      TextProps(const std::string &value) : text_(0), ownedText(loka::core::String(value)), ownsText(true)
+      TextProps(State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false) {}
+      TextProps(const loka::core::String &value) : text_(0), ownedText(value), ownsText(true)
       {
         text_ = &ownedText;
       }
-      TextProps(State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false) {}
-      TextProps(const loka::core::String &value) : text_(0), ownedText(value), ownsText(true)
+      TextProps(const char *value) : text_(0), ownedText(loka::core::String::Literal(value)), ownsText(true)
       {
         text_ = &ownedText;
       }
@@ -59,13 +58,6 @@ namespace declara
       {
         this->text_ = state;
         ownsText = false;
-        return *this;
-      }
-      TextProps &text(const std::string &value)
-      {
-        ownedText = MutableState<loka::core::String>(loka::core::String(value));
-        this->text_ = &ownedText;
-        ownsText = true;
         return *this;
       }
       TextProps &text(const loka::core::String &value)
@@ -102,7 +94,6 @@ namespace declara
     {
       TextDefinition() : NodeDefinition() {}
       TextDefinition(const TextProps &p) : NodeDefinition(p) {}
-      TextDefinition(const std::string &value) : NodeDefinition(TextProps(value)) {}
       TextDefinition(const char *value) : NodeDefinition(TextProps(value)) {}
       TextDefinition(const loka::core::String &value) : NodeDefinition(TextProps(value)) {}
       TextDefinition(State<loka::core::String> *state) : NodeDefinition(TextProps(state)) {}

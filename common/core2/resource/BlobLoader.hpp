@@ -3,12 +3,13 @@
 
 #include <cstddef>
 #include <fstream>
-#include <string>
 #include <vector>
 
 #include "core/State.hpp"
 #include "core2/resource/Blob.hpp"
 #include "core2/runtime/ErrorSink.hpp"
+#include "loka/core/String.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 namespace declara
 {
@@ -35,11 +36,16 @@ namespace declara
         {
         }
 
-        BlobLoaderRequest &setFilePath(const std::string &path)
+        BlobLoaderRequest &setFilePath(const loka::core::String &path)
         {
           source = BLOB_SOURCE_FILE;
           filePath = path;
           return *this;
+        }
+
+        BlobLoaderRequest &setFilePath(const char *path)
+        {
+          return setFilePath(loka::core::String::Literal(path));
         }
 
         BlobLoaderRequest &setInlineBytes(const std::vector<unsigned char> &bytes, bool writable)
@@ -56,10 +62,15 @@ namespace declara
           return *this;
         }
 
-        BlobLoaderRequest &setTag(const std::string &t)
+        BlobLoaderRequest &setTag(const loka::core::String &t)
         {
           tag = t;
           return *this;
+        }
+
+        BlobLoaderRequest &setTag(const char *t)
+        {
+          return setTag(loka::core::String::Literal(t));
         }
 
         BlobLoaderRequest &setIncremental(bool flag)
@@ -76,9 +87,9 @@ namespace declara
             return false;
           if (incremental != other.incremental)
             return false;
-          if (filePath != other.filePath)
+          if (!filePath.equals(other.filePath))
             return false;
-          if (tag != other.tag)
+          if (!tag.equals(other.tag))
             return false;
           return inlineBytes == other.inlineBytes;
         }
@@ -87,8 +98,8 @@ namespace declara
 
         BlobSourceType source;
         std::vector<unsigned char> inlineBytes;
-        std::string filePath;
-        std::string tag;
+        loka::core::String filePath;
+        loka::core::String tag;
         bool isMutable;
         bool incremental;
       };
@@ -103,7 +114,7 @@ namespace declara
               bound_(false),
               localSink_()
         {
-          localSink_.addTag("blob-loader");
+          localSink_.addTag(loka::core::String::Literal("blob-loader"));
         }
 
         BlobLoader(State<BlobLoaderRequest> *request, MutableState<Blob> *output, core::runtime::ErrorSink *sink)
@@ -113,7 +124,7 @@ namespace declara
               bound_(false),
               localSink_()
         {
-          localSink_.addTag("blob-loader");
+          localSink_.addTag(loka::core::String::Literal("blob-loader"));
           attach(request, output, sink);
         }
 
@@ -219,7 +230,7 @@ namespace declara
           if (!ok)
           {
             blob.setCompleted(false);
-            emitError(request, "Failed to load blob");
+            emitError(request, loka::core::String::Literal("Failed to load blob"));
             outputState_->set(Blob::Empty());
             return;
           }
@@ -228,11 +239,14 @@ namespace declara
           outputState_->set(blob);
         }
 
-        bool loadFile(const std::string &path, Blob *blob, bool writable)
+        bool loadFile(const loka::core::String &path, Blob *blob, bool writable)
         {
           if (!blob)
             return false;
-          std::ifstream file(path.c_str(), std::ios::binary);
+          std::string utf8Path;
+          if (!loka::platform::CollectUtf8(path, utf8Path))
+            return false;
+          std::ifstream file(utf8Path.c_str(), std::ios::binary);
           if (!file)
             return false;
 
@@ -288,7 +302,7 @@ namespace declara
           }
         }
 
-        void emitError(const BlobLoaderRequest &request, const std::string &message)
+        void emitError(const BlobLoaderRequest &request, const loka::core::String &message)
         {
           core::runtime::ErrorSink *sink = errorSink_;
           if (!sink)
@@ -298,7 +312,7 @@ namespace declara
           evt.code = 1;
           evt.message = message;
           evt.context = request.filePath;
-          evt.tags.push_back("blob-loader");
+          evt.tags.push_back(loka::core::String::Literal("blob-loader"));
           if (!request.tag.empty())
             evt.tags.push_back(request.tag);
           sink->push(evt);

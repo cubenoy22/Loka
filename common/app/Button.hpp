@@ -1,7 +1,6 @@
 #ifndef LOKA_APP2_BUTTON_HPP
 #define LOKA_APP2_BUTTON_HPP
 
-#include <string>
 #include "core/State.hpp"
 #include "loka/core/String.hpp"
 #include "core2/scene/Node.hpp"
@@ -38,11 +37,6 @@ namespace declara
       ButtonProps &text(State<loka::core::String> *t)
       {
         this->text_ = t;
-        return *this;
-      }
-      ButtonProps &text(const std::string &s)
-      {
-        this->text_ = declara::core::StaticState<loka::core::String>(loka::core::String(s));
         return *this;
       }
       ButtonProps &text(const loka::core::String &s)

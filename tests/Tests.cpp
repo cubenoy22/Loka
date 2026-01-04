@@ -162,12 +162,18 @@ void testDeferredSideEffect()
 void testTextInputOnChange()
 {
   printf("\n==== [testTextInputOnChange] start ====\n");
-  MutableState<std::string> name("");
+  MutableState<loka::core::String> name(loka::core::String::Literal(""));
   struct IsValidEval : public declara::core::DerivedState<bool>::EvalFn
   {
-    MutableState<std::string> *n;
-    IsValidEval(MutableState<std::string> *n_) : n(n_) {}
-    bool operator()() { return n->get().length() >= 3; }
+    MutableState<loka::core::String> *n;
+    IsValidEval(MutableState<loka::core::String> *n_) : n(n_) {}
+    bool operator()()
+    {
+      std::string utf8;
+      if (!loka::platform::CollectUtf8(n->get(), utf8))
+        return false;
+      return utf8.size() >= 3;
+    }
   };
   declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(std::vector<StateBase *>(1, &name), new IsValidEval(&name));
   std::vector<StateBase *> trackerStatesText = makeStateVector(&name, isValid, 0);
@@ -182,13 +188,13 @@ void testTextInputOnChange()
   };
   printf("[TextInput] name.set(\"ab\")\n");
   tracker.begin();
-  name.set("ab");
+  name.set(loka::core::String::Literal("ab"));
   tracker.end();
   assert(isValid->get() == false);
   printf("isValid: %s\n", isValid->get() ? "OK" : "NG");
   printf("[TextInput] name.set(\"senko\")\n");
   tracker.begin();
-  name.set("senko");
+  name.set(loka::core::String::Literal("senko"));
   tracker.end();
   assert(isValid->get() == true);
   printf("isValid: %s\n", isValid->get() ? "OK" : "NG");
@@ -248,13 +254,13 @@ void testDerivedStruct()
   printf("\n==== [testDerivedStruct] start ====\n");
   struct FormInputs
   {
-    std::string name;
-    std::string email;
+    loka::core::String name;
+    loka::core::String email;
     int age;
     bool agree;
   };
-  MutableState<std::string> name("");
-  MutableState<std::string> email("");
+  MutableState<loka::core::String> name(loka::core::String::Literal(""));
+  MutableState<loka::core::String> email(loka::core::String::Literal(""));
   MutableState<int> age(0);
   MutableState<bool> agree(false);
   std::vector<StateBase *> deps;
@@ -264,11 +270,11 @@ void testDerivedStruct()
   deps.push_back(&agree);
   struct IsValidEval : public declara::core::DerivedState<bool>::EvalFn
   {
-    MutableState<std::string> *name;
-    MutableState<std::string> *email;
+    MutableState<loka::core::String> *name;
+    MutableState<loka::core::String> *email;
     MutableState<int> *age;
     MutableState<bool> *agree;
-    IsValidEval(MutableState<std::string> *n, MutableState<std::string> *e, MutableState<int> *a, MutableState<bool> *ag)
+    IsValidEval(MutableState<loka::core::String> *n, MutableState<loka::core::String> *e, MutableState<int> *a, MutableState<bool> *ag)
         : name(n), email(e), age(a), agree(ag) {}
     bool operator()()
     {
@@ -290,15 +296,15 @@ void testDerivedStruct()
   };
   isValid->bind((StateBase::OnChangeFn)Callback::onChange, isValid, false);
   tracker.begin();
-  name.set("senko");
-  email.set("");
+  name.set(loka::core::String::Literal("senko"));
+  email.set(loka::core::String::Literal(""));
   age.set(20);
   agree.set(true);
   tracker.end();
   assert(isValid->get() == false); // emailが空
 
   tracker.begin();
-  email.set("senko@ai");
+  email.set(loka::core::String::Literal("senko@ai"));
   age.set(15);
   tracker.end();
   assert(isValid->get() == false); // ageが未満

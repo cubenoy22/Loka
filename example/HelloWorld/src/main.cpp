@@ -6,7 +6,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
   return loka::platform::RunApp<MyAppConfig>(hInstance, nCmdShow);
 }
-#elif defined(DECLARA_RETRO68)
+#elif defined(LOKA_RETRO68)
 int main(int argc, char **argv)
 {
   (void)argc;

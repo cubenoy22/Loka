@@ -9,9 +9,7 @@ class App;
 class ToolboxWindow : public Window
 {
 public:
-  ToolboxWindow(PlatformContext *context,
-                declara::core::scene::Scene *initialScene,
-                const WindowProps &props);
+  ToolboxWindow(PlatformContext *context, const WindowProps &props);
   virtual ~ToolboxWindow();
 
   void setApp(App *app);
