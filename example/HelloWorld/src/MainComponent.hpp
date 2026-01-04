@@ -28,7 +28,7 @@ namespace helloworld
       // State is initialized lazily in composeNode via NodeComposition::useState.
     }
 
-    virtual void prepareNode(declara::core::scene::NodeComposition &c)
+    virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
       message_ = &c.useState<std::string>("Hello, Loka!");
       toggleEvent_.bind(&MainNode::ToggleMessageThunk, this, false);

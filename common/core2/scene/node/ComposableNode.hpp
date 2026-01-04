@@ -57,7 +57,8 @@ namespace declara
 
       protected:
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event) = 0;
-        virtual void prepareNode(NodeComposition &c) { (void)c; }
+        virtual void attachNode(NodeComposition &c) { (void)c; }
+        virtual void detachNode(NodeComposition &c) { (void)c; }
 
         ComponentContext *componentContext() const { return currentContext_; }
         BoundaryNode *boundary() const

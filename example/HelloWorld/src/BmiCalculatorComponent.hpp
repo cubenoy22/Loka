@@ -29,7 +29,7 @@ namespace helloworld
     {
     }
 
-    virtual void prepareNode(declara::core::scene::NodeComposition &c)
+    virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
       heightInput_ = &c.useState<std::string>("170.0");
       weightInput_ = &c.useState<std::string>("60.0");

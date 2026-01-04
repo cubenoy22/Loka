@@ -23,7 +23,7 @@ namespace helloworld
     {
     }
 
-    virtual void prepareNode(declara::core::scene::NodeComposition &c)
+    virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
       this->boundary_ = c.findBoundary<HelloWorldBoundary>();
       assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");

@@ -71,11 +71,16 @@ namespace declara
         {
           if (event != COMPOSE_EVENT_ATTACH)
           {
+            if (event == COMPOSE_EVENT_DETACH)
+            {
+              NodeComposition &composition = this->beginComposition(context);
+              this->detachNode(composition);
+            }
             return;
           }
           this->clearChildren();
           NodeComposition &composition = this->beginComposition(context);
-          this->prepareNode(composition);
+          this->attachNode(composition);
           this->composeNode(composition);
           Node *child = composition.createNodeTree();
           if (child)
