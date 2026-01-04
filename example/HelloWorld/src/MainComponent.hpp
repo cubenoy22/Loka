@@ -1,9 +1,8 @@
-#ifndef DECLARA_HELLOWORLD_MAIN_COMPONENT_HPP
-#define DECLARA_HELLOWORLD_MAIN_COMPONENT_HPP
+#ifndef LOKA_HELLOWORLD_MAIN_COMPONENT_HPP
+#define LOKA_HELLOWORLD_MAIN_COMPONENT_HPP
 
 #include <string>
-#include <cassert>
-#include "core/State.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/node/Group.hpp"
 #include "app/Button.hpp"
@@ -63,10 +62,7 @@ namespace helloworld
       {
         next = "Loka says hi!";
       }
-      {
-        StateTrackerGuard _(ctx->boundary()->tracker());
-        message_.set(next, true);
-      }
+      message_.set(next, true);
 
       {
         StateTrackerGuard _(ctx->window()->getTracker());
@@ -94,4 +90,4 @@ namespace helloworld
 
 } // namespace helloworld
 
-#endif // DECLARA_HELLOWORLD_MAIN_COMPONENT_HPP
+#endif // LOKA_HELLOWORLD_MAIN_COMPONENT_HPP

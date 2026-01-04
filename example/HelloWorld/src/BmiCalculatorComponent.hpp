@@ -4,7 +4,6 @@
 #include <string>
 #include <cstdio>
 #include <cstdlib>
-#include "core/State.hpp"
 #include "core2/scene/BoundState.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/node/Group.hpp"
