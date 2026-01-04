@@ -1,5 +1,5 @@
-#ifndef DECLARA_STATEUTIL_HPP
-#define DECLARA_STATEUTIL_HPP
+#ifndef LOKA_STATEUTIL_HPP
+#define LOKA_STATEUTIL_HPP
 #include <vector>
 #include <cstdarg>
 
@@ -29,4 +29,4 @@ static StateVector makeStateVector(StateBaseType *first, ...)
   return v;
 }
 
-#endif // DECLARA_STATEUTIL_HPP
+#endif // LOKA_STATEUTIL_HPP

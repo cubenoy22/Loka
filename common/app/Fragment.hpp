@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP2_FRAGMENT_HPP
-#define DECLARA_APP2_FRAGMENT_HPP
+#ifndef LOKA_APP2_FRAGMENT_HPP
+#define LOKA_APP2_FRAGMENT_HPP
 
 #include "core2/scene/Node.hpp"
 
@@ -63,4 +63,4 @@ namespace declara
   } // namespace app
 } // namespace declara
 
-#endif // DECLARA_APP2_FRAGMENT_HPP
+#endif // LOKA_APP2_FRAGMENT_HPP

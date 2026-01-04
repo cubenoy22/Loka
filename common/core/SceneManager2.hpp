@@ -1,5 +1,5 @@
-#ifndef DECLARA_SCENEMANAGER2_HPP
-#define DECLARA_SCENEMANAGER2_HPP
+#ifndef LOKA_SCENEMANAGER2_HPP
+#define LOKA_SCENEMANAGER2_HPP
 
 #include "core2/scene/Scene.hpp"
 #include "State.hpp"
@@ -38,4 +38,4 @@ private:
   Window *window_;
 };
 
-#endif // DECLARA_SCENEMANAGER2_HPP
+#endif // LOKA_SCENEMANAGER2_HPP

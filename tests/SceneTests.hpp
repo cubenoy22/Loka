@@ -1,5 +1,5 @@
-#ifndef DECLARA_SCENE_TESTS_HPP
-#define DECLARA_SCENE_TESTS_HPP
+#ifndef LOKA_SCENE_TESTS_HPP
+#define LOKA_SCENE_TESTS_HPP
 
 #include <cassert>
 #include <stdio.h>
@@ -110,4 +110,4 @@ namespace SceneTests
   }
 }
 
-#endif // DECLARA_SCENE_TESTS_HPP
+#endif // LOKA_SCENE_TESTS_HPP

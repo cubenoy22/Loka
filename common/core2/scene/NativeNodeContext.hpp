@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP
-#define DECLARA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP
+#ifndef LOKA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP
+#define LOKA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP
 
 #include <cstddef>
 #include "core2/scene/Node.hpp"
@@ -64,4 +64,4 @@ namespace declara
   }   // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP
+#endif // LOKA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP

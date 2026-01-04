@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_RESOURCE_BLOB_HPP
-#define DECLARA_CORE2_RESOURCE_BLOB_HPP
+#ifndef LOKA_CORE2_RESOURCE_BLOB_HPP
+#define LOKA_CORE2_RESOURCE_BLOB_HPP
 
 #include <cstddef>
 #include <vector>
@@ -194,4 +194,4 @@ namespace declara
   }   // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_RESOURCE_BLOB_HPP
+#endif // LOKA_CORE2_RESOURCE_BLOB_HPP

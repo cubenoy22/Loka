@@ -1,5 +1,5 @@
-#ifndef DECLARA_STATETRACKER_HPP
-#define DECLARA_STATETRACKER_HPP
+#ifndef LOKA_STATETRACKER_HPP
+#define LOKA_STATETRACKER_HPP
 
 #include <vector>
 #include <functional>
@@ -75,4 +75,4 @@ namespace declara
 
 using declara::core::StateBase;
 
-#endif // DECLARA_STATETRACKER_HPP
+#endif // LOKA_STATETRACKER_HPP

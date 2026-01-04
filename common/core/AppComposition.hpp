@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP_COMPOSITION_HPP
-#define DECLARA_APP_COMPOSITION_HPP
+#ifndef LOKA_APP_COMPOSITION_HPP
+#define LOKA_APP_COMPOSITION_HPP
 
 #include <vector>
 #include <cassert>
@@ -28,4 +28,4 @@ private:
 
 typedef AppComposition AppBuilder;
 
-#endif // DECLARA_APP_COMPOSITION_HPP
+#endif // LOKA_APP_COMPOSITION_HPP

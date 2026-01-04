@@ -1,5 +1,5 @@
-#ifndef DECLARA_WIN32WINDOW_HPP
-#define DECLARA_WIN32WINDOW_HPP
+#ifndef LOKA_WIN32WINDOW_HPP
+#define LOKA_WIN32WINDOW_HPP
 
 #include "core/Window.hpp"
 #include <windows.h>
@@ -55,4 +55,4 @@ private:
   Win32ScenePlatformController *scenePlatformController_;
 };
 
-#endif // DECLARA_WIN32WINDOW_HPP
+#endif // LOKA_WIN32WINDOW_HPP

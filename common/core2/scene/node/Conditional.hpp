@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_NODE_CONDITIONAL_HPP
-#define DECLARA_CORE2_SCENE_NODE_CONDITIONAL_HPP
+#ifndef LOKA_CORE2_SCENE_NODE_CONDITIONAL_HPP
+#define LOKA_CORE2_SCENE_NODE_CONDITIONAL_HPP
 
 #include "core/State.hpp"
 
@@ -47,4 +47,4 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_SCENE_NODE_CONDITIONAL_HPP
+#endif // LOKA_CORE2_SCENE_NODE_CONDITIONAL_HPP

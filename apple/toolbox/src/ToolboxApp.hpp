@@ -1,5 +1,5 @@
-#ifndef DECLARA_TOOLBOX_APP_HPP
-#define DECLARA_TOOLBOX_APP_HPP
+#ifndef LOKA_TOOLBOX_APP_HPP
+#define LOKA_TOOLBOX_APP_HPP
 
 #include "core/App.hpp"
 
@@ -19,4 +19,4 @@ private:
   bool running_;
 };
 
-#endif // DECLARA_TOOLBOX_APP_HPP
+#endif // LOKA_TOOLBOX_APP_HPP

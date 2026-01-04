@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP2_EDITTEXT_HPP
-#define DECLARA_APP2_EDITTEXT_HPP
+#ifndef LOKA_APP2_EDITTEXT_HPP
+#define LOKA_APP2_EDITTEXT_HPP
 
 #include <string>
 #include "core/State.hpp"
@@ -57,4 +57,4 @@ namespace declara
   } // namespace app
 } // namespace declara
 
-#endif // DECLARA_APP2_EDITTEXT_HPP
+#endif // LOKA_APP2_EDITTEXT_HPP

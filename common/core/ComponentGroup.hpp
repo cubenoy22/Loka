@@ -1,5 +1,5 @@
-#ifndef DECLARA_COMPONENT_GROUP_HPP
-#define DECLARA_COMPONENT_GROUP_HPP
+#ifndef LOKA_COMPONENT_GROUP_HPP
+#define LOKA_COMPONENT_GROUP_HPP
 #include "core/AppComponent.hpp"
 #include <cstddef>
 #include <vector>
@@ -47,4 +47,4 @@ protected:
   ComponentGroup &operator=(const ComponentGroup &);
 };
 
-#endif // DECLARA_COMPONENT_GROUP_HPP
+#endif // LOKA_COMPONENT_GROUP_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP_HPP
-#define DECLARA_APP_HPP
+#ifndef LOKA_APP_HPP
+#define LOKA_APP_HPP
 
 #include "core/ComponentGroup.hpp"
 #include "core/AppComponent.hpp"
@@ -27,4 +27,4 @@ protected:
   void reflectInitialVisibilityChunks();
 };
 
-#endif // DECLARA_APP_HPP
+#endif // LOKA_APP_HPP

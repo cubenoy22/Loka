@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_NODE_GROUP_HPP
-#define DECLARA_CORE2_SCENE_NODE_GROUP_HPP
+#ifndef LOKA_CORE2_SCENE_NODE_GROUP_HPP
+#define LOKA_CORE2_SCENE_NODE_GROUP_HPP
 
 #include "../NodeComposition.hpp"
 #include "ComposableNode.hpp"
@@ -83,4 +83,4 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_SCENE_NODE_GROUP_HPP
+#endif // LOKA_CORE2_SCENE_NODE_GROUP_HPP

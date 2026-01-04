@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_NODE_HPP
-#define DECLARA_CORE2_SCENE_NODE_HPP
+#ifndef LOKA_CORE2_SCENE_NODE_HPP
+#define LOKA_CORE2_SCENE_NODE_HPP
 
 // static_assert-like macro for C++98
 #define STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
@@ -171,7 +171,7 @@ namespace declara
         typedef NodeT NodeType;
 
         // Optional static check when PropsT/NodeT have TypeTag (via SFINAE)
-#ifdef DECLARA_NODEDEF_CHECK_TYPETAG
+#ifdef LOKA_NODEDEF_CHECK_TYPETAG
         STATIC_ASSERT((typename PropsT::TypeTag *)0 == (typename NodeT::TypeTag *)0, props_node_type_mismatch);
 #endif
         PropsT props;
@@ -372,4 +372,4 @@ namespace declara
 
 // Conditional node inline implementations removed from this header to reduce coupling
 
-#endif // DECLARA_CORE2_SCENE_NODE_HPP
+#endif // LOKA_CORE2_SCENE_NODE_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_MAC_TEXT_CONTEXT_HPP
-#define DECLARA_MAC_TEXT_CONTEXT_HPP
+#ifndef LOKA_MAC_TEXT_CONTEXT_HPP
+#define LOKA_MAC_TEXT_CONTEXT_HPP
 
 #include "core2/scene/NativeNodeContext.hpp"
 #include "core/State.hpp"
@@ -29,4 +29,4 @@ private:
   State<std::string> *textState_;
 };
 
-#endif // DECLARA_MAC_TEXT_CONTEXT_HPP
+#endif // LOKA_MAC_TEXT_CONTEXT_HPP

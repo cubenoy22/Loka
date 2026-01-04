@@ -1,5 +1,5 @@
-#ifndef DECLARA_WIN32APP_HPP
-#define DECLARA_WIN32APP_HPP
+#ifndef LOKA_WIN32APP_HPP
+#define LOKA_WIN32APP_HPP
 
 #include "core/App.hpp"
 #include <windows.h>
@@ -23,4 +23,4 @@ private:
   int nCmdShow_;
 };
 
-#endif // DECLARA_WIN32APP_HPP
+#endif // LOKA_WIN32APP_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_TESTS_HPP
-#define DECLARA_TESTS_HPP
+#ifndef LOKA_TESTS_HPP
+#define LOKA_TESTS_HPP
 
 void testDependencyPropagationCases();
 void testTrackerPropagation();
@@ -15,4 +15,4 @@ void testSceneBoundaryNestedCompose();
 void testLokaCoreString();
 void testLokaCoreCollections();
 
-#endif // DECLARA_TESTS_HPP
+#endif // LOKA_TESTS_HPP

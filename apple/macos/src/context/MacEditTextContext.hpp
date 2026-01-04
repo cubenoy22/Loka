@@ -1,5 +1,5 @@
-#ifndef DECLARA_MAC_EDIT_TEXT_CONTEXT_HPP
-#define DECLARA_MAC_EDIT_TEXT_CONTEXT_HPP
+#ifndef LOKA_MAC_EDIT_TEXT_CONTEXT_HPP
+#define LOKA_MAC_EDIT_TEXT_CONTEXT_HPP
 
 #include "core2/scene/NativeNodeContext.hpp"
 #include "core/State.hpp"
@@ -36,4 +36,4 @@ private:
   bool updatingFromControl_;
 };
 
-#endif // DECLARA_MAC_EDIT_TEXT_CONTEXT_HPP
+#endif // LOKA_MAC_EDIT_TEXT_CONTEXT_HPP

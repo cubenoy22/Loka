@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP_MSGBOX_HPP
-#define DECLARA_APP_MSGBOX_HPP
+#ifndef LOKA_APP_MSGBOX_HPP
+#define LOKA_APP_MSGBOX_HPP
 
 #include <string>
 #include "core/State.hpp"
@@ -64,4 +64,4 @@ namespace declara
   } // namespace app
 } // namespace declara
 
-#endif // DECLARA_APP_MSGBOX_HPP
+#endif // LOKA_APP_MSGBOX_HPP

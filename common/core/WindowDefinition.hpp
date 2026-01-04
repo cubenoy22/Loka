@@ -1,5 +1,5 @@
-#ifndef DECLARA_WINDOW_DEFINITION_HPP
-#define DECLARA_WINDOW_DEFINITION_HPP
+#ifndef LOKA_WINDOW_DEFINITION_HPP
+#define LOKA_WINDOW_DEFINITION_HPP
 
 #include <cassert>
 #include "core/Window.hpp"
@@ -41,4 +41,4 @@ inline WindowDefinition<WindowProps> WindowDef(const WindowProps &props)
   return WindowDefinition<WindowProps>(props);
 }
 
-#endif // DECLARA_WINDOW_DEFINITION_HPP
+#endif // LOKA_WINDOW_DEFINITION_HPP

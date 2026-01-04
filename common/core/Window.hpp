@@ -1,5 +1,5 @@
-#ifndef DECLARA_WINDOW_HPP
-#define DECLARA_WINDOW_HPP
+#ifndef LOKA_WINDOW_HPP
+#define LOKA_WINDOW_HPP
 
 #include <string>
 #include "State.hpp"
@@ -207,4 +207,4 @@ protected:
   declara::core::scene::Scene *initialScene_;
 };
 
-#endif // DECLARA_WINDOW_HPP
+#endif // LOKA_WINDOW_HPP

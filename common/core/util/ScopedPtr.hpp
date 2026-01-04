@@ -5,8 +5,8 @@
 // - スコープ終了時にdelete
 // - NSAutoreleasePool的な使い方も可
 
-#ifndef DECLARA_CORE_UTIL_SCOPEDPTR_HPP
-#define DECLARA_CORE_UTIL_SCOPEDPTR_HPP
+#ifndef LOKA_CORE_UTIL_SCOPEDPTR_HPP
+#define LOKA_CORE_UTIL_SCOPEDPTR_HPP
 
 template <typename T>
 class ScopedPtr
@@ -39,4 +39,4 @@ private:
   ScopedPtr &operator=(const ScopedPtr &);
 };
 
-#endif // DECLARA_CORE_UTIL_SCOPEDPTR_HPP
+#endif // LOKA_CORE_UTIL_SCOPEDPTR_HPP

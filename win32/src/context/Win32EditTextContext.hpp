@@ -1,5 +1,5 @@
-#ifndef DECLARA_WIN32_EDIT_TEXT_CONTEXT_HPP
-#define DECLARA_WIN32_EDIT_TEXT_CONTEXT_HPP
+#ifndef LOKA_WIN32_EDIT_TEXT_CONTEXT_HPP
+#define LOKA_WIN32_EDIT_TEXT_CONTEXT_HPP
 
 #include <windows.h>
 #include <string>
@@ -41,4 +41,4 @@ private:
   bool updatingFromControl_;
 };
 
-#endif // DECLARA_WIN32_EDIT_TEXT_CONTEXT_HPP
+#endif // LOKA_WIN32_EDIT_TEXT_CONTEXT_HPP

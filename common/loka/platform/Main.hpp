@@ -8,7 +8,7 @@
 
 #if defined(_WIN32) || defined(WIN32)
 #include "Win32PlatformContext.hpp"
-#elif defined(DECLARA_RETRO68)
+#elif defined(LOKA_RETRO68)
 #include "ToolboxPlatformContext.hpp"
 #elif defined(__APPLE__)
 #include "MacPlatformContext.hpp"
@@ -22,7 +22,7 @@ namespace loka
     {
 #if defined(_WIN32) || defined(WIN32)
       return new Win32PlatformContext();
-#elif defined(DECLARA_RETRO68)
+#elif defined(LOKA_RETRO68)
       return new ToolboxPlatformContext();
 #elif defined(__APPLE__)
       return new MacPlatformContext();

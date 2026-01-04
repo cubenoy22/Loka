@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_STREAMVIEW_HPP
-#define DECLARA_CORE2_SCENE_STREAMVIEW_HPP
+#ifndef LOKA_CORE2_SCENE_STREAMVIEW_HPP
+#define LOKA_CORE2_SCENE_STREAMVIEW_HPP
 
 #include <iterator>
 
@@ -38,4 +38,4 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_SCENE_STREAMVIEW_HPP
+#endif // LOKA_CORE2_SCENE_STREAMVIEW_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_APPCONFIGURABLE_HPP
-#define DECLARA_APPCONFIGURABLE_HPP
+#ifndef LOKA_APPCONFIGURABLE_HPP
+#define LOKA_APPCONFIGURABLE_HPP
 
 // 前方宣言のみに変更して循環参照を解消
 class AppComposition;
@@ -17,4 +17,4 @@ public:
   virtual ~AppConfigurable() {}
 };
 
-#endif // DECLARA_APPCONFIGURABLE_HPP
+#endif // LOKA_APPCONFIGURABLE_HPP

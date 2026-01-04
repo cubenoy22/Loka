@@ -1,5 +1,5 @@
-#ifndef DECLARA_MAC_WINDOW_HPP
-#define DECLARA_MAC_WINDOW_HPP
+#ifndef LOKA_MAC_WINDOW_HPP
+#define LOKA_MAC_WINDOW_HPP
 
 #include "core/Window.hpp"
 
@@ -51,4 +51,4 @@ private:
   MacScenePlatformController *scenePlatformController_;
 };
 
-#endif // DECLARA_MAC_WINDOW_HPP
+#endif // LOKA_MAC_WINDOW_HPP

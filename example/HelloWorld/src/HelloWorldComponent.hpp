@@ -1,5 +1,5 @@
-#ifndef DECLARA_HELLOWORLD_COMPONENT_HPP
-#define DECLARA_HELLOWORLD_COMPONENT_HPP
+#ifndef LOKA_HELLOWORLD_COMPONENT_HPP
+#define LOKA_HELLOWORLD_COMPONENT_HPP
 
 #include <cassert>
 #include "core2/scene/node/Group.hpp"
@@ -53,4 +53,4 @@ namespace helloworld
 
 } // namespace helloworld
 
-#endif // DECLARA_HELLOWORLD_COMPONENT_HPP
+#endif // LOKA_HELLOWORLD_COMPONENT_HPP

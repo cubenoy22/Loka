@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_RUNTIME_ERROR_SINK_HPP
-#define DECLARA_CORE2_RUNTIME_ERROR_SINK_HPP
+#ifndef LOKA_CORE2_RUNTIME_ERROR_SINK_HPP
+#define LOKA_CORE2_RUNTIME_ERROR_SINK_HPP
 
 #include <string>
 #include <vector>
@@ -75,4 +75,4 @@ namespace declara
   }   // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_RUNTIME_ERROR_SINK_HPP
+#endif // LOKA_CORE2_RUNTIME_ERROR_SINK_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE_MANAGED_HPP
-#define DECLARA_CORE_MANAGED_HPP
+#ifndef LOKA_CORE_MANAGED_HPP
+#define LOKA_CORE_MANAGED_HPP
 
 #include <cstddef>
 
@@ -97,4 +97,4 @@ private:
   ControlBlock *block_;
 };
 
-#endif // DECLARA_CORE_MANAGED_HPP
+#endif // LOKA_CORE_MANAGED_HPP

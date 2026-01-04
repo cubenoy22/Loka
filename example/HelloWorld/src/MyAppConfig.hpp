@@ -1,5 +1,5 @@
-#ifndef DECLARA_MY_APP_CONFIG_HPP
-#define DECLARA_MY_APP_CONFIG_HPP
+#ifndef LOKA_MY_APP_CONFIG_HPP
+#define LOKA_MY_APP_CONFIG_HPP
 
 #include "core/AppComposition.hpp"
 #include "core/AppConfigurable.hpp"
@@ -21,4 +21,4 @@ public:
   }
 };
 
-#endif // DECLARA_MY_APP_CONFIG_HPP
+#endif // LOKA_MY_APP_CONFIG_HPP

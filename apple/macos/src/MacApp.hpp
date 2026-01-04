@@ -1,5 +1,5 @@
-#ifndef DECLARA_MAC_APP_HPP
-#define DECLARA_MAC_APP_HPP
+#ifndef LOKA_MAC_APP_HPP
+#define LOKA_MAC_APP_HPP
 
 #include "core/App.hpp"
 
@@ -13,4 +13,4 @@ public:
   virtual void quit();
 };
 
-#endif // DECLARA_MAC_APP_HPP
+#endif // LOKA_MAC_APP_HPP

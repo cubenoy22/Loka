@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP2_EMPTY_HPP
-#define DECLARA_APP2_EMPTY_HPP
+#ifndef LOKA_APP2_EMPTY_HPP
+#define LOKA_APP2_EMPTY_HPP
 
 // Empty node definition following Carbon/Toolbox style
 // Follows same interface/naming conventions as Button/Box
@@ -49,4 +49,4 @@ namespace declara
   } // namespace app
 } // namespace declara
 
-#endif // DECLARA_APP2_EMPTY_HPP
+#endif // LOKA_APP2_EMPTY_HPP

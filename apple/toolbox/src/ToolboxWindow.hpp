@@ -1,5 +1,5 @@
-#ifndef DECLARA_TOOLBOX_WINDOW_HPP
-#define DECLARA_TOOLBOX_WINDOW_HPP
+#ifndef LOKA_TOOLBOX_WINDOW_HPP
+#define LOKA_TOOLBOX_WINDOW_HPP
 
 #include "core/Window.hpp"
 #include <Windows.h>
@@ -24,4 +24,4 @@ private:
   WindowPtr window_;
 };
 
-#endif // DECLARA_TOOLBOX_WINDOW_HPP
+#endif // LOKA_TOOLBOX_WINDOW_HPP

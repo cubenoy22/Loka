@@ -1,5 +1,5 @@
-#ifndef DECLARA_TOOLBOX_PLATFORM_CONTEXT_HPP
-#define DECLARA_TOOLBOX_PLATFORM_CONTEXT_HPP
+#ifndef LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP
+#define LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP
 
 #include "core/PlatformContext.hpp"
 
@@ -14,4 +14,4 @@ public:
   virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const;
 };
 
-#endif // DECLARA_TOOLBOX_PLATFORM_CONTEXT_HPP
+#endif // LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_NODE_BOUNDARY_HPP
-#define DECLARA_CORE2_SCENE_NODE_BOUNDARY_HPP
+#ifndef LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP
+#define LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP
 
 #include <cstdarg>
 #include <vector>
@@ -217,4 +217,4 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_SCENE_NODE_BOUNDARY_HPP
+#endif // LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP

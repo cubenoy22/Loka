@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_STATEOWNER_HPP
-#define DECLARA_CORE2_SCENE_STATEOWNER_HPP
+#ifndef LOKA_CORE2_SCENE_STATEOWNER_HPP
+#define LOKA_CORE2_SCENE_STATEOWNER_HPP
 
 namespace declara
 {
@@ -22,4 +22,4 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_SCENE_STATEOWNER_HPP
+#endif // LOKA_CORE2_SCENE_STATEOWNER_HPP

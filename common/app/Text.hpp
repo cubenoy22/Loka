@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP2_TEXT_HPP
-#define DECLARA_APP2_TEXT_HPP
+#ifndef LOKA_APP2_TEXT_HPP
+#define LOKA_APP2_TEXT_HPP
 
 #include <string>
 #include "core/State.hpp"
@@ -99,4 +99,4 @@ namespace declara
   } // namespace app
 } // namespace declara
 
-#endif // DECLARA_APP2_TEXT_HPP
+#endif // LOKA_APP2_TEXT_HPP

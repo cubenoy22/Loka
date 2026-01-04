@@ -1,5 +1,5 @@
-#ifndef DECLARA_UTIL_STATE_TRACKER_GUARD_HPP
-#define DECLARA_UTIL_STATE_TRACKER_GUARD_HPP
+#ifndef LOKA_UTIL_STATE_TRACKER_GUARD_HPP
+#define LOKA_UTIL_STATE_TRACKER_GUARD_HPP
 #include "core/StateTracker.hpp"
 
 // StateTracker用RAIIトランザクションガード
@@ -19,5 +19,5 @@ struct StateTrackerGuard
   }
 };
 
-#endif // DECLARA_UTIL_STATE_TRACKER_GUARD_HPP
+#endif // LOKA_UTIL_STATE_TRACKER_GUARD_HPP
   

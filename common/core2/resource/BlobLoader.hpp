@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_RESOURCE_BLOB_LOADER_HPP
-#define DECLARA_CORE2_RESOURCE_BLOB_LOADER_HPP
+#ifndef LOKA_CORE2_RESOURCE_BLOB_LOADER_HPP
+#define LOKA_CORE2_RESOURCE_BLOB_LOADER_HPP
 
 #include <cstddef>
 #include <fstream>
@@ -315,4 +315,4 @@ namespace declara
   }   // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_RESOURCE_BLOB_LOADER_HPP
+#endif // LOKA_CORE2_RESOURCE_BLOB_LOADER_HPP

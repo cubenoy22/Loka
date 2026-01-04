@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE2_SCENE_SCENE_HPP
-#define DECLARA_CORE2_SCENE_SCENE_HPP
+#ifndef LOKA_CORE2_SCENE_SCENE_HPP
+#define LOKA_CORE2_SCENE_SCENE_HPP
 
 #include "core/State.hpp"
 #include <cassert>
@@ -248,4 +248,4 @@ namespace declara
   } // namespace core
 } // namespace declara
 
-#endif // DECLARA_CORE2_SCENE_SCENE_HPP
+#endif // LOKA_CORE2_SCENE_SCENE_HPP

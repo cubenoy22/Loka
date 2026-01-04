@@ -1,5 +1,5 @@
-#ifndef DECLARA_WIN32PLATFORMCONTEXT_HPP
-#define DECLARA_WIN32PLATFORMCONTEXT_HPP
+#ifndef LOKA_WIN32PLATFORMCONTEXT_HPP
+#define LOKA_WIN32PLATFORMCONTEXT_HPP
 #include "core/PlatformContext.hpp"
 #include "core/Window.hpp"
 #include "Win32App.hpp"
@@ -31,4 +31,4 @@ public:
   virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const;
 };
 
-#endif // DECLARA_WIN32PLATFORMCONTEXT_HPP
+#endif // LOKA_WIN32PLATFORMCONTEXT_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_HELLOWORLD_BOUNDARY_HPP
-#define DECLARA_HELLOWORLD_BOUNDARY_HPP
+#ifndef LOKA_HELLOWORLD_BOUNDARY_HPP
+#define LOKA_HELLOWORLD_BOUNDARY_HPP
 
 #include <string>
 #include "core/State.hpp"
@@ -14,4 +14,4 @@ namespace helloworld
   };
 } // namespace helloworld
 
-#endif // DECLARA_HELLOWORLD_BOUNDARY_HPP
+#endif // LOKA_HELLOWORLD_BOUNDARY_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_APP2_BOX_HPP
-#define DECLARA_APP2_BOX_HPP
+#ifndef LOKA_APP2_BOX_HPP
+#define LOKA_APP2_BOX_HPP
 
 #include <string>
 #include "core2/scene/Node.hpp"
@@ -70,4 +70,4 @@ namespace declara
   } // namespace app
 } // namespace declara
 
-#endif // DECLARA_APP2_BOX_HPP
+#endif // LOKA_APP2_BOX_HPP

@@ -1,5 +1,5 @@
-#ifndef DECLARA_STATE_HPP
-#define DECLARA_STATE_HPP
+#ifndef LOKA_STATE_HPP
+#define LOKA_STATE_HPP
 
 #include <vector>
 #include <functional>
@@ -394,4 +394,4 @@ using declara::core::State;
 using declara::core::StateBase;
 using declara::core::StatePriority;
 
-#endif // DECLARA_STATE_HPP
+#endif // LOKA_STATE_HPP
