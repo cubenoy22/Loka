@@ -61,27 +61,32 @@ namespace helloworld
       {
         return;
       }
+      const AttachedContext *ctx = this->attachedContext();
+      if (!ctx)
+      {
+        return;
+      }
       std::string next = "Hello, Loka!";
       if (message_->get() == "Hello, Loka!")
       {
         next = "Loka says hi!";
       }
       {
-        StateTrackerGuard _(this->boundary()->tracker());
+        StateTrackerGuard _(ctx->boundary()->tracker());
         message_->set(next, true);
       }
 
       {
-        StateTrackerGuard _(this->window()->getTracker());
-        const std::string title = this->window()->titleState().get();
+        StateTrackerGuard _(ctx->window()->getTracker());
+        const std::string title = ctx->window()->titleState().get();
 
         if (title == "LokaSample")
         {
-          this->window()->titleState().set("LokaSample*");
+          ctx->window()->titleState().set("LokaSample*");
         }
         else
         {
-          this->window()->titleState().set("LokaSample");
+          ctx->window()->titleState().set("LokaSample");
         }
       }
     }

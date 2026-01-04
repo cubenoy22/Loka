@@ -76,6 +76,11 @@ namespace helloworld
 
     void updateBmi()
     {
+      const AttachedContext *ctx = this->attachedContext();
+      if (!ctx)
+      {
+        return;
+      }
       double heightCm = parseDouble(heightInput_->get());
       double weightKg = parseDouble(weightInput_->get());
       std::string label("BMI: --");
@@ -90,7 +95,7 @@ namespace helloworld
           label = buf;
         }
       }
-      StateTrackerGuard _(this->boundary()->tracker());
+      StateTrackerGuard _(ctx->boundary()->tracker());
       bmiResult_->set(label, true);
     }
 

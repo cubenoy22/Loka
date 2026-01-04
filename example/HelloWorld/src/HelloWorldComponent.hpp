@@ -6,7 +6,7 @@
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "ChangeContextButton.hpp"
-#include "HelloWorldBoundary.hpp"
+#include "RootBoundary.hpp"
 
 namespace helloworld
 {
@@ -14,7 +14,7 @@ namespace helloworld
 
   typedef declara::core::scene::GroupPropsFor<HelloWorldNode> HelloWorldProps;
 
-  class HelloWorldNode : public declara::core::scene::GroupNodeBase<HelloWorldProps>, public HelloWorldBoundary
+  class HelloWorldNode : public declara::core::scene::GroupNodeBase<HelloWorldProps>, public RootBoundary
   {
   public:
     HelloWorldProps props;

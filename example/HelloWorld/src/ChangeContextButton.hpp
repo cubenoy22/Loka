@@ -7,7 +7,7 @@
 #include "core/Window.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "app/Button.hpp"
-#include "HelloWorldBoundary.hpp"
+#include "RootBoundary.hpp"
 
 namespace helloworld
 {
@@ -25,8 +25,8 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      this->boundary_ = c.findBoundary<HelloWorldBoundary>();
-      assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
+      this->boundary_ = c.findBoundary<RootBoundary>();
+      assert(this->boundary_ && "ChangeContextButton requires RootBoundary");
       this->toggleEvent_.bind(&ChangeContextButton::HandleToggleThunk, this, false);
     }
 
@@ -39,7 +39,11 @@ namespace helloworld
   private:
     void handleToggle()
     {
-      assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
+      const AttachedContext *ctx = this->attachedContext();
+      if (!this->boundary_ || !ctx)
+      {
+        return;
+      }
       MutableState<std::string> &message = this->boundary_->messageState();
       const std::string current = message.get();
       if (current == "Hello, Loka!")
@@ -51,9 +55,8 @@ namespace helloworld
         message.set("Hello, Loka!");
       }
 
-      Window *window = this->window();
-      StateTrackerGuard _(window->getTracker());
-      MutableState<std::string> &titleState = window->titleState();
+      StateTrackerGuard _(ctx->window()->getTracker());
+      MutableState<std::string> &titleState = ctx->window()->titleState();
       const std::string title = titleState.get();
       if (title == "LokaSample")
       {
@@ -74,7 +77,7 @@ namespace helloworld
       }
     }
 
-    HelloWorldBoundary *boundary_;
+    RootBoundary *boundary_;
     declara::core::EmitterState toggleEvent_;
   };
 
