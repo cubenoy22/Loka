@@ -41,9 +41,17 @@ namespace declara
       };
 
       // Alias to avoid exposing "Static" in user code.
+      // Note: Must inherit from NodePropsBase<BoundaryPropsFor<NodeT>> directly
+      // so that createNode() receives the correct Props type for node constructors.
       template <class NodeT>
-      struct BoundaryPropsFor : public StaticCompositionPropsFor<NodeT>
+      struct BoundaryPropsFor : public NodePropsBase<BoundaryPropsFor<NodeT> >
       {
+        typedef NodeT NodeType;
+        bool operator<(const PropsBase &rhs) const
+        {
+          const BoundaryPropsFor<NodeT> *p = dynamic_cast<const BoundaryPropsFor<NodeT> *>(&rhs);
+          return p ? false : false;
+        }
       };
 
       template <class PropsT>
@@ -137,13 +145,14 @@ namespace declara
       };
 
       // Alias for boundary nodes without exposing "Static" in user code.
+      // Uses BoundaryPropsFor<NodeT> to match user constructor expectations.
       template <class NodeT>
-      class BoundaryNodeFor : public StaticCompositionNodeFor<NodeT>
+      class BoundaryNodeFor : public StaticCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >
       {
       public:
-        typedef StaticCompositionPropsFor<NodeT> PropsType;
+        typedef BoundaryPropsFor<NodeT> PropsType;
         BoundaryNodeFor(const PropsType &p)
-            : StaticCompositionNodeFor<NodeT>(p) {}
+            : StaticCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >(p) {}
         virtual ~BoundaryNodeFor() {}
       };
 
