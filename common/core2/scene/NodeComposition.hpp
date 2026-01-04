@@ -107,6 +107,15 @@ namespace declara
 
         void setContext(ComponentContext *context) { context_ = context; }
         ComponentContext *componentContext() const { return context_; }
+        const ComponentContext *attachedContext() const { return context_; }
+        const ComponentContext &ensureAttached() const
+        {
+          assert(context_ && "NodeComposition::ensureAttached requires ComponentContext");
+          assert(context_->boundary() && "NodeComposition::ensureAttached requires BoundaryNode");
+          assert(context_->scene() && "NodeComposition::ensureAttached requires Scene");
+          assert(context_->window() && "NodeComposition::ensureAttached requires Window");
+          return *context_;
+        }
         bool hasContext() const { return context_ != 0; }
         BoundaryNode *boundary() const;
         Scene *scene() const;

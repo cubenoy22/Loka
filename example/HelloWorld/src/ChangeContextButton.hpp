@@ -40,25 +40,28 @@ namespace helloworld
     void handleToggle()
     {
       assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
-      const std::string current = this->boundary_->messageState().get();
+      MutableState<std::string> &message = this->boundary_->messageState();
+      const std::string current = message.get();
       if (current == "Hello, Loka!")
       {
-        this->boundary_->messageState().set("Loka says hi!");
+        message.set("Loka says hi!");
       }
       else
       {
-        this->boundary_->messageState().set("Hello, Loka!");
+        message.set("Hello, Loka!");
       }
 
-      StateTrackerGuard _(this->window()->getTracker());
-      const std::string title = this->window()->titleState().get();
+      Window *window = this->window();
+      StateTrackerGuard _(window->getTracker());
+      MutableState<std::string> &titleState = window->titleState();
+      const std::string title = titleState.get();
       if (title == "LokaSample")
       {
-        this->window()->titleState().set("LokaSample*");
+        titleState.set("LokaSample*");
       }
       else
       {
-        this->window()->titleState().set("LokaSample");
+        titleState.set("LokaSample");
       }
     }
 

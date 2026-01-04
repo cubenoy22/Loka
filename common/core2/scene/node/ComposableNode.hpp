@@ -29,7 +29,7 @@ namespace declara
       class ComposableNode : public NestableNode
       {
       public:
-        ComposableNode() : currentContext_(0), cachedBoundary_(0), cachedScene_(0), cachedWindow_(0) {}
+        ComposableNode() : currentContext_(0), isAttached_(false), attached_() {}
         virtual ~ComposableNode()
         {
           clearChildren();
@@ -38,15 +38,15 @@ namespace declara
         virtual void compose(ComponentContext &context, ComposeEvent event)
         {
           ContextScope scope(this, &context);
-          cachedBoundary_ = context.boundary();
-          cachedScene_ = context.scene();
-          cachedWindow_ = context.window();
+          attached_.boundary_ = context.boundary();
+          attached_.scene_ = context.scene();
+          attached_.window_ = context.window();
+          isAttached_ = attached_.boundary_ && attached_.scene_ && attached_.window_;
           this->composeWithContext(context, event);
           if (event == COMPOSE_EVENT_DETACH)
           {
-            cachedBoundary_ = 0;
-            cachedScene_ = 0;
-            cachedWindow_ = 0;
+            attached_.reset();
+            isAttached_ = false;
           }
         }
 
@@ -61,20 +61,46 @@ namespace declara
         virtual void detachNode(NodeComposition &c) { (void)c; }
 
         ComponentContext *componentContext() const { return currentContext_; }
+        struct AttachedContext
+        {
+          AttachedContext() : boundary_(0), scene_(0), window_(0) {}
+          BoundaryNode *boundary() const { return boundary_; }
+          Scene *scene() const { return scene_; }
+          ::Window *window() const { return window_; }
+          void reset()
+          {
+            boundary_ = 0;
+            scene_ = 0;
+            window_ = 0;
+          }
+
+          BoundaryNode *boundary_;
+          Scene *scene_;
+          ::Window *window_;
+        };
+
+        const AttachedContext *attachedContext() const
+        {
+          return isAttached_ ? &attached_ : 0;
+        }
+
+        const AttachedContext &ensureAttached() const
+        {
+          assert(isAttached_ && "ComposableNode requires attached context");
+          return attached_;
+        }
+
         BoundaryNode *boundary() const
         {
-          assert(cachedBoundary_ && "ComposableNode::boundary requires BoundaryNode");
-          return cachedBoundary_;
+          return ensureAttached().boundary();
         }
         Scene *scene() const
         {
-          assert(cachedScene_ && "ComposableNode::scene requires Scene");
-          return cachedScene_;
+          return ensureAttached().scene();
         }
         ::Window *window() const
         {
-          assert(cachedWindow_ && "ComposableNode::window requires Window");
-          return cachedWindow_;
+          return ensureAttached().window();
         }
 
         NodeComposition &beginComposition(ComponentContext &context)
@@ -132,9 +158,8 @@ namespace declara
 
         ComponentContext *currentContext_;
         NodeComposition composition_;
-        BoundaryNode *cachedBoundary_;
-        Scene *cachedScene_;
-        ::Window *cachedWindow_;
+        bool isAttached_;
+        AttachedContext attached_;
       };
 
     } // namespace scene
