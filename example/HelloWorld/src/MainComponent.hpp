@@ -1,5 +1,5 @@
-#ifndef LOKA_HELLOWORLD_BMI_FORM_COMPONENT_HPP
-#define LOKA_HELLOWORLD_BMI_FORM_COMPONENT_HPP
+#ifndef DECLARA_HELLOWORLD_MAIN_COMPONENT_HPP
+#define DECLARA_HELLOWORLD_MAIN_COMPONENT_HPP
 
 #include <string>
 #include <cassert>
@@ -17,15 +17,15 @@
 
 namespace helloworld
 {
-  class BmiFormNode;
-  typedef declara::core::scene::GroupPropsFor<BmiFormNode> BmiFormProps;
+  class MainNode;
+  typedef declara::core::scene::GroupPropsFor<MainNode> MainProps;
 
-  class BmiFormNode : public declara::core::scene::GroupNodeBase<BmiFormProps>
+  class MainNode : public declara::core::scene::GroupNodeBase<MainProps>
   {
   public:
-    BmiFormProps props;
-    BmiFormNode(const BmiFormProps &p)
-        : declara::core::scene::GroupNodeBase<BmiFormProps>(BmiFormProps(p)),
+    MainProps props;
+    MainNode(const MainProps &p)
+        : declara::core::scene::GroupNodeBase<MainProps>(MainProps(p)),
           props(p),
           heightInput_(0),
           weightInput_(0),
@@ -42,9 +42,9 @@ namespace helloworld
       weightInput_ = &c.useState<std::string>("60.0");
       bmiResult_ = &c.useState<std::string>("BMI: --");
       message_ = &c.useState<std::string>("Hello, Loka!");
-      heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
-      weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
-      toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
+      heightInput_->bind(&MainNode::InputChangedThunk, this, false);
+      weightInput_->bind(&MainNode::InputChangedThunk, this, false);
+      toggleEvent_.bind(&MainNode::ToggleMessageThunk, this, false);
       updateBmi();
     }
 
@@ -74,7 +74,7 @@ namespace helloworld
 
     static void InputChangedThunk(void *userData)
     {
-      BmiFormNode *self = static_cast<BmiFormNode *>(userData);
+      MainNode *self = static_cast<MainNode *>(userData);
       if (self)
       {
         self->updateBmi();
@@ -83,7 +83,7 @@ namespace helloworld
 
     static void ToggleMessageThunk(void *userData)
     {
-      BmiFormNode *self = static_cast<BmiFormNode *>(userData);
+      MainNode *self = static_cast<MainNode *>(userData);
       if (self)
       {
         self->toggleMessage();
@@ -148,11 +148,11 @@ namespace helloworld
     EmitterState toggleEvent_;
   };
 
-  inline declara::core::scene::NodeDefinition<BmiFormProps, BmiFormNode> BmiForm()
+  inline declara::core::scene::NodeDefinition<MainProps, MainNode> Main()
   {
-    return declara::core::scene::NodeDefinition<BmiFormProps, BmiFormNode>();
+    return declara::core::scene::NodeDefinition<MainProps, MainNode>();
   }
 
 } // namespace helloworld
 
-#endif // LOKA_HELLOWORLD_BMI_FORM_COMPONENT_HPP
+#endif // DECLARA_HELLOWORLD_MAIN_COMPONENT_HPP

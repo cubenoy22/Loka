@@ -4,7 +4,7 @@
 #include "core/AppComposition.hpp"
 #include "core/AppConfigurable.hpp"
 #include "core/WindowDefinition.hpp"
-#include "BmiFormComponent.hpp"
+#include "MainComponent.hpp"
 
 class MyAppConfig : public AppConfigurable
 {
@@ -15,7 +15,7 @@ public:
   virtual void compose(AppComposition &c)
   {
     c.declare(WindowDef(WindowProps()
-                            .scene(helloworld::BmiForm())
+                            .scene(helloworld::Main())
                             .title("LokaSample")
                             .visible(true)));
   }
