@@ -32,6 +32,7 @@ namespace declara
         ComposableNode() : currentContext_(0), isAttached_(false), attached_() {}
         virtual ~ComposableNode()
         {
+          releaseCallbacks();
           clearChildren();
         }
 
@@ -58,9 +59,64 @@ namespace declara
       protected:
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event) = 0;
         virtual void attachNode(NodeComposition &c) { (void)c; }
-        virtual void detachNode(NodeComposition &c) { (void)c; }
+        virtual void detachNode(NodeComposition &c)
+        {
+          (void)c;
+          releaseCallbacks();
+        }
 
         ComponentContext *componentContext() const { return currentContext_; }
+        struct CallbackEntryBase
+        {
+          virtual ~CallbackEntryBase() {}
+          virtual void unbind() = 0;
+          virtual void invalidate() = 0;
+        };
+
+        template <class NodeT>
+        struct CallbackEntry : public CallbackEntryBase
+        {
+          typedef void (NodeT::*Method)();
+          CallbackEntry(NodeT *node, declara::core::EmitterState *emitter, Method method)
+              : node_(node), emitter_(emitter), method_(method), valid_(true) {}
+
+          static void Invoke(void *userData)
+          {
+            CallbackEntry *self = static_cast<CallbackEntry *>(userData);
+            if (!self || !self->valid_ || !self->node_)
+            {
+              return;
+            }
+            (self->node_->*(self->method_))();
+          }
+
+          void unbind()
+          {
+            if (emitter_)
+            {
+              emitter_->unbind(&Invoke, this);
+            }
+          }
+
+          void invalidate()
+          {
+            valid_ = false;
+          }
+
+          NodeT *node_;
+          declara::core::EmitterState *emitter_;
+          Method method_;
+          bool valid_;
+        };
+
+        template <class NodeT>
+        void bindSafe(declara::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
+        {
+          CallbackEntry<NodeT> *entry = new CallbackEntry<NodeT>(node, &emitter, method);
+          callbacks_.push_back(entry);
+          emitter.bind(&CallbackEntry<NodeT>::Invoke, entry, false);
+        }
+
         struct AttachedContext
         {
           AttachedContext() : boundary_(0), scene_(0), window_(0) {}
@@ -123,6 +179,17 @@ namespace declara
         }
 
       private:
+        void releaseCallbacks()
+        {
+          for (size_t i = 0; i < callbacks_.size(); ++i)
+          {
+            callbacks_[i]->unbind();
+            callbacks_[i]->invalidate();
+            delete callbacks_[i];
+          }
+          callbacks_.clear();
+        }
+
         struct ContextScope
         {
           ComposableNode *node;
@@ -160,6 +227,7 @@ namespace declara
         NodeComposition composition_;
         bool isAttached_;
         AttachedContext attached_;
+        std::vector<CallbackEntryBase *> callbacks_;
       };
 
     } // namespace scene

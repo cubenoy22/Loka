@@ -27,7 +27,7 @@ namespace helloworld
     {
       this->boundary_ = c.findBoundary<RootBoundary>();
       assert(this->boundary_ && "ChangeContextButton requires RootBoundary");
-      this->toggleEvent_.bind(&ChangeContextButton::HandleToggleThunk, this, false);
+      this->bindSafe(toggleEvent_, this, &ChangeContextButton::handleToggle);
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
@@ -65,15 +65,6 @@ namespace helloworld
       else
       {
         titleState.set("LokaSample");
-      }
-    }
-
-    static void HandleToggleThunk(void *userData)
-    {
-      ChangeContextButton *self = static_cast<ChangeContextButton *>(userData);
-      if (self)
-      {
-        self->handleToggle();
       }
     }
 

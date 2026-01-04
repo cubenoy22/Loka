@@ -31,7 +31,7 @@ namespace helloworld
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
       message_ = &c.useState<std::string>("Hello, Loka!");
-      toggleEvent_.bind(&MainNode::ToggleMessageThunk, this, false);
+      this->bindSafe(toggleEvent_, this, &MainNode::toggleMessage);
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
@@ -46,15 +46,6 @@ namespace helloworld
     }
 
   private:
-    static void ToggleMessageThunk(void *userData)
-    {
-      MainNode *self = static_cast<MainNode *>(userData);
-      if (self)
-      {
-        self->toggleMessage();
-      }
-    }
-
     void toggleMessage()
     {
       if (!message_)

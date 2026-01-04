@@ -38,7 +38,6 @@ namespace helloworld
 
     virtual MutableState<std::string> &messageState()
     {
-      assert(message_ && "HelloWorldNode messageState requires compose");
       return *message_;
     }
 
