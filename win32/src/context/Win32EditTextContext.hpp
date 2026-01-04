@@ -2,8 +2,8 @@
 #define LOKA_WIN32_EDIT_TEXT_CONTEXT_HPP
 
 #include <windows.h>
-#include <string>
 #include "core2/scene/NativeNodeContext.hpp"
+#include "loka/core/String.hpp"
 
 template <typename T>
 class State;
@@ -36,7 +36,7 @@ private:
 
   declara::app::EditTextNode *node_;
   HWND hwnd_;
-  State<std::string> *textState_;
+  State<loka::core::String> *textState_;
   bool applyingFromState_;
   bool updatingFromControl_;
 };

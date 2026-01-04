@@ -3,6 +3,7 @@
 #include <AppKit/AppKit.h>
 #include "app/Text.hpp"
 #include "core/State.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, declara::app::TextNode *node)
     : node_(node), label_(0), textState_(0)
@@ -40,7 +41,7 @@ void MacTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<std::string> *>(node_->props.text_);
+  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->deferBind(&MacTextContext::TextChangedThunk, this);
@@ -64,7 +65,11 @@ void MacTextContext::applyText()
   {
     return;
   }
-  [label setStringValue:declara::macos::CreateNSStringFromUtf8(textState_->get())];
+  std::string utf8;
+  if (loka::platform::CollectUtf8(textState_->get(), utf8))
+  {
+    [label setStringValue:declara::macos::CreateNSStringFromUtf8(utf8)];
+  }
 }
 
 void MacTextContext::TextChangedThunk(void *userData)

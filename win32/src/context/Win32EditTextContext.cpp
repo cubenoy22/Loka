@@ -2,6 +2,7 @@
 #include <vector>
 #include "app/EditText.hpp"
 #include "core/State.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, declara::app::EditTextNode *node)
     : node_(node), hwnd_(NULL), textState_(0), applyingFromState_(false), updatingFromControl_(false)
@@ -53,7 +54,7 @@ void Win32EditTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<std::string> *>(node_->props.text_);
+  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32EditTextContext::TextChangedThunk, this, true);
@@ -90,7 +91,11 @@ void Win32EditTextContext::applyText()
     buffer.assign(1, '\0');
   }
   std::string currentText(&buffer[0]);
-  const std::string &desired = textState_->get();
+  std::string desired;
+  if (!loka::platform::CollectUtf8(textState_->get(), desired))
+  {
+    desired.clear();
+  }
   if (currentText == desired)
   {
     return;
@@ -110,7 +115,7 @@ void Win32EditTextContext::syncStateFromControl()
   {
     return;
   }
-  MutableState<std::string> *mutableState = dynamic_cast<MutableState<std::string> *>(textState_);
+  MutableState<loka::core::String> *mutableState = dynamic_cast<MutableState<loka::core::String> *>(textState_);
   if (!mutableState)
   {
     return;
@@ -123,7 +128,7 @@ void Win32EditTextContext::syncStateFromControl()
   }
   std::vector<char> buffer(length + 1);
   GetWindowTextA(hwnd_, &buffer[0], length + 1);
-  mutableState->set(std::string(&buffer[0]), true);
+  mutableState->set(loka::core::String(std::string(&buffer[0])), true);
   updatingFromControl_ = false;
 }
 

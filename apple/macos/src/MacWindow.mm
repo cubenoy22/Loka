@@ -4,6 +4,7 @@
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "core2/scene/Scene.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 @interface DeclaraFlippedView : NSView
 @end
@@ -105,7 +106,15 @@ void MacWindow::TitleChangedThunk(void *userData)
     return;
   }
   NSWindow *window = (__bridge NSWindow *)self->window_;
-  [window setTitle:declara::macos::CreateNSStringFromUtf8(self->titleState().get())];
+  std::string utf8;
+  if (loka::platform::CollectUtf8(self->titleState().get(), utf8))
+  {
+    [window setTitle:declara::macos::CreateNSStringFromUtf8(utf8)];
+  }
+  else
+  {
+    [window setTitle:@""];
+  }
 }
 
 void MacWindow::createNativeWindow()
@@ -122,7 +131,15 @@ void MacWindow::createNativeWindow()
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
                                                      defer:NO];
-  [window setTitle:declara::macos::CreateNSStringFromUtf8(this->titleState().get())];
+  std::string utf8;
+  if (loka::platform::CollectUtf8(this->titleState().get(), utf8))
+  {
+    [window setTitle:declara::macos::CreateNSStringFromUtf8(utf8)];
+  }
+  else
+  {
+    [window setTitle:@""];
+  }
 
   DeclaraFlippedView *contentView = [[DeclaraFlippedView alloc] initWithFrame:NSMakeRect(0, 0, frame.size.width, frame.size.height)];
   [window setContentView:contentView];

@@ -1,7 +1,6 @@
 #ifndef LOKA_HELLOWORLD_MAIN_COMPONENT_HPP
 #define LOKA_HELLOWORLD_MAIN_COMPONENT_HPP
 
-#include <string>
 #include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/node/Group.hpp"
@@ -9,6 +8,7 @@
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "BmiCalculatorComponent.hpp"
+#include "loka/core/String.hpp"
 
 namespace helloworld
 {
@@ -30,7 +30,7 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      message_ = c.useState<std::string>("Hello, Loka!");
+      message_ = c.useState<loka::core::String>(loka::core::String::Literal("Hello, Loka!"));
       this->bindForUi(toggleEvent_, this, &MainNode::toggleMessage);
     }
 
@@ -57,29 +57,29 @@ namespace helloworld
       {
         return;
       }
-      std::string next = "Hello, Loka!";
-      if (message_.get() == "Hello, Loka!")
+      loka::core::String next = loka::core::String::Literal("Hello, Loka!");
+      if (message_.get().equals(loka::core::String::Literal("Hello, Loka!")))
       {
-        next = "Loka says hi!";
+        next = loka::core::String::Literal("Loka says hi!");
       }
       message_.set(next, true);
 
       {
         StateTrackerGuard _(ctx->window()->getTracker());
-        const std::string title = ctx->window()->titleState().get();
+        const loka::core::String title = ctx->window()->titleState().get();
 
-        if (title == "LokaSample")
+        if (title.equals(loka::core::String::Literal("LokaSample")))
         {
-          ctx->window()->titleState().set("LokaSample*");
+          ctx->window()->titleState().set(loka::core::String::Literal("LokaSample*"));
         }
         else
         {
-          ctx->window()->titleState().set("LokaSample");
+          ctx->window()->titleState().set(loka::core::String::Literal("LokaSample"));
         }
       }
     }
 
-    declara::core::scene::BoundState<std::string> message_;
+    declara::core::scene::BoundState<loka::core::String> message_;
     EmitterState toggleEvent_;
   };
 

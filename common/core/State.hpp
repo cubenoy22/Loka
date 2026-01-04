@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include "StateTracker.hpp"
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -20,6 +21,17 @@ namespace declara
 
     class StateTracker;
     class PushStateTracker;
+
+    template <typename T>
+    inline bool stateValuesEqual(const T &a, const T &b)
+    {
+      return !(a != b);
+    }
+
+    inline bool stateValuesEqual(const loka::core::String &a, const loka::core::String &b)
+    {
+      return a.equals(b);
+    }
 
     // StateBase: Unified dependency management and bind API
     class StateBase
@@ -120,7 +132,7 @@ namespace declara
     protected:
       virtual void set(const T &v)
       {
-        if (value != v)
+        if (!stateValuesEqual(value, v))
         {
           value = v;
           notifyStateChanged();
@@ -176,7 +188,7 @@ namespace declara
       {
         OldNewCtx *ctx = static_cast<OldNewCtx *>(ud);
         T newValue = ctx->state->get();
-        if (ctx->lastValue != newValue)
+        if (!stateValuesEqual(ctx->lastValue, newValue))
         {
           ctx->cb(ctx->lastValue, newValue, ctx->userData);
           ctx->lastValue = newValue;

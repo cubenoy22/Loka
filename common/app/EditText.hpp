@@ -3,6 +3,7 @@
 
 #include <string>
 #include "core/State.hpp"
+#include "loka/core/String.hpp"
 #include "core2/scene/Node.hpp"
 
 namespace declara
@@ -19,10 +20,10 @@ namespace declara
     {
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
-      State<std::string> *text_;
+      State<loka::core::String> *text_;
       EditTextProps() : text_(0) {}
-      EditTextProps(State<std::string> *state) : text_(state) {}
-      EditTextProps &text(State<std::string> *state)
+      EditTextProps(State<loka::core::String> *state) : text_(state) {}
+      EditTextProps &text(State<loka::core::String> *state)
       {
         this->text_ = state;
         return *this;
@@ -50,7 +51,7 @@ namespace declara
     {
       EditTextDefinition() : NodeDefinition() {}
       EditTextDefinition(const EditTextProps &p) : NodeDefinition(p) {}
-      EditTextDefinition(State<std::string> *state) : NodeDefinition(EditTextProps(state)) {}
+      EditTextDefinition(State<loka::core::String> *state) : NodeDefinition(EditTextProps(state)) {}
     };
 
     typedef EditTextDefinition EditText;

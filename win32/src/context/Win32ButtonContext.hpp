@@ -2,8 +2,8 @@
 #define LOKA_WIN32_BUTTON_CONTEXT_HPP
 
 #include <windows.h>
-#include <string>
 #include "core2/scene/NativeNodeContext.hpp"
+#include "loka/core/String.hpp"
 
 template <typename T>
 class State;
@@ -34,7 +34,7 @@ private:
 
   declara::app::ButtonNode *node_;
   HWND hwnd_;
-  State<std::string> *textState_;
+  State<loka::core::String> *textState_;
 };
 
 #endif // LOKA_WIN32_BUTTON_CONTEXT_HPP

@@ -65,20 +65,28 @@ void Win32Window::TitleChangedThunk(void *userData)
   if (self && self->hwnd_)
   {
     // Window基底のtitle値(UTF-8)をUTF-16に変換して反映
-    // title は std::string なので CollectUtf8 はそのまま append
-    std::string buffer = self->titleState().get();
-    if (buffer.empty())
+    loka::core::String titleValue = self->titleState().get();
+    if (titleValue.empty())
     {
       SetWindowTextW(self->hwnd_, L"");
       return;
     }
-    loka::core::String titleString(buffer);
-    Managed<loka::platform::String> handle = loka::win32::CreateWin32String(titleString);
+    Managed<loka::platform::String> handle = loka::win32::CreateWin32String(titleValue);
     loka::win32::Win32String *win32String = handle.isValid() ? dynamic_cast<loka::win32::Win32String *>(handle.get()) : 0;
     if (win32String)
       SetWindowTextW(self->hwnd_, win32String->c_str());
     else
-      SetWindowTextA(self->hwnd_, buffer.c_str());
+    {
+      std::string utf8;
+      if (loka::platform::CollectUtf8(titleValue, utf8))
+      {
+        SetWindowTextA(self->hwnd_, utf8.c_str());
+      }
+      else
+      {
+        SetWindowTextW(self->hwnd_, L"");
+      }
+    }
   }
 }
 
@@ -160,7 +168,7 @@ void Win32Window::createNativeWindow()
   HWND hwnd = CreateWindowExA(
       WS_EX_CONTROLPARENT,
       kWndClassName,
-      this->titleState().get().c_str(),
+      "",
       WS_OVERLAPPEDWINDOW,
       100, 100, 320, 320,
       NULL, NULL, GetModuleHandle(NULL),
@@ -168,6 +176,7 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
+    TitleChangedThunk(this);
     UpdateWindow(hwnd);
     this->onCreate();
     this->mountScene();

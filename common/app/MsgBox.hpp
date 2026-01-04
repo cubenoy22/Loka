@@ -1,8 +1,8 @@
 #ifndef LOKA_APP_MSGBOX_HPP
 #define LOKA_APP_MSGBOX_HPP
 
-#include <string>
 #include "core/State.hpp"
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -22,8 +22,8 @@ namespace declara
 
     struct MsgBoxProps
     {
-      State<std::string> *title;
-      State<std::string> *body;
+      State<loka::core::String> *title;
+      State<loka::core::String> *body;
       MutableState<bool> *show;
       MutableState<int> *result; // optional
       MsgBoxIcon::Value icon;
@@ -31,12 +31,12 @@ namespace declara
           : title(0), body(0), show(0), result(0), icon(MsgBoxIcon::Error)
       {
       }
-      MsgBoxProps &setTitle(State<std::string> *t)
+      MsgBoxProps &setTitle(State<loka::core::String> *t)
       {
         title = t;
         return *this;
       }
-      MsgBoxProps &setBody(State<std::string> *b)
+      MsgBoxProps &setBody(State<loka::core::String> *b)
       {
         body = b;
         return *this;

@@ -1,13 +1,12 @@
 #ifndef LOKA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 #define LOKA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 
-#include <cassert>
-#include <string>
 #include "core2/scene/node/Group.hpp"
 #include "core/Window.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "app/Button.hpp"
 #include "RootBoundary.hpp"
+#include "loka/core/String.hpp"
 
 namespace helloworld
 {
@@ -43,27 +42,27 @@ namespace helloworld
       {
         return;
       }
-      declara::core::scene::BoundState<std::string> &message = this->boundary_->messageState();
-      const std::string current = message.get();
-      if (current == "Hello, Loka!")
+      declara::core::scene::BoundState<loka::core::String> &message = this->boundary_->messageState();
+      const loka::core::String current = message.get();
+      if (current.equals(loka::core::String::Literal("Hello, Loka!")))
       {
-        message.set("Loka says hi!");
+        message.set(loka::core::String::Literal("Loka says hi!"));
       }
       else
       {
-        message.set("Hello, Loka!");
+        message.set(loka::core::String::Literal("Hello, Loka!"));
       }
 
       StateTrackerGuard _(ctx->window()->getTracker());
-      MutableState<std::string> &titleState = ctx->window()->titleState();
-      const std::string title = titleState.get();
-      if (title == "LokaSample")
+      MutableState<loka::core::String> &titleState = ctx->window()->titleState();
+      const loka::core::String title = titleState.get();
+      if (title.equals(loka::core::String::Literal("LokaSample")))
       {
-        titleState.set("LokaSample*");
+        titleState.set(loka::core::String::Literal("LokaSample*"));
       }
       else
       {
-        titleState.set("LokaSample");
+        titleState.set(loka::core::String::Literal("LokaSample"));
       }
     }
 

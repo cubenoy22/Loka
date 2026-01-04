@@ -1,6 +1,7 @@
 #include "Win32TextContext.hpp"
 #include "app/Text.hpp"
 #include "core/State.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, declara::app::TextNode *node)
     : node_(node), hwnd_(NULL), textState_(0)
@@ -38,7 +39,7 @@ void Win32TextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<std::string> *>(node_->props.text_);
+  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32TextContext::TextChangedThunk, this, true);
@@ -60,7 +61,11 @@ void Win32TextContext::applyText()
   {
     return;
   }
-  SetWindowTextA(hwnd_, textState_->get().c_str());
+  std::string utf8;
+  if (loka::platform::CollectUtf8(textState_->get(), utf8))
+  {
+    SetWindowTextA(hwnd_, utf8.c_str());
+  }
 }
 
 void Win32TextContext::TextChangedThunk(void *userData)

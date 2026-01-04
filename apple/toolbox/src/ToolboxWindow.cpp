@@ -2,6 +2,8 @@
 
 #include <cstring>
 #include <string>
+#include "loka/core/String.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 namespace
 {
@@ -23,7 +25,16 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context,
   Rect bounds;
   SetRect(&bounds, 60, 60, 420, 300);
 
-  std::string title = this->titleState().get().empty() ? "Declara" : this->titleState().get();
+  loka::core::String titleValue = this->titleState().get();
+  if (titleValue.empty())
+  {
+    titleValue = loka::core::String::Literal("Loka");
+  }
+  std::string title;
+  if (!loka::platform::CollectUtf8(titleValue, title))
+  {
+    title = "Loka";
+  }
   Str255 titleStr;
   CopyToPascalString(title, titleStr);
 

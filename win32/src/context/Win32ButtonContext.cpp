@@ -1,6 +1,7 @@
 #include "Win32ButtonContext.hpp"
 #include "app/Button.hpp"
 #include "core/State.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int height, declara::app::ButtonNode *node)
     : node_(node),
@@ -48,7 +49,7 @@ void Win32ButtonContext::bindText()
 {
   if (!node_)
     return;
-  textState_ = static_cast<State<std::string> *>(node_->props.text_);
+  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32ButtonContext::TextChangedThunk, this, true);
@@ -70,7 +71,11 @@ void Win32ButtonContext::applyText()
   {
     return;
   }
-  SetWindowTextA(hwnd_, textState_->get().c_str());
+  std::string utf8;
+  if (loka::platform::CollectUtf8(textState_->get(), utf8))
+  {
+    SetWindowTextA(hwnd_, utf8.c_str());
+  }
 }
 
 void Win32ButtonContext::TextChangedThunk(void *userData)

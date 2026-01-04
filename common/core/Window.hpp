@@ -1,13 +1,13 @@
 #ifndef LOKA_WINDOW_HPP
 #define LOKA_WINDOW_HPP
 
-#include <string>
 #include "State.hpp"
 #include "core/StateTracker.hpp"
 #include "core/AppComponent.hpp"
 #include "core/SceneManager2.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core2/scene/Node.hpp"
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -24,9 +24,9 @@ class PlatformContext;
 
 struct WindowProps
 {
-  MutableState<std::string> *titleStatePtr;
+  MutableState<loka::core::String> *titleStatePtr;
   MutableState<bool> *visibilityStatePtr;
-  std::string initialTitle;
+  loka::core::String initialTitle;
   bool initialVisibility;
   bool hasInitialTitle;
   bool hasInitialVisibility;
@@ -36,7 +36,7 @@ struct WindowProps
   WindowProps()
       : titleStatePtr(0),
         visibilityStatePtr(0),
-        initialTitle(""),
+        initialTitle(),
         initialVisibility(true),
         hasInitialTitle(false),
         hasInitialVisibility(false),
@@ -95,11 +95,16 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &title(const std::string &t)
+  WindowProps &title(const loka::core::String &t)
   {
     initialTitle = t;
     hasInitialTitle = true;
     return *this;
+  }
+
+  WindowProps &title(const char *t)
+  {
+    return title(loka::core::String::Literal(t));
   }
 
   WindowProps &visible(bool v)
@@ -109,7 +114,7 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &titleState(MutableState<std::string> *state)
+  WindowProps &titleState(MutableState<loka::core::String> *state)
   {
     titleStatePtr = state;
     return *this;
@@ -150,7 +155,7 @@ class Window : public AppComponent
 public:
   Window(PlatformContext *context, const WindowProps &props = WindowProps())
       : context_(context),
-        titleStorage_(""),
+        titleStorage_(),
         visibilityStorage_(true),
         title_(&titleStorage_),
         visibility_(&visibilityStorage_),
@@ -186,7 +191,7 @@ public:
   SceneManager2 *sceneManager() { return &sceneManager_; }
 
   MutableState<bool> &visibilityState() { return *visibility_; }
-  MutableState<std::string> &titleState() { return *title_; }
+  MutableState<loka::core::String> &titleState() { return *title_; }
 
   declara::core::StateTracker *getTracker() const { return tracker_; }
 
@@ -200,9 +205,9 @@ protected:
   PlatformContext *context_;
   declara::core::StateTracker *tracker_;
   SceneManager2 sceneManager_;
-  MutableState<std::string> titleStorage_;
+  MutableState<loka::core::String> titleStorage_;
   MutableState<bool> visibilityStorage_;
-  MutableState<std::string> *title_;
+  MutableState<loka::core::String> *title_;
   MutableState<bool> *visibility_;
   declara::core::scene::Scene *initialScene_;
 };

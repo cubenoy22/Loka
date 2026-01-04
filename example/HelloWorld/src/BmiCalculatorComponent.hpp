@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include "core2/scene/BoundState.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "loka/core/String.hpp"
+#include "loka/platform/StringUTF8.hpp"
 #include "core2/scene/node/Group.hpp"
 #include "app/EditText.hpp"
 #include "app/Text.hpp"
@@ -31,9 +33,9 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      heightInput_ = c.useState<std::string>("170.0");
-      weightInput_ = c.useState<std::string>("60.0");
-      bmiResult_ = c.useState<std::string>("BMI: --");
+      heightInput_ = c.useState<loka::core::String>(loka::core::String::Literal("170.0"));
+      weightInput_ = c.useState<loka::core::String>(loka::core::String::Literal("60.0"));
+      bmiResult_ = c.useState<loka::core::String>(loka::core::String::Literal("BMI: --"));
       heightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
       weightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
       updateBmi();
@@ -53,9 +55,14 @@ namespace helloworld
     }
 
   private:
-    static double parseDouble(const std::string &value)
+    static double parseDouble(const loka::core::String &value)
     {
-      const char *start = value.c_str();
+      std::string utf8;
+      if (!loka::platform::CollectUtf8(value, utf8))
+      {
+        return 0.0;
+      }
+      const char *start = utf8.c_str();
       char *endPtr = 0;
       double parsed = std::strtod(start, &endPtr);
       if (endPtr == start)
@@ -83,7 +90,7 @@ namespace helloworld
       }
       double heightCm = parseDouble(heightInput_.get());
       double weightKg = parseDouble(weightInput_.get());
-      std::string label("BMI: --");
+      loka::core::String label = loka::core::String::Literal("BMI: --");
       if (heightCm > 0.0 && weightKg > 0.0)
       {
         double heightM = heightCm / 100.0;
@@ -91,17 +98,17 @@ namespace helloworld
         {
           double bmi = weightKg / (heightM * heightM);
           char buf[64];
-          std::sprintf(buf, "BMI: %.2f", bmi);
-          label = buf;
+          std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
+          label = loka::core::String(std::string(buf));
         }
       }
       StateTrackerGuard _(ctx->boundary()->tracker());
       bmiResult_.set(label, true);
     }
 
-    declara::core::scene::BoundState<std::string> heightInput_;
-    declara::core::scene::BoundState<std::string> weightInput_;
-    declara::core::scene::BoundState<std::string> bmiResult_;
+    declara::core::scene::BoundState<loka::core::String> heightInput_;
+    declara::core::scene::BoundState<loka::core::String> weightInput_;
+    declara::core::scene::BoundState<loka::core::String> bmiResult_;
   };
 
   inline declara::core::scene::NodeDefinition<BmiCalculatorProps, BmiCalculatorNode> BmiCalculator()

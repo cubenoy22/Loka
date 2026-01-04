@@ -3,6 +3,7 @@
 
 #include "core2/scene/NativeNodeContext.hpp"
 #include "core/State.hpp"
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -31,7 +32,7 @@ private:
   declara::app::EditTextNode *node_;
   void *field_;
   void *delegate_;
-  State<std::string> *textState_;
+  State<loka::core::String> *textState_;
   bool applyingFromState_;
   bool updatingFromControl_;
 };

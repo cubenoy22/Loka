@@ -3,6 +3,7 @@
 
 #include "core2/scene/NativeNodeContext.hpp"
 #include "core/State.hpp"
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -26,7 +27,7 @@ private:
 
   declara::app::TextNode *node_;
   void *label_;
-  State<std::string> *textState_;
+  State<loka::core::String> *textState_;
 };
 
 #endif // LOKA_MAC_TEXT_CONTEXT_HPP

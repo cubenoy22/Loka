@@ -3,6 +3,7 @@
 
 #include "core2/scene/NativeNodeContext.hpp"
 #include "core/State.hpp"
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -29,7 +30,7 @@ private:
   declara::app::ButtonNode *node_;
   void *button_;
   void *target_;
-  State<std::string> *textState_;
+  State<loka::core::String> *textState_;
 };
 
 #endif // LOKA_MAC_BUTTON_CONTEXT_HPP

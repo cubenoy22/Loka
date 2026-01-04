@@ -3,6 +3,7 @@
 #include <AppKit/AppKit.h>
 #include "app/EditText.hpp"
 #include "core/State.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 @interface DeclaraTextFieldDelegate : NSObject <NSTextFieldDelegate>
 @property(nonatomic, assign) MacEditTextContext *owner;
@@ -79,7 +80,7 @@ void MacEditTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<std::string> *>(node_->props.text_);
+  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->deferBind(&MacEditTextContext::TextChangedThunk, this);
@@ -107,7 +108,11 @@ void MacEditTextContext::applyText()
   {
     return;
   }
-  const std::string &desired = textState_->get();
+  std::string desired;
+  if (!loka::platform::CollectUtf8(textState_->get(), desired))
+  {
+    desired.clear();
+  }
   std::string current = declara::macos::Utf8FromNSString([field stringValue]);
   if (current == desired)
   {
@@ -125,13 +130,14 @@ void MacEditTextContext::syncStateFromControl()
   {
     return;
   }
-  MutableState<std::string> *mutableState = dynamic_cast<MutableState<std::string> *>(textState_);
+  MutableState<loka::core::String> *mutableState = dynamic_cast<MutableState<loka::core::String> *>(textState_);
   if (!mutableState)
   {
     return;
   }
   updatingFromControl_ = true;
-  mutableState->set(declara::macos::Utf8FromNSString([field stringValue]), true);
+  std::string utf8 = declara::macos::Utf8FromNSString([field stringValue]);
+  mutableState->set(loka::core::String(utf8), true);
   updatingFromControl_ = false;
 }
 

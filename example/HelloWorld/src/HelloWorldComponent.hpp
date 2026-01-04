@@ -1,9 +1,9 @@
 #ifndef LOKA_HELLOWORLD_COMPONENT_HPP
 #define LOKA_HELLOWORLD_COMPONENT_HPP
 
-#include <cassert>
 #include "core2/scene/node/Group.hpp"
 #include "core2/scene/BoundState.hpp"
+#include "loka/core/String.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "ChangeContextButton.hpp"
@@ -20,11 +20,11 @@ namespace helloworld
   public:
     HelloWorldProps props;
     HelloWorldNode(const HelloWorldProps &p)
-        : declara::core::scene::GroupNodeBase<HelloWorldProps>(HelloWorldProps(p)), props(p), message_(0) {}
+        : declara::core::scene::GroupNodeBase<HelloWorldProps>(HelloWorldProps(p)), props(p), message_() {}
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      message_ = c.useState<std::string>("Hello, Loka!");
+      message_ = c.useState<loka::core::String>(loka::core::String::Literal("Hello, Loka!"));
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
@@ -37,13 +37,13 @@ namespace helloworld
           << ChangeContextButtonNode());
     }
 
-    virtual declara::core::scene::BoundState<std::string> &messageState()
+    virtual declara::core::scene::BoundState<loka::core::String> &messageState()
     {
       return message_;
     }
 
   private:
-    declara::core::scene::BoundState<std::string> message_;
+    declara::core::scene::BoundState<loka::core::String> message_;
   };
 
   inline declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode> HelloWorld()

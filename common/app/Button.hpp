@@ -3,6 +3,7 @@
 
 #include <string>
 #include "core/State.hpp"
+#include "loka/core/String.hpp"
 #include "core2/scene/Node.hpp"
 
 namespace declara
@@ -21,7 +22,7 @@ namespace declara
     public:
       typedef ButtonTypeTag TypeTag;
       virtual ~IButtonProps() {}
-      virtual State<std::string> *getText() const = 0;
+      virtual State<loka::core::String> *getText() const = 0;
       virtual State<bool> *getEnabled() const = 0;
       virtual EmitterState *getOnClick() const = 0;
     };
@@ -30,23 +31,28 @@ namespace declara
     {
       typedef ButtonTypeTag TypeTag;
       typedef ButtonNode NodeType;
-      State<std::string> *text_;
+      State<loka::core::String> *text_;
       State<bool> *enabled_;
       EmitterState *onClick_;
       ButtonProps() : text_(0), enabled_(0), onClick_(0) {}
-      ButtonProps &text(State<std::string> *t)
+      ButtonProps &text(State<loka::core::String> *t)
       {
         this->text_ = t;
         return *this;
       }
       ButtonProps &text(const std::string &s)
       {
-        this->text_ = declara::core::StaticState<std::string>(s);
+        this->text_ = declara::core::StaticState<loka::core::String>(loka::core::String(s));
+        return *this;
+      }
+      ButtonProps &text(const loka::core::String &s)
+      {
+        this->text_ = declara::core::StaticState<loka::core::String>(s);
         return *this;
       }
       ButtonProps &text(const char *s)
       {
-        this->text_ = declara::core::StaticState<std::string>(std::string(s));
+        this->text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(s));
         return *this;
       }
       ButtonProps &enabled(State<bool> *e)
@@ -60,7 +66,7 @@ namespace declara
         return *this;
       }
       // --- IButtonProps 実装 ---
-      virtual State<std::string> *getText() const { return text_; }
+      virtual State<loka::core::String> *getText() const { return text_; }
       virtual State<bool> *getEnabled() const { return enabled_; }
       virtual EmitterState *getOnClick() const { return onClick_; }
       int hash() const
@@ -96,18 +102,18 @@ namespace declara
       ButtonDefinition(const ButtonProps &p) : NodeDefinition(p) {}
       ButtonDefinition(const char *text) : NodeDefinition()
       {
-        this->props.text_ = declara::core::StaticState<std::string>(std::string(text));
+        this->props.text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
       }
-      ButtonDefinition(State<std::string> *text) : NodeDefinition()
+      ButtonDefinition(State<loka::core::String> *text) : NodeDefinition()
       {
         this->props.text_ = text;
       }
       ButtonDefinition(const char *text, EmitterState *onClick) : NodeDefinition()
       {
-        this->props.text_ = declara::core::StaticState<std::string>(std::string(text));
+        this->props.text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
         this->props.onClick_ = onClick;
       }
-      ButtonDefinition(State<std::string> *text, EmitterState *onClick) : NodeDefinition()
+      ButtonDefinition(State<loka::core::String> *text, EmitterState *onClick) : NodeDefinition()
       {
         this->props.text_ = text;
         this->props.onClick_ = onClick;

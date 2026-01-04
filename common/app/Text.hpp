@@ -4,6 +4,7 @@
 #include <string>
 #include "core/State.hpp"
 #include "core2/scene/Node.hpp"
+#include "loka/core/String.hpp"
 
 namespace declara
 {
@@ -19,15 +20,19 @@ namespace declara
     {
       typedef TextTypeTag TypeTag;
       typedef TextNode NodeType;
-      State<std::string> *text_;
-      MutableState<std::string> ownedText;
+      State<loka::core::String> *text_;
+      MutableState<loka::core::String> ownedText;
       bool ownsText;
       TextProps() : text_(0), ownedText(), ownsText(false) {}
-      TextProps(const std::string &value) : text_(0), ownedText(value), ownsText(true)
+      TextProps(const std::string &value) : text_(0), ownedText(loka::core::String(value)), ownsText(true)
       {
         text_ = &ownedText;
       }
-      TextProps(State<std::string> *state) : text_(state), ownedText(), ownsText(false) {}
+      TextProps(State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false) {}
+      TextProps(const loka::core::String &value) : text_(0), ownedText(value), ownsText(true)
+      {
+        text_ = &ownedText;
+      }
       TextProps(const TextProps &other)
           : text_(other.text_), ownedText(other.ownedText), ownsText(other.ownsText)
       {
@@ -50,7 +55,7 @@ namespace declara
         }
         return *this;
       }
-      TextProps &text(State<std::string> *state)
+      TextProps &text(State<loka::core::String> *state)
       {
         this->text_ = state;
         ownsText = false;
@@ -58,14 +63,21 @@ namespace declara
       }
       TextProps &text(const std::string &value)
       {
-        ownedText = MutableState<std::string>(value);
+        ownedText = MutableState<loka::core::String>(loka::core::String(value));
+        this->text_ = &ownedText;
+        ownsText = true;
+        return *this;
+      }
+      TextProps &text(const loka::core::String &value)
+      {
+        ownedText = MutableState<loka::core::String>(value);
         this->text_ = &ownedText;
         ownsText = true;
         return *this;
       }
       TextProps &text(const char *value)
       {
-        return text(std::string(value));
+        return text(loka::core::String::Literal(value));
       }
       bool operator<(const core::scene::PropsBase &rhs) const
       {
@@ -92,7 +104,8 @@ namespace declara
       TextDefinition(const TextProps &p) : NodeDefinition(p) {}
       TextDefinition(const std::string &value) : NodeDefinition(TextProps(value)) {}
       TextDefinition(const char *value) : NodeDefinition(TextProps(value)) {}
-      TextDefinition(State<std::string> *state) : NodeDefinition(TextProps(state)) {}
+      TextDefinition(const loka::core::String &value) : NodeDefinition(TextProps(value)) {}
+      TextDefinition(State<loka::core::String> *state) : NodeDefinition(TextProps(state)) {}
     };
 
     typedef TextDefinition Text;

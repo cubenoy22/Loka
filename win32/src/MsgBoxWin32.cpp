@@ -1,5 +1,6 @@
 #include <windows.h>
 #include "app/MsgBox.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 namespace declara
 {
@@ -33,8 +34,10 @@ namespace declara
         break;
       }
 
-      const std::string &t = props.title->get();
-      const std::string &b = props.body->get();
+      std::string t;
+      std::string b;
+      loka::platform::CollectUtf8(props.title->get(), t);
+      loka::platform::CollectUtf8(props.body->get(), b);
       HWND hwnd = reinterpret_cast<HWND>(nativeWindowHandle);
       int res = MessageBoxA(hwnd ? hwnd : GetActiveWindow(), b.c_str(), t.c_str(), MB_OK | iconFlag);
       if (props.result)
@@ -45,4 +48,3 @@ namespace declara
     }
   } // namespace app
 } // namespace declara
-

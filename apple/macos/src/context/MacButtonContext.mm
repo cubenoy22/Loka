@@ -3,6 +3,7 @@
 #include <AppKit/AppKit.h>
 #include "app/Button.hpp"
 #include "core/State.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 
 @interface DeclaraButtonTarget : NSObject
@@ -76,7 +77,7 @@ void MacButtonContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<std::string> *>(node_->props.text_);
+  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->deferBind(&MacButtonContext::TextChangedThunk, this);
@@ -100,7 +101,11 @@ void MacButtonContext::applyText()
   {
     return;
   }
-  [button setTitle:declara::macos::CreateNSStringFromUtf8(textState_->get())];
+  std::string utf8;
+  if (loka::platform::CollectUtf8(textState_->get(), utf8))
+  {
+    [button setTitle:declara::macos::CreateNSStringFromUtf8(utf8)];
+  }
 }
 
 void MacButtonContext::TextChangedThunk(void *userData)

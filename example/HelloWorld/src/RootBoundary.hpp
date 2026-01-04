@@ -1,9 +1,9 @@
 #ifndef LOKA_HELLOWORLD_ROOT_BOUNDARY_HPP
 #define LOKA_HELLOWORLD_ROOT_BOUNDARY_HPP
 
-#include <string>
 #include "core/State.hpp"
 #include "core2/scene/BoundState.hpp"
+#include "loka/core/String.hpp"
 
 namespace helloworld
 {
@@ -11,7 +11,7 @@ namespace helloworld
   {
   public:
     virtual ~RootBoundary() {}
-    virtual declara::core::scene::BoundState<std::string> &messageState() = 0;
+    virtual declara::core::scene::BoundState<loka::core::String> &messageState() = 0;
   };
 } // namespace helloworld
 
