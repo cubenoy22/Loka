@@ -3,13 +3,8 @@
 
 #include <string>
 #include <cassert>
-#include <cstdio>
-#include <cstdlib>
 #include "core/State.hpp"
-#include "core/Window.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/node/Group.hpp"
-#include "core2/scene/node/Boundary.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
@@ -27,9 +22,6 @@ namespace helloworld
     MainNode(const MainProps &p)
         : declara::core::scene::GroupNodeBase<MainProps>(MainProps(p)),
           props(p),
-          heightInput_(0),
-          weightInput_(0),
-          bmiResult_(0),
           message_(0),
           toggleEvent_()
     {
@@ -38,14 +30,8 @@ namespace helloworld
 
     virtual void prepareNode(declara::core::scene::NodeComposition &c)
     {
-      heightInput_ = &c.useState<std::string>("170.0");
-      weightInput_ = &c.useState<std::string>("60.0");
-      bmiResult_ = &c.useState<std::string>("BMI: --");
       message_ = &c.useState<std::string>("Hello, Loka!");
-      heightInput_->bind(&MainNode::InputChangedThunk, this, false);
-      weightInput_->bind(&MainNode::InputChangedThunk, this, false);
       toggleEvent_.bind(&MainNode::ToggleMessageThunk, this, false);
-      updateBmi();
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
@@ -56,31 +42,10 @@ namespace helloworld
           << Text("Loka Sample")
           << Text(message_)
           << Button("Toggle Message", &toggleEvent_)
-          << BmiCalculator(c, BmiCalculatorProps(heightInput_, weightInput_, bmiResult_)));
+          << BmiCalculator());
     }
 
   private:
-    static double parseDouble(const std::string &value)
-    {
-      const char *start = value.c_str();
-      char *endPtr = 0;
-      double parsed = std::strtod(start, &endPtr);
-      if (endPtr == start)
-      {
-        return 0.0;
-      }
-      return parsed;
-    }
-
-    static void InputChangedThunk(void *userData)
-    {
-      MainNode *self = static_cast<MainNode *>(userData);
-      if (self)
-      {
-        self->updateBmi();
-      }
-    }
-
     static void ToggleMessageThunk(void *userData)
     {
       MainNode *self = static_cast<MainNode *>(userData);
@@ -121,29 +86,6 @@ namespace helloworld
       }
     }
 
-    void updateBmi()
-    {
-      double heightCm = parseDouble(heightInput_->get());
-      double weightKg = parseDouble(weightInput_->get());
-      std::string label("BMI: --");
-      if (heightCm > 0.0 && weightKg > 0.0)
-      {
-        double heightM = heightCm / 100.0;
-        if (heightM > 0.0)
-        {
-          double bmi = weightKg / (heightM * heightM);
-          char buf[64];
-          std::sprintf(buf, "BMI: %.2f", bmi);
-          label = buf;
-        }
-      }
-      StateTrackerGuard _(this->boundary()->tracker());
-      bmiResult_->set(label, true);
-    }
-
-    MutableState<std::string> *heightInput_;
-    MutableState<std::string> *weightInput_;
-    MutableState<std::string> *bmiResult_;
     MutableState<std::string> *message_;
     EmitterState toggleEvent_;
   };
