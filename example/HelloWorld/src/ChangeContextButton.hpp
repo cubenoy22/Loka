@@ -18,7 +18,7 @@ namespace helloworld
   {
   public:
     ChangeContextButton(const ChangeContextButtonProps &props)
-        : declara::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), window_(0), toggleEvent_() {}
+        : declara::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), toggleEvent_() {}
     virtual ~ChangeContextButton()
     {
     }
@@ -26,26 +26,20 @@ namespace helloworld
     virtual void prepareNode(declara::core::scene::NodeComposition &c)
     {
       this->boundary_ = c.findBoundary<HelloWorldBoundary>();
-      this->window_ = c.window();
       assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
-      assert(this->window_ && "ChangeContextButton requires a Window");
       this->toggleEvent_.bind(&ChangeContextButton::HandleToggleThunk, this, false);
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
       using namespace declara::app;
-      ButtonProps props;
-      props.text("Toggle Message");
-      props.onClick(&this->toggleEvent_);
-      c.declare(Button(props));
+      c.declare(Button("Toggle Message", &this->toggleEvent_));
     }
 
   private:
     void handleToggle()
     {
       assert(this->boundary_ && "ChangeContextButton requires HelloWorldBoundary");
-      assert(this->window_ && "ChangeContextButton requires a Window");
       const std::string current = this->boundary_->messageState().get();
       if (current == "Hello, Loka!")
       {
@@ -56,15 +50,15 @@ namespace helloworld
         this->boundary_->messageState().set("Hello, Loka!");
       }
 
-      StateTrackerGuard _(window_->getTracker());
-      const std::string title = window_->titleState().get();
+      StateTrackerGuard _(this->window()->getTracker());
+      const std::string title = this->window()->titleState().get();
       if (title == "LokaSample")
       {
-        window_->titleState().set("LokaSample*");
+        this->window()->titleState().set("LokaSample*");
       }
       else
       {
-        window_->titleState().set("LokaSample");
+        this->window()->titleState().set("LokaSample");
       }
     }
 
@@ -78,7 +72,6 @@ namespace helloworld
     }
 
     HelloWorldBoundary *boundary_;
-    Window *window_;
     declara::core::EmitterState toggleEvent_;
   };
 

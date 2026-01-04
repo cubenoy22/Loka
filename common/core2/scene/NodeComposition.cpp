@@ -53,23 +53,24 @@ namespace declara
 
       BoundaryNode *NodeComposition::boundary() const
       {
-        BoundaryNode *boundary = this->findBoundary<BoundaryNode>();
+        assert(context_ && "NodeComposition::boundary requires ComponentContext");
+        BoundaryNode *boundary = context_->boundary();
         assert(boundary && "NodeComposition::boundary requires BoundaryNode");
         return boundary;
       }
 
       Scene *NodeComposition::scene() const
       {
-        BoundaryNode *owner = boundary();
-        Scene *scene = owner ? owner->getScene() : 0;
+        assert(context_ && "NodeComposition::scene requires ComponentContext");
+        Scene *scene = context_->scene();
         assert(scene && "NodeComposition::scene requires Scene");
         return scene;
       }
 
       ::Window *NodeComposition::window() const
       {
-        Scene *scene = this->scene();
-        ::Window *window = scene ? scene->getWindow() : 0;
+        assert(context_ && "NodeComposition::window requires ComponentContext");
+        ::Window *window = context_->window();
         assert(window && "NodeComposition::window requires Window");
         return window;
       }

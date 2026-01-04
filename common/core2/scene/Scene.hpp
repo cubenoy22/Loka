@@ -196,6 +196,9 @@ namespace declara
           BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(rootNode_);
           assert(boundary && "Scene root must be a Boundary node");
           ComponentContext rootContext;
+          rootContext.setBoundary(boundary);
+          rootContext.setScene(this);
+          rootContext.setWindow(this->getWindow());
           boundary->compose(rootContext, event);
           platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL);
           composed_ = true;
@@ -213,6 +216,9 @@ namespace declara
             return;
           }
           ComponentContext rootContext;
+          rootContext.setBoundary(boundary);
+          rootContext.setScene(this);
+          rootContext.setWindow(this->getWindow());
           boundary->compose(rootContext, event);
         }
 

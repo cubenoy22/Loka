@@ -99,6 +99,10 @@ namespace declara
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);
           nodeContext.setStateOwner(parentContext.stateOwner());
+          nodeContext.setBoundary(nextBoundary);
+          Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
+          nodeContext.setScene(scene);
+          nodeContext.setWindow(scene ? scene->getWindow() : 0);
           if (composable)
           {
             composable->compose(nodeContext, event);

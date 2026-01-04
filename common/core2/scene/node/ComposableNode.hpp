@@ -8,12 +8,17 @@
 #include "../NodeComposition.hpp"
 #include "../StateOwner.hpp"
 
+class Window;
+
 namespace declara
 {
   namespace core
   {
     namespace scene
     {
+      class BoundaryNode;
+      class Scene;
+
       enum ContextPlacement
       {
         CONTEXT_PLACEMENT_BOUNDARY = 0,
@@ -24,7 +29,7 @@ namespace declara
       class ComposableNode : public NestableNode
       {
       public:
-        ComposableNode() : currentContext_(0) {}
+        ComposableNode() : currentContext_(0), cachedBoundary_(0), cachedScene_(0), cachedWindow_(0) {}
         virtual ~ComposableNode()
         {
           clearChildren();
@@ -33,6 +38,9 @@ namespace declara
         virtual void compose(ComponentContext &context, ComposeEvent event)
         {
           ContextScope scope(this, &context);
+          cachedBoundary_ = context.boundary();
+          cachedScene_ = context.scene();
+          cachedWindow_ = context.window();
           this->composeWithContext(context, event);
         }
 
@@ -46,6 +54,21 @@ namespace declara
         virtual void prepareNode(NodeComposition &c) { (void)c; }
 
         ComponentContext *componentContext() const { return currentContext_; }
+        BoundaryNode *boundary() const
+        {
+          assert(cachedBoundary_ && "ComposableNode::boundary requires BoundaryNode");
+          return cachedBoundary_;
+        }
+        Scene *scene() const
+        {
+          assert(cachedScene_ && "ComposableNode::scene requires Scene");
+          return cachedScene_;
+        }
+        ::Window *window() const
+        {
+          assert(cachedWindow_ && "ComposableNode::window requires Window");
+          return cachedWindow_;
+        }
 
         NodeComposition &beginComposition(ComponentContext &context)
         {
@@ -102,6 +125,9 @@ namespace declara
 
         ComponentContext *currentContext_;
         NodeComposition composition_;
+        BoundaryNode *cachedBoundary_;
+        Scene *cachedScene_;
+        ::Window *cachedWindow_;
       };
 
     } // namespace scene

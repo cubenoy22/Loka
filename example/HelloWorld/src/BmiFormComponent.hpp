@@ -31,8 +31,6 @@ namespace helloworld
           weightInput_(0),
           bmiResult_(0),
           message_(0),
-          boundary_(0),
-          window_(0),
           toggleEvent_()
     {
       // State is initialized lazily in composeNode via NodeComposition::useState.
@@ -44,10 +42,6 @@ namespace helloworld
       weightInput_ = &c.useState<std::string>("60.0");
       bmiResult_ = &c.useState<std::string>("BMI: --");
       message_ = &c.useState<std::string>("Hello, Loka!");
-      boundary_ = c.boundary();
-      window_ = c.window();
-      assert(boundary_ && "BmiFormNode requires a BoundaryNode");
-      assert(window_ && "BmiFormNode requires a Window");
       heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
@@ -108,23 +102,21 @@ namespace helloworld
         next = "Loka says hi!";
       }
       {
-        StateTrackerGuard _(boundary_->tracker());
+        StateTrackerGuard _(this->boundary()->tracker());
         message_->set(next, true);
       }
 
-      assert(boundary_ && "BmiFormNode toggleMessage requires a BoundaryNode");
-      assert(window_ && "BmiFormNode toggleMessage requires a Window");
       {
-        StateTrackerGuard _(window_->getTracker());
-        const std::string title = window_->titleState().get();
+        StateTrackerGuard _(this->window()->getTracker());
+        const std::string title = this->window()->titleState().get();
 
         if (title == "LokaSample")
         {
-          window_->titleState().set("LokaSample*");
+          this->window()->titleState().set("LokaSample*");
         }
         else
         {
-          window_->titleState().set("LokaSample");
+          this->window()->titleState().set("LokaSample");
         }
       }
     }
@@ -145,7 +137,7 @@ namespace helloworld
           label = buf;
         }
       }
-      StateTrackerGuard _(boundary_->tracker());
+      StateTrackerGuard _(this->boundary()->tracker());
       bmiResult_->set(label, true);
     }
 
@@ -153,8 +145,6 @@ namespace helloworld
     MutableState<std::string> *weightInput_;
     MutableState<std::string> *bmiResult_;
     MutableState<std::string> *message_;
-    declara::core::scene::BoundaryNode *boundary_;
-    Window *window_;
     EmitterState toggleEvent_;
   };
 
