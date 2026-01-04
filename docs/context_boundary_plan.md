@@ -42,12 +42,7 @@ void composeNode(NodeComposition& c) {
 4. **1MBで動く設計**: Classic Mac OS でも余裕で動くシンプルさ
 
 ## TODO
-- [x] BoundaryNode 導入、StateTracker 所有
-- [x] useState 実装（Tracker自動登録）
-- [x] ContextDefinition/ComponentContext 廃止、findBoundary に集約
-- [x] Scene: 非Boundaryルートの自動ラップ (RootBoundaryWrapper)
-- [x] DSL命名整理 (Boundary/Group)
-- [ ] Window close request を Scene/Root に委譲
+このドキュメントの TODO は `docs/TODO.md` に集約済み。
 
 ## Notes
 - findBoundary は compose の親子順に依存（親が先に compose される前提）。

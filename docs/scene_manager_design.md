@@ -64,10 +64,7 @@
 
 ## 5. 今後の ToDo（優先度順）
 
-1. `SceneManager2::swapScene` で `SceneLifecycle` State を `ON_DETACH` / `ON_ATTACH` / `ON_DESTROY` へ更新し、`Scene` 側が subscribe できるようにする。
-2. `Window::mount()`（Solid-mode）実装時に `SceneManager2` を差し替えやすいよう、`Scene*` ではなく `CompositeNode`/`NodeComposition` を持てるよう API を見直す。
-3. 保存ダイアログや確認ダイアログを統合するための `requestDiscard` プロトコルを `EmitterState` ベースで再定義。
-4. `SceneManager2` の単体テストを `tests/SceneTests.hpp` 相当の場所に追加し、`pendingTransactions_` の挙動や Tracker 連携を自動検証する。
+このセクションの TODO は `docs/TODO.md` に集約済み。
 
 ---
 

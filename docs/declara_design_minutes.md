@@ -227,13 +227,7 @@ struct NodeDefinition : public NodeDefinitionBase {
 
 ### TODO（最小で実用的にする）
 
-- Managed<T> の循環参照パターンの整理（必要なら Group/Weak 的な仕組みで一方向参照を徹底）
-- Headless/Loader コンポーネントは ErrorSink を依存として要求し、プラットフォーム差異なくエラー経路を統一
-- ConditionalDefinition/ConditionalNode の本実装（コンストラクタ/compose/更新）と `NodeComposition::conditional` のデフォルト false ケース用 Empty 定義
-- MutableState の通知タイミングを micro-tick 終端に揃える（`PushStateTracker::end()` 後に副作用を集約）か、現行の即時通知を仕様として明記
-- DerivedState::EvalFn の所有/破棄ポリシー（リーク防止）と依存登録の再考（動的依存差し替えが必要なら API を追加）
-- Node.dirty と IPlatformController::synchronize の結線（差分更新での再描画/レイアウト経路を確定）
-- Scene.lifecycle_ の書き込み場所を決定（SceneManager2 で ON_ATTACH/ON_DETACH をセットするか、ライフサイクルイベントを無効化と明記）
+このセクションの TODO は `docs/TODO.md` に集約済み。
 
 ---
 
@@ -276,9 +270,7 @@ struct NodeDefinition : public NodeDefinitionBase {
   4. `ErrorEvent` へ `std::vector<std::string> tags` を含め、Headless コンポーネントは `"bmi-card.image-loader"` のようなタグを付与。親 Sink が必要に応じてタグにマッチするものだけを再掲示したり、デバッグログへ振り分けたりできる。
 
 - TODO:
-  - `ErrorSink` の API スケッチ（push / tryPop / bindNewEvent など）をヘッダ化。
-- `ImageLoader` 実装時に最初の Producer を追加し、Sink へエラーを送るフローを実証。
-- Sink と `StateTracker` の整合（push 時に `StateTracker::defer()` を使い、micro-tick 末尾で UI 通知するか？）を決める。
+  - このセクションの TODO は `docs/TODO.md` に集約済み。
 
 ---
 
