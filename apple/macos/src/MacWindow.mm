@@ -40,6 +40,15 @@
     self.owner->handleWindowDidResize();
   }
 }
+
+- (void)windowDidBecomeKey:(NSNotification *)notification
+{
+  (void)notification;
+  if (self.owner)
+  {
+    self.owner->handleWindowDidBecomeKey();
+  }
+}
 @end
 
 MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
@@ -67,6 +76,15 @@ MacWindow::~MacWindow()
   }
   window_ = 0;
   contentView_ = 0;
+}
+
+void MacWindow::setApp(App *app)
+{
+  app_ = app;
+  if (app_)
+  {
+    app_->setActiveWindow(this);
+  }
 }
 
 void MacWindow::VisibilityChangedThunk(void *userData)
@@ -220,6 +238,14 @@ void MacWindow::handleWindowDidResize()
   NSView *view = (__bridge NSView *)contentView_;
   NSRect bounds = [view bounds];
   scenePlatformController_->relayout(static_cast<int>(bounds.size.width), static_cast<int>(bounds.size.height));
+}
+
+void MacWindow::handleWindowDidBecomeKey()
+{
+  if (app_)
+  {
+    app_->setActiveWindow(this);
+  }
 }
 
 void MacWindow::mountScene()

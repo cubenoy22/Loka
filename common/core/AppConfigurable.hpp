@@ -5,6 +5,14 @@
 class AppComposition;
 class PlatformContext;
 
+namespace declara
+{
+  namespace app
+  {
+    class MenuComposition;
+  }
+}
+
 class AppConfigurable
 {
 protected:
@@ -13,6 +21,7 @@ protected:
 public:
   AppConfigurable(PlatformContext *ctx) : ctx_(ctx) {}
   virtual void compose(AppComposition &c) = 0;
+  virtual void composeMenu(declara::app::MenuComposition &c) {}
   virtual PlatformContext *getPlatformContext() const { return ctx_; }
   virtual ~AppConfigurable() {}
 };

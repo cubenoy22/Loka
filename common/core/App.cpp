@@ -7,7 +7,7 @@
 #include <algorithm>
 
 App::App(AppConfigurable *config)
-    : group_(0), quitWhenLastWindowClosed_(true), config_(config)
+    : group_(0), quitWhenLastWindowClosed_(true), config_(config), menuBar_(0), activeWindow_(0)
 {
 }
 
@@ -15,6 +15,7 @@ App::~App()
 {
   // グループの解放（ウィンドウ含む）
   delete group_;
+  delete menuBar_;
 }
 
 void App::run()
@@ -23,6 +24,13 @@ void App::run()
   {
     AppComposition composition(config_->getPlatformContext());
     config_->compose(composition);
+    declara::app::MenuBarDefinition menuBar;
+    declara::app::MenuComposition menuComposition(&menuBar);
+    config_->composeMenu(menuComposition);
+    if (!menuBar.empty())
+    {
+      setDefaultMenuBar(menuBar.clone());
+    }
     group_ = new ComponentGroup<AppComponent>(composition.build());
   }
   reflectInitialVisibilityChunks();
@@ -64,4 +72,49 @@ void App::windowClosed(Window *window)
   {
     this->quit(); // プラットフォーム固有の終了処理を呼び出す
   }
+}
+
+bool App::handleMenuCommand(int commandId, Window *window)
+{
+  (void)commandId;
+  (void)window;
+  return false;
+}
+
+void App::setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar)
+{
+  if (menuBar_)
+  {
+    delete menuBar_;
+    menuBar_ = 0;
+  }
+  if (menuBar)
+  {
+    menuBar_ = menuBar->clone();
+  }
+  applyMenuBar(activeWindow_);
+}
+
+const declara::app::MenuBarDefinition *App::resolveMenuBar(Window *window) const
+{
+  if (window && window->menuBar())
+  {
+    return window->menuBar();
+  }
+  return menuBar_;
+}
+
+void App::setActiveWindow(Window *window)
+{
+  if (activeWindow_ == window)
+  {
+    return;
+  }
+  activeWindow_ = window;
+  applyMenuBar(activeWindow_);
+}
+
+void App::applyMenuBar(Window *activeWindow)
+{
+  (void)activeWindow;
 }

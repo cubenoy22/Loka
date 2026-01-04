@@ -7,6 +7,7 @@
 #include "core/SceneManager2.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core2/scene/Node.hpp"
+#include "app/Menu.hpp"
 #include "loka/core/String.hpp"
 
 namespace declara
@@ -32,6 +33,7 @@ struct WindowProps
   bool hasInitialVisibility;
   declara::core::scene::Scene *initialScene;
   declara::core::scene::NodeDefinitionBase *rootDefinition;
+  declara::app::MenuBarDefinition *menuBarDefinition;
 
   WindowProps()
       : titleStatePtr(0),
@@ -41,7 +43,8 @@ struct WindowProps
         hasInitialTitle(false),
         hasInitialVisibility(false),
         initialScene(0),
-        rootDefinition(0)
+        rootDefinition(0),
+        menuBarDefinition(0)
   {
   }
 
@@ -53,11 +56,16 @@ struct WindowProps
         hasInitialTitle(rhs.hasInitialTitle),
         hasInitialVisibility(rhs.hasInitialVisibility),
         initialScene(rhs.initialScene),
-        rootDefinition(0)
+        rootDefinition(0),
+        menuBarDefinition(0)
   {
     if (rhs.rootDefinition)
     {
       rootDefinition = rhs.rootDefinition->clone();
+    }
+    if (rhs.menuBarDefinition)
+    {
+      menuBarDefinition = rhs.menuBarDefinition->clone();
     }
   }
 
@@ -67,6 +75,11 @@ struct WindowProps
     {
       delete rootDefinition;
       rootDefinition = 0;
+    }
+    if (menuBarDefinition)
+    {
+      delete menuBarDefinition;
+      menuBarDefinition = 0;
     }
   }
 
@@ -91,6 +104,15 @@ struct WindowProps
     if (rhs.rootDefinition)
     {
       rootDefinition = rhs.rootDefinition->clone();
+    }
+    if (menuBarDefinition)
+    {
+      delete menuBarDefinition;
+      menuBarDefinition = 0;
+    }
+    if (rhs.menuBarDefinition)
+    {
+      menuBarDefinition = rhs.menuBarDefinition->clone();
     }
     return *this;
   }
@@ -148,6 +170,17 @@ struct WindowProps
     initialScene = 0;
     return *this;
   }
+
+  WindowProps &menuBar(const declara::app::MenuBarDefinition &bar)
+  {
+    if (menuBarDefinition)
+    {
+      delete menuBarDefinition;
+      menuBarDefinition = 0;
+    }
+    menuBarDefinition = bar.clone();
+    return *this;
+  }
 };
 
 class Window : public AppComponent
@@ -159,7 +192,8 @@ public:
         visibilityStorage_(true),
         title_(&titleStorage_),
         visibility_(&visibilityStorage_),
-        initialScene_(props.initialScene)
+        initialScene_(props.initialScene),
+        menuBarDefinition_(0)
   {
     if (props.titleStatePtr)
     {
@@ -178,13 +212,24 @@ public:
     {
       visibility_->set(props.initialVisibility);
     }
+    if (props.menuBarDefinition)
+    {
+      menuBarDefinition_ = props.menuBarDefinition->clone();
+    }
     sceneManager_.setWindow(this);
     if (initialScene_)
     {
       sceneManager_.commitTransaction(0, initialScene_);
     }
   }
-  virtual ~Window() {}
+  virtual ~Window()
+  {
+    if (menuBarDefinition_)
+    {
+      delete menuBarDefinition_;
+      menuBarDefinition_ = 0;
+    }
+  }
 
   PlatformContext *context() const { return context_; }
   declara::core::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
@@ -192,6 +237,7 @@ public:
 
   MutableState<bool> &visibilityState() { return *visibility_; }
   MutableState<loka::core::String> &titleState() { return *title_; }
+  const declara::app::MenuBarDefinition *menuBar() const { return menuBarDefinition_; }
 
   declara::core::StateTracker *getTracker() const { return tracker_; }
 
@@ -210,6 +256,7 @@ protected:
   MutableState<loka::core::String> *title_;
   MutableState<bool> *visibility_;
   declara::core::scene::Scene *initialScene_;
+  declara::app::MenuBarDefinition *menuBarDefinition_;
 };
 
 #endif // LOKA_WINDOW_HPP

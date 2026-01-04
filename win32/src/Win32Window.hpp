@@ -29,7 +29,8 @@ public:
   virtual ~Win32Window();
 
   // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
-  void setApp(App *app) { app_ = app; }
+  void setApp(App *app);
+  HWND hwnd() const { return hwnd_; }
 
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

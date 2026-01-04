@@ -65,11 +65,11 @@ namespace declara
       virtual EmitterState *getOnClick() const { return onClick_; }
       int hash() const
       {
-        int h = 17;
-        h = h * 31 + (int)(long)text_;
-        h = h * 31 + (int)(long)enabled_;
-        h = h * 31 + (int)(long)onClick_;
-        return h;
+        std::size_t h = 17;
+        h = h * 31 + reinterpret_cast<std::size_t>(text_);
+        h = h * 31 + reinterpret_cast<std::size_t>(enabled_);
+        h = h * 31 + reinterpret_cast<std::size_t>(onClick_);
+        return static_cast<int>(h);
       }
       bool operator<(const declara::core::scene::PropsBase &rhs) const
       {

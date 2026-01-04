@@ -23,13 +23,14 @@ public:
   MacWindow(PlatformContext *context, const WindowProps &props);
   virtual ~MacWindow();
 
-  void setApp(App *app) { app_ = app; }
+  void setApp(App *app);
 
   virtual void onShow();
   virtual void onHide();
 
   void handleWindowWillClose();
   void handleWindowDidResize();
+  void handleWindowDidBecomeKey();
 
 protected:
   virtual void onCreate();

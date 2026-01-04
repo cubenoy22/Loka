@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <string>
+#include "core/App.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -53,6 +54,10 @@ ToolboxWindow::~ToolboxWindow()
 void ToolboxWindow::setApp(App *app)
 {
   app_ = app;
+  if (app_)
+  {
+    app_->setActiveWindow(this);
+  }
 }
 
 void ToolboxWindow::invalidateWindow()

@@ -2,14 +2,49 @@
 #include "MacWindow.hpp"
 #include <AppKit/AppKit.h>
 #include "core/AppComponent.hpp"
+#include "loka/platform/StringUTF8.hpp"
+
+@interface DeclaraMenuTarget : NSObject
+@property(nonatomic, assign) MacApp *owner;
+@end
+
+@implementation DeclaraMenuTarget
+- (void)handleMenuAction:(id)sender
+{
+  if (self.owner)
+  {
+    NSInteger tag = [sender tag];
+    self.owner->handleMenuCommand(static_cast<int>(tag));
+  }
+}
+@end
+
+namespace
+{
+  static NSString *MenuTitleFromString(const loka::core::String &title, const char *fallback)
+  {
+    std::string utf8;
+    if (loka::platform::CollectUtf8(title, utf8) && !utf8.empty())
+    {
+      return [NSString stringWithUTF8String:utf8.c_str()];
+    }
+    return [NSString stringWithUTF8String:fallback];
+  }
+}
 
 MacApp::MacApp(AppConfigurable *config)
-    : App(config)
+    : App(config), nextCommandId_(1), commands_(), bindings_(), menuTarget_(0)
 {
 }
 
 MacApp::~MacApp()
 {
+  clearMenuBindings();
+  if (menuTarget_)
+  {
+    CFRelease(menuTarget_);
+    menuTarget_ = 0;
+  }
 }
 
 void MacApp::run()
@@ -39,4 +74,204 @@ void MacApp::run()
 void MacApp::quit()
 {
   [NSApp terminate:nil];
+}
+
+void MacApp::handleMenuCommand(int commandId)
+{
+  for (size_t i = 0; i < commands_.size(); ++i)
+  {
+    if (commands_[i].commandId != commandId)
+      continue;
+    switch (commands_[i].action)
+    {
+    case declara::app::MENU_ACTION_ABOUT_APP:
+      [NSApp orderFrontStandardAboutPanel:nil];
+      return;
+    case declara::app::MENU_ACTION_SHOW_COLOR_PICKER:
+      [NSApp orderFrontColorPanel:nil];
+      return;
+    case declara::app::MENU_ACTION_QUIT_APP:
+      quit();
+      return;
+    case declara::app::MENU_ACTION_NONE:
+    default:
+      break;
+    }
+    if (commands_[i].emitter)
+    {
+      commands_[i].emitter->emit();
+    }
+    return;
+  }
+}
+
+static void MenuEnabledChangedThunk(void *userData)
+{
+  MacApp::MenuBinding *binding = static_cast<MacApp::MenuBinding *>(userData);
+  if (!binding || !binding->menuItem || !binding->enabledState)
+    return;
+  NSMenuItem *item = (__bridge NSMenuItem *)binding->menuItem;
+  [item setEnabled:binding->enabledState->get()];
+}
+
+void MacApp::clearMenuBindings()
+{
+  for (size_t i = 0; i < bindings_.size(); ++i)
+  {
+    MenuBinding *binding = bindings_[i];
+    if (binding && binding->enabledState)
+    {
+      binding->enabledState->deferUnbind(&MenuEnabledChangedThunk, binding);
+    }
+    delete binding;
+  }
+  bindings_.clear();
+  commands_.clear();
+  nextCommandId_ = 1;
+}
+
+static NSString *MenuShortcutForAction(const declara::app::MenuItemDefinition *itemDef)
+{
+  if (!itemDef)
+    return @"";
+  if (itemDef->hasShortcut && itemDef->shortcutKey)
+  {
+    char buf[2] = {itemDef->shortcutKey, 0};
+    return [NSString stringWithUTF8String:buf];
+  }
+  switch (itemDef->action)
+  {
+  case declara::app::MENU_ACTION_QUIT_APP:
+    return @"q";
+  default:
+    return @"";
+  }
+}
+
+static std::size_t BuildMenuItems(NSMenu *menu,
+                                  const std::vector<declara::app::MenuItemDefinition *> &items,
+                                  DeclaraMenuTarget *target,
+                                  std::vector<MacApp::MenuCommand> &commands,
+                                  std::vector<MacApp::MenuBinding *> &bindings,
+                                  int &nextCommandId,
+                                  bool allowQuit)
+{
+  std::size_t added = 0;
+  for (size_t i = 0; i < items.size(); ++i)
+  {
+    const declara::app::MenuItemDefinition *itemDef = items[i];
+    if (!itemDef)
+      continue;
+    if (!allowQuit && itemDef->action == declara::app::MENU_ACTION_QUIT_APP)
+      continue;
+    if (itemDef->isSeparator)
+    {
+      [menu addItem:[NSMenuItem separatorItem]];
+      ++added;
+      continue;
+    }
+
+    NSString *title = MenuTitleFromString(itemDef->title, "Menu Item");
+    NSString *shortcut = MenuShortcutForAction(itemDef);
+    NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:shortcut];
+
+    if (itemDef->hasChildren())
+    {
+      NSMenu *subMenu = [[NSMenu alloc] initWithTitle:title];
+      if (BuildMenuItems(subMenu, itemDef->children, target, commands, bindings, nextCommandId, allowQuit) == 0)
+      {
+        continue;
+      }
+      [menuItem setSubmenu:subMenu];
+    }
+    else
+    {
+      [menuItem setTarget:target];
+      [menuItem setAction:@selector(handleMenuAction:)];
+      int commandId = nextCommandId++;
+      [menuItem setTag:commandId];
+      MacApp::MenuCommand command;
+      command.commandId = commandId;
+      command.action = itemDef->action;
+      command.emitter = itemDef->onClickState;
+      commands.push_back(command);
+    }
+
+    if (itemDef->enabledState)
+    {
+      [menuItem setEnabled:itemDef->enabledState->get()];
+      MacApp::MenuBinding *binding = new MacApp::MenuBinding();
+      binding->menuItem = (__bridge void *)menuItem;
+      binding->enabledState = itemDef->enabledState;
+      itemDef->enabledState->deferBind(&MenuEnabledChangedThunk, binding);
+      bindings.push_back(binding);
+    }
+
+    [menu addItem:menuItem];
+    ++added;
+  }
+  return added;
+}
+
+void MacApp::applyMenuBar(Window *activeWindow)
+{
+  clearMenuBindings();
+  const declara::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
+  if (!menuBar)
+  {
+    return;
+  }
+
+  bool hasAppMenu = false;
+  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  {
+    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
+    if (menuDef && menuDef->isAppMenu)
+    {
+      hasAppMenu = true;
+      break;
+    }
+  }
+
+  DeclaraMenuTarget *target = nil;
+  if (menuTarget_)
+  {
+    target = (__bridge DeclaraMenuTarget *)menuTarget_;
+  }
+  else
+  {
+    DeclaraMenuTarget *created = [[DeclaraMenuTarget alloc] init];
+    created.owner = this;
+    menuTarget_ = (__bridge_retained void *)created;
+    target = created;
+  }
+
+  NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@""];
+  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  {
+    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
+    if (!menuDef)
+      continue;
+    const char *fallback = menuDef->isAppMenu ? "Loka" : "Menu";
+    NSString *menuTitle = MenuTitleFromString(menuDef->title, fallback);
+    NSMenu *subMenu = [[NSMenu alloc] initWithTitle:menuTitle];
+    bool allowQuit = !menuDef->isAppMenu;
+    if (menuDef->isAppMenu)
+    {
+      allowQuit = true;
+    }
+    else if (hasAppMenu)
+    {
+      allowQuit = false;
+    }
+    if (BuildMenuItems(subMenu, menuDef->items, target, commands_, bindings_, nextCommandId_, allowQuit) == 0)
+    {
+      continue;
+    }
+
+    NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle:menuTitle action:nil keyEquivalent:@""];
+    [menuItem setSubmenu:subMenu];
+    [mainMenu addItem:menuItem];
+  }
+  [NSApp setMainMenu:mainMenu];
 }

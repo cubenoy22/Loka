@@ -32,6 +32,15 @@ Win32Window::~Win32Window()
   teardownScene();
 }
 
+void Win32Window::setApp(App *app)
+{
+  app_ = app;
+  if (app_ && hwnd_)
+  {
+    app_->setActiveWindow(this);
+  }
+}
+
 // static thunk for State<bool>::OnChangeFn
 void Win32Window::VisibilityChangedThunk(void *userData)
 {
@@ -115,6 +124,12 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         return 0;
       }
       break;
+    case WM_ACTIVATE:
+      if (self->app_ && LOWORD(wParam) != WA_INACTIVE)
+      {
+        self->app_->setActiveWindow(static_cast<Window *>(self));
+      }
+      break;
     case WM_SIZE:
       if (self->scenePlatformController_)
       {
@@ -176,6 +191,10 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
+    if (this->app_)
+    {
+      this->app_->setActiveWindow(this);
+    }
     TitleChangedThunk(this);
     UpdateWindow(hwnd);
     this->onCreate();
@@ -244,6 +263,14 @@ void Win32Window::teardownScene()
 
 bool Win32Window::handleCommand(WPARAM wParam, LPARAM lParam)
 {
+  if (app_ && lParam == 0)
+  {
+    int commandId = LOWORD(wParam);
+    if (app_->handleMenuCommand(commandId, this))
+    {
+      return true;
+    }
+  }
   if (!scenePlatformController_)
   {
     return false;
