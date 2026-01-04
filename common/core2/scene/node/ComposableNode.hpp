@@ -42,6 +42,12 @@ namespace declara
           cachedScene_ = context.scene();
           cachedWindow_ = context.window();
           this->composeWithContext(context, event);
+          if (event == COMPOSE_EVENT_DETACH)
+          {
+            cachedBoundary_ = 0;
+            cachedScene_ = 0;
+            cachedWindow_ = 0;
+          }
         }
 
         virtual void compose(ComponentContext &context)
