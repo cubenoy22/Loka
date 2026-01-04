@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include "core2/scene/node/Group.hpp"
+#include "core2/scene/BoundState.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "ChangeContextButton.hpp"
@@ -23,7 +24,7 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      message_ = &c.useState<std::string>("Hello, Loka!");
+      message_ = c.useState<std::string>("Hello, Loka!");
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
@@ -36,13 +37,13 @@ namespace helloworld
           << ChangeContextButtonNode());
     }
 
-    virtual MutableState<std::string> &messageState()
+    virtual declara::core::scene::BoundState<std::string> &messageState()
     {
-      return *message_;
+      return message_;
     }
 
   private:
-    MutableState<std::string> *message_;
+    declara::core::scene::BoundState<std::string> message_;
   };
 
   inline declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode> HelloWorld()

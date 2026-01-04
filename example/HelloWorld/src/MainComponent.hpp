@@ -4,6 +4,7 @@
 #include <string>
 #include <cassert>
 #include "core/State.hpp"
+#include "core2/scene/BoundState.hpp"
 #include "core2/scene/node/Group.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
@@ -22,7 +23,7 @@ namespace helloworld
     MainNode(const MainProps &p)
         : declara::core::scene::GroupNodeBase<MainProps>(MainProps(p)),
           props(p),
-          message_(0),
+          message_(),
           toggleEvent_()
     {
       // State is initialized lazily in composeNode via NodeComposition::useState.
@@ -30,7 +31,7 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      message_ = &c.useState<std::string>("Hello, Loka!");
+      message_ = c.useState<std::string>("Hello, Loka!");
       this->bindForUi(toggleEvent_, this, &MainNode::toggleMessage);
     }
 
@@ -48,7 +49,7 @@ namespace helloworld
   private:
     void toggleMessage()
     {
-      if (!message_)
+      if (!message_.isValid())
       {
         return;
       }
@@ -58,13 +59,13 @@ namespace helloworld
         return;
       }
       std::string next = "Hello, Loka!";
-      if (message_->get() == "Hello, Loka!")
+      if (message_.get() == "Hello, Loka!")
       {
         next = "Loka says hi!";
       }
       {
         StateTrackerGuard _(ctx->boundary()->tracker());
-        message_->set(next, true);
+        message_.set(next, true);
       }
 
       {
@@ -82,7 +83,7 @@ namespace helloworld
       }
     }
 
-    MutableState<std::string> *message_;
+    declara::core::scene::BoundState<std::string> message_;
     EmitterState toggleEvent_;
   };
 

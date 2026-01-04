@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include "core/State.hpp"
+#include "core2/scene/BoundState.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/node/Group.hpp"
 #include "app/EditText.hpp"
@@ -23,19 +24,19 @@ namespace helloworld
     BmiCalculatorNode(const BmiCalculatorProps &p)
         : declara::core::scene::GroupNodeBase<BmiCalculatorProps>(BmiCalculatorProps(p)),
           props(p),
-          heightInput_(0),
-          weightInput_(0),
-          bmiResult_(0)
+          heightInput_(),
+          weightInput_(),
+          bmiResult_()
     {
     }
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      heightInput_ = &c.useState<std::string>("170.0");
-      weightInput_ = &c.useState<std::string>("60.0");
-      bmiResult_ = &c.useState<std::string>("BMI: --");
-      heightInput_->bind(&BmiCalculatorNode::InputChangedThunk, this, false);
-      weightInput_->bind(&BmiCalculatorNode::InputChangedThunk, this, false);
+      heightInput_ = c.useState<std::string>("170.0");
+      weightInput_ = c.useState<std::string>("60.0");
+      bmiResult_ = c.useState<std::string>("BMI: --");
+      heightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
+      weightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
       updateBmi();
     }
 
@@ -81,8 +82,8 @@ namespace helloworld
       {
         return;
       }
-      double heightCm = parseDouble(heightInput_->get());
-      double weightKg = parseDouble(weightInput_->get());
+      double heightCm = parseDouble(heightInput_.get());
+      double weightKg = parseDouble(weightInput_.get());
       std::string label("BMI: --");
       if (heightCm > 0.0 && weightKg > 0.0)
       {
@@ -96,12 +97,12 @@ namespace helloworld
         }
       }
       StateTrackerGuard _(ctx->boundary()->tracker());
-      bmiResult_->set(label, true);
+      bmiResult_.set(label, true);
     }
 
-    MutableState<std::string> *heightInput_;
-    MutableState<std::string> *weightInput_;
-    MutableState<std::string> *bmiResult_;
+    declara::core::scene::BoundState<std::string> heightInput_;
+    declara::core::scene::BoundState<std::string> weightInput_;
+    declara::core::scene::BoundState<std::string> bmiResult_;
   };
 
   inline declara::core::scene::NodeDefinition<BmiCalculatorProps, BmiCalculatorNode> BmiCalculator()

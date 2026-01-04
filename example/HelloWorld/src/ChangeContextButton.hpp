@@ -44,7 +44,7 @@ namespace helloworld
       {
         return;
       }
-      MutableState<std::string> &message = this->boundary_->messageState();
+      declara::core::scene::BoundState<std::string> &message = this->boundary_->messageState();
       const std::string current = message.get();
       if (current == "Hello, Loka!")
       {

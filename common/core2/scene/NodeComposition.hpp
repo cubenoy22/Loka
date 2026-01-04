@@ -6,6 +6,7 @@
 #include "core2/scene/Node.hpp"
 #include "core2/scene/StreamView.hpp"
 #include "core2/scene/node/Conditional.hpp"
+#include "core2/scene/BoundState.hpp"
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/StateOwner.hpp"
 
@@ -172,18 +173,19 @@ namespace declara
         }
 
         template <typename T>
-        MutableState<T> &useState(const T &initial)
+        BoundState<T> useState(const T &initial)
         {
           assert(context_ && "NodeComposition::useState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
           assert(stateOwner && "NodeComposition::useState requires Boundary owner");
           MutableState<T> *state = new MutableState<T>(initial);
           stateOwner->adoptState(state);
-          return *state;
+          BoundaryNode *boundary = context_->boundary();
+          return BoundState<T>(state, boundary ? boundary->tracker() : 0);
         }
 
         template <typename T>
-        MutableState<T> &useState()
+        BoundState<T> useState()
         {
           return useState(T());
         }

@@ -5,6 +5,7 @@
 #include <vector>
 #include "../Node.hpp"
 #include "ComposableNode.hpp"
+#include "../BoundState.hpp"
 #include "../ComponentContext.hpp"
 #include "core/Managed.hpp"
 #include "core/StateTracker.hpp"
@@ -44,13 +45,13 @@ namespace declara
         void setParentBoundary(BoundaryNode *parent) { parentBoundary_ = parent; }
 
         template <class T>
-        MutableState<T> &useState()
+        BoundState<T> useState()
         {
           return useStateWithValue(T());
         }
 
         template <class T>
-        MutableState<T> &useState(const T &initial)
+        BoundState<T> useState(const T &initial)
         {
           return useStateWithValue(initial);
         }
@@ -160,11 +161,11 @@ namespace declara
         };
 
         template <class T>
-        MutableState<T> &useStateWithValue(const T &initial)
+        BoundState<T> useStateWithValue(const T &initial)
         {
           MutableState<T> *state = new MutableState<T>(initial);
           adoptState(state);
-          return *state;
+          return BoundState<T>(state, this->tracker());
         }
 
         template <class T>

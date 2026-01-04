@@ -3,6 +3,7 @@
 
 #include <string>
 #include "core/State.hpp"
+#include "core2/scene/BoundState.hpp"
 
 namespace helloworld
 {
@@ -10,7 +11,7 @@ namespace helloworld
   {
   public:
     virtual ~RootBoundary() {}
-    virtual MutableState<std::string> &messageState() = 0;
+    virtual declara::core::scene::BoundState<std::string> &messageState() = 0;
   };
 } // namespace helloworld
 
