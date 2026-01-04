@@ -180,8 +180,7 @@ namespace declara
           assert(stateOwner && "NodeComposition::useState requires Boundary owner");
           MutableState<T> *state = new MutableState<T>(initial);
           stateOwner->adoptState(state);
-          BoundaryNode *boundary = context_->boundary();
-          return BoundState<T>(state, boundary ? boundary->tracker() : 0);
+          return BoundState<T>(state, stateOwner->tracker());
         }
 
         template <typename T>

@@ -30,7 +30,7 @@ namespace declara
           clearOwnedStateHandles();
         }
 
-        declara::core::StateTracker *tracker() { return &tracker_; }
+        virtual declara::core::StateTracker *tracker() { return &tracker_; }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {

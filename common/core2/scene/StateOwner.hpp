@@ -6,6 +6,7 @@ namespace declara
   namespace core
   {
     class StateBase;
+    class StateTracker;
   }
 
   namespace core
@@ -17,6 +18,7 @@ namespace declara
       public:
         virtual ~IStateOwner() {}
         virtual void adoptState(core::StateBase *state) = 0;
+        virtual core::StateTracker *tracker() = 0;
       };
     } // namespace scene
   } // namespace core
