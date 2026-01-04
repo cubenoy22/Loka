@@ -8,13 +8,16 @@ namespace declara
 {
   namespace app
   {
-    enum class MsgBoxIcon
+    struct MsgBoxIcon
     {
-      Error,
-      Warning,
-      Information,
-      Question,
-      None
+      enum Value
+      {
+        Error,
+        Warning,
+        Information,
+        Question,
+        None
+      };
     };
 
     struct MsgBoxProps
@@ -23,7 +26,7 @@ namespace declara
       State<std::string> *body;
       MutableState<bool> *show;
       MutableState<int> *result; // optional
-      MsgBoxIcon icon;
+      MsgBoxIcon::Value icon;
       MsgBoxProps()
           : title(0), body(0), show(0), result(0), icon(MsgBoxIcon::Error)
       {
@@ -48,7 +51,7 @@ namespace declara
         result = r;
         return *this;
       }
-      MsgBoxProps &setIcon(MsgBoxIcon i)
+      MsgBoxProps &setIcon(MsgBoxIcon::Value i)
       {
         icon = i;
         return *this;

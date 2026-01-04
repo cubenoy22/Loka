@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(grep:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git --no-pager log --oneline -5)",
+      "Bash(git --no-pager show 4ac5f10 --stat)",
+      "Bash(git --no-pager show:*)",
     ]
   }
 }

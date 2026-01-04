@@ -3,7 +3,7 @@
 AppComposition::AppComposition(PlatformContext *context)
     : components_(), windows_(), context_(context)
 {
-  assert(context_ && "AppComposition: PlatformContext* must not be nullptr");
+  assert(context_ && "AppComposition: PlatformContext* must not be null");
 }
 
 AppComposition::~AppComposition()
