@@ -21,13 +21,13 @@ namespace helloworld
     HelloWorldNode(const HelloWorldProps &p)
         : declara::core::scene::GroupNodeBase<HelloWorldProps>(HelloWorldProps(p)), props(p), message_(0) {}
 
+    virtual void prepareNode(declara::core::scene::NodeComposition &c)
+    {
+      message_ = &c.useState<std::string>("Hello, Loka!");
+    }
+
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
-      if (!message_)
-      {
-        message_ = &c.useState<std::string>("Hello, Loka!");
-      }
-
       using namespace declara::app;
       c.declare(
           VStack()
