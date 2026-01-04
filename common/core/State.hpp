@@ -19,6 +19,7 @@ namespace declara
     };
 
     class StateTracker;
+    class PushStateTracker;
 
     // StateBase: Unified dependency management and bind API
     class StateBase
@@ -37,7 +38,8 @@ namespace declara
       // Recompute (overridden by DerivedState)
       virtual bool recompute() { return false; }
 
-    public:
+    protected:
+      friend class PushStateTracker;
       StateTracker *currentTracker;
     };
 

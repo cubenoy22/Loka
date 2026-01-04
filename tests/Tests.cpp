@@ -3,7 +3,7 @@
 #include <string>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
-#include "core/util/AutoTransactionGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/SceneManager2.hpp"
 #include "core2/scene/NodeComposition.hpp"
@@ -234,7 +234,7 @@ void testRAIITransaction()
   std::vector<StateBase *> trackerStatesRAII = makeStateVector(&s, doubleProp, 0);
   declara::core::PushStateTracker tracker(trackerStatesRAII);
   {
-    AutoTransactionGuard _(&tracker);
+    StateTrackerGuard _(&tracker);
     s.set(50);
   }
   assert(s.get() == 50);

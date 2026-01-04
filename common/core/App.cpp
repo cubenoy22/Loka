@@ -2,7 +2,7 @@
 #include "Window.hpp"
 #include "PlatformContext.hpp"
 #include "AppComposition.hpp"
-#include "util/AutoTransactionGuard.hpp"
+#include "util/StateTrackerGuard.hpp"
 #include "core2/scene/Scene.hpp"
 #include <algorithm>
 
@@ -43,7 +43,7 @@ void App::reflectInitialVisibilityChunks()
       declara::core::StateTracker *tracker = win->getTracker();
       if (tracker)
       {
-        AutoTransactionGuard _(tracker);
+        StateTrackerGuard _(tracker);
         win->visibilityState().set(true, true);
       }
     }

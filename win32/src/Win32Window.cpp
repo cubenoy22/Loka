@@ -7,7 +7,7 @@
 
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/Scene.hpp"
-#include "core/util/AutoTransactionGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"

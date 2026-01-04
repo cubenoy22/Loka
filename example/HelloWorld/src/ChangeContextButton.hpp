@@ -6,7 +6,7 @@
 #include "core2/scene/node/Group.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include "core/Window.hpp"
-#include "core/util/AutoTransactionGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "app/Button.hpp"
 #include "HelloWorldBoundary.hpp"
 
@@ -72,7 +72,7 @@ namespace helloworld
       {
         return;
       }
-      AutoTransactionGuard guard(window->titleState().currentTracker);
+      StateTrackerGuard _(window->getTracker());
       const std::string title = window->titleState().get();
       if (title == "LokaSample")
       {

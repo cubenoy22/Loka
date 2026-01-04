@@ -2,11 +2,12 @@
 #define DECLARA_HELLOWORLD_BMI_FORM_COMPONENT_HPP
 
 #include <string>
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include "core/State.hpp"
 #include "core/Window.hpp"
-#include "core/util/AutoTransactionGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/node/Group.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include "app/Button.hpp"
@@ -43,6 +44,7 @@ namespace helloworld
       bmiResult_ = &c.useState<std::string>("BMI: --");
       message_ = &c.useState<std::string>("Hello, Loka!");
       boundary_ = c.findBoundary<declara::core::scene::BoundaryNode>();
+      assert(boundary_ && "BmiFormNode requires a BoundaryNode");
       heightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       weightInput_->bind(&BmiFormNode::InputChangedThunk, this, false);
       toggleEvent_.bind(&BmiFormNode::ToggleMessageThunk, this, false);
@@ -102,8 +104,10 @@ namespace helloworld
       {
         next = "Loka says hi!";
       }
-      AutoTransactionGuard guard(message_->currentTracker);
-      message_->set(next, true);
+      {
+        StateTrackerGuard _(boundary_->tracker());
+        message_->set(next, true);
+      }
 
       if (!boundary_)
       {
@@ -119,15 +123,18 @@ namespace helloworld
       {
         return;
       }
-      AutoTransactionGuard titleGuard(window->titleState().currentTracker);
-      const std::string title = window->titleState().get();
-      if (title == "LokaSample")
       {
-        window->titleState().set("LokaSample*");
-      }
-      else
-      {
-        window->titleState().set("LokaSample");
+        StateTrackerGuard _(window->getTracker());
+        const std::string title = window->titleState().get();
+
+        if (title == "LokaSample")
+        {
+          window->titleState().set("LokaSample*");
+        }
+        else
+        {
+          window->titleState().set("LokaSample");
+        }
       }
     }
 
@@ -147,7 +154,7 @@ namespace helloworld
           label = buf;
         }
       }
-      AutoTransactionGuard guard(bmiResult_->currentTracker);
+      StateTrackerGuard _(boundary_->tracker());
       bmiResult_->set(label, true);
     }
 
