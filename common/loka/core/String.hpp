@@ -48,7 +48,11 @@ namespace loka
       bool requiredUnits(StringEncoding encoding, std::size_t &units) const;
 
       String operator+(const String &rhs) const;
+      String operator+(const char *rhs) const;
+      String operator+(const std::string &rhs) const;
       String &operator+=(const String &rhs);
+      String &operator+=(const char *rhs);
+      String &operator+=(const std::string &rhs);
 
       static String Concat(const String &lhs, const String &rhs);
 
@@ -95,6 +99,16 @@ inline loka::core::String loka::core::String::ToStringSegment(const std::string 
 inline loka::core::String loka::core::String::ToStringSegment(const Managed<loka::platform::String> &platformValue)
 {
   return loka::core::String::FromPlatform(platformValue);
+}
+
+inline loka::core::String operator+(const char *lhs, const loka::core::String &rhs)
+{
+  return loka::core::String::Concat(loka::core::String::Literal(lhs), rhs);
+}
+
+inline loka::core::String operator+(const std::string &lhs, const loka::core::String &rhs)
+{
+  return loka::core::String::Concat(loka::core::String(lhs), rhs);
 }
 
 template <typename Fmt>

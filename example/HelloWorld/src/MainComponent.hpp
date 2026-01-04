@@ -41,7 +41,7 @@ namespace helloworld
           VStack()
           << Text("Loka Sample")
           << Text(message_)
-          << Button("Toggle Message", &toggleEvent_)
+          << Button("Add +", &toggleEvent_)
           << BmiCalculator());
     }
 
@@ -57,11 +57,7 @@ namespace helloworld
       {
         return;
       }
-      loka::core::String next = loka::core::String::Literal("Hello, Loka!");
-      if (message_.get().equals(loka::core::String::Literal("Hello, Loka!")))
-      {
-        next = loka::core::String::Literal("Loka says hi!");
-      }
+      loka::core::String next = message_.get() + " +Loka";
       message_.set(next, true);
 
       {

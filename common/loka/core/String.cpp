@@ -131,9 +131,31 @@ namespace loka
       return Concat(*this, rhs);
     }
 
+    String String::operator+(const char *rhs) const
+    {
+      return Concat(*this, String::Literal(rhs));
+    }
+
+    String String::operator+(const std::string &rhs) const
+    {
+      return Concat(*this, String(rhs));
+    }
+
     String &String::operator+=(const String &rhs)
     {
       *this = Concat(*this, rhs);
+      return *this;
+    }
+
+    String &String::operator+=(const char *rhs)
+    {
+      *this = Concat(*this, String::Literal(rhs));
+      return *this;
+    }
+
+    String &String::operator+=(const std::string &rhs)
+    {
+      *this = Concat(*this, String(rhs));
       return *this;
     }
 
