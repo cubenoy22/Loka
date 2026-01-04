@@ -1,49 +1,80 @@
 # Retro68 setup
 
-This project supports building Classic Mac OS targets with Retro68. Use the
-CMake preset and configure environment variables per machine.
+This project supports building Classic Mac OS targets with Retro68.
 
 ## Requirements
 
 - Retro68 toolchain installed.
 - `retro68.toolchain.cmake` available in a toolchain directory.
 
-## Environment variables
+## Configuration
 
-- `RETRO68_TOOLCHAIN_DIR`: path to the Retro68 toolchain CMake directory.
-- `RETRO68_BUILD_DIR`: path to the Retro68 build output directory (used for auto-detect).
-- `RETRO68_CPU`: target CPU, set to `m68k` or `ppc`.
+Retro68 presets are machine-specific, so they are configured via `CMakeUserPresets.json` (not tracked in git).
 
-If your Retro68 build lives at `../Retro68-build`, the toolchain file is
-auto-detected from one of:
+Create `CMakeUserPresets.json` in the project root:
 
-- `../Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake`
-- `../Retro68-build/toolchain/powerpc-apple-macos/cmake/retroppc.toolchain.cmake`
-- `../Retro68-build/toolchain/powerpc-apple-macos/cmake/retrocarbon.toolchain.cmake`
+```json
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "retro68-debug",
+      "displayName": "Retro68 (Debug)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-retro68",
+      "environment": {
+        "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
+        "RETRO68_BUILD_DIR": "/path/to/Retro68-build"
+      }
+    },
+    {
+      "name": "retro68-release",
+      "displayName": "Retro68 (Release)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-retro68-release",
+      "environment": {
+        "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
+        "RETRO68_BUILD_DIR": "/path/to/Retro68-build",
+        "CMAKE_CXX_FLAGS_RELEASE": "-Os -ffunction-sections -fdata-sections -fno-exceptions",
+        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-Wl,--gc-sections"
+      }
+    }
+  ]
+}
+```
 
-so you can omit `RETRO68_TOOLCHAIN_DIR` when using those layouts.
+Replace `/path/to/Retro68-build` with your actual Retro68 build directory.
 
-Example (Unix shells):
+## Building
 
 ```sh
-export RETRO68_TOOLCHAIN_DIR=/path/to/Retro68/cmake
-export RETRO68_CPU=ppc
-cmake --preset retro68-base
+cmake --preset retro68-debug
+cmake --build build-retro68 --target DeclaraHelloClassic
 ```
 
-Example (PowerShell):
+Output files:
+- `build-retro68/example/HelloWorld/DeclaraHelloClassic.dsk` - Disk image for emulator
+- `build-retro68/example/HelloWorld/DeclaraHelloClassic.bin` - BinHex file
 
-```powershell
-$env:RETRO68_TOOLCHAIN_DIR="C:\Retro68\cmake"
-$env:RETRO68_CPU="ppc"
-cmake --preset retro68-base
-```
+## Environment variables (alternative)
+
+If you prefer environment variables over CMakeUserPresets.json:
+
+- `RETRO68_BUILD_DIR`: path to the Retro68 build output directory.
+- `RETRO68_TOOLCHAIN_DIR`: path to the Retro68 toolchain CMake directory.
+- `RETRO68_CPU`: target CPU (`m68k` or `ppc`). Defaults to `m68k`.
+- `RETRO68_PPC_FLAVOR`: `retroppc` or `retrocarbon` (when `RETRO68_CPU=ppc`).
 
 ## Notes
 
-- Retro68 builds are expected to use the `apple/toolbox` target.
-- `RETRO68_CPU` can be refined later to support specific CPU variants once the
-  toolchain flags are confirmed.
-- `../Retro68-build/toolchain/bin` can be added to `PATH` if you want to run
-  toolchain commands directly.
-- `RETRO68_PPC_FLAVOR` selects `retroppc` or `retrocarbon` when `RETRO68_CPU=ppc`.
+- Retro68 builds use the `apple/toolbox` target.
+- Release builds use `-Os` and section garbage collection for smaller binaries.
+- The `LOKA_RETRO68` preprocessor define is set for Classic Mac builds.
