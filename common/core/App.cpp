@@ -7,7 +7,13 @@
 #include <algorithm>
 
 App::App(AppConfigurable *config)
-    : group_(0), quitWhenLastWindowClosed_(true), config_(config), menuBar_(0), activeWindow_(0)
+    : group_(0),
+      quitWhenLastWindowClosed_(true),
+      config_(config),
+      menuBar_(0),
+      activeWindow_(0),
+      menuRefreshInProgress_(false),
+      menuRefreshRequested_(false)
 {
 }
 
@@ -18,19 +24,22 @@ App::~App()
   delete menuBar_;
 }
 
+static void MenuInvalidateThunk(void *userData)
+{
+  App *app = static_cast<App *>(userData);
+  if (app)
+  {
+    app->invalidateMenu();
+  }
+}
+
 void App::run()
 {
   if (!group_ && config_)
   {
     AppComposition composition(config_->getPlatformContext());
     config_->compose(composition);
-    declara::app::MenuBarDefinition menuBar;
-    declara::app::MenuComposition menuComposition(&menuBar);
-    config_->composeMenu(menuComposition);
-    if (!menuBar.empty())
-    {
-      setDefaultMenuBar(menuBar.clone());
-    }
+    refreshDefaultMenuBar();
     group_ = new ComponentGroup<AppComponent>(composition.build());
   }
   reflectInitialVisibilityChunks();
@@ -81,6 +90,31 @@ bool App::handleMenuCommand(int commandId, Window *window)
   return false;
 }
 
+void App::invalidateMenu()
+{
+  menuRefreshRequested_ = true;
+  if (menuRefreshInProgress_)
+    return;
+  menuRefreshInProgress_ = true;
+  bool changed = false;
+  int iterations = 0;
+  const int maxIterations = 100;
+  while (menuRefreshRequested_ && iterations < maxIterations)
+  {
+    menuRefreshRequested_ = false;
+    if (refreshDefaultMenuBar())
+    {
+      changed = true;
+    }
+    ++iterations;
+  }
+  menuRefreshInProgress_ = false;
+  if (changed)
+  {
+    applyMenuBar(activeWindow_);
+  }
+}
+
 void App::setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar)
 {
   if (menuBar_)
@@ -95,12 +129,13 @@ void App::setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar)
   applyMenuBar(activeWindow_);
 }
 
-const declara::app::MenuBarDefinition *App::resolveMenuBar(Window *window) const
+const declara::app::MenuBarDefinition *App::resolveMenuBar(Window *window)
 {
   if (window && window->menuBar())
   {
     return window->menuBar();
   }
+  refreshDefaultMenuBar();
   return menuBar_;
 }
 
@@ -117,4 +152,37 @@ void App::setActiveWindow(Window *window)
 void App::applyMenuBar(Window *activeWindow)
 {
   (void)activeWindow;
+}
+
+bool App::refreshDefaultMenuBar()
+{
+  if (!config_)
+  {
+    return false;
+  }
+  declara::app::MenuBarDefinition menuBar;
+  declara::app::MenuComposition menuComposition(&menuBar);
+  menuComposition.setInvalidateCallback(&MenuInvalidateThunk, this);
+  config_->composeMenu(menuComposition);
+  if (menuBar.empty())
+  {
+    if (menuBar_)
+    {
+      delete menuBar_;
+      menuBar_ = 0;
+      return true;
+    }
+    return false;
+  }
+  if (!menuBar_ || !menuBar_->equalsStructure(menuBar))
+  {
+    if (menuBar_)
+    {
+      delete menuBar_;
+      menuBar_ = 0;
+    }
+    menuBar_ = menuBar.clone();
+    return true;
+  }
+  return false;
 }

@@ -7,7 +7,7 @@ namespace declara
   {
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
-        : phase_(TRACKER_IDLE), states_(states)
+        : phase_(TRACKER_IDLE), dirtyFlag_(false), states_(states)
     {
       for (size_t i = 0; i < states.size(); ++i)
       {
@@ -22,7 +22,7 @@ namespace declara
       }
     }
 
-    PushStateTracker::PushStateTracker() : phase_(TRACKER_IDLE) {}
+    PushStateTracker::PushStateTracker() : phase_(TRACKER_IDLE), dirtyFlag_(false) {}
 
     void PushStateTracker::begin()
     {
@@ -37,6 +37,7 @@ namespace declara
 #endif
       dirtyStates.clear();
       deferred.clear();
+      dirtyFlag_ = false;
       phase_ = TRACKER_PRECOMMIT;
     }
 
@@ -47,6 +48,7 @@ namespace declara
 
     void PushStateTracker::markDirty(StateBase *state)
     {
+      dirtyFlag_ = true;
 #ifdef TEST_BUILD
       printf("[markDirty] state=%p\n", (void *)state);
 #endif
@@ -180,6 +182,13 @@ namespace declara
         states_[i]->currentTracker = 0;
       deferred.clear();
       return dirtyStates.empty();
+    }
+
+    bool PushStateTracker::consumeDirty()
+    {
+      bool dirty = dirtyFlag_;
+      dirtyFlag_ = false;
+      return dirty;
     }
 
     void PushStateTracker::registerDependency(StateBase *dependent, StateBase *dependency)

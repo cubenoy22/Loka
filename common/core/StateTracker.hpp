@@ -44,6 +44,7 @@ namespace declara
       void markDirty(StateBase *state);
       void addState(StateBase *state);
       bool end();
+      bool consumeDirty();
       /**
        * @brief 依存グラフ（依存元→依存先）を構築する。通常はDerivedStateの依存関係から自動生成される。
        */
@@ -64,6 +65,8 @@ namespace declara
       DependencyMap dependents;
       /// phase_: Trackerの現在のトランザクションフェーズ
       TrackerPhase phase_;
+      /// dirtyFlag_: トランザクション中にdirtyが発生したか
+      bool dirtyFlag_;
       /// visiting_: 再帰伝播時の循環依存検出用一時セット
       std::set<StateBase *> visiting_;
       /// states_: Trackerが管理する全State群（begin()/end()でcurrentTrackerをセット）

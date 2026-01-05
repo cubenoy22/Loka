@@ -20,6 +20,7 @@ public:
   virtual void quit() = 0;
   virtual void windowClosed(Window *window);
   virtual bool handleMenuCommand(int commandId, Window *window);
+  void invalidateMenu();
   void setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar);
   const declara::app::MenuBarDefinition *defaultMenuBar() const { return menuBar_; }
   void setActiveWindow(Window *window);
@@ -31,9 +32,12 @@ protected:
   AppConfigurable *config_;
   declara::app::MenuBarDefinition *menuBar_;
   Window *activeWindow_;
+  bool menuRefreshInProgress_;
+  bool menuRefreshRequested_;
 
-  const declara::app::MenuBarDefinition *resolveMenuBar(Window *window) const;
+  const declara::app::MenuBarDefinition *resolveMenuBar(Window *window);
   virtual void applyMenuBar(Window *activeWindow);
+  bool refreshDefaultMenuBar();
 
   void reflectInitialVisibilityChunks();
 };
