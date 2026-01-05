@@ -93,6 +93,8 @@ void MacApp::handleMenuCommand(int commandId)
     case declara::app::MENU_ACTION_QUIT_APP:
       quit();
       return;
+    case declara::app::MENU_ACTION_REBUILD_MENU:
+      break;
     case declara::app::MENU_ACTION_NONE:
     default:
       break;
@@ -100,6 +102,10 @@ void MacApp::handleMenuCommand(int commandId)
     if (commands_[i].emitter)
     {
       commands_[i].emitter->emit();
+    }
+    if (commands_[i].action == declara::app::MENU_ACTION_REBUILD_MENU)
+    {
+      invalidateMenu();
     }
     return;
   }

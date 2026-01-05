@@ -98,6 +98,8 @@ bool Win32App::handleMenuCommand(int commandId, Window *window)
     case declara::app::MENU_ACTION_QUIT_APP:
       quit();
       return true;
+    case declara::app::MENU_ACTION_REBUILD_MENU:
+      break;
     case declara::app::MENU_ACTION_NONE:
     default:
       break;
@@ -105,6 +107,15 @@ bool Win32App::handleMenuCommand(int commandId, Window *window)
     if (commands_[i].emitter)
     {
       commands_[i].emitter->emit();
+      if (commands_[i].action == declara::app::MENU_ACTION_REBUILD_MENU)
+      {
+        invalidateMenu();
+      }
+      return true;
+    }
+    if (commands_[i].action == declara::app::MENU_ACTION_REBUILD_MENU)
+    {
+      invalidateMenu();
       return true;
     }
     return false;
