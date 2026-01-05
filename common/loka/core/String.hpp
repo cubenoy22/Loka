@@ -38,6 +38,7 @@ namespace loka
       static String Literal(const char *literal);
       static String Utf8(const char *bytes, std::size_t length);
       static String FromPlatform(const Managed<platform::String> &platformValue);
+      static String FromInt(int value);
 
       bool empty() const;
       StringCompareResult compare(const String &other, bool allowAllocateBuffer) const;

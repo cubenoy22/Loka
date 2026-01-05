@@ -1,6 +1,8 @@
 #include "loka/core/String.hpp"
 
 #include <string>
+#include <cstdio>
+#include <cstring>
 
 #include "loka/platform/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -60,6 +62,13 @@ namespace loka
     String String::FromPlatform(const Managed<platform::String> &platformValue)
     {
       return String(platformValue);
+    }
+
+    String String::FromInt(int value)
+    {
+      char buf[32];
+      std::sprintf(buf, "%d", value);
+      return String::Utf8(buf, std::strlen(buf));
     }
 
     bool String::empty() const
