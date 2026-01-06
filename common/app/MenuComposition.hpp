@@ -71,14 +71,17 @@ namespace declara
             activeBoundary_(0),
             invalidateFn_(0),
             invalidateUserData_(0),
-            declaredCount_(0),
-            reservedCapacity_(0)
+            listHead_(0),
+            listTail_(0),
+            listCount_(0)
       {
       }
+      ~MenuComposition();
 
       void declare(const MenuDefinition &menu);
       void declare(const MenuBarDefinition &bar);
       void declare(MenuBoundary &boundary);
+      void finish();
 
       MenuComposition &operator<<(const MenuDefinition &menu);
       MenuComposition &operator<<(const MenuBarDefinition &bar);
@@ -98,15 +101,14 @@ namespace declara
       }
 
     private:
-      void ensureCapacity(size_t additional);
-
       MenuBarDefinition *bar_;
       int boundaryDepth_;
       MenuBoundary *activeBoundary_;
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
-      size_t declaredCount_;
-      size_t reservedCapacity_;
+      MenuDefinition *listHead_;
+      MenuDefinition *listTail_;
+      size_t listCount_;
     };
 
   } // namespace app

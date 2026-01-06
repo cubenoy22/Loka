@@ -167,6 +167,7 @@ bool App::refreshDefaultMenuBar()
   declara::app::MenuComposition menuComposition(&menuBar);
   menuComposition.setInvalidateCallback(&MenuInvalidateThunk, this);
   config_->composeMenu(menuComposition);
+  menuComposition.finish();
   if (menuBar.empty())
   {
     menuDiff_.clear();

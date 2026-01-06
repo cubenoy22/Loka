@@ -207,7 +207,8 @@ namespace declara
             isAppMenu(false),
             opaqueChildrenFlag_(false),
             opaqueChildrenSet_(false),
-            items()
+            items(),
+            nextInComposition(0)
       {
       }
 
@@ -216,7 +217,8 @@ namespace declara
             isAppMenu(false),
             opaqueChildrenFlag_(false),
             opaqueChildrenSet_(false),
-            items()
+            items(),
+            nextInComposition(0)
       {
       }
 
@@ -225,7 +227,8 @@ namespace declara
             isAppMenu(false),
             opaqueChildrenFlag_(false),
             opaqueChildrenSet_(false),
-            items()
+            items(),
+            nextInComposition(0)
       {
       }
 
@@ -234,7 +237,8 @@ namespace declara
             isAppMenu(other.isAppMenu),
             opaqueChildrenFlag_(other.opaqueChildrenFlag_),
             opaqueChildrenSet_(other.opaqueChildrenSet_),
-            items()
+            items(),
+            nextInComposition(0)
       {
         for (size_t i = 0; i < other.items.size(); ++i)
         {
@@ -255,6 +259,7 @@ namespace declara
         isAppMenu = other.isAppMenu;
         opaqueChildrenFlag_ = other.opaqueChildrenFlag_;
         opaqueChildrenSet_ = other.opaqueChildrenSet_;
+        nextInComposition = 0;
         clearItems();
         for (size_t i = 0; i < other.items.size(); ++i)
         {
@@ -332,6 +337,7 @@ namespace declara
       bool opaqueChildrenFlag_;
       bool opaqueChildrenSet_;
       std::vector<MenuItemDefinition *> items;
+      MenuDefinition *nextInComposition;
     };
 
     struct MenuBarDefinition

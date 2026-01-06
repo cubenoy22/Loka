@@ -36,16 +36,40 @@ namespace declara
       return false;
     }
 
+    MenuComposition::~MenuComposition()
+    {
+      if (listHead_)
+      {
+        MenuDefinition *node = listHead_;
+        while (node)
+        {
+          MenuDefinition *next = node->nextInComposition;
+          delete node;
+          node = next;
+        }
+      }
+    }
+
     void MenuComposition::declare(const MenuDefinition &menu)
     {
       if (bar_)
       {
-        ensureCapacity(1);
         MenuDefinition copy(menu);
         if (boundaryDepth_ > 0 && !copy.opaqueChildrenSet_)
           copy.opaqueChildren(true);
-        (*bar_) << copy;
-        declaredCount_ += 1;
+        MenuDefinition *node = new MenuDefinition(copy);
+        node->nextInComposition = 0;
+        if (!listHead_)
+        {
+          listHead_ = node;
+          listTail_ = node;
+        }
+        else
+        {
+          listTail_->nextInComposition = node;
+          listTail_ = node;
+        }
+        listCount_ += 1;
       }
     }
 
@@ -53,10 +77,6 @@ namespace declara
     {
       if (!bar_)
         return;
-      if (!bar.menus.empty())
-      {
-        ensureCapacity(bar.menus.size());
-      }
       for (size_t i = 0; i < bar.menus.size(); ++i)
       {
         if (!bar.menus[i])
@@ -90,20 +110,23 @@ namespace declara
       boundaryDepth_ -= 1;
     }
 
-    void MenuComposition::ensureCapacity(size_t additional)
+    void MenuComposition::finish()
     {
-      if (!bar_)
+      if (!bar_ || !listHead_)
         return;
-      size_t needed = declaredCount_ + additional;
-      if (needed <= reservedCapacity_)
-        return;
-      size_t next = reservedCapacity_ ? (reservedCapacity_ * 2) : 8;
-      while (next < needed)
+      bar_->clearMenus();
+      bar_->reserve(listCount_);
+      MenuDefinition *node = listHead_;
+      while (node)
       {
-        next *= 2;
+        MenuDefinition *next = node->nextInComposition;
+        node->nextInComposition = 0;
+        bar_->menus.push_back(node);
+        node = next;
       }
-      bar_->reserve(next);
-      reservedCapacity_ = next;
+      listHead_ = 0;
+      listTail_ = 0;
+      listCount_ = 0;
     }
 
     MenuComposition &MenuComposition::operator<<(const MenuDefinition &menu)
