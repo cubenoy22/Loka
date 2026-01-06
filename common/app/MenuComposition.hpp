@@ -70,12 +70,19 @@ namespace declara
             boundaryDepth_(0),
             activeBoundary_(0),
             invalidateFn_(0),
-            invalidateUserData_(0)
+            invalidateUserData_(0),
+            declaredCount_(0),
+            reservedCapacity_(0)
       {
       }
 
       void declare(const MenuDefinition &menu);
+      void declare(const MenuBarDefinition &bar);
       void declare(MenuBoundary &boundary);
+
+      MenuComposition &operator<<(const MenuDefinition &menu);
+      MenuComposition &operator<<(const MenuBarDefinition &bar);
+      MenuComposition &operator<<(MenuBoundary &boundary);
 
       void setInvalidateCallback(InvalidateFn fn, void *userData)
       {
@@ -91,11 +98,15 @@ namespace declara
       }
 
     private:
+      void ensureCapacity(size_t additional);
+
       MenuBarDefinition *bar_;
       int boundaryDepth_;
       MenuBoundary *activeBoundary_;
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
+      size_t declaredCount_;
+      size_t reservedCapacity_;
     };
 
   } // namespace app

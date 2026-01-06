@@ -40,10 +40,28 @@ namespace declara
     {
       if (bar_)
       {
+        ensureCapacity(1);
         MenuDefinition copy(menu);
         if (boundaryDepth_ > 0 && !copy.opaqueChildrenSet_)
           copy.opaqueChildren(true);
         (*bar_) << copy;
+        declaredCount_ += 1;
+      }
+    }
+
+    void MenuComposition::declare(const MenuBarDefinition &bar)
+    {
+      if (!bar_)
+        return;
+      if (!bar.menus.empty())
+      {
+        ensureCapacity(bar.menus.size());
+      }
+      for (size_t i = 0; i < bar.menus.size(); ++i)
+      {
+        if (!bar.menus[i])
+          continue;
+        declare(*bar.menus[i]);
       }
     }
 
@@ -70,6 +88,40 @@ namespace declara
       }
       activeBoundary_ = prevBoundary;
       boundaryDepth_ -= 1;
+    }
+
+    void MenuComposition::ensureCapacity(size_t additional)
+    {
+      if (!bar_)
+        return;
+      size_t needed = declaredCount_ + additional;
+      if (needed <= reservedCapacity_)
+        return;
+      size_t next = reservedCapacity_ ? (reservedCapacity_ * 2) : 8;
+      while (next < needed)
+      {
+        next *= 2;
+      }
+      bar_->reserve(next);
+      reservedCapacity_ = next;
+    }
+
+    MenuComposition &MenuComposition::operator<<(const MenuDefinition &menu)
+    {
+      declare(menu);
+      return *this;
+    }
+
+    MenuComposition &MenuComposition::operator<<(const MenuBarDefinition &bar)
+    {
+      declare(bar);
+      return *this;
+    }
+
+    MenuComposition &MenuComposition::operator<<(MenuBoundary &boundary)
+    {
+      declare(boundary);
+      return *this;
     }
   } // namespace app
 } // namespace declara

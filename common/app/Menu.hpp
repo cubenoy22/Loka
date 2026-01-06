@@ -383,6 +383,11 @@ namespace declara
         return *this;
       }
 
+      void reserve(size_t count)
+      {
+        menus.reserve(count);
+      }
+
       bool empty() const { return menus.empty(); }
 
       void clearMenus()
