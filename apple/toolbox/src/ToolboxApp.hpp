@@ -38,10 +38,22 @@ public:
   };
 
 private:
+  struct MenuEntry
+  {
+    MenuHandle menu;
+    short menuId;
+    bool isAppMenu;
+    loka::core::String title;
+  };
+
   void clearMenuBindings();
+  void clearMenuBindingsFor(MenuHandle menuHandle, short menuId);
+  void resetMenuState();
+  void disposeMenuEntries();
   short nextMenuId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;
+  std::vector<MenuEntry> menuEntries_;
   bool running_;
 };
 

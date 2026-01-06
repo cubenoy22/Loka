@@ -34,10 +34,14 @@ protected:
   Window *activeWindow_;
   bool menuRefreshInProgress_;
   bool menuRefreshRequested_;
+  declara::app::MenuCompositionDiff menuDiff_;
 
   const declara::app::MenuBarDefinition *resolveMenuBar(Window *window);
   virtual void applyMenuBar(Window *activeWindow);
   bool refreshDefaultMenuBar();
+
+  const declara::app::MenuCompositionDiff &menuDiff() const { return menuDiff_; }
+  void clearMenuDiff();
 
   void reflectInitialVisibilityChunks();
 };

@@ -262,4 +262,5 @@ void Win32App::applyMenuBar(Window *activeWindow)
   SetMenu(hwnd, menuBarHandle);
   DrawMenuBar(hwnd);
   activeMenu_ = menuBarHandle;
+  clearMenuDiff();
 }

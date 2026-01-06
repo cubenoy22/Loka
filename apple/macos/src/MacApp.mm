@@ -280,4 +280,5 @@ void MacApp::applyMenuBar(Window *activeWindow)
     [mainMenu addItem:menuItem];
   }
   [NSApp setMainMenu:mainMenu];
+  clearMenuDiff();
 }

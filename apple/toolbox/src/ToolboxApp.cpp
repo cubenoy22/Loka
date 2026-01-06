@@ -209,6 +209,52 @@ void ToolboxApp::clearMenuBindings()
   }
   bindings_.clear();
   commands_.clear();
+}
+
+void ToolboxApp::clearMenuBindingsFor(MenuHandle menuHandle, short menuId)
+{
+  for (size_t i = 0; i < bindings_.size();)
+  {
+    MenuBinding *binding = bindings_[i];
+    if (binding && binding->menu == menuHandle)
+    {
+      if (binding->enabledState)
+      {
+        binding->enabledState->deferUnbind(&ToolboxApp::MenuEnabledChangedThunk, binding);
+      }
+      delete binding;
+      bindings_.erase(bindings_.begin() + i);
+      continue;
+    }
+    ++i;
+  }
+  for (size_t i = 0; i < commands_.size();)
+  {
+    if (commands_[i].menuId == menuId)
+    {
+      commands_.erase(commands_.begin() + i);
+      continue;
+    }
+    ++i;
+  }
+}
+
+void ToolboxApp::disposeMenuEntries()
+{
+  for (size_t i = 0; i < menuEntries_.size(); ++i)
+  {
+    if (menuEntries_[i].menu)
+    {
+      DisposeMenu(menuEntries_[i].menu);
+    }
+  }
+  menuEntries_.clear();
+}
+
+void ToolboxApp::resetMenuState()
+{
+  clearMenuBindings();
+  disposeMenuEntries();
   nextMenuId_ = 128;
 }
 
@@ -260,16 +306,33 @@ static void BuildMenuItems(MenuHandle menu,
 
 void ToolboxApp::applyMenuBar(Window *activeWindow)
 {
-  (void)activeWindow;
-  clearMenuBindings();
-  ClearMenuBar();
-  InitMenus();
-
   const declara::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
   if (!menuBar)
   {
+    resetMenuState();
+    ClearMenuBar();
+    InitMenus();
     DrawMenuBar();
+    clearMenuDiff();
     return;
+  }
+
+  bool forceFullRebuild = (activeWindow && activeWindow->menuBar());
+  const declara::app::MenuCompositionDiff &diff = menuDiff();
+  if (!diff.valid && !forceFullRebuild)
+  {
+    return;
+  }
+  bool canPartial = diff.valid && !diff.fullRebuild && !forceFullRebuild;
+  if (canPartial && menuEntries_.size() != menuBar->menus.size())
+  {
+    canPartial = false;
+  }
+  if (!canPartial)
+  {
+    resetMenuState();
+    ClearMenuBar();
+    InitMenus();
   }
 
   bool hasAppMenu = false;
@@ -283,7 +346,8 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     }
   }
 
-  if (hasAppMenu)
+  MenuHandle appMenuHandle = 0;
+  if (hasAppMenu && !canPartial)
   {
     Str255 title;
     title[0] = 1;
@@ -333,34 +397,167 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
         bindings_.push_back(binding);
       }
       InsertMenu(menu, 0);
+      appMenuHandle = menu;
     }
     nextMenuId_ = 129;
   }
 
-  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  if (!canPartial)
   {
+    menuEntries_.clear();
+    menuEntries_.resize(menuBar->menus.size());
+    for (size_t i = 0; i < menuEntries_.size(); ++i)
+    {
+      menuEntries_[i].menu = 0;
+      menuEntries_[i].menuId = 0;
+      menuEntries_[i].isAppMenu = false;
+    }
+    for (size_t i = 0; i < menuBar->menus.size(); ++i)
+    {
+      const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
+      if (!menuDef)
+        continue;
+      if (menuDef->isAppMenu)
+      {
+        menuEntries_[i].menu = appMenuHandle;
+        menuEntries_[i].menuId = appMenuHandle ? 128 : 0;
+        menuEntries_[i].isAppMenu = true;
+        menuEntries_[i].title = menuDef->title;
+        continue;
+      }
+      Str255 title;
+      CopyToPascalString(menuDef->title, title);
+      if (title[0] == 0)
+      {
+        CopyToPascalString(loka::core::String::Literal("Menu"), title);
+      }
+      short menuId = nextMenuId_;
+      MenuHandle menu = NewMenu(menuId, title);
+      BuildMenuItems(menu, menuDef->items, menuId, commands_, bindings_);
+      if (CountMenuItems(menu) == 0)
+      {
+        DisposeMenu(menu);
+        continue;
+      }
+      InsertMenu(menu, 0);
+      menuEntries_[i].menu = menu;
+      menuEntries_[i].menuId = menuId;
+      menuEntries_[i].isAppMenu = false;
+      menuEntries_[i].title = menuDef->title;
+      ++nextMenuId_;
+    }
+    DrawMenuBar();
+    clearMenuDiff();
+    return;
+  }
+
+  bool needsFullRebuild = false;
+  for (size_t index = 0; index < diff.changed.size(); ++index)
+  {
+    size_t i = diff.changed[index];
+    if (i >= menuBar->menus.size())
+    {
+      needsFullRebuild = true;
+      break;
+    }
     const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
     if (!menuDef)
-      continue;
+    {
+      needsFullRebuild = true;
+      break;
+    }
+    MenuEntry &entry = menuEntries_[i];
+    if (!entry.menu || entry.menuId == 0)
+    {
+      needsFullRebuild = true;
+      break;
+    }
+    if (menuDef->isAppMenu && !entry.isAppMenu)
+    {
+      needsFullRebuild = true;
+      break;
+    }
+    if (!menuDef->isAppMenu && entry.isAppMenu)
+    {
+      needsFullRebuild = true;
+      break;
+    }
+    if (!menuDef->title.equals(entry.title))
+    {
+      needsFullRebuild = true;
+      break;
+    }
+    clearMenuBindingsFor(entry.menu, entry.menuId);
+    while (CountMenuItems(entry.menu) > 0)
+    {
+      DeleteMenuItem(entry.menu, 1);
+    }
     if (menuDef->isAppMenu)
-      continue;
-    Str255 title;
-    CopyToPascalString(menuDef->title, title);
-    if (title[0] == 0)
     {
-      CopyToPascalString(loka::core::String::Literal("Menu"), title);
-    }
-    MenuHandle menu = NewMenu(nextMenuId_, title);
-    BuildMenuItems(menu, menuDef->items, nextMenuId_, commands_, bindings_);
-    if (CountMenuItems(menu) == 0)
-    {
-      DisposeMenu(menu);
+      std::vector<declara::app::MenuItemDefinition *> aboutItems;
+      for (size_t j = 0; j < menuBar->menus.size(); ++j)
+      {
+        const declara::app::MenuDefinition *appDef = menuBar->menus[j];
+        if (!appDef || !appDef->isAppMenu)
+          continue;
+        for (size_t k = 0; k < appDef->items.size(); ++k)
+        {
+          declara::app::MenuItemDefinition *itemDef = appDef->items[k];
+          if (itemDef && itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
+          {
+            aboutItems.push_back(itemDef);
+          }
+        }
+      }
+      if (aboutItems.empty())
+      {
+        needsFullRebuild = true;
+        break;
+      }
+      AppendResMenu(entry.menu, 'DRVR');
+      declara::app::MenuItemDefinition *itemDef = aboutItems[0];
+      Str255 aboutTitle;
+      CopyToPascalString(itemDef->title, aboutTitle);
+      InsertMenuItem(entry.menu, aboutTitle, 0);
+      short aboutIndex = 1;
+      ToolboxApp::MenuCommand command;
+      command.menuId = entry.menuId;
+      command.itemIndex = aboutIndex;
+      command.action = itemDef->action;
+      command.emitter = itemDef->onClickState;
+      commands_.push_back(command);
+      if (itemDef->enabledState)
+      {
+        if (!itemDef->enabledState->get())
+        {
+          DisableItem(entry.menu, aboutIndex);
+        }
+        ToolboxApp::MenuBinding *binding = new ToolboxApp::MenuBinding();
+        binding->menu = entry.menu;
+        binding->itemIndex = aboutIndex;
+        binding->enabledState = itemDef->enabledState;
+        itemDef->enabledState->deferBind(&ToolboxApp::MenuEnabledChangedThunk, binding);
+        bindings_.push_back(binding);
+      }
       continue;
     }
-    InsertMenu(menu, 0);
-    ++nextMenuId_;
+    BuildMenuItems(entry.menu, menuDef->items, entry.menuId, commands_, bindings_);
+    if (CountMenuItems(entry.menu) == 0)
+    {
+      needsFullRebuild = true;
+      break;
+    }
+  }
+  if (needsFullRebuild)
+  {
+    resetMenuState();
+    ClearMenuBar();
+    InitMenus();
+    applyMenuBar(activeWindow);
+    return;
   }
   DrawMenuBar();
+  clearMenuDiff();
 }
 
 void ToolboxApp::handleMenuCommand(short menuId, short item)

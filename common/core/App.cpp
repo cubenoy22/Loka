@@ -135,7 +135,10 @@ const declara::app::MenuBarDefinition *App::resolveMenuBar(Window *window)
   {
     return window->menuBar();
   }
-  refreshDefaultMenuBar();
+  if (!menuDiff_.valid)
+  {
+    refreshDefaultMenuBar();
+  }
   return menuBar_;
 }
 
@@ -166,15 +169,31 @@ bool App::refreshDefaultMenuBar()
   config_->composeMenu(menuComposition);
   if (menuBar.empty())
   {
+    menuDiff_.clear();
     if (menuBar_)
     {
       delete menuBar_;
       menuBar_ = 0;
+      menuDiff_.valid = true;
+      menuDiff_.fullRebuild = true;
       return true;
     }
     return false;
   }
-  if (!menuBar_ || !menuBar_->equalsStructure(menuBar))
+  if (!menuBar_)
+  {
+    menuDiff_.valid = true;
+    menuDiff_.fullRebuild = true;
+  }
+  else
+  {
+    if (!declara::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, menuDiff_))
+    {
+      menuDiff_.clear();
+      return false;
+    }
+  }
+  if (!menuBar_ || menuDiff_.valid)
   {
     if (menuBar_)
     {
@@ -184,5 +203,11 @@ bool App::refreshDefaultMenuBar()
     menuBar_ = menuBar.clone();
     return true;
   }
+  menuDiff_.clear();
   return false;
+}
+
+void App::clearMenuDiff()
+{
+  menuDiff_.clear();
 }

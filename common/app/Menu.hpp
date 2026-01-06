@@ -2,9 +2,8 @@
 #define LOKA_APP_MENU_HPP
 
 #include <vector>
-#include <cassert>
-#include "core/State.hpp"
 #include "loka/core/String.hpp"
+#include "app/MenuComposition.hpp"
 
 namespace declara
 {
@@ -398,107 +397,7 @@ namespace declara
       std::vector<MenuDefinition *> menus;
     };
 
-    class MenuComposition;
-
-    class MenuBoundary
-    {
-    public:
-      MenuBoundary() : tracker_(), ownedStates_() {}
-      virtual ~MenuBoundary()
-      {
-        for (size_t i = 0; i < ownedStates_.size(); ++i)
-        {
-          delete ownedStates_[i];
-        }
-        ownedStates_.clear();
-      }
-      virtual void composeMenu(MenuComposition &c) = 0;
-      declara::core::StateTracker *tracker() { return &tracker_; }
-
-      template <typename T>
-      declara::core::MutableState<T> &useState(const T &initial)
-      {
-        declara::core::MutableState<T> *state = new declara::core::MutableState<T>(initial);
-        ownedStates_.push_back(state);
-        tracker_.addState(state);
-        return *state;
-      }
-
-    private:
-      declara::core::PushStateTracker tracker_;
-      std::vector<declara::core::StateBase *> ownedStates_;
-    };
-
-    class MenuComposition
-    {
-    public:
-      typedef void (*InvalidateFn)(void *userData);
-
-      explicit MenuComposition(MenuBarDefinition *bar)
-          : bar_(bar),
-            boundaryDepth_(0),
-            activeBoundary_(0),
-            invalidateFn_(0),
-            invalidateUserData_(0)
-      {
-      }
-
-      void declare(const MenuDefinition &menu)
-      {
-        if (bar_)
-        {
-          MenuDefinition copy(menu);
-          if (boundaryDepth_ > 0 && !copy.opaqueChildrenSet_)
-            copy.opaqueChildren(true);
-          (*bar_) << copy;
-        }
-      }
-
-      void declare(MenuBoundary &boundary)
-      {
-        if (!bar_)
-          return;
-        boundaryDepth_ += 1;
-        MenuBoundary *prevBoundary = activeBoundary_;
-        activeBoundary_ = &boundary;
-        declara::core::PushStateTracker *tracker = static_cast<declara::core::PushStateTracker *>(boundary.tracker());
-        if (tracker)
-        {
-          tracker->begin();
-        }
-        boundary.composeMenu(*this);
-        if (tracker)
-        {
-          tracker->end();
-          if (tracker->consumeDirty() && invalidateFn_)
-          {
-            invalidateFn_(invalidateUserData_);
-          }
-        }
-        activeBoundary_ = prevBoundary;
-        boundaryDepth_ -= 1;
-      }
-
-      void setInvalidateCallback(InvalidateFn fn, void *userData)
-      {
-        invalidateFn_ = fn;
-        invalidateUserData_ = userData;
-      }
-
-      template <typename T>
-      declara::core::MutableState<T> &useState(const T &initial)
-      {
-        assert(activeBoundary_ && "MenuComposition::useState requires MenuBoundary");
-        return activeBoundary_->useState(initial);
-      }
-
-    private:
-      MenuBarDefinition *bar_;
-      int boundaryDepth_;
-      MenuBoundary *activeBoundary_;
-      InvalidateFn invalidateFn_;
-      void *invalidateUserData_;
-    };
+    // MenuComposition, MenuBoundary, MenuCompositionDiff are defined in MenuComposition.hpp.
 
     inline MenuDefinition Menu(const char *title)
     {
