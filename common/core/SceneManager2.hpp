@@ -128,7 +128,7 @@ public:
 
 protected:
   // ペンディングトランザクション取得
-  const SceneTransactionList &getPendingTransactions() const;
+  SceneTransactionList getPendingTransactions() const;
   // トランザクション進行
   void handleNextTransaction();
   // 副作用: シーン切り替え

@@ -28,14 +28,14 @@ const State<declara::core::scene::Scene *> &SceneManager2::getCurrentScene() con
   return currentScene_;
 }
 
-const SceneManager2::SceneTransactionList &SceneManager2::getPendingTransactions() const
+SceneManager2::SceneTransactionList SceneManager2::getPendingTransactions() const
 {
   return pendingTransactions_.get();
 }
 
 void SceneManager2::handleNextTransaction()
 {
-  const SceneTransactionList &txns = pendingTransactions_.get();
+  SceneTransactionList txns = pendingTransactions_.get();
   if (txns.empty())
     return;
   declara::core::scene::Scene *oldScene = currentScene_.get();
@@ -43,9 +43,8 @@ void SceneManager2::handleNextTransaction()
   // attached の切り替えは swapScene 内で行う
   swapScene(oldScene, newScene);
   tracker_.begin();
-  SceneTransactionList nextTxns = pendingTransactions_.get();
-  nextTxns.popFront();
-  pendingTransactions_.set(nextTxns);
+  txns.popFront();
+  pendingTransactions_.set(txns);
   tracker_.end();
 }
 
