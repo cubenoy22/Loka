@@ -243,11 +243,9 @@ void Win32App::applyMenuBar(Window *activeWindow)
   }
 
   HMENU menuBarHandle = CreateMenu();
-  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  loka::dsl::CompositionCursor<declara::app::MenuDefinition> it(menuBar->menusHead(), menuBar->menusCount());
+  for (declara::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
   {
-    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
-    if (!menuDef)
-      continue;
     if (menuDef->isAppMenu)
       continue;
     std::string titleUtf8;

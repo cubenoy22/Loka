@@ -9,23 +9,22 @@ namespace declara
     {
       out.clear();
       out.fullRebuild = false;
-      if (before.menus.size() != after.menus.size())
+      if (before.menusCount() != after.menusCount())
       {
         out.valid = true;
         out.fullRebuild = true;
         return true;
       }
-      for (size_t i = 0; i < before.menus.size(); ++i)
+      loka::dsl::CompositionCursor<MenuDefinition> beforeIt(before.menusHead(), before.menusCount());
+      loka::dsl::CompositionCursor<MenuDefinition> afterIt(after.menusHead(), after.menusCount());
+      size_t index = 0;
+      for (MenuDefinition *beforeMenu = beforeIt.next(), *afterMenu = afterIt.next();
+           beforeMenu && afterMenu;
+           beforeMenu = beforeIt.next(), afterMenu = afterIt.next(), ++index)
       {
-        if (!before.menus[i] || !after.menus[i])
+        if (!beforeMenu->equalsStructure(*afterMenu))
         {
-          out.valid = true;
-          out.fullRebuild = true;
-          return true;
-        }
-        if (!before.menus[i]->equalsStructure(*after.menus[i]))
-        {
-          out.changed.push_back(i);
+          out.changed.push_back(index);
         }
       }
       if (!out.changed.empty())
@@ -56,11 +55,10 @@ namespace declara
     {
       if (!bar_)
         return;
-      for (size_t i = 0; i < bar.menus.size(); ++i)
+      loka::dsl::CompositionCursor<MenuDefinition> it(bar.menusHead(), bar.menusCount());
+      for (MenuDefinition *menu = it.next(); menu; menu = it.next())
       {
-        if (!bar.menus[i])
-          continue;
-        declare(*bar.menus[i]);
+        declare(*menu);
       }
     }
 
@@ -94,8 +92,7 @@ namespace declara
       if (!bar_ || list_.count() == 0)
         return;
       bar_->clearMenus();
-      bar_->reserve(list_.count());
-      list_.detachTo(bar_->menus);
+      list_.detachTo(bar_->menus_);
     }
 
     MenuComposition &MenuComposition::operator<<(const MenuDefinition &menu)

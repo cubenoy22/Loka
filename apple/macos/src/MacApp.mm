@@ -248,10 +248,10 @@ void MacApp::applyMenuBar(Window *activeWindow)
   }
 
   bool hasAppMenu = false;
-  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuScan(menuBar->menusHead(), menuBar->menusCount());
+  for (declara::app::MenuDefinition *menuDef = appMenuScan.next(); menuDef; menuDef = appMenuScan.next())
   {
-    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
-    if (menuDef && menuDef->isAppMenu)
+    if (menuDef->isAppMenu)
     {
       hasAppMenu = true;
       break;
@@ -272,11 +272,9 @@ void MacApp::applyMenuBar(Window *activeWindow)
   }
 
   NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@""];
-  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  loka::dsl::CompositionCursor<declara::app::MenuDefinition> it(menuBar->menusHead(), menuBar->menusCount());
+  for (declara::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
   {
-    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
-    if (!menuDef)
-      continue;
     const char *fallback = menuDef->isAppMenu ? "Loka" : "Menu";
     NSString *menuTitle = MenuTitleFromString(menuDef->title, fallback);
     NSMenu *subMenu = [[NSMenu alloc] initWithTitle:menuTitle];

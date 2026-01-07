@@ -56,6 +56,19 @@ namespace loka
         count_ = 0;
       }
 
+      void detachTo(CompositionList<DefT> &out)
+      {
+        if (this == &out)
+          return;
+        out.clear();
+        out.head_ = head_;
+        out.tail_ = tail_;
+        out.count_ = count_;
+        head_ = 0;
+        tail_ = 0;
+        count_ = 0;
+      }
+
       bool remove(DefT *node)
       {
         if (!node)

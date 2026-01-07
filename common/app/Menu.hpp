@@ -361,13 +361,15 @@ namespace declara
 
     struct MenuBarDefinition
     {
-      MenuBarDefinition() : menus() {}
+      MenuBarDefinition() : menus_() {}
 
-      MenuBarDefinition(const MenuBarDefinition &other) : menus()
+      MenuBarDefinition(const MenuBarDefinition &other) : menus_()
       {
-        for (size_t i = 0; i < other.menus.size(); ++i)
+        const MenuDefinition *cur = other.menus_.head();
+        while (cur)
         {
-          menus.push_back(other.menus[i]->clone());
+          menus_.appendClone(*cur);
+          cur = cur->nextInComposition;
         }
       }
 
@@ -381,9 +383,11 @@ namespace declara
         if (this == &other)
           return *this;
         clearMenus();
-        for (size_t i = 0; i < other.menus.size(); ++i)
+        const MenuDefinition *cur = other.menus_.head();
+        while (cur)
         {
-          menus.push_back(other.menus[i]->clone());
+          menus_.appendClone(*cur);
+          cur = cur->nextInComposition;
         }
         return *this;
       }
@@ -392,39 +396,51 @@ namespace declara
 
       bool equalsStructure(const MenuBarDefinition &other) const
       {
-        if (menus.size() != other.menus.size())
+        if (menus_.count() != other.menus_.count())
           return false;
-        for (size_t i = 0; i < menus.size(); ++i)
+        const MenuDefinition *left = menus_.head();
+        const MenuDefinition *right = other.menus_.head();
+        while (left && right)
         {
-          if (!menus[i]->equalsStructure(*other.menus[i]))
+          if (!left->equalsStructure(*right))
             return false;
+          left = left->nextInComposition;
+          right = right->nextInComposition;
         }
         return true;
       }
 
       MenuBarDefinition &operator<<(const MenuDefinition &menu)
       {
-        menus.push_back(menu.clone());
+        menus_.appendClone(menu);
         return *this;
       }
 
-      void reserve(size_t count)
+      bool empty() const { return menus_.count() == 0; }
+      MenuDefinition *menusHead() const { return menus_.head(); }
+      size_t menusCount() const { return menus_.count(); }
+      MenuDefinition *menuAt(size_t index) const
       {
-        menus.reserve(count);
+        size_t i = 0;
+        MenuDefinition *cur = menus_.head();
+        while (cur)
+        {
+          if (i == index)
+          {
+            return cur;
+          }
+          cur = cur->nextInComposition;
+          i += 1;
+        }
+        return 0;
       }
-
-      bool empty() const { return menus.empty(); }
 
       void clearMenus()
       {
-        for (size_t i = 0; i < menus.size(); ++i)
-        {
-          delete menus[i];
-        }
-        menus.clear();
+        menus_.clear();
       }
 
-      std::vector<MenuDefinition *> menus;
+      loka::dsl::CompositionList<MenuDefinition> menus_;
     };
 
     // MenuComposition, MenuBoundary, MenuCompositionDiff are defined in MenuComposition.hpp.

@@ -380,6 +380,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     return;
   }
 
+  size_t menuCount = menuBar->menusCount();
   bool forceFullRebuild = (activeWindow && activeWindow->menuBar());
   const declara::app::MenuCompositionDiff &diff = menuDiff();
   if (!diff.valid && !forceFullRebuild)
@@ -388,10 +389,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   }
   bool canPartial = diff.valid && !diff.fullRebuild && !forceFullRebuild;
   bool hasHierarchical = false;
-  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  loka::dsl::CompositionCursor<declara::app::MenuDefinition> hierarchyIt(menuBar->menusHead(), menuCount);
+  for (declara::app::MenuDefinition *menuDef = hierarchyIt.next(); menuDef; menuDef = hierarchyIt.next())
   {
-    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
-    if (menuDef && HasHierarchicalItems(menuDef->itemsHead()))
+    if (HasHierarchicalItems(menuDef->itemsHead()))
     {
       hasHierarchical = true;
       break;
@@ -402,7 +403,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     forceFullRebuild = true;
     canPartial = false;
   }
-  if (canPartial && menuEntries_.size() != menuBar->menus.size())
+  if (canPartial && menuEntries_.size() != menuCount)
   {
     canPartial = false;
   }
@@ -414,10 +415,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   }
 
   bool hasAppMenu = false;
-  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuScan(menuBar->menusHead(), menuCount);
+  for (declara::app::MenuDefinition *menuDef = appMenuScan.next(); menuDef; menuDef = appMenuScan.next())
   {
-    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
-    if (menuDef && menuDef->isAppMenu)
+    if (menuDef->isAppMenu)
     {
       hasAppMenu = true;
       break;
@@ -432,15 +433,15 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     title[1] = 0x14;
     MenuHandle menu = NewMenu(128, title);
     std::vector<const declara::app::MenuItemDefinition *> aboutItems;
-    for (size_t i = 0; i < menuBar->menus.size(); ++i)
+    loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
+    for (declara::app::MenuDefinition *menuDef = appMenuIt.next(); menuDef; menuDef = appMenuIt.next())
     {
-      const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
-      if (!menuDef || !menuDef->isAppMenu)
+      if (!menuDef->isAppMenu)
         continue;
       const declara::app::MenuItemDefinition *itemDef = menuDef->itemsHead();
       while (itemDef)
       {
-        if (itemDef && itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
+        if (itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
         {
           aboutItems.push_back(itemDef);
         }
@@ -484,24 +485,23 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   if (!canPartial)
   {
     menuEntries_.clear();
-    menuEntries_.resize(menuBar->menus.size());
+    menuEntries_.resize(menuCount);
     for (size_t i = 0; i < menuEntries_.size(); ++i)
     {
       menuEntries_[i].menu = 0;
       menuEntries_[i].menuId = 0;
       menuEntries_[i].isAppMenu = false;
     }
-    for (size_t i = 0; i < menuBar->menus.size(); ++i)
+    size_t menuIndex = 0;
+    loka::dsl::CompositionCursor<declara::app::MenuDefinition> it(menuBar->menusHead(), menuCount);
+    for (declara::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next(), ++menuIndex)
     {
-      const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
-      if (!menuDef)
-        continue;
       if (menuDef->isAppMenu)
       {
-        menuEntries_[i].menu = appMenuHandle;
-        menuEntries_[i].menuId = appMenuHandle ? 128 : 0;
-        menuEntries_[i].isAppMenu = true;
-        menuEntries_[i].title = menuDef->title;
+        menuEntries_[menuIndex].menu = appMenuHandle;
+        menuEntries_[menuIndex].menuId = appMenuHandle ? 128 : 0;
+        menuEntries_[menuIndex].isAppMenu = true;
+        menuEntries_[menuIndex].title = menuDef->title;
         continue;
       }
       Str255 title;
@@ -519,10 +519,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
         continue;
       }
       InsertMenu(menu, 0);
-      menuEntries_[i].menu = menu;
-      menuEntries_[i].menuId = menuId;
-      menuEntries_[i].isAppMenu = false;
-      menuEntries_[i].title = menuDef->title;
+      menuEntries_[menuIndex].menu = menu;
+      menuEntries_[menuIndex].menuId = menuId;
+      menuEntries_[menuIndex].isAppMenu = false;
+      menuEntries_[menuIndex].title = menuDef->title;
       ++nextMenuId_;
     }
     DrawMenuBar();
@@ -534,12 +534,12 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   for (size_t index = 0; index < diff.changed.size(); ++index)
   {
     size_t i = diff.changed[index];
-    if (i >= menuBar->menus.size())
+    if (i >= menuCount)
     {
       needsFullRebuild = true;
       break;
     }
-    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
+    const declara::app::MenuDefinition *menuDef = menuBar->menuAt(i);
     if (!menuDef)
     {
       needsFullRebuild = true;
@@ -574,15 +574,15 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     if (menuDef->isAppMenu)
     {
       std::vector<const declara::app::MenuItemDefinition *> aboutItems;
-      for (size_t j = 0; j < menuBar->menus.size(); ++j)
+      loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
+      for (declara::app::MenuDefinition *appDef = appMenuIt.next(); appDef; appDef = appMenuIt.next())
       {
-        const declara::app::MenuDefinition *appDef = menuBar->menus[j];
-        if (!appDef || !appDef->isAppMenu)
+        if (!appDef->isAppMenu)
           continue;
         const declara::app::MenuItemDefinition *itemDef = appDef->itemsHead();
         while (itemDef)
         {
-          if (itemDef && itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
+          if (itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
           {
             aboutItems.push_back(itemDef);
           }
