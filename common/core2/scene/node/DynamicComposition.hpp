@@ -1,0 +1,144 @@
+#ifndef LOKA_CORE2_SCENE_NODE_DYNAMICCOMPOSITION_HPP
+#define LOKA_CORE2_SCENE_NODE_DYNAMICCOMPOSITION_HPP
+
+#include "../NodeComposition.hpp"
+#include "Boundary.hpp"
+
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      // Forward declaration so props can alias NodeType
+      template <class PropsT>
+      class DynamicCompositionBoundaryNodeBase;
+
+      struct DynamicCompositionTypeTag
+      {
+      };
+
+      template <class NodeT>
+      struct DynamicCompositionPropsForTypeTag
+      {
+      };
+
+      struct DynamicCompositionProps : public NodePropsBase<DynamicCompositionProps>
+      {
+        DynamicCompositionProps() {}
+        typedef DynamicCompositionTypeTag TypeTag;
+        typedef DynamicCompositionBoundaryNodeBase<DynamicCompositionProps> NodeType;
+        bool operator<(const PropsBase &rhs) const
+        {
+          const DynamicCompositionProps *p = dynamic_cast<const DynamicCompositionProps *>(&rhs);
+          return p ? false : false;
+        }
+      };
+
+      typedef DynamicCompositionBoundaryNodeBase<DynamicCompositionProps> DynamicCompositionBoundaryNode;
+      typedef DynamicCompositionBoundaryNode DynamicCompositionNode;
+
+      // Helper props for dynamic composition boundary nodes with no custom fields.
+      template <class NodeT>
+      struct DynamicCompositionPropsFor : public NodePropsBase<DynamicCompositionPropsFor<NodeT> >
+      {
+        typedef DynamicCompositionPropsForTypeTag<NodeT> TypeTag;
+        typedef NodeT NodeType;
+        bool operator<(const PropsBase &rhs) const
+        {
+          const DynamicCompositionPropsFor<NodeT> *p = dynamic_cast<const DynamicCompositionPropsFor<NodeT> *>(&rhs);
+          return p ? false : false;
+        }
+      };
+
+      template <class PropsT>
+      class DynamicCompositionBoundaryNodeBase : public BoundaryNode
+      {
+      public:
+        typedef typename PropsT::TypeTag TypeTag;
+        PropsT props;
+        DynamicCompositionBoundaryNodeBase(const PropsT &p)
+            : BoundaryNode(), props(p) {}
+        virtual ~DynamicCompositionBoundaryNodeBase() {}
+
+        // Build node definitions into composition container (default: no children)
+        virtual void composeNode(NodeComposition &c) { (void)c; }
+
+        virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
+        {
+          if (event == COMPOSE_EVENT_DETACH)
+          {
+            NodeComposition &composition = this->beginComposition(context);
+            this->detachNode(composition);
+            return;
+          }
+          if (event != COMPOSE_EVENT_ATTACH && event != COMPOSE_EVENT_UPDATE)
+          {
+            return;
+          }
+          this->clearChildren();
+          NodeComposition &composition = this->beginComposition(context);
+          if (event == COMPOSE_EVENT_ATTACH)
+          {
+            this->attachNode(composition);
+          }
+          this->composeNode(composition);
+          Node *child = composition.createNodeTree();
+          if (child)
+          {
+            this->addChild(child);
+            this->composeTree(child, context, event, this);
+          }
+        }
+      };
+
+      struct DynamicCompositionDefinition : public NodeDefinition<DynamicCompositionProps, DynamicCompositionNode>
+      {
+        DynamicCompositionDefinition() : NodeDefinition<DynamicCompositionProps, DynamicCompositionNode>() {}
+        DynamicCompositionDefinition(const DynamicCompositionProps &p) : NodeDefinition<DynamicCompositionProps, DynamicCompositionNode>(p) {}
+      };
+
+      struct DynamicCompositionBoundaryDefinition : public BoundaryDefinition<DynamicCompositionProps, DynamicCompositionBoundaryNode>
+      {
+        DynamicCompositionBoundaryDefinition() : BoundaryDefinition<DynamicCompositionProps, DynamicCompositionBoundaryNode>() {}
+        DynamicCompositionBoundaryDefinition(const DynamicCompositionProps &p) : BoundaryDefinition<DynamicCompositionProps, DynamicCompositionBoundaryNode>(p) {}
+      };
+
+      inline DynamicCompositionDefinition DynamicComposition(const DynamicCompositionProps &p)
+      {
+        return DynamicCompositionDefinition(p);
+      }
+
+      inline DynamicCompositionBoundaryDefinition DynamicCompositionBoundary(const DynamicCompositionProps &p)
+      {
+        return DynamicCompositionBoundaryDefinition(p);
+      }
+
+      template <class NodeT>
+      inline BoundaryDefinition<DynamicCompositionPropsFor<NodeT>, NodeT> DynamicCompositionBoundary()
+      {
+        return BoundaryDefinition<DynamicCompositionPropsFor<NodeT>, NodeT>();
+      }
+
+      template <class NodeT>
+      inline BoundaryDefinition<DynamicCompositionPropsFor<NodeT>, NodeT> DynamicCompositionBoundary(const DynamicCompositionPropsFor<NodeT> &p)
+      {
+        return BoundaryDefinition<DynamicCompositionPropsFor<NodeT>, NodeT>(p);
+      }
+
+      // Helper base class for nodes using DynamicCompositionPropsFor<NodeT>.
+      template <class NodeT>
+      class DynamicCompositionNodeFor : public DynamicCompositionBoundaryNodeBase<DynamicCompositionPropsFor<NodeT> >
+      {
+      public:
+        typedef DynamicCompositionPropsFor<NodeT> PropsType;
+        DynamicCompositionNodeFor(const PropsType &p)
+            : DynamicCompositionBoundaryNodeBase<DynamicCompositionPropsFor<NodeT> >(p) {}
+        virtual ~DynamicCompositionNodeFor() {}
+      };
+
+    } // namespace scene
+  } // namespace core
+} // namespace declara
+
+#endif // LOKA_CORE2_SCENE_NODE_DYNAMICCOMPOSITION_HPP
