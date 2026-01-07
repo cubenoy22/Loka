@@ -55,6 +55,41 @@ namespace loka
         count_ = 0;
       }
 
+      bool remove(DefT *node)
+      {
+        if (!node)
+          return false;
+        DefT *prev = 0;
+        DefT *cur = head_;
+        while (cur)
+        {
+          if (cur == node)
+          {
+            if (prev)
+            {
+              prev->nextInComposition = cur->nextInComposition;
+            }
+            else
+            {
+              head_ = cur->nextInComposition;
+            }
+            if (tail_ == cur)
+            {
+              tail_ = prev;
+            }
+            cur->nextInComposition = 0;
+            if (count_ > 0)
+            {
+              count_ -= 1;
+            }
+            return true;
+          }
+          prev = cur;
+          cur = cur->nextInComposition;
+        }
+        return false;
+      }
+
       void clear()
       {
         while (head_)

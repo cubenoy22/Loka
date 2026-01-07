@@ -120,18 +120,20 @@ namespace declara
       public:
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
 
-        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0) {}
-        NodeDefinitionBase(const NodeDefinitionBase &) : cleanupHook_(0), cleanupContext_(0) {}
+        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0) {}
+        NodeDefinitionBase(const NodeDefinitionBase &) : cleanupHook_(0), cleanupContext_(0), nextInComposition(0) {}
         NodeDefinitionBase &operator=(const NodeDefinitionBase &)
         {
           this->cleanupHook_ = 0;
           this->cleanupContext_ = 0;
+          this->nextInComposition = 0;
           return *this;
         }
         virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
         virtual Node *create() const = 0;
         virtual NodeDefinitionBase *clone() const = 0;
         virtual bool isBoundary() const { return false; }
+        NodeDefinitionBase *nextInComposition;
 
         void setCleanupHook(CleanupHook hook, void *context)
         {

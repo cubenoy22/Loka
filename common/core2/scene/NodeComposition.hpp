@@ -9,6 +9,7 @@
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/StateOwner.hpp"
+#include "loka/dsl/CompositionList.hpp"
 
 class Window;
 
@@ -25,14 +26,14 @@ namespace declara
       {
       private:
         // Arena: owns copies of all definitions created during compose
-        std::vector<NodeDefinitionBase *> arena_;
+        loka::dsl::CompositionList<NodeDefinitionBase> arena_;
         NodeDefinitionBase *root_;
         ComponentContext *context_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
           NodeDefinitionBase *cloned = def.clone();
           cloned->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
-          arena_.push_back(cloned);
+          arena_.appendOwned(cloned);
           return cloned;
         }
         static void cleanupStoredNode(NodeDefinitionBase *node, void *context)
@@ -46,21 +47,20 @@ namespace declara
         }
         void releaseStoredNode(NodeDefinitionBase *node)
         {
-          for (size_t i = 0; i < arena_.size(); ++i)
+          arena_.remove(node);
+          if (root_ == node)
           {
-            if (arena_[i] == node)
-            {
-              arena_[i] = 0;
-              break;
-            }
+            root_ = 0;
           }
         }
 
         void destroyArena()
         {
-          for (size_t i = 0; i < arena_.size(); ++i)
+          std::vector<NodeDefinitionBase *> nodes;
+          arena_.detachTo(nodes);
+          for (size_t i = 0; i < nodes.size(); ++i)
           {
-            NodeDefinitionBase *node = arena_[i];
+            NodeDefinitionBase *node = nodes[i];
             if (!node)
             {
               continue;
@@ -68,7 +68,6 @@ namespace declara
             node->clearCleanupHook();
             delete node;
           }
-          arena_.clear();
           root_ = 0;
         }
 
