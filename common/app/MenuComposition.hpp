@@ -2,6 +2,7 @@
 #define LOKA_APP_MENU_COMPOSITION_HPP
 
 #include <cassert>
+#include <vector>
 #include "core/State.hpp"
 #include "loka/dsl/CompositionList.hpp"
 #include "loka/dsl/CompositionDiff.hpp"
@@ -70,7 +71,8 @@ namespace declara
             activeBoundary_(0),
             invalidateFn_(0),
             invalidateUserData_(0),
-            list_()
+            list_(),
+            dirtyIndices_()
       {
       }
       ~MenuComposition();
@@ -90,6 +92,12 @@ namespace declara
         invalidateUserData_ = userData;
       }
 
+      void takeDirtyMenuIndices(std::vector<size_t> &out)
+      {
+        out.clear();
+        out.swap(dirtyIndices_);
+      }
+
       template <typename T>
       declara::core::MutableState<T> &useState(const T &initial)
       {
@@ -104,6 +112,7 @@ namespace declara
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
       loka::dsl::CompositionList<MenuDefinition> list_;
+      std::vector<size_t> dirtyIndices_;
     };
 
   } // namespace app

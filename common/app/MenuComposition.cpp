@@ -67,6 +67,7 @@ namespace declara
       if (!bar_)
         return;
       boundaryDepth_ += 1;
+      size_t countBefore = list_.count();
       MenuBoundary *prevBoundary = activeBoundary_;
       activeBoundary_ = &boundary;
       declara::core::PushStateTracker *tracker = static_cast<declara::core::PushStateTracker *>(boundary.tracker());
@@ -75,12 +76,34 @@ namespace declara
         tracker->begin();
       }
       boundary.composeMenu(*this);
+      bool boundaryDirty = false;
       if (tracker)
       {
         tracker->end();
-        if (tracker->consumeDirty() && invalidateFn_)
+        boundaryDirty = tracker->consumeDirty();
+        if (boundaryDirty && invalidateFn_)
         {
           invalidateFn_(invalidateUserData_);
+        }
+      }
+      if (boundaryDirty)
+      {
+        size_t countAfter = list_.count();
+        for (size_t i = countBefore; i < countAfter; ++i)
+        {
+          bool exists = false;
+          for (size_t j = 0; j < dirtyIndices_.size(); ++j)
+          {
+            if (dirtyIndices_[j] == i)
+            {
+              exists = true;
+              break;
+            }
+          }
+          if (!exists)
+          {
+            dirtyIndices_.push_back(i);
+          }
         }
       }
       activeBoundary_ = prevBoundary;

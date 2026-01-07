@@ -163,6 +163,8 @@ bool App::refreshDefaultMenuBar()
   menuComposition.setInvalidateCallback(&MenuInvalidateThunk, this);
   config_->composeMenu(menuComposition);
   menuComposition.finish();
+  std::vector<size_t> dirtyMenus;
+  menuComposition.takeDirtyMenuIndices(dirtyMenus);
   if (menuBar.empty())
   {
     menuDiff_.clear();
@@ -176,6 +178,8 @@ bool App::refreshDefaultMenuBar()
     }
     return false;
   }
+  bool diffAttempted = false;
+  bool diffResult = false;
   if (!menuBar_)
   {
     menuDiff_.valid = true;
@@ -183,10 +187,42 @@ bool App::refreshDefaultMenuBar()
   }
   else
   {
-    if (!declara::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, menuDiff_))
+    diffAttempted = true;
+    diffResult = declara::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, menuDiff_);
+    if (!diffResult)
     {
       menuDiff_.clear();
-      return false;
+      if (dirtyMenus.empty())
+      {
+        return false;
+      }
+    }
+  }
+  if (!dirtyMenus.empty())
+  {
+    menuDiff_.valid = true;
+    if (menuDiff_.fullRebuild && diffAttempted && !diffResult)
+    {
+      menuDiff_.fullRebuild = false;
+    }
+    if (!menuDiff_.fullRebuild)
+    {
+      for (size_t i = 0; i < dirtyMenus.size(); ++i)
+      {
+        bool exists = false;
+        for (size_t j = 0; j < menuDiff_.changed.size(); ++j)
+        {
+          if (menuDiff_.changed[j] == dirtyMenus[i])
+          {
+            exists = true;
+            break;
+          }
+        }
+        if (!exists)
+        {
+          menuDiff_.changed.push_back(dirtyMenus[i]);
+        }
+      }
     }
   }
   if (!menuBar_ || menuDiff_.valid)
