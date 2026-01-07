@@ -27,7 +27,6 @@ public:
 private:
   AppComposition &add(AppComponent *comp);
   std::vector<AppComponent *> components_;
-  std::vector<WindowDefinitionBase *> windows_;
   loka::dsl::CompositionList<WindowDefinitionBase> windowList_;
   PlatformContext *context_;
 };

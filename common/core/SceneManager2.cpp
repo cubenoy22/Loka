@@ -1,4 +1,3 @@
-#include <vector>
 #include "SceneManager2.hpp"
 #include "util/StateUtil.hpp"
 #include <cassert>
@@ -17,10 +16,8 @@ SceneManager2::~SceneManager2() {}
 void SceneManager2::commitTransaction(declara::core::scene::Scene *from, declara::core::scene::Scene *to)
 {
   tracker_.begin();
-  typedef std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> SceneTxn;
-  typedef std::vector<SceneTxn> SceneTxnList;
-  SceneTxnList txns = pendingTransactions_.get();
-  txns.push_back(std::make_pair(from, to));
+  SceneTransactionList txns = pendingTransactions_.get();
+  txns.push(from, to);
   pendingTransactions_.set(txns);
   tracker_.end();
   handleNextTransaction(); // 追加: 追加直後に即時遷移
@@ -31,25 +28,23 @@ const State<declara::core::scene::Scene *> &SceneManager2::getCurrentScene() con
   return currentScene_;
 }
 
-const std::vector<std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> > &SceneManager2::getPendingTransactions() const
+const SceneManager2::SceneTransactionList &SceneManager2::getPendingTransactions() const
 {
   return pendingTransactions_.get();
 }
 
 void SceneManager2::handleNextTransaction()
 {
-  typedef std::pair<declara::core::scene::Scene *, declara::core::scene::Scene *> SceneTxn;
-  typedef std::vector<SceneTxn> SceneTxnList;
-  const SceneTxnList &txns = pendingTransactions_.get();
+  const SceneTransactionList &txns = pendingTransactions_.get();
   if (txns.empty())
     return;
   declara::core::scene::Scene *oldScene = currentScene_.get();
-  declara::core::scene::Scene *newScene = txns.front().second;
+  declara::core::scene::Scene *newScene = txns.head()->to;
   // attached の切り替えは swapScene 内で行う
   swapScene(oldScene, newScene);
   tracker_.begin();
-  SceneTxnList nextTxns = pendingTransactions_.get();
-  nextTxns.erase(nextTxns.begin());
+  SceneTransactionList nextTxns = pendingTransactions_.get();
+  nextTxns.popFront();
   pendingTransactions_.set(nextTxns);
   tracker_.end();
 }
