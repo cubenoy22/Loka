@@ -1,10 +1,9 @@
 #ifndef LOKA_APP_MENU_COMPOSITION_HPP
 #define LOKA_APP_MENU_COMPOSITION_HPP
 
-#include <vector>
 #include <cassert>
 #include "core/State.hpp"
-#include "loka/core/String.hpp"
+#include "loka/dsl/CompositionList.hpp"
 
 namespace declara
 {
@@ -71,9 +70,7 @@ namespace declara
             activeBoundary_(0),
             invalidateFn_(0),
             invalidateUserData_(0),
-            listHead_(0),
-            listTail_(0),
-            listCount_(0)
+            list_()
       {
       }
       ~MenuComposition();
@@ -106,9 +103,7 @@ namespace declara
       MenuBoundary *activeBoundary_;
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
-      MenuDefinition *listHead_;
-      MenuDefinition *listTail_;
-      size_t listCount_;
+      loka::dsl::CompositionList<MenuDefinition> list_;
     };
 
   } // namespace app

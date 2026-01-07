@@ -38,16 +38,7 @@ namespace declara
 
     MenuComposition::~MenuComposition()
     {
-      if (listHead_)
-      {
-        MenuDefinition *node = listHead_;
-        while (node)
-        {
-          MenuDefinition *next = node->nextInComposition;
-          delete node;
-          node = next;
-        }
-      }
+      // list_ cleans up automatically
     }
 
     void MenuComposition::declare(const MenuDefinition &menu)
@@ -57,19 +48,7 @@ namespace declara
         MenuDefinition copy(menu);
         if (boundaryDepth_ > 0 && !copy.opaqueChildrenSet_)
           copy.opaqueChildren(true);
-        MenuDefinition *node = new MenuDefinition(copy);
-        node->nextInComposition = 0;
-        if (!listHead_)
-        {
-          listHead_ = node;
-          listTail_ = node;
-        }
-        else
-        {
-          listTail_->nextInComposition = node;
-          listTail_ = node;
-        }
-        listCount_ += 1;
+        list_.appendOwned(new MenuDefinition(copy));
       }
     }
 
@@ -112,21 +91,11 @@ namespace declara
 
     void MenuComposition::finish()
     {
-      if (!bar_ || !listHead_)
+      if (!bar_ || list_.count() == 0)
         return;
       bar_->clearMenus();
-      bar_->reserve(listCount_);
-      MenuDefinition *node = listHead_;
-      while (node)
-      {
-        MenuDefinition *next = node->nextInComposition;
-        node->nextInComposition = 0;
-        bar_->menus.push_back(node);
-        node = next;
-      }
-      listHead_ = 0;
-      listTail_ = 0;
-      listCount_ = 0;
+      bar_->reserve(list_.count());
+      list_.detachTo(bar_->menus);
     }
 
     MenuComposition &MenuComposition::operator<<(const MenuDefinition &menu)

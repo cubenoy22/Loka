@@ -11,9 +11,12 @@ class PlatformContext;
 class WindowDefinitionBase
 {
 public:
+  WindowDefinitionBase() : nextInComposition(0) {}
   virtual ~WindowDefinitionBase() {}
   virtual Window *create(PlatformContext *context) const = 0;
   virtual WindowDefinitionBase *clone() const = 0;
+
+  WindowDefinitionBase *nextInComposition;
 };
 
 template <class PropsT>

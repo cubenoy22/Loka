@@ -5,6 +5,7 @@
 #include <cassert>
 #include "core/AppComponent.hpp"
 #include "core/WindowDefinition.hpp"
+#include "loka/dsl/CompositionList.hpp"
 
 class AppComposition
 {
@@ -23,6 +24,7 @@ private:
   AppComposition &add(AppComponent *comp);
   std::vector<AppComponent *> components_;
   std::vector<WindowDefinitionBase *> windows_;
+  loka::dsl::CompositionList<WindowDefinitionBase> windowList_;
   PlatformContext *context_;
 };
 
