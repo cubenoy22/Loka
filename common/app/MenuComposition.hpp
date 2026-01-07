@@ -4,6 +4,7 @@
 #include <cassert>
 #include "core/State.hpp"
 #include "loka/dsl/CompositionList.hpp"
+#include "loka/dsl/CompositionDiff.hpp"
 
 namespace declara
 {
@@ -42,13 +43,12 @@ namespace declara
       std::vector<declara::core::StateBase *> ownedStates_;
     };
 
-    struct MenuCompositionDiff
+    struct MenuCompositionDiff : public loka::dsl::CompositionDiff
     {
-      MenuCompositionDiff() : valid(false), fullRebuild(true), changed() {}
+      MenuCompositionDiff() : loka::dsl::CompositionDiff(), changed() {}
       void clear()
       {
-        valid = false;
-        fullRebuild = true;
+        loka::dsl::CompositionDiff::clear();
         changed.clear();
       }
 

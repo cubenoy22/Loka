@@ -9,6 +9,7 @@
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include "loka/dsl/RefreshLoop.hpp"
+#include "loka/dsl/CompositionDiff.hpp"
 
 class Window;
 
@@ -31,6 +32,16 @@ namespace declara
       class Scene
       {
       public:
+        struct SceneCompositionDiff : public loka::dsl::CompositionDiff
+        {
+          SceneCompositionDiff() : loka::dsl::CompositionDiff(), flags(NODE_DIRTY_NONE) {}
+          void clear()
+          {
+            loka::dsl::CompositionDiff::clear();
+            flags = NODE_DIRTY_NONE;
+          }
+          NodeDirtyFlags flags;
+        };
         // Boundary 定義のみを受け付ける (compile-time check via IsBoundaryDefinition)
         template <class DefT>
         explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
@@ -63,6 +74,7 @@ namespace declara
         NodeDefinitionBase *getRootDefinition() const { return rootDefinition_; }
         Window *getWindow() const { return window_; }
         void setWindow(Window *window) { window_ = window; }
+        const SceneCompositionDiff &compositionDiff() const { return compositionDiff_; }
 
         // 外部公開: State*として取得
         State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
@@ -132,6 +144,7 @@ namespace declara
         bool mounted_;
         bool composed_;
         loka::dsl::RefreshLoop refreshLoop_;
+        SceneCompositionDiff compositionDiff_;
 
         // SceneManager2からlifecycle_/attachedを書き換え可能に
         friend class SceneManager2;
@@ -249,8 +262,12 @@ namespace declara
         {
           if (!mounted_ || !platformController_ || !composed_)
           {
+            compositionDiff_.clear();
             return false;
           }
+          compositionDiff_.valid = true;
+          compositionDiff_.fullRebuild = false;
+          compositionDiff_.flags = NODE_DIRTY_PROPS;
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
           return true;
         }
@@ -261,7 +278,13 @@ namespace declara
           {
             return;
           }
-          platformController_->onChange(rootNode_, NODE_DIRTY_PROPS);
+          NodeDirtyFlags flags = compositionDiff_.flags;
+          if (flags == NODE_DIRTY_NONE)
+          {
+            flags = NODE_DIRTY_PROPS;
+          }
+          platformController_->onChange(rootNode_, flags);
+          compositionDiff_.clear();
         }
 
         void teardownComposition()
