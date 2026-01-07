@@ -51,11 +51,11 @@ public:
     SceneTransaction *nextInComposition;
   };
 
-  class SceneTransactionList
-  {
-  public:
-    SceneTransactionList() : list_() {}
-    SceneTransactionList(const SceneTransactionList &other) : list_() { copyFrom(other); }
+    class SceneTransactionList
+    {
+    public:
+    SceneTransactionList() : list_(), id_(nextId()) {}
+    SceneTransactionList(const SceneTransactionList &other) : list_(), id_(other.id_) { copyFrom(other); }
     ~SceneTransactionList() { list_.clear(); }
 
     SceneTransactionList &operator=(const SceneTransactionList &other)
@@ -64,15 +64,17 @@ public:
         return *this;
       list_.clear();
       copyFrom(other);
+      id_ = other.id_;
       return *this;
     }
 
-    bool operator!=(const SceneTransactionList &other) const { return !equals(other); }
-    bool operator==(const SceneTransactionList &other) const { return equals(other); }
+    bool operator!=(const SceneTransactionList &other) const { return id_ != other.id_; }
+    bool operator==(const SceneTransactionList &other) const { return id_ == other.id_; }
 
     void push(declara::core::scene::Scene *from, declara::core::scene::Scene *to)
     {
       list_.appendOwned(new SceneTransaction(from, to));
+      id_ = nextId();
     }
 
     bool empty() const { return list_.count() == 0; }
@@ -87,6 +89,7 @@ public:
       if (list_.remove(item))
       {
         delete item;
+        id_ = nextId();
       }
     }
 
@@ -101,21 +104,10 @@ public:
       }
     }
 
-    bool equals(const SceneTransactionList &other) const
-    {
-      if (list_.count() != other.list_.count())
-        return false;
-      loka::dsl::CompositionCursor<SceneTransaction> left(list_.head(), list_.count());
-      loka::dsl::CompositionCursor<SceneTransaction> right(other.list_.head(), other.list_.count());
-      for (SceneTransaction *l = left.next(), *r = right.next(); l && r; l = left.next(), r = right.next())
-      {
-        if (l->from != r->from || l->to != r->to)
-          return false;
-      }
-      return true;
-    }
-
     loka::dsl::CompositionList<SceneTransaction> list_;
+    unsigned long id_;
+    static unsigned long nextId_;
+    static unsigned long nextId() { return nextId_++; }
   };
 
   SceneManager2();
