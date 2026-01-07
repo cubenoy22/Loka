@@ -53,6 +53,7 @@ std::vector<AppComponent *> AppComposition::build()
       result.push_back(window);
     }
   }
+  windowList_.clear();
   return result;
 }
 

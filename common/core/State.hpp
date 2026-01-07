@@ -65,6 +65,7 @@ namespace declara
       State(const T &initial = T()) : value(initial) {}
       virtual ~State() {}
       virtual T get() const { return value; }
+      const T &getRef() const { return value; }
 
     public:
       virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)

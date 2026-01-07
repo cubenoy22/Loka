@@ -210,9 +210,11 @@ bool App::refreshDefaultMenuBar()
       for (size_t i = 0; i < dirtyMenus.size(); ++i)
       {
         bool exists = false;
-        for (size_t j = 0; j < menuDiff_.changed.size(); ++j)
+        loka::dsl::CompositionCursor<declara::app::MenuCompositionDiff::ChangedIndex> it(
+            menuDiff_.changedHead(), menuDiff_.changedCount());
+        for (declara::app::MenuCompositionDiff::ChangedIndex *entry = it.next(); entry; entry = it.next())
         {
-          if (menuDiff_.changed[j] == dirtyMenus[i])
+          if (entry->value == dirtyMenus[i])
           {
             exists = true;
             break;
@@ -220,7 +222,7 @@ bool App::refreshDefaultMenuBar()
         }
         if (!exists)
         {
-          menuDiff_.changed.push_back(dirtyMenus[i]);
+          menuDiff_.addChanged(dirtyMenus[i]);
         }
       }
     }

@@ -46,6 +46,24 @@ namespace declara
 
     struct MenuCompositionDiff : public loka::dsl::CompositionDiff
     {
+      struct ChangedIndex
+      {
+        ChangedIndex() : value(0), nextInComposition(0) {}
+        explicit ChangedIndex(size_t index) : value(index), nextInComposition(0) {}
+        ChangedIndex(const ChangedIndex &other) : value(other.value), nextInComposition(0) {}
+        ChangedIndex &operator=(const ChangedIndex &other)
+        {
+          if (this == &other)
+            return *this;
+          value = other.value;
+          nextInComposition = 0;
+          return *this;
+        }
+        ChangedIndex *clone() const { return new ChangedIndex(*this); }
+        size_t value;
+        ChangedIndex *nextInComposition;
+      };
+
       MenuCompositionDiff() : loka::dsl::CompositionDiff(), changed() {}
       void clear()
       {
@@ -55,9 +73,15 @@ namespace declara
 
       static bool Diff(const MenuBarDefinition &before, const MenuBarDefinition &after, MenuCompositionDiff &out);
 
-      bool valid;
-      bool fullRebuild;
-      std::vector<size_t> changed;
+      void addChanged(size_t index)
+      {
+        changed.appendOwned(new ChangedIndex(index));
+      }
+      bool hasChanged() const { return changed.count() > 0; }
+      size_t changedCount() const { return changed.count(); }
+      ChangedIndex *changedHead() const { return changed.head(); }
+
+      loka::dsl::CompositionList<ChangedIndex> changed;
     };
 
     class MenuComposition

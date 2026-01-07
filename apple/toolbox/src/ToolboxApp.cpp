@@ -531,9 +531,11 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   }
 
   bool needsFullRebuild = false;
-  for (size_t index = 0; index < diff.changed.size(); ++index)
+  loka::dsl::CompositionCursor<declara::app::MenuCompositionDiff::ChangedIndex> diffIt(
+      diff.changedHead(), diff.changedCount());
+  for (declara::app::MenuCompositionDiff::ChangedIndex *diffEntry = diffIt.next(); diffEntry; diffEntry = diffIt.next())
   {
-    size_t i = diff.changed[index];
+    size_t i = diffEntry->value;
     if (i >= menuCount)
     {
       needsFullRebuild = true;

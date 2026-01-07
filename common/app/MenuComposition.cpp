@@ -24,10 +24,10 @@ namespace declara
       {
         if (!beforeMenu->equalsStructure(*afterMenu))
         {
-          out.changed.push_back(index);
+          out.addChanged(index);
         }
       }
-      if (!out.changed.empty())
+      if (out.hasChanged())
       {
         out.valid = true;
         return true;
