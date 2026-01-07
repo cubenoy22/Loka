@@ -14,6 +14,10 @@ public:
   ~AppComposition();
 
   AppComposition &declare(const WindowDefinitionBase &def);
+  AppComposition &declare(const WindowDefinitionBase *def);
+
+  AppComposition &operator<<(const WindowDefinitionBase &def);
+  AppComposition &operator<<(const WindowDefinitionBase *def);
 
   std::vector<AppComponent *> build();
 

@@ -22,6 +22,25 @@ AppComposition &AppComposition::declare(const WindowDefinitionBase &def)
   return *this;
 }
 
+AppComposition &AppComposition::declare(const WindowDefinitionBase *def)
+{
+  if (!def)
+  {
+    return *this;
+  }
+  return declare(*def);
+}
+
+AppComposition &AppComposition::operator<<(const WindowDefinitionBase &def)
+{
+  return declare(def);
+}
+
+AppComposition &AppComposition::operator<<(const WindowDefinitionBase *def)
+{
+  return declare(def);
+}
+
 std::vector<AppComponent *> AppComposition::build()
 {
   assert(context_ && "AppComposition::build requires PlatformContext");

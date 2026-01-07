@@ -15,15 +15,15 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    c.declare(WindowDef(WindowProps()
-                            .scene(helloworld::Main())
-                            .title("LokaSample")
-                            .visible(true)));
+    c << WindowDef(WindowProps()
+                       .scene(helloworld::Main())
+                       .title("LokaSample")
+                       .visible(true));
   }
 
   virtual void composeMenu(declara::app::MenuComposition &c)
   {
-    c.declare(menu_);
+    c << menu_;
   }
 
 private:
