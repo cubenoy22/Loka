@@ -46,6 +46,8 @@ void ToolboxApp::run()
           firstWindow = toolboxWindow;
         }
         toolboxWindow->setApp(this);
+        toolboxWindow->ensureSceneMounted();
+        toolboxWindow->draw();
       }
     }
     if (!activeWindow() && firstWindow)
@@ -58,11 +60,11 @@ void ToolboxApp::run()
   {
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
+    // TODO: Re-enable invalidation once Classic update flow is stable.
     if (event.what == updateEvt)
     {
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
-      BeginUpdate(target);
-      if (group_)
+      if (target && group_)
       {
         const std::vector<AppComponent *> &comps = group_->getComponents();
         for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
@@ -70,12 +72,13 @@ void ToolboxApp::run()
           ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
           if (toolboxWindow && toolboxWindow->window() == target)
           {
+            BeginUpdate(target);
             toolboxWindow->draw();
+            EndUpdate(target);
             break;
           }
         }
       }
-      EndUpdate(target);
     }
     else if (event.what == mouseDown)
     {

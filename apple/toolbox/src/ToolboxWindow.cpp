@@ -3,6 +3,8 @@
 #include <cstring>
 #include <string>
 #include "core/App.hpp"
+#include "core2/scene/Scene.hpp"
+#include "ToolboxScenePlatformController.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -21,7 +23,7 @@ namespace
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context,
                              const WindowProps &props)
-    : Window(context, props), app_(0), window_(0)
+    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), needsInvalidate_(false)
 {
   Rect bounds;
   SetRect(&bounds, 60, 60, 420, 300);
@@ -44,6 +46,7 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context,
 
 ToolboxWindow::~ToolboxWindow()
 {
+  teardownScene();
   if (window_)
   {
     DisposeWindow(window_);
@@ -60,8 +63,29 @@ void ToolboxWindow::setApp(App *app)
   }
 }
 
+void ToolboxWindow::ensureSceneMounted()
+{
+  mountScene();
+}
+
+void ToolboxWindow::requestInvalidate()
+{
+  needsInvalidate_ = true;
+}
+
+void ToolboxWindow::flushInvalidate()
+{
+  if (!needsInvalidate_ || !window_)
+  {
+    return;
+  }
+  needsInvalidate_ = false;
+  InvalRect(&window_->portRect);
+}
+
 void ToolboxWindow::invalidateWindow()
 {
+  teardownScene();
   window_ = 0;
 }
 
@@ -75,7 +99,35 @@ void ToolboxWindow::draw()
   SetPort(window_);
 
   EraseRect(&window_->portRect);
-  // TODO: render scene content here
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->render();
+  }
 
   SetPort(oldPort);
+}
+
+void ToolboxWindow::mountScene()
+{
+  declara::core::scene::Scene *currentScene = this->scene();
+  if (!currentScene || scenePlatformController_ || !window_)
+  {
+    return;
+  }
+  scenePlatformController_ = new ToolboxScenePlatformController(this);
+  currentScene->mount(scenePlatformController_);
+}
+
+void ToolboxWindow::teardownScene()
+{
+  if (scenePlatformController_)
+  {
+    declara::core::scene::Scene *currentScene = this->scene();
+    if (currentScene)
+    {
+      currentScene->unmount();
+    }
+    delete scenePlatformController_;
+    scenePlatformController_ = 0;
+  }
 }

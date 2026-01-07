@@ -6,6 +6,7 @@ add_library(DeclaraAppleToolbox INTERFACE)
 set(DECLARA_TOOLBOX_SOURCES
   src/ToolboxString.cpp
   src/ToolboxApp.cpp
+  src/ToolboxScenePlatformController.cpp
   src/ToolboxWindow.cpp
   src/ToolboxPlatformContext.cpp
 )
