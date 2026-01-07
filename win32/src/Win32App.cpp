@@ -207,16 +207,6 @@ void Win32App::buildMenuItem(HMENU menu, const declara::app::MenuItemDefinition 
 }
 
 void Win32App::buildMenuItems(HMENU menu,
-                              const std::vector<declara::app::MenuItemDefinition *> &items,
-                              HWND hwnd)
-{
-  for (size_t i = 0; i < items.size(); ++i)
-  {
-    buildMenuItem(menu, items[i], hwnd);
-  }
-}
-
-void Win32App::buildMenuItems(HMENU menu,
                               const declara::app::MenuItemDefinition *itemsHead,
                               HWND hwnd)
 {
@@ -265,7 +255,7 @@ void Win32App::applyMenuBar(Window *activeWindow)
     if (titleUtf8.empty())
       titleUtf8 = "Menu";
     HMENU subMenu = CreatePopupMenu();
-    buildMenuItems(subMenu, menuDef->items, hwnd);
+    buildMenuItems(subMenu, menuDef->itemsHead(), hwnd);
     if (GetMenuItemCount(subMenu) == 0)
     {
       DestroyMenu(subMenu);

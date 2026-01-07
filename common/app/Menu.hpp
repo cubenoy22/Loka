@@ -220,7 +220,7 @@ namespace declara
             isAppMenu(false),
             opaqueChildrenFlag_(false),
             opaqueChildrenSet_(false),
-            items(),
+            items_(),
             nextInComposition(0)
       {
       }
@@ -230,7 +230,7 @@ namespace declara
             isAppMenu(false),
             opaqueChildrenFlag_(false),
             opaqueChildrenSet_(false),
-            items(),
+            items_(),
             nextInComposition(0)
       {
       }
@@ -240,7 +240,7 @@ namespace declara
             isAppMenu(false),
             opaqueChildrenFlag_(false),
             opaqueChildrenSet_(false),
-            items(),
+            items_(),
             nextInComposition(0)
       {
       }
@@ -250,12 +250,14 @@ namespace declara
             isAppMenu(other.isAppMenu),
             opaqueChildrenFlag_(other.opaqueChildrenFlag_),
             opaqueChildrenSet_(other.opaqueChildrenSet_),
-            items(),
+            items_(),
             nextInComposition(0)
       {
-        for (size_t i = 0; i < other.items.size(); ++i)
+        const MenuItemDefinition *cur = other.items_.head();
+        while (cur)
         {
-          items.push_back(other.items[i]->clone());
+          items_.appendClone(*cur);
+          cur = cur->nextInComposition;
         }
       }
 
@@ -274,9 +276,11 @@ namespace declara
         opaqueChildrenSet_ = other.opaqueChildrenSet_;
         nextInComposition = 0;
         clearItems();
-        for (size_t i = 0; i < other.items.size(); ++i)
+        const MenuItemDefinition *cur = other.items_.head();
+        while (cur)
         {
-          items.push_back(other.items[i]->clone());
+          items_.appendClone(*cur);
+          cur = cur->nextInComposition;
         }
         return *this;
       }
@@ -310,7 +314,7 @@ namespace declara
 
       MenuDefinition &operator<<(const MenuItemDefinition &item)
       {
-        items.push_back(item.clone());
+        items_.appendClone(item);
         return *this;
       }
 
@@ -324,32 +328,34 @@ namespace declara
           return false;
         if (opaqueChildrenFlag_)
           return true;
-        if (items.size() != other.items.size())
+        if (items_.count() != other.items_.count())
           return false;
-        for (size_t i = 0; i < items.size(); ++i)
+        const MenuItemDefinition *left = items_.head();
+        const MenuItemDefinition *right = other.items_.head();
+        while (left && right)
         {
-          if (!items[i]->equalsStructure(*other.items[i]))
+          if (!left->equalsStructure(*right))
             return false;
+          left = left->nextInComposition;
+          right = right->nextInComposition;
         }
         return true;
       }
 
-      bool hasItems() const { return !items.empty(); }
+      bool hasItems() const { return items_.count() > 0; }
+      MenuItemDefinition *itemsHead() const { return items_.head(); }
+      size_t itemsCount() const { return items_.count(); }
 
       void clearItems()
       {
-        for (size_t i = 0; i < items.size(); ++i)
-        {
-          delete items[i];
-        }
-        items.clear();
+        items_.clear();
       }
 
       loka::core::String title;
       bool isAppMenu;
       bool opaqueChildrenFlag_;
       bool opaqueChildrenSet_;
-      std::vector<MenuItemDefinition *> items;
+      loka::dsl::CompositionList<MenuItemDefinition> items_;
       MenuDefinition *nextInComposition;
     };
 

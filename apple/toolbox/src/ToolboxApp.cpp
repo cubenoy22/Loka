@@ -259,23 +259,28 @@ void ToolboxApp::resetMenuState()
 }
 
 static void BuildMenuItems(MenuHandle menu,
-                           const std::vector<declara::app::MenuItemDefinition *> &items,
+                           const declara::app::MenuItemDefinition *itemsHead,
                            short menuId,
                            std::vector<ToolboxApp::MenuCommand> &commands,
                            std::vector<ToolboxApp::MenuBinding *> &bindings)
 {
-  for (size_t i = 0; i < items.size(); ++i)
+  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  while (itemDef)
   {
-    const declara::app::MenuItemDefinition *itemDef = items[i];
     if (!itemDef)
+    {
+      itemDef = itemDef->nextInComposition;
       continue;
+    }
     if (itemDef->isSeparator)
     {
       AppendMenu(menu, "\p-");
+      itemDef = itemDef->nextInComposition;
       continue;
     }
     if (itemDef->action == declara::app::MENU_ACTION_SHOW_COLOR_PICKER)
     {
+      itemDef = itemDef->nextInComposition;
       continue;
     }
     Str255 title;
@@ -301,6 +306,7 @@ static void BuildMenuItems(MenuHandle menu,
       itemDef->enabledState->deferBind(&ToolboxApp::MenuEnabledChangedThunk, binding);
       bindings.push_back(binding);
     }
+    itemDef = itemDef->nextInComposition;
   }
 }
 
@@ -359,13 +365,14 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
       if (!menuDef || !menuDef->isAppMenu)
         continue;
-      for (size_t j = 0; j < menuDef->items.size(); ++j)
+      const declara::app::MenuItemDefinition *itemDef = menuDef->itemsHead();
+      while (itemDef)
       {
-        declara::app::MenuItemDefinition *itemDef = menuDef->items[j];
         if (itemDef && itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
         {
           aboutItems.push_back(itemDef);
         }
+        itemDef = itemDef->nextInComposition;
       }
     }
     if (!aboutItems.empty())
@@ -433,7 +440,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       }
       short menuId = nextMenuId_;
       MenuHandle menu = NewMenu(menuId, title);
-      BuildMenuItems(menu, menuDef->items, menuId, commands_, bindings_);
+      BuildMenuItems(menu, menuDef->itemsHead(), menuId, commands_, bindings_);
       if (CountMenuItems(menu) == 0)
       {
         DisposeMenu(menu);
@@ -500,13 +507,14 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
         const declara::app::MenuDefinition *appDef = menuBar->menus[j];
         if (!appDef || !appDef->isAppMenu)
           continue;
-        for (size_t k = 0; k < appDef->items.size(); ++k)
+        const declara::app::MenuItemDefinition *itemDef = appDef->itemsHead();
+        while (itemDef)
         {
-          declara::app::MenuItemDefinition *itemDef = appDef->items[k];
           if (itemDef && itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
           {
             aboutItems.push_back(itemDef);
           }
+          itemDef = itemDef->nextInComposition;
         }
       }
       if (aboutItems.empty())
@@ -541,7 +549,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       }
       continue;
     }
-    BuildMenuItems(entry.menu, menuDef->items, entry.menuId, commands_, bindings_);
+    BuildMenuItems(entry.menu, menuDef->itemsHead(), entry.menuId, commands_, bindings_);
     if (CountMenuItems(entry.menu) == 0)
     {
       needsFullRebuild = true;

@@ -155,14 +155,6 @@ static NSString *MenuShortcutForAction(const declara::app::MenuItemDefinition *i
 }
 
 static std::size_t BuildMenuItems(NSMenu *menu,
-                                  const std::vector<declara::app::MenuItemDefinition *> &items,
-                                  DeclaraMenuTarget *target,
-                                  std::vector<MacApp::MenuCommand> &commands,
-                                  std::vector<MacApp::MenuBinding *> &bindings,
-                                  int &nextCommandId,
-                                  bool allowQuit);
-
-static std::size_t BuildMenuItems(NSMenu *menu,
                                   const declara::app::MenuItemDefinition *itemsHead,
                                   DeclaraMenuTarget *target,
                                   std::vector<MacApp::MenuCommand> &commands,
@@ -226,22 +218,6 @@ static std::size_t BuildMenuItem(NSMenu *menu,
 
   [menu addItem:menuItem];
   return 1;
-}
-
-static std::size_t BuildMenuItems(NSMenu *menu,
-                                  const std::vector<declara::app::MenuItemDefinition *> &items,
-                                  DeclaraMenuTarget *target,
-                                  std::vector<MacApp::MenuCommand> &commands,
-                                  std::vector<MacApp::MenuBinding *> &bindings,
-                                  int &nextCommandId,
-                                  bool allowQuit)
-{
-  std::size_t added = 0;
-  for (size_t i = 0; i < items.size(); ++i)
-  {
-    added += BuildMenuItem(menu, items[i], target, commands, bindings, nextCommandId, allowQuit);
-  }
-  return added;
 }
 
 static std::size_t BuildMenuItems(NSMenu *menu,
@@ -313,7 +289,7 @@ void MacApp::applyMenuBar(Window *activeWindow)
     {
       allowQuit = false;
     }
-    if (BuildMenuItems(subMenu, menuDef->items, target, commands_, bindings_, nextCommandId_, allowQuit) == 0)
+    if (BuildMenuItems(subMenu, menuDef->itemsHead(), target, commands_, bindings_, nextCommandId_, allowQuit) == 0)
     {
       continue;
     }
