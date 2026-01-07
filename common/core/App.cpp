@@ -12,8 +12,7 @@ App::App(AppConfigurable *config)
       config_(config),
       menuBar_(0),
       activeWindow_(0),
-      menuRefreshInProgress_(false),
-      menuRefreshRequested_(false)
+      menuRefresh_()
 {
 }
 
@@ -30,6 +29,21 @@ static void MenuInvalidateThunk(void *userData)
   if (app)
   {
     app->invalidateMenu();
+  }
+}
+
+bool App::MenuRefreshThunk(void *userData)
+{
+  App *app = static_cast<App *>(userData);
+  return app ? app->refreshDefaultMenuBar() : false;
+}
+
+void App::MenuApplyThunk(void *userData)
+{
+  App *app = static_cast<App *>(userData);
+  if (app)
+  {
+    app->applyMenuBar(app->activeWindow());
   }
 }
 
@@ -92,27 +106,8 @@ bool App::handleMenuCommand(int commandId, Window *window)
 
 void App::invalidateMenu()
 {
-  menuRefreshRequested_ = true;
-  if (menuRefreshInProgress_)
-    return;
-  menuRefreshInProgress_ = true;
-  bool changed = false;
-  int iterations = 0;
-  const int maxIterations = 100;
-  while (menuRefreshRequested_ && iterations < maxIterations)
-  {
-    menuRefreshRequested_ = false;
-    if (refreshDefaultMenuBar())
-    {
-      changed = true;
-    }
-    ++iterations;
-  }
-  menuRefreshInProgress_ = false;
-  if (changed)
-  {
-    applyMenuBar(activeWindow_);
-  }
+  menuRefresh_.request();
+  menuRefresh_.run(&MenuRefreshThunk, &MenuApplyThunk, this);
 }
 
 void App::setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar)

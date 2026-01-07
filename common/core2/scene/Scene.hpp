@@ -8,6 +8,7 @@
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/node/Boundary.hpp"
+#include "loka/dsl/RefreshLoop.hpp"
 
 class Window;
 
@@ -112,6 +113,12 @@ namespace declara
           }
         }
 
+        void invalidate()
+        {
+          refreshLoop_.request();
+          refreshLoop_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
+        }
+
       protected:
         void setAttached(bool v) { attached_.set(v, true); }
         void setLifecycle(SceneLifecycle v) { lifecycle_.set(v, true); }
@@ -124,11 +131,27 @@ namespace declara
         Window *window_;
         bool mounted_;
         bool composed_;
+        loka::dsl::RefreshLoop refreshLoop_;
 
         // SceneManager2からlifecycle_/attachedを書き換え可能に
         friend class SceneManager2;
 
       private:
+        static bool RefreshThunk(void *userData)
+        {
+          Scene *scene = static_cast<Scene *>(userData);
+          return scene ? scene->refreshComposition() : false;
+        }
+
+        static void ApplyThunk(void *userData)
+        {
+          Scene *scene = static_cast<Scene *>(userData);
+          if (scene)
+          {
+            scene->applyComposition();
+          }
+        }
+
         class RootBoundaryWrapper : public BoundaryNode
         {
         public:
@@ -220,6 +243,25 @@ namespace declara
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
           boundary->compose(rootContext, event);
+        }
+
+        bool refreshComposition()
+        {
+          if (!mounted_ || !platformController_ || !composed_)
+          {
+            return false;
+          }
+          notifyComposeEvent(COMPOSE_EVENT_UPDATE);
+          return true;
+        }
+
+        void applyComposition()
+        {
+          if (!platformController_ || !rootNode_)
+          {
+            return;
+          }
+          platformController_->onChange(rootNode_, NODE_DIRTY_PROPS);
         }
 
         void teardownComposition()

@@ -5,6 +5,7 @@
 #include "core/AppComponent.hpp"
 #include "core/AppConfigurable.hpp"
 #include "app/Menu.hpp"
+#include "loka/dsl/RefreshLoop.hpp"
 #include <cassert>
 
 class Window;
@@ -32,8 +33,7 @@ protected:
   AppConfigurable *config_;
   declara::app::MenuBarDefinition *menuBar_;
   Window *activeWindow_;
-  bool menuRefreshInProgress_;
-  bool menuRefreshRequested_;
+  loka::dsl::RefreshLoop menuRefresh_;
   declara::app::MenuCompositionDiff menuDiff_;
 
   const declara::app::MenuBarDefinition *resolveMenuBar(Window *window);
@@ -44,6 +44,10 @@ protected:
   void clearMenuDiff();
 
   void reflectInitialVisibilityChunks();
+
+private:
+  static bool MenuRefreshThunk(void *userData);
+  static void MenuApplyThunk(void *userData);
 };
 
 #endif // LOKA_APP_HPP
