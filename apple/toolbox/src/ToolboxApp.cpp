@@ -12,7 +12,7 @@
 #include "loka/platform/StringUTF8.hpp"
 
 ToolboxApp::ToolboxApp(AppConfigurable *config)
-    : App(config), nextMenuId_(128), commands_(), bindings_(), running_(false)
+    : App(config), nextMenuId_(128), commands_(), bindings_(), menuEntries_(), hierarchicalMenus_(), running_(false)
 {
 }
 ToolboxApp::~ToolboxApp()
@@ -251,9 +251,22 @@ void ToolboxApp::disposeMenuEntries()
   menuEntries_.clear();
 }
 
+void ToolboxApp::disposeHierarchicalMenus()
+{
+  for (size_t i = 0; i < hierarchicalMenus_.size(); ++i)
+  {
+    if (hierarchicalMenus_[i])
+    {
+      DisposeMenu(hierarchicalMenus_[i]);
+    }
+  }
+  hierarchicalMenus_.clear();
+}
+
 void ToolboxApp::resetMenuState()
 {
   clearMenuBindings();
+  disposeHierarchicalMenus();
   disposeMenuEntries();
   nextMenuId_ = 128;
 }
@@ -261,8 +274,10 @@ void ToolboxApp::resetMenuState()
 static void BuildMenuItems(MenuHandle menu,
                            const declara::app::MenuItemDefinition *itemsHead,
                            short menuId,
+                           short &nextMenuId,
                            std::vector<ToolboxApp::MenuCommand> &commands,
-                           std::vector<ToolboxApp::MenuBinding *> &bindings)
+                           std::vector<ToolboxApp::MenuBinding *> &bindings,
+                           std::vector<MenuHandle> &hierarchicalMenus)
 {
   const declara::app::MenuItemDefinition *itemDef = itemsHead;
   while (itemDef)
@@ -287,6 +302,29 @@ static void BuildMenuItems(MenuHandle menu,
     CopyToPascalString(itemDef->title, title);
     AppendMenu(menu, title);
     short itemIndex = CountMenuItems(menu);
+    if (itemDef->hasChildren())
+    {
+      short subMenuId = nextMenuId++;
+      MenuHandle subMenu = NewMenu(subMenuId, title);
+      BuildMenuItems(subMenu, itemDef->childrenHead(), subMenuId, nextMenuId, commands, bindings, hierarchicalMenus);
+      if (CountMenuItems(subMenu) == 0)
+      {
+        DisposeMenu(subMenu);
+        DeleteMenuItem(menu, itemIndex);
+        itemDef = itemDef->nextInComposition;
+        continue;
+      }
+      InsertMenu(subMenu, kInsertHierarchicalMenu);
+      SetItemCmd(menu, itemIndex, hMenuCmd);
+      OSErr hierErr = SetMenuItemHierarchicalID(menu, itemIndex, subMenuId);
+      if (hierErr != noErr)
+      {
+        SetItemMark(menu, itemIndex, static_cast<CharParameter>(subMenuId & 0xFF));
+      }
+      hierarchicalMenus.push_back(subMenu);
+      itemDef = itemDef->nextInComposition;
+      continue;
+    }
     ToolboxApp::MenuCommand command;
     command.menuId = menuId;
     command.itemIndex = itemIndex;
@@ -310,6 +348,24 @@ static void BuildMenuItems(MenuHandle menu,
   }
 }
 
+static bool HasHierarchicalItems(const declara::app::MenuItemDefinition *itemsHead)
+{
+  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  while (itemDef)
+  {
+    if (itemDef->hasChildren())
+    {
+      return true;
+    }
+    if (HasHierarchicalItems(itemDef->childrenHead()))
+    {
+      return true;
+    }
+    itemDef = itemDef->nextInComposition;
+  }
+  return false;
+}
+
 void ToolboxApp::applyMenuBar(Window *activeWindow)
 {
   const declara::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
@@ -330,6 +386,21 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     return;
   }
   bool canPartial = diff.valid && !diff.fullRebuild && !forceFullRebuild;
+  bool hasHierarchical = false;
+  for (size_t i = 0; i < menuBar->menus.size(); ++i)
+  {
+    const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
+    if (menuDef && HasHierarchicalItems(menuDef->itemsHead()))
+    {
+      hasHierarchical = true;
+      break;
+    }
+  }
+  if (hasHierarchical || !hierarchicalMenus_.empty())
+  {
+    forceFullRebuild = true;
+    canPartial = false;
+  }
   if (canPartial && menuEntries_.size() != menuBar->menus.size())
   {
     canPartial = false;
@@ -359,7 +430,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     title[0] = 1;
     title[1] = 0x14;
     MenuHandle menu = NewMenu(128, title);
-    std::vector<declara::app::MenuItemDefinition *> aboutItems;
+    std::vector<const declara::app::MenuItemDefinition *> aboutItems;
     for (size_t i = 0; i < menuBar->menus.size(); ++i)
     {
       const declara::app::MenuDefinition *menuDef = menuBar->menus[i];
@@ -378,7 +449,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     if (!aboutItems.empty())
     {
       AppendResMenu(menu, 'DRVR');
-      declara::app::MenuItemDefinition *itemDef = aboutItems[0];
+      const declara::app::MenuItemDefinition *itemDef = aboutItems[0];
       Str255 aboutTitle;
       CopyToPascalString(itemDef->title, aboutTitle);
       InsertMenuItem(menu, aboutTitle, 0);
@@ -440,7 +511,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       }
       short menuId = nextMenuId_;
       MenuHandle menu = NewMenu(menuId, title);
-      BuildMenuItems(menu, menuDef->itemsHead(), menuId, commands_, bindings_);
+      BuildMenuItems(menu, menuDef->itemsHead(), menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
       if (CountMenuItems(menu) == 0)
       {
         DisposeMenu(menu);
@@ -501,7 +572,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     }
     if (menuDef->isAppMenu)
     {
-      std::vector<declara::app::MenuItemDefinition *> aboutItems;
+      std::vector<const declara::app::MenuItemDefinition *> aboutItems;
       for (size_t j = 0; j < menuBar->menus.size(); ++j)
       {
         const declara::app::MenuDefinition *appDef = menuBar->menus[j];
@@ -523,7 +594,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
         break;
       }
       AppendResMenu(entry.menu, 'DRVR');
-      declara::app::MenuItemDefinition *itemDef = aboutItems[0];
+      const declara::app::MenuItemDefinition *itemDef = aboutItems[0];
       Str255 aboutTitle;
       CopyToPascalString(itemDef->title, aboutTitle);
       InsertMenuItem(entry.menu, aboutTitle, 0);
@@ -549,7 +620,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       }
       continue;
     }
-    BuildMenuItems(entry.menu, menuDef->itemsHead(), entry.menuId, commands_, bindings_);
+    BuildMenuItems(entry.menu, menuDef->itemsHead(), entry.menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
     if (CountMenuItems(entry.menu) == 0)
     {
       needsFullRebuild = true;

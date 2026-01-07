@@ -50,10 +50,12 @@ private:
   void clearMenuBindingsFor(MenuHandle menuHandle, short menuId);
   void resetMenuState();
   void disposeMenuEntries();
+  void disposeHierarchicalMenus();
   short nextMenuId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;
   std::vector<MenuEntry> menuEntries_;
+  std::vector<MenuHandle> hierarchicalMenus_;
   bool running_;
 };
 
