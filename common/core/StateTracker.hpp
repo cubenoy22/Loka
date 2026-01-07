@@ -37,6 +37,7 @@ namespace declara
     class PushStateTracker : public StateTracker
     {
     public:
+      typedef void (*InvalidateFn)(void *);
       PushStateTracker(const std::vector<StateBase *> &states);
       PushStateTracker();
       void begin();
@@ -45,6 +46,11 @@ namespace declara
       void addState(StateBase *state);
       bool end();
       bool consumeDirty();
+      void setInvalidateCallback(InvalidateFn fn, void *userData)
+      {
+        invalidateFn_ = fn;
+        invalidateUserData_ = userData;
+      }
       /**
        * @brief 依存グラフ（依存元→依存先）を構築する。通常はDerivedStateの依存関係から自動生成される。
        */
@@ -67,6 +73,9 @@ namespace declara
       TrackerPhase phase_;
       /// dirtyFlag_: トランザクション中にdirtyが発生したか
       bool dirtyFlag_;
+      /// invalidate callback (optional)
+      InvalidateFn invalidateFn_;
+      void *invalidateUserData_;
       /// visiting_: 再帰伝播時の循環依存検出用一時セット
       std::set<StateBase *> visiting_;
       /// states_: Trackerが管理する全State群（begin()/end()でcurrentTrackerをセット）

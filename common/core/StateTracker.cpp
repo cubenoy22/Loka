@@ -7,7 +7,7 @@ namespace declara
   {
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
-        : phase_(TRACKER_IDLE), dirtyFlag_(false), states_(states)
+        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0), states_(states)
     {
       for (size_t i = 0; i < states.size(); ++i)
       {
@@ -22,7 +22,8 @@ namespace declara
       }
     }
 
-    PushStateTracker::PushStateTracker() : phase_(TRACKER_IDLE), dirtyFlag_(false) {}
+    PushStateTracker::PushStateTracker()
+        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0) {}
 
     void PushStateTracker::begin()
     {
@@ -176,6 +177,10 @@ namespace declara
       for (size_t i = 0; i < deferred.size(); ++i)
       {
         deferred[i].first(deferred[i].second);
+      }
+      if (invalidateFn_ && dirtyFlag_)
+      {
+        invalidateFn_(invalidateUserData_);
       }
       phase_ = TRACKER_IDLE;
       for (size_t i = 0; i < states_.size(); ++i)

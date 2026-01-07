@@ -57,17 +57,10 @@ namespace helloworld
         return;
       }
       loka::core::String next = message_.get() + " +Loka";
-      {
-        StateTrackerGuard _(ctx->boundary()->tracker(),
-                            &declara::core::scene::BoundaryNode::InvalidateSceneThunk,
-                            ctx->boundary());
-        message_.set(next, true);
-      }
+      message_.set(next, true);
 
       {
-        StateTrackerGuard _(ctx->window()->getTracker(),
-                            &declara::core::scene::BoundaryNode::InvalidateSceneThunk,
-                            ctx->boundary());
+        StateTrackerGuard _(ctx->window()->getTracker());
         const loka::core::String title = ctx->window()->titleState().get();
 
         if (title.equals(loka::core::String::Literal("LokaSample")))
