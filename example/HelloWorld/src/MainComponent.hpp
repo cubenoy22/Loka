@@ -3,7 +3,8 @@
 
 #include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/BoundState.hpp"
-#include "core2/scene/node/Group.hpp"
+#include "core2/scene/node/DynamicComposition.hpp"
+#include "core2/scene/node/Boundary.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
@@ -13,15 +14,13 @@
 namespace helloworld
 {
   class MainNode;
-  typedef declara::core::scene::GroupPropsFor<MainNode> MainProps;
+  typedef declara::core::scene::DynamicCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public declara::core::scene::GroupNodeBase<MainProps>
+  class MainNode : public declara::core::scene::DynamicCompositionNodeFor<MainNode>
   {
   public:
-    MainProps props;
     MainNode(const MainProps &p)
-        : declara::core::scene::GroupNodeBase<MainProps>(MainProps(p)),
-          props(p),
+        : declara::core::scene::DynamicCompositionNodeFor<MainNode>(MainProps(p)),
           message_(),
           toggleEvent_()
     {
@@ -58,10 +57,17 @@ namespace helloworld
         return;
       }
       loka::core::String next = message_.get() + " +Loka";
-      message_.set(next, true);
+      {
+        StateTrackerGuard _(ctx->boundary()->tracker(),
+                            &declara::core::scene::BoundaryNode::InvalidateSceneThunk,
+                            ctx->boundary());
+        message_.set(next, true);
+      }
 
       {
-        StateTrackerGuard _(ctx->window()->getTracker());
+        StateTrackerGuard _(ctx->window()->getTracker(),
+                            &declara::core::scene::BoundaryNode::InvalidateSceneThunk,
+                            ctx->boundary());
         const loka::core::String title = ctx->window()->titleState().get();
 
         if (title.equals(loka::core::String::Literal("LokaSample")))
