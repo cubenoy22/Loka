@@ -160,61 +160,104 @@ static std::size_t BuildMenuItems(NSMenu *menu,
                                   std::vector<MacApp::MenuCommand> &commands,
                                   std::vector<MacApp::MenuBinding *> &bindings,
                                   int &nextCommandId,
+                                  bool allowQuit);
+
+static std::size_t BuildMenuItems(NSMenu *menu,
+                                  const declara::app::MenuItemDefinition *itemsHead,
+                                  DeclaraMenuTarget *target,
+                                  std::vector<MacApp::MenuCommand> &commands,
+                                  std::vector<MacApp::MenuBinding *> &bindings,
+                                  int &nextCommandId,
+                                  bool allowQuit);
+
+static std::size_t BuildMenuItem(NSMenu *menu,
+                                 const declara::app::MenuItemDefinition *itemDef,
+                                 DeclaraMenuTarget *target,
+                                 std::vector<MacApp::MenuCommand> &commands,
+                                 std::vector<MacApp::MenuBinding *> &bindings,
+                                 int &nextCommandId,
+                                 bool allowQuit)
+{
+  if (!itemDef)
+    return 0;
+  if (!allowQuit && itemDef->action == declara::app::MENU_ACTION_QUIT_APP)
+    return 0;
+  if (itemDef->isSeparator)
+  {
+    [menu addItem:[NSMenuItem separatorItem]];
+    return 1;
+  }
+
+  NSString *title = MenuTitleFromString(itemDef->title, "Menu Item");
+  NSString *shortcut = MenuShortcutForAction(itemDef);
+  NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:shortcut];
+
+  if (itemDef->hasChildren())
+  {
+    NSMenu *subMenu = [[NSMenu alloc] initWithTitle:title];
+    if (BuildMenuItems(subMenu, itemDef->childrenHead(), target, commands, bindings, nextCommandId, allowQuit) == 0)
+    {
+      return 0;
+    }
+    [menuItem setSubmenu:subMenu];
+  }
+  else
+  {
+    [menuItem setTarget:target];
+    [menuItem setAction:@selector(handleMenuAction:)];
+    int commandId = nextCommandId++;
+    [menuItem setTag:commandId];
+    MacApp::MenuCommand command;
+    command.commandId = commandId;
+    command.action = itemDef->action;
+    command.emitter = itemDef->onClickState;
+    commands.push_back(command);
+  }
+
+  if (itemDef->enabledState)
+  {
+    [menuItem setEnabled:itemDef->enabledState->get()];
+    MacApp::MenuBinding *binding = new MacApp::MenuBinding();
+    binding->menuItem = (__bridge void *)menuItem;
+    binding->enabledState = itemDef->enabledState;
+    itemDef->enabledState->deferBind(&MenuEnabledChangedThunk, binding);
+    bindings.push_back(binding);
+  }
+
+  [menu addItem:menuItem];
+  return 1;
+}
+
+static std::size_t BuildMenuItems(NSMenu *menu,
+                                  const std::vector<declara::app::MenuItemDefinition *> &items,
+                                  DeclaraMenuTarget *target,
+                                  std::vector<MacApp::MenuCommand> &commands,
+                                  std::vector<MacApp::MenuBinding *> &bindings,
+                                  int &nextCommandId,
                                   bool allowQuit)
 {
   std::size_t added = 0;
   for (size_t i = 0; i < items.size(); ++i)
   {
-    const declara::app::MenuItemDefinition *itemDef = items[i];
-    if (!itemDef)
-      continue;
-    if (!allowQuit && itemDef->action == declara::app::MENU_ACTION_QUIT_APP)
-      continue;
-    if (itemDef->isSeparator)
-    {
-      [menu addItem:[NSMenuItem separatorItem]];
-      ++added;
-      continue;
-    }
+    added += BuildMenuItem(menu, items[i], target, commands, bindings, nextCommandId, allowQuit);
+  }
+  return added;
+}
 
-    NSString *title = MenuTitleFromString(itemDef->title, "Menu Item");
-    NSString *shortcut = MenuShortcutForAction(itemDef);
-    NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:shortcut];
-
-    if (itemDef->hasChildren())
-    {
-      NSMenu *subMenu = [[NSMenu alloc] initWithTitle:title];
-      if (BuildMenuItems(subMenu, itemDef->children, target, commands, bindings, nextCommandId, allowQuit) == 0)
-      {
-        continue;
-      }
-      [menuItem setSubmenu:subMenu];
-    }
-    else
-    {
-      [menuItem setTarget:target];
-      [menuItem setAction:@selector(handleMenuAction:)];
-      int commandId = nextCommandId++;
-      [menuItem setTag:commandId];
-      MacApp::MenuCommand command;
-      command.commandId = commandId;
-      command.action = itemDef->action;
-      command.emitter = itemDef->onClickState;
-      commands.push_back(command);
-    }
-
-    if (itemDef->enabledState)
-    {
-      [menuItem setEnabled:itemDef->enabledState->get()];
-      MacApp::MenuBinding *binding = new MacApp::MenuBinding();
-      binding->menuItem = (__bridge void *)menuItem;
-      binding->enabledState = itemDef->enabledState;
-      itemDef->enabledState->deferBind(&MenuEnabledChangedThunk, binding);
-      bindings.push_back(binding);
-    }
-
-    [menu addItem:menuItem];
-    ++added;
+static std::size_t BuildMenuItems(NSMenu *menu,
+                                  const declara::app::MenuItemDefinition *itemsHead,
+                                  DeclaraMenuTarget *target,
+                                  std::vector<MacApp::MenuCommand> &commands,
+                                  std::vector<MacApp::MenuBinding *> &bindings,
+                                  int &nextCommandId,
+                                  bool allowQuit)
+{
+  std::size_t added = 0;
+  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  while (itemDef)
+  {
+    added += BuildMenuItem(menu, itemDef, target, commands, bindings, nextCommandId, allowQuit);
+    itemDef = itemDef->nextInComposition;
   }
   return added;
 }

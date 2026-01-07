@@ -152,64 +152,79 @@ void Win32App::clearMenuBindings()
   nextCommandId_ = 1000;
 }
 
+void Win32App::buildMenuItem(HMENU menu, const declara::app::MenuItemDefinition *itemDef, HWND hwnd)
+{
+  if (!itemDef)
+    return;
+  if (itemDef->isSeparator)
+  {
+    AppendMenuA(menu, MF_SEPARATOR, 0, NULL);
+    return;
+  }
+  if (itemDef->action == declara::app::MENU_ACTION_SHOW_COLOR_PICKER)
+  {
+    return;
+  }
+
+  std::string titleUtf8;
+  loka::platform::CollectUtf8(itemDef->title, titleUtf8);
+  UINT flags = MF_STRING;
+  if (itemDef->enabledState && !itemDef->enabledState->get())
+  {
+    flags |= MF_GRAYED;
+  }
+
+  if (itemDef->hasChildren())
+  {
+    HMENU subMenu = CreatePopupMenu();
+    buildMenuItems(subMenu, itemDef->childrenHead(), hwnd);
+    if (GetMenuItemCount(subMenu) == 0)
+    {
+      DestroyMenu(subMenu);
+      return;
+    }
+    AppendMenuA(menu, flags | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleUtf8.c_str());
+    return;
+  }
+
+  int commandId = nextCommandId_++;
+  AppendMenuA(menu, flags, static_cast<UINT_PTR>(commandId), titleUtf8.c_str());
+  Win32App::MenuCommand command;
+  command.commandId = commandId;
+  command.action = itemDef->action;
+  command.emitter = itemDef->onClickState;
+  commands_.push_back(command);
+  if (itemDef->enabledState)
+  {
+    Win32App::MenuBinding *binding = new Win32App::MenuBinding();
+    binding->menu = menu;
+    binding->commandId = commandId;
+    binding->hwnd = hwnd;
+    binding->enabledState = itemDef->enabledState;
+    binding->enabledState->deferBind(&Win32App::MenuEnabledChangedThunk, binding);
+    bindings_.push_back(binding);
+  }
+}
+
 void Win32App::buildMenuItems(HMENU menu,
                               const std::vector<declara::app::MenuItemDefinition *> &items,
                               HWND hwnd)
 {
   for (size_t i = 0; i < items.size(); ++i)
   {
-    const declara::app::MenuItemDefinition *itemDef = items[i];
-    if (!itemDef)
-      continue;
-    if (itemDef->isSeparator)
-    {
-      AppendMenuA(menu, MF_SEPARATOR, 0, NULL);
-      continue;
-    }
-    if (itemDef->action == declara::app::MENU_ACTION_SHOW_COLOR_PICKER)
-    {
-      continue;
-    }
+    buildMenuItem(menu, items[i], hwnd);
+  }
+}
 
-    std::string titleUtf8;
-    loka::platform::CollectUtf8(itemDef->title, titleUtf8);
-    UINT flags = MF_STRING;
-    if (itemDef->enabledState && !itemDef->enabledState->get())
-    {
-      flags |= MF_GRAYED;
-    }
-
-    if (itemDef->hasChildren())
-    {
-      HMENU subMenu = CreatePopupMenu();
-      buildMenuItems(subMenu, itemDef->children, hwnd);
-      if (GetMenuItemCount(subMenu) == 0)
-      {
-        DestroyMenu(subMenu);
-        continue;
-      }
-      AppendMenuA(menu, flags | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleUtf8.c_str());
-    }
-    else
-    {
-      int commandId = nextCommandId_++;
-      AppendMenuA(menu, flags, static_cast<UINT_PTR>(commandId), titleUtf8.c_str());
-      Win32App::MenuCommand command;
-      command.commandId = commandId;
-      command.action = itemDef->action;
-      command.emitter = itemDef->onClickState;
-      commands_.push_back(command);
-      if (itemDef->enabledState)
-      {
-        Win32App::MenuBinding *binding = new Win32App::MenuBinding();
-        binding->menu = menu;
-        binding->commandId = commandId;
-        binding->hwnd = hwnd;
-        binding->enabledState = itemDef->enabledState;
-        binding->enabledState->deferBind(&Win32App::MenuEnabledChangedThunk, binding);
-        bindings_.push_back(binding);
-      }
-    }
+void Win32App::buildMenuItems(HMENU menu,
+                              const declara::app::MenuItemDefinition *itemsHead,
+                              HWND hwnd)
+{
+  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  while (itemDef)
+  {
+    buildMenuItem(menu, itemDef, hwnd);
+    itemDef = itemDef->nextInComposition;
   }
 }
 

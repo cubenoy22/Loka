@@ -41,7 +41,9 @@ private:
 
   void clearMenuBindings();
   static void MenuEnabledChangedThunk(void *userData);
+  void buildMenuItem(HMENU menu, const declara::app::MenuItemDefinition *itemDef, HWND hwnd);
   void buildMenuItems(HMENU menu, const std::vector<declara::app::MenuItemDefinition *> &items, HWND hwnd);
+  void buildMenuItems(HMENU menu, const declara::app::MenuItemDefinition *itemsHead, HWND hwnd);
 
   HINSTANCE hInstance_;
   int nCmdShow_;

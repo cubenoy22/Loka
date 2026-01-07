@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "loka/core/String.hpp"
+#include "loka/dsl/CompositionList.hpp"
 #include "app/MenuComposition.hpp"
 
 namespace declara
@@ -26,9 +27,10 @@ namespace declara
             onClickState(0),
             action(MENU_ACTION_NONE),
             isSeparator(false),
-            children(),
+            children_(),
             hasShortcut(false),
-            shortcutKey(0)
+            shortcutKey(0),
+            nextInComposition(0)
       {
       }
 
@@ -38,9 +40,10 @@ namespace declara
             onClickState(0),
             action(MENU_ACTION_NONE),
             isSeparator(false),
-            children(),
+            children_(),
             hasShortcut(false),
-            shortcutKey(0)
+            shortcutKey(0),
+            nextInComposition(0)
       {
       }
 
@@ -50,9 +53,10 @@ namespace declara
             onClickState(0),
             action(MENU_ACTION_NONE),
             isSeparator(false),
-            children(),
+            children_(),
             hasShortcut(false),
-            shortcutKey(0)
+            shortcutKey(0),
+            nextInComposition(0)
       {
       }
 
@@ -62,13 +66,16 @@ namespace declara
             onClickState(other.onClickState),
             action(other.action),
             isSeparator(other.isSeparator),
-            children(),
+            children_(),
             hasShortcut(other.hasShortcut),
-            shortcutKey(other.shortcutKey)
+            shortcutKey(other.shortcutKey),
+            nextInComposition(0)
       {
-        for (size_t i = 0; i < other.children.size(); ++i)
+        const MenuItemDefinition *cur = other.children_.head();
+        while (cur)
         {
-          children.push_back(other.children[i]->clone());
+          children_.appendClone(*cur);
+          cur = cur->nextInComposition;
         }
       }
 
@@ -88,10 +95,13 @@ namespace declara
         isSeparator = other.isSeparator;
         hasShortcut = other.hasShortcut;
         shortcutKey = other.shortcutKey;
+        nextInComposition = 0;
         clearChildren();
-        for (size_t i = 0; i < other.children.size(); ++i)
+        const MenuItemDefinition *cur = other.children_.head();
+        while (cur)
         {
-          children.push_back(other.children[i]->clone());
+          children_.appendClone(*cur);
+          cur = cur->nextInComposition;
         }
         return *this;
       }
@@ -149,7 +159,7 @@ namespace declara
 
       MenuItemDefinition &operator<<(const MenuItemDefinition &child)
       {
-        children.push_back(child.clone());
+        children_.appendClone(child);
         return *this;
       }
 
@@ -169,25 +179,27 @@ namespace declara
           return false;
         if (shortcutKey != other.shortcutKey)
           return false;
-        if (children.size() != other.children.size())
+        if (children_.count() != other.children_.count())
           return false;
-        for (size_t i = 0; i < children.size(); ++i)
+        const MenuItemDefinition *left = children_.head();
+        const MenuItemDefinition *right = other.children_.head();
+        while (left && right)
         {
-          if (!children[i]->equalsStructure(*other.children[i]))
+          if (!left->equalsStructure(*right))
             return false;
+          left = left->nextInComposition;
+          right = right->nextInComposition;
         }
         return true;
       }
 
-      bool hasChildren() const { return !children.empty(); }
+      bool hasChildren() const { return children_.count() > 0; }
+      MenuItemDefinition *childrenHead() const { return children_.head(); }
+      size_t childrenCount() const { return children_.count(); }
 
       void clearChildren()
       {
-        for (size_t i = 0; i < children.size(); ++i)
-        {
-          delete children[i];
-        }
-        children.clear();
+        children_.clear();
       }
 
       loka::core::String title;
@@ -195,9 +207,10 @@ namespace declara
       EmitterState *onClickState;
       MenuActionType action;
       bool isSeparator;
-      std::vector<MenuItemDefinition *> children;
+      loka::dsl::CompositionList<MenuItemDefinition> children_;
       bool hasShortcut;
       char shortcutKey;
+      MenuItemDefinition *nextInComposition;
     };
 
     struct MenuDefinition
