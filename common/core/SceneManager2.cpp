@@ -16,7 +16,8 @@ SceneManager2::~SceneManager2() {}
 void SceneManager2::commitTransaction(declara::core::scene::Scene *from, declara::core::scene::Scene *to)
 {
   tracker_.begin();
-  SceneTransactionList txns = pendingTransactions_.get();
+  const SceneTransactionList &current = pendingTransactions_.getRef();
+  SceneTransactionList txns = current;
   txns.push(from, to);
   pendingTransactions_.set(txns);
   tracker_.end();
@@ -35,7 +36,7 @@ SceneManager2::SceneTransactionList SceneManager2::getPendingTransactions() cons
 
 void SceneManager2::handleNextTransaction()
 {
-  SceneTransactionList txns = pendingTransactions_.get();
+  const SceneTransactionList &txns = pendingTransactions_.getRef();
   if (txns.empty())
     return;
   declara::core::scene::Scene *oldScene = currentScene_.get();
@@ -43,8 +44,9 @@ void SceneManager2::handleNextTransaction()
   // attached の切り替えは swapScene 内で行う
   swapScene(oldScene, newScene);
   tracker_.begin();
-  txns.popFront();
-  pendingTransactions_.set(txns);
+  SceneTransactionList nextTxns = txns;
+  nextTxns.popFront();
+  pendingTransactions_.set(nextTxns);
   tracker_.end();
 }
 
