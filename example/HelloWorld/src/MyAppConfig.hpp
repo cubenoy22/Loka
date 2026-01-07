@@ -41,6 +41,7 @@ private:
                           << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
       c.declare(Menu("View") << MenuItem("Color Picker").actionType(MENU_ACTION_SHOW_COLOR_PICKER));
       c.declare(Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
+      c.declare(Menu("Special") << (MenuItem("Item") << MenuItem("Sub Item")) << MenuItem("Item 2"));
       if (!randomSeedState_)
       {
         randomSeedState_ = &c.useState<unsigned int>(0x1234);
