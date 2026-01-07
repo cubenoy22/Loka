@@ -108,6 +108,30 @@ namespace loka
       DefT *tail_;
       size_t count_;
     };
+
+    template <typename DefT>
+    class CompositionCursor
+    {
+    public:
+      CompositionCursor(DefT *head, size_t count)
+          : current_(head), remaining_(count) {}
+
+      DefT *next()
+      {
+        if (!current_ || remaining_ == 0)
+        {
+          return 0;
+        }
+        DefT *out = current_;
+        current_ = current_->nextInComposition;
+        remaining_ -= 1;
+        return out;
+      }
+
+    private:
+      DefT *current_;
+      size_t remaining_;
+    };
   } // namespace dsl
 } // namespace loka
 

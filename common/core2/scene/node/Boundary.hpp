@@ -114,14 +114,10 @@ namespace declara
           {
             return;
           }
-          Node *child = nestable->childrenHead();
-          size_t count = nestable->childrenCount();
-          size_t index = 0;
-          while (child && index < count)
+          loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
           {
             composeTree(child, *contextForChildren, event, nextBoundary);
-            child = child->nextInComposition;
-            ++index;
           }
         }
 

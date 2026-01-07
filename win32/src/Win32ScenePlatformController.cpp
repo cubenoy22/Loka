@@ -131,9 +131,8 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
   if (declara::app::RowNode *row = dynamic_cast<declara::app::RowNode *>(node))
   {
-    declara::core::scene::Node *child = row->childrenHead();
     size_t childCount = row->childrenCount();
-    if (!child || childCount == 0)
+    if (row->childrenHead() == 0 || childCount == 0)
     {
       return state.y;
     }
@@ -150,8 +149,8 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     int remainder = childCountInt > 0 ? availableWidth - baseWidth * childCountInt : 0;
     int currentX = state.x;
     int maxY = state.y;
-    size_t index = 0;
-    while (child && index < childCount)
+    loka::dsl::CompositionCursor<declara::core::scene::Node> it(row->childrenHead(), childCount);
+    for (declara::core::scene::Node *child = it.next(); child; child = it.next())
     {
       int childWidth = baseWidth;
       if (remainder > 0)
@@ -168,8 +167,6 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
         maxY = childY;
       }
       currentX += childWidth + gap;
-      child = child->nextInComposition;
-      ++index;
     }
     return maxY;
   }
@@ -177,14 +174,10 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
   if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
   {
     LayoutState childState = state;
-    declara::core::scene::Node *child = nestable->childrenHead();
-    size_t childCount = nestable->childrenCount();
-    size_t index = 0;
-    while (child && index < childCount)
+    loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (declara::core::scene::Node *child = it.next(); child; child = it.next())
     {
       childState.y = layoutNode(child, childState);
-      child = child->nextInComposition;
-      ++index;
     }
     return childState.y;
   }
@@ -239,14 +232,10 @@ void Win32ScenePlatformController::clearNodeContexts(declara::core::scene::Node 
   }
   if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
   {
-    declara::core::scene::Node *child = nestable->childrenHead();
-    size_t childCount = nestable->childrenCount();
-    size_t index = 0;
-    while (child && index < childCount)
+    loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (declara::core::scene::Node *child = it.next(); child; child = it.next())
     {
       clearNodeContexts(child);
-      child = child->nextInComposition;
-      ++index;
     }
   }
   node->setContext(0);
