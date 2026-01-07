@@ -9,6 +9,7 @@
 #include <Sound.h>
 #include <TextEdit.h>
 #include <Windows.h>
+#include <Devices.h>
 #include "loka/platform/StringUTF8.hpp"
 
 ToolboxApp::ToolboxApp(AppConfigurable *config)
@@ -673,5 +674,11 @@ void ToolboxApp::handleMenuCommand(short menuId, short item)
       invalidateMenu();
     }
     return;
+  }
+  if (menuId == 128)
+  {
+    Str255 deskAccName;
+    GetMenuItemText(GetMenuHandle(menuId), item, deskAccName);
+    OpenDeskAcc(deskAccName);
   }
 }
