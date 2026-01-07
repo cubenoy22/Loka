@@ -15,6 +15,7 @@ namespace loka
       ~CompositionList() { clear(); }
 
       size_t count() const { return count_; }
+      DefT *head() const { return head_; }
 
       void appendClone(const DefT &def)
       {

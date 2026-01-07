@@ -32,14 +32,15 @@ namespace declara
 
         if (nestableDef && nestableNode)
         {
-          const std::vector<NodeDefinitionBase *> &children = nestableDef->getChildren();
-          for (size_t i = 0; i < children.size(); ++i)
+          NodeDefinitionBase *child = nestableDef->childrenHead();
+          while (child)
           {
-            Node *childNode = createNodeRecursive(children[i]);
+            Node *childNode = createNodeRecursive(child);
             if (childNode)
             {
               nestableNode->addChild(childNode);
             }
+            child = child->nextInComposition;
           }
         }
 

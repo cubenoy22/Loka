@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <vector>
+#include "loka/dsl/CompositionList.hpp"
 
 #include "../../core/State.hpp"
 // StreamView is only needed by NodeComposition; avoid including here to reduce coupling
@@ -214,7 +215,8 @@ namespace declara
         virtual ~INestableDefinition() {}
         virtual void addChild(NodeDefinitionBase *child) = 0;
         virtual void addOwnedChild(NodeDefinitionBase *child) { addChild(child); }
-        virtual const std::vector<NodeDefinitionBase *> &getChildren() const = 0;
+        virtual NodeDefinitionBase *childrenHead() const = 0;
+        virtual size_t childrenCount() const = 0;
 
         // Overloads
         INestableDefinition &operator<<(NodeDefinitionBase &child);
@@ -258,7 +260,7 @@ namespace declara
           {
             return;
           }
-          children_.push_back(child->clone());
+          children_.appendClone(*child);
         }
 
         virtual void addOwnedChild(NodeDefinitionBase *child)
@@ -267,35 +269,30 @@ namespace declara
           {
             return;
           }
-          children_.push_back(child);
+          children_.appendOwned(child);
         }
 
-        virtual const std::vector<NodeDefinitionBase *> &getChildren() const
-        {
-          return children_;
-        }
+        virtual NodeDefinitionBase *childrenHead() const { return children_.head(); }
+        virtual size_t childrenCount() const { return children_.count(); }
 
       protected:
         void clearChildren()
         {
-          for (size_t i = 0; i < children_.size(); ++i)
-          {
-            delete children_[i];
-          }
           children_.clear();
         }
 
         void copyChildrenFrom(const NestableDefinitionBase &other)
         {
           std::vector<NodeDefinitionBase *> newChildren;
-          const std::vector<NodeDefinitionBase *> &otherChildren = other.children_;
+          NodeDefinitionBase *cur = other.children_.head();
 #if defined(__EXCEPTIONS)
           try
           {
-            for (size_t i = 0; i < otherChildren.size(); ++i)
+            while (cur)
             {
-              NodeDefinitionBase *child = otherChildren[i] ? otherChildren[i]->clone() : 0;
+              NodeDefinitionBase *child = cur ? cur->clone() : 0;
               newChildren.push_back(child);
+              cur = cur->nextInComposition;
             }
           }
           catch (...)
@@ -307,18 +304,22 @@ namespace declara
             throw;
           }
 #else
-          for (size_t i = 0; i < otherChildren.size(); ++i)
+          while (cur)
           {
-            NodeDefinitionBase *child = otherChildren[i] ? otherChildren[i]->clone() : 0;
+            NodeDefinitionBase *child = cur ? cur->clone() : 0;
             newChildren.push_back(child);
+            cur = cur->nextInComposition;
           }
 #endif
           clearChildren();
-          children_ = newChildren;
+          for (size_t i = 0; i < newChildren.size(); ++i)
+          {
+            children_.appendOwned(newChildren[i]);
+          }
         }
 
       private:
-        std::vector<NodeDefinitionBase *> children_;
+        loka::dsl::CompositionList<NodeDefinitionBase> children_;
       };
 
       // --- Interface for nestable Node/Definition ---
