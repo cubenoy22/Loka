@@ -351,9 +351,11 @@ void testNodeCompositionTree()
 
   BoxNode *boxNode = dynamic_cast<BoxNode *>(tree);
   assert(boxNode != NULL);
-  const std::vector<Node *> &children = boxNode->getChildren();
-  assert(children.size() == 1);
-  ButtonNode *buttonNode = dynamic_cast<ButtonNode *>(children[0]);
+  Node *child = boxNode->childrenHead();
+  size_t childCount = boxNode->childrenCount();
+  assert(child != NULL);
+  assert(childCount == 1);
+  ButtonNode *buttonNode = dynamic_cast<ButtonNode *>(child);
   assert(buttonNode != NULL);
 
   delete tree;

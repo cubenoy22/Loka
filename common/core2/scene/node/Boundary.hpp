@@ -114,10 +114,14 @@ namespace declara
           {
             return;
           }
-          const std::vector<Node *> &children = nestable->getChildren();
-          for (size_t i = 0; i < children.size(); ++i)
+          Node *child = nestable->childrenHead();
+          size_t count = nestable->childrenCount();
+          size_t index = 0;
+          while (child && index < count)
           {
-            composeTree(children[i], *contextForChildren, event, nextBoundary);
+            composeTree(child, *contextForChildren, event, nextBoundary);
+            child = child->nextInComposition;
+            ++index;
           }
         }
 

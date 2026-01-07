@@ -131,13 +131,13 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
   if (declara::app::RowNode *row = dynamic_cast<declara::app::RowNode *>(node))
   {
-    const std::vector<declara::core::scene::Node *> &children = row->getChildren();
-    if (children.empty())
+    declara::core::scene::Node *child = row->childrenHead();
+    size_t childCount = row->childrenCount();
+    if (!child || childCount == 0)
     {
       return state.y;
     }
     LayoutState childState = state;
-    const size_t childCount = children.size();
     const int childCountInt = static_cast<int>(childCount);
     const int gap = kHorizontalSpacing;
     const int spacingTotal = gap * (childCountInt > 0 ? childCountInt - 1 : 0);
@@ -150,7 +150,8 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     int remainder = childCountInt > 0 ? availableWidth - baseWidth * childCountInt : 0;
     int currentX = state.x;
     int maxY = state.y;
-    for (size_t i = 0; i < childCount; ++i)
+    size_t index = 0;
+    while (child && index < childCount)
     {
       int childWidth = baseWidth;
       if (remainder > 0)
@@ -161,12 +162,14 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
       childState.x = currentX;
       childState.y = state.y;
       childState.width = childWidth;
-      int childY = layoutNode(children[i], childState);
+      int childY = layoutNode(child, childState);
       if (childY > maxY)
       {
         maxY = childY;
       }
       currentX += childWidth + gap;
+      child = child->nextInComposition;
+      ++index;
     }
     return maxY;
   }
@@ -174,10 +177,14 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
   if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
   {
     LayoutState childState = state;
-    const std::vector<declara::core::scene::Node *> &children = nestable->getChildren();
-    for (size_t i = 0; i < children.size(); ++i)
+    declara::core::scene::Node *child = nestable->childrenHead();
+    size_t childCount = nestable->childrenCount();
+    size_t index = 0;
+    while (child && index < childCount)
     {
-      childState.y = layoutNode(children[i], childState);
+      childState.y = layoutNode(child, childState);
+      child = child->nextInComposition;
+      ++index;
     }
     return childState.y;
   }
@@ -232,10 +239,14 @@ void Win32ScenePlatformController::clearNodeContexts(declara::core::scene::Node 
   }
   if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
   {
-    const std::vector<declara::core::scene::Node *> &children = nestable->getChildren();
-    for (size_t i = 0; i < children.size(); ++i)
+    declara::core::scene::Node *child = nestable->childrenHead();
+    size_t childCount = nestable->childrenCount();
+    size_t index = 0;
+    while (child && index < childCount)
     {
-      clearNodeContexts(children[i]);
+      clearNodeContexts(child);
+      child = child->nextInComposition;
+      ++index;
     }
   }
   node->setContext(0);

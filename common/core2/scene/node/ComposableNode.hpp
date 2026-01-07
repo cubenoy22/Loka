@@ -171,10 +171,6 @@ namespace declara
 
         void clearChildren()
         {
-          for (size_t i = 0; i < children_.size(); ++i)
-          {
-            delete children_[i];
-          }
           children_.clear();
         }
 

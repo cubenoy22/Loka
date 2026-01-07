@@ -73,6 +73,7 @@ namespace declara
       public:
         NodeContext *context;
         MutableState<NodeDirtyFlags> dirty;
+        Node *nextInComposition;
         virtual ~Node()
         {
           if (context)
@@ -83,7 +84,7 @@ namespace declara
         }
         virtual void compose() {}
 
-        Node() : context(0), dirty(NODE_DIRTY_NONE) {}
+        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0) {}
 
         void setContext(NodeContext *ctx)
         {
@@ -327,34 +328,33 @@ namespace declara
       {
         virtual ~INestable() {}
         virtual void addChild(Node *child) = 0;
-        virtual const std::vector<Node *> &getChildren() const = 0;
+        virtual Node *childrenHead() const = 0;
+        virtual size_t childrenCount() const = 0;
       };
 
       // --- Helper node which owns children ---
       class NestableNode : public Node, public INestable
       {
       public:
-        NestableNode() : Node() {}
+        NestableNode() : Node(), children_() {}
         virtual ~NestableNode()
         {
-          for (size_t i = 0; i < children_.size(); ++i)
-          {
-            delete children_[i];
-          }
+          children_.clear();
         }
 
         virtual void addChild(Node *child)
         {
           if (child)
           {
-            children_.push_back(child);
+            children_.appendOwned(child);
           }
         }
 
-        virtual const std::vector<Node *> &getChildren() const { return children_; }
+        virtual Node *childrenHead() const { return children_.head(); }
+        virtual size_t childrenCount() const { return children_.count(); }
 
       protected:
-        std::vector<Node *> children_;
+        loka::dsl::CompositionList<Node> children_;
       };
 
       inline INestableDefinition &INestableDefinition::operator<<(NodeDefinitionBase &child)
