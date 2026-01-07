@@ -5,9 +5,14 @@
 // StateTracker用RAIIトランザクションガード
 struct StateTrackerGuard
 {
+  typedef void (*InvalidateFn)(void *userData);
   declara::core::PushStateTracker *tracker;
-  StateTrackerGuard(declara::core::StateTracker *t)
-      : tracker(dynamic_cast<declara::core::PushStateTracker *>(t))
+  InvalidateFn invalidateFn;
+  void *invalidateUserData;
+  StateTrackerGuard(declara::core::StateTracker *t, InvalidateFn fn = 0, void *userData = 0)
+      : tracker(dynamic_cast<declara::core::PushStateTracker *>(t)),
+        invalidateFn(fn),
+        invalidateUserData(userData)
   {
     if (tracker)
       tracker->begin();
@@ -15,7 +20,13 @@ struct StateTrackerGuard
   ~StateTrackerGuard()
   {
     if (tracker)
+    {
       tracker->end();
+      if (invalidateFn && tracker->consumeDirty())
+      {
+        invalidateFn(invalidateUserData);
+      }
+    }
   }
 };
 

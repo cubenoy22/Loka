@@ -44,6 +44,8 @@ namespace declara
         BoundaryNode *parentBoundary() const { return parentBoundary_; }
         void setParentBoundary(BoundaryNode *parent) { parentBoundary_ = parent; }
 
+        static void InvalidateSceneThunk(void *userData);
+
         template <class T>
         BoundState<T> useState()
         {
