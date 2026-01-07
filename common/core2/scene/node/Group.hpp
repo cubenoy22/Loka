@@ -10,6 +10,15 @@ namespace declara
   {
     namespace scene
     {
+      struct GroupTypeTag
+      {
+      };
+
+      template <class NodeT>
+      struct GroupPropsForTypeTag
+      {
+      };
+
       template <class PropsT>
       class GroupNodeBase;
 
@@ -17,6 +26,7 @@ namespace declara
       template <class NodeT>
       struct GroupPropsFor : public NodePropsBase<GroupPropsFor<NodeT> >
       {
+        typedef GroupPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
         bool operator<(const PropsBase &rhs) const
         {
@@ -28,6 +38,7 @@ namespace declara
       struct GroupProps : public NodePropsBase<GroupProps>
       {
         GroupProps() {}
+        typedef GroupTypeTag TypeTag;
         typedef GroupNodeBase<GroupProps> NodeType;
         bool operator<(const PropsBase &rhs) const
         {
@@ -41,6 +52,7 @@ namespace declara
       class GroupNodeBase : public ComposableNode
       {
       public:
+        typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
         GroupNodeBase(const PropsT &p) : ComposableNode(), props(p) {}
         virtual ~GroupNodeBase() {}

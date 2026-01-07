@@ -23,8 +23,13 @@ namespace declara
 
 class PlatformContext;
 
+struct WindowTypeTag
+{
+};
+
 struct WindowProps
 {
+  typedef WindowTypeTag TypeTag;
   MutableState<loka::core::String> *titleStatePtr;
   MutableState<bool> *visibilityStatePtr;
   loka::core::String initialTitle;
@@ -186,6 +191,7 @@ struct WindowProps
 class Window : public AppComponent
 {
 public:
+  typedef WindowTypeTag TypeTag;
   Window(PlatformContext *context, const WindowProps &props = WindowProps())
       : context_(context),
         titleStorage_(),

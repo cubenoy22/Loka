@@ -14,9 +14,24 @@ namespace declara
       template <class PropsT>
       class StaticCompositionBoundaryNodeBase;
 
+      struct StaticCompositionTypeTag
+      {
+      };
+
+      template <class NodeT>
+      struct StaticCompositionPropsForTypeTag
+      {
+      };
+
+      template <class NodeT>
+      struct BoundaryPropsForTypeTag
+      {
+      };
+
       struct StaticCompositionProps : public NodePropsBase<StaticCompositionProps>
       {
         StaticCompositionProps() {}
+        typedef StaticCompositionTypeTag TypeTag;
         typedef StaticCompositionBoundaryNodeBase<StaticCompositionProps> NodeType;
         bool operator<(const PropsBase &rhs) const
         {
@@ -32,6 +47,7 @@ namespace declara
       template <class NodeT>
       struct StaticCompositionPropsFor : public NodePropsBase<StaticCompositionPropsFor<NodeT> >
       {
+        typedef StaticCompositionPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
         bool operator<(const PropsBase &rhs) const
         {
@@ -46,6 +62,7 @@ namespace declara
       template <class NodeT>
       struct BoundaryPropsFor : public NodePropsBase<BoundaryPropsFor<NodeT> >
       {
+        typedef BoundaryPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
         bool operator<(const PropsBase &rhs) const
         {
@@ -58,6 +75,7 @@ namespace declara
       class StaticCompositionBoundaryNodeBase : public BoundaryNode
       {
       public:
+        typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
         StaticCompositionBoundaryNodeBase(const PropsT &p)
             : BoundaryNode(), props(p) {}

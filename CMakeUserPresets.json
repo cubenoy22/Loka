@@ -1,0 +1,35 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "retro68-debug",
+      "displayName": "Retro68 (Debug)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-retro68",
+      "environment": {
+        "PATH": "/home/cubenoy22.linux/Retro68-build/toolchain/bin:$penv{PATH}"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
+        "RETRO68_BUILD_DIR": "/home/cubenoy22.linux/Retro68-build"
+      }
+    },
+    {
+      "name": "retro68-release",
+      "displayName": "Retro68 (MinSizeRel)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-retro68-release",
+      "environment": {
+        "PATH": "/home/cubenoy22.linux/Retro68-build/toolchain/bin:$penv{PATH}"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "MinSizeRel",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
+        "RETRO68_BUILD_DIR": "/home/cubenoy22.linux/Retro68-build",
+        "CMAKE_CXX_FLAGS_MINSIZEREL": "-Os -DNDEBUG -ffunction-sections -fdata-sections -fno-exceptions",
+        "CMAKE_EXE_LINKER_FLAGS_MINSIZEREL": "-Wl,--gc-sections"
+      }
+    }
+  ]
+}

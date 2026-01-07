@@ -1,8 +1,20 @@
 #ifndef LOKA_CORE2_SCENE_NODE_HPP
 #define LOKA_CORE2_SCENE_NODE_HPP
 
-// static_assert-like macro for C++98
-#define STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
+// static_assert-like macro for C++98 (debug-only by default, override with USE_LOKA_STATIC_ASSERT)
+#if defined(USE_LOKA_STATIC_ASSERT)
+#if __cplusplus >= 201103L
+#define LOKA_STATIC_ASSERT(expr, msg) static_assert((expr), #msg)
+#else
+#define LOKA_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
+#endif
+#elif defined(NDEBUG)
+#define LOKA_STATIC_ASSERT(expr, msg) enum { static_assert_##msg = 1 }
+#elif __cplusplus >= 201103L
+#define LOKA_STATIC_ASSERT(expr, msg) static_assert((expr), #msg)
+#else
+#define LOKA_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
+#endif
 
 #include <cstddef>
 #include <vector>
@@ -173,8 +185,10 @@ namespace declara
         typedef NodeT NodeType;
 
         // Optional static check when PropsT/NodeT have TypeTag (via SFINAE)
-#ifdef LOKA_NODEDEF_CHECK_TYPETAG
-        STATIC_ASSERT((typename PropsT::TypeTag *)0 == (typename NodeT::TypeTag *)0, props_node_type_mismatch);
+#if __cplusplus >= 201103L
+        LOKA_STATIC_ASSERT((typename PropsT::TypeTag *)0 == (typename NodeT::TypeTag *)0, props_node_type_mismatch);
+#elif defined(USE_LOKA_STATIC_ASSERT) || defined(LOKA_NODEDEF_CHECK_TYPETAG)
+        LOKA_STATIC_ASSERT((typename PropsT::TypeTag *)0 == (typename NodeT::TypeTag *)0, props_node_type_mismatch);
 #endif
         PropsT props;
         NodeDefinition() : props() {}

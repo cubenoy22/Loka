@@ -22,6 +22,19 @@ public:
 template <class PropsT>
 struct WindowDefinition : public WindowDefinitionBase
 {
+#if defined(USE_LOKA_STATIC_ASSERT)
+#if __cplusplus >= 201103L
+  static_assert((typename PropsT::TypeTag *)0 == (typename Window::TypeTag *)0, "window_props_type_mismatch");
+#else
+  typedef char static_assert_window_props_type_mismatch[( (typename PropsT::TypeTag *)0 == (typename Window::TypeTag *)0 ) ? 1 : -1];
+#endif
+#elif !defined(NDEBUG)
+#if __cplusplus >= 201103L
+  static_assert((typename PropsT::TypeTag *)0 == (typename Window::TypeTag *)0, "window_props_type_mismatch");
+#elif defined(LOKA_WINDOWDEF_CHECK_TYPETAG)
+  typedef char static_assert_window_props_type_mismatch[( (typename PropsT::TypeTag *)0 == (typename Window::TypeTag *)0 ) ? 1 : -1];
+#endif
+#endif
   PropsT props;
   WindowDefinition() : props() {}
   WindowDefinition(const PropsT &p) : props(p) {}

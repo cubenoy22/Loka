@@ -2,6 +2,7 @@
 
 - C++98 only; avoid newer syntax unless explicitly justified for design discussion.
 - Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.
+- Use TypeTag static checks in debug builds; allow overriding with `USE_LOKA_STATIC_ASSERT`. Prefer `static_assert` when C++11+ is available; in C++98 builds, keep them behind `LOKA_*_CHECK_TYPETAG`.
 - C++ exceptions are disabled; do not add `try`/`catch` or rely on throwing.
 - Prefer explicit error handling and nothrow/nullable patterns in Classic builds.
 - Use `assert` for contract violations (e.g., null PlatformContext); do not throw.
