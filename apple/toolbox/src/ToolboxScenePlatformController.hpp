@@ -26,7 +26,7 @@ public:
   bool handleMouseDown(const Point &point);
   void recordButtonHit(const Rect &rect, declara::core::EmitterState *emitter, declara::core::State<bool> *enabled);
   void recordEditHit(const Rect &rect, declara::core::State<loka::core::String> *text);
-  void recordTextHit(const Rect &rect, declara::core::State<loka::core::String> *text);
+  void recordTextHit(const Rect &rect, short x, short y, declara::core::State<loka::core::String> *text);
   bool handleKeyDown(char key);
   bool handleControlClick(const Point &point);
   void drawControlsInRect(const Rect &rect);
@@ -52,6 +52,13 @@ private:
     declara::core::State<loka::core::String> *text;
   };
 
+  struct TextHit
+  {
+    Rect rect;
+    short x;
+    short y;
+    declara::core::State<loka::core::String> *text;
+  };
   struct TextBinding
   {
     declara::core::State<loka::core::String> *state;
@@ -88,11 +95,12 @@ private:
   EditTextControlBinding *focusedEdit_;
   Rect focusedRect_;
   bool hasFocusedRect_;
-  std::vector<EditHit> textHits_;
+  std::vector<TextHit> textHits_;
   std::vector<declara::core::State<loka::core::String> *> boundTextStates_;
   std::vector<TextBinding *> textBindings_;
   bool inBatchUpdate_;
   std::vector<Rect> pendingDirtyRects_;
+  std::vector<declara::core::State<loka::core::String> *> pendingTextStates_;
   RgnHandle clipRgn_;
   bool hasClip_;
 
@@ -102,6 +110,9 @@ private:
   void beginBatchUpdate();
   void endBatchUpdate();
   void addPendingDirty(const Rect &rect);
+  void addPendingText(declara::core::State<loka::core::String> *text);
+  void redrawTextHit(const TextHit &hit);
+  void redrawTextFor(declara::core::State<loka::core::String> *text);
   void clearTextBindings();
   void clearControls();
   void syncEditTextFromState(EditTextControlBinding &binding);

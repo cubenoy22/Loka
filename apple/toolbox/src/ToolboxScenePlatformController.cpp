@@ -150,7 +150,7 @@ namespace
           rect.top = static_cast<short>(state.y - state.lineHeight + 2);
           rect.right = static_cast<short>(state.x + width);
           rect.bottom = static_cast<short>(state.y + 6);
-          controller->recordTextHit(rect, text->props.text_);
+        controller->recordTextHit(rect, state.x, state.y, text->props.text_);
         }
         state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
         return width;
@@ -301,6 +301,7 @@ void ToolboxScenePlatformController::render()
     editControls_[i].usedThisFrame = false;
   }
   textHits_.clear();
+  pendingTextStates_.clear();
   pendingDirtyRects_.clear();
   RenderState state;
   state.x = 12;
@@ -440,14 +441,19 @@ void ToolboxScenePlatformController::recordEditHit(const Rect &rect, declara::co
   }
 }
 
-void ToolboxScenePlatformController::recordTextHit(const Rect &rect, declara::core::State<loka::core::String> *text)
+void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
+                                                   short x,
+                                                   short y,
+                                                   declara::core::State<loka::core::String> *text)
 {
   if (!text)
   {
     return;
   }
-  EditHit hit;
+  TextHit hit;
   hit.rect = rect;
+  hit.x = x;
+  hit.y = y;
   hit.text = text;
   textHits_.push_back(hit);
   bindTextState(text);
@@ -520,16 +526,16 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
   }
   for (size_t i = 0; i < textHits_.size(); ++i)
   {
-    EditHit &hit = textHits_[i];
+    TextHit &hit = textHits_[i];
     if (hit.text == text)
     {
       if (inBatchUpdate_)
       {
-        addPendingDirty(hit.rect);
+        addPendingText(text);
       }
       else
       {
-        window_->drawDirty(hit.rect);
+        redrawTextHit(hit);
       }
       return;
     }
@@ -576,6 +582,7 @@ void ToolboxScenePlatformController::beginBatchUpdate()
 {
   inBatchUpdate_ = true;
   pendingDirtyRects_.clear();
+  pendingTextStates_.clear();
 }
 
 void ToolboxScenePlatformController::endBatchUpdate()
@@ -587,8 +594,13 @@ void ToolboxScenePlatformController::endBatchUpdate()
     {
       window_->drawDirty(pendingDirtyRects_[i]);
     }
+    for (size_t i = 0; i < pendingTextStates_.size(); ++i)
+    {
+      redrawTextFor(pendingTextStates_[i]);
+    }
   }
   pendingDirtyRects_.clear();
+  pendingTextStates_.clear();
 }
 
 void ToolboxScenePlatformController::addPendingDirty(const Rect &rect)
@@ -620,6 +632,52 @@ void ToolboxScenePlatformController::addPendingDirty(const Rect &rect)
     return;
   }
   pendingDirtyRects_.push_back(rect);
+}
+
+void ToolboxScenePlatformController::addPendingText(declara::core::State<loka::core::String> *text)
+{
+  if (!text)
+  {
+    return;
+  }
+  for (size_t i = 0; i < pendingTextStates_.size(); ++i)
+  {
+    if (pendingTextStates_[i] == text)
+    {
+      return;
+    }
+  }
+  pendingTextStates_.push_back(text);
+}
+
+void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
+{
+  if (!window_ || !window_->window() || !hit.text)
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_->window());
+  EraseRect(&hit.rect);
+  DrawStringAt(hit.x, hit.y, hit.text->get());
+  SetPort(oldPort);
+}
+
+void ToolboxScenePlatformController::redrawTextFor(declara::core::State<loka::core::String> *text)
+{
+  if (!text)
+  {
+    return;
+  }
+  for (size_t i = 0; i < textHits_.size(); ++i)
+  {
+    if (textHits_[i].text == text)
+    {
+      redrawTextHit(textHits_[i]);
+      return;
+    }
+  }
 }
 
 void ToolboxScenePlatformController::clearTextBindings()
