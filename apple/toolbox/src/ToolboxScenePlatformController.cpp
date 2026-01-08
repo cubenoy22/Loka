@@ -4,6 +4,8 @@
 #include <cstring>
 #include <string>
 #include "loka/platform/StringUTF8.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+#include "loka/core/String.hpp"
 #include "app/Text.hpp"
 #include "app/Button.hpp"
 #include "app/EditText.hpp"
@@ -52,9 +54,33 @@ namespace
     return static_cast<short>(utf8.size() * 7 + 16);
   }
 
-  short DrawNode(declara::core::scene::Node *node, RenderState &state);
+  void CopyToPascalString(const loka::core::String &value, Str255 out)
+  {
+    std::string utf8;
+    if (!loka::platform::CollectUtf8(value, utf8))
+    {
+      out[0] = 0;
+      return;
+    }
+    std::size_t length = utf8.size();
+    if (length > 255)
+    {
+      length = 255;
+    }
+    out[0] = static_cast<unsigned char>(length);
+    if (length > 0)
+    {
+      std::memcpy(out + 1, utf8.data(), length);
+    }
+  }
 
-  short DrawChildren(declara::core::scene::Node *node, RenderState &state)
+  short DrawNode(declara::core::scene::Node *node,
+                 RenderState &state,
+                 ToolboxScenePlatformController *controller);
+
+  short DrawChildren(declara::core::scene::Node *node,
+                     RenderState &state,
+                     ToolboxScenePlatformController *controller)
   {
     declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
     if (!nestable)
@@ -65,7 +91,7 @@ namespace
     loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
     for (declara::core::scene::Node *child = it.next(); child; child = it.next())
     {
-      short width = DrawNode(child, state);
+      short width = DrawNode(child, state, controller);
       if (width > maxWidth)
       {
         maxWidth = width;
@@ -74,7 +100,9 @@ namespace
     return maxWidth;
   }
 
-  short DrawNode(declara::core::scene::Node *node, RenderState &state)
+  short DrawNode(declara::core::scene::Node *node,
+                 RenderState &state,
+                 ToolboxScenePlatformController *controller)
   {
     if (!node)
     {
@@ -82,7 +110,7 @@ namespace
     }
     if (dynamic_cast<declara::app::ColumnNode *>(node))
     {
-      return DrawChildren(node, state);
+      return DrawChildren(node, state, controller);
     }
     if (dynamic_cast<declara::app::RowNode *>(node))
     {
@@ -98,7 +126,7 @@ namespace
       {
         RenderState rowState = state;
         rowState.x = startX;
-        short width = DrawNode(child, rowState);
+        short width = DrawNode(child, rowState, controller);
         startX = static_cast<short>(startX + width + state.spacing);
         if (rowState.y > state.y)
         {
@@ -114,6 +142,15 @@ namespace
       {
         DrawStringAt(state.x, state.y, text->props.text_->get());
         short width = MeasureTextWidth(text->props.text_->get());
+        if (controller)
+        {
+          Rect rect;
+          rect.left = state.x;
+          rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+          rect.right = static_cast<short>(state.x + width);
+          rect.bottom = static_cast<short>(state.y + 6);
+          controller->recordTextHit(rect, text->props.text_);
+        }
         state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
         return width;
       }
@@ -132,8 +169,23 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width);
       rect.bottom = static_cast<short>(state.y + 6);
-      FrameRect(&rect);
-      DrawStringAt(static_cast<short>(state.x + 4), state.y, label);
+      if (controller && button->props.toolboxControlId_ > 0)
+      {
+        if (!controller->ensureButtonControl(button->props.toolboxControlId_, rect, label, button->props.onClick_))
+        {
+          controller->drawFallbackControl(rect);
+          controller->recordButtonHit(rect, button->props.onClick_, button->props.enabled_);
+        }
+      }
+      else
+      {
+        FrameRect(&rect);
+        DrawStringAt(static_cast<short>(state.x + 4), state.y, label);
+        if (controller)
+        {
+          controller->recordButtonHit(rect, button->props.onClick_, button->props.enabled_);
+        }
+      }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
     }
@@ -152,20 +204,32 @@ namespace
       rect.bottom = static_cast<short>(state.y + 6);
       FrameRect(&rect);
       DrawStringAt(static_cast<short>(state.x + 4), state.y, value);
+      if (controller && edit->props.text_)
+      {
+        controller->recordEditHit(rect, edit->props.text_);
+      }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
     }
-    return DrawChildren(node, state);
+    return DrawChildren(node, state, controller);
   }
 }
 
 ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *window)
-    : window_(window), rootNode_(0)
+    : window_(window),
+      rootNode_(0),
+      focusedText_(0),
+      focusedRect_(),
+      hasFocusedRect_(false),
+      inBatchUpdate_(false),
+      pendingDirtyRects_()
 {
 }
 
 ToolboxScenePlatformController::~ToolboxScenePlatformController()
 {
+  clearTextBindings();
+  clearControls();
 }
 
 void ToolboxScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags)
@@ -186,6 +250,8 @@ void ToolboxScenePlatformController::synchronize()
 void ToolboxScenePlatformController::destroy()
 {
   rootNode_ = 0;
+  clearTextBindings();
+  clearControls();
 }
 
 void ToolboxScenePlatformController::render()
@@ -194,10 +260,440 @@ void ToolboxScenePlatformController::render()
   {
     return;
   }
+  buttonHits_.clear();
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    buttonControls_[i].usedThisFrame = false;
+  }
+  editHits_.clear();
+  textHits_.clear();
+  pendingDirtyRects_.clear();
   RenderState state;
   state.x = 12;
   state.y = 24;
   state.lineHeight = 14;
   state.spacing = 6;
-  DrawNode(rootNode_, state);
+  DrawNode(rootNode_, state, this);
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
+    {
+      HideControl(buttonControls_[i].control);
+    }
+  }
+}
+
+void ToolboxScenePlatformController::handleMouseDown(const Point &point)
+{
+  if (handleControlClick(point))
+  {
+    return;
+  }
+  for (size_t i = 0; i < editHits_.size(); ++i)
+  {
+    EditHit &hit = editHits_[i];
+    if (hit.text && PtInRect(point, &hit.rect))
+    {
+      focusedText_ = hit.text;
+      focusedRect_ = hit.rect;
+      hasFocusedRect_ = true;
+      return;
+    }
+  }
+  focusedText_ = 0;
+  hasFocusedRect_ = false;
+  for (size_t i = 0; i < buttonHits_.size(); ++i)
+  {
+    ButtonHit &hit = buttonHits_[i];
+    if (!hit.emitter)
+    {
+      continue;
+    }
+    if (hit.enabled && !hit.enabled->get())
+    {
+      continue;
+    }
+    if (PtInRect(point, &hit.rect))
+    {
+      beginBatchUpdate();
+      hit.emitter->emit();
+      endBatchUpdate();
+      return;
+    }
+  }
+}
+
+bool ToolboxScenePlatformController::handleKeyDown(char key)
+{
+  beginBatchUpdate();
+  if (!handleTextKey(key))
+  {
+    endBatchUpdate();
+    return false;
+  }
+  endBatchUpdate();
+  return true;
+}
+
+void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
+                                                     declara::core::EmitterState *emitter,
+                                                     declara::core::State<bool> *enabled)
+{
+  if (!emitter)
+  {
+    return;
+  }
+  ButtonHit hit;
+  hit.rect = rect;
+  hit.emitter = emitter;
+  hit.enabled = enabled;
+  buttonHits_.push_back(hit);
+}
+
+void ToolboxScenePlatformController::recordEditHit(const Rect &rect, declara::core::State<loka::core::String> *text)
+{
+  EditHit hit;
+  hit.rect = rect;
+  hit.text = text;
+  editHits_.push_back(hit);
+  bindTextState(text);
+  if (text && focusedText_ == text)
+  {
+    focusedRect_ = rect;
+    hasFocusedRect_ = true;
+  }
+}
+
+void ToolboxScenePlatformController::recordTextHit(const Rect &rect, declara::core::State<loka::core::String> *text)
+{
+  if (!text)
+  {
+    return;
+  }
+  EditHit hit;
+  hit.rect = rect;
+  hit.text = text;
+  textHits_.push_back(hit);
+  bindTextState(text);
+}
+
+bool ToolboxScenePlatformController::handleTextKey(char key)
+{
+  if (!focusedText_)
+  {
+    return false;
+  }
+  declara::core::MutableState<loka::core::String> *mutableText =
+      dynamic_cast<declara::core::MutableState<loka::core::String> *>(focusedText_);
+  if (!mutableText)
+  {
+    return false;
+  }
+  std::string utf8;
+  loka::platform::CollectUtf8(focusedText_->get(), utf8);
+  if (key == 8 || key == 0x7F)
+  {
+    if (!utf8.empty())
+    {
+      utf8.erase(utf8.size() - 1);
+    }
+  }
+  else if (key == 13)
+  {
+    return true;
+  }
+  else if (key >= 32)
+  {
+    utf8.push_back(key);
+  }
+  else
+  {
+    return false;
+  }
+  StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+  mutableText->set(loka::core::String(utf8));
+  return true;
+}
+
+void ToolboxScenePlatformController::bindTextState(declara::core::State<loka::core::String> *text)
+{
+  if (!text)
+  {
+    return;
+  }
+  for (size_t i = 0; i < boundTextStates_.size(); ++i)
+  {
+    if (boundTextStates_[i] == text)
+    {
+      return;
+    }
+  }
+  boundTextStates_.push_back(text);
+  TextBinding *binding = new TextBinding();
+  binding->state = text;
+  binding->controller = this;
+  textBindings_.push_back(binding);
+  text->bind(&ToolboxScenePlatformController::TextStateChangedThunk, binding, false, false, 0);
+}
+
+void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka::core::String> *text)
+{
+  if (!window_)
+  {
+    return;
+  }
+  for (size_t i = 0; i < textHits_.size(); ++i)
+  {
+    EditHit &hit = textHits_[i];
+    if (hit.text == text)
+    {
+      if (inBatchUpdate_)
+      {
+        addPendingDirty(hit.rect);
+      }
+      else
+      {
+        window_->drawDirty(hit.rect);
+      }
+      return;
+    }
+  }
+  for (size_t i = 0; i < editHits_.size(); ++i)
+  {
+    EditHit &hit = editHits_[i];
+    if (hit.text == text)
+    {
+      if (inBatchUpdate_)
+      {
+        addPendingDirty(hit.rect);
+      }
+      else
+      {
+        window_->drawDirty(hit.rect);
+      }
+      return;
+    }
+  }
+  if (inBatchUpdate_)
+  {
+    addPendingDirty(window_->window()->portRect);
+  }
+  else
+  {
+    window_->draw();
+  }
+}
+
+void ToolboxScenePlatformController::beginBatchUpdate()
+{
+  inBatchUpdate_ = true;
+  pendingDirtyRects_.clear();
+}
+
+void ToolboxScenePlatformController::endBatchUpdate()
+{
+  inBatchUpdate_ = false;
+  if (window_)
+  {
+    for (size_t i = 0; i < pendingDirtyRects_.size(); ++i)
+    {
+      window_->drawDirty(pendingDirtyRects_[i]);
+    }
+  }
+  pendingDirtyRects_.clear();
+}
+
+void ToolboxScenePlatformController::addPendingDirty(const Rect &rect)
+{
+  for (size_t i = 0; i < pendingDirtyRects_.size(); ++i)
+  {
+    Rect &pending = pendingDirtyRects_[i];
+    if (rect.right < pending.left || rect.left > pending.right ||
+        rect.bottom < pending.top || rect.top > pending.bottom)
+    {
+      continue;
+    }
+    if (rect.left < pending.left)
+    {
+      pending.left = rect.left;
+    }
+    if (rect.top < pending.top)
+    {
+      pending.top = rect.top;
+    }
+    if (rect.right > pending.right)
+    {
+      pending.right = rect.right;
+    }
+    if (rect.bottom > pending.bottom)
+    {
+      pending.bottom = rect.bottom;
+    }
+    return;
+  }
+  pendingDirtyRects_.push_back(rect);
+}
+
+void ToolboxScenePlatformController::clearTextBindings()
+{
+  for (size_t i = 0; i < textBindings_.size(); ++i)
+  {
+    TextBinding *binding = textBindings_[i];
+    if (binding && binding->state)
+    {
+      binding->state->unbind(&ToolboxScenePlatformController::TextStateChangedThunk, binding);
+    }
+    delete binding;
+  }
+  textBindings_.clear();
+  boundTextStates_.clear();
+  textHits_.clear();
+}
+
+void ToolboxScenePlatformController::clearControls()
+{
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    if (buttonControls_[i].control)
+    {
+      DisposeControl(buttonControls_[i].control);
+    }
+  }
+  buttonControls_.clear();
+}
+
+bool ToolboxScenePlatformController::ensureButtonControl(
+    short resourceId,
+    const Rect &rect,
+    const loka::core::String &label,
+    declara::core::EmitterState *emitter)
+{
+  if (!window_ || !window_->window() || resourceId <= 0)
+  {
+    return false;
+  }
+  ButtonControlBinding *binding = 0;
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    if (buttonControls_[i].resourceId == resourceId)
+    {
+      binding = &buttonControls_[i];
+      break;
+    }
+  }
+  bool created = false;
+  if (!binding)
+  {
+    ControlRef control = GetNewControl(resourceId, window_->window());
+    if (!control)
+    {
+      return false;
+    }
+    HideControl(control);
+    ButtonControlBinding entry;
+    entry.resourceId = resourceId;
+    entry.control = control;
+    entry.emitter = emitter;
+    entry.usedThisFrame = true;
+    entry.needsDraw = true;
+    entry.rect = rect;
+    entry.label = "";
+    buttonControls_.push_back(entry);
+    binding = &buttonControls_.back();
+    created = true;
+  }
+  binding->emitter = emitter;
+  binding->usedThisFrame = true;
+  if (created ||
+      binding->rect.left != rect.left || binding->rect.top != rect.top ||
+      binding->rect.right != rect.right || binding->rect.bottom != rect.bottom)
+  {
+    MoveControl(binding->control, rect.left, rect.top);
+    SizeControl(binding->control, rect.right - rect.left, rect.bottom - rect.top);
+    binding->rect = rect;
+    binding->needsDraw = true;
+  }
+  std::string labelUtf8;
+  if (!loka::platform::CollectUtf8(label, labelUtf8))
+  {
+    labelUtf8.clear();
+  }
+  if (binding->label != labelUtf8)
+  {
+    Str255 title;
+    CopyToPascalString(label, title);
+    SetControlTitle(binding->control, title);
+    binding->label = labelUtf8;
+    binding->needsDraw = true;
+  }
+  ShowControl(binding->control);
+  return true;
+}
+
+void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
+{
+  FrameRect(&rect);
+  MoveTo(rect.left + 2, rect.top + 2);
+  LineTo(rect.right - 2, rect.bottom - 2);
+  MoveTo(rect.left + 2, rect.bottom - 2);
+  LineTo(rect.right - 2, rect.top + 2);
+}
+
+void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
+{
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    ButtonControlBinding &binding = buttonControls_[i];
+    if (!binding.control || !binding.usedThisFrame)
+    {
+      continue;
+    }
+    if (rect.right < binding.rect.left || rect.left > binding.rect.right ||
+        rect.bottom < binding.rect.top || rect.top > binding.rect.bottom)
+    {
+      continue;
+    }
+    Draw1Control(binding.control);
+    binding.needsDraw = false;
+  }
+}
+
+bool ToolboxScenePlatformController::handleControlClick(const Point &point)
+{
+  if (!window_ || !window_->window())
+  {
+    return false;
+  }
+  ControlRef control = 0;
+  ControlPartCode part = FindControl(point, window_->window(), &control);
+  if (part == 0 || !control)
+  {
+    return false;
+  }
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    ButtonControlBinding &binding = buttonControls_[i];
+    if (binding.control == control && binding.emitter)
+    {
+      beginBatchUpdate();
+      ControlPartCode tracked = TrackControl(control, point, 0);
+      if (tracked != 0)
+      {
+        binding.emitter->emit();
+      }
+      endBatchUpdate();
+      return true;
+    }
+  }
+  return false;
+}
+
+void ToolboxScenePlatformController::TextStateChangedThunk(void *userData)
+{
+  TextBinding *binding = static_cast<TextBinding *>(userData);
+  if (!binding || !binding->controller)
+  {
+    return;
+  }
+  binding->controller->handleTextChanged(binding->state);
 }

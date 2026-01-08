@@ -83,6 +83,49 @@ void ToolboxWindow::flushInvalidate()
   InvalRect(&window_->portRect);
 }
 
+void ToolboxWindow::handleMouseDown(const Point &globalPoint)
+{
+  if (!window_ || !scenePlatformController_)
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  Point localPoint = globalPoint;
+  GlobalToLocal(&localPoint);
+  scenePlatformController_->handleMouseDown(localPoint);
+  SetPort(oldPort);
+}
+
+bool ToolboxWindow::handleKeyDown(char key)
+{
+  if (!scenePlatformController_)
+  {
+    return false;
+  }
+  return scenePlatformController_->handleKeyDown(key);
+}
+
+void ToolboxWindow::drawDirty(const Rect &rect)
+{
+  if (!window_ || !scenePlatformController_)
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  Rect clip = rect;
+  ClipRect(&clip);
+  EraseRect(&rect);
+  scenePlatformController_->render();
+  scenePlatformController_->drawControlsInRect(rect);
+  Rect bounds = window_->portRect;
+  ClipRect(&bounds);
+  SetPort(oldPort);
+}
+
 void ToolboxWindow::invalidateWindow()
 {
   teardownScene();
@@ -102,6 +145,7 @@ void ToolboxWindow::draw()
   if (scenePlatformController_)
   {
     scenePlatformController_->render();
+    scenePlatformController_->drawControlsInRect(window_->portRect);
   }
 
   SetPort(oldPort);

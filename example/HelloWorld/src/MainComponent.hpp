@@ -9,6 +9,7 @@
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "BmiCalculatorComponent.hpp"
+#include "ToolboxControlSlots.hpp"
 #include "loka/core/String.hpp"
 
 namespace helloworld
@@ -40,7 +41,7 @@ namespace helloworld
           VStack()
           << Text("Loka Sample")
           << Text(message_)
-          << Button("Add +", &toggleEvent_)
+          << Button("Add +", &toggleEvent_).toolboxControl(kToolboxControlAddButton)
           << BmiCalculator());
     }
 

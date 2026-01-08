@@ -12,6 +12,7 @@
 #include "app/EditText.hpp"
 #include "app/Text.hpp"
 #include "app/RowColumn.hpp"
+#include "ToolboxControlSlots.hpp"
 
 namespace helloworld
 {
@@ -48,9 +49,9 @@ namespace helloworld
           VStack()
           << Text("BMI Calculator")
           << Text("Height (cm)")
-          << EditText(heightInput_)
+          << EditText(heightInput_).toolboxControl(kToolboxControlHeightInput)
           << Text("Weight (kg)")
-          << EditText(weightInput_)
+          << EditText(weightInput_).toolboxControl(kToolboxControlWeightInput)
           << Text(bmiResult_));
     }
 

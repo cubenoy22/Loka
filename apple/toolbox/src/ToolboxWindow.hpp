@@ -17,6 +17,9 @@ public:
   void ensureSceneMounted();
   void requestInvalidate();
   void flushInvalidate();
+  void handleMouseDown(const Point &globalPoint);
+  bool handleKeyDown(char key);
+  void drawDirty(const Rect &rect);
   void invalidateWindow();
   void draw();
   WindowPtr window() const { return window_; }

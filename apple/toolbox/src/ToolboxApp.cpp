@@ -121,6 +121,27 @@ void ToolboxApp::run()
           }
         }
       }
+      else if (part == inContent && target)
+      {
+        ToolboxWindow *clicked = 0;
+        if (group_)
+        {
+          const std::vector<AppComponent *> &comps = group_->getComponents();
+          for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+          {
+            ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+            if (toolboxWindow && toolboxWindow->window() == target)
+            {
+              clicked = toolboxWindow;
+              break;
+            }
+          }
+        }
+        if (clicked)
+        {
+          clicked->handleMouseDown(event.where);
+        }
+      }
       else if (part == inDrag && target)
       {
         Rect bounds = qd.screenBits.bounds;
@@ -146,6 +167,15 @@ void ToolboxApp::run()
     }
     else if (event.what == keyDown || event.what == autoKey)
     {
+      ToolboxWindow *active = dynamic_cast<ToolboxWindow *>(activeWindow());
+      if (active)
+      {
+        char key = static_cast<char>(event.message & charCodeMask);
+        if (active->handleKeyDown(key))
+        {
+          continue;
+        }
+      }
       long choice = MenuKey(static_cast<char>(event.message & charCodeMask));
       if (choice != 0)
       {
