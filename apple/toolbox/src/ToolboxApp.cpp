@@ -61,6 +61,23 @@ void ToolboxApp::run()
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
     // TODO: Re-enable invalidation once Classic update flow is stable.
+    if (group_)
+    {
+      const std::vector<AppComponent *> &comps = group_->getComponents();
+      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      {
+        ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+        if (toolboxWindow)
+        {
+          toolboxWindow->idleControls();
+        }
+      }
+    }
+    ToolboxWindow *active = dynamic_cast<ToolboxWindow *>(activeWindow());
+    if (active)
+    {
+      active->updateCursor();
+    }
     if (event.what == updateEvt)
     {
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
@@ -139,7 +156,19 @@ void ToolboxApp::run()
         }
         if (clicked)
         {
-          clicked->handleMouseDown(event.where);
+          bool inEdit = clicked->handleMouseDown(event.where);
+          if (inEdit)
+          {
+            CursHandle ibeam = GetCursor(iBeamCursor);
+            if (ibeam)
+            {
+              SetCursor(*ibeam);
+            }
+          }
+          else
+          {
+            InitCursor();
+          }
         }
       }
       else if (part == inDrag && target)

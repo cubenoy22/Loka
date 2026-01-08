@@ -7,6 +7,7 @@
 #include <Quickdraw.h>
 #include <string>
 #include <Controls.h>
+#include <TextEdit.h>
 #include <vector>
 
 class ToolboxWindow;
@@ -22,7 +23,7 @@ public:
   virtual void destroy();
 
   void render();
-  void handleMouseDown(const Point &point);
+  bool handleMouseDown(const Point &point);
   void recordButtonHit(const Rect &rect, declara::core::EmitterState *emitter, declara::core::State<bool> *enabled);
   void recordEditHit(const Rect &rect, declara::core::State<loka::core::String> *text);
   void recordTextHit(const Rect &rect, declara::core::State<loka::core::String> *text);
@@ -31,6 +32,11 @@ public:
   void drawControlsInRect(const Rect &rect);
   bool ensureButtonControl(short resourceId, const Rect &rect, const loka::core::String &label, declara::core::EmitterState *emitter);
   void drawFallbackControl(const Rect &rect);
+  TEHandle ensureEditTextControl(const Rect &rect, declara::core::State<loka::core::String> *text);
+  void idleTextEdits();
+  bool isPointInEdit(const Point &point) const;
+  void beginClip(const Rect &rect);
+  void endClip();
 
 private:
   struct ButtonHit
@@ -63,12 +69,23 @@ private:
     std::string label;
   };
 
+  struct EditTextControlBinding
+  {
+    declara::core::State<loka::core::String> *text;
+    TEHandle te;
+    Rect rect;
+    bool usedThisFrame;
+    std::string lastText;
+  };
+
   ToolboxWindow *window_;
   declara::core::scene::Node *rootNode_;
   std::vector<ButtonHit> buttonHits_;
   std::vector<ButtonControlBinding> buttonControls_;
+  std::vector<EditTextControlBinding> editControls_;
   std::vector<EditHit> editHits_;
   declara::core::State<loka::core::String> *focusedText_;
+  EditTextControlBinding *focusedEdit_;
   Rect focusedRect_;
   bool hasFocusedRect_;
   std::vector<EditHit> textHits_;
@@ -76,6 +93,8 @@ private:
   std::vector<TextBinding *> textBindings_;
   bool inBatchUpdate_;
   std::vector<Rect> pendingDirtyRects_;
+  RgnHandle clipRgn_;
+  bool hasClip_;
 
   bool handleTextKey(char key);
   void bindTextState(declara::core::State<loka::core::String> *text);
@@ -85,6 +104,8 @@ private:
   void addPendingDirty(const Rect &rect);
   void clearTextBindings();
   void clearControls();
+  void syncEditTextFromState(EditTextControlBinding &binding);
+  void updateStateFromEdit(EditTextControlBinding &binding);
   static void TextStateChangedThunk(void *userData);
 };
 

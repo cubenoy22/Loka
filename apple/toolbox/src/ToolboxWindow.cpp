@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <string>
+#include <Quickdraw.h>
 #include "core/App.hpp"
 #include "core2/scene/Scene.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -83,19 +84,20 @@ void ToolboxWindow::flushInvalidate()
   InvalRect(&window_->portRect);
 }
 
-void ToolboxWindow::handleMouseDown(const Point &globalPoint)
+bool ToolboxWindow::handleMouseDown(const Point &globalPoint)
 {
   if (!window_ || !scenePlatformController_)
   {
-    return;
+    return false;
   }
   GrafPtr oldPort;
   GetPort(&oldPort);
   SetPort(window_);
   Point localPoint = globalPoint;
   GlobalToLocal(&localPoint);
-  scenePlatformController_->handleMouseDown(localPoint);
+  bool handled = scenePlatformController_->handleMouseDown(localPoint);
   SetPort(oldPort);
+  return handled;
 }
 
 bool ToolboxWindow::handleKeyDown(char key)
@@ -105,6 +107,41 @@ bool ToolboxWindow::handleKeyDown(char key)
     return false;
   }
   return scenePlatformController_->handleKeyDown(key);
+}
+
+void ToolboxWindow::idleControls()
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->idleTextEdits();
+  }
+}
+
+void ToolboxWindow::updateCursor()
+{
+  if (!window_ || !scenePlatformController_)
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  Point localPoint;
+  GetMouse(&localPoint);
+  bool inEdit = scenePlatformController_->isPointInEdit(localPoint);
+  SetPort(oldPort);
+  if (inEdit)
+  {
+    CursHandle ibeam = GetCursor(iBeamCursor);
+    if (ibeam)
+    {
+      SetCursor(*ibeam);
+    }
+  }
+  else
+  {
+    InitCursor();
+  }
 }
 
 void ToolboxWindow::drawDirty(const Rect &rect)

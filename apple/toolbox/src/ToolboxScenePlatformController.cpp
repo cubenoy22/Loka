@@ -3,6 +3,7 @@
 #include <Quickdraw.h>
 #include <cstring>
 #include <string>
+#include <Memory.h>
 #include "loka/platform/StringUTF8.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
@@ -196,17 +197,38 @@ namespace
       {
         value = edit->props.text_->get();
       }
-      short width = MeasureTextWidth(value);
+      short width = 120;
       Rect rect;
       rect.left = state.x;
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
-      rect.right = static_cast<short>(state.x + width);
-      rect.bottom = static_cast<short>(state.y + 6);
-      FrameRect(&rect);
-      DrawStringAt(static_cast<short>(state.x + 4), state.y, value);
+      rect.right = static_cast<short>(state.x + width + 3);
+      rect.bottom = static_cast<short>(state.y + 6 + 2);
+      Rect textRect = rect;
+      textRect.left = static_cast<short>(textRect.left + 1);
+      textRect.top = static_cast<short>(textRect.top + 2);
+      textRect.right = static_cast<short>(textRect.right - 1);
+      textRect.bottom = static_cast<short>(textRect.bottom - 1);
       if (controller && edit->props.text_)
       {
-        controller->recordEditHit(rect, edit->props.text_);
+        TEHandle te = controller->ensureEditTextControl(textRect, edit->props.text_);
+        if (te)
+        {
+          controller->beginClip(textRect);
+          TEUpdate(&textRect, te);
+          controller->endClip();
+          FrameRect(&rect);
+        }
+        else
+        {
+          FrameRect(&rect);
+          DrawStringAt(static_cast<short>(state.x + 4), state.y, value);
+          controller->recordEditHit(rect, edit->props.text_);
+        }
+      }
+      else
+      {
+        FrameRect(&rect);
+        DrawStringAt(static_cast<short>(state.x + 4), state.y, value);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -219,10 +241,13 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
     : window_(window),
       rootNode_(0),
       focusedText_(0),
+      focusedEdit_(0),
       focusedRect_(),
       hasFocusedRect_(false),
       inBatchUpdate_(false),
-      pendingDirtyRects_()
+      pendingDirtyRects_(),
+      clipRgn_(NewRgn()),
+      hasClip_(false)
 {
 }
 
@@ -230,6 +255,11 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
 {
   clearTextBindings();
   clearControls();
+  if (clipRgn_)
+  {
+    DisposeRgn(clipRgn_);
+    clipRgn_ = 0;
+  }
 }
 
 void ToolboxScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags)
@@ -266,6 +296,10 @@ void ToolboxScenePlatformController::render()
     buttonControls_[i].usedThisFrame = false;
   }
   editHits_.clear();
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    editControls_[i].usedThisFrame = false;
+  }
   textHits_.clear();
   pendingDirtyRects_.clear();
   RenderState state;
@@ -281,13 +315,46 @@ void ToolboxScenePlatformController::render()
       HideControl(buttonControls_[i].control);
     }
   }
+  for (size_t i = 0; i < editControls_.size();)
+  {
+    if (!editControls_[i].usedThisFrame)
+    {
+      if (editControls_[i].te)
+      {
+        TEDispose(editControls_[i].te);
+      }
+      if (&editControls_[i] == focusedEdit_)
+      {
+        focusedEdit_ = 0;
+      }
+      editControls_.erase(editControls_.begin() + i);
+      continue;
+    }
+    ++i;
+  }
 }
 
-void ToolboxScenePlatformController::handleMouseDown(const Point &point)
+bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
 {
   if (handleControlClick(point))
   {
-    return;
+    return false;
+  }
+  if (focusedEdit_ && focusedEdit_->te)
+  {
+    TEDeactivate(focusedEdit_->te);
+    focusedEdit_ = 0;
+  }
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    EditTextControlBinding &binding = editControls_[i];
+    if (binding.te && PtInRect(point, &binding.rect))
+    {
+      focusedEdit_ = &binding;
+      TEActivate(binding.te);
+      TEClick(point, false, binding.te);
+      return true;
+    }
   }
   for (size_t i = 0; i < editHits_.size(); ++i)
   {
@@ -297,7 +364,7 @@ void ToolboxScenePlatformController::handleMouseDown(const Point &point)
       focusedText_ = hit.text;
       focusedRect_ = hit.rect;
       hasFocusedRect_ = true;
-      return;
+      return true;
     }
   }
   focusedText_ = 0;
@@ -318,13 +385,22 @@ void ToolboxScenePlatformController::handleMouseDown(const Point &point)
       beginBatchUpdate();
       hit.emitter->emit();
       endBatchUpdate();
-      return;
+      return false;
     }
   }
+  return false;
 }
 
 bool ToolboxScenePlatformController::handleKeyDown(char key)
 {
+  if (focusedEdit_ && focusedEdit_->te)
+  {
+    beginBatchUpdate();
+    TEKey(key, focusedEdit_->te);
+    updateStateFromEdit(*focusedEdit_);
+    endBatchUpdate();
+    return true;
+  }
   beginBatchUpdate();
   if (!handleTextKey(key))
   {
@@ -474,6 +550,18 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
       return;
     }
   }
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].text == text)
+    {
+      if (!inBatchUpdate_)
+      {
+        syncEditTextFromState(editControls_[i]);
+        window_->drawDirty(editControls_[i].rect);
+      }
+      return;
+    }
+  }
   if (inBatchUpdate_)
   {
     addPendingDirty(window_->window()->portRect);
@@ -560,6 +648,15 @@ void ToolboxScenePlatformController::clearControls()
     }
   }
   buttonControls_.clear();
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].te)
+    {
+      TEDispose(editControls_[i].te);
+    }
+  }
+  editControls_.clear();
+  focusedEdit_ = 0;
 }
 
 bool ToolboxScenePlatformController::ensureButtonControl(
@@ -639,6 +736,109 @@ void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
   LineTo(rect.right - 2, rect.top + 2);
 }
 
+TEHandle ToolboxScenePlatformController::ensureEditTextControl(
+    const Rect &rect,
+    declara::core::State<loka::core::String> *text)
+{
+  if (!text)
+  {
+    return 0;
+  }
+  EditTextControlBinding *binding = 0;
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].text == text)
+    {
+      binding = &editControls_[i];
+      break;
+    }
+  }
+  if (!binding)
+  {
+    TEHandle te = TENew(&rect, &rect);
+    if (!te)
+    {
+    return 0;
+  }
+    EditTextControlBinding entry;
+    entry.text = text;
+    entry.te = te;
+    entry.rect = rect;
+    entry.usedThisFrame = true;
+    entry.lastText = "";
+    editControls_.push_back(entry);
+    binding = &editControls_.back();
+    syncEditTextFromState(*binding);
+    TEAutoView(true, binding->te);
+  }
+  binding->usedThisFrame = true;
+  if (binding->rect.left != rect.left || binding->rect.top != rect.top ||
+      binding->rect.right != rect.right || binding->rect.bottom != rect.bottom)
+  {
+    binding->rect = rect;
+    if (binding->te)
+    {
+      (**binding->te).destRect = rect;
+      (**binding->te).viewRect = rect;
+      TECalText(binding->te);
+      TEAutoView(true, binding->te);
+    }
+  }
+  if (!inBatchUpdate_)
+  {
+    syncEditTextFromState(*binding);
+  }
+  return binding ? binding->te : 0;
+}
+
+void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBinding &binding)
+{
+  if (!binding.text || !binding.te)
+  {
+    return;
+  }
+  std::string utf8;
+  loka::platform::CollectUtf8(binding.text->get(), utf8);
+  if (binding.lastText == utf8)
+  {
+    return;
+  }
+  TESetText(utf8.c_str(), static_cast<long>(utf8.size()), binding.te);
+  TESetSelect(utf8.size(), utf8.size(), binding.te);
+  binding.lastText = utf8;
+}
+
+void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
+{
+  if (!binding.text || !binding.te)
+  {
+    return;
+  }
+  declara::core::MutableState<loka::core::String> *mutableText =
+      dynamic_cast<declara::core::MutableState<loka::core::String> *>(binding.text);
+  if (!mutableText)
+  {
+    return;
+  }
+  CharsHandle textHandle = TEGetText(binding.te);
+  long length = 0;
+  if (binding.te && *binding.te)
+  {
+    length = (**binding.te).teLength;
+  }
+  std::string utf8;
+  if (textHandle && length > 0)
+  {
+    HLock(reinterpret_cast<Handle>(textHandle));
+    const char *ptr = *textHandle;
+    utf8.assign(ptr, static_cast<size_t>(length));
+    HUnlock(reinterpret_cast<Handle>(textHandle));
+  }
+  StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+  mutableText->set(loka::core::String(utf8));
+  binding.lastText = utf8;
+}
+
 void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
 {
   for (size_t i = 0; i < buttonControls_.size(); ++i)
@@ -655,6 +855,58 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
     }
     Draw1Control(binding.control);
     binding.needsDraw = false;
+  }
+}
+
+void ToolboxScenePlatformController::idleTextEdits()
+{
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    if (editControls_[i].te)
+    {
+      TEIdle(editControls_[i].te);
+    }
+  }
+}
+
+bool ToolboxScenePlatformController::isPointInEdit(const Point &point) const
+{
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    const EditTextControlBinding &binding = editControls_[i];
+    if (binding.te && PtInRect(point, &binding.rect))
+    {
+      return true;
+    }
+  }
+  for (size_t i = 0; i < editHits_.size(); ++i)
+  {
+    const EditHit &hit = editHits_[i];
+    if (hit.text && PtInRect(point, &hit.rect))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+void ToolboxScenePlatformController::beginClip(const Rect &rect)
+{
+  if (clipRgn_)
+  {
+    GetClip(clipRgn_);
+    ClipRect(&rect);
+    hasClip_ = true;
+  }
+}
+
+void ToolboxScenePlatformController::endClip()
+{
+  if (clipRgn_ && hasClip_)
+  {
+    SetClip(clipRgn_);
+    hasClip_ = false;
   }
 }
 
