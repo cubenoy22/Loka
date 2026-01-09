@@ -81,13 +81,15 @@ namespace
     }
   }
 
-  short DrawNode(declara::core::scene::Node *node,
-                 RenderState &state,
-                 ToolboxScenePlatformController *controller);
+  short LayoutNode(declara::core::scene::Node *node,
+                   RenderState &state,
+                   ToolboxScenePlatformController *controller);
+  void RenderNode(declara::core::scene::Node *node,
+                  ToolboxScenePlatformController *controller);
 
-  short DrawChildren(declara::core::scene::Node *node,
-                     RenderState &state,
-                     ToolboxScenePlatformController *controller)
+  short LayoutChildren(declara::core::scene::Node *node,
+                       RenderState &state,
+                       ToolboxScenePlatformController *controller)
   {
     declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
     if (!nestable)
@@ -98,7 +100,7 @@ namespace
     loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
     for (declara::core::scene::Node *child = it.next(); child; child = it.next())
     {
-      short width = DrawNode(child, state, controller);
+      short width = LayoutNode(child, state, controller);
       if (width > maxWidth)
       {
         maxWidth = width;
@@ -107,9 +109,9 @@ namespace
     return maxWidth;
   }
 
-  short DrawNode(declara::core::scene::Node *node,
-                 RenderState &state,
-                 ToolboxScenePlatformController *controller)
+  short LayoutNode(declara::core::scene::Node *node,
+                   RenderState &state,
+                   ToolboxScenePlatformController *controller)
   {
     if (!node)
     {
@@ -118,7 +120,7 @@ namespace
     switch (node->kind())
     {
     case declara::core::scene::NODE_KIND_COLUMN:
-      return DrawChildren(node, state, controller);
+      return LayoutChildren(node, state, controller);
     case declara::core::scene::NODE_KIND_ROW:
     {
       declara::core::scene::NestableNode *nestable = static_cast<declara::core::scene::NestableNode *>(node);
@@ -129,7 +131,7 @@ namespace
       {
         RenderState rowState = state;
         rowState.x = startX;
-        short width = DrawNode(child, rowState, controller);
+        short width = LayoutNode(child, rowState, controller);
         startX = static_cast<short>(startX + width + state.spacing);
         if (rowState.y > state.y)
         {
@@ -152,7 +154,7 @@ namespace
         rect.bottom = static_cast<short>(state.y + 6);
         if (controller)
         {
-          ToolboxTextContext *ctx = dynamic_cast<ToolboxTextContext *>(text->getContext());
+          ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
           if (!ctx)
           {
             ctx = new ToolboxTextContext(text);
@@ -160,11 +162,6 @@ namespace
           }
           ctx->updateData(text->props.text_);
           ctx->updateRect(rect, state.x, state.y);
-          ctx->draw(controller);
-        }
-        else
-        {
-          DrawStringAt(state.x, state.y, text->props.text_->get());
         }
         state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
         return width;
@@ -187,7 +184,7 @@ namespace
       rect.bottom = static_cast<short>(state.y + 6);
       if (controller)
       {
-        ToolboxButtonContext *ctx = dynamic_cast<ToolboxButtonContext *>(button->getContext());
+        ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
         if (!ctx)
         {
           ctx = new ToolboxButtonContext(button);
@@ -195,12 +192,6 @@ namespace
         }
         ctx->updateData(label, button->props.onClick_, button->props.enabled_, button->props.toolboxControlId_);
         ctx->updateRect(rect);
-        ctx->draw(controller);
-      }
-      else
-      {
-        FrameRect(&rect);
-        DrawStringAt(static_cast<short>(state.x + 4), state.y, label);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -221,7 +212,7 @@ namespace
       textRect.bottom = static_cast<short>(textRect.bottom - 1);
       if (controller)
       {
-        ToolboxEditTextContext *ctx = dynamic_cast<ToolboxEditTextContext *>(edit->getContext());
+        ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
         if (!ctx)
         {
           ctx = new ToolboxEditTextContext(edit);
@@ -229,15 +220,6 @@ namespace
         }
         ctx->updateData(edit->props.text_);
         ctx->updateRect(rect, textRect, static_cast<short>(state.x + 4), state.y);
-        ctx->draw(controller);
-      }
-      else
-      {
-        FrameRect(&rect);
-        if (edit->props.text_)
-        {
-          DrawStringAt(static_cast<short>(state.x + 4), state.y, edit->props.text_->get());
-        }
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -251,15 +233,14 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width + 8);
       rect.bottom = static_cast<short>(state.y + 6);
-      ToolboxPopupMenuContext *ctx = dynamic_cast<ToolboxPopupMenuContext *>(popup->getContext());
+      ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
       if (!ctx)
       {
         ctx = new ToolboxPopupMenuContext(popup);
         popup->setContext(ctx);
       }
       ctx->updateData(popup->props.items_, popup->props.selectedIndex_, popup->props.onChange_, popup->props.enabled_);
-      ctx->updateRect(rect);
-      ctx->draw(state.lineHeight);
+      ctx->updateRect(rect, state.lineHeight);
       if (controller)
       {
         controller->registerPopupContext(ctx);
@@ -270,7 +251,83 @@ namespace
     default:
       break;
     }
-    return DrawChildren(node, state, controller);
+    return LayoutChildren(node, state, controller);
+  }
+
+  void RenderChildren(declara::core::scene::Node *node,
+                      ToolboxScenePlatformController *controller)
+  {
+    declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
+    if (!nestable)
+    {
+      return;
+    }
+    loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+    {
+      RenderNode(child, controller);
+    }
+  }
+
+  void RenderNode(declara::core::scene::Node *node,
+                  ToolboxScenePlatformController *controller)
+  {
+    if (!node)
+    {
+      return;
+    }
+    switch (node->kind())
+    {
+    case declara::core::scene::NODE_KIND_COLUMN:
+      RenderChildren(node, controller);
+      return;
+    case declara::core::scene::NODE_KIND_ROW:
+      RenderChildren(node, controller);
+      return;
+    case declara::core::scene::NODE_KIND_TEXT:
+    {
+      declara::app::TextNode *text = static_cast<declara::app::TextNode *>(node);
+      ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
+      if (ctx)
+      {
+        ctx->draw(controller);
+      }
+      return;
+    }
+    case declara::core::scene::NODE_KIND_BUTTON:
+    {
+      declara::app::ButtonNode *button = static_cast<declara::app::ButtonNode *>(node);
+      ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
+      if (ctx)
+      {
+        ctx->draw(controller);
+      }
+      return;
+    }
+    case declara::core::scene::NODE_KIND_EDIT_TEXT:
+    {
+      declara::app::EditTextNode *edit = static_cast<declara::app::EditTextNode *>(node);
+      ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
+      if (ctx)
+      {
+        ctx->draw(controller);
+      }
+      return;
+    }
+    case declara::core::scene::NODE_KIND_POPUP_MENU:
+    {
+      declara::app::PopupMenuNode *popup = static_cast<declara::app::PopupMenuNode *>(node);
+      ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
+      if (ctx)
+      {
+        ctx->draw();
+      }
+      return;
+    }
+    default:
+      break;
+    }
+    RenderChildren(node, controller);
   }
 }
 
@@ -347,7 +404,8 @@ void ToolboxScenePlatformController::render()
   state.y = 24;
   state.lineHeight = 14;
   state.spacing = 6;
-  DrawNode(rootNode_, state, this);
+  LayoutNode(rootNode_, state, this);
+  RenderNode(rootNode_, this);
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
     if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)

@@ -32,6 +32,7 @@ namespace
 ToolboxPopupMenuContext::ToolboxPopupMenuContext(declara::app::PopupMenuNode *node)
     : node_(node),
       rect_(),
+      lineHeight_(0),
       items_(0),
       selectedIndex_(0),
       onChange_(0),
@@ -52,9 +53,10 @@ void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> 
   enabled_ = enabled;
 }
 
-void ToolboxPopupMenuContext::updateRect(const Rect &rect)
+void ToolboxPopupMenuContext::updateRect(const Rect &rect, short lineHeight)
 {
   rect_ = rect;
+  lineHeight_ = lineHeight;
 }
 
 short ToolboxPopupMenuContext::clampIndex(int index) const
@@ -94,7 +96,7 @@ void ToolboxPopupMenuContext::copyToPascalString(const loka::core::String &value
   }
 }
 
-void ToolboxPopupMenuContext::draw(short lineHeight)
+void ToolboxPopupMenuContext::draw()
 {
   if (!node_)
   {
@@ -119,7 +121,7 @@ void ToolboxPopupMenuContext::draw(short lineHeight)
   LineTo(rect_.right, rect_.bottom);
   LineTo(rect_.right, rect_.top + 2);
   SetPenState(&penState);
-  short textY = static_cast<short>(rect_.top + lineHeight - 2);
+  short textY = static_cast<short>(rect_.top + lineHeight_ - 2);
   DrawStringAt(static_cast<short>(rect_.left + 4), textY, label);
   short arrowRight = static_cast<short>(rect_.right - 4);
   short arrowTop = static_cast<short>(rect_.top + 4);

@@ -19,8 +19,8 @@ public:
                   declara::core::State<int> *selectedIndex,
                   declara::core::EmitterState *onChange,
                   declara::core::State<bool> *enabled);
-  void updateRect(const Rect &rect);
-  void draw(short lineHeight);
+  void updateRect(const Rect &rect, short lineHeight);
+  void draw();
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
   const Rect &rect() const { return rect_; }
@@ -31,6 +31,7 @@ private:
 
   declara::app::PopupMenuNode *node_;
   Rect rect_;
+  short lineHeight_;
   const loka::Vector<loka::core::String> *items_;
   declara::core::State<int> *selectedIndex_;
   declara::core::EmitterState *onChange_;
