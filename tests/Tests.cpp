@@ -16,8 +16,10 @@
 #include "core/Managed.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Value.hpp"
+#include "loka/core/Vector.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include "loka/platform/String.hpp"
+#include "loka/dsl/dsl.hpp"
 
 // --- main.cppから移動したテスト関数をここに実装 ---
 
@@ -201,6 +203,86 @@ void testTextInputOnChange()
   printf("==== [testTextInputOnChange] end ====\n");
 }
 
+void testLokaDslStream()
+{
+  printf("\n==== [testLokaDslStream] start ====\n");
+  struct Computer
+  {
+    loka::core::String name;
+    loka::core::String manufacture;
+    int year;
+
+    struct Slot : public loka::dsl::SlotProxyBase<Computer>
+    {
+      typedef loka::dsl::Expr<loka::core::String, loka::dsl::MemberExpr<Computer, loka::core::String, &Computer::name> > NameExpr;
+      typedef loka::dsl::Expr<loka::core::String, loka::dsl::MemberExpr<Computer, loka::core::String, &Computer::manufacture> > ManufactureExpr;
+      typedef loka::dsl::Expr<int, loka::dsl::MemberExpr<Computer, int, &Computer::year> > YearExpr;
+
+      NameExpr name;
+      ManufactureExpr manufacture;
+      YearExpr year;
+
+      Slot(int index = 1) : SlotProxyBase<Computer>(index)
+      {
+        name = member<loka::core::String, &Computer::name>();
+        manufacture = member<loka::core::String, &Computer::manufacture>();
+        year = member<int, &Computer::year>();
+      }
+    };
+  };
+
+  loka::Vector<Computer> computers;
+  {
+    Computer c;
+    c.name = loka::core::String::Literal("Macintosh");
+    c.manufacture = loka::core::String::Literal("Apple");
+    c.year = 1984;
+    computers.push_back(c);
+  }
+  {
+    Computer c;
+    c.name = loka::core::String::Literal("PC/AT");
+    c.manufacture = loka::core::String::Literal("IBM");
+    c.year = 1984;
+    computers.push_back(c);
+  }
+  {
+    Computer c;
+    c.name = loka::core::String::Literal("NeXTcube");
+    c.manufacture = loka::core::String::Literal("NeXT");
+    c.year = 1988;
+    computers.push_back(c);
+  }
+  {
+    Computer c;
+    c.name = loka::core::String::Literal("Amiga");
+    c.manufacture = loka::core::String::Literal("Commodore");
+    c.year = 1985;
+    computers.push_back(c);
+  }
+
+  {
+    using namespace loka::dsl;
+    loka::Vector<loka::core::String> labels =
+        computers.stream().map<loka::core::String>(
+            Const("Item ") + Index() + Const(": ") + computers.stream().slot.name);
+    assert(labels.size() == 4);
+    assert(labels[0].equals(loka::core::String::Literal("Item 0: Macintosh")));
+    assert(labels[3].equals(loka::core::String::Literal("Item 3: Amiga")));
+
+    loka::Vector<Computer> recent = computers.stream().filter(computers.stream().slot.year >= 1985);
+    assert(recent.size() == 2);
+    assert(recent[0].name.equals(loka::core::String::Literal("NeXTcube")));
+    assert(recent[1].name.equals(loka::core::String::Literal("Amiga")));
+
+    computers.stream().sort(computers.stream().slot.year > computers.stream().slot2.year);
+    assert(computers[0].year == 1988);
+    assert(computers[3].year == 1984);
+  }
+
+  printf("==== [testLokaDslStream] end ====\n");
+}
+
 void testBatchTransaction()
 {
   printf("\n==== [testBatchTransaction] start ====\n");
@@ -278,7 +360,8 @@ void testDerivedStruct()
         : name(n), email(e), age(a), agree(ag) {}
     bool operator()()
     {
-      return !name->get().empty() && !email->get().empty() && age->get() >= 18 && agree->get();
+      const loka::core::String empty = loka::core::String::Literal("");
+      return !name->get().equals(empty) && !email->get().equals(empty) && age->get() >= 18 && agree->get();
     }
   };
   declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));

@@ -14,5 +14,6 @@ void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testLokaCoreString();
 void testLokaCoreCollections();
+void testLokaDslStream();
 
 #endif // LOKA_TESTS_HPP

@@ -16,6 +16,7 @@ int main()
   testSceneBoundaryNestedCompose();
   testLokaCoreString();
   testLokaCoreCollections();
+  testLokaDslStream();
   SceneTests::runAll();
   return 0;
 }
