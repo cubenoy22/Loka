@@ -3,6 +3,9 @@
 
 #include "core/State.hpp"
 #include <cassert>
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#include "loka/platform/DebugLog.hpp"
+#endif
 #include "core2/scene/Node.hpp" // NodeDefinitionBase 使用のため定義を取得
 #include "core2/scene/PlatformController.hpp"
 #include "core2/scene/ComponentContext.hpp"
@@ -127,6 +130,9 @@ namespace declara
 
         void invalidate()
         {
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+          loka::platform::DebugLogRecomposeQueued(static_cast<void *>(this));
+#endif
           refreshLoop_.request();
           refreshLoop_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }

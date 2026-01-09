@@ -17,6 +17,7 @@ set(SOURCES
   src/context/Win32TextContext.cpp
   src/context/Win32EditTextContext.cpp
   src/context/Win32PopupMenuContext.cpp
+  src/platform/Win32DebugLog.cpp
   src/platform/Win32String.cpp
 )
 
@@ -25,6 +26,9 @@ target_include_directories(DeclaraWin32Core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../common
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/../tests
+)
+target_compile_definitions(DeclaraWin32Core PRIVATE
+  $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
 
 # Windows 固有の警告抑制など（必要なら追加）

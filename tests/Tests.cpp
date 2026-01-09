@@ -106,7 +106,7 @@ void testTrackerPropagation()
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
+  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(makeStateVector(&s_int, 0), new DoublePropEval(&s_int));
   printf("[test] s_int=%p, doubleProp=%p\n", (void *)&s_int, (void *)doubleProp);
   std::vector<StateBase *> deps = doubleProp->getDependencyStates();
   for (size_t i = 0; i < deps.size(); ++i)
@@ -140,7 +140,7 @@ void testDeferredSideEffect()
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s_int), new DoublePropEval(&s_int));
+  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(makeStateVector(&s_int, 0), new DoublePropEval(&s_int));
   std::vector<StateBase *> trackerStatesDeferred = makeStateVector(&s_int, doubleProp, 0);
   declara::core::PushStateTracker tracker(trackerStatesDeferred);
   struct DeferredCallback
@@ -177,7 +177,7 @@ void testTextInputOnChange()
       return utf8.size() >= 3;
     }
   };
-  declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(std::vector<StateBase *>(1, &name), new IsValidEval(&name));
+  declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(makeStateVector(&name, 0), new IsValidEval(&name));
   std::vector<StateBase *> trackerStatesText = makeStateVector(&name, isValid, 0);
   declara::core::PushStateTracker tracker(trackerStatesText);
   struct ValidCallback
@@ -293,7 +293,7 @@ void testBatchTransaction()
     SumPropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *sumProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s1), new SumPropEval(&s1));
+  declara::core::DerivedState<int> *sumProp = new declara::core::DerivedState<int>(makeStateVector(&s1, 0), new SumPropEval(&s1));
   MutableState<int> s2(2);
   std::vector<StateBase *> trackerStatesBatch = makeStateVector(&s1, &s2, sumProp, 0);
   declara::core::PushStateTracker tracker(trackerStatesBatch);
@@ -318,7 +318,7 @@ void testRAIITransaction()
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(std::vector<StateBase *>(1, &s), new DoublePropEval(&s));
+  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(makeStateVector(&s, 0), new DoublePropEval(&s));
   std::vector<StateBase *> trackerStatesRAII = makeStateVector(&s, doubleProp, 0);
   declara::core::PushStateTracker tracker(trackerStatesRAII);
   {
@@ -345,11 +345,7 @@ void testDerivedStruct()
   MutableState<loka::core::String> email(loka::core::String::Literal(""));
   MutableState<int> age(0);
   MutableState<bool> agree(false);
-  std::vector<StateBase *> deps;
-  deps.push_back(&name);
-  deps.push_back(&email);
-  deps.push_back(&age);
-  deps.push_back(&agree);
+  std::vector<StateBase *> deps = makeStateVector(&name, &email, &age, &agree, 0);
   struct IsValidEval : public declara::core::DerivedState<bool>::EvalFn
   {
     MutableState<loka::core::String> *name;
@@ -365,11 +361,8 @@ void testDerivedStruct()
     }
   };
   declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));
-  StateBase *deps2[5];
-  for (size_t i = 0; i < deps.size(); ++i)
-    deps2[i] = deps[i];
-  deps2[deps.size()] = isValid;
-  declara::core::PushStateTracker tracker(std::vector<StateBase *>(deps2, deps2 + 5));
+  std::vector<StateBase *> trackerDeps = makeStateVector(&name, &email, &age, &agree, isValid, 0);
+  declara::core::PushStateTracker tracker(trackerDeps);
   struct Callback
   {
     static void onChange(bool v, void *)

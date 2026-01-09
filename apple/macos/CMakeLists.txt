@@ -24,6 +24,7 @@ file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
 
 set(DECLARA_MACOS_CORE_SOURCES
   src/MacApp.mm
+  src/DebugLog.mm
   src/MacPlatformContext.mm
   src/MacScenePlatformController.mm
   src/MacWindow.mm
@@ -45,6 +46,9 @@ target_include_directories(DeclaraMacOSCore PUBLIC
 target_link_libraries(DeclaraMacOSCore PUBLIC DeclaraAppleMacOSAppKit)
 
 target_compile_options(DeclaraMacOSCore PRIVATE "-fobjc-arc")
+target_compile_definitions(DeclaraMacOSCore PRIVATE
+  $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+)
 
 set(DECLARA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
@@ -61,3 +65,6 @@ target_include_directories(DeclaraTestsMacOS PRIVATE
 )
 
 target_link_libraries(DeclaraTestsMacOS PRIVATE DeclaraAppleCommonCocoa "-framework CoreFoundation")
+target_compile_definitions(DeclaraTestsMacOS PRIVATE
+  $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+)

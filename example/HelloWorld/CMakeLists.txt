@@ -39,6 +39,9 @@ if(WIN32)
   )
 
   target_link_libraries(DeclaraHelloWin32 PRIVATE DeclaraWin32Core)
+  target_compile_definitions(DeclaraHelloWin32 PRIVATE
+    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+  )
 
   # Use UTF-8 source/execution charset on MSVC to avoid codepage warnings
   if(MSVC)
@@ -60,6 +63,9 @@ if(WIN32)
   )
 
   target_link_libraries(DeclaraTestsWin32 PRIVATE DeclaraWin32Core)
+  target_compile_definitions(DeclaraTestsWin32 PRIVATE
+    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+  )
 
   if(MSVC)
     target_compile_options(DeclaraTestsWin32 PRIVATE /utf-8)
@@ -83,6 +89,9 @@ if(APPLE)
 
   target_link_libraries(DeclaraHelloMacOS PRIVATE DeclaraMacOSCore)
   target_compile_options(DeclaraHelloMacOS PRIVATE "-fobjc-arc")
+  target_compile_definitions(DeclaraHelloMacOS PRIVATE
+    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+  )
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")

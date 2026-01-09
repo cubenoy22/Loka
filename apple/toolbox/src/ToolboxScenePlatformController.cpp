@@ -272,8 +272,29 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width + 8);
       rect.bottom = static_cast<short>(state.y + 6);
+      PenState penState;
+      GetPenState(&penState);
       FrameRect(&rect);
+      PenPat(&qd.gray);
+      MoveTo(rect.left + 2, rect.bottom);
+      LineTo(rect.right, rect.bottom);
+      LineTo(rect.right, rect.top + 2);
+      SetPenState(&penState);
       DrawStringAt(static_cast<short>(state.x + 4), state.y, label);
+      {
+        short arrowRight = static_cast<short>(rect.right - 4);
+        short arrowTop = static_cast<short>(rect.top + 4);
+        short arrowBottom = static_cast<short>(rect.bottom - 4);
+        short arrowMidY = static_cast<short>((arrowTop + arrowBottom) / 2);
+        PolyHandle arrow = OpenPoly();
+        MoveTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
+        LineTo(arrowRight, arrowMidY - 3);
+        LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
+        LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
+        ClosePoly();
+        PaintPoly(arrow);
+        KillPoly(arrow);
+      }
       if (controller)
       {
         controller->recordPopupHit(rect, items, popup->props.selectedIndex_, popup->props.onChange_, popup->props.enabled_);
@@ -463,7 +484,7 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
           hit.onChange->emit();
         }
         endBatchUpdate();
-        addPendingDirty(hit.rect);
+        window_->drawDirty(hit.rect);
         for (size_t k = 0; k < textHits_.size(); ++k)
         {
           redrawTextHit(textHits_[k]);
