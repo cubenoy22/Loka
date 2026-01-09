@@ -158,6 +158,7 @@ namespace declara
       typedef PopupMenuTypeTag TypeTag;
       PopupMenuProps props;
       PopupMenuNode(const PopupMenuProps &p) : props(p) {}
+      virtual declara::core::scene::NodeKind kind() const { return declara::core::scene::NODE_KIND_POPUP_MENU; }
     };
 
     struct PopupMenuDefinition : public declara::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>

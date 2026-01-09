@@ -14,5 +14,8 @@
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
 - Prefer `deferBind` for UI reflection or lazy updates; use `bind` only when immediate recompute is required.
+- Classic stability: avoid transient data in DSL props (e.g., pass stable pointers/references); if props own data, ensure copy/clone rebinds internal pointers safely.
+- NativeContext should guard against null/empty state before drawing or binding.
+- Avoid RTTI (`dynamic_cast`) in hot paths; prefer `NodeKind` checks. If RTTI is required, confirm with the user first.
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.

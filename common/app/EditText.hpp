@@ -55,6 +55,7 @@ namespace declara
       typedef EditTextTypeTag TypeTag;
       EditTextProps props;
       EditTextNode(const EditTextProps &p) : props(p) {}
+      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_EDIT_TEXT; }
     };
 
     struct EditTextDefinition : public core::scene::NodeDefinition<EditTextProps, EditTextNode>

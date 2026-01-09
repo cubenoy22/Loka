@@ -48,6 +48,17 @@ namespace declara
         COMPOSE_EVENT_DETACH = 2
       };
 
+      enum NodeKind
+      {
+        NODE_KIND_UNKNOWN = 0,
+        NODE_KIND_COLUMN,
+        NODE_KIND_ROW,
+        NODE_KIND_TEXT,
+        NODE_KIND_BUTTON,
+        NODE_KIND_EDIT_TEXT,
+        NODE_KIND_POPUP_MENU
+      };
+
       class Node; // forward declaration for NodeContext owner
 
       // Minimal NodeContext implementation
@@ -83,6 +94,7 @@ namespace declara
           }
         }
         virtual void compose() {}
+        virtual NodeKind kind() const { return NODE_KIND_UNKNOWN; }
 
         Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0) {}
 

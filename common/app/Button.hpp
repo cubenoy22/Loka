@@ -97,6 +97,7 @@ namespace declara
       typedef ButtonTypeTag TypeTag;
       ButtonProps props;
       ButtonNode(const ButtonProps &p) : props(p) {}
+      virtual declara::core::scene::NodeKind kind() const { return declara::core::scene::NODE_KIND_BUTTON; }
     };
 
     struct ButtonDefinition : public declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>

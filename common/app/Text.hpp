@@ -88,6 +88,7 @@ namespace declara
       typedef TextTypeTag TypeTag;
       TextProps props;
       TextNode(const TextProps &p) : props(p) {}
+      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_TEXT; }
     };
 
     struct TextDefinition : public core::scene::NodeDefinition<TextProps, TextNode>

@@ -35,6 +35,7 @@ namespace declara
       typedef ColumnTypeTag TypeTag;
       ColumnProps props;
       ColumnNode(const ColumnProps &p) : props(p) {}
+      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_COLUMN; }
     };
 
     struct ColumnDefinition : public core::scene::NodeDefinition<ColumnProps, ColumnNode>, public core::scene::NestableDefinitionBase
@@ -86,6 +87,7 @@ namespace declara
       typedef RowTypeTag TypeTag;
       RowProps props;
       RowNode(const RowProps &p) : props(p) {}
+      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_ROW; }
     };
 
     struct RowDefinition : public core::scene::NodeDefinition<RowProps, RowNode>, public core::scene::NestableDefinitionBase

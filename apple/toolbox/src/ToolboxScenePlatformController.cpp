@@ -115,17 +115,13 @@ namespace
     {
       return 0;
     }
-    if (dynamic_cast<declara::app::ColumnNode *>(node))
+    switch (node->kind())
     {
+    case declara::core::scene::NODE_KIND_COLUMN:
       return DrawChildren(node, state, controller);
-    }
-    if (dynamic_cast<declara::app::RowNode *>(node))
+    case declara::core::scene::NODE_KIND_ROW:
     {
-      declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
-      if (!nestable)
-      {
-        return 0;
-      }
+      declara::core::scene::INestable *nestable = static_cast<declara::core::scene::INestable *>(node);
       short startX = state.x;
       short maxHeight = 0;
       loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
@@ -143,8 +139,9 @@ namespace
       state.y = static_cast<short>(state.y + maxHeight + state.spacing);
       return static_cast<short>(startX - state.x);
     }
-    if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
+    case declara::core::scene::NODE_KIND_TEXT:
     {
+      declara::app::TextNode *text = static_cast<declara::app::TextNode *>(node);
       if (text->props.text_)
       {
         short width = MeasureTextWidth(text->props.text_->get());
@@ -174,8 +171,9 @@ namespace
       }
       return 0;
     }
-    if (declara::app::ButtonNode *button = dynamic_cast<declara::app::ButtonNode *>(node))
+    case declara::core::scene::NODE_KIND_BUTTON:
     {
+      declara::app::ButtonNode *button = static_cast<declara::app::ButtonNode *>(node);
       loka::core::String label = loka::core::String::Literal("Button");
       if (button->props.text_)
       {
@@ -207,8 +205,9 @@ namespace
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
     }
-    if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
+    case declara::core::scene::NODE_KIND_EDIT_TEXT:
     {
+      declara::app::EditTextNode *edit = static_cast<declara::app::EditTextNode *>(node);
       short width = 120;
       Rect rect;
       rect.left = state.x;
@@ -243,8 +242,9 @@ namespace
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
     }
-    if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
+    case declara::core::scene::NODE_KIND_POPUP_MENU:
     {
+      declara::app::PopupMenuNode *popup = static_cast<declara::app::PopupMenuNode *>(node);
       short width = 120;
       Rect rect;
       rect.left = state.x;
@@ -266,6 +266,9 @@ namespace
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
+    }
+    default:
+      break;
     }
     return DrawChildren(node, state, controller);
   }
