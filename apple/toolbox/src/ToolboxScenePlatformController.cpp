@@ -13,6 +13,10 @@
 #include "app/EditText.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
+#include "context/ToolboxButtonContext.hpp"
+#include "context/ToolboxEditTextContext.hpp"
+#include "context/ToolboxPopupMenuContext.hpp"
+#include "context/ToolboxTextContext.hpp"
 #include "core2/scene/Node.hpp"
 
 namespace
@@ -75,23 +79,6 @@ namespace
     {
       std::memcpy(out + 1, utf8.data(), length);
     }
-  }
-
-  short ClampPopupIndex(int index, std::size_t count)
-  {
-    if (count == 0)
-    {
-      return 0;
-    }
-    if (index < 0)
-    {
-      return 0;
-    }
-    if (static_cast<std::size_t>(index) >= count)
-    {
-      return static_cast<short>(count - 1);
-    }
-    return static_cast<short>(index);
   }
 
   short DrawNode(declara::core::scene::Node *node,
@@ -160,16 +147,27 @@ namespace
     {
       if (text->props.text_)
       {
-        DrawStringAt(state.x, state.y, text->props.text_->get());
         short width = MeasureTextWidth(text->props.text_->get());
+        Rect rect;
+        rect.left = state.x;
+        rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+        rect.right = static_cast<short>(state.x + width);
+        rect.bottom = static_cast<short>(state.y + 6);
         if (controller)
         {
-          Rect rect;
-          rect.left = state.x;
-          rect.top = static_cast<short>(state.y - state.lineHeight + 2);
-          rect.right = static_cast<short>(state.x + width);
-          rect.bottom = static_cast<short>(state.y + 6);
-        controller->recordTextHit(rect, state.x, state.y, text->props.text_);
+          ToolboxTextContext *ctx = dynamic_cast<ToolboxTextContext *>(text->getContext());
+          if (!ctx)
+          {
+            ctx = new ToolboxTextContext(text);
+            text->setContext(ctx);
+          }
+          ctx->updateData(text->props.text_);
+          ctx->updateRect(rect, state.x, state.y);
+          ctx->draw(controller);
+        }
+        else
+        {
+          DrawStringAt(state.x, state.y, text->props.text_->get());
         }
         state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
         return width;
@@ -189,33 +187,28 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width);
       rect.bottom = static_cast<short>(state.y + 6);
-      if (controller && button->props.toolboxControlId_ > 0)
+      if (controller)
       {
-        if (!controller->ensureButtonControl(button->props.toolboxControlId_, rect, label, button->props.onClick_))
+        ToolboxButtonContext *ctx = dynamic_cast<ToolboxButtonContext *>(button->getContext());
+        if (!ctx)
         {
-          controller->drawFallbackControl(rect);
-          controller->recordButtonHit(rect, button->props.onClick_, button->props.enabled_);
+          ctx = new ToolboxButtonContext(button);
+          button->setContext(ctx);
         }
+        ctx->updateData(label, button->props.onClick_, button->props.enabled_, button->props.toolboxControlId_);
+        ctx->updateRect(rect);
+        ctx->draw(controller);
       }
       else
       {
         FrameRect(&rect);
         DrawStringAt(static_cast<short>(state.x + 4), state.y, label);
-        if (controller)
-        {
-          controller->recordButtonHit(rect, button->props.onClick_, button->props.enabled_);
-        }
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
     }
     if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
     {
-      loka::core::String value;
-      if (edit->props.text_)
-      {
-        value = edit->props.text_->get();
-      }
       short width = 120;
       Rect rect;
       rect.left = state.x;
@@ -227,77 +220,49 @@ namespace
       textRect.top = static_cast<short>(textRect.top + 2);
       textRect.right = static_cast<short>(textRect.right - 1);
       textRect.bottom = static_cast<short>(textRect.bottom - 1);
-      if (controller && edit->props.text_)
+      if (controller)
       {
-        TEHandle te = controller->ensureEditTextControl(textRect, edit->props.text_);
-        if (te)
+        ToolboxEditTextContext *ctx = dynamic_cast<ToolboxEditTextContext *>(edit->getContext());
+        if (!ctx)
         {
-          controller->beginClip(textRect);
-          TEUpdate(&textRect, te);
-          controller->endClip();
-          FrameRect(&rect);
+          ctx = new ToolboxEditTextContext(edit);
+          edit->setContext(ctx);
         }
-        else
-        {
-          FrameRect(&rect);
-          DrawStringAt(static_cast<short>(state.x + 4), state.y, value);
-          controller->recordEditHit(rect, edit->props.text_);
-        }
+        ctx->updateData(edit->props.text_);
+        ctx->updateRect(rect, textRect, static_cast<short>(state.x + 4), state.y);
+        ctx->draw(controller);
       }
       else
       {
         FrameRect(&rect);
-        DrawStringAt(static_cast<short>(state.x + 4), state.y, value);
+        if (edit->props.text_)
+        {
+          DrawStringAt(static_cast<short>(state.x + 4), state.y, edit->props.text_->get());
+        }
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
     }
     if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
     {
-      const loka::Vector<loka::core::String> *items = popup->props.items_;
-      loka::core::String label = loka::core::String::Literal("Select");
-      int selectedIndex = 0;
-      if (popup->props.selectedIndex_)
-      {
-        selectedIndex = popup->props.selectedIndex_->get();
-      }
-      if (items && items->size() > 0)
-      {
-        short clamped = ClampPopupIndex(selectedIndex, items->size());
-        label = (*items)[clamped];
-      }
       short width = 120;
       Rect rect;
       rect.left = state.x;
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width + 8);
       rect.bottom = static_cast<short>(state.y + 6);
-      PenState penState;
-      GetPenState(&penState);
-      FrameRect(&rect);
-      PenPat(&qd.gray);
-      MoveTo(rect.left + 2, rect.bottom);
-      LineTo(rect.right, rect.bottom);
-      LineTo(rect.right, rect.top + 2);
-      SetPenState(&penState);
-      DrawStringAt(static_cast<short>(state.x + 4), state.y, label);
+      ToolboxPopupMenuContext *ctx = dynamic_cast<ToolboxPopupMenuContext *>(popup->getContext());
+      if (!ctx)
       {
-        short arrowRight = static_cast<short>(rect.right - 4);
-        short arrowTop = static_cast<short>(rect.top + 4);
-        short arrowBottom = static_cast<short>(rect.bottom - 4);
-        short arrowMidY = static_cast<short>((arrowTop + arrowBottom) / 2);
-        PolyHandle arrow = OpenPoly();
-        MoveTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
-        LineTo(arrowRight, arrowMidY - 3);
-        LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
-        LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
-        ClosePoly();
-        PaintPoly(arrow);
-        KillPoly(arrow);
+        ctx = new ToolboxPopupMenuContext(popup);
+        popup->setContext(ctx);
       }
+      ctx->updateData(popup->props.items_, popup->props.selectedIndex_, popup->props.onChange_, popup->props.enabled_);
+      ctx->updateRect(rect);
+      ctx->draw(state.lineHeight);
       if (controller)
       {
-        controller->recordPopupHit(rect, items, popup->props.selectedIndex_, popup->props.onChange_, popup->props.enabled_);
+        controller->registerPopupContext(ctx);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -349,6 +314,7 @@ void ToolboxScenePlatformController::synchronize()
 void ToolboxScenePlatformController::destroy()
 {
   rootNode_ = 0;
+  popupContexts_.clear();
   clearTextBindings();
   clearControls();
 }
@@ -370,7 +336,7 @@ void ToolboxScenePlatformController::render()
     editControls_[i].usedThisFrame = false;
   }
   textHits_.clear();
-  popupHits_.clear();
+  popupContexts_.clear();
   pendingTextStates_.clear();
   pendingDirtyRects_.clear();
   RenderState state;
@@ -440,58 +406,11 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   }
   focusedText_ = 0;
   hasFocusedRect_ = false;
-  for (size_t i = 0; i < popupHits_.size(); ++i)
+  for (size_t i = 0; i < popupContexts_.size(); ++i)
   {
-    PopupHit &hit = popupHits_[i];
-    if (hit.enabled && !hit.enabled->get())
+    ToolboxPopupMenuContext *ctx = popupContexts_[i];
+    if (ctx && ctx->handleMouseDown(point, this))
     {
-      continue;
-    }
-    if (!hit.items || hit.items->size() == 0)
-    {
-      continue;
-    }
-    if (PtInRect(point, &hit.rect))
-    {
-      MutableState<int> *mutableIndex = dynamic_cast<MutableState<int> *>(hit.selectedIndex);
-      if (!mutableIndex)
-      {
-        return false;
-      }
-      MenuHandle menu = NewMenu(2000, "\p");
-      if (!menu)
-      {
-        return false;
-      }
-      for (std::size_t j = 0; j < hit.items->size(); ++j)
-      {
-        Str255 text;
-        CopyToPascalString((*hit.items)[j], text);
-        AppendMenu(menu, text);
-      }
-      InsertMenu(menu, -1);
-      short currentIndex = ClampPopupIndex(mutableIndex->get(), hit.items->size());
-      Point globalPoint = point;
-      LocalToGlobal(&globalPoint);
-      long choice = PopUpMenuSelect(menu, globalPoint.v, globalPoint.h, static_cast<short>(currentIndex + 1));
-      short item = static_cast<short>(choice & 0xFFFF);
-      if (item > 0)
-      {
-        beginBatchUpdate();
-        mutableIndex->set(static_cast<int>(item - 1), true);
-        if (hit.onChange)
-        {
-          hit.onChange->emit();
-        }
-        endBatchUpdate();
-        window_->drawDirty(hit.rect);
-        for (size_t k = 0; k < textHits_.size(); ++k)
-        {
-          redrawTextHit(textHits_[k]);
-        }
-      }
-      DeleteMenu(2000);
-      DisposeMenu(menu);
       return false;
     }
   }
@@ -584,23 +503,43 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   bindTextState(text);
 }
 
-void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
-                                                    const loka::Vector<loka::core::String> *items,
-                                                    declara::core::State<int> *selectedIndex,
-                                                    declara::core::EmitterState *onChange,
-                                                    declara::core::State<bool> *enabled)
+void ToolboxScenePlatformController::registerPopupContext(ToolboxPopupMenuContext *context)
 {
-  if (!items || items->size() == 0 || !selectedIndex)
+  if (context)
+  {
+    popupContexts_.push_back(context);
+  }
+}
+
+void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
+                                                               declara::core::State<int> *selectedIndex,
+                                                               declara::core::EmitterState *onChange,
+                                                               int newIndex)
+{
+  if (!selectedIndex)
   {
     return;
   }
-  PopupHit hit;
-  hit.rect = rect;
-  hit.items = items;
-  hit.selectedIndex = selectedIndex;
-  hit.onChange = onChange;
-  hit.enabled = enabled;
-  popupHits_.push_back(hit);
+  MutableState<int> *mutableIndex = dynamic_cast<MutableState<int> *>(selectedIndex);
+  if (!mutableIndex)
+  {
+    return;
+  }
+  beginBatchUpdate();
+  mutableIndex->set(newIndex, true);
+  if (onChange)
+  {
+    onChange->emit();
+  }
+  endBatchUpdate();
+  if (window_)
+  {
+    window_->drawDirty(rect);
+  }
+  for (size_t k = 0; k < textHits_.size(); ++k)
+  {
+    redrawTextHit(textHits_[k]);
+  }
 }
 
 bool ToolboxScenePlatformController::handleTextKey(char key)

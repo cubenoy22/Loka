@@ -40,6 +40,37 @@ namespace declara
       EmitterState *onChange_;
       PopupMenuProps()
           : items_(0), ownedItems_(), ownsItems_(false), selectedIndex_(0), enabled_(0), onChange_(0) {}
+      PopupMenuProps(const PopupMenuProps &other)
+          : items_(other.items_),
+            ownedItems_(other.ownedItems_),
+            ownsItems_(other.ownsItems_),
+            selectedIndex_(other.selectedIndex_),
+            enabled_(other.enabled_),
+            onChange_(other.onChange_)
+      {
+        if (ownsItems_)
+        {
+          items_ = &ownedItems_;
+        }
+      }
+      PopupMenuProps &operator=(const PopupMenuProps &other)
+      {
+        if (this == &other)
+        {
+          return *this;
+        }
+        items_ = other.items_;
+        ownedItems_ = other.ownedItems_;
+        ownsItems_ = other.ownsItems_;
+        selectedIndex_ = other.selectedIndex_;
+        enabled_ = other.enabled_;
+        onChange_ = other.onChange_;
+        if (ownsItems_)
+        {
+          items_ = &ownedItems_;
+        }
+        return *this;
+      }
 
       PopupMenuProps &items(const loka::Vector<loka::core::String> *items)
       {

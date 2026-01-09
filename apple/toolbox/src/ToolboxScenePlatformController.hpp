@@ -4,12 +4,12 @@
 #include "core2/scene/PlatformController.hpp"
 #include "core/State.hpp"
 #include "loka/core/String.hpp"
-#include "loka/core/Vector.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <TextEdit.h>
 
 class ToolboxWindow;
+class ToolboxPopupMenuContext;
 
 class ToolboxScenePlatformController : public declara::core::scene::IPlatformController
 {
@@ -26,11 +26,11 @@ public:
   void recordButtonHit(const Rect &rect, declara::core::EmitterState *emitter, declara::core::State<bool> *enabled);
   void recordEditHit(const Rect &rect, declara::core::State<loka::core::String> *text);
   void recordTextHit(const Rect &rect, short x, short y, declara::core::State<loka::core::String> *text);
-  void recordPopupHit(const Rect &rect,
-                      const loka::Vector<loka::core::String> *items,
-                      declara::core::State<int> *selectedIndex,
-                      declara::core::EmitterState *onChange,
-                      declara::core::State<bool> *enabled);
+  void registerPopupContext(ToolboxPopupMenuContext *context);
+  void applyPopupSelectionChange(const Rect &rect,
+                                 declara::core::State<int> *selectedIndex,
+                                 declara::core::EmitterState *onChange,
+                                 int newIndex);
   bool handleKeyDown(char key);
   bool handleControlClick(const Point &point);
   void drawControlsInRect(const Rect &rect);
@@ -62,15 +62,6 @@ private:
     short x;
     short y;
     declara::core::State<loka::core::String> *text;
-  };
-
-  struct PopupHit
-  {
-    Rect rect;
-    const loka::Vector<loka::core::String> *items;
-    declara::core::State<int> *selectedIndex;
-    declara::core::EmitterState *onChange;
-    declara::core::State<bool> *enabled;
   };
   struct TextBinding
   {
@@ -104,7 +95,7 @@ private:
   std::vector<ButtonControlBinding> buttonControls_;
   std::vector<EditTextControlBinding> editControls_;
   std::vector<EditHit> editHits_;
-  std::vector<PopupHit> popupHits_;
+  std::vector<ToolboxPopupMenuContext *> popupContexts_;
   declara::core::State<loka::core::String> *focusedText_;
   EditTextControlBinding *focusedEdit_;
   Rect focusedRect_;

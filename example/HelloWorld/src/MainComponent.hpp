@@ -55,7 +55,7 @@ namespace helloworld
           << Button("Add +", &toggleEvent_).toolboxControl(kToolboxControlAddButton)
           << BmiCalculator()
           << Text("Fruit Picker")
-          << PopupMenu(&this->fruits_).selectedIndex(this->fruitIndex_).onChange(&fruitChangedEvent_)
+          << PopupMenu(this->fruits_).selectedIndex(this->fruitIndex_).onChange(&fruitChangedEvent_)
           << Text(this->fruitMessage_));
     }
 

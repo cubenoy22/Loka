@@ -1,0 +1,33 @@
+#ifndef LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
+#define LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
+
+#include "core2/scene/NativeNodeContext.hpp"
+#include "app/Button.hpp"
+#include "loka/core/String.hpp"
+#include <Quickdraw.h>
+
+class ToolboxScenePlatformController;
+
+class ToolboxButtonContext : public declara::core::scene::NativeNodeContext
+{
+public:
+  explicit ToolboxButtonContext(declara::app::ButtonNode *node);
+  virtual ~ToolboxButtonContext();
+
+  void updateData(const loka::core::String &label,
+                  declara::core::EmitterState *emitter,
+                  declara::core::State<bool> *enabled,
+                  short resourceId);
+  void updateRect(const Rect &rect);
+  void draw(ToolboxScenePlatformController *controller);
+
+private:
+  declara::app::ButtonNode *node_;
+  Rect rect_;
+  loka::core::String label_;
+  declara::core::EmitterState *emitter_;
+  declara::core::State<bool> *enabled_;
+  short resourceId_;
+};
+
+#endif // LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
