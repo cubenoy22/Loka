@@ -7,6 +7,7 @@
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "context/Win32EditTextContext.hpp"
+#include "context/Win32PopupMenuContext.hpp"
 
 namespace declara
 {
@@ -61,6 +62,7 @@ private:
   int clientHeight_;
   std::map<HWND, Win32ButtonContext *> buttonMap_;
   std::map<HWND, Win32EditTextContext *> editMap_;
+  std::map<HWND, Win32PopupMenuContext *> popupMap_;
 };
 
 #endif // LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP

@@ -4,17 +4,20 @@
 #include "app/Box.hpp"
 #include "app/Button.hpp"
 #include "app/EditText.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "core2/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacTextContext.hpp"
+#include "context/MacPopupMenuContext.hpp"
 
 namespace
 {
   const int kButtonHeight = 32;
   const int kEditTextHeight = 24;
+  const int kPopupMenuHeight = 26;
   const int kTextHeight = 20;
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
@@ -185,6 +188,16 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
 
     LayoutState nextState = state;
     nextState.y = state.y + kEditTextHeight + kVerticalSpacing;
+    return nextState.y;
+  }
+
+  if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
+  {
+    MacPopupMenuContext *ctx = new MacPopupMenuContext(rootView_, state.x, state.y, state.width, kPopupMenuHeight, popup);
+    popup->setContext(ctx);
+
+    LayoutState nextState = state;
+    nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
     return nextState.y;
   }
 

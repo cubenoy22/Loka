@@ -30,6 +30,7 @@ set(DECLARA_MACOS_CORE_SOURCES
   src/context/MacButtonContext.mm
   src/context/MacEditTextContext.mm
   src/context/MacTextContext.mm
+  src/context/MacPopupMenuContext.mm
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 

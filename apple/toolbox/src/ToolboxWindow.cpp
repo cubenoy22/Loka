@@ -27,7 +27,7 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context,
     : Window(context, props), app_(0), window_(0), scenePlatformController_(0), needsInvalidate_(false)
 {
   Rect bounds;
-  SetRect(&bounds, 60, 60, 420, 300);
+  SetRect(&bounds, 60, 60, 420, 320);
 
   loka::core::String titleValue = this->titleState().get();
   if (titleValue.empty())

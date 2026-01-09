@@ -4,12 +4,14 @@
 #include <cstring>
 #include <string>
 #include <Memory.h>
+#include <Menus.h>
 #include "loka/platform/StringUTF8.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 #include "app/Text.hpp"
 #include "app/Button.hpp"
 #include "app/EditText.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "core2/scene/Node.hpp"
 
@@ -73,6 +75,23 @@ namespace
     {
       std::memcpy(out + 1, utf8.data(), length);
     }
+  }
+
+  short ClampPopupIndex(int index, std::size_t count)
+  {
+    if (count == 0)
+    {
+      return 0;
+    }
+    if (index < 0)
+    {
+      return 0;
+    }
+    if (static_cast<std::size_t>(index) >= count)
+    {
+      return static_cast<short>(count - 1);
+    }
+    return static_cast<short>(index);
   }
 
   short DrawNode(declara::core::scene::Node *node,
@@ -233,6 +252,35 @@ namespace
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
     }
+    if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
+    {
+      const loka::Vector<loka::core::String> *items = popup->props.items_;
+      loka::core::String label = loka::core::String::Literal("Select");
+      int selectedIndex = 0;
+      if (popup->props.selectedIndex_)
+      {
+        selectedIndex = popup->props.selectedIndex_->get();
+      }
+      if (items && items->size() > 0)
+      {
+        short clamped = ClampPopupIndex(selectedIndex, items->size());
+        label = (*items)[clamped];
+      }
+      short width = 120;
+      Rect rect;
+      rect.left = state.x;
+      rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+      rect.right = static_cast<short>(state.x + width + 8);
+      rect.bottom = static_cast<short>(state.y + 6);
+      FrameRect(&rect);
+      DrawStringAt(static_cast<short>(state.x + 4), state.y, label);
+      if (controller)
+      {
+        controller->recordPopupHit(rect, items, popup->props.selectedIndex_, popup->props.onChange_, popup->props.enabled_);
+      }
+      state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
+      return width;
+    }
     return DrawChildren(node, state, controller);
   }
 }
@@ -301,6 +349,7 @@ void ToolboxScenePlatformController::render()
     editControls_[i].usedThisFrame = false;
   }
   textHits_.clear();
+  popupHits_.clear();
   pendingTextStates_.clear();
   pendingDirtyRects_.clear();
   RenderState state;
@@ -370,6 +419,61 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   }
   focusedText_ = 0;
   hasFocusedRect_ = false;
+  for (size_t i = 0; i < popupHits_.size(); ++i)
+  {
+    PopupHit &hit = popupHits_[i];
+    if (hit.enabled && !hit.enabled->get())
+    {
+      continue;
+    }
+    if (!hit.items || hit.items->size() == 0)
+    {
+      continue;
+    }
+    if (PtInRect(point, &hit.rect))
+    {
+      MutableState<int> *mutableIndex = dynamic_cast<MutableState<int> *>(hit.selectedIndex);
+      if (!mutableIndex)
+      {
+        return false;
+      }
+      MenuHandle menu = NewMenu(2000, "\p");
+      if (!menu)
+      {
+        return false;
+      }
+      for (std::size_t j = 0; j < hit.items->size(); ++j)
+      {
+        Str255 text;
+        CopyToPascalString((*hit.items)[j], text);
+        AppendMenu(menu, text);
+      }
+      InsertMenu(menu, -1);
+      short currentIndex = ClampPopupIndex(mutableIndex->get(), hit.items->size());
+      Point globalPoint = point;
+      LocalToGlobal(&globalPoint);
+      long choice = PopUpMenuSelect(menu, globalPoint.v, globalPoint.h, static_cast<short>(currentIndex + 1));
+      short item = static_cast<short>(choice & 0xFFFF);
+      if (item > 0)
+      {
+        beginBatchUpdate();
+        mutableIndex->set(static_cast<int>(item - 1), true);
+        if (hit.onChange)
+        {
+          hit.onChange->emit();
+        }
+        endBatchUpdate();
+        addPendingDirty(hit.rect);
+        for (size_t k = 0; k < textHits_.size(); ++k)
+        {
+          redrawTextHit(textHits_[k]);
+        }
+      }
+      DeleteMenu(2000);
+      DisposeMenu(menu);
+      return false;
+    }
+  }
   for (size_t i = 0; i < buttonHits_.size(); ++i)
   {
     ButtonHit &hit = buttonHits_[i];
@@ -457,6 +561,25 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   hit.text = text;
   textHits_.push_back(hit);
   bindTextState(text);
+}
+
+void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
+                                                    const loka::Vector<loka::core::String> *items,
+                                                    declara::core::State<int> *selectedIndex,
+                                                    declara::core::EmitterState *onChange,
+                                                    declara::core::State<bool> *enabled)
+{
+  if (!items || items->size() == 0 || !selectedIndex)
+  {
+    return;
+  }
+  PopupHit hit;
+  hit.rect = rect;
+  hit.items = items;
+  hit.selectedIndex = selectedIndex;
+  hit.onChange = onChange;
+  hit.enabled = enabled;
+  popupHits_.push_back(hit);
 }
 
 bool ToolboxScenePlatformController::handleTextKey(char key)

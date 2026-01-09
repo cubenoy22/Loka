@@ -4,6 +4,7 @@
 #include "app/Box.hpp"
 #include "app/Button.hpp"
 #include "app/EditText.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "core2/scene/Node.hpp"
@@ -12,6 +13,7 @@ namespace
 {
   const int kButtonHeight = 32;
   const int kEditTextHeight = 24;
+  const int kPopupMenuHeight = 26;
   const int kTextHeight = 20;
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
@@ -79,6 +81,15 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
       return false;
     }
     return itEdit->second->handleCommand(wParam, lParam);
+  }
+  if (code == CBN_SELCHANGE)
+  {
+    std::map<HWND, Win32PopupMenuContext *>::iterator itPopup = popupMap_.find(target);
+    if (itPopup == popupMap_.end())
+    {
+      return false;
+    }
+    return itPopup->second->handleCommand(wParam, lParam);
   }
   return false;
 }
@@ -204,6 +215,17 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return nextState.y;
   }
 
+  if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
+  {
+    Win32PopupMenuContext *ctx = new Win32PopupMenuContext(rootHwnd_, state.x, state.y, state.width, kPopupMenuHeight, popup);
+    popup->setContext(ctx);
+    popupMap_[ctx->hwnd()] = ctx;
+
+    LayoutState nextState = state;
+    nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
+    return nextState.y;
+  }
+
   if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
   {
     Win32TextContext *ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, kTextHeight, text);
@@ -221,6 +243,7 @@ void Win32ScenePlatformController::clearContexts()
 {
   buttonMap_.clear();
   editMap_.clear();
+  popupMap_.clear();
   clearNodeContexts(rootNode_);
 }
 
