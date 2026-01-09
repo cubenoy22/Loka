@@ -121,7 +121,7 @@ namespace
       return DrawChildren(node, state, controller);
     case declara::core::scene::NODE_KIND_ROW:
     {
-      declara::core::scene::INestable *nestable = static_cast<declara::core::scene::INestable *>(node);
+      declara::core::scene::NestableNode *nestable = static_cast<declara::core::scene::NestableNode *>(node);
       short startX = state.x;
       short maxHeight = 0;
       loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
