@@ -106,6 +106,7 @@ private:
   std::vector<declara::core::State<loka::core::String> *> boundTextStates_;
   std::vector<TextBinding *> textBindings_;
   bool inBatchUpdate_;
+  bool pendingFullInvalidate_;
   std::vector<Rect> pendingDirtyRects_;
   std::vector<declara::core::State<loka::core::String> *> pendingTextStates_;
   RgnHandle clipRgn_;

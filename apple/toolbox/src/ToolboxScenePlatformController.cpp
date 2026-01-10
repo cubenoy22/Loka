@@ -212,6 +212,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       focusedRect_(),
       hasFocusedRect_(false),
       inBatchUpdate_(false),
+      pendingFullInvalidate_(false),
       pendingDirtyRects_(),
       clipRgn_(NewRgn()),
       hasClip_(false),
@@ -238,11 +239,19 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
   }
 }
 
-void ToolboxScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags)
+void ToolboxScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
 {
   rootNode_ = rootNode;
   if (!window_ || !window_->window())
   {
+    return;
+  }
+  if (inBatchUpdate_)
+  {
+    if (flags & (declara::core::scene::NODE_DIRTY_CHILD | declara::core::scene::NODE_DIRTY_LAYOUT | declara::core::scene::NODE_DIRTY_INITIAL))
+    {
+      pendingFullInvalidate_ = true;
+    }
     return;
   }
   window_->requestInvalidate();
@@ -586,21 +595,23 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
   {
     if (editControls_[i].text == text)
     {
-      if (!inBatchUpdate_)
+      if (inBatchUpdate_)
       {
-        syncEditTextFromState(editControls_[i]);
-        window_->drawDirty(editControls_[i].rect);
+        addPendingDirty(editControls_[i].rect);
+        return;
       }
+      syncEditTextFromState(editControls_[i]);
+      window_->drawDirty(editControls_[i].rect);
       return;
     }
   }
   if (inBatchUpdate_)
   {
-    addPendingDirty(window_->window()->portRect);
+    pendingFullInvalidate_ = true;
   }
   else
   {
-    window_->draw();
+    window_->requestInvalidate();
   }
 }
 
@@ -609,6 +620,7 @@ void ToolboxScenePlatformController::beginBatchUpdate()
   inBatchUpdate_ = true;
   pendingDirtyRects_.clear();
   pendingTextStates_.clear();
+  pendingFullInvalidate_ = false;
 }
 
 void ToolboxScenePlatformController::endBatchUpdate()
@@ -624,9 +636,14 @@ void ToolboxScenePlatformController::endBatchUpdate()
     {
       redrawTextFor(pendingTextStates_[i]);
     }
+    if (pendingFullInvalidate_)
+    {
+      window_->requestInvalidate();
+    }
   }
   pendingDirtyRects_.clear();
   pendingTextStates_.clear();
+  pendingFullInvalidate_ = false;
 }
 
 void ToolboxScenePlatformController::addPendingDirty(const Rect &rect)
