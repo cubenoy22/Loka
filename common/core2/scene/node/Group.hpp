@@ -30,8 +30,9 @@ namespace declara
         typedef NodeT NodeType;
         bool operator<(const PropsBase &rhs) const
         {
-          const GroupPropsFor<NodeT> *p = dynamic_cast<const GroupPropsFor<NodeT> *>(&rhs);
-          return p ? false : false;
+          if (rhs.propsTypeId() != this->propsTypeId())
+            return false;
+          return false; // no fields to compare
         }
       };
 
@@ -42,8 +43,9 @@ namespace declara
         typedef GroupNodeBase<GroupProps> NodeType;
         bool operator<(const PropsBase &rhs) const
         {
-          const GroupProps *p = dynamic_cast<const GroupProps *>(&rhs);
-          return p ? false : false;
+          if (rhs.propsTypeId() != propsTypeId())
+            return false;
+          return false; // no fields to compare
         }
       };
 

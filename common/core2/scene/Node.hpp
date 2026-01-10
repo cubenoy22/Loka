@@ -186,6 +186,9 @@ namespace declara
         typedef Node *(*NodeFactoryFunc)(const PropsBase &);
         virtual NodeFactoryFunc nodeFactory() const = 0;
         virtual bool operator<(const PropsBase &rhs) const = 0;
+
+        // Type ID for RTTI-free type comparison (each Props type gets unique ID)
+        virtual const void *propsTypeId() const = 0;
       };
 
       // --- NodePropsBase (templated common base) ---
@@ -199,6 +202,14 @@ namespace declara
         }
         static NodeFactoryFunc staticFactory() { return &NodePropsBase::createNode; }
         NodeFactoryFunc nodeFactory() const { return staticFactory(); }
+
+        // Auto-generate unique TypeID per Props type (address of static local)
+        static const void *staticTypeId()
+        {
+          static char id;
+          return &id;
+        }
+        const void *propsTypeId() const { return staticTypeId(); }
       };
 
       // --- NodeDefinitionの型消去基底 ---

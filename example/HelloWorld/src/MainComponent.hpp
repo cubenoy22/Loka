@@ -35,12 +35,10 @@ namespace helloworld
     MainPanelProps(MainNode *o, bool left) : owner(o), leftSide(left) {}
     bool operator<(const declara::core::scene::PropsBase &rhs) const
     {
-      const MainPanelProps *other = dynamic_cast<const MainPanelProps *>(&rhs);
-      if (!other)
-      {
+      if (rhs.propsTypeId() != propsTypeId())
         return false;
-      }
-      return owner < other->owner;
+      const MainPanelProps &other = static_cast<const MainPanelProps &>(rhs);
+      return owner < other.owner;
     }
   };
 

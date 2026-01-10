@@ -80,14 +80,14 @@ namespace declara
       }
       bool operator<(const declara::core::scene::PropsBase &rhs) const
       {
-        const ButtonProps *b = dynamic_cast<const ButtonProps *>(&rhs);
-        if (!b)
+        if (rhs.propsTypeId() != propsTypeId())
           return false;
-        if (text_ != b->text_)
-          return text_ < b->text_;
-        if (toolboxControlId_ != b->toolboxControlId_)
-          return toolboxControlId_ < b->toolboxControlId_;
-        return enabled_ < b->enabled_;
+        const ButtonProps &b = static_cast<const ButtonProps &>(rhs);
+        if (text_ != b.text_)
+          return text_ < b.text_;
+        if (toolboxControlId_ != b.toolboxControlId_)
+          return toolboxControlId_ < b.toolboxControlId_;
+        return enabled_ < b.enabled_;
       }
     };
 

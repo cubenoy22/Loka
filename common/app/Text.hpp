@@ -73,12 +73,10 @@ namespace declara
       }
       bool operator<(const core::scene::PropsBase &rhs) const
       {
-        const TextProps *other = dynamic_cast<const TextProps *>(&rhs);
-        if (!other)
-        {
+        if (rhs.propsTypeId() != propsTypeId())
           return false;
-        }
-        return text_ < other->text_;
+        const TextProps &other = static_cast<const TextProps &>(rhs);
+        return text_ < other.text_;
       }
     };
 

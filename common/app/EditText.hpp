@@ -36,16 +36,12 @@ namespace declara
       }
       bool operator<(const core::scene::PropsBase &rhs) const
       {
-        const EditTextProps *other = dynamic_cast<const EditTextProps *>(&rhs);
-        if (!other)
-        {
+        if (rhs.propsTypeId() != propsTypeId())
           return false;
-        }
-        if (toolboxControlId_ != other->toolboxControlId_)
-        {
-          return toolboxControlId_ < other->toolboxControlId_;
-        }
-        return text_ < other->text_;
+        const EditTextProps &other = static_cast<const EditTextProps &>(rhs);
+        if (toolboxControlId_ != other.toolboxControlId_)
+          return toolboxControlId_ < other.toolboxControlId_;
+        return text_ < other.text_;
       }
     };
 

@@ -20,12 +20,9 @@ namespace declara
       ColumnProps() {}
       bool operator<(const core::scene::PropsBase &rhs) const
       {
-        const ColumnProps *other = dynamic_cast<const ColumnProps *>(&rhs);
-        if (!other)
-        {
+        if (rhs.propsTypeId() != propsTypeId())
           return false;
-        }
-        return false;
+        return false; // no fields to compare
       }
     };
 
@@ -73,12 +70,9 @@ namespace declara
       RowProps() {}
       bool operator<(const core::scene::PropsBase &rhs) const
       {
-        const RowProps *other = dynamic_cast<const RowProps *>(&rhs);
-        if (!other)
-        {
+        if (rhs.propsTypeId() != propsTypeId())
           return false;
-        }
-        return false;
+        return false; // no fields to compare
       }
     };
 

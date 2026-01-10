@@ -135,20 +135,14 @@ namespace declara
 
       bool operator<(const declara::core::scene::PropsBase &rhs) const
       {
-        const PopupMenuProps *other = dynamic_cast<const PopupMenuProps *>(&rhs);
-        if (!other)
-        {
+        if (rhs.propsTypeId() != propsTypeId())
           return false;
-        }
-        if (items_ != other->items_)
-        {
-          return items_ < other->items_;
-        }
-        if (selectedIndex_ != other->selectedIndex_)
-        {
-          return selectedIndex_ < other->selectedIndex_;
-        }
-        return enabled_ < other->enabled_;
+        const PopupMenuProps &other = static_cast<const PopupMenuProps &>(rhs);
+        if (items_ != other.items_)
+          return items_ < other.items_;
+        if (selectedIndex_ != other.selectedIndex_)
+          return selectedIndex_ < other.selectedIndex_;
+        return enabled_ < other.enabled_;
       }
     };
 

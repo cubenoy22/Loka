@@ -30,8 +30,9 @@ namespace declara
         typedef DynamicCompositionBoundaryNodeBase<DynamicCompositionProps> NodeType;
         bool operator<(const PropsBase &rhs) const
         {
-          const DynamicCompositionProps *p = dynamic_cast<const DynamicCompositionProps *>(&rhs);
-          return p ? false : false;
+          if (rhs.propsTypeId() != propsTypeId())
+            return false;
+          return false; // no fields to compare
         }
       };
 
@@ -46,8 +47,9 @@ namespace declara
         typedef NodeT NodeType;
         bool operator<(const PropsBase &rhs) const
         {
-          const DynamicCompositionPropsFor<NodeT> *p = dynamic_cast<const DynamicCompositionPropsFor<NodeT> *>(&rhs);
-          return p ? false : false;
+          if (rhs.propsTypeId() != this->propsTypeId())
+            return false;
+          return false; // no fields to compare
         }
       };
 

@@ -20,12 +20,9 @@ namespace declara
       FragmentProps() {}
       bool operator<(const core::scene::PropsBase &rhs) const
       {
-        const FragmentProps *other = dynamic_cast<const FragmentProps *>(&rhs);
-        if (!other)
-        {
+        if (rhs.propsTypeId() != propsTypeId())
           return false;
-        }
-        return false;
+        return false; // no fields to compare
       }
     };
 
