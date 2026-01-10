@@ -44,6 +44,8 @@ namespace declara
       void defer(void (*fn)(void *), void *userData);
       void markDirty(StateBase *state);
       void addState(StateBase *state);
+      void addStateUnchecked(StateBase *state);
+      void reserveStates(size_t count);
       bool end();
       bool consumeDirty();
       void setInvalidateCallback(InvalidateFn fn, void *userData)

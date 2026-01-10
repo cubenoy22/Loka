@@ -130,6 +130,33 @@ namespace declara
       }
     }
 
+    void PushStateTracker::addStateUnchecked(StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      // Skip duplicate check - caller guarantees uniqueness
+      states_.push_back(state);
+      std::vector<StateBase *> deps = state->getDependencyStates();
+      if (!deps.empty())
+      {
+        for (size_t j = 0; j < deps.size(); ++j)
+        {
+          registerDependency(state, deps[j]);
+        }
+      }
+      if (phase_ != TRACKER_IDLE)
+      {
+        state->currentTracker = this;
+      }
+    }
+
+    void PushStateTracker::reserveStates(size_t count)
+    {
+      states_.reserve(states_.size() + count);
+    }
+
     bool PushStateTracker::end()
     {
 #ifdef TEST_BUILD

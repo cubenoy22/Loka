@@ -30,12 +30,18 @@ namespace declara
       virtual void composeMenu(MenuComposition &c) = 0;
       declara::core::StateTracker *tracker() { return &tracker_; }
 
+      void reserveStates(size_t count)
+      {
+        ownedStates_.reserve(ownedStates_.size() + count);
+        tracker_.reserveStates(count);
+      }
+
       template <typename T>
       declara::core::MutableState<T> &useState(const T &initial)
       {
         declara::core::MutableState<T> *state = new declara::core::MutableState<T>(initial);
         ownedStates_.push_back(state);
-        tracker_.addState(state);
+        tracker_.addStateUnchecked(state);
         return *state;
       }
 
@@ -120,6 +126,14 @@ namespace declara
       {
         out.clear();
         out.swap(dirtyIndices_);
+      }
+
+      void reserveStates(size_t count)
+      {
+        if (activeBoundary_)
+        {
+          activeBoundary_->reserveStates(count);
+        }
       }
 
       template <typename T>

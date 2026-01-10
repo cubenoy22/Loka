@@ -100,7 +100,7 @@ namespace declara
         }
         NodeDefinitionBase &declare(const INestableDefinition &def)
         {
-          const NodeDefinitionBase *base = dynamic_cast<const NodeDefinitionBase *>(&def);
+          const NodeDefinitionBase *base = def.asNodeDefinitionBase();
           assert(base && "Nestable definitions must derive from NodeDefinitionBase");
           return this->declare(*base);
         }
@@ -166,9 +166,21 @@ namespace declara
         }
         NodeDefinitionBase *group(const INestableDefinition &x)
         {
-          const NodeDefinitionBase *base = dynamic_cast<const NodeDefinitionBase *>(&x);
+          const NodeDefinitionBase *base = x.asNodeDefinitionBase();
           assert(base && "Nestable definitions must derive from NodeDefinitionBase");
           return this->store(*base);
+        }
+
+        void reserveStates(size_t count)
+        {
+          if (context_)
+          {
+            IStateOwner *stateOwner = context_->stateOwner();
+            if (stateOwner)
+            {
+              stateOwner->reserveStates(count);
+            }
+          }
         }
 
         template <typename T>
@@ -178,7 +190,8 @@ namespace declara
           IStateOwner *stateOwner = context_->stateOwner();
           assert(stateOwner && "NodeComposition::useState requires Boundary owner");
           MutableState<T> *state = new MutableState<T>(initial);
-          stateOwner->adoptState(state);
+          // Use unchecked version - useState always creates new unique states
+          stateOwner->adoptStateUnchecked(state);
           return BoundState<T>(state, stateOwner->tracker());
         }
 
