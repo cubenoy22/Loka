@@ -36,6 +36,7 @@ namespace declara
       ColumnProps props;
       ColumnNode(const ColumnProps &p) : props(p) {}
       virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_COLUMN; }
+      virtual ColumnNode *asColumnNode() { return this; }
     };
 
     struct ColumnDefinition : public core::scene::NodeDefinition<ColumnProps, ColumnNode>, public core::scene::NestableDefinitionBase
@@ -88,6 +89,7 @@ namespace declara
       RowProps props;
       RowNode(const RowProps &p) : props(p) {}
       virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_ROW; }
+      virtual RowNode *asRowNode() { return this; }
     };
 
     struct RowDefinition : public core::scene::NodeDefinition<RowProps, RowNode>, public core::scene::NestableDefinitionBase

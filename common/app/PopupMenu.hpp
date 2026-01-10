@@ -159,6 +159,7 @@ namespace declara
       PopupMenuProps props;
       PopupMenuNode(const PopupMenuProps &p) : props(p) {}
       virtual declara::core::scene::NodeKind kind() const { return declara::core::scene::NODE_KIND_POPUP_MENU; }
+      virtual PopupMenuNode *asPopupMenuNode() { return this; }
     };
 
     struct PopupMenuDefinition : public declara::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>

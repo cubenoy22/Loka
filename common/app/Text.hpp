@@ -89,6 +89,7 @@ namespace declara
       TextProps props;
       TextNode(const TextProps &p) : props(p) {}
       virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_TEXT; }
+      virtual TextNode *asTextNode() { return this; }
     };
 
     struct TextDefinition : public core::scene::NodeDefinition<TextProps, TextNode>

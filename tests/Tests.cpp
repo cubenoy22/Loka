@@ -554,6 +554,9 @@ void testSceneBoundaryNestedCompose()
   scene.updateAttached(true);
   assert(g_rootComposeCount == 2);
   assert(g_childComposeCount == 2);
+
+  // Unmount before stack-allocated platform is destroyed
+  scene.unmount();
 }
 
 void testLokaCoreString()

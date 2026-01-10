@@ -98,6 +98,7 @@ namespace declara
       ButtonProps props;
       ButtonNode(const ButtonProps &p) : props(p) {}
       virtual declara::core::scene::NodeKind kind() const { return declara::core::scene::NODE_KIND_BUTTON; }
+      virtual ButtonNode *asButtonNode() { return this; }
     };
 
     struct ButtonDefinition : public declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>

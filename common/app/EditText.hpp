@@ -56,6 +56,7 @@ namespace declara
       EditTextProps props;
       EditTextNode(const EditTextProps &p) : props(p) {}
       virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_EDIT_TEXT; }
+      virtual EditTextNode *asEditTextNode() { return this; }
     };
 
     struct EditTextDefinition : public core::scene::NodeDefinition<EditTextProps, EditTextNode>

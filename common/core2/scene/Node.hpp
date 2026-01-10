@@ -65,6 +65,24 @@ namespace declara
       class ComposableNode;
       class BoundaryNode;
       class IStateOwner;
+    } // namespace scene
+  } // namespace core
+
+  // Forward declarations for app nodes (for asXxx() methods)
+  namespace app
+  {
+    class RowNode;
+    class ColumnNode;
+    class TextNode;
+    class ButtonNode;
+    class EditTextNode;
+    class PopupMenuNode;
+  } // namespace app
+
+  namespace core
+  {
+    namespace scene
+    {
 
       struct LayoutState
       {
@@ -116,6 +134,13 @@ namespace declara
         virtual ComposableNode *asComposable() { return 0; }
         virtual BoundaryNode *asBoundary() { return 0; }
         virtual IStateOwner *asStateOwner() { return 0; }
+        // App node type casts (avoid dynamic_cast for 68k performance)
+        virtual ::declara::app::RowNode *asRowNode() { return 0; }
+        virtual ::declara::app::ColumnNode *asColumnNode() { return 0; }
+        virtual ::declara::app::TextNode *asTextNode() { return 0; }
+        virtual ::declara::app::ButtonNode *asButtonNode() { return 0; }
+        virtual ::declara::app::EditTextNode *asEditTextNode() { return 0; }
+        virtual ::declara::app::PopupMenuNode *asPopupMenuNode() { return 0; }
         virtual void render(IPlatformController *controller)
         {
           if (context)

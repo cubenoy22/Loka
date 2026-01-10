@@ -133,12 +133,12 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
   {
     return state.y;
   }
-  declara::core::scene::BoundaryNode *boundary = dynamic_cast<declara::core::scene::BoundaryNode *>(node);
+  declara::core::scene::BoundaryNode *boundary = node->asBoundary();
   const int startX = state.x;
   const int startY = state.y;
   const int startWidth = state.width;
 
-  if (declara::app::RowNode *row = dynamic_cast<declara::app::RowNode *>(node))
+  if (declara::app::RowNode *row = node->asRowNode())
   {
     size_t childCount = row->childrenCount();
     if (row->childrenHead() == 0 || childCount == 0)
@@ -180,7 +180,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
-  if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
+  if (declara::core::scene::INestable *nestable = node->asNestable())
   {
     LayoutState childState = state;
     loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
@@ -191,7 +191,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, childState.y);
   }
 
-  if (declara::app::ButtonNode *button = dynamic_cast<declara::app::ButtonNode *>(node))
+  if (declara::app::ButtonNode *button = node->asButtonNode())
   {
     MacButtonContext *ctx = new MacButtonContext(rootView_, state.x, state.y, state.width, kButtonHeight, button);
     button->setContext(ctx);
@@ -201,7 +201,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
+  if (declara::app::EditTextNode *edit = node->asEditTextNode())
   {
     MacEditTextContext *ctx = new MacEditTextContext(rootView_, state.x, state.y, state.width, kEditTextHeight, edit);
     edit->setContext(ctx);
@@ -212,7 +212,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
+  if (declara::app::PopupMenuNode *popup = node->asPopupMenuNode())
   {
     MacPopupMenuContext *ctx = new MacPopupMenuContext(rootView_, state.x, state.y, state.width, kPopupMenuHeight, popup);
     popup->setContext(ctx);
@@ -222,7 +222,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
+  if (declara::app::TextNode *text = node->asTextNode())
   {
     MacTextContext *ctx = new MacTextContext(rootView_, state.x, state.y, state.width, kTextHeight, text);
     text->setContext(ctx);
@@ -290,7 +290,7 @@ void MacScenePlatformController::clearNodeContexts(declara::core::scene::Node *n
   {
     return;
   }
-  if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
+  if (declara::core::scene::INestable *nestable = node->asNestable())
   {
     loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
     for (declara::core::scene::Node *child = it.next(); child; child = it.next())
