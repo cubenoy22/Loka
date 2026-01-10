@@ -125,7 +125,7 @@ namespace
     {
       return 0;
     }
-    declara::core::scene::BoundaryNode *boundary = dynamic_cast<declara::core::scene::BoundaryNode *>(node);
+    declara::core::scene::BoundaryNode *boundary = node->asBoundary();
     declara::core::scene::BoundaryNode *activeBoundary = boundary ? boundary : currentBoundary;
     const short startX = state.x;
     const short startY = state.y;

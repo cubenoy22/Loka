@@ -219,7 +219,7 @@ namespace declara
             rootNode_ = new RootBoundaryWrapper(rootDefinition_);
           }
           assert(rootNode_ && "Scene failed to create root node");
-          BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(rootNode_);
+          BoundaryNode *boundary = rootNode_->asBoundary();
           assert(boundary && "Scene root must be a Boundary node");
           boundary->setScene(this);
           boundary->setParentBoundary(0);
@@ -235,7 +235,7 @@ namespace declara
           {
             ensureRootNode();
           }
-          BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(rootNode_);
+          BoundaryNode *boundary = rootNode_->asBoundary();
           assert(boundary && "Scene root must be a Boundary node");
           ComponentContext rootContext;
           rootContext.setBoundary(boundary);
@@ -252,7 +252,7 @@ namespace declara
           {
             return;
           }
-          BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(rootNode_);
+          BoundaryNode *boundary = rootNode_->asBoundary();
           if (!boundary)
           {
             return;

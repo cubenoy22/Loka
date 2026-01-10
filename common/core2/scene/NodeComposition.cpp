@@ -28,7 +28,7 @@ namespace declara
 
         // 2. 子を持つことができるかチェック
         const INestableDefinition *nestableDef = dynamic_cast<const INestableDefinition *>(def);
-        INestable *nestableNode = dynamic_cast<INestable *>(node);
+        INestable *nestableNode = node->asNestable();
 
         if (nestableDef && nestableNode)
         {

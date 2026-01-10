@@ -62,6 +62,9 @@ namespace declara
       struct INestable;
       class IPlatformController;
       class Node; // forward declaration for NodeContext owner
+      class ComposableNode;
+      class BoundaryNode;
+      class IStateOwner;
 
       struct LayoutState
       {
@@ -110,6 +113,9 @@ namespace declara
         virtual void compose() {}
         virtual NodeKind kind() const { return NODE_KIND_UNKNOWN; }
         virtual INestable *asNestable() { return 0; }
+        virtual ComposableNode *asComposable() { return 0; }
+        virtual BoundaryNode *asBoundary() { return 0; }
+        virtual IStateOwner *asStateOwner() { return 0; }
         virtual void render(IPlatformController *controller)
         {
           if (context)

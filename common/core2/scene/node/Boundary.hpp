@@ -40,6 +40,9 @@ namespace declara
           clearOwnedStateHandles();
         }
 
+        virtual BoundaryNode *asBoundary() { return this; }
+        virtual IStateOwner *asStateOwner() { return this; }
+
         virtual declara::core::StateTracker *tracker() { return &tracker_; }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
@@ -108,7 +111,7 @@ namespace declara
           {
             return;
           }
-          BoundaryNode *boundary = dynamic_cast<BoundaryNode *>(node);
+          BoundaryNode *boundary = node->asBoundary();
           BoundaryNode *nextBoundary = currentBoundary;
           if (boundary)
           {
@@ -119,7 +122,7 @@ namespace declara
             }
             nextBoundary = boundary;
           }
-          ComposableNode *composable = dynamic_cast<ComposableNode *>(node);
+          ComposableNode *composable = node->asComposable();
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);
           nodeContext.setStateOwner(parentContext.stateOwner());
@@ -133,7 +136,7 @@ namespace declara
             composable->compose(nodeContext, event);
             contextForChildren = &nodeContext;
           }
-          INestable *nestable = dynamic_cast<INestable *>(node);
+          INestable *nestable = node->asNestable();
           if (!nestable)
           {
             return;

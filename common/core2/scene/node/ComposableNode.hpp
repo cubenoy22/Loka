@@ -36,6 +36,8 @@ namespace declara
           clearChildren();
         }
 
+        virtual ComposableNode *asComposable() { return this; }
+
         virtual void compose(ComponentContext &context, ComposeEvent event)
         {
           ContextScope scope(this, &context);
@@ -201,7 +203,7 @@ namespace declara
               previousOwner = node->currentContext_->owner();
               node->currentContext_->setOwner(n);
               previousStateOwner = node->currentContext_->stateOwner();
-              IStateOwner *currentOwner = dynamic_cast<IStateOwner *>(n);
+              IStateOwner *currentOwner = n->asStateOwner();
               node->currentContext_->setStateOwner(currentOwner ? currentOwner : previousStateOwner);
             }
           }

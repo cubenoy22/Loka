@@ -156,7 +156,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
   {
     return state.y;
   }
-  declara::core::scene::BoundaryNode *boundary = dynamic_cast<declara::core::scene::BoundaryNode *>(node);
+  declara::core::scene::BoundaryNode *boundary = node->asBoundary();
   const int startX = state.x;
   const int startY = state.y;
   const int startWidth = state.width;
