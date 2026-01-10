@@ -661,8 +661,9 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   endBatchUpdate();
   if (window_)
   {
-    Rect dirty = BoundaryToRect(boundary, rect);
-    window_->drawDirty(dirty);
+    // Only redraw the popup rect, not the entire boundary
+    // Changed texts are handled separately via handleTextChanged
+    window_->drawDirty(rect);
   }
   // Note: Changed texts are handled via pendingTextStates_ in endBatchUpdate
   // and subsequent scene invalidation cycle. No need to redraw ALL textHits.
