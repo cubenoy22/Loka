@@ -44,6 +44,13 @@ public:
                               const Rect &rect,
                               short lineHeight,
                               ToolboxScenePlatformController *controller);
+  void renderTextContext(declara::app::TextNode *node,
+                         ToolboxScenePlatformController *controller);
+  void renderButtonContext(declara::app::ButtonNode *node,
+                           ToolboxScenePlatformController *controller);
+  void renderEditTextContext(declara::app::EditTextNode *node,
+                             ToolboxScenePlatformController *controller);
+  void renderPopupMenuContext(declara::app::PopupMenuNode *node);
 
 private:
   int capabilities_;

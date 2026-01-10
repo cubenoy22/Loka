@@ -14,10 +14,7 @@
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
-#include "context/ToolboxButtonContext.hpp"
-#include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
-#include "context/ToolboxTextContext.hpp"
 #include "core2/scene/Node.hpp"
 
 namespace
@@ -257,40 +254,36 @@ namespace
     case declara::core::scene::NODE_KIND_TEXT:
     {
       declara::app::TextNode *text = static_cast<declara::app::TextNode *>(node);
-      ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
-      if (ctx)
+      if (controller && controller->contextMapper())
       {
-        ctx->draw(controller);
+        controller->contextMapper()->renderTextContext(text, controller);
       }
       return;
     }
     case declara::core::scene::NODE_KIND_BUTTON:
     {
       declara::app::ButtonNode *button = static_cast<declara::app::ButtonNode *>(node);
-      ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
-      if (ctx)
+      if (controller && controller->contextMapper())
       {
-        ctx->draw(controller);
+        controller->contextMapper()->renderButtonContext(button, controller);
       }
       return;
     }
     case declara::core::scene::NODE_KIND_EDIT_TEXT:
     {
       declara::app::EditTextNode *edit = static_cast<declara::app::EditTextNode *>(node);
-      ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
-      if (ctx)
+      if (controller && controller->contextMapper())
       {
-        ctx->draw(controller);
+        controller->contextMapper()->renderEditTextContext(edit, controller);
       }
       return;
     }
     case declara::core::scene::NODE_KIND_POPUP_MENU:
     {
       declara::app::PopupMenuNode *popup = static_cast<declara::app::PopupMenuNode *>(node);
-      ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
-      if (ctx)
+      if (controller && controller->contextMapper())
       {
-        ctx->draw();
+        controller->contextMapper()->renderPopupMenuContext(popup);
       }
       return;
     }

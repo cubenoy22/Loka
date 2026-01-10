@@ -92,3 +92,58 @@ void ToolboxNodeContextMapper::ensurePopupMenuContext(declara::app::PopupMenuNod
   ctx->updateRect(rect, lineHeight);
   controller->registerPopupContext(ctx);
 }
+
+void ToolboxNodeContextMapper::renderTextContext(declara::app::TextNode *node,
+                                                 ToolboxScenePlatformController *controller)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->draw(controller);
+  }
+}
+
+void ToolboxNodeContextMapper::renderButtonContext(declara::app::ButtonNode *node,
+                                                   ToolboxScenePlatformController *controller)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->draw(controller);
+  }
+}
+
+void ToolboxNodeContextMapper::renderEditTextContext(declara::app::EditTextNode *node,
+                                                     ToolboxScenePlatformController *controller)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->draw(controller);
+  }
+}
+
+void ToolboxNodeContextMapper::renderPopupMenuContext(declara::app::PopupMenuNode *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->draw();
+  }
+}
