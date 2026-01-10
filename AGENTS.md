@@ -17,5 +17,6 @@
 - Classic stability: avoid transient data in DSL props (e.g., pass stable pointers/references); if props own data, ensure copy/clone rebinds internal pointers safely.
 - NativeContext should guard against null/empty state before drawing or binding.
 - Avoid RTTI (`dynamic_cast`) in hot paths; prefer `NodeKind` checks. If RTTI is required, confirm with the user first.
+- Keep commits scoped; split large refactors into small, reviewable commits with verification between steps.
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
