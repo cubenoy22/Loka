@@ -13,6 +13,7 @@ set(DECLARA_TOOLBOX_SOURCES
   src/context/ToolboxTextContext.cpp
   src/ToolboxScenePlatformController.cpp
   src/ToolboxWindow.cpp
+  src/ToolboxWindowContext.cpp
   src/ToolboxPlatformContext.cpp
 )
 

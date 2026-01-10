@@ -1,5 +1,6 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
+#include "ToolboxWindowContext.hpp"
 #include <Quickdraw.h>
 #include <cstring>
 #include <string>
@@ -215,14 +216,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       pendingFullInvalidate_(false),
       pendingDirtyRects_(),
       clipRgn_(NewRgn()),
-      hasClip_(false),
-      contextMapper_(new ToolboxNodeContextMapper(
-#if !defined(DECLARA_TOOLBOX_CLASSIC_6)
-          ToolboxNodeContextMapper::CAP_CONTROL_MANAGER | ToolboxNodeContextMapper::CAP_TEXT_EDIT
-#else
-          ToolboxNodeContextMapper::CAP_NONE
-#endif
-      ))
+      hasClip_(false)
 {
 }
 
@@ -230,13 +224,20 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
 {
   clearTextBindings();
   clearControls();
-  delete contextMapper_;
-  contextMapper_ = 0;
   if (clipRgn_)
   {
     DisposeRgn(clipRgn_);
     clipRgn_ = 0;
   }
+}
+
+ToolboxNodeContextMapper *ToolboxScenePlatformController::contextMapper() const
+{
+  if (!window_ || !window_->context())
+  {
+    return 0;
+  }
+  return window_->context()->contextMapper();
 }
 
 void ToolboxScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags)

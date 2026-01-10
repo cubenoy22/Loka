@@ -42,7 +42,7 @@ public:
   bool isPointInEdit(const Point &point) const;
   void beginClip(const Rect &rect);
   void endClip();
-  ToolboxNodeContextMapper *contextMapper() const { return contextMapper_; }
+  ToolboxNodeContextMapper *contextMapper() const;
 
 private:
   struct ButtonHit
@@ -111,7 +111,6 @@ private:
   std::vector<declara::core::State<loka::core::String> *> pendingTextStates_;
   RgnHandle clipRgn_;
   bool hasClip_;
-  ToolboxNodeContextMapper *contextMapper_;
 
   bool handleTextKey(char key);
   void bindTextState(declara::core::State<loka::core::String> *text);

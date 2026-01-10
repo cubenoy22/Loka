@@ -6,6 +6,7 @@
 
 class App;
 class ToolboxScenePlatformController;
+class ToolboxWindowContext;
 
 class ToolboxWindow : public Window
 {
@@ -25,11 +26,13 @@ public:
   void invalidateWindow();
   void draw();
   WindowPtr window() const { return window_; }
+  ToolboxWindowContext *context() const { return context_; }
 
 private:
   App *app_;
   WindowPtr window_;
   ToolboxScenePlatformController *scenePlatformController_;
+  ToolboxWindowContext *context_;
   bool needsInvalidate_;
 
   void mountScene();

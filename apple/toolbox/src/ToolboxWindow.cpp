@@ -6,6 +6,8 @@
 #include "core/App.hpp"
 #include "core2/scene/Scene.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxWindowContext.hpp"
+#include "context/ToolboxNodeContextMapper.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -24,7 +26,7 @@ namespace
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context,
                              const WindowProps &props)
-    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), needsInvalidate_(false)
+    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false)
 {
   Rect bounds;
   SetRect(&bounds, 60, 60, 420, 320);
@@ -43,11 +45,20 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context,
   CopyToPascalString(title, titleStr);
 
   window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
+  context_ = new ToolboxWindowContext(
+#if !defined(DECLARA_TOOLBOX_CLASSIC_6)
+      ToolboxNodeContextMapper::CAP_CONTROL_MANAGER | ToolboxNodeContextMapper::CAP_TEXT_EDIT
+#else
+      ToolboxNodeContextMapper::CAP_NONE
+#endif
+  );
 }
 
 ToolboxWindow::~ToolboxWindow()
 {
   teardownScene();
+  delete context_;
+  context_ = 0;
   if (window_)
   {
     DisposeWindow(window_);
