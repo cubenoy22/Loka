@@ -31,6 +31,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
     -fdata-sections
     -fno-exceptions
   )
+  if(DECLARA_TOOLBOX_CLASSIC_6)
+    target_compile_definitions(DeclaraAppleToolboxCore PRIVATE DECLARA_TOOLBOX_CLASSIC_6=1)
+  endif()
   target_link_options(DeclaraAppleToolboxCore PRIVATE
     -Wl,--gc-sections
   )
