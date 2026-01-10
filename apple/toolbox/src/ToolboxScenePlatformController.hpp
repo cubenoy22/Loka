@@ -79,6 +79,7 @@ private:
     short y;
     declara::core::State<loka::core::String> *text;
     declara::core::scene::BoundaryNode *boundary;
+    short lastMeasuredWidth;
   };
   struct TextBinding
   {

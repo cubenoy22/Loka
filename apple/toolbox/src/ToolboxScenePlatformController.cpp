@@ -359,7 +359,12 @@ void ToolboxScenePlatformController::onChange(declara::core::scene::Node *rootNo
     }
     return;
   }
-  window_->requestInvalidate();
+  // NODE_DIRTY_PROPSだけなら全体invalidateは不要
+  // 個々のContextがState bindで自分のRectを再描画する
+  if (flags & (declara::core::scene::NODE_DIRTY_CHILD | declara::core::scene::NODE_DIRTY_LAYOUT | declara::core::scene::NODE_DIRTY_INITIAL))
+  {
+    window_->requestInvalidate();
+  }
 }
 
 void ToolboxScenePlatformController::synchronize()
@@ -619,6 +624,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   hit.y = y;
   hit.text = text;
   hit.boundary = boundary;
+  hit.lastMeasuredWidth = static_cast<short>(rect.right - rect.left);
   textHits_.push_back(hit);
   bindTextState(text);
 }
@@ -658,10 +664,8 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
     Rect dirty = BoundaryToRect(boundary, rect);
     window_->drawDirty(dirty);
   }
-  for (size_t k = 0; k < textHits_.size(); ++k)
-  {
-    redrawTextHit(textHits_[k]);
-  }
+  // Note: Changed texts are handled via pendingTextStates_ in endBatchUpdate
+  // and subsequent scene invalidation cycle. No need to redraw ALL textHits.
 }
 
 bool ToolboxScenePlatformController::handleTextKey(char key)
@@ -734,33 +738,14 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
     TextHit &hit = textHits_[i];
     if (hit.text == text)
     {
-      short measured = ToolboxMeasureTextWidth(text->get());
-      short currentWidth = static_cast<short>(hit.rect.right - hit.rect.left);
-      if (measured != currentWidth)
-      {
-        if (inBatchUpdate_)
-        {
-          pendingFullInvalidate_ = true;
-        }
-        else
-        {
-          forceFullRedraw_ = true;
-          if (window_->window())
-          {
-            window_->drawDirty(window_->window()->portRect);
-          }
-        }
-        return;
-      }
+      // Just redraw the text rect (no width checking for now)
       if (inBatchUpdate_)
       {
-        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
-        addPendingDirty(dirty);
+        addPendingDirty(hit.rect);
       }
       else
       {
-        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
-        window_->drawDirty(dirty);
+        window_->drawDirty(hit.rect);
       }
       return;
     }
@@ -770,15 +755,14 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
     EditHit &hit = editHits_[i];
     if (hit.text == text)
     {
+      // Use text's own rect
       if (inBatchUpdate_)
       {
-        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
-        addPendingDirty(dirty);
+        addPendingDirty(hit.rect);
       }
       else
       {
-        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
-        window_->drawDirty(dirty);
+        window_->drawDirty(hit.rect);
       }
       return;
     }
@@ -797,13 +781,16 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
       return;
     }
   }
+  // State not found in current textHits_/editHits_/editControls_.
+  // Add to pending list; will be resolved after next render populates textHits_.
   if (inBatchUpdate_)
   {
-    pendingFullInvalidate_ = true;
+    addPendingText(text);
   }
   else
   {
-    window_->requestInvalidate();
+    // State not found, but scene invalidation will handle it
+    // through normal recompose cycle. No need for full redraw.
   }
 }
 
@@ -820,6 +807,8 @@ void ToolboxScenePlatformController::endBatchUpdate()
   inBatchUpdate_ = false;
   if (window_)
   {
+    // Draw pending dirty rects without forcing full render
+    // The textHits_ from previous render should still be valid for positions
     for (size_t i = 0; i < pendingDirtyRects_.size(); ++i)
     {
       window_->drawDirty(pendingDirtyRects_[i]);

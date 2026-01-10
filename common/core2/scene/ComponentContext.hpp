@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_COMPONENTCONTEXT_HPP
 
 #include "core2/scene/StateOwner.hpp"
+#include "core2/scene/Node.hpp"
 
 class Window;
 
@@ -19,9 +20,9 @@ namespace declara
       class ComponentContext
       {
       public:
-        ComponentContext() : parent_(0), owner_(0), stateOwner_(0), boundary_(0), scene_(0), window_(0) {}
+        ComponentContext() : parent_(0), owner_(0), stateOwner_(0), boundary_(0), scene_(0), window_(0), dirtyFlags_(NODE_DIRTY_NONE) {}
         explicit ComponentContext(ComponentContext *parent)
-            : parent_(parent), owner_(0), stateOwner_(0), boundary_(0), scene_(0), window_(0) {}
+            : parent_(parent), owner_(0), stateOwner_(0), boundary_(0), scene_(0), window_(0), dirtyFlags_(NODE_DIRTY_NONE) {}
 
         ComponentContext *parent() const { return parent_; }
         void setParent(ComponentContext *parent) { parent_ = parent; }
@@ -35,6 +36,8 @@ namespace declara
         void setScene(Scene *scene) { scene_ = scene; }
         ::Window *window() const { return window_; }
         void setWindow(::Window *window) { window_ = window; }
+        NodeDirtyFlags dirtyFlags() const { return dirtyFlags_; }
+        void setDirtyFlags(NodeDirtyFlags flags) { dirtyFlags_ = flags; }
 
       private:
         friend class ComposableNode;
@@ -44,6 +47,7 @@ namespace declara
         BoundaryNode *boundary_;
         Scene *scene_;
         ::Window *window_;
+        NodeDirtyFlags dirtyFlags_;
       };
 
     } // namespace scene

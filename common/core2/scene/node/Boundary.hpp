@@ -127,6 +127,7 @@ namespace declara
           Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
           nodeContext.setScene(scene);
           nodeContext.setWindow(parentContext.window());
+          nodeContext.setDirtyFlags(parentContext.dirtyFlags());
           if (composable)
           {
             composable->compose(nodeContext, event);

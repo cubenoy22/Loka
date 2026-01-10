@@ -76,6 +76,23 @@ namespace declara
           {
             return;
           }
+          // UPDATE時はdirtyフラグをチェック
+          // NODE_DIRTY_CHILDがなければ子構造は変わらないのでrecomposeをスキップ
+          if (event == COMPOSE_EVENT_UPDATE)
+          {
+            NodeDirtyFlags flags = context.dirtyFlags();
+            if (!(flags & NODE_DIRTY_CHILD))
+            {
+              // 子構造は変わらない、既存ノードを維持
+              // 子ノードにはUPDATEイベントを伝播
+              loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+              for (Node *child = it.next(); child; child = it.next())
+              {
+                this->composeTree(child, context, event, this);
+              }
+              return;
+            }
+          }
           this->clearChildren();
           NodeComposition &composition = this->beginComposition(context);
           if (event == COMPOSE_EVENT_ATTACH)

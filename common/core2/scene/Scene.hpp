@@ -261,6 +261,7 @@ namespace declara
           rootContext.setBoundary(boundary);
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
+          rootContext.setDirtyFlags(compositionDiff_.flags);
           boundary->compose(rootContext, event);
         }
 
