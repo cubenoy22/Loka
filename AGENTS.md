@@ -18,5 +18,6 @@
 - NativeContext should guard against null/empty state before drawing or binding.
 - Avoid RTTI (`dynamic_cast`) in hot paths; prefer `NodeKind` checks. If RTTI is required, confirm with the user first.
 - Keep commits scoped; split large refactors into small, reviewable commits with verification between steps.
+- Ask for runtime verification before commits that affect behavior, except for clearly non-runtime changes (docs/comments/refactors that cannot affect execution).
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
