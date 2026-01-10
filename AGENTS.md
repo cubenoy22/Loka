@@ -21,3 +21,43 @@
 - Ask for runtime verification before commits that affect behavior (unless the change is clearly non-runtime, such as docs/comments/refactors that cannot affect execution).
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
+
+## 68k Performance Optimization
+
+### Profiling
+- Use `core/Profiler.hpp` for cross-platform timing; Toolbox uses `TickCount()` (1 tick = 1/60 sec ≈ 16.7ms).
+- `ScopedProfile` for block timing; cumulative counters (`gTreeVirtTicks`, etc.) for recursive operations.
+- Profile results can be displayed on-screen via `ToolboxScenePlatformController`.
+
+### Known Costs (measured on 68k)
+| Operation | Approximate Cost |
+|-----------|------------------|
+| GroupNode/Boundary wrapper | ~30 ticks |
+| useState (each) | ~10 ticks (heap alloc + vector push + tracker) |
+| Floating point arithmetic | ~30 ticks (software FPU emulation) |
+| dynamic_cast | Severe (use asXxx() instead) |
+
+### Optimization Patterns
+- **Inline content**: Avoid unnecessary GroupNode/Boundary wrappers; inline children directly into parent.
+- **Pre-compute values**: Calculate floating-point at compile time or init; store as fixed strings.
+- **reserveStates(n)**: Call at start of `attachNode()` to pre-allocate vector capacity.
+- **addStateUnchecked**: Used internally by `useState()`; skips O(n) duplicate check.
+- **String::Literal()**: Use for compile-time constant strings; avoids heap allocation.
+
+### Example: BMI Optimization
+Before (178 ticks):
+```cpp
+// GroupNode wrapper + 3 useState + floating point
+<< BmiCalculator()
+```
+
+After (72 ticks):
+```cpp
+// Inline with pre-computed value, 1 useState
+c.reserveStates(5);
+bmiResult_ = c.useState<loka::core::String>(String::Literal("BMI: 20.76"));
+// In composeNode:
+<< Text("BMI Calculator")
+<< Text("Height: 170cm")
+<< Text(this->bmiResult_)
+```
