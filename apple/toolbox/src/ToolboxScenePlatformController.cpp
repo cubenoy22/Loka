@@ -17,6 +17,7 @@
 #include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "core2/scene/Node.hpp"
+#include "core2/scene/node/Boundary.hpp"
 
 namespace
 {
@@ -97,29 +98,45 @@ namespace
     {
       return 0;
     }
+    declara::core::scene::BoundaryNode *boundary = dynamic_cast<declara::core::scene::BoundaryNode *>(node);
+    const short startX = state.x;
+    const short startY = state.y;
+    const short startTop = static_cast<short>(startY - state.lineHeight + 2);
     switch (node->kind())
     {
     case declara::core::scene::NODE_KIND_COLUMN:
-      return LayoutChildren(node->asNestable(), state, controller);
+    {
+      short width = LayoutChildren(node->asNestable(), state, controller);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
     case declara::core::scene::NODE_KIND_ROW:
     {
       declara::core::scene::NestableNode *nestable = static_cast<declara::core::scene::NestableNode *>(node);
-      short startX = state.x;
+      short rowStartX = state.x;
       short maxHeight = 0;
       loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
       for (declara::core::scene::Node *child = it.next(); child; child = it.next())
       {
         declara::core::scene::LayoutState rowState = state;
-        rowState.x = startX;
+        rowState.x = rowStartX;
         short width = LayoutNode(child, rowState, controller);
-        startX = static_cast<short>(startX + width + state.spacing);
+        rowStartX = static_cast<short>(rowStartX + width + state.spacing);
         if (rowState.y > state.y)
         {
           maxHeight = static_cast<short>(rowState.y - state.y);
         }
       }
       state.y = static_cast<short>(state.y + maxHeight + state.spacing);
-      return static_cast<short>(startX - state.x);
+      short width = static_cast<short>(rowStartX - state.x);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
     }
     case declara::core::scene::NODE_KIND_TEXT:
     {
@@ -128,7 +145,12 @@ namespace
       {
         controller->contextMapper()->ensureTextContext(text);
       }
-      return node->layout(controller, state);
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
     }
     case declara::core::scene::NODE_KIND_BUTTON:
     {
@@ -137,7 +159,12 @@ namespace
       {
         controller->contextMapper()->ensureButtonContext(button);
       }
-      return node->layout(controller, state);
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
     }
     case declara::core::scene::NODE_KIND_EDIT_TEXT:
     {
@@ -146,7 +173,12 @@ namespace
       {
         controller->contextMapper()->ensureEditTextContext(edit);
       }
-      return node->layout(controller, state);
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
     }
     case declara::core::scene::NODE_KIND_POPUP_MENU:
     {
@@ -155,12 +187,22 @@ namespace
       {
         controller->contextMapper()->ensurePopupMenuContext(popup);
       }
-      return node->layout(controller, state);
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
     }
     default:
       break;
     }
-    return LayoutChildren(node->asNestable(), state, controller);
+    short width = LayoutChildren(node->asNestable(), state, controller);
+    if (boundary)
+    {
+      boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+    }
+    return width;
   }
 
   void RenderChildren(declara::core::scene::INestable *nestable,

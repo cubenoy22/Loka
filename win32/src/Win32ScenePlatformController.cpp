@@ -1,4 +1,5 @@
 #include "Win32ScenePlatformController.hpp"
+#include "core2/scene/node/Boundary.hpp"
 #include <windows.h>
 #include <vector>
 #include "app/Box.hpp"
@@ -133,12 +134,32 @@ void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeig
   layoutNode(rootNode_, state);
 }
 
+namespace
+{
+  int ApplyBoundaryBounds(declara::core::scene::BoundaryNode *boundary,
+                          int x,
+                          int y,
+                          int width,
+                          int resultY)
+  {
+    if (boundary)
+    {
+      boundary->setLayoutBounds(x, y, width, resultY - y);
+    }
+    return resultY;
+  }
+}
+
 int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, const LayoutState &state)
 {
   if (!node)
   {
     return state.y;
   }
+  declara::core::scene::BoundaryNode *boundary = dynamic_cast<declara::core::scene::BoundaryNode *>(node);
+  const int startX = state.x;
+  const int startY = state.y;
+  const int startWidth = state.width;
 
   if (declara::app::RowNode *row = dynamic_cast<declara::app::RowNode *>(node))
   {
@@ -179,7 +200,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
       }
       currentX += childWidth + gap;
     }
-    return maxY;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
   if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
@@ -190,7 +211,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     {
       childState.y = layoutNode(child, childState);
     }
-    return childState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, childState.y);
   }
 
   if (declara::app::ButtonNode *button = dynamic_cast<declara::app::ButtonNode *>(node))
@@ -201,7 +222,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
     LayoutState nextState = state;
     nextState.y = state.y + kButtonHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
   if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
@@ -212,7 +233,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
     LayoutState nextState = state;
     nextState.y = state.y + kEditTextHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
   if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
@@ -223,7 +244,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
     LayoutState nextState = state;
     nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
   if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
@@ -233,10 +254,10 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
     LayoutState nextState = state;
     nextState.y = state.y + kTextHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  return state.y;
+  return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
 }
 
 void Win32ScenePlatformController::clearContexts()

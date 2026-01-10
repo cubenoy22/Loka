@@ -23,7 +23,17 @@ namespace declara
       class BoundaryNode : public ComposableNode, public IStateOwner
       {
       public:
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0) {}
+        struct LayoutBounds
+        {
+          int x;
+          int y;
+          int width;
+          int height;
+          bool valid;
+          LayoutBounds() : x(0), y(0), width(0), height(0), valid(false) {}
+        };
+
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_() {}
         virtual ~BoundaryNode()
         {
           clearOwnedStates();
@@ -43,6 +53,17 @@ namespace declara
         void setScene(Scene *scene) { scene_ = scene; }
         BoundaryNode *parentBoundary() const { return parentBoundary_; }
         void setParentBoundary(BoundaryNode *parent) { parentBoundary_ = parent; }
+        void setLayoutBounds(int x, int y, int width, int height)
+        {
+          layoutBounds_.x = x;
+          layoutBounds_.y = y;
+          layoutBounds_.width = width < 0 ? 0 : width;
+          layoutBounds_.height = height < 0 ? 0 : height;
+          layoutBounds_.valid = true;
+        }
+        void clearLayoutBounds() { layoutBounds_ = LayoutBounds(); }
+        const LayoutBounds &layoutBounds() const { return layoutBounds_; }
+        bool hasLayoutBounds() const { return layoutBounds_.valid; }
 
         static void InvalidateSceneThunk(void *userData);
 
@@ -203,6 +224,7 @@ namespace declara
         std::vector<StateHandleBase *> ownedStateHandles_;
         Scene *scene_;
         BoundaryNode *parentBoundary_;
+        LayoutBounds layoutBounds_;
       };
 
       template <class PropsT, class NodeT>

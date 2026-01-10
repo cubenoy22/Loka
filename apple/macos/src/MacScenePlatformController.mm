@@ -1,4 +1,5 @@
 #include "MacScenePlatformController.hpp"
+#include "core2/scene/node/Boundary.hpp"
 #include <AppKit/AppKit.h>
 #include <vector>
 #include "app/Box.hpp"
@@ -110,12 +111,32 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
   finalizeKeyLoop();
 }
 
+namespace
+{
+  int ApplyBoundaryBounds(declara::core::scene::BoundaryNode *boundary,
+                          int x,
+                          int y,
+                          int width,
+                          int resultY)
+  {
+    if (boundary)
+    {
+      boundary->setLayoutBounds(x, y, width, resultY - y);
+    }
+    return resultY;
+  }
+}
+
 int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, const LayoutState &state)
 {
   if (!node)
   {
     return state.y;
   }
+  declara::core::scene::BoundaryNode *boundary = dynamic_cast<declara::core::scene::BoundaryNode *>(node);
+  const int startX = state.x;
+  const int startY = state.y;
+  const int startWidth = state.width;
 
   if (declara::app::RowNode *row = dynamic_cast<declara::app::RowNode *>(node))
   {
@@ -156,7 +177,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
       }
       currentX += childWidth + gap;
     }
-    return maxY;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
   if (declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node))
@@ -167,7 +188,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
     {
       childState.y = layoutNode(child, childState);
     }
-    return childState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, childState.y);
   }
 
   if (declara::app::ButtonNode *button = dynamic_cast<declara::app::ButtonNode *>(node))
@@ -177,7 +198,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
 
     LayoutState nextState = state;
     nextState.y = state.y + kButtonHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
   if (declara::app::EditTextNode *edit = dynamic_cast<declara::app::EditTextNode *>(node))
@@ -188,7 +209,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
 
     LayoutState nextState = state;
     nextState.y = state.y + kEditTextHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
   if (declara::app::PopupMenuNode *popup = dynamic_cast<declara::app::PopupMenuNode *>(node))
@@ -198,7 +219,7 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
 
     LayoutState nextState = state;
     nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
   if (declara::app::TextNode *text = dynamic_cast<declara::app::TextNode *>(node))
@@ -208,10 +229,10 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
 
     LayoutState nextState = state;
     nextState.y = state.y + kTextHeight + kVerticalSpacing;
-    return nextState.y;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  return state.y;
+  return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
 }
 
 void MacScenePlatformController::registerEditField(void *field)
