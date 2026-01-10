@@ -80,3 +80,33 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
     controller->recordEditHit(rect_, text_);
   }
 }
+
+short ToolboxEditTextContext::layout(declara::core::scene::IPlatformController *controller,
+                                     declara::core::scene::LayoutState &state)
+{
+  if (!node_)
+  {
+    return 0;
+  }
+  short width = 120;
+  Rect rect;
+  rect.left = state.x;
+  rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+  rect.right = static_cast<short>(state.x + width + 3);
+  rect.bottom = static_cast<short>(state.y + 6 + 2);
+  Rect textRect = rect;
+  textRect.left = static_cast<short>(textRect.left + 1);
+  textRect.top = static_cast<short>(textRect.top + 2);
+  textRect.right = static_cast<short>(textRect.right - 1);
+  textRect.bottom = static_cast<short>(textRect.bottom - 1);
+  updateData(node_->props.text_);
+  updateRect(rect, textRect, static_cast<short>(state.x + 4), state.y);
+  state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
+  return width;
+}
+
+void ToolboxEditTextContext::render(declara::core::scene::IPlatformController *controller)
+{
+  ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
+  draw(toolbox);
+}

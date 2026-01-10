@@ -1,5 +1,6 @@
 #include "context/ToolboxButtonContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "context/ToolboxLayoutUtil.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include <cstring>
 #include <string>
@@ -74,4 +75,34 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   {
     controller->recordButtonHit(rect_, emitter_, enabled_);
   }
+}
+
+short ToolboxButtonContext::layout(declara::core::scene::IPlatformController *controller,
+                                   declara::core::scene::LayoutState &state)
+{
+  if (!node_)
+  {
+    return 0;
+  }
+  loka::core::String label = loka::core::String::Literal("Button");
+  if (node_->props.text_)
+  {
+    label = node_->props.text_->get();
+  }
+  short width = ToolboxMeasureTextWidth(label);
+  Rect rect;
+  rect.left = state.x;
+  rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+  rect.right = static_cast<short>(state.x + width);
+  rect.bottom = static_cast<short>(state.y + 6);
+  updateData(label, node_->props.onClick_, node_->props.enabled_, node_->props.toolboxControlId_);
+  updateRect(rect);
+  state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
+  return width;
+}
+
+void ToolboxButtonContext::render(declara::core::scene::IPlatformController *controller)
+{
+  ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
+  draw(toolbox);
 }

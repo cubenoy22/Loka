@@ -137,6 +137,30 @@ void ToolboxPopupMenuContext::draw()
   KillPoly(arrow);
 }
 
+short ToolboxPopupMenuContext::layout(declara::core::scene::IPlatformController *controller,
+                                      declara::core::scene::LayoutState &state)
+{
+  if (!node_)
+  {
+    return 0;
+  }
+  short width = 120;
+  Rect rect;
+  rect.left = state.x;
+  rect.top = static_cast<short>(state.y - state.lineHeight + 2);
+  rect.right = static_cast<short>(state.x + width + 8);
+  rect.bottom = static_cast<short>(state.y + 6);
+  updateData(node_->props.items_, node_->props.selectedIndex_, node_->props.onChange_, node_->props.enabled_);
+  updateRect(rect, state.lineHeight);
+  ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
+  if (toolbox)
+  {
+    toolbox->registerPopupContext(this);
+  }
+  state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
+  return width;
+}
+
 bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePlatformController *controller)
 {
   if (enabled_ && !enabled_->get())
@@ -175,4 +199,9 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   DeleteMenu(2000);
   DisposeMenu(menu);
   return true;
+}
+
+void ToolboxPopupMenuContext::render(declara::core::scene::IPlatformController *)
+{
+  draw();
 }

@@ -19,14 +19,6 @@
 
 namespace
 {
-  struct RenderState
-  {
-    short x;
-    short y;
-    short lineHeight;
-    short spacing;
-  };
-
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
@@ -47,16 +39,6 @@ namespace
     }
     MoveTo(x, y);
     DrawString(text);
-  }
-
-  short MeasureTextWidth(const loka::core::String &value)
-  {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      return 40;
-    }
-    return static_cast<short>(utf8.size() * 7 + 16);
   }
 
   void CopyToPascalString(const loka::core::String &value, Str255 out)
@@ -80,13 +62,13 @@ namespace
   }
 
   short LayoutNode(declara::core::scene::Node *node,
-                   RenderState &state,
+                   declara::core::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller);
   void RenderNode(declara::core::scene::Node *node,
                   ToolboxScenePlatformController *controller);
 
   short LayoutChildren(declara::core::scene::INestable *nestable,
-                       RenderState &state,
+                       declara::core::scene::LayoutState &state,
                        ToolboxScenePlatformController *controller)
   {
     if (!nestable)
@@ -107,7 +89,7 @@ namespace
   }
 
   short LayoutNode(declara::core::scene::Node *node,
-                   RenderState &state,
+                   declara::core::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller)
   {
     if (!node)
@@ -126,7 +108,7 @@ namespace
       loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
       for (declara::core::scene::Node *child = it.next(); child; child = it.next())
       {
-        RenderState rowState = state;
+        declara::core::scene::LayoutState rowState = state;
         rowState.x = startX;
         short width = LayoutNode(child, rowState, controller);
         startX = static_cast<short>(startX + width + state.spacing);
@@ -141,80 +123,38 @@ namespace
     case declara::core::scene::NODE_KIND_TEXT:
     {
       declara::app::TextNode *text = static_cast<declara::app::TextNode *>(node);
-      if (text->props.text_)
+      if (controller && controller->contextMapper())
       {
-        short width = MeasureTextWidth(text->props.text_->get());
-        Rect rect;
-        rect.left = state.x;
-        rect.top = static_cast<short>(state.y - state.lineHeight + 2);
-        rect.right = static_cast<short>(state.x + width);
-        rect.bottom = static_cast<short>(state.y + 6);
-        if (controller && controller->contextMapper())
-        {
-          controller->contextMapper()->ensureTextContext(text, rect, state.x, state.y, controller);
-        }
-        state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
-        return width;
+        controller->contextMapper()->ensureTextContext(text);
       }
-      return 0;
+      return node->layout(controller, state);
     }
     case declara::core::scene::NODE_KIND_BUTTON:
     {
       declara::app::ButtonNode *button = static_cast<declara::app::ButtonNode *>(node);
-      loka::core::String label = loka::core::String::Literal("Button");
-      if (button->props.text_)
-      {
-        label = button->props.text_->get();
-      }
-      short width = MeasureTextWidth(label);
-      Rect rect;
-      rect.left = state.x;
-      rect.top = static_cast<short>(state.y - state.lineHeight + 2);
-      rect.right = static_cast<short>(state.x + width);
-      rect.bottom = static_cast<short>(state.y + 6);
       if (controller && controller->contextMapper())
       {
-        controller->contextMapper()->ensureButtonContext(button, rect, label, controller);
+        controller->contextMapper()->ensureButtonContext(button);
       }
-      state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
-      return width;
+      return node->layout(controller, state);
     }
     case declara::core::scene::NODE_KIND_EDIT_TEXT:
     {
       declara::app::EditTextNode *edit = static_cast<declara::app::EditTextNode *>(node);
-      short width = 120;
-      Rect rect;
-      rect.left = state.x;
-      rect.top = static_cast<short>(state.y - state.lineHeight + 2);
-      rect.right = static_cast<short>(state.x + width + 3);
-      rect.bottom = static_cast<short>(state.y + 6 + 2);
-      Rect textRect = rect;
-      textRect.left = static_cast<short>(textRect.left + 1);
-      textRect.top = static_cast<short>(textRect.top + 2);
-      textRect.right = static_cast<short>(textRect.right - 1);
-      textRect.bottom = static_cast<short>(textRect.bottom - 1);
       if (controller && controller->contextMapper())
       {
-        controller->contextMapper()->ensureEditTextContext(edit, rect, textRect, static_cast<short>(state.x + 4), state.y, controller);
+        controller->contextMapper()->ensureEditTextContext(edit);
       }
-      state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
-      return width;
+      return node->layout(controller, state);
     }
     case declara::core::scene::NODE_KIND_POPUP_MENU:
     {
       declara::app::PopupMenuNode *popup = static_cast<declara::app::PopupMenuNode *>(node);
-      short width = 120;
-      Rect rect;
-      rect.left = state.x;
-      rect.top = static_cast<short>(state.y - state.lineHeight + 2);
-      rect.right = static_cast<short>(state.x + width + 8);
-      rect.bottom = static_cast<short>(state.y + 6);
       if (controller && controller->contextMapper())
       {
-        controller->contextMapper()->ensurePopupMenuContext(popup, rect, state.lineHeight, controller);
+        controller->contextMapper()->ensurePopupMenuContext(popup);
       }
-      state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
-      return width;
+      return node->layout(controller, state);
     }
     default:
       break;
@@ -252,41 +192,11 @@ namespace
       RenderChildren(node->asNestable(), controller);
       return;
     case declara::core::scene::NODE_KIND_TEXT:
-    {
-      declara::app::TextNode *text = static_cast<declara::app::TextNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->renderTextContext(text, controller);
-      }
-      return;
-    }
     case declara::core::scene::NODE_KIND_BUTTON:
-    {
-      declara::app::ButtonNode *button = static_cast<declara::app::ButtonNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->renderButtonContext(button, controller);
-      }
-      return;
-    }
     case declara::core::scene::NODE_KIND_EDIT_TEXT:
-    {
-      declara::app::EditTextNode *edit = static_cast<declara::app::EditTextNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->renderEditTextContext(edit, controller);
-      }
-      return;
-    }
     case declara::core::scene::NODE_KIND_POPUP_MENU:
-    {
-      declara::app::PopupMenuNode *popup = static_cast<declara::app::PopupMenuNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->renderPopupMenuContext(popup);
-      }
+      node->render(controller);
       return;
-    }
     default:
       break;
     }
@@ -371,7 +281,7 @@ void ToolboxScenePlatformController::render()
       popupContexts_.clear();
       pendingTextStates_.clear();
       pendingDirtyRects_.clear();
-  RenderState state;
+  declara::core::scene::LayoutState state;
   state.x = 12;
   state.y = 24;
   state.lineHeight = 14;

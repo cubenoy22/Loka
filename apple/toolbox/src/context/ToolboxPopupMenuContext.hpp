@@ -8,6 +8,16 @@
 #include <Menus.h>
 
 class ToolboxScenePlatformController;
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      class IPlatformController;
+    }
+  }
+}
 
 class ToolboxPopupMenuContext : public declara::core::scene::NativeNodeContext
 {
@@ -21,6 +31,9 @@ public:
                   declara::core::State<bool> *enabled);
   void updateRect(const Rect &rect, short lineHeight);
   void draw();
+  virtual void render(declara::core::scene::IPlatformController *controller);
+  virtual short layout(declara::core::scene::IPlatformController *controller,
+                       declara::core::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
   const Rect &rect() const { return rect_; }

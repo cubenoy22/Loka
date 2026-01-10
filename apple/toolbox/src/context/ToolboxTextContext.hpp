@@ -7,6 +7,16 @@
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      class IPlatformController;
+    }
+  }
+}
 
 class ToolboxTextContext : public declara::core::scene::NativeNodeContext
 {
@@ -17,6 +27,9 @@ public:
   void updateData(declara::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
   void draw(ToolboxScenePlatformController *controller);
+  virtual void render(declara::core::scene::IPlatformController *controller);
+  virtual short layout(declara::core::scene::IPlatformController *controller,
+                       declara::core::scene::LayoutState &state);
 
 private:
   declara::app::TextNode *node_;

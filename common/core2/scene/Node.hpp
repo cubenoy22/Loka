@@ -60,7 +60,18 @@ namespace declara
       };
 
       struct INestable;
+      class IPlatformController;
       class Node; // forward declaration for NodeContext owner
+
+      struct LayoutState
+      {
+        short x;
+        short y;
+        short lineHeight;
+        short spacing;
+
+        LayoutState() : x(0), y(0), lineHeight(0), spacing(0) {}
+      };
 
       // Minimal NodeContext implementation
       struct NodeContext
@@ -72,6 +83,8 @@ namespace declara
 
         void setOwner(Node *owner) { owner_ = owner; }
         Node *owner() const { return owner_; }
+        virtual void render(IPlatformController *) {}
+        virtual short layout(IPlatformController *, LayoutState &) { return 0; }
 
       private:
         NodeContext(const NodeContext &);
@@ -97,6 +110,21 @@ namespace declara
         virtual void compose() {}
         virtual NodeKind kind() const { return NODE_KIND_UNKNOWN; }
         virtual INestable *asNestable() { return 0; }
+        virtual void render(IPlatformController *controller)
+        {
+          if (context)
+          {
+            context->render(controller);
+          }
+        }
+        virtual short layout(IPlatformController *controller, LayoutState &state)
+        {
+          if (context)
+          {
+            return context->layout(controller, state);
+          }
+          return 0;
+        }
 
         Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0) {}
 

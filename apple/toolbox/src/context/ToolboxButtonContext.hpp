@@ -7,6 +7,16 @@
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      class IPlatformController;
+    }
+  }
+}
 
 class ToolboxButtonContext : public declara::core::scene::NativeNodeContext
 {
@@ -20,6 +30,9 @@ public:
                   short resourceId);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
+  virtual void render(declara::core::scene::IPlatformController *controller);
+  virtual short layout(declara::core::scene::IPlatformController *controller,
+                       declara::core::scene::LayoutState &state);
 
 private:
   declara::app::ButtonNode *node_;
