@@ -36,6 +36,7 @@ private:
     virtual void composeMenu(declara::app::MenuComposition &c)
     {
       using namespace declara::app;
+      c.reserveStates(1); // randomSeedState_
       c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
                           << MenuSeparator()
                           << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));

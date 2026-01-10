@@ -58,6 +58,8 @@ namespace declara
       {
         return new BoxDefinition(*this);
       }
+      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
     // DSL向け短縮名
     typedef BoxDefinition Box;

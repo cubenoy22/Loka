@@ -16,7 +16,7 @@ namespace declara
       struct INestable;
 
       // createNodeTreeの再帰ヘルパー
-      static Node *createNodeRecursive(const NodeDefinitionBase *def)
+      static Node *createNodeRecursive(NodeDefinitionBase *def)
       {
         if (!def)
         {
@@ -27,7 +27,7 @@ namespace declara
         Node *node = def->create();
 
         // 2. 子を持つことができるかチェック
-        const INestableDefinition *nestableDef = dynamic_cast<const INestableDefinition *>(def);
+        INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
 
         if (nestableDef && nestableNode)

@@ -55,6 +55,8 @@ namespace declara
       {
         return new ColumnDefinition(*this);
       }
+      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
 
     struct RowTypeTag
@@ -105,6 +107,8 @@ namespace declara
       {
         return new RowDefinition(*this);
       }
+      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
 
     typedef ColumnDefinition Column;

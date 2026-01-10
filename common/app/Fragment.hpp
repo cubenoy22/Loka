@@ -53,6 +53,8 @@ namespace declara
       {
         return new FragmentDefinition(*this);
       }
+      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
 
     typedef FragmentDefinition Fragment;

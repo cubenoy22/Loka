@@ -13,6 +13,11 @@
 #include "ToolboxControlSlots.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
+#include <string>
+
+#if defined(LOKA_RETRO68)
+extern std::string gProfileResultString;
+#endif
 
 namespace helloworld
 {
@@ -52,7 +57,8 @@ namespace helloworld
           message_(),
           fruitIndex_(),
           fruitMessage_(),
-          toggleEvent_()
+          toggleEvent_(),
+          bmiResult_()
     {
       this->fruits_.push_back(loka::core::String::Literal("Apple"));
       this->fruits_.push_back(loka::core::String::Literal("Banana"));
@@ -63,9 +69,19 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
+      c.reserveStates(5); // message_, fruitIndex_, fruitMessage_, profileResult_, bmiResult_
       this->message_ = c.useState<loka::core::String>(loka::core::String::Literal("Hello, Loka!"));
       this->fruitIndex_ = c.useState<int>(0);
       this->fruitMessage_ = c.useState<loka::core::String>(loka::core::String::Literal("You chose Apple."));
+#if defined(LOKA_RETRO68)
+      this->profileResult_ = c.useState<loka::core::String>(loka::core::String(gProfileResultString));
+#else
+      this->profileResult_ = c.useState<loka::core::String>(loka::core::String::Literal(""));
+#endif
+      // BMI: 固定値で初期化 (height=170cm, weight=60kg)
+      // BMI = weight / (height/100)^2 = weight * 10000 / (height * height)
+      // 60 * 10000 / (170 * 170) = 600000 / 28900 = 20.76
+      this->bmiResult_ = c.useState<loka::core::String>(loka::core::String::Literal("BMI: 20.76"));
       this->bindForUi(toggleEvent_, this, &MainNode::toggleMessage);
       this->bindForUi(fruitChangedEvent_, this, &MainNode::handleFruitChanged);
     }
@@ -121,6 +137,8 @@ namespace helloworld
     declara::core::scene::BoundState<loka::core::String> message_;
     declara::core::scene::BoundState<int> fruitIndex_;
     declara::core::scene::BoundState<loka::core::String> fruitMessage_;
+    declara::core::scene::BoundState<loka::core::String> profileResult_;
+    declara::core::scene::BoundState<loka::core::String> bmiResult_;
     loka::Vector<loka::core::String> fruits_;
     EmitterState toggleEvent_;
     EmitterState fruitChangedEvent_;
@@ -146,7 +164,11 @@ namespace helloworld
             << Text("Loka Sample")
             << Text(this->props.owner->message_)
             << Button("Add +", &this->props.owner->toggleEvent_).toolboxControl(kToolboxControlAddButton)
-            << BmiCalculator());
+            // BMI inline (no GroupNode, no floating point)
+            << Text("BMI Calculator")
+            << Text("Height: 170cm")
+            << Text("Weight: 60kg")
+            << Text(this->props.owner->bmiResult_));
         return;
       }
       c.declare(

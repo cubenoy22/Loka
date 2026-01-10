@@ -212,6 +212,9 @@ namespace declara
         const void *propsTypeId() const { return staticTypeId(); }
       };
 
+      // Forward declaration
+      struct INestableDefinition;
+
       // --- NodeDefinitionの型消去基底 ---
       struct NodeDefinitionBase
       {
@@ -231,6 +234,7 @@ namespace declara
         virtual Node *create() const = 0;
         virtual NodeDefinitionBase *clone() const = 0;
         virtual bool isBoundary() const { return false; }
+        virtual INestableDefinition *asNestableDefinition() { return 0; }
         NodeDefinitionBase *nextInComposition;
 
         void setCleanupHook(CleanupHook hook, void *context)
@@ -302,6 +306,9 @@ namespace declara
         virtual void addOwnedChild(NodeDefinitionBase *child) { addChild(child); }
         virtual NodeDefinitionBase *childrenHead() const = 0;
         virtual size_t childrenCount() const = 0;
+
+        // Type cast (avoid dynamic_cast for 68k performance)
+        virtual const NodeDefinitionBase *asNodeDefinitionBase() const = 0;
 
         // Overloads
         INestableDefinition &operator<<(NodeDefinitionBase &child);
