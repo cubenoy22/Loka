@@ -24,6 +24,7 @@ public:
   virtual void destroy();
 
   void render();
+  void renderDirty(const Rect &rect);
   bool handleMouseDown(const Point &point);
   void recordButtonHit(const Rect &rect,
                        declara::core::EmitterState *emitter,
@@ -121,6 +122,7 @@ private:
   std::vector<TextBinding *> textBindings_;
   bool inBatchUpdate_;
   bool pendingFullInvalidate_;
+  bool forceFullRedraw_;
   std::vector<Rect> pendingDirtyRects_;
   std::vector<declara::core::State<loka::core::String> *> pendingTextStates_;
   RgnHandle clipRgn_;

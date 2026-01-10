@@ -293,6 +293,19 @@ namespace
     }
     RenderChildren(node->asNestable(), controller);
   }
+
+  bool RectsIntersect(const Rect &a, const Rect &b)
+  {
+    if (a.right < b.left || a.left > b.right)
+    {
+      return false;
+    }
+    if (a.bottom < b.top || a.top > b.bottom)
+    {
+      return false;
+    }
+    return true;
+  }
 }
 
 ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *window)
@@ -304,6 +317,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       hasFocusedRect_(false),
       inBatchUpdate_(false),
       pendingFullInvalidate_(false),
+      forceFullRedraw_(false),
       pendingDirtyRects_(),
       clipRgn_(NewRgn()),
       hasClip_(false)
@@ -412,6 +426,62 @@ void ToolboxScenePlatformController::render()
     }
     ++i;
   }
+}
+
+void ToolboxScenePlatformController::renderDirty(const Rect &rect)
+{
+  if (!window_ || !window_->window() || !rootNode_)
+  {
+    return;
+  }
+  if (forceFullRedraw_)
+  {
+    forceFullRedraw_ = false;
+    render();
+    return;
+  }
+  if (textHits_.empty() && popupContexts_.empty() && buttonControls_.empty() && editControls_.empty())
+  {
+    render();
+    return;
+  }
+  for (size_t i = 0; i < popupContexts_.size(); ++i)
+  {
+    ToolboxPopupMenuContext *ctx = popupContexts_[i];
+    if (!ctx)
+    {
+      continue;
+    }
+    if (!RectsIntersect(rect, ctx->rect()))
+    {
+      continue;
+    }
+    ctx->draw();
+  }
+  for (size_t i = 0; i < textHits_.size(); ++i)
+  {
+    TextHit &hit = textHits_[i];
+    if (!RectsIntersect(rect, hit.rect))
+    {
+      continue;
+    }
+    redrawTextHit(hit);
+  }
+  for (size_t i = 0; i < editControls_.size(); ++i)
+  {
+    EditTextControlBinding &binding = editControls_[i];
+    if (!binding.te || !binding.usedThisFrame)
+    {
+      continue;
+    }
+    if (!RectsIntersect(rect, binding.rect))
+    {
+      continue;
+    }
+    TEUpdate(&binding.rect, binding.te);
+    FrameRect(&binding.rect);
+  }
+  drawControlsInRect(rect);
 }
 
 bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
@@ -674,6 +744,7 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
         }
         else
         {
+          forceFullRedraw_ = true;
           if (window_->window())
           {
             window_->drawDirty(window_->window()->portRect);
@@ -759,6 +830,7 @@ void ToolboxScenePlatformController::endBatchUpdate()
     }
     if (pendingFullInvalidate_ && window_->window())
     {
+      forceFullRedraw_ = true;
       window_->drawDirty(window_->window()->portRect);
     }
   }
