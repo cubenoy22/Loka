@@ -2,13 +2,16 @@
 
 ## Open
 
+- Define Modifier system (Text style + Window sizing) and wire through WindowProps/Layout.
 - Decide default window size (macOS/Win32/Toolbox) and unify hardcoded values.
 - Menu bar support vs. Retro68 deep support: pick next priority.
 - Menu bar support (macOS/Win32/Toolbox).
 - Sample: Image viewer.
 - Sample: MyTracker (editable device spec catalog).
 - Reduce remaining std::string usage where Loka::String is feasible.
-- Add modifiers (Text style/Window size) after basic UI stabilization.
+- Toolbox game rendering: offscreen GWorld + CopyBits dirty-rect path (Sprite/Canvas baseline).
+- Win32 game rendering: DIB back buffer + BitBlt dirty-rect path (Sprite/Canvas baseline).
+- Event loop + VBL/timer tick design for game-style rendering (separate from UI updates).
 - Window close request: delegate to Scene/Root.
 - Managed<T> circular reference patterns (Group/Weak or one-way ref policy).
 - Headless/Loader components should require ErrorSink for unified error flow.
