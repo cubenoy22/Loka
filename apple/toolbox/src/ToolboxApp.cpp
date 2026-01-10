@@ -38,7 +38,8 @@ void ToolboxApp::run()
     ToolboxWindow *firstWindow = 0;
     for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
     {
-      ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+      Window *w = (*it)->asWindow();
+      ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
       if (toolboxWindow)
       {
         if (!firstWindow)
@@ -66,14 +67,15 @@ void ToolboxApp::run()
       const std::vector<AppComponent *> &comps = group_->getComponents();
       for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
       {
-        ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+        Window *w = (*it)->asWindow();
+        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
         if (toolboxWindow)
         {
           toolboxWindow->idleControls();
         }
       }
     }
-    ToolboxWindow *active = dynamic_cast<ToolboxWindow *>(activeWindow());
+    ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
     if (active)
     {
       active->updateCursor();
@@ -86,7 +88,8 @@ void ToolboxApp::run()
         const std::vector<AppComponent *> &comps = group_->getComponents();
         for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
         {
-          ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+          Window *w = (*it)->asWindow();
+          ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
             BeginUpdate(target);
@@ -123,7 +126,8 @@ void ToolboxApp::run()
             const std::vector<AppComponent *> &comps = group_->getComponents();
             for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
             {
-              ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+              Window *w = (*it)->asWindow();
+              ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
               if (toolboxWindow && toolboxWindow->window() == target)
               {
                 closing = toolboxWindow;
@@ -146,7 +150,8 @@ void ToolboxApp::run()
           const std::vector<AppComponent *> &comps = group_->getComponents();
           for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
           {
-            ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+            Window *w = (*it)->asWindow();
+            ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
             if (toolboxWindow && toolboxWindow->window() == target)
             {
               clicked = toolboxWindow;
@@ -185,7 +190,8 @@ void ToolboxApp::run()
         const std::vector<AppComponent *> &comps = group_->getComponents();
         for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
         {
-          ToolboxWindow *toolboxWindow = dynamic_cast<ToolboxWindow *>(*it);
+          Window *w = (*it)->asWindow();
+          ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
             setActiveWindow(toolboxWindow);
@@ -196,7 +202,7 @@ void ToolboxApp::run()
     }
     else if (event.what == keyDown || event.what == autoKey)
     {
-      ToolboxWindow *active = dynamic_cast<ToolboxWindow *>(activeWindow());
+      ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
       if (active)
       {
         char key = static_cast<char>(event.message & charCodeMask);

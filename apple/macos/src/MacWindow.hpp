@@ -22,6 +22,7 @@ class MacWindow : public Window
 public:
   MacWindow(PlatformContext *context, const WindowProps &props);
   virtual ~MacWindow();
+  virtual MacWindow *asMacWindow() { return this; }
 
   void setApp(App *app);
 

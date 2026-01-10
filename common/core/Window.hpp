@@ -23,6 +23,11 @@ namespace declara
 
 class PlatformContext;
 
+// Forward declarations for platform-specific windows (for asXxx methods)
+class ToolboxWindow;
+class Win32Window;
+class MacWindow;
+
 struct WindowTypeTag
 {
 };
@@ -251,6 +256,12 @@ public:
   virtual void onShow() {}
   virtual void onHide() {}
   virtual void onDestroy() {}
+
+  // Type casts (avoid dynamic_cast for 68k performance)
+  virtual Window *asWindow() { return this; }
+  virtual ToolboxWindow *asToolboxWindow() { return 0; }
+  virtual Win32Window *asWin32Window() { return 0; }
+  virtual MacWindow *asMacWindow() { return 0; }
 
 private:
 protected:

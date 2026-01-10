@@ -59,7 +59,8 @@ void MacApp::run()
     const std::vector<AppComponent *> &comps = group_->getComponents();
     for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
     {
-      MacWindow *macWin = dynamic_cast<MacWindow *>(*it);
+      Window *w = (*it)->asWindow();
+      MacWindow *macWin = w ? w->asMacWindow() : 0;
       if (macWin)
       {
         macWin->setApp(this);

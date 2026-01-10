@@ -13,6 +13,7 @@ class ToolboxWindow : public Window
 public:
   ToolboxWindow(PlatformContext *context, const WindowProps &props);
   virtual ~ToolboxWindow();
+  virtual ToolboxWindow *asToolboxWindow() { return this; }
 
   void setApp(App *app);
   void ensureSceneMounted();

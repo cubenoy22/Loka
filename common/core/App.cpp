@@ -68,7 +68,7 @@ void App::reflectInitialVisibilityChunks()
   for (size_t i = 0; i < comps.size(); ++i)
   {
     AppComponent *comp = comps[i];
-    Window *win = dynamic_cast<Window *>(comp);
+    Window *win = comp->asWindow();
     if (win && win->visibilityState().get())
     {
       declara::core::StateTracker *tracker = win->getTracker();

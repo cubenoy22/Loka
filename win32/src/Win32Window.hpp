@@ -27,6 +27,7 @@ class Win32Window : public Window
 public:
   Win32Window(PlatformContext *context, const WindowProps &props);
   virtual ~Win32Window();
+  virtual Win32Window *asWin32Window() { return this; }
 
   // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
   void setApp(App *app);

@@ -56,7 +56,8 @@ void Win32App::run()
     const std::vector<AppComponent *> &comps = group_->getComponents();
     for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
     {
-      Win32Window *win32Win = dynamic_cast<Win32Window *>(*it);
+      Window *w = (*it)->asWindow();
+      Win32Window *win32Win = w ? w->asWin32Window() : 0;
       if (win32Win)
       {
         win32Win->setApp(this);
@@ -227,7 +228,7 @@ void Win32App::applyMenuBar(Window *activeWindow)
     activeMenu_ = NULL;
   }
 
-  Win32Window *win = dynamic_cast<Win32Window *>(activeWindow);
+  Win32Window *win = activeWindow ? activeWindow->asWin32Window() : 0;
   HWND hwnd = win ? win->hwnd() : NULL;
   if (!hwnd)
   {
