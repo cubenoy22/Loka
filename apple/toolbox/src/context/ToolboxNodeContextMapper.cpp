@@ -34,6 +34,10 @@ void ToolboxNodeContextMapper::ensureButtonContext(declara::app::ButtonNode *nod
   {
     return;
   }
+  if (!hasCapability(CAP_CONTROL_MANAGER))
+  {
+    return;
+  }
   ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(node->getContext());
   if (!ctx)
   {
@@ -52,6 +56,10 @@ void ToolboxNodeContextMapper::ensureEditTextContext(declara::app::EditTextNode 
                                                      ToolboxScenePlatformController *controller)
 {
   if (!node || !controller)
+  {
+    return;
+  }
+  if (!hasCapability(CAP_TEXT_EDIT))
   {
     return;
   }

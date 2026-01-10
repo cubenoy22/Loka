@@ -312,7 +312,13 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       pendingDirtyRects_(),
       clipRgn_(NewRgn()),
       hasClip_(false),
-      contextMapper_(new ToolboxNodeContextMapper())
+      contextMapper_(new ToolboxNodeContextMapper(
+#if !defined(DECLARA_TOOLBOX_CLASSIC_6)
+          ToolboxNodeContextMapper::CAP_CONTROL_MANAGER | ToolboxNodeContextMapper::CAP_TEXT_EDIT
+#else
+          ToolboxNodeContextMapper::CAP_NONE
+#endif
+      ))
 {
 }
 
