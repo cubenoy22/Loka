@@ -72,14 +72,7 @@ namespace helloworld
       this->bindForUi(fruitChangedEvent_, this, &MainNode::handleFruitChanged);
     }
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
-    {
-      using namespace declara::app;
-      c.declare(
-          HStack()
-          << MainPanel(this, true)
-          << MainPanel(this, false));
-    }
+    virtual void composeNode(declara::core::scene::NodeComposition &c);
 
   private:
     friend class MainPanelNode;
@@ -169,6 +162,15 @@ namespace helloworld
   inline declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode> MainPanel(MainNode *owner, bool leftSide)
   {
     return declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode>(MainPanelProps(owner, leftSide));
+  }
+
+  inline void MainNode::composeNode(declara::core::scene::NodeComposition &c)
+  {
+    using namespace declara::app;
+    c.declare(
+        HStack()
+        << MainPanel(this, true)
+        << MainPanel(this, false));
   }
 
   inline declara::core::scene::NodeDefinition<MainProps, MainNode> Main()

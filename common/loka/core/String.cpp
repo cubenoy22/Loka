@@ -11,6 +11,26 @@ namespace loka
 {
   namespace core
   {
+    // Lazy concatenation - stores references instead of flattening
+    class ConcatString : public platform::String
+    {
+    public:
+      ConcatString(const Managed<platform::String> &left, const Managed<platform::String> &right)
+          : left_(left), right_(right) {}
+
+      virtual bool appendUtf8(std::string &out) const
+      {
+        if (left_.isValid() && !left_->appendUtf8(out))
+          return false;
+        if (right_.isValid() && !right_->appendUtf8(out))
+          return false;
+        return true;
+      }
+
+    private:
+      Managed<platform::String> left_;
+      Managed<platform::String> right_;
+    };
 
     String::String() : handle_()
     {
@@ -174,12 +194,9 @@ namespace loka
         return rhs;
       if (rhs.empty())
         return lhs;
-      std::string buffer;
-      if (!platform::CollectUtf8(lhs, buffer))
-        return String();
-      if (!platform::CollectUtf8(rhs, buffer))
-        return String();
-      return String::Utf8(buffer.c_str(), buffer.size());
+      // Lazy concatenation - don't flatten until needed
+      return String(Managed<platform::String>::Wrap(
+          new ConcatString(lhs.handle_, rhs.handle_)));
     }
 
     String String::FormatArray(const String &format, const String *args, std::size_t count)
