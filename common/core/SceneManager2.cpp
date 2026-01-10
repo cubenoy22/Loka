@@ -1,13 +1,14 @@
 #include "SceneManager2.hpp"
 #include <cassert>
 #include "core2/scene/Scene.hpp"
+#include "util/StateUtil.hpp"
 
 unsigned long SceneManager2::SceneTransactionList::nextId_ = 1;
 
 SceneManager2::SceneManager2()
     : currentScene_(0),
       pendingTransactions_(),
-      tracker_(makeStateVector(&currentScene_, &pendingTransactions_, 0)),
+      tracker_(makeStateVector(&currentScene_, &pendingTransactions_, STATE_NULL)),
       window_(0)
 {
 }

@@ -15,6 +15,9 @@ namespace declara
 // Build a vector<StateBase*> using varargs (C++98-friendly). Use typedefs to avoid nested template closers.
 typedef declara::core::StateBase StateBaseType;
 typedef std::vector<StateBaseType *> StateVector;
+
+// Null terminator for makeStateVector - must be properly typed for 64-bit varargs
+#define STATE_NULL ((StateBaseType *)0)
 static StateVector makeStateVector(StateBaseType *first, ...)
 {
   StateVector v;

@@ -141,8 +141,6 @@ namespace declara
       }
       virtual void setValue(const T &v) { set(v); }
       // setValue(const ValueHolderBase&) removed as no longer needed
-      // Bind API: Call cb when value changes
-      virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
       // Notify
       void notifyStateChanged()
       {
@@ -364,7 +362,7 @@ namespace declara
         this->value = evalFn ? (*evalFn)() : T();
       }
 
-      std::vector<StateBase *> getDependencyStates() const
+      virtual std::vector<StateBase *> getDependencyStates() const
       {
         return dependencies;
       }
