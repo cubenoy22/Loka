@@ -13,6 +13,7 @@
 #include "app/EditText.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
+#include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxButtonContext.hpp"
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
@@ -87,11 +88,10 @@ namespace
   void RenderNode(declara::core::scene::Node *node,
                   ToolboxScenePlatformController *controller);
 
-  short LayoutChildren(declara::core::scene::Node *node,
+  short LayoutChildren(declara::core::scene::INestable *nestable,
                        RenderState &state,
                        ToolboxScenePlatformController *controller)
   {
-    declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
     if (!nestable)
     {
       return 0;
@@ -120,7 +120,7 @@ namespace
     switch (node->kind())
     {
     case declara::core::scene::NODE_KIND_COLUMN:
-      return LayoutChildren(node, state, controller);
+      return LayoutChildren(node->asNestable(), state, controller);
     case declara::core::scene::NODE_KIND_ROW:
     {
       declara::core::scene::NestableNode *nestable = static_cast<declara::core::scene::NestableNode *>(node);
@@ -152,16 +152,9 @@ namespace
         rect.top = static_cast<short>(state.y - state.lineHeight + 2);
         rect.right = static_cast<short>(state.x + width);
         rect.bottom = static_cast<short>(state.y + 6);
-        if (controller)
+        if (controller && controller->contextMapper_)
         {
-          ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
-          if (!ctx)
-          {
-            ctx = new ToolboxTextContext(text);
-            text->setContext(ctx);
-          }
-          ctx->updateData(text->props.text_);
-          ctx->updateRect(rect, state.x, state.y);
+          controller->contextMapper_->ensureTextContext(text, rect, state.x, state.y, controller);
         }
         state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
         return width;
@@ -182,16 +175,9 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width);
       rect.bottom = static_cast<short>(state.y + 6);
-      if (controller)
+      if (controller && controller->contextMapper_)
       {
-        ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
-        if (!ctx)
-        {
-          ctx = new ToolboxButtonContext(button);
-          button->setContext(ctx);
-        }
-        ctx->updateData(label, button->props.onClick_, button->props.enabled_, button->props.toolboxControlId_);
-        ctx->updateRect(rect);
+        controller->contextMapper_->ensureButtonContext(button, rect, label, controller);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -210,16 +196,9 @@ namespace
       textRect.top = static_cast<short>(textRect.top + 2);
       textRect.right = static_cast<short>(textRect.right - 1);
       textRect.bottom = static_cast<short>(textRect.bottom - 1);
-      if (controller)
+      if (controller && controller->contextMapper_)
       {
-        ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
-        if (!ctx)
-        {
-          ctx = new ToolboxEditTextContext(edit);
-          edit->setContext(ctx);
-        }
-        ctx->updateData(edit->props.text_);
-        ctx->updateRect(rect, textRect, static_cast<short>(state.x + 4), state.y);
+        controller->contextMapper_->ensureEditTextContext(edit, rect, textRect, static_cast<short>(state.x + 4), state.y, controller);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -233,17 +212,9 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width + 8);
       rect.bottom = static_cast<short>(state.y + 6);
-      ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
-      if (!ctx)
+      if (controller && controller->contextMapper_)
       {
-        ctx = new ToolboxPopupMenuContext(popup);
-        popup->setContext(ctx);
-      }
-      ctx->updateData(popup->props.items_, popup->props.selectedIndex_, popup->props.onChange_, popup->props.enabled_);
-      ctx->updateRect(rect, state.lineHeight);
-      if (controller)
-      {
-        controller->registerPopupContext(ctx);
+        controller->contextMapper_->ensurePopupMenuContext(popup, rect, state.lineHeight, controller);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -251,13 +222,12 @@ namespace
     default:
       break;
     }
-    return LayoutChildren(node, state, controller);
+    return LayoutChildren(node->asNestable(), state, controller);
   }
 
-  void RenderChildren(declara::core::scene::Node *node,
+  void RenderChildren(declara::core::scene::INestable *nestable,
                       ToolboxScenePlatformController *controller)
   {
-    declara::core::scene::INestable *nestable = dynamic_cast<declara::core::scene::INestable *>(node);
     if (!nestable)
     {
       return;
@@ -279,10 +249,10 @@ namespace
     switch (node->kind())
     {
     case declara::core::scene::NODE_KIND_COLUMN:
-      RenderChildren(node, controller);
+      RenderChildren(node->asNestable(), controller);
       return;
     case declara::core::scene::NODE_KIND_ROW:
-      RenderChildren(node, controller);
+      RenderChildren(node->asNestable(), controller);
       return;
     case declara::core::scene::NODE_KIND_TEXT:
     {
@@ -327,7 +297,7 @@ namespace
     default:
       break;
     }
-    RenderChildren(node, controller);
+    RenderChildren(node->asNestable(), controller);
   }
 }
 
@@ -341,7 +311,8 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       inBatchUpdate_(false),
       pendingDirtyRects_(),
       clipRgn_(NewRgn()),
-      hasClip_(false)
+      hasClip_(false),
+      contextMapper_(new ToolboxNodeContextMapper())
 {
 }
 
@@ -349,6 +320,8 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
 {
   clearTextBindings();
   clearControls();
+  delete contextMapper_;
+  contextMapper_ = 0;
   if (clipRgn_)
   {
     DisposeRgn(clipRgn_);
@@ -395,10 +368,10 @@ void ToolboxScenePlatformController::render()
   {
     editControls_[i].usedThisFrame = false;
   }
-  textHits_.clear();
-  popupContexts_.clear();
-  pendingTextStates_.clear();
-  pendingDirtyRects_.clear();
+      textHits_.clear();
+      popupContexts_.clear();
+      pendingTextStates_.clear();
+      pendingDirtyRects_.clear();
   RenderState state;
   state.x = 12;
   state.y = 24;

@@ -10,6 +10,7 @@
 
 class ToolboxWindow;
 class ToolboxPopupMenuContext;
+class ToolboxNodeContextMapper;
 
 class ToolboxScenePlatformController : public declara::core::scene::IPlatformController
 {
@@ -108,6 +109,7 @@ private:
   std::vector<declara::core::State<loka::core::String> *> pendingTextStates_;
   RgnHandle clipRgn_;
   bool hasClip_;
+  ToolboxNodeContextMapper *contextMapper_;
 
   bool handleTextKey(char key);
   void bindTextState(declara::core::State<loka::core::String> *text);

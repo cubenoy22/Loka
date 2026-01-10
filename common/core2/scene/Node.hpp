@@ -59,6 +59,7 @@ namespace declara
         NODE_KIND_POPUP_MENU
       };
 
+      struct INestable;
       class Node; // forward declaration for NodeContext owner
 
       // Minimal NodeContext implementation
@@ -95,6 +96,7 @@ namespace declara
         }
         virtual void compose() {}
         virtual NodeKind kind() const { return NODE_KIND_UNKNOWN; }
+        virtual INestable *asNestable() { return 0; }
 
         Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0) {}
 
@@ -364,6 +366,7 @@ namespace declara
 
         virtual Node *childrenHead() const { return children_.head(); }
         virtual size_t childrenCount() const { return children_.count(); }
+        virtual INestable *asNestable() { return this; }
 
       protected:
         loka::dsl::CompositionList<Node> children_;
