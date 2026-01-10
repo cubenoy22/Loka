@@ -31,6 +31,7 @@ namespace
 
 ToolboxPopupMenuContext::ToolboxPopupMenuContext(declara::app::PopupMenuNode *node)
     : node_(node),
+      boundary_(0),
       rect_(),
       lineHeight_(0),
       items_(0),
@@ -194,7 +195,7 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   short item = static_cast<short>(choice & 0xFFFF);
   if (item > 0 && controller)
   {
-    controller->applyPopupSelectionChange(rect_, selectedIndex_, onChange_, static_cast<int>(item - 1));
+    controller->applyPopupSelectionChange(rect_, boundary_, selectedIndex_, onChange_, static_cast<int>(item - 1));
   }
   DeleteMenu(2000);
   DisposeMenu(menu);

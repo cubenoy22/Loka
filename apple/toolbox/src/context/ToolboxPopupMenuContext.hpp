@@ -14,6 +14,16 @@ namespace declara
   {
     namespace scene
     {
+      class BoundaryNode;
+    }
+  }
+}
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
       class IPlatformController;
     }
   }
@@ -25,6 +35,7 @@ public:
   explicit ToolboxPopupMenuContext(declara::app::PopupMenuNode *node);
   virtual ~ToolboxPopupMenuContext();
 
+  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(const loka::Vector<loka::core::String> *items,
                   declara::core::State<int> *selectedIndex,
                   declara::core::EmitterState *onChange,
@@ -43,6 +54,7 @@ private:
   void copyToPascalString(const loka::core::String &value, Str255 out) const;
 
   declara::app::PopupMenuNode *node_;
+  declara::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   short lineHeight_;
   const loka::Vector<loka::core::String> *items_;

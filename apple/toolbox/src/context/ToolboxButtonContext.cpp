@@ -32,6 +32,7 @@ namespace
 
 ToolboxButtonContext::ToolboxButtonContext(declara::app::ButtonNode *node)
     : node_(node),
+      boundary_(0),
       rect_(),
       label_(loka::core::String::Literal("Button")),
       emitter_(0),
@@ -73,7 +74,7 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
                label_);
   if (controller)
   {
-    controller->recordButtonHit(rect_, emitter_, enabled_);
+    controller->recordButtonHit(rect_, emitter_, enabled_, boundary_);
   }
 }
 

@@ -13,6 +13,16 @@ namespace declara
   {
     namespace scene
     {
+      class BoundaryNode;
+    }
+  }
+}
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
       class IPlatformController;
     }
   }
@@ -24,6 +34,7 @@ public:
   explicit ToolboxTextContext(declara::app::TextNode *node);
   virtual ~ToolboxTextContext();
 
+  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(declara::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
   void draw(ToolboxScenePlatformController *controller);
@@ -33,6 +44,7 @@ public:
 
 private:
   declara::app::TextNode *node_;
+  declara::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   short textX_;
   short textY_;

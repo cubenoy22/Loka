@@ -32,6 +32,7 @@ namespace
 
 ToolboxTextContext::ToolboxTextContext(declara::app::TextNode *node)
     : node_(node),
+      boundary_(0),
       rect_(),
       textX_(0),
       textY_(0),
@@ -62,7 +63,7 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
   DrawStringAt(textX_, textY_, text_->get());
   if (controller)
   {
-    controller->recordTextHit(rect_, textX_, textY_, text_);
+    controller->recordTextHit(rect_, textX_, textY_, text_, boundary_);
   }
 }
 

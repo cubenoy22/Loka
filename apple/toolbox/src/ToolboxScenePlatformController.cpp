@@ -16,6 +16,10 @@
 #include "app/RowColumn.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
+#include "context/ToolboxButtonContext.hpp"
+#include "context/ToolboxEditTextContext.hpp"
+#include "context/ToolboxTextContext.hpp"
+#include "context/ToolboxLayoutUtil.hpp"
 #include "core2/scene/Node.hpp"
 #include "core2/scene/node/Boundary.hpp"
 
@@ -63,15 +67,37 @@ namespace
     }
   }
 
+  bool UseBoundaryDirty(const declara::core::scene::BoundaryNode *boundary)
+  {
+    return boundary && boundary->parentBoundary() && boundary->hasLayoutBounds();
+  }
+
+  Rect BoundaryToRect(const declara::core::scene::BoundaryNode *boundary, const Rect &fallback)
+  {
+    if (!UseBoundaryDirty(boundary))
+    {
+      return fallback;
+    }
+    const declara::core::scene::BoundaryNode::LayoutBounds &bounds = boundary->layoutBounds();
+    Rect rect;
+    rect.left = static_cast<short>(bounds.x);
+    rect.top = static_cast<short>(bounds.y);
+    rect.right = static_cast<short>(bounds.x + bounds.width);
+    rect.bottom = static_cast<short>(bounds.y + bounds.height);
+    return rect;
+  }
+
   short LayoutNode(declara::core::scene::Node *node,
                    declara::core::scene::LayoutState &state,
-                   ToolboxScenePlatformController *controller);
+                   ToolboxScenePlatformController *controller,
+                   declara::core::scene::BoundaryNode *currentBoundary);
   void RenderNode(declara::core::scene::Node *node,
                   ToolboxScenePlatformController *controller);
 
   short LayoutChildren(declara::core::scene::INestable *nestable,
                        declara::core::scene::LayoutState &state,
-                       ToolboxScenePlatformController *controller)
+                       ToolboxScenePlatformController *controller,
+                       declara::core::scene::BoundaryNode *currentBoundary)
   {
     if (!nestable)
     {
@@ -81,7 +107,7 @@ namespace
     loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
     for (declara::core::scene::Node *child = it.next(); child; child = it.next())
     {
-      short width = LayoutNode(child, state, controller);
+      short width = LayoutNode(child, state, controller, currentBoundary);
       if (width > maxWidth)
       {
         maxWidth = width;
@@ -92,13 +118,15 @@ namespace
 
   short LayoutNode(declara::core::scene::Node *node,
                    declara::core::scene::LayoutState &state,
-                   ToolboxScenePlatformController *controller)
+                   ToolboxScenePlatformController *controller,
+                   declara::core::scene::BoundaryNode *currentBoundary)
   {
     if (!node)
     {
       return 0;
     }
     declara::core::scene::BoundaryNode *boundary = dynamic_cast<declara::core::scene::BoundaryNode *>(node);
+    declara::core::scene::BoundaryNode *activeBoundary = boundary ? boundary : currentBoundary;
     const short startX = state.x;
     const short startY = state.y;
     const short startTop = static_cast<short>(startY - state.lineHeight + 2);
@@ -106,7 +134,7 @@ namespace
     {
     case declara::core::scene::NODE_KIND_COLUMN:
     {
-      short width = LayoutChildren(node->asNestable(), state, controller);
+      short width = LayoutChildren(node->asNestable(), state, controller, activeBoundary);
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
@@ -123,7 +151,7 @@ namespace
       {
         declara::core::scene::LayoutState rowState = state;
         rowState.x = rowStartX;
-        short width = LayoutNode(child, rowState, controller);
+        short width = LayoutNode(child, rowState, controller, activeBoundary);
         rowStartX = static_cast<short>(rowStartX + width + state.spacing);
         if (rowState.y > state.y)
         {
@@ -145,6 +173,11 @@ namespace
       {
         controller->contextMapper()->ensureTextContext(text);
       }
+      if (text->getContext())
+      {
+        ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
+        ctx->setBoundary(activeBoundary);
+      }
       short width = node->layout(controller, state);
       if (boundary)
       {
@@ -158,6 +191,11 @@ namespace
       if (controller && controller->contextMapper())
       {
         controller->contextMapper()->ensureButtonContext(button);
+      }
+      if (button->getContext())
+      {
+        ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
+        ctx->setBoundary(activeBoundary);
       }
       short width = node->layout(controller, state);
       if (boundary)
@@ -173,6 +211,11 @@ namespace
       {
         controller->contextMapper()->ensureEditTextContext(edit);
       }
+      if (edit->getContext())
+      {
+        ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
+        ctx->setBoundary(activeBoundary);
+      }
       short width = node->layout(controller, state);
       if (boundary)
       {
@@ -187,6 +230,11 @@ namespace
       {
         controller->contextMapper()->ensurePopupMenuContext(popup);
       }
+      if (popup->getContext())
+      {
+        ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
+        ctx->setBoundary(activeBoundary);
+      }
       short width = node->layout(controller, state);
       if (boundary)
       {
@@ -197,7 +245,7 @@ namespace
     default:
       break;
     }
-    short width = LayoutChildren(node->asNestable(), state, controller);
+    short width = LayoutChildren(node->asNestable(), state, controller, activeBoundary);
     if (boundary)
     {
       boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
@@ -338,7 +386,7 @@ void ToolboxScenePlatformController::render()
   state.y = 24;
   state.lineHeight = 14;
   state.spacing = 6;
-  LayoutNode(rootNode_, state, this);
+  LayoutNode(rootNode_, state, this, 0);
   RenderNode(rootNode_, this);
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
@@ -453,7 +501,8 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
 
 void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
                                                      declara::core::EmitterState *emitter,
-                                                     declara::core::State<bool> *enabled)
+                                                     declara::core::State<bool> *enabled,
+                                                     declara::core::scene::BoundaryNode *boundary)
 {
   if (!emitter)
   {
@@ -463,14 +512,18 @@ void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
   hit.rect = rect;
   hit.emitter = emitter;
   hit.enabled = enabled;
+  hit.boundary = boundary;
   buttonHits_.push_back(hit);
 }
 
-void ToolboxScenePlatformController::recordEditHit(const Rect &rect, declara::core::State<loka::core::String> *text)
+void ToolboxScenePlatformController::recordEditHit(const Rect &rect,
+                                                   declara::core::State<loka::core::String> *text,
+                                                   declara::core::scene::BoundaryNode *boundary)
 {
   EditHit hit;
   hit.rect = rect;
   hit.text = text;
+  hit.boundary = boundary;
   editHits_.push_back(hit);
   bindTextState(text);
   if (text && focusedText_ == text)
@@ -483,7 +536,8 @@ void ToolboxScenePlatformController::recordEditHit(const Rect &rect, declara::co
 void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
                                                    short x,
                                                    short y,
-                                                   declara::core::State<loka::core::String> *text)
+                                                   declara::core::State<loka::core::String> *text,
+                                                   declara::core::scene::BoundaryNode *boundary)
 {
   if (!text)
   {
@@ -494,6 +548,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   hit.x = x;
   hit.y = y;
   hit.text = text;
+  hit.boundary = boundary;
   textHits_.push_back(hit);
   bindTextState(text);
 }
@@ -507,6 +562,7 @@ void ToolboxScenePlatformController::registerPopupContext(ToolboxPopupMenuContex
 }
 
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
+                                                               declara::core::scene::BoundaryNode *boundary,
                                                                declara::core::State<int> *selectedIndex,
                                                                declara::core::EmitterState *onChange,
                                                                int newIndex)
@@ -529,7 +585,8 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   endBatchUpdate();
   if (window_)
   {
-    window_->drawDirty(rect);
+    Rect dirty = BoundaryToRect(boundary, rect);
+    window_->drawDirty(dirty);
   }
   for (size_t k = 0; k < textHits_.size(); ++k)
   {
@@ -607,13 +664,32 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
     TextHit &hit = textHits_[i];
     if (hit.text == text)
     {
+      short measured = ToolboxMeasureTextWidth(text->get());
+      short currentWidth = static_cast<short>(hit.rect.right - hit.rect.left);
+      if (measured != currentWidth)
+      {
+        if (inBatchUpdate_)
+        {
+          pendingFullInvalidate_ = true;
+        }
+        else
+        {
+          if (window_->window())
+          {
+            window_->drawDirty(window_->window()->portRect);
+          }
+        }
+        return;
+      }
       if (inBatchUpdate_)
       {
-        addPendingText(text);
+        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
+        addPendingDirty(dirty);
       }
       else
       {
-        redrawTextHit(hit);
+        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
+        window_->drawDirty(dirty);
       }
       return;
     }
@@ -625,11 +701,13 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
     {
       if (inBatchUpdate_)
       {
-        addPendingDirty(hit.rect);
+        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
+        addPendingDirty(dirty);
       }
       else
       {
-        window_->drawDirty(hit.rect);
+        Rect dirty = BoundaryToRect(hit.boundary, hit.rect);
+        window_->drawDirty(dirty);
       }
       return;
     }
@@ -679,9 +757,9 @@ void ToolboxScenePlatformController::endBatchUpdate()
     {
       redrawTextFor(pendingTextStates_[i]);
     }
-    if (pendingFullInvalidate_)
+    if (pendingFullInvalidate_ && window_->window())
     {
-      window_->requestInvalidate();
+      window_->drawDirty(window_->window()->portRect);
     }
   }
   pendingDirtyRects_.clear();

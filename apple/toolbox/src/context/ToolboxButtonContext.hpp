@@ -13,6 +13,16 @@ namespace declara
   {
     namespace scene
     {
+      class BoundaryNode;
+    }
+  }
+}
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
       class IPlatformController;
     }
   }
@@ -24,6 +34,7 @@ public:
   explicit ToolboxButtonContext(declara::app::ButtonNode *node);
   virtual ~ToolboxButtonContext();
 
+  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(const loka::core::String &label,
                   declara::core::EmitterState *emitter,
                   declara::core::State<bool> *enabled,
@@ -36,6 +47,7 @@ public:
 
 private:
   declara::app::ButtonNode *node_;
+  declara::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   loka::core::String label_;
   declara::core::EmitterState *emitter_;

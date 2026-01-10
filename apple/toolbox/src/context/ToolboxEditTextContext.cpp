@@ -31,6 +31,7 @@ namespace
 
 ToolboxEditTextContext::ToolboxEditTextContext(declara::app::EditTextNode *node)
     : node_(node),
+      boundary_(0),
       rect_(),
       textRect_(),
       textX_(0),
@@ -77,7 +78,7 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
   DrawStringAt(textX_, textY_, text_->get());
   if (controller)
   {
-    controller->recordEditHit(rect_, text_);
+    controller->recordEditHit(rect_, text_, boundary_);
   }
 }
 

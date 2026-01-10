@@ -19,6 +19,33 @@ namespace helloworld
   class MainNode;
   typedef declara::core::scene::DynamicCompositionPropsFor<MainNode> MainProps;
 
+  struct MainPanelTypeTag
+  {
+  };
+
+  class MainPanelNode;
+
+  struct MainPanelProps : public declara::core::scene::NodePropsBase<MainPanelProps>
+  {
+    typedef MainPanelTypeTag TypeTag;
+    typedef MainPanelNode NodeType;
+    MainNode *owner;
+    bool leftSide;
+    MainPanelProps() : owner(0), leftSide(true) {}
+    MainPanelProps(MainNode *o, bool left) : owner(o), leftSide(left) {}
+    bool operator<(const declara::core::scene::PropsBase &rhs) const
+    {
+      const MainPanelProps *other = dynamic_cast<const MainPanelProps *>(&rhs);
+      if (!other)
+      {
+        return false;
+      }
+      return owner < other->owner;
+    }
+  };
+
+  inline declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode> MainPanel(MainNode *owner, bool leftSide);
+
   class MainNode : public declara::core::scene::DynamicCompositionNodeFor<MainNode>
   {
   public:
@@ -49,17 +76,13 @@ namespace helloworld
     {
       using namespace declara::app;
       c.declare(
-          VStack()
-          << Text("Loka Sample")
-          << Text(this->message_)
-          << Button("Add +", &toggleEvent_).toolboxControl(kToolboxControlAddButton)
-          << BmiCalculator()
-          << Text("Fruit Picker")
-          << PopupMenu(&this->fruits_).selectedIndex(this->fruitIndex_).onChange(&fruitChangedEvent_)
-          << Text(this->fruitMessage_));
+          HStack()
+          << MainPanel(this, true)
+          << MainPanel(this, false));
     }
 
   private:
+    friend class MainPanelNode;
     void handleFruitChanged()
     {
       if (!this->fruitIndex_.isValid() || !this->fruitMessage_.isValid() || this->fruits_.empty())
@@ -111,6 +134,42 @@ namespace helloworld
     EmitterState toggleEvent_;
     EmitterState fruitChangedEvent_;
   };
+
+  class MainPanelNode : public declara::core::scene::DynamicCompositionBoundaryNodeBase<MainPanelProps>
+  {
+  public:
+    MainPanelNode(const MainPanelProps &p)
+        : declara::core::scene::DynamicCompositionBoundaryNodeBase<MainPanelProps>(p) {}
+
+    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    {
+      using namespace declara::app;
+      if (!this->props.owner)
+      {
+        return;
+      }
+      if (this->props.leftSide)
+      {
+        c.declare(
+            VStack()
+            << Text("Loka Sample")
+            << Text(this->props.owner->message_)
+            << Button("Add +", &this->props.owner->toggleEvent_).toolboxControl(kToolboxControlAddButton)
+            << BmiCalculator());
+        return;
+      }
+      c.declare(
+          VStack()
+          << Text("Fruit Picker")
+          << PopupMenu(&this->props.owner->fruits_).selectedIndex(this->props.owner->fruitIndex_).onChange(&this->props.owner->fruitChangedEvent_)
+          << Text(this->props.owner->fruitMessage_));
+    }
+  };
+
+  inline declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode> MainPanel(MainNode *owner, bool leftSide)
+  {
+    return declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode>(MainPanelProps(owner, leftSide));
+  }
 
   inline declara::core::scene::NodeDefinition<MainProps, MainNode> Main()
   {

@@ -4,6 +4,7 @@
 #include "core2/scene/PlatformController.hpp"
 #include "core/State.hpp"
 #include "loka/core/String.hpp"
+#include "core2/scene/node/Boundary.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <TextEdit.h>
@@ -24,11 +25,21 @@ public:
 
   void render();
   bool handleMouseDown(const Point &point);
-  void recordButtonHit(const Rect &rect, declara::core::EmitterState *emitter, declara::core::State<bool> *enabled);
-  void recordEditHit(const Rect &rect, declara::core::State<loka::core::String> *text);
-  void recordTextHit(const Rect &rect, short x, short y, declara::core::State<loka::core::String> *text);
+  void recordButtonHit(const Rect &rect,
+                       declara::core::EmitterState *emitter,
+                       declara::core::State<bool> *enabled,
+                       declara::core::scene::BoundaryNode *boundary);
+  void recordEditHit(const Rect &rect,
+                     declara::core::State<loka::core::String> *text,
+                     declara::core::scene::BoundaryNode *boundary);
+  void recordTextHit(const Rect &rect,
+                     short x,
+                     short y,
+                     declara::core::State<loka::core::String> *text,
+                     declara::core::scene::BoundaryNode *boundary);
   void registerPopupContext(ToolboxPopupMenuContext *context);
   void applyPopupSelectionChange(const Rect &rect,
+                                 declara::core::scene::BoundaryNode *boundary,
                                  declara::core::State<int> *selectedIndex,
                                  declara::core::EmitterState *onChange,
                                  int newIndex);
@@ -50,12 +61,14 @@ private:
     Rect rect;
     declara::core::EmitterState *emitter;
     declara::core::State<bool> *enabled;
+    declara::core::scene::BoundaryNode *boundary;
   };
 
   struct EditHit
   {
     Rect rect;
     declara::core::State<loka::core::String> *text;
+    declara::core::scene::BoundaryNode *boundary;
   };
 
   struct TextHit
@@ -64,6 +77,7 @@ private:
     short x;
     short y;
     declara::core::State<loka::core::String> *text;
+    declara::core::scene::BoundaryNode *boundary;
   };
   struct TextBinding
   {
