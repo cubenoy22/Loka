@@ -152,9 +152,9 @@ namespace
         rect.top = static_cast<short>(state.y - state.lineHeight + 2);
         rect.right = static_cast<short>(state.x + width);
         rect.bottom = static_cast<short>(state.y + 6);
-        if (controller && controller->contextMapper_)
+        if (controller && controller->contextMapper())
         {
-          controller->contextMapper_->ensureTextContext(text, rect, state.x, state.y, controller);
+          controller->contextMapper()->ensureTextContext(text, rect, state.x, state.y, controller);
         }
         state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
         return width;
@@ -175,9 +175,9 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width);
       rect.bottom = static_cast<short>(state.y + 6);
-      if (controller && controller->contextMapper_)
+      if (controller && controller->contextMapper())
       {
-        controller->contextMapper_->ensureButtonContext(button, rect, label, controller);
+        controller->contextMapper()->ensureButtonContext(button, rect, label, controller);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -196,9 +196,9 @@ namespace
       textRect.top = static_cast<short>(textRect.top + 2);
       textRect.right = static_cast<short>(textRect.right - 1);
       textRect.bottom = static_cast<short>(textRect.bottom - 1);
-      if (controller && controller->contextMapper_)
+      if (controller && controller->contextMapper())
       {
-        controller->contextMapper_->ensureEditTextContext(edit, rect, textRect, static_cast<short>(state.x + 4), state.y, controller);
+        controller->contextMapper()->ensureEditTextContext(edit, rect, textRect, static_cast<short>(state.x + 4), state.y, controller);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;
@@ -212,9 +212,9 @@ namespace
       rect.top = static_cast<short>(state.y - state.lineHeight + 2);
       rect.right = static_cast<short>(state.x + width + 8);
       rect.bottom = static_cast<short>(state.y + 6);
-      if (controller && controller->contextMapper_)
+      if (controller && controller->contextMapper())
       {
-        controller->contextMapper_->ensurePopupMenuContext(popup, rect, state.lineHeight, controller);
+        controller->contextMapper()->ensurePopupMenuContext(popup, rect, state.lineHeight, controller);
       }
       state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
       return width;

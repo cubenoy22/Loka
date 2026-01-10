@@ -42,6 +42,7 @@ public:
   bool isPointInEdit(const Point &point) const;
   void beginClip(const Rect &rect);
   void endClip();
+  ToolboxNodeContextMapper *contextMapper() const { return contextMapper_; }
 
 private:
   struct ButtonHit
