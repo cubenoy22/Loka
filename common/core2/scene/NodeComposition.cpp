@@ -3,6 +3,7 @@
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include "core/Window.hpp"
+#include <new>
 
 namespace declara
 {
@@ -15,7 +16,73 @@ namespace declara
       struct INestableDefinition;
       struct INestable;
 
-      // createNodeTreeの再帰ヘルパー
+      // Pass 1: Calculate total size needed for all nodes
+      static size_t calculateTotalNodeSize(NodeDefinitionBase *def)
+      {
+        if (!def)
+        {
+          return 0;
+        }
+        // Add size with alignment padding (worst case)
+        size_t total = def->nodeSize() + def->nodeAlign();
+
+        INestableDefinition *nestableDef = def->asNestableDefinition();
+        if (nestableDef)
+        {
+          NodeDefinitionBase *child = nestableDef->childrenHead();
+          while (child)
+          {
+            total += calculateTotalNodeSize(child);
+            child = child->nextInComposition;
+          }
+        }
+        return total;
+      }
+
+      // Pass 2: Create nodes using arena
+      static Node *createNodeWithArena(NodeDefinitionBase *def, NodeArena *arena)
+      {
+        if (!def)
+        {
+          return 0;
+        }
+
+        // Allocate from arena
+        void *mem = arena->allocate(def->nodeSize(), def->nodeAlign());
+        Node *node;
+        if (mem)
+        {
+          node = def->createInPlace(mem);
+          node->setArenaAllocated(true);
+          arena->registerNode(node);
+        }
+        else
+        {
+          // Fallback to regular allocation
+          node = def->create();
+        }
+
+        INestableDefinition *nestableDef = def->asNestableDefinition();
+        INestable *nestableNode = node->asNestable();
+
+        if (nestableDef && nestableNode)
+        {
+          NodeDefinitionBase *child = nestableDef->childrenHead();
+          while (child)
+          {
+            Node *childNode = createNodeWithArena(child, arena);
+            if (childNode)
+            {
+              nestableNode->addChild(childNode);
+            }
+            child = child->nextInComposition;
+          }
+        }
+
+        return node;
+      }
+
+      // Fallback: create without arena
       static Node *createNodeRecursive(NodeDefinitionBase *def)
       {
         if (!def)
@@ -23,10 +90,8 @@ namespace declara
           return 0;
         }
 
-        // 1. Nodeインスタンスを生成
         Node *node = def->create();
 
-        // 2. 子を持つことができるかチェック
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
 
@@ -49,7 +114,30 @@ namespace declara
 
       Node *NodeComposition::createNodeTree() const
       {
-        return createNodeRecursive(this->root());
+        NodeDefinitionBase *root = this->root();
+        if (!root)
+        {
+          return 0;
+        }
+
+        // Try to use arena if boundary is available
+        if (context_)
+        {
+          BoundaryNode *bnd = context_->boundary();
+          if (bnd)
+          {
+            NodeArena *arena = bnd->nodeArena();
+            // Clear previous nodes (calls destructors only, arena memory freed later)
+            arena->clear();
+            // Calculate total size and reserve
+            size_t totalSize = calculateTotalNodeSize(root);
+            arena->reserve(totalSize);
+            return createNodeWithArena(root, arena);
+          }
+        }
+
+        // Fallback without arena
+        return createNodeRecursive(root);
       }
 
       BoundaryNode *NodeComposition::boundary() const

@@ -10,6 +10,13 @@
 #include "core/Managed.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateUtil.hpp"
+#include "core/Profiler.hpp"
+
+using declara::core::ProfileTicks;
+using declara::core::gTreeVirtTicks;
+using declara::core::gTreeCtxTicks;
+using declara::core::gTreeCompTicks;
+using declara::core::gTreeNodeCount;
 
 namespace declara
 {
@@ -18,6 +25,73 @@ namespace declara
     namespace scene
     {
       class Scene;
+
+      // NodeArena: pre-allocated memory block for batch node creation
+      class NodeArena
+      {
+      public:
+        NodeArena() : buffer_(0), size_(0), offset_(0) {}
+        ~NodeArena() { clear(); }
+
+        void reserve(size_t totalSize)
+        {
+          clear();
+          if (totalSize > 0)
+          {
+            buffer_ = new char[totalSize];
+            size_ = totalSize;
+            offset_ = 0;
+          }
+        }
+
+        void *allocate(size_t size, size_t align)
+        {
+          if (!buffer_ || size == 0)
+          {
+            return 0;
+          }
+          // Align the offset
+          size_t mask = align - 1;
+          size_t aligned = (offset_ + mask) & ~mask;
+          if (aligned + size > size_)
+          {
+            return 0; // Arena full
+          }
+          void *ptr = buffer_ + aligned;
+          offset_ = aligned + size;
+          return ptr;
+        }
+
+        void registerNode(Node *node)
+        {
+          if (node)
+          {
+            nodes_.push_back(node);
+          }
+        }
+
+        void clear()
+        {
+          // Call destructors in reverse order
+          for (size_t i = nodes_.size(); i > 0; --i)
+          {
+            nodes_[i - 1]->~Node();
+          }
+          nodes_.clear();
+          delete[] buffer_;
+          buffer_ = 0;
+          size_ = 0;
+          offset_ = 0;
+        }
+
+        bool hasCapacity() const { return buffer_ != 0; }
+
+      private:
+        char *buffer_;
+        size_t size_;
+        size_t offset_;
+        std::vector<Node *> nodes_;
+      };
 
       // BoundaryNode: owns a local tracker for its subtree.
       class BoundaryNode : public ComposableNode, public IStateOwner
@@ -68,6 +142,8 @@ namespace declara
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
 
+        NodeArena *nodeArena() { return &nodeArena_; }
+
         static void InvalidateSceneThunk(void *userData);
 
         template <class T>
@@ -105,13 +181,35 @@ namespace declara
           tracker_.addState(state);
         }
 
+        virtual void adoptStateUnchecked(StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          ownedStates_.push_back(state);
+          tracker_.addStateUnchecked(state);
+        }
+
+        virtual void reserveStates(size_t count)
+        {
+          ownedStates_.reserve(ownedStates_.size() + count);
+          tracker_.reserveStates(count);
+        }
+
         static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
         {
           if (!node)
           {
             return;
           }
+          ++gTreeNodeCount;
+          long t0 = ProfileTicks();
           BoundaryNode *boundary = node->asBoundary();
+          ComposableNode *composable = node->asComposable();
+          INestable *nestable = node->asNestable();
+          gTreeVirtTicks += ProfileTicks() - t0;
+
           BoundaryNode *nextBoundary = currentBoundary;
           if (boundary)
           {
@@ -122,8 +220,8 @@ namespace declara
             }
             nextBoundary = boundary;
           }
-          ComposableNode *composable = node->asComposable();
           ComponentContext *contextForChildren = &parentContext;
+          t0 = ProfileTicks();
           ComponentContext nodeContext(&parentContext);
           nodeContext.setStateOwner(parentContext.stateOwner());
           nodeContext.setBoundary(nextBoundary);
@@ -131,12 +229,15 @@ namespace declara
           nodeContext.setScene(scene);
           nodeContext.setWindow(parentContext.window());
           nodeContext.setDirtyFlags(parentContext.dirtyFlags());
+          gTreeCtxTicks += ProfileTicks() - t0;
+
           if (composable)
           {
+            t0 = ProfileTicks();
             composable->compose(nodeContext, event);
+            gTreeCompTicks += ProfileTicks() - t0;
             contextForChildren = &nodeContext;
           }
-          INestable *nestable = node->asNestable();
           if (!nestable)
           {
             return;
@@ -229,6 +330,7 @@ namespace declara
         Scene *scene_;
         BoundaryNode *parentBoundary_;
         LayoutBounds layoutBounds_;
+        NodeArena nodeArena_;
       };
 
       template <class PropsT, class NodeT>

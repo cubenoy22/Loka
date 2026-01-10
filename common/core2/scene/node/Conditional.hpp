@@ -40,6 +40,9 @@ namespace declara
         ConditionalProps props;
         ConditionalDefinition(const ConditionalProps &p);
         Node *create() const;
+        Node *createInPlace(void *mem) const;
+        size_t nodeSize() const;
+        size_t nodeAlign() const;
         virtual NodeDefinitionBase *clone() const { return new ConditionalDefinition(*this); }
       };
 

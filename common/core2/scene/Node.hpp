@@ -120,6 +120,10 @@ namespace declara
         NodeContext *context;
         MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
+        bool arenaAllocated_;
+
+        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false) {}
+
         virtual ~Node()
         {
           if (context)
@@ -127,6 +131,21 @@ namespace declara
             delete context;
             context = 0;
           }
+        }
+
+        void setArenaAllocated(bool v) { arenaAllocated_ = v; }
+        bool isArenaAllocated() const { return arenaAllocated_; }
+
+        // Custom operator delete - skip deallocation for arena nodes
+        static void operator delete(void *ptr)
+        {
+          Node *node = static_cast<Node *>(ptr);
+          if (node && node->arenaAllocated_)
+          {
+            // Arena handles memory, don't free
+            return;
+          }
+          ::operator delete(ptr);
         }
         virtual void compose() {}
         virtual NodeKind kind() const { return NODE_KIND_UNKNOWN; }
@@ -156,8 +175,6 @@ namespace declara
           }
           return 0;
         }
-
-        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0) {}
 
         void setContext(NodeContext *ctx)
         {
@@ -215,6 +232,22 @@ namespace declara
       // Forward declaration
       struct INestableDefinition;
 
+      // C++98 alignof alternative
+      template <typename T>
+      struct AlignOfHelper
+      {
+        char c;
+        T t;
+      };
+      template <typename T>
+      struct AlignOf
+      {
+        enum
+        {
+          value = sizeof(AlignOfHelper<T>) - sizeof(T)
+        };
+      };
+
       // --- NodeDefinitionの型消去基底 ---
       struct NodeDefinitionBase
       {
@@ -232,6 +265,9 @@ namespace declara
         }
         virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
         virtual Node *create() const = 0;
+        virtual Node *createInPlace(void *mem) const = 0;
+        virtual size_t nodeSize() const = 0;
+        virtual size_t nodeAlign() const = 0;
         virtual NodeDefinitionBase *clone() const = 0;
         virtual bool isBoundary() const { return false; }
         virtual INestableDefinition *asNestableDefinition() { return 0; }
@@ -295,6 +331,9 @@ namespace declara
           return *this;
         }
         Node *create() const { return new NodeT(props); }
+        Node *createInPlace(void *mem) const { return new (mem) NodeT(props); }
+        size_t nodeSize() const { return sizeof(NodeT); }
+        size_t nodeAlign() const { return AlignOf<NodeT>::value; }
         virtual NodeDefinitionBase *clone() const { return new NodeDefinition(*this); }
       };
 
