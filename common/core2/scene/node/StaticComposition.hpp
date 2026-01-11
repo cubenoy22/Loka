@@ -100,6 +100,8 @@ namespace declara
             return;
           }
           this->clearChildren();
+          // Reset arena for this boundary compose pass.
+          this->nodeArena()->clear();
           NodeComposition &composition = this->beginComposition(context);
           this->attachNode(composition);
           this->composeNode(composition);

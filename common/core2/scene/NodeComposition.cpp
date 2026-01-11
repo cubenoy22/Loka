@@ -23,10 +23,11 @@ namespace declara
         {
           return 0;
         }
-        // Add size with alignment padding (worst case)
-        size_t total = def->nodeSize() + def->nodeAlign();
-
         INestableDefinition *nestableDef = def->asNestableDefinition();
+        // Add size with alignment padding (worst case)
+        size_t align = NodeArena::normalizeAlign(def->nodeAlign());
+        size_t total = def->nodeSize() + align;
+
         if (nestableDef)
         {
           NodeDefinitionBase *child = nestableDef->childrenHead();
@@ -48,7 +49,9 @@ namespace declara
         }
 
         // Allocate from arena
-        void *mem = arena->allocate(def->nodeSize(), def->nodeAlign());
+        size_t nodeSize = def->nodeSize();
+        size_t nodeAlign = def->nodeAlign();
+        void *mem = arena->allocate(nodeSize, nodeAlign);
         Node *node;
         if (mem)
         {
@@ -127,11 +130,12 @@ namespace declara
           if (bnd)
           {
             NodeArena *arena = bnd->nodeArena();
-            // Clear previous nodes (calls destructors only, arena memory freed later)
-            arena->clear();
-            // Calculate total size and reserve
-            size_t totalSize = calculateTotalNodeSize(root);
-            arena->reserve(totalSize);
+            if (!arena->hasCapacity())
+            {
+              // Calculate total size and reserve
+              size_t totalSize = calculateTotalNodeSize(root);
+              arena->reserve(totalSize);
+            }
             return createNodeWithArena(root, arena);
           }
         }

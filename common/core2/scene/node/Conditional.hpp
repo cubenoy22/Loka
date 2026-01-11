@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_NODE_CONDITIONAL_HPP
 
 #include "core/State.hpp"
+#include "../Node.hpp"
 
 namespace declara
 {

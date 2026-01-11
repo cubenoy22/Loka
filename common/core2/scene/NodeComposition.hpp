@@ -9,7 +9,6 @@
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/StateOwner.hpp"
-#include "loka/dsl/CompositionList.hpp"
 
 class Window;
 
@@ -26,14 +25,14 @@ namespace declara
       {
       private:
         // Arena: owns copies of all definitions created during compose
-        loka::dsl::CompositionList<NodeDefinitionBase> arena_;
+        std::vector<NodeDefinitionBase *> arena_;
         NodeDefinitionBase *root_;
         ComponentContext *context_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
           NodeDefinitionBase *cloned = def.clone();
           cloned->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
-          arena_.appendOwned(cloned);
+          arena_.push_back(cloned);
           return cloned;
         }
         static void cleanupStoredNode(NodeDefinitionBase *node, void *context)
@@ -47,7 +46,18 @@ namespace declara
         }
         void releaseStoredNode(NodeDefinitionBase *node)
         {
-          arena_.remove(node);
+          if (!node)
+          {
+            return;
+          }
+          for (size_t i = 0; i < arena_.size(); ++i)
+          {
+            if (arena_[i] == node)
+            {
+              arena_.erase(arena_.begin() + i);
+              break;
+            }
+          }
           if (root_ == node)
           {
             root_ = 0;
@@ -56,11 +66,9 @@ namespace declara
 
         void destroyArena()
         {
-          std::vector<NodeDefinitionBase *> nodes;
-          arena_.detachTo(nodes);
-          for (size_t i = 0; i < nodes.size(); ++i)
+          for (size_t i = 0; i < arena_.size(); ++i)
           {
-            NodeDefinitionBase *node = nodes[i];
+            NodeDefinitionBase *node = arena_[i];
             if (!node)
             {
               continue;
@@ -68,6 +76,7 @@ namespace declara
             node->clearCleanupHook();
             delete node;
           }
+          arena_.clear();
           root_ = 0;
         }
 

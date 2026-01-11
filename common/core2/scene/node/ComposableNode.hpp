@@ -173,7 +173,7 @@ namespace declara
 
         void clearChildren()
         {
-          children_.clear();
+          clearChildrenInternal(false);
         }
 
       private:

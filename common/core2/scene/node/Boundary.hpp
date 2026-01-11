@@ -30,16 +30,45 @@ namespace declara
       class NodeArena
       {
       public:
-        NodeArena() : buffer_(0), size_(0), offset_(0) {}
+        NodeArena() : buffer_(0), raw_(0), size_(0), offset_(0) {}
         ~NodeArena() { clear(); }
+
+        static size_t normalizeAlign(size_t align)
+        {
+          size_t minAlign = sizeof(void *);
+          if (minAlign < 2)
+          {
+            minAlign = 2;
+          }
+          if (align < minAlign)
+          {
+            align = minAlign;
+          }
+          if ((align & (align - 1)) != 0)
+          {
+            size_t p2 = 1;
+            while (p2 < align)
+            {
+              p2 <<= 1;
+            }
+            align = p2;
+          }
+          return align;
+        }
 
         void reserve(size_t totalSize)
         {
           clear();
           if (totalSize > 0)
           {
-            buffer_ = new char[totalSize];
-            size_ = totalSize;
+            // Allocate with extra padding and align the base pointer.
+            const size_t kArenaAlign = 16;
+            size_t rawSize = totalSize + kArenaAlign;
+            raw_ = new char[rawSize];
+            size_t rawAddr = reinterpret_cast<size_t>(raw_);
+            size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
+            buffer_ = reinterpret_cast<char *>(alignedAddr);
+            size_ = rawSize - (alignedAddr - rawAddr);
             offset_ = 0;
           }
         }
@@ -50,6 +79,7 @@ namespace declara
           {
             return 0;
           }
+          align = normalizeAlign(align);
           // Align the offset
           size_t mask = align - 1;
           size_t aligned = (offset_ + mask) & ~mask;
@@ -72,14 +102,22 @@ namespace declara
 
         void clear()
         {
-          // Call destructors in reverse order
-          for (size_t i = nodes_.size(); i > 0; --i)
+          // Call destructors in creation order so parents can safely detach children.
+          for (size_t i = 0; i < nodes_.size(); ++i)
           {
-            nodes_[i - 1]->~Node();
+            nodes_[i]->~Node();
           }
           nodes_.clear();
-          delete[] buffer_;
+          if (raw_)
+          {
+            delete[] raw_;
+          }
+          else
+          {
+            delete[] buffer_;
+          }
           buffer_ = 0;
+          raw_ = 0;
           size_ = 0;
           offset_ = 0;
         }
@@ -88,6 +126,7 @@ namespace declara
 
       private:
         char *buffer_;
+        char *raw_;
         size_t size_;
         size_t offset_;
         std::vector<Node *> nodes_;
@@ -110,6 +149,8 @@ namespace declara
         BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_() {}
         virtual ~BoundaryNode()
         {
+          // Detach children before the arena is cleared to avoid touching freed nodes.
+          clearChildren();
           clearOwnedStates();
           clearOwnedStateHandles();
         }

@@ -469,7 +469,7 @@ namespace declara
         NestableNode() : Node(), children_() {}
         virtual ~NestableNode()
         {
-          children_.clear();
+          clearChildrenInternal(false);
         }
 
         virtual void addChild(Node *child)
@@ -485,6 +485,28 @@ namespace declara
         virtual INestable *asNestable() { return this; }
 
       protected:
+        void clearChildrenInternal(bool deleteArenaChildren)
+        {
+          if (children_.count() == 0)
+          {
+            return;
+          }
+          std::vector<Node *> nodes;
+          children_.detachTo(nodes);
+          for (size_t i = 0; i < nodes.size(); ++i)
+          {
+            Node *child = nodes[i];
+            if (!child)
+            {
+              continue;
+            }
+            if (!deleteArenaChildren && child->isArenaAllocated())
+            {
+              continue;
+            }
+            delete child;
+          }
+        }
         loka::dsl::CompositionList<Node> children_;
       };
 
