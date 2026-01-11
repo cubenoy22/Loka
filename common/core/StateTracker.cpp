@@ -8,12 +8,27 @@ namespace declara
 
     PushStateTracker::PushStateTracker()
         : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
-          statesHead_(0), statesTail_(0) {}
+          statesHead_(0), statesTail_(0), freeEntries_(0) {}
+
+    PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
+        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
+          statesHead_(0), statesTail_(0), freeEntries_(0)
+    {
+      for (size_t i = 0; i < states.size(); ++i)
+      {
+        addState(states[i]);
+      }
+    }
+
+    PushStateTracker::~PushStateTracker()
+    {
+      releaseEntries();
+    }
 
     void PushStateTracker::begin()
     {
-      for (StateBase *s = statesHead_; s; s = s->nextState())
-        s->currentTracker = this;
+      for (StateEntry *e = statesHead_; e; e = e->next)
+        e->state->currentTracker = this;
 #ifdef TEST_BUILD
       printf("[begin] dependents.size()=%zu\n", dependents.size());
   for (DependencyMap::iterator it = dependents.begin(); it != dependents.end(); ++it)
@@ -94,24 +109,24 @@ namespace declara
         return;
       }
       // Check for duplicates by traversing the linked list
-      for (StateBase *s = statesHead_; s; s = s->nextState())
+      for (StateEntry *e = statesHead_; e; e = e->next)
       {
-        if (s == state)
+        if (e->state == state)
         {
           return;
         }
       }
       // Append to linked list
-      state->setNextState(0);
+      StateEntry *entry = allocateEntry(state);
       if (statesTail_)
       {
-        statesTail_->setNextState(state);
+        statesTail_->next = entry;
       }
       else
       {
-        statesHead_ = state;
+        statesHead_ = entry;
       }
-      statesTail_ = state;
+      statesTail_ = entry;
 
       std::vector<StateBase *> deps = state->getDependencyStates();
       if (!deps.empty())
@@ -135,16 +150,16 @@ namespace declara
       }
       // Skip duplicate check - caller guarantees uniqueness
       // Append to linked list
-      state->setNextState(0);
+      StateEntry *entry = allocateEntry(state);
       if (statesTail_)
       {
-        statesTail_->setNextState(state);
+        statesTail_->next = entry;
       }
       else
       {
-        statesHead_ = state;
+        statesHead_ = entry;
       }
-      statesTail_ = state;
+      statesTail_ = entry;
 
       std::vector<StateBase *> deps = state->getDependencyStates();
       if (!deps.empty())
@@ -213,10 +228,49 @@ namespace declara
         invalidateFn_(invalidateUserData_);
       }
       phase_ = TRACKER_IDLE;
-      for (StateBase *s = statesHead_; s; s = s->nextState())
-        s->currentTracker = 0;
+      for (StateEntry *e = statesHead_; e; e = e->next)
+        e->state->currentTracker = 0;
       deferred.clear();
       return dirtyStates.empty();
+    }
+
+    PushStateTracker::StateEntry *PushStateTracker::allocateEntry(StateBase *state)
+    {
+      StateEntry *entry = 0;
+      if (freeEntries_)
+      {
+        entry = freeEntries_;
+        freeEntries_ = freeEntries_->next;
+      }
+      else
+      {
+        entry = new StateEntry();
+      }
+      entry->state = state;
+      entry->next = 0;
+      return entry;
+    }
+
+    void PushStateTracker::releaseEntries()
+    {
+      StateEntry *entry = statesHead_;
+      while (entry)
+      {
+        StateEntry *next = entry->next;
+        delete entry;
+        entry = next;
+      }
+      statesHead_ = 0;
+      statesTail_ = 0;
+
+      StateEntry *freeEntry = freeEntries_;
+      while (freeEntry)
+      {
+        StateEntry *next = freeEntry->next;
+        delete freeEntry;
+        freeEntry = next;
+      }
+      freeEntries_ = 0;
     }
 
     bool PushStateTracker::consumeDirty()
@@ -246,7 +300,6 @@ namespace declara
       return phase_;
     }
 
-    PushStateTracker::~PushStateTracker() {}
 
   } // namespace core
 } // namespace declara

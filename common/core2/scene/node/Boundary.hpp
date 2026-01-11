@@ -218,6 +218,7 @@ namespace declara
           {
             return;
           }
+          ownedStates_.push_back(state);
           tracker_.addState(state);
         }
 
@@ -227,6 +228,7 @@ namespace declara
           {
             return;
           }
+          ownedStates_.push_back(state);
           tracker_.addStateUnchecked(state);
         }
 
@@ -341,14 +343,11 @@ namespace declara
 
         void clearOwnedStates()
         {
-          // Iterate tracker's linked list and delete all states
-          StateBase *s = tracker_.statesHead();
-          while (s)
+          for (size_t i = 0; i < ownedStates_.size(); ++i)
           {
-            StateBase *next = s->nextState();
-            delete s;
-            s = next;
+            delete ownedStates_[i];
           }
+          ownedStates_.clear();
         }
 
         void clearOwnedStateHandles()
@@ -361,6 +360,7 @@ namespace declara
         }
 
         declara::core::PushStateTracker tracker_;
+        std::vector<StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
         Scene *scene_;
         BoundaryNode *parentBoundary_;

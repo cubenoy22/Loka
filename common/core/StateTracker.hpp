@@ -38,13 +38,13 @@ namespace declara
     {
     public:
       typedef void (*InvalidateFn)(void *);
+      PushStateTracker(const std::vector<StateBase *> &states);
       PushStateTracker();
       void begin();
       void defer(void (*fn)(void *), void *userData);
       void markDirty(StateBase *state);
       void addState(StateBase *state);
       void addStateUnchecked(StateBase *state);
-      StateBase *statesHead() const { return statesHead_; }
       bool end();
       bool consumeDirty();
       void setInvalidateCallback(InvalidateFn fn, void *userData)
@@ -60,6 +60,13 @@ namespace declara
       ~PushStateTracker();
 
     private:
+      struct StateEntry
+      {
+        StateEntry() : state(0), next(0) {}
+        StateBase *state;
+        StateEntry *next;
+      };
+
       // Typedefs to avoid nested template closers in C++98
       typedef std::vector<StateBase *> StateList;
       typedef std::pair<void (*)(void *), void *> DeferredEntry;
@@ -80,8 +87,12 @@ namespace declara
       /// visiting_: 再帰伝播時の循環依存検出用一時セット
       std::set<StateBase *> visiting_;
       /// states: linked list (head/tail for O(1) append)
-      StateBase *statesHead_;
-      StateBase *statesTail_;
+      StateEntry *statesHead_;
+      StateEntry *statesTail_;
+      StateEntry *freeEntries_;
+
+      StateEntry *allocateEntry(StateBase *state);
+      void releaseEntries();
     };
 
   } // namespace core
