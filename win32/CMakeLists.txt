@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ソースファイル
 file(GLOB_RECURSE COMMON_SOURCES ../common/*.cpp)
+list(APPEND COMMON_SOURCES ../common/core/Profiler.cpp)
+list(REMOVE_DUPLICATES COMMON_SOURCES)
 set(SOURCES
   src/Win32App.cpp
   src/Win32Window.cpp
