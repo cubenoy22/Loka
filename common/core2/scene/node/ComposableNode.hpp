@@ -7,6 +7,7 @@
 #include "../ComponentContext.hpp"
 #include "../NodeComposition.hpp"
 #include "../StateOwner.hpp"
+#include "core/Profiler.hpp"
 
 class Window;
 
@@ -40,17 +41,24 @@ namespace declara
 
         virtual void compose(ComponentContext &context, ComposeEvent event)
         {
-          ContextScope scope(this, &context);
-          attached_.boundary_ = context.boundary();
-          attached_.scene_ = context.scene();
-          attached_.window_ = context.window();
-          isAttached_ = attached_.boundary_ && attached_.scene_ && attached_.window_;
-          this->composeWithContext(context, event);
-          if (event == COMPOSE_EVENT_DETACH)
+          ++declara::core::gComposeCallCount;
+          long t0 = declara::core::ProfileTicks();
           {
-            attached_.reset();
-            isAttached_ = false;
-          }
+            ContextScope scope(this, &context);
+            attached_.boundary_ = context.boundary();
+            attached_.scene_ = context.scene();
+            attached_.window_ = context.window();
+            isAttached_ = attached_.boundary_ && attached_.scene_ && attached_.window_;
+            declara::core::gCtxScopeTicks += declara::core::ProfileTicks() - t0;
+            this->composeWithContext(context, event);
+            if (event == COMPOSE_EVENT_DETACH)
+            {
+              attached_.reset();
+              isAttached_ = false;
+            }
+            t0 = declara::core::ProfileTicks();
+          } // ContextScope destructor runs here
+          declara::core::gCtxDtorTicks += declara::core::ProfileTicks() - t0;
         }
 
         virtual void compose(ComponentContext &context)

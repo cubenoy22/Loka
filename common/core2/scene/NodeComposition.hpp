@@ -10,6 +10,7 @@
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/StateOwner.hpp"
+#include "core/Profiler.hpp"
 
 class Window;
 
@@ -40,7 +41,9 @@ namespace declara
             {
               return *this;
             }
+            long t0 = declara::core::ProfileTicks();
             impl_->specs.push_back(new Spec<T>(out, initial));
+            declara::core::gBatchNewTicks += declara::core::ProfileTicks() - t0;
             ++impl_->count;
             size_t align = __alignof__(MutableState<T>);
             impl_->bytes += sizeof(MutableState<T>) + normalizeAlign(align);
@@ -141,7 +144,10 @@ namespace declara
         ComponentContext *context_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
+          long t0 = declara::core::ProfileTicks();
           NodeDefinitionBase *cloned = def.clone();
+          declara::core::gDefCloneTicks += declara::core::ProfileTicks() - t0;
+          ++declara::core::gDefCloneCount;
           cloned->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
           arena_.push_back(cloned);
           return cloned;
@@ -299,6 +305,7 @@ namespace declara
           assert(stateOwner && "NodeComposition::useState requires Boundary owner");
           MutableState<T> *state = 0;
           size_t align = __alignof__(MutableState<T>);
+          long t0 = declara::core::ProfileTicks();
           void *mem = stateOwner->allocateStateMemory(sizeof(MutableState<T>), align);
           if (mem)
           {
@@ -310,8 +317,12 @@ namespace declara
           {
             state = new MutableState<T>(initial);
           }
+          declara::core::gStateAllocTicks += declara::core::ProfileTicks() - t0;
+          t0 = declara::core::ProfileTicks();
           // Use unchecked version - useState always creates new unique states
           stateOwner->adoptStateUnchecked(state);
+          declara::core::gStateAddTicks += declara::core::ProfileTicks() - t0;
+          ++declara::core::gStateCount;
           return BoundState<T>(state, stateOwner->tracker());
         }
 
@@ -362,7 +373,12 @@ namespace declara
       };
 
       inline NodeComposition::StateBatch::StateBatch(NodeComposition *composition)
-          : impl_(composition ? new Impl(composition) : 0) {}
+          : impl_(0)
+      {
+        long t0 = declara::core::ProfileTicks();
+        impl_ = composition ? new Impl(composition) : 0;
+        declara::core::gBatchNewTicks += declara::core::ProfileTicks() - t0;
+      }
 
       inline NodeComposition::StateBatch::StateBatch(const NodeComposition::StateBatch &other)
           : impl_(other.impl_)
@@ -408,16 +424,20 @@ namespace declara
             stateOwner->reserveStateArena(impl_->bytes);
           }
           impl_->composition->useStates(impl_->count);
+          long t0 = declara::core::ProfileTicks();
           for (size_t i = 0; i < impl_->specs.size(); ++i)
           {
             impl_->specs[i]->apply(impl_->composition);
           }
+          declara::core::gBatchAppTicks += declara::core::ProfileTicks() - t0;
         }
+        long t1 = declara::core::ProfileTicks();
         for (size_t i = 0; i < impl_->specs.size(); ++i)
         {
           delete impl_->specs[i];
         }
         impl_->specs.clear();
+        declara::core::gBatchDelTicks += declara::core::ProfileTicks() - t1;
       }
 
       inline void NodeComposition::StateBatch::release()
@@ -430,7 +450,9 @@ namespace declara
         if (impl_->refs == 0)
         {
           finalize();
+          long t0 = declara::core::ProfileTicks();
           delete impl_;
+          declara::core::gBatchDelTicks += declara::core::ProfileTicks() - t0;
         }
         impl_ = 0;
       }

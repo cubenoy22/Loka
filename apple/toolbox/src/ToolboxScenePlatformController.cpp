@@ -1,11 +1,16 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxWindowContext.hpp"
+#include "ToolboxProfiler.hpp"
 #include <Quickdraw.h>
 #include <cstring>
 #include <string>
 #include <Memory.h>
 #include <Menus.h>
+
+// Profile result captured once on first render
+static std::string sProfileResultCapture;
+static bool sProfileCaptured = false;
 #include "loka/platform/StringUTF8.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
@@ -405,8 +410,12 @@ void ToolboxScenePlatformController::render()
   state.y = 24;
   state.lineHeight = 14;
   state.spacing = 6;
+  long t0 = declara::core::ProfileTicks();
   LayoutNode(rootNode_, state, this, 0);
+  declara::core::gLayoutTicks += declara::core::ProfileTicks() - t0;
+  t0 = declara::core::ProfileTicks();
   RenderNode(rootNode_, this);
+  declara::core::gRenderTicks += declara::core::ProfileTicks() - t0;
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
     if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
@@ -430,6 +439,44 @@ void ToolboxScenePlatformController::render()
       continue;
     }
     ++i;
+  }
+
+  // Capture profile result once on first render
+  if (!sProfileCaptured)
+  {
+    declara::core::RecordComposeTicks();
+    BuildProfileResultString();
+    sProfileResultCapture = gProfileResultString;
+    sProfileCaptured = true;
+  }
+
+  // Draw profile result at bottom-right of window (multi-line)
+  if (!sProfileResultCapture.empty())
+  {
+    GrafPtr port = window_->window();
+    Rect portRect = port->portRect;
+    short lineHeight = 12;
+    short x = static_cast<short>(portRect.right - 80);
+    short y = static_cast<short>(portRect.top + 20);
+
+    const char *ptr = sProfileResultCapture.c_str();
+    while (*ptr)
+    {
+      const char *lineEnd = ptr;
+      while (*lineEnd && *lineEnd != '\n') ++lineEnd;
+      std::size_t lineLen = lineEnd - ptr;
+      if (lineLen > 255) lineLen = 255;
+      if (lineLen > 0)
+      {
+        Str255 text;
+        text[0] = static_cast<unsigned char>(lineLen);
+        std::memcpy(text + 1, ptr, lineLen);
+        MoveTo(x, y);
+        DrawString(text);
+        y += lineHeight;
+      }
+      ptr = *lineEnd ? lineEnd + 1 : lineEnd;
+    }
   }
 }
 

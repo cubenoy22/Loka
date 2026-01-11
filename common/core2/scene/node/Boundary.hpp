@@ -17,6 +17,9 @@ using declara::core::gTreeVirtTicks;
 using declara::core::gTreeCtxTicks;
 using declara::core::gTreeCompTicks;
 using declara::core::gTreeNodeCount;
+using declara::core::gStateAllocTicks;
+using declara::core::gStateAddTicks;
+using declara::core::gStateCount;
 
 namespace declara
 {
@@ -439,8 +442,13 @@ namespace declara
         template <class T>
         BoundState<T> useStateWithValue(const T &initial)
         {
+          long t0 = ProfileTicks();
           MutableState<T> *state = new MutableState<T>(initial);
+          gStateAllocTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           adoptState(state);
+          gStateAddTicks += ProfileTicks() - t0;
+          ++gStateCount;
           return BoundState<T>(state, this->tracker());
         }
 

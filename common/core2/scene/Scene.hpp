@@ -11,6 +11,7 @@
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/node/Boundary.hpp"
+#include "core/Profiler.hpp"
 #include "loka/dsl/RefreshLoop.hpp"
 #include "loka/dsl/CompositionDiff.hpp"
 
@@ -184,17 +185,27 @@ namespace declara
             {
               return;
             }
+            long t0 = declara::core::ProfileTicks();
             this->clearChildren();
+            declara::core::gClearChildTicks += declara::core::ProfileTicks() - t0;
             if (!def_)
             {
               return;
             }
+            t0 = declara::core::ProfileTicks();
             NodeComposition &composition = this->beginComposition(context);
+            declara::core::gBeginCompTicks += declara::core::ProfileTicks() - t0;
+            t0 = declara::core::ProfileTicks();
             composition.declare(*def_);
+            declara::core::gComposeNodeTicks += declara::core::ProfileTicks() - t0;
+            t0 = declara::core::ProfileTicks();
             Node *child = composition.createNodeTree();
+            declara::core::gComposeCreateTicks += declara::core::ProfileTicks() - t0;
             if (child)
             {
+              t0 = declara::core::ProfileTicks();
               this->addChild(child);
+              declara::core::gAddChildTicks += declara::core::ProfileTicks() - t0;
               this->composeTree(child, context, event, this);
             }
           }

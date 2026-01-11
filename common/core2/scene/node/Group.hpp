@@ -3,6 +3,15 @@
 
 #include "../NodeComposition.hpp"
 #include "ComposableNode.hpp"
+#include "core/Profiler.hpp"
+
+using declara::core::ProfileTicks;
+using declara::core::gComposeAttachTicks;
+using declara::core::gComposeNodeTicks;
+using declara::core::gComposeCreateTicks;
+using declara::core::gClearChildTicks;
+using declara::core::gBeginCompTicks;
+using declara::core::gAddChildTicks;
 
 namespace declara
 {
@@ -73,14 +82,26 @@ namespace declara
             }
             return;
           }
+          long t0 = ProfileTicks();
           this->clearChildren();
+          gClearChildTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           NodeComposition &composition = this->beginComposition(context);
+          gBeginCompTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           this->attachNode(composition);
+          gComposeAttachTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           this->composeNode(composition);
+          gComposeNodeTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           Node *child = composition.createNodeTree();
+          gComposeCreateTicks += ProfileTicks() - t0;
           if (child)
           {
+            t0 = ProfileTicks();
             this->addChild(child);
+            gAddChildTicks += ProfileTicks() - t0;
           }
         }
       };

@@ -3,7 +3,7 @@
 
 #include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/BoundState.hpp"
-#include "core2/scene/node/DynamicComposition.hpp"
+#include "core2/scene/node/StaticComposition.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
@@ -22,7 +22,7 @@ extern std::string gProfileResultString;
 namespace helloworld
 {
   class MainNode;
-  typedef declara::core::scene::DynamicCompositionPropsFor<MainNode> MainProps;
+  typedef declara::core::scene::StaticCompositionPropsFor<MainNode> MainProps;
 
   struct MainPanelTypeTag
   {
@@ -49,11 +49,11 @@ namespace helloworld
 
   inline declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode> MainPanel(MainNode *owner, bool leftSide);
 
-  class MainNode : public declara::core::scene::DynamicCompositionNodeFor<MainNode>
+  class MainNode : public declara::core::scene::StaticCompositionNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p)
-        : declara::core::scene::DynamicCompositionNodeFor<MainNode>(MainProps(p)),
+        : declara::core::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
           message_(),
           fruitIndex_(),
           fruitMessage_(),
@@ -138,11 +138,11 @@ namespace helloworld
     EmitterState fruitChangedEvent_;
   };
 
-  class MainPanelNode : public declara::core::scene::DynamicCompositionBoundaryNodeBase<MainPanelProps>
+  class MainPanelNode : public declara::core::scene::StaticCompositionBoundaryNodeBase<MainPanelProps>
   {
   public:
     MainPanelNode(const MainPanelProps &p)
-        : declara::core::scene::DynamicCompositionBoundaryNodeBase<MainPanelProps>(p) {}
+        : declara::core::scene::StaticCompositionBoundaryNodeBase<MainPanelProps>(p) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {

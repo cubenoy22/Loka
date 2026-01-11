@@ -3,7 +3,13 @@
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include "core/Window.hpp"
+#include "core/Profiler.hpp"
 #include <new>
+
+using declara::core::ProfileTicks;
+using declara::core::gNodeAllocTicks;
+using declara::core::gNodeCtorTicks;
+using declara::core::gNodeAllocCount;
 
 namespace declara
 {
@@ -51,19 +57,26 @@ namespace declara
         // Allocate from arena
         size_t nodeSize = def->nodeSize();
         size_t nodeAlign = def->nodeAlign();
+        long t0 = ProfileTicks();
         void *mem = arena->allocate(nodeSize, nodeAlign);
+        gNodeAllocTicks += ProfileTicks() - t0;
         Node *node;
         if (mem)
         {
+          t0 = ProfileTicks();
           node = def->createInPlace(mem);
+          gNodeCtorTicks += ProfileTicks() - t0;
           node->setArenaAllocated(true);
           arena->registerNode(node);
         }
         else
         {
           // Fallback to regular allocation
+          t0 = ProfileTicks();
           node = def->create();
+          gNodeCtorTicks += ProfileTicks() - t0;
         }
+        ++gNodeAllocCount;
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();

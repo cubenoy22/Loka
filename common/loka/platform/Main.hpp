@@ -10,6 +10,7 @@
 #include "Win32PlatformContext.hpp"
 #elif defined(LOKA_RETRO68)
 #include "ToolboxPlatformContext.hpp"
+#include "ToolboxProfiler.hpp"
 #elif defined(__APPLE__)
 #include "MacPlatformContext.hpp"
 #endif
@@ -34,6 +35,9 @@ namespace loka
     template <class ConfigT>
     int RunApp(HINSTANCE hInstance, int nCmdShow)
     {
+#if defined(LOKA_RETRO68)
+      InitToolboxProfiler();
+#endif
       ScopedPtr<PlatformContext> platformContext(CreatePlatformContext());
       assert(platformContext.get() && "PlatformContext is required");
       ConfigT config(platformContext.get());

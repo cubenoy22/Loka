@@ -7,8 +7,11 @@
 // Re-export common profiler types for convenience
 using declara::core::ProfileEntry;
 using declara::core::ScopedProfile;
+using declara::core::RecordComposeTicks;
 using declara::core::gProfileData;
 using declara::core::gProfileCount;
+using declara::core::gLayoutTicks;
+using declara::core::gRenderTicks;
 
 // Toolbox-specific: result string for display after BuildProfileResultString
 extern std::string gProfileResultString;

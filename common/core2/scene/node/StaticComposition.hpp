@@ -3,6 +3,15 @@
 
 #include "../NodeComposition.hpp"
 #include "Boundary.hpp"
+#include "core/Profiler.hpp"
+
+using declara::core::ProfileTicks;
+using declara::core::gComposeAttachTicks;
+using declara::core::gComposeNodeTicks;
+using declara::core::gComposeCreateTicks;
+using declara::core::gClearChildTicks;
+using declara::core::gBeginCompTicks;
+using declara::core::gAddChildTicks;
 
 namespace declara
 {
@@ -81,7 +90,7 @@ namespace declara
         typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
         StaticCompositionBoundaryNodeBase(const PropsT &p)
-            : BoundaryNode(), props(p) {}
+            : BoundaryNode(), props(p), composed_(false) {}
         virtual ~StaticCompositionBoundaryNodeBase() {}
 
         // Build node definitions into composition container (default: no children)
@@ -96,22 +105,42 @@ namespace declara
             {
               NodeComposition &composition = this->beginComposition(context);
               this->detachNode(composition);
+              composed_ = false;
             }
             return;
           }
+          if (composed_)
+          {
+            return;
+          }
+          long t0 = ProfileTicks();
           this->clearChildren();
           // Reset arena for this boundary compose pass.
           this->nodeArena()->clear();
+          gClearChildTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           NodeComposition &composition = this->beginComposition(context);
+          gBeginCompTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           this->attachNode(composition);
+          gComposeAttachTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           this->composeNode(composition);
+          gComposeNodeTicks += ProfileTicks() - t0;
+          t0 = ProfileTicks();
           Node *child = composition.createNodeTree();
+          gComposeCreateTicks += ProfileTicks() - t0;
           if (child)
           {
+            t0 = ProfileTicks();
             this->addChild(child);
+            gAddChildTicks += ProfileTicks() - t0;
             this->composeTree(child, context, event, this);
           }
+          composed_ = true;
         }
+      private:
+        bool composed_;
       };
 
       struct StaticCompositionDefinition : public NodeDefinition<StaticCompositionProps, StaticCompositionNode>
