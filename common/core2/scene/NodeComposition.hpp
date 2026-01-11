@@ -23,6 +23,67 @@ namespace declara
 
       struct NodeComposition
       {
+      public:
+        class StateBatch
+        {
+        public:
+          explicit StateBatch(NodeComposition *composition);
+          StateBatch(const StateBatch &other);
+          StateBatch &operator=(const StateBatch &other);
+          ~StateBatch();
+
+          template <typename T>
+          StateBatch &state(BoundState<T> &out, const T &initial)
+          {
+            if (!impl_ || impl_->done)
+            {
+              return *this;
+            }
+            impl_->specs.push_back(new Spec<T>(out, initial));
+            ++impl_->count;
+            return *this;
+          }
+
+        private:
+          struct SpecBase
+          {
+            virtual ~SpecBase() {}
+            virtual void apply(NodeComposition *composition) = 0;
+          };
+
+          template <typename T>
+          struct Spec : public SpecBase
+          {
+            Spec(BoundState<T> &outRef, const T &value) : out(&outRef), initial(value) {}
+            virtual void apply(NodeComposition *composition)
+            {
+              assert(composition && "StateBatch::apply requires composition");
+              IStateOwner *stateOwner = composition->context_->stateOwner();
+              assert(stateOwner && "StateBatch::apply requires Boundary owner");
+              MutableState<T> *state = new MutableState<T>(initial);
+              stateOwner->adoptStateUnchecked(state);
+              *out = BoundState<T>(state, stateOwner->tracker());
+            }
+            BoundState<T> *out;
+            T initial;
+          };
+
+          struct Impl
+          {
+            explicit Impl(NodeComposition *composition)
+                : composition(composition), count(0), refs(1), done(false), specs() {}
+            NodeComposition *composition;
+            size_t count;
+            int refs;
+            bool done;
+            std::vector<SpecBase *> specs;
+          };
+
+          Impl *impl_;
+          void finalize();
+          void release();
+        };
+
       private:
         // Arena: owns copies of all definitions created during compose
         std::vector<NodeDefinitionBase *> arena_;
@@ -192,6 +253,11 @@ namespace declara
           return BoundState<T>(state, stateOwner->tracker());
         }
 
+        StateBatch declareStates()
+        {
+          return StateBatch(this);
+        }
+
         template <typename T>
         BoundState<T> useState()
         {
@@ -221,7 +287,86 @@ namespace declara
           }
           return 0;
         }
+
+      private:
+        friend class StateBatch;
+        void useStates(size_t count)
+        {
+          assert(context_ && "NodeComposition::useStates requires ComponentContext");
+          IStateOwner *stateOwner = context_->stateOwner();
+          assert(stateOwner && "NodeComposition::useStates requires Boundary owner");
+          stateOwner->reserveStates(count);
+        }
       };
+
+      inline NodeComposition::StateBatch::StateBatch(NodeComposition *composition)
+          : impl_(composition ? new Impl(composition) : 0) {}
+
+      inline NodeComposition::StateBatch::StateBatch(const NodeComposition::StateBatch &other)
+          : impl_(other.impl_)
+      {
+        if (impl_)
+        {
+          ++impl_->refs;
+        }
+      }
+
+      inline NodeComposition::StateBatch &NodeComposition::StateBatch::operator=(const NodeComposition::StateBatch &other)
+      {
+        if (this == &other)
+        {
+          return *this;
+        }
+        release();
+        impl_ = other.impl_;
+        if (impl_)
+        {
+          ++impl_->refs;
+        }
+        return *this;
+      }
+
+      inline NodeComposition::StateBatch::~StateBatch()
+      {
+        release();
+      }
+
+      inline void NodeComposition::StateBatch::finalize()
+      {
+        if (!impl_ || impl_->done)
+        {
+          return;
+        }
+        impl_->done = true;
+        if (impl_->composition && impl_->count > 0)
+        {
+          impl_->composition->useStates(impl_->count);
+          for (size_t i = 0; i < impl_->specs.size(); ++i)
+          {
+            impl_->specs[i]->apply(impl_->composition);
+          }
+        }
+        for (size_t i = 0; i < impl_->specs.size(); ++i)
+        {
+          delete impl_->specs[i];
+        }
+        impl_->specs.clear();
+      }
+
+      inline void NodeComposition::StateBatch::release()
+      {
+        if (!impl_)
+        {
+          return;
+        }
+        --impl_->refs;
+        if (impl_->refs == 0)
+        {
+          finalize();
+          delete impl_;
+        }
+        impl_ = 0;
+      }
 
     } // namespace scene
   } // namespace core

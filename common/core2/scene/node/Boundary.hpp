@@ -232,6 +232,12 @@ namespace declara
           tracker_.addStateUnchecked(state);
         }
 
+        virtual void reserveStates(size_t count)
+        {
+          ownedStates_.reserve(ownedStates_.size() + count);
+          tracker_.reserveStates(count);
+        }
+
         static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
         {
           if (!node)

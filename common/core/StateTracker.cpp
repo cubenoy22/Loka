@@ -8,7 +8,7 @@ namespace declara
 
     PushStateTracker::PushStateTracker()
         : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
-          statesHead_(0), statesTail_(0), freeEntries_(0) {}
+          statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0) {}
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
         : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
@@ -175,6 +175,15 @@ namespace declara
       }
     }
 
+    void PushStateTracker::reserveStates(size_t count)
+    {
+      if (count == 0)
+      {
+        return;
+      }
+      allocateEntries(count);
+    }
+
     bool PushStateTracker::end()
     {
 #ifdef TEST_BUILD
@@ -244,33 +253,43 @@ namespace declara
       }
       else
       {
-        entry = new StateEntry();
+        allocateEntries(1);
+        entry = freeEntries_;
+        freeEntries_ = freeEntries_->next;
       }
       entry->state = state;
       entry->next = 0;
       return entry;
     }
 
+    void PushStateTracker::allocateEntries(size_t count)
+    {
+      StateEntry *entries = new StateEntry[count];
+      StateEntryChunk *chunk = new StateEntryChunk();
+      chunk->entries = entries;
+      chunk->count = count;
+      chunk->next = chunks_;
+      chunks_ = chunk;
+      for (size_t i = 0; i < count; ++i)
+      {
+        StateEntry *entry = &entries[i];
+        entry->next = freeEntries_;
+        freeEntries_ = entry;
+      }
+    }
+
     void PushStateTracker::releaseEntries()
     {
-      StateEntry *entry = statesHead_;
-      while (entry)
-      {
-        StateEntry *next = entry->next;
-        delete entry;
-        entry = next;
-      }
       statesHead_ = 0;
       statesTail_ = 0;
-
-      StateEntry *freeEntry = freeEntries_;
-      while (freeEntry)
-      {
-        StateEntry *next = freeEntry->next;
-        delete freeEntry;
-        freeEntry = next;
-      }
       freeEntries_ = 0;
+      while (chunks_)
+      {
+        StateEntryChunk *next = chunks_->next;
+        delete[] chunks_->entries;
+        delete chunks_;
+        chunks_ = next;
+      }
     }
 
     bool PushStateTracker::consumeDirty()

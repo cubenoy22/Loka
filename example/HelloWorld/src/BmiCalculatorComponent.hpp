@@ -34,9 +34,10 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      heightInput_ = c.useState<loka::core::String>(loka::core::String::Literal("170.0"));
-      weightInput_ = c.useState<loka::core::String>(loka::core::String::Literal("60.0"));
-      bmiResult_ = c.useState<loka::core::String>(loka::core::String::Literal("BMI: --"));
+      c.declareStates()
+          .state(heightInput_, loka::core::String::Literal("170.0"))
+          .state(weightInput_, loka::core::String::Literal("60.0"))
+          .state(bmiResult_, loka::core::String::Literal("BMI: --"));
       heightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
       weightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
       updateBmi();

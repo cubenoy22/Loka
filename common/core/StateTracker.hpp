@@ -45,6 +45,7 @@ namespace declara
       void markDirty(StateBase *state);
       void addState(StateBase *state);
       void addStateUnchecked(StateBase *state);
+      void reserveStates(size_t count);
       bool end();
       bool consumeDirty();
       void setInvalidateCallback(InvalidateFn fn, void *userData)
@@ -65,6 +66,13 @@ namespace declara
         StateEntry() : state(0), next(0) {}
         StateBase *state;
         StateEntry *next;
+      };
+      struct StateEntryChunk
+      {
+        StateEntryChunk() : entries(0), count(0), next(0) {}
+        StateEntry *entries;
+        size_t count;
+        StateEntryChunk *next;
       };
 
       // Typedefs to avoid nested template closers in C++98
@@ -90,8 +98,10 @@ namespace declara
       StateEntry *statesHead_;
       StateEntry *statesTail_;
       StateEntry *freeEntries_;
+      StateEntryChunk *chunks_;
 
       StateEntry *allocateEntry(StateBase *state);
+      void allocateEntries(size_t count);
       void releaseEntries();
     };
 

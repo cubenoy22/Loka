@@ -63,18 +63,19 @@ namespace helloworld
       this->fruits_.push_back(loka::core::String::Literal("Banana"));
       this->fruits_.push_back(loka::core::String::Literal("Cherry"));
       this->fruits_.push_back(loka::core::String::Literal("Grape"));
-      // State is initialized lazily in composeNode via NodeComposition::useState.
+      // State is initialized in attachNode via NodeComposition::declareStates.
     }
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      this->message_ = c.useState<loka::core::String>(loka::core::String::Literal("Hello, Loka!"));
-      this->fruitIndex_ = c.useState<int>(0);
-      this->fruitMessage_ = c.useState<loka::core::String>(loka::core::String::Literal("You chose Apple."));
+      declara::core::scene::NodeComposition::StateBatch states = c.declareStates();
+      states.state(message_, loka::core::String::Literal("Hello, Loka!"))
+          .state(fruitIndex_, 0)
+          .state(fruitMessage_, loka::core::String::Literal("You chose Apple."));
 #if defined(LOKA_RETRO68)
-      this->profileResult_ = c.useState<loka::core::String>(loka::core::String(gProfileResultString));
+      states.state(profileResult_, loka::core::String(gProfileResultString));
 #else
-      this->profileResult_ = c.useState<loka::core::String>(loka::core::String::Literal(""));
+      states.state(profileResult_, loka::core::String::Literal(""));
 #endif
       this->bindForUi(toggleEvent_, this, &MainNode::toggleMessage);
       this->bindForUi(fruitChangedEvent_, this, &MainNode::handleFruitChanged);
@@ -150,7 +151,7 @@ namespace helloworld
       {
         return;
       }
-      if (this->props.leftSide)     
+      if (this->props.leftSide)
       {
         c.declare(
             VStack()

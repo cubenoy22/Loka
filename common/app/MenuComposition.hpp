@@ -39,6 +39,13 @@ namespace declara
         return *state;
       }
 
+
+      void reserveStates(size_t count)
+      {
+        ownedStates_.reserve(ownedStates_.size() + count);
+        tracker_.reserveStates(count);
+      }
+
     private:
       declara::core::PushStateTracker tracker_;
       std::vector<declara::core::StateBase *> ownedStates_;
