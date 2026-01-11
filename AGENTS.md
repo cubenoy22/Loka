@@ -17,6 +17,7 @@
 - Classic stability: avoid transient data in DSL props (e.g., pass stable pointers/references); if props own data, ensure copy/clone rebinds internal pointers safely.
 - NativeContext should guard against null/empty state before drawing or binding.
 - RTTI (`dynamic_cast`) is prohibited in DSL/scene code due to severe performance impact on 68k. Use virtual methods (`asXxx()`) or `NodeKind` checks instead. Add new `asXxx()` methods to Node when type-specific access is needed.
+- Prefer intrusive linked lists over `std::vector` when elements are heap-allocated anyway; adding a `next_` pointer avoids separate allocations and reallocation costs. On 68k, this primitive approach often outperforms "smart" containers.
 - Keep commits scoped; split large refactors into small, reviewable commits with verification between steps.
 - Ask for runtime verification before commits that affect behavior (unless the change is clearly non-runtime, such as docs/comments/refactors that cannot affect execution).
 - When users report performance issues or ask for speedups, first measure or propose a measurement plan; profiling support already exists in the codebase.
