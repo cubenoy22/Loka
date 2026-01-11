@@ -132,6 +132,100 @@ namespace declara
         std::vector<Node *> nodes_;
       };
 
+      class StateArena
+      {
+      public:
+        StateArena() : buffer_(0), raw_(0), size_(0), offset_(0), states_() {}
+        ~StateArena() { clear(); }
+
+        void reserve(size_t totalSize)
+        {
+          if (buffer_ || totalSize == 0)
+          {
+            return;
+          }
+          if (totalSize > 0)
+          {
+            const size_t kArenaAlign = 16;
+            size_t rawSize = totalSize + kArenaAlign;
+            raw_ = new char[rawSize];
+            size_t rawAddr = reinterpret_cast<size_t>(raw_);
+            size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
+            buffer_ = reinterpret_cast<char *>(alignedAddr);
+            size_ = rawSize - (alignedAddr - rawAddr);
+            offset_ = 0;
+          }
+        }
+
+        void *allocate(size_t size, size_t align)
+        {
+          if (!buffer_ || size == 0)
+          {
+            return 0;
+          }
+          align = NodeArena::normalizeAlign(align);
+          size_t mask = align - 1;
+          size_t aligned = (offset_ + mask) & ~mask;
+          if (aligned + size > size_)
+          {
+            return 0;
+          }
+          void *ptr = buffer_ + aligned;
+          offset_ = aligned + size;
+          return ptr;
+        }
+
+        void registerState(core::StateBase *state, void (*destroy)(core::StateBase *))
+        {
+          if (state && destroy)
+          {
+            StateEntry entry;
+            entry.state = state;
+            entry.destroy = destroy;
+            states_.push_back(entry);
+          }
+        }
+
+        void clear()
+        {
+          for (size_t i = 0; i < states_.size(); ++i)
+          {
+            if (states_[i].destroy)
+            {
+              states_[i].destroy(states_[i].state);
+            }
+          }
+          states_.clear();
+          if (raw_)
+          {
+            delete[] raw_;
+          }
+          else
+          {
+            delete[] buffer_;
+          }
+          buffer_ = 0;
+          raw_ = 0;
+          size_ = 0;
+          offset_ = 0;
+        }
+
+        bool hasCapacity() const { return buffer_ != 0; }
+
+      private:
+        struct StateEntry
+        {
+          StateEntry() : state(0), destroy(0) {}
+          core::StateBase *state;
+          void (*destroy)(core::StateBase *);
+        };
+        char *buffer_;
+        char *raw_;
+        size_t size_;
+        size_t offset_;
+        std::vector<StateEntry> states_;
+      };
+
       // BoundaryNode: owns a local tracker for its subtree.
       class BoundaryNode : public ComposableNode, public IStateOwner
       {
@@ -153,6 +247,7 @@ namespace declara
           clearChildren();
           clearOwnedStates();
           clearOwnedStateHandles();
+          stateArena_.clear();
         }
 
         virtual BoundaryNode *asBoundary() { return this; }
@@ -184,6 +279,18 @@ namespace declara
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
 
         NodeArena *nodeArena() { return &nodeArena_; }
+        virtual void *allocateStateMemory(size_t size, size_t align) { return stateArena_.allocate(size, align); }
+        virtual void registerStateMemory(core::StateBase *state, void (*destroy)(core::StateBase *))
+        {
+          stateArena_.registerState(state, destroy);
+        }
+        virtual void reserveStateArena(size_t totalSize)
+        {
+          if (!stateArena_.hasCapacity())
+          {
+            stateArena_.reserve(totalSize);
+          }
+        }
 
         static void InvalidateSceneThunk(void *userData);
 
@@ -351,7 +458,16 @@ namespace declara
         {
           for (size_t i = 0; i < ownedStates_.size(); ++i)
           {
-            delete ownedStates_[i];
+            StateBase *state = ownedStates_[i];
+            if (!state)
+            {
+              continue;
+            }
+            if (state->isArenaAllocated())
+            {
+              continue;
+            }
+            delete state;
           }
           ownedStates_.clear();
         }
@@ -372,6 +488,7 @@ namespace declara
         BoundaryNode *parentBoundary_;
         LayoutBounds layoutBounds_;
         NodeArena nodeArena_;
+        StateArena stateArena_;
       };
 
       template <class PropsT, class NodeT>

@@ -37,7 +37,7 @@ namespace declara
     class StateBase
     {
     public:
-      StateBase() : currentTracker(0) {}
+      StateBase() : currentTracker(0), arenaAllocated_(false) {}
       virtual ~StateBase() {}
       // Enumerate dependent States (room for circular dependency detection)
       virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
@@ -53,6 +53,11 @@ namespace declara
     protected:
       friend class PushStateTracker;
       StateTracker *currentTracker;
+      bool arenaAllocated_;
+
+    public:
+      void setArenaAllocated(bool v) { arenaAllocated_ = v; }
+      bool isArenaAllocated() const { return arenaAllocated_; }
     };
 
     // State<T>: Inherits StateBase, implements value holding and subscribe API

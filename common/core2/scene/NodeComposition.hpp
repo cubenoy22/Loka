@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cassert>
+#include <new>
 #include "core2/scene/Node.hpp"
 #include "core2/scene/StreamView.hpp"
 #include "core2/scene/node/Conditional.hpp"
@@ -41,6 +42,8 @@ namespace declara
             }
             impl_->specs.push_back(new Spec<T>(out, initial));
             ++impl_->count;
+            size_t align = __alignof__(MutableState<T>);
+            impl_->bytes += sizeof(MutableState<T>) + normalizeAlign(align);
             return *this;
           }
 
@@ -60,7 +63,19 @@ namespace declara
               assert(composition && "StateBatch::apply requires composition");
               IStateOwner *stateOwner = composition->context_->stateOwner();
               assert(stateOwner && "StateBatch::apply requires Boundary owner");
-              MutableState<T> *state = new MutableState<T>(initial);
+              MutableState<T> *state = 0;
+              size_t align = __alignof__(MutableState<T>);
+              void *mem = stateOwner->allocateStateMemory(sizeof(MutableState<T>), align);
+              if (mem)
+              {
+                state = new (mem) MutableState<T>(initial);
+                state->setArenaAllocated(true);
+                stateOwner->registerStateMemory(state, &StateBatch::DestroyState<T>);
+              }
+              else
+              {
+                state = new MutableState<T>(initial);
+              }
               stateOwner->adoptStateUnchecked(state);
               *out = BoundState<T>(state, stateOwner->tracker());
             }
@@ -71,9 +86,10 @@ namespace declara
           struct Impl
           {
             explicit Impl(NodeComposition *composition)
-                : composition(composition), count(0), refs(1), done(false), specs() {}
+                : composition(composition), count(0), bytes(0), refs(1), done(false), specs() {}
             NodeComposition *composition;
             size_t count;
+            size_t bytes;
             int refs;
             bool done;
             std::vector<SpecBase *> specs;
@@ -82,6 +98,40 @@ namespace declara
           Impl *impl_;
           void finalize();
           void release();
+        public:
+          template <typename T>
+          static void DestroyState(core::StateBase *state)
+          {
+            MutableState<T> *typed = static_cast<MutableState<T> *>(state);
+            if (typed)
+            {
+              typed->~MutableState<T>();
+            }
+          }
+
+        private:
+          static size_t normalizeAlign(size_t align)
+          {
+            size_t minAlign = sizeof(void *);
+            if (minAlign < 2)
+            {
+              minAlign = 2;
+            }
+            if (align < minAlign)
+            {
+              align = minAlign;
+            }
+            if ((align & (align - 1)) != 0)
+            {
+              size_t p2 = 1;
+              while (p2 < align)
+              {
+                p2 <<= 1;
+              }
+              align = p2;
+            }
+            return align;
+          }
         };
 
       private:
@@ -247,7 +297,19 @@ namespace declara
           assert(context_ && "NodeComposition::useState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
           assert(stateOwner && "NodeComposition::useState requires Boundary owner");
-          MutableState<T> *state = new MutableState<T>(initial);
+          MutableState<T> *state = 0;
+          size_t align = __alignof__(MutableState<T>);
+          void *mem = stateOwner->allocateStateMemory(sizeof(MutableState<T>), align);
+          if (mem)
+          {
+            state = new (mem) MutableState<T>(initial);
+            state->setArenaAllocated(true);
+            stateOwner->registerStateMemory(state, &StateBatch::DestroyState<T>);
+          }
+          else
+          {
+            state = new MutableState<T>(initial);
+          }
           // Use unchecked version - useState always creates new unique states
           stateOwner->adoptStateUnchecked(state);
           return BoundState<T>(state, stateOwner->tracker());
@@ -340,6 +402,11 @@ namespace declara
         impl_->done = true;
         if (impl_->composition && impl_->count > 0)
         {
+          IStateOwner *stateOwner = impl_->composition->context_->stateOwner();
+          if (stateOwner && impl_->bytes > 0)
+          {
+            stateOwner->reserveStateArena(impl_->bytes);
+          }
           impl_->composition->useStates(impl_->count);
           for (size_t i = 0; i < impl_->specs.size(); ++i)
           {
