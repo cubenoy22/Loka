@@ -214,7 +214,10 @@ public:
     {
       visibility_ = props.visibilityStatePtr;
     }
-    tracker_ = new declara::core::PushStateTracker(makeStateVector(static_cast<StateBase *>(title_), static_cast<StateBase *>(visibility_), STATE_NULL));
+    declara::core::PushStateTracker *pushTracker = new declara::core::PushStateTracker();
+    pushTracker->addState(title_);
+    pushTracker->addState(visibility_);
+    tracker_ = pushTracker;
     if (props.hasInitialTitle)
     {
       title_->set(props.initialTitle);

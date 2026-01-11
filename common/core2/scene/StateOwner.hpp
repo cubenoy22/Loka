@@ -19,7 +19,6 @@ namespace declara
         virtual ~IStateOwner() {}
         virtual void adoptState(core::StateBase *state) = 0;
         virtual void adoptStateUnchecked(core::StateBase *state) = 0;
-        virtual void reserveStates(size_t count) = 0;
         virtual core::StateTracker *tracker() = 0;
       };
     } // namespace scene

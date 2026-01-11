@@ -18,36 +18,31 @@ namespace declara
     class MenuBoundary
     {
     public:
-      MenuBoundary() : tracker_(), ownedStates_() {}
+      MenuBoundary() : tracker_() {}
       virtual ~MenuBoundary()
       {
-        for (size_t i = 0; i < ownedStates_.size(); ++i)
+        // Delete all states via tracker's linked list
+        declara::core::StateBase *s = tracker_.statesHead();
+        while (s)
         {
-          delete ownedStates_[i];
+          declara::core::StateBase *next = s->nextState();
+          delete s;
+          s = next;
         }
-        ownedStates_.clear();
       }
       virtual void composeMenu(MenuComposition &c) = 0;
       declara::core::StateTracker *tracker() { return &tracker_; }
-
-      void reserveStates(size_t count)
-      {
-        ownedStates_.reserve(ownedStates_.size() + count);
-        tracker_.reserveStates(count);
-      }
 
       template <typename T>
       declara::core::MutableState<T> &useState(const T &initial)
       {
         declara::core::MutableState<T> *state = new declara::core::MutableState<T>(initial);
-        ownedStates_.push_back(state);
         tracker_.addStateUnchecked(state);
         return *state;
       }
 
     private:
       declara::core::PushStateTracker tracker_;
-      std::vector<declara::core::StateBase *> ownedStates_;
     };
 
     struct MenuCompositionDiff : public loka::dsl::CompositionDiff
@@ -126,14 +121,6 @@ namespace declara
       {
         out.clear();
         out.swap(dirtyIndices_);
-      }
-
-      void reserveStates(size_t count)
-      {
-        if (activeBoundary_)
-        {
-          activeBoundary_->reserveStates(count);
-        }
       }
 
       template <typename T>

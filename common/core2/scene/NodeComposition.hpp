@@ -180,18 +180,6 @@ namespace declara
           return this->store(*base);
         }
 
-        void reserveStates(size_t count)
-        {
-          if (context_)
-          {
-            IStateOwner *stateOwner = context_->stateOwner();
-            if (stateOwner)
-            {
-              stateOwner->reserveStates(count);
-            }
-          }
-        }
-
         template <typename T>
         BoundState<T> useState(const T &initial)
         {

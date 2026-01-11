@@ -6,29 +6,14 @@ namespace declara
   namespace core
   {
 
-    PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
-        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0), states_(states)
-    {
-      for (size_t i = 0; i < states.size(); ++i)
-      {
-        std::vector<StateBase *> deps = states[i]->getDependencyStates();
-        if (!deps.empty())
-        {
-          for (size_t j = 0; j < deps.size(); ++j)
-          {
-            registerDependency(states[i], deps[j]);
-          }
-        }
-      }
-    }
-
     PushStateTracker::PushStateTracker()
-        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0) {}
+        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
+          statesHead_(0), statesTail_(0) {}
 
     void PushStateTracker::begin()
     {
-      for (size_t i = 0; i < states_.size(); ++i)
-        states_[i]->currentTracker = this;
+      for (StateBase *s = statesHead_; s; s = s->nextState())
+        s->currentTracker = this;
 #ifdef TEST_BUILD
       printf("[begin] dependents.size()=%zu\n", dependents.size());
   for (DependencyMap::iterator it = dependents.begin(); it != dependents.end(); ++it)
@@ -108,14 +93,26 @@ namespace declara
       {
         return;
       }
-      for (size_t i = 0; i < states_.size(); ++i)
+      // Check for duplicates by traversing the linked list
+      for (StateBase *s = statesHead_; s; s = s->nextState())
       {
-        if (states_[i] == state)
+        if (s == state)
         {
           return;
         }
       }
-      states_.push_back(state);
+      // Append to linked list
+      state->setNextState(0);
+      if (statesTail_)
+      {
+        statesTail_->setNextState(state);
+      }
+      else
+      {
+        statesHead_ = state;
+      }
+      statesTail_ = state;
+
       std::vector<StateBase *> deps = state->getDependencyStates();
       if (!deps.empty())
       {
@@ -137,7 +134,18 @@ namespace declara
         return;
       }
       // Skip duplicate check - caller guarantees uniqueness
-      states_.push_back(state);
+      // Append to linked list
+      state->setNextState(0);
+      if (statesTail_)
+      {
+        statesTail_->setNextState(state);
+      }
+      else
+      {
+        statesHead_ = state;
+      }
+      statesTail_ = state;
+
       std::vector<StateBase *> deps = state->getDependencyStates();
       if (!deps.empty())
       {
@@ -150,11 +158,6 @@ namespace declara
       {
         state->currentTracker = this;
       }
-    }
-
-    void PushStateTracker::reserveStates(size_t count)
-    {
-      states_.reserve(states_.size() + count);
     }
 
     bool PushStateTracker::end()
@@ -210,8 +213,8 @@ namespace declara
         invalidateFn_(invalidateUserData_);
       }
       phase_ = TRACKER_IDLE;
-      for (size_t i = 0; i < states_.size(); ++i)
-        states_[i]->currentTracker = 0;
+      for (StateBase *s = statesHead_; s; s = s->nextState())
+        s->currentTracker = 0;
       deferred.clear();
       return dirtyStates.empty();
     }

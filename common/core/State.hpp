@@ -37,7 +37,7 @@ namespace declara
     class StateBase
     {
     public:
-      StateBase() : currentTracker(0) {}
+      StateBase() : currentTracker(0), nextState_(0) {}
       virtual ~StateBase() {}
       // Enumerate dependent States (room for circular dependency detection)
       virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
@@ -50,9 +50,14 @@ namespace declara
       // Recompute (overridden by DerivedState)
       virtual bool recompute() { return false; }
 
+      // Linked list for state tracking (avoids vector allocation)
+      StateBase *nextState() const { return nextState_; }
+      void setNextState(StateBase *n) { nextState_ = n; }
+
     protected:
       friend class PushStateTracker;
       StateTracker *currentTracker;
+      StateBase *nextState_;
     };
 
     // State<T>: Inherits StateBase, implements value holding and subscribe API

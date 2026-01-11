@@ -8,9 +8,11 @@ unsigned long SceneManager2::SceneTransactionList::nextId_ = 1;
 SceneManager2::SceneManager2()
     : currentScene_(0),
       pendingTransactions_(),
-      tracker_(makeStateVector(&currentScene_, &pendingTransactions_, STATE_NULL)),
+      tracker_(),
       window_(0)
 {
+  tracker_.addState(&currentScene_);
+  tracker_.addState(&pendingTransactions_);
 }
 
 SceneManager2::~SceneManager2() {}

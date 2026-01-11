@@ -38,14 +38,13 @@ namespace declara
     {
     public:
       typedef void (*InvalidateFn)(void *);
-      PushStateTracker(const std::vector<StateBase *> &states);
       PushStateTracker();
       void begin();
       void defer(void (*fn)(void *), void *userData);
       void markDirty(StateBase *state);
       void addState(StateBase *state);
       void addStateUnchecked(StateBase *state);
-      void reserveStates(size_t count);
+      StateBase *statesHead() const { return statesHead_; }
       bool end();
       bool consumeDirty();
       void setInvalidateCallback(InvalidateFn fn, void *userData)
@@ -80,8 +79,9 @@ namespace declara
       void *invalidateUserData_;
       /// visiting_: 再帰伝播時の循環依存検出用一時セット
       std::set<StateBase *> visiting_;
-      /// states_: Trackerが管理する全State群（begin()/end()でcurrentTrackerをセット）
-      StateList states_;
+      /// states: linked list (head/tail for O(1) append)
+      StateBase *statesHead_;
+      StateBase *statesTail_;
     };
 
   } // namespace core
