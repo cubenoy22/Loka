@@ -29,7 +29,47 @@ namespace declara
         class StateBatch
         {
         public:
-          explicit StateBatch(NodeComposition *composition);
+          struct SpecBase
+          {
+            virtual ~SpecBase() {}
+            virtual void apply(NodeComposition *composition) = 0;
+          };
+
+          enum
+          {
+            kMaxSpecs = 16,
+            kMaxSpecBytes = 1024
+          };
+
+          struct Impl
+          {
+            Impl()
+                : count(0),
+                  bytes(0),
+                  specCount(0),
+                  specUsed(0)
+            {
+              for (size_t i = 0; i < kMaxSpecs; ++i)
+              {
+                specs[i] = 0;
+              }
+              for (size_t i = 0; i < kMaxSpecBytes; ++i)
+              {
+                specStorage.bytes[i] = 0;
+              }
+            }
+            size_t count;
+            size_t bytes;
+            size_t specCount;
+            size_t specUsed;
+            SpecBase *specs[kMaxSpecs];
+            struct SpecStorage
+            {
+              void *align;
+              char bytes[kMaxSpecBytes];
+            } specStorage;
+          };
+          explicit StateBatch(NodeComposition *composition, Impl *impl);
           StateBatch(const StateBatch &other);
           StateBatch &operator=(const StateBatch &other);
           ~StateBatch();
@@ -37,12 +77,27 @@ namespace declara
           template <typename T>
           StateBatch &state(BoundState<T> &out, const T &initial)
           {
-            if (!impl_ || impl_->done)
+            if (!impl_)
             {
               return *this;
             }
             long t0 = declara::core::ProfileTicks();
-            impl_->specs.push_back(new Spec<T>(out, initial));
+            if (impl_->specCount >= kMaxSpecs)
+            {
+              flush();
+            }
+            size_t specAlign = __alignof__(Spec<T>);
+            size_t offset = alignUp(impl_->specUsed, specAlign);
+            size_t needed = offset + sizeof(Spec<T>);
+            if (needed > kMaxSpecBytes)
+            {
+              flush();
+              offset = 0;
+              needed = sizeof(Spec<T>);
+            }
+            Spec<T> *spec = new (impl_->specStorage.bytes + offset) Spec<T>(out, initial);
+            impl_->specs[impl_->specCount++] = spec;
+            impl_->specUsed = needed;
             declara::core::gBatchNewTicks += declara::core::ProfileTicks() - t0;
             ++impl_->count;
             size_t align = __alignof__(MutableState<T>);
@@ -51,12 +106,6 @@ namespace declara
           }
 
         private:
-          struct SpecBase
-          {
-            virtual ~SpecBase() {}
-            virtual void apply(NodeComposition *composition) = 0;
-          };
-
           template <typename T>
           struct Spec : public SpecBase
           {
@@ -86,21 +135,14 @@ namespace declara
             T initial;
           };
 
-          struct Impl
-          {
-            explicit Impl(NodeComposition *composition)
-                : composition(composition), count(0), bytes(0), refs(1), done(false), specs() {}
-            NodeComposition *composition;
-            size_t count;
-            size_t bytes;
-            int refs;
-            bool done;
-            std::vector<SpecBase *> specs;
-          };
-
+          NodeComposition *composition_;
           Impl *impl_;
           void finalize();
           void release();
+          void flush();
+        public:
+          static void flushImpl(NodeComposition *composition, Impl *impl);
+        private:
         public:
           template <typename T>
           static void DestroyState(core::StateBase *state)
@@ -113,6 +155,12 @@ namespace declara
           }
 
         private:
+          static size_t alignUp(size_t value, size_t align)
+          {
+            size_t mask = align - 1;
+            return (value + mask) & ~mask;
+          }
+
           static size_t normalizeAlign(size_t align)
           {
             size_t minAlign = sizeof(void *);
@@ -198,7 +246,7 @@ namespace declara
         }
 
       public:
-        NodeComposition() : root_(0), context_(0) {}
+        NodeComposition() : root_(0), context_(0), stateBatchActive_(false), stateBatchRefs_(0), stateBatchImpl_() {}
 
         ~NodeComposition() { this->destroyArena(); }
 
@@ -328,7 +376,14 @@ namespace declara
 
         StateBatch declareStates()
         {
-          return StateBatch(this);
+          assert(!stateBatchActive_ && "NodeComposition::declareStates already in use");
+          stateBatchActive_ = true;
+          stateBatchRefs_ = 1;
+          stateBatchImpl_.count = 0;
+          stateBatchImpl_.bytes = 0;
+          stateBatchImpl_.specCount = 0;
+          stateBatchImpl_.specUsed = 0;
+          return StateBatch(this, &stateBatchImpl_);
         }
 
         template <typename T>
@@ -363,6 +418,8 @@ namespace declara
 
       private:
         friend class StateBatch;
+        void retainStateBatch();
+        void releaseStateBatch();
         void useStates(size_t count)
         {
           assert(context_ && "NodeComposition::useStates requires ComponentContext");
@@ -370,22 +427,28 @@ namespace declara
           assert(stateOwner && "NodeComposition::useStates requires Boundary owner");
           stateOwner->reserveStates(count);
         }
+
+        bool stateBatchActive_;
+        int stateBatchRefs_;
+        StateBatch::Impl stateBatchImpl_;
       };
 
-      inline NodeComposition::StateBatch::StateBatch(NodeComposition *composition)
-          : impl_(0)
+      inline NodeComposition::StateBatch::StateBatch(NodeComposition *composition, Impl *impl)
+          : composition_(composition), impl_(impl)
       {
-        long t0 = declara::core::ProfileTicks();
-        impl_ = composition ? new Impl(composition) : 0;
-        declara::core::gBatchNewTicks += declara::core::ProfileTicks() - t0;
+        if (composition_)
+        {
+          long t0 = declara::core::ProfileTicks();
+          declara::core::gBatchNewTicks += declara::core::ProfileTicks() - t0;
+        }
       }
 
       inline NodeComposition::StateBatch::StateBatch(const NodeComposition::StateBatch &other)
-          : impl_(other.impl_)
+          : composition_(other.composition_), impl_(other.impl_)
       {
-        if (impl_)
+        if (composition_)
         {
-          ++impl_->refs;
+          composition_->retainStateBatch();
         }
       }
 
@@ -396,10 +459,11 @@ namespace declara
           return *this;
         }
         release();
+        composition_ = other.composition_;
         impl_ = other.impl_;
-        if (impl_)
+        if (composition_)
         {
-          ++impl_->refs;
+          composition_->retainStateBatch();
         }
         return *this;
       }
@@ -411,50 +475,79 @@ namespace declara
 
       inline void NodeComposition::StateBatch::finalize()
       {
-        if (!impl_ || impl_->done)
-        {
-          return;
-        }
-        impl_->done = true;
-        if (impl_->composition && impl_->count > 0)
-        {
-          IStateOwner *stateOwner = impl_->composition->context_->stateOwner();
-          if (stateOwner && impl_->bytes > 0)
-          {
-            stateOwner->reserveStateArena(impl_->bytes);
-          }
-          impl_->composition->useStates(impl_->count);
-          long t0 = declara::core::ProfileTicks();
-          for (size_t i = 0; i < impl_->specs.size(); ++i)
-          {
-            impl_->specs[i]->apply(impl_->composition);
-          }
-          declara::core::gBatchAppTicks += declara::core::ProfileTicks() - t0;
-        }
-        long t1 = declara::core::ProfileTicks();
-        for (size_t i = 0; i < impl_->specs.size(); ++i)
-        {
-          delete impl_->specs[i];
-        }
-        impl_->specs.clear();
-        declara::core::gBatchDelTicks += declara::core::ProfileTicks() - t1;
-      }
-
-      inline void NodeComposition::StateBatch::release()
-      {
         if (!impl_)
         {
           return;
         }
-        --impl_->refs;
-        if (impl_->refs == 0)
+        flush();
+      }
+
+      inline void NodeComposition::StateBatch::flush()
+      {
+        flushImpl(composition_, impl_);
+      }
+
+      inline void NodeComposition::StateBatch::flushImpl(NodeComposition *composition, Impl *impl)
+      {
+        if (!composition || !impl || impl->specCount == 0)
         {
-          finalize();
-          long t0 = declara::core::ProfileTicks();
-          delete impl_;
-          declara::core::gBatchDelTicks += declara::core::ProfileTicks() - t0;
+          return;
         }
+        if (impl->count > 0)
+        {
+          IStateOwner *stateOwner = composition->context_->stateOwner();
+          if (stateOwner && impl->bytes > 0)
+          {
+            stateOwner->reserveStateArena(impl->bytes);
+          }
+          composition->useStates(impl->count);
+          long t0 = declara::core::ProfileTicks();
+          for (size_t i = 0; i < impl->specCount; ++i)
+          {
+            impl->specs[i]->apply(composition);
+            impl->specs[i]->~SpecBase();
+            impl->specs[i] = 0;
+          }
+          declara::core::gBatchAppTicks += declara::core::ProfileTicks() - t0;
+        }
+        impl->specCount = 0;
+        impl->specUsed = 0;
+        impl->count = 0;
+        impl->bytes = 0;
+      }
+
+      inline void NodeComposition::StateBatch::release()
+      {
+        if (!composition_)
+        {
+          return;
+        }
+        composition_->releaseStateBatch();
+        composition_ = 0;
         impl_ = 0;
+      }
+
+      inline void NodeComposition::retainStateBatch()
+      {
+        ++stateBatchRefs_;
+      }
+
+      inline void NodeComposition::releaseStateBatch()
+      {
+        if (stateBatchRefs_ == 0)
+        {
+          return;
+        }
+        --stateBatchRefs_;
+        if (stateBatchRefs_ == 0)
+        {
+          StateBatch::flushImpl(this, &stateBatchImpl_);
+          stateBatchActive_ = false;
+          stateBatchImpl_.count = 0;
+          stateBatchImpl_.bytes = 0;
+          stateBatchImpl_.specCount = 0;
+          stateBatchImpl_.specUsed = 0;
+        }
       }
 
     } // namespace scene

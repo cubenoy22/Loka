@@ -456,8 +456,16 @@ void ToolboxScenePlatformController::render()
     GrafPtr port = window_->window();
     Rect portRect = port->portRect;
     short lineHeight = 12;
-    short x = static_cast<short>(portRect.right - 80);
-    short y = static_cast<short>(portRect.top + 20);
+    short yStart = static_cast<short>(portRect.top + 66);
+    short xRight = static_cast<short>(portRect.right - 80);
+    short xLeft = static_cast<short>(xRight - 80);
+    if (xLeft < static_cast<short>(portRect.left + 6))
+    {
+      xLeft = static_cast<short>(portRect.left + 6);
+    }
+    short x = xRight;
+    short y = yStart;
+    bool leftColumn = false;
 
     const char *ptr = sProfileResultCapture.c_str();
     while (*ptr)
@@ -468,6 +476,12 @@ void ToolboxScenePlatformController::render()
       if (lineLen > 255) lineLen = 255;
       if (lineLen > 0)
       {
+        if (!leftColumn && lineLen >= 4 && std::memcmp(ptr, "sCnt", 4) == 0)
+        {
+          leftColumn = true;
+          x = xLeft;
+          y = yStart;
+        }
         Str255 text;
         text[0] = static_cast<unsigned char>(lineLen);
         std::memcpy(text + 1, ptr, lineLen);

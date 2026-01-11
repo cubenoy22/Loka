@@ -46,7 +46,7 @@ namespace helloworld
       weightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
       declara::core::gBmiBindTicks += declara::core::ProfileTicks() - t0;
       t0 = declara::core::ProfileTicks();
-      updateBmi();
+      // updateBmi();
       declara::core::gBmiUpdTicks += declara::core::ProfileTicks() - t0;
     }
 
