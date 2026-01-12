@@ -661,7 +661,7 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   {
     return;
   }
-  MutableState<int> *mutableIndex = dynamic_cast<MutableState<int> *>(selectedIndex);
+  MutableState<int> *mutableIndex = static_cast<MutableState<int> *>(selectedIndex->asMutableState());
   if (!mutableIndex)
   {
     return;
@@ -690,7 +690,7 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
     return false;
   }
   declara::core::MutableState<loka::core::String> *mutableText =
-      dynamic_cast<declara::core::MutableState<loka::core::String> *>(focusedText_);
+      static_cast<declara::core::MutableState<loka::core::String> *>(focusedText_->asMutableState());
   if (!mutableText)
   {
     return false;
@@ -1113,7 +1113,7 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
     return;
   }
   declara::core::MutableState<loka::core::String> *mutableText =
-      dynamic_cast<declara::core::MutableState<loka::core::String> *>(binding.text);
+      static_cast<declara::core::MutableState<loka::core::String> *>(binding.text->asMutableState());
   if (!mutableText)
   {
     return;

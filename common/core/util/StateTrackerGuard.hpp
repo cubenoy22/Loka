@@ -10,7 +10,7 @@ struct StateTrackerGuard
   InvalidateFn invalidateFn;
   void *invalidateUserData;
   StateTrackerGuard(declara::core::StateTracker *t, InvalidateFn fn = 0, void *userData = 0)
-      : tracker(dynamic_cast<declara::core::PushStateTracker *>(t)),
+      : tracker(t ? t->asPushTracker() : 0),
         invalidateFn(fn),
         invalidateUserData(userData)
   {

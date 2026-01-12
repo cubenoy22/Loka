@@ -160,6 +160,8 @@ namespace declara
         virtual ::declara::app::ButtonNode *asButtonNode() { return 0; }
         virtual ::declara::app::EditTextNode *asEditTextNode() { return 0; }
         virtual ::declara::app::PopupMenuNode *asPopupMenuNode() { return 0; }
+        // Generic interface query (for findBoundary without RTTI)
+        virtual void *queryInterface(const char *name) { (void)name; return 0; }
         virtual void render(IPlatformController *controller)
         {
           if (context)

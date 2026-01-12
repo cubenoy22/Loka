@@ -49,6 +49,8 @@ namespace declara
       virtual void deferUnbind(OnChangeFn cb, void *userData) const {}
       // Recompute (overridden by DerivedState)
       virtual bool recompute() { return false; }
+      // Type query (avoid RTTI)
+      virtual void *asMutableState() { return 0; }
 
     protected:
       friend class PushStateTracker;
@@ -323,6 +325,7 @@ namespace declara
     public:
       MutableState() : State<T>() {}
       explicit MutableState(const T &initial) : State<T>(initial) {}
+      virtual void *asMutableState() { return this; }
       using State<T>::setValue;
       void set(const T &v, bool forceUpdate = false)
       {

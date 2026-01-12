@@ -8,6 +8,7 @@
 #include "app/Text.hpp"
 #include "ChangeContextButton.hpp"
 #include "RootBoundary.hpp"
+#include <cstring>
 
 namespace helloworld
 {
@@ -40,6 +41,15 @@ namespace helloworld
     virtual declara::core::scene::BoundState<loka::core::String> &messageState()
     {
       return message_;
+    }
+
+    virtual void *queryInterface(const char *name)
+    {
+      if (name && std::strcmp(name, RootBoundary::kInterfaceName()) == 0)
+      {
+        return static_cast<RootBoundary *>(this);
+      }
+      return declara::core::scene::GroupNodeBase<HelloWorldProps>::queryInterface(name);
     }
 
   private:

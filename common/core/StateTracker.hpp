@@ -22,6 +22,8 @@ namespace declara
       TRACKER_COMMIT = 2
     };
 
+    class PushStateTracker; // forward declaration
+
     class StateTracker
     {
     public:
@@ -31,6 +33,7 @@ namespace declara
       virtual bool end() = 0;
       virtual void registerDependency(StateBase *dependent, StateBase *dependency) = 0;
       virtual TrackerPhase phase() const = 0;
+      virtual PushStateTracker *asPushTracker() { return 0; }
       virtual ~StateTracker() {}
     };
 
@@ -58,6 +61,7 @@ namespace declara
        */
       void registerDependency(StateBase *dependent, StateBase *dependency);
       TrackerPhase phase() const;
+      PushStateTracker *asPushTracker() { return this; }
       ~PushStateTracker();
 
     private:

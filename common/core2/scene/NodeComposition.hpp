@@ -377,6 +377,7 @@ namespace declara
           return useState(T());
         }
 
+        // findBoundary: T must implement static T* fromNode(Node*)
         template <typename T>
         T *findBoundary() const
         {
@@ -390,7 +391,7 @@ namespace declara
             Node *owner = ctx->owner();
             if (owner)
             {
-              T *typed = dynamic_cast<T *>(owner);
+              T *typed = T::fromNode(owner);
               if (typed)
               {
                 return typed;
