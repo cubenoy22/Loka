@@ -12,15 +12,6 @@
 #include "core/util/StateUtil.hpp"
 #include "core/Profiler.hpp"
 
-using declara::core::ProfileTicks;
-using declara::core::gTreeVirtTicks;
-using declara::core::gTreeCtxTicks;
-using declara::core::gTreeCompTicks;
-using declara::core::gTreeNodeCount;
-using declara::core::gStateAllocTicks;
-using declara::core::gStateAddTicks;
-using declara::core::gStateCount;
-
 namespace declara
 {
   namespace core

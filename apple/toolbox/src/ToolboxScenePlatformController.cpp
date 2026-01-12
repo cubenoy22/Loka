@@ -10,7 +10,6 @@
 #include <Menus.h>
 
 // Profile result captured once on first render
-static std::string sProfileResultCapture;
 static bool sProfileCaptured = false;
 #include "loka/platform/StringUTF8.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -439,58 +438,12 @@ void ToolboxScenePlatformController::render()
     ++i;
   }
 
-  // Capture profile result once on first render
+  // Capture profile once on first render and dump to file.
   if (!sProfileCaptured)
   {
-    declara::core::RecordComposeTicks();
     BuildProfileResultString();
-    sProfileResultCapture = gProfileResultString;
-    // Dump function-level profile to file
     DumpFuncProfileToFile("profile.txt");
     sProfileCaptured = true;
-  }
-
-  // Draw profile result at bottom-right of window (multi-line)
-  if (!sProfileResultCapture.empty())
-  {
-    GrafPtr port = window_->window();
-    Rect portRect = port->portRect;
-    short lineHeight = 12;
-    short yStart = static_cast<short>(portRect.top + 66);
-    short xRight = static_cast<short>(portRect.right - 80);
-    short xLeft = static_cast<short>(xRight - 80);
-    if (xLeft < static_cast<short>(portRect.left + 6))
-    {
-      xLeft = static_cast<short>(portRect.left + 6);
-    }
-    short x = xRight;
-    short y = yStart;
-    bool leftColumn = false;
-
-    const char *ptr = sProfileResultCapture.c_str();
-    while (*ptr)
-    {
-      const char *lineEnd = ptr;
-      while (*lineEnd && *lineEnd != '\n') ++lineEnd;
-      std::size_t lineLen = lineEnd - ptr;
-      if (lineLen > 255) lineLen = 255;
-      if (lineLen > 0)
-      {
-        if (!leftColumn && lineLen >= 4 && std::memcmp(ptr, "sCnt", 4) == 0)
-        {
-          leftColumn = true;
-          x = xLeft;
-          y = yStart;
-        }
-        Str255 text;
-        text[0] = static_cast<unsigned char>(lineLen);
-        std::memcpy(text + 1, ptr, lineLen);
-        MoveTo(x, y);
-        DrawString(text);
-        y += lineHeight;
-      }
-      ptr = *lineEnd ? lineEnd + 1 : lineEnd;
-    }
   }
 }
 

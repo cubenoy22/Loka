@@ -3,15 +3,6 @@
 
 #include "../NodeComposition.hpp"
 #include "ComposableNode.hpp"
-#include "core/Profiler.hpp"
-
-using declara::core::ProfileTicks;
-using declara::core::gComposeAttachTicks;
-using declara::core::gComposeNodeTicks;
-using declara::core::gComposeCreateTicks;
-using declara::core::gClearChildTicks;
-using declara::core::gBeginCompTicks;
-using declara::core::gAddChildTicks;
 
 namespace declara
 {
