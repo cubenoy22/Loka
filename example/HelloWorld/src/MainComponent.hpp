@@ -21,6 +21,15 @@ extern std::string gProfileResultString;
 
 namespace helloworld
 {
+  static const loka::core::String kFruitItems[] =
+      {
+          loka::core::String::Literal("Apple"),
+          loka::core::String::Literal("Banana"),
+          loka::core::String::Literal("Cherry"),
+          loka::core::String::Literal("Grape"),
+      };
+  static const std::size_t kFruitItemCount = sizeof(kFruitItems) / sizeof(kFruitItems[0]);
+
   class MainNode;
   typedef declara::core::scene::StaticCompositionPropsFor<MainNode> MainProps;
 
@@ -57,10 +66,7 @@ namespace helloworld
           fruitMessage_(),
           toggleEvent_()
     {
-      this->fruits_.push_back(loka::core::String::Literal("Apple"));
-      this->fruits_.push_back(loka::core::String::Literal("Banana"));
-      this->fruits_.push_back(loka::core::String::Literal("Cherry"));
-      this->fruits_.push_back(loka::core::String::Literal("Grape"));
+      this->fruits_.assign(kFruitItems, kFruitItemCount);
       // State is initialized in attachNode via NodeComposition::declareStates.
     }
 

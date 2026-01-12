@@ -23,6 +23,15 @@ namespace loka
     void clear() { values_.clear(); }
     void reserve(std::size_t count) { values_.reserve(count); }
     void push_back(const T &value) { values_.push_back(value); }
+    void assign(const T *items, std::size_t count)
+    {
+      values_.clear();
+      values_.reserve(count);
+      for (std::size_t i = 0; i < count; ++i)
+      {
+        values_.push_back(items[i]);
+      }
+    }
     T &operator[](std::size_t index) { return values_[index]; }
     const T &operator[](std::size_t index) const { return values_[index]; }
 
