@@ -3,10 +3,16 @@
 
 #include "core/util/StateTrackerGuard.hpp"
 #include "core2/scene/BoundState.hpp"
+#include "core2/scene/Component.hpp"
 #include "core2/scene/node/StaticComposition.hpp"
+#include "app/Button.hpp"
+#include "app/PopupMenu.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 #include "BmiCalculatorComponent.hpp"
+#include "ToolboxControlSlots.hpp"
 
 namespace helloworld
 {
@@ -117,6 +123,72 @@ namespace helloworld
     EmitterState fruitChangedEvent_;
     BmiCalculatorComponent bmiCalculator_;
   };
+
+  class MainLeftPanelComponent
+  {
+  public:
+    explicit MainLeftPanelComponent(MainNode *owner) : owner_(owner) {}
+
+    void attachNode(declara::core::scene::NodeComposition &) {}
+
+    void composeNode(declara::core::scene::NodeComposition &, declara::core::scene::INestableDefinition &parent)
+    {
+      using namespace declara::app;
+      if (!owner_)
+      {
+        return;
+      }
+      VStack column;
+      column
+          << Text("Loka Sample")
+          << Text(owner_->messageState())
+          << Button("Add +", &owner_->toggleEvent()).toolboxControl(kToolboxControlAddButton)
+          << declara::core::scene::LightComponent(owner_->bmiCalculator());
+      parent << column;
+    }
+
+  private:
+    MainNode *owner_;
+  };
+
+  class MainRightPanelComponent
+  {
+  public:
+    explicit MainRightPanelComponent(MainNode *owner) : owner_(owner) {}
+
+    void attachNode(declara::core::scene::NodeComposition &) {}
+
+    void composeNode(declara::core::scene::NodeComposition &, declara::core::scene::INestableDefinition &parent)
+    {
+      using namespace declara::app;
+      if (!owner_)
+      {
+        return;
+      }
+      VStack column;
+      column
+          << Text("Fruit Picker")
+          << PopupMenu(owner_->fruits().map<loka::core::String>(MainNode::FruitPopupLabel()))
+                 .selectedIndex(owner_->fruitIndexState())
+                 .onChange(&owner_->fruitChangedEvent())
+          << Text(owner_->fruitMessageState());
+      parent << column;
+    }
+
+  private:
+    MainNode *owner_;
+  };
+
+  inline void MainNode::composeNode(declara::core::scene::NodeComposition &c)
+  {
+    using namespace declara::app;
+    MainLeftPanelComponent leftPanel(this);
+    MainRightPanelComponent rightPanel(this);
+    c.declare(
+        HStack()
+        << declara::core::scene::LightComponent(leftPanel)
+        << declara::core::scene::LightComponent(rightPanel));
+  }
 
 } // namespace helloworld
 

@@ -5,7 +5,7 @@
 #include "core/AppConfigurable.hpp"
 #include "core/WindowDefinition.hpp"
 #include "app/Menu.hpp"
-#include "MainComponent.hpp"
+#include "MainNode.hpp"
 
 class MyAppConfig : public AppConfigurable
 {
