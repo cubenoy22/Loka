@@ -5,11 +5,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include "core2/scene/BoundState.hpp"
-#include "core/util/StateTrackerGuard.hpp"
+#include "core2/scene/Component.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
-#include "core2/scene/node/Group.hpp"
-#include "core/Profiler.hpp"
 #include "app/EditText.hpp"
 #include "app/Text.hpp"
 #include "app/RowColumn.hpp"
@@ -17,44 +15,38 @@
 
 namespace helloworld
 {
-  class BmiCalculatorNode;
-  typedef declara::core::scene::GroupPropsFor<BmiCalculatorNode> BmiCalculatorProps;
-
-  class BmiCalculatorNode : public declara::core::scene::GroupNodeBase<BmiCalculatorProps>
+  class BmiCalculatorComponent
   {
   public:
-    BmiCalculatorProps props;
-    BmiCalculatorNode(const BmiCalculatorProps &p)
-        : declara::core::scene::GroupNodeBase<BmiCalculatorProps>(BmiCalculatorProps(p)),
-          props(p),
+    BmiCalculatorComponent()
+        : initialized_(false),
           heightInput_(),
           weightInput_(),
           bmiResult_()
-    {
-    }
+    {}
 
-    virtual void attachNode(declara::core::scene::NodeComposition &c)
+    void composeInto(declara::core::scene::NodeComposition &c,
+                     declara::core::scene::INestableDefinition &parent)
     {
-      c.declareStates()
-          .state(heightInput_, loka::core::String::Literal("170.0"))
-          .state(weightInput_, loka::core::String::Literal("60.0"))
-          .state(bmiResult_, loka::core::String::Literal("BMI: --"));
-      heightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
-      weightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
-      updateBmi();
-    }
-
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
-    {
+      if (!initialized_)
+      {
+        c.declareStates()
+            .state(heightInput_, loka::core::String::Literal("170.0"))
+            .state(weightInput_, loka::core::String::Literal("60.0"))
+            .state(bmiResult_, loka::core::String::Literal("BMI: --"));
+        heightInput_.bind(&BmiCalculatorComponent::InputChangedThunk, this, false);
+        weightInput_.bind(&BmiCalculatorComponent::InputChangedThunk, this, false);
+        updateBmi();
+        initialized_ = true;
+      }
       using namespace declara::app;
-      c.declare(
-          VStack()
+      parent
           << Text("BMI Calculator")
           << Text("Height (cm)")
           << EditText(heightInput_).toolboxControl(kToolboxControlHeightInput)
           << Text("Weight (kg)")
           << EditText(weightInput_).toolboxControl(kToolboxControlWeightInput)
-          << Text(bmiResult_));
+          << Text(bmiResult_);
     }
 
   private:
@@ -77,7 +69,7 @@ namespace helloworld
 
     static void InputChangedThunk(void *userData)
     {
-      BmiCalculatorNode *self = static_cast<BmiCalculatorNode *>(userData);
+      BmiCalculatorComponent *self = static_cast<BmiCalculatorComponent *>(userData);
       if (self)
       {
         self->updateBmi();
@@ -86,11 +78,6 @@ namespace helloworld
 
     void updateBmi()
     {
-      const AttachedContext *ctx = this->attachedContext();
-      if (!ctx)
-      {
-        return;
-      }
       double heightCm = parseDouble(heightInput_.get());
       double weightKg = parseDouble(weightInput_.get());
       loka::core::String label = loka::core::String::Literal("BMI: --");
@@ -105,19 +92,14 @@ namespace helloworld
           label = loka::core::String(std::string(buf));
         }
       }
-      StateTrackerGuard _(ctx->boundary()->tracker());
       bmiResult_.set(label, true);
     }
 
+    bool initialized_;
     declara::core::scene::BoundState<loka::core::String> heightInput_;
     declara::core::scene::BoundState<loka::core::String> weightInput_;
     declara::core::scene::BoundState<loka::core::String> bmiResult_;
   };
-
-  inline declara::core::scene::NodeDefinition<BmiCalculatorProps, BmiCalculatorNode> BmiCalculator()
-  {
-    return declara::core::scene::NodeDefinition<BmiCalculatorProps, BmiCalculatorNode>();
-  }
 
 } // namespace helloworld
 

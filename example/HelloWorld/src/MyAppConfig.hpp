@@ -16,7 +16,7 @@ public:
   virtual void compose(AppComposition &c)
   {
     c << WindowDef(WindowProps()
-                       .scene(helloworld::Main())
+                       .scene(declara::core::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode>())
                        .title("LokaSample")
                        .visible(true));
   }

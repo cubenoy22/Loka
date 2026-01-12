@@ -375,11 +375,21 @@ namespace declara
             nodeContext.setScene(scene);
             nodeContext.setWindow(parentContext.window());
             nodeContext.setDirtyFlags(parentContext.dirtyFlags());
+            nodeContext.setComposition(parentContext.composition());
           }
 
           if (composable)
           {
-            composable->compose(nodeContext, event);
+            NodeComposition *composition = nodeContext.composition();
+            if (composition)
+            {
+              NodeComposition::CompositionScope scope(*composition);
+              composable->compose(nodeContext, event);
+            }
+            else
+            {
+              composable->compose(nodeContext, event);
+            }
             contextForChildren = &nodeContext;
           }
           if (!nestable)

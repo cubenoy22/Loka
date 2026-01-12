@@ -11,6 +11,23 @@ namespace declara
   {
     namespace scene
     {
+      NodeComposition *NodeComposition::current_ = 0;
+
+      NodeComposition::CompositionScope::CompositionScope(NodeComposition &composition)
+          : prev_(current_)
+      {
+        current_ = &composition;
+      }
+
+      NodeComposition::CompositionScope::~CompositionScope()
+      {
+        current_ = prev_;
+      }
+
+      NodeComposition *NodeComposition::current()
+      {
+        return current_;
+      }
 
       // 宣言のみ。実際の型はNode.hppで定義されるINestableなどから取得
       struct INestableDefinition;

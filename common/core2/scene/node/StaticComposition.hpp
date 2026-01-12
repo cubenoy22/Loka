@@ -114,6 +114,7 @@ namespace declara
           }
           {
             PROFILE_SECTION("compNode");
+            NodeComposition::CompositionScope scope(composition);
             this->composeNode(composition);
           }
           // Pass composition to children via context

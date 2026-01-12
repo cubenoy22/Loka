@@ -47,8 +47,6 @@ namespace helloworld
     }
   };
 
-  inline declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode> MainPanel(MainNode *owner, bool leftSide);
-
   class MainNode : public declara::core::scene::StaticCompositionNodeFor<MainNode>
   {
   public:
@@ -142,7 +140,8 @@ namespace helloworld
   {
   public:
     MainPanelNode(const MainPanelProps &p)
-        : declara::core::scene::StaticCompositionBoundaryNodeBase<MainPanelProps>(p) {}
+        : declara::core::scene::StaticCompositionBoundaryNodeBase<MainPanelProps>(p),
+          bmiCalculator_() {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -158,7 +157,7 @@ namespace helloworld
             << Text("Loka Sample")
             << Text(this->props.owner->message_)
             << Button("Add +", &this->props.owner->toggleEvent_).toolboxControl(kToolboxControlAddButton)
-            << BmiCalculator());
+            << declara::core::scene::ComponentDefinition<BmiCalculatorComponent>(&bmiCalculator_));
         return;
       }
       c.declare(
@@ -167,25 +166,17 @@ namespace helloworld
           << PopupMenu(&this->props.owner->fruits_).selectedIndex(this->props.owner->fruitIndex_).onChange(&this->props.owner->fruitChangedEvent_)
           << Text(this->props.owner->fruitMessage_));
     }
+  private:
+    BmiCalculatorComponent bmiCalculator_;
   };
-
-  inline declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode> MainPanel(MainNode *owner, bool leftSide)
-  {
-    return declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode>(MainPanelProps(owner, leftSide));
-  }
 
   inline void MainNode::composeNode(declara::core::scene::NodeComposition &c)
   {
     using namespace declara::app;
     c.declare(
         HStack()
-        << MainPanel(this, true)
-        << MainPanel(this, false));
-  }
-
-  inline declara::core::scene::NodeDefinition<MainProps, MainNode> Main()
-  {
-    return declara::core::scene::NodeDefinition<MainProps, MainNode>();
+        << declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode>(MainPanelProps(this, true))
+        << declara::core::scene::NodeDefinition<MainPanelProps, MainPanelNode>(MainPanelProps(this, false)));
   }
 
 } // namespace helloworld

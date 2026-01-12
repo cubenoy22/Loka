@@ -86,6 +86,7 @@ namespace declara
           if (parentComp)
           {
             this->attachNode(*parentComp);
+            NodeComposition::CompositionScope scope(*parentComp);
             this->composeNode(*parentComp);
             // No createNodeTree - parent handles it
             return;
@@ -94,6 +95,7 @@ namespace declara
           this->clearChildren();
           NodeComposition &composition = this->beginComposition(context);
           this->attachNode(composition);
+          NodeComposition::CompositionScope scope(composition);
           this->composeNode(composition);
           Node *child = composition.createNodeTree();
           if (child)

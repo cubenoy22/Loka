@@ -26,6 +26,14 @@ namespace declara
       struct NodeComposition
       {
       public:
+        struct CompositionScope
+        {
+          explicit CompositionScope(NodeComposition &composition);
+          ~CompositionScope();
+        private:
+          NodeComposition *prev_;
+        };
+
         class StateBatch
         {
         public:
@@ -291,6 +299,7 @@ namespace declara
         BoundaryNode *boundary() const;
         Scene *scene() const;
         ::Window *window() const;
+        static NodeComposition *current();
 
         void reset()
         {
@@ -424,6 +433,7 @@ namespace declara
         bool stateBatchActive_;
         int stateBatchRefs_;
         StateBatch::Impl stateBatchImpl_;
+        static NodeComposition *current_;
       };
 
       inline NodeComposition::StateBatch::StateBatch(NodeComposition *composition, Impl *impl)

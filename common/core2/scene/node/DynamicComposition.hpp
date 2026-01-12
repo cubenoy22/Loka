@@ -105,13 +105,16 @@ namespace declara
           {
             this->attachNode(composition);
           }
+          NodeComposition::CompositionScope scope(composition);
           this->composeNode(composition);
+          context.setComposition(&composition);
           Node *child = composition.createNodeTree();
           if (child)
           {
             this->addChild(child);
             this->composeTree(child, context, event, this);
           }
+          context.setComposition(0);
         }
       };
 
