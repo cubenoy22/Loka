@@ -13,6 +13,7 @@
 #include "context/MacEditTextContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
+#include "core/Profiler.hpp"
 
 namespace
 {
@@ -107,6 +108,7 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
     state.width = 0;
   }
   state.height = clientHeight > 0 ? clientHeight - 40 : 0;
+  PROFILE_SECTION("layout");
   layoutNode(rootNode_, state);
   finalizeKeyLoop();
 }

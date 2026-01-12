@@ -9,6 +9,7 @@
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "core2/scene/Node.hpp"
+#include "core/Profiler.hpp"
 
 namespace
 {
@@ -131,6 +132,7 @@ void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeig
     state.width = 0;
   }
   state.height = clientHeight > 0 ? clientHeight - 40 : 0;
+  PROFILE_SECTION("layout");
   layoutNode(rootNode_, state);
 }
 

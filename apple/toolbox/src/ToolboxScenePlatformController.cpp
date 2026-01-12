@@ -499,6 +499,7 @@ void ToolboxScenePlatformController::render()
   state.y = 24;
   state.lineHeight = 14;
   state.spacing = 6;
+  PROFILE_SECTION("layout");
   LayoutNode(rootNode_, state, this, 0);
   RenderNode(rootNode_, this);
   for (size_t i = 0; i < buttonControls_.size(); ++i)

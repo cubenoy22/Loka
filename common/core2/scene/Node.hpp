@@ -21,6 +21,7 @@
 #include "loka/dsl/CompositionList.hpp"
 
 #include "../../core/State.hpp"
+#include "../../core/Profiler.hpp"
 // StreamView is only needed by NodeComposition; avoid including here to reduce coupling
 
 namespace declara
@@ -171,6 +172,7 @@ namespace declara
         }
         virtual short layout(IPlatformController *controller, LayoutState &state)
         {
+          PROFILE_SECTION("layoutNode");
           if (context)
           {
             return context->layout(controller, state);
