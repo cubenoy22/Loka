@@ -79,7 +79,7 @@ namespace declara
             Entry &e = entries_[count_++];
             e.out = &out;
             e.size = sizeof(MutableState<T>);
-            e.align = __alignof__(MutableState<T>);
+            e.align = AlignOf<MutableState<T> >::value;
             e.create = &CreateState<T>;
             // 初期値をコピー（小さい値のみ inline）
             copyInitial<T>(e.storage.bytes, initial);
@@ -118,7 +118,7 @@ namespace declara
             BoundState<T> *out = static_cast<BoundState<T> *>(outPtr);
             T *initial = reinterpret_cast<T *>(initialPtr);
             MutableState<T> *state = 0;
-            size_t align = __alignof__(MutableState<T>);
+            size_t align = AlignOf<MutableState<T> >::value;
             void *mem = owner->allocateStateMemory(sizeof(MutableState<T>), align);
             if (mem)
             {
@@ -141,7 +141,7 @@ namespace declara
           static void CreateImmediateState(IStateOwner *owner, BoundState<T> &out, const T &initial)
           {
             MutableState<T> *state = 0;
-            size_t align = __alignof__(MutableState<T>);
+            size_t align = AlignOf<MutableState<T> >::value;
             void *mem = owner ? owner->allocateStateMemory(sizeof(MutableState<T>), align) : 0;
             if (mem)
             {
@@ -346,7 +346,7 @@ namespace declara
           IStateOwner *stateOwner = context_->stateOwner();
           assert(stateOwner && "NodeComposition::useState requires Boundary owner");
           MutableState<T> *state = 0;
-          size_t align = __alignof__(MutableState<T>);
+          size_t align = AlignOf<MutableState<T> >::value;
           void *mem = stateOwner->allocateStateMemory(sizeof(MutableState<T>), align);
           if (mem)
           {
