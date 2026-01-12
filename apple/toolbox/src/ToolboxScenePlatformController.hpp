@@ -52,6 +52,7 @@ public:
   TEHandle ensureEditTextControl(const Rect &rect, declara::core::State<loka::core::String> *text);
   void idleTextEdits();
   bool isPointInEdit(const Point &point) const;
+  short allocateControlId();
   void beginClip(const Rect &rect);
   void endClip();
   ToolboxNodeContextMapper *contextMapper() const;
@@ -128,6 +129,7 @@ private:
   std::vector<declara::core::State<loka::core::String> *> pendingTextStates_;
   RgnHandle clipRgn_;
   bool hasClip_;
+  short nextControlId_;
 
   bool handleTextKey(char key);
   void bindTextState(declara::core::State<loka::core::String> *text);

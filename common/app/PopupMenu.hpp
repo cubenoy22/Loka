@@ -38,15 +38,23 @@ namespace declara
       State<int> *selectedIndex_;
       State<bool> *enabled_;
       EmitterState *onChange_;
+      int controlTag_;
       PopupMenuProps()
-          : items_(0), ownedItems_(), ownsItems_(false), selectedIndex_(0), enabled_(0), onChange_(0) {}
+          : items_(0),
+            ownedItems_(),
+            ownsItems_(false),
+            selectedIndex_(0),
+            enabled_(0),
+            onChange_(0),
+            controlTag_(0) {}
       PopupMenuProps(const PopupMenuProps &other)
           : items_(other.items_),
             ownedItems_(other.ownedItems_),
             ownsItems_(other.ownsItems_),
             selectedIndex_(other.selectedIndex_),
             enabled_(other.enabled_),
-            onChange_(other.onChange_)
+            onChange_(other.onChange_),
+            controlTag_(other.controlTag_)
       {
         if (ownsItems_)
         {
@@ -65,6 +73,7 @@ namespace declara
         selectedIndex_ = other.selectedIndex_;
         enabled_ = other.enabled_;
         onChange_ = other.onChange_;
+        controlTag_ = other.controlTag_;
         if (ownsItems_)
         {
           items_ = &ownedItems_;
@@ -117,6 +126,11 @@ namespace declara
         this->onChange_ = onChange;
         return *this;
       }
+      PopupMenuProps &controlTag(int tag)
+      {
+        this->controlTag_ = tag;
+        return *this;
+      }
 
       virtual const loka::Vector<loka::core::String> *getItems() const { return items_; }
       virtual State<int> *getSelectedIndex() const { return selectedIndex_; }
@@ -130,6 +144,7 @@ namespace declara
         h = h * 31 + reinterpret_cast<std::size_t>(selectedIndex_);
         h = h * 31 + reinterpret_cast<std::size_t>(enabled_);
         h = h * 31 + reinterpret_cast<std::size_t>(onChange_);
+        h = h * 31 + static_cast<std::size_t>(controlTag_);
         return static_cast<int>(h);
       }
 
@@ -140,6 +155,8 @@ namespace declara
         const PopupMenuProps &other = static_cast<const PopupMenuProps &>(rhs);
         if (items_ != other.items_)
           return items_ < other.items_;
+        if (controlTag_ != other.controlTag_)
+          return controlTag_ < other.controlTag_;
         if (selectedIndex_ != other.selectedIndex_)
           return selectedIndex_ < other.selectedIndex_;
         return enabled_ < other.enabled_;
@@ -206,6 +223,12 @@ namespace declara
       PopupMenuDefinition &onChange(EmitterState *onChange)
       {
         this->props.onChange(onChange);
+        return *this;
+      }
+
+      PopupMenuDefinition &controlTag(int tag)
+      {
+        this->props.controlTag(tag);
         return *this;
       }
 

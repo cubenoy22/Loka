@@ -46,12 +46,20 @@ ToolboxButtonContext::~ToolboxButtonContext() {}
 void ToolboxButtonContext::updateData(const loka::core::String &label,
                                       declara::core::EmitterState *emitter,
                                       declara::core::State<bool> *enabled,
-                                      short resourceId)
+                                      short resourceId,
+                                      int controlTag)
 {
   label_ = label;
   emitter_ = emitter;
   enabled_ = enabled;
-  resourceId_ = resourceId;
+  if (resourceId > 0)
+  {
+    resourceId_ = resourceId;
+  }
+  else if (controlTag > 0 && controlTag <= 32767)
+  {
+    resourceId_ = static_cast<short>(controlTag);
+  }
 }
 
 void ToolboxButtonContext::updateRect(const Rect &rect)
@@ -61,6 +69,10 @@ void ToolboxButtonContext::updateRect(const Rect &rect)
 
 void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
+  if (controller && resourceId_ <= 0)
+  {
+    resourceId_ = controller->allocateControlId();
+  }
   if (controller && resourceId_ > 0)
   {
     if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_))
@@ -96,7 +108,7 @@ short ToolboxButtonContext::layout(declara::core::scene::IPlatformController *co
   rect.top = static_cast<short>(state.y - state.lineHeight + 2);
   rect.right = static_cast<short>(state.x + width);
   rect.bottom = static_cast<short>(state.y + 6);
-  updateData(label, node_->props.onClick_, node_->props.enabled_, node_->props.toolboxControlId_);
+  updateData(label, node_->props.onClick_, node_->props.enabled_, node_->props.toolboxControlId_, node_->props.controlTag_);
   updateRect(rect);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;

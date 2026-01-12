@@ -34,7 +34,8 @@ namespace declara
       State<bool> *enabled_;
       EmitterState *onClick_;
       short toolboxControlId_;
-      ButtonProps() : text_(0), enabled_(0), onClick_(0), toolboxControlId_(0) {}
+      int controlTag_;
+      ButtonProps() : text_(0), enabled_(0), onClick_(0), toolboxControlId_(0), controlTag_(0) {}
       ButtonProps &text(State<loka::core::String> *t)
       {
         this->text_ = t;
@@ -65,6 +66,11 @@ namespace declara
         this->toolboxControlId_ = id;
         return *this;
       }
+      ButtonProps &controlTag(int tag)
+      {
+        this->controlTag_ = tag;
+        return *this;
+      }
       // --- IButtonProps 実装 ---
       virtual State<loka::core::String> *getText() const { return text_; }
       virtual State<bool> *getEnabled() const { return enabled_; }
@@ -76,6 +82,7 @@ namespace declara
         h = h * 31 + reinterpret_cast<std::size_t>(enabled_);
         h = h * 31 + reinterpret_cast<std::size_t>(onClick_);
         h = h * 31 + static_cast<std::size_t>(toolboxControlId_);
+        h = h * 31 + static_cast<std::size_t>(controlTag_);
         return static_cast<int>(h);
       }
       bool operator<(const declara::core::scene::PropsBase &rhs) const
@@ -85,6 +92,8 @@ namespace declara
         const ButtonProps &b = static_cast<const ButtonProps &>(rhs);
         if (text_ != b.text_)
           return text_ < b.text_;
+        if (controlTag_ != b.controlTag_)
+          return controlTag_ < b.controlTag_;
         if (toolboxControlId_ != b.toolboxControlId_)
           return toolboxControlId_ < b.toolboxControlId_;
         return enabled_ < b.enabled_;
@@ -139,6 +148,11 @@ namespace declara
       ButtonDefinition &toolboxControl(short id)
       {
         this->props.toolboxControlId_ = id;
+        return *this;
+      }
+      ButtonDefinition &controlTag(int tag)
+      {
+        this->props.controlTag_ = tag;
         return *this;
       }
 

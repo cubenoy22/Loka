@@ -38,6 +38,8 @@ namespace
   };
 #endif
 
+  static const short kAutoControlBaseId = 128;
+
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
@@ -106,6 +108,64 @@ namespace
                    declara::core::scene::BoundaryNode *currentBoundary);
   void RenderNode(declara::core::scene::Node *node,
                   ToolboxScenePlatformController *controller);
+
+  short MaxExplicitControlId(declara::core::scene::Node *node)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+    short maxId = 0;
+    if (declara::app::ButtonNode *button = node->asButtonNode())
+    {
+      short id = button->props.toolboxControlId_;
+      if (id <= 0 && button->props.controlTag_ > 0 && button->props.controlTag_ <= 32767)
+      {
+        id = static_cast<short>(button->props.controlTag_);
+      }
+      if (id > maxId)
+      {
+        maxId = id;
+      }
+    }
+    if (declara::app::EditTextNode *edit = node->asEditTextNode())
+    {
+      short id = edit->props.toolboxControlId_;
+      if (id <= 0 && edit->props.controlTag_ > 0 && edit->props.controlTag_ <= 32767)
+      {
+        id = static_cast<short>(edit->props.controlTag_);
+      }
+      if (id > maxId)
+      {
+        maxId = id;
+      }
+    }
+    if (declara::app::PopupMenuNode *popup = node->asPopupMenuNode())
+    {
+      short id = 0;
+      if (popup->props.controlTag_ > 0 && popup->props.controlTag_ <= 32767)
+      {
+        id = static_cast<short>(popup->props.controlTag_);
+      }
+      if (id > maxId)
+      {
+        maxId = id;
+      }
+    }
+    if (declara::core::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+      {
+        short childMax = MaxExplicitControlId(child);
+        if (childMax > maxId)
+        {
+          maxId = childMax;
+        }
+      }
+    }
+    return maxId;
+  }
 
   short LayoutChildren(declara::core::scene::INestable *nestable,
                        declara::core::scene::LayoutState &state,
@@ -333,7 +393,8 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       forceFullRedraw_(false),
       pendingDirtyRects_(),
       clipRgn_(NewRgn()),
-      hasClip_(false)
+      hasClip_(false),
+      nextControlId_(kAutoControlBaseId)
 {
 }
 
@@ -355,6 +416,17 @@ ToolboxNodeContextMapper *ToolboxScenePlatformController::contextMapper() const
     return 0;
   }
   return window_->context()->contextMapper();
+}
+
+short ToolboxScenePlatformController::allocateControlId()
+{
+  if (nextControlId_ < kAutoControlBaseId)
+  {
+    nextControlId_ = kAutoControlBaseId;
+  }
+  short id = nextControlId_;
+  ++nextControlId_;
+  return id;
 }
 
 void ToolboxScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
@@ -399,6 +471,14 @@ void ToolboxScenePlatformController::render()
   if (!window_ || !window_->window() || !rootNode_)
   {
     return;
+  }
+  {
+    short maxExplicit = MaxExplicitControlId(rootNode_);
+    if (maxExplicit < kAutoControlBaseId - 1)
+    {
+      maxExplicit = static_cast<short>(kAutoControlBaseId - 1);
+    }
+    nextControlId_ = static_cast<short>(maxExplicit + 1);
   }
   buttonHits_.clear();
   for (size_t i = 0; i < buttonControls_.size(); ++i)

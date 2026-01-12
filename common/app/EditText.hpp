@@ -22,8 +22,9 @@ namespace declara
       typedef EditTextNode NodeType;
       State<loka::core::String> *text_;
       short toolboxControlId_;
-      EditTextProps() : text_(0), toolboxControlId_(0) {}
-      EditTextProps(State<loka::core::String> *state) : text_(state), toolboxControlId_(0) {}
+      int controlTag_;
+      EditTextProps() : text_(0), toolboxControlId_(0), controlTag_(0) {}
+      EditTextProps(State<loka::core::String> *state) : text_(state), toolboxControlId_(0), controlTag_(0) {}
       EditTextProps &text(State<loka::core::String> *state)
       {
         this->text_ = state;
@@ -34,11 +35,18 @@ namespace declara
         this->toolboxControlId_ = id;
         return *this;
       }
+      EditTextProps &controlTag(int tag)
+      {
+        this->controlTag_ = tag;
+        return *this;
+      }
       bool operator<(const core::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const EditTextProps &other = static_cast<const EditTextProps &>(rhs);
+        if (controlTag_ != other.controlTag_)
+          return controlTag_ < other.controlTag_;
         if (toolboxControlId_ != other.toolboxControlId_)
           return toolboxControlId_ < other.toolboxControlId_;
         return text_ < other.text_;
@@ -64,6 +72,12 @@ namespace declara
       EditTextDefinition &toolboxControl(short id)
       {
         this->props.toolboxControlId_ = id;
+        return *this;
+      }
+
+      EditTextDefinition &controlTag(int tag)
+      {
+        this->props.controlTag_ = tag;
         return *this;
       }
     };

@@ -38,7 +38,8 @@ public:
   void updateData(const loka::core::String &label,
                   declara::core::EmitterState *emitter,
                   declara::core::State<bool> *enabled,
-                  short resourceId);
+                  short resourceId,
+                  int controlTag);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(declara::core::scene::IPlatformController *controller);
