@@ -36,58 +36,77 @@ namespace helloworld
       loka::core::String operator()(const loka::core::String &value) const { return value; }
     };
 
+    struct LeftPanelState
+    {
+      declara::core::scene::BoundState<loka::core::String> message;
+      declara::core::EmitterState toggleEvent;
+      BmiCalculatorComponent bmiCalculator;
+
+      LeftPanelState() : message(), toggleEvent(), bmiCalculator() {}
+
+      declara::core::scene::BoundState<loka::core::String> &messageState() { return message; }
+      declara::core::EmitterState &toggleEventState() { return toggleEvent; }
+      BmiCalculatorComponent &bmiCalculatorState() { return bmiCalculator; }
+    };
+
+    struct RightPanelState
+    {
+      declara::core::scene::BoundState<int> fruitIndex;
+      declara::core::scene::BoundState<loka::core::String> fruitMessage;
+      loka::Vector<loka::core::String> fruits;
+      declara::core::EmitterState fruitChangedEvent;
+
+      RightPanelState() : fruitIndex(), fruitMessage(), fruits(), fruitChangedEvent() {}
+
+      declara::core::scene::BoundState<int> &fruitIndexState() { return fruitIndex; }
+      declara::core::scene::BoundState<loka::core::String> &fruitMessageState() { return fruitMessage; }
+      loka::Vector<loka::core::String> &fruitsState() { return fruits; }
+      declara::core::EmitterState &fruitChangedEventState() { return fruitChangedEvent; }
+    };
+
     MainNode(const MainProps &p)
         : declara::core::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
-          message_(),
-          fruitIndex_(),
-          fruitMessage_(),
-          toggleEvent_(),
-          fruitChangedEvent_(),
-          bmiCalculator_()
+          left_(),
+          right_()
     {
-      this->fruits_.assign(kFruitItems, kFruitItemCount);
+      this->right_.fruits.assign(kFruitItems, kFruitItemCount);
       // State is initialized in attachNode via NodeComposition::declareStates.
     }
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
       declara::core::scene::NodeComposition::StateBatch states = c.declareStates();
-      states.state(message_, loka::core::String::Literal("Hello, Loka!"))
-          .state(fruitIndex_, 0)
-          .state(fruitMessage_, loka::core::String::Literal("You chose Apple."));
-      this->bindForUi(toggleEvent_, this, &MainNode::toggleMessage);
-      this->bindForUi(fruitChangedEvent_, this, &MainNode::handleFruitChanged);
+      states.state(left_.message, loka::core::String::Literal("Hello, Loka!"))
+          .state(right_.fruitIndex, 0)
+          .state(right_.fruitMessage, loka::core::String::Literal("You chose Apple."));
+      this->bindForUi(left_.toggleEvent, this, &MainNode::toggleMessage);
+      this->bindForUi(right_.fruitChangedEvent, this, &MainNode::handleFruitChanged);
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c);
 
-    declara::core::scene::BoundState<loka::core::String> &messageState() { return message_; }
-    declara::core::scene::BoundState<int> &fruitIndexState() { return fruitIndex_; }
-    declara::core::scene::BoundState<loka::core::String> &fruitMessageState() { return fruitMessage_; }
-    loka::Vector<loka::core::String> &fruits() { return fruits_; }
-    EmitterState &toggleEvent() { return toggleEvent_; }
-    EmitterState &fruitChangedEvent() { return fruitChangedEvent_; }
-    BmiCalculatorComponent &bmiCalculator() { return bmiCalculator_; }
+    LeftPanelState &left() { return left_; }
+    RightPanelState &right() { return right_; }
 
   private:
     void handleFruitChanged()
     {
-      if (!this->fruitIndex_.isValid() || !this->fruitMessage_.isValid() || this->fruits_.empty())
+      if (!this->right_.fruitIndex.isValid() || !this->right_.fruitMessage.isValid() || this->right_.fruits.empty())
       {
         return;
       }
-      int index = this->fruitIndex_.get();
-      if (index < 0 || static_cast<std::size_t>(index) >= this->fruits_.size())
+      int index = this->right_.fruitIndex.get();
+      if (index < 0 || static_cast<std::size_t>(index) >= this->right_.fruits.size())
       {
         index = 0;
       }
-      loka::core::String next = loka::core::String::Literal("You chose ") + this->fruits_[static_cast<std::size_t>(index)] + ".";
-      this->fruitMessage_.set(next, true);
+      loka::core::String next = loka::core::String::Literal("You chose ") + this->right_.fruits[static_cast<std::size_t>(index)] + ".";
+      this->right_.fruitMessage.set(next, true);
     }
 
     void toggleMessage()
     {
-      if (!this->message_.isValid())
+      if (!this->left_.message.isValid())
       {
         return;
       }
@@ -96,8 +115,8 @@ namespace helloworld
       {
         return;
       }
-      loka::core::String next = this->message_.get() + " +Loka";
-      this->message_.set(next, true);
+      loka::core::String next = this->left_.message.get() + " +Loka";
+      this->left_.message.set(next, true);
 
       {
         StateTrackerGuard _(ctx->window()->getTracker());
@@ -114,13 +133,8 @@ namespace helloworld
       }
     }
 
-    declara::core::scene::BoundState<loka::core::String> message_;
-    declara::core::scene::BoundState<int> fruitIndex_;
-    declara::core::scene::BoundState<loka::core::String> fruitMessage_;
-    loka::Vector<loka::core::String> fruits_;
-    EmitterState toggleEvent_;
-    EmitterState fruitChangedEvent_;
-    BmiCalculatorComponent bmiCalculator_;
+    LeftPanelState left_;
+    RightPanelState right_;
   };
 
   class MainLeftPanelComponent
@@ -140,9 +154,9 @@ namespace helloworld
       VStack column;
       column
           << Text("Loka Sample")
-          << Text(owner_->messageState())
-          << Button("Add +", &owner_->toggleEvent())
-          << declara::core::scene::LightComponent(owner_->bmiCalculator());
+          << Text(owner_->left().messageState())
+          << Button("Add +", &owner_->left().toggleEventState())
+          << declara::core::scene::LightComponent(owner_->left().bmiCalculatorState());
       parent << column;
     }
 
@@ -167,10 +181,10 @@ namespace helloworld
       VStack column;
       column
           << Text("Fruit Picker")
-          << PopupMenu(owner_->fruits().map<loka::core::String>(MainNode::FruitPopupLabel()))
-                 .selectedIndex(owner_->fruitIndexState())
-                 .onChange(&owner_->fruitChangedEvent())
-          << Text(owner_->fruitMessageState());
+          << PopupMenu(owner_->right().fruitsState().map<loka::core::String>(MainNode::FruitPopupLabel()))
+                 .selectedIndex(owner_->right().fruitIndexState())
+                 .onChange(&owner_->right().fruitChangedEventState())
+          << Text(owner_->right().fruitMessageState());
       parent << column;
     }
 
