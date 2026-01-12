@@ -446,6 +446,7 @@ void ToolboxScenePlatformController::render()
     ++i;
   }
 
+#if LOKA_PROFILE_FUNC_TICKS
   // Capture profile once on first render and dump to file.
   if (!sProfileCaptured)
   {
@@ -453,6 +454,7 @@ void ToolboxScenePlatformController::render()
     DumpFuncProfileToFile("profile.txt");
     sProfileCaptured = true;
   }
+#endif
 }
 
 void ToolboxScenePlatformController::renderDirty(const Rect &rect)
