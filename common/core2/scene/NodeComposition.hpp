@@ -68,6 +68,7 @@ namespace declara
           {
             if (count_ >= kMaxStates)
             {
+              CreateImmediateState(owner_, out, initial);
               return *this;
             }
             if (sizeof(T) > kStorageBytes)
@@ -136,6 +137,33 @@ namespace declara
           }
 
         public:
+          template <typename T>
+          static void CreateImmediateState(IStateOwner *owner, BoundState<T> &out, const T &initial)
+          {
+            MutableState<T> *state = 0;
+            size_t align = __alignof__(MutableState<T>);
+            void *mem = owner ? owner->allocateStateMemory(sizeof(MutableState<T>), align) : 0;
+            if (mem)
+            {
+              state = new (mem) MutableState<T>(initial);
+              state->setArenaAllocated(true);
+              owner->registerStateMemory(state, &DestroyState<T>);
+            }
+            else
+            {
+              state = new MutableState<T>(initial);
+            }
+            if (owner)
+            {
+              owner->adoptStateUnchecked(state);
+              out = BoundState<T>(state, owner->tracker());
+            }
+            else
+            {
+              out = BoundState<T>(state, 0);
+            }
+          }
+
           template <typename T>
           static void DestroyState(core::StateBase *state)
           {

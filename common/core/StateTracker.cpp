@@ -12,7 +12,7 @@ namespace declara
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
         : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
-          statesHead_(0), statesTail_(0), freeEntries_(0)
+          statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0)
     {
       for (size_t i = 0; i < states.size(); ++i)
       {

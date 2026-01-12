@@ -15,5 +15,6 @@ void testSceneBoundaryNestedCompose();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();
+void testStateBatchOverflow();
 
 #endif // LOKA_TESTS_HPP

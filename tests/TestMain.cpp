@@ -17,6 +17,7 @@ int main()
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();
+  testStateBatchOverflow();
   SceneTests::runAll();
   return 0;
 }

@@ -130,6 +130,47 @@ void testTrackerPropagation()
   printf("==== [testTrackerPropagation] end ====\n");
 }
 
+void testStateBatchOverflow()
+{
+  printf("\n==== [testStateBatchOverflow] start ====\n");
+  struct DummyOwner : public declara::core::scene::IStateOwner
+  {
+    std::vector<declara::core::StateBase *> adopted;
+    virtual void adoptState(declara::core::StateBase *state) { adoptStateUnchecked(state); }
+    virtual void adoptStateUnchecked(declara::core::StateBase *state) { adopted.push_back(state); }
+    virtual void reserveStates(size_t) {}
+    virtual void reserveStateArena(size_t) {}
+    virtual void *allocateStateMemory(size_t, size_t) { return 0; }
+    virtual void registerStateMemory(declara::core::StateBase *, void (*)(declara::core::StateBase *)) {}
+    virtual declara::core::StateTracker *tracker() { return 0; }
+  };
+
+  DummyOwner owner;
+  declara::core::scene::BoundState<int> states[17];
+  {
+    declara::core::scene::NodeComposition::StateBatch batch(&owner);
+    for (int i = 0; i < 17; ++i)
+    {
+      batch.state(states[i], i + 1);
+    }
+  }
+
+  for (int i = 0; i < 17; ++i)
+  {
+    assert(states[i].isValid());
+    assert(states[i].get() == i + 1);
+  }
+  assert(owner.adopted.size() == 17);
+  printf("[test] state[0]=%d, state[15]=%d, state[16]=%d\n",
+         states[0].get(), states[15].get(), states[16].get());
+  printf("[test] adopted=%zu (expect 17)\n", owner.adopted.size());
+  for (int i = 0; i < 17; ++i)
+  {
+    delete states[i].mutableState();
+  }
+  printf("==== [testStateBatchOverflow] end ====\n");
+}
+
 void testDeferredSideEffect()
 {
   printf("\n==== [testDeferredSideEffect] start ====\n");
