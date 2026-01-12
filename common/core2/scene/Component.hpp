@@ -23,7 +23,8 @@ namespace declara
         virtual void composeInto(NodeComposition &composition, INestableDefinition &parent)
         {
           assert(component_ && "ComponentDefinition requires component instance");
-          component_->composeInto(composition, parent);
+          NodeComposition::ParentScope scope(composition, parent);
+          component_->composeNode(composition);
         }
         ComponentT *component_;
       };
@@ -70,7 +71,8 @@ namespace declara
         virtual void composeInto(NodeComposition &composition, INestableDefinition &parent)
         {
           assert(component_ && "LightComponentDefinition requires component instance");
-          component_->composeNode(composition, parent);
+          NodeComposition::ParentScope scope(composition, parent);
+          component_->composeNode(composition);
         }
         ComponentT *component_;
       };
@@ -85,6 +87,18 @@ namespace declara
       inline LightComponentDefinition<ComponentT> LightComponent(ComponentT &component)
       {
         return LightComponentDefinition<ComponentT>(&component);
+      }
+
+      template <class ComponentT>
+      inline LightComponentDefinition<ComponentT> LC(ComponentT *component)
+      {
+        return LightComponent(component);
+      }
+
+      template <class ComponentT>
+      inline LightComponentDefinition<ComponentT> LC(ComponentT &component)
+      {
+        return LightComponent(component);
       }
 
       inline INestableDefinition &INestableDefinition::operator<<(LightComponentDefinitionBase &component)

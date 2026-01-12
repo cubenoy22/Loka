@@ -42,25 +42,25 @@ namespace helloworld
       this->initialized_ = true;
     }
 
-    void composeNode(declara::core::scene::NodeComposition &,
-                     declara::core::scene::INestableDefinition &parent)
+    void composeNode(declara::core::scene::NodeComposition &c)
     {
       PROFILE_SECTION("bmiCompose");
       using namespace declara::app;
-      parent
+      c.declare(
+          VStack()
           << Text("BMI Calculator")
           << Text("Height (cm)")
           << EditText(this->heightInput_)
           << Text("Weight (kg)")
           << EditText(this->weightInput_)
-          << Text(this->bmiResult_);
+          << Text(this->bmiResult_));
     }
 
     void composeInto(declara::core::scene::NodeComposition &c,
                      declara::core::scene::INestableDefinition &parent)
     {
       attachNode(c);
-      composeNode(c, parent);
+      composeNode(c);
     }
 
   private:

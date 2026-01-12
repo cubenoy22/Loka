@@ -34,6 +34,22 @@ namespace declara
           NodeComposition *prev_;
         };
 
+        struct ParentScope
+        {
+          explicit ParentScope(NodeComposition &composition, INestableDefinition &parent)
+              : composition_(composition), prev_(composition.activeParent_)
+          {
+            composition_.activeParent_ = &parent;
+          }
+          ~ParentScope()
+          {
+            composition_.activeParent_ = prev_;
+          }
+        private:
+          NodeComposition &composition_;
+          INestableDefinition *prev_;
+        };
+
         // StateBatch: Builder パターンで State を収集し、デストラクタで一括作成
         class StateBatch
         {
@@ -185,6 +201,7 @@ namespace declara
         // Arena: owns copies of all definitions created during compose
         std::vector<NodeDefinitionBase *> arena_;
         NodeDefinitionBase *root_;
+        INestableDefinition *activeParent_;
         ComponentContext *context_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
@@ -239,7 +256,7 @@ namespace declara
         }
 
       public:
-        NodeComposition() : root_(0), context_(0) {}
+        NodeComposition() : root_(0), activeParent_(0), context_(0) {}
 
         ~NodeComposition() { this->destroyArena(); }
 
@@ -256,13 +273,27 @@ namespace declara
         T &declare(const T &def)
         {
           T *newRoot = this->store(def);
-          this->root_ = newRoot;
+          if (activeParent_)
+          {
+            (*activeParent_) << *newRoot;
+          }
+          else
+          {
+            this->root_ = newRoot;
+          }
           return *newRoot;
         }
         NodeDefinitionBase &declare(const NodeDefinitionBase &def)
         {
           NodeDefinitionBase *newRoot = this->store(def);
-          this->root_ = newRoot;
+          if (activeParent_)
+          {
+            (*activeParent_) << *newRoot;
+          }
+          else
+          {
+            this->root_ = newRoot;
+          }
           return *newRoot;
         }
         NodeDefinitionBase &declare(const INestableDefinition &def)
@@ -292,6 +323,7 @@ namespace declara
         void reset()
         {
           this->destroyArena();
+          activeParent_ = 0;
           context_ = 0;
         }
 

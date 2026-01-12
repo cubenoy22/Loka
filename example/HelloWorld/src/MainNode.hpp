@@ -33,8 +33,7 @@ namespace helloworld
   public:
     explicit MainLeftPanelComponent(MainNode *owner);
     void attachNode(declara::core::scene::NodeComposition &c);
-    void composeNode(declara::core::scene::NodeComposition &c,
-                     declara::core::scene::INestableDefinition &parent);
+    void composeNode(declara::core::scene::NodeComposition &c);
 
   private:
     void toggleMessage();
@@ -57,8 +56,7 @@ namespace helloworld
 
     explicit MainRightPanelComponent(MainNode *owner);
     void attachNode(declara::core::scene::NodeComposition &c);
-    void composeNode(declara::core::scene::NodeComposition &c,
-                     declara::core::scene::INestableDefinition &parent);
+    void composeNode(declara::core::scene::NodeComposition &c);
 
   private:
     void handleFruitChanged();
@@ -123,21 +121,19 @@ namespace helloworld
     initialized_ = true;
   }
 
-  inline void MainLeftPanelComponent::composeNode(declara::core::scene::NodeComposition &,
-                                                  declara::core::scene::INestableDefinition &parent)
+  inline void MainLeftPanelComponent::composeNode(declara::core::scene::NodeComposition &c)
   {
     using namespace declara::app;
     if (!owner_)
     {
       return;
     }
-    VStack column;
-    column
+    c.declare(
+        VStack()
         << Text("Loka Sample")
         << Text(message_)
         << Button("Add +", &toggleEvent_)
-        << declara::core::scene::LightComponent(bmiCalculator_);
-    parent << column;
+        << declara::core::scene::LC(bmiCalculator_));
   }
 
   inline void MainLeftPanelComponent::toggleMessage()
@@ -200,22 +196,20 @@ namespace helloworld
     initialized_ = true;
   }
 
-  inline void MainRightPanelComponent::composeNode(declara::core::scene::NodeComposition &,
-                                                   declara::core::scene::INestableDefinition &parent)
+  inline void MainRightPanelComponent::composeNode(declara::core::scene::NodeComposition &c)
   {
     using namespace declara::app;
     if (!owner_)
     {
       return;
     }
-    VStack column;
-    column
+    c.declare(
+        VStack()
         << Text("Fruit Picker")
         << PopupMenu(fruits_.map<loka::core::String>(FruitPopupLabel()))
                .selectedIndex(fruitIndex_)
                .onChange(&fruitChangedEvent_)
-        << Text(fruitMessage_);
-    parent << column;
+        << Text(fruitMessage_));
   }
 
   inline void MainRightPanelComponent::handleFruitChanged()
@@ -238,8 +232,8 @@ namespace helloworld
     using namespace declara::app;
     c.declare(
         HStack()
-        << declara::core::scene::LightComponent(left_)
-        << declara::core::scene::LightComponent(right_));
+        << declara::core::scene::LC(left_)
+        << declara::core::scene::LC(right_));
   }
 
 } // namespace helloworld
