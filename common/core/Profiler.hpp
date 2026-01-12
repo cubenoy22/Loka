@@ -168,9 +168,14 @@ namespace declara
   static ::declara::core::FuncProfileSlot _psec_##__LINE__ = {__FILE__, name, __LINE__, 0, 0}; \
   static int _psec_reg_##__LINE__ = ::declara::core::RegisterProfileSlot(&_psec_##__LINE__); \
   ::declara::core::FuncProfileScope _pscope_##__LINE__(&_psec_##__LINE__)
+#define PROFILE_SECTION_ID(name, id) \
+  static ::declara::core::FuncProfileSlot _psec_##id = {__FILE__, name, __LINE__, 0, 0}; \
+  static int _psec_reg_##id = ::declara::core::RegisterProfileSlot(&_psec_##id); \
+  ::declara::core::FuncProfileScope _pscope_##id(&_psec_##id)
 #else
 #define PROFILE_FUNC()
 #define PROFILE_SECTION(name)
+#define PROFILE_SECTION_ID(name, id)
 #endif
 
   } // namespace core

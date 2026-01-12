@@ -4,6 +4,7 @@
 #include <cassert>
 #include <vector>
 
+#include "core/Profiler.hpp"
 #include "core/State.hpp"
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/StateOwner.hpp"
@@ -25,13 +26,16 @@ namespace loka
       template <typename Mapper>
       StateStream<typename Mapper::Result> map(const Mapper &mapper) const
       {
+        PROFILE_SECTION_ID("sMap", 1);
         if (!this->state_)
         {
           return StateStream<typename Mapper::Result>(0, this->tracker_, this->owner_);
         }
         assert(this->owner_ && "StateStream::map requires IStateOwner");
+        PROFILE_SECTION_ID("sMapEvalNew", 2);
         MapEval<T, typename Mapper::Result, Mapper> *eval =
             new MapEval<T, typename Mapper::Result, Mapper>(this->state_, mapper);
+        PROFILE_SECTION_ID("sMapDerNew", 3);
         ::declara::core::DerivedState<typename Mapper::Result> *derived =
             new ::declara::core::DerivedState<typename Mapper::Result>(this->state_, eval);
         this->adoptDerived(derived);
@@ -42,18 +46,18 @@ namespace loka
       template <typename U, typename Combiner>
       StateStream<typename Combiner::Result> combine(const StateStream<U> &other, const Combiner &combiner) const
       {
+        PROFILE_SECTION_ID("sComb", 4);
         if (!this->state_ || !other.state_)
         {
           return StateStream<typename Combiner::Result>(0, this->tracker_, this->owner_);
         }
         assert(this->owner_ && this->owner_ == other.owner_ && "StateStream::combine requires same IStateOwner");
-        std::vector< ::declara::core::StateBase *> deps;
-        deps.push_back(this->state_);
-        deps.push_back(other.state_);
+        PROFILE_SECTION_ID("sCombEvalNew", 5);
         CombineEval<T, U, typename Combiner::Result, Combiner> *eval =
             new CombineEval<T, U, typename Combiner::Result, Combiner>(this->state_, other.state_, combiner);
+        PROFILE_SECTION_ID("sCombDerNew", 6);
         ::declara::core::DerivedState<typename Combiner::Result> *derived =
-            new ::declara::core::DerivedState<typename Combiner::Result>(deps, eval);
+            new ::declara::core::DerivedState<typename Combiner::Result>(this->state_, other.state_, eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         this->bindRecompute(other.state_, derived);
@@ -62,12 +66,16 @@ namespace loka
 
       void set(::declara::core::scene::BoundState<T> &target, bool forceUpdate = false) const
       {
+        PROFILE_SECTION_ID("sSet", 7);
         if (!this->state_)
         {
           return;
         }
+        PROFILE_SECTION_ID("sSetNew", 8);
         SetBinding *binding = new SetBinding(this->state_, &target, forceUpdate);
+        PROFILE_SECTION_ID("sSetApply", 9);
         binding->apply();
+        PROFILE_SECTION_ID("sSetBind", 10);
         this->state_->deferBind(&SetBinding::ApplyThunk, binding);
       }
 

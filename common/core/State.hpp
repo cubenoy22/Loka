@@ -369,6 +369,16 @@ namespace declara
           dependencies.push_back(dep);
         this->value = evalFn ? (*evalFn)() : T();
       }
+      DerivedState(StateBase *dep1, StateBase *dep2, EvalFn *eval)
+          : State<T>(eval ? (*eval)() : T()), evalFn(eval)
+      {
+        dependencies.reserve(2);
+        if (dep1)
+          dependencies.push_back(dep1);
+        if (dep2 && dep2 != dep1)
+          dependencies.push_back(dep2);
+        this->value = evalFn ? (*evalFn)() : T();
+      }
       virtual ~DerivedState()
       {
         delete evalFn;

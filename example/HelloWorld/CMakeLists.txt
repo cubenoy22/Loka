@@ -108,7 +108,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
 
   target_link_libraries(DeclaraHelloClassic PRIVATE DeclaraAppleToolboxCore)
 
-  target_compile_definitions(DeclaraHelloClassic PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=0)
+  target_compile_definitions(DeclaraHelloClassic PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
 
   set_target_properties(DeclaraHelloClassic PROPERTIES
     CXX_STANDARD 98
