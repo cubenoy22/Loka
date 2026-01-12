@@ -50,6 +50,19 @@ namespace declara
           INestableDefinition *prev_;
         };
 
+        struct ChildComposition
+        {
+          explicit ChildComposition(NodeComposition &composition, INestableDefinition &parent)
+              : composition_(composition), scope_(composition, parent) {}
+
+          operator NodeComposition &() { return composition_; }
+          NodeComposition &composition() { return composition_; }
+
+        private:
+          NodeComposition &composition_;
+          ParentScope scope_;
+        };
+
         // StateBatch: Builder パターンで State を収集し、デストラクタで一括作成
         class StateBatch
         {
@@ -272,28 +285,24 @@ namespace declara
         template <typename T>
         T &declare(const T &def)
         {
-          T *newRoot = this->store(def);
           if (activeParent_)
           {
-            (*activeParent_) << *newRoot;
+            (*activeParent_) << const_cast<T &>(def);
+            return const_cast<T &>(def);
           }
-          else
-          {
-            this->root_ = newRoot;
-          }
+          T *newRoot = this->store(def);
+          this->root_ = newRoot;
           return *newRoot;
         }
         NodeDefinitionBase &declare(const NodeDefinitionBase &def)
         {
-          NodeDefinitionBase *newRoot = this->store(def);
           if (activeParent_)
           {
-            (*activeParent_) << *newRoot;
+            (*activeParent_) << const_cast<NodeDefinitionBase &>(def);
+            return const_cast<NodeDefinitionBase &>(def);
           }
-          else
-          {
-            this->root_ = newRoot;
-          }
+          NodeDefinitionBase *newRoot = this->store(def);
+          this->root_ = newRoot;
           return *newRoot;
         }
         NodeDefinitionBase &declare(const INestableDefinition &def)
