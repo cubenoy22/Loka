@@ -31,6 +31,18 @@ namespace loka
     typename std::vector<T>::const_iterator begin() const { return values_.begin(); }
     typename std::vector<T>::const_iterator end() const { return values_.end(); }
 
+    template <typename R, typename Mapper>
+    Vector<R> map(const Mapper &mapper) const
+    {
+      Vector<R> result;
+      result.reserve(values_.size());
+      for (std::size_t i = 0; i < values_.size(); ++i)
+      {
+        result.push_back(mapper(values_[i]));
+      }
+      return result;
+    }
+
     dsl::Stream<T> stream();
 
   private:

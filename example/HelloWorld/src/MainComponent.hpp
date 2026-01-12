@@ -83,6 +83,11 @@ namespace helloworld
 
   private:
     friend class MainPanelNode;
+    struct FruitPopupLabel
+    {
+      typedef loka::core::String Result;
+      loka::core::String operator()(const loka::core::String &value) const { return value; }
+    };
     void handleFruitChanged()
     {
       if (!this->fruitIndex_.isValid() || !this->fruitMessage_.isValid() || this->fruits_.empty())
@@ -162,7 +167,9 @@ namespace helloworld
       c.declare(
           VStack()
           << Text("Fruit Picker")
-          << PopupMenu(&this->props.owner->fruits_).selectedIndex(this->props.owner->fruitIndex_).onChange(&this->props.owner->fruitChangedEvent_)
+          << PopupMenu(this->props.owner->fruits_.map<loka::core::String>(MainNode::FruitPopupLabel()))
+                 .selectedIndex(this->props.owner->fruitIndex_)
+                 .onChange(&this->props.owner->fruitChangedEvent_)
           << Text(this->props.owner->fruitMessage_));
     }
   };
