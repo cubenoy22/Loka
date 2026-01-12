@@ -5,16 +5,19 @@
 #include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
 #include "app/RowColumn.hpp"
+#include "core2/scene/Component.hpp"
 
 namespace helloworld
 {
   inline void MainNode::composeNode(declara::core::scene::NodeComposition &c)
   {
     using namespace declara::app;
+    MainLeftPanelComponent leftPanel(this);
+    MainRightPanelComponent rightPanel(this);
     c.declare(
         HStack()
-        << declara::core::scene::NodeDefinition<MainLeftPanelProps, MainLeftPanelNode>(MainLeftPanelProps(this))
-        << declara::core::scene::NodeDefinition<MainRightPanelProps, MainRightPanelNode>(MainRightPanelProps(this)));
+        << declara::core::scene::LightComponent(leftPanel)
+        << declara::core::scene::LightComponent(rightPanel));
   }
 } // namespace helloworld
 

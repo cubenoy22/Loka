@@ -1,7 +1,7 @@
 #ifndef LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 #define LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 
-#include "core2/scene/node/StaticComposition.hpp"
+#include "core2/scene/Component.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
@@ -11,48 +11,31 @@
 
 namespace helloworld
 {
-  struct MainLeftPanelTypeTag
-  {
-  };
-
-  class MainLeftPanelNode;
-
-  struct MainLeftPanelProps : public declara::core::scene::NodePropsBase<MainLeftPanelProps>
-  {
-    typedef MainLeftPanelTypeTag TypeTag;
-    typedef MainLeftPanelNode NodeType;
-    MainNode *owner;
-    MainLeftPanelProps() : owner(0) {}
-    explicit MainLeftPanelProps(MainNode *o) : owner(o) {}
-    bool operator<(const declara::core::scene::PropsBase &rhs) const
-    {
-      if (rhs.propsTypeId() != propsTypeId())
-        return false;
-      const MainLeftPanelProps &other = static_cast<const MainLeftPanelProps &>(rhs);
-      return owner < other.owner;
-    }
-  };
-
-  class MainLeftPanelNode : public declara::core::scene::StaticCompositionBoundaryNodeBase<MainLeftPanelProps>
+  class MainLeftPanelComponent
   {
   public:
-    MainLeftPanelNode(const MainLeftPanelProps &p)
-        : declara::core::scene::StaticCompositionBoundaryNodeBase<MainLeftPanelProps>(p) {}
+    explicit MainLeftPanelComponent(MainNode *owner) : owner_(owner) {}
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    void attachNode(declara::core::scene::NodeComposition &) {}
+
+    void composeNode(declara::core::scene::NodeComposition &, declara::core::scene::INestableDefinition &parent)
     {
       using namespace declara::app;
-      if (!this->props.owner)
+      if (!owner_)
       {
         return;
       }
-      c.declare(
-          VStack()
+      VStack column;
+      column
           << Text("Loka Sample")
-          << Text(this->props.owner->messageState())
-          << Button("Add +", &this->props.owner->toggleEvent()).toolboxControl(kToolboxControlAddButton)
-          << declara::core::scene::LightComponent(this->props.owner->bmiCalculator()));
+          << Text(owner_->messageState())
+          << Button("Add +", &owner_->toggleEvent()).toolboxControl(kToolboxControlAddButton)
+          << declara::core::scene::LightComponent(owner_->bmiCalculator());
+      parent << column;
     }
+
+  private:
+    MainNode *owner_;
   };
 } // namespace helloworld
 
