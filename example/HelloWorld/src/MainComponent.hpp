@@ -140,8 +140,7 @@ namespace helloworld
   {
   public:
     MainPanelNode(const MainPanelProps &p)
-        : declara::core::scene::StaticCompositionBoundaryNodeBase<MainPanelProps>(p),
-          bmiCalculator_() {}
+        : declara::core::scene::StaticCompositionBoundaryNodeBase<MainPanelProps>(p) {}
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
@@ -157,7 +156,7 @@ namespace helloworld
             << Text("Loka Sample")
             << Text(this->props.owner->message_)
             << Button("Add +", &this->props.owner->toggleEvent_).toolboxControl(kToolboxControlAddButton)
-            << declara::core::scene::ComponentDefinition<BmiCalculatorComponent>(&bmiCalculator_));
+            << declara::core::scene::LightComponent(BmiCalculatorComponent()));
         return;
       }
       c.declare(
@@ -166,8 +165,6 @@ namespace helloworld
           << PopupMenu(&this->props.owner->fruits_).selectedIndex(this->props.owner->fruitIndex_).onChange(&this->props.owner->fruitChangedEvent_)
           << Text(this->props.owner->fruitMessage_));
     }
-  private:
-    BmiCalculatorComponent bmiCalculator_;
   };
 
   inline void MainNode::composeNode(declara::core::scene::NodeComposition &c)

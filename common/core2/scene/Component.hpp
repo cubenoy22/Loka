@@ -50,6 +50,49 @@ namespace declara
         ComponentDefinitionBase &mutableComponent = const_cast<ComponentDefinitionBase &>(component);
         return (*this) << mutableComponent;
       }
+
+      struct LightComponentDefinitionBase
+      {
+        virtual ~LightComponentDefinitionBase() {}
+        virtual void attachInto(NodeComposition &composition) = 0;
+        virtual void composeInto(NodeComposition &composition, INestableDefinition &parent) = 0;
+      };
+
+      template <class ComponentT>
+      struct LightComponentDefinition : public LightComponentDefinitionBase
+      {
+        explicit LightComponentDefinition(const ComponentT &component) : component_(component) {}
+        virtual void attachInto(NodeComposition &composition)
+        {
+          component_.attachNode(composition);
+        }
+        virtual void composeInto(NodeComposition &composition, INestableDefinition &parent)
+        {
+          component_.composeNode(composition, parent);
+        }
+        ComponentT component_;
+      };
+
+      template <class ComponentT>
+      inline LightComponentDefinition<ComponentT> LightComponent(const ComponentT &component)
+      {
+        return LightComponentDefinition<ComponentT>(component);
+      }
+
+      inline INestableDefinition &INestableDefinition::operator<<(LightComponentDefinitionBase &component)
+      {
+        NodeComposition *composition = NodeComposition::current();
+        assert(composition && "LightComponentDefinition requires active NodeComposition");
+        component.attachInto(*composition);
+        component.composeInto(*composition, *this);
+        return *this;
+      }
+
+      inline INestableDefinition &INestableDefinition::operator<<(const LightComponentDefinitionBase &component)
+      {
+        LightComponentDefinitionBase &mutableComponent = const_cast<LightComponentDefinitionBase &>(component);
+        return (*this) << mutableComponent;
+      }
     } // namespace scene
   } // namespace core
 } // namespace declara

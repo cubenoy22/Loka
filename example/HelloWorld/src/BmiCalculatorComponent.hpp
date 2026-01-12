@@ -26,22 +26,27 @@ namespace helloworld
           bmiResult_()
     {}
 
-    void composeInto(declara::core::scene::NodeComposition &c,
+    void attachNode(declara::core::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      PROFILE_SECTION("bmiInit");
+      c.declareStates()
+          .state(this->heightInput_, loka::core::String::Literal("170.0"))
+          .state(this->weightInput_, loka::core::String::Literal("60.0"))
+          .state(this->bmiResult_, loka::core::String::Literal("BMI: --"));
+      this->heightInput_.bind(&BmiChangedThunk, this, false);
+      this->weightInput_.bind(&BmiChangedThunk, this, false);
+      updateBmi();
+      this->initialized_ = true;
+    }
+
+    void composeNode(declara::core::scene::NodeComposition &,
                      declara::core::scene::INestableDefinition &parent)
     {
       PROFILE_SECTION("bmiCompose");
-      if (!this->initialized_)
-      {
-        PROFILE_SECTION("bmiInit");
-        c.declareStates()
-            .state(this->heightInput_, loka::core::String::Literal("170.0"))
-            .state(this->weightInput_, loka::core::String::Literal("60.0"))
-            .state(this->bmiResult_, loka::core::String::Literal("BMI: --"));
-        this->heightInput_.bind(&BmiChangedThunk, this, false);
-        this->weightInput_.bind(&BmiChangedThunk, this, false);
-        updateBmi();
-        this->initialized_ = true;
-      }
       using namespace declara::app;
       parent
           << Text("BMI Calculator")
@@ -50,6 +55,13 @@ namespace helloworld
           << Text("Weight (kg)")
           << EditText(this->weightInput_).toolboxControl(kToolboxControlWeightInput)
           << Text(this->bmiResult_);
+    }
+
+    void composeInto(declara::core::scene::NodeComposition &c,
+                     declara::core::scene::INestableDefinition &parent)
+    {
+      attachNode(c);
+      composeNode(c, parent);
     }
 
   private:

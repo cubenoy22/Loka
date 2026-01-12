@@ -234,6 +234,7 @@ namespace declara
       // Forward declaration
       struct INestableDefinition;
       struct ComponentDefinitionBase;
+      struct LightComponentDefinitionBase;
 
       // C++98 alignof alternative
       template <typename T>
@@ -364,6 +365,8 @@ namespace declara
         INestableDefinition &operator<<(const std::vector<NodeDefinitionBase *> &container);
         INestableDefinition &operator<<(ComponentDefinitionBase &component);
         INestableDefinition &operator<<(const ComponentDefinitionBase &component);
+        INestableDefinition &operator<<(LightComponentDefinitionBase &component);
+        INestableDefinition &operator<<(const LightComponentDefinitionBase &component);
 
         // For future extensibility
       };
