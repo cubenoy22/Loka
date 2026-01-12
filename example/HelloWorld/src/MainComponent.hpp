@@ -6,14 +6,17 @@
 #include "core2/scene/node/StaticComposition.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include "app/Button.hpp"
+#include "app/EditText.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/PopupMenu.hpp"
-#include "BmiCalculatorComponent.hpp"
 #include "ToolboxControlSlots.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
+#include "loka/platform/StringUTF8.hpp"
 #include <string>
+#include <cstdio>
+#include <cstdlib>
 
 #if defined(LOKA_RETRO68)
 extern std::string gProfileResultString;
@@ -68,17 +71,25 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      declara::core::scene::NodeComposition::StateBatch states = c.declareStates();
-      states.state(message_, loka::core::String::Literal("Hello, Loka!"))
-          .state(fruitIndex_, 0)
-          .state(fruitMessage_, loka::core::String::Literal("Apple."));
+      {
+        declara::core::scene::NodeComposition::StateBatch states = c.declareStates();
+        states.state(message_, loka::core::String::Literal("Hello, Loka!"))
+            .state(fruitIndex_, 0)
+            .state(fruitMessage_, loka::core::String::Literal("Apple."))
+            .state(heightInput_, loka::core::String::Literal("170.0"))
+            .state(weightInput_, loka::core::String::Literal("60.0"))
+            .state(bmiResult_, loka::core::String::Literal("BMI: --"));
 #if defined(LOKA_RETRO68)
-      states.state(profileResult_, loka::core::String(gProfileResultString));
+        states.state(profileResult_, loka::core::String(gProfileResultString));
 #else
-      states.state(profileResult_, loka::core::String::Literal(""));
+        states.state(profileResult_, loka::core::String::Literal(""));
 #endif
+      } // StateBatch destructor runs here, states become valid
       this->bindForUi(toggleEvent_, this, &MainNode::toggleMessage);
       this->bindForUi(fruitChangedEvent_, this, &MainNode::handleFruitChanged);
+      heightInput_.bind(&MainNode::BmiInputChangedThunk, this, false);
+      weightInput_.bind(&MainNode::BmiInputChangedThunk, this, false);
+      updateBmi();
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c);
@@ -129,10 +140,50 @@ namespace helloworld
       }
     }
 
+    void updateBmi()
+    {
+      const AttachedContext *ctx = this->attachedContext();
+      if (!ctx) return;
+      double heightCm = parseBmiDouble(heightInput_.get());
+      double weightKg = parseBmiDouble(weightInput_.get());
+      loka::core::String label = loka::core::String::Literal("BMI: --");
+      if (heightCm > 0.0 && weightKg > 0.0)
+      {
+        double heightM = heightCm / 100.0;
+        if (heightM > 0.0)
+        {
+          double bmi = weightKg / (heightM * heightM);
+          char buf[64];
+          std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
+          label = loka::core::String(std::string(buf));
+        }
+      }
+      StateTrackerGuard _(ctx->boundary()->tracker());
+      bmiResult_.set(label, true);
+    }
+
+    static double parseBmiDouble(const loka::core::String &value)
+    {
+      std::string utf8;
+      if (!loka::platform::CollectUtf8(value, utf8)) return 0.0;
+      char *endPtr = 0;
+      double parsed = std::strtod(utf8.c_str(), &endPtr);
+      return (endPtr == utf8.c_str()) ? 0.0 : parsed;
+    }
+
+    static void BmiInputChangedThunk(void *userData)
+    {
+      MainNode *self = static_cast<MainNode *>(userData);
+      if (self) self->updateBmi();
+    }
+
     declara::core::scene::BoundState<loka::core::String> message_;
     declara::core::scene::BoundState<int> fruitIndex_;
     declara::core::scene::BoundState<loka::core::String> fruitMessage_;
     declara::core::scene::BoundState<loka::core::String> profileResult_;
+    declara::core::scene::BoundState<loka::core::String> heightInput_;
+    declara::core::scene::BoundState<loka::core::String> weightInput_;
+    declara::core::scene::BoundState<loka::core::String> bmiResult_;
     loka::Vector<loka::core::String> fruits_;
     EmitterState toggleEvent_;
     EmitterState fruitChangedEvent_;
@@ -158,7 +209,12 @@ namespace helloworld
             << Text("Loka Sample")
             << Text(this->props.owner->message_)
             << Button("Add +", &this->props.owner->toggleEvent_).toolboxControl(kToolboxControlAddButton)
-            << BmiCalculator());
+            << Text("BMI Calculator")
+            << Text("Height (cm)")
+            << EditText(this->props.owner->heightInput_).toolboxControl(kToolboxControlHeightInput)
+            << Text("Weight (kg)")
+            << EditText(this->props.owner->weightInput_).toolboxControl(kToolboxControlWeightInput)
+            << Text(this->props.owner->bmiResult_));
         return;
       }
       c.declare(
