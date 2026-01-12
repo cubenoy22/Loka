@@ -2,6 +2,7 @@
 #include "ToolboxWindow.hpp"
 #include "ToolboxWindowContext.hpp"
 #include "ToolboxProfiler.hpp"
+#include "core/Profiler.hpp"
 #include <Quickdraw.h>
 #include <cstring>
 #include <string>
@@ -387,6 +388,7 @@ void ToolboxScenePlatformController::destroy()
 
 void ToolboxScenePlatformController::render()
 {
+  PROFILE_FUNC();
   if (!window_ || !window_->window() || !rootNode_)
   {
     return;
@@ -410,12 +412,8 @@ void ToolboxScenePlatformController::render()
   state.y = 24;
   state.lineHeight = 14;
   state.spacing = 6;
-  long t0 = declara::core::ProfileTicks();
   LayoutNode(rootNode_, state, this, 0);
-  declara::core::gLayoutTicks += declara::core::ProfileTicks() - t0;
-  t0 = declara::core::ProfileTicks();
   RenderNode(rootNode_, this);
-  declara::core::gRenderTicks += declara::core::ProfileTicks() - t0;
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
     if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
@@ -447,6 +445,8 @@ void ToolboxScenePlatformController::render()
     declara::core::RecordComposeTicks();
     BuildProfileResultString();
     sProfileResultCapture = gProfileResultString;
+    // Dump function-level profile to file
+    DumpFuncProfileToFile("profile.txt");
     sProfileCaptured = true;
   }
 

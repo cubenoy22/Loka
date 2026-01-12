@@ -350,16 +350,15 @@ namespace declara
 
         static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
         {
+          PROFILE_FUNC();
           if (!node)
           {
             return;
           }
-          ++gTreeNodeCount;
-          long t0 = ProfileTicks();
+          // ++gTreeNodeCount;
           BoundaryNode *boundary = node->asBoundary();
           ComposableNode *composable = node->asComposable();
           INestable *nestable = node->asNestable();
-          gTreeVirtTicks += ProfileTicks() - t0;
 
           BoundaryNode *nextBoundary = currentBoundary;
           if (boundary)
@@ -372,7 +371,6 @@ namespace declara
             nextBoundary = boundary;
           }
           ComponentContext *contextForChildren = &parentContext;
-          t0 = ProfileTicks();
           ComponentContext nodeContext(&parentContext);
           nodeContext.setStateOwner(parentContext.stateOwner());
           nodeContext.setBoundary(nextBoundary);
@@ -380,11 +378,10 @@ namespace declara
           nodeContext.setScene(scene);
           nodeContext.setWindow(parentContext.window());
           nodeContext.setDirtyFlags(parentContext.dirtyFlags());
-          gTreeCtxTicks += ProfileTicks() - t0;
 
           if (composable)
           {
-            t0 = ProfileTicks();
+            long t0 = ProfileTicks();
             composable->compose(nodeContext, event);
             gTreeCompTicks += ProfileTicks() - t0;
             contextForChildren = &nodeContext;
@@ -442,13 +439,8 @@ namespace declara
         template <class T>
         BoundState<T> useStateWithValue(const T &initial)
         {
-          long t0 = ProfileTicks();
           MutableState<T> *state = new MutableState<T>(initial);
-          gStateAllocTicks += ProfileTicks() - t0;
-          t0 = ProfileTicks();
           adoptState(state);
-          gStateAddTicks += ProfileTicks() - t0;
-          ++gStateCount;
           return BoundState<T>(state, this->tracker());
         }
 

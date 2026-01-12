@@ -8,6 +8,10 @@ namespace declara
     ProfileEntry gProfileData[32];
     int gProfileCount = 0;
 
+    // Function-level profiler storage
+    FuncProfileSlot *gProfileSlots[kMaxProfileSlots];
+    int gProfileSlotCount = 0;
+
     // Cumulative timing for compose phases
     long gComposeAttachTicks = 0;
     long gComposeNodeTicks = 0;

@@ -35,25 +35,18 @@ namespace helloworld
 
     virtual void attachNode(declara::core::scene::NodeComposition &c)
     {
-      long t0 = declara::core::ProfileTicks();
       c.declareStates()
           .state(heightInput_, loka::core::String::Literal("170.0"))
           .state(weightInput_, loka::core::String::Literal("60.0"))
           .state(bmiResult_, loka::core::String::Literal("BMI: --"));
-      declara::core::gBmiDeclTicks += declara::core::ProfileTicks() - t0;
-      t0 = declara::core::ProfileTicks();
       heightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
       weightInput_.bind(&BmiCalculatorNode::InputChangedThunk, this, false);
-      declara::core::gBmiBindTicks += declara::core::ProfileTicks() - t0;
-      t0 = declara::core::ProfileTicks();
-      // updateBmi();
-      declara::core::gBmiUpdTicks += declara::core::ProfileTicks() - t0;
+      updateBmi();
     }
 
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
       using namespace declara::app;
-      long t0 = declara::core::ProfileTicks();
       c.declare(
           VStack()
           << Text("BMI Calculator")
@@ -62,7 +55,6 @@ namespace helloworld
           << Text("Weight (kg)")
           << EditText(weightInput_).toolboxControl(kToolboxControlWeightInput)
           << Text(bmiResult_));
-      declara::core::gBmiDslTicks += declara::core::ProfileTicks() - t0;
     }
 
   private:

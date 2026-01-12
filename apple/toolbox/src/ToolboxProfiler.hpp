@@ -22,4 +22,8 @@ void InitToolboxProfiler();
 // Build result string from profile data and reset count
 void BuildProfileResultString();
 
+// Dump function-level profiler data to a file (call with filename like "profile.txt")
+// Returns true if file was written successfully
+bool DumpFuncProfileToFile(const char *filename);
+
 #endif // TOOLBOX_PROFILER_HPP

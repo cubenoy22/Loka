@@ -99,6 +99,7 @@ namespace declara
 
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
         {
+          PROFILE_FUNC();
           if (event != COMPOSE_EVENT_ATTACH)
           {
             if (event == COMPOSE_EVENT_DETACH)
@@ -113,28 +114,16 @@ namespace declara
           {
             return;
           }
-          long t0 = ProfileTicks();
           this->clearChildren();
           // Reset arena for this boundary compose pass.
           this->nodeArena()->clear();
-          gClearChildTicks += ProfileTicks() - t0;
-          t0 = ProfileTicks();
           NodeComposition &composition = this->beginComposition(context);
-          gBeginCompTicks += ProfileTicks() - t0;
-          t0 = ProfileTicks();
           this->attachNode(composition);
-          gComposeAttachTicks += ProfileTicks() - t0;
-          t0 = ProfileTicks();
           this->composeNode(composition);
-          gComposeNodeTicks += ProfileTicks() - t0;
-          t0 = ProfileTicks();
           Node *child = composition.createNodeTree();
-          gComposeCreateTicks += ProfileTicks() - t0;
           if (child)
           {
-            t0 = ProfileTicks();
             this->addChild(child);
-            gAddChildTicks += ProfileTicks() - t0;
             this->composeTree(child, context, event, this);
           }
           composed_ = true;

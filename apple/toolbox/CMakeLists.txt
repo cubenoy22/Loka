@@ -36,6 +36,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
   if(DECLARA_TOOLBOX_CLASSIC_6)
     target_compile_definitions(DeclaraAppleToolboxCore PRIVATE DECLARA_TOOLBOX_CLASSIC_6=1)
   endif()
+  # Function profiler (set to 1 to enable)
+  target_compile_definitions(DeclaraAppleToolboxCore PRIVATE LOKA_PROFILE_FUNC_TICKS=1)
   target_link_options(DeclaraAppleToolboxCore PRIVATE
     -Wl,--gc-sections
   )
