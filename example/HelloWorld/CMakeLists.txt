@@ -15,6 +15,8 @@ endif()
 if(WIN32)
   set(HELLOWORLD_SOURCES
     src/main.cpp
+    src/MainLeftPanel.cpp
+    src/MainRightPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
   )
@@ -75,6 +77,8 @@ endif()
 if(APPLE)
   set(MACOS_SOURCES
     src/MacOSMain.mm
+    src/MainLeftPanel.cpp
+    src/MainRightPanel.cpp
   )
 
   add_executable(DeclaraHelloMacOS ${MACOS_SOURCES})
@@ -97,6 +101,8 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
   set(RETRO_SOURCES
     src/main.cpp
+    src/MainLeftPanel.cpp
+    src/MainRightPanel.cpp
   )
 
   add_application(DeclaraHelloClassic ${RETRO_SOURCES})

@@ -1,0 +1,43 @@
+#ifndef LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
+#define LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
+
+#include "core/State.hpp"
+#include "core2/scene/BoundState.hpp"
+#include "loka/core/String.hpp"
+#include "BmiCalculatorComponent.hpp"
+
+namespace declara
+{
+  namespace core
+  {
+    namespace scene
+    {
+      struct NodeComposition;
+    }
+  }
+}
+
+namespace helloworld
+{
+  class MainNode;
+
+  class MainLeftPanelComponent
+  {
+  public:
+    explicit MainLeftPanelComponent(MainNode *owner);
+    void attachNode(declara::core::scene::NodeComposition &c);
+    void composeNode(declara::core::scene::NodeComposition &c);
+
+  private:
+    void toggleMessage();
+
+    MainNode *owner_;
+    bool initialized_;
+    declara::core::scene::BoundState<loka::core::String> message_;
+    declara::core::EmitterState toggleEvent_;
+    BmiCalculatorComponent bmiCalculator_;
+  };
+
+} // namespace helloworld
+
+#endif // LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
