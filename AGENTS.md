@@ -24,3 +24,4 @@
 - If a crash occurs, first confirm whether it reproduces on a modern OS build; use breakpoints, LLDB commands, and targeted logging to identify the cause quickly.
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
+- Commit policy: Do not amend commits. Only small fixes found immediately after a commit may be amended.
