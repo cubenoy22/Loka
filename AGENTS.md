@@ -21,6 +21,11 @@
 - Keep commits scoped; split large refactors into small, reviewable commits with verification between steps.
 - Ask for runtime verification before commits that affect behavior (unless the change is clearly non-runtime, such as docs/comments/refactors that cannot affect execution).
 - When users report performance issues or ask for speedups, first measure or propose a measurement plan; profiling support already exists in the codebase.
+- On 68k hot paths, avoid `StateStream` unless justified; manual `bind` + compute can be significantly faster for startup/compose.
+- When profiling multiple sections inside one function, use `PROFILE_SECTION_ID` to avoid `__LINE__` collisions.
+- DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `LightComponent` to inline into the parent composition when you don't need an independent lifecycle.
+- DSL design: prefer one-shot Static composition for 68k/Classic unless you truly need updates; extra compose passes are expensive.
+- Performance triage steps: 1) reproduce on modern OS with profiling on, 2) capture tick breakdown, 3) isolate by commenting out components or toggling features, 4) optimize top hotspots first, 5) re-measure, 6) record findings in docs/TODO.md.
 - If a crash occurs, first confirm whether it reproduces on a modern OS build; use breakpoints, LLDB commands, and targeted logging to identify the cause quickly.
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
