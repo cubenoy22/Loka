@@ -97,7 +97,6 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
   set(RETRO_SOURCES
     src/main.cpp
-    HelloWorld.r
   )
 
   add_application(DeclaraHelloClassic ${RETRO_SOURCES})

@@ -4,6 +4,7 @@
 #include "ToolboxProfiler.hpp"
 #include "core/Profiler.hpp"
 #include <Quickdraw.h>
+#include <Controls.h>
 #include <cstring>
 #include <string>
 #include <Memory.h>
@@ -30,6 +31,13 @@ static bool sProfileCaptured = false;
 
 namespace
 {
+#if !defined(pushButProc)
+  enum
+  {
+    pushButProc = 0
+  };
+#endif
+
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
@@ -979,7 +987,18 @@ bool ToolboxScenePlatformController::ensureButtonControl(
   bool created = false;
   if (!binding)
   {
-    ControlRef control = GetNewControl(resourceId, window_->window());
+    Rect rectCopy = rect;
+    Str255 title;
+    title[0] = 0;
+    ControlRef control = NewControl(window_->window(),
+                                    &rectCopy,
+                                    title,
+                                    false,
+                                    0,
+                                    0,
+                                    1,
+                                    pushButProc,
+                                    0);
     if (!control)
     {
       return false;
