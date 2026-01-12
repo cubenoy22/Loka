@@ -36,9 +36,6 @@ namespace helloworld
 
     virtual void composeNode(declara::core::scene::NodeComposition &c);
 
-    MainLeftPanelComponent &left() { return left_; }
-    MainRightPanelComponent &right() { return right_; }
-
   private:
     MainLeftPanelComponent left_;
     MainRightPanelComponent right_;
