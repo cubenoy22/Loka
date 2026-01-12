@@ -69,39 +69,17 @@ namespace declara
             if (event == COMPOSE_EVENT_DETACH)
             {
               NodeComposition *parentComp = context.composition();
-              if (parentComp)
-              {
-                this->detachNode(*parentComp);
-              }
-              else
-              {
-                NodeComposition &composition = this->beginComposition(context);
-                this->detachNode(composition);
-              }
+              assert(parentComp && "GroupNodeBase requires parent composition");
+              this->detachNode(*parentComp);
             }
             return;
           }
-          // Use parent's composition if available (lightweight mode)
           NodeComposition *parentComp = context.composition();
-          if (parentComp)
-          {
-            this->attachNode(*parentComp);
-            NodeComposition::CompositionScope scope(*parentComp);
-            this->composeNode(*parentComp);
-            // No createNodeTree - parent handles it
-            return;
-          }
-          // Fallback: own composition (heavyweight mode)
-          this->clearChildren();
-          NodeComposition &composition = this->beginComposition(context);
-          this->attachNode(composition);
-          NodeComposition::CompositionScope scope(composition);
-          this->composeNode(composition);
-          Node *child = composition.createNodeTree();
-          if (child)
-          {
-            this->addChild(child);
-          }
+          assert(parentComp && "GroupNodeBase requires parent composition");
+          this->attachNode(*parentComp);
+          NodeComposition::CompositionScope scope(*parentComp);
+          this->composeNode(*parentComp);
+          // No createNodeTree - parent handles it
         }
       };
 
