@@ -11,7 +11,9 @@
 #include "app/EditText.hpp"
 #include "app/Text.hpp"
 #include "app/RowColumn.hpp"
+#include "loka/dsl/StateStream.hpp"
 #include "ToolboxControlSlots.hpp"
+#include "app/Fragment.hpp"
 
 namespace helloworld
 {
@@ -28,72 +30,86 @@ namespace helloworld
     void composeInto(declara::core::scene::NodeComposition &c,
                      declara::core::scene::INestableDefinition &parent)
     {
-      if (!initialized_)
+      if (!this->initialized_)
       {
         c.declareStates()
-            .state(heightInput_, loka::core::String::Literal("170.0"))
-            .state(weightInput_, loka::core::String::Literal("60.0"))
-            .state(bmiResult_, loka::core::String::Literal("BMI: --"));
-        heightInput_.bind(&BmiCalculatorComponent::InputChangedThunk, this, false);
-        weightInput_.bind(&BmiCalculatorComponent::InputChangedThunk, this, false);
-        updateBmi();
-        initialized_ = true;
+            .state(this->heightInput_, loka::core::String::Literal("170.0"))
+            .state(this->weightInput_, loka::core::String::Literal("60.0"))
+            .state(this->bmiResult_, loka::core::String::Literal("BMI: --"));
+        this->heightInput_.stream()
+            .map(ToDouble())
+            .combine(this->weightInput_.stream().map(ToDouble()), ComputeBmi())
+            .map(FormatBmi())
+            .set(this->bmiResult_, true);
+        this->initialized_ = true;
       }
       using namespace declara::app;
       parent
           << Text("BMI Calculator")
           << Text("Height (cm)")
-          << EditText(heightInput_).toolboxControl(kToolboxControlHeightInput)
+          << EditText(this->heightInput_).toolboxControl(kToolboxControlHeightInput)
           << Text("Weight (kg)")
-          << EditText(weightInput_).toolboxControl(kToolboxControlWeightInput)
-          << Text(bmiResult_);
+          << EditText(this->weightInput_).toolboxControl(kToolboxControlWeightInput)
+          << Text(this->bmiResult_);
     }
 
   private:
-    static double parseDouble(const loka::core::String &value)
+    struct ToDouble
     {
-      std::string utf8;
-      if (!loka::platform::CollectUtf8(value, utf8))
-      {
-        return 0.0;
-      }
-      const char *start = utf8.c_str();
-      char *endPtr = 0;
-      double parsed = std::strtod(start, &endPtr);
-      if (endPtr == start)
-      {
-        return 0.0;
-      }
-      return parsed;
-    }
+      typedef double Result;
 
-    static void InputChangedThunk(void *userData)
-    {
-      BmiCalculatorComponent *self = static_cast<BmiCalculatorComponent *>(userData);
-      if (self)
+      double operator()(const loka::core::String &value) const
       {
-        self->updateBmi();
-      }
-    }
-
-    void updateBmi()
-    {
-      double heightCm = parseDouble(heightInput_.get());
-      double weightKg = parseDouble(weightInput_.get());
-      loka::core::String label = loka::core::String::Literal("BMI: --");
-      if (heightCm > 0.0 && weightKg > 0.0)
-      {
-        double heightM = heightCm / 100.0;
-        if (heightM > 0.0)
+        std::string utf8;
+        if (!loka::platform::CollectUtf8(value, utf8))
         {
-          double bmi = weightKg / (heightM * heightM);
-          char buf[64];
-          std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
-          label = loka::core::String(std::string(buf));
+          return 0.0;
         }
+        const char *start = utf8.c_str();
+        char *endPtr = 0;
+        double parsed = std::strtod(start, &endPtr);
+        if (endPtr == start)
+        {
+          return 0.0;
+        }
+        return parsed;
       }
-      bmiResult_.set(label, true);
-    }
+    };
+
+    struct ComputeBmi
+    {
+      typedef double Result;
+
+      double operator()(double heightCm, double weightKg) const
+      {
+        if (heightCm <= 0.0 || weightKg <= 0.0)
+        {
+          return 0.0;
+        }
+        double heightM = heightCm / 100.0;
+        if (heightM <= 0.0)
+        {
+          return 0.0;
+        }
+        return weightKg / (heightM * heightM);
+      }
+    };
+
+    struct FormatBmi
+    {
+      typedef loka::core::String Result;
+
+      loka::core::String operator()(double bmi) const
+      {
+        if (bmi <= 0.0)
+        {
+          return loka::core::String::Literal("BMI: --");
+        }
+        char buf[64];
+        std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
+        return loka::core::String(std::string(buf));
+      }
+    };
 
     bool initialized_;
     declara::core::scene::BoundState<loka::core::String> heightInput_;

@@ -447,7 +447,7 @@ namespace declara
         {
           MutableState<T> *state = new MutableState<T>(initial);
           adoptState(state);
-          return BoundState<T>(state, this->tracker());
+          return BoundState<T>(state, this->tracker(), this);
         }
 
         template <class T>

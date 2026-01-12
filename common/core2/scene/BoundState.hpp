@@ -4,6 +4,16 @@
 #include <cassert>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
+#include "core2/scene/StateOwner.hpp"
+
+namespace loka
+{
+  namespace dsl
+  {
+    template <typename T>
+    class StateStream;
+  }
+}
 
 namespace declara
 {
@@ -15,14 +25,18 @@ namespace declara
       class BoundState
       {
       public:
-        BoundState() : state_(0), tracker_(0) {}
+        BoundState() : state_(0), tracker_(0), owner_(0) {}
         BoundState(MutableState<T> *state, core::StateTracker *tracker)
-            : state_(state), tracker_(tracker) {}
+            : state_(state), tracker_(tracker), owner_(0) {}
+        BoundState(MutableState<T> *state, core::StateTracker *tracker, IStateOwner *owner)
+            : state_(state), tracker_(tracker), owner_(owner) {}
 
         bool isValid() const { return state_ != 0; }
         MutableState<T> *mutableState() const { return state_; }
         State<T> *state() const { return state_; }
         operator State<T> *() const { return state_; }
+        core::StateTracker *tracker() const { return tracker_; }
+        IStateOwner *owner() const { return owner_; }
 
         T get() const
         {
@@ -65,9 +79,12 @@ namespace declara
           return *state_;
         }
 
+        loka::dsl::StateStream<T> stream() const;
+
       private:
         MutableState<T> *state_;
         core::StateTracker *tracker_;
+        IStateOwner *owner_;
       };
 
     } // namespace scene

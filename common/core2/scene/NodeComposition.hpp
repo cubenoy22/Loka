@@ -131,7 +131,7 @@ namespace declara
               state = new MutableState<T>(*initial);
             }
             owner->adoptStateUnchecked(state);
-            *out = BoundState<T>(state, owner->tracker());
+            *out = BoundState<T>(state, owner->tracker(), owner);
             // 初期値のデストラクタ呼び出し
             initial->~T();
           }
@@ -156,11 +156,11 @@ namespace declara
             if (owner)
             {
               owner->adoptStateUnchecked(state);
-              out = BoundState<T>(state, owner->tracker());
+              out = BoundState<T>(state, owner->tracker(), owner);
             }
             else
             {
-              out = BoundState<T>(state, 0);
+              out = BoundState<T>(state, 0, 0);
             }
           }
 
@@ -360,7 +360,7 @@ namespace declara
           }
           // Use unchecked version - useState always creates new unique states
           stateOwner->adoptStateUnchecked(state);
-          return BoundState<T>(state, stateOwner->tracker());
+          return BoundState<T>(state, stateOwner->tracker(), stateOwner);
         }
 
         StateBatch declareStates()

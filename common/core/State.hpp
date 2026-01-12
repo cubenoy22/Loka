@@ -369,6 +369,11 @@ namespace declara
           dependencies.push_back(dep);
         this->value = evalFn ? (*evalFn)() : T();
       }
+      virtual ~DerivedState()
+      {
+        delete evalFn;
+        evalFn = 0;
+      }
 
       virtual std::vector<StateBase *> getDependencyStates() const
       {
@@ -383,7 +388,7 @@ namespace declara
         if (!evalFn)
           return false;
         T newVal = (*evalFn)();
-        if (newVal != this->value)
+        if (!stateValuesEqual(newVal, this->value))
         {
           this->value = newVal;
           this->notifyStateChanged();
