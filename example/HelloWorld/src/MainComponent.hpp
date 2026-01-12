@@ -69,7 +69,7 @@ namespace helloworld
       declara::core::scene::NodeComposition::StateBatch states = c.declareStates();
       states.state(message_, loka::core::String::Literal("Hello, Loka!"))
           .state(fruitIndex_, 0)
-          .state(fruitMessage_, loka::core::String::Literal("Apple."));
+          .state(fruitMessage_, loka::core::String::Literal("You chose Apple."));
 #if defined(LOKA_RETRO68)
       states.state(profileResult_, loka::core::String(gProfileResultString));
 #else
@@ -94,7 +94,7 @@ namespace helloworld
       {
         index = 0;
       }
-      loka::core::String next = loka::core::String::Literal(" ") + this->fruits_[static_cast<std::size_t>(index)] + ".";
+      loka::core::String next = loka::core::String::Literal("You chose ") + this->fruits_[static_cast<std::size_t>(index)] + ".";
       this->fruitMessage_.set(next, true);
     }
 
