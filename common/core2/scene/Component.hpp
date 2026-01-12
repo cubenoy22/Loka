@@ -61,22 +61,30 @@ namespace declara
       template <class ComponentT>
       struct LightComponentDefinition : public LightComponentDefinitionBase
       {
-        explicit LightComponentDefinition(const ComponentT &component) : component_(component) {}
+        explicit LightComponentDefinition(ComponentT *component) : component_(component) {}
         virtual void attachInto(NodeComposition &composition)
         {
-          component_.attachNode(composition);
+          assert(component_ && "LightComponentDefinition requires component instance");
+          component_->attachNode(composition);
         }
         virtual void composeInto(NodeComposition &composition, INestableDefinition &parent)
         {
-          component_.composeNode(composition, parent);
+          assert(component_ && "LightComponentDefinition requires component instance");
+          component_->composeNode(composition, parent);
         }
-        ComponentT component_;
+        ComponentT *component_;
       };
 
       template <class ComponentT>
-      inline LightComponentDefinition<ComponentT> LightComponent(const ComponentT &component)
+      inline LightComponentDefinition<ComponentT> LightComponent(ComponentT *component)
       {
         return LightComponentDefinition<ComponentT>(component);
+      }
+
+      template <class ComponentT>
+      inline LightComponentDefinition<ComponentT> LightComponent(ComponentT &component)
+      {
+        return LightComponentDefinition<ComponentT>(&component);
       }
 
       inline INestableDefinition &INestableDefinition::operator<<(LightComponentDefinitionBase &component)
