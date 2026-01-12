@@ -77,10 +77,12 @@ namespace declara
           template <typename T>
           StateBatch &state(BoundState<T> &out, const T &initial)
           {
+            assert(composition_ && "StateBatch::state requires active batch");
             if (!impl_)
             {
               return *this;
             }
+            assert(composition_->stateBatchActive_ && "StateBatch::state requires declareStates scope");
             if (impl_->specCount >= kMaxSpecs)
             {
               flush();
@@ -366,6 +368,7 @@ namespace declara
 
         StateBatch declareStates()
         {
+          assert(context_ && "NodeComposition::declareStates requires ComponentContext");
           assert(!stateBatchActive_ && "NodeComposition::declareStates already in use");
           stateBatchActive_ = true;
           stateBatchRefs_ = 1;
@@ -463,7 +466,7 @@ namespace declara
 
       inline void NodeComposition::StateBatch::finalize()
       {
-        if (!impl_)
+        if (!impl_ || !composition_)
         {
           return;
         }
@@ -479,6 +482,14 @@ namespace declara
       {
         if (!composition || !impl || impl->specCount == 0)
         {
+          return;
+        }
+        if (!composition->context_)
+        {
+          impl->specCount = 0;
+          impl->specUsed = 0;
+          impl->count = 0;
+          impl->bytes = 0;
           return;
         }
         if (impl->count > 0)

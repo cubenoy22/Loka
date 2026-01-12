@@ -350,15 +350,19 @@ namespace declara
 
         static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
         {
-          PROFILE_FUNC();
           if (!node)
           {
             return;
           }
-          // ++gTreeNodeCount;
-          BoundaryNode *boundary = node->asBoundary();
-          ComposableNode *composable = node->asComposable();
-          INestable *nestable = node->asNestable();
+          BoundaryNode *boundary;
+          ComposableNode *composable;
+          INestable *nestable;
+          {
+            PROFILE_SECTION("virt");
+            boundary = node->asBoundary();
+            composable = node->asComposable();
+            nestable = node->asNestable();
+          }
 
           BoundaryNode *nextBoundary = currentBoundary;
           if (boundary)
@@ -372,18 +376,19 @@ namespace declara
           }
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);
-          nodeContext.setStateOwner(parentContext.stateOwner());
-          nodeContext.setBoundary(nextBoundary);
-          Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
-          nodeContext.setScene(scene);
-          nodeContext.setWindow(parentContext.window());
-          nodeContext.setDirtyFlags(parentContext.dirtyFlags());
+          {
+            PROFILE_SECTION("ctx");
+            nodeContext.setStateOwner(parentContext.stateOwner());
+            nodeContext.setBoundary(nextBoundary);
+            Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
+            nodeContext.setScene(scene);
+            nodeContext.setWindow(parentContext.window());
+            nodeContext.setDirtyFlags(parentContext.dirtyFlags());
+          }
 
           if (composable)
           {
-            long t0 = ProfileTicks();
             composable->compose(nodeContext, event);
-            gTreeCompTicks += ProfileTicks() - t0;
             contextForChildren = &nodeContext;
           }
           if (!nestable)

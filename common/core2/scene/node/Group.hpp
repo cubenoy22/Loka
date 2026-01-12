@@ -73,16 +73,33 @@ namespace declara
 
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
         {
-          PROFILE_FUNC();
           if (event != COMPOSE_EVENT_ATTACH)
           {
             if (event == COMPOSE_EVENT_DETACH)
             {
-              NodeComposition &composition = this->beginComposition(context);
-              this->detachNode(composition);
+              NodeComposition *parentComp = context.composition();
+              if (parentComp)
+              {
+                this->detachNode(*parentComp);
+              }
+              else
+              {
+                NodeComposition &composition = this->beginComposition(context);
+                this->detachNode(composition);
+              }
             }
             return;
           }
+          // Use parent's composition if available (lightweight mode)
+          NodeComposition *parentComp = context.composition();
+          if (parentComp)
+          {
+            this->attachNode(*parentComp);
+            this->composeNode(*parentComp);
+            // No createNodeTree - parent handles it
+            return;
+          }
+          // Fallback: own composition (heavyweight mode)
           this->clearChildren();
           NodeComposition &composition = this->beginComposition(context);
           this->attachNode(composition);
