@@ -18,6 +18,7 @@
 - ConditionalDefinition/ConditionalNode implementation and NodeComposition::conditional default false/Empty handling.
 - MutableState notification timing: micro-tick end vs immediate; document or change.
 - DerivedState::EvalFn ownership/cleanup and dependency registration policy.
+- StateBatch: add useLargeStates path for large initializers (heap-backed initial copies).
 - Wire Node.dirty with IPlatformController::synchronize (diff-based redraw path).
 - Decide where Scene.lifecycle\_ is written (SceneManager2 vs disabled).
 - SceneManager2: finalize lifecycle updates (ON_DETACH/ON_ATTACH/ON_DESTROY) and make Scene subscribe-ready.

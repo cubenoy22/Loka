@@ -34,123 +34,107 @@ namespace declara
           NodeComposition *prev_;
         };
 
+        // StateBatch: Builder パターンで State を収集し、デストラクタで一括作成
         class StateBatch
         {
         public:
-          struct SpecBase
-          {
-            virtual ~SpecBase() {}
-            virtual void apply(NodeComposition *composition) = 0;
-          };
-
           enum
           {
-            kMaxSpecs = 16,
-            kMaxSpecBytes = 1024
+            kMaxStates = 16,
+            kStorageBytes = 32
           };
 
-          struct Impl
+          StateBatch(IStateOwner *owner)
+              : owner_(owner), count_(0), totalBytes_(0) {}
+
+          ~StateBatch()
           {
-            Impl()
-                : count(0),
-                  bytes(0),
-                  specCount(0),
-                  specUsed(0)
+            if (count_ == 0 || !owner_)
             {
-              for (size_t i = 0; i < kMaxSpecs; ++i)
-              {
-                specs[i] = 0;
-              }
-              for (size_t i = 0; i < kMaxSpecBytes; ++i)
-              {
-                specStorage.bytes[i] = 0;
-              }
+              return;
             }
-            size_t count;
-            size_t bytes;
-            size_t specCount;
-            size_t specUsed;
-            SpecBase *specs[kMaxSpecs];
-            struct SpecStorage
+            // 1回だけ確保
+            owner_->reserveStateArena(totalBytes_);
+            owner_->reserveStates(count_);
+            // 各 state を作成
+            for (size_t i = 0; i < count_; ++i)
             {
-              void *align;
-              char bytes[kMaxSpecBytes];
-            } specStorage;
-          };
-          explicit StateBatch(NodeComposition *composition, Impl *impl);
-          StateBatch(const StateBatch &other);
-          StateBatch &operator=(const StateBatch &other);
-          ~StateBatch();
+              entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);
+            }
+          }
 
           template <typename T>
           StateBatch &state(BoundState<T> &out, const T &initial)
           {
-            assert(composition_ && "StateBatch::state requires active batch");
-            if (!impl_)
+            if (count_ >= kMaxStates)
             {
               return *this;
             }
-            assert(composition_->stateBatchActive_ && "StateBatch::state requires declareStates scope");
-            if (impl_->specCount >= kMaxSpecs)
+            if (sizeof(T) > kStorageBytes)
             {
-              flush();
+              assert(false && "StateBatch::state only supports small state initializers");
+              return *this;
             }
-            size_t specAlign = __alignof__(Spec<T>);
-            size_t offset = alignUp(impl_->specUsed, specAlign);
-            size_t needed = offset + sizeof(Spec<T>);
-            if (needed > kMaxSpecBytes)
-            {
-              flush();
-              offset = 0;
-              needed = sizeof(Spec<T>);
-            }
-            Spec<T> *spec = new (impl_->specStorage.bytes + offset) Spec<T>(out, initial);
-            impl_->specs[impl_->specCount++] = spec;
-            impl_->specUsed = needed;
-            ++impl_->count;
-            size_t align = __alignof__(MutableState<T>);
-            impl_->bytes += sizeof(MutableState<T>) + normalizeAlign(align);
+            Entry &e = entries_[count_++];
+            e.out = &out;
+            e.size = sizeof(MutableState<T>);
+            e.align = __alignof__(MutableState<T>);
+            e.create = &CreateState<T>;
+            // 初期値をコピー（小さい値のみ inline）
+            copyInitial<T>(e.storage.bytes, initial);
+            totalBytes_ += e.size + e.align; // alignment 余裕
             return *this;
           }
 
         private:
-          template <typename T>
-          struct Spec : public SpecBase
+          typedef void (*CreateFn)(IStateOwner *, void *, void *);
+
+          struct Storage
           {
-            Spec(BoundState<T> &outRef, const T &value) : out(&outRef), initial(value) {}
-            virtual void apply(NodeComposition *composition)
-            {
-              assert(composition && "StateBatch::apply requires composition");
-              IStateOwner *stateOwner = composition->context_->stateOwner();
-              assert(stateOwner && "StateBatch::apply requires Boundary owner");
-              MutableState<T> *state = 0;
-              size_t align = __alignof__(MutableState<T>);
-              void *mem = stateOwner->allocateStateMemory(sizeof(MutableState<T>), align);
-              if (mem)
-              {
-                state = new (mem) MutableState<T>(initial);
-                state->setArenaAllocated(true);
-                stateOwner->registerStateMemory(state, &StateBatch::DestroyState<T>);
-              }
-              else
-              {
-                state = new MutableState<T>(initial);
-              }
-              stateOwner->adoptStateUnchecked(state);
-              *out = BoundState<T>(state, stateOwner->tracker());
-            }
-            BoundState<T> *out;
-            T initial;
+            double d;
+            void *p;
+            char bytes[kStorageBytes];
           };
 
-          NodeComposition *composition_;
-          Impl *impl_;
-          void finalize();
-          void release();
-          void flush();
-        public:
-          static void flushImpl(NodeComposition *composition, Impl *impl);
-        private:
+          struct Entry
+          {
+            void *out;
+            size_t size;
+            size_t align;
+            CreateFn create;
+            Storage storage; // 初期値の inline storage
+          };
+
+          template <typename T>
+          static void copyInitial(char *storage, const T &value)
+          {
+            new (storage) T(value);
+          }
+
+          template <typename T>
+          static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
+          {
+            BoundState<T> *out = static_cast<BoundState<T> *>(outPtr);
+            T *initial = reinterpret_cast<T *>(initialPtr);
+            MutableState<T> *state = 0;
+            size_t align = __alignof__(MutableState<T>);
+            void *mem = owner->allocateStateMemory(sizeof(MutableState<T>), align);
+            if (mem)
+            {
+              state = new (mem) MutableState<T>(*initial);
+              state->setArenaAllocated(true);
+              owner->registerStateMemory(state, &DestroyState<T>);
+            }
+            else
+            {
+              state = new MutableState<T>(*initial);
+            }
+            owner->adoptStateUnchecked(state);
+            *out = BoundState<T>(state, owner->tracker());
+            // 初期値のデストラクタ呼び出し
+            initial->~T();
+          }
+
         public:
           template <typename T>
           static void DestroyState(core::StateBase *state)
@@ -163,34 +147,10 @@ namespace declara
           }
 
         private:
-          static size_t alignUp(size_t value, size_t align)
-          {
-            size_t mask = align - 1;
-            return (value + mask) & ~mask;
-          }
-
-          static size_t normalizeAlign(size_t align)
-          {
-            size_t minAlign = sizeof(void *);
-            if (minAlign < 2)
-            {
-              minAlign = 2;
-            }
-            if (align < minAlign)
-            {
-              align = minAlign;
-            }
-            if ((align & (align - 1)) != 0)
-            {
-              size_t p2 = 1;
-              while (p2 < align)
-              {
-                p2 <<= 1;
-              }
-              align = p2;
-            }
-            return align;
-          }
+          IStateOwner *owner_;
+          Entry entries_[kMaxStates];
+          size_t count_;
+          size_t totalBytes_;
         };
 
       private:
@@ -251,7 +211,7 @@ namespace declara
         }
 
       public:
-        NodeComposition() : root_(0), context_(0), stateBatchActive_(false), stateBatchRefs_(0), stateBatchImpl_() {}
+        NodeComposition() : root_(0), context_(0) {}
 
         ~NodeComposition() { this->destroyArena(); }
 
@@ -378,14 +338,9 @@ namespace declara
         StateBatch declareStates()
         {
           assert(context_ && "NodeComposition::declareStates requires ComponentContext");
-          assert(!stateBatchActive_ && "NodeComposition::declareStates already in use");
-          stateBatchActive_ = true;
-          stateBatchRefs_ = 1;
-          stateBatchImpl_.count = 0;
-          stateBatchImpl_.bytes = 0;
-          stateBatchImpl_.specCount = 0;
-          stateBatchImpl_.specUsed = 0;
-          return StateBatch(this, &stateBatchImpl_);
+          IStateOwner *owner = context_->stateOwner();
+          assert(owner && "NodeComposition::declareStates requires IStateOwner");
+          return StateBatch(owner);
         }
 
         template <typename T>
@@ -419,143 +374,8 @@ namespace declara
         }
 
       private:
-        friend class StateBatch;
-        void retainStateBatch();
-        void releaseStateBatch();
-        void useStates(size_t count)
-        {
-          assert(context_ && "NodeComposition::useStates requires ComponentContext");
-          IStateOwner *stateOwner = context_->stateOwner();
-          assert(stateOwner && "NodeComposition::useStates requires Boundary owner");
-          stateOwner->reserveStates(count);
-        }
-
-        bool stateBatchActive_;
-        int stateBatchRefs_;
-        StateBatch::Impl stateBatchImpl_;
         static NodeComposition *current_;
       };
-
-      inline NodeComposition::StateBatch::StateBatch(NodeComposition *composition, Impl *impl)
-          : composition_(composition), impl_(impl)
-      {
-        if (composition_)
-        {
-        }
-      }
-
-      inline NodeComposition::StateBatch::StateBatch(const NodeComposition::StateBatch &other)
-          : composition_(other.composition_), impl_(other.impl_)
-      {
-        if (composition_)
-        {
-          composition_->retainStateBatch();
-        }
-      }
-
-      inline NodeComposition::StateBatch &NodeComposition::StateBatch::operator=(const NodeComposition::StateBatch &other)
-      {
-        if (this == &other)
-        {
-          return *this;
-        }
-        release();
-        composition_ = other.composition_;
-        impl_ = other.impl_;
-        if (composition_)
-        {
-          composition_->retainStateBatch();
-        }
-        return *this;
-      }
-
-      inline NodeComposition::StateBatch::~StateBatch()
-      {
-        release();
-      }
-
-      inline void NodeComposition::StateBatch::finalize()
-      {
-        if (!impl_ || !composition_)
-        {
-          return;
-        }
-        flush();
-      }
-
-      inline void NodeComposition::StateBatch::flush()
-      {
-        flushImpl(composition_, impl_);
-      }
-
-      inline void NodeComposition::StateBatch::flushImpl(NodeComposition *composition, Impl *impl)
-      {
-        if (!composition || !impl || impl->specCount == 0)
-        {
-          return;
-        }
-        if (!composition->context_)
-        {
-          impl->specCount = 0;
-          impl->specUsed = 0;
-          impl->count = 0;
-          impl->bytes = 0;
-          return;
-        }
-        if (impl->count > 0)
-        {
-          IStateOwner *stateOwner = composition->context_->stateOwner();
-          if (stateOwner && impl->bytes > 0)
-          {
-            stateOwner->reserveStateArena(impl->bytes);
-          }
-          composition->useStates(impl->count);
-          for (size_t i = 0; i < impl->specCount; ++i)
-          {
-            impl->specs[i]->apply(composition);
-            impl->specs[i]->~SpecBase();
-            impl->specs[i] = 0;
-          }
-        }
-        impl->specCount = 0;
-        impl->specUsed = 0;
-        impl->count = 0;
-        impl->bytes = 0;
-      }
-
-      inline void NodeComposition::StateBatch::release()
-      {
-        if (!composition_)
-        {
-          return;
-        }
-        composition_->releaseStateBatch();
-        composition_ = 0;
-        impl_ = 0;
-      }
-
-      inline void NodeComposition::retainStateBatch()
-      {
-        ++stateBatchRefs_;
-      }
-
-      inline void NodeComposition::releaseStateBatch()
-      {
-        if (stateBatchRefs_ == 0)
-        {
-          return;
-        }
-        --stateBatchRefs_;
-        if (stateBatchRefs_ == 0)
-        {
-          StateBatch::flushImpl(this, &stateBatchImpl_);
-          stateBatchActive_ = false;
-          stateBatchImpl_.count = 0;
-          stateBatchImpl_.bytes = 0;
-          stateBatchImpl_.specCount = 0;
-          stateBatchImpl_.specUsed = 0;
-        }
-      }
 
     } // namespace scene
   } // namespace core
