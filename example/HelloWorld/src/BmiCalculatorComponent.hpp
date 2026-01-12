@@ -11,7 +11,6 @@
 #include "app/EditText.hpp"
 #include "app/Text.hpp"
 #include "app/RowColumn.hpp"
-#include "ToolboxControlSlots.hpp"
 #include "app/Fragment.hpp"
 
 namespace helloworld
@@ -51,9 +50,9 @@ namespace helloworld
       parent
           << Text("BMI Calculator")
           << Text("Height (cm)")
-          << EditText(this->heightInput_).toolboxControl(kToolboxControlHeightInput)
+          << EditText(this->heightInput_)
           << Text("Weight (kg)")
-          << EditText(this->weightInput_).toolboxControl(kToolboxControlWeightInput)
+          << EditText(this->weightInput_)
           << Text(this->bmiResult_);
     }
 

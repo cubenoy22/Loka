@@ -12,7 +12,6 @@
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 #include "BmiCalculatorComponent.hpp"
-#include "ToolboxControlSlots.hpp"
 
 namespace helloworld
 {
@@ -142,7 +141,7 @@ namespace helloworld
       column
           << Text("Loka Sample")
           << Text(owner_->messageState())
-          << Button("Add +", &owner_->toggleEvent()).toolboxControl(kToolboxControlAddButton)
+          << Button("Add +", &owner_->toggleEvent())
           << declara::core::scene::LightComponent(owner_->bmiCalculator());
       parent << column;
     }
