@@ -159,6 +159,15 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         int height = HIWORD(lParam);
         self->scenePlatformController_->relayout(width, height);
       }
+      if (self->hwnd_)
+      {
+        RECT rc;
+        if (GetWindowRect(self->hwnd_, &rc))
+        {
+          loka::core::Frame frame(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
+          self->frameState().set(frame);
+        }
+      }
       return 0;
     case WM_PAINT:
     {
@@ -216,6 +225,12 @@ void Win32Window::createNativeWindow()
   if (hwnd)
   {
     this->hwnd_ = hwnd;
+    RECT rc;
+    if (GetWindowRect(hwnd, &rc))
+    {
+      loka::core::Frame frame(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
+      this->frameState().set(frame);
+    }
     if (this->app_)
     {
       this->app_->setActiveWindow(this);
