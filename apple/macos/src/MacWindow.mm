@@ -56,6 +56,7 @@ MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
 {
   this->visibilityState().deferBind(&MacWindow::VisibilityChangedThunk, this);
   this->titleState().deferBind(&MacWindow::TitleChangedThunk, this);
+  this->frameState().deferBind(&MacWindow::FrameChangedThunk, this);
 }
 
 MacWindow::~MacWindow()
@@ -135,6 +136,40 @@ void MacWindow::TitleChangedThunk(void *userData)
   }
 }
 
+void MacWindow::FrameChangedThunk(void *userData)
+{
+  MacWindow *self = static_cast<MacWindow *>(userData);
+  if (!self || !self->window_)
+  {
+    return;
+  }
+  NSWindow *window = (__bridge NSWindow *)self->window_;
+  loka::core::Frame frame = self->frameState().get();
+  if (!frame.hasSize())
+  {
+    return;
+  }
+  NSRect currentFrame = [window frame];
+  CGFloat x = frame.x >= 0 ? frame.x : currentFrame.origin.x;
+  CGFloat y = frame.y >= 0 ? frame.y : currentFrame.origin.y;
+  CGFloat width = frame.width > 0 ? frame.width : currentFrame.size.width;
+  CGFloat height = frame.height > 0 ? frame.height : currentFrame.size.height;
+  if (frame.y >= 0)
+  {
+    NSScreen *screen = [window screen];
+    if (!screen)
+    {
+      screen = [NSScreen mainScreen];
+    }
+    if (screen)
+    {
+      NSRect screenFrame = [screen visibleFrame];
+      y = screenFrame.origin.y + screenFrame.size.height - y - height;
+    }
+  }
+  [window setFrame:NSMakeRect(x, y, width, height) display:YES];
+}
+
 void MacWindow::createNativeWindow()
 {
   if (window_)
@@ -142,7 +177,17 @@ void MacWindow::createNativeWindow()
     return;
   }
   closing_ = false;
-  NSRect frame = NSMakeRect(100.0, 100.0, 640.0, 360.0);
+  CGFloat x = this->hasPosition() ? this->positionX() : 50;
+  CGFloat y = this->hasPosition() ? this->positionY() : 50;
+  CGFloat width = this->hasSize() ? this->width() : 300;
+  CGFloat height = this->hasSize() ? this->height() : 300;
+  NSScreen *screen = [NSScreen mainScreen];
+  if (screen)
+  {
+    NSRect screenFrame = [screen visibleFrame];
+    y = screenFrame.origin.y + screenFrame.size.height - y - height;
+  }
+  NSRect frame = NSMakeRect(x, y, width, height);
   NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                      NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
   NSWindow *window = [[NSWindow alloc] initWithContentRect:frame

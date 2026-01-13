@@ -32,6 +32,7 @@ void ToolboxApp::run()
   InitCursor();
 
   App::run();
+  applyMenuBar(0);
   if (group_)
   {
     const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -47,6 +48,7 @@ void ToolboxApp::run()
           firstWindow = toolboxWindow;
         }
         toolboxWindow->setApp(this);
+        toolboxWindow->open();
         toolboxWindow->ensureSceneMounted();
         toolboxWindow->draw();
       }
@@ -444,6 +446,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     ClearMenuBar();
     InitMenus();
     DrawMenuBar();
+    if (activeWindow && activeWindow->asToolboxWindow())
+    {
+      activeWindow->asToolboxWindow()->refreshFrame();
+    }
     clearMenuDiff();
     return;
   }
@@ -594,6 +600,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       ++nextMenuId_;
     }
     DrawMenuBar();
+    if (activeWindow && activeWindow->asToolboxWindow())
+    {
+      activeWindow->asToolboxWindow()->refreshFrame();
+    }
     clearMenuDiff();
     return;
   }
@@ -707,6 +717,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     return;
   }
   DrawMenuBar();
+  if (activeWindow && activeWindow->asToolboxWindow())
+  {
+    activeWindow->asToolboxWindow()->refreshFrame();
+  }
   clearMenuDiff();
 }
 

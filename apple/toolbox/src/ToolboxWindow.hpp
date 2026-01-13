@@ -17,6 +17,7 @@ public:
 
   void setApp(App *app);
   void ensureSceneMounted();
+  void open();
   void requestInvalidate();
   void flushInvalidate();
   bool handleMouseDown(const Point &globalPoint);
@@ -26,15 +27,19 @@ public:
   void updateCursor();
   void invalidateWindow();
   void draw();
+  void refreshFrame();
   WindowPtr window() const { return window_; }
   ToolboxWindowContext *context() const { return context_; }
 
 private:
+  static void TitleChangedThunk(void *userData);
+  static void FrameChangedThunk(void *userData);
   App *app_;
   WindowPtr window_;
   ToolboxScenePlatformController *scenePlatformController_;
   ToolboxWindowContext *context_;
   bool needsInvalidate_;
+  short titleBarHeight_;
 
   void mountScene();
   void teardownScene();

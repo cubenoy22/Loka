@@ -25,6 +25,7 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
   // visibilityステートの変更を監視
   this->visibilityState().deferBind(&Win32Window::VisibilityChangedThunk, this);
   this->titleState().deferBind(&Win32Window::TitleChangedThunk, this);
+  this->frameState().deferBind(&Win32Window::FrameChangedThunk, this);
 }
 
 Win32Window::~Win32Window()
@@ -97,6 +98,27 @@ void Win32Window::TitleChangedThunk(void *userData)
       }
     }
   }
+}
+
+void Win32Window::FrameChangedThunk(void *userData)
+{
+  Win32Window *self = static_cast<Win32Window *>(userData);
+  if (!self || !self->hwnd_)
+  {
+    return;
+  }
+  loka::core::Frame frame = self->frameState().get();
+  if (!frame.hasSize())
+  {
+    return;
+  }
+  RECT rc;
+  GetWindowRect(self->hwnd_, &rc);
+  int x = frame.x >= 0 ? frame.x : rc.left;
+  int y = frame.y >= 0 ? frame.y : rc.top;
+  int width = frame.width > 0 ? frame.width : (rc.right - rc.left);
+  int height = frame.height > 0 ? frame.height : (rc.bottom - rc.top);
+  MoveWindow(self->hwnd_, x, y, width, height, TRUE);
 }
 
 LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -185,7 +207,10 @@ void Win32Window::createNativeWindow()
       kWndClassName,
       "",
       WS_OVERLAPPEDWINDOW,
-      100, 100, 320, 320,
+      this->hasPosition() ? this->positionX() : 50,
+      this->hasPosition() ? this->positionY() : 50,
+      this->hasSize() ? this->width() : 300,
+      this->hasSize() ? this->height() : 300,
       NULL, NULL, GetModuleHandle(NULL),
       this);
   if (hwnd)

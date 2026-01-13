@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <string>
+#include <cstdio>
 #include <Quickdraw.h>
 #include "core/App.hpp"
 #include "core2/scene/Scene.hpp"
@@ -22,29 +23,26 @@ namespace
     if (length > 0)
       std::memcpy(out + 1, value.data(), length);
   }
+
+  short WindowTitleBarHeight(WindowPtr window)
+  {
+    WindowPeek peek = reinterpret_cast<WindowPeek>(window);
+    if (!peek || !peek->strucRgn || !peek->contRgn)
+    {
+      return 0;
+    }
+    Rect struc = (*peek->strucRgn)->rgnBBox;
+    Rect cont = (*peek->contRgn)->rgnBBox;
+    short height = static_cast<short>(cont.top - struc.top);
+    return height > 0 ? height : 0;
+  }
 }
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context,
                              const WindowProps &props)
-    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false)
+    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), titleBarHeight_(0)
 {
-  Rect bounds;
-  SetRect(&bounds, 60, 60, 420, 320);
-
-  loka::core::String titleValue = this->titleState().get();
-  if (titleValue.empty())
-  {
-    titleValue = loka::core::String::Literal("Loka");
-  }
-  std::string title;
-  if (!loka::platform::CollectUtf8(titleValue, title))
-  {
-    title = "Loka";
-  }
-  Str255 titleStr;
-  CopyToPascalString(title, titleStr);
-
-  window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
+  window_ = 0;
   context_ = new ToolboxWindowContext(
 #if !defined(DECLARA_TOOLBOX_CLASSIC_6)
       ToolboxNodeContextMapper::CAP_CONTROL_MANAGER | ToolboxNodeContextMapper::CAP_TEXT_EDIT
@@ -52,6 +50,8 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context,
       ToolboxNodeContextMapper::CAP_NONE
 #endif
   );
+  this->titleState().deferBind(&ToolboxWindow::TitleChangedThunk, this);
+  this->frameState().deferBind(&ToolboxWindow::FrameChangedThunk, this);
 }
 
 ToolboxWindow::~ToolboxWindow()
@@ -77,7 +77,44 @@ void ToolboxWindow::setApp(App *app)
 
 void ToolboxWindow::ensureSceneMounted()
 {
+  open();
   mountScene();
+}
+
+void ToolboxWindow::open()
+{
+  if (window_)
+  {
+    return;
+  }
+  Rect bounds;
+  short left = static_cast<short>(this->hasPosition() ? this->positionX() : 50);
+  short top = static_cast<short>(this->hasPosition() ? this->positionY() : 50);
+  short menuHeight = GetMBarHeight();
+  if (menuHeight > 0)
+  {
+    top = static_cast<short>(top + menuHeight + 1);
+  }
+  short width = static_cast<short>(this->hasSize() ? this->width() : 300);
+  short height = static_cast<short>(this->hasSize() ? this->height() : 300);
+  SetRect(&bounds, left, top, static_cast<short>(left + width), static_cast<short>(top + height));
+
+  loka::core::String titleValue = this->titleState().get();
+  if (titleValue.empty())
+  {
+    titleValue = loka::core::String::Literal("Loka");
+  }
+  std::string title;
+  if (!loka::platform::CollectUtf8(titleValue, title))
+  {
+    title = "Loka";
+  }
+  Str255 titleStr;
+  CopyToPascalString(title, titleStr);
+
+  window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
+  titleBarHeight_ = WindowTitleBarHeight(window_);
+  TitleChangedThunk(this);
 }
 
 void ToolboxWindow::requestInvalidate()
@@ -93,6 +130,61 @@ void ToolboxWindow::flushInvalidate()
   }
   needsInvalidate_ = false;
   InvalRect(&window_->portRect);
+}
+
+void ToolboxWindow::refreshFrame()
+{
+  FrameChangedThunk(this);
+}
+
+void ToolboxWindow::FrameChangedThunk(void *userData)
+{
+  ToolboxWindow *self = static_cast<ToolboxWindow *>(userData);
+  if (!self || !self->window_)
+  {
+    return;
+  }
+  loka::core::Frame frame = self->frameState().get();
+  if (frame.hasPosition())
+  {
+    short y = static_cast<short>(frame.y >= 0 ? frame.y : 0);
+    short menuHeight = GetMBarHeight();
+    if (menuHeight > 0)
+    {
+      y = static_cast<short>(y + menuHeight);
+    }
+    if (self->titleBarHeight_ > 0)
+    {
+      y = static_cast<short>(y + self->titleBarHeight_);
+    }
+    MoveWindow(self->window_, static_cast<short>(frame.x), y, false);
+  }
+  if (frame.hasSize())
+  {
+    SizeWindow(self->window_, static_cast<short>(frame.width), static_cast<short>(frame.height), true);
+  }
+}
+
+void ToolboxWindow::TitleChangedThunk(void *userData)
+{
+  ToolboxWindow *self = static_cast<ToolboxWindow *>(userData);
+  if (!self || !self->window_)
+  {
+    return;
+  }
+  loka::core::String titleValue = self->titleState().get();
+  if (titleValue.empty())
+  {
+    titleValue = loka::core::String::Literal("Loka");
+  }
+  std::string title;
+  if (!loka::platform::CollectUtf8(titleValue, title))
+  {
+    title = "Loka";
+  }
+  Str255 titleStr;
+  CopyToPascalString(title, titleStr);
+  SetWTitle(self->window_, titleStr);
 }
 
 bool ToolboxWindow::handleMouseDown(const Point &globalPoint)

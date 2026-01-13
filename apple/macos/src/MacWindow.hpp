@@ -41,6 +41,7 @@ private:
   void destroyNativeWindow();
   static void VisibilityChangedThunk(void *userData);
   static void TitleChangedThunk(void *userData);
+  static void FrameChangedThunk(void *userData);
   void mountScene();
   void teardownScene();
 

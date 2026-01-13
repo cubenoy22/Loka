@@ -9,6 +9,7 @@
 #include "core2/scene/Node.hpp"
 #include "app/Menu.hpp"
 #include "loka/core/String.hpp"
+#include "loka/core/Frame.hpp"
 
 namespace declara
 {
@@ -37,10 +38,15 @@ struct WindowProps
   typedef WindowTypeTag TypeTag;
   MutableState<loka::core::String> *titleStatePtr;
   MutableState<bool> *visibilityStatePtr;
+  MutableState<loka::core::Frame> *frameStatePtr;
   loka::core::String initialTitle;
   bool initialVisibility;
   bool hasInitialTitle;
   bool hasInitialVisibility;
+  int positionX;
+  int positionY;
+  int width;
+  int height;
   declara::core::scene::Scene *initialScene;
   declara::core::scene::NodeDefinitionBase *rootDefinition;
   declara::app::MenuBarDefinition *menuBarDefinition;
@@ -48,10 +54,15 @@ struct WindowProps
   WindowProps()
       : titleStatePtr(0),
         visibilityStatePtr(0),
+        frameStatePtr(0),
         initialTitle(),
         initialVisibility(true),
         hasInitialTitle(false),
         hasInitialVisibility(false),
+        positionX(-1),
+        positionY(-1),
+        width(-1),
+        height(-1),
         initialScene(0),
         rootDefinition(0),
         menuBarDefinition(0)
@@ -61,10 +72,15 @@ struct WindowProps
   WindowProps(const WindowProps &rhs)
       : titleStatePtr(rhs.titleStatePtr),
         visibilityStatePtr(rhs.visibilityStatePtr),
+        frameStatePtr(rhs.frameStatePtr),
         initialTitle(rhs.initialTitle),
         initialVisibility(rhs.initialVisibility),
         hasInitialTitle(rhs.hasInitialTitle),
         hasInitialVisibility(rhs.hasInitialVisibility),
+        positionX(rhs.positionX),
+        positionY(rhs.positionY),
+        width(rhs.width),
+        height(rhs.height),
         initialScene(rhs.initialScene),
         rootDefinition(0),
         menuBarDefinition(0)
@@ -101,10 +117,15 @@ struct WindowProps
     }
     titleStatePtr = rhs.titleStatePtr;
     visibilityStatePtr = rhs.visibilityStatePtr;
+    frameStatePtr = rhs.frameStatePtr;
     initialTitle = rhs.initialTitle;
     initialVisibility = rhs.initialVisibility;
     hasInitialTitle = rhs.hasInitialTitle;
     hasInitialVisibility = rhs.hasInitialVisibility;
+    positionX = rhs.positionX;
+    positionY = rhs.positionY;
+    width = rhs.width;
+    height = rhs.height;
     initialScene = rhs.initialScene;
     if (rootDefinition)
     {
@@ -146,6 +167,27 @@ struct WindowProps
     return *this;
   }
 
+  WindowProps &position(int x, int y)
+  {
+    positionX = x;
+    positionY = y;
+    return *this;
+  }
+
+  WindowProps &size(int width, int height)
+  {
+    this->width = width;
+    this->height = height;
+    return *this;
+  }
+
+  WindowProps &frame(int x, int y, int width, int height)
+  {
+    position(x, y);
+    size(width, height);
+    return *this;
+  }
+
   WindowProps &titleState(MutableState<loka::core::String> *state)
   {
     titleStatePtr = state;
@@ -155,6 +197,12 @@ struct WindowProps
   WindowProps &visibilityState(MutableState<bool> *state)
   {
     visibilityStatePtr = state;
+    return *this;
+  }
+
+  WindowProps &frameState(MutableState<loka::core::Frame> *state)
+  {
+    frameStatePtr = state;
     return *this;
   }
 
@@ -203,6 +251,12 @@ public:
         visibilityStorage_(true),
         title_(&titleStorage_),
         visibility_(&visibilityStorage_),
+        frameState_(),
+        frameStatePtr_(&frameState_),
+        positionX_(props.positionX),
+        positionY_(props.positionY),
+        width_(props.width),
+        height_(props.height),
         initialScene_(props.initialScene),
         menuBarDefinition_(0)
   {
@@ -213,6 +267,10 @@ public:
     if (props.visibilityStatePtr)
     {
       visibility_ = props.visibilityStatePtr;
+    }
+    if (props.frameStatePtr)
+    {
+      frameStatePtr_ = props.frameStatePtr;
     }
     declara::core::PushStateTracker *pushTracker = new declara::core::PushStateTracker();
     pushTracker->addState(title_);
@@ -225,6 +283,21 @@ public:
     if (props.hasInitialVisibility)
     {
       visibility_->set(props.initialVisibility);
+    }
+    if (positionX_ >= 0 || positionY_ >= 0 || width_ > 0 || height_ > 0)
+    {
+      loka::core::Frame frame = frameStatePtr_->get();
+      if (positionX_ >= 0 && positionY_ >= 0)
+      {
+        frame.x = positionX_;
+        frame.y = positionY_;
+      }
+      if (width_ > 0 && height_ > 0)
+      {
+        frame.width = width_;
+        frame.height = height_;
+      }
+      frameStatePtr_->set(frame);
     }
     if (props.menuBarDefinition)
     {
@@ -251,6 +324,7 @@ public:
 
   MutableState<bool> &visibilityState() { return *visibility_; }
   MutableState<loka::core::String> &titleState() { return *title_; }
+  MutableState<loka::core::Frame> &frameState() { return *frameStatePtr_; }
   const declara::app::MenuBarDefinition *menuBar() const { return menuBarDefinition_; }
 
   declara::core::StateTracker *getTracker() const { return tracker_; }
@@ -266,6 +340,19 @@ public:
   virtual Win32Window *asWin32Window() { return 0; }
   virtual MacWindow *asMacWindow() { return 0; }
 
+  bool hasPosition() const
+  {
+    return frameStatePtr_->get().hasPosition();
+  }
+  bool hasSize() const
+  {
+    return frameStatePtr_->get().hasSize();
+  }
+  int positionX() const { return frameStatePtr_->get().x; }
+  int positionY() const { return frameStatePtr_->get().y; }
+  int width() const { return frameStatePtr_->get().width; }
+  int height() const { return frameStatePtr_->get().height; }
+
 private:
 protected:
   PlatformContext *context_;
@@ -273,8 +360,14 @@ protected:
   SceneManager2 sceneManager_;
   MutableState<loka::core::String> titleStorage_;
   MutableState<bool> visibilityStorage_;
+  MutableState<loka::core::Frame> frameState_;
   MutableState<loka::core::String> *title_;
   MutableState<bool> *visibility_;
+  MutableState<loka::core::Frame> *frameStatePtr_;
+  int positionX_;
+  int positionY_;
+  int width_;
+  int height_;
   declara::core::scene::Scene *initialScene_;
   declara::app::MenuBarDefinition *menuBarDefinition_;
 };
