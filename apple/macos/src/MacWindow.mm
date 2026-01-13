@@ -136,6 +136,36 @@ void MacWindow::TitleChangedThunk(void *userData)
   }
 }
 
+namespace
+{
+  static CGFloat VisibleTopForScreen(NSScreen *screen)
+  {
+    if (!screen)
+    {
+      return 0.0;
+    }
+    NSRect screenFrame = [screen frame];
+    NSRect visibleFrame = [screen visibleFrame];
+    CGFloat top = visibleFrame.origin.y + visibleFrame.size.height;
+    if (visibleFrame.size.height >= screenFrame.size.height - 1.0)
+    {
+      CGFloat menuHeight = [[NSStatusBar systemStatusBar] thickness];
+      top = screenFrame.origin.y + screenFrame.size.height - menuHeight;
+    }
+    return top;
+  }
+
+  static NSRect FrameRectForContent(CGFloat x, CGFloat y, CGFloat width, CGFloat height, NSUInteger style, NSScreen *screen)
+  {
+    NSRect contentRect = NSMakeRect(0.0, 0.0, width, height);
+    NSRect frameRect = [NSWindow frameRectForContentRect:contentRect styleMask:style];
+    CGFloat top = VisibleTopForScreen(screen);
+    frameRect.origin.x = x;
+    frameRect.origin.y = top - y - frameRect.size.height;
+    return frameRect;
+  }
+}
+
 void MacWindow::FrameChangedThunk(void *userData)
 {
   MacWindow *self = static_cast<MacWindow *>(userData);
@@ -150,24 +180,26 @@ void MacWindow::FrameChangedThunk(void *userData)
     return;
   }
   NSRect currentFrame = [window frame];
-  CGFloat x = frame.x >= 0 ? frame.x : currentFrame.origin.x;
-  CGFloat y = frame.y >= 0 ? frame.y : currentFrame.origin.y;
-  CGFloat width = frame.width > 0 ? frame.width : currentFrame.size.width;
-  CGFloat height = frame.height > 0 ? frame.height : currentFrame.size.height;
-  if (frame.y >= 0)
+  NSRect currentContent = [window contentRectForFrameRect:currentFrame];
+  CGFloat x = frame.x >= 0 ? frame.x : currentContent.origin.x;
+  CGFloat y = frame.y >= 0 ? frame.y : currentContent.origin.y;
+  CGFloat width = frame.width > 0 ? frame.width : currentContent.size.width;
+  CGFloat height = frame.height > 0 ? frame.height : currentContent.size.height;
+  NSScreen *screen = [window screen];
+  if (!screen)
   {
-    NSScreen *screen = [window screen];
-    if (!screen)
-    {
-      screen = [NSScreen mainScreen];
-    }
-    if (screen)
-    {
-      NSRect screenFrame = [screen visibleFrame];
-      y = screenFrame.origin.y + screenFrame.size.height - y - height;
-    }
+    screen = [NSScreen mainScreen];
   }
-  [window setFrame:NSMakeRect(x, y, width, height) display:YES];
+  NSRect nextFrame = FrameRectForContent(x, y, width, height, [window styleMask], screen);
+  if (frame.x < 0)
+  {
+    nextFrame.origin.x = currentFrame.origin.x;
+  }
+  if (frame.y < 0)
+  {
+    nextFrame.origin.y = currentFrame.origin.y;
+  }
+  [window setFrame:nextFrame display:YES];
 }
 
 void MacWindow::createNativeWindow()
@@ -181,19 +213,15 @@ void MacWindow::createNativeWindow()
   CGFloat y = this->hasPosition() ? this->positionY() : 50;
   CGFloat width = this->hasSize() ? this->width() : 300;
   CGFloat height = this->hasSize() ? this->height() : 300;
-  NSScreen *screen = [NSScreen mainScreen];
-  if (screen)
-  {
-    NSRect screenFrame = [screen visibleFrame];
-    y = screenFrame.origin.y + screenFrame.size.height - y - height;
-  }
-  NSRect frame = NSMakeRect(x, y, width, height);
   NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                      NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
-  NSWindow *window = [[NSWindow alloc] initWithContentRect:frame
+  NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, width, height)
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
                                                      defer:NO];
+  NSScreen *screen = [NSScreen mainScreen];
+  NSRect frame = FrameRectForContent(x, y, width, height, style, screen);
+  [window setFrame:frame display:NO];
   std::string utf8;
   if (loka::platform::CollectUtf8(this->titleState().get(), utf8))
   {
@@ -204,7 +232,7 @@ void MacWindow::createNativeWindow()
     [window setTitle:@""];
   }
 
-  DeclaraFlippedView *contentView = [[DeclaraFlippedView alloc] initWithFrame:NSMakeRect(0, 0, frame.size.width, frame.size.height)];
+  DeclaraFlippedView *contentView = [[DeclaraFlippedView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
   [window setContentView:contentView];
 
   DeclaraWindowDelegate *delegate = [[DeclaraWindowDelegate alloc] init];
