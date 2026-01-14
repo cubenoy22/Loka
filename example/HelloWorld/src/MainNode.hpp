@@ -4,6 +4,8 @@
 #include "core2/scene/node/StaticComposition.hpp"
 #include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
+#include "app/ZStack.hpp"
+#include "app/Text.hpp"
 
 class Window;
 
@@ -44,10 +46,12 @@ namespace helloworld
   inline void MainNode::composeNode(declara::core::scene::NodeComposition &c)
   {
     using namespace declara::app;
-    c.declare(
-        HStack()
-        << declara::core::scene::LC(left_)
-        << declara::core::scene::LC(right_));
+    ZStack &root = c.declare(ZStack());
+    declara::core::scene::NodeComposition::ParentScope scope(c, root);
+    c.declare(HStack()
+              << declara::core::scene::LC(left_)
+              << declara::core::scene::LC(right_));
+    c.declare(Text("*"));
   }
 
 } // namespace helloworld

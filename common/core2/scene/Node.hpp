@@ -52,6 +52,8 @@ namespace declara
       enum NodeKind
       {
         NODE_KIND_UNKNOWN = 0,
+        NODE_KIND_BOX,
+        NODE_KIND_ZSTACK,
         NODE_KIND_COLUMN,
         NODE_KIND_ROW,
         NODE_KIND_TEXT,
@@ -72,6 +74,8 @@ namespace declara
   // Forward declarations for app nodes (for asXxx() methods)
   namespace app
   {
+    class BoxNode;
+    class ZStackNode;
     class RowNode;
     class ColumnNode;
     class TextNode;
@@ -157,6 +161,8 @@ namespace declara
         // App node type casts (avoid dynamic_cast for 68k performance)
         virtual ::declara::app::RowNode *asRowNode() { return 0; }
         virtual ::declara::app::ColumnNode *asColumnNode() { return 0; }
+        virtual ::declara::app::BoxNode *asBoxNode() { return 0; }
+        virtual ::declara::app::ZStackNode *asZStackNode() { return 0; }
         virtual ::declara::app::TextNode *asTextNode() { return 0; }
         virtual ::declara::app::ButtonNode *asButtonNode() { return 0; }
         virtual ::declara::app::EditTextNode *asEditTextNode() { return 0; }

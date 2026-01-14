@@ -20,6 +20,15 @@ Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int hei
       NULL,
       GetModuleHandle(NULL),
       NULL);
+  if (hwnd_)
+  {
+    HDC hdc = GetDC(hwnd_);
+    if (hdc)
+    {
+      SetBkMode(hdc, TRANSPARENT);
+      ReleaseDC(hwnd_, hdc);
+    }
+  }
   bindText();
 }
 

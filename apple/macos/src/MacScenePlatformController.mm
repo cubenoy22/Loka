@@ -7,6 +7,7 @@
 #include "app/EditText.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
+#include "app/ZStack.hpp"
 #include "app/Text.hpp"
 #include "core2/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
@@ -178,6 +179,59 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
         maxY = childY;
       }
       currentX += childWidth + gap;
+    }
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
+  }
+
+  if (declara::app::BoxNode *box = node->asBoxNode())
+  {
+    int padding = box->props.padding;
+    LayoutState childState = state;
+    childState.x = state.x + padding;
+    childState.y = state.y + padding;
+    childState.width = state.width - padding * 2;
+    if (childState.width < 0)
+    {
+      childState.width = 0;
+    }
+    childState.height = state.height - padding * 2;
+    if (childState.height < 0)
+    {
+      childState.height = 0;
+    }
+    int resultY = childState.y;
+    if (declara::core::scene::INestable *nestable = box->asNestable())
+    {
+      loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+      {
+        childState.y = layoutNode(child, childState);
+      }
+      resultY = childState.y + padding;
+    }
+    else
+    {
+      resultY = state.y + padding * 2;
+    }
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
+  }
+
+  if (declara::app::ZStackNode *stack = node->asZStackNode())
+  {
+    LayoutState childState = state;
+    int maxY = state.y;
+    if (declara::core::scene::INestable *nestable = stack->asNestable())
+    {
+      loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+      {
+        childState = state;
+        int childY = layoutNode(child, childState);
+        if (childY > maxY)
+        {
+          maxY = childY;
+        }
+      }
     }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }

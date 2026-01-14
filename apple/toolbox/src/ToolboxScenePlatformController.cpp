@@ -19,6 +19,8 @@ static bool sProfileCaptured = false;
 #include "app/Button.hpp"
 #include "app/EditText.hpp"
 #include "app/PopupMenu.hpp"
+#include "app/Box.hpp"
+#include "app/ZStack.hpp"
 #include "app/RowColumn.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
@@ -213,6 +215,57 @@ namespace
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
       }
       return width;
+    }
+    case declara::core::scene::NODE_KIND_BOX:
+    {
+      declara::app::BoxNode *box = static_cast<declara::app::BoxNode *>(node);
+      short padding = static_cast<short>(box->props.padding);
+      declara::core::scene::LayoutState childState = state;
+      childState.x = static_cast<short>(state.x + padding);
+      childState.y = static_cast<short>(state.y + padding);
+      short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
+      short width = static_cast<short>(childWidth + padding * 2);
+      if (childWidth == 0 && box->childrenCount() == 0)
+      {
+        width = static_cast<short>(padding * 2);
+      }
+      short resultY = static_cast<short>(childState.y + padding);
+      state.y = resultY;
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
+    case declara::core::scene::NODE_KIND_ZSTACK:
+    {
+      declara::app::ZStackNode *stack = static_cast<declara::app::ZStackNode *>(node);
+      declara::core::scene::LayoutState childState = state;
+      short maxWidth = 0;
+      short maxY = state.y;
+      if (declara::core::scene::INestable *nestable = stack->asNestable())
+      {
+        loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+        for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+        {
+          childState = state;
+          short width = LayoutNode(child, childState, controller, activeBoundary);
+          if (width > maxWidth)
+          {
+            maxWidth = width;
+          }
+          if (childState.y > maxY)
+          {
+            maxY = childState.y;
+          }
+        }
+      }
+      state.y = maxY;
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));
+      }
+      return maxWidth;
     }
     case declara::core::scene::NODE_KIND_ROW:
     {

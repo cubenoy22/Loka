@@ -24,9 +24,21 @@ namespace declara
       // int spacing;
       typedef BoxTypeTag TypeTag;
       typedef BoxNode NodeType;
-      BoxProps() {}
-      int hash() const { return 0; }
-      bool operator<(const core::scene::PropsBase &rhs) const { return false; }
+      int padding;
+      BoxProps() : padding(0) {}
+      int hash() const { return padding; }
+      BoxProps &setPadding(int value)
+      {
+        padding = value;
+        return *this;
+      }
+      bool operator<(const core::scene::PropsBase &rhs) const
+      {
+        if (rhs.propsTypeId() != propsTypeId())
+          return false;
+        const BoxProps &other = static_cast<const BoxProps &>(rhs);
+        return padding < other.padding;
+      }
     };
 
     class BoxNode : public core::scene::NestableNode
@@ -35,7 +47,8 @@ namespace declara
       typedef BoxTypeTag TypeTag;
       BoxProps props;
       BoxNode(const BoxProps &p) : core::scene::NestableNode(), props(p) {}
-      // レイアウトロジックは今後追加
+      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_BOX; }
+      virtual BoxNode *asBoxNode() { return this; }
     };
 
     struct BoxDefinition : public core::scene::NodeDefinition<BoxProps, BoxNode>, public core::scene::NestableDefinitionBase
@@ -60,6 +73,11 @@ namespace declara
       }
       virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      BoxDefinition &padding(int value)
+      {
+        this->props.setPadding(value);
+        return *this;
+      }
     };
     // DSL向け短縮名
     typedef BoxDefinition Box;

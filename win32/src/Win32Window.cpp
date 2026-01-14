@@ -152,6 +152,15 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         self->app_->setActiveWindow(static_cast<Window *>(self));
       }
       break;
+    case WM_CTLCOLORSTATIC:
+    {
+      HDC hdc = reinterpret_cast<HDC>(wParam);
+      if (hdc)
+      {
+        SetBkMode(hdc, TRANSPARENT);
+      }
+      return reinterpret_cast<LRESULT>(GetStockObject(NULL_BRUSH));
+    }
     case WM_SIZE:
       if (self->scenePlatformController_)
       {
@@ -177,8 +186,6 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       RECT rc;
       GetClientRect(hwnd, &rc);
       FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
-      // 既存の描画
-      TextOutA(hdc, 20, 20, "Developer", 9);
       EndPaint(hwnd, &ps);
       break;
     }
