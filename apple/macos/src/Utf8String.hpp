@@ -3,8 +3,10 @@
 #include <Foundation/Foundation.h>
 #include <string>
 
-namespace declara::macos
+namespace declara
 {
+  namespace macos
+  {
   inline NSString *CreateNSStringFromUtf8(const std::string &value)
   {
     if (value.empty())
@@ -37,5 +39,6 @@ namespace declara::macos
       return std::string();
     }
     return std::string(bytes);
+  }
   }
 }

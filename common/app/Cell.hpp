@@ -20,7 +20,8 @@ namespace declara
       typedef CellTypeTag TypeTag;
       typedef CellNode NodeType;
       State<loka::core::String> *text_;
-      CellProps() : text_(0) {}
+      EmitterState *onClick_;
+      CellProps() : text_(0), onClick_(0) {}
       CellProps &text(State<loka::core::String> *state)
       {
         text_ = state;
@@ -36,12 +37,21 @@ namespace declara
         text_ = declara::core::StaticState<loka::core::String>(value);
         return *this;
       }
+      CellProps &onClick(EmitterState *e)
+      {
+        onClick_ = e;
+        return *this;
+      }
       bool operator<(const core::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const CellProps &other = static_cast<const CellProps &>(rhs);
-        return text_ < other.text_;
+        if (text_ != other.text_)
+        {
+          return text_ < other.text_;
+        }
+        return onClick_ < other.onClick_;
       }
     };
 
@@ -75,6 +85,11 @@ namespace declara
       CellDefinition &text(const char *value)
       {
         this->props.text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
+        return *this;
+      }
+      CellDefinition &onClick(EmitterState *e)
+      {
+        this->props.onClick_ = e;
         return *this;
       }
     };

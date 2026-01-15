@@ -18,6 +18,7 @@ class MacCellContext : public declara::core::scene::NativeNodeContext
 public:
   MacCellContext(void *parentView, int x, int y, int width, int height, declara::app::CellNode *node);
   virtual ~MacCellContext();
+  void handleClick();
 
 private:
   void bindText();

@@ -30,6 +30,7 @@ namespace
 
 ToolboxCellContext::ToolboxCellContext(declara::app::CellNode *node)
     : node_(node),
+      boundary_(0),
       rect_(),
       text_(0)
 {
@@ -47,11 +48,15 @@ void ToolboxCellContext::updateRect(const Rect &rect)
   rect_ = rect;
 }
 
-void ToolboxCellContext::draw(ToolboxScenePlatformController *)
+void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
 {
   Rect drawRect = rect_;
   EraseRect(&drawRect);
   FrameRect(&drawRect);
+  if (controller)
+  {
+    controller->recordCellHit(rect_, node_ ? node_->props.onClick_ : 0, boundary_, this, text_);
+  }
   if (!text_)
   {
     return;

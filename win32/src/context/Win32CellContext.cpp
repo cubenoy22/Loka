@@ -86,6 +86,12 @@ LRESULT CALLBACK Win32CellContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, L
     EndPaint(hwnd, &ps);
     return 0;
   }
+  case WM_LBUTTONUP:
+    if (self && self->node_ && self->node_->props.onClick_)
+    {
+      self->node_->props.onClick_->emit();
+    }
+    return 0;
   default:
     break;
   }

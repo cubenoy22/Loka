@@ -13,6 +13,10 @@ namespace declara
   {
     template <typename T>
     class State;
+    namespace scene
+    {
+      class BoundaryNode;
+    }
   }
 }
 
@@ -22,6 +26,7 @@ public:
   explicit ToolboxCellContext(declara::app::CellNode *node);
   virtual ~ToolboxCellContext();
 
+  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(declara::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
@@ -31,6 +36,7 @@ public:
 
 private:
   declara::app::CellNode *node_;
+  declara::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   declara::core::State<loka::core::String> *text_;
 };

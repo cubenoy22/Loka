@@ -407,6 +407,11 @@ namespace
       {
         controller->contextMapper()->ensureCellContext(cell);
       }
+      if (cell->getContext())
+      {
+        ToolboxCellContext *ctx = static_cast<ToolboxCellContext *>(cell->getContext());
+        ctx->setBoundary(activeBoundary);
+      }
       short width = node->layout(controller, state);
       if (boundary)
       {
@@ -638,6 +643,7 @@ void ToolboxScenePlatformController::render()
     nextControlId_ = static_cast<short>(maxExplicit + 1);
   }
   buttonHits_.clear();
+  cellHits_.clear();
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
     buttonControls_[i].usedThisFrame = false;
@@ -647,10 +653,10 @@ void ToolboxScenePlatformController::render()
   {
     editControls_[i].usedThisFrame = false;
   }
-      textHits_.clear();
-      popupContexts_.clear();
-      pendingTextStates_.clear();
-      pendingDirtyRects_.clear();
+  textHits_.clear();
+  popupContexts_.clear();
+  pendingTextStates_.clear();
+  pendingDirtyRects_.clear();
   declara::core::scene::LayoutState state;
   state.x = 12;
   state.y = 24;
@@ -740,6 +746,19 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     }
     ctx->draw();
   }
+  for (size_t i = 0; i < cellHits_.size(); ++i)
+  {
+    CellHit &hit = cellHits_[i];
+    if (!hit.context)
+    {
+      continue;
+    }
+    if (!RectsIntersect(rect, hit.rect))
+    {
+      continue;
+    }
+    hit.context->draw(this);
+  }
   for (size_t i = 0; i < textHits_.size(); ++i)
   {
     TextHit &hit = textHits_[i];
@@ -809,6 +828,21 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
       return false;
     }
   }
+  for (size_t i = 0; i < cellHits_.size(); ++i)
+  {
+    CellHit &hit = cellHits_[i];
+    if (!hit.emitter)
+    {
+      continue;
+    }
+    if (PtInRect(point, &hit.rect))
+    {
+      beginBatchUpdate();
+      hit.emitter->emit();
+      endBatchUpdate();
+      return false;
+    }
+  }
   for (size_t i = 0; i < buttonHits_.size(); ++i)
   {
     ButtonHit &hit = buttonHits_[i];
@@ -866,6 +900,22 @@ void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
   hit.enabled = enabled;
   hit.boundary = boundary;
   buttonHits_.push_back(hit);
+}
+
+void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
+                                                   declara::core::EmitterState *emitter,
+                                                   declara::core::scene::BoundaryNode *boundary,
+                                                   ToolboxCellContext *context,
+                                                   declara::core::State<loka::core::String> *text)
+{
+  CellHit hit;
+  hit.rect = rect;
+  hit.emitter = emitter;
+  hit.boundary = boundary;
+  hit.context = context;
+  hit.text = text;
+  cellHits_.push_back(hit);
+  bindTextState(text);
 }
 
 void ToolboxScenePlatformController::recordEditHit(const Rect &rect,
@@ -1010,6 +1060,22 @@ void ToolboxScenePlatformController::handleTextChanged(declara::core::State<loka
   if (!window_)
   {
     return;
+  }
+  for (size_t i = 0; i < cellHits_.size(); ++i)
+  {
+    CellHit &hit = cellHits_[i];
+    if (hit.text == text)
+    {
+      if (inBatchUpdate_)
+      {
+        addPendingDirty(hit.rect);
+      }
+      else
+      {
+        window_->drawDirty(hit.rect);
+      }
+      return;
+    }
   }
   for (size_t i = 0; i < textHits_.size(); ++i)
   {

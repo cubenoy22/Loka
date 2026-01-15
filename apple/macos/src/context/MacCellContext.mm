@@ -5,8 +5,11 @@
 #include "core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
+class MacCellContext;
+
 @interface DeclaraCellView : NSView
 @property(nonatomic, retain) NSString *text;
+@property(nonatomic, assign) MacCellContext *context;
 @end
 
 @implementation DeclaraCellView
@@ -34,6 +37,15 @@
     [self.text drawInRect:textRect withAttributes:attrs];
   }
 }
+
+- (void)mouseDown:(NSEvent *)event
+{
+  if (self.context)
+  {
+    self.context->handleClick();
+  }
+  [super mouseDown:event];
+}
 @end
 
 MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int height, declara::app::CellNode *node)
@@ -42,6 +54,7 @@ MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int he
   NSView *parent = (__bridge NSView *)parentView;
   DeclaraCellView *view = [[DeclaraCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
   [view setWantsLayer:YES];
+  view.context = this;
 
   if (parent)
   {
@@ -61,6 +74,15 @@ MacCellContext::~MacCellContext()
     [view removeFromSuperview];
   }
   view_ = 0;
+}
+
+void MacCellContext::handleClick()
+{
+  if (!node_ || !node_->props.onClick_)
+  {
+    return;
+  }
+  node_->props.onClick_->emit();
 }
 
 void MacCellContext::bindText()

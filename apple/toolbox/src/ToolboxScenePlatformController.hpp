@@ -12,6 +12,7 @@
 class ToolboxWindow;
 class ToolboxPopupMenuContext;
 class ToolboxNodeContextMapper;
+class ToolboxCellContext;
 
 class ToolboxScenePlatformController : public declara::core::scene::IPlatformController
 {
@@ -30,6 +31,11 @@ public:
                        declara::core::EmitterState *emitter,
                        declara::core::State<bool> *enabled,
                        declara::core::scene::BoundaryNode *boundary);
+  void recordCellHit(const Rect &rect,
+                     declara::core::EmitterState *emitter,
+                     declara::core::scene::BoundaryNode *boundary,
+                     ToolboxCellContext *context,
+                     declara::core::State<loka::core::String> *text);
   void recordEditHit(const Rect &rect,
                      declara::core::State<loka::core::String> *text,
                      declara::core::scene::BoundaryNode *boundary);
@@ -64,6 +70,15 @@ private:
     declara::core::EmitterState *emitter;
     declara::core::State<bool> *enabled;
     declara::core::scene::BoundaryNode *boundary;
+  };
+
+  struct CellHit
+  {
+    Rect rect;
+    declara::core::EmitterState *emitter;
+    declara::core::scene::BoundaryNode *boundary;
+    ToolboxCellContext *context;
+    declara::core::State<loka::core::String> *text;
   };
 
   struct EditHit
@@ -111,6 +126,7 @@ private:
   ToolboxWindow *window_;
   declara::core::scene::Node *rootNode_;
   std::vector<ButtonHit> buttonHits_;
+  std::vector<CellHit> cellHits_;
   std::vector<ButtonControlBinding> buttonControls_;
   std::vector<EditTextControlBinding> editControls_;
   std::vector<EditHit> editHits_;
