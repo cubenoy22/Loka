@@ -12,6 +12,16 @@
       "preLaunchTask": "Build: macOS App"
     },
     {
+      "name": "Run (macOS MineSweeper)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/MineSweeper/LokaMineMacOS",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "Build: macOS MineSweeper"
+    },
+    {
       "name": "Test (macOS)",
       "type": "cppdbg",
       "request": "launch",
@@ -29,6 +39,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 App"
+    },
+    {
+      "name": "Run (Windows MineSweeper)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/MineSweeper/LokaMineWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 MineSweeper"
     },
     {
       "name": "Test (Windows)",

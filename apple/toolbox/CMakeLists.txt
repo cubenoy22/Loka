@@ -8,6 +8,7 @@ set(DECLARA_TOOLBOX_SOURCES
   src/ToolboxApp.cpp
   src/ToolboxProfiler.cpp
   src/context/ToolboxButtonContext.cpp
+  src/context/ToolboxCellContext.cpp
   src/context/ToolboxEditTextContext.cpp
   src/context/ToolboxNodeContextMapper.cpp
   src/context/ToolboxPopupMenuContext.cpp

@@ -4,13 +4,16 @@
 #include <vector>
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/EditText.hpp"
+#include "app/Grid.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
 #include "core2/scene/Node.hpp"
 #include "core/Profiler.hpp"
+#include "context/Win32CellContext.hpp"
 
 namespace
 {
@@ -206,6 +209,42 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
+  if (declara::app::GridNode *grid = node->asGridNode())
+  {
+    const int rows = grid->props.rows > 0 ? grid->props.rows : 1;
+    const int cols = grid->props.cols > 0 ? grid->props.cols : 1;
+    const int gapX = 0;
+    const int gapY = 0;
+    const int availableWidth = state.width - gapX * (cols - 1);
+    const int availableHeight = state.height - gapY * (rows - 1);
+    const int cellWidth = availableWidth > 0 ? availableWidth / cols : 0;
+    const int cellHeight = availableHeight > 0 ? availableHeight / rows : 0;
+    int maxY = state.y;
+    if (declara::core::scene::INestable *nestable = grid->asNestable())
+    {
+      const size_t childCount = nestable->childrenCount();
+      const size_t maxCount = static_cast<size_t>(rows * cols);
+      size_t index = 0;
+      loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), childCount);
+      for (declara::core::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+      {
+        const int row = static_cast<int>(index / cols);
+        const int col = static_cast<int>(index % cols);
+        LayoutState childState = state;
+        childState.x = state.x + col * (cellWidth + gapX);
+        childState.y = state.y + row * (cellHeight + gapY);
+        childState.width = cellWidth;
+        childState.height = cellHeight;
+        int childY = layoutNode(child, childState);
+        if (childY > maxY)
+        {
+          maxY = childY;
+        }
+      }
+    }
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
+  }
+
   if (declara::app::BoxNode *box = node->asBoxNode())
   {
     int padding = box->props.padding;
@@ -300,6 +339,21 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
 
     LayoutState nextState = state;
     nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+  }
+
+  if (declara::app::CellNode *cell = node->asCellNode())
+  {
+    const int cellHeight = state.height > 0 ? state.height : kTextHeight;
+    Win32CellContext *ctx = new Win32CellContext(rootHwnd_, state.x, state.y, state.width, cellHeight, cell);
+    cell->setContext(ctx);
+
+    LayoutState nextState = state;
+    nextState.y = state.y + cellHeight;
+    if (state.height <= 0)
+    {
+      nextState.y += kVerticalSpacing;
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 

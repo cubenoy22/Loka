@@ -54,6 +54,8 @@ namespace declara
         NODE_KIND_UNKNOWN = 0,
         NODE_KIND_BOX,
         NODE_KIND_ZSTACK,
+        NODE_KIND_GRID,
+        NODE_KIND_CELL,
         NODE_KIND_COLUMN,
         NODE_KIND_ROW,
         NODE_KIND_TEXT,
@@ -76,6 +78,8 @@ namespace declara
   {
     class BoxNode;
     class ZStackNode;
+    class GridNode;
+    class CellNode;
     class RowNode;
     class ColumnNode;
     class TextNode;
@@ -93,10 +97,12 @@ namespace declara
       {
         short x;
         short y;
+        short width;
+        short height;
         short lineHeight;
         short spacing;
 
-        LayoutState() : x(0), y(0), lineHeight(0), spacing(0) {}
+        LayoutState() : x(0), y(0), width(0), height(0), lineHeight(0), spacing(0) {}
       };
 
       // Minimal NodeContext implementation
@@ -163,6 +169,8 @@ namespace declara
         virtual ::declara::app::ColumnNode *asColumnNode() { return 0; }
         virtual ::declara::app::BoxNode *asBoxNode() { return 0; }
         virtual ::declara::app::ZStackNode *asZStackNode() { return 0; }
+        virtual ::declara::app::GridNode *asGridNode() { return 0; }
+        virtual ::declara::app::CellNode *asCellNode() { return 0; }
         virtual ::declara::app::TextNode *asTextNode() { return 0; }
         virtual ::declara::app::ButtonNode *asButtonNode() { return 0; }
         virtual ::declara::app::EditTextNode *asEditTextNode() { return 0; }

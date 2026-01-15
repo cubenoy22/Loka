@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_NODE_CONTEXT_MAPPER_HPP
 
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
@@ -26,6 +27,7 @@ public:
   bool hasCapability(Capability cap) const { return (capabilities_ & cap) != 0; }
 
   void ensureTextContext(declara::app::TextNode *node);
+  void ensureCellContext(declara::app::CellNode *node);
   void ensureButtonContext(declara::app::ButtonNode *node);
   void ensureEditTextContext(declara::app::EditTextNode *node);
   void ensurePopupMenuContext(declara::app::PopupMenuNode *node);

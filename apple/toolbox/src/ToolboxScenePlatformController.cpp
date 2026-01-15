@@ -17,14 +17,17 @@ static bool sProfileCaptured = false;
 #include "loka/core/String.hpp"
 #include "app/Text.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Box.hpp"
+#include "app/Grid.hpp"
 #include "app/ZStack.hpp"
 #include "app/RowColumn.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxButtonContext.hpp"
+#include "context/ToolboxCellContext.hpp"
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
@@ -223,6 +226,22 @@ namespace
       declara::core::scene::LayoutState childState = state;
       childState.x = static_cast<short>(state.x + padding);
       childState.y = static_cast<short>(state.y + padding);
+      if (childState.width > 0)
+      {
+        childState.width = static_cast<short>(childState.width - padding * 2);
+        if (childState.width < 0)
+        {
+          childState.width = 0;
+        }
+      }
+      if (childState.height > 0)
+      {
+        childState.height = static_cast<short>(childState.height - padding * 2);
+        if (childState.height < 0)
+        {
+          childState.height = 0;
+        }
+      }
       short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
       short width = static_cast<short>(childWidth + padding * 2);
       if (childWidth == 0 && box->childrenCount() == 0)
@@ -258,6 +277,76 @@ namespace
           {
             maxY = childState.y;
           }
+        }
+      }
+      state.y = maxY;
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));
+      }
+      return maxWidth;
+    }
+    case declara::core::scene::NODE_KIND_GRID:
+    {
+      declara::app::GridNode *grid = static_cast<declara::app::GridNode *>(node);
+      const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
+      const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
+      const short gap = 0;
+      short availableWidth = state.width;
+      if (availableWidth > 0)
+      {
+        availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
+        if (availableWidth < 0)
+        {
+          availableWidth = 0;
+        }
+      }
+      short availableHeight = state.height;
+      if (availableHeight > 0)
+      {
+        availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
+        if (availableHeight < 0)
+        {
+          availableHeight = 0;
+        }
+      }
+      const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
+      const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
+      short maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
+      short maxY = state.y;
+      if (declara::core::scene::INestable *nestable = grid->asNestable())
+      {
+        const size_t childCount = nestable->childrenCount();
+        const size_t maxCount = static_cast<size_t>(rows * cols);
+        size_t index = 0;
+        loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), childCount);
+        for (declara::core::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+        {
+          const short row = static_cast<short>(index / cols);
+          const short col = static_cast<short>(index % cols);
+          declara::core::scene::LayoutState cellState = state;
+          cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
+          cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
+          cellState.width = cellWidth;
+          cellState.height = cellHeight;
+          short width = LayoutNode(child, cellState, controller, activeBoundary);
+          if (width > maxWidth)
+          {
+            maxWidth = width;
+          }
+          if (cellState.y > maxY)
+          {
+            maxY = cellState.y;
+          }
+        }
+      }
+      if (cellHeight > 0)
+      {
+        short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
+        short bottom = static_cast<short>(state.y + totalHeight);
+        if (bottom > maxY)
+        {
+          maxY = bottom;
         }
       }
       state.y = maxY;
@@ -303,6 +392,20 @@ namespace
       {
         ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
         ctx->setBoundary(activeBoundary);
+      }
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
+    case declara::core::scene::NODE_KIND_CELL:
+    {
+      declara::app::CellNode *cell = static_cast<declara::app::CellNode *>(node);
+      if (controller && controller->contextMapper())
+      {
+        controller->contextMapper()->ensureCellContext(cell);
       }
       short width = node->layout(controller, state);
       if (boundary)
@@ -409,6 +512,7 @@ namespace
       RenderChildren(node->asNestable(), controller);
       return;
     case declara::core::scene::NODE_KIND_TEXT:
+    case declara::core::scene::NODE_KIND_CELL:
     case declara::core::scene::NODE_KIND_BUTTON:
     case declara::core::scene::NODE_KIND_EDIT_TEXT:
     case declara::core::scene::NODE_KIND_POPUP_MENU:
@@ -552,6 +656,21 @@ void ToolboxScenePlatformController::render()
   state.y = 24;
   state.lineHeight = 14;
   state.spacing = 6;
+  {
+    Rect port = window_->window()->portRect;
+    short width = static_cast<short>(port.right - port.left - state.x * 2);
+    short height = static_cast<short>(port.bottom - port.top - state.y * 2);
+    if (width < 0)
+    {
+      width = 0;
+    }
+    if (height < 0)
+    {
+      height = 0;
+    }
+    state.width = width;
+    state.height = height;
+  }
   PROFILE_SECTION("layout");
   LayoutNode(rootNode_, state, this, 0);
   RenderNode(rootNode_, this);

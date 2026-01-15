@@ -29,6 +29,7 @@ set(DECLARA_MACOS_CORE_SOURCES
   src/MacScenePlatformController.mm
   src/MacWindow.mm
   src/context/MacButtonContext.mm
+  src/context/MacCellContext.mm
   src/context/MacEditTextContext.mm
   src/context/MacTextContext.mm
   src/context/MacPopupMenuContext.mm

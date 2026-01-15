@@ -1,5 +1,6 @@
 #include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxButtonContext.hpp"
+#include "context/ToolboxCellContext.hpp"
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxTextContext.hpp"
@@ -15,6 +16,20 @@ void ToolboxNodeContextMapper::ensureTextContext(declara::app::TextNode *node)
   if (!ctx)
   {
     ctx = new ToolboxTextContext(node);
+    node->setContext(ctx);
+  }
+}
+
+void ToolboxNodeContextMapper::ensureCellContext(declara::app::CellNode *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxCellContext *ctx = static_cast<ToolboxCellContext *>(node->getContext());
+  if (!ctx)
+  {
+    ctx = new ToolboxCellContext(node);
     node->setContext(ctx);
   }
 }

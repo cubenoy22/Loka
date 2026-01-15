@@ -17,5 +17,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
 endif()
 
 if(WIN32 OR (APPLE AND DECLARA_ENABLE_APPLE) OR (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
-  add_subdirectory(example/HelloWorld)
+add_subdirectory(example/HelloWorld)
+add_subdirectory(example/MineSweeper)
 endif()
