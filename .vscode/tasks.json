@@ -28,6 +28,20 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS SimpleViewer",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaSimpleViewerMacOS"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Tests",
       "type": "shell",
       "command": "cmake",
@@ -61,6 +75,20 @@
         "win32-debug",
         "--target",
         "LokaMineWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 SimpleViewer",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaSimpleViewerWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"

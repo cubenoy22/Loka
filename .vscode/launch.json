@@ -22,6 +22,16 @@
       "preLaunchTask": "Build: macOS MineSweeper"
     },
     {
+      "name": "Run (macOS SimpleViewer)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/SimpleViewer/LokaSimpleViewerMacOS",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "MIMode": "lldb",
+      "preLaunchTask": "Build: macOS SimpleViewer"
+    },
+    {
       "name": "Test (macOS)",
       "type": "cppdbg",
       "request": "launch",
@@ -48,6 +58,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 MineSweeper"
+    },
+    {
+      "name": "Run (Windows SimpleViewer)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/SimpleViewer/LokaSimpleViewerWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 SimpleViewer"
     },
     {
       "name": "Test (Windows)",
