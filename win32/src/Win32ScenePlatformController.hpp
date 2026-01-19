@@ -7,6 +7,7 @@
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "context/Win32EditTextContext.hpp"
+#include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 
 namespace declara

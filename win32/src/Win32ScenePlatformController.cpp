@@ -7,6 +7,7 @@
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/Grid.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
@@ -307,6 +308,13 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
       childState.y = layoutNode(child, childState);
     }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, childState.y);
+  }
+
+  if (declara::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
+  {
+    Win32OpenFileDialogContext *ctx = new Win32OpenFileDialogContext(rootHwnd_, dialog);
+    dialog->setContext(ctx);
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
   }
 
   if (declara::app::ButtonNode *button = node->asButtonNode())

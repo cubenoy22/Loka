@@ -19,6 +19,7 @@ static bool sProfileCaptured = false;
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Box.hpp"
 #include "app/Grid.hpp"
@@ -476,6 +477,19 @@ namespace
       }
       return width;
     }
+    case declara::core::scene::NODE_KIND_OPEN_FILE_DIALOG:
+    {
+      declara::app::OpenFileDialogNode *dialog = static_cast<declara::app::OpenFileDialogNode *>(node);
+      if (controller && controller->contextMapper())
+      {
+        controller->contextMapper()->ensureOpenFileDialogContext(dialog);
+      }
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, 0, static_cast<short>(state.y - startTop));
+      }
+      return 0;
+    }
     default:
       break;
     }
@@ -522,6 +536,8 @@ namespace
     case declara::core::scene::NODE_KIND_EDIT_TEXT:
     case declara::core::scene::NODE_KIND_POPUP_MENU:
       node->render(controller);
+      return;
+    case declara::core::scene::NODE_KIND_OPEN_FILE_DIALOG:
       return;
     default:
       break;

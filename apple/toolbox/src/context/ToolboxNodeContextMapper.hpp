@@ -4,6 +4,7 @@
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include <Quickdraw.h>
@@ -30,6 +31,7 @@ public:
   void ensureCellContext(declara::app::CellNode *node);
   void ensureButtonContext(declara::app::ButtonNode *node);
   void ensureEditTextContext(declara::app::EditTextNode *node);
+  void ensureOpenFileDialogContext(declara::app::OpenFileDialogNode *node);
   void ensurePopupMenuContext(declara::app::PopupMenuNode *node);
 
 private:

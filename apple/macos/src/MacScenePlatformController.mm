@@ -7,6 +7,7 @@
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/Grid.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
@@ -15,6 +16,7 @@
 #include "context/MacButtonContext.hpp"
 #include "context/MacCellContext.hpp"
 #include "context/MacEditTextContext.hpp"
+#include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
 #include "core/Profiler.hpp"
@@ -284,6 +286,13 @@ int MacScenePlatformController::layoutNode(declara::core::scene::Node *node, con
       childState.y = layoutNode(child, childState);
     }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, childState.y);
+  }
+
+  if (declara::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
+  {
+    MacOpenFileDialogContext *ctx = new MacOpenFileDialogContext(rootView_, dialog);
+    dialog->setContext(ctx);
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
   }
 
   if (declara::app::ButtonNode *button = node->asButtonNode())

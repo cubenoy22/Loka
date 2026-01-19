@@ -19,6 +19,7 @@ set(SOURCES
   src/context/Win32CellContext.cpp
   src/context/Win32TextContext.cpp
   src/context/Win32EditTextContext.cpp
+  src/context/Win32OpenFileDialogContext.cpp
   src/context/Win32PopupMenuContext.cpp
   src/platform/Win32DebugLog.cpp
   src/platform/Win32String.cpp

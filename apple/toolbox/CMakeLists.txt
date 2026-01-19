@@ -10,6 +10,7 @@ set(DECLARA_TOOLBOX_SOURCES
   src/context/ToolboxButtonContext.cpp
   src/context/ToolboxCellContext.cpp
   src/context/ToolboxEditTextContext.cpp
+  src/context/ToolboxOpenFileDialogContext.cpp
   src/context/ToolboxNodeContextMapper.cpp
   src/context/ToolboxPopupMenuContext.cpp
   src/context/ToolboxTextContext.cpp

@@ -61,7 +61,8 @@ namespace declara
         NODE_KIND_TEXT,
         NODE_KIND_BUTTON,
         NODE_KIND_EDIT_TEXT,
-        NODE_KIND_POPUP_MENU
+        NODE_KIND_POPUP_MENU,
+        NODE_KIND_OPEN_FILE_DIALOG
       };
 
       struct INestable;
@@ -86,6 +87,7 @@ namespace declara
     class ButtonNode;
     class EditTextNode;
     class PopupMenuNode;
+    class OpenFileDialogNode;
   } // namespace app
 
   namespace core
@@ -175,6 +177,7 @@ namespace declara
         virtual ::declara::app::ButtonNode *asButtonNode() { return 0; }
         virtual ::declara::app::EditTextNode *asEditTextNode() { return 0; }
         virtual ::declara::app::PopupMenuNode *asPopupMenuNode() { return 0; }
+        virtual ::declara::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
         // Generic interface query (for findBoundary without RTTI)
         virtual void *queryInterface(const char *name) { (void)name; return 0; }
         virtual void render(IPlatformController *controller)

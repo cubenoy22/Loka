@@ -2,6 +2,7 @@
 #include "context/ToolboxButtonContext.hpp"
 #include "context/ToolboxCellContext.hpp"
 #include "context/ToolboxEditTextContext.hpp"
+#include "context/ToolboxOpenFileDialogContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -58,6 +59,20 @@ void ToolboxNodeContextMapper::ensureEditTextContext(declara::app::EditTextNode 
   if (!ctx)
   {
     ctx = new ToolboxEditTextContext(node);
+    node->setContext(ctx);
+  }
+}
+
+void ToolboxNodeContextMapper::ensureOpenFileDialogContext(declara::app::OpenFileDialogNode *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxOpenFileDialogContext *ctx = static_cast<ToolboxOpenFileDialogContext *>(node->getContext());
+  if (!ctx)
+  {
+    ctx = new ToolboxOpenFileDialogContext(node);
     node->setContext(ctx);
   }
 }
