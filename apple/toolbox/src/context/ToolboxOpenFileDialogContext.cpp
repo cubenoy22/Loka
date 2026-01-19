@@ -2,9 +2,16 @@
 #include <StandardFile.h>
 
 ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(declara::app::OpenFileDialogNode *node)
-    : node_(node), visibleState_(0), lastVisible_(false), presenting_(false)
+    : node_(node),
+      visibleState_(0),
+      resultState_(0),
+      onResult_(0),
+      lastVisible_(false),
+      presenting_(false)
 {
   visibleState_ = node_ ? node_->props.isVisible_ : 0;
+  resultState_ = node_ ? node_->props.result_ : 0;
+  onResult_ = node_ ? node_->props.onResult_ : 0;
   if (visibleState_)
   {
     lastVisible_ = visibleState_->get();
@@ -59,9 +66,31 @@ void ToolboxOpenFileDialogContext::presentDialog()
   presenting_ = true;
 
   StandardFileReply reply;
-  StandardGetFile(0, 0, 0, &reply);
+  StandardGetFile(0, -1, 0, &reply);
+
+  if (reply.sfGood)
+  {
+    setResult(declara::app::FileChooserResult::File(
+        declara::app::FileRef::FromFSSpec(reply.sfFile)));
+  }
+  else
+  {
+    setResult(declara::app::FileChooserResult::Canceled());
+  }
 
   presenting_ = false;
+}
+
+void ToolboxOpenFileDialogContext::setResult(const declara::app::FileChooserResult &result)
+{
+  if (resultState_)
+  {
+    resultState_->set(result, true);
+  }
+  if (onResult_)
+  {
+    onResult_->emit();
+  }
 }
 
 void ToolboxOpenFileDialogContext::VisibleChangedThunk(void *userData)

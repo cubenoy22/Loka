@@ -2,9 +2,17 @@
 #include <commdlg.h>
 
 Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, declara::app::OpenFileDialogNode *node)
-    : parent_(parent), node_(node), visibleState_(0), lastVisible_(false), presenting_(false)
+    : parent_(parent),
+      node_(node),
+      visibleState_(0),
+      resultState_(0),
+      onResult_(0),
+      lastVisible_(false),
+      presenting_(false)
 {
   visibleState_ = node_ ? node_->props.isVisible_ : 0;
+  resultState_ = node_ ? node_->props.result_ : 0;
+  onResult_ = node_ ? node_->props.onResult_ : 0;
   if (visibleState_)
   {
     lastVisible_ = visibleState_->get();
@@ -71,9 +79,37 @@ void Win32OpenFileDialogContext::presentDialog()
   ofn.nFilterIndex = 1;
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
-  GetOpenFileNameA(&ofn);
+  if (GetOpenFileNameA(&ofn))
+  {
+    setResult(declara::app::FileChooserResult::File(
+        declara::app::FileRef::FromPath(loka::core::String(buffer))));
+  }
+  else
+  {
+    DWORD error = CommDlgExtendedError();
+    if (error != 0)
+    {
+      setResult(declara::app::FileChooserResult::Error(static_cast<int>(error)));
+    }
+    else
+    {
+      setResult(declara::app::FileChooserResult::Canceled());
+    }
+  }
 
   presenting_ = false;
+}
+
+void Win32OpenFileDialogContext::setResult(const declara::app::FileChooserResult &result)
+{
+  if (resultState_)
+  {
+    resultState_->set(result, true);
+  }
+  if (onResult_)
+  {
+    onResult_->emit();
+  }
 }
 
 void Win32OpenFileDialogContext::VisibleChangedThunk(void *userData)

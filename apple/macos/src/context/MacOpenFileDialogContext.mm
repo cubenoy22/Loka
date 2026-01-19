@@ -1,10 +1,19 @@
 #include "MacOpenFileDialogContext.hpp"
+#include "Utf8String.hpp"
 #import <AppKit/AppKit.h>
 
 MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, declara::app::OpenFileDialogNode *node)
-    : parentView_(parentView), node_(node), visibleState_(0), lastVisible_(false), presenting_(false)
+    : parentView_(parentView),
+      node_(node),
+      visibleState_(0),
+      resultState_(0),
+      onResult_(0),
+      lastVisible_(false),
+      presenting_(false)
 {
   visibleState_ = node_ ? node_->props.isVisible_ : 0;
+  resultState_ = node_ ? node_->props.result_ : 0;
+  onResult_ = node_ ? node_->props.onResult_ : 0;
   if (visibleState_)
   {
     lastVisible_ = visibleState_->get();
@@ -58,14 +67,48 @@ void MacOpenFileDialogContext::presentDialog()
   }
   presenting_ = true;
   NSOpenPanel *panel = [NSOpenPanel openPanel];
-  if (panel)
+  if (!panel)
   {
-    [panel setAllowsMultipleSelection:NO];
-    [panel setCanChooseDirectories:NO];
-    [panel setCanChooseFiles:YES];
-    [panel runModal];
+    setResult(declara::app::FileChooserResult::Error(1));
+    presenting_ = false;
+    return;
+  }
+
+  [panel setAllowsMultipleSelection:NO];
+  [panel setCanChooseDirectories:NO];
+  [panel setCanChooseFiles:YES];
+  NSModalResponse response = [panel runModal];
+  if (response == NSModalResponseOK)
+  {
+    NSURL *url = [panel URL];
+    if (url)
+    {
+      std::string path = declara::macos::Utf8FromNSString([url path]);
+      setResult(declara::app::FileChooserResult::File(
+          declara::app::FileRef::FromPath(loka::core::String(path))));
+    }
+    else
+    {
+      setResult(declara::app::FileChooserResult::Error(2));
+    }
+  }
+  else
+  {
+    setResult(declara::app::FileChooserResult::Canceled());
   }
   presenting_ = false;
+}
+
+void MacOpenFileDialogContext::setResult(const declara::app::FileChooserResult &result)
+{
+  if (resultState_)
+  {
+    resultState_->set(result, true);
+  }
+  if (onResult_)
+  {
+    onResult_->emit();
+  }
 }
 
 void MacOpenFileDialogContext::VisibleChangedThunk(void *userData)

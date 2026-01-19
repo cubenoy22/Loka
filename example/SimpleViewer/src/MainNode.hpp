@@ -4,7 +4,8 @@
 #include "core2/scene/node/StaticComposition.hpp"
 #include "app/Empty.hpp"
 #include "app/OpenFileDialog.hpp"
-#include "app/ZStack.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 
 namespace simpleviewer
 {
@@ -19,11 +20,32 @@ namespace simpleviewer
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
     State<bool> *dialogVisible_;
-    MainProps() : dialogVisible_(0) {}
+    State<loka::core::String> *message_;
+    MutableState<declara::app::FileChooserResult> *result_;
+    EmitterState *onResult_;
+    MainProps() : dialogVisible_(0), message_(0), result_(0), onResult_(0) {}
 
     MainProps &dialogVisible(State<bool> *state)
     {
       this->dialogVisible_ = state;
+      return *this;
+    }
+
+    MainProps &message(State<loka::core::String> *state)
+    {
+      this->message_ = state;
+      return *this;
+    }
+
+    MainProps &result(MutableState<declara::app::FileChooserResult> *state)
+    {
+      this->result_ = state;
+      return *this;
+    }
+
+    MainProps &onResult(EmitterState *emitter)
+    {
+      this->onResult_ = emitter;
       return *this;
     }
 
@@ -34,7 +56,13 @@ namespace simpleviewer
         return false;
       }
       const MainProps &other = static_cast<const MainProps &>(rhs);
-      return dialogVisible_ < other.dialogVisible_;
+      if (dialogVisible_ != other.dialogVisible_)
+        return dialogVisible_ < other.dialogVisible_;
+      if (message_ != other.message_)
+        return message_ < other.message_;
+      if (result_ != other.result_)
+        return result_ < other.result_;
+      return onResult_ < other.onResult_;
     }
   };
 
@@ -48,17 +76,25 @@ namespace simpleviewer
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
       using namespace declara::app;
-      ZStack &root = c.declare(ZStack());
+      VStack &root = c.declare(VStack());
       declara::core::scene::NodeComposition::ParentScope scope(c, root);
       c.declare(Empty());
+      c.declare(Text("You chose:"));
+      c.declare(Text(this->props.message_ ? this->props.message_ : declara::core::StaticState<loka::core::String>(loka::core::String::Literal("(none)"))));
+      OpenFileDialog dialog;
       if (this->props.dialogVisible_)
       {
-        c.declare(OpenFileDialog().isVisible(this->props.dialogVisible_));
+        dialog.isVisible(this->props.dialogVisible_);
       }
-      else
+      if (this->props.result_)
       {
-        c.declare(OpenFileDialog());
+        dialog.result(this->props.result_);
       }
+      if (this->props.onResult_)
+      {
+        dialog.onResult(this->props.onResult_);
+      }
+      c.declare(dialog);
     }
   };
 } // namespace simpleviewer
