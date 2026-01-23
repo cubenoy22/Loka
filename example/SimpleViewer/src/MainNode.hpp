@@ -6,6 +6,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include <cassert>
 
 namespace simpleviewer
 {
@@ -49,6 +50,14 @@ namespace simpleviewer
       return *this;
     }
 
+    void assertInitialized() const
+    {
+      assert(this->dialogVisible_);
+      assert(this->message_);
+      assert(this->result_);
+      assert(this->onResult_);
+    }
+
     bool operator<(const declara::core::scene::PropsBase &rhs) const
     {
       if (rhs.propsTypeId() != propsTypeId())
@@ -76,25 +85,17 @@ namespace simpleviewer
     virtual void composeNode(declara::core::scene::NodeComposition &c)
     {
       using namespace declara::app;
-      VStack &root = c.declare(VStack());
-      declara::core::scene::NodeComposition::ParentScope scope(c, root);
-      c.declare(Empty());
-      c.declare(Text("You chose:"));
-      c.declare(Text(this->props.message_ ? this->props.message_ : declara::core::StaticState<loka::core::String>(loka::core::String::Literal("(none)"))));
+      this->props.assertInitialized();
       OpenFileDialog dialog;
-      if (this->props.dialogVisible_)
-      {
-        dialog.isVisible(this->props.dialogVisible_);
-      }
-      if (this->props.result_)
-      {
-        dialog.result(this->props.result_);
-      }
-      if (this->props.onResult_)
-      {
-        dialog.onResult(this->props.onResult_);
-      }
-      c.declare(dialog);
+      dialog.isVisible(this->props.dialogVisible_);
+      dialog.result(this->props.result_);
+      dialog.onResult(this->props.onResult_);
+      c.declare(
+          VStack()
+          << Empty()
+          << Text("You chose:")
+          << Text(this->props.message_)
+          << dialog);
     }
   };
 } // namespace simpleviewer
