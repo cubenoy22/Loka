@@ -82,7 +82,9 @@ void Win32OpenFileDialogContext::presentDialog()
   if (GetOpenFileNameA(&ofn))
   {
     setResult(declara::app::FileChooserResult::File(
-        declara::app::FileRef::FromPath(loka::core::String(buffer))));
+        loka::file::platform::ItemAccess::FromPath(
+            loka::core::String(buffer),
+            loka::file::Item::KIND_FILE)));
   }
   else
   {

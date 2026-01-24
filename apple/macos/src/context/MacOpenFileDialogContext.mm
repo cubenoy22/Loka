@@ -85,7 +85,9 @@ void MacOpenFileDialogContext::presentDialog()
     {
       std::string path = declara::macos::Utf8FromNSString([url path]);
       setResult(declara::app::FileChooserResult::File(
-          declara::app::FileRef::FromPath(loka::core::String(path))));
+          loka::file::platform::ItemAccess::FromPath(
+              loka::core::String(path),
+              loka::file::Item::KIND_FILE)));
     }
     else
     {

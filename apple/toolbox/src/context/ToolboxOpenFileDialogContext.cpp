@@ -1,5 +1,19 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
 #include <StandardFile.h>
+#include <string>
+
+static loka::core::String displayPathFromSpec(const FSSpec &spec)
+{
+  char name[64];
+  const unsigned char length = spec.name[0];
+  const unsigned char capped = length > 63 ? 63 : length;
+  for (unsigned char i = 0; i < capped; ++i)
+  {
+    name[i] = static_cast<char>(spec.name[i + 1]);
+  }
+  name[capped] = '\0';
+  return loka::core::String(std::string(name, capped));
+}
 
 ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(declara::app::OpenFileDialogNode *node)
     : node_(node),
@@ -71,7 +85,10 @@ void ToolboxOpenFileDialogContext::presentDialog()
   if (reply.sfGood)
   {
     setResult(declara::app::FileChooserResult::File(
-        declara::app::FileRef::FromFSSpec(reply.sfFile)));
+        loka::file::platform::ItemAccess::FromFSSpec(
+            reply.sfFile,
+            loka::file::Item::KIND_FILE,
+            displayPathFromSpec(reply.sfFile))));
   }
   else
   {

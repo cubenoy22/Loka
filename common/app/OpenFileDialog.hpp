@@ -3,145 +3,12 @@
 
 #include "core/State.hpp"
 #include "core2/scene/Node.hpp"
-#include "loka/core/String.hpp"
-#include <cstring>
-#if defined(LOKA_RETRO68)
-#include <Files.h>
-#endif
+#include "file/Item.hpp"
 
 namespace declara
 {
   namespace app
   {
-    struct FileRef
-    {
-      enum Kind
-      {
-        KIND_NONE = 0,
-        KIND_PATH,
-        KIND_FSSPEC
-      };
-
-      FileRef() : kind(KIND_NONE), path()
-#if defined(LOKA_RETRO68)
-                ,
-                spec()
-#endif
-      {
-      }
-
-      static FileRef FromPath(const loka::core::String &value)
-      {
-        FileRef ref;
-        ref.kind = KIND_PATH;
-        ref.path = value;
-        return ref;
-      }
-
-#if defined(LOKA_RETRO68)
-      static FileRef FromFSSpec(const FSSpec &value)
-      {
-        FileRef ref;
-        ref.kind = KIND_FSSPEC;
-        ref.spec = value;
-        return ref;
-      }
-#endif
-
-      Kind kind;
-      loka::core::String path;
-#if defined(LOKA_RETRO68)
-      FSSpec spec;
-#endif
-    };
-
-    inline bool operator!=(const FileRef &lhs, const FileRef &rhs)
-    {
-      if (lhs.kind != rhs.kind)
-      {
-        return true;
-      }
-      if (lhs.kind == FileRef::KIND_PATH)
-      {
-        return !lhs.path.equals(rhs.path);
-      }
-#if defined(LOKA_RETRO68)
-      if (lhs.kind == FileRef::KIND_FSSPEC)
-      {
-        if (lhs.spec.vRefNum != rhs.spec.vRefNum || lhs.spec.parID != rhs.spec.parID)
-        {
-          return true;
-        }
-        return std::memcmp(lhs.spec.name, rhs.spec.name, sizeof(lhs.spec.name)) != 0;
-      }
-#endif
-      return false;
-    }
-
-    struct FolderRef
-    {
-      enum Kind
-      {
-        KIND_NONE = 0,
-        KIND_PATH,
-        KIND_FSSPEC
-      };
-
-      FolderRef() : kind(KIND_NONE), path()
-#if defined(LOKA_RETRO68)
-                  ,
-                  spec()
-#endif
-      {
-      }
-
-      static FolderRef FromPath(const loka::core::String &value)
-      {
-        FolderRef ref;
-        ref.kind = KIND_PATH;
-        ref.path = value;
-        return ref;
-      }
-
-#if defined(LOKA_RETRO68)
-      static FolderRef FromFSSpec(const FSSpec &value)
-      {
-        FolderRef ref;
-        ref.kind = KIND_FSSPEC;
-        ref.spec = value;
-        return ref;
-      }
-#endif
-
-      Kind kind;
-      loka::core::String path;
-#if defined(LOKA_RETRO68)
-      FSSpec spec;
-#endif
-    };
-
-    inline bool operator!=(const FolderRef &lhs, const FolderRef &rhs)
-    {
-      if (lhs.kind != rhs.kind)
-      {
-        return true;
-      }
-      if (lhs.kind == FolderRef::KIND_PATH)
-      {
-        return !lhs.path.equals(rhs.path);
-      }
-#if defined(LOKA_RETRO68)
-      if (lhs.kind == FolderRef::KIND_FSSPEC)
-      {
-        if (lhs.spec.vRefNum != rhs.spec.vRefNum || lhs.spec.parID != rhs.spec.parID)
-        {
-          return true;
-        }
-        return std::memcmp(lhs.spec.name, rhs.spec.name, sizeof(lhs.spec.name)) != 0;
-      }
-#endif
-      return false;
-    }
 
     struct FileChooserResult
     {
@@ -154,21 +21,21 @@ namespace declara
         RESULT_ERROR
       };
 
-      FileChooserResult() : kind(RESULT_NONE), file(), folder(), errorCode(0) {}
+      FileChooserResult() : kind(RESULT_NONE), item(), errorCode(0) {}
 
-      static FileChooserResult File(const FileRef &ref)
+      static FileChooserResult File(const loka::file::Item &value)
       {
         FileChooserResult result;
         result.kind = RESULT_FILE;
-        result.file = ref;
+        result.item = value;
         return result;
       }
 
-      static FileChooserResult Folder(const FolderRef &ref)
+      static FileChooserResult Folder(const loka::file::Item &value)
       {
         FileChooserResult result;
         result.kind = RESULT_FOLDER;
-        result.folder = ref;
+        result.item = value;
         return result;
       }
 
@@ -188,8 +55,7 @@ namespace declara
       }
 
       Kind kind;
-      FileRef file;
-      FolderRef folder;
+      loka::file::Item item;
       int errorCode;
     };
 
@@ -201,11 +67,11 @@ namespace declara
       }
       if (lhs.kind == FileChooserResult::RESULT_FILE)
       {
-        return lhs.file != rhs.file;
+        return lhs.item != rhs.item;
       }
       if (lhs.kind == FileChooserResult::RESULT_FOLDER)
       {
-        return lhs.folder != rhs.folder;
+        return lhs.item != rhs.item;
       }
       if (lhs.kind == FileChooserResult::RESULT_ERROR)
       {

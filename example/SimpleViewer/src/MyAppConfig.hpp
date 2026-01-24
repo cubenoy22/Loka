@@ -97,9 +97,9 @@ private:
     switch (result.kind)
     {
     case FileChooserResult::RESULT_FILE:
-      return loka::core::String::Literal("File: ") + formatFileRef(result.file);
+      return loka::core::String::Literal("File: ") + formatItem(result.item);
     case FileChooserResult::RESULT_FOLDER:
-      return loka::core::String::Literal("Folder: ") + formatFolderRef(result.folder);
+      return loka::core::String::Literal("Folder: ") + formatItem(result.item);
     case FileChooserResult::RESULT_CANCELED:
       return loka::core::String::Literal("Canceled");
     case FileChooserResult::RESULT_ERROR:
@@ -109,50 +109,10 @@ private:
     }
   }
 
-  static loka::core::String formatFileRef(const declara::app::FileRef &ref)
+  static loka::core::String formatItem(const loka::file::Item &item)
   {
-#if defined(LOKA_RETRO68)
-    if (ref.kind == declara::app::FileRef::KIND_FSSPEC)
-    {
-      char name[64];
-      const unsigned char length = ref.spec.name[0];
-      const unsigned char capped = length > 63 ? 63 : length;
-      for (unsigned char i = 0; i < capped; ++i)
-      {
-        name[i] = static_cast<char>(ref.spec.name[i + 1]);
-      }
-      name[capped] = '\0';
-      return loka::core::String(std::string(name, capped));
-    }
-#endif
-    if (ref.kind == declara::app::FileRef::KIND_PATH && !ref.path.empty())
-    {
-      return ref.path;
-    }
-    return loka::core::String::Literal("(unknown)");
-  }
-
-  static loka::core::String formatFolderRef(const declara::app::FolderRef &ref)
-  {
-#if defined(LOKA_RETRO68)
-    if (ref.kind == declara::app::FolderRef::KIND_FSSPEC)
-    {
-      char name[64];
-      const unsigned char length = ref.spec.name[0];
-      const unsigned char capped = length > 63 ? 63 : length;
-      for (unsigned char i = 0; i < capped; ++i)
-      {
-        name[i] = static_cast<char>(ref.spec.name[i + 1]);
-      }
-      name[capped] = '\0';
-      return loka::core::String(std::string(name, capped));
-    }
-#endif
-    if (ref.kind == declara::app::FolderRef::KIND_PATH && !ref.path.empty())
-    {
-      return ref.path;
-    }
-    return loka::core::String::Literal("(unknown)");
+    const loka::core::String path = item.toString();
+    return path.empty() ? loka::core::String::Literal("(unknown)") : path;
   }
 
   declara::core::MutableState<bool> openDialogVisible_;
