@@ -43,50 +43,69 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "win32-xp-debug",
+      "displayName": "Win32 XP Debug (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "build-xp/Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
+        "CMAKE_CXX_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
+        "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS,5.01",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
+      }
+    },
+    {
+      "name": "win32-xp-release",
+      "displayName": "Win32 XP Release (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "build-xp/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
+        "CMAKE_CXX_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
+        "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS,5.01",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      }
     }
   ],
   "buildPresets": [
     {
       "name": "macos-debug",
-      "configurePreset": "macos-debug",
-      "targets": [
-        "DeclaraHelloMacOS"
-      ]
+      "configurePreset": "macos-debug"
     },
     {
       "name": "macos-release",
-      "configurePreset": "macos-release",
-      "targets": [
-        "DeclaraHelloMacOS"
-      ]
+      "configurePreset": "macos-release"
     },
     {
       "name": "macos-tests",
-      "configurePreset": "macos-debug",
-      "targets": [
-        "DeclaraTestsMacOS"
-      ]
+      "configurePreset": "macos-debug"
     },
     {
       "name": "win32-debug",
-      "configurePreset": "win32-debug",
-      "targets": [
-        "DeclaraHelloWin32"
-      ]
+      "configurePreset": "win32-debug"
     },
     {
       "name": "win32-release",
-      "configurePreset": "win32-release",
-      "targets": [
-        "DeclaraHelloWin32"
-      ]
+      "configurePreset": "win32-release"
     },
     {
       "name": "win32-tests",
-      "configurePreset": "win32-debug",
-      "targets": [
-        "DeclaraTestsWin32"
-      ]
+      "configurePreset": "win32-debug"
+    },
+    {
+      "name": "win32-xp-debug",
+      "configurePreset": "win32-xp-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "win32-xp-release",
+      "configurePreset": "win32-xp-release",
+      "configuration": "Release"
     }
   ]
 }

@@ -2,6 +2,10 @@
 /agent/pilot.md
 **/build
 build-retro68/
+build-retro68-release/
+build-xp/
+compile_commands.json
+CMakeUserPresets.json
 
 # Created by https://www.toptal.com/developers/gitignore/api/node,macos,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=node,macos,linux
@@ -217,6 +221,3 @@ win32/DesktopApp/*.VC.db
 win32/DesktopApp/*.VC.VC.opendb
 
 # End of https://www.toptal.com/developers/gitignore/api/node,macos,linux
-compile_commands.json
-CMakeUserPresets.json
-build-retro68-release/

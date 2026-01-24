@@ -106,6 +106,28 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Configure: Win32 XP",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "win32-xp-release"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 XP",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-xp-release"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "Configure HelloWorld (Native-Debug-Console)",
       "type": "shell",
       "command": "cmake",
