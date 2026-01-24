@@ -78,3 +78,14 @@ If you prefer environment variables over CMakeUserPresets.json:
 - Retro68 builds use the `apple/toolbox` target.
 - Release builds use `-Os` and section garbage collection for smaller binaries.
 - The `LOKA_RETRO68` preprocessor define is set for Classic Mac builds.
+
+## VSCode (IntelliSense)
+
+To enable Classic Mac OS headers in IntelliSense, add the Retro68 interfaces
+directory to your include path.
+
+This repo includes a starter configuration at:
+
+- `.vscode/c_cpp_properties.json`
+
+Update the path if your Retro68 build directory differs from `../Retro68-build`.
