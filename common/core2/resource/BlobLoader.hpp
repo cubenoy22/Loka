@@ -117,7 +117,7 @@ namespace loka
           localSink_.addTag(loka::core::String::Literal("blob-loader"));
         }
 
-        BlobLoader(State<BlobLoaderRequest> *request, MutableState<Blob> *output, core::runtime::ErrorSink *sink)
+        BlobLoader(loka::core::State<BlobLoaderRequest> *request, loka::core::MutableState<Blob> *output, core::runtime::ErrorSink *sink)
             : requestState_(0),
               outputState_(0),
               errorSink_(0),
@@ -133,7 +133,7 @@ namespace loka
           detach();
         }
 
-        void attach(State<BlobLoaderRequest> *request, MutableState<Blob> *output, core::runtime::ErrorSink *sink)
+        void attach(loka::core::State<BlobLoaderRequest> *request, loka::core::MutableState<Blob> *output, core::runtime::ErrorSink *sink)
         {
           detach();
           requestState_ = request;
@@ -318,8 +318,8 @@ namespace loka
           sink->push(evt);
         }
 
-        State<BlobLoaderRequest> *requestState_;
-        MutableState<Blob> *outputState_;
+        loka::core::State<BlobLoaderRequest> *requestState_;
+        loka::core::MutableState<Blob> *outputState_;
         core::runtime::ErrorSink *errorSink_;
         bool bound_;
         core::runtime::ErrorSink localSink_;

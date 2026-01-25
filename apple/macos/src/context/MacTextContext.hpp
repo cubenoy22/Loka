@@ -27,7 +27,7 @@ private:
 
   loka::app::TextNode *node_;
   void *label_;
-  State<loka::core::String> *textState_;
+  loka::core::State<loka::core::String> *textState_;
 };
 
 #endif // LOKA_MAC_TEXT_CONTEXT_HPP

@@ -20,9 +20,9 @@ private:
   static void VisibleChangedThunk(void *userData);
 
   loka::app::OpenFileDialogNode *node_;
-  State<bool> *visibleState_;
-  MutableState<loka::app::FileChooserResult> *resultState_;
-  EmitterState *onResult_;
+  loka::core::State<bool> *visibleState_;
+  loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
+  loka::core::EmitterState *onResult_;
   bool lastVisible_;
   bool presenting_;
 };

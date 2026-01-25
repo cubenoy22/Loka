@@ -36,9 +36,9 @@ struct WindowTypeTag
 struct WindowProps
 {
   typedef WindowTypeTag TypeTag;
-  MutableState<loka::core::String> *titleStatePtr;
-  MutableState<bool> *visibilityStatePtr;
-  MutableState<loka::core::Frame> *frameStatePtr;
+  loka::core::MutableState<loka::core::String> *titleStatePtr;
+  loka::core::MutableState<bool> *visibilityStatePtr;
+  loka::core::MutableState<loka::core::Frame> *frameStatePtr;
   loka::core::String initialTitle;
   bool initialVisibility;
   bool hasInitialTitle;
@@ -188,19 +188,19 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &titleState(MutableState<loka::core::String> *state)
+  WindowProps &titleState(loka::core::MutableState<loka::core::String> *state)
   {
     titleStatePtr = state;
     return *this;
   }
 
-  WindowProps &visibilityState(MutableState<bool> *state)
+  WindowProps &visibilityState(loka::core::MutableState<bool> *state)
   {
     visibilityStatePtr = state;
     return *this;
   }
 
-  WindowProps &frameState(MutableState<loka::core::Frame> *state)
+  WindowProps &frameState(loka::core::MutableState<loka::core::Frame> *state)
   {
     frameStatePtr = state;
     return *this;
@@ -322,9 +322,9 @@ public:
   loka::core::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
   SceneManager2 *sceneManager() { return &sceneManager_; }
 
-  MutableState<bool> &visibilityState() { return *visibility_; }
-  MutableState<loka::core::String> &titleState() { return *title_; }
-  MutableState<loka::core::Frame> &frameState() { return *frameStatePtr_; }
+  loka::core::MutableState<bool> &visibilityState() { return *visibility_; }
+  loka::core::MutableState<loka::core::String> &titleState() { return *title_; }
+  loka::core::MutableState<loka::core::Frame> &frameState() { return *frameStatePtr_; }
   const loka::app::MenuBarDefinition *menuBar() const { return menuBarDefinition_; }
 
   loka::core::StateTracker *getTracker() const { return tracker_; }
@@ -358,12 +358,12 @@ protected:
   PlatformContext *context_;
   loka::core::StateTracker *tracker_;
   SceneManager2 sceneManager_;
-  MutableState<loka::core::String> titleStorage_;
-  MutableState<bool> visibilityStorage_;
-  MutableState<loka::core::Frame> frameState_;
-  MutableState<loka::core::String> *title_;
-  MutableState<bool> *visibility_;
-  MutableState<loka::core::Frame> *frameStatePtr_;
+  loka::core::MutableState<loka::core::String> titleStorage_;
+  loka::core::MutableState<bool> visibilityStorage_;
+  loka::core::MutableState<loka::core::Frame> frameState_;
+  loka::core::MutableState<loka::core::String> *title_;
+  loka::core::MutableState<bool> *visibility_;
+  loka::core::MutableState<loka::core::Frame> *frameStatePtr_;
   int positionX_;
   int positionY_;
   int width_;

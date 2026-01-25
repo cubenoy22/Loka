@@ -42,7 +42,7 @@ void Win32Window::setApp(App *app)
   }
 }
 
-// static thunk for State<bool>::OnChangeFn
+// static thunk for loka::core::State<bool>::OnChangeFn
 void Win32Window::VisibilityChangedThunk(void *userData)
 {
   Win32Window *self = static_cast<Win32Window *>(userData);

@@ -32,7 +32,7 @@ private:
   loka::app::EditTextNode *node_;
   void *field_;
   void *delegate_;
-  State<loka::core::String> *textState_;
+  loka::core::State<loka::core::String> *textState_;
   bool applyingFromState_;
   bool updatingFromControl_;
 };

@@ -28,7 +28,7 @@ void SceneManager2::commitTransaction(loka::core::scene::Scene *from, loka::core
   handleNextTransaction(); // 追加: 追加直後に即時遷移
 }
 
-const State<loka::core::scene::Scene *> &SceneManager2::getCurrentScene() const
+const loka::core::State<loka::core::scene::Scene *> &SceneManager2::getCurrentScene() const
 {
   return currentScene_;
 }

@@ -20,12 +20,12 @@ namespace loka
     {
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
-      State<loka::core::String> *text_;
+      loka::core::State<loka::core::String> *text_;
       short toolboxControlId_;
       int controlTag_;
       EditTextProps() : text_(0), toolboxControlId_(0), controlTag_(0) {}
-      EditTextProps(State<loka::core::String> *state) : text_(state), toolboxControlId_(0), controlTag_(0) {}
-      EditTextProps &text(State<loka::core::String> *state)
+      EditTextProps(loka::core::State<loka::core::String> *state) : text_(state), toolboxControlId_(0), controlTag_(0) {}
+      EditTextProps &text(loka::core::State<loka::core::String> *state)
       {
         this->text_ = state;
         return *this;
@@ -67,7 +67,7 @@ namespace loka
     {
       EditTextDefinition() : NodeDefinition() {}
       EditTextDefinition(const EditTextProps &p) : NodeDefinition(p) {}
-      EditTextDefinition(State<loka::core::String> *state) : NodeDefinition(EditTextProps(state)) {}
+      EditTextDefinition(loka::core::State<loka::core::String> *state) : NodeDefinition(EditTextProps(state)) {}
 
       EditTextDefinition &toolboxControl(short id)
       {

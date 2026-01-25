@@ -54,7 +54,7 @@ void Win32EditTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
+  textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32EditTextContext::TextChangedThunk, this, true);
@@ -115,7 +115,7 @@ void Win32EditTextContext::syncStateFromControl()
   {
     return;
   }
-  MutableState<loka::core::String> *mutableState = dynamic_cast<MutableState<loka::core::String> *>(textState_);
+  loka::core::MutableState<loka::core::String> *mutableState = dynamic_cast<loka::core::MutableState<loka::core::String> *>(textState_);
   if (!mutableState)
   {
     return;

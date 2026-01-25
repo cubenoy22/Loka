@@ -28,7 +28,7 @@ private:
 
   loka::app::CellNode *node_;
   void *view_;
-  State<loka::core::String> *textState_;
+  loka::core::State<loka::core::String> *textState_;
 };
 
 #endif // LOKA_MAC_CELL_CONTEXT_HPP

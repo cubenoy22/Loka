@@ -131,7 +131,7 @@ namespace loka
       {
       public:
         NodeContext *context;
-        MutableState<NodeDirtyFlags> dirty;
+        loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
         bool arenaAllocated_;
 

@@ -20,31 +20,31 @@ namespace simpleviewer
   {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
-    State<bool> *dialogVisible_;
-    State<loka::core::String> *message_;
-    MutableState<loka::app::FileChooserResult> *result_;
-    EmitterState *onResult_;
+    loka::core::State<bool> *dialogVisible_;
+    loka::core::State<loka::core::String> *message_;
+    loka::core::MutableState<loka::app::FileChooserResult> *result_;
+    loka::core::EmitterState *onResult_;
     MainProps() : dialogVisible_(0), message_(0), result_(0), onResult_(0) {}
 
-    MainProps &dialogVisible(State<bool> *state)
+    MainProps &dialogVisible(loka::core::State<bool> *state)
     {
       this->dialogVisible_ = state;
       return *this;
     }
 
-    MainProps &message(State<loka::core::String> *state)
+    MainProps &message(loka::core::State<loka::core::String> *state)
     {
       this->message_ = state;
       return *this;
     }
 
-    MainProps &result(MutableState<loka::app::FileChooserResult> *state)
+    MainProps &result(loka::core::MutableState<loka::app::FileChooserResult> *state)
     {
       this->result_ = state;
       return *this;
     }
 
-    MainProps &onResult(EmitterState *emitter)
+    MainProps &onResult(loka::core::EmitterState *emitter)
     {
       this->onResult_ = emitter;
       return *this;

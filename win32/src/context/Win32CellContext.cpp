@@ -104,7 +104,7 @@ void Win32CellContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
+  textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->bind(&Win32CellContext::TextChangedThunk, this, true);

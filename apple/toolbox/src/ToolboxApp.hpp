@@ -34,7 +34,7 @@ public:
   {
     MenuHandle menu;
     short itemIndex;
-    State<bool> *enabledState;
+    loka::core::State<bool> *enabledState;
   };
 
 private:

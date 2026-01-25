@@ -116,7 +116,7 @@ public:
   // トランザクション追加
   void commitTransaction(loka::core::scene::Scene *from, loka::core::scene::Scene *to);
   // 現在のシーン取得
-  const State<loka::core::scene::Scene *> &getCurrentScene() const;
+  const loka::core::State<loka::core::scene::Scene *> &getCurrentScene() const;
 
 protected:
   // ペンディングトランザクション取得
@@ -131,8 +131,8 @@ public:
   Window *window() const { return window_; }
 
 private:
-  MutableState<loka::core::scene::Scene *> currentScene_;
-  MutableState<SceneTransactionList> pendingTransactions_;
+  loka::core::MutableState<loka::core::scene::Scene *> currentScene_;
+  loka::core::MutableState<SceneTransactionList> pendingTransactions_;
   loka::core::PushStateTracker tracker_;
   Window *window_;
 };

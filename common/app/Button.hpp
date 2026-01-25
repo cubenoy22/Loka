@@ -21,22 +21,22 @@ namespace loka
     public:
       typedef ButtonTypeTag TypeTag;
       virtual ~IButtonProps() {}
-      virtual State<loka::core::String> *getText() const = 0;
-      virtual State<bool> *getEnabled() const = 0;
-      virtual EmitterState *getOnClick() const = 0;
+      virtual loka::core::State<loka::core::String> *getText() const = 0;
+      virtual loka::core::State<bool> *getEnabled() const = 0;
+      virtual loka::core::EmitterState *getOnClick() const = 0;
     };
 
     struct ButtonProps : public loka::core::scene::NodePropsBase<ButtonProps>, public IButtonProps
     {
       typedef ButtonTypeTag TypeTag;
       typedef ButtonNode NodeType;
-      State<loka::core::String> *text_;
-      State<bool> *enabled_;
-      EmitterState *onClick_;
+      loka::core::State<loka::core::String> *text_;
+      loka::core::State<bool> *enabled_;
+      loka::core::EmitterState *onClick_;
       short toolboxControlId_;
       int controlTag_;
       ButtonProps() : text_(0), enabled_(0), onClick_(0), toolboxControlId_(0), controlTag_(0) {}
-      ButtonProps &text(State<loka::core::String> *t)
+      ButtonProps &text(loka::core::State<loka::core::String> *t)
       {
         this->text_ = t;
         return *this;
@@ -51,12 +51,12 @@ namespace loka
         this->text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(s));
         return *this;
       }
-      ButtonProps &enabled(State<bool> *e)
+      ButtonProps &enabled(loka::core::State<bool> *e)
       {
         this->enabled_ = e;
         return *this;
       }
-      ButtonProps &onClick(EmitterState *e)
+      ButtonProps &onClick(loka::core::EmitterState *e)
       {
         this->onClick_ = e;
         return *this;
@@ -72,9 +72,9 @@ namespace loka
         return *this;
       }
       // --- IButtonProps 実装 ---
-      virtual State<loka::core::String> *getText() const { return text_; }
-      virtual State<bool> *getEnabled() const { return enabled_; }
-      virtual EmitterState *getOnClick() const { return onClick_; }
+      virtual loka::core::State<loka::core::String> *getText() const { return text_; }
+      virtual loka::core::State<bool> *getEnabled() const { return enabled_; }
+      virtual loka::core::EmitterState *getOnClick() const { return onClick_; }
       int hash() const
       {
         std::size_t h = 17;
@@ -118,28 +118,28 @@ namespace loka
       {
         this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
       }
-      ButtonDefinition(State<loka::core::String> *text) : NodeDefinition()
+      ButtonDefinition(loka::core::State<loka::core::String> *text) : NodeDefinition()
       {
         this->props.text_ = text;
       }
-      ButtonDefinition(const char *text, EmitterState *onClick) : NodeDefinition()
+      ButtonDefinition(const char *text, loka::core::EmitterState *onClick) : NodeDefinition()
       {
         this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
         this->props.onClick_ = onClick;
       }
-      ButtonDefinition(State<loka::core::String> *text, EmitterState *onClick) : NodeDefinition()
+      ButtonDefinition(loka::core::State<loka::core::String> *text, loka::core::EmitterState *onClick) : NodeDefinition()
       {
         this->props.text_ = text;
         this->props.onClick_ = onClick;
       }
 
-      ButtonDefinition &onClick(EmitterState *e)
+      ButtonDefinition &onClick(loka::core::EmitterState *e)
       {
         this->props.onClick_ = e;
         return *this;
       }
 
-      ButtonDefinition &enabled(State<bool> *b)
+      ButtonDefinition &enabled(loka::core::State<bool> *b)
       {
         this->props.enabled_ = b;
         return *this;

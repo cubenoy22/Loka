@@ -990,7 +990,7 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   {
     return;
   }
-  MutableState<int> *mutableIndex = static_cast<MutableState<int> *>(selectedIndex->asMutableState());
+  loka::core::MutableState<int> *mutableIndex = static_cast<loka::core::MutableState<int> *>(selectedIndex->asMutableState());
   if (!mutableIndex)
   {
     return;

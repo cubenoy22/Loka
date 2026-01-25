@@ -19,11 +19,11 @@ namespace loka
     {
       typedef TextTypeTag TypeTag;
       typedef TextNode NodeType;
-      State<loka::core::String> *text_;
-      MutableState<loka::core::String> ownedText;
+      loka::core::State<loka::core::String> *text_;
+      loka::core::MutableState<loka::core::String> ownedText;
       bool ownsText;
       TextProps() : text_(0), ownedText(), ownsText(false) {}
-      TextProps(State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false) {}
+      TextProps(loka::core::State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false) {}
       TextProps(const loka::core::String &value) : text_(0), ownedText(value), ownsText(true)
       {
         text_ = &ownedText;
@@ -54,7 +54,7 @@ namespace loka
         }
         return *this;
       }
-      TextProps &text(State<loka::core::String> *state)
+      TextProps &text(loka::core::State<loka::core::String> *state)
       {
         this->text_ = state;
         ownsText = false;
@@ -62,7 +62,7 @@ namespace loka
       }
       TextProps &text(const loka::core::String &value)
       {
-        ownedText = MutableState<loka::core::String>(value);
+        ownedText = loka::core::MutableState<loka::core::String>(value);
         this->text_ = &ownedText;
         ownsText = true;
         return *this;
@@ -96,7 +96,7 @@ namespace loka
       TextDefinition(const TextProps &p) : NodeDefinition(p) {}
       TextDefinition(const char *value) : NodeDefinition(TextProps(value)) {}
       TextDefinition(const loka::core::String &value) : NodeDefinition(TextProps(value)) {}
-      TextDefinition(State<loka::core::String> *state) : NodeDefinition(TextProps(state)) {}
+      TextDefinition(loka::core::State<loka::core::String> *state) : NodeDefinition(TextProps(state)) {}
     };
 
     typedef TextDefinition Text;

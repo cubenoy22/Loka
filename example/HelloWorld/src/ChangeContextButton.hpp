@@ -54,7 +54,7 @@ namespace helloworld
       }
 
       StateTrackerGuard _(ctx->window()->getTracker());
-      MutableState<loka::core::String> &titleState = ctx->window()->titleState();
+      loka::core::MutableState<loka::core::String> &titleState = ctx->window()->titleState();
       const loka::core::String title = titleState.get();
       if (title.equals(loka::core::String::Literal("LokaSample")))
       {

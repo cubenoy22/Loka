@@ -26,11 +26,11 @@ namespace loka
         }
 
         std::vector<unsigned char> data;
-        MutableState<std::size_t> sizeState;
-        MutableState<bool> loadingState;
-        MutableState<bool> mutableState;
-        MutableState<bool> completedState;
-        MutableState<float> progressState;
+        loka::core::MutableState<std::size_t> sizeState;
+        loka::core::MutableState<bool> loadingState;
+        loka::core::MutableState<bool> mutableState;
+        loka::core::MutableState<bool> completedState;
+        loka::core::MutableState<float> progressState;
       };
 
       class Blob
@@ -72,22 +72,22 @@ namespace loka
           return handle_.isValid() ? handle_->completedState.get() : false;
         }
 
-        State<std::size_t> *sizeState() const
+        loka::core::State<std::size_t> *sizeState() const
         {
           return handle_.isValid() ? &handle_->sizeState : 0;
         }
 
-        State<bool> *loadingState() const
+        loka::core::State<bool> *loadingState() const
         {
           return handle_.isValid() ? &handle_->loadingState : 0;
         }
 
-        State<bool> *mutableState() const
+        loka::core::State<bool> *mutableState() const
         {
           return handle_.isValid() ? &handle_->mutableState : 0;
         }
 
-        State<bool> *completedState() const
+        loka::core::State<bool> *completedState() const
         {
           return handle_.isValid() ? &handle_->completedState : 0;
         }
@@ -97,7 +97,7 @@ namespace loka
           return handle_.isValid() ? handle_->progressState.get() : UnknownProgress();
         }
 
-        State<float> *progressState() const
+        loka::core::State<float> *progressState() const
         {
           return handle_.isValid() ? &handle_->progressState : 0;
         }

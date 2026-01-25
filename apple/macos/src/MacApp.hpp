@@ -26,7 +26,7 @@ public:
   struct MenuBinding
   {
     void *menuItem;
-    State<bool> *enabledState;
+    loka::core::State<bool> *enabledState;
   };
 
 protected:

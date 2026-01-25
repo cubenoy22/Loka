@@ -19,10 +19,10 @@ namespace loka
     {
       typedef CellTypeTag TypeTag;
       typedef CellNode NodeType;
-      State<loka::core::String> *text_;
-      EmitterState *onClick_;
+      loka::core::State<loka::core::String> *text_;
+      loka::core::EmitterState *onClick_;
       CellProps() : text_(0), onClick_(0) {}
-      CellProps &text(State<loka::core::String> *state)
+      CellProps &text(loka::core::State<loka::core::String> *state)
       {
         text_ = state;
         return *this;
@@ -37,7 +37,7 @@ namespace loka
         text_ = loka::core::StaticState<loka::core::String>(value);
         return *this;
       }
-      CellProps &onClick(EmitterState *e)
+      CellProps &onClick(loka::core::EmitterState *e)
       {
         onClick_ = e;
         return *this;
@@ -73,11 +73,11 @@ namespace loka
       {
         this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
       }
-      CellDefinition(State<loka::core::String> *text) : NodeDefinition()
+      CellDefinition(loka::core::State<loka::core::String> *text) : NodeDefinition()
       {
         this->props.text_ = text;
       }
-      CellDefinition &text(State<loka::core::String> *state)
+      CellDefinition &text(loka::core::State<loka::core::String> *state)
       {
         this->props.text_ = state;
         return *this;
@@ -87,7 +87,7 @@ namespace loka
         this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
         return *this;
       }
-      CellDefinition &onClick(EmitterState *e)
+      CellDefinition &onClick(loka::core::EmitterState *e)
       {
         this->props.onClick_ = e;
         return *this;

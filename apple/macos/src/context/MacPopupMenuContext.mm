@@ -77,7 +77,7 @@ void MacPopupMenuContext::bindSelection()
   {
     return;
   }
-  selectionState_ = static_cast<State<int> *>(node_->props.selectedIndex_);
+  selectionState_ = static_cast<loka::core::State<int> *>(node_->props.selectedIndex_);
   if (selectionState_)
   {
     selectionState_->deferBind(&MacPopupMenuContext::SelectionChangedThunk, this);
@@ -100,7 +100,7 @@ void MacPopupMenuContext::bindEnabled()
   {
     return;
   }
-  enabledState_ = static_cast<State<bool> *>(node_->props.enabled_);
+  enabledState_ = static_cast<loka::core::State<bool> *>(node_->props.enabled_);
   if (enabledState_)
   {
     enabledState_->deferBind(&MacPopupMenuContext::EnabledChangedThunk, this);
@@ -183,7 +183,7 @@ void MacPopupMenuContext::syncStateFromControl()
   {
     return;
   }
-  MutableState<int> *mutableState = dynamic_cast<MutableState<int> *>(selectionState_);
+  loka::core::MutableState<int> *mutableState = dynamic_cast<loka::core::MutableState<int> *>(selectionState_);
   if (!mutableState)
   {
     return;

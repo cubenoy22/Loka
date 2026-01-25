@@ -36,7 +36,7 @@ private:
     HMENU menu;
     UINT commandId;
     HWND hwnd;
-    State<bool> *enabledState;
+    loka::core::State<bool> *enabledState;
   };
 
   void clearMenuBindings();

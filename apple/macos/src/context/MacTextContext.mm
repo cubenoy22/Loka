@@ -41,7 +41,7 @@ void MacTextContext::bindText()
   {
     return;
   }
-  textState_ = static_cast<State<loka::core::String> *>(node_->props.text_);
+  textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
     textState_->deferBind(&MacTextContext::TextChangedThunk, this);

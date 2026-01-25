@@ -28,8 +28,8 @@ private:
   loka::app::PopupMenuNode *node_;
   void *popup_;
   void *target_;
-  State<int> *selectionState_;
-  State<bool> *enabledState_;
+  loka::core::State<int> *selectionState_;
+  loka::core::State<bool> *enabledState_;
   bool applyingFromState_;
   bool updatingFromControl_;
 };

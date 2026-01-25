@@ -23,9 +23,9 @@ namespace loka
       typedef PopupMenuTypeTag TypeTag;
       virtual ~IPopupMenuProps() {}
       virtual const loka::Vector<loka::core::String> *getItems() const = 0;
-      virtual State<int> *getSelectedIndex() const = 0;
-      virtual State<bool> *getEnabled() const = 0;
-      virtual EmitterState *getOnChange() const = 0;
+      virtual loka::core::State<int> *getSelectedIndex() const = 0;
+      virtual loka::core::State<bool> *getEnabled() const = 0;
+      virtual loka::core::EmitterState *getOnChange() const = 0;
     };
 
     struct PopupMenuProps : public loka::core::scene::NodePropsBase<PopupMenuProps>, public IPopupMenuProps
@@ -35,9 +35,9 @@ namespace loka
       const loka::Vector<loka::core::String> *items_;
       loka::Vector<loka::core::String> ownedItems_;
       bool ownsItems_;
-      State<int> *selectedIndex_;
-      State<bool> *enabled_;
-      EmitterState *onChange_;
+      loka::core::State<int> *selectedIndex_;
+      loka::core::State<bool> *enabled_;
+      loka::core::EmitterState *onChange_;
       int controlTag_;
       PopupMenuProps()
           : items_(0),
@@ -109,19 +109,19 @@ namespace loka
         return *this;
       }
 
-      PopupMenuProps &selectedIndex(State<int> *index)
+      PopupMenuProps &selectedIndex(loka::core::State<int> *index)
       {
         this->selectedIndex_ = index;
         return *this;
       }
 
-      PopupMenuProps &enabled(State<bool> *enabled)
+      PopupMenuProps &enabled(loka::core::State<bool> *enabled)
       {
         this->enabled_ = enabled;
         return *this;
       }
 
-      PopupMenuProps &onChange(EmitterState *onChange)
+      PopupMenuProps &onChange(loka::core::EmitterState *onChange)
       {
         this->onChange_ = onChange;
         return *this;
@@ -133,9 +133,9 @@ namespace loka
       }
 
       virtual const loka::Vector<loka::core::String> *getItems() const { return items_; }
-      virtual State<int> *getSelectedIndex() const { return selectedIndex_; }
-      virtual State<bool> *getEnabled() const { return enabled_; }
-      virtual EmitterState *getOnChange() const { return onChange_; }
+      virtual loka::core::State<int> *getSelectedIndex() const { return selectedIndex_; }
+      virtual loka::core::State<bool> *getEnabled() const { return enabled_; }
+      virtual loka::core::EmitterState *getOnChange() const { return onChange_; }
 
       int hash() const
       {
@@ -208,19 +208,19 @@ namespace loka
         return *this;
       }
 
-      PopupMenuDefinition &selectedIndex(State<int> *index)
+      PopupMenuDefinition &selectedIndex(loka::core::State<int> *index)
       {
         this->props.selectedIndex(index);
         return *this;
       }
 
-      PopupMenuDefinition &enabled(State<bool> *enabled)
+      PopupMenuDefinition &enabled(loka::core::State<bool> *enabled)
       {
         this->props.enabled(enabled);
         return *this;
       }
 
-      PopupMenuDefinition &onChange(EmitterState *onChange)
+      PopupMenuDefinition &onChange(loka::core::EmitterState *onChange)
       {
         this->props.onChange(onChange);
         return *this;

@@ -30,7 +30,7 @@ private:
   loka::app::ButtonNode *node_;
   void *button_;
   void *target_;
-  State<loka::core::String> *textState_;
+  loka::core::State<loka::core::String> *textState_;
 };
 
 #endif // LOKA_MAC_BUTTON_CONTEXT_HPP

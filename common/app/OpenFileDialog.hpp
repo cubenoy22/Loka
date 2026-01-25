@@ -90,25 +90,25 @@ namespace loka
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
-      State<bool> *isVisible_;
-      MutableState<FileChooserResult> *result_;
-      EmitterState *onResult_;
+      loka::core::State<bool> *isVisible_;
+      loka::core::MutableState<FileChooserResult> *result_;
+      loka::core::EmitterState *onResult_;
       void *windowToAttach_;
       OpenFileDialogProps() : isVisible_(0), result_(0), onResult_(0), windowToAttach_(0) {}
 
-      OpenFileDialogProps &isVisible(State<bool> *state)
+      OpenFileDialogProps &isVisible(loka::core::State<bool> *state)
       {
         this->isVisible_ = state;
         return *this;
       }
 
-      OpenFileDialogProps &result(MutableState<FileChooserResult> *state)
+      OpenFileDialogProps &result(loka::core::MutableState<FileChooserResult> *state)
       {
         this->result_ = state;
         return *this;
       }
 
-      OpenFileDialogProps &onResult(EmitterState *emitter)
+      OpenFileDialogProps &onResult(loka::core::EmitterState *emitter)
       {
         this->onResult_ = emitter;
         return *this;
@@ -150,7 +150,7 @@ namespace loka
       OpenFileDialogDefinition() : NodeDefinition() {}
       OpenFileDialogDefinition(const OpenFileDialogProps &p) : NodeDefinition(p) {}
 
-      OpenFileDialogDefinition &isVisible(State<bool> *state)
+      OpenFileDialogDefinition &isVisible(loka::core::State<bool> *state)
       {
         this->props.isVisible_ = state;
         return *this;
@@ -162,13 +162,13 @@ namespace loka
         return *this;
       }
 
-      OpenFileDialogDefinition &result(MutableState<FileChooserResult> *state)
+      OpenFileDialogDefinition &result(loka::core::MutableState<FileChooserResult> *state)
       {
         this->props.result_ = state;
         return *this;
       }
 
-      OpenFileDialogDefinition &onResult(EmitterState *emitter)
+      OpenFileDialogDefinition &onResult(loka::core::EmitterState *emitter)
       {
         this->props.onResult_ = emitter;
         return *this;

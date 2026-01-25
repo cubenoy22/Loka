@@ -28,15 +28,15 @@ void testDependencyPropagationCases()
   printf("\n==== [testDependencyPropagationCases] start ====\n");
   printf("testDependencyPropagationCases\n");
   // --- 多段依存 A→B→C ---
-  MutableState<int> a;
-  struct DerivedState : public StateBase
+  loka::core::MutableState<int> a;
+  struct DerivedState : public loka::core::StateBase
   {
-    StateBase *dep;
+    loka::core::StateBase *dep;
     int value;
-    DerivedState(StateBase *d) : dep(d), value(0) {}
+    DerivedState(loka::core::StateBase *d) : dep(d), value(0) {}
     virtual bool recompute()
     {
-      MutableState<int> *s = dynamic_cast<MutableState<int> *>(dep);
+      loka::core::MutableState<int> *s = dynamic_cast<loka::core::MutableState<int> *>(dep);
       DerivedState *d2 = dynamic_cast<DerivedState *>(dep);
       int old = value;
       if (s)
@@ -46,14 +46,14 @@ void testDependencyPropagationCases()
       printf("recompute: state=%p, old=%d, new=%d\n", (void *)this, old, value);
       return value != old;
     }
-    virtual std::vector<StateBase *> getDependencyStates() const
+    virtual std::vector<loka::core::StateBase *> getDependencyStates() const
     {
       return makeStateVector(dep, STATE_NULL);
     }
   };
   DerivedState b(&a);
   DerivedState c(&b);
-  std::vector<StateBase *> states = makeStateVector(&a, &b, &c, STATE_NULL);
+  std::vector<loka::core::StateBase *> states = makeStateVector(&a, &b, &c, STATE_NULL);
   loka::core::PushStateTracker tracker(states);
   tracker.begin();
   a.set(10);
@@ -64,10 +64,10 @@ void testDependencyPropagationCases()
   tracker.end();
   assert(b.value == 21 && c.value == 22);
   // --- 複数Derivedが1つのStateに依存 ---
-  MutableState<int> s;
+  loka::core::MutableState<int> s;
   DerivedState d1(&s);
   DerivedState d2(&s);
-  std::vector<StateBase *> states2 = makeStateVector(&s, &d1, &d2, STATE_NULL);
+  std::vector<loka::core::StateBase *> states2 = makeStateVector(&s, &d1, &d2, STATE_NULL);
   loka::core::PushStateTracker tracker2(states2);
   tracker2.begin();
   s.set(5);
@@ -81,9 +81,9 @@ void testDependencyPropagationCases()
   printf("[TEST] 依存先更新: d1=%d, d2=%d (期待値: 43, 43)\n", d1.value, d2.value);
   assert(d1.value == 43 && d2.value == 43);
   // --- 依存していないDerivedが影響を受けない ---
-  MutableState<int> s2;
+  loka::core::MutableState<int> s2;
   DerivedState d3(&s2);
-  std::vector<StateBase *> states3 = makeStateVector(&s, &d1, &d2, &s2, &d3, STATE_NULL);
+  std::vector<loka::core::StateBase *> states3 = makeStateVector(&s, &d1, &d2, &s2, &d3, STATE_NULL);
   loka::core::PushStateTracker tracker3(states3);
   tracker3.begin();
   s.set(100);
@@ -99,21 +99,21 @@ void testDependencyPropagationCases()
 void testTrackerPropagation()
 {
   printf("\n==== [testTrackerPropagation] start ====\n");
-  MutableState<int> s_int(10);
+  loka::core::MutableState<int> s_int(10);
   struct DoublePropEval : public loka::core::DerivedState<int>::EvalFn
   {
-    MutableState<int> *s;
-    DoublePropEval(MutableState<int> *s_) : s(s_) {}
+    loka::core::MutableState<int> *s;
+    DoublePropEval(loka::core::MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
   loka::core::DerivedState<int> *doubleProp = new loka::core::DerivedState<int>(makeStateVector(&s_int, STATE_NULL), new DoublePropEval(&s_int));
   printf("[test] s_int=%p, doubleProp=%p\n", (void *)&s_int, (void *)doubleProp);
-  std::vector<StateBase *> deps = doubleProp->getDependencyStates();
+  std::vector<loka::core::StateBase *> deps = doubleProp->getDependencyStates();
   for (size_t i = 0; i < deps.size(); ++i)
   {
     printf("[test] doubleProp.getDependencyStates()[%zu]=%p\n", i, (void *)deps[i]);
   }
-  std::vector<StateBase *> trackerStates = makeStateVector(&s_int, doubleProp, STATE_NULL);
+  std::vector<loka::core::StateBase *> trackerStates = makeStateVector(&s_int, doubleProp, STATE_NULL);
   loka::core::PushStateTracker tracker(trackerStates);
   printf("[before begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
   tracker.begin();
@@ -174,15 +174,15 @@ void testStateBatchOverflow()
 void testDeferredSideEffect()
 {
   printf("\n==== [testDeferredSideEffect] start ====\n");
-  MutableState<int> s_int(5);
+  loka::core::MutableState<int> s_int(5);
   struct DoublePropEval : public loka::core::DerivedState<int>::EvalFn
   {
-    MutableState<int> *s;
-    DoublePropEval(MutableState<int> *s_) : s(s_) {}
+    loka::core::MutableState<int> *s;
+    DoublePropEval(loka::core::MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
   loka::core::DerivedState<int> *doubleProp = new loka::core::DerivedState<int>(makeStateVector(&s_int, STATE_NULL), new DoublePropEval(&s_int));
-  std::vector<StateBase *> trackerStatesDeferred = makeStateVector(&s_int, doubleProp, STATE_NULL);
+  std::vector<loka::core::StateBase *> trackerStatesDeferred = makeStateVector(&s_int, doubleProp, STATE_NULL);
   loka::core::PushStateTracker tracker(trackerStatesDeferred);
   struct DeferredCallback
   {
@@ -205,11 +205,11 @@ void testDeferredSideEffect()
 void testTextInputOnChange()
 {
   printf("\n==== [testTextInputOnChange] start ====\n");
-  MutableState<loka::core::String> name(loka::core::String::Literal(""));
+  loka::core::MutableState<loka::core::String> name(loka::core::String::Literal(""));
   struct IsValidEval : public loka::core::DerivedState<bool>::EvalFn
   {
-    MutableState<loka::core::String> *n;
-    IsValidEval(MutableState<loka::core::String> *n_) : n(n_) {}
+    loka::core::MutableState<loka::core::String> *n;
+    IsValidEval(loka::core::MutableState<loka::core::String> *n_) : n(n_) {}
     bool operator()()
     {
       std::string utf8;
@@ -219,7 +219,7 @@ void testTextInputOnChange()
     }
   };
   loka::core::DerivedState<bool> *isValid = new loka::core::DerivedState<bool>(makeStateVector(&name, STATE_NULL), new IsValidEval(&name));
-  std::vector<StateBase *> trackerStatesText = makeStateVector(&name, isValid, STATE_NULL);
+  std::vector<loka::core::StateBase *> trackerStatesText = makeStateVector(&name, isValid, STATE_NULL);
   loka::core::PushStateTracker tracker(trackerStatesText);
   struct ValidCallback
   {
@@ -327,16 +327,16 @@ void testLokaDslStream()
 void testBatchTransaction()
 {
   printf("\n==== [testBatchTransaction] start ====\n");
-  MutableState<int> s1(1);
+  loka::core::MutableState<int> s1(1);
   struct SumPropEval : public loka::core::DerivedState<int>::EvalFn
   {
-    MutableState<int> *s;
-    SumPropEval(MutableState<int> *s_) : s(s_) {}
+    loka::core::MutableState<int> *s;
+    SumPropEval(loka::core::MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
   loka::core::DerivedState<int> *sumProp = new loka::core::DerivedState<int>(makeStateVector(&s1, STATE_NULL), new SumPropEval(&s1));
-  MutableState<int> s2(2);
-  std::vector<StateBase *> trackerStatesBatch = makeStateVector(&s1, &s2, sumProp, STATE_NULL);
+  loka::core::MutableState<int> s2(2);
+  std::vector<loka::core::StateBase *> trackerStatesBatch = makeStateVector(&s1, &s2, sumProp, STATE_NULL);
   loka::core::PushStateTracker tracker(trackerStatesBatch);
   tracker.begin();
   s1.set(10);
@@ -352,15 +352,15 @@ void testBatchTransaction()
 void testRAIITransaction()
 {
   printf("\n==== [testRAIITransaction] start ====\n");
-  MutableState<int> s(0);
+  loka::core::MutableState<int> s(0);
   struct DoublePropEval : public loka::core::DerivedState<int>::EvalFn
   {
-    MutableState<int> *s;
-    DoublePropEval(MutableState<int> *s_) : s(s_) {}
+    loka::core::MutableState<int> *s;
+    DoublePropEval(loka::core::MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
   loka::core::DerivedState<int> *doubleProp = new loka::core::DerivedState<int>(makeStateVector(&s, STATE_NULL), new DoublePropEval(&s));
-  std::vector<StateBase *> trackerStatesRAII = makeStateVector(&s, doubleProp, STATE_NULL);
+  std::vector<loka::core::StateBase *> trackerStatesRAII = makeStateVector(&s, doubleProp, STATE_NULL);
   loka::core::PushStateTracker tracker(trackerStatesRAII);
   {
     StateTrackerGuard _(&tracker);
@@ -382,18 +382,18 @@ void testDerivedStruct()
     int age;
     bool agree;
   };
-  MutableState<loka::core::String> name(loka::core::String::Literal(""));
-  MutableState<loka::core::String> email(loka::core::String::Literal(""));
-  MutableState<int> age(0);
-  MutableState<bool> agree(false);
-  std::vector<StateBase *> deps = makeStateVector(&name, &email, &age, &agree, STATE_NULL);
+  loka::core::MutableState<loka::core::String> name(loka::core::String::Literal(""));
+  loka::core::MutableState<loka::core::String> email(loka::core::String::Literal(""));
+  loka::core::MutableState<int> age(0);
+  loka::core::MutableState<bool> agree(false);
+  std::vector<loka::core::StateBase *> deps = makeStateVector(&name, &email, &age, &agree, STATE_NULL);
   struct IsValidEval : public loka::core::DerivedState<bool>::EvalFn
   {
-    MutableState<loka::core::String> *name;
-    MutableState<loka::core::String> *email;
-    MutableState<int> *age;
-    MutableState<bool> *agree;
-    IsValidEval(MutableState<loka::core::String> *n, MutableState<loka::core::String> *e, MutableState<int> *a, MutableState<bool> *ag)
+    loka::core::MutableState<loka::core::String> *name;
+    loka::core::MutableState<loka::core::String> *email;
+    loka::core::MutableState<int> *age;
+    loka::core::MutableState<bool> *agree;
+    IsValidEval(loka::core::MutableState<loka::core::String> *n, loka::core::MutableState<loka::core::String> *e, loka::core::MutableState<int> *a, loka::core::MutableState<bool> *ag)
         : name(n), email(e), age(a), agree(ag) {}
     bool operator()()
     {
@@ -402,7 +402,7 @@ void testDerivedStruct()
     }
   };
   loka::core::DerivedState<bool> *isValid = new loka::core::DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));
-  std::vector<StateBase *> trackerDeps = makeStateVector(&name, &email, &age, &agree, isValid, STATE_NULL);
+  std::vector<loka::core::StateBase *> trackerDeps = makeStateVector(&name, &email, &age, &agree, isValid, STATE_NULL);
   loka::core::PushStateTracker tracker(trackerDeps);
   struct Callback
   {
@@ -411,7 +411,7 @@ void testDerivedStruct()
       printf("[isValid] changed: %s\n", v ? "true" : "false");
     }
   };
-  isValid->bind((StateBase::OnChangeFn)Callback::onChange, isValid, false);
+  isValid->bind((loka::core::StateBase::OnChangeFn)Callback::onChange, isValid, false);
   tracker.begin();
   name.set(loka::core::String::Literal("senko"));
   email.set(loka::core::String::Literal(""));

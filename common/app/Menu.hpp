@@ -120,7 +120,7 @@ namespace loka
         return *this;
       }
 
-      MenuItemDefinition &enabled(State<bool> *state)
+      MenuItemDefinition &enabled(loka::core::State<bool> *state)
       {
         enabledState = state;
         return *this;
@@ -132,7 +132,7 @@ namespace loka
         return *this;
       }
 
-      MenuItemDefinition &onClick(EmitterState *emitter)
+      MenuItemDefinition &onClick(loka::core::EmitterState *emitter)
       {
         onClickState = emitter;
         return *this;
@@ -203,8 +203,8 @@ namespace loka
       }
 
       loka::core::String title;
-      State<bool> *enabledState;
-      EmitterState *onClickState;
+      loka::core::State<bool> *enabledState;
+      loka::core::EmitterState *onClickState;
       MenuActionType action;
       bool isSeparator;
       loka::dsl::CompositionList<MenuItemDefinition> children_;

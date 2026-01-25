@@ -16,11 +16,11 @@ namespace loka
 
       struct ConditionalProps
       {
-        State<bool> *condition;
+        loka::core::State<bool> *condition;
         NodeDefinitionBase *trueDef;
         NodeDefinitionBase *falseDef;
-        ConditionalProps(State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
-        ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
+        ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
+        ConditionalProps(const loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
       };
 
       // ConditionalNode: node that switches by condition

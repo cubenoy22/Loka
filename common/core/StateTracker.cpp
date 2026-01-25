@@ -10,7 +10,7 @@ namespace loka
         : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
           statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0) {}
 
-    PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
+    PushStateTracker::PushStateTracker(const std::vector<loka::core::StateBase *> &states)
         : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
           statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0)
     {
@@ -47,7 +47,7 @@ namespace loka
       deferred.push_back(std::make_pair(fn, userData));
     }
 
-    void PushStateTracker::markDirty(StateBase *state)
+    void PushStateTracker::markDirty(loka::core::StateBase *state)
     {
       dirtyFlag_ = true;
 #ifdef TEST_BUILD
@@ -55,7 +55,7 @@ namespace loka
 #endif
       if (visiting_.count(state))
       {
-        fprintf(stderr, "[Loka] 循環依存検出: StateBase %p\n", (void *)state);
+        fprintf(stderr, "[Loka] 循環依存検出: loka::core::StateBase %p\n", (void *)state);
         return;
       }
       visiting_.insert(state);
@@ -74,7 +74,7 @@ namespace loka
 #endif
         for (size_t i = 0; i < it->second.size(); ++i)
         {
-          StateBase *dependent = it->second[i];
+          loka::core::StateBase *dependent = it->second[i];
 #ifdef TEST_BUILD
           printf("[markDirty] state=%p -> dependent=%p\n", (void *)state, (void *)dependent);
 #endif
@@ -102,7 +102,7 @@ namespace loka
       visiting_.erase(state);
     }
 
-    void PushStateTracker::addState(StateBase *state)
+    void PushStateTracker::addState(loka::core::StateBase *state)
     {
       if (!state)
       {
@@ -128,7 +128,7 @@ namespace loka
       }
       statesTail_ = entry;
 
-      std::vector<StateBase *> deps = state->getDependencyStates();
+      std::vector<loka::core::StateBase *> deps = state->getDependencyStates();
       if (!deps.empty())
       {
         for (size_t j = 0; j < deps.size(); ++j)
@@ -142,7 +142,7 @@ namespace loka
       }
     }
 
-    void PushStateTracker::addStateUnchecked(StateBase *state)
+    void PushStateTracker::addStateUnchecked(loka::core::StateBase *state)
     {
       if (!state)
       {
@@ -161,7 +161,7 @@ namespace loka
       }
       statesTail_ = entry;
 
-      std::vector<StateBase *> deps = state->getDependencyStates();
+      std::vector<loka::core::StateBase *> deps = state->getDependencyStates();
       if (!deps.empty())
       {
         for (size_t j = 0; j < deps.size(); ++j)
@@ -203,11 +203,11 @@ namespace loka
           printf("[end] dirtyStates[%zu]=%p\n", i, (void *)dirtyStates[i]);
         }
 #endif
-        std::vector<StateBase *> current = dirtyStates;
+        std::vector<loka::core::StateBase *> current = dirtyStates;
         dirtyStates.clear();
         for (size_t i = 0; i < current.size(); ++i)
         {
-          StateBase *s = current[i];
+          loka::core::StateBase *s = current[i];
           bool changed = s->recompute();
           if (changed)
           {
@@ -217,7 +217,7 @@ namespace loka
             {
               for (size_t j = 0; j < it->second.size(); ++j)
               {
-                StateBase *dependent = it->second[j];
+                loka::core::StateBase *dependent = it->second[j];
 #ifdef TEST_BUILD
                 printf("[end] propagate dirty: %p -> %p\n", (void *)s, (void *)dependent);
 #endif
@@ -243,7 +243,7 @@ namespace loka
       return dirtyStates.empty();
     }
 
-    PushStateTracker::StateEntry *PushStateTracker::allocateEntry(StateBase *state)
+    PushStateTracker::StateEntry *PushStateTracker::allocateEntry(loka::core::StateBase *state)
     {
       StateEntry *entry = 0;
       if (freeEntries_)
@@ -299,7 +299,7 @@ namespace loka
       return dirty;
     }
 
-    void PushStateTracker::registerDependency(StateBase *dependent, StateBase *dependency)
+    void PushStateTracker::registerDependency(loka::core::StateBase *dependent, loka::core::StateBase *dependency)
     {
 #ifdef TEST_BUILD
       printf("[registerDependency] dependent=%p, dependency=%p\n", (void *)dependent, (void *)dependency);
