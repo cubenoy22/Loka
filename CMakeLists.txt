@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Declara LANGUAGES CXX)
+project(Loka LANGUAGES CXX)
 
 option(DECLARA_ENABLE_APPLE "Enable Apple platform targets" ON)
 

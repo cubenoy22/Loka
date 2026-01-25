@@ -17,7 +17,7 @@ if(WIN32)
     src/main.cpp
   )
 
-  if(NOT TARGET DeclaraWin32Core)
+  if(NOT TARGET LokaWin32Core)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
   endif()
 
@@ -34,7 +34,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
   )
 
-  target_link_libraries(LokaSimpleViewerWin32 PRIVATE DeclaraWin32Core)
+  target_link_libraries(LokaSimpleViewerWin32 PRIVATE LokaWin32Core)
   target_compile_definitions(LokaSimpleViewerWin32 PRIVATE
     $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
   )
@@ -58,7 +58,7 @@ if(APPLE)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src/context
   )
 
-  target_link_libraries(LokaSimpleViewerMacOS PRIVATE DeclaraMacOSCore)
+  target_link_libraries(LokaSimpleViewerMacOS PRIVATE LokaMacOSCore)
   target_compile_options(LokaSimpleViewerMacOS PRIVATE "-fobjc-arc")
   target_compile_definitions(LokaSimpleViewerMacOS PRIVATE
     $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
@@ -77,7 +77,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
-  target_link_libraries(LokaSimpleViewerClassic PRIVATE DeclaraAppleToolboxCore)
+  target_link_libraries(LokaSimpleViewerClassic PRIVATE LokaAppleToolboxCore)
 
   target_compile_definitions(LokaSimpleViewerClassic PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Declara LANGUAGES CXX)
+project(Loka LANGUAGES CXX)
 
 # C++98互換
 set(CMAKE_CXX_STANDARD 98)
@@ -25,19 +25,19 @@ set(SOURCES
   src/platform/Win32String.cpp
 )
 
-add_library(DeclaraWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
-target_include_directories(DeclaraWin32Core PUBLIC
+add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
+target_include_directories(LokaWin32Core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../common
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/../tests
 )
-target_compile_definitions(DeclaraWin32Core PRIVATE
+target_compile_definitions(LokaWin32Core PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
 
 # Windows 固有の警告抑制など（必要なら追加）
 if(MSVC)
-    target_compile_options(DeclaraWin32Core PRIVATE /utf-8)
+    target_compile_options(LokaWin32Core PRIVATE /utf-8)
 endif()
 
 # アーキテクチャ切替例（x86/x64/ARM64）

@@ -57,12 +57,12 @@ Replace `/path/to/Retro68-build` with your actual Retro68 build directory.
 
 ```sh
 cmake --preset retro68-debug
-cmake --build build-retro68 --target DeclaraHelloClassic
+cmake --build build-retro68 --target LokaHelloClassic
 ```
 
 Output files:
-- `build-retro68/example/HelloWorld/DeclaraHelloClassic.dsk` - Disk image for emulator
-- `build-retro68/example/HelloWorld/DeclaraHelloClassic.bin` - BinHex file
+- `build-retro68/example/HelloWorld/LokaHelloClassic.dsk` - Disk image for emulator
+- `build-retro68/example/HelloWorld/LokaHelloClassic.bin` - BinHex file
 
 ## Environment variables (alternative)
 

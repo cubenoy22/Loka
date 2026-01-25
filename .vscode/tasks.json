@@ -276,7 +276,7 @@
       "label": "CMake: clean rebuild",
       "command": "cleanRebuild",
       "targets": [
-        "DeclaraHelloMacOS"
+        "LokaHelloMacOS"
       ],
       "preset": "macos-debug",
       "group": "build",

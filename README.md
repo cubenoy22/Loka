@@ -182,6 +182,10 @@ This setup allows fully native development.
 > **Note (Windows / MSVC):**
 > When developing on Windows, VS Code should be launched from a **Visual Studio Developer Command Prompt** (or equivalent MSVC-initialized shell) so that the MSVC environment variables are correctly set.
 >
+> **Ninja + MSVC uses the current shell environment.**
+> The selected architecture (x86/x64) is determined by the Developer Prompt you used to launch VS Code.
+> If you need a deterministic arch, prefer a CMake preset that uses a Visual Studio generator with `-A Win32` / `-A x64`.
+>
 > **Windows XP builds require extra care:**
 >
 > * Install **Visual Studio 2017**

@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run (macOS)",
+      "name": "Run (macOS HelloWorld)",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/macos/Debug/example/HelloWorld/DeclaraHelloMacOS",
+      "program": "${workspaceFolder}/build/macos/Debug/example/HelloWorld/LokaHelloMacOS",
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "MIMode": "lldb",
@@ -35,17 +35,17 @@
       "name": "Test (macOS)",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/DeclaraTestsMacOS",
+      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/LokaTestsMacOS",
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "MIMode": "lldb",
       "preLaunchTask": "Build: macOS Tests"
     },
     {
-      "name": "Run (Windows)",
+      "name": "Run (Windows HelloWorld)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/DeclaraHelloWin32.exe",
+      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/LokaHelloWin32.exe",
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 App"
@@ -72,7 +72,7 @@
       "name": "Test (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/DeclaraTestsWin32.exe",
+      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/LokaTestsWin32.exe",
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 Tests"

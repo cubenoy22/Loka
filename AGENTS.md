@@ -7,7 +7,7 @@
 - Prefer explicit error handling and nothrow/nullable patterns in Classic builds.
 - Use `assert` for contract violations (e.g., null PlatformContext); do not throw.
 - Rename mission: user-visible/app-layer strings and titles should move to "Loka";
-  core namespaces/types remain "Declara" until a safe refactor permits change.
+  core namespaces/types should also move to "Loka" as part of the rename effort.
 - UI layers should follow platform-native naming and conventions; core stays neutral.
 - Classic Mac UI uses Toolbox/Control Manager APIs; avoid Carbon/Cocoa in Classic paths.
 - MutableState<T>::set() must be wrapped in a StateTracker transaction (use RAII guard).

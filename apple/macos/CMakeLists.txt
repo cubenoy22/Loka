@@ -7,16 +7,16 @@ set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 
 option(TEST_BUILD "Include unit test sources in app target" OFF)
 
-add_library(DeclaraAppleMacOSAppKit INTERFACE)
+add_library(LokaAppleMacOSAppKit INTERFACE)
 
-target_link_libraries(DeclaraAppleMacOSAppKit INTERFACE
-  DeclaraAppleCommonCocoa
+target_link_libraries(LokaAppleMacOSAppKit INTERFACE
+  LokaAppleCommonCocoa
   "-framework AppKit"
   "-framework Foundation"
   "-framework CoreFoundation"
 )
 
-target_include_directories(DeclaraAppleMacOSAppKit INTERFACE
+target_include_directories(LokaAppleMacOSAppKit INTERFACE
   ${CMAKE_CURRENT_LIST_DIR}
 )
 
@@ -37,18 +37,18 @@ set(DECLARA_MACOS_CORE_SOURCES
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-add_library(DeclaraMacOSCore STATIC ${DECLARA_MACOS_CORE_SOURCES} ${COMMON_SOURCES})
+add_library(LokaMacOSCore STATIC ${DECLARA_MACOS_CORE_SOURCES} ${COMMON_SOURCES})
 
-target_include_directories(DeclaraMacOSCore PUBLIC
+target_include_directories(LokaMacOSCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
   ${CMAKE_CURRENT_LIST_DIR}/src
   ${CMAKE_CURRENT_LIST_DIR}/src/context
 )
 
-target_link_libraries(DeclaraMacOSCore PUBLIC DeclaraAppleMacOSAppKit)
+target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 
-target_compile_options(DeclaraMacOSCore PRIVATE "-fobjc-arc")
-target_compile_definitions(DeclaraMacOSCore PRIVATE
+target_compile_options(LokaMacOSCore PRIVATE "-fobjc-arc")
+target_compile_definitions(LokaMacOSCore PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
 
@@ -58,15 +58,15 @@ set(DECLARA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-add_executable(DeclaraTestsMacOS ${DECLARA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
+add_executable(LokaTestsMacOS ${DECLARA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
 
-target_include_directories(DeclaraTestsMacOS PRIVATE
+target_include_directories(LokaTestsMacOS PRIVATE
   ${PROJECT_SOURCE_DIR}/common
   ${PROJECT_SOURCE_DIR}/tests
   ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
-target_link_libraries(DeclaraTestsMacOS PRIVATE DeclaraAppleCommonCocoa "-framework CoreFoundation")
-target_compile_definitions(DeclaraTestsMacOS PRIVATE
+target_link_libraries(LokaTestsMacOS PRIVATE LokaAppleCommonCocoa "-framework CoreFoundation")
+target_compile_definitions(LokaTestsMacOS PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
