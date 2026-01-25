@@ -7,12 +7,12 @@
 
 class MacCellContext;
 
-@interface DeclaraCellView : NSView
+@interface LokaCellView : NSView
 @property(nonatomic, retain) NSString *text;
 @property(nonatomic, assign) MacCellContext *context;
 @end
 
-@implementation DeclaraCellView
+@implementation LokaCellView
 - (void)drawRect:(NSRect)dirtyRect
 {
   [super drawRect:dirtyRect];
@@ -52,7 +52,7 @@ MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int he
     : node_(node), view_(0), textState_(0)
 {
   NSView *parent = (__bridge NSView *)parentView;
-  DeclaraCellView *view = [[DeclaraCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  LokaCellView *view = [[LokaCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
   [view setWantsLayer:YES];
   view.context = this;
 
@@ -68,7 +68,7 @@ MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int he
 MacCellContext::~MacCellContext()
 {
   unbindText();
-  DeclaraCellView *view = (__bridge DeclaraCellView *)view_;
+  LokaCellView *view = (__bridge LokaCellView *)view_;
   if (view)
   {
     [view removeFromSuperview];
@@ -110,7 +110,7 @@ void MacCellContext::unbindText()
 
 void MacCellContext::applyText()
 {
-  DeclaraCellView *view = (__bridge DeclaraCellView *)view_;
+  LokaCellView *view = (__bridge LokaCellView *)view_;
   if (!view || !textState_)
   {
     return;

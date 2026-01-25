@@ -5,11 +5,11 @@
 #include "core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-@interface DeclaraTextFieldDelegate : NSObject <NSTextFieldDelegate>
+@interface LokaTextFieldDelegate : NSObject <NSTextFieldDelegate>
 @property(nonatomic, assign) MacEditTextContext *owner;
 @end
 
-@implementation DeclaraTextFieldDelegate
+@implementation LokaTextFieldDelegate
 - (void)controlTextDidChange:(NSNotification *)notification
 {
   (void)notification;
@@ -30,7 +30,7 @@ MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width
   [field setBezeled:YES];
   [field setDrawsBackground:YES];
 
-  DeclaraTextFieldDelegate *delegate = [[DeclaraTextFieldDelegate alloc] init];
+  LokaTextFieldDelegate *delegate = [[LokaTextFieldDelegate alloc] init];
   delegate.owner = this;
   [field setDelegate:delegate];
 

@@ -6,12 +6,12 @@
 #include "loka/platform/StringUTF8.hpp"
 
 
-@interface DeclaraButtonTarget : NSObject
+@interface LokaButtonTarget : NSObject
 @property(nonatomic, assign) MacButtonContext *owner;
 - (IBAction)buttonPressed:(id)sender;
 @end
 
-@implementation DeclaraButtonTarget
+@implementation LokaButtonTarget
 - (IBAction)buttonPressed:(id)sender
 {
   (void)sender;
@@ -30,7 +30,7 @@ MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, in
   [button setBezelStyle:NSBezelStyleRounded];
   [button setButtonType:NSButtonTypeMomentaryPushIn];
 
-  DeclaraButtonTarget *target = [[DeclaraButtonTarget alloc] init];
+  LokaButtonTarget *target = [[LokaButtonTarget alloc] init];
   target.owner = this;
   [button setTarget:target];
   [button setAction:@selector(buttonPressed:)];

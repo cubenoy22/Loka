@@ -3,12 +3,12 @@
 #include <AppKit/AppKit.h>
 #include "loka/platform/StringUTF8.hpp"
 
-@interface DeclaraPopupMenuTarget : NSObject
+@interface LokaPopupMenuTarget : NSObject
 @property(nonatomic, assign) MacPopupMenuContext *owner;
 - (IBAction)popupChanged:(id)sender;
 @end
 
-@implementation DeclaraPopupMenuTarget
+@implementation LokaPopupMenuTarget
 - (IBAction)popupChanged:(id)sender
 {
   (void)sender;
@@ -26,7 +26,7 @@ MacPopupMenuContext::MacPopupMenuContext(void *parentView, int x, int y, int wid
   NSView *parent = (__bridge NSView *)parentView;
   NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(x, y, width, height) pullsDown:NO];
 
-  DeclaraPopupMenuTarget *target = [[DeclaraPopupMenuTarget alloc] init];
+  LokaPopupMenuTarget *target = [[LokaPopupMenuTarget alloc] init];
   target.owner = this;
   [popup setTarget:target];
   [popup setAction:@selector(popupChanged:)];

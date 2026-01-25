@@ -4,11 +4,11 @@
 #include "core/AppComponent.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-@interface DeclaraMenuTarget : NSObject
+@interface LokaMenuTarget : NSObject
 @property(nonatomic, assign) MacApp *owner;
 @end
 
-@implementation DeclaraMenuTarget
+@implementation LokaMenuTarget
 - (void)handleMenuAction:(id)sender
 {
   if (self.owner)
@@ -157,7 +157,7 @@ static NSString *MenuShortcutForAction(const loka::app::MenuItemDefinition *item
 
 static std::size_t BuildMenuItems(NSMenu *menu,
                                   const loka::app::MenuItemDefinition *itemsHead,
-                                  DeclaraMenuTarget *target,
+                                  LokaMenuTarget *target,
                                   std::vector<MacApp::MenuCommand> &commands,
                                   std::vector<MacApp::MenuBinding *> &bindings,
                                   int &nextCommandId,
@@ -165,7 +165,7 @@ static std::size_t BuildMenuItems(NSMenu *menu,
 
 static std::size_t BuildMenuItem(NSMenu *menu,
                                  const loka::app::MenuItemDefinition *itemDef,
-                                 DeclaraMenuTarget *target,
+                                 LokaMenuTarget *target,
                                  std::vector<MacApp::MenuCommand> &commands,
                                  std::vector<MacApp::MenuBinding *> &bindings,
                                  int &nextCommandId,
@@ -223,7 +223,7 @@ static std::size_t BuildMenuItem(NSMenu *menu,
 
 static std::size_t BuildMenuItems(NSMenu *menu,
                                   const loka::app::MenuItemDefinition *itemsHead,
-                                  DeclaraMenuTarget *target,
+                                  LokaMenuTarget *target,
                                   std::vector<MacApp::MenuCommand> &commands,
                                   std::vector<MacApp::MenuBinding *> &bindings,
                                   int &nextCommandId,
@@ -259,14 +259,14 @@ void MacApp::applyMenuBar(Window *activeWindow)
     }
   }
 
-  DeclaraMenuTarget *target = nil;
+  LokaMenuTarget *target = nil;
   if (menuTarget_)
   {
-    target = (__bridge DeclaraMenuTarget *)menuTarget_;
+    target = (__bridge LokaMenuTarget *)menuTarget_;
   }
   else
   {
-    DeclaraMenuTarget *created = [[DeclaraMenuTarget alloc] init];
+    LokaMenuTarget *created = [[LokaMenuTarget alloc] init];
     created.owner = this;
     menuTarget_ = (__bridge_retained void *)created;
     target = created;

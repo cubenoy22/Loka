@@ -6,23 +6,23 @@
 #include "core2/scene/Scene.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-@interface DeclaraFlippedView : NSView
+@interface LokaFlippedView : NSView
 @end
 
-@implementation DeclaraFlippedView
+@implementation LokaFlippedView
 - (BOOL)isFlipped
 {
   return YES;
 }
 @end
 
-@class DeclaraWindowDelegate;
+@class LokaWindowDelegate;
 
-@interface DeclaraWindowDelegate : NSObject <NSWindowDelegate>
+@interface LokaWindowDelegate : NSObject <NSWindowDelegate>
 @property(nonatomic, assign) MacWindow *owner;
 @end
 
-@implementation DeclaraWindowDelegate
+@implementation LokaWindowDelegate
 - (void)windowWillClose:(NSNotification *)notification
 {
   (void)notification;
@@ -232,10 +232,10 @@ void MacWindow::createNativeWindow()
     [window setTitle:@""];
   }
 
-  DeclaraFlippedView *contentView = [[DeclaraFlippedView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
+  LokaFlippedView *contentView = [[LokaFlippedView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
   [window setContentView:contentView];
 
-  DeclaraWindowDelegate *delegate = [[DeclaraWindowDelegate alloc] init];
+  LokaWindowDelegate *delegate = [[LokaWindowDelegate alloc] init];
   delegate.owner = this;
   [window setDelegate:delegate];
 
