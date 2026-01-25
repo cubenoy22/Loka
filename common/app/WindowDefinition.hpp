@@ -2,8 +2,8 @@
 #define LOKA_WINDOW_DEFINITION_HPP
 
 #include <cassert>
-#include "core/Window.hpp"
-#include "core/PlatformContext.hpp"
+#include "app/Window.hpp"
+#include "app/PlatformContext.hpp"
 #include "core2/scene/Scene.hpp"
 
 class PlatformContext;

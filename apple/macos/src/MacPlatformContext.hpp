@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_PLATFORM_CONTEXT_HPP
 #define LOKA_MAC_PLATFORM_CONTEXT_HPP
 
-#include "core/PlatformContext.hpp"
+#include "app/PlatformContext.hpp"
 
 class MacPlatformContext : public PlatformContext
 {

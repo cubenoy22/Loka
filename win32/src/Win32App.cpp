@@ -2,7 +2,7 @@
 #include "Win32Window.hpp" // Win32Window クラスの定義をインクルード
 #include <windows.h>
 #include <commdlg.h>
-#include "core/App.hpp"
+#include "app/App.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)

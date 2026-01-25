@@ -1,6 +1,6 @@
 #ifndef LOKA_COMPONENT_GROUP_HPP
 #define LOKA_COMPONENT_GROUP_HPP
-#include "core/AppComponent.hpp"
+#include "app/AppComponent.hpp"
 #include <cstddef>
 #include <vector>
 

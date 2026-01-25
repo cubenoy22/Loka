@@ -2,7 +2,7 @@
 #define LOKA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 
 #include "core2/scene/node/Group.hpp"
-#include "core/Window.hpp"
+#include "app/Window.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "app/Button.hpp"
 #include "RootBoundary.hpp"

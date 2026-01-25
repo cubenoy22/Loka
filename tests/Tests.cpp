@@ -5,7 +5,7 @@
 #include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "core/util/StateUtil.hpp"
-#include "core/SceneManager2.hpp"
+#include "app/SceneManager2.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/PlatformController.hpp"
 #include "core2/scene/Scene.hpp"

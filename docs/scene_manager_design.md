@@ -1,6 +1,6 @@
 # SceneManager2 設計ノート（2025-11）
 
-`common/core/SceneManager2.*` を中心に、現状の Scene 遷移制御と今後強化したいポイントをまとめる。
+`common/app/SceneManager2.*` を中心に、現状の Scene 遷移制御と今後強化したいポイントをまとめる。
 
 ---
 
@@ -70,8 +70,8 @@
 
 ## 6. 参照
 
-- `common/core/SceneManager2.hpp`
-- `common/core/SceneManager2.cpp`
-- `common/core/Window.hpp`
+- `common/app/SceneManager2.hpp`
+- `common/app/SceneManager2.cpp`
+- `common/app/Window.hpp`
 - `common/core2/scene/Scene.hpp`
 - `docs/design_minutes.md`（Solid-mode の Window/Scene 設計方針）

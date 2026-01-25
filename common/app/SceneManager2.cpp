@@ -1,7 +1,7 @@
 #include "SceneManager2.hpp"
 #include <cassert>
 #include "core2/scene/Scene.hpp"
-#include "util/StateUtil.hpp"
+#include "core/util/StateUtil.hpp"
 
 unsigned long SceneManager2::SceneTransactionList::nextId_ = 1;
 

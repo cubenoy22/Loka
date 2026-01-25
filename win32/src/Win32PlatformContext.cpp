@@ -1,7 +1,7 @@
 #include "Win32PlatformContext.hpp"
 #include "Win32Window.hpp"
-#include "core/Window.hpp"
-#include "core/AppConfigurable.hpp"
+#include "app/Window.hpp"
+#include "app/AppConfigurable.hpp"
 #include "core2/scene/Node.hpp"
 #include "core2/scene/NativeNodeContext.hpp"
 

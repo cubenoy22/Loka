@@ -1,7 +1,7 @@
 #include "MacApp.hpp"
 #include "MacWindow.hpp"
 #include <AppKit/AppKit.h>
-#include "core/AppComponent.hpp"
+#include "app/AppComponent.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 @interface LokaMenuTarget : NSObject

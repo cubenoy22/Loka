@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_WINDOW_HPP
 #define LOKA_TOOLBOX_WINDOW_HPP
 
-#include "core/Window.hpp"
+#include "app/Window.hpp"
 #include <Windows.h>
 
 class App;

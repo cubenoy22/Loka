@@ -2,7 +2,7 @@
 #include "core2/scene/Node.hpp"
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/node/Boundary.hpp"
-#include "core/Window.hpp"
+#include "app/Window.hpp"
 #include <new>
 
 namespace loka

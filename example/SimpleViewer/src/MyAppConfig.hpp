@@ -1,11 +1,11 @@
 #ifndef LOKA_SIMPLE_VIEWER_APP_CONFIG_HPP
 #define LOKA_SIMPLE_VIEWER_APP_CONFIG_HPP
 
-#include "core/AppComposition.hpp"
-#include "core/AppConfigurable.hpp"
+#include "app/AppComposition.hpp"
+#include "app/AppConfigurable.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
-#include "core/WindowDefinition.hpp"
+#include "app/WindowDefinition.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "app/Menu.hpp"
 #include "app/OpenFileDialog.hpp"

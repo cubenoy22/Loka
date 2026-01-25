@@ -2,8 +2,8 @@
 #define LOKA_PLATFORM_MAIN_HPP
 
 #include <cassert>
-#include "core/App.hpp"
-#include "core/PlatformContext.hpp"
+#include "app/App.hpp"
+#include "app/PlatformContext.hpp"
 #include "core/util/ScopedPtr.hpp"
 
 #if defined(_WIN32) || defined(WIN32)

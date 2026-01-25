@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP
 #define LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP
 
-#include "core/PlatformContext.hpp"
+#include "app/PlatformContext.hpp"
 
 class ToolboxPlatformContext : public PlatformContext
 {

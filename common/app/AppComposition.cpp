@@ -1,4 +1,4 @@
-#include "core/AppComposition.hpp"
+#include "app/AppComposition.hpp"
 
 AppComposition::AppComposition(PlatformContext *context)
     : components_(), windowList_(), context_(context)

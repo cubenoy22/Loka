@@ -1,9 +1,9 @@
 #ifndef LOKA_MY_APP_CONFIG_HPP
 #define LOKA_MY_APP_CONFIG_HPP
 
-#include "core/AppComposition.hpp"
-#include "core/AppConfigurable.hpp"
-#include "core/WindowDefinition.hpp"
+#include "app/AppComposition.hpp"
+#include "app/AppConfigurable.hpp"
+#include "app/WindowDefinition.hpp"
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 

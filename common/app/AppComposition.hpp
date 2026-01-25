@@ -3,8 +3,8 @@
 
 #include <vector>
 #include <cassert>
-#include "core/AppComponent.hpp"
-#include "core/WindowDefinition.hpp"
+#include "app/AppComponent.hpp"
+#include "app/WindowDefinition.hpp"
 #include "loka/dsl/CompositionList.hpp"
 
 class AppComposition

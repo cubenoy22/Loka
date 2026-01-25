@@ -94,8 +94,8 @@ Notes:
 App-level composition declares windows and scenes.
 
 ```cpp
-#include "core/AppComposition.hpp"
-#include "core/WindowDefinition.hpp"
+#include "app/AppComposition.hpp"
+#include "app/WindowDefinition.hpp"
 #include "app/Text.hpp"
 
 class MyAppConfig : public AppConfigurable

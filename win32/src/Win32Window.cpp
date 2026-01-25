@@ -2,7 +2,7 @@
 #include "Win32App.hpp"
 #include <windows.h>
 #include <string>
-#include "core/Window.hpp"
+#include "app/Window.hpp"
 #include "core/StateTracker.hpp"
 
 #include "core2/scene/Scene.hpp"

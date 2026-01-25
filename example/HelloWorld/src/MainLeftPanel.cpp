@@ -1,6 +1,6 @@
 #include "MainNode.hpp"
 #include "core/util/StateTrackerGuard.hpp"
-#include "core/Window.hpp"
+#include "app/Window.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"

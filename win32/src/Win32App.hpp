@@ -1,7 +1,7 @@
 #ifndef LOKA_WIN32APP_HPP
 #define LOKA_WIN32APP_HPP
 
-#include "core/App.hpp"
+#include "app/App.hpp"
 #include <windows.h>
 #include <vector>
 

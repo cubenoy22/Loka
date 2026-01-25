@@ -1,7 +1,7 @@
 #include "MacPlatformContext.hpp"
 #include "MacApp.hpp"
 #include "MacWindow.hpp"
-#include "core/AppConfigurable.hpp"
+#include "app/AppConfigurable.hpp"
 #include "core2/scene/Node.hpp"
 #include "core2/scene/NativeNodeContext.hpp"
 

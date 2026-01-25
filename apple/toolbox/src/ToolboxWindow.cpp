@@ -4,7 +4,7 @@
 #include <string>
 #include <cstdio>
 #include <Quickdraw.h>
-#include "core/App.hpp"
+#include "app/App.hpp"
 #include "core2/scene/Scene.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindowContext.hpp"
