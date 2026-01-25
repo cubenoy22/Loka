@@ -26,16 +26,16 @@ namespace loka
       {
       public:
         BoundState() : state_(0), tracker_(0), owner_(0) {}
-        BoundState(loka::core::MutableState<T> *state, core::StateTracker *tracker)
+        BoundState(MutableState<T> *state, StateTracker *tracker)
             : state_(state), tracker_(tracker), owner_(0) {}
-        BoundState(loka::core::MutableState<T> *state, core::StateTracker *tracker, IStateOwner *owner)
+        BoundState(MutableState<T> *state, StateTracker *tracker, IStateOwner *owner)
             : state_(state), tracker_(tracker), owner_(owner) {}
 
         bool isValid() const { return state_ != 0; }
-        loka::core::MutableState<T> *mutableState() const { return state_; }
-        loka::core::State<T> *state() const { return state_; }
-        operator loka::core::State<T> *() const { return state_; }
-        core::StateTracker *tracker() const { return tracker_; }
+        MutableState<T> *mutableState() const { return state_; }
+        State<T> *state() const { return state_; }
+        operator State<T> *() const { return state_; }
+        StateTracker *tracker() const { return tracker_; }
         IStateOwner *owner() const { return owner_; }
 
         T get() const
@@ -47,7 +47,7 @@ namespace loka
         void set(const T &value, bool forceUpdate = false)
         {
           assert(state_ && "BoundState::set requires a state");
-          if (tracker_ && tracker_->phase() == core::TRACKER_IDLE)
+          if (tracker_ && tracker_->phase() == TRACKER_IDLE)
           {
             tracker_->begin();
             state_->set(value, forceUpdate);
@@ -57,7 +57,7 @@ namespace loka
           state_->set(value, forceUpdate);
         }
 
-        void bind(typename loka::core::State<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
+        void bind(typename State<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
         {
           if (state_)
           {
@@ -65,7 +65,7 @@ namespace loka
           }
         }
 
-        void unbind(typename loka::core::State<T>::OnChangeFn cb, void *userData)
+        void unbind(typename State<T>::OnChangeFn cb, void *userData)
         {
           if (state_)
           {
@@ -73,7 +73,7 @@ namespace loka
           }
         }
 
-        loka::core::MutableState<T> &unwrap() const
+        MutableState<T> &unwrap() const
         {
           assert(state_ && "BoundState::unwrap requires a state");
           return *state_;
@@ -82,8 +82,8 @@ namespace loka
         loka::dsl::StateStream<T> stream() const;
 
       private:
-        loka::core::MutableState<T> *state_;
-        core::StateTracker *tracker_;
+        MutableState<T> *state_;
+        StateTracker *tracker_;
         IStateOwner *owner_;
       };
 

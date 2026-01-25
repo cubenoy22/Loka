@@ -36,7 +36,7 @@ namespace loka
         {
         }
 
-        BlobLoaderRequest &setFilePath(const loka::core::String &path)
+        BlobLoaderRequest &setFilePath(const String &path)
         {
           source = BLOB_SOURCE_FILE;
           filePath = path;
@@ -45,7 +45,7 @@ namespace loka
 
         BlobLoaderRequest &setFilePath(const char *path)
         {
-          return setFilePath(loka::core::String::Literal(path));
+          return setFilePath(String::Literal(path));
         }
 
         BlobLoaderRequest &setInlineBytes(const std::vector<unsigned char> &bytes, bool writable)
@@ -62,7 +62,7 @@ namespace loka
           return *this;
         }
 
-        BlobLoaderRequest &setTag(const loka::core::String &t)
+        BlobLoaderRequest &setTag(const String &t)
         {
           tag = t;
           return *this;
@@ -70,7 +70,7 @@ namespace loka
 
         BlobLoaderRequest &setTag(const char *t)
         {
-          return setTag(loka::core::String::Literal(t));
+          return setTag(String::Literal(t));
         }
 
         BlobLoaderRequest &setIncremental(bool flag)
@@ -98,8 +98,8 @@ namespace loka
 
         BlobSourceType source;
         std::vector<unsigned char> inlineBytes;
-        loka::core::String filePath;
-        loka::core::String tag;
+        String filePath;
+        String tag;
         bool isMutable;
         bool incremental;
       };
@@ -114,17 +114,17 @@ namespace loka
               bound_(false),
               localSink_()
         {
-          localSink_.addTag(loka::core::String::Literal("blob-loader"));
+          localSink_.addTag(String::Literal("blob-loader"));
         }
 
-        BlobLoader(loka::core::State<BlobLoaderRequest> *request, loka::core::MutableState<Blob> *output, core::runtime::ErrorSink *sink)
+        BlobLoader(State<BlobLoaderRequest> *request, MutableState<Blob> *output, runtime::ErrorSink *sink)
             : requestState_(0),
               outputState_(0),
               errorSink_(0),
               bound_(false),
               localSink_()
         {
-          localSink_.addTag(loka::core::String::Literal("blob-loader"));
+          localSink_.addTag(String::Literal("blob-loader"));
           attach(request, output, sink);
         }
 
@@ -133,7 +133,7 @@ namespace loka
           detach();
         }
 
-        void attach(loka::core::State<BlobLoaderRequest> *request, loka::core::MutableState<Blob> *output, core::runtime::ErrorSink *sink)
+        void attach(State<BlobLoaderRequest> *request, MutableState<Blob> *output, runtime::ErrorSink *sink)
         {
           detach();
           requestState_ = request;
@@ -230,7 +230,7 @@ namespace loka
           if (!ok)
           {
             blob.setCompleted(false);
-            emitError(request, loka::core::String::Literal("Failed to load blob"));
+            emitError(request, String::Literal("Failed to load blob"));
             outputState_->set(Blob::Empty());
             return;
           }
@@ -239,7 +239,7 @@ namespace loka
           outputState_->set(blob);
         }
 
-        bool loadFile(const loka::core::String &path, Blob *blob, bool writable)
+        bool loadFile(const String &path, Blob *blob, bool writable)
         {
           if (!blob)
             return false;
@@ -302,27 +302,27 @@ namespace loka
           }
         }
 
-        void emitError(const BlobLoaderRequest &request, const loka::core::String &message)
+        void emitError(const BlobLoaderRequest &request, const String &message)
         {
-          core::runtime::ErrorSink *sink = errorSink_;
+          runtime::ErrorSink *sink = errorSink_;
           if (!sink)
             sink = &localSink_;
-          core::runtime::ErrorEvent evt;
-          evt.domain = core::runtime::ERROR_DOMAIN_BLOB;
+          runtime::ErrorEvent evt;
+          evt.domain = runtime::ERROR_DOMAIN_BLOB;
           evt.code = 1;
           evt.message = message;
           evt.context = request.filePath;
-          evt.tags.push_back(loka::core::String::Literal("blob-loader"));
+          evt.tags.push_back(String::Literal("blob-loader"));
           if (!request.tag.empty())
             evt.tags.push_back(request.tag);
           sink->push(evt);
         }
 
-        loka::core::State<BlobLoaderRequest> *requestState_;
-        loka::core::MutableState<Blob> *outputState_;
-        core::runtime::ErrorSink *errorSink_;
+        State<BlobLoaderRequest> *requestState_;
+        MutableState<Blob> *outputState_;
+        runtime::ErrorSink *errorSink_;
         bool bound_;
-        core::runtime::ErrorSink localSink_;
+        runtime::ErrorSink localSink_;
       };
 
     } // namespace resource

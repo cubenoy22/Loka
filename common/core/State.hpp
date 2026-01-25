@@ -28,7 +28,7 @@ namespace loka
       return !(a != b);
     }
 
-    inline bool stateValuesEqual(const loka::core::String &a, const loka::core::String &b)
+    inline bool stateValuesEqual(const String &a, const String &b)
     {
       return a.equals(b);
     }

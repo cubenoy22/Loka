@@ -81,8 +81,8 @@ namespace loka
         const SceneCompositionDiff &compositionDiff() const { return compositionDiff_; }
 
         // 外部公開: State*として取得
-        loka::core::State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
-        loka::core::State<bool> *getAttachedState() { return &attached_; }
+        State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
+        State<bool> *getAttachedState() { return &attached_; }
 
         // 公開ラッパ: 外部から安全にライフサイクル/アタッチ状態を更新する用途
         // (SceneManager2 以外での最小限の操作許可。副作用管理は呼び出し側で StateTracker を利用する想定)
@@ -142,8 +142,8 @@ namespace loka
         void setAttached(bool v) { attached_.set(v, true); }
         void setLifecycle(SceneLifecycle v) { lifecycle_.set(v, true); }
 
-        loka::core::MutableState<SceneLifecycle> lifecycle_;
-        loka::core::MutableState<bool> attached_;
+        MutableState<SceneLifecycle> lifecycle_;
+        MutableState<bool> attached_;
         NodeDefinitionBase *rootDefinition_;
         Node *rootNode_;
         IPlatformController *platformController_;

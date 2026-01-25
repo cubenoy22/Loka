@@ -21,9 +21,9 @@ namespace loka
       {
         ErrorDomain domain;
         int code;
-        loka::core::String message;
-        loka::core::String context;
-        std::vector<loka::core::String> tags;
+        String message;
+        String context;
+        std::vector<String> tags;
         ErrorEvent() : domain(ERROR_DOMAIN_GENERIC), code(0), message(), context(), tags() {}
       };
 
@@ -38,7 +38,7 @@ namespace loka
         void setParent(ErrorSink *parent) { parent_ = parent; }
         ErrorSink *parent() const { return parent_; }
 
-        void addTag(const loka::core::String &tag)
+        void addTag(const String &tag)
         {
           for (size_t i = 0; i < inheritedTags_.size(); ++i)
           {
@@ -48,7 +48,7 @@ namespace loka
           inheritedTags_.push_back(tag);
         }
 
-        void setTaskLabel(const loka::core::String &label) { taskLabel_ = label; }
+        void setTaskLabel(const String &label) { taskLabel_ = label; }
 
         void push(const ErrorEvent &event)
         {
@@ -68,8 +68,8 @@ namespace loka
       private:
         std::vector<ErrorEvent> events_;
         ErrorSink *parent_;
-        std::vector<loka::core::String> inheritedTags_;
-        loka::core::String taskLabel_;
+        std::vector<String> inheritedTags_;
+        String taskLabel_;
       };
     } // namespace runtime
   }   // namespace core

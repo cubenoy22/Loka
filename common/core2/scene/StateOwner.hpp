@@ -17,13 +17,13 @@ namespace loka
       {
       public:
         virtual ~IStateOwner() {}
-        virtual void adoptState(core::StateBase *state) = 0;
-        virtual void adoptStateUnchecked(core::StateBase *state) = 0;
+        virtual void adoptState(StateBase *state) = 0;
+        virtual void adoptStateUnchecked(StateBase *state) = 0;
         virtual void reserveStates(size_t count) = 0;
         virtual void reserveStateArena(size_t totalSize) = 0;
         virtual void *allocateStateMemory(size_t size, size_t align) = 0;
-        virtual void registerStateMemory(core::StateBase *state, void (*destroy)(core::StateBase *)) = 0;
-        virtual core::StateTracker *tracker() = 0;
+        virtual void registerStateMemory(StateBase *state, void (*destroy)(StateBase *)) = 0;
+        virtual StateTracker *tracker() = 0;
       };
     } // namespace scene
   } // namespace core

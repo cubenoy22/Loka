@@ -8,11 +8,11 @@ namespace loka
   {
     namespace scene
     {
-      ConditionalProps::ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
+      ConditionalProps::ConditionalProps(State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
           : condition(cond), trueDef(tDef), falseDef(fDef) {}
 
-      ConditionalProps::ConditionalProps(const loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
-          : condition(const_cast<loka::core::State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
+      ConditionalProps::ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
+          : condition(const_cast<State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
 
       ConditionalNode::ConditionalNode(const ConditionalProps &p)
           : props(p), activeNode(0) {}
