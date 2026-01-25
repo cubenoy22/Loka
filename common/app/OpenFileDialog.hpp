@@ -86,7 +86,7 @@ namespace loka
 
     class OpenFileDialogNode;
 
-    struct OpenFileDialogProps : public loka::core::scene::NodePropsBase<OpenFileDialogProps>
+    struct OpenFileDialogProps : public loka::app::scene::NodePropsBase<OpenFileDialogProps>
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
@@ -120,7 +120,7 @@ namespace loka
         return *this;
       }
 
-      bool operator<(const loka::core::scene::PropsBase &rhs) const
+      bool operator<(const loka::app::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -135,17 +135,17 @@ namespace loka
       }
     };
 
-    class OpenFileDialogNode : public loka::core::scene::Node
+    class OpenFileDialogNode : public loka::app::scene::Node
     {
     public:
       typedef OpenFileDialogTypeTag TypeTag;
       OpenFileDialogProps props;
       OpenFileDialogNode(const OpenFileDialogProps &p) : props(p) {}
-      virtual loka::core::scene::NodeKind kind() const { return loka::core::scene::NODE_KIND_OPEN_FILE_DIALOG; }
+      virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG; }
       virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
     };
 
-    struct OpenFileDialogDefinition : public loka::core::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>
+    struct OpenFileDialogDefinition : public loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>
     {
       OpenFileDialogDefinition() : NodeDefinition() {}
       OpenFileDialogDefinition(const OpenFileDialogProps &p) : NodeDefinition(p) {}
@@ -174,7 +174,7 @@ namespace loka
         return *this;
       }
 
-      using loka::core::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
+      using loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
     };
 
     typedef OpenFileDialogDefinition OpenFileDialog;

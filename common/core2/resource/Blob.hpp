@@ -37,7 +37,7 @@ namespace loka
       {
       public:
         Blob() : handle_() {}
-        explicit Blob(const loka::core::Managed<BlobRecord> &handle) : handle_(handle) {}
+        explicit Blob(const Managed<BlobRecord> &handle) : handle_(handle) {}
 
         static Blob Empty()
         {
@@ -50,7 +50,7 @@ namespace loka
         }
 
         bool isValid() const { return handle_.isValid(); }
-        loka::core::Managed<BlobRecord> handle() const { return handle_; }
+        Managed<BlobRecord> handle() const { return handle_; }
 
         std::size_t size() const
         {
@@ -157,7 +157,7 @@ namespace loka
         bool operator!=(const Blob &other) const { return !(*this == other); }
 
       private:
-        static loka::core::Managed<BlobRecord> CreateHandle()
+        static Managed<BlobRecord> CreateHandle()
         {
           BlobRecord *record = new BlobRecord();
           record->sizeState.set(0);
@@ -165,12 +165,12 @@ namespace loka
           record->mutableState.set(false);
           record->completedState.set(false);
           record->progressState.set(UnknownProgress());
-          return loka::core::Managed<BlobRecord>::Wrap(record);
+          return Managed<BlobRecord>::Wrap(record);
         }
 
-        static loka::core::Managed<BlobRecord> &SharedEmptyHandle()
+        static Managed<BlobRecord> &SharedEmptyHandle()
         {
-          static loka::core::Managed<BlobRecord> empty = CreateHandle();
+          static Managed<BlobRecord> empty = CreateHandle();
           return empty;
         }
 
@@ -188,7 +188,7 @@ namespace loka
           }
         }
 
-        loka::core::Managed<BlobRecord> handle_;
+        Managed<BlobRecord> handle_;
       };
     } // namespace resource
   }   // namespace core

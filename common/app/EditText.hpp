@@ -16,7 +16,7 @@ namespace loka
 
     class EditTextNode;
 
-    struct EditTextProps : public core::scene::NodePropsBase<EditTextProps>
+    struct EditTextProps : public scene::NodePropsBase<EditTextProps>
     {
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
@@ -40,7 +40,7 @@ namespace loka
         this->controlTag_ = tag;
         return *this;
       }
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -53,17 +53,17 @@ namespace loka
       }
     };
 
-    class EditTextNode : public core::scene::Node
+    class EditTextNode : public scene::Node
     {
     public:
       typedef EditTextTypeTag TypeTag;
       EditTextProps props;
       EditTextNode(const EditTextProps &p) : props(p) {}
-      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_EDIT_TEXT; }
+      virtual scene::NodeKind kind() const { return scene::NODE_KIND_EDIT_TEXT; }
       virtual EditTextNode *asEditTextNode() { return this; }
     };
 
-    struct EditTextDefinition : public core::scene::NodeDefinition<EditTextProps, EditTextNode>
+    struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>
     {
       EditTextDefinition() : NodeDefinition() {}
       EditTextDefinition(const EditTextProps &p) : NodeDefinition(p) {}

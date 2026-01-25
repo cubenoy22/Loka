@@ -13,7 +13,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -47,8 +47,8 @@ struct WindowProps
   int positionY;
   int width;
   int height;
-  loka::core::scene::Scene *initialScene;
-  loka::core::scene::NodeDefinitionBase *rootDefinition;
+  loka::app::scene::Scene *initialScene;
+  loka::app::scene::NodeDefinitionBase *rootDefinition;
   loka::app::MenuBarDefinition *menuBarDefinition;
 
   WindowProps()
@@ -206,7 +206,7 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &scene(loka::core::scene::Scene *scene)
+  WindowProps &scene(loka::app::scene::Scene *scene)
   {
     initialScene = scene;
     if (rootDefinition)
@@ -217,7 +217,7 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &scene(const loka::core::scene::NodeDefinitionBase &def)
+  WindowProps &scene(const loka::app::scene::NodeDefinitionBase &def)
   {
     if (rootDefinition)
     {
@@ -319,7 +319,7 @@ public:
   }
 
   PlatformContext *context() const { return context_; }
-  loka::core::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
+  loka::app::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
   SceneManager2 *sceneManager() { return &sceneManager_; }
 
   loka::core::MutableState<bool> &visibilityState() { return *visibility_; }
@@ -368,7 +368,7 @@ protected:
   int positionY_;
   int width_;
   int height_;
-  loka::core::scene::Scene *initialScene_;
+  loka::app::scene::Scene *initialScene_;
   loka::app::MenuBarDefinition *menuBarDefinition_;
 };
 

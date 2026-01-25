@@ -25,7 +25,7 @@ namespace helloworld
           bmiResult_()
     {}
 
-    void attachNode(loka::core::scene::NodeComposition &c)
+    void attachNode(loka::app::scene::NodeComposition &c)
     {
       if (this->initialized_)
       {
@@ -42,7 +42,7 @@ namespace helloworld
       this->initialized_ = true;
     }
 
-    void composeNode(loka::core::scene::NodeComposition &c)
+    void composeNode(loka::app::scene::NodeComposition &c)
     {
       PROFILE_SECTION("bmiCompose");
       using namespace loka::app;
@@ -56,8 +56,8 @@ namespace helloworld
           << Text(this->bmiResult_));
     }
 
-    void composeInto(loka::core::scene::NodeComposition &c,
-                     loka::core::scene::INestableDefinition &parent)
+    void composeInto(loka::app::scene::NodeComposition &c,
+                     loka::app::scene::INestableDefinition &parent)
     {
       attachNode(c);
       composeNode(c);
@@ -121,9 +121,9 @@ namespace helloworld
     }
 
     bool initialized_;
-    loka::core::scene::BoundState<loka::core::String> heightInput_;
-    loka::core::scene::BoundState<loka::core::String> weightInput_;
-    loka::core::scene::BoundState<loka::core::String> bmiResult_;
+    loka::app::scene::BoundState<loka::core::String> heightInput_;
+    loka::app::scene::BoundState<loka::core::String> weightInput_;
+    loka::app::scene::BoundState<loka::core::String> bmiResult_;
   };
 
 } // namespace helloworld

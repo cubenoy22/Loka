@@ -13,12 +13,12 @@ namespace loka
 
     class FragmentNode;
 
-    struct FragmentProps : public core::scene::NodePropsBase<FragmentProps>
+    struct FragmentProps : public scene::NodePropsBase<FragmentProps>
     {
       typedef FragmentTypeTag TypeTag;
       typedef FragmentNode NodeType;
       FragmentProps() {}
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -26,7 +26,7 @@ namespace loka
       }
     };
 
-    class FragmentNode : public core::scene::NestableNode
+    class FragmentNode : public scene::NestableNode
     {
     public:
       typedef FragmentTypeTag TypeTag;
@@ -34,27 +34,27 @@ namespace loka
       FragmentNode(const FragmentProps &p) : props(p) {}
     };
 
-    struct FragmentDefinition : public core::scene::NodeDefinition<FragmentProps, FragmentNode>, public core::scene::NestableDefinitionBase
+    struct FragmentDefinition : public scene::NodeDefinition<FragmentProps, FragmentNode>, public scene::NestableDefinitionBase
     {
-      typedef core::scene::NodeDefinition<FragmentProps, FragmentNode> BaseType;
-      FragmentDefinition() : BaseType(), core::scene::NestableDefinitionBase() {}
-      FragmentDefinition(const FragmentProps &p) : BaseType(p), core::scene::NestableDefinitionBase() {}
-      FragmentDefinition(const FragmentDefinition &other) : BaseType(other), core::scene::NestableDefinitionBase(other) {}
+      typedef scene::NodeDefinition<FragmentProps, FragmentNode> BaseType;
+      FragmentDefinition() : BaseType(), scene::NestableDefinitionBase() {}
+      FragmentDefinition(const FragmentProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
+      FragmentDefinition(const FragmentDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
       FragmentDefinition &operator=(const FragmentDefinition &other)
       {
         if (this != &other)
         {
           BaseType::operator=(other);
-          core::scene::NestableDefinitionBase::operator=(other);
+          scene::NestableDefinitionBase::operator=(other);
         }
         return *this;
       }
-      virtual core::scene::NodeDefinitionBase *clone() const
+      virtual scene::NodeDefinitionBase *clone() const
       {
         return new FragmentDefinition(*this);
       }
-      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
 
     typedef FragmentDefinition Fragment;

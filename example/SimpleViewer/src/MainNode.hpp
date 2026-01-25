@@ -16,7 +16,7 @@ namespace simpleviewer
 
   class MainNode;
 
-  struct MainProps : public loka::core::scene::NodePropsBase<MainProps>
+  struct MainProps : public loka::app::scene::NodePropsBase<MainProps>
   {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
@@ -58,7 +58,7 @@ namespace simpleviewer
       assert(this->onResult_);
     }
 
-    bool operator<(const loka::core::scene::PropsBase &rhs) const
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
     {
       if (rhs.propsTypeId() != propsTypeId())
       {
@@ -75,14 +75,14 @@ namespace simpleviewer
     }
   };
 
-  class MainNode : public loka::core::scene::StaticCompositionBoundaryNodeBase<MainProps>
+  class MainNode : public loka::app::scene::StaticCompositionBoundaryNodeBase<MainProps>
   {
   public:
     typedef MainTypeTag TypeTag;
     MainNode(const MainProps &p)
-        : loka::core::scene::StaticCompositionBoundaryNodeBase<MainProps>(p) {}
+        : loka::app::scene::StaticCompositionBoundaryNodeBase<MainProps>(p) {}
 
-    virtual void composeNode(loka::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
       this->props.assertInitialized();

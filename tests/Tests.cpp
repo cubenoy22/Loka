@@ -133,7 +133,7 @@ void testTrackerPropagation()
 void testStateBatchOverflow()
 {
   printf("\n==== [testStateBatchOverflow] start ====\n");
-  struct DummyOwner : public loka::core::scene::IStateOwner
+  struct DummyOwner : public loka::app::scene::IStateOwner
   {
     std::vector<loka::core::StateBase *> adopted;
     virtual void adoptState(loka::core::StateBase *state) { adoptStateUnchecked(state); }
@@ -146,9 +146,9 @@ void testStateBatchOverflow()
   };
 
   DummyOwner owner;
-  loka::core::scene::BoundState<int> states[17];
+  loka::app::scene::BoundState<int> states[17];
   {
-    loka::core::scene::NodeComposition::StateBatch batch(&owner);
+    loka::app::scene::NodeComposition::StateBatch batch(&owner);
     for (int i = 0; i < 17; ++i)
     {
       batch.state(states[i], i + 1);
@@ -449,10 +449,10 @@ void testSceneManagerTransaction()
 
 void testNodeCompositionTree()
 {
-  using namespace loka::core::scene;
+  using namespace loka::app::scene;
   using namespace loka::app;
 
-  loka::core::scene::NodeComposition composition;
+  loka::app::scene::NodeComposition composition;
   BoxProps boxProps;
   BoxDefinition box(boxProps);
   BoxDefinition &root = composition.declare(box);
@@ -480,13 +480,13 @@ void testNodeCompositionTree()
 
 void testSceneMountLifecycle()
 {
-  using namespace loka::core::scene;
+  using namespace loka::app::scene;
 
   class DummyPlatformController : public IPlatformController
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-    virtual void onChange(Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
     {
       (void)flags;
       lastMaterialized_ = rootNode;
@@ -514,59 +514,59 @@ namespace
   int g_childComposeCount = 0;
 
   class ChildBoundaryNode;
-  typedef loka::core::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
+  typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
-  class ChildBoundaryNode : public loka::core::scene::BoundaryNodeFor<ChildBoundaryNode>
+  class ChildBoundaryNode : public loka::app::scene::BoundaryNodeFor<ChildBoundaryNode>
   {
   public:
     ChildBoundaryNode(const ChildBoundaryProps &p)
-        : loka::core::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
 
-    virtual void composeNode(loka::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       (void)c;
       ++g_childComposeCount;
     }
   };
 
-  loka::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
+  loka::app::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
   {
-    return loka::core::scene::Boundary<ChildBoundaryNode>();
+    return loka::app::scene::Boundary<ChildBoundaryNode>();
   }
 
   class RootBoundaryNode;
-  typedef loka::core::scene::BoundaryPropsFor<RootBoundaryNode> RootBoundaryProps;
+  typedef loka::app::scene::BoundaryPropsFor<RootBoundaryNode> RootBoundaryProps;
 
-  class RootBoundaryNode : public loka::core::scene::BoundaryNodeFor<RootBoundaryNode>
+  class RootBoundaryNode : public loka::app::scene::BoundaryNodeFor<RootBoundaryNode>
   {
   public:
     RootBoundaryNode(const RootBoundaryProps &p)
-        : loka::core::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
 
-    virtual void composeNode(loka::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       ++g_rootComposeCount;
       c.declare(ChildBoundary());
     }
   };
 
-  loka::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
+  loka::app::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
   {
-    return loka::core::scene::Boundary<RootBoundaryNode>();
+    return loka::app::scene::Boundary<RootBoundaryNode>();
   }
 }
 
 void testSceneBoundaryNestedCompose()
 {
-  using loka::core::scene::IPlatformController;
-  using loka::core::scene::Node;
-  using loka::core::scene::Scene;
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::Scene;
 
   class DummyPlatformController : public IPlatformController
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-    virtual void onChange(Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
     {
       (void)flags;
       lastMaterialized_ = rootNode;

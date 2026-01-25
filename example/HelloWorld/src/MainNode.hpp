@@ -12,13 +12,13 @@ class Window;
 namespace helloworld
 {
   class MainNode;
-  typedef loka::core::scene::StaticCompositionPropsFor<MainNode> MainProps;
+  typedef loka::app::scene::StaticCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::core::scene::StaticCompositionNodeFor<MainNode>
+  class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p)
-        : loka::core::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
+        : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
           left_(this),
           right_(this)
     {
@@ -36,21 +36,21 @@ namespace helloworld
       return ctx ? ctx->window() : 0;
     }
 
-    virtual void composeNode(loka::core::scene::NodeComposition &c);
+    virtual void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
     MainLeftPanelComponent left_;
     MainRightPanelComponent right_;
   };
 
-  inline void MainNode::composeNode(loka::core::scene::NodeComposition &c)
+  inline void MainNode::composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
     ZStack &root = c.declare(ZStack());
-    loka::core::scene::NodeComposition::ParentScope scope(c, root);
+    loka::app::scene::NodeComposition::ParentScope scope(c, root);
     c.declare(HStack()
-              << loka::core::scene::LC(left_)
-              << loka::core::scene::LC(right_));
+              << loka::app::scene::LC(left_)
+              << loka::app::scene::LC(right_));
     c.declare(Text("*"));
   }
 

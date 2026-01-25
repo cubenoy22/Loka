@@ -79,8 +79,8 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
   DrawString(text);
 }
 
-short ToolboxCellContext::layout(loka::core::scene::IPlatformController *,
-                                 loka::core::scene::LayoutState &state)
+short ToolboxCellContext::layout(loka::app::scene::IPlatformController *,
+                                 loka::app::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -111,7 +111,7 @@ short ToolboxCellContext::layout(loka::core::scene::IPlatformController *,
   return width;
 }
 
-void ToolboxCellContext::render(loka::core::scene::IPlatformController *controller)
+void ToolboxCellContext::render(loka::app::scene::IPlatformController *controller)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);

@@ -16,7 +16,7 @@ class Window;
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -107,8 +107,8 @@ namespace loka
             }
             Entry &e = entries_[count_++];
             e.out = &out;
-            e.size = sizeof(MutableState<T>);
-            e.align = AlignOf<MutableState<T> >::value;
+            e.size = sizeof(loka::core::MutableState<T>);
+            e.align = AlignOf<loka::core::MutableState<T> >::value;
             e.create = &CreateState<T>;
             // 初期値をコピー（小さい値のみ inline）
             copyInitial<T>(e.storage.bytes, initial);
@@ -146,18 +146,18 @@ namespace loka
           {
             BoundState<T> *out = static_cast<BoundState<T> *>(outPtr);
             T *initial = reinterpret_cast<T *>(initialPtr);
-            MutableState<T> *state = 0;
-            size_t align = AlignOf<MutableState<T> >::value;
-            void *mem = owner->allocateStateMemory(sizeof(MutableState<T>), align);
+            loka::core::MutableState<T> *state = 0;
+            size_t align = AlignOf<loka::core::MutableState<T> >::value;
+            void *mem = owner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align);
             if (mem)
             {
-              state = new (mem) MutableState<T>(*initial);
+              state = new (mem) loka::core::MutableState<T>(*initial);
               state->setArenaAllocated(true);
               owner->registerStateMemory(state, &DestroyState<T>);
             }
             else
             {
-              state = new MutableState<T>(*initial);
+              state = new loka::core::MutableState<T>(*initial);
             }
             owner->adoptStateUnchecked(state);
             *out = BoundState<T>(state, owner->tracker(), owner);
@@ -169,18 +169,18 @@ namespace loka
           template <typename T>
           static void CreateImmediateState(IStateOwner *owner, BoundState<T> &out, const T &initial)
           {
-            MutableState<T> *state = 0;
-            size_t align = AlignOf<MutableState<T> >::value;
-            void *mem = owner ? owner->allocateStateMemory(sizeof(MutableState<T>), align) : 0;
+            loka::core::MutableState<T> *state = 0;
+            size_t align = AlignOf<loka::core::MutableState<T> >::value;
+            void *mem = owner ? owner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align) : 0;
             if (mem)
             {
-              state = new (mem) MutableState<T>(initial);
+              state = new (mem) loka::core::MutableState<T>(initial);
               state->setArenaAllocated(true);
               owner->registerStateMemory(state, &DestroyState<T>);
             }
             else
             {
-              state = new MutableState<T>(initial);
+              state = new loka::core::MutableState<T>(initial);
             }
             if (owner)
             {
@@ -194,12 +194,12 @@ namespace loka
           }
 
           template <typename T>
-          static void DestroyState(StateBase *state)
+          static void DestroyState(loka::core::StateBase *state)
           {
-            MutableState<T> *typed = static_cast<MutableState<T> *>(state);
+            loka::core::MutableState<T> *typed = static_cast<loka::core::MutableState<T> *>(state);
             if (typed)
             {
-              typedef MutableState<T> MutableStateType;
+              typedef loka::core::MutableState<T> MutableStateType;
               typed->~MutableStateType();
             }
           }
@@ -344,14 +344,14 @@ namespace loka
 
         // --- DSL helpers ---
         template <typename T>
-        ConditionalDefinition conditional(const State<bool> &condition, T &x)
+        ConditionalDefinition conditional(const loka::core::State<bool> &condition, T &x)
         {
           extern T Empty;
           return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
         }
 
         template <typename T>
-        ConditionalDefinition conditional(State<bool> &condition, T &x)
+        ConditionalDefinition conditional(loka::core::State<bool> &condition, T &x)
         {
           extern T Empty;
           return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
@@ -387,18 +387,18 @@ namespace loka
           assert(context_ && "NodeComposition::useState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
           assert(stateOwner && "NodeComposition::useState requires Boundary owner");
-          MutableState<T> *state = 0;
-          size_t align = AlignOf<MutableState<T> >::value;
-          void *mem = stateOwner->allocateStateMemory(sizeof(MutableState<T>), align);
+          loka::core::MutableState<T> *state = 0;
+          size_t align = AlignOf<loka::core::MutableState<T> >::value;
+          void *mem = stateOwner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align);
           if (mem)
           {
-            state = new (mem) MutableState<T>(initial);
+            state = new (mem) loka::core::MutableState<T>(initial);
             state->setArenaAllocated(true);
             stateOwner->registerStateMemory(state, &StateBatch::DestroyState<T>);
           }
           else
           {
-            state = new MutableState<T>(initial);
+            state = new loka::core::MutableState<T>(initial);
           }
           // Use unchecked version - useState always creates new unique states
           stateOwner->adoptStateUnchecked(state);
@@ -449,7 +449,7 @@ namespace loka
       };
 
     } // namespace scene
-  } // namespace core
+  } // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NODECOMPOSITION_HPP

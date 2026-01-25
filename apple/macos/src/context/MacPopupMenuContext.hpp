@@ -4,7 +4,7 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
-class MacPopupMenuContext : public loka::core::scene::NativeNodeContext
+class MacPopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
   MacPopupMenuContext(void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node);

@@ -292,7 +292,7 @@ void ToolboxWindow::draw()
 
 void ToolboxWindow::mountScene()
 {
-  loka::core::scene::Scene *currentScene = this->scene();
+  loka::app::scene::Scene *currentScene = this->scene();
   if (!currentScene || scenePlatformController_ || !window_)
   {
     return;
@@ -305,7 +305,7 @@ void ToolboxWindow::teardownScene()
 {
   if (scenePlatformController_)
   {
-    loka::core::scene::Scene *currentScene = this->scene();
+    loka::app::scene::Scene *currentScene = this->scene();
     if (currentScene)
     {
       currentScene->unmount();

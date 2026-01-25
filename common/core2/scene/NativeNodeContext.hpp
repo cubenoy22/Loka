@@ -6,7 +6,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -61,7 +61,7 @@ namespace loka
         bool releaseRequested_;
       };
     } // namespace scene
-  }   // namespace core
+  }   // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP

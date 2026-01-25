@@ -23,7 +23,7 @@ namespace loka
   }
 }
 
-class Win32CellContext : public loka::core::scene::NativeNodeContext
+class Win32CellContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node);

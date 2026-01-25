@@ -16,7 +16,7 @@ namespace loka
     // Forward declaration
     class BoxNode;
 
-    struct BoxProps : public core::scene::NodePropsBase<BoxProps>
+    struct BoxProps : public scene::NodePropsBase<BoxProps>
     {
       // レイアウト用プロパティ（例: direction, spacing など）
       // 今回は最小限で空のまま
@@ -32,7 +32,7 @@ namespace loka
         padding = value;
         return *this;
       }
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -41,19 +41,19 @@ namespace loka
       }
     };
 
-    class BoxNode : public core::scene::NestableNode
+    class BoxNode : public scene::NestableNode
     {
     public:
       typedef BoxTypeTag TypeTag;
       BoxProps props;
-      BoxNode(const BoxProps &p) : core::scene::NestableNode(), props(p) {}
-      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_BOX; }
+      BoxNode(const BoxProps &p) : scene::NestableNode(), props(p) {}
+      virtual scene::NodeKind kind() const { return scene::NODE_KIND_BOX; }
       virtual BoxNode *asBoxNode() { return this; }
     };
 
-    struct BoxDefinition : public core::scene::NodeDefinition<BoxProps, BoxNode>, public core::scene::NestableDefinitionBase
+    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>, public scene::NestableDefinitionBase
     {
-      typedef core::scene::NodeDefinition<BoxProps, BoxNode> BaseType;
+      typedef scene::NodeDefinition<BoxProps, BoxNode> BaseType;
 
       BoxDefinition() : BaseType(), NestableDefinitionBase() {}
       BoxDefinition(const BoxProps &p) : BaseType(p), NestableDefinitionBase() {}
@@ -63,16 +63,16 @@ namespace loka
         if (this != &other)
         {
           BaseType::operator=(other);
-          core::scene::NestableDefinitionBase::operator=(other);
+          scene::NestableDefinitionBase::operator=(other);
         }
         return *this;
       }
-      virtual core::scene::NodeDefinitionBase *clone() const
+      virtual scene::NodeDefinitionBase *clone() const
       {
         return new BoxDefinition(*this);
       }
-      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
       BoxDefinition &padding(int value)
       {
         this->props.setPadding(value);

@@ -15,7 +15,7 @@ namespace loka
 
     class CellNode;
 
-    struct CellProps : public core::scene::NodePropsBase<CellProps>
+    struct CellProps : public scene::NodePropsBase<CellProps>
     {
       typedef CellTypeTag TypeTag;
       typedef CellNode NodeType;
@@ -42,7 +42,7 @@ namespace loka
         onClick_ = e;
         return *this;
       }
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -55,17 +55,17 @@ namespace loka
       }
     };
 
-    class CellNode : public core::scene::Node
+    class CellNode : public scene::Node
     {
     public:
       typedef CellTypeTag TypeTag;
       CellProps props;
       CellNode(const CellProps &p) : props(p) {}
-      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_CELL; }
+      virtual scene::NodeKind kind() const { return scene::NODE_KIND_CELL; }
       virtual CellNode *asCellNode() { return this; }
     };
 
-    struct CellDefinition : public core::scene::NodeDefinition<CellProps, CellNode>
+    struct CellDefinition : public scene::NodeDefinition<CellProps, CellNode>
     {
       CellDefinition() : NodeDefinition() {}
       CellDefinition(const CellProps &p) : NodeDefinition(p) {}

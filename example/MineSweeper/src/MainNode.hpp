@@ -10,18 +10,18 @@
 namespace minesweeper
 {
   class MainNode;
-  typedef loka::core::scene::StaticCompositionPropsFor<MainNode> MainProps;
+  typedef loka::app::scene::StaticCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::core::scene::StaticCompositionNodeFor<MainNode>
+  class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p)
-        : loka::core::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
+        : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false)
     {
     }
 
-    virtual void attachNode(loka::core::scene::NodeComposition &c)
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       if (this->initialized_)
       {
@@ -29,7 +29,7 @@ namespace minesweeper
       }
       this->initialized_ = true;
       {
-        loka::core::scene::NodeComposition::StateBatch states = c.declareStates();
+        loka::app::scene::NodeComposition::StateBatch states = c.declareStates();
         for (int i = 0; i < kCellCount; ++i)
         {
           states.state(this->cellText_[i], loka::core::String::Literal("."));
@@ -44,7 +44,7 @@ namespace minesweeper
       this->resetBoard();
     }
 
-    virtual void composeNode(loka::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
       Grid grid;
@@ -83,7 +83,7 @@ namespace minesweeper
     bool mines_[kCellCount];
     bool revealed_[kCellCount];
     loka::core::EmitterState cellClick_[kCellCount];
-    loka::core::scene::BoundState<loka::core::String> cellText_[kCellCount];
+    loka::app::scene::BoundState<loka::core::String> cellText_[kCellCount];
     CellClickProxy clickProxy_[kCellCount];
 
     void resetBoard()

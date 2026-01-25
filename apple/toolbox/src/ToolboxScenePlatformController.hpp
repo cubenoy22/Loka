@@ -14,13 +14,13 @@ class ToolboxPopupMenuContext;
 class ToolboxNodeContextMapper;
 class ToolboxCellContext;
 
-class ToolboxScenePlatformController : public loka::core::scene::IPlatformController
+class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
   explicit ToolboxScenePlatformController(ToolboxWindow *window);
   virtual ~ToolboxScenePlatformController();
 
-  virtual void onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags);
+  virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
 
@@ -30,23 +30,23 @@ public:
   void recordButtonHit(const Rect &rect,
                        loka::core::EmitterState *emitter,
                        loka::core::State<bool> *enabled,
-                       loka::core::scene::BoundaryNode *boundary);
+                       loka::app::scene::BoundaryNode *boundary);
   void recordCellHit(const Rect &rect,
                      loka::core::EmitterState *emitter,
-                     loka::core::scene::BoundaryNode *boundary,
+                     loka::app::scene::BoundaryNode *boundary,
                      ToolboxCellContext *context,
                      loka::core::State<loka::core::String> *text);
   void recordEditHit(const Rect &rect,
                      loka::core::State<loka::core::String> *text,
-                     loka::core::scene::BoundaryNode *boundary);
+                     loka::app::scene::BoundaryNode *boundary);
   void recordTextHit(const Rect &rect,
                      short x,
                      short y,
                      loka::core::State<loka::core::String> *text,
-                     loka::core::scene::BoundaryNode *boundary);
+                     loka::app::scene::BoundaryNode *boundary);
   void registerPopupContext(ToolboxPopupMenuContext *context);
   void applyPopupSelectionChange(const Rect &rect,
-                                 loka::core::scene::BoundaryNode *boundary,
+                                 loka::app::scene::BoundaryNode *boundary,
                                  loka::core::State<int> *selectedIndex,
                                  loka::core::EmitterState *onChange,
                                  int newIndex);
@@ -69,14 +69,14 @@ private:
     Rect rect;
     loka::core::EmitterState *emitter;
     loka::core::State<bool> *enabled;
-    loka::core::scene::BoundaryNode *boundary;
+    loka::app::scene::BoundaryNode *boundary;
   };
 
   struct CellHit
   {
     Rect rect;
     loka::core::EmitterState *emitter;
-    loka::core::scene::BoundaryNode *boundary;
+    loka::app::scene::BoundaryNode *boundary;
     ToolboxCellContext *context;
     loka::core::State<loka::core::String> *text;
   };
@@ -85,7 +85,7 @@ private:
   {
     Rect rect;
     loka::core::State<loka::core::String> *text;
-    loka::core::scene::BoundaryNode *boundary;
+    loka::app::scene::BoundaryNode *boundary;
   };
 
   struct TextHit
@@ -94,7 +94,7 @@ private:
     short x;
     short y;
     loka::core::State<loka::core::String> *text;
-    loka::core::scene::BoundaryNode *boundary;
+    loka::app::scene::BoundaryNode *boundary;
     short lastMeasuredWidth;
   };
   struct TextBinding
@@ -124,7 +124,7 @@ private:
   };
 
   ToolboxWindow *window_;
-  loka::core::scene::Node *rootNode_;
+  loka::app::scene::Node *rootNode_;
   std::vector<ButtonHit> buttonHits_;
   std::vector<CellHit> cellHits_;
   std::vector<ButtonControlBinding> buttonControls_;

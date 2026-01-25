@@ -19,16 +19,16 @@ namespace loka
     class EmptyNode;
 
     // Props for Empty node (inherits NodePropsBase, with TypeTag)
-    struct EmptyProps : public core::scene::NodePropsBase<EmptyProps>
+    struct EmptyProps : public scene::NodePropsBase<EmptyProps>
     {
       typedef EmptyTypeTag TypeTag;
       typedef EmptyNode NodeType;
       EmptyProps() {}
-      bool operator<(const core::scene::PropsBase &rhs) const { return false; }
+      bool operator<(const scene::PropsBase &rhs) const { return false; }
     };
 
     // Empty node body
-    class EmptyNode : public core::scene::Node
+    class EmptyNode : public scene::Node
     {
     public:
       typedef EmptyTypeTag TypeTag;
@@ -38,11 +38,11 @@ namespace loka
     };
 
     // Definition for Empty node
-    struct EmptyDefinition : public core::scene::NodeDefinition<EmptyProps, EmptyNode>
+    struct EmptyDefinition : public scene::NodeDefinition<EmptyProps, EmptyNode>
     {
       EmptyDefinition() : NodeDefinition() {}
       EmptyDefinition(const EmptyProps &p) : NodeDefinition(p) {}
-      using core::scene::NodeDefinition<EmptyProps, EmptyNode>::create;
+      using scene::NodeDefinition<EmptyProps, EmptyNode>::create;
     };
     // Short name for DSL
     typedef EmptyDefinition Empty;

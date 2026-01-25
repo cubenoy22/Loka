@@ -5,7 +5,7 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 
-class Win32OpenFileDialogContext : public loka::core::scene::NativeNodeContext
+class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node);

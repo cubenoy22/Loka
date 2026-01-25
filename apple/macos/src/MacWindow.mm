@@ -327,7 +327,7 @@ void MacWindow::mountScene()
   {
     return;
   }
-  loka::core::scene::Scene *currentScene = this->scene();
+  loka::app::scene::Scene *currentScene = this->scene();
   if (!currentScene)
   {
     return;
@@ -338,7 +338,7 @@ void MacWindow::mountScene()
 
 void MacWindow::teardownScene()
 {
-  loka::core::scene::Scene *currentScene = this->scene();
+  loka::app::scene::Scene *currentScene = this->scene();
   if (currentScene)
   {
     currentScene->unmount();

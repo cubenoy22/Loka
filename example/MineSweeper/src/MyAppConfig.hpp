@@ -15,7 +15,7 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(20, 20, 220, 240)
-                       .scene(loka::core::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode>())
+                       .scene(loka::app::scene::NodeDefinition<minesweeper::MainProps, minesweeper::MainNode>())
                        .title("LokaMine")
                        .visible(true));
   }

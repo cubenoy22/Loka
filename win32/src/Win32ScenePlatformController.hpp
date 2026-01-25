@@ -29,13 +29,13 @@ namespace loka
   }
 }
 
-class Win32ScenePlatformController : public loka::core::scene::IPlatformController
+class Win32ScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
   explicit Win32ScenePlatformController(HWND rootHwnd);
   virtual ~Win32ScenePlatformController();
 
-  virtual void onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags);
+  virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
 
@@ -51,14 +51,14 @@ private:
     int height;
   };
 
-  int layoutNode(loka::core::scene::Node *node, const LayoutState &state);
+  int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
-  void clearNodeContexts(loka::core::scene::Node *node);
+  void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
 
   HWND rootHwnd_;
-  loka::core::scene::Node *rootNode_;
+  loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
   std::map<HWND, Win32ButtonContext *> buttonMap_;

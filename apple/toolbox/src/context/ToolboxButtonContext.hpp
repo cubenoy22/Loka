@@ -28,13 +28,13 @@ namespace loka
   }
 }
 
-class ToolboxButtonContext : public loka::core::scene::NativeNodeContext
+class ToolboxButtonContext : public loka::app::scene::NativeNodeContext
 {
 public:
   explicit ToolboxButtonContext(loka::app::ButtonNode *node);
   virtual ~ToolboxButtonContext();
 
-  void setBoundary(loka::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(const loka::core::String &label,
                   loka::core::EmitterState *emitter,
                   loka::core::State<bool> *enabled,
@@ -42,13 +42,13 @@ public:
                   int controlTag);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
-  virtual void render(loka::core::scene::IPlatformController *controller);
-  virtual short layout(loka::core::scene::IPlatformController *controller,
-                       loka::core::scene::LayoutState &state);
+  virtual void render(loka::app::scene::IPlatformController *controller);
+  virtual short layout(loka::app::scene::IPlatformController *controller,
+                       loka::app::scene::LayoutState &state);
 
 private:
   loka::app::ButtonNode *node_;
-  loka::core::scene::BoundaryNode *boundary_;
+  loka::app::scene::BoundaryNode *boundary_;
   Rect rect_;
   loka::core::String label_;
   loka::core::EmitterState *emitter_;

@@ -138,8 +138,8 @@ void ToolboxPopupMenuContext::draw()
   KillPoly(arrow);
 }
 
-short ToolboxPopupMenuContext::layout(loka::core::scene::IPlatformController *controller,
-                                      loka::core::scene::LayoutState &state)
+short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *controller,
+                                      loka::app::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -202,7 +202,7 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   return true;
 }
 
-void ToolboxPopupMenuContext::render(loka::core::scene::IPlatformController *)
+void ToolboxPopupMenuContext::render(loka::app::scene::IPlatformController *)
 {
   draw();
 }

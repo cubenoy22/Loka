@@ -25,15 +25,15 @@ namespace helloworld
   {
   public:
     explicit MainLeftPanelComponent(MainNode *owner);
-    void attachNode(loka::core::scene::NodeComposition &c);
-    void composeNode(loka::core::scene::NodeComposition &c);
+    void attachNode(loka::app::scene::NodeComposition &c);
+    void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
     void toggleMessage();
 
     MainNode *owner_;
     bool initialized_;
-    loka::core::scene::BoundState<loka::core::String> message_;
+    loka::app::scene::BoundState<loka::core::String> message_;
     loka::core::EmitterState toggleEvent_;
     BmiCalculatorComponent bmiCalculator_;
   };

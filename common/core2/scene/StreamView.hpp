@@ -5,7 +5,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -35,7 +35,7 @@ namespace loka
       // MapIterator は C++98 互換の型推論困難のため未提供
 
     } // namespace scene
-  } // namespace core
+  } // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_STREAMVIEW_HPP

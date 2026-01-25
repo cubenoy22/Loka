@@ -6,7 +6,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -27,5 +27,5 @@ namespace loka
         }
       }
     } // namespace scene
-  } // namespace core
+  } // namespace app
 } // namespace loka

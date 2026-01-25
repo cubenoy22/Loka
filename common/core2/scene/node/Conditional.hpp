@@ -6,7 +6,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -16,11 +16,11 @@ namespace loka
 
       struct ConditionalProps
       {
-        State<bool> *condition;
+        loka::core::State<bool> *condition;
         NodeDefinitionBase *trueDef;
         NodeDefinitionBase *falseDef;
-        ConditionalProps(State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
-        ConditionalProps(const State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
+        ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
+        ConditionalProps(const loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
       };
 
       // ConditionalNode: node that switches by condition
@@ -48,7 +48,7 @@ namespace loka
       };
 
     } // namespace scene
-  } // namespace core
+  } // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NODE_CONDITIONAL_HPP

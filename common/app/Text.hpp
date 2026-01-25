@@ -15,7 +15,7 @@ namespace loka
 
     class TextNode;
 
-    struct TextProps : public core::scene::NodePropsBase<TextProps>
+    struct TextProps : public scene::NodePropsBase<TextProps>
     {
       typedef TextTypeTag TypeTag;
       typedef TextNode NodeType;
@@ -71,7 +71,7 @@ namespace loka
       {
         return text(loka::core::String::Literal(value));
       }
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -80,17 +80,17 @@ namespace loka
       }
     };
 
-    class TextNode : public core::scene::Node
+    class TextNode : public scene::Node
     {
     public:
       typedef TextTypeTag TypeTag;
       TextProps props;
       TextNode(const TextProps &p) : props(p) {}
-      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_TEXT; }
+      virtual scene::NodeKind kind() const { return scene::NODE_KIND_TEXT; }
       virtual TextNode *asTextNode() { return this; }
     };
 
-    struct TextDefinition : public core::scene::NodeDefinition<TextProps, TextNode>
+    struct TextDefinition : public scene::NodeDefinition<TextProps, TextNode>
     {
       TextDefinition() : NodeDefinition() {}
       TextDefinition(const TextProps &p) : NodeDefinition(p) {}

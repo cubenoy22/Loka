@@ -14,7 +14,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -169,7 +169,7 @@ namespace loka
           return ptr;
         }
 
-        void registerState(StateBase *state, void (*destroy)(StateBase *))
+        void registerState(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
         {
           if (state && destroy)
           {
@@ -210,8 +210,8 @@ namespace loka
         struct StateEntry
         {
           StateEntry() : state(0), destroy(0) {}
-          StateBase *state;
-          void (*destroy)(StateBase *);
+          loka::core::StateBase *state;
+          void (*destroy)(loka::core::StateBase *);
         };
         char *buffer_;
         char *raw_;
@@ -247,7 +247,7 @@ namespace loka
         virtual BoundaryNode *asBoundary() { return this; }
         virtual IStateOwner *asStateOwner() { return this; }
 
-        virtual StateTracker *tracker() { return &tracker_; }
+        virtual loka::core::StateTracker *tracker() { return &tracker_; }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -274,7 +274,7 @@ namespace loka
 
         NodeArena *nodeArena() { return &nodeArena_; }
         virtual void *allocateStateMemory(size_t size, size_t align) { return stateArena_.allocate(size, align); }
-        virtual void registerStateMemory(StateBase *state, void (*destroy)(StateBase *))
+        virtual void registerStateMemory(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
         {
           stateArena_.registerState(state, destroy);
         }
@@ -301,19 +301,19 @@ namespace loka
         }
 
         template <class T>
-        loka::core::Managed<MutableState<T> > useManagedState()
+        loka::core::Managed<loka::core::MutableState<T> > useManagedState()
         {
           return useManagedStateWithValue(T());
         }
 
         template <class T>
-        loka::core::Managed<MutableState<T> > useManagedState(const T &initial)
+        loka::core::Managed<loka::core::MutableState<T> > useManagedState(const T &initial)
         {
           return useManagedStateWithValue(initial);
         }
 
       protected:
-        virtual void adoptState(StateBase *state)
+        virtual void adoptState(loka::core::StateBase *state)
         {
           if (!state)
           {
@@ -323,7 +323,7 @@ namespace loka
           tracker_.addState(state);
         }
 
-        virtual void adoptStateUnchecked(StateBase *state)
+        virtual void adoptStateUnchecked(loka::core::StateBase *state)
         {
           if (!state)
           {
@@ -403,17 +403,17 @@ namespace loka
           }
         }
 
-        void registerState(StateBase *state)
+        void registerState(loka::core::StateBase *state)
         {
           tracker_.addState(state);
         }
 
-        void registerStates(StateBase *first, ...)
+        void registerStates(loka::core::StateBase *first, ...)
         {
-          core::StateVector states;
+          loka::core::StateVector states;
           va_list args;
           va_start(args, first);
-          for (StateBase *s = first; s != 0; s = va_arg(args, StateBase *))
+          for (loka::core::StateBase *s = first; s != 0; s = va_arg(args, loka::core::StateBase *))
           {
             if (s)
             {
@@ -431,29 +431,29 @@ namespace loka
         struct StateHandleBase
         {
           virtual ~StateHandleBase() {}
-          virtual StateBase *state() const = 0;
+          virtual loka::core::StateBase *state() const = 0;
         };
 
         template <class T>
         struct StateHandle : public StateHandleBase
         {
-          loka::core::Managed<MutableState<T> > handle;
-          explicit StateHandle(const loka::core::Managed<MutableState<T> > &h) : handle(h) {}
-          StateBase *state() const { return handle.get(); }
+          loka::core::Managed<loka::core::MutableState<T> > handle;
+          explicit StateHandle(const loka::core::Managed<loka::core::MutableState<T> > &h) : handle(h) {}
+          loka::core::StateBase *state() const { return handle.get(); }
         };
 
         template <class T>
         BoundState<T> useStateWithValue(const T &initial)
         {
-          MutableState<T> *state = new MutableState<T>(initial);
+          loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
           adoptState(state);
           return BoundState<T>(state, this->tracker(), this);
         }
 
         template <class T>
-        loka::core::Managed<MutableState<T> > useManagedStateWithValue(const T &initial)
+        loka::core::Managed<loka::core::MutableState<T> > useManagedStateWithValue(const T &initial)
         {
-          loka::core::Managed<MutableState<T> > handle = loka::core::Managed<MutableState<T> >::Wrap(new MutableState<T>(initial));
+          loka::core::Managed<loka::core::MutableState<T> > handle = loka::core::Managed<loka::core::MutableState<T> >::Wrap(new loka::core::MutableState<T>(initial));
           StateHandleBase *entry = new StateHandle<T>(handle);
           ownedStateHandles_.push_back(entry);
           tracker_.addState(entry->state());
@@ -464,7 +464,7 @@ namespace loka
         {
           for (size_t i = 0; i < ownedStates_.size(); ++i)
           {
-            StateBase *state = ownedStates_[i];
+            loka::core::StateBase *state = ownedStates_[i];
             if (!state)
             {
               continue;
@@ -487,8 +487,8 @@ namespace loka
           ownedStateHandles_.clear();
         }
 
-        PushStateTracker tracker_;
-        std::vector<StateBase *> ownedStates_;
+        loka::core::PushStateTracker tracker_;
+        std::vector<loka::core::StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
         Scene *scene_;
         BoundaryNode *parentBoundary_;
@@ -509,7 +509,7 @@ namespace loka
       };
 
     } // namespace scene
-  } // namespace core
+  } // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP

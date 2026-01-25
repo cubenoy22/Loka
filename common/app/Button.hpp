@@ -26,7 +26,7 @@ namespace loka
       virtual loka::core::EmitterState *getOnClick() const = 0;
     };
 
-    struct ButtonProps : public loka::core::scene::NodePropsBase<ButtonProps>, public IButtonProps
+    struct ButtonProps : public loka::app::scene::NodePropsBase<ButtonProps>, public IButtonProps
     {
       typedef ButtonTypeTag TypeTag;
       typedef ButtonNode NodeType;
@@ -85,7 +85,7 @@ namespace loka
         h = h * 31 + static_cast<std::size_t>(controlTag_);
         return static_cast<int>(h);
       }
-      bool operator<(const loka::core::scene::PropsBase &rhs) const
+      bool operator<(const loka::app::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -100,17 +100,17 @@ namespace loka
       }
     };
 
-    class ButtonNode : public loka::core::scene::Node
+    class ButtonNode : public loka::app::scene::Node
     {
     public:
       typedef ButtonTypeTag TypeTag;
       ButtonProps props;
       ButtonNode(const ButtonProps &p) : props(p) {}
-      virtual loka::core::scene::NodeKind kind() const { return loka::core::scene::NODE_KIND_BUTTON; }
+      virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_BUTTON; }
       virtual ButtonNode *asButtonNode() { return this; }
     };
 
-    struct ButtonDefinition : public loka::core::scene::NodeDefinition<ButtonProps, ButtonNode>
+    struct ButtonDefinition : public loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>
     {
       ButtonDefinition() : NodeDefinition() {}
       ButtonDefinition(const ButtonProps &p) : NodeDefinition(p) {}
@@ -156,7 +156,7 @@ namespace loka
         return *this;
       }
 
-      using loka::core::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
+      using loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };
     // DSL向け短縮名
     typedef ButtonDefinition Button;

@@ -46,7 +46,7 @@ MacScenePlatformController::~MacScenePlatformController()
   clearContexts();
 }
 
-void MacScenePlatformController::onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
+void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
 {
   (void)flags;
   rootNode_ = rootNode;
@@ -121,7 +121,7 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
 
 namespace
 {
-  int ApplyBoundaryBounds(loka::core::scene::BoundaryNode *boundary,
+  int ApplyBoundaryBounds(loka::app::scene::BoundaryNode *boundary,
                           int x,
                           int y,
                           int width,
@@ -135,13 +135,13 @@ namespace
   }
 }
 
-int MacScenePlatformController::layoutNode(loka::core::scene::Node *node, const LayoutState &state)
+int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const LayoutState &state)
 {
   if (!node)
   {
     return state.y;
   }
-  loka::core::scene::BoundaryNode *boundary = node->asBoundary();
+  loka::app::scene::BoundaryNode *boundary = node->asBoundary();
   const int startX = state.x;
   const int startY = state.y;
   const int startWidth = state.width;
@@ -166,8 +166,8 @@ int MacScenePlatformController::layoutNode(loka::core::scene::Node *node, const 
     int remainder = childCountInt > 0 ? availableWidth - baseWidth * childCountInt : 0;
     int currentX = state.x;
     int maxY = state.y;
-    loka::dsl::CompositionCursor<loka::core::scene::Node> it(row->childrenHead(), childCount);
-    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), childCount);
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
       int childWidth = baseWidth;
       if (remainder > 0)
@@ -199,13 +199,13 @@ int MacScenePlatformController::layoutNode(loka::core::scene::Node *node, const 
     const int cellWidth = availableWidth > 0 ? availableWidth / cols : 0;
     const int cellHeight = availableHeight > 0 ? availableHeight / rows : 0;
     int maxY = state.y;
-    if (loka::core::scene::INestable *nestable = grid->asNestable())
+    if (loka::app::scene::INestable *nestable = grid->asNestable())
     {
       const size_t childCount = nestable->childrenCount();
       const size_t maxCount = static_cast<size_t>(rows * cols);
       size_t index = 0;
-      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), childCount);
-      for (loka::core::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
+      for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
       {
         const int row = static_cast<int>(index / cols);
         const int col = static_cast<int>(index % cols);
@@ -241,10 +241,10 @@ int MacScenePlatformController::layoutNode(loka::core::scene::Node *node, const 
       childState.height = 0;
     }
     int resultY = childState.y;
-    if (loka::core::scene::INestable *nestable = box->asNestable())
+    if (loka::app::scene::INestable *nestable = box->asNestable())
     {
-      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
         childState.y = layoutNode(child, childState);
       }
@@ -261,10 +261,10 @@ int MacScenePlatformController::layoutNode(loka::core::scene::Node *node, const 
   {
     LayoutState childState = state;
     int maxY = state.y;
-    if (loka::core::scene::INestable *nestable = stack->asNestable())
+    if (loka::app::scene::INestable *nestable = stack->asNestable())
     {
-      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
         childState = state;
         int childY = layoutNode(child, childState);
@@ -277,11 +277,11 @@ int MacScenePlatformController::layoutNode(loka::core::scene::Node *node, const 
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
-  if (loka::core::scene::INestable *nestable = node->asNestable())
+  if (loka::app::scene::INestable *nestable = node->asNestable())
   {
     LayoutState childState = state;
-    loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
       childState.y = layoutNode(child, childState);
     }
@@ -399,16 +399,16 @@ void MacScenePlatformController::clearContexts()
   clearNodeContexts(rootNode_);
 }
 
-void MacScenePlatformController::clearNodeContexts(loka::core::scene::Node *node)
+void MacScenePlatformController::clearNodeContexts(loka::app::scene::Node *node)
 {
   if (!node)
   {
     return;
   }
-  if (loka::core::scene::INestable *nestable = node->asNestable())
+  if (loka::app::scene::INestable *nestable = node->asNestable())
   {
-    loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
       clearNodeContexts(child);
     }

@@ -4,7 +4,7 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 
-class ToolboxOpenFileDialogContext : public loka::core::scene::NativeNodeContext
+class ToolboxOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
   explicit ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node);

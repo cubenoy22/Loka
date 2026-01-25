@@ -24,7 +24,7 @@ namespace loka
   }
 }
 
-class Win32EditTextContext : public loka::core::scene::NativeNodeContext
+class Win32EditTextContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node);

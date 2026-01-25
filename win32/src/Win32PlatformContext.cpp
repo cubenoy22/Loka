@@ -20,9 +20,9 @@ Window *Win32PlatformContext::createWindow(const WindowProps &props)
   return new Win32Window(this, props);
 }
 
-loka::core::scene::NodeContext *Win32PlatformContext::createNodeContext(loka::core::scene::Node *node) const
+loka::app::scene::NodeContext *Win32PlatformContext::createNodeContext(loka::app::scene::Node *node) const
 {
-  loka::core::scene::NativeNodeContext *context = new loka::core::scene::NativeNodeContext();
+  loka::app::scene::NativeNodeContext *context = new loka::app::scene::NativeNodeContext();
   if (context)
   {
     context->setOwner(node);

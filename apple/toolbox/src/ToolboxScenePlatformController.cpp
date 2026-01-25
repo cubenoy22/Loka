@@ -88,18 +88,18 @@ namespace
     }
   }
 
-  bool UseBoundaryDirty(const loka::core::scene::BoundaryNode *boundary)
+  bool UseBoundaryDirty(const loka::app::scene::BoundaryNode *boundary)
   {
     return boundary && boundary->parentBoundary() && boundary->hasLayoutBounds();
   }
 
-  Rect BoundaryToRect(const loka::core::scene::BoundaryNode *boundary, const Rect &fallback)
+  Rect BoundaryToRect(const loka::app::scene::BoundaryNode *boundary, const Rect &fallback)
   {
     if (!UseBoundaryDirty(boundary))
     {
       return fallback;
     }
-    const loka::core::scene::BoundaryNode::LayoutBounds &bounds = boundary->layoutBounds();
+    const loka::app::scene::BoundaryNode::LayoutBounds &bounds = boundary->layoutBounds();
     Rect rect;
     rect.left = static_cast<short>(bounds.x);
     rect.top = static_cast<short>(bounds.y);
@@ -108,14 +108,14 @@ namespace
     return rect;
   }
 
-  short LayoutNode(loka::core::scene::Node *node,
-                   loka::core::scene::LayoutState &state,
+  short LayoutNode(loka::app::scene::Node *node,
+                   loka::app::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller,
-                   loka::core::scene::BoundaryNode *currentBoundary);
-  void RenderNode(loka::core::scene::Node *node,
+                   loka::app::scene::BoundaryNode *currentBoundary);
+  void RenderNode(loka::app::scene::Node *node,
                   ToolboxScenePlatformController *controller);
 
-  short MaxExplicitControlId(loka::core::scene::Node *node)
+  short MaxExplicitControlId(loka::app::scene::Node *node)
   {
     if (!node)
     {
@@ -158,10 +158,10 @@ namespace
         maxId = id;
       }
     }
-    if (loka::core::scene::INestable *nestable = node->asNestable())
+    if (loka::app::scene::INestable *nestable = node->asNestable())
     {
-      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
         short childMax = MaxExplicitControlId(child);
         if (childMax > maxId)
@@ -173,18 +173,18 @@ namespace
     return maxId;
   }
 
-  short LayoutChildren(loka::core::scene::INestable *nestable,
-                       loka::core::scene::LayoutState &state,
+  short LayoutChildren(loka::app::scene::INestable *nestable,
+                       loka::app::scene::LayoutState &state,
                        ToolboxScenePlatformController *controller,
-                       loka::core::scene::BoundaryNode *currentBoundary)
+                       loka::app::scene::BoundaryNode *currentBoundary)
   {
     if (!nestable)
     {
       return 0;
     }
     short maxWidth = 0;
-    loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
       short width = LayoutNode(child, state, controller, currentBoundary);
       if (width > maxWidth)
@@ -195,23 +195,23 @@ namespace
     return maxWidth;
   }
 
-  short LayoutNode(loka::core::scene::Node *node,
-                   loka::core::scene::LayoutState &state,
+  short LayoutNode(loka::app::scene::Node *node,
+                   loka::app::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller,
-                   loka::core::scene::BoundaryNode *currentBoundary)
+                   loka::app::scene::BoundaryNode *currentBoundary)
   {
     if (!node)
     {
       return 0;
     }
-    loka::core::scene::BoundaryNode *boundary = node->asBoundary();
-    loka::core::scene::BoundaryNode *activeBoundary = boundary ? boundary : currentBoundary;
+    loka::app::scene::BoundaryNode *boundary = node->asBoundary();
+    loka::app::scene::BoundaryNode *activeBoundary = boundary ? boundary : currentBoundary;
     const short startX = state.x;
     const short startY = state.y;
     const short startTop = static_cast<short>(startY - state.lineHeight + 2);
     switch (node->kind())
     {
-    case loka::core::scene::NODE_KIND_COLUMN:
+    case loka::app::scene::NODE_KIND_COLUMN:
     {
       short width = LayoutChildren(node->asNestable(), state, controller, activeBoundary);
       if (boundary)
@@ -220,11 +220,11 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_BOX:
+    case loka::app::scene::NODE_KIND_BOX:
     {
       loka::app::BoxNode *box = static_cast<loka::app::BoxNode *>(node);
       short padding = static_cast<short>(box->props.padding);
-      loka::core::scene::LayoutState childState = state;
+      loka::app::scene::LayoutState childState = state;
       childState.x = static_cast<short>(state.x + padding);
       childState.y = static_cast<short>(state.y + padding);
       if (childState.width > 0)
@@ -257,16 +257,16 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_ZSTACK:
+    case loka::app::scene::NODE_KIND_ZSTACK:
     {
       loka::app::ZStackNode *stack = static_cast<loka::app::ZStackNode *>(node);
-      loka::core::scene::LayoutState childState = state;
+      loka::app::scene::LayoutState childState = state;
       short maxWidth = 0;
       short maxY = state.y;
-      if (loka::core::scene::INestable *nestable = stack->asNestable())
+      if (loka::app::scene::INestable *nestable = stack->asNestable())
       {
-        loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-        for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
         {
           childState = state;
           short width = LayoutNode(child, childState, controller, activeBoundary);
@@ -287,7 +287,7 @@ namespace
       }
       return maxWidth;
     }
-    case loka::core::scene::NODE_KIND_GRID:
+    case loka::app::scene::NODE_KIND_GRID:
     {
       loka::app::GridNode *grid = static_cast<loka::app::GridNode *>(node);
       const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
@@ -315,17 +315,17 @@ namespace
       const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
       short maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
       short maxY = state.y;
-      if (loka::core::scene::INestable *nestable = grid->asNestable())
+      if (loka::app::scene::INestable *nestable = grid->asNestable())
       {
         const size_t childCount = nestable->childrenCount();
         const size_t maxCount = static_cast<size_t>(rows * cols);
         size_t index = 0;
-        loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), childCount);
-        for (loka::core::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
+        for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
         {
           const short row = static_cast<short>(index / cols);
           const short col = static_cast<short>(index % cols);
-          loka::core::scene::LayoutState cellState = state;
+          loka::app::scene::LayoutState cellState = state;
           cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
           cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
           cellState.width = cellWidth;
@@ -357,15 +357,15 @@ namespace
       }
       return maxWidth;
     }
-    case loka::core::scene::NODE_KIND_ROW:
+    case loka::app::scene::NODE_KIND_ROW:
     {
-      loka::core::scene::NestableNode *nestable = static_cast<loka::core::scene::NestableNode *>(node);
+      loka::app::scene::NestableNode *nestable = static_cast<loka::app::scene::NestableNode *>(node);
       short rowStartX = state.x;
       short maxHeight = 0;
-      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
-        loka::core::scene::LayoutState rowState = state;
+        loka::app::scene::LayoutState rowState = state;
         rowState.x = rowStartX;
         short width = LayoutNode(child, rowState, controller, activeBoundary);
         rowStartX = static_cast<short>(rowStartX + width + state.spacing);
@@ -382,7 +382,7 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_TEXT:
+    case loka::app::scene::NODE_KIND_TEXT:
     {
       loka::app::TextNode *text = static_cast<loka::app::TextNode *>(node);
       if (controller && controller->contextMapper())
@@ -401,7 +401,7 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_CELL:
+    case loka::app::scene::NODE_KIND_CELL:
     {
       loka::app::CellNode *cell = static_cast<loka::app::CellNode *>(node);
       if (controller && controller->contextMapper())
@@ -420,7 +420,7 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_BUTTON:
+    case loka::app::scene::NODE_KIND_BUTTON:
     {
       loka::app::ButtonNode *button = static_cast<loka::app::ButtonNode *>(node);
       if (controller && controller->contextMapper())
@@ -439,7 +439,7 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_EDIT_TEXT:
+    case loka::app::scene::NODE_KIND_EDIT_TEXT:
     {
       loka::app::EditTextNode *edit = static_cast<loka::app::EditTextNode *>(node);
       if (controller && controller->contextMapper())
@@ -458,7 +458,7 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_POPUP_MENU:
+    case loka::app::scene::NODE_KIND_POPUP_MENU:
     {
       loka::app::PopupMenuNode *popup = static_cast<loka::app::PopupMenuNode *>(node);
       if (controller && controller->contextMapper())
@@ -477,7 +477,7 @@ namespace
       }
       return width;
     }
-    case loka::core::scene::NODE_KIND_OPEN_FILE_DIALOG:
+    case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
     {
       loka::app::OpenFileDialogNode *dialog = static_cast<loka::app::OpenFileDialogNode *>(node);
       if (controller && controller->contextMapper())
@@ -501,21 +501,21 @@ namespace
     return width;
   }
 
-  void RenderChildren(loka::core::scene::INestable *nestable,
+  void RenderChildren(loka::app::scene::INestable *nestable,
                       ToolboxScenePlatformController *controller)
   {
     if (!nestable)
     {
       return;
     }
-    loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
     {
       RenderNode(child, controller);
     }
   }
 
-  void RenderNode(loka::core::scene::Node *node,
+  void RenderNode(loka::app::scene::Node *node,
                   ToolboxScenePlatformController *controller)
   {
     if (!node)
@@ -524,20 +524,20 @@ namespace
     }
     switch (node->kind())
     {
-    case loka::core::scene::NODE_KIND_COLUMN:
+    case loka::app::scene::NODE_KIND_COLUMN:
       RenderChildren(node->asNestable(), controller);
       return;
-    case loka::core::scene::NODE_KIND_ROW:
+    case loka::app::scene::NODE_KIND_ROW:
       RenderChildren(node->asNestable(), controller);
       return;
-    case loka::core::scene::NODE_KIND_TEXT:
-    case loka::core::scene::NODE_KIND_CELL:
-    case loka::core::scene::NODE_KIND_BUTTON:
-    case loka::core::scene::NODE_KIND_EDIT_TEXT:
-    case loka::core::scene::NODE_KIND_POPUP_MENU:
+    case loka::app::scene::NODE_KIND_TEXT:
+    case loka::app::scene::NODE_KIND_CELL:
+    case loka::app::scene::NODE_KIND_BUTTON:
+    case loka::app::scene::NODE_KIND_EDIT_TEXT:
+    case loka::app::scene::NODE_KIND_POPUP_MENU:
       node->render(controller);
       return;
-    case loka::core::scene::NODE_KIND_OPEN_FILE_DIALOG:
+    case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
       return;
     default:
       break;
@@ -607,7 +607,7 @@ short ToolboxScenePlatformController::allocateControlId()
   return id;
 }
 
-void ToolboxScenePlatformController::onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
+void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
 {
   rootNode_ = rootNode;
   if (!window_ || !window_->window())
@@ -616,7 +616,7 @@ void ToolboxScenePlatformController::onChange(loka::core::scene::Node *rootNode,
   }
   if (inBatchUpdate_)
   {
-    if (flags & (loka::core::scene::NODE_DIRTY_CHILD | loka::core::scene::NODE_DIRTY_LAYOUT | loka::core::scene::NODE_DIRTY_INITIAL))
+    if (flags & (loka::app::scene::NODE_DIRTY_CHILD | loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL))
     {
       pendingFullInvalidate_ = true;
     }
@@ -624,7 +624,7 @@ void ToolboxScenePlatformController::onChange(loka::core::scene::Node *rootNode,
   }
   // NODE_DIRTY_PROPSだけなら全体invalidateは不要
   // 個々のContextがState bindで自分のRectを再描画する
-  if (flags & (loka::core::scene::NODE_DIRTY_CHILD | loka::core::scene::NODE_DIRTY_LAYOUT | loka::core::scene::NODE_DIRTY_INITIAL))
+  if (flags & (loka::app::scene::NODE_DIRTY_CHILD | loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL))
   {
     window_->requestInvalidate();
   }
@@ -673,7 +673,7 @@ void ToolboxScenePlatformController::render()
   popupContexts_.clear();
   pendingTextStates_.clear();
   pendingDirtyRects_.clear();
-  loka::core::scene::LayoutState state;
+  loka::app::scene::LayoutState state;
   state.x = 12;
   state.y = 24;
   state.lineHeight = 14;
@@ -904,7 +904,7 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
 void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
                                                      loka::core::EmitterState *emitter,
                                                      loka::core::State<bool> *enabled,
-                                                     loka::core::scene::BoundaryNode *boundary)
+                                                     loka::app::scene::BoundaryNode *boundary)
 {
   if (!emitter)
   {
@@ -920,7 +920,7 @@ void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
 
 void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
                                                    loka::core::EmitterState *emitter,
-                                                   loka::core::scene::BoundaryNode *boundary,
+                                                   loka::app::scene::BoundaryNode *boundary,
                                                    ToolboxCellContext *context,
                                                    loka::core::State<loka::core::String> *text)
 {
@@ -936,7 +936,7 @@ void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
 
 void ToolboxScenePlatformController::recordEditHit(const Rect &rect,
                                                    loka::core::State<loka::core::String> *text,
-                                                   loka::core::scene::BoundaryNode *boundary)
+                                                   loka::app::scene::BoundaryNode *boundary)
 {
   EditHit hit;
   hit.rect = rect;
@@ -955,7 +955,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
                                                    short x,
                                                    short y,
                                                    loka::core::State<loka::core::String> *text,
-                                                   loka::core::scene::BoundaryNode *boundary)
+                                                   loka::app::scene::BoundaryNode *boundary)
 {
   if (!text)
   {
@@ -981,7 +981,7 @@ void ToolboxScenePlatformController::registerPopupContext(ToolboxPopupMenuContex
 }
 
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
-                                                               loka::core::scene::BoundaryNode *boundary,
+                                                               loka::app::scene::BoundaryNode *boundary,
                                                                loka::core::State<int> *selectedIndex,
                                                                loka::core::EmitterState *onChange,
                                                                int newIndex)

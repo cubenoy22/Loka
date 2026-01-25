@@ -12,13 +12,13 @@ Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style cha
 #include "app/Text.hpp"
 #include "app/Button.hpp"
 
-class DemoNode : public loka::core::scene::StaticCompositionNodeFor<DemoNode>
+class DemoNode : public loka::app::scene::StaticCompositionNodeFor<DemoNode>
 {
 public:
-  typedef loka::core::scene::StaticCompositionPropsFor<DemoNode> PropsType;
-  DemoNode(const PropsType &p) : loka::core::scene::StaticCompositionNodeFor<DemoNode>(p) {}
+  typedef loka::app::scene::StaticCompositionPropsFor<DemoNode> PropsType;
+  DemoNode(const PropsType &p) : loka::app::scene::StaticCompositionNodeFor<DemoNode>(p) {}
 
-  virtual void composeNode(loka::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
     c.declare(VStack()
@@ -37,14 +37,14 @@ Boundaries own composition/state. Prefer one-shot Static composition unless upda
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 
-class StaticPanel : public loka::core::scene::StaticCompositionNodeFor<StaticPanel>
+class StaticPanel : public loka::app::scene::StaticCompositionNodeFor<StaticPanel>
 {
 public:
-  typedef loka::core::scene::StaticCompositionPropsFor<StaticPanel> PropsType;
+  typedef loka::app::scene::StaticCompositionPropsFor<StaticPanel> PropsType;
   StaticPanel(const PropsType &p)
-      : loka::core::scene::StaticCompositionNodeFor<StaticPanel>(p) {}
+      : loka::app::scene::StaticCompositionNodeFor<StaticPanel>(p) {}
 
-  virtual void composeNode(loka::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
     c.declare(VStack() << Text("Static content"));
@@ -59,14 +59,14 @@ Dynamic composition uses a `Boundary` node so it can recompose when state change
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 
-class DynamicPanel : public loka::core::scene::DynamicCompositionNodeFor<DynamicPanel>
+class DynamicPanel : public loka::app::scene::DynamicCompositionNodeFor<DynamicPanel>
 {
 public:
-  typedef loka::core::scene::DynamicCompositionPropsFor<DynamicPanel> PropsType;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicPanel> PropsType;
   DynamicPanel(const PropsType &p)
-      : loka::core::scene::DynamicCompositionNodeFor<DynamicPanel>(p) {}
+      : loka::app::scene::DynamicCompositionNodeFor<DynamicPanel>(p) {}
 
-  virtual void composeNode(loka::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
     c.declare(VStack() << Text("Dynamic content"));
@@ -77,7 +77,7 @@ public:
 Use `Boundary()` (alias) when you need a nested owner for state or recomposition.
 
 ```cpp
-using namespace loka::core::scene;
+using namespace loka::app::scene;
 using namespace loka::app;
 
 c.declare(VStack()
@@ -107,7 +107,7 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(40, 40, 320, 240)
-                       .scene(loka::core::scene::NodeDefinition<MyProps, MyNode>())
+                       .scene(loka::app::scene::NodeDefinition<MyProps, MyNode>())
                        .title("LokaApp")
                        .visible(true));
   }
@@ -147,7 +147,7 @@ without owning state.
 #include "core2/scene/node/Group.hpp"
 #include "app/Text.hpp"
 
-using namespace loka::core::scene;
+using namespace loka::app::scene;
 using namespace loka::app;
 
 class MyGroup : public GroupNodeBase<GroupPropsFor<MyGroup> >
@@ -167,7 +167,7 @@ Use scopes when you need to temporarily change the active parent or capture the 
 
 ```cpp
 using namespace loka::app;
-using namespace loka::core::scene;
+using namespace loka::app::scene;
 
 VStack &root = c.declare(VStack());
 NodeComposition::ParentScope scope(c, root);
@@ -178,7 +178,7 @@ c.declare(Text("Child under root"));
 
 ```cpp
 using namespace loka::app;
-using namespace loka::core::scene;
+using namespace loka::app::scene;
 
 NodeComposition::CompositionScope scope(c);
 c.declare(Text("Composed while current() is set"));
@@ -199,7 +199,7 @@ Use `NodeComposition::conditional` to switch between definitions.
 
 ```cpp
 using namespace loka::app;
-using namespace loka::core::scene;
+using namespace loka::app::scene;
 
 BoundState<bool> flag;
 c.declareStates().state(flag, false);
@@ -251,7 +251,7 @@ public:
   {
   }
 
-  void attach(loka::core::scene::NodeComposition &c)
+  void attach(loka::app::scene::NodeComposition &c)
   {
     c.declareStates().state(count_, 0);
   }

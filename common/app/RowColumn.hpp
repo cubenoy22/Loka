@@ -13,12 +13,12 @@ namespace loka
 
     class ColumnNode;
 
-    struct ColumnProps : public core::scene::NodePropsBase<ColumnProps>
+    struct ColumnProps : public scene::NodePropsBase<ColumnProps>
     {
       typedef ColumnTypeTag TypeTag;
       typedef ColumnNode NodeType;
       ColumnProps() {}
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -26,37 +26,37 @@ namespace loka
       }
     };
 
-    class ColumnNode : public core::scene::NestableNode
+    class ColumnNode : public scene::NestableNode
     {
     public:
       typedef ColumnTypeTag TypeTag;
       ColumnProps props;
       ColumnNode(const ColumnProps &p) : props(p) {}
-      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_COLUMN; }
+      virtual scene::NodeKind kind() const { return scene::NODE_KIND_COLUMN; }
       virtual ColumnNode *asColumnNode() { return this; }
     };
 
-    struct ColumnDefinition : public core::scene::NodeDefinition<ColumnProps, ColumnNode>, public core::scene::NestableDefinitionBase
+    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>, public scene::NestableDefinitionBase
     {
-      typedef core::scene::NodeDefinition<ColumnProps, ColumnNode> BaseType;
-      ColumnDefinition() : BaseType(), core::scene::NestableDefinitionBase() {}
-      ColumnDefinition(const ColumnProps &p) : BaseType(p), core::scene::NestableDefinitionBase() {}
-      ColumnDefinition(const ColumnDefinition &other) : BaseType(other), core::scene::NestableDefinitionBase(other) {}
+      typedef scene::NodeDefinition<ColumnProps, ColumnNode> BaseType;
+      ColumnDefinition() : BaseType(), scene::NestableDefinitionBase() {}
+      ColumnDefinition(const ColumnProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
+      ColumnDefinition(const ColumnDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
       ColumnDefinition &operator=(const ColumnDefinition &other)
       {
         if (this != &other)
         {
           BaseType::operator=(other);
-          core::scene::NestableDefinitionBase::operator=(other);
+          scene::NestableDefinitionBase::operator=(other);
         }
         return *this;
       }
-      virtual core::scene::NodeDefinitionBase *clone() const
+      virtual scene::NodeDefinitionBase *clone() const
       {
         return new ColumnDefinition(*this);
       }
-      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
 
     struct RowTypeTag
@@ -65,12 +65,12 @@ namespace loka
 
     class RowNode;
 
-    struct RowProps : public core::scene::NodePropsBase<RowProps>
+    struct RowProps : public scene::NodePropsBase<RowProps>
     {
       typedef RowTypeTag TypeTag;
       typedef RowNode NodeType;
       RowProps() {}
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -78,37 +78,37 @@ namespace loka
       }
     };
 
-    class RowNode : public core::scene::NestableNode
+    class RowNode : public scene::NestableNode
     {
     public:
       typedef RowTypeTag TypeTag;
       RowProps props;
       RowNode(const RowProps &p) : props(p) {}
-      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_ROW; }
+      virtual scene::NodeKind kind() const { return scene::NODE_KIND_ROW; }
       virtual RowNode *asRowNode() { return this; }
     };
 
-    struct RowDefinition : public core::scene::NodeDefinition<RowProps, RowNode>, public core::scene::NestableDefinitionBase
+    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>, public scene::NestableDefinitionBase
     {
-      typedef core::scene::NodeDefinition<RowProps, RowNode> BaseType;
-      RowDefinition() : BaseType(), core::scene::NestableDefinitionBase() {}
-      RowDefinition(const RowProps &p) : BaseType(p), core::scene::NestableDefinitionBase() {}
-      RowDefinition(const RowDefinition &other) : BaseType(other), core::scene::NestableDefinitionBase(other) {}
+      typedef scene::NodeDefinition<RowProps, RowNode> BaseType;
+      RowDefinition() : BaseType(), scene::NestableDefinitionBase() {}
+      RowDefinition(const RowProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
+      RowDefinition(const RowDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
       RowDefinition &operator=(const RowDefinition &other)
       {
         if (this != &other)
         {
           BaseType::operator=(other);
-          core::scene::NestableDefinitionBase::operator=(other);
+          scene::NestableDefinitionBase::operator=(other);
         }
         return *this;
       }
-      virtual core::scene::NodeDefinitionBase *clone() const
+      virtual scene::NodeDefinitionBase *clone() const
       {
         return new RowDefinition(*this);
       }
-      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
 
     typedef ColumnDefinition Column;

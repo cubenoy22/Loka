@@ -6,7 +6,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -116,7 +116,7 @@ namespace loka
         return (*this) << mutableComponent;
       }
     } // namespace scene
-  } // namespace core
+  } // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_COMPONENT_HPP

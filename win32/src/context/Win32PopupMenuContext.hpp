@@ -5,7 +5,7 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
-class Win32PopupMenuContext : public loka::core::scene::NativeNodeContext
+class Win32PopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node);

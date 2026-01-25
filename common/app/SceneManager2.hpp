@@ -20,7 +20,7 @@ public:
     {
     }
 
-    SceneTransaction(loka::core::scene::Scene *fromScene, loka::core::scene::Scene *toScene)
+    SceneTransaction(loka::app::scene::Scene *fromScene, loka::app::scene::Scene *toScene)
         : from(fromScene),
           to(toScene),
           nextInComposition(0)
@@ -46,8 +46,8 @@ public:
 
     SceneTransaction *clone() const { return new SceneTransaction(*this); }
 
-    loka::core::scene::Scene *from;
-    loka::core::scene::Scene *to;
+    loka::app::scene::Scene *from;
+    loka::app::scene::Scene *to;
     SceneTransaction *nextInComposition;
   };
 
@@ -71,7 +71,7 @@ public:
     bool operator!=(const SceneTransactionList &other) const { return id_ != other.id_; }
     bool operator==(const SceneTransactionList &other) const { return id_ == other.id_; }
 
-    void push(loka::core::scene::Scene *from, loka::core::scene::Scene *to)
+    void push(loka::app::scene::Scene *from, loka::app::scene::Scene *to)
     {
       list_.appendOwned(new SceneTransaction(from, to));
       id_ = nextId();
@@ -114,9 +114,9 @@ public:
   ~SceneManager2();
 
   // トランザクション追加
-  void commitTransaction(loka::core::scene::Scene *from, loka::core::scene::Scene *to);
+  void commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to);
   // 現在のシーン取得
-  const loka::core::State<loka::core::scene::Scene *> &getCurrentScene() const;
+  const loka::core::State<loka::app::scene::Scene *> &getCurrentScene() const;
 
 protected:
   // ペンディングトランザクション取得
@@ -124,14 +124,14 @@ protected:
   // トランザクション進行
   void handleNextTransaction();
   // 副作用: シーン切り替え
-  void swapScene(loka::core::scene::Scene *oldScene, loka::core::scene::Scene *newScene);
+  void swapScene(loka::app::scene::Scene *oldScene, loka::app::scene::Scene *newScene);
 
 public:
   void setWindow(Window *window) { window_ = window; }
   Window *window() const { return window_; }
 
 private:
-  loka::core::MutableState<loka::core::scene::Scene *> currentScene_;
+  loka::core::MutableState<loka::app::scene::Scene *> currentScene_;
   loka::core::MutableState<SceneTransactionList> pendingTransactions_;
   loka::core::PushStateTracker tracker_;
   Window *window_;

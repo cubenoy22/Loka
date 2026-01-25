@@ -13,7 +13,7 @@ namespace loka
   }
 }
 
-class MacTextContext : public loka::core::scene::NativeNodeContext
+class MacTextContext : public loka::app::scene::NativeNodeContext
 {
 public:
   MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node);

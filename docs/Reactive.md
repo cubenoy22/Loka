@@ -27,7 +27,7 @@ class CounterComponent
 public:
   CounterComponent() : count_(), clicked_(), tracker_() {}
 
-  void attach(loka::core::scene::NodeComposition &c)
+  void attach(loka::app::scene::NodeComposition &c)
   {
     c.declareStates().state(count_, 0);
   }
@@ -52,17 +52,17 @@ Use it when you get state from `NodeComposition::useState()` or `declareStates()
 ```cpp
 #include "core2/scene/NodeComposition.hpp"
 
-class DemoBoundary : public loka::core::scene::StaticCompositionNodeFor<DemoBoundary>
+class DemoBoundary : public loka::app::scene::StaticCompositionNodeFor<DemoBoundary>
 {
 public:
-  typedef loka::core::scene::StaticCompositionPropsFor<DemoBoundary> PropsType;
+  typedef loka::app::scene::StaticCompositionPropsFor<DemoBoundary> PropsType;
   DemoBoundary(const PropsType &p)
-      : loka::core::scene::StaticCompositionNodeFor<DemoBoundary>(p),
+      : loka::app::scene::StaticCompositionNodeFor<DemoBoundary>(p),
         counter_()
   {
   }
 
-  virtual void composeNode(loka::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
     c.declareStates().state(counter_, 0);
   }
@@ -77,7 +77,7 @@ public:
   }
 
 private:
-  loka::core::scene::BoundState<int> counter_;
+  loka::app::scene::BoundState<int> counter_;
 };
 ```
 
@@ -106,8 +106,8 @@ struct ToLabel
   }
 };
 
-loka::core::scene::BoundState<int> count;
-loka::core::scene::BoundState<loka::core::String> label;
+loka::app::scene::BoundState<int> count;
+loka::app::scene::BoundState<loka::core::String> label;
 
 count.stream().map(ToLabel()).set(label, true);
 ```

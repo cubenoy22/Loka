@@ -14,13 +14,13 @@ namespace loka
   }
 }
 
-class MacScenePlatformController : public loka::core::scene::IPlatformController
+class MacScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
   explicit MacScenePlatformController(void *rootView);
   virtual ~MacScenePlatformController();
 
-  virtual void onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags);
+  virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
 
@@ -35,16 +35,16 @@ private:
     int height;
   };
 
-  int layoutNode(loka::core::scene::Node *node, const LayoutState &state);
+  int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
-  void clearNodeContexts(loka::core::scene::Node *node);
+  void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
   void registerEditField(void *field);
   void finalizeKeyLoop();
 
   void *rootView_;
-  loka::core::scene::Node *rootNode_;
+  loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
   void *firstEditField_;

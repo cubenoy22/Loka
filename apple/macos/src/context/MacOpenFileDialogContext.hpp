@@ -5,7 +5,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "loka/core/String.hpp"
 
-class MacOpenFileDialogContext : public loka::core::scene::NativeNodeContext
+class MacOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
   MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node);

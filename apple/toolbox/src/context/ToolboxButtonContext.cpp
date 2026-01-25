@@ -90,8 +90,8 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   }
 }
 
-short ToolboxButtonContext::layout(loka::core::scene::IPlatformController *controller,
-                                   loka::core::scene::LayoutState &state)
+short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *controller,
+                                   loka::app::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -114,7 +114,7 @@ short ToolboxButtonContext::layout(loka::core::scene::IPlatformController *contr
   return width;
 }
 
-void ToolboxButtonContext::render(loka::core::scene::IPlatformController *controller)
+void ToolboxButtonContext::render(loka::app::scene::IPlatformController *controller)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);

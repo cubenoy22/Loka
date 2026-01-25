@@ -23,7 +23,7 @@ namespace loka
   }
 }
 
-class Win32ButtonContext : public loka::core::scene::NativeNodeContext
+class Win32ButtonContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node);

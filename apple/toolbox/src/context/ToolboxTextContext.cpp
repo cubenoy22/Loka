@@ -67,8 +67,8 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
   }
 }
 
-short ToolboxTextContext::layout(loka::core::scene::IPlatformController *controller,
-                                 loka::core::scene::LayoutState &state)
+short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controller,
+                                 loka::app::scene::LayoutState &state)
 {
   if (!node_ || !node_->props.text_)
   {
@@ -87,7 +87,7 @@ short ToolboxTextContext::layout(loka::core::scene::IPlatformController *control
   return width;
 }
 
-void ToolboxTextContext::render(loka::core::scene::IPlatformController *controller)
+void ToolboxTextContext::render(loka::app::scene::IPlatformController *controller)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);

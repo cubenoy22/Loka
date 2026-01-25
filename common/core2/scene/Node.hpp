@@ -26,7 +26,7 @@
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -72,7 +72,7 @@ namespace loka
       class BoundaryNode;
       class IStateOwner;
     } // namespace scene
-  } // namespace core
+  } // namespace app
 
   // Forward declarations for app nodes (for asXxx() methods)
   namespace app
@@ -90,7 +90,7 @@ namespace loka
     class OpenFileDialogNode;
   } // namespace app
 
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -131,7 +131,7 @@ namespace loka
       {
       public:
         NodeContext *context;
-        MutableState<NodeDirtyFlags> dirty;
+        loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
         bool arenaAllocated_;
 
@@ -564,7 +564,7 @@ namespace loka
         return *this;
       }
     } // namespace scene
-  } // namespace core
+  } // namespace app
 } // namespace loka
 
 // Conditional node inline implementations removed from this header to reduce coupling

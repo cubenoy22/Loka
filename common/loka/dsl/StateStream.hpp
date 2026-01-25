@@ -20,7 +20,7 @@ namespace loka
       StateStream() : state_(0), tracker_(0), owner_(0) {}
       StateStream(::loka::core::State<T> *state,
                   ::loka::core::StateTracker *tracker,
-                  ::loka::core::scene::IStateOwner *owner)
+                  ::loka::app::scene::IStateOwner *owner)
           : state_(state), tracker_(tracker), owner_(owner) {}
 
       template <typename Mapper>
@@ -64,7 +64,7 @@ namespace loka
         return StateStream<typename Combiner::Result>(derived, this->tracker_, this->owner_);
       }
 
-      void set(::loka::core::scene::BoundState<T> &target, bool forceUpdate = false) const
+      void set(::loka::app::scene::BoundState<T> &target, bool forceUpdate = false) const
       {
         PROFILE_SECTION_ID("sSet", 7);
         if (!this->state_)
@@ -116,7 +116,7 @@ namespace loka
       struct SetBinding
       {
         SetBinding(::loka::core::State<T> *state,
-                   ::loka::core::scene::BoundState<T> *target,
+                   ::loka::app::scene::BoundState<T> *target,
                    bool forceUpdate)
             : state_(state), target_(target), forceUpdate_(forceUpdate) {}
 
@@ -139,7 +139,7 @@ namespace loka
         }
 
         ::loka::core::State<T> *state_;
-        ::loka::core::scene::BoundState<T> *target_;
+        ::loka::app::scene::BoundState<T> *target_;
         bool forceUpdate_;
       };
 
@@ -189,14 +189,14 @@ namespace loka
 
       ::loka::core::State<T> *state_;
       ::loka::core::StateTracker *tracker_;
-      ::loka::core::scene::IStateOwner *owner_;
+      ::loka::app::scene::IStateOwner *owner_;
     };
   } // namespace dsl
 } // namespace loka
 
 namespace loka
 {
-  namespace core
+  namespace app
   {
     namespace scene
     {
@@ -206,7 +206,7 @@ namespace loka
         return loka::dsl::StateStream<T>(this->state_, this->tracker_, this->owner_);
       }
     } // namespace scene
-  }   // namespace core
+  }   // namespace app
 } // namespace loka
 
 #endif // LOKA_DSL_STATESTREAM_HPP

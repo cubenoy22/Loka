@@ -13,7 +13,7 @@ namespace loka
   }
 }
 
-class MacButtonContext : public loka::core::scene::NativeNodeContext
+class MacButtonContext : public loka::app::scene::NativeNodeContext
 {
 public:
   MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node);

@@ -13,7 +13,7 @@ namespace loka
 
     class GridNode;
 
-    struct GridProps : public core::scene::NodePropsBase<GridProps>
+    struct GridProps : public scene::NodePropsBase<GridProps>
     {
       typedef GridTypeTag TypeTag;
       typedef GridNode NodeType;
@@ -21,7 +21,7 @@ namespace loka
       short cols;
       GridProps() : rows(1), cols(1) {}
       GridProps(short r, short c) : rows(r), cols(c) {}
-      bool operator<(const core::scene::PropsBase &rhs) const
+      bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -34,19 +34,19 @@ namespace loka
       }
     };
 
-    class GridNode : public core::scene::NestableNode
+    class GridNode : public scene::NestableNode
     {
     public:
       typedef GridTypeTag TypeTag;
       GridProps props;
-      GridNode(const GridProps &p) : core::scene::NestableNode(), props(p) {}
-      virtual core::scene::NodeKind kind() const { return core::scene::NODE_KIND_GRID; }
+      GridNode(const GridProps &p) : scene::NestableNode(), props(p) {}
+      virtual scene::NodeKind kind() const { return scene::NODE_KIND_GRID; }
       virtual GridNode *asGridNode() { return this; }
     };
 
-    struct GridDefinition : public core::scene::NodeDefinition<GridProps, GridNode>, public core::scene::NestableDefinitionBase
+    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>, public scene::NestableDefinitionBase
     {
-      typedef core::scene::NodeDefinition<GridProps, GridNode> BaseType;
+      typedef scene::NodeDefinition<GridProps, GridNode> BaseType;
       GridDefinition() : BaseType(), NestableDefinitionBase() {}
       GridDefinition(const GridProps &p) : BaseType(p), NestableDefinitionBase() {}
       GridDefinition(const GridDefinition &other) : BaseType(other), NestableDefinitionBase(other) {}
@@ -55,13 +55,13 @@ namespace loka
         if (this != &other)
         {
           BaseType::operator=(other);
-          core::scene::NestableDefinitionBase::operator=(other);
+          scene::NestableDefinitionBase::operator=(other);
         }
         return *this;
       }
-      virtual core::scene::NodeDefinitionBase *clone() const { return new GridDefinition(*this); }
-      virtual core::scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const core::scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::NodeDefinitionBase *clone() const { return new GridDefinition(*this); }
+      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
       GridDefinition &rows(short value)
       {
         this->props.rows = value;

@@ -17,7 +17,7 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(50, 50, 300, 240)
-                       .scene(loka::core::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode>())
+                       .scene(loka::app::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode>())
                        .title("LokaSample")
                        .visible(true));
   }

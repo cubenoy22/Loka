@@ -35,7 +35,7 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(40, 40, 320, 240)
-                       .scene(loka::core::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
+                       .scene(loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
                            simpleviewer::MainProps()
                                .dialogVisible(&this->openDialogVisible_)
                                .message(&this->chooserMessage_)

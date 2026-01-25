@@ -22,7 +22,7 @@ namespace loka
   }
 }
 
-class Win32TextContext : public loka::core::scene::NativeNodeContext
+class Win32TextContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node);

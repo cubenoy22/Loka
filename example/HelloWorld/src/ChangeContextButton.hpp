@@ -11,24 +11,24 @@
 namespace helloworld
 {
   class ChangeContextButton;
-  typedef loka::core::scene::GroupPropsFor<ChangeContextButton> ChangeContextButtonProps;
+  typedef loka::app::scene::GroupPropsFor<ChangeContextButton> ChangeContextButtonProps;
 
-  class ChangeContextButton : public loka::core::scene::GroupNodeBase<ChangeContextButtonProps>
+  class ChangeContextButton : public loka::app::scene::GroupNodeBase<ChangeContextButtonProps>
   {
   public:
     ChangeContextButton(const ChangeContextButtonProps &props)
-        : loka::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), toggleEvent_() {}
+        : loka::app::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), toggleEvent_() {}
     virtual ~ChangeContextButton()
     {
     }
 
-    virtual void attachNode(loka::core::scene::NodeComposition &c)
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       this->boundary_ = c.findBoundary<RootBoundary>();
       this->bindForUi(toggleEvent_, this, &ChangeContextButton::handleToggle);
     }
 
-    virtual void composeNode(loka::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
       c.declare(Button("Toggle Message", &this->toggleEvent_));
@@ -42,7 +42,7 @@ namespace helloworld
       {
         return;
       }
-      loka::core::scene::BoundState<loka::core::String> &message = this->boundary_->messageState();
+      loka::app::scene::BoundState<loka::core::String> &message = this->boundary_->messageState();
       const loka::core::String current = message.get();
       if (current.equals(loka::core::String::Literal("Hello, Loka!")))
       {
@@ -70,7 +70,7 @@ namespace helloworld
     loka::core::EmitterState toggleEvent_;
   };
 
-  typedef loka::core::scene::NodeDefinition<ChangeContextButtonProps, ChangeContextButton> ChangeContextButtonDefinition;
+  typedef loka::app::scene::NodeDefinition<ChangeContextButtonProps, ChangeContextButton> ChangeContextButtonDefinition;
 
   inline ChangeContextButtonDefinition ChangeContextButtonNode()
   {

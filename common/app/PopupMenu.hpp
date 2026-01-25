@@ -28,7 +28,7 @@ namespace loka
       virtual loka::core::EmitterState *getOnChange() const = 0;
     };
 
-    struct PopupMenuProps : public loka::core::scene::NodePropsBase<PopupMenuProps>, public IPopupMenuProps
+    struct PopupMenuProps : public loka::app::scene::NodePropsBase<PopupMenuProps>, public IPopupMenuProps
     {
       typedef PopupMenuTypeTag TypeTag;
       typedef PopupMenuNode NodeType;
@@ -148,7 +148,7 @@ namespace loka
         return static_cast<int>(h);
       }
 
-      bool operator<(const loka::core::scene::PropsBase &rhs) const
+      bool operator<(const loka::app::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -163,17 +163,17 @@ namespace loka
       }
     };
 
-    class PopupMenuNode : public loka::core::scene::Node
+    class PopupMenuNode : public loka::app::scene::Node
     {
     public:
       typedef PopupMenuTypeTag TypeTag;
       PopupMenuProps props;
       PopupMenuNode(const PopupMenuProps &p) : props(p) {}
-      virtual loka::core::scene::NodeKind kind() const { return loka::core::scene::NODE_KIND_POPUP_MENU; }
+      virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_POPUP_MENU; }
       virtual PopupMenuNode *asPopupMenuNode() { return this; }
     };
 
-    struct PopupMenuDefinition : public loka::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>
+    struct PopupMenuDefinition : public loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>
     {
       PopupMenuDefinition() : NodeDefinition() {}
       PopupMenuDefinition(const PopupMenuProps &p) : NodeDefinition(p) {}
@@ -232,7 +232,7 @@ namespace loka
         return *this;
       }
 
-      using loka::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>::create;
+      using loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>::create;
     };
 
     typedef PopupMenuDefinition PopupMenu;
