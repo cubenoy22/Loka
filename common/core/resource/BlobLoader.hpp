@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "loka/core/State.hpp"
-#include "core2/resource/Blob.hpp"
-#include "core2/runtime/ErrorSink.hpp"
+#include "core/resource/Blob.hpp"
+#include "core/runtime/ErrorSink.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
