@@ -44,7 +44,7 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context,
 {
   window_ = 0;
   context_ = new ToolboxWindowContext(
-#if !defined(DECLARA_TOOLBOX_CLASSIC_6)
+#if !defined(LOKA_TOOLBOX_CLASSIC_6)
       ToolboxNodeContextMapper::CAP_CONTROL_MANAGER | ToolboxNodeContextMapper::CAP_TEXT_EDIT
 #else
       ToolboxNodeContextMapper::CAP_NONE

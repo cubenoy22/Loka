@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 # Toolbox builds are expected to use a separate toolchain (e.g. Retro68).
 add_library(LokaAppleToolbox INTERFACE)
 
-set(DECLARA_TOOLBOX_SOURCES
+set(LOKA_TOOLBOX_SOURCES
   src/ToolboxString.cpp
   src/ToolboxApp.cpp
   src/ToolboxProfiler.cpp
@@ -22,7 +22,7 @@ set(DECLARA_TOOLBOX_SOURCES
 
 file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
 
-add_library(LokaAppleToolboxCore STATIC ${DECLARA_TOOLBOX_SOURCES} ${COMMON_SOURCES})
+add_library(LokaAppleToolboxCore STATIC ${LOKA_TOOLBOX_SOURCES} ${COMMON_SOURCES})
 
 target_link_libraries(LokaAppleToolbox INTERFACE
   LokaAppleCommonCarbon
@@ -36,8 +36,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
     -fno-exceptions
     -fno-rtti
   )
-  if(DECLARA_TOOLBOX_CLASSIC_6)
-    target_compile_definitions(LokaAppleToolboxCore PRIVATE DECLARA_TOOLBOX_CLASSIC_6=1)
+  if(LOKA_TOOLBOX_CLASSIC_6)
+    target_compile_definitions(LokaAppleToolboxCore PRIVATE LOKA_TOOLBOX_CLASSIC_6=1)
   endif()
   # Function profiler (set to 1 to enable)
   target_compile_definitions(LokaAppleToolboxCore PRIVATE LOKA_PROFILE_FUNC_TICKS=1 LOKA_RETRO68=1)

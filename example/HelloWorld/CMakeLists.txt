@@ -131,8 +131,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
     -Wl,--gc-sections
   )
 
-  option(DECLARA_CLASSIC_STRIP "Strip Classic Mac binaries after link" ON)
-  if(DECLARA_CLASSIC_STRIP)
+  option(LOKA_CLASSIC_STRIP "Strip Classic Mac binaries after link" ON)
+  if(LOKA_CLASSIC_STRIP)
     find_program(RETRO68_STRIP
       NAMES m68k-apple-macos-strip powerpc-apple-macos-strip
       HINTS

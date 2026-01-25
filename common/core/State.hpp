@@ -305,7 +305,7 @@ namespace loka
     // Design intent:
     // - EmitterState is a pure event State that only receives OS/platform events (e.g., button clicks) via emit().
     // - clickEvent held by SceneNodeButton etc. is called by OS callbacks from each platform's SceneNodeContext.
-    // - On the Declara! side, events are propagated to all parties that bindDefer to this EmitterState.
+    // - On the Loka side, events are propagated to all parties that bindDefer to this EmitterState.
     // - EmitterState holds no value or flags, just calls notifyStateChanged() via emit().
     // - Users don't need to worry about emitted() or consume(), just describe side effects with bindDefer.
     class EmitterState : public State<void>

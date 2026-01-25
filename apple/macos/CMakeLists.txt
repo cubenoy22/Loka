@@ -22,7 +22,7 @@ target_include_directories(LokaAppleMacOSAppKit INTERFACE
 
 file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
 
-set(DECLARA_MACOS_CORE_SOURCES
+set(LOKA_MACOS_CORE_SOURCES
   src/MacApp.mm
   src/DebugLog.mm
   src/MacPlatformContext.mm
@@ -37,7 +37,7 @@ set(DECLARA_MACOS_CORE_SOURCES
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-add_library(LokaMacOSCore STATIC ${DECLARA_MACOS_CORE_SOURCES} ${COMMON_SOURCES})
+add_library(LokaMacOSCore STATIC ${LOKA_MACOS_CORE_SOURCES} ${COMMON_SOURCES})
 
 target_include_directories(LokaMacOSCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
@@ -52,13 +52,13 @@ target_compile_definitions(LokaMacOSCore PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
 
-set(DECLARA_MACOS_TEST_SOURCES
+set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestMain.cpp
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-add_executable(LokaTestsMacOS ${DECLARA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
+add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
 
 target_include_directories(LokaTestsMacOS PRIVATE
   ${PROJECT_SOURCE_DIR}/common

@@ -55,7 +55,7 @@ namespace loka
 #endif
       if (visiting_.count(state))
       {
-        fprintf(stderr, "[Declara] 循環依存検出: StateBase %p\n", (void *)state);
+        fprintf(stderr, "[Loka] 循環依存検出: StateBase %p\n", (void *)state);
         return;
       }
       visiting_.insert(state);

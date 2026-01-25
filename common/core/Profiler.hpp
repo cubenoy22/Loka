@@ -1,5 +1,5 @@
-#ifndef DECLARA_CORE_PROFILER_HPP
-#define DECLARA_CORE_PROFILER_HPP
+#ifndef LOKA_CORE_PROFILER_HPP
+#define LOKA_CORE_PROFILER_HPP
 
 #include <cassert>
 #include <cstdio>
@@ -181,4 +181,4 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-#endif // DECLARA_CORE_PROFILER_HPP
+#endif // LOKA_CORE_PROFILER_HPP
