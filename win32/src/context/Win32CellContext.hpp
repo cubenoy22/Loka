@@ -6,8 +6,14 @@
 #include "loka/core/String.hpp"
 #include <string>
 
-template <typename T>
-class State;
+namespace loka
+{
+  namespace core
+  {
+    template <typename T>
+    class State;
+  }
+}
 
 namespace loka
 {
@@ -34,7 +40,7 @@ private:
 
   loka::app::CellNode *node_;
   HWND hwnd_;
-  State<loka::core::String> *textState_;
+  loka::core::State<loka::core::String> *textState_;
   std::string text_;
 };
 

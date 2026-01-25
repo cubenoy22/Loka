@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdarg>
 
-// Forward declaration for StateBase in its proper namespace
+// Forward declaration for loka::core::StateBase in its proper namespace
 namespace loka
 {
   namespace core
@@ -12,7 +12,7 @@ namespace loka
   }
 }
 
-// Build a vector<StateBase*> using varargs (C++98-friendly). Use typedefs to avoid nested template closers.
+// Build a vector<loka::core::StateBase*> using varargs (C++98-friendly). Use typedefs to avoid nested template closers.
 typedef loka::core::StateBase StateBaseType;
 typedef std::vector<StateBaseType *> StateVector;
 

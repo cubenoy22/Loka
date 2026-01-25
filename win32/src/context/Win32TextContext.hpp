@@ -5,8 +5,14 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "loka/core/String.hpp"
 
-template <typename T>
-class State;
+namespace loka
+{
+  namespace core
+  {
+    template <typename T>
+    class State;
+  }
+}
 
 namespace loka
 {
@@ -30,7 +36,7 @@ private:
 
   loka::app::TextNode *node_;
   HWND hwnd_;
-  State<loka::core::String> *textState_;
+  loka::core::State<loka::core::String> *textState_;
 };
 
 #endif // LOKA_WIN32_TEXT_CONTEXT_HPP

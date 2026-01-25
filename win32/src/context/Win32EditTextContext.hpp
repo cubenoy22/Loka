@@ -5,10 +5,16 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "loka/core/String.hpp"
 
-template <typename T>
-class State;
-template <typename T>
-class MutableState;
+namespace loka
+{
+  namespace core
+  {
+    template <typename T>
+    class State;
+    template <typename T>
+    class MutableState;
+  }
+}
 
 namespace loka
 {
@@ -36,7 +42,7 @@ private:
 
   loka::app::EditTextNode *node_;
   HWND hwnd_;
-  State<loka::core::String> *textState_;
+  loka::core::State<loka::core::String> *textState_;
   bool applyingFromState_;
   bool updatingFromControl_;
 };

@@ -422,10 +422,4 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-using loka::core::EmitterState;
-using loka::core::MutableState;
-using loka::core::State;
-using loka::core::StateBase;
-using loka::core::StatePriority;
-
 #endif // LOKA_STATE_HPP

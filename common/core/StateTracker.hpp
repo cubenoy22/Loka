@@ -112,6 +112,4 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-using loka::core::StateBase;
-
 #endif // LOKA_STATETRACKER_HPP
