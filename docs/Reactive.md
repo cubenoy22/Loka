@@ -27,7 +27,7 @@ class CounterComponent
 public:
   CounterComponent() : count_(), clicked_(), tracker_() {}
 
-  void attach(declara::core::scene::NodeComposition &c)
+  void attach(loka::core::scene::NodeComposition &c)
   {
     c.declareStates().state(count_, 0);
   }
@@ -38,9 +38,9 @@ public:
     this->count_.set(this->count_.get() + 1, true);
   }
 
-  declara::core::MutableState<int> count_;
-  declara::core::EmitterState clicked_;
-  declara::core::PushStateTracker tracker_;
+  loka::core::MutableState<int> count_;
+  loka::core::EmitterState clicked_;
+  loka::core::PushStateTracker tracker_;
 };
 ```
 
@@ -52,17 +52,17 @@ Use it when you get state from `NodeComposition::useState()` or `declareStates()
 ```cpp
 #include "core2/scene/NodeComposition.hpp"
 
-class DemoBoundary : public declara::core::scene::StaticCompositionNodeFor<DemoBoundary>
+class DemoBoundary : public loka::core::scene::StaticCompositionNodeFor<DemoBoundary>
 {
 public:
-  typedef declara::core::scene::StaticCompositionPropsFor<DemoBoundary> PropsType;
+  typedef loka::core::scene::StaticCompositionPropsFor<DemoBoundary> PropsType;
   DemoBoundary(const PropsType &p)
-      : declara::core::scene::StaticCompositionNodeFor<DemoBoundary>(p),
+      : loka::core::scene::StaticCompositionNodeFor<DemoBoundary>(p),
         counter_()
   {
   }
 
-  virtual void composeNode(declara::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::core::scene::NodeComposition &c)
   {
     c.declareStates().state(counter_, 0);
   }
@@ -77,7 +77,7 @@ public:
   }
 
 private:
-  declara::core::scene::BoundState<int> counter_;
+  loka::core::scene::BoundState<int> counter_;
 };
 ```
 
@@ -106,8 +106,8 @@ struct ToLabel
   }
 };
 
-declara::core::scene::BoundState<int> count;
-declara::core::scene::BoundState<loka::core::String> label;
+loka::core::scene::BoundState<int> count;
+loka::core::scene::BoundState<loka::core::String> label;
 
 count.stream().map(ToLabel()).set(label, true);
 ```
@@ -156,14 +156,14 @@ clicked_.deferBind(&CounterComponent::ClickThunk, this);
 Use derived values instead of manual recompute when possible.
 
 ```cpp
-struct DoubleEval : public declara::core::DerivedState<int>::EvalFn
+struct DoubleEval : public loka::core::DerivedState<int>::EvalFn
 {
-  explicit DoubleEval(declara::core::State<int> *src) : src_(src) {}
+  explicit DoubleEval(loka::core::State<int> *src) : src_(src) {}
   virtual int operator()() { return src_ ? src_->get() * 2 : 0; }
-  declara::core::State<int> *src_;
+  loka::core::State<int> *src_;
 };
 
-declara::core::DerivedState<int> doubled(&count_, new DoubleEval(&count_));
+loka::core::DerivedState<int> doubled(&count_, new DoubleEval(&count_));
 ```
 
 ## Binding Notes

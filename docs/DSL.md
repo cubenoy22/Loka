@@ -12,15 +12,15 @@ Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style cha
 #include "app/Text.hpp"
 #include "app/Button.hpp"
 
-class DemoNode : public declara::core::scene::StaticCompositionNodeFor<DemoNode>
+class DemoNode : public loka::core::scene::StaticCompositionNodeFor<DemoNode>
 {
 public:
-  typedef declara::core::scene::StaticCompositionPropsFor<DemoNode> PropsType;
-  DemoNode(const PropsType &p) : declara::core::scene::StaticCompositionNodeFor<DemoNode>(p) {}
+  typedef loka::core::scene::StaticCompositionPropsFor<DemoNode> PropsType;
+  DemoNode(const PropsType &p) : loka::core::scene::StaticCompositionNodeFor<DemoNode>(p) {}
 
-  virtual void composeNode(declara::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::core::scene::NodeComposition &c)
   {
-    using namespace declara::app;
+    using namespace loka::app;
     c.declare(VStack()
               << Text("Hello")
               << Button("OK"));
@@ -37,16 +37,16 @@ Boundaries own composition/state. Prefer one-shot Static composition unless upda
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 
-class StaticPanel : public declara::core::scene::StaticCompositionNodeFor<StaticPanel>
+class StaticPanel : public loka::core::scene::StaticCompositionNodeFor<StaticPanel>
 {
 public:
-  typedef declara::core::scene::StaticCompositionPropsFor<StaticPanel> PropsType;
+  typedef loka::core::scene::StaticCompositionPropsFor<StaticPanel> PropsType;
   StaticPanel(const PropsType &p)
-      : declara::core::scene::StaticCompositionNodeFor<StaticPanel>(p) {}
+      : loka::core::scene::StaticCompositionNodeFor<StaticPanel>(p) {}
 
-  virtual void composeNode(declara::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::core::scene::NodeComposition &c)
   {
-    using namespace declara::app;
+    using namespace loka::app;
     c.declare(VStack() << Text("Static content"));
   }
 };
@@ -59,16 +59,16 @@ Dynamic composition uses a `Boundary` node so it can recompose when state change
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 
-class DynamicPanel : public declara::core::scene::DynamicCompositionNodeFor<DynamicPanel>
+class DynamicPanel : public loka::core::scene::DynamicCompositionNodeFor<DynamicPanel>
 {
 public:
-  typedef declara::core::scene::DynamicCompositionPropsFor<DynamicPanel> PropsType;
+  typedef loka::core::scene::DynamicCompositionPropsFor<DynamicPanel> PropsType;
   DynamicPanel(const PropsType &p)
-      : declara::core::scene::DynamicCompositionNodeFor<DynamicPanel>(p) {}
+      : loka::core::scene::DynamicCompositionNodeFor<DynamicPanel>(p) {}
 
-  virtual void composeNode(declara::core::scene::NodeComposition &c)
+  virtual void composeNode(loka::core::scene::NodeComposition &c)
   {
-    using namespace declara::app;
+    using namespace loka::app;
     c.declare(VStack() << Text("Dynamic content"));
   }
 };
@@ -77,8 +77,8 @@ public:
 Use `Boundary()` (alias) when you need a nested owner for state or recomposition.
 
 ```cpp
-using namespace declara::core::scene;
-using namespace declara::app;
+using namespace loka::core::scene;
+using namespace loka::app;
 
 c.declare(VStack()
           << Boundary<StaticPanel>()
@@ -107,7 +107,7 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(40, 40, 320, 240)
-                       .scene(declara::core::scene::NodeDefinition<MyProps, MyNode>())
+                       .scene(loka::core::scene::NodeDefinition<MyProps, MyNode>())
                        .title("LokaApp")
                        .visible(true));
   }
@@ -123,7 +123,7 @@ public:
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 
-using namespace declara::app;
+using namespace loka::app;
 
 c.declare(VStack()
           << F()
@@ -134,7 +134,7 @@ c.declare(VStack()
 `NodeComposition::group()` lets you store a definition in the composition arena and reuse it.
 
 ```cpp
-using namespace declara::app;
+using namespace loka::app;
 
 Text *label = c.group(Text("Reusable"));
 c.declare(VStack() << *label << *label);
@@ -147,8 +147,8 @@ without owning state.
 #include "core2/scene/node/Group.hpp"
 #include "app/Text.hpp"
 
-using namespace declara::core::scene;
-using namespace declara::app;
+using namespace loka::core::scene;
+using namespace loka::app;
 
 class MyGroup : public GroupNodeBase<GroupPropsFor<MyGroup> >
 {
@@ -166,8 +166,8 @@ public:
 Use scopes when you need to temporarily change the active parent or capture the current composition.
 
 ```cpp
-using namespace declara::app;
-using namespace declara::core::scene;
+using namespace loka::app;
+using namespace loka::core::scene;
 
 VStack &root = c.declare(VStack());
 NodeComposition::ParentScope scope(c, root);
@@ -177,8 +177,8 @@ c.declare(Text("Child under root"));
 `CompositionScope` installs the composition as current so helper APIs can access it.
 
 ```cpp
-using namespace declara::app;
-using namespace declara::core::scene;
+using namespace loka::app;
+using namespace loka::core::scene;
 
 NodeComposition::CompositionScope scope(c);
 c.declare(Text("Composed while current() is set"));
@@ -198,8 +198,8 @@ This makes `c.declare(...)` and `c.group(...)` safe for temporary DSL objects.
 Use `NodeComposition::conditional` to switch between definitions.
 
 ```cpp
-using namespace declara::app;
-using namespace declara::core::scene;
+using namespace loka::app;
+using namespace loka::core::scene;
 
 BoundState<bool> flag;
 c.declareStates().state(flag, false);
@@ -251,7 +251,7 @@ public:
   {
   }
 
-  void attach(declara::core::scene::NodeComposition &c)
+  void attach(loka::core::scene::NodeComposition &c)
   {
     c.declareStates().state(count_, 0);
   }
@@ -262,9 +262,9 @@ public:
     this->count_.set(this->count_.get() + 1, true);
   }
 
-  declara::core::MutableState<int> count_;
-  declara::core::EmitterState clickEvent_;
-  declara::core::PushStateTracker tracker_;
+  loka::core::MutableState<int> count_;
+  loka::core::EmitterState clickEvent_;
+  loka::core::PushStateTracker tracker_;
 };
 ```
 

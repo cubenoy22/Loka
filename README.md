@@ -201,6 +201,12 @@ This setup allows fully native development.
 > Until UB1 support is available, the minimum macOS deployment target may vary depending on the Xcode + CMake environment.
 > In practice, targets may range from **OS X Lion (Objective-C 2.0 with ARC)** up to **macOS 11 Big Sur or later**.
 
+### Win32 quick notes (VSCode)
+
+- Use the CMake presets (`win32-debug`, `win32-release`, `win32-xp-*`) and matching `launch.json` entries.
+- Prefer "Config & Build" tasks when switching GUI/Console subsystem.
+- If you change subsystem mode, re-run configure to refresh CMake cache.
+
 ### Classic Mac OS (68k / PPC via Retro68)
 
 For Classic Mac OS targets, Loka is built using **Retro68**.
@@ -248,7 +254,7 @@ This repository is released under the **MIT License**.
 
 "Loka" is the project name.
 
-The name "Declara!" refers to an earlier internal concept and is not part of the public API or branding at this time.
+The name "Declara!" referred to an earlier internal concept and is no longer used in the public API or branding.
 
 ---
 

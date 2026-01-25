@@ -57,9 +57,9 @@ project-root/
 
 Loka の共通ロジックは、用途ごとに下記のように整理しています。
 
-- **DeclaraCore** ... App や State など宣言的 UI のコア機能
-- **DeclaraApp** ... デスクトップ・モバイルアプリ向け UI 部品
-- **DeclaraGame** ... 2D/3D ゲーム開発向け（現状は未実装）
+- **LokaCore** ... App や State など宣言的 UI のコア機能
+- **LokaApp** ... デスクトップ・モバイルアプリ向け UI 部品
+- **LokaGame** ... 2D/3D ゲーム開発向け（現状は未実装）
 
 `common/` 配下の構成:
 
@@ -72,7 +72,7 @@ common/
 ```
 
 - モジュール分割は今後さらに進める予定です。
-- 詳細な設計意図や API 例は docs/declara_design_minutes.md も参照してください。
+- 詳細な設計意図や API 例は docs/design_minutes.md も参照してください。
 
 ---
 
@@ -223,7 +223,7 @@ printf("[debug] ...");
 ## 参考
 
 - 状態管理・依存伝播の詳細: `docs/architecture_state_tracker.md`
-- Solid-mode の最小仕様・進捗: `docs/declara_design_minutes.md`
+- Solid-mode の最小仕様・進捗: `docs/design_minutes.md`
 - BMI デモの実装計画: `docs/bmi_calculator_implementation_plan.md`
 
 ---

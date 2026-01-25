@@ -1,4 +1,4 @@
-# Declara to Loka Rename Plan
+# Loka Rename Plan
 
 Goal: move toward "Loka" branding while keeping the core library stable during refactors.
 
@@ -12,4 +12,4 @@ Goal: move toward "Loka" branding while keeping the core library stable during r
 
 ## Current intent
 - Apps can use "Loka" naming immediately.
-- Core keeps "Declara" naming until refactors make a clean migration safe.
+- Core naming uses "Loka" after the rename.

@@ -1,7 +1,7 @@
 # Loka State / Tracker 実装ノート（2025-11 最新）
 
 `common/core/State.hpp` と `common/core/StateTracker.*` に実装されている State システムの整理メモ。  
-`declara_design_minutes.md` の Solid-mode アプローチと揃えて、実装のどこを見れば良いか・どう使うかを一本化した。
+`design_minutes.md` の Solid-mode アプローチと揃えて、実装のどこを見れば良いか・どう使うかを一本化した。
 
 ---
 

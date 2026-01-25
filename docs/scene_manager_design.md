@@ -10,7 +10,7 @@
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SceneManager2`               | Window 1 枚あたり 1 つ保持。Scene の差し替えとトランザクションキューを管理。                                                   | `MutableState<Scene*> currentScene_`, `MutableState<std::vector<std::pair<Scene*, Scene*>>> pendingTransactions_`, `PushStateTracker tracker_` |
 | `Window`                      | `SceneManager2` を内包し、`sceneManager()->commitTransaction(...)` を外部 API にする。                                         | `SceneManager2 sceneManager_`                                                                                                                  |
-| `declara::core::scene::Scene` | SceneLifecycle を `MutableState<SceneLifecycle>` で保持。BoundaryNode をルートとして管理。非Boundaryルートは自動ラップ。 | `MutableState<SceneLifecycle> lifecycle_`, `BoundaryNode* rootNode_`                                                                                                      |
+| `loka::core::scene::Scene` | SceneLifecycle を `MutableState<SceneLifecycle>` で保持。BoundaryNode をルートとして管理。非Boundaryルートは自動ラップ。 | `MutableState<SceneLifecycle> lifecycle_`, `BoundaryNode* rootNode_`                                                                                                      |
 
 `SceneManager2` は旧仕様の `SceneTransaction`/`SceneManagerDelegate` を廃止し、「単純な from/to キュー + Tracker による再描画通知」に縮約している。
 
@@ -41,7 +41,7 @@
 
 - `Window` のコンストラクタで `SceneManager2` を初期化し、`sceneManager_.getCurrentScene()` を `State<Scene*>` として公開している。
 - `Window::scene()` は `sceneManager_.getCurrentScene().get()` の薄いラッパー。
-- `declara_design_minutes.md` の Solid-mode 仕様では「Window::mount(CompositeNode&)」を最小スコープとして扱う計画なので、SceneManager2 は「Window 単位の Scene スロット」を維持する役割に専念させる。
+- `design_minutes.md` の Solid-mode 仕様では「Window::mount(CompositeNode&)」を最小スコープとして扱う計画なので、SceneManager2 は「Window 単位の Scene スロット」を維持する役割に専念させる。
 
 ---
 
@@ -74,4 +74,4 @@
 - `common/core/SceneManager2.cpp`
 - `common/core/Window.hpp`
 - `common/core2/scene/Scene.hpp`
-- `docs/declara_design_minutes.md`（Solid-mode の Window/Scene 設計方針）
+- `docs/design_minutes.md`（Solid-mode の Window/Scene 設計方針）
