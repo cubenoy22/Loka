@@ -3,19 +3,19 @@
 
 #include "loka/core/String.hpp"
 #include <cstring>
-#if defined(LOKA_RETRO68)
-#include <Files.h>
-#endif
 
 namespace loka
 {
-  namespace file
+  namespace platform
   {
-    namespace platform
+    namespace file
     {
       struct ItemAccess;
     }
+  }
 
+  namespace file
+  {
     struct Item
     {
       enum Kind
@@ -39,11 +39,6 @@ namespace loka
             kind_(KIND_UNKNOWN),
             basePath_(),
             relative_()
-#if defined(LOKA_RETRO68)
-            ,
-            hasSpec_(false),
-            spec_()
-#endif
       {
       }
 
@@ -52,11 +47,6 @@ namespace loka
             kind_(KIND_UNKNOWN),
             basePath_(),
             relative_(loka::core::String::Literal(name ? name : ""))
-#if defined(LOKA_RETRO68)
-            ,
-            hasSpec_(false),
-            spec_()
-#endif
       {
       }
 
@@ -65,11 +55,6 @@ namespace loka
             kind_(KIND_UNKNOWN),
             basePath_(),
             relative_(name)
-#if defined(LOKA_RETRO68)
-            ,
-            hasSpec_(false),
-            spec_()
-#endif
       {
       }
 
@@ -153,16 +138,12 @@ namespace loka
 
     private:
       friend bool operator!=(const Item &lhs, const Item &rhs);
-      friend struct platform::ItemAccess;
+      friend struct ::loka::platform::file::ItemAccess;
 
       BaseKind base_;
       Kind kind_;
       loka::core::String basePath_;
       loka::core::String relative_;
-#if defined(LOKA_RETRO68)
-      bool hasSpec_;
-      FSSpec spec_;
-#endif
 
       static const char *separatorLiteral()
       {
@@ -239,55 +220,9 @@ namespace loka
       {
         return true;
       }
-#if defined(LOKA_RETRO68)
-      if (lhs.hasSpec_ != rhs.hasSpec_)
-      {
-        return true;
-      }
-      if (lhs.hasSpec_)
-      {
-        if (lhs.spec_.vRefNum != rhs.spec_.vRefNum || lhs.spec_.parID != rhs.spec_.parID)
-        {
-          return true;
-        }
-        return std::memcmp(lhs.spec_.name, rhs.spec_.name, sizeof(lhs.spec_.name)) != 0;
-      }
-#endif
       return false;
     }
 
-    namespace platform
-    {
-      struct ItemAccess
-      {
-        static Item FromPath(const loka::core::String &value, Item::Kind kind)
-        {
-          Item item;
-          item.base_ = Item::BASE_PATH;
-          item.basePath_ = value;
-          item.kind_ = kind;
-          return item;
-        }
-
-#if defined(LOKA_RETRO68)
-        static Item FromFSSpec(const FSSpec &value, Item::Kind kind, const loka::core::String &displayPath)
-        {
-          Item item;
-          item.base_ = Item::BASE_PATH;
-          item.basePath_ = displayPath;
-          item.kind_ = kind;
-          item.hasSpec_ = true;
-          item.spec_ = value;
-          return item;
-        }
-
-        static const FSSpec *SpecOrNull(const Item &item)
-        {
-          return item.hasSpec_ ? &item.spec_ : 0;
-        }
-#endif
-      };
-    } // namespace platform
   }   // namespace file
 } // namespace loka
 

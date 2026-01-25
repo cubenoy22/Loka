@@ -1,4 +1,5 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
+#include "loka/platform/file/ItemAccess.hpp"
 #include <StandardFile.h>
 #include <string>
 
@@ -85,7 +86,7 @@ void ToolboxOpenFileDialogContext::presentDialog()
   if (reply.sfGood)
   {
     setResult(loka::app::FileChooserResult::File(
-        loka::file::platform::ItemAccess::FromFSSpec(
+        loka::platform::file::ItemAccess::FromFSSpec(
             reply.sfFile,
             loka::file::Item::KIND_FILE,
             displayPathFromSpec(reply.sfFile))));
