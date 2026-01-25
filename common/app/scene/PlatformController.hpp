@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_IPLATFORMCONTROLLER_HPP
 #define LOKA_CORE2_SCENE_IPLATFORMCONTROLLER_HPP
 
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 
 namespace loka
 {

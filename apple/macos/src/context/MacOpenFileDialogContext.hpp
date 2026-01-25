@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_OPEN_FILE_DIALOG_CONTEXT_HPP
 #define LOKA_MAC_OPEN_FILE_DIALOG_CONTEXT_HPP
 
-#include "core2/scene/NativeNodeContext.hpp"
+#include "app/scene/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "loka/core/String.hpp"
 

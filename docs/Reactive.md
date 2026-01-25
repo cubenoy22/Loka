@@ -50,7 +50,7 @@ public:
 Use it when you get state from `NodeComposition::useState()` or `declareStates()`.
 
 ```cpp
-#include "core2/scene/NodeComposition.hpp"
+#include "app/scene/NodeComposition.hpp"
 
 class DemoBoundary : public loka::app::scene::StaticCompositionNodeFor<DemoBoundary>
 {

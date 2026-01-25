@@ -6,7 +6,7 @@
 #include "app/AppComponent.hpp"
 #include "app/SceneManager2.hpp"
 #include "loka/core/util/StateUtil.hpp"
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Frame.hpp"

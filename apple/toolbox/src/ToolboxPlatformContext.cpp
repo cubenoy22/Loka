@@ -2,8 +2,8 @@
 #include "ToolboxApp.hpp"
 #include "ToolboxWindow.hpp"
 #include "app/AppConfigurable.hpp"
-#include "core2/scene/NativeNodeContext.hpp"
-#include "core2/scene/Node.hpp"
+#include "app/scene/NativeNodeContext.hpp"
+#include "app/scene/Node.hpp"
 
 ToolboxPlatformContext::ToolboxPlatformContext() {}
 ToolboxPlatformContext::~ToolboxPlatformContext() {}

@@ -6,8 +6,8 @@
 
 #include "loka/core/Profiler.hpp"
 #include "loka/core/State.hpp"
-#include "core2/scene/BoundState.hpp"
-#include "core2/scene/StateOwner.hpp"
+#include "app/scene/BoundState.hpp"
+#include "app/scene/StateOwner.hpp"
 
 namespace loka
 {

@@ -1,7 +1,7 @@
 #ifndef LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 #define LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 
-#include "core2/scene/node/StaticComposition.hpp"
+#include "app/scene/node/StaticComposition.hpp"
 #include "app/Empty.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/RowColumn.hpp"

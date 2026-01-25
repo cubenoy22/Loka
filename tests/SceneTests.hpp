@@ -3,9 +3,9 @@
 
 #include <cassert>
 #include <stdio.h>
-#include "core2/scene/Scene.hpp"
-#include "core2/scene/PlatformController.hpp"
-#include "core2/scene/node/StaticComposition.hpp"
+#include "app/scene/Scene.hpp"
+#include "app/scene/PlatformController.hpp"
+#include "app/scene/node/StaticComposition.hpp"
 
 namespace SceneTests
 {

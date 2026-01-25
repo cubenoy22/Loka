@@ -2,8 +2,8 @@
 #define LOKA_HELLOWORLD_ROOT_BOUNDARY_HPP
 
 #include "loka/core/State.hpp"
-#include "core2/scene/BoundState.hpp"
-#include "core2/scene/Node.hpp"
+#include "app/scene/BoundState.hpp"
+#include "app/scene/Node.hpp"
 #include "loka/core/String.hpp"
 #include <cstring>
 

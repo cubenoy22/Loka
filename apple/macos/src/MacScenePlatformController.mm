@@ -1,5 +1,5 @@
 #include "MacScenePlatformController.hpp"
-#include "core2/scene/node/Boundary.hpp"
+#include "app/scene/node/Boundary.hpp"
 #include <AppKit/AppKit.h>
 #include <vector>
 #include "app/Box.hpp"
@@ -12,7 +12,7 @@
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
 #include "context/MacCellContext.hpp"
 #include "context/MacEditTextContext.hpp"

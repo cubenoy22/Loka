@@ -2,7 +2,7 @@
 #define LOKA_APP2_BOX_HPP
 
 #include <string>
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 #include <vector>
 
 namespace loka

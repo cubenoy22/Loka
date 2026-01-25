@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <Quickdraw.h>
 #include "app/App.hpp"
-#include "core2/scene/Scene.hpp"
+#include "app/scene/Scene.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindowContext.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"

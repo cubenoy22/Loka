@@ -3,7 +3,7 @@
 
 #include <windows.h>
 #include <map>
-#include "core2/scene/PlatformController.hpp"
+#include "app/scene/PlatformController.hpp"
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "context/Win32EditTextContext.hpp"

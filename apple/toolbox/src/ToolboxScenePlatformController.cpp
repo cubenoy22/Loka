@@ -32,8 +32,8 @@ static bool sProfileCaptured = false;
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
-#include "core2/scene/Node.hpp"
-#include "core2/scene/node/Boundary.hpp"
+#include "app/scene/Node.hpp"
+#include "app/scene/node/Boundary.hpp"
 
 namespace
 {

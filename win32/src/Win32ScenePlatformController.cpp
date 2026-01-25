@@ -1,5 +1,5 @@
 #include "Win32ScenePlatformController.hpp"
-#include "core2/scene/node/Boundary.hpp"
+#include "app/scene/node/Boundary.hpp"
 #include <windows.h>
 #include <vector>
 #include "app/Box.hpp"
@@ -12,7 +12,7 @@
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 #include "loka/core/Profiler.hpp"
 #include "context/Win32CellContext.hpp"
 

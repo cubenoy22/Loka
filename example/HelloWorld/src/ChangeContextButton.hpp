@@ -1,7 +1,7 @@
 #ifndef LOKA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 #define LOKA_HELLOWORLD_CHANGE_CONTEXT_BUTTON_HPP
 
-#include "core2/scene/node/Group.hpp"
+#include "app/scene/node/Group.hpp"
 #include "app/Window.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "app/Button.hpp"

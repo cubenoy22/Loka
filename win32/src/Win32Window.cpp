@@ -5,8 +5,8 @@
 #include "app/Window.hpp"
 #include "loka/core/StateTracker.hpp"
 
-#include "core2/scene/Scene.hpp"
-#include "core2/scene/Scene.hpp"
+#include "app/scene/Scene.hpp"
+#include "app/scene/Scene.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "loka/core/String.hpp"

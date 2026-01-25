@@ -1,7 +1,7 @@
 #ifndef LOKA_SCENEMANAGER2_HPP
 #define LOKA_SCENEMANAGER2_HPP
 
-#include "core2/scene/Scene.hpp"
+#include "app/scene/Scene.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "loka/dsl/CompositionList.hpp"

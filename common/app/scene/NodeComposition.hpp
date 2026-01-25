@@ -4,12 +4,12 @@
 #include <vector>
 #include <cassert>
 #include <new>
-#include "core2/scene/Node.hpp"
-#include "core2/scene/StreamView.hpp"
-#include "core2/scene/node/Conditional.hpp"
-#include "core2/scene/BoundState.hpp"
-#include "core2/scene/ComponentContext.hpp"
-#include "core2/scene/StateOwner.hpp"
+#include "app/scene/Node.hpp"
+#include "app/scene/StreamView.hpp"
+#include "app/scene/node/Conditional.hpp"
+#include "app/scene/BoundState.hpp"
+#include "app/scene/ComponentContext.hpp"
+#include "app/scene/StateOwner.hpp"
 #include "loka/core/Profiler.hpp"
 
 class Window;

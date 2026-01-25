@@ -6,11 +6,11 @@
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
 #include "loka/platform/DebugLog.hpp"
 #endif
-#include "core2/scene/Node.hpp" // NodeDefinitionBase 使用のため定義を取得
-#include "core2/scene/PlatformController.hpp"
-#include "core2/scene/ComponentContext.hpp"
-#include "core2/scene/NodeComposition.hpp"
-#include "core2/scene/node/Boundary.hpp"
+#include "app/scene/Node.hpp" // NodeDefinitionBase 使用のため定義を取得
+#include "app/scene/PlatformController.hpp"
+#include "app/scene/ComponentContext.hpp"
+#include "app/scene/NodeComposition.hpp"
+#include "app/scene/node/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/dsl/RefreshLoop.hpp"
 #include "loka/dsl/CompositionDiff.hpp"

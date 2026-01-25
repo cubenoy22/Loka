@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_BUTTON_CONTEXT_HPP
 #define LOKA_MAC_BUTTON_CONTEXT_HPP
 
-#include "core2/scene/NativeNodeContext.hpp"
+#include "app/scene/NativeNodeContext.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 

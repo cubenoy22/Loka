@@ -1,7 +1,7 @@
 #ifndef LOKA_MINESWEEPER_MAIN_NODE_HPP
 #define LOKA_MINESWEEPER_MAIN_NODE_HPP
 
-#include "core2/scene/node/StaticComposition.hpp"
+#include "app/scene/node/StaticComposition.hpp"
 #include "app/Cell.hpp"
 #include "app/Grid.hpp"
 #include <cstdlib>

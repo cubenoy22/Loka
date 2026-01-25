@@ -7,7 +7,7 @@ This is a short, memory-jogging intro to the Loka composition DSL and string usa
 Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style chaining and avoid local temporaries.
 
 ```cpp
-#include "core2/scene/node/StaticComposition.hpp"
+#include "app/scene/node/StaticComposition.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/Button.hpp"
@@ -33,7 +33,7 @@ public:
 Boundaries own composition/state. Prefer one-shot Static composition unless updates are required.
 
 ```cpp
-#include "core2/scene/node/StaticComposition.hpp"
+#include "app/scene/node/StaticComposition.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 
@@ -55,7 +55,7 @@ public:
 Dynamic composition uses a `Boundary` node so it can recompose when state changes.
 
 ```cpp
-#include "core2/scene/node/DynamicComposition.hpp"
+#include "app/scene/node/DynamicComposition.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 
@@ -144,7 +144,7 @@ c.declare(VStack() << *label << *label);
 without owning state.
 
 ```cpp
-#include "core2/scene/node/Group.hpp"
+#include "app/scene/node/Group.hpp"
 #include "app/Text.hpp"
 
 using namespace loka::app::scene;

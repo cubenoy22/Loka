@@ -3,7 +3,7 @@
 #include "MacScenePlatformController.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
-#include "core2/scene/Scene.hpp"
+#include "app/scene/Scene.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 @interface LokaFlippedView : NSView

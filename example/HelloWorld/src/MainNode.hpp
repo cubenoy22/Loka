@@ -1,7 +1,7 @@
 #ifndef LOKA_HELLOWORLD_MAIN_NODE_HPP
 #define LOKA_HELLOWORLD_MAIN_NODE_HPP
 
-#include "core2/scene/node/StaticComposition.hpp"
+#include "app/scene/node/StaticComposition.hpp"
 #include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
 #include "app/ZStack.hpp"

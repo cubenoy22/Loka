@@ -4,7 +4,7 @@
 #include <cassert>
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
-#include "core2/scene/StateOwner.hpp"
+#include "app/scene/StateOwner.hpp"
 
 namespace loka
 {

@@ -4,7 +4,7 @@
 #include <cassert>
 #include "app/Window.hpp"
 #include "app/PlatformContext.hpp"
-#include "core2/scene/Scene.hpp"
+#include "app/scene/Scene.hpp"
 
 class PlatformContext;
 

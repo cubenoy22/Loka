@@ -4,7 +4,7 @@
 // Empty node definition following Carbon/Toolbox style
 // Follows same interface/naming conventions as Button/Box
 
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 
 namespace loka
 {

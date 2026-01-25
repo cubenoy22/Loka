@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
-#include "core2/scene/PlatformController.hpp"
+#include "app/scene/PlatformController.hpp"
 
 namespace loka
 {

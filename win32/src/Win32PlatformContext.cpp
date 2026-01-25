@@ -2,8 +2,8 @@
 #include "Win32Window.hpp"
 #include "app/Window.hpp"
 #include "app/AppConfigurable.hpp"
-#include "core2/scene/Node.hpp"
-#include "core2/scene/NativeNodeContext.hpp"
+#include "app/scene/Node.hpp"
+#include "app/scene/NativeNodeContext.hpp"
 
 // 明示的なデフォルトコンストラクタ・デストラクタ実装（リンカエラー回避用）
 Win32PlatformContext::Win32PlatformContext() {}

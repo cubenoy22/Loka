@@ -2,7 +2,7 @@
 #define LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 
 #include "loka/core/State.hpp"
-#include "core2/scene/BoundState.hpp"
+#include "app/scene/BoundState.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 

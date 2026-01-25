@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP
 
 #include <cstddef>
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 
 namespace loka
 {

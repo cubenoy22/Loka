@@ -1,10 +1,10 @@
 #ifndef LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
-#include "core2/scene/PlatformController.hpp"
+#include "app/scene/PlatformController.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
-#include "core2/scene/node/Boundary.hpp"
+#include "app/scene/node/Boundary.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <TextEdit.h>

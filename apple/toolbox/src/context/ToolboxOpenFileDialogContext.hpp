@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP
 #define LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP
 
-#include "core2/scene/NativeNodeContext.hpp"
+#include "app/scene/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 
 class ToolboxOpenFileDialogContext : public loka::app::scene::NativeNodeContext

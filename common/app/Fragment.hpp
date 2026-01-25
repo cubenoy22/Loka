@@ -1,7 +1,7 @@
 #ifndef LOKA_APP2_FRAGMENT_HPP
 #define LOKA_APP2_FRAGMENT_HPP
 
-#include "core2/scene/Node.hpp"
+#include "app/scene/Node.hpp"
 
 namespace loka
 {

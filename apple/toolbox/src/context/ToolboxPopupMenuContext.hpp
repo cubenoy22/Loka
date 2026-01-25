@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP
 #define LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP
 
-#include "core2/scene/NativeNodeContext.hpp"
+#include "app/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 #include "loka/core/Vector.hpp"
 #include <Quickdraw.h>

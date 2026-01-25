@@ -1,6 +1,6 @@
 #include "SceneManager2.hpp"
 #include <cassert>
-#include "core2/scene/Scene.hpp"
+#include "app/scene/Scene.hpp"
 #include "loka/core/util/StateUtil.hpp"
 
 unsigned long SceneManager2::SceneTransactionList::nextId_ = 1;

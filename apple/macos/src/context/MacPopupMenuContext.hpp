@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_POPUP_MENU_CONTEXT_HPP
 #define LOKA_MAC_POPUP_MENU_CONTEXT_HPP
 
-#include "core2/scene/NativeNodeContext.hpp"
+#include "app/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
 class MacPopupMenuContext : public loka::app::scene::NativeNodeContext

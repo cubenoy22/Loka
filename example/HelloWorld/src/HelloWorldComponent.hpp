@@ -1,8 +1,8 @@
 #ifndef LOKA_HELLOWORLD_COMPONENT_HPP
 #define LOKA_HELLOWORLD_COMPONENT_HPP
 
-#include "core2/scene/node/Group.hpp"
-#include "core2/scene/BoundState.hpp"
+#include "app/scene/node/Group.hpp"
+#include "app/scene/BoundState.hpp"
 #include "loka/core/String.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"

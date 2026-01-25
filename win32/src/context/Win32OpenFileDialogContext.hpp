@@ -2,7 +2,7 @@
 #define LOKA_WIN32_OPEN_FILE_DIALOG_CONTEXT_HPP
 
 #include <windows.h>
-#include "core2/scene/NativeNodeContext.hpp"
+#include "app/scene/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 
 class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext

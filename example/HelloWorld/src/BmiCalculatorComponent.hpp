@@ -4,8 +4,8 @@
 #include <string>
 #include <cstdio>
 #include <cstdlib>
-#include "core2/scene/BoundState.hpp"
-#include "core2/scene/Component.hpp"
+#include "app/scene/BoundState.hpp"
+#include "app/scene/Component.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include "app/EditText.hpp"

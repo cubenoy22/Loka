@@ -73,5 +73,5 @@
 - `common/app/SceneManager2.hpp`
 - `common/app/SceneManager2.cpp`
 - `common/app/Window.hpp`
-- `common/core2/scene/Scene.hpp`
+- `common/app/scene/Scene.hpp`
 - `docs/design_minutes.md`（Solid-mode の Window/Scene 設計方針）

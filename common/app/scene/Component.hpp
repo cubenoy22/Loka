@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_COMPONENT_HPP
 
 #include <cassert>
-#include "core2/scene/NodeComposition.hpp"
+#include "app/scene/NodeComposition.hpp"
 
 namespace loka
 {
