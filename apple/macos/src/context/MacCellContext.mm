@@ -2,7 +2,7 @@
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Cell.hpp"
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 class MacCellContext;

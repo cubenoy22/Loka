@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "core/Managed.hpp"
+#include "loka/core/Managed.hpp"
 #include "loka/core/String.hpp"
 
 namespace loka

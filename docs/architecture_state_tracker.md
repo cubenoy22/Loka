@@ -1,6 +1,6 @@
 # Loka State / Tracker 実装ノート（2025-11 最新）
 
-`common/core/State.hpp` と `common/core/StateTracker.*` に実装されている State システムの整理メモ。  
+`common/loka/core/State.hpp` と `common/loka/core/StateTracker.*` に実装されている State システムの整理メモ。  
 `design_minutes.md` の Solid-mode アプローチと揃えて、実装のどこを見れば良いか・どう使うかを一本化した。
 
 ---
@@ -9,14 +9,14 @@
 
 | 型/モジュール       | 役割                                                                     | 定義場所                                 |
 | ------------------- | ------------------------------------------------------------------------ | ---------------------------------------- |
-| `StateBase`         | すべての State の基底。`bind`/`deferBind` と依存列挙を提供               | `common/core/State.hpp`                  |
+| `StateBase`         | すべての State の基底。`bind`/`deferBind` と依存列挙を提供               | `common/loka/core/State.hpp`                  |
 | `State<T>`          | 読み取り専用状態。`bind` で即時購読、`deferBind` で遅延購読              | 同上                                     |
 | `MutableState<T>`   | `State<T>` + `set(value, forceUpdate)`。`currentTracker` に dirty を通知 | 同上                                     |
 | `DerivedState<T>`   | 依存先 `std::vector<StateBase*>` と `EvalFn` で値を自動合成              | 同上                                     |
 | `EmitterState`      | `State<void>` の軽量イベント版 (`emit()` だけ呼べば OK)                  | 同上                                     |
-| `StateTracker`      | begin/end/defer/markDirty API を定義する抽象基底                         | `common/core/StateTracker.hpp`           |
-| `PushStateTracker`  | 依存グラフを push 型で伝播させる実装                                     | `common/core/StateTracker.*`             |
-| `loka::core::StateTrackerGuard` | RAII で `begin()`/`end()` を自動管理                                     | `common/core/util/StateTrackerGuard.hpp` |
+| `StateTracker`      | begin/end/defer/markDirty API を定義する抽象基底                         | `common/loka/core/StateTracker.hpp`           |
+| `PushStateTracker`  | 依存グラフを push 型で伝播させる実装                                     | `common/loka/core/StateTracker.*`        |
+| `loka::core::StateTrackerGuard` | RAII で `begin()`/`end()` を自動管理                                     | `common/loka/core/util/StateTrackerGuard.hpp` |
 
 **Tracker 登録:** `PushStateTracker` はコンストラクタで受け取った State から `dependencies` を走査し、`registerDependency` によりグラフを構築 (`StateBase::getDependencyStates()` を使用)。Window など長寿命オブジェクトは `loka::core::makeStateVector(...)` で監視対象を束ねる。
 

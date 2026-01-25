@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_NODE_CONDITIONAL_HPP
 #define LOKA_CORE2_SCENE_NODE_CONDITIONAL_HPP
 
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "../Node.hpp"
 
 namespace loka

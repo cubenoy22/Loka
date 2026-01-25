@@ -2,8 +2,8 @@
 #define LOKA_SCENEMANAGER2_HPP
 
 #include "core2/scene/Scene.hpp"
-#include "core/State.hpp"
-#include "core/StateTracker.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/StateTracker.hpp"
 #include "loka/dsl/CompositionList.hpp"
 
 class Window;

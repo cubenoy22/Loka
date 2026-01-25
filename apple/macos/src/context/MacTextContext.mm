@@ -2,7 +2,7 @@
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Text.hpp"
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)

@@ -2,8 +2,8 @@
 #define LOKA_CORE2_SCENE_BOUND_STATE_HPP
 
 #include <cassert>
-#include "core/State.hpp"
-#include "core/StateTracker.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/StateTracker.hpp"
 #include "core2/scene/StateOwner.hpp"
 
 namespace loka

@@ -3,7 +3,7 @@
 
 #include "../NodeComposition.hpp"
 #include "Boundary.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 
 namespace loka
 {

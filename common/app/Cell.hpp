@@ -1,7 +1,7 @@
 #ifndef LOKA_APP2_CELL_HPP
 #define LOKA_APP2_CELL_HPP
 
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "core2/scene/Node.hpp"
 

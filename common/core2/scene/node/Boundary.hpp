@@ -7,10 +7,10 @@
 #include "ComposableNode.hpp"
 #include "../BoundState.hpp"
 #include "../ComponentContext.hpp"
-#include "core/Managed.hpp"
-#include "core/StateTracker.hpp"
-#include "core/util/StateUtil.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Managed.hpp"
+#include "loka/core/StateTracker.hpp"
+#include "loka/core/util/StateUtil.hpp"
+#include "loka/core/Profiler.hpp"
 
 namespace loka
 {

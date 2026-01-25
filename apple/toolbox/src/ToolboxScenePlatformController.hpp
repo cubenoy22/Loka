@@ -2,7 +2,7 @@
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "core2/scene/PlatformController.hpp"
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "core2/scene/node/Boundary.hpp"
 #include <Quickdraw.h>

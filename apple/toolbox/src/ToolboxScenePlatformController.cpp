@@ -2,7 +2,7 @@
 #include "ToolboxWindow.hpp"
 #include "ToolboxWindowContext.hpp"
 #include "ToolboxProfiler.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <cstring>
@@ -13,7 +13,7 @@
 // Profile result captured once on first render
 static bool sProfileCaptured = false;
 #include "loka/platform/StringUTF8.hpp"
-#include "core/util/StateTrackerGuard.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 #include "app/Text.hpp"
 #include "app/Button.hpp"

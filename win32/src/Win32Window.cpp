@@ -3,11 +3,11 @@
 #include <windows.h>
 #include <string>
 #include "app/Window.hpp"
-#include "core/StateTracker.hpp"
+#include "loka/core/StateTracker.hpp"
 
 #include "core2/scene/Scene.hpp"
 #include "core2/scene/Scene.hpp"
-#include "core/util/StateTrackerGuard.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"

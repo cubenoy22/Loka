@@ -1,6 +1,6 @@
 #include "Win32ButtonContext.hpp"
 #include "app/Button.hpp"
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node)

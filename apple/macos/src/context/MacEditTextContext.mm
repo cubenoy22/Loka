@@ -2,7 +2,7 @@
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/EditText.hpp"
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 @interface LokaTextFieldDelegate : NSObject <NSTextFieldDelegate>

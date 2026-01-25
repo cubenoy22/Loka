@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_SCENE_HPP
 #define LOKA_CORE2_SCENE_SCENE_HPP
 
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include <cassert>
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
 #include "loka/platform/DebugLog.hpp"
@@ -11,7 +11,7 @@
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/node/Boundary.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 #include "loka/dsl/RefreshLoop.hpp"
 #include "loka/dsl/CompositionDiff.hpp"
 

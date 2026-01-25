@@ -1,7 +1,7 @@
 #ifndef TOOLBOX_PROFILER_HPP
 #define TOOLBOX_PROFILER_HPP
 
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 #include <string>
 
 // Re-export common profiler types for convenience

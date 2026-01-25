@@ -3,10 +3,10 @@
 
 #include "app/AppComposition.hpp"
 #include "app/AppConfigurable.hpp"
-#include "core/State.hpp"
-#include "core/StateTracker.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/StateTracker.hpp"
 #include "app/WindowDefinition.hpp"
-#include "core/util/StateTrackerGuard.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 #include "app/Menu.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "MainNode.hpp"

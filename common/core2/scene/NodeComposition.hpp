@@ -10,7 +10,7 @@
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/ComponentContext.hpp"
 #include "core2/scene/StateOwner.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 
 class Window;
 

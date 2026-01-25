@@ -4,8 +4,8 @@
 #include <cassert>
 #include <vector>
 
-#include "core/Profiler.hpp"
-#include "core/State.hpp"
+#include "loka/core/Profiler.hpp"
+#include "loka/core/State.hpp"
 #include "core2/scene/BoundState.hpp"
 #include "core2/scene/StateOwner.hpp"
 

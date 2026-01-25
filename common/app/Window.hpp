@@ -1,11 +1,11 @@
 #ifndef LOKA_WINDOW_HPP
 #define LOKA_WINDOW_HPP
 
-#include "core/State.hpp"
-#include "core/StateTracker.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/StateTracker.hpp"
 #include "app/AppComponent.hpp"
 #include "app/SceneManager2.hpp"
-#include "core/util/StateUtil.hpp"
+#include "loka/core/util/StateUtil.hpp"
 #include "core2/scene/Node.hpp"
 #include "app/Menu.hpp"
 #include "loka/core/String.hpp"

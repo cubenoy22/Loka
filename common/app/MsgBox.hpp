@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_MSGBOX_HPP
 #define LOKA_APP_MSGBOX_HPP
 
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 
 namespace loka

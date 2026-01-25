@@ -7,7 +7,7 @@
 #include "../ComponentContext.hpp"
 #include "../NodeComposition.hpp"
 #include "../StateOwner.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 
 class Window;
 

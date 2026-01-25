@@ -1,10 +1,10 @@
 #include "Tests.hpp"
 #include <cassert>
 #include <string>
-#include "core/State.hpp"
-#include "core/StateTracker.hpp"
-#include "core/util/StateTrackerGuard.hpp"
-#include "core/util/StateUtil.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/StateTracker.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
+#include "loka/core/util/StateUtil.hpp"
 #include "app/SceneManager2.hpp"
 #include "core2/scene/NodeComposition.hpp"
 #include "core2/scene/PlatformController.hpp"
@@ -13,7 +13,7 @@
 #include "core2/scene/node/StaticComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
-#include "core/Managed.hpp"
+#include "loka/core/Managed.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Value.hpp"
 #include "loka/core/Vector.hpp"

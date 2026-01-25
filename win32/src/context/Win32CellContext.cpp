@@ -1,6 +1,6 @@
 #include "Win32CellContext.hpp"
 #include "app/Cell.hpp"
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 namespace

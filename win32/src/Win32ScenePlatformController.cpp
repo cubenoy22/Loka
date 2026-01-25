@@ -13,7 +13,7 @@
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
 #include "core2/scene/Node.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 #include "context/Win32CellContext.hpp"
 
 namespace

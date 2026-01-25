@@ -20,8 +20,8 @@
 #include <vector>
 #include "loka/dsl/CompositionList.hpp"
 
-#include "../../core/State.hpp"
-#include "../../core/Profiler.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/Profiler.hpp"
 // StreamView is only needed by NodeComposition; avoid including here to reduce coupling
 
 namespace loka

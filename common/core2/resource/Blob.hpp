@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <vector>
 
-#include "core/Managed.hpp"
-#include "core/State.hpp"
+#include "loka/core/Managed.hpp"
+#include "loka/core/State.hpp"
 
 namespace loka
 {

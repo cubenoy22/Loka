@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_OPEN_FILE_DIALOG_HPP
 #define LOKA_APP_OPEN_FILE_DIALOG_HPP
 
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "core2/scene/Node.hpp"
 #include "file/Item.hpp"
 

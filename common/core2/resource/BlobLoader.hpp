@@ -5,7 +5,7 @@
 #include <fstream>
 #include <vector>
 
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "core2/resource/Blob.hpp"
 #include "core2/runtime/ErrorSink.hpp"
 #include "loka/core/String.hpp"

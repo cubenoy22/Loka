@@ -1,5 +1,5 @@
 // ScopedPtr.hpp - C++98用シンプルRAIIスマートポインタ
-// Loka Project util (core/util/ScopedPtr.hpp)
+// Loka Project util (loka/core/util/ScopedPtr.hpp)
 //
 // - コピー禁止
 // - スコープ終了時にdelete

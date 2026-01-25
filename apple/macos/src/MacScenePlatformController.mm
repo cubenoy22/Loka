@@ -19,7 +19,7 @@
 #include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
-#include "core/Profiler.hpp"
+#include "loka/core/Profiler.hpp"
 
 namespace
 {

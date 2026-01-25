@@ -18,8 +18,8 @@ It focuses on what you need to wire UI updates without exceptions or RTTI.
 Use `declareStates()` for UI-owned state.
 
 ```cpp
-#include "core/State.hpp"
-#include "core/util/StateTrackerGuard.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 
 class CounterComponent
@@ -118,7 +118,7 @@ count.stream().map(ToLabel()).set(label, true);
 It is often used for shared caches or handles with custom release logic.
 
 ```cpp
-#include "core/Managed.hpp"
+#include "loka/core/Managed.hpp"
 
 struct Thing
 {

@@ -1,7 +1,7 @@
 #include "Win32EditTextContext.hpp"
 #include <vector>
 #include "app/EditText.hpp"
-#include "core/State.hpp"
+#include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node)

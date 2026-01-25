@@ -238,8 +238,8 @@ loka::Vector<int> values = s.map<int>(s.slot.member<int, &Item::value>() + loka:
 Use `EmitterState` for events and `MutableState<T>` for values. Mutating state must be wrapped in a `loka::core::StateTrackerGuard`.
 
 ```cpp
-#include "core/State.hpp"
-#include "core/util/StateTrackerGuard.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 
 class DemoComponent
