@@ -3,7 +3,7 @@
 
 #include "core2/scene/PlatformController.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -14,13 +14,13 @@ namespace declara
   }
 }
 
-class MacScenePlatformController : public declara::core::scene::IPlatformController
+class MacScenePlatformController : public loka::core::scene::IPlatformController
 {
 public:
   explicit MacScenePlatformController(void *rootView);
   virtual ~MacScenePlatformController();
 
-  virtual void onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags);
+  virtual void onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
 
@@ -35,16 +35,16 @@ private:
     int height;
   };
 
-  int layoutNode(declara::core::scene::Node *node, const LayoutState &state);
+  int layoutNode(loka::core::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight);
   void clearContexts();
-  void clearNodeContexts(declara::core::scene::Node *node);
+  void clearNodeContexts(loka::core::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
   void registerEditField(void *field);
   void finalizeKeyLoop();
 
   void *rootView_;
-  declara::core::scene::Node *rootNode_;
+  loka::core::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
   void *firstEditField_;

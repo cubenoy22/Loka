@@ -285,7 +285,7 @@ void Win32Window::mountScene()
   {
     return;
   }
-  declara::core::scene::Scene *currentScene = this->scene();
+  loka::core::scene::Scene *currentScene = this->scene();
   if (!currentScene)
   {
     return;
@@ -296,7 +296,7 @@ void Win32Window::mountScene()
 
 void Win32Window::teardownScene()
 {
-  declara::core::scene::Scene *currentScene = this->scene();
+  loka::core::scene::Scene *currentScene = this->scene();
   if (currentScene)
   {
     currentScene->unmount();

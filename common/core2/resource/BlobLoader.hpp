@@ -11,7 +11,7 @@
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -327,6 +327,6 @@ namespace declara
 
     } // namespace resource
   }   // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_RESOURCE_BLOB_LOADER_HPP

@@ -14,14 +14,14 @@ namespace helloworld
   public:
     static const char *kInterfaceName() { return "RootBoundary"; }
 
-    static RootBoundary *fromNode(declara::core::scene::Node *node)
+    static RootBoundary *fromNode(loka::core::scene::Node *node)
     {
       if (!node) return 0;
       return static_cast<RootBoundary *>(node->queryInterface(kInterfaceName()));
     }
 
     virtual ~RootBoundary() {}
-    virtual declara::core::scene::BoundState<loka::core::String> &messageState() = 0;
+    virtual loka::core::scene::BoundState<loka::core::String> &messageState() = 0;
   };
 } // namespace helloworld
 

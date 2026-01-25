@@ -15,7 +15,7 @@ namespace loka
   }
 }
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -89,6 +89,6 @@ namespace declara
 
     } // namespace scene
   }   // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_BOUND_STATE_HPP

@@ -1,6 +1,6 @@
 #include "Profiler.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -12,4 +12,4 @@ namespace declara
     FuncProfileSlot *gProfileSlots[kMaxProfileSlots];
     int gProfileSlotCount = 0;
   } // namespace core
-} // namespace declara
+} // namespace loka

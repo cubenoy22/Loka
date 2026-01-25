@@ -7,7 +7,7 @@
 #include "context/ToolboxTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 
-void ToolboxNodeContextMapper::ensureTextContext(declara::app::TextNode *node)
+void ToolboxNodeContextMapper::ensureTextContext(loka::app::TextNode *node)
 {
   if (!node)
   {
@@ -21,7 +21,7 @@ void ToolboxNodeContextMapper::ensureTextContext(declara::app::TextNode *node)
   }
 }
 
-void ToolboxNodeContextMapper::ensureCellContext(declara::app::CellNode *node)
+void ToolboxNodeContextMapper::ensureCellContext(loka::app::CellNode *node)
 {
   if (!node)
   {
@@ -35,7 +35,7 @@ void ToolboxNodeContextMapper::ensureCellContext(declara::app::CellNode *node)
   }
 }
 
-void ToolboxNodeContextMapper::ensureButtonContext(declara::app::ButtonNode *node)
+void ToolboxNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node)
 {
   if (!node)
   {
@@ -49,7 +49,7 @@ void ToolboxNodeContextMapper::ensureButtonContext(declara::app::ButtonNode *nod
   }
 }
 
-void ToolboxNodeContextMapper::ensureEditTextContext(declara::app::EditTextNode *node)
+void ToolboxNodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node)
 {
   if (!node)
   {
@@ -63,7 +63,7 @@ void ToolboxNodeContextMapper::ensureEditTextContext(declara::app::EditTextNode 
   }
 }
 
-void ToolboxNodeContextMapper::ensureOpenFileDialogContext(declara::app::OpenFileDialogNode *node)
+void ToolboxNodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node)
 {
   if (!node)
   {
@@ -77,7 +77,7 @@ void ToolboxNodeContextMapper::ensureOpenFileDialogContext(declara::app::OpenFil
   }
 }
 
-void ToolboxNodeContextMapper::ensurePopupMenuContext(declara::app::PopupMenuNode *node)
+void ToolboxNodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *node)
 {
   if (!node)
   {

@@ -3,7 +3,7 @@
 #include "core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int height, declara::app::ButtonNode *node)
+Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node)
     : node_(node),
       hwnd_(NULL),
       textState_(0)

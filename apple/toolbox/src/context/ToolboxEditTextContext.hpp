@@ -7,7 +7,7 @@
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -17,7 +17,7 @@ namespace declara
     }
   }
 }
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -28,28 +28,28 @@ namespace declara
   }
 }
 
-class ToolboxEditTextContext : public declara::core::scene::NativeNodeContext
+class ToolboxEditTextContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  explicit ToolboxEditTextContext(declara::app::EditTextNode *node);
+  explicit ToolboxEditTextContext(loka::app::EditTextNode *node);
   virtual ~ToolboxEditTextContext();
 
-  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
-  void updateData(declara::core::State<loka::core::String> *text);
+  void setBoundary(loka::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY);
   void draw(ToolboxScenePlatformController *controller);
-  virtual void render(declara::core::scene::IPlatformController *controller);
-  virtual short layout(declara::core::scene::IPlatformController *controller,
-                       declara::core::scene::LayoutState &state);
+  virtual void render(loka::core::scene::IPlatformController *controller);
+  virtual short layout(loka::core::scene::IPlatformController *controller,
+                       loka::core::scene::LayoutState &state);
 
 private:
-  declara::app::EditTextNode *node_;
-  declara::core::scene::BoundaryNode *boundary_;
+  loka::app::EditTextNode *node_;
+  loka::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   Rect textRect_;
   short textX_;
   short textY_;
-  declara::core::State<loka::core::String> *text_;
+  loka::core::State<loka::core::String> *text_;
 };
 
 #endif // LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP

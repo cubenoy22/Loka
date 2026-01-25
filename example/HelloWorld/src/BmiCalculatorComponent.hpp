@@ -25,7 +25,7 @@ namespace helloworld
           bmiResult_()
     {}
 
-    void attachNode(declara::core::scene::NodeComposition &c)
+    void attachNode(loka::core::scene::NodeComposition &c)
     {
       if (this->initialized_)
       {
@@ -42,10 +42,10 @@ namespace helloworld
       this->initialized_ = true;
     }
 
-    void composeNode(declara::core::scene::NodeComposition &c)
+    void composeNode(loka::core::scene::NodeComposition &c)
     {
       PROFILE_SECTION("bmiCompose");
-      using namespace declara::app;
+      using namespace loka::app;
       c.declare(
           VStack()
           << Text("BMI Calculator")
@@ -56,8 +56,8 @@ namespace helloworld
           << Text(this->bmiResult_));
     }
 
-    void composeInto(declara::core::scene::NodeComposition &c,
-                     declara::core::scene::INestableDefinition &parent)
+    void composeInto(loka::core::scene::NodeComposition &c,
+                     loka::core::scene::INestableDefinition &parent)
     {
       attachNode(c);
       composeNode(c);
@@ -121,9 +121,9 @@ namespace helloworld
     }
 
     bool initialized_;
-    declara::core::scene::BoundState<loka::core::String> heightInput_;
-    declara::core::scene::BoundState<loka::core::String> weightInput_;
-    declara::core::scene::BoundState<loka::core::String> bmiResult_;
+    loka::core::scene::BoundState<loka::core::String> heightInput_;
+    loka::core::scene::BoundState<loka::core::String> weightInput_;
+    loka::core::scene::BoundState<loka::core::String> bmiResult_;
   };
 
 } // namespace helloworld

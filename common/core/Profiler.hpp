@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstdio>
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -161,17 +161,17 @@ namespace declara
 
 #if LOKA_PROFILE_FUNC_TICKS
 #define PROFILE_FUNC() \
-  static ::declara::core::FuncProfileSlot _pslot_ = {__FILE__, __func__, __LINE__, 0, 0}; \
-  static int _pslot_reg_ = ::declara::core::RegisterProfileSlot(&_pslot_); \
-  ::declara::core::FuncProfileScope _pscope_(&_pslot_)
+  static ::loka::core::FuncProfileSlot _pslot_ = {__FILE__, __func__, __LINE__, 0, 0}; \
+  static int _pslot_reg_ = ::loka::core::RegisterProfileSlot(&_pslot_); \
+  ::loka::core::FuncProfileScope _pscope_(&_pslot_)
 #define PROFILE_SECTION(name) \
-  static ::declara::core::FuncProfileSlot _psec_##__LINE__ = {__FILE__, name, __LINE__, 0, 0}; \
-  static int _psec_reg_##__LINE__ = ::declara::core::RegisterProfileSlot(&_psec_##__LINE__); \
-  ::declara::core::FuncProfileScope _pscope_##__LINE__(&_psec_##__LINE__)
+  static ::loka::core::FuncProfileSlot _psec_##__LINE__ = {__FILE__, name, __LINE__, 0, 0}; \
+  static int _psec_reg_##__LINE__ = ::loka::core::RegisterProfileSlot(&_psec_##__LINE__); \
+  ::loka::core::FuncProfileScope _pscope_##__LINE__(&_psec_##__LINE__)
 #define PROFILE_SECTION_ID(name, id) \
-  static ::declara::core::FuncProfileSlot _psec_##id = {__FILE__, name, __LINE__, 0, 0}; \
-  static int _psec_reg_##id = ::declara::core::RegisterProfileSlot(&_psec_##id); \
-  ::declara::core::FuncProfileScope _pscope_##id(&_psec_##id)
+  static ::loka::core::FuncProfileSlot _psec_##id = {__FILE__, name, __LINE__, 0, 0}; \
+  static int _psec_reg_##id = ::loka::core::RegisterProfileSlot(&_psec_##id); \
+  ::loka::core::FuncProfileScope _pscope_##id(&_psec_##id)
 #else
 #define PROFILE_FUNC()
 #define PROFILE_SECTION(name)
@@ -179,6 +179,6 @@ namespace declara
 #endif
 
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // DECLARA_CORE_PROFILER_HPP

@@ -22,7 +22,7 @@
 }
 @end
 
-MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, int height, declara::app::ButtonNode *node)
+MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node)
     : node_(node), button_(0), target_(0), textState_(0)
 {
   NSView *parent = (__bridge NSView *)parentView;
@@ -104,7 +104,7 @@ void MacButtonContext::applyText()
   std::string utf8;
   if (loka::platform::CollectUtf8(textState_->get(), utf8))
   {
-    [button setTitle:declara::macos::CreateNSStringFromUtf8(utf8)];
+    [button setTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
 }
 

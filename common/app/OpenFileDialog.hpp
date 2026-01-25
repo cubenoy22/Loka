@@ -5,7 +5,7 @@
 #include "core2/scene/Node.hpp"
 #include "file/Item.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -86,7 +86,7 @@ namespace declara
 
     class OpenFileDialogNode;
 
-    struct OpenFileDialogProps : public declara::core::scene::NodePropsBase<OpenFileDialogProps>
+    struct OpenFileDialogProps : public loka::core::scene::NodePropsBase<OpenFileDialogProps>
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
@@ -120,7 +120,7 @@ namespace declara
         return *this;
       }
 
-      bool operator<(const declara::core::scene::PropsBase &rhs) const
+      bool operator<(const loka::core::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -135,17 +135,17 @@ namespace declara
       }
     };
 
-    class OpenFileDialogNode : public declara::core::scene::Node
+    class OpenFileDialogNode : public loka::core::scene::Node
     {
     public:
       typedef OpenFileDialogTypeTag TypeTag;
       OpenFileDialogProps props;
       OpenFileDialogNode(const OpenFileDialogProps &p) : props(p) {}
-      virtual declara::core::scene::NodeKind kind() const { return declara::core::scene::NODE_KIND_OPEN_FILE_DIALOG; }
+      virtual loka::core::scene::NodeKind kind() const { return loka::core::scene::NODE_KIND_OPEN_FILE_DIALOG; }
       virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
     };
 
-    struct OpenFileDialogDefinition : public declara::core::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>
+    struct OpenFileDialogDefinition : public loka::core::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>
     {
       OpenFileDialogDefinition() : NodeDefinition() {}
       OpenFileDialogDefinition(const OpenFileDialogProps &p) : NodeDefinition(p) {}
@@ -174,11 +174,11 @@ namespace declara
         return *this;
       }
 
-      using declara::core::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
+      using loka::core::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
     };
 
     typedef OpenFileDialogDefinition OpenFileDialog;
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP_OPEN_FILE_DIALOG_HPP

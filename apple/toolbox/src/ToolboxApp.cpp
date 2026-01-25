@@ -343,14 +343,14 @@ void ToolboxApp::resetMenuState()
 }
 
 static void BuildMenuItems(MenuHandle menu,
-                           const declara::app::MenuItemDefinition *itemsHead,
+                           const loka::app::MenuItemDefinition *itemsHead,
                            short menuId,
                            short &nextMenuId,
                            std::vector<ToolboxApp::MenuCommand> &commands,
                            std::vector<ToolboxApp::MenuBinding *> &bindings,
                            std::vector<MenuHandle> &hierarchicalMenus)
 {
-  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  const loka::app::MenuItemDefinition *itemDef = itemsHead;
   while (itemDef)
   {
     if (!itemDef)
@@ -364,7 +364,7 @@ static void BuildMenuItems(MenuHandle menu,
       itemDef = itemDef->nextInComposition;
       continue;
     }
-    if (itemDef->action == declara::app::MENU_ACTION_SHOW_COLOR_PICKER)
+    if (itemDef->action == loka::app::MENU_ACTION_SHOW_COLOR_PICKER)
     {
       itemDef = itemDef->nextInComposition;
       continue;
@@ -419,9 +419,9 @@ static void BuildMenuItems(MenuHandle menu,
   }
 }
 
-static bool HasHierarchicalItems(const declara::app::MenuItemDefinition *itemsHead)
+static bool HasHierarchicalItems(const loka::app::MenuItemDefinition *itemsHead)
 {
-  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  const loka::app::MenuItemDefinition *itemDef = itemsHead;
   while (itemDef)
   {
     if (itemDef->hasChildren())
@@ -439,7 +439,7 @@ static bool HasHierarchicalItems(const declara::app::MenuItemDefinition *itemsHe
 
 void ToolboxApp::applyMenuBar(Window *activeWindow)
 {
-  const declara::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
+  const loka::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
   if (!menuBar)
   {
     resetMenuState();
@@ -456,15 +456,15 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
 
   size_t menuCount = menuBar->menusCount();
   bool forceFullRebuild = (activeWindow && activeWindow->menuBar());
-  const declara::app::MenuCompositionDiff &diff = menuDiff();
+  const loka::app::MenuCompositionDiff &diff = menuDiff();
   if (!diff.valid && !forceFullRebuild)
   {
     return;
   }
   bool canPartial = diff.valid && !diff.fullRebuild && !forceFullRebuild;
   bool hasHierarchical = false;
-  loka::dsl::CompositionCursor<declara::app::MenuDefinition> hierarchyIt(menuBar->menusHead(), menuCount);
-  for (declara::app::MenuDefinition *menuDef = hierarchyIt.next(); menuDef; menuDef = hierarchyIt.next())
+  loka::dsl::CompositionCursor<loka::app::MenuDefinition> hierarchyIt(menuBar->menusHead(), menuCount);
+  for (loka::app::MenuDefinition *menuDef = hierarchyIt.next(); menuDef; menuDef = hierarchyIt.next())
   {
     if (HasHierarchicalItems(menuDef->itemsHead()))
     {
@@ -489,8 +489,8 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   }
 
   bool hasAppMenu = false;
-  loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuScan(menuBar->menusHead(), menuCount);
-  for (declara::app::MenuDefinition *menuDef = appMenuScan.next(); menuDef; menuDef = appMenuScan.next())
+  loka::dsl::CompositionCursor<loka::app::MenuDefinition> appMenuScan(menuBar->menusHead(), menuCount);
+  for (loka::app::MenuDefinition *menuDef = appMenuScan.next(); menuDef; menuDef = appMenuScan.next())
   {
     if (menuDef->isAppMenu)
     {
@@ -506,16 +506,16 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     title[0] = 1;
     title[1] = 0x14;
     MenuHandle menu = NewMenu(128, title);
-    std::vector<const declara::app::MenuItemDefinition *> aboutItems;
-    loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
-    for (declara::app::MenuDefinition *menuDef = appMenuIt.next(); menuDef; menuDef = appMenuIt.next())
+    std::vector<const loka::app::MenuItemDefinition *> aboutItems;
+    loka::dsl::CompositionCursor<loka::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
+    for (loka::app::MenuDefinition *menuDef = appMenuIt.next(); menuDef; menuDef = appMenuIt.next())
     {
       if (!menuDef->isAppMenu)
         continue;
-      const declara::app::MenuItemDefinition *itemDef = menuDef->itemsHead();
+      const loka::app::MenuItemDefinition *itemDef = menuDef->itemsHead();
       while (itemDef)
       {
-        if (itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
+        if (itemDef->action == loka::app::MENU_ACTION_ABOUT_APP)
         {
           aboutItems.push_back(itemDef);
         }
@@ -525,7 +525,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     if (!aboutItems.empty())
     {
       AppendResMenu(menu, 'DRVR');
-      const declara::app::MenuItemDefinition *itemDef = aboutItems[0];
+      const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
       Str255 aboutTitle;
       CopyToPascalString(itemDef->title, aboutTitle);
       InsertMenuItem(menu, aboutTitle, 0);
@@ -567,8 +567,8 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       menuEntries_[i].isAppMenu = false;
     }
     size_t menuIndex = 0;
-    loka::dsl::CompositionCursor<declara::app::MenuDefinition> it(menuBar->menusHead(), menuCount);
-    for (declara::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next(), ++menuIndex)
+    loka::dsl::CompositionCursor<loka::app::MenuDefinition> it(menuBar->menusHead(), menuCount);
+    for (loka::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next(), ++menuIndex)
     {
       if (menuDef->isAppMenu)
       {
@@ -609,9 +609,9 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   }
 
   bool needsFullRebuild = false;
-  loka::dsl::CompositionCursor<declara::app::MenuCompositionDiff::ChangedIndex> diffIt(
+  loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> diffIt(
       diff.changedHead(), diff.changedCount());
-  for (declara::app::MenuCompositionDiff::ChangedIndex *diffEntry = diffIt.next(); diffEntry; diffEntry = diffIt.next())
+  for (loka::app::MenuCompositionDiff::ChangedIndex *diffEntry = diffIt.next(); diffEntry; diffEntry = diffIt.next())
   {
     size_t i = diffEntry->value;
     if (i >= menuCount)
@@ -619,7 +619,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       needsFullRebuild = true;
       break;
     }
-    const declara::app::MenuDefinition *menuDef = menuBar->menuAt(i);
+    const loka::app::MenuDefinition *menuDef = menuBar->menuAt(i);
     if (!menuDef)
     {
       needsFullRebuild = true;
@@ -653,16 +653,16 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
     }
     if (menuDef->isAppMenu)
     {
-      std::vector<const declara::app::MenuItemDefinition *> aboutItems;
-      loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
-      for (declara::app::MenuDefinition *appDef = appMenuIt.next(); appDef; appDef = appMenuIt.next())
+      std::vector<const loka::app::MenuItemDefinition *> aboutItems;
+      loka::dsl::CompositionCursor<loka::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
+      for (loka::app::MenuDefinition *appDef = appMenuIt.next(); appDef; appDef = appMenuIt.next())
       {
         if (!appDef->isAppMenu)
           continue;
-        const declara::app::MenuItemDefinition *itemDef = appDef->itemsHead();
+        const loka::app::MenuItemDefinition *itemDef = appDef->itemsHead();
         while (itemDef)
         {
-          if (itemDef->action == declara::app::MENU_ACTION_ABOUT_APP)
+          if (itemDef->action == loka::app::MENU_ACTION_ABOUT_APP)
           {
             aboutItems.push_back(itemDef);
           }
@@ -675,7 +675,7 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
         break;
       }
       AppendResMenu(entry.menu, 'DRVR');
-      const declara::app::MenuItemDefinition *itemDef = aboutItems[0];
+      const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
       Str255 aboutTitle;
       CopyToPascalString(itemDef->title, aboutTitle);
       InsertMenuItem(entry.menu, aboutTitle, 0);
@@ -734,18 +734,18 @@ void ToolboxApp::handleMenuCommand(short menuId, short item)
       continue;
     switch (commands_[i].action)
     {
-    case declara::app::MENU_ACTION_ABOUT_APP:
+    case loka::app::MENU_ACTION_ABOUT_APP:
       SysBeep(1);
       return;
-    case declara::app::MENU_ACTION_SHOW_COLOR_PICKER:
+    case loka::app::MENU_ACTION_SHOW_COLOR_PICKER:
       SysBeep(1);
       return;
-    case declara::app::MENU_ACTION_QUIT_APP:
+    case loka::app::MENU_ACTION_QUIT_APP:
       quit();
       return;
-    case declara::app::MENU_ACTION_REBUILD_MENU:
+    case loka::app::MENU_ACTION_REBUILD_MENU:
       break;
-    case declara::app::MENU_ACTION_NONE:
+    case loka::app::MENU_ACTION_NONE:
     default:
       break;
     }
@@ -753,7 +753,7 @@ void ToolboxApp::handleMenuCommand(short menuId, short item)
     {
       commands_[i].emitter->emit();
     }
-    if (commands_[i].action == declara::app::MENU_ACTION_REBUILD_MENU)
+    if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
     {
       invalidateMenu();
     }

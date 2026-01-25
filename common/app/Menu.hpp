@@ -6,7 +6,7 @@
 #include "loka/dsl/CompositionList.hpp"
 #include "app/MenuComposition.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -128,7 +128,7 @@ namespace declara
 
       MenuItemDefinition &enabled(bool value)
       {
-        enabledState = declara::core::StaticState<bool>(value);
+        enabledState = loka::core::StaticState<bool>(value);
         return *this;
       }
 
@@ -478,6 +478,6 @@ namespace declara
     }
 
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP_MENU_HPP

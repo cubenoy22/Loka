@@ -29,7 +29,7 @@ namespace
   }
 }
 
-ToolboxPopupMenuContext::ToolboxPopupMenuContext(declara::app::PopupMenuNode *node)
+ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node)
     : node_(node),
       boundary_(0),
       rect_(),
@@ -44,9 +44,9 @@ ToolboxPopupMenuContext::ToolboxPopupMenuContext(declara::app::PopupMenuNode *no
 ToolboxPopupMenuContext::~ToolboxPopupMenuContext() {}
 
 void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> *items,
-                                         declara::core::State<int> *selectedIndex,
-                                         declara::core::EmitterState *onChange,
-                                         declara::core::State<bool> *enabled)
+                                         loka::core::State<int> *selectedIndex,
+                                         loka::core::EmitterState *onChange,
+                                         loka::core::State<bool> *enabled)
 {
   items_ = items;
   selectedIndex_ = selectedIndex;
@@ -138,8 +138,8 @@ void ToolboxPopupMenuContext::draw()
   KillPoly(arrow);
 }
 
-short ToolboxPopupMenuContext::layout(declara::core::scene::IPlatformController *controller,
-                                      declara::core::scene::LayoutState &state)
+short ToolboxPopupMenuContext::layout(loka::core::scene::IPlatformController *controller,
+                                      loka::core::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -202,7 +202,7 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   return true;
 }
 
-void ToolboxPopupMenuContext::render(declara::core::scene::IPlatformController *)
+void ToolboxPopupMenuContext::render(loka::core::scene::IPlatformController *)
 {
   draw();
 }

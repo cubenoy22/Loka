@@ -8,7 +8,7 @@
 class PlatformContext;
 class App;
 
-namespace declara
+namespace loka
 {
   namespace core
   {

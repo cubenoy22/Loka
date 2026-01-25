@@ -5,10 +5,10 @@
 #include "app/OpenFileDialog.hpp"
 #include "loka/core/String.hpp"
 
-class MacOpenFileDialogContext : public declara::core::scene::NativeNodeContext
+class MacOpenFileDialogContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  MacOpenFileDialogContext(void *parentView, declara::app::OpenFileDialogNode *node);
+  MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node);
   virtual ~MacOpenFileDialogContext();
 
 private:
@@ -16,14 +16,14 @@ private:
   void unbindVisible();
   void applyVisible();
   void presentDialog();
-  void setResult(const declara::app::FileChooserResult &result);
+  void setResult(const loka::app::FileChooserResult &result);
 
   static void VisibleChangedThunk(void *userData);
 
   void *parentView_;
-  declara::app::OpenFileDialogNode *node_;
+  loka::app::OpenFileDialogNode *node_;
   State<bool> *visibleState_;
-  MutableState<declara::app::FileChooserResult> *resultState_;
+  MutableState<loka::app::FileChooserResult> *resultState_;
   EmitterState *onResult_;
   bool lastVisible_;
   bool presenting_;

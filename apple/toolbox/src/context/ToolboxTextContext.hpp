@@ -7,7 +7,7 @@
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -17,7 +17,7 @@ namespace declara
     }
   }
 }
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -28,27 +28,27 @@ namespace declara
   }
 }
 
-class ToolboxTextContext : public declara::core::scene::NativeNodeContext
+class ToolboxTextContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  explicit ToolboxTextContext(declara::app::TextNode *node);
+  explicit ToolboxTextContext(loka::app::TextNode *node);
   virtual ~ToolboxTextContext();
 
-  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
-  void updateData(declara::core::State<loka::core::String> *text);
+  void setBoundary(loka::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
   void draw(ToolboxScenePlatformController *controller);
-  virtual void render(declara::core::scene::IPlatformController *controller);
-  virtual short layout(declara::core::scene::IPlatformController *controller,
-                       declara::core::scene::LayoutState &state);
+  virtual void render(loka::core::scene::IPlatformController *controller);
+  virtual short layout(loka::core::scene::IPlatformController *controller,
+                       loka::core::scene::LayoutState &state);
 
 private:
-  declara::app::TextNode *node_;
-  declara::core::scene::BoundaryNode *boundary_;
+  loka::app::TextNode *node_;
+  loka::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   short textX_;
   short textY_;
-  declara::core::State<loka::core::String> *text_;
+  loka::core::State<loka::core::String> *text_;
 };
 
 #endif // LOKA_TOOLBOX_TEXT_CONTEXT_HPP

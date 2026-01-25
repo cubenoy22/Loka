@@ -3,7 +3,7 @@
 #include <string>
 #include <tchar.h>
 
-Win32PopupMenuContext::Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, declara::app::PopupMenuNode *node)
+Win32PopupMenuContext::Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
     : node_(node),
       hwnd_(0),
       selectionState_(0),

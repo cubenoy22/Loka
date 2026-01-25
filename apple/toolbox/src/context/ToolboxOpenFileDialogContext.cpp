@@ -15,7 +15,7 @@ static loka::core::String displayPathFromSpec(const FSSpec &spec)
   return loka::core::String(std::string(name, capped));
 }
 
-ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(declara::app::OpenFileDialogNode *node)
+ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node)
     : node_(node),
       visibleState_(0),
       resultState_(0),
@@ -84,7 +84,7 @@ void ToolboxOpenFileDialogContext::presentDialog()
 
   if (reply.sfGood)
   {
-    setResult(declara::app::FileChooserResult::File(
+    setResult(loka::app::FileChooserResult::File(
         loka::file::platform::ItemAccess::FromFSSpec(
             reply.sfFile,
             loka::file::Item::KIND_FILE,
@@ -92,13 +92,13 @@ void ToolboxOpenFileDialogContext::presentDialog()
   }
   else
   {
-    setResult(declara::app::FileChooserResult::Canceled());
+    setResult(loka::app::FileChooserResult::Canceled());
   }
 
   presenting_ = false;
 }
 
-void ToolboxOpenFileDialogContext::setResult(const declara::app::FileChooserResult &result)
+void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
   if (resultState_)
   {

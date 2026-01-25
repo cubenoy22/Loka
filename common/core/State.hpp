@@ -6,7 +6,7 @@
 #include "StateTracker.hpp"
 #include "loka/core/String.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -420,12 +420,12 @@ namespace declara
     }
 
   } // namespace core
-} // namespace declara
+} // namespace loka
 
-using declara::core::EmitterState;
-using declara::core::MutableState;
-using declara::core::State;
-using declara::core::StateBase;
-using declara::core::StatePriority;
+using loka::core::EmitterState;
+using loka::core::MutableState;
+using loka::core::State;
+using loka::core::StateBase;
+using loka::core::StatePriority;
 
 #endif // LOKA_STATE_HPP

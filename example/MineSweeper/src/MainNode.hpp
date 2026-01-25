@@ -10,18 +10,18 @@
 namespace minesweeper
 {
   class MainNode;
-  typedef declara::core::scene::StaticCompositionPropsFor<MainNode> MainProps;
+  typedef loka::core::scene::StaticCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public declara::core::scene::StaticCompositionNodeFor<MainNode>
+  class MainNode : public loka::core::scene::StaticCompositionNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p)
-        : declara::core::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
+        : loka::core::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false)
     {
     }
 
-    virtual void attachNode(declara::core::scene::NodeComposition &c)
+    virtual void attachNode(loka::core::scene::NodeComposition &c)
     {
       if (this->initialized_)
       {
@@ -29,7 +29,7 @@ namespace minesweeper
       }
       this->initialized_ = true;
       {
-        declara::core::scene::NodeComposition::StateBatch states = c.declareStates();
+        loka::core::scene::NodeComposition::StateBatch states = c.declareStates();
         for (int i = 0; i < kCellCount; ++i)
         {
           states.state(this->cellText_[i], loka::core::String::Literal("."));
@@ -44,9 +44,9 @@ namespace minesweeper
       this->resetBoard();
     }
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
-      using namespace declara::app;
+      using namespace loka::app;
       Grid grid;
       grid.rows(kRows).cols(kCols);
       for (int i = 0; i < kCellCount; ++i)
@@ -82,8 +82,8 @@ namespace minesweeper
     bool initialized_;
     bool mines_[kCellCount];
     bool revealed_[kCellCount];
-    declara::core::EmitterState cellClick_[kCellCount];
-    declara::core::scene::BoundState<loka::core::String> cellText_[kCellCount];
+    loka::core::EmitterState cellClick_[kCellCount];
+    loka::core::scene::BoundState<loka::core::String> cellText_[kCellCount];
     CellClickProxy clickProxy_[kCellCount];
 
     void resetBoard()

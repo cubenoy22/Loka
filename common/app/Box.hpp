@@ -5,7 +5,7 @@
 #include "core2/scene/Node.hpp"
 #include <vector>
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -88,6 +88,6 @@ namespace declara
     }
 
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP2_BOX_HPP

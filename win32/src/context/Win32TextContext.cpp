@@ -3,7 +3,7 @@
 #include "core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, declara::app::TextNode *node)
+Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node)
     : node_(node), hwnd_(NULL), textState_(0)
 {
   DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;

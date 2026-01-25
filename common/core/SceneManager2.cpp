@@ -17,7 +17,7 @@ SceneManager2::SceneManager2()
 
 SceneManager2::~SceneManager2() {}
 
-void SceneManager2::commitTransaction(declara::core::scene::Scene *from, declara::core::scene::Scene *to)
+void SceneManager2::commitTransaction(loka::core::scene::Scene *from, loka::core::scene::Scene *to)
 {
   tracker_.begin();
   const SceneTransactionList &current = pendingTransactions_.getRef();
@@ -28,7 +28,7 @@ void SceneManager2::commitTransaction(declara::core::scene::Scene *from, declara
   handleNextTransaction(); // 追加: 追加直後に即時遷移
 }
 
-const State<declara::core::scene::Scene *> &SceneManager2::getCurrentScene() const
+const State<loka::core::scene::Scene *> &SceneManager2::getCurrentScene() const
 {
   return currentScene_;
 }
@@ -43,8 +43,8 @@ void SceneManager2::handleNextTransaction()
   const SceneTransactionList &txns = pendingTransactions_.getRef();
   if (txns.empty())
     return;
-  declara::core::scene::Scene *oldScene = currentScene_.get();
-  declara::core::scene::Scene *newScene = txns.head()->to;
+  loka::core::scene::Scene *oldScene = currentScene_.get();
+  loka::core::scene::Scene *newScene = txns.head()->to;
   // attached の切り替えは swapScene 内で行う
   swapScene(oldScene, newScene);
   tracker_.begin();
@@ -54,7 +54,7 @@ void SceneManager2::handleNextTransaction()
   tracker_.end();
 }
 
-void SceneManager2::swapScene(declara::core::scene::Scene *oldScene, declara::core::scene::Scene *newScene)
+void SceneManager2::swapScene(loka::core::scene::Scene *oldScene, loka::core::scene::Scene *newScene)
 {
   if (oldScene == newScene)
     return;

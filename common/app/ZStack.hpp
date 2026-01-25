@@ -3,7 +3,7 @@
 
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -61,6 +61,6 @@ namespace declara
 
     typedef ZStackDefinition ZStack;
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP2_ZSTACK_HPP

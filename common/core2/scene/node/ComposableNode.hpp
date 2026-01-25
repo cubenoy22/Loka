@@ -11,7 +11,7 @@
 
 class Window;
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -86,7 +86,7 @@ namespace declara
         struct CallbackEntry : public CallbackEntryBase
         {
           typedef void (NodeT::*Method)();
-          CallbackEntry(NodeT *node, declara::core::EmitterState *emitter, Method method)
+          CallbackEntry(NodeT *node, loka::core::EmitterState *emitter, Method method)
               : node_(node), emitter_(emitter), method_(method), valid_(true) {}
 
           static void Invoke(void *userData)
@@ -113,13 +113,13 @@ namespace declara
           }
 
           NodeT *node_;
-          declara::core::EmitterState *emitter_;
+          loka::core::EmitterState *emitter_;
           Method method_;
           bool valid_;
         };
 
         template <class NodeT>
-        void bindForUi(declara::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
+        void bindForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
         {
           CallbackEntry<NodeT> *entry = new CallbackEntry<NodeT>(node, &emitter, method);
           callbacks_.push_back(entry);
@@ -237,6 +237,6 @@ namespace declara
 
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NODE_COMPOSABLENODE_HPP

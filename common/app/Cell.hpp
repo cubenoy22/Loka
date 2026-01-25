@@ -5,7 +5,7 @@
 #include "loka/core/String.hpp"
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -29,12 +29,12 @@ namespace declara
       }
       CellProps &text(const char *value)
       {
-        text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
+        text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
         return *this;
       }
       CellProps &text(const loka::core::String &value)
       {
-        text_ = declara::core::StaticState<loka::core::String>(value);
+        text_ = loka::core::StaticState<loka::core::String>(value);
         return *this;
       }
       CellProps &onClick(EmitterState *e)
@@ -71,7 +71,7 @@ namespace declara
       CellDefinition(const CellProps &p) : NodeDefinition(p) {}
       CellDefinition(const char *text) : NodeDefinition()
       {
-        this->props.text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
+        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
       }
       CellDefinition(State<loka::core::String> *text) : NodeDefinition()
       {
@@ -84,7 +84,7 @@ namespace declara
       }
       CellDefinition &text(const char *value)
       {
-        this->props.text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
+        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
         return *this;
       }
       CellDefinition &onClick(EmitterState *e)
@@ -96,6 +96,6 @@ namespace declara
 
     typedef CellDefinition Cell;
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP2_CELL_HPP

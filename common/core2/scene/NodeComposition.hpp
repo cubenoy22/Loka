@@ -14,7 +14,7 @@
 
 class Window;
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -343,14 +343,14 @@ namespace declara
 
         // --- DSL helpers ---
         template <typename T>
-        declara::core::scene::ConditionalDefinition conditional(const State<bool> &condition, T &x)
+        loka::core::scene::ConditionalDefinition conditional(const State<bool> &condition, T &x)
         {
           extern T Empty;
           return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
         }
 
         template <typename T>
-        declara::core::scene::ConditionalDefinition conditional(State<bool> &condition, T &x)
+        loka::core::scene::ConditionalDefinition conditional(State<bool> &condition, T &x)
         {
           extern T Empty;
           return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
@@ -449,6 +449,6 @@ namespace declara
 
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NODECOMPOSITION_HPP

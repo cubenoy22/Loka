@@ -25,7 +25,7 @@ namespace helloworld
     fruits_.assign(kFruitItems, kFruitItemCount);
   }
 
-  void MainRightPanelComponent::attachNode(declara::core::scene::NodeComposition &c)
+  void MainRightPanelComponent::attachNode(loka::core::scene::NodeComposition &c)
   {
     if (initialized_)
     {
@@ -41,9 +41,9 @@ namespace helloworld
     initialized_ = true;
   }
 
-  void MainRightPanelComponent::composeNode(declara::core::scene::NodeComposition &c)
+  void MainRightPanelComponent::composeNode(loka::core::scene::NodeComposition &c)
   {
-    using namespace declara::app;
+    using namespace loka::app;
     if (!owner_)
     {
       return;

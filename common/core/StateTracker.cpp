@@ -1,7 +1,7 @@
 #include "StateTracker.hpp"
 #include "State.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -321,4 +321,4 @@ namespace declara
 
 
   } // namespace core
-} // namespace declara
+} // namespace loka

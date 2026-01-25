@@ -5,7 +5,7 @@
 #include "Boundary.hpp"
 #include "core/Profiler.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -165,6 +165,6 @@ namespace declara
 
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NODE_DYNAMICCOMPOSITION_HPP

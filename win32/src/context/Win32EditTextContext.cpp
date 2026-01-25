@@ -4,7 +4,7 @@
 #include "core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, declara::app::EditTextNode *node)
+Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node)
     : node_(node), hwnd_(NULL), textState_(0), applyingFromState_(false), updatingFromControl_(false)
 {
   DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;

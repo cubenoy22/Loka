@@ -9,7 +9,7 @@ template <typename T>
 class State;
 class EmitterState;
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -17,10 +17,10 @@ namespace declara
   }
 }
 
-class Win32ButtonContext : public declara::core::scene::NativeNodeContext
+class Win32ButtonContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  Win32ButtonContext(HWND parent, int x, int y, int width, int height, declara::app::ButtonNode *node);
+  Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node);
   virtual ~Win32ButtonContext();
 
   HWND hwnd() const { return hwnd_; }
@@ -32,7 +32,7 @@ private:
   void applyText();
   static void TextChangedThunk(void *userData);
 
-  declara::app::ButtonNode *node_;
+  loka::app::ButtonNode *node_;
   HWND hwnd_;
   State<loka::core::String> *textState_;
 };

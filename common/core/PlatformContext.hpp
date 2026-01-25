@@ -13,7 +13,7 @@ class App;
 class Window;
 struct WindowProps;
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -38,7 +38,7 @@ public:
   // app_がnullの場合はassertで即座に失敗させる設計にする
   virtual Window *createWindow(const WindowProps &props) = 0;
 
-  virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const = 0;
+  virtual loka::core::scene::NodeContext *createNodeContext(loka::core::scene::Node *node) const = 0;
 };
 
 #endif // LOKA_PLATFORMCONTEXT_HPP

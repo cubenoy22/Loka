@@ -30,7 +30,7 @@ namespace
   }
 }
 
-ToolboxButtonContext::ToolboxButtonContext(declara::app::ButtonNode *node)
+ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node)
     : node_(node),
       boundary_(0),
       rect_(),
@@ -44,8 +44,8 @@ ToolboxButtonContext::ToolboxButtonContext(declara::app::ButtonNode *node)
 ToolboxButtonContext::~ToolboxButtonContext() {}
 
 void ToolboxButtonContext::updateData(const loka::core::String &label,
-                                      declara::core::EmitterState *emitter,
-                                      declara::core::State<bool> *enabled,
+                                      loka::core::EmitterState *emitter,
+                                      loka::core::State<bool> *enabled,
                                       short resourceId,
                                       int controlTag)
 {
@@ -90,8 +90,8 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   }
 }
 
-short ToolboxButtonContext::layout(declara::core::scene::IPlatformController *controller,
-                                   declara::core::scene::LayoutState &state)
+short ToolboxButtonContext::layout(loka::core::scene::IPlatformController *controller,
+                                   loka::core::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -114,7 +114,7 @@ short ToolboxButtonContext::layout(declara::core::scene::IPlatformController *co
   return width;
 }
 
-void ToolboxButtonContext::render(declara::core::scene::IPlatformController *controller)
+void ToolboxButtonContext::render(loka::core::scene::IPlatformController *controller)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);

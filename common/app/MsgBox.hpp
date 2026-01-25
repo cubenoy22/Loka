@@ -4,7 +4,7 @@
 #include "core/State.hpp"
 #include "loka/core/String.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -62,6 +62,6 @@ namespace declara
     // Platform-specific implementations should live under each platform directory.
     void MsgBoxShow(void *nativeWindowHandle, const MsgBoxProps &props);
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP_MSGBOX_HPP

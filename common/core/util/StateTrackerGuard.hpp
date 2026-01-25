@@ -6,10 +6,10 @@
 struct StateTrackerGuard
 {
   typedef void (*InvalidateFn)(void *userData);
-  declara::core::PushStateTracker *tracker;
+  loka::core::PushStateTracker *tracker;
   InvalidateFn invalidateFn;
   void *invalidateUserData;
-  StateTrackerGuard(declara::core::StateTracker *t, InvalidateFn fn = 0, void *userData = 0)
+  StateTrackerGuard(loka::core::StateTracker *t, InvalidateFn fn = 0, void *userData = 0)
       : tracker(t ? t->asPushTracker() : 0),
         invalidateFn(fn),
         invalidateUserData(userData)

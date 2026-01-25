@@ -17,26 +17,26 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(50, 50, 300, 240)
-                       .scene(declara::core::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode>())
+                       .scene(loka::core::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode>())
                        .title("LokaSample")
                        .visible(true));
   }
 
-  virtual void composeMenu(declara::app::MenuComposition &c)
+  virtual void composeMenu(loka::app::MenuComposition &c)
   {
     c << menu_;
   }
 
 private:
-  class MainMenu : public declara::app::MenuBoundary
+  class MainMenu : public loka::app::MenuBoundary
   {
   public:
     MainMenu()
         : randomSeedState_(0), rebuildBound_(false), rebuildEvent_() {}
 
-    virtual void composeMenu(declara::app::MenuComposition &c)
+    virtual void composeMenu(loka::app::MenuComposition &c)
     {
-      using namespace declara::app;
+      using namespace loka::app;
       c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
                           << MenuSeparator()
                           << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
@@ -59,9 +59,9 @@ private:
     }
 
   private:
-    void buildRandomMenu(declara::app::MenuDefinition &menu, unsigned int seed)
+    void buildRandomMenu(loka::app::MenuDefinition &menu, unsigned int seed)
     {
-      using namespace declara::app;
+      using namespace loka::app;
       using namespace loka::core;
 
       MenuItemDefinition labels[6];
@@ -105,9 +105,9 @@ private:
       }
     }
 
-    declara::core::MutableState<unsigned int> *randomSeedState_;
+    loka::core::MutableState<unsigned int> *randomSeedState_;
     bool rebuildBound_;
-    declara::core::EmitterState rebuildEvent_;
+    loka::core::EmitterState rebuildEvent_;
   };
 
   MainMenu menu_;

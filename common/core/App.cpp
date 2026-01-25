@@ -71,7 +71,7 @@ void App::reflectInitialVisibilityChunks()
     Window *win = comp->asWindow();
     if (win && win->visibilityState().get())
     {
-      declara::core::StateTracker *tracker = win->getTracker();
+      loka::core::StateTracker *tracker = win->getTracker();
       if (tracker)
       {
         StateTrackerGuard _(tracker);
@@ -110,7 +110,7 @@ void App::invalidateMenu()
   menuRefresh_.run(&MenuRefreshThunk, &MenuApplyThunk, this);
 }
 
-void App::setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar)
+void App::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar)
 {
   if (menuBar_)
   {
@@ -124,7 +124,7 @@ void App::setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar)
   applyMenuBar(activeWindow_);
 }
 
-const declara::app::MenuBarDefinition *App::resolveMenuBar(Window *window)
+const loka::app::MenuBarDefinition *App::resolveMenuBar(Window *window)
 {
   if (window && window->menuBar())
   {
@@ -158,8 +158,8 @@ bool App::refreshDefaultMenuBar()
   {
     return false;
   }
-  declara::app::MenuBarDefinition menuBar;
-  declara::app::MenuComposition menuComposition(&menuBar);
+  loka::app::MenuBarDefinition menuBar;
+  loka::app::MenuComposition menuComposition(&menuBar);
   menuComposition.setInvalidateCallback(&MenuInvalidateThunk, this);
   config_->composeMenu(menuComposition);
   menuComposition.finish();
@@ -188,7 +188,7 @@ bool App::refreshDefaultMenuBar()
   else
   {
     diffAttempted = true;
-    diffResult = declara::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, menuDiff_);
+    diffResult = loka::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, menuDiff_);
     if (!diffResult)
     {
       menuDiff_.clear();
@@ -210,9 +210,9 @@ bool App::refreshDefaultMenuBar()
       for (size_t i = 0; i < dirtyMenus.size(); ++i)
       {
         bool exists = false;
-        loka::dsl::CompositionCursor<declara::app::MenuCompositionDiff::ChangedIndex> it(
+        loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> it(
             menuDiff_.changedHead(), menuDiff_.changedCount());
-        for (declara::app::MenuCompositionDiff::ChangedIndex *entry = it.next(); entry; entry = it.next())
+        for (loka::app::MenuCompositionDiff::ChangedIndex *entry = it.next(); entry; entry = it.next())
         {
           if (entry->value == dirtyMenus[i])
           {

@@ -4,7 +4,7 @@
 #include <cassert>
 #include "core2/scene/NodeComposition.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -117,6 +117,6 @@ namespace declara
       }
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_COMPONENT_HPP

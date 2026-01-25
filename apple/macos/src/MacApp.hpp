@@ -19,8 +19,8 @@ public:
   struct MenuCommand
   {
     int commandId;
-    declara::app::MenuActionType action;
-    declara::core::EmitterState *emitter;
+    loka::app::MenuActionType action;
+    loka::core::EmitterState *emitter;
   };
 
   struct MenuBinding

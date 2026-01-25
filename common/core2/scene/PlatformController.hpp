@@ -3,7 +3,7 @@
 
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {

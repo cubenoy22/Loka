@@ -48,7 +48,7 @@ class MacCellContext;
 }
 @end
 
-MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int height, declara::app::CellNode *node)
+MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node)
     : node_(node), view_(0), textState_(0)
 {
   NSView *parent = (__bridge NSView *)parentView;
@@ -118,7 +118,7 @@ void MacCellContext::applyText()
   std::string utf8;
   if (loka::platform::CollectUtf8(textState_->get(), utf8))
   {
-    view.text = declara::macos::CreateNSStringFromUtf8(utf8);
+    view.text = loka::macos::CreateNSStringFromUtf8(utf8);
     [view setNeedsDisplay:YES];
   }
 }

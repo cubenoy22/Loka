@@ -4,7 +4,7 @@
 #include <vector>
 #include "loka/core/String.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -73,6 +73,6 @@ namespace declara
       };
     } // namespace runtime
   }   // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_RUNTIME_ERROR_SINK_HPP

@@ -22,8 +22,8 @@ public:
   virtual void windowClosed(Window *window);
   virtual bool handleMenuCommand(int commandId, Window *window);
   void invalidateMenu();
-  void setDefaultMenuBar(const declara::app::MenuBarDefinition *menuBar);
-  const declara::app::MenuBarDefinition *defaultMenuBar() const { return menuBar_; }
+  void setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar);
+  const loka::app::MenuBarDefinition *defaultMenuBar() const { return menuBar_; }
   void setActiveWindow(Window *window);
   Window *activeWindow() const { return activeWindow_; }
 
@@ -31,16 +31,16 @@ protected:
   ComponentGroup<AppComponent> *group_;
   bool quitWhenLastWindowClosed_;
   AppConfigurable *config_;
-  declara::app::MenuBarDefinition *menuBar_;
+  loka::app::MenuBarDefinition *menuBar_;
   Window *activeWindow_;
   loka::dsl::RefreshLoop menuRefresh_;
-  declara::app::MenuCompositionDiff menuDiff_;
+  loka::app::MenuCompositionDiff menuDiff_;
 
-  const declara::app::MenuBarDefinition *resolveMenuBar(Window *window);
+  const loka::app::MenuBarDefinition *resolveMenuBar(Window *window);
   virtual void applyMenuBar(Window *activeWindow);
   bool refreshDefaultMenuBar();
 
-  const declara::app::MenuCompositionDiff &menuDiff() const { return menuDiff_; }
+  const loka::app::MenuCompositionDiff &menuDiff() const { return menuDiff_; }
   void clearMenuDiff();
 
   void reflectInitialVisibilityChunks();

@@ -1,7 +1,7 @@
 #include "Win32OpenFileDialogContext.hpp"
 #include <commdlg.h>
 
-Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, declara::app::OpenFileDialogNode *node)
+Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node)
     : parent_(parent),
       node_(node),
       visibleState_(0),
@@ -81,7 +81,7 @@ void Win32OpenFileDialogContext::presentDialog()
 
   if (GetOpenFileNameA(&ofn))
   {
-    setResult(declara::app::FileChooserResult::File(
+    setResult(loka::app::FileChooserResult::File(
         loka::file::platform::ItemAccess::FromPath(
             loka::core::String(buffer),
             loka::file::Item::KIND_FILE)));
@@ -91,18 +91,18 @@ void Win32OpenFileDialogContext::presentDialog()
     DWORD error = CommDlgExtendedError();
     if (error != 0)
     {
-      setResult(declara::app::FileChooserResult::Error(static_cast<int>(error)));
+      setResult(loka::app::FileChooserResult::Error(static_cast<int>(error)));
     }
     else
     {
-      setResult(declara::app::FileChooserResult::Canceled());
+      setResult(loka::app::FileChooserResult::Canceled());
     }
   }
 
   presenting_ = false;
 }
 
-void Win32OpenFileDialogContext::setResult(const declara::app::FileChooserResult &result)
+void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
   if (resultState_)
   {

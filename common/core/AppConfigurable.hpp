@@ -5,7 +5,7 @@
 class AppComposition;
 class PlatformContext;
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -21,7 +21,7 @@ protected:
 public:
   AppConfigurable(PlatformContext *ctx) : ctx_(ctx) {}
   virtual void compose(AppComposition &c) = 0;
-  virtual void composeMenu(declara::app::MenuComposition &c) {}
+  virtual void composeMenu(loka::app::MenuComposition &c) {}
   virtual PlatformContext *getPlatformContext() const { return ctx_; }
   virtual ~AppConfigurable() {}
 };

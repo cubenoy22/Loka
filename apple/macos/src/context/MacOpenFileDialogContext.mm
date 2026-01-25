@@ -2,7 +2,7 @@
 #include "Utf8String.hpp"
 #import <AppKit/AppKit.h>
 
-MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, declara::app::OpenFileDialogNode *node)
+MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node)
     : parentView_(parentView),
       node_(node),
       visibleState_(0),
@@ -69,7 +69,7 @@ void MacOpenFileDialogContext::presentDialog()
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   if (!panel)
   {
-    setResult(declara::app::FileChooserResult::Error(1));
+    setResult(loka::app::FileChooserResult::Error(1));
     presenting_ = false;
     return;
   }
@@ -83,25 +83,25 @@ void MacOpenFileDialogContext::presentDialog()
     NSURL *url = [panel URL];
     if (url)
     {
-      std::string path = declara::macos::Utf8FromNSString([url path]);
-      setResult(declara::app::FileChooserResult::File(
+      std::string path = loka::macos::Utf8FromNSString([url path]);
+      setResult(loka::app::FileChooserResult::File(
           loka::file::platform::ItemAccess::FromPath(
               loka::core::String(path),
               loka::file::Item::KIND_FILE)));
     }
     else
     {
-      setResult(declara::app::FileChooserResult::Error(2));
+      setResult(loka::app::FileChooserResult::Error(2));
     }
   }
   else
   {
-    setResult(declara::app::FileChooserResult::Canceled());
+    setResult(loka::app::FileChooserResult::Canceled());
   }
   presenting_ = false;
 }
 
-void MacOpenFileDialogContext::setResult(const declara::app::FileChooserResult &result)
+void MacOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
   if (resultState_)
   {

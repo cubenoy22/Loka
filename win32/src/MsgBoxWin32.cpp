@@ -2,7 +2,7 @@
 #include "app/MsgBox.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -47,4 +47,4 @@ namespace declara
       props.show->set(false, true);
     }
   } // namespace app
-} // namespace declara
+} // namespace loka

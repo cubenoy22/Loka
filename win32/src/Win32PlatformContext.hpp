@@ -8,7 +8,7 @@
 class Win32Window;
 class AppConfigurable;
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -28,7 +28,7 @@ public:
 
   virtual Window *createWindow(const WindowProps &props);
 
-  virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const;
+  virtual loka::core::scene::NodeContext *createNodeContext(loka::core::scene::Node *node) const;
 };
 
 #endif // LOKA_WIN32PLATFORMCONTEXT_HPP

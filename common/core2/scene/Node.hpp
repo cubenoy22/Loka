@@ -24,7 +24,7 @@
 #include "../../core/Profiler.hpp"
 // StreamView is only needed by NodeComposition; avoid including here to reduce coupling
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -167,17 +167,17 @@ namespace declara
         virtual BoundaryNode *asBoundary() { return 0; }
         virtual IStateOwner *asStateOwner() { return 0; }
         // App node type casts (avoid dynamic_cast for 68k performance)
-        virtual ::declara::app::RowNode *asRowNode() { return 0; }
-        virtual ::declara::app::ColumnNode *asColumnNode() { return 0; }
-        virtual ::declara::app::BoxNode *asBoxNode() { return 0; }
-        virtual ::declara::app::ZStackNode *asZStackNode() { return 0; }
-        virtual ::declara::app::GridNode *asGridNode() { return 0; }
-        virtual ::declara::app::CellNode *asCellNode() { return 0; }
-        virtual ::declara::app::TextNode *asTextNode() { return 0; }
-        virtual ::declara::app::ButtonNode *asButtonNode() { return 0; }
-        virtual ::declara::app::EditTextNode *asEditTextNode() { return 0; }
-        virtual ::declara::app::PopupMenuNode *asPopupMenuNode() { return 0; }
-        virtual ::declara::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
+        virtual ::loka::app::RowNode *asRowNode() { return 0; }
+        virtual ::loka::app::ColumnNode *asColumnNode() { return 0; }
+        virtual ::loka::app::BoxNode *asBoxNode() { return 0; }
+        virtual ::loka::app::ZStackNode *asZStackNode() { return 0; }
+        virtual ::loka::app::GridNode *asGridNode() { return 0; }
+        virtual ::loka::app::CellNode *asCellNode() { return 0; }
+        virtual ::loka::app::TextNode *asTextNode() { return 0; }
+        virtual ::loka::app::ButtonNode *asButtonNode() { return 0; }
+        virtual ::loka::app::EditTextNode *asEditTextNode() { return 0; }
+        virtual ::loka::app::PopupMenuNode *asPopupMenuNode() { return 0; }
+        virtual ::loka::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
         // Generic interface query (for findBoundary without RTTI)
         virtual void *queryInterface(const char *name) { (void)name; return 0; }
         virtual void render(IPlatformController *controller)
@@ -565,7 +565,7 @@ namespace declara
       }
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 // Conditional node inline implementations removed from this header to reduce coupling
 

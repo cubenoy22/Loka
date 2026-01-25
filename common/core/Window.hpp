@@ -11,7 +11,7 @@
 #include "loka/core/String.hpp"
 #include "loka/core/Frame.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -47,9 +47,9 @@ struct WindowProps
   int positionY;
   int width;
   int height;
-  declara::core::scene::Scene *initialScene;
-  declara::core::scene::NodeDefinitionBase *rootDefinition;
-  declara::app::MenuBarDefinition *menuBarDefinition;
+  loka::core::scene::Scene *initialScene;
+  loka::core::scene::NodeDefinitionBase *rootDefinition;
+  loka::app::MenuBarDefinition *menuBarDefinition;
 
   WindowProps()
       : titleStatePtr(0),
@@ -206,7 +206,7 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &scene(declara::core::scene::Scene *scene)
+  WindowProps &scene(loka::core::scene::Scene *scene)
   {
     initialScene = scene;
     if (rootDefinition)
@@ -217,7 +217,7 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &scene(const declara::core::scene::NodeDefinitionBase &def)
+  WindowProps &scene(const loka::core::scene::NodeDefinitionBase &def)
   {
     if (rootDefinition)
     {
@@ -229,7 +229,7 @@ struct WindowProps
     return *this;
   }
 
-  WindowProps &menuBar(const declara::app::MenuBarDefinition &bar)
+  WindowProps &menuBar(const loka::app::MenuBarDefinition &bar)
   {
     if (menuBarDefinition)
     {
@@ -272,7 +272,7 @@ public:
     {
       frameStatePtr_ = props.frameStatePtr;
     }
-    declara::core::PushStateTracker *pushTracker = new declara::core::PushStateTracker();
+    loka::core::PushStateTracker *pushTracker = new loka::core::PushStateTracker();
     pushTracker->addState(title_);
     pushTracker->addState(visibility_);
     tracker_ = pushTracker;
@@ -319,15 +319,15 @@ public:
   }
 
   PlatformContext *context() const { return context_; }
-  declara::core::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
+  loka::core::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
   SceneManager2 *sceneManager() { return &sceneManager_; }
 
   MutableState<bool> &visibilityState() { return *visibility_; }
   MutableState<loka::core::String> &titleState() { return *title_; }
   MutableState<loka::core::Frame> &frameState() { return *frameStatePtr_; }
-  const declara::app::MenuBarDefinition *menuBar() const { return menuBarDefinition_; }
+  const loka::app::MenuBarDefinition *menuBar() const { return menuBarDefinition_; }
 
-  declara::core::StateTracker *getTracker() const { return tracker_; }
+  loka::core::StateTracker *getTracker() const { return tracker_; }
 
   virtual void onCreate() {}
   virtual void onShow() {}
@@ -356,7 +356,7 @@ public:
 private:
 protected:
   PlatformContext *context_;
-  declara::core::StateTracker *tracker_;
+  loka::core::StateTracker *tracker_;
   SceneManager2 sceneManager_;
   MutableState<loka::core::String> titleStorage_;
   MutableState<bool> visibilityStorage_;
@@ -368,8 +368,8 @@ protected:
   int positionY_;
   int width_;
   int height_;
-  declara::core::scene::Scene *initialScene_;
-  declara::app::MenuBarDefinition *menuBarDefinition_;
+  loka::core::scene::Scene *initialScene_;
+  loka::app::MenuBarDefinition *menuBarDefinition_;
 };
 
 #endif // LOKA_WINDOW_HPP

@@ -27,8 +27,8 @@ private:
   struct MenuCommand
   {
     int commandId;
-    declara::app::MenuActionType action;
-    declara::core::EmitterState *emitter;
+    loka::app::MenuActionType action;
+    loka::core::EmitterState *emitter;
   };
 
   struct MenuBinding
@@ -41,8 +41,8 @@ private:
 
   void clearMenuBindings();
   static void MenuEnabledChangedThunk(void *userData);
-  void buildMenuItem(HMENU menu, const declara::app::MenuItemDefinition *itemDef, HWND hwnd);
-  void buildMenuItems(HMENU menu, const declara::app::MenuItemDefinition *itemsHead, HWND hwnd);
+  void buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef, HWND hwnd);
+  void buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead, HWND hwnd);
 
   HINSTANCE hInstance_;
   int nCmdShow_;

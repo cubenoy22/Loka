@@ -19,7 +19,7 @@
 }
 @end
 
-MacPopupMenuContext::MacPopupMenuContext(void *parentView, int x, int y, int width, int height, declara::app::PopupMenuNode *node)
+MacPopupMenuContext::MacPopupMenuContext(void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
     : node_(node), popup_(0), target_(0), selectionState_(0), enabledState_(0),
       applyingFromState_(false), updatingFromControl_(false)
 {
@@ -135,7 +135,7 @@ void MacPopupMenuContext::applyItems()
     std::string utf8;
     if (loka::platform::CollectUtf8((*items)[i], utf8))
     {
-      [popup addItemWithTitle:declara::macos::CreateNSStringFromUtf8(utf8)];
+      [popup addItemWithTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
     }
   }
 }

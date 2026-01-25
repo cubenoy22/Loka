@@ -5,7 +5,7 @@
 #include "core/Window.hpp"
 #include <new>
 
-namespace declara
+namespace loka
 {
   namespace core
   {

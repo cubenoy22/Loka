@@ -13,12 +13,12 @@ static long ToolboxGetTicks()
   return TickCount();
 }
 
-static declara::core::ProfilerBackend sToolboxBackend = {
+static loka::core::ProfilerBackend sToolboxBackend = {
     &ToolboxGetTicks};
 
 void InitToolboxProfiler()
 {
-  declara::core::gProfilerBackend = &sToolboxBackend;
+  loka::core::gProfilerBackend = &sToolboxBackend;
 }
 
 void BuildProfileResultString()
@@ -36,7 +36,7 @@ void BuildProfileResultString()
 // File-based output stream for function profiler
 namespace
 {
-  struct FileProfileStream : public declara::core::ProfileOutputStream
+  struct FileProfileStream : public loka::core::ProfileOutputStream
   {
     short refNum;
     bool valid;
@@ -108,7 +108,7 @@ bool DumpFuncProfileToFile(const char *filename)
   {
     return false;
   }
-  declara::core::DumpFuncProfileToStream(stream);
+  loka::core::DumpFuncProfileToStream(stream);
   stream.close();
   return true;
 }

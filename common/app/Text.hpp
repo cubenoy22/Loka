@@ -5,7 +5,7 @@
 #include "core2/scene/Node.hpp"
 #include "loka/core/String.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -101,6 +101,6 @@ namespace declara
 
     typedef TextDefinition Text;
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP2_TEXT_HPP

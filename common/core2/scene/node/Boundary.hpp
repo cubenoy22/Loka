@@ -12,7 +12,7 @@
 #include "core/util/StateUtil.hpp"
 #include "core/Profiler.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -247,7 +247,7 @@ namespace declara
         virtual BoundaryNode *asBoundary() { return this; }
         virtual IStateOwner *asStateOwner() { return this; }
 
-        virtual declara::core::StateTracker *tracker() { return &tracker_; }
+        virtual loka::core::StateTracker *tracker() { return &tracker_; }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -487,7 +487,7 @@ namespace declara
           ownedStateHandles_.clear();
         }
 
-        declara::core::PushStateTracker tracker_;
+        loka::core::PushStateTracker tracker_;
         std::vector<StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
         Scene *scene_;
@@ -510,6 +510,6 @@ namespace declara
 
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP

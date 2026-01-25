@@ -20,7 +20,7 @@
 }
 @end
 
-MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width, int height, declara::app::EditTextNode *node)
+MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node)
     : node_(node), field_(0), delegate_(0), textState_(0), applyingFromState_(false), updatingFromControl_(false)
 {
   NSView *parent = (__bridge NSView *)parentView;
@@ -113,13 +113,13 @@ void MacEditTextContext::applyText()
   {
     desired.clear();
   }
-  std::string current = declara::macos::Utf8FromNSString([field stringValue]);
+  std::string current = loka::macos::Utf8FromNSString([field stringValue]);
   if (current == desired)
   {
     return;
   }
   applyingFromState_ = true;
-  [field setStringValue:declara::macos::CreateNSStringFromUtf8(desired)];
+  [field setStringValue:loka::macos::CreateNSStringFromUtf8(desired)];
   applyingFromState_ = false;
 }
 
@@ -136,7 +136,7 @@ void MacEditTextContext::syncStateFromControl()
     return;
   }
   updatingFromControl_ = true;
-  std::string utf8 = declara::macos::Utf8FromNSString([field stringValue]);
+  std::string utf8 = loka::macos::Utf8FromNSString([field stringValue]);
   mutableState->set(loka::core::String(utf8), true);
   updatingFromControl_ = false;
 }

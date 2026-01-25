@@ -11,7 +11,7 @@ public:
 
   virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
   virtual Window *createWindow(const WindowProps &props);
-  virtual declara::core::scene::NodeContext *createNodeContext(declara::core::scene::Node *node) const;
+  virtual loka::core::scene::NodeContext *createNodeContext(loka::core::scene::Node *node) const;
 };
 
 #endif // LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP

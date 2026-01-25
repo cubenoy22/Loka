@@ -54,7 +54,7 @@ void testDependencyPropagationCases()
   DerivedState b(&a);
   DerivedState c(&b);
   std::vector<StateBase *> states = makeStateVector(&a, &b, &c, STATE_NULL);
-  declara::core::PushStateTracker tracker(states);
+  loka::core::PushStateTracker tracker(states);
   tracker.begin();
   a.set(10);
   tracker.end();
@@ -68,7 +68,7 @@ void testDependencyPropagationCases()
   DerivedState d1(&s);
   DerivedState d2(&s);
   std::vector<StateBase *> states2 = makeStateVector(&s, &d1, &d2, STATE_NULL);
-  declara::core::PushStateTracker tracker2(states2);
+  loka::core::PushStateTracker tracker2(states2);
   tracker2.begin();
   s.set(5);
   tracker2.end();
@@ -84,7 +84,7 @@ void testDependencyPropagationCases()
   MutableState<int> s2;
   DerivedState d3(&s2);
   std::vector<StateBase *> states3 = makeStateVector(&s, &d1, &d2, &s2, &d3, STATE_NULL);
-  declara::core::PushStateTracker tracker3(states3);
+  loka::core::PushStateTracker tracker3(states3);
   tracker3.begin();
   s.set(100);
   s2.set(200);
@@ -100,13 +100,13 @@ void testTrackerPropagation()
 {
   printf("\n==== [testTrackerPropagation] start ====\n");
   MutableState<int> s_int(10);
-  struct DoublePropEval : public declara::core::DerivedState<int>::EvalFn
+  struct DoublePropEval : public loka::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(makeStateVector(&s_int, STATE_NULL), new DoublePropEval(&s_int));
+  loka::core::DerivedState<int> *doubleProp = new loka::core::DerivedState<int>(makeStateVector(&s_int, STATE_NULL), new DoublePropEval(&s_int));
   printf("[test] s_int=%p, doubleProp=%p\n", (void *)&s_int, (void *)doubleProp);
   std::vector<StateBase *> deps = doubleProp->getDependencyStates();
   for (size_t i = 0; i < deps.size(); ++i)
@@ -114,7 +114,7 @@ void testTrackerPropagation()
     printf("[test] doubleProp.getDependencyStates()[%zu]=%p\n", i, (void *)deps[i]);
   }
   std::vector<StateBase *> trackerStates = makeStateVector(&s_int, doubleProp, STATE_NULL);
-  declara::core::PushStateTracker tracker(trackerStates);
+  loka::core::PushStateTracker tracker(trackerStates);
   printf("[before begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
   tracker.begin();
   printf("[after begin] s_int=%d, doubleProp=%d\n", s_int.get(), doubleProp->get());
@@ -133,22 +133,22 @@ void testTrackerPropagation()
 void testStateBatchOverflow()
 {
   printf("\n==== [testStateBatchOverflow] start ====\n");
-  struct DummyOwner : public declara::core::scene::IStateOwner
+  struct DummyOwner : public loka::core::scene::IStateOwner
   {
-    std::vector<declara::core::StateBase *> adopted;
-    virtual void adoptState(declara::core::StateBase *state) { adoptStateUnchecked(state); }
-    virtual void adoptStateUnchecked(declara::core::StateBase *state) { adopted.push_back(state); }
+    std::vector<loka::core::StateBase *> adopted;
+    virtual void adoptState(loka::core::StateBase *state) { adoptStateUnchecked(state); }
+    virtual void adoptStateUnchecked(loka::core::StateBase *state) { adopted.push_back(state); }
     virtual void reserveStates(size_t) {}
     virtual void reserveStateArena(size_t) {}
     virtual void *allocateStateMemory(size_t, size_t) { return 0; }
-    virtual void registerStateMemory(declara::core::StateBase *, void (*)(declara::core::StateBase *)) {}
-    virtual declara::core::StateTracker *tracker() { return 0; }
+    virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
+    virtual loka::core::StateTracker *tracker() { return 0; }
   };
 
   DummyOwner owner;
-  declara::core::scene::BoundState<int> states[17];
+  loka::core::scene::BoundState<int> states[17];
   {
-    declara::core::scene::NodeComposition::StateBatch batch(&owner);
+    loka::core::scene::NodeComposition::StateBatch batch(&owner);
     for (int i = 0; i < 17; ++i)
     {
       batch.state(states[i], i + 1);
@@ -175,15 +175,15 @@ void testDeferredSideEffect()
 {
   printf("\n==== [testDeferredSideEffect] start ====\n");
   MutableState<int> s_int(5);
-  struct DoublePropEval : public declara::core::DerivedState<int>::EvalFn
+  struct DoublePropEval : public loka::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(makeStateVector(&s_int, STATE_NULL), new DoublePropEval(&s_int));
+  loka::core::DerivedState<int> *doubleProp = new loka::core::DerivedState<int>(makeStateVector(&s_int, STATE_NULL), new DoublePropEval(&s_int));
   std::vector<StateBase *> trackerStatesDeferred = makeStateVector(&s_int, doubleProp, STATE_NULL);
-  declara::core::PushStateTracker tracker(trackerStatesDeferred);
+  loka::core::PushStateTracker tracker(trackerStatesDeferred);
   struct DeferredCallback
   {
     static void onDeferred(void *)
@@ -206,7 +206,7 @@ void testTextInputOnChange()
 {
   printf("\n==== [testTextInputOnChange] start ====\n");
   MutableState<loka::core::String> name(loka::core::String::Literal(""));
-  struct IsValidEval : public declara::core::DerivedState<bool>::EvalFn
+  struct IsValidEval : public loka::core::DerivedState<bool>::EvalFn
   {
     MutableState<loka::core::String> *n;
     IsValidEval(MutableState<loka::core::String> *n_) : n(n_) {}
@@ -218,14 +218,14 @@ void testTextInputOnChange()
       return utf8.size() >= 3;
     }
   };
-  declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(makeStateVector(&name, STATE_NULL), new IsValidEval(&name));
+  loka::core::DerivedState<bool> *isValid = new loka::core::DerivedState<bool>(makeStateVector(&name, STATE_NULL), new IsValidEval(&name));
   std::vector<StateBase *> trackerStatesText = makeStateVector(&name, isValid, STATE_NULL);
-  declara::core::PushStateTracker tracker(trackerStatesText);
+  loka::core::PushStateTracker tracker(trackerStatesText);
   struct ValidCallback
   {
     static void onChange(void *userData)
     {
-      declara::core::DerivedState<bool> *isValid = (declara::core::DerivedState<bool> *)userData;
+      loka::core::DerivedState<bool> *isValid = (loka::core::DerivedState<bool> *)userData;
       printf("[isValid] changed: %s\n", isValid->get() ? "OK" : "NG");
     }
   };
@@ -328,16 +328,16 @@ void testBatchTransaction()
 {
   printf("\n==== [testBatchTransaction] start ====\n");
   MutableState<int> s1(1);
-  struct SumPropEval : public declara::core::DerivedState<int>::EvalFn
+  struct SumPropEval : public loka::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     SumPropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *sumProp = new declara::core::DerivedState<int>(makeStateVector(&s1, STATE_NULL), new SumPropEval(&s1));
+  loka::core::DerivedState<int> *sumProp = new loka::core::DerivedState<int>(makeStateVector(&s1, STATE_NULL), new SumPropEval(&s1));
   MutableState<int> s2(2);
   std::vector<StateBase *> trackerStatesBatch = makeStateVector(&s1, &s2, sumProp, STATE_NULL);
-  declara::core::PushStateTracker tracker(trackerStatesBatch);
+  loka::core::PushStateTracker tracker(trackerStatesBatch);
   tracker.begin();
   s1.set(10);
   s2.set(20);
@@ -353,15 +353,15 @@ void testRAIITransaction()
 {
   printf("\n==== [testRAIITransaction] start ====\n");
   MutableState<int> s(0);
-  struct DoublePropEval : public declara::core::DerivedState<int>::EvalFn
+  struct DoublePropEval : public loka::core::DerivedState<int>::EvalFn
   {
     MutableState<int> *s;
     DoublePropEval(MutableState<int> *s_) : s(s_) {}
     int operator()() { return s->get() * 2; }
   };
-  declara::core::DerivedState<int> *doubleProp = new declara::core::DerivedState<int>(makeStateVector(&s, STATE_NULL), new DoublePropEval(&s));
+  loka::core::DerivedState<int> *doubleProp = new loka::core::DerivedState<int>(makeStateVector(&s, STATE_NULL), new DoublePropEval(&s));
   std::vector<StateBase *> trackerStatesRAII = makeStateVector(&s, doubleProp, STATE_NULL);
-  declara::core::PushStateTracker tracker(trackerStatesRAII);
+  loka::core::PushStateTracker tracker(trackerStatesRAII);
   {
     StateTrackerGuard _(&tracker);
     s.set(50);
@@ -387,7 +387,7 @@ void testDerivedStruct()
   MutableState<int> age(0);
   MutableState<bool> agree(false);
   std::vector<StateBase *> deps = makeStateVector(&name, &email, &age, &agree, STATE_NULL);
-  struct IsValidEval : public declara::core::DerivedState<bool>::EvalFn
+  struct IsValidEval : public loka::core::DerivedState<bool>::EvalFn
   {
     MutableState<loka::core::String> *name;
     MutableState<loka::core::String> *email;
@@ -401,9 +401,9 @@ void testDerivedStruct()
       return !name->get().equals(empty) && !email->get().equals(empty) && age->get() >= 18 && agree->get();
     }
   };
-  declara::core::DerivedState<bool> *isValid = new declara::core::DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));
+  loka::core::DerivedState<bool> *isValid = new loka::core::DerivedState<bool>(deps, new IsValidEval(&name, &email, &age, &agree));
   std::vector<StateBase *> trackerDeps = makeStateVector(&name, &email, &age, &agree, isValid, STATE_NULL);
-  declara::core::PushStateTracker tracker(trackerDeps);
+  loka::core::PushStateTracker tracker(trackerDeps);
   struct Callback
   {
     static void onChange(bool v, void *)
@@ -449,10 +449,10 @@ void testSceneManagerTransaction()
 
 void testNodeCompositionTree()
 {
-  using namespace declara::core::scene;
-  using namespace declara::app;
+  using namespace loka::core::scene;
+  using namespace loka::app;
 
-  declara::core::scene::NodeComposition composition;
+  loka::core::scene::NodeComposition composition;
   BoxProps boxProps;
   BoxDefinition box(boxProps);
   BoxDefinition &root = composition.declare(box);
@@ -480,13 +480,13 @@ void testNodeCompositionTree()
 
 void testSceneMountLifecycle()
 {
-  using namespace declara::core::scene;
+  using namespace loka::core::scene;
 
   class DummyPlatformController : public IPlatformController
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-    virtual void onChange(Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
     {
       (void)flags;
       lastMaterialized_ = rootNode;
@@ -514,59 +514,59 @@ namespace
   int g_childComposeCount = 0;
 
   class ChildBoundaryNode;
-  typedef declara::core::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
+  typedef loka::core::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
-  class ChildBoundaryNode : public declara::core::scene::BoundaryNodeFor<ChildBoundaryNode>
+  class ChildBoundaryNode : public loka::core::scene::BoundaryNodeFor<ChildBoundaryNode>
   {
   public:
     ChildBoundaryNode(const ChildBoundaryProps &p)
-        : declara::core::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
+        : loka::core::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
       (void)c;
       ++g_childComposeCount;
     }
   };
 
-  declara::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
+  loka::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
   {
-    return declara::core::scene::Boundary<ChildBoundaryNode>();
+    return loka::core::scene::Boundary<ChildBoundaryNode>();
   }
 
   class RootBoundaryNode;
-  typedef declara::core::scene::BoundaryPropsFor<RootBoundaryNode> RootBoundaryProps;
+  typedef loka::core::scene::BoundaryPropsFor<RootBoundaryNode> RootBoundaryProps;
 
-  class RootBoundaryNode : public declara::core::scene::BoundaryNodeFor<RootBoundaryNode>
+  class RootBoundaryNode : public loka::core::scene::BoundaryNodeFor<RootBoundaryNode>
   {
   public:
     RootBoundaryNode(const RootBoundaryProps &p)
-        : declara::core::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
+        : loka::core::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
       ++g_rootComposeCount;
       c.declare(ChildBoundary());
     }
   };
 
-  declara::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
+  loka::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
   {
-    return declara::core::scene::Boundary<RootBoundaryNode>();
+    return loka::core::scene::Boundary<RootBoundaryNode>();
   }
 }
 
 void testSceneBoundaryNestedCompose()
 {
-  using declara::core::scene::IPlatformController;
-  using declara::core::scene::Node;
-  using declara::core::scene::Scene;
+  using loka::core::scene::IPlatformController;
+  using loka::core::scene::Node;
+  using loka::core::scene::Scene;
 
   class DummyPlatformController : public IPlatformController
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-    virtual void onChange(Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
     {
       (void)flags;
       lastMaterialized_ = rootNode;

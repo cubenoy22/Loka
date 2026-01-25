@@ -14,13 +14,13 @@ class ToolboxPopupMenuContext;
 class ToolboxNodeContextMapper;
 class ToolboxCellContext;
 
-class ToolboxScenePlatformController : public declara::core::scene::IPlatformController
+class ToolboxScenePlatformController : public loka::core::scene::IPlatformController
 {
 public:
   explicit ToolboxScenePlatformController(ToolboxWindow *window);
   virtual ~ToolboxScenePlatformController();
 
-  virtual void onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags);
+  virtual void onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
 
@@ -28,34 +28,34 @@ public:
   void renderDirty(const Rect &rect);
   bool handleMouseDown(const Point &point);
   void recordButtonHit(const Rect &rect,
-                       declara::core::EmitterState *emitter,
-                       declara::core::State<bool> *enabled,
-                       declara::core::scene::BoundaryNode *boundary);
+                       loka::core::EmitterState *emitter,
+                       loka::core::State<bool> *enabled,
+                       loka::core::scene::BoundaryNode *boundary);
   void recordCellHit(const Rect &rect,
-                     declara::core::EmitterState *emitter,
-                     declara::core::scene::BoundaryNode *boundary,
+                     loka::core::EmitterState *emitter,
+                     loka::core::scene::BoundaryNode *boundary,
                      ToolboxCellContext *context,
-                     declara::core::State<loka::core::String> *text);
+                     loka::core::State<loka::core::String> *text);
   void recordEditHit(const Rect &rect,
-                     declara::core::State<loka::core::String> *text,
-                     declara::core::scene::BoundaryNode *boundary);
+                     loka::core::State<loka::core::String> *text,
+                     loka::core::scene::BoundaryNode *boundary);
   void recordTextHit(const Rect &rect,
                      short x,
                      short y,
-                     declara::core::State<loka::core::String> *text,
-                     declara::core::scene::BoundaryNode *boundary);
+                     loka::core::State<loka::core::String> *text,
+                     loka::core::scene::BoundaryNode *boundary);
   void registerPopupContext(ToolboxPopupMenuContext *context);
   void applyPopupSelectionChange(const Rect &rect,
-                                 declara::core::scene::BoundaryNode *boundary,
-                                 declara::core::State<int> *selectedIndex,
-                                 declara::core::EmitterState *onChange,
+                                 loka::core::scene::BoundaryNode *boundary,
+                                 loka::core::State<int> *selectedIndex,
+                                 loka::core::EmitterState *onChange,
                                  int newIndex);
   bool handleKeyDown(char key);
   bool handleControlClick(const Point &point);
   void drawControlsInRect(const Rect &rect);
-  bool ensureButtonControl(short resourceId, const Rect &rect, const loka::core::String &label, declara::core::EmitterState *emitter);
+  bool ensureButtonControl(short resourceId, const Rect &rect, const loka::core::String &label, loka::core::EmitterState *emitter);
   void drawFallbackControl(const Rect &rect);
-  TEHandle ensureEditTextControl(const Rect &rect, declara::core::State<loka::core::String> *text);
+  TEHandle ensureEditTextControl(const Rect &rect, loka::core::State<loka::core::String> *text);
   void idleTextEdits();
   bool isPointInEdit(const Point &point) const;
   short allocateControlId();
@@ -67,25 +67,25 @@ private:
   struct ButtonHit
   {
     Rect rect;
-    declara::core::EmitterState *emitter;
-    declara::core::State<bool> *enabled;
-    declara::core::scene::BoundaryNode *boundary;
+    loka::core::EmitterState *emitter;
+    loka::core::State<bool> *enabled;
+    loka::core::scene::BoundaryNode *boundary;
   };
 
   struct CellHit
   {
     Rect rect;
-    declara::core::EmitterState *emitter;
-    declara::core::scene::BoundaryNode *boundary;
+    loka::core::EmitterState *emitter;
+    loka::core::scene::BoundaryNode *boundary;
     ToolboxCellContext *context;
-    declara::core::State<loka::core::String> *text;
+    loka::core::State<loka::core::String> *text;
   };
 
   struct EditHit
   {
     Rect rect;
-    declara::core::State<loka::core::String> *text;
-    declara::core::scene::BoundaryNode *boundary;
+    loka::core::State<loka::core::String> *text;
+    loka::core::scene::BoundaryNode *boundary;
   };
 
   struct TextHit
@@ -93,13 +93,13 @@ private:
     Rect rect;
     short x;
     short y;
-    declara::core::State<loka::core::String> *text;
-    declara::core::scene::BoundaryNode *boundary;
+    loka::core::State<loka::core::String> *text;
+    loka::core::scene::BoundaryNode *boundary;
     short lastMeasuredWidth;
   };
   struct TextBinding
   {
-    declara::core::State<loka::core::String> *state;
+    loka::core::State<loka::core::String> *state;
     ToolboxScenePlatformController *controller;
   };
 
@@ -107,7 +107,7 @@ private:
   {
     short resourceId;
     ControlRef control;
-    declara::core::EmitterState *emitter;
+    loka::core::EmitterState *emitter;
     bool usedThisFrame;
     bool needsDraw;
     Rect rect;
@@ -116,7 +116,7 @@ private:
 
   struct EditTextControlBinding
   {
-    declara::core::State<loka::core::String> *text;
+    loka::core::State<loka::core::String> *text;
     TEHandle te;
     Rect rect;
     bool usedThisFrame;
@@ -124,38 +124,38 @@ private:
   };
 
   ToolboxWindow *window_;
-  declara::core::scene::Node *rootNode_;
+  loka::core::scene::Node *rootNode_;
   std::vector<ButtonHit> buttonHits_;
   std::vector<CellHit> cellHits_;
   std::vector<ButtonControlBinding> buttonControls_;
   std::vector<EditTextControlBinding> editControls_;
   std::vector<EditHit> editHits_;
   std::vector<ToolboxPopupMenuContext *> popupContexts_;
-  declara::core::State<loka::core::String> *focusedText_;
+  loka::core::State<loka::core::String> *focusedText_;
   EditTextControlBinding *focusedEdit_;
   Rect focusedRect_;
   bool hasFocusedRect_;
   std::vector<TextHit> textHits_;
-  std::vector<declara::core::State<loka::core::String> *> boundTextStates_;
+  std::vector<loka::core::State<loka::core::String> *> boundTextStates_;
   std::vector<TextBinding *> textBindings_;
   bool inBatchUpdate_;
   bool pendingFullInvalidate_;
   bool forceFullRedraw_;
   std::vector<Rect> pendingDirtyRects_;
-  std::vector<declara::core::State<loka::core::String> *> pendingTextStates_;
+  std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
   RgnHandle clipRgn_;
   bool hasClip_;
   short nextControlId_;
 
   bool handleTextKey(char key);
-  void bindTextState(declara::core::State<loka::core::String> *text);
-  void handleTextChanged(declara::core::State<loka::core::String> *text);
+  void bindTextState(loka::core::State<loka::core::String> *text);
+  void handleTextChanged(loka::core::State<loka::core::String> *text);
   void beginBatchUpdate();
   void endBatchUpdate();
   void addPendingDirty(const Rect &rect);
-  void addPendingText(declara::core::State<loka::core::String> *text);
+  void addPendingText(loka::core::State<loka::core::String> *text);
   void redrawTextHit(const TextHit &hit);
-  void redrawTextFor(declara::core::State<loka::core::String> *text);
+  void redrawTextFor(loka::core::State<loka::core::String> *text);
   void clearTextBindings();
   void clearControls();
   void syncEditTextFromState(EditTextControlBinding &binding);

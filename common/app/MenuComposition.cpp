@@ -1,7 +1,7 @@
 #include "app/MenuComposition.hpp"
 #include "app/Menu.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -70,7 +70,7 @@ namespace declara
       size_t countBefore = list_.count();
       MenuBoundary *prevBoundary = activeBoundary_;
       activeBoundary_ = &boundary;
-      declara::core::PushStateTracker *tracker = static_cast<declara::core::PushStateTracker *>(boundary.tracker());
+      loka::core::PushStateTracker *tracker = static_cast<loka::core::PushStateTracker *>(boundary.tracker());
       if (tracker)
       {
         tracker->begin();
@@ -136,4 +136,4 @@ namespace declara
       return *this;
     }
   } // namespace app
-} // namespace declara
+} // namespace loka

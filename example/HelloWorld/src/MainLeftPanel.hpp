@@ -6,7 +6,7 @@
 #include "loka/core/String.hpp"
 #include "BmiCalculatorComponent.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -25,16 +25,16 @@ namespace helloworld
   {
   public:
     explicit MainLeftPanelComponent(MainNode *owner);
-    void attachNode(declara::core::scene::NodeComposition &c);
-    void composeNode(declara::core::scene::NodeComposition &c);
+    void attachNode(loka::core::scene::NodeComposition &c);
+    void composeNode(loka::core::scene::NodeComposition &c);
 
   private:
     void toggleMessage();
 
     MainNode *owner_;
     bool initialized_;
-    declara::core::scene::BoundState<loka::core::String> message_;
-    declara::core::EmitterState toggleEvent_;
+    loka::core::scene::BoundState<loka::core::String> message_;
+    loka::core::EmitterState toggleEvent_;
     BmiCalculatorComponent bmiCalculator_;
   };
 

@@ -5,10 +5,10 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
-class Win32PopupMenuContext : public declara::core::scene::NativeNodeContext
+class Win32PopupMenuContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, declara::app::PopupMenuNode *node);
+  Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
   virtual ~Win32PopupMenuContext();
 
   HWND hwnd() const { return hwnd_; }
@@ -27,7 +27,7 @@ private:
   static void SelectionChangedThunk(void *userData);
   static void EnabledChangedThunk(void *userData);
 
-  declara::app::PopupMenuNode *node_;
+  loka::app::PopupMenuNode *node_;
   HWND hwnd_;
   State<int> *selectionState_;
   State<bool> *enabledState_;

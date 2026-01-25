@@ -10,7 +10,7 @@ class State;
 template <typename T>
 class MutableState;
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -18,10 +18,10 @@ namespace declara
   }
 }
 
-class Win32EditTextContext : public declara::core::scene::NativeNodeContext
+class Win32EditTextContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  Win32EditTextContext(HWND parent, int x, int y, int width, int height, declara::app::EditTextNode *node);
+  Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node);
   virtual ~Win32EditTextContext();
 
   HWND hwnd() const { return hwnd_; }
@@ -34,7 +34,7 @@ private:
   void syncStateFromControl();
   static void TextChangedThunk(void *userData);
 
-  declara::app::EditTextNode *node_;
+  loka::app::EditTextNode *node_;
   HWND hwnd_;
   State<loka::core::String> *textState_;
   bool applyingFromState_;

@@ -4,10 +4,10 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
-class MacPopupMenuContext : public declara::core::scene::NativeNodeContext
+class MacPopupMenuContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  MacPopupMenuContext(void *parentView, int x, int y, int width, int height, declara::app::PopupMenuNode *node);
+  MacPopupMenuContext(void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
   virtual ~MacPopupMenuContext();
 
   void handleSelectionChange();
@@ -25,7 +25,7 @@ private:
   static void SelectionChangedThunk(void *userData);
   static void EnabledChangedThunk(void *userData);
 
-  declara::app::PopupMenuNode *node_;
+  loka::app::PopupMenuNode *node_;
   void *popup_;
   void *target_;
   State<int> *selectionState_;

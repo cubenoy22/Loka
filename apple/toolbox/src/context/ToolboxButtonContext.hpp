@@ -7,7 +7,7 @@
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -17,7 +17,7 @@ namespace declara
     }
   }
 }
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -28,31 +28,31 @@ namespace declara
   }
 }
 
-class ToolboxButtonContext : public declara::core::scene::NativeNodeContext
+class ToolboxButtonContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  explicit ToolboxButtonContext(declara::app::ButtonNode *node);
+  explicit ToolboxButtonContext(loka::app::ButtonNode *node);
   virtual ~ToolboxButtonContext();
 
-  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(const loka::core::String &label,
-                  declara::core::EmitterState *emitter,
-                  declara::core::State<bool> *enabled,
+                  loka::core::EmitterState *emitter,
+                  loka::core::State<bool> *enabled,
                   short resourceId,
                   int controlTag);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
-  virtual void render(declara::core::scene::IPlatformController *controller);
-  virtual short layout(declara::core::scene::IPlatformController *controller,
-                       declara::core::scene::LayoutState &state);
+  virtual void render(loka::core::scene::IPlatformController *controller);
+  virtual short layout(loka::core::scene::IPlatformController *controller,
+                       loka::core::scene::LayoutState &state);
 
 private:
-  declara::app::ButtonNode *node_;
-  declara::core::scene::BoundaryNode *boundary_;
+  loka::app::ButtonNode *node_;
+  loka::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   loka::core::String label_;
-  declara::core::EmitterState *emitter_;
-  declara::core::State<bool> *enabled_;
+  loka::core::EmitterState *emitter_;
+  loka::core::State<bool> *enabled_;
   short resourceId_;
 };
 

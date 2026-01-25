@@ -128,7 +128,7 @@ void MacWindow::TitleChangedThunk(void *userData)
   std::string utf8;
   if (loka::platform::CollectUtf8(self->titleState().get(), utf8))
   {
-    [window setTitle:declara::macos::CreateNSStringFromUtf8(utf8)];
+    [window setTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
   else
   {
@@ -225,7 +225,7 @@ void MacWindow::createNativeWindow()
   std::string utf8;
   if (loka::platform::CollectUtf8(this->titleState().get(), utf8))
   {
-    [window setTitle:declara::macos::CreateNSStringFromUtf8(utf8)];
+    [window setTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
   else
   {
@@ -327,7 +327,7 @@ void MacWindow::mountScene()
   {
     return;
   }
-  declara::core::scene::Scene *currentScene = this->scene();
+  loka::core::scene::Scene *currentScene = this->scene();
   if (!currentScene)
   {
     return;
@@ -338,7 +338,7 @@ void MacWindow::mountScene()
 
 void MacWindow::teardownScene()
 {
-  declara::core::scene::Scene *currentScene = this->scene();
+  loka::core::scene::Scene *currentScene = this->scene();
   if (currentScene)
   {
     currentScene->unmount();

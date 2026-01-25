@@ -6,7 +6,7 @@
 class App;
 class MacScenePlatformController;
 
-namespace declara
+namespace loka
 {
   namespace core
   {

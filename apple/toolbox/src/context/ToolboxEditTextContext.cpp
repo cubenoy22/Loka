@@ -29,7 +29,7 @@ namespace
   }
 }
 
-ToolboxEditTextContext::ToolboxEditTextContext(declara::app::EditTextNode *node)
+ToolboxEditTextContext::ToolboxEditTextContext(loka::app::EditTextNode *node)
     : node_(node),
       boundary_(0),
       rect_(),
@@ -42,7 +42,7 @@ ToolboxEditTextContext::ToolboxEditTextContext(declara::app::EditTextNode *node)
 
 ToolboxEditTextContext::~ToolboxEditTextContext() {}
 
-void ToolboxEditTextContext::updateData(declara::core::State<loka::core::String> *text)
+void ToolboxEditTextContext::updateData(loka::core::State<loka::core::String> *text)
 {
   text_ = text;
 }
@@ -82,8 +82,8 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
   }
 }
 
-short ToolboxEditTextContext::layout(declara::core::scene::IPlatformController *controller,
-                                     declara::core::scene::LayoutState &state)
+short ToolboxEditTextContext::layout(loka::core::scene::IPlatformController *controller,
+                                     loka::core::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -106,7 +106,7 @@ short ToolboxEditTextContext::layout(declara::core::scene::IPlatformController *
   return width;
 }
 
-void ToolboxEditTextContext::render(declara::core::scene::IPlatformController *controller)
+void ToolboxEditTextContext::render(loka::core::scene::IPlatformController *controller)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);

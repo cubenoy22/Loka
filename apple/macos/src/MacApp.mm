@@ -85,18 +85,18 @@ void MacApp::handleMenuCommand(int commandId)
       continue;
     switch (commands_[i].action)
     {
-    case declara::app::MENU_ACTION_ABOUT_APP:
+    case loka::app::MENU_ACTION_ABOUT_APP:
       [NSApp orderFrontStandardAboutPanel:nil];
       return;
-    case declara::app::MENU_ACTION_SHOW_COLOR_PICKER:
+    case loka::app::MENU_ACTION_SHOW_COLOR_PICKER:
       [NSApp orderFrontColorPanel:nil];
       return;
-    case declara::app::MENU_ACTION_QUIT_APP:
+    case loka::app::MENU_ACTION_QUIT_APP:
       quit();
       return;
-    case declara::app::MENU_ACTION_REBUILD_MENU:
+    case loka::app::MENU_ACTION_REBUILD_MENU:
       break;
-    case declara::app::MENU_ACTION_NONE:
+    case loka::app::MENU_ACTION_NONE:
     default:
       break;
     }
@@ -104,7 +104,7 @@ void MacApp::handleMenuCommand(int commandId)
     {
       commands_[i].emitter->emit();
     }
-    if (commands_[i].action == declara::app::MENU_ACTION_REBUILD_MENU)
+    if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
     {
       invalidateMenu();
     }
@@ -137,7 +137,7 @@ void MacApp::clearMenuBindings()
   nextCommandId_ = 1;
 }
 
-static NSString *MenuShortcutForAction(const declara::app::MenuItemDefinition *itemDef)
+static NSString *MenuShortcutForAction(const loka::app::MenuItemDefinition *itemDef)
 {
   if (!itemDef)
     return @"";
@@ -148,7 +148,7 @@ static NSString *MenuShortcutForAction(const declara::app::MenuItemDefinition *i
   }
   switch (itemDef->action)
   {
-  case declara::app::MENU_ACTION_QUIT_APP:
+  case loka::app::MENU_ACTION_QUIT_APP:
     return @"q";
   default:
     return @"";
@@ -156,7 +156,7 @@ static NSString *MenuShortcutForAction(const declara::app::MenuItemDefinition *i
 }
 
 static std::size_t BuildMenuItems(NSMenu *menu,
-                                  const declara::app::MenuItemDefinition *itemsHead,
+                                  const loka::app::MenuItemDefinition *itemsHead,
                                   DeclaraMenuTarget *target,
                                   std::vector<MacApp::MenuCommand> &commands,
                                   std::vector<MacApp::MenuBinding *> &bindings,
@@ -164,7 +164,7 @@ static std::size_t BuildMenuItems(NSMenu *menu,
                                   bool allowQuit);
 
 static std::size_t BuildMenuItem(NSMenu *menu,
-                                 const declara::app::MenuItemDefinition *itemDef,
+                                 const loka::app::MenuItemDefinition *itemDef,
                                  DeclaraMenuTarget *target,
                                  std::vector<MacApp::MenuCommand> &commands,
                                  std::vector<MacApp::MenuBinding *> &bindings,
@@ -173,7 +173,7 @@ static std::size_t BuildMenuItem(NSMenu *menu,
 {
   if (!itemDef)
     return 0;
-  if (!allowQuit && itemDef->action == declara::app::MENU_ACTION_QUIT_APP)
+  if (!allowQuit && itemDef->action == loka::app::MENU_ACTION_QUIT_APP)
     return 0;
   if (itemDef->isSeparator)
   {
@@ -222,7 +222,7 @@ static std::size_t BuildMenuItem(NSMenu *menu,
 }
 
 static std::size_t BuildMenuItems(NSMenu *menu,
-                                  const declara::app::MenuItemDefinition *itemsHead,
+                                  const loka::app::MenuItemDefinition *itemsHead,
                                   DeclaraMenuTarget *target,
                                   std::vector<MacApp::MenuCommand> &commands,
                                   std::vector<MacApp::MenuBinding *> &bindings,
@@ -230,7 +230,7 @@ static std::size_t BuildMenuItems(NSMenu *menu,
                                   bool allowQuit)
 {
   std::size_t added = 0;
-  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  const loka::app::MenuItemDefinition *itemDef = itemsHead;
   while (itemDef)
   {
     added += BuildMenuItem(menu, itemDef, target, commands, bindings, nextCommandId, allowQuit);
@@ -242,15 +242,15 @@ static std::size_t BuildMenuItems(NSMenu *menu,
 void MacApp::applyMenuBar(Window *activeWindow)
 {
   clearMenuBindings();
-  const declara::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
+  const loka::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
   if (!menuBar)
   {
     return;
   }
 
   bool hasAppMenu = false;
-  loka::dsl::CompositionCursor<declara::app::MenuDefinition> appMenuScan(menuBar->menusHead(), menuBar->menusCount());
-  for (declara::app::MenuDefinition *menuDef = appMenuScan.next(); menuDef; menuDef = appMenuScan.next())
+  loka::dsl::CompositionCursor<loka::app::MenuDefinition> appMenuScan(menuBar->menusHead(), menuBar->menusCount());
+  for (loka::app::MenuDefinition *menuDef = appMenuScan.next(); menuDef; menuDef = appMenuScan.next())
   {
     if (menuDef->isAppMenu)
     {
@@ -273,8 +273,8 @@ void MacApp::applyMenuBar(Window *activeWindow)
   }
 
   NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@""];
-  loka::dsl::CompositionCursor<declara::app::MenuDefinition> it(menuBar->menusHead(), menuBar->menusCount());
-  for (declara::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
+  loka::dsl::CompositionCursor<loka::app::MenuDefinition> it(menuBar->menusHead(), menuBar->menusCount());
+  for (loka::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
   {
     const char *fallback = menuDef->isAppMenu ? "Loka" : "Menu";
     NSString *menuTitle = MenuTitleFromString(menuDef->title, fallback);

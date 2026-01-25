@@ -5,7 +5,7 @@
 #include "core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, declara::app::TextNode *node)
+MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
     : node_(node), label_(0), textState_(0)
 {
   NSView *parent = (__bridge NSView *)parentView;
@@ -68,7 +68,7 @@ void MacTextContext::applyText()
   std::string utf8;
   if (loka::platform::CollectUtf8(textState_->get(), utf8))
   {
-    [label setStringValue:declara::macos::CreateNSStringFromUtf8(utf8)];
+    [label setStringValue:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
 }
 

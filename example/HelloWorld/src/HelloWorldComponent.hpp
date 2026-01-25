@@ -14,23 +14,23 @@ namespace helloworld
 {
   class HelloWorldNode;
 
-  typedef declara::core::scene::GroupPropsFor<HelloWorldNode> HelloWorldProps;
+  typedef loka::core::scene::GroupPropsFor<HelloWorldNode> HelloWorldProps;
 
-  class HelloWorldNode : public declara::core::scene::GroupNodeBase<HelloWorldProps>, public RootBoundary
+  class HelloWorldNode : public loka::core::scene::GroupNodeBase<HelloWorldProps>, public RootBoundary
   {
   public:
     HelloWorldProps props;
     HelloWorldNode(const HelloWorldProps &p)
-        : declara::core::scene::GroupNodeBase<HelloWorldProps>(HelloWorldProps(p)), props(p), message_() {}
+        : loka::core::scene::GroupNodeBase<HelloWorldProps>(HelloWorldProps(p)), props(p), message_() {}
 
-    virtual void attachNode(declara::core::scene::NodeComposition &c)
+    virtual void attachNode(loka::core::scene::NodeComposition &c)
     {
       message_ = c.useState<loka::core::String>(loka::core::String::Literal("Hello, Loka!"));
     }
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
-      using namespace declara::app;
+      using namespace loka::app;
       c.declare(
           VStack()
           << Text("Loka Prototype")
@@ -38,7 +38,7 @@ namespace helloworld
           << ChangeContextButtonNode());
     }
 
-    virtual declara::core::scene::BoundState<loka::core::String> &messageState()
+    virtual loka::core::scene::BoundState<loka::core::String> &messageState()
     {
       return message_;
     }
@@ -49,16 +49,16 @@ namespace helloworld
       {
         return static_cast<RootBoundary *>(this);
       }
-      return declara::core::scene::GroupNodeBase<HelloWorldProps>::queryInterface(name);
+      return loka::core::scene::GroupNodeBase<HelloWorldProps>::queryInterface(name);
     }
 
   private:
-    declara::core::scene::BoundState<loka::core::String> message_;
+    loka::core::scene::BoundState<loka::core::String> message_;
   };
 
-  inline declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode> HelloWorld()
+  inline loka::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode> HelloWorld()
   {
-    return declara::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode>();
+    return loka::core::scene::NodeDefinition<HelloWorldProps, HelloWorldNode>();
   }
 
 } // namespace helloworld

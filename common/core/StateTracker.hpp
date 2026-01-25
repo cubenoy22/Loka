@@ -7,7 +7,7 @@
 #include <string>
 #include <set>
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -110,8 +110,8 @@ namespace declara
     };
 
   } // namespace core
-} // namespace declara
+} // namespace loka
 
-using declara::core::StateBase;
+using loka::core::StateBase;
 
 #endif // LOKA_STATETRACKER_HPP

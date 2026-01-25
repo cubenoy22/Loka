@@ -5,7 +5,7 @@
 #include "core/State.hpp"
 #include "loka/core/String.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -13,10 +13,10 @@ namespace declara
   }
 }
 
-class MacEditTextContext : public declara::core::scene::NativeNodeContext
+class MacEditTextContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  MacEditTextContext(void *parentView, int x, int y, int width, int height, declara::app::EditTextNode *node);
+  MacEditTextContext(void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node);
   virtual ~MacEditTextContext();
 
   void handleTextDidChange();
@@ -29,7 +29,7 @@ private:
   void syncStateFromControl();
   static void TextChangedThunk(void *userData);
 
-  declara::app::EditTextNode *node_;
+  loka::app::EditTextNode *node_;
   void *field_;
   void *delegate_;
   State<loka::core::String> *textState_;

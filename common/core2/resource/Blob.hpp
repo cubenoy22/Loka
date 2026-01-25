@@ -7,7 +7,7 @@
 #include "core/Managed.hpp"
 #include "core/State.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -192,6 +192,6 @@ namespace declara
       };
     } // namespace resource
   }   // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_RESOURCE_BLOB_HPP

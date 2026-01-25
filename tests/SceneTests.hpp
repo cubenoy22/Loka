@@ -13,58 +13,58 @@ namespace SceneTests
   static int g_childComposeCount = 0;
 
   class ChildBoundaryNode;
-  typedef declara::core::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
+  typedef loka::core::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
-  class ChildBoundaryNode : public declara::core::scene::BoundaryNodeFor<ChildBoundaryNode>
+  class ChildBoundaryNode : public loka::core::scene::BoundaryNodeFor<ChildBoundaryNode>
   {
   public:
     ChildBoundaryNode(const ChildBoundaryProps &p)
-        : declara::core::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
+        : loka::core::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
       (void)c;
       ++g_childComposeCount;
     }
   };
 
-  inline declara::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
+  inline loka::core::scene::BoundaryDefinition<ChildBoundaryProps, ChildBoundaryNode> ChildBoundary()
   {
-    return declara::core::scene::Boundary<ChildBoundaryNode>();
+    return loka::core::scene::Boundary<ChildBoundaryNode>();
   }
 
   class RootBoundaryNode;
-  typedef declara::core::scene::BoundaryPropsFor<RootBoundaryNode> RootBoundaryProps;
+  typedef loka::core::scene::BoundaryPropsFor<RootBoundaryNode> RootBoundaryProps;
 
-  class RootBoundaryNode : public declara::core::scene::BoundaryNodeFor<RootBoundaryNode>
+  class RootBoundaryNode : public loka::core::scene::BoundaryNodeFor<RootBoundaryNode>
   {
   public:
     RootBoundaryNode(const RootBoundaryProps &p)
-        : declara::core::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
+        : loka::core::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
       ++g_rootComposeCount;
       c.declare(ChildBoundary());
     }
   };
 
-  inline declara::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
+  inline loka::core::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
   {
-    return declara::core::scene::Boundary<RootBoundaryNode>();
+    return loka::core::scene::Boundary<RootBoundaryNode>();
   }
 
   void test_Boundary_nested_compose()
   {
-    using declara::core::scene::IPlatformController;
-    using declara::core::scene::Node;
-    using declara::core::scene::Scene;
+    using loka::core::scene::IPlatformController;
+    using loka::core::scene::Node;
+    using loka::core::scene::Scene;
 
     class DummyPlatformController : public IPlatformController
     {
     public:
       DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-      virtual void onChange(Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
+      virtual void onChange(Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
       {
         (void)flags;
         lastMaterialized_ = rootNode;

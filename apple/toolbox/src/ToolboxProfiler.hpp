@@ -5,10 +5,10 @@
 #include <string>
 
 // Re-export common profiler types for convenience
-using declara::core::ProfileEntry;
-using declara::core::ScopedProfile;
-using declara::core::gProfileData;
-using declara::core::gProfileCount;
+using loka::core::ProfileEntry;
+using loka::core::ScopedProfile;
+using loka::core::gProfileData;
+using loka::core::gProfileCount;
 
 // Toolbox-specific: result string for display after BuildProfileResultString
 extern std::string gProfileResultString;

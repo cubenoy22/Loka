@@ -36,7 +36,7 @@ Win32ScenePlatformController::~Win32ScenePlatformController()
   clearContexts();
 }
 
-void Win32ScenePlatformController::onChange(declara::core::scene::Node *rootNode, declara::core::scene::NodeDirtyFlags flags)
+void Win32ScenePlatformController::onChange(loka::core::scene::Node *rootNode, loka::core::scene::NodeDirtyFlags flags)
 {
   (void)flags;
   rootNode_ = rootNode;
@@ -143,7 +143,7 @@ void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeig
 
 namespace
 {
-  int ApplyBoundaryBounds(declara::core::scene::BoundaryNode *boundary,
+  int ApplyBoundaryBounds(loka::core::scene::BoundaryNode *boundary,
                           int x,
                           int y,
                           int width,
@@ -157,18 +157,18 @@ namespace
   }
 }
 
-int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, const LayoutState &state)
+int Win32ScenePlatformController::layoutNode(loka::core::scene::Node *node, const LayoutState &state)
 {
   if (!node)
   {
     return state.y;
   }
-  declara::core::scene::BoundaryNode *boundary = node->asBoundary();
+  loka::core::scene::BoundaryNode *boundary = node->asBoundary();
   const int startX = state.x;
   const int startY = state.y;
   const int startWidth = state.width;
 
-  if (declara::app::RowNode *row = node->asRowNode())
+  if (loka::app::RowNode *row = node->asRowNode())
   {
     size_t childCount = row->childrenCount();
     if (row->childrenHead() == 0 || childCount == 0)
@@ -188,8 +188,8 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     int remainder = childCountInt > 0 ? availableWidth - baseWidth * childCountInt : 0;
     int currentX = state.x;
     int maxY = state.y;
-    loka::dsl::CompositionCursor<declara::core::scene::Node> it(row->childrenHead(), childCount);
-    for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::core::scene::Node> it(row->childrenHead(), childCount);
+    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
     {
       int childWidth = baseWidth;
       if (remainder > 0)
@@ -210,7 +210,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
-  if (declara::app::GridNode *grid = node->asGridNode())
+  if (loka::app::GridNode *grid = node->asGridNode())
   {
     const int rows = grid->props.rows > 0 ? grid->props.rows : 1;
     const int cols = grid->props.cols > 0 ? grid->props.cols : 1;
@@ -221,13 +221,13 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     const int cellWidth = availableWidth > 0 ? availableWidth / cols : 0;
     const int cellHeight = availableHeight > 0 ? availableHeight / rows : 0;
     int maxY = state.y;
-    if (declara::core::scene::INestable *nestable = grid->asNestable())
+    if (loka::core::scene::INestable *nestable = grid->asNestable())
     {
       const size_t childCount = nestable->childrenCount();
       const size_t maxCount = static_cast<size_t>(rows * cols);
       size_t index = 0;
-      loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), childCount);
-      for (declara::core::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), childCount);
+      for (loka::core::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
       {
         const int row = static_cast<int>(index / cols);
         const int col = static_cast<int>(index % cols);
@@ -246,7 +246,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
-  if (declara::app::BoxNode *box = node->asBoxNode())
+  if (loka::app::BoxNode *box = node->asBoxNode())
   {
     int padding = box->props.padding;
     LayoutState childState = state;
@@ -263,10 +263,10 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
       childState.height = 0;
     }
     int resultY = childState.y;
-    if (declara::core::scene::INestable *nestable = box->asNestable())
+    if (loka::core::scene::INestable *nestable = box->asNestable())
     {
-      loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::core::scene::Node *child = it.next(); child; child = it.next())
       {
         childState.y = layoutNode(child, childState);
       }
@@ -279,14 +279,14 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
   }
 
-  if (declara::app::ZStackNode *stack = node->asZStackNode())
+  if (loka::app::ZStackNode *stack = node->asZStackNode())
   {
     LayoutState childState = state;
     int maxY = state.y;
-    if (declara::core::scene::INestable *nestable = stack->asNestable())
+    if (loka::core::scene::INestable *nestable = stack->asNestable())
     {
-      loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+      loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::core::scene::Node *child = it.next(); child; child = it.next())
       {
         childState = state;
         int childY = layoutNode(child, childState);
@@ -299,25 +299,25 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
-  if (declara::core::scene::INestable *nestable = node->asNestable())
+  if (loka::core::scene::INestable *nestable = node->asNestable())
   {
     LayoutState childState = state;
-    loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
     {
       childState.y = layoutNode(child, childState);
     }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, childState.y);
   }
 
-  if (declara::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
+  if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
   {
     Win32OpenFileDialogContext *ctx = new Win32OpenFileDialogContext(rootHwnd_, dialog);
     dialog->setContext(ctx);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
   }
 
-  if (declara::app::ButtonNode *button = node->asButtonNode())
+  if (loka::app::ButtonNode *button = node->asButtonNode())
   {
     Win32ButtonContext *ctx = new Win32ButtonContext(rootHwnd_, state.x, state.y, state.width, kButtonHeight, button);
     button->setContext(ctx);
@@ -328,7 +328,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  if (declara::app::EditTextNode *edit = node->asEditTextNode())
+  if (loka::app::EditTextNode *edit = node->asEditTextNode())
   {
     Win32EditTextContext *ctx = new Win32EditTextContext(rootHwnd_, state.x, state.y, state.width, kEditTextHeight, edit);
     edit->setContext(ctx);
@@ -339,7 +339,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  if (declara::app::PopupMenuNode *popup = node->asPopupMenuNode())
+  if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
   {
     Win32PopupMenuContext *ctx = new Win32PopupMenuContext(rootHwnd_, state.x, state.y, state.width, kPopupMenuHeight, popup);
     popup->setContext(ctx);
@@ -350,7 +350,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  if (declara::app::CellNode *cell = node->asCellNode())
+  if (loka::app::CellNode *cell = node->asCellNode())
   {
     const int cellHeight = state.height > 0 ? state.height : kTextHeight;
     Win32CellContext *ctx = new Win32CellContext(rootHwnd_, state.x, state.y, state.width, cellHeight, cell);
@@ -365,7 +365,7 @@ int Win32ScenePlatformController::layoutNode(declara::core::scene::Node *node, c
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
-  if (declara::app::TextNode *text = node->asTextNode())
+  if (loka::app::TextNode *text = node->asTextNode())
   {
     Win32TextContext *ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, kTextHeight, text);
     text->setContext(ctx);
@@ -386,16 +386,16 @@ void Win32ScenePlatformController::clearContexts()
   clearNodeContexts(rootNode_);
 }
 
-void Win32ScenePlatformController::clearNodeContexts(declara::core::scene::Node *node)
+void Win32ScenePlatformController::clearNodeContexts(loka::core::scene::Node *node)
 {
   if (!node)
   {
     return;
   }
-  if (declara::core::scene::INestable *nestable = node->asNestable())
+  if (loka::core::scene::INestable *nestable = node->asNestable())
   {
-    loka::dsl::CompositionCursor<declara::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-    for (declara::core::scene::Node *child = it.next(); child; child = it.next())
+    loka::dsl::CompositionCursor<loka::core::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::core::scene::Node *child = it.next(); child; child = it.next())
     {
       clearNodeContexts(child);
     }

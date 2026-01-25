@@ -4,7 +4,7 @@
 #include <cstddef>
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -62,6 +62,6 @@ namespace declara
       };
     } // namespace scene
   }   // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_NATIVE_NODE_CONTEXT_HPP

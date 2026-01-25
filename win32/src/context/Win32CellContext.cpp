@@ -8,7 +8,7 @@ namespace
   const char *kCellClassName = "LOKA_CELL";
 }
 
-Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int height, declara::app::CellNode *node)
+Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node)
     : node_(node),
       hwnd_(0),
       textState_(0),

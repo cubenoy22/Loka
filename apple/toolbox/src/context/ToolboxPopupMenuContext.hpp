@@ -8,7 +8,7 @@
 #include <Menus.h>
 
 class ToolboxScenePlatformController;
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -18,7 +18,7 @@ namespace declara
     }
   }
 }
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -29,22 +29,22 @@ namespace declara
   }
 }
 
-class ToolboxPopupMenuContext : public declara::core::scene::NativeNodeContext
+class ToolboxPopupMenuContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  explicit ToolboxPopupMenuContext(declara::app::PopupMenuNode *node);
+  explicit ToolboxPopupMenuContext(loka::app::PopupMenuNode *node);
   virtual ~ToolboxPopupMenuContext();
 
-  void setBoundary(declara::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::core::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(const loka::Vector<loka::core::String> *items,
-                  declara::core::State<int> *selectedIndex,
-                  declara::core::EmitterState *onChange,
-                  declara::core::State<bool> *enabled);
+                  loka::core::State<int> *selectedIndex,
+                  loka::core::EmitterState *onChange,
+                  loka::core::State<bool> *enabled);
   void updateRect(const Rect &rect, short lineHeight);
   void draw();
-  virtual void render(declara::core::scene::IPlatformController *controller);
-  virtual short layout(declara::core::scene::IPlatformController *controller,
-                       declara::core::scene::LayoutState &state);
+  virtual void render(loka::core::scene::IPlatformController *controller);
+  virtual short layout(loka::core::scene::IPlatformController *controller,
+                       loka::core::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
   const Rect &rect() const { return rect_; }
@@ -53,14 +53,14 @@ private:
   short clampIndex(int index) const;
   void copyToPascalString(const loka::core::String &value, Str255 out) const;
 
-  declara::app::PopupMenuNode *node_;
-  declara::core::scene::BoundaryNode *boundary_;
+  loka::app::PopupMenuNode *node_;
+  loka::core::scene::BoundaryNode *boundary_;
   Rect rect_;
   short lineHeight_;
   const loka::Vector<loka::core::String> *items_;
-  declara::core::State<int> *selectedIndex_;
-  declara::core::EmitterState *onChange_;
-  declara::core::State<bool> *enabled_;
+  loka::core::State<int> *selectedIndex_;
+  loka::core::EmitterState *onChange_;
+  loka::core::State<bool> *enabled_;
 };
 
 #endif // LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP

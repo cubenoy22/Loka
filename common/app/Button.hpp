@@ -5,7 +5,7 @@
 #include "loka/core/String.hpp"
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -26,7 +26,7 @@ namespace declara
       virtual EmitterState *getOnClick() const = 0;
     };
 
-    struct ButtonProps : public declara::core::scene::NodePropsBase<ButtonProps>, public IButtonProps
+    struct ButtonProps : public loka::core::scene::NodePropsBase<ButtonProps>, public IButtonProps
     {
       typedef ButtonTypeTag TypeTag;
       typedef ButtonNode NodeType;
@@ -43,12 +43,12 @@ namespace declara
       }
       ButtonProps &text(const loka::core::String &s)
       {
-        this->text_ = declara::core::StaticState<loka::core::String>(s);
+        this->text_ = loka::core::StaticState<loka::core::String>(s);
         return *this;
       }
       ButtonProps &text(const char *s)
       {
-        this->text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(s));
+        this->text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(s));
         return *this;
       }
       ButtonProps &enabled(State<bool> *e)
@@ -85,7 +85,7 @@ namespace declara
         h = h * 31 + static_cast<std::size_t>(controlTag_);
         return static_cast<int>(h);
       }
-      bool operator<(const declara::core::scene::PropsBase &rhs) const
+      bool operator<(const loka::core::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -100,23 +100,23 @@ namespace declara
       }
     };
 
-    class ButtonNode : public declara::core::scene::Node
+    class ButtonNode : public loka::core::scene::Node
     {
     public:
       typedef ButtonTypeTag TypeTag;
       ButtonProps props;
       ButtonNode(const ButtonProps &p) : props(p) {}
-      virtual declara::core::scene::NodeKind kind() const { return declara::core::scene::NODE_KIND_BUTTON; }
+      virtual loka::core::scene::NodeKind kind() const { return loka::core::scene::NODE_KIND_BUTTON; }
       virtual ButtonNode *asButtonNode() { return this; }
     };
 
-    struct ButtonDefinition : public declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>
+    struct ButtonDefinition : public loka::core::scene::NodeDefinition<ButtonProps, ButtonNode>
     {
       ButtonDefinition() : NodeDefinition() {}
       ButtonDefinition(const ButtonProps &p) : NodeDefinition(p) {}
       ButtonDefinition(const char *text) : NodeDefinition()
       {
-        this->props.text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
+        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
       }
       ButtonDefinition(State<loka::core::String> *text) : NodeDefinition()
       {
@@ -124,7 +124,7 @@ namespace declara
       }
       ButtonDefinition(const char *text, EmitterState *onClick) : NodeDefinition()
       {
-        this->props.text_ = declara::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
+        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
         this->props.onClick_ = onClick;
       }
       ButtonDefinition(State<loka::core::String> *text, EmitterState *onClick) : NodeDefinition()
@@ -156,7 +156,7 @@ namespace declara
         return *this;
       }
 
-      using declara::core::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
+      using loka::core::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };
     // DSL向け短縮名
     typedef ButtonDefinition Button;
@@ -166,6 +166,6 @@ namespace declara
       return new ButtonNode(props);
     }
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP2_BUTTON_HPP

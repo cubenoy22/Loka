@@ -11,26 +11,26 @@
 namespace helloworld
 {
   class ChangeContextButton;
-  typedef declara::core::scene::GroupPropsFor<ChangeContextButton> ChangeContextButtonProps;
+  typedef loka::core::scene::GroupPropsFor<ChangeContextButton> ChangeContextButtonProps;
 
-  class ChangeContextButton : public declara::core::scene::GroupNodeBase<ChangeContextButtonProps>
+  class ChangeContextButton : public loka::core::scene::GroupNodeBase<ChangeContextButtonProps>
   {
   public:
     ChangeContextButton(const ChangeContextButtonProps &props)
-        : declara::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), toggleEvent_() {}
+        : loka::core::scene::GroupNodeBase<ChangeContextButtonProps>(props), boundary_(0), toggleEvent_() {}
     virtual ~ChangeContextButton()
     {
     }
 
-    virtual void attachNode(declara::core::scene::NodeComposition &c)
+    virtual void attachNode(loka::core::scene::NodeComposition &c)
     {
       this->boundary_ = c.findBoundary<RootBoundary>();
       this->bindForUi(toggleEvent_, this, &ChangeContextButton::handleToggle);
     }
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
-      using namespace declara::app;
+      using namespace loka::app;
       c.declare(Button("Toggle Message", &this->toggleEvent_));
     }
 
@@ -42,7 +42,7 @@ namespace helloworld
       {
         return;
       }
-      declara::core::scene::BoundState<loka::core::String> &message = this->boundary_->messageState();
+      loka::core::scene::BoundState<loka::core::String> &message = this->boundary_->messageState();
       const loka::core::String current = message.get();
       if (current.equals(loka::core::String::Literal("Hello, Loka!")))
       {
@@ -67,10 +67,10 @@ namespace helloworld
     }
 
     RootBoundary *boundary_;
-    declara::core::EmitterState toggleEvent_;
+    loka::core::EmitterState toggleEvent_;
   };
 
-  typedef declara::core::scene::NodeDefinition<ChangeContextButtonProps, ChangeContextButton> ChangeContextButtonDefinition;
+  typedef loka::core::scene::NodeDefinition<ChangeContextButtonProps, ChangeContextButton> ChangeContextButtonDefinition;
 
   inline ChangeContextButtonDefinition ChangeContextButtonNode()
   {

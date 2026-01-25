@@ -5,7 +5,7 @@
 #include "core/State.hpp"
 #include "loka/core/String.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -13,10 +13,10 @@ namespace declara
   }
 }
 
-class MacButtonContext : public declara::core::scene::NativeNodeContext
+class MacButtonContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  MacButtonContext(void *parentView, int x, int y, int width, int height, declara::app::ButtonNode *node);
+  MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node);
   virtual ~MacButtonContext();
 
   void handlePress();
@@ -27,7 +27,7 @@ private:
   void applyText();
   static void TextChangedThunk(void *userData);
 
-  declara::app::ButtonNode *node_;
+  loka::app::ButtonNode *node_;
   void *button_;
   void *target_;
   State<loka::core::String> *textState_;

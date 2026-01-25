@@ -35,7 +35,7 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(40, 40, 320, 240)
-                       .scene(declara::core::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
+                       .scene(loka::core::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
                            simpleviewer::MainProps()
                                .dialogVisible(&this->openDialogVisible_)
                                .message(&this->chooserMessage_)
@@ -45,9 +45,9 @@ public:
                        .visible(true));
   }
 
-  virtual void composeMenu(declara::app::MenuComposition &c)
+  virtual void composeMenu(loka::app::MenuComposition &c)
   {
-    using namespace declara::app;
+    using namespace loka::app;
     c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
                         << MenuSeparator()
                         << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
@@ -76,7 +76,7 @@ private:
 
   void handleChooserResult()
   {
-    const declara::app::FileChooserResult result = this->chooserResult_.get();
+    const loka::app::FileChooserResult result = this->chooserResult_.get();
     const loka::core::String message = formatChooserMessage(result);
     StateTrackerGuard guard(&this->tracker_);
     this->chooserMessage_.set(message, true);
@@ -91,9 +91,9 @@ private:
     }
   }
 
-  static loka::core::String formatChooserMessage(const declara::app::FileChooserResult &result)
+  static loka::core::String formatChooserMessage(const loka::app::FileChooserResult &result)
   {
-    using namespace declara::app;
+    using namespace loka::app;
     switch (result.kind)
     {
     case FileChooserResult::RESULT_FILE:
@@ -115,12 +115,12 @@ private:
     return path.empty() ? loka::core::String::Literal("(unknown)") : path;
   }
 
-  declara::core::MutableState<bool> openDialogVisible_;
-  declara::core::MutableState<declara::app::FileChooserResult> chooserResult_;
-  declara::core::MutableState<loka::core::String> chooserMessage_;
-  declara::core::PushStateTracker tracker_;
-  declara::core::EmitterState openDialogEvent_;
-  declara::core::EmitterState chooserResultEvent_;
+  loka::core::MutableState<bool> openDialogVisible_;
+  loka::core::MutableState<loka::app::FileChooserResult> chooserResult_;
+  loka::core::MutableState<loka::core::String> chooserMessage_;
+  loka::core::PushStateTracker tracker_;
+  loka::core::EmitterState openDialogEvent_;
+  loka::core::EmitterState chooserResultEvent_;
 };
 
 #endif // LOKA_SIMPLE_VIEWER_APP_CONFIG_HPP

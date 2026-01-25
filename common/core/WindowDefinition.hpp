@@ -45,8 +45,8 @@ struct WindowDefinition : public WindowDefinitionBase
     WindowProps resolved = props;
     if (!resolved.initialScene && resolved.rootDefinition)
     {
-      declara::core::scene::NodeDefinitionBase *def = resolved.rootDefinition->clone();
-      resolved.scene(new declara::core::scene::Scene(def));
+      loka::core::scene::NodeDefinitionBase *def = resolved.rootDefinition->clone();
+      resolved.scene(new loka::core::scene::Scene(def));
     }
     return context->createWindow(resolved);
   }

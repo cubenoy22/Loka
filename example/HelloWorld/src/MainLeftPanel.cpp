@@ -12,7 +12,7 @@ namespace helloworld
   {
   }
 
-  void MainLeftPanelComponent::attachNode(declara::core::scene::NodeComposition &c)
+  void MainLeftPanelComponent::attachNode(loka::core::scene::NodeComposition &c)
   {
     if (initialized_)
     {
@@ -27,9 +27,9 @@ namespace helloworld
     initialized_ = true;
   }
 
-  void MainLeftPanelComponent::composeNode(declara::core::scene::NodeComposition &c)
+  void MainLeftPanelComponent::composeNode(loka::core::scene::NodeComposition &c)
   {
-    using namespace declara::app;
+    using namespace loka::app;
     if (!owner_)
     {
       return;
@@ -39,7 +39,7 @@ namespace helloworld
         << Text("Loka Sample")
         << Text(message_)
         << Button("Add +", &toggleEvent_)
-        << declara::core::scene::LC(bmiCalculator_));
+        << loka::core::scene::LC(bmiCalculator_));
   }
 
   void MainLeftPanelComponent::toggleMessage()

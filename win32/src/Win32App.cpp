@@ -90,31 +90,31 @@ bool Win32App::handleMenuCommand(int commandId, Window *window)
       continue;
     switch (commands_[i].action)
     {
-    case declara::app::MENU_ACTION_ABOUT_APP:
+    case loka::app::MENU_ACTION_ABOUT_APP:
       if (commands_[i].emitter)
       {
         commands_[i].emitter->emit();
       }
       return true;
-    case declara::app::MENU_ACTION_QUIT_APP:
+    case loka::app::MENU_ACTION_QUIT_APP:
       quit();
       return true;
-    case declara::app::MENU_ACTION_REBUILD_MENU:
+    case loka::app::MENU_ACTION_REBUILD_MENU:
       break;
-    case declara::app::MENU_ACTION_NONE:
+    case loka::app::MENU_ACTION_NONE:
     default:
       break;
     }
     if (commands_[i].emitter)
     {
       commands_[i].emitter->emit();
-      if (commands_[i].action == declara::app::MENU_ACTION_REBUILD_MENU)
+      if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
       {
         invalidateMenu();
       }
       return true;
     }
-    if (commands_[i].action == declara::app::MENU_ACTION_REBUILD_MENU)
+    if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
     {
       invalidateMenu();
       return true;
@@ -153,7 +153,7 @@ void Win32App::clearMenuBindings()
   nextCommandId_ = 1000;
 }
 
-void Win32App::buildMenuItem(HMENU menu, const declara::app::MenuItemDefinition *itemDef, HWND hwnd)
+void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef, HWND hwnd)
 {
   if (!itemDef)
     return;
@@ -162,7 +162,7 @@ void Win32App::buildMenuItem(HMENU menu, const declara::app::MenuItemDefinition 
     AppendMenuA(menu, MF_SEPARATOR, 0, NULL);
     return;
   }
-  if (itemDef->action == declara::app::MENU_ACTION_SHOW_COLOR_PICKER)
+  if (itemDef->action == loka::app::MENU_ACTION_SHOW_COLOR_PICKER)
   {
     return;
   }
@@ -208,10 +208,10 @@ void Win32App::buildMenuItem(HMENU menu, const declara::app::MenuItemDefinition 
 }
 
 void Win32App::buildMenuItems(HMENU menu,
-                              const declara::app::MenuItemDefinition *itemsHead,
+                              const loka::app::MenuItemDefinition *itemsHead,
                               HWND hwnd)
 {
-  const declara::app::MenuItemDefinition *itemDef = itemsHead;
+  const loka::app::MenuItemDefinition *itemDef = itemsHead;
   while (itemDef)
   {
     buildMenuItem(menu, itemDef, hwnd);
@@ -235,7 +235,7 @@ void Win32App::applyMenuBar(Window *activeWindow)
     return;
   }
 
-  const declara::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
+  const loka::app::MenuBarDefinition *menuBar = resolveMenuBar(activeWindow);
   if (!menuBar)
   {
     SetMenu(hwnd, NULL);
@@ -244,8 +244,8 @@ void Win32App::applyMenuBar(Window *activeWindow)
   }
 
   HMENU menuBarHandle = CreateMenu();
-  loka::dsl::CompositionCursor<declara::app::MenuDefinition> it(menuBar->menusHead(), menuBar->menusCount());
-  for (declara::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
+  loka::dsl::CompositionCursor<loka::app::MenuDefinition> it(menuBar->menusHead(), menuBar->menusCount());
+  for (loka::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
   {
     if (menuDef->isAppMenu)
       continue;

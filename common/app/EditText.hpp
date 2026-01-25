@@ -6,7 +6,7 @@
 #include "loka/core/String.hpp"
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -84,6 +84,6 @@ namespace declara
 
     typedef EditTextDefinition EditText;
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP2_EDITTEXT_HPP

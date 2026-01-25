@@ -6,7 +6,7 @@
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -31,18 +31,18 @@ namespace helloworld
     };
 
     explicit MainRightPanelComponent(MainNode *owner);
-    void attachNode(declara::core::scene::NodeComposition &c);
-    void composeNode(declara::core::scene::NodeComposition &c);
+    void attachNode(loka::core::scene::NodeComposition &c);
+    void composeNode(loka::core::scene::NodeComposition &c);
 
   private:
     void handleFruitChanged();
 
     MainNode *owner_;
     bool initialized_;
-    declara::core::scene::BoundState<int> fruitIndex_;
-    declara::core::scene::BoundState<loka::core::String> fruitMessage_;
+    loka::core::scene::BoundState<int> fruitIndex_;
+    loka::core::scene::BoundState<loka::core::String> fruitMessage_;
     loka::Vector<loka::core::String> fruits_;
-    declara::core::EmitterState fruitChangedEvent_;
+    loka::core::EmitterState fruitChangedEvent_;
   };
 
 } // namespace helloworld

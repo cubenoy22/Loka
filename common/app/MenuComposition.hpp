@@ -7,7 +7,7 @@
 #include "loka/dsl/CompositionList.hpp"
 #include "loka/dsl/CompositionDiff.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -28,12 +28,12 @@ namespace declara
         ownedStates_.clear();
       }
       virtual void composeMenu(MenuComposition &c) = 0;
-      declara::core::StateTracker *tracker() { return &tracker_; }
+      loka::core::StateTracker *tracker() { return &tracker_; }
 
       template <typename T>
-      declara::core::MutableState<T> &useState(const T &initial)
+      loka::core::MutableState<T> &useState(const T &initial)
       {
-        declara::core::MutableState<T> *state = new declara::core::MutableState<T>(initial);
+        loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
         ownedStates_.push_back(state);
         tracker_.addStateUnchecked(state);
         return *state;
@@ -47,8 +47,8 @@ namespace declara
       }
 
     private:
-      declara::core::PushStateTracker tracker_;
-      std::vector<declara::core::StateBase *> ownedStates_;
+      loka::core::PushStateTracker tracker_;
+      std::vector<loka::core::StateBase *> ownedStates_;
     };
 
     struct MenuCompositionDiff : public loka::dsl::CompositionDiff
@@ -130,7 +130,7 @@ namespace declara
       }
 
       template <typename T>
-      declara::core::MutableState<T> &useState(const T &initial)
+      loka::core::MutableState<T> &useState(const T &initial)
       {
         assert(activeBoundary_ && "MenuComposition::useState requires MenuBoundary");
         return activeBoundary_->useState(initial);
@@ -147,6 +147,6 @@ namespace declara
     };
 
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP_MENU_COMPOSITION_HPP

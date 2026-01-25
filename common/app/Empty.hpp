@@ -6,7 +6,7 @@
 
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -47,6 +47,6 @@ namespace declara
     // Short name for DSL
     typedef EmptyDefinition Empty;
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP2_EMPTY_HPP

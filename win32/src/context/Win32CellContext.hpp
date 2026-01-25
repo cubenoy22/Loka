@@ -9,7 +9,7 @@
 template <typename T>
 class State;
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -17,10 +17,10 @@ namespace declara
   }
 }
 
-class Win32CellContext : public declara::core::scene::NativeNodeContext
+class Win32CellContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  Win32CellContext(HWND parent, int x, int y, int width, int height, declara::app::CellNode *node);
+  Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node);
   virtual ~Win32CellContext();
 
 private:
@@ -32,7 +32,7 @@ private:
   void drawCell(HDC hdc, const RECT &rect);
   static void TextChangedThunk(void *userData);
 
-  declara::app::CellNode *node_;
+  loka::app::CellNode *node_;
   HWND hwnd_;
   State<loka::core::String> *textState_;
   std::string text_;

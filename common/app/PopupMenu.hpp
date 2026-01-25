@@ -7,7 +7,7 @@
 #include "loka/core/Vector.hpp"
 #include "core2/scene/Node.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -28,7 +28,7 @@ namespace declara
       virtual EmitterState *getOnChange() const = 0;
     };
 
-    struct PopupMenuProps : public declara::core::scene::NodePropsBase<PopupMenuProps>, public IPopupMenuProps
+    struct PopupMenuProps : public loka::core::scene::NodePropsBase<PopupMenuProps>, public IPopupMenuProps
     {
       typedef PopupMenuTypeTag TypeTag;
       typedef PopupMenuNode NodeType;
@@ -148,7 +148,7 @@ namespace declara
         return static_cast<int>(h);
       }
 
-      bool operator<(const declara::core::scene::PropsBase &rhs) const
+      bool operator<(const loka::core::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
@@ -163,17 +163,17 @@ namespace declara
       }
     };
 
-    class PopupMenuNode : public declara::core::scene::Node
+    class PopupMenuNode : public loka::core::scene::Node
     {
     public:
       typedef PopupMenuTypeTag TypeTag;
       PopupMenuProps props;
       PopupMenuNode(const PopupMenuProps &p) : props(p) {}
-      virtual declara::core::scene::NodeKind kind() const { return declara::core::scene::NODE_KIND_POPUP_MENU; }
+      virtual loka::core::scene::NodeKind kind() const { return loka::core::scene::NODE_KIND_POPUP_MENU; }
       virtual PopupMenuNode *asPopupMenuNode() { return this; }
     };
 
-    struct PopupMenuDefinition : public declara::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>
+    struct PopupMenuDefinition : public loka::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>
     {
       PopupMenuDefinition() : NodeDefinition() {}
       PopupMenuDefinition(const PopupMenuProps &p) : NodeDefinition(p) {}
@@ -232,11 +232,11 @@ namespace declara
         return *this;
       }
 
-      using declara::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>::create;
+      using loka::core::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>::create;
     };
 
     typedef PopupMenuDefinition PopupMenu;
   } // namespace app
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_APP_POPUP_MENU_HPP

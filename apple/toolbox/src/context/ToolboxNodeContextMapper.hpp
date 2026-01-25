@@ -27,12 +27,12 @@ public:
   int capabilities() const { return capabilities_; }
   bool hasCapability(Capability cap) const { return (capabilities_ & cap) != 0; }
 
-  void ensureTextContext(declara::app::TextNode *node);
-  void ensureCellContext(declara::app::CellNode *node);
-  void ensureButtonContext(declara::app::ButtonNode *node);
-  void ensureEditTextContext(declara::app::EditTextNode *node);
-  void ensureOpenFileDialogContext(declara::app::OpenFileDialogNode *node);
-  void ensurePopupMenuContext(declara::app::PopupMenuNode *node);
+  void ensureTextContext(loka::app::TextNode *node);
+  void ensureCellContext(loka::app::CellNode *node);
+  void ensureButtonContext(loka::app::ButtonNode *node);
+  void ensureEditTextContext(loka::app::EditTextNode *node);
+  void ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node);
+  void ensurePopupMenuContext(loka::app::PopupMenuNode *node);
 
 private:
   int capabilities_;

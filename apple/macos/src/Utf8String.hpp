@@ -3,7 +3,7 @@
 #include <Foundation/Foundation.h>
 #include <string>
 
-namespace declara
+namespace loka
 {
   namespace macos
   {

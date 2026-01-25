@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_STATEOWNER_HPP
 #define LOKA_CORE2_SCENE_STATEOWNER_HPP
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -27,6 +27,6 @@ namespace declara
       };
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_STATEOWNER_HPP

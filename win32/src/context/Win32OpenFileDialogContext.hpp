@@ -5,10 +5,10 @@
 #include "core2/scene/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 
-class Win32OpenFileDialogContext : public declara::core::scene::NativeNodeContext
+class Win32OpenFileDialogContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  Win32OpenFileDialogContext(HWND parent, declara::app::OpenFileDialogNode *node);
+  Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node);
   virtual ~Win32OpenFileDialogContext();
 
 private:
@@ -16,14 +16,14 @@ private:
   void unbindVisible();
   void applyVisible();
   void presentDialog();
-  void setResult(const declara::app::FileChooserResult &result);
+  void setResult(const loka::app::FileChooserResult &result);
 
   static void VisibleChangedThunk(void *userData);
 
   HWND parent_;
-  declara::app::OpenFileDialogNode *node_;
+  loka::app::OpenFileDialogNode *node_;
   State<bool> *visibleState_;
-  MutableState<declara::app::FileChooserResult> *resultState_;
+  MutableState<loka::app::FileChooserResult> *resultState_;
   EmitterState *onResult_;
   bool lastVisible_;
   bool presenting_;

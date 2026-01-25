@@ -4,7 +4,7 @@
 #include <cstdarg>
 
 // Forward declaration for StateBase in its proper namespace
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -13,7 +13,7 @@ namespace declara
 }
 
 // Build a vector<StateBase*> using varargs (C++98-friendly). Use typedefs to avoid nested template closers.
-typedef declara::core::StateBase StateBaseType;
+typedef loka::core::StateBase StateBaseType;
 typedef std::vector<StateBaseType *> StateVector;
 
 // Null terminator for makeStateVector - must be properly typed for 64-bit varargs

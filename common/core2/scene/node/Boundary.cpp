@@ -4,7 +4,7 @@
 #include "loka/platform/DebugLog.hpp"
 #endif
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -28,4 +28,4 @@ namespace declara
       }
     } // namespace scene
   } // namespace core
-} // namespace declara
+} // namespace loka

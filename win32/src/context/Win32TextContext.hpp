@@ -8,7 +8,7 @@
 template <typename T>
 class State;
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -16,10 +16,10 @@ namespace declara
   }
 }
 
-class Win32TextContext : public declara::core::scene::NativeNodeContext
+class Win32TextContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  Win32TextContext(HWND parent, int x, int y, int width, int height, declara::app::TextNode *node);
+  Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node);
   virtual ~Win32TextContext();
 
 private:
@@ -28,7 +28,7 @@ private:
   void applyText();
   static void TextChangedThunk(void *userData);
 
-  declara::app::TextNode *node_;
+  loka::app::TextNode *node_;
   HWND hwnd_;
   State<loka::core::String> *textState_;
 };

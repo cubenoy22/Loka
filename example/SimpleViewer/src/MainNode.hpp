@@ -16,13 +16,13 @@ namespace simpleviewer
 
   class MainNode;
 
-  struct MainProps : public declara::core::scene::NodePropsBase<MainProps>
+  struct MainProps : public loka::core::scene::NodePropsBase<MainProps>
   {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
     State<bool> *dialogVisible_;
     State<loka::core::String> *message_;
-    MutableState<declara::app::FileChooserResult> *result_;
+    MutableState<loka::app::FileChooserResult> *result_;
     EmitterState *onResult_;
     MainProps() : dialogVisible_(0), message_(0), result_(0), onResult_(0) {}
 
@@ -38,7 +38,7 @@ namespace simpleviewer
       return *this;
     }
 
-    MainProps &result(MutableState<declara::app::FileChooserResult> *state)
+    MainProps &result(MutableState<loka::app::FileChooserResult> *state)
     {
       this->result_ = state;
       return *this;
@@ -58,7 +58,7 @@ namespace simpleviewer
       assert(this->onResult_);
     }
 
-    bool operator<(const declara::core::scene::PropsBase &rhs) const
+    bool operator<(const loka::core::scene::PropsBase &rhs) const
     {
       if (rhs.propsTypeId() != propsTypeId())
       {
@@ -75,16 +75,16 @@ namespace simpleviewer
     }
   };
 
-  class MainNode : public declara::core::scene::StaticCompositionBoundaryNodeBase<MainProps>
+  class MainNode : public loka::core::scene::StaticCompositionBoundaryNodeBase<MainProps>
   {
   public:
     typedef MainTypeTag TypeTag;
     MainNode(const MainProps &p)
-        : declara::core::scene::StaticCompositionBoundaryNodeBase<MainProps>(p) {}
+        : loka::core::scene::StaticCompositionBoundaryNodeBase<MainProps>(p) {}
 
-    virtual void composeNode(declara::core::scene::NodeComposition &c)
+    virtual void composeNode(loka::core::scene::NodeComposition &c)
     {
-      using namespace declara::app;
+      using namespace loka::app;
       this->props.assertInitialized();
       OpenFileDialog dialog;
       dialog.isVisible(this->props.dialogVisible_);

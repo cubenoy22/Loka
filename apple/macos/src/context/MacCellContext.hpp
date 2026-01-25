@@ -5,7 +5,7 @@
 #include "core/State.hpp"
 #include "loka/core/String.hpp"
 
-namespace declara
+namespace loka
 {
   namespace app
   {
@@ -13,10 +13,10 @@ namespace declara
   }
 }
 
-class MacCellContext : public declara::core::scene::NativeNodeContext
+class MacCellContext : public loka::core::scene::NativeNodeContext
 {
 public:
-  MacCellContext(void *parentView, int x, int y, int width, int height, declara::app::CellNode *node);
+  MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node);
   virtual ~MacCellContext();
   void handleClick();
 
@@ -26,7 +26,7 @@ private:
   void applyText();
   static void TextChangedThunk(void *userData);
 
-  declara::app::CellNode *node_;
+  loka::app::CellNode *node_;
   void *view_;
   State<loka::core::String> *textState_;
 };

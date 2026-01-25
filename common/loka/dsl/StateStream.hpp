@@ -18,9 +18,9 @@ namespace loka
     {
     public:
       StateStream() : state_(0), tracker_(0), owner_(0) {}
-      StateStream(::declara::core::State<T> *state,
-                  ::declara::core::StateTracker *tracker,
-                  ::declara::core::scene::IStateOwner *owner)
+      StateStream(::loka::core::State<T> *state,
+                  ::loka::core::StateTracker *tracker,
+                  ::loka::core::scene::IStateOwner *owner)
           : state_(state), tracker_(tracker), owner_(owner) {}
 
       template <typename Mapper>
@@ -36,8 +36,8 @@ namespace loka
         MapEval<T, typename Mapper::Result, Mapper> *eval =
             new MapEval<T, typename Mapper::Result, Mapper>(this->state_, mapper);
         PROFILE_SECTION_ID("sMapDerNew", 3);
-        ::declara::core::DerivedState<typename Mapper::Result> *derived =
-            new ::declara::core::DerivedState<typename Mapper::Result>(this->state_, eval);
+        ::loka::core::DerivedState<typename Mapper::Result> *derived =
+            new ::loka::core::DerivedState<typename Mapper::Result>(this->state_, eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         return StateStream<typename Mapper::Result>(derived, this->tracker_, this->owner_);
@@ -56,15 +56,15 @@ namespace loka
         CombineEval<T, U, typename Combiner::Result, Combiner> *eval =
             new CombineEval<T, U, typename Combiner::Result, Combiner>(this->state_, other.state_, combiner);
         PROFILE_SECTION_ID("sCombDerNew", 6);
-        ::declara::core::DerivedState<typename Combiner::Result> *derived =
-            new ::declara::core::DerivedState<typename Combiner::Result>(this->state_, other.state_, eval);
+        ::loka::core::DerivedState<typename Combiner::Result> *derived =
+            new ::loka::core::DerivedState<typename Combiner::Result>(this->state_, other.state_, eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         this->bindRecompute(other.state_, derived);
         return StateStream<typename Combiner::Result>(derived, this->tracker_, this->owner_);
       }
 
-      void set(::declara::core::scene::BoundState<T> &target, bool forceUpdate = false) const
+      void set(::loka::core::scene::BoundState<T> &target, bool forceUpdate = false) const
       {
         PROFILE_SECTION_ID("sSet", 7);
         if (!this->state_)
@@ -81,9 +81,9 @@ namespace loka
 
     private:
       template <typename SrcT, typename R, typename Mapper>
-      struct MapEval : public ::declara::core::DerivedState<R>::EvalFn
+      struct MapEval : public ::loka::core::DerivedState<R>::EvalFn
       {
-        MapEval(::declara::core::State<SrcT> *state, const Mapper &mapper)
+        MapEval(::loka::core::State<SrcT> *state, const Mapper &mapper)
             : state_(state), mapper_(mapper) {}
 
         R operator()()
@@ -91,15 +91,15 @@ namespace loka
           return mapper_(state_->get());
         }
 
-        ::declara::core::State<SrcT> *state_;
+        ::loka::core::State<SrcT> *state_;
         Mapper mapper_;
       };
 
       template <typename A, typename B, typename R, typename Combiner>
-      struct CombineEval : public ::declara::core::DerivedState<R>::EvalFn
+      struct CombineEval : public ::loka::core::DerivedState<R>::EvalFn
       {
-        CombineEval(::declara::core::State<A> *left,
-                    ::declara::core::State<B> *right,
+        CombineEval(::loka::core::State<A> *left,
+                    ::loka::core::State<B> *right,
                     const Combiner &combiner)
             : left_(left), right_(right), combiner_(combiner) {}
 
@@ -108,15 +108,15 @@ namespace loka
           return combiner_(left_->get(), right_->get());
         }
 
-        ::declara::core::State<A> *left_;
-        ::declara::core::State<B> *right_;
+        ::loka::core::State<A> *left_;
+        ::loka::core::State<B> *right_;
         Combiner combiner_;
       };
 
       struct SetBinding
       {
-        SetBinding(::declara::core::State<T> *state,
-                   ::declara::core::scene::BoundState<T> *target,
+        SetBinding(::loka::core::State<T> *state,
+                   ::loka::core::scene::BoundState<T> *target,
                    bool forceUpdate)
             : state_(state), target_(target), forceUpdate_(forceUpdate) {}
 
@@ -138,12 +138,12 @@ namespace loka
           target_->set(state_->get(), forceUpdate_);
         }
 
-        ::declara::core::State<T> *state_;
-        ::declara::core::scene::BoundState<T> *target_;
+        ::loka::core::State<T> *state_;
+        ::loka::core::scene::BoundState<T> *target_;
         bool forceUpdate_;
       };
 
-      void adoptDerived(::declara::core::StateBase *state) const
+      void adoptDerived(::loka::core::StateBase *state) const
       {
         if (this->owner_)
         {
@@ -152,7 +152,7 @@ namespace loka
         }
         if (this->tracker_)
         {
-          ::declara::core::PushStateTracker *push = this->tracker_->asPushTracker();
+          ::loka::core::PushStateTracker *push = this->tracker_->asPushTracker();
           if (push)
           {
             push->addState(state);
@@ -162,7 +162,7 @@ namespace loka
 
       struct RecomputeBinding
       {
-        explicit RecomputeBinding(::declara::core::StateBase *state) : state_(state) {}
+        explicit RecomputeBinding(::loka::core::StateBase *state) : state_(state) {}
 
         static void ApplyThunk(void *userData)
         {
@@ -173,11 +173,11 @@ namespace loka
           }
         }
 
-        ::declara::core::StateBase *state_;
+        ::loka::core::StateBase *state_;
       };
 
-      void bindRecompute(::declara::core::StateBase *source,
-                         ::declara::core::StateBase *derived) const
+      void bindRecompute(::loka::core::StateBase *source,
+                         ::loka::core::StateBase *derived) const
       {
         if (!source || !derived)
         {
@@ -187,14 +187,14 @@ namespace loka
         source->deferBind(&RecomputeBinding::ApplyThunk, binding);
       }
 
-      ::declara::core::State<T> *state_;
-      ::declara::core::StateTracker *tracker_;
-      ::declara::core::scene::IStateOwner *owner_;
+      ::loka::core::State<T> *state_;
+      ::loka::core::StateTracker *tracker_;
+      ::loka::core::scene::IStateOwner *owner_;
     };
   } // namespace dsl
 } // namespace loka
 
-namespace declara
+namespace loka
 {
   namespace core
   {
@@ -207,6 +207,6 @@ namespace declara
       }
     } // namespace scene
   }   // namespace core
-} // namespace declara
+} // namespace loka
 
 #endif // LOKA_DSL_STATESTREAM_HPP
