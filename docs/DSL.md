@@ -235,7 +235,7 @@ loka::Vector<int> values = s.map<int>(s.slot.member<int, &Item::value>() + loka:
 
 ## State + Events
 
-Use `EmitterState` for events and `MutableState<T>` for values. Mutating state must be wrapped in a `StateTrackerGuard`.
+Use `EmitterState` for events and `MutableState<T>` for values. Mutating state must be wrapped in a `loka::core::StateTrackerGuard`.
 
 ```cpp
 #include "core/State.hpp"
@@ -258,7 +258,7 @@ public:
 
   void onClick()
   {
-    StateTrackerGuard guard(&this->tracker_);
+    loka::core::StateTrackerGuard guard(&this->tracker_);
     this->count_.set(this->count_.get() + 1, true);
   }
 

@@ -23,14 +23,14 @@ namespace loka
     public:
       virtual ~String() {}
       virtual bool appendUtf8(std::string &out) const = 0;
-      virtual Managed<GraphemeString> createGraphemeString() const
+      virtual loka::core::Managed<GraphemeString> createGraphemeString() const
       {
-        return Managed<GraphemeString>();
+        return loka::core::Managed<GraphemeString>();
       }
     };
 
-    Managed<String> CreatePlatformStringFromUtf8(const char *bytes, std::size_t length);
-    Managed<String> CreatePlatformStringFromLiteral(const char *literal);
+    loka::core::Managed<String> CreatePlatformStringFromUtf8(const char *bytes, std::size_t length);
+    loka::core::Managed<String> CreatePlatformStringFromLiteral(const char *literal);
   } // namespace platform
 } // namespace loka
 

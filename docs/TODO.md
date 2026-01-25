@@ -13,7 +13,7 @@
 - Win32 game rendering: DIB back buffer + BitBlt dirty-rect path (Sprite/Canvas baseline).
 - Event loop + VBL/timer tick design for game-style rendering (separate from UI updates).
 - Window close request: delegate to Scene/Root.
-- Managed<T> circular reference patterns (Group/Weak or one-way ref policy).
+- loka::core::Managed<T> circular reference patterns (Group/Weak or one-way ref policy).
 - Headless/Loader components should require ErrorSink for unified error flow.
 - ConditionalDefinition/ConditionalNode implementation and NodeComposition::conditional default false/Empty handling.
 - MutableState notification timing: micro-tick end vs immediate; document or change.

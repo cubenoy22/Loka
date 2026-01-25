@@ -38,10 +38,10 @@ namespace loka
 #if defined(LOKA_RETRO68)
       InitToolboxProfiler();
 #endif
-      ScopedPtr<PlatformContext> platformContext(CreatePlatformContext());
+      loka::core::ScopedPtr<PlatformContext> platformContext(CreatePlatformContext());
       assert(platformContext.get() && "PlatformContext is required");
       ConfigT config(platformContext.get());
-      ScopedPtr<App> app(platformContext->createApp(&config, hInstance, nCmdShow));
+      loka::core::ScopedPtr<App> app(platformContext->createApp(&config, hInstance, nCmdShow));
       app->run();
       return 0;
     }

@@ -64,8 +64,8 @@ namespace loka
         long intValue;
         double doubleValue;
         char stringValue[sizeof(String)];
-        char arrayValue[sizeof(Managed<ArrayStorage>)];
-        char dictionaryValue[sizeof(Managed<DictionaryStorage>)];
+        char arrayValue[sizeof(loka::core::Managed<ArrayStorage>)];
+        char dictionaryValue[sizeof(loka::core::Managed<DictionaryStorage>)];
       } storage;
 
       // TODO: Investigate pooling for heavier payload slots if profiling shows gains.
@@ -74,10 +74,10 @@ namespace loka
 
       String *stringSlot();
       const String *stringSlot() const;
-      Managed<ArrayStorage> *arraySlot();
-      const Managed<ArrayStorage> *arraySlot() const;
-      Managed<DictionaryStorage> *dictionarySlot();
-      const Managed<DictionaryStorage> *dictionarySlot() const;
+      loka::core::Managed<ArrayStorage> *arraySlot();
+      const loka::core::Managed<ArrayStorage> *arraySlot() const;
+      loka::core::Managed<DictionaryStorage> *dictionarySlot();
+      const loka::core::Managed<DictionaryStorage> *dictionarySlot() const;
       void destroyActive();
       void copyFrom(const Value &other);
       friend class Array;
@@ -108,11 +108,11 @@ namespace loka
       const Value &operator[](std::size_t index) const;
 
     private:
-      Managed<ArrayStorage> storage;
-      explicit Array(const Managed<ArrayStorage> &handle);
+      loka::core::Managed<ArrayStorage> storage;
+      explicit Array(const loka::core::Managed<ArrayStorage> &handle);
       void ensureStorage();
       void detach();
-      Managed<ArrayStorage> getHandle() const;
+      loka::core::Managed<ArrayStorage> getHandle() const;
       friend class Value;
     };
 
@@ -147,14 +147,14 @@ namespace loka
       bool remove(const String &key);
 
     private:
-      Managed<DictionaryStorage> storage;
-      explicit Dictionary(const Managed<DictionaryStorage> &handle);
+      loka::core::Managed<DictionaryStorage> storage;
+      explicit Dictionary(const loka::core::Managed<DictionaryStorage> &handle);
       void ensureStorage();
       void detach();
       std::string normalizeKey(const String &key) const;
       DictionaryEntry *findEntry(const std::string &utf8Key);
       const DictionaryEntry *findEntry(const std::string &utf8Key) const;
-      Managed<DictionaryStorage> getHandle() const;
+      loka::core::Managed<DictionaryStorage> getHandle() const;
       friend class Value;
     };
 

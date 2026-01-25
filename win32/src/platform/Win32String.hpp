@@ -23,15 +23,15 @@ namespace loka
       bool empty() const;
 
       virtual bool appendUtf8(std::string &out) const;
-      virtual Managed<loka::platform::GraphemeString> createGraphemeString() const;
+      virtual loka::core::Managed<loka::platform::GraphemeString> createGraphemeString() const;
 
     private:
       std::wstring storage_;
     };
 
     // Materialize a logical loka::core::String into a Win32String (UTF-16).
-    Managed<loka::platform::String> CreateWin32String(const loka::core::String &logical);
-    Managed<loka::platform::String> CreateWin32StringFromUtf16(const wchar_t *chars, std::size_t length);
+    loka::core::Managed<loka::platform::String> CreateWin32String(const loka::core::String &logical);
+    loka::core::Managed<loka::platform::String> CreateWin32StringFromUtf16(const wchar_t *chars, std::size_t length);
     bool MaterializeWideString(const loka::core::String &logical, std::wstring &out);
 
   } // namespace win32

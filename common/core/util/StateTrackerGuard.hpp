@@ -2,33 +2,39 @@
 #define LOKA_UTIL_STATE_TRACKER_GUARD_HPP
 #include "core/StateTracker.hpp"
 
-// StateTracker用RAIIトランザクションガード
-struct StateTrackerGuard
+namespace loka
 {
-  typedef void (*InvalidateFn)(void *userData);
-  loka::core::PushStateTracker *tracker;
-  InvalidateFn invalidateFn;
-  void *invalidateUserData;
-  StateTrackerGuard(loka::core::StateTracker *t, InvalidateFn fn = 0, void *userData = 0)
-      : tracker(t ? t->asPushTracker() : 0),
-        invalidateFn(fn),
-        invalidateUserData(userData)
+  namespace core
   {
-    if (tracker)
-      tracker->begin();
-  }
-  ~StateTrackerGuard()
-  {
-    if (tracker)
+    // StateTracker用RAIIトランザクションガード
+    struct StateTrackerGuard
     {
-      tracker->end();
-      if (invalidateFn && tracker->consumeDirty())
+      typedef void (*InvalidateFn)(void *userData);
+      PushStateTracker *tracker;
+      InvalidateFn invalidateFn;
+      void *invalidateUserData;
+      StateTrackerGuard(StateTracker *t, InvalidateFn fn = 0, void *userData = 0)
+          : tracker(t ? t->asPushTracker() : 0),
+            invalidateFn(fn),
+            invalidateUserData(userData)
       {
-        invalidateFn(invalidateUserData);
+        if (tracker)
+          tracker->begin();
       }
-    }
-  }
-};
+      ~StateTrackerGuard()
+      {
+        if (tracker)
+        {
+          tracker->end();
+          if (invalidateFn && tracker->consumeDirty())
+          {
+            invalidateFn(invalidateUserData);
+          }
+        }
+      }
+    };
+  } // namespace core
+} // namespace loka
 
 #endif // LOKA_UTIL_STATE_TRACKER_GUARD_HPP
   

@@ -74,7 +74,7 @@ void App::reflectInitialVisibilityChunks()
       loka::core::StateTracker *tracker = win->getTracker();
       if (tracker)
       {
-        StateTrackerGuard _(tracker);
+        loka::core::StateTrackerGuard _(tracker);
         win->visibilityState().set(true, true);
       }
     }

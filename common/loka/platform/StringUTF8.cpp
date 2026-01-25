@@ -8,7 +8,7 @@ namespace loka
   {
     bool CollectUtf8(const core::String &source, std::string &out)
     {
-      const Managed<String> &handle = core::StringAccess::handle(source);
+      const loka::core::Managed<String> &handle = core::StringAccess::handle(source);
       if (!handle.isValid())
         return true;
       return handle->appendUtf8(out);

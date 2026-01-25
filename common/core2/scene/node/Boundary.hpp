@@ -301,13 +301,13 @@ namespace loka
         }
 
         template <class T>
-        Managed<MutableState<T> > useManagedState()
+        loka::core::Managed<MutableState<T> > useManagedState()
         {
           return useManagedStateWithValue(T());
         }
 
         template <class T>
-        Managed<MutableState<T> > useManagedState(const T &initial)
+        loka::core::Managed<MutableState<T> > useManagedState(const T &initial)
         {
           return useManagedStateWithValue(initial);
         }
@@ -410,7 +410,7 @@ namespace loka
 
         void registerStates(StateBase *first, ...)
         {
-          StateVector states;
+          core::StateVector states;
           va_list args;
           va_start(args, first);
           for (StateBase *s = first; s != 0; s = va_arg(args, StateBase *))
@@ -437,8 +437,8 @@ namespace loka
         template <class T>
         struct StateHandle : public StateHandleBase
         {
-          Managed<MutableState<T> > handle;
-          explicit StateHandle(const Managed<MutableState<T> > &h) : handle(h) {}
+          loka::core::Managed<MutableState<T> > handle;
+          explicit StateHandle(const loka::core::Managed<MutableState<T> > &h) : handle(h) {}
           StateBase *state() const { return handle.get(); }
         };
 
@@ -451,9 +451,9 @@ namespace loka
         }
 
         template <class T>
-        Managed<MutableState<T> > useManagedStateWithValue(const T &initial)
+        loka::core::Managed<MutableState<T> > useManagedStateWithValue(const T &initial)
         {
-          Managed<MutableState<T> > handle = Managed<MutableState<T> >::Wrap(new MutableState<T>(initial));
+          loka::core::Managed<MutableState<T> > handle = loka::core::Managed<MutableState<T> >::Wrap(new MutableState<T>(initial));
           StateHandleBase *entry = new StateHandle<T>(handle);
           ownedStateHandles_.push_back(entry);
           tracker_.addState(entry->state());

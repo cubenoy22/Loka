@@ -57,7 +57,7 @@ public:
 private:
   void handleOpenDialog()
   {
-    StateTrackerGuard guard(&this->tracker_);
+    loka::core::StateTrackerGuard guard(&this->tracker_);
     if (this->openDialogVisible_.get())
     {
       this->openDialogVisible_.set(false, true);
@@ -78,7 +78,7 @@ private:
   {
     const loka::app::FileChooserResult result = this->chooserResult_.get();
     const loka::core::String message = formatChooserMessage(result);
-    StateTrackerGuard guard(&this->tracker_);
+    loka::core::StateTrackerGuard guard(&this->tracker_);
     this->chooserMessage_.set(message, true);
   }
 

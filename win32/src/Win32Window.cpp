@@ -81,7 +81,7 @@ void Win32Window::TitleChangedThunk(void *userData)
       SetWindowTextW(self->hwnd_, L"");
       return;
     }
-    Managed<loka::platform::String> handle = loka::win32::CreateWin32String(titleValue);
+    loka::core::Managed<loka::platform::String> handle = loka::win32::CreateWin32String(titleValue);
     loka::win32::Win32String *win32String = handle.isValid() ? dynamic_cast<loka::win32::Win32String *>(handle.get()) : 0;
     if (win32String)
       SetWindowTextW(self->hwnd_, win32String->c_str());

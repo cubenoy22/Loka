@@ -52,13 +52,13 @@ namespace loka
       CFStringRef value_;
     };
 
-    Managed<String> CreatePlatformStringFromUtf8(const char *bytes, std::size_t length)
+    loka::core::Managed<String> CreatePlatformStringFromUtf8(const char *bytes, std::size_t length)
     {
       CocoaUtf8String *impl = new CocoaUtf8String(bytes, length);
-      return Managed<String>::Wrap(impl);
+      return loka::core::Managed<String>::Wrap(impl);
     }
 
-    Managed<String> CreatePlatformStringFromLiteral(const char *literal)
+    loka::core::Managed<String> CreatePlatformStringFromLiteral(const char *literal)
     {
       if (!literal)
         return CreatePlatformStringFromUtf8("", 0);

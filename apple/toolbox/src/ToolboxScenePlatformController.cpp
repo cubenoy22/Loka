@@ -1045,7 +1045,7 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
   {
     return false;
   }
-  StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+  loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
   mutableText->set(loka::core::String(utf8));
   return true;
 }
@@ -1488,7 +1488,7 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
     utf8.assign(ptr, static_cast<size_t>(length));
     HUnlock(reinterpret_cast<Handle>(textHandle));
   }
-  StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+  loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
   mutableText->set(loka::core::String(utf8));
   binding.lastText = utf8;
 }

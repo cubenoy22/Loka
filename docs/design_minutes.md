@@ -13,7 +13,7 @@ Detailed usage lives in `docs/DSL.md` and `docs/Reactive.md`.
 
 - `State<T>` / `MutableState<T>` / `EmitterState` are the core primitives.
 - `PushStateTracker` provides transaction boundaries and dependency propagation.
-- `StateTrackerGuard` is required when mutating state.
+- `loka::core::StateTrackerGuard` is required when mutating state.
 
 ## NodeComposition + Arena
 
@@ -23,7 +23,7 @@ Detailed usage lives in `docs/DSL.md` and `docs/Reactive.md`.
 
 ## Resources
 
-- `Managed<T>` is the shared-handle wrapper for platform resources.
+- `loka::core::Managed<T>` is the shared-handle wrapper for platform resources.
 - Keep ownership with the longest-lived object (Scene/Window/Boundary).
 
 ## Known Gaps (Keep in TODO)

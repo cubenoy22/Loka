@@ -45,13 +45,13 @@ namespace loka
       bool assignFromUtf8(const std::string &utf8);
       bool assignFromUtf8(const std::string &utf8, bool allowResize);
       static bool CountUnitsFromUtf8(const std::string &utf8, StringEncoding encoding, std::size_t &units);
-      const Managed<platform::String> &platformHandle() const;
-      Managed<platform::GraphemeString> graphemeHandle() const;
-      void setPlatformHandle(const Managed<platform::String> &handle);
+      const loka::core::Managed<platform::String> &platformHandle() const;
+      loka::core::Managed<platform::GraphemeString> graphemeHandle() const;
+      void setPlatformHandle(const loka::core::Managed<platform::String> &handle);
 
     private:
       StringEncoding encoding_;
-      Managed<platform::String> platformHandle_;
+      loka::core::Managed<platform::String> platformHandle_;
       std::vector<unsigned char> utf8_;
       std::vector<Utf16Unit> utf16_;
       std::vector<Utf32Unit> utf32_;

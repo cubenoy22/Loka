@@ -15,7 +15,7 @@ namespace loka
     class ConcatString : public platform::String
     {
     public:
-      ConcatString(const Managed<platform::String> &left, const Managed<platform::String> &right)
+      ConcatString(const loka::core::Managed<platform::String> &left, const loka::core::Managed<platform::String> &right)
           : left_(left), right_(right) {}
 
       virtual bool appendUtf8(std::string &out) const
@@ -28,8 +28,8 @@ namespace loka
       }
 
     private:
-      Managed<platform::String> left_;
-      Managed<platform::String> right_;
+      loka::core::Managed<platform::String> left_;
+      loka::core::Managed<platform::String> right_;
     };
 
     String::String() : handle_()
@@ -48,7 +48,7 @@ namespace loka
         handle_ = platform::CreatePlatformStringFromUtf8(utf8.c_str(), utf8.size());
     }
 
-    String::String(const Managed<platform::String> &handle) : handle_(handle)
+    String::String(const loka::core::Managed<platform::String> &handle) : handle_(handle)
     {
     }
 
@@ -79,7 +79,7 @@ namespace loka
       return String(platform::CreatePlatformStringFromUtf8(bytes, length));
     }
 
-    String String::FromPlatform(const Managed<platform::String> &platformValue)
+    String String::FromPlatform(const loka::core::Managed<platform::String> &platformValue)
     {
       return String(platformValue);
     }
@@ -195,7 +195,7 @@ namespace loka
       if (rhs.empty())
         return lhs;
       // Lazy concatenation - don't flatten until needed
-      return String(Managed<platform::String>::Wrap(
+      return String(loka::core::Managed<platform::String>::Wrap(
           new ConcatString(lhs.handle_, rhs.handle_)));
     }
 

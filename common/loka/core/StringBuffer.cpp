@@ -316,19 +316,19 @@ namespace loka
       return countUtf8Units(utf8, encoding, units);
     }
 
-    const Managed<platform::String> &StringBuffer::platformHandle() const
+    const loka::core::Managed<platform::String> &StringBuffer::platformHandle() const
     {
       return platformHandle_;
     }
 
-    Managed<platform::GraphemeString> StringBuffer::graphemeHandle() const
+    loka::core::Managed<platform::GraphemeString> StringBuffer::graphemeHandle() const
     {
       if (!platformHandle_.isValid())
-        return Managed<platform::GraphemeString>();
+        return loka::core::Managed<platform::GraphemeString>();
       return platformHandle_->createGraphemeString();
     }
 
-    void StringBuffer::setPlatformHandle(const Managed<platform::String> &handle)
+    void StringBuffer::setPlatformHandle(const loka::core::Managed<platform::String> &handle)
     {
       platformHandle_ = handle;
     }

@@ -30,14 +30,14 @@ namespace loka
       String();
       explicit String(const char *literal);
       explicit String(const std::string &utf8);
-      explicit String(const Managed<platform::String> &handle);
+      explicit String(const loka::core::Managed<platform::String> &handle);
       String(const String &other);
       String &operator=(const String &other);
       ~String();
 
       static String Literal(const char *literal);
       static String Utf8(const char *bytes, std::size_t length);
-      static String FromPlatform(const Managed<platform::String> &platformValue);
+      static String FromPlatform(const loka::core::Managed<platform::String> &platformValue);
       static String FromInt(int value);
 
       bool empty() const;
@@ -73,9 +73,9 @@ namespace loka
       static String ToStringSegment(const String &value);
       static String ToStringSegment(const char *literal);
       static String ToStringSegment(const std::string &utf8);
-      static String ToStringSegment(const Managed<platform::String> &platformValue);
+      static String ToStringSegment(const loka::core::Managed<platform::String> &platformValue);
 
-      Managed<platform::String> handle_;
+      loka::core::Managed<platform::String> handle_;
       friend class StringAccess;
     };
 
@@ -97,7 +97,7 @@ inline loka::core::String loka::core::String::ToStringSegment(const std::string 
   return loka::core::String(utf8);
 }
 
-inline loka::core::String loka::core::String::ToStringSegment(const Managed<loka::platform::String> &platformValue)
+inline loka::core::String loka::core::String::ToStringSegment(const loka::core::Managed<loka::platform::String> &platformValue)
 {
   return loka::core::String::FromPlatform(platformValue);
 }

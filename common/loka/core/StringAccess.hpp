@@ -10,7 +10,7 @@ namespace loka
     class StringAccess
     {
     public:
-      static const Managed<platform::String> &handle(const String &value)
+      static const loka::core::Managed<platform::String> &handle(const String &value)
       {
         return value.handle_;
       }

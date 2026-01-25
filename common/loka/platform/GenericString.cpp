@@ -28,13 +28,13 @@ namespace loka
       std::string data_;
     };
 
-    Managed<String> CreatePlatformStringFromUtf8(const char *bytes, std::size_t length)
+    loka::core::Managed<String> CreatePlatformStringFromUtf8(const char *bytes, std::size_t length)
     {
       GenericUtf8String *impl = new GenericUtf8String(bytes, length);
-      return Managed<String>::Wrap(impl);
+      return loka::core::Managed<String>::Wrap(impl);
     }
 
-    Managed<String> CreatePlatformStringFromLiteral(const char *literal)
+    loka::core::Managed<String> CreatePlatformStringFromLiteral(const char *literal)
     {
       if (!literal)
         return CreatePlatformStringFromUtf8("", 0);

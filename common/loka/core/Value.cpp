@@ -35,12 +35,12 @@ namespace loka
 
     Value::Value(const Array &array) : valueType(ValueTypeArray)
     {
-      new (this->storage.arrayValue) Managed<ArrayStorage>(array.getHandle());
+      new (this->storage.arrayValue) loka::core::Managed<ArrayStorage>(array.getHandle());
     }
 
     Value::Value(const Dictionary &dictionary) : valueType(ValueTypeDictionary)
     {
-      new (this->storage.dictionaryValue) Managed<DictionaryStorage>(dictionary.getHandle());
+      new (this->storage.dictionaryValue) loka::core::Managed<DictionaryStorage>(dictionary.getHandle());
     }
 
     Value::Value(const Value &other) : valueType(other.valueType)
@@ -183,11 +183,11 @@ namespace loka
         this->valueType = ValueTypeString;
         break;
       case ValueTypeArray:
-        new (this->storage.arrayValue) Managed<ArrayStorage>(*other.arraySlot());
+        new (this->storage.arrayValue) loka::core::Managed<ArrayStorage>(*other.arraySlot());
         this->valueType = ValueTypeArray;
         break;
       case ValueTypeDictionary:
-        new (this->storage.dictionaryValue) Managed<DictionaryStorage>(*other.dictionarySlot());
+        new (this->storage.dictionaryValue) loka::core::Managed<DictionaryStorage>(*other.dictionarySlot());
         this->valueType = ValueTypeDictionary;
         break;
       }
@@ -222,24 +222,24 @@ namespace loka
       return reinterpret_cast<const String *>(this->storage.stringValue);
     }
 
-    Managed<ArrayStorage> *Value::arraySlot()
+    loka::core::Managed<ArrayStorage> *Value::arraySlot()
     {
-      return reinterpret_cast<Managed<ArrayStorage> *>(this->storage.arrayValue);
+      return reinterpret_cast<loka::core::Managed<ArrayStorage> *>(this->storage.arrayValue);
     }
 
-    const Managed<ArrayStorage> *Value::arraySlot() const
+    const loka::core::Managed<ArrayStorage> *Value::arraySlot() const
     {
-      return reinterpret_cast<const Managed<ArrayStorage> *>(this->storage.arrayValue);
+      return reinterpret_cast<const loka::core::Managed<ArrayStorage> *>(this->storage.arrayValue);
     }
 
-    Managed<DictionaryStorage> *Value::dictionarySlot()
+    loka::core::Managed<DictionaryStorage> *Value::dictionarySlot()
     {
-      return reinterpret_cast<Managed<DictionaryStorage> *>(this->storage.dictionaryValue);
+      return reinterpret_cast<loka::core::Managed<DictionaryStorage> *>(this->storage.dictionaryValue);
     }
 
-    const Managed<DictionaryStorage> *Value::dictionarySlot() const
+    const loka::core::Managed<DictionaryStorage> *Value::dictionarySlot() const
     {
-      return reinterpret_cast<const Managed<DictionaryStorage> *>(this->storage.dictionaryValue);
+      return reinterpret_cast<const loka::core::Managed<DictionaryStorage> *>(this->storage.dictionaryValue);
     }
 
     ArrayStorage::ArrayStorage() : values()
@@ -254,7 +254,7 @@ namespace loka
     {
     }
 
-    Array::Array(const Managed<ArrayStorage> &handle) : storage(handle)
+    Array::Array(const loka::core::Managed<ArrayStorage> &handle) : storage(handle)
     {
     }
 
@@ -275,7 +275,7 @@ namespace loka
     {
       if (this->storage.isValid())
         return;
-      this->storage = Managed<ArrayStorage>::Wrap(new ArrayStorage());
+      this->storage = loka::core::Managed<ArrayStorage>::Wrap(new ArrayStorage());
     }
 
     void Array::detach()
@@ -285,7 +285,7 @@ namespace loka
         return;
       ArrayStorage *copy = new ArrayStorage();
       copy->values = this->storage->values;
-      this->storage = Managed<ArrayStorage>::Wrap(copy);
+      this->storage = loka::core::Managed<ArrayStorage>::Wrap(copy);
     }
 
     std::size_t Array::size() const
@@ -336,7 +336,7 @@ namespace loka
       return this->at(index);
     }
 
-    Managed<ArrayStorage> Array::getHandle() const
+    loka::core::Managed<ArrayStorage> Array::getHandle() const
     {
       return this->storage;
     }
@@ -353,7 +353,7 @@ namespace loka
     {
     }
 
-    Dictionary::Dictionary(const Managed<DictionaryStorage> &handle) : storage(handle)
+    Dictionary::Dictionary(const loka::core::Managed<DictionaryStorage> &handle) : storage(handle)
     {
     }
 
@@ -374,7 +374,7 @@ namespace loka
     {
       if (this->storage.isValid())
         return;
-      this->storage = Managed<DictionaryStorage>::Wrap(new DictionaryStorage());
+      this->storage = loka::core::Managed<DictionaryStorage>::Wrap(new DictionaryStorage());
     }
 
     void Dictionary::detach()
@@ -384,7 +384,7 @@ namespace loka
         return;
       DictionaryStorage *copy = new DictionaryStorage();
       copy->entries = this->storage->entries;
-      this->storage = Managed<DictionaryStorage>::Wrap(copy);
+      this->storage = loka::core::Managed<DictionaryStorage>::Wrap(copy);
     }
 
     std::size_t Dictionary::size() const
@@ -502,7 +502,7 @@ namespace loka
       return 0;
     }
 
-    Managed<DictionaryStorage> Dictionary::getHandle() const
+    loka::core::Managed<DictionaryStorage> Dictionary::getHandle() const
     {
       return this->storage;
     }

@@ -53,7 +53,7 @@ namespace helloworld
         message.set(loka::core::String::Literal("Hello, Loka!"));
       }
 
-      StateTrackerGuard _(ctx->window()->getTracker());
+      loka::core::StateTrackerGuard _(ctx->window()->getTracker());
       loka::core::MutableState<loka::core::String> &titleState = ctx->window()->titleState();
       const loka::core::String title = titleState.get();
       if (title.equals(loka::core::String::Literal("LokaSample")))

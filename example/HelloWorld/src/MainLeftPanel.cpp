@@ -61,7 +61,7 @@ namespace helloworld
       return;
     }
     {
-      StateTrackerGuard _(window->getTracker());
+      loka::core::StateTrackerGuard _(window->getTracker());
       const loka::core::String title = window->titleState().get();
 
       if (title.equals(loka::core::String::Literal("LokaSample")))

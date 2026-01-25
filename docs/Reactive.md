@@ -10,8 +10,8 @@ It focuses on what you need to wire UI updates without exceptions or RTTI.
 - `EmitterState`: event-only state, use for UI events.
 - `DerivedState<T>`: computed state from dependencies.
 - `BoundState<T>`: state handle tied to a boundary owner + tracker.
-- `StateTrackerGuard`: RAII transaction for mutations.
-- `Managed<T>`: intrusive ref-counted handle for platform resources.
+- `loka::core::StateTrackerGuard`: RAII transaction for mutations.
+- `loka::core::Managed<T>`: intrusive ref-counted handle for platform resources.
 
 ## Basic Flow
 
@@ -34,7 +34,7 @@ public:
 
   void handleClick()
   {
-    StateTrackerGuard guard(&this->tracker_);
+    loka::core::StateTrackerGuard guard(&this->tracker_);
     this->count_.set(this->count_.get() + 1, true);
   }
 
@@ -114,7 +114,7 @@ count.stream().map(ToLabel()).set(label, true);
 
 ## Managed
 
-`Managed<T>` is a small ref-counted handle for platform resources.
+`loka::core::Managed<T>` is a small ref-counted handle for platform resources.
 It is often used for shared caches or handles with custom release logic.
 
 ```cpp
@@ -131,8 +131,8 @@ static void ReleaseThing(Thing *thing, void *)
   delete thing;
 }
 
-Managed<Thing> a = Managed<Thing>::Wrap(new Thing(42), &ReleaseThing);
-Managed<Thing> b = a; // ref-counted copy
+loka::core::Managed<Thing> a = loka::core::Managed<Thing>::Wrap(new Thing(42), &ReleaseThing);
+loka::core::Managed<Thing> b = a; // ref-counted copy
 ```
 
 ## ErrorSink (Draft)
@@ -174,7 +174,7 @@ loka::core::DerivedState<int> doubled(&count_, new DoubleEval(&count_));
 
 ## Mutation Rules
 
-- Always wrap `MutableState<T>::set()` in `StateTrackerGuard`.
+- Always wrap `MutableState<T>::set()` in `loka::core::StateTrackerGuard`.
 - Use `forceUpdate=true` when you need to re-emit the same value.
 
 ## Classic Notes
