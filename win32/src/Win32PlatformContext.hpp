@@ -8,17 +8,6 @@
 class Win32Window;
 class AppConfigurable;
 
-namespace loka
-{
-  namespace core
-  {
-    namespace scene
-    {
-      class Scene;
-    }
-  }
-}
-
 class Win32PlatformContext : public PlatformContext
 {
 public:
@@ -29,6 +18,7 @@ public:
   virtual Window *createWindow(const WindowProps &props);
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const;
+  virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const;
 };
 
 #endif // LOKA_WIN32PLATFORMCONTEXT_HPP

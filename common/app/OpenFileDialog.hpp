@@ -3,7 +3,7 @@
 
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
-#include "file/Item.hpp"
+#include "file/File.hpp"
 
 namespace loka
 {
@@ -23,7 +23,7 @@ namespace loka
 
       FileChooserResult() : kind(RESULT_NONE), item(), errorCode(0) {}
 
-      static FileChooserResult File(const loka::file::Item &value)
+      static FileChooserResult File(const loka::file::File &value)
       {
         FileChooserResult result;
         result.kind = RESULT_FILE;
@@ -31,7 +31,7 @@ namespace loka
         return result;
       }
 
-      static FileChooserResult Folder(const loka::file::Item &value)
+      static FileChooserResult Folder(const loka::file::File &value)
       {
         FileChooserResult result;
         result.kind = RESULT_FOLDER;
@@ -55,7 +55,7 @@ namespace loka
       }
 
       Kind kind;
-      loka::file::Item item;
+      loka::file::File item;
       int errorCode;
     };
 

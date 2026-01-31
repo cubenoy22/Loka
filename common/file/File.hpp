@@ -1,22 +1,14 @@
-#ifndef LOKA_FILE_ITEM_HPP
-#define LOKA_FILE_ITEM_HPP
+#ifndef LOKA_FILE_FILE_HPP
+#define LOKA_FILE_FILE_HPP
 
 #include "loka/core/String.hpp"
 #include <cstring>
 
 namespace loka
 {
-  namespace platform
-  {
-    namespace file
-    {
-      struct ItemAccess;
-    }
-  }
-
   namespace file
   {
-    struct Item
+    struct File
     {
       enum Kind
       {
@@ -34,7 +26,7 @@ namespace loka
         BASE_ROOT
       };
 
-      Item()
+      File()
           : base_(BASE_NONE),
             kind_(KIND_UNKNOWN),
             basePath_(),
@@ -42,7 +34,7 @@ namespace loka
       {
       }
 
-      explicit Item(const char *name)
+      explicit File(const char *name)
           : base_(BASE_NONE),
             kind_(KIND_UNKNOWN),
             basePath_(),
@@ -50,7 +42,7 @@ namespace loka
       {
       }
 
-      explicit Item(const loka::core::String &name)
+      explicit File(const loka::core::String &name)
           : base_(BASE_NONE),
             kind_(KIND_UNKNOWN),
             basePath_(),
@@ -58,49 +50,49 @@ namespace loka
       {
       }
 
-      static Item Desktop()
+      static File Desktop()
       {
-        Item item;
+        File item;
         item.base_ = BASE_DESKTOP;
         return item;
       }
 
-      static Item Documents()
+      static File Documents()
       {
-        Item item;
+        File item;
         item.base_ = BASE_DOCUMENTS;
         return item;
       }
 
-      static Item Root()
+      static File Root()
       {
-        Item item;
+        File item;
         item.base_ = BASE_ROOT;
         return item;
       }
 
 #if !defined(LOKA_RETRO68)
-      static Item FromPath(const loka::core::String &value)
+      static File FromPath(const loka::core::String &value)
       {
-        Item item;
+        File item;
         item.base_ = BASE_PATH;
         item.basePath_ = value;
         return item;
       }
 
-      static Item FromPath(const char *value)
+      static File FromPath(const char *value)
       {
         return FromPath(loka::core::String::Literal(value ? value : ""));
       }
 #endif
 
-      Item operator<<(const Item &child) const
+      File operator<<(const File &child) const
       {
         if (child.base_ != BASE_NONE)
         {
           return child;
         }
-        Item combined(*this);
+        File combined(*this);
         combined.appendRelative(child.relative_);
         if (child.kind_ != KIND_UNKNOWN)
         {
@@ -112,6 +104,11 @@ namespace loka
       Kind kind() const
       {
         return this->kind_;
+      }
+
+      void setKind(Kind kind)
+      {
+        this->kind_ = kind;
       }
 
       loka::core::String toString() const
@@ -137,8 +134,7 @@ namespace loka
       }
 
     private:
-      friend bool operator!=(const Item &lhs, const Item &rhs);
-      friend struct ::loka::platform::file::ItemAccess;
+      friend bool operator!=(const File &lhs, const File &rhs);
 
       BaseKind base_;
       Kind kind_;
@@ -202,7 +198,7 @@ namespace loka
       }
     };
 
-    inline bool operator!=(const Item &lhs, const Item &rhs)
+    inline bool operator!=(const File &lhs, const File &rhs)
     {
       if (lhs.kind_ != rhs.kind_)
       {
@@ -226,4 +222,4 @@ namespace loka
   }   // namespace file
 } // namespace loka
 
-#endif // LOKA_FILE_ITEM_HPP
+#endif // LOKA_FILE_FILE_HPP

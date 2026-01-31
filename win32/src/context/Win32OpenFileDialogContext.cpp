@@ -1,5 +1,4 @@
 #include "Win32OpenFileDialogContext.hpp"
-#include "loka/platform/file/ItemAccess.hpp"
 #include <commdlg.h>
 
 Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node)
@@ -82,10 +81,9 @@ void Win32OpenFileDialogContext::presentDialog()
 
   if (GetOpenFileNameA(&ofn))
   {
-    setResult(loka::app::FileChooserResult::File(
-        loka::platform::file::ItemAccess::FromPath(
-            loka::core::String(buffer),
-            loka::file::Item::KIND_FILE)));
+    loka::file::File file = loka::file::File::FromPath(loka::core::String(buffer));
+    file.setKind(loka::file::File::KIND_FILE);
+    setResult(loka::app::FileChooserResult::File(file));
   }
   else
   {

@@ -1,5 +1,4 @@
 #include "MacOpenFileDialogContext.hpp"
-#include "loka/platform/file/ItemAccess.hpp"
 #include "Utf8String.hpp"
 #import <AppKit/AppKit.h>
 
@@ -85,10 +84,9 @@ void MacOpenFileDialogContext::presentDialog()
     if (url)
     {
       std::string path = loka::macos::Utf8FromNSString([url path]);
-      setResult(loka::app::FileChooserResult::File(
-          loka::platform::file::ItemAccess::FromPath(
-              loka::core::String(path),
-              loka::file::Item::KIND_FILE)));
+      loka::file::File file = loka::file::File::FromPath(loka::core::String(path));
+      file.setKind(loka::file::File::KIND_FILE);
+      setResult(loka::app::FileChooserResult::File(file));
     }
     else
     {

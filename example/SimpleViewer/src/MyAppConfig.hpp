@@ -109,7 +109,7 @@ private:
     }
   }
 
-  static loka::core::String formatItem(const loka::file::Item &item)
+  static loka::core::String formatItem(const loka::file::File &item)
   {
     const loka::core::String path = item.toString();
     return path.empty() ? loka::core::String::Literal("(unknown)") : path;

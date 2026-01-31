@@ -15,6 +15,19 @@ struct WindowProps;
 
 namespace loka
 {
+  namespace file
+  {
+    struct File;
+  }
+
+  namespace platform
+  {
+    namespace file
+    {
+      struct FileHandle;
+    }
+  }
+
   namespace app
   {
     namespace scene
@@ -39,6 +52,7 @@ public:
   virtual Window *createWindow(const WindowProps &props) = 0;
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const = 0;
+  virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const = 0;
 };
 
 #endif // LOKA_PLATFORMCONTEXT_HPP

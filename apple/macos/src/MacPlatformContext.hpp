@@ -12,6 +12,7 @@ public:
   virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
   virtual Window *createWindow(const WindowProps &props);
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const;
+  virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const;
 };
 
 #endif // LOKA_MAC_PLATFORM_CONTEXT_HPP
