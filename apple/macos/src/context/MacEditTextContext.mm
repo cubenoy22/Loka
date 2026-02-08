@@ -58,6 +58,10 @@ MacEditTextContext::~MacEditTextContext()
     [(id)delegate_ release];
     delegate_ = 0;
   }
+  if (field_)
+  {
+    [(id)field_ release];
+  }
   field_ = 0;
 }
 

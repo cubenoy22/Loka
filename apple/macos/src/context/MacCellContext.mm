@@ -13,6 +13,12 @@ class MacCellContext;
 @end
 
 @implementation LokaCellView
+- (void)dealloc
+{
+  self.text = nil;
+  [super dealloc];
+}
+
 - (void)drawRect:(NSRect)dirtyRect
 {
   [super drawRect:dirtyRect];
@@ -72,6 +78,10 @@ MacCellContext::~MacCellContext()
   if (view)
   {
     [view removeFromSuperview];
+  }
+  if (view_)
+  {
+    [(id)view_ release];
   }
   view_ = 0;
 }

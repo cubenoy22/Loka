@@ -60,6 +60,10 @@ MacPopupMenuContext::~MacPopupMenuContext()
     [(id)target_ release];
     target_ = 0;
   }
+  if (popup_)
+  {
+    [(id)popup_ release];
+  }
   popup_ = 0;
 }
 

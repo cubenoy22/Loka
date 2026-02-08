@@ -190,9 +190,12 @@ static std::size_t BuildMenuItem(NSMenu *menu,
     NSMenu *subMenu = [[NSMenu alloc] initWithTitle:title];
     if (BuildMenuItems(subMenu, itemDef->childrenHead(), target, commands, bindings, nextCommandId, allowQuit) == 0)
     {
+      [subMenu release];
+      [menuItem release];
       return 0;
     }
     [menuItem setSubmenu:subMenu];
+    [subMenu release];
   }
   else
   {
@@ -218,6 +221,7 @@ static std::size_t BuildMenuItem(NSMenu *menu,
   }
 
   [menu addItem:menuItem];
+  [menuItem release];
   return 1;
 }
 
@@ -290,13 +294,17 @@ void MacApp::applyMenuBar(Window *activeWindow)
     }
     if (BuildMenuItems(subMenu, menuDef->itemsHead(), target, commands_, bindings_, nextCommandId_, allowQuit) == 0)
     {
+      [subMenu release];
       continue;
     }
 
     NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle:menuTitle action:nil keyEquivalent:@""];
     [menuItem setSubmenu:subMenu];
     [mainMenu addItem:menuItem];
+    [menuItem release];
+    [subMenu release];
   }
   [NSApp setMainMenu:mainMenu];
+  [mainMenu release];
   clearMenuDiff();
 }

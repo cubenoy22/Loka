@@ -68,6 +68,10 @@ MacButtonContext::~MacButtonContext()
     [(id)target_ release];
     target_ = 0;
   }
+  if (button_)
+  {
+    [(id)button_ release];
+  }
   button_ = 0;
 }
 

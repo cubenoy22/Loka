@@ -32,6 +32,10 @@ MacTextContext::~MacTextContext()
   {
     [label removeFromSuperview];
   }
+  if (label_)
+  {
+    [(id)label_ release];
+  }
   label_ = 0;
 }
 
