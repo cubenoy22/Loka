@@ -29,10 +29,10 @@ class MacCellContext;
 
   if (self.text)
   {
-    NSDictionary *attrs = @{
-      NSFontAttributeName: [NSFont systemFontOfSize:12.0],
-      NSForegroundColorAttributeName: [NSColor blackColor]
-    };
+    NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
+                                            [NSFont systemFontOfSize:12.0], NSFontAttributeName,
+                                            [NSColor blackColor], NSForegroundColorAttributeName,
+                                            nil];
     NSSize textSize = [self.text sizeWithAttributes:attrs];
     NSRect bounds = self.bounds;
     NSRect textRect = NSMakeRect(
