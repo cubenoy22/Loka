@@ -27,8 +27,16 @@ MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, in
 {
   NSView *parent = (__bridge NSView *)parentView;
   NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+#if defined(NSBezelStyleRounded)
   [button setBezelStyle:NSBezelStyleRounded];
+#else
+  [button setBezelStyle:NSRoundedBezelStyle];
+#endif
+#if defined(NSButtonTypeMomentaryPushIn)
   [button setButtonType:NSButtonTypeMomentaryPushIn];
+#else
+  [button setButtonType:NSMomentaryPushInButton];
+#endif
 
   LokaButtonTarget *target = [[LokaButtonTarget alloc] init];
   target.owner = this;

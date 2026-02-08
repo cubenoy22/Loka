@@ -77,8 +77,12 @@ void MacOpenFileDialogContext::presentDialog()
   [panel setAllowsMultipleSelection:NO];
   [panel setCanChooseDirectories:NO];
   [panel setCanChooseFiles:YES];
-  NSModalResponse response = [panel runModal];
+  NSInteger response = [panel runModal];
+#if defined(NSModalResponseOK)
   if (response == NSModalResponseOK)
+#else
+  if (response == NSOKButton)
+#endif
   {
     NSURL *url = [panel URL];
     if (url)

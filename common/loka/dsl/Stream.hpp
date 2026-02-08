@@ -20,6 +20,20 @@ namespace loka
       {
       }
 
+      template <typename ExprT>
+      struct Comparator
+      {
+        const Expr<bool, ExprT> *expr_;
+        explicit Comparator(const Expr<bool, ExprT> &expr) : expr_(&expr) {}
+        bool operator()(const T &a, const T &b) const
+        {
+          EvalContext ctx;
+          ctx.slots[1] = const_cast<T *>(&a);
+          ctx.slots[2] = const_cast<T *>(&b);
+          return expr_->eval(ctx);
+        }
+      };
+
       template <typename R, typename ExprT>
       loka::Vector<R> map(const Expr<R, ExprT> &expr) const
       {
@@ -59,20 +73,7 @@ namespace loka
       template <typename ExprT>
       void sort(const Expr<bool, ExprT> &expr)
       {
-        struct Comparator
-        {
-          const Expr<bool, ExprT> *expr;
-          bool operator()(const T &a, const T &b) const
-          {
-            EvalContext ctx;
-            ctx.slots[1] = const_cast<T *>(&a);
-            ctx.slots[2] = const_cast<T *>(&b);
-            return expr->eval(ctx);
-          }
-        };
-
-        Comparator comp;
-        comp.expr = &expr;
+        Comparator<ExprT> comp(expr);
         std::sort(source_.begin(), source_.end(), comp);
       }
 

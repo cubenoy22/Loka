@@ -70,13 +70,21 @@ MacWindow::~MacWindow()
     [window setDelegate:nil];
     [window close];
   }
+  if (contentView_)
+  {
+    CFRelease(contentView_);
+    contentView_ = 0;
+  }
+  if (window_)
+  {
+    CFRelease(window_);
+    window_ = 0;
+  }
   if (delegate_)
   {
     CFRelease(delegate_);
     delegate_ = 0;
   }
-  window_ = 0;
-  contentView_ = 0;
 }
 
 void MacWindow::setApp(App *app)
@@ -213,8 +221,13 @@ void MacWindow::createNativeWindow()
   CGFloat y = this->hasPosition() ? this->positionY() : 50;
   CGFloat width = this->hasSize() ? this->width() : 300;
   CGFloat height = this->hasSize() ? this->height() : 300;
+#if defined(NSWindowStyleMaskTitled)
   NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                      NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
+#else
+  NSUInteger style = NSTitledWindowMask | NSClosableWindowMask |
+                     NSResizableWindowMask | NSMiniaturizableWindowMask;
+#endif
   NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, width, height)
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
@@ -239,8 +252,8 @@ void MacWindow::createNativeWindow()
   delegate.owner = this;
   [window setDelegate:delegate];
 
-  window_ = (__bridge void *)window;
-  contentView_ = (__bridge void *)contentView;
+  window_ = (__bridge_retained void *)window;
+  contentView_ = (__bridge_retained void *)contentView;
   delegate_ = (__bridge_retained void *)delegate;
 
   [window makeKeyAndOrderFront:nil];
@@ -294,8 +307,16 @@ void MacWindow::handleWindowWillClose()
     CFRelease(delegate_);
     delegate_ = 0;
   }
-  window_ = 0;
-  contentView_ = 0;
+  if (contentView_)
+  {
+    CFRelease(contentView_);
+    contentView_ = 0;
+  }
+  if (window_)
+  {
+    CFRelease(window_);
+    window_ = 0;
+  }
   if (app_)
   {
     app_->windowClosed(static_cast<Window *>(this));
