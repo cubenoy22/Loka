@@ -8,7 +8,7 @@
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
     : node_(node), label_(0), textState_(0)
 {
-  NSView *parent = (__bridge NSView *)parentView;
+  NSView *parent = (NSView *)parentView;
   NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(x, y, width, height)];
   [label setEditable:NO];
   [label setSelectable:NO];
@@ -20,14 +20,14 @@ MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int he
     [parent addSubview:label];
   }
 
-  label_ = (__bridge void *)label;
+  label_ = (void *)label;
   bindText();
 }
 
 MacTextContext::~MacTextContext()
 {
   unbindText();
-  NSTextField *label = (__bridge NSTextField *)label_;
+  NSTextField *label = (NSTextField *)label_;
   if (label)
   {
     [label removeFromSuperview];
@@ -60,7 +60,7 @@ void MacTextContext::unbindText()
 
 void MacTextContext::applyText()
 {
-  NSTextField *label = (__bridge NSTextField *)label_;
+  NSTextField *label = (NSTextField *)label_;
   if (!label || !textState_)
   {
     return;

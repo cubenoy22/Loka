@@ -23,7 +23,7 @@ MacPopupMenuContext::MacPopupMenuContext(void *parentView, int x, int y, int wid
     : node_(node), popup_(0), target_(0), selectionState_(0), enabledState_(0),
       applyingFromState_(false), updatingFromControl_(false)
 {
-  NSView *parent = (__bridge NSView *)parentView;
+  NSView *parent = (NSView *)parentView;
   NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(x, y, width, height) pullsDown:NO];
 
   LokaPopupMenuTarget *target = [[LokaPopupMenuTarget alloc] init];
@@ -36,8 +36,8 @@ MacPopupMenuContext::MacPopupMenuContext(void *parentView, int x, int y, int wid
     [parent addSubview:popup];
   }
 
-  popup_ = (__bridge void *)popup;
-  target_ = (__bridge_retained void *)target;
+  popup_ = (void *)popup;
+  target_ = (void *)target;
 
   applyItems();
   bindSelection();
@@ -48,7 +48,7 @@ MacPopupMenuContext::~MacPopupMenuContext()
 {
   unbindSelection();
   unbindEnabled();
-  NSPopUpButton *popup = (__bridge NSPopUpButton *)popup_;
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
   if (popup)
   {
     [popup setTarget:nil];
@@ -57,7 +57,7 @@ MacPopupMenuContext::~MacPopupMenuContext()
   }
   if (target_)
   {
-    CFRelease(target_);
+    [(id)target_ release];
     target_ = 0;
   }
   popup_ = 0;
@@ -119,7 +119,7 @@ void MacPopupMenuContext::unbindEnabled()
 
 void MacPopupMenuContext::applyItems()
 {
-  NSPopUpButton *popup = (__bridge NSPopUpButton *)popup_;
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
   if (!popup || !node_)
   {
     return;
@@ -142,7 +142,7 @@ void MacPopupMenuContext::applyItems()
 
 void MacPopupMenuContext::applySelection()
 {
-  NSPopUpButton *popup = (__bridge NSPopUpButton *)popup_;
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
   if (!popup || !selectionState_)
   {
     return;
@@ -168,7 +168,7 @@ void MacPopupMenuContext::applySelection()
 
 void MacPopupMenuContext::applyEnabled()
 {
-  NSPopUpButton *popup = (__bridge NSPopUpButton *)popup_;
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
   if (!popup || !enabledState_)
   {
     return;
@@ -178,7 +178,7 @@ void MacPopupMenuContext::applyEnabled()
 
 void MacPopupMenuContext::syncStateFromControl()
 {
-  NSPopUpButton *popup = (__bridge NSPopUpButton *)popup_;
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
   if (!popup || !selectionState_)
   {
     return;

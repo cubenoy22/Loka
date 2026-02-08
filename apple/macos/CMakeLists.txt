@@ -6,6 +6,21 @@ set(CMAKE_OBJCXX_STANDARD 98)
 set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 
 option(TEST_BUILD "Include unit test sources in app target" OFF)
+option(LOKA_MAC_OS_10_4 "Enable macOS 10.4u SDK mode" OFF)
+set(LOKA_MAC_OS_10_4_SYSROOT "/Developer/SDKs/MacOSX10.4u.sdk" CACHE PATH
+  "Path to macOS 10.4u SDK used when LOKA_MAC_OS_10_4=ON")
+
+if(LOKA_MAC_OS_10_4)
+  if(NOT EXISTS "${LOKA_MAC_OS_10_4_SYSROOT}")
+    message(FATAL_ERROR "LOKA_MAC_OS_10_4_SYSROOT not found: ${LOKA_MAC_OS_10_4_SYSROOT}")
+  endif()
+  set(CMAKE_OSX_SYSROOT "${LOKA_MAC_OS_10_4_SYSROOT}" CACHE PATH "macOS SDK path" FORCE)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "10.4" CACHE STRING "Minimum macOS deployment target" FORCE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options("-stdlib=libstdc++")
+    add_link_options("-stdlib=libstdc++")
+  endif()
+endif()
 
 add_library(LokaAppleMacOSAppKit INTERFACE)
 
@@ -47,7 +62,7 @@ target_include_directories(LokaMacOSCore PUBLIC
 
 target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 
-target_compile_options(LokaMacOSCore PRIVATE "-fobjc-arc")
+target_compile_options(LokaMacOSCore PRIVATE "-fno-objc-arc")
 target_compile_definitions(LokaMacOSCore PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )

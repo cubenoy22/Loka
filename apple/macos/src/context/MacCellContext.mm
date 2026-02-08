@@ -51,7 +51,7 @@ class MacCellContext;
 MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node)
     : node_(node), view_(0), textState_(0)
 {
-  NSView *parent = (__bridge NSView *)parentView;
+  NSView *parent = (NSView *)parentView;
   LokaCellView *view = [[LokaCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
   [view setWantsLayer:YES];
   view.context = this;
@@ -61,14 +61,14 @@ MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int he
     [parent addSubview:view];
   }
 
-  view_ = (__bridge void *)view;
+  view_ = (void *)view;
   bindText();
 }
 
 MacCellContext::~MacCellContext()
 {
   unbindText();
-  LokaCellView *view = (__bridge LokaCellView *)view_;
+  LokaCellView *view = (LokaCellView *)view_;
   if (view)
   {
     [view removeFromSuperview];
@@ -110,7 +110,7 @@ void MacCellContext::unbindText()
 
 void MacCellContext::applyText()
 {
-  LokaCellView *view = (__bridge LokaCellView *)view_;
+  LokaCellView *view = (LokaCellView *)view_;
   if (!view || !textState_)
   {
     return;

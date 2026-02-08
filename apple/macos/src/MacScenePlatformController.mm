@@ -55,7 +55,7 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka
     return;
   }
 
-  NSView *view = (__bridge NSView *)rootView_;
+  NSView *view = (NSView *)rootView_;
   NSRect bounds = [view bounds];
   clientWidth_ = static_cast<int>(bounds.size.width);
   clientHeight_ = static_cast<int>(bounds.size.height);
@@ -85,7 +85,7 @@ void MacScenePlatformController::relayout(int clientWidth, int clientHeight)
   {
     if (rootView_)
     {
-      NSView *view = (__bridge NSView *)rootView_;
+      NSView *view = (NSView *)rootView_;
       NSRect bounds = [view bounds];
       clientWidth = static_cast<int>(bounds.size.width);
       clientHeight = static_cast<int>(bounds.size.height);
@@ -356,14 +356,14 @@ void MacScenePlatformController::registerEditField(void *field)
   {
     return;
   }
-  NSTextField *textField = (__bridge NSTextField *)field;
+  NSTextField *textField = (NSTextField *)field;
   if (!firstEditField_)
   {
     firstEditField_ = field;
   }
   if (lastEditField_)
   {
-    NSTextField *lastField = (__bridge NSTextField *)lastEditField_;
+    NSTextField *lastField = (NSTextField *)lastEditField_;
     [lastField setNextKeyView:textField];
   }
   lastEditField_ = field;
@@ -379,13 +379,13 @@ void MacScenePlatformController::finalizeKeyLoop()
   {
     return;
   }
-  NSTextField *firstField = (__bridge NSTextField *)firstEditField_;
-  NSTextField *lastField = (__bridge NSTextField *)lastEditField_;
+  NSTextField *firstField = (NSTextField *)firstEditField_;
+  NSTextField *lastField = (NSTextField *)lastEditField_;
   [lastField setNextKeyView:firstField];
 
   if (rootView_)
   {
-    NSView *view = (__bridge NSView *)rootView_;
+    NSView *view = (NSView *)rootView_;
     NSWindow *window = [view window];
     if (window)
     {
@@ -424,7 +424,7 @@ int MacScenePlatformController::measureClientWidth(int requestedWidth) const
   }
   if (rootView_)
   {
-    NSView *view = (__bridge NSView *)rootView_;
+    NSView *view = (NSView *)rootView_;
     NSRect bounds = [view bounds];
     return static_cast<int>(bounds.size.width);
   }

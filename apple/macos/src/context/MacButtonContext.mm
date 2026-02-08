@@ -25,7 +25,7 @@
 MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node)
     : node_(node), button_(0), target_(0), textState_(0)
 {
-  NSView *parent = (__bridge NSView *)parentView;
+  NSView *parent = (NSView *)parentView;
   NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, width, height)];
 #if defined(NSBezelStyleRounded)
   [button setBezelStyle:NSBezelStyleRounded];
@@ -48,15 +48,15 @@ MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, in
     [parent addSubview:button];
   }
 
-  button_ = (__bridge void *)button;
-  target_ = (__bridge_retained void *)target;
+  button_ = (void *)button;
+  target_ = (void *)target;
   bindText();
 }
 
 MacButtonContext::~MacButtonContext()
 {
   unbindText();
-  NSButton *button = (__bridge NSButton *)button_;
+  NSButton *button = (NSButton *)button_;
   if (button)
   {
     [button setTarget:nil];
@@ -65,7 +65,7 @@ MacButtonContext::~MacButtonContext()
   }
   if (target_)
   {
-    CFRelease(target_);
+    [(id)target_ release];
     target_ = 0;
   }
   button_ = 0;
@@ -104,7 +104,7 @@ void MacButtonContext::unbindText()
 
 void MacButtonContext::applyText()
 {
-  NSButton *button = (__bridge NSButton *)button_;
+  NSButton *button = (NSButton *)button_;
   if (!button || !textState_)
   {
     return;

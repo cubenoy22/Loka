@@ -23,7 +23,7 @@
 MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node)
     : node_(node), field_(0), delegate_(0), textState_(0), applyingFromState_(false), updatingFromControl_(false)
 {
-  NSView *parent = (__bridge NSView *)parentView;
+  NSView *parent = (NSView *)parentView;
   NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(x, y, width, height)];
   [field setEditable:YES];
   [field setSelectable:YES];
@@ -39,15 +39,15 @@ MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width
     [parent addSubview:field];
   }
 
-  field_ = (__bridge void *)field;
-  delegate_ = (__bridge_retained void *)delegate;
+  field_ = (void *)field;
+  delegate_ = (void *)delegate;
   bindText();
 }
 
 MacEditTextContext::~MacEditTextContext()
 {
   unbindText();
-  NSTextField *field = (__bridge NSTextField *)field_;
+  NSTextField *field = (NSTextField *)field_;
   if (field)
   {
     [field setDelegate:nil];
@@ -55,7 +55,7 @@ MacEditTextContext::~MacEditTextContext()
   }
   if (delegate_)
   {
-    CFRelease(delegate_);
+    [(id)delegate_ release];
     delegate_ = 0;
   }
   field_ = 0;
@@ -99,7 +99,7 @@ void MacEditTextContext::unbindText()
 
 void MacEditTextContext::applyText()
 {
-  NSTextField *field = (__bridge NSTextField *)field_;
+  NSTextField *field = (NSTextField *)field_;
   if (!field || !textState_)
   {
     return;
@@ -125,7 +125,7 @@ void MacEditTextContext::applyText()
 
 void MacEditTextContext::syncStateFromControl()
 {
-  NSTextField *field = (__bridge NSTextField *)field_;
+  NSTextField *field = (NSTextField *)field_;
   if (!textState_ || !field)
   {
     return;

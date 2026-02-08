@@ -42,7 +42,7 @@ MacApp::~MacApp()
   clearMenuBindings();
   if (menuTarget_)
   {
-    CFRelease(menuTarget_);
+    [(id)menuTarget_ release];
     menuTarget_ = 0;
   }
 }
@@ -117,7 +117,7 @@ static void MenuEnabledChangedThunk(void *userData)
   MacApp::MenuBinding *binding = static_cast<MacApp::MenuBinding *>(userData);
   if (!binding || !binding->menuItem || !binding->enabledState)
     return;
-  NSMenuItem *item = (__bridge NSMenuItem *)binding->menuItem;
+  NSMenuItem *item = (NSMenuItem *)binding->menuItem;
   [item setEnabled:binding->enabledState->get()];
 }
 
@@ -211,7 +211,7 @@ static std::size_t BuildMenuItem(NSMenu *menu,
   {
     [menuItem setEnabled:itemDef->enabledState->get()];
     MacApp::MenuBinding *binding = new MacApp::MenuBinding();
-    binding->menuItem = (__bridge void *)menuItem;
+    binding->menuItem = (void *)menuItem;
     binding->enabledState = itemDef->enabledState;
     itemDef->enabledState->deferBind(&MenuEnabledChangedThunk, binding);
     bindings.push_back(binding);
@@ -262,13 +262,13 @@ void MacApp::applyMenuBar(Window *activeWindow)
   LokaMenuTarget *target = nil;
   if (menuTarget_)
   {
-    target = (__bridge LokaMenuTarget *)menuTarget_;
+    target = (LokaMenuTarget *)menuTarget_;
   }
   else
   {
     LokaMenuTarget *created = [[LokaMenuTarget alloc] init];
     created.owner = this;
-    menuTarget_ = (__bridge_retained void *)created;
+    menuTarget_ = (void *)created;
     target = created;
   }
 

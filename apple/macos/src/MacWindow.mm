@@ -64,7 +64,7 @@ MacWindow::~MacWindow()
   this->visibilityState().deferUnbind(&MacWindow::VisibilityChangedThunk, this);
   this->titleState().deferUnbind(&MacWindow::TitleChangedThunk, this);
   teardownScene();
-  NSWindow *window = (__bridge NSWindow *)window_;
+  NSWindow *window = (NSWindow *)window_;
   if (window)
   {
     [window setDelegate:nil];
@@ -72,17 +72,17 @@ MacWindow::~MacWindow()
   }
   if (contentView_)
   {
-    CFRelease(contentView_);
+    [(id)contentView_ release];
     contentView_ = 0;
   }
   if (window_)
   {
-    CFRelease(window_);
+    [(id)window_ release];
     window_ = 0;
   }
   if (delegate_)
   {
-    CFRelease(delegate_);
+    [(id)delegate_ release];
     delegate_ = 0;
   }
 }
@@ -132,7 +132,7 @@ void MacWindow::TitleChangedThunk(void *userData)
   {
     return;
   }
-  NSWindow *window = (__bridge NSWindow *)self->window_;
+  NSWindow *window = (NSWindow *)self->window_;
   std::string utf8;
   if (loka::platform::CollectUtf8(self->titleState().get(), utf8))
   {
@@ -181,7 +181,7 @@ void MacWindow::FrameChangedThunk(void *userData)
   {
     return;
   }
-  NSWindow *window = (__bridge NSWindow *)self->window_;
+  NSWindow *window = (NSWindow *)self->window_;
   loka::core::Frame frame = self->frameState().get();
   if (!frame.hasSize())
   {
@@ -252,9 +252,9 @@ void MacWindow::createNativeWindow()
   delegate.owner = this;
   [window setDelegate:delegate];
 
-  window_ = (__bridge_retained void *)window;
-  contentView_ = (__bridge_retained void *)contentView;
-  delegate_ = (__bridge_retained void *)delegate;
+  window_ = (void *)window;
+  contentView_ = (void *)contentView;
+  delegate_ = (void *)delegate;
 
   [window makeKeyAndOrderFront:nil];
   this->onCreate();
@@ -263,7 +263,7 @@ void MacWindow::createNativeWindow()
 
 void MacWindow::destroyNativeWindow()
 {
-  NSWindow *window = (__bridge NSWindow *)window_;
+  NSWindow *window = (NSWindow *)window_;
   if (!window)
   {
     return;
@@ -282,7 +282,7 @@ void MacWindow::onCreate()
 
 void MacWindow::onShow()
 {
-  NSWindow *window = (__bridge NSWindow *)window_;
+  NSWindow *window = (NSWindow *)window_;
   if (window)
   {
     [window makeKeyAndOrderFront:nil];
@@ -304,17 +304,17 @@ void MacWindow::handleWindowWillClose()
   this->onDestroy();
   if (delegate_)
   {
-    CFRelease(delegate_);
+    [(id)delegate_ release];
     delegate_ = 0;
   }
   if (contentView_)
   {
-    CFRelease(contentView_);
+    [(id)contentView_ release];
     contentView_ = 0;
   }
   if (window_)
   {
-    CFRelease(window_);
+    [(id)window_ release];
     window_ = 0;
   }
   if (app_)
@@ -329,7 +329,7 @@ void MacWindow::handleWindowDidResize()
   {
     return;
   }
-  NSView *view = (__bridge NSView *)contentView_;
+  NSView *view = (NSView *)contentView_;
   NSRect bounds = [view bounds];
   scenePlatformController_->relayout(static_cast<int>(bounds.size.width), static_cast<int>(bounds.size.height));
 }
