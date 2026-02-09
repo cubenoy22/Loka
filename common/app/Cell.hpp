@@ -67,13 +67,13 @@ namespace loka
 
     struct CellDefinition : public scene::NodeDefinition<CellProps, CellNode>
     {
-      CellDefinition() : NodeDefinition() {}
-      CellDefinition(const CellProps &p) : NodeDefinition(p) {}
-      CellDefinition(const char *text) : NodeDefinition()
+      CellDefinition() : loka::app::scene::NodeDefinition<CellProps, CellNode>() {}
+      CellDefinition(const CellProps &p) : loka::app::scene::NodeDefinition<CellProps, CellNode>(p) {}
+      CellDefinition(const char *text) : loka::app::scene::NodeDefinition<CellProps, CellNode>()
       {
         this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
       }
-      CellDefinition(loka::core::State<loka::core::String> *text) : NodeDefinition()
+      CellDefinition(loka::core::State<loka::core::String> *text) : loka::app::scene::NodeDefinition<CellProps, CellNode>()
       {
         this->props.text_ = text;
       }

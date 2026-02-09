@@ -65,9 +65,9 @@ namespace loka
 
     struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>
     {
-      EditTextDefinition() : NodeDefinition() {}
-      EditTextDefinition(const EditTextProps &p) : NodeDefinition(p) {}
-      EditTextDefinition(loka::core::State<loka::core::String> *state) : NodeDefinition(EditTextProps(state)) {}
+      EditTextDefinition() : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>() {}
+      EditTextDefinition(const EditTextProps &p) : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(p) {}
+      EditTextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(EditTextProps(state)) {}
 
       EditTextDefinition &toolboxControl(short id)
       {

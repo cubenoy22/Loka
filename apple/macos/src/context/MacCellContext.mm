@@ -8,14 +8,45 @@
 class MacCellContext;
 
 @interface LokaCellView : NSView
-@property(nonatomic, retain) NSString *text;
-@property(nonatomic, assign) MacCellContext *context;
+{
+  NSString *text_;
+  MacCellContext *context_;
+}
+- (NSString *)text;
+- (void)setText:(NSString *)value;
+- (MacCellContext *)context;
+- (void)setContext:(MacCellContext *)value;
 @end
 
 @implementation LokaCellView
+- (NSString *)text
+{
+  return text_;
+}
+
+- (void)setText:(NSString *)value
+{
+  if (text_ != value)
+  {
+    [text_ release];
+    text_ = [value retain];
+  }
+}
+
+- (MacCellContext *)context
+{
+  return context_;
+}
+
+- (void)setContext:(MacCellContext *)value
+{
+  context_ = value;
+}
+
 - (void)dealloc
 {
-  self.text = nil;
+  [text_ release];
+  text_ = nil;
   [super dealloc];
 }
 
@@ -27,20 +58,20 @@ class MacCellContext;
   [[NSColor colorWithCalibratedWhite:0.45 alpha:1.0] setStroke];
   NSFrameRect(self.bounds);
 
-  if (self.text)
+  if ([self text])
   {
     NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
                                             [NSFont systemFontOfSize:12.0], NSFontAttributeName,
                                             [NSColor blackColor], NSForegroundColorAttributeName,
                                             nil];
-    NSSize textSize = [self.text sizeWithAttributes:attrs];
+    NSSize textSize = [[self text] sizeWithAttributes:attrs];
     NSRect bounds = self.bounds;
     NSRect textRect = NSMakeRect(
         bounds.origin.x + (bounds.size.width - textSize.width) * 0.5,
         bounds.origin.y + (bounds.size.height - textSize.height) * 0.5,
         textSize.width,
         textSize.height);
-    [self.text drawInRect:textRect withAttributes:attrs];
+    [[self text] drawInRect:textRect withAttributes:attrs];
   }
 }
 
@@ -59,8 +90,11 @@ MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int he
 {
   NSView *parent = (NSView *)parentView;
   LokaCellView *view = [[LokaCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
-  [view setWantsLayer:YES];
-  view.context = this;
+  if ([view respondsToSelector:@selector(setWantsLayer:)])
+  {
+    [view setWantsLayer:YES];
+  }
+  [view setContext:this];
 
   if (parent)
   {
@@ -128,7 +162,7 @@ void MacCellContext::applyText()
   std::string utf8;
   if (loka::platform::CollectUtf8(textState_->get(), utf8))
   {
-    view.text = loka::macos::CreateNSStringFromUtf8(utf8);
+    [view setText:loka::macos::CreateNSStringFromUtf8(utf8)];
     [view setNeedsDisplay:YES];
   }
 }

@@ -40,8 +40,8 @@ namespace loka
     // Definition for Empty node
     struct EmptyDefinition : public scene::NodeDefinition<EmptyProps, EmptyNode>
     {
-      EmptyDefinition() : NodeDefinition() {}
-      EmptyDefinition(const EmptyProps &p) : NodeDefinition(p) {}
+      EmptyDefinition() : scene::NodeDefinition<EmptyProps, EmptyNode>() {}
+      EmptyDefinition(const EmptyProps &p) : scene::NodeDefinition<EmptyProps, EmptyNode>(p) {}
       using scene::NodeDefinition<EmptyProps, EmptyNode>::create;
     };
     // Short name for DSL

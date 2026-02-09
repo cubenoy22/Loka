@@ -7,11 +7,15 @@
 
 
 @interface LokaButtonTarget : NSObject
+{
+  MacButtonContext *owner_;
+}
 @property(nonatomic, assign) MacButtonContext *owner;
 - (IBAction)buttonPressed:(id)sender;
 @end
 
 @implementation LokaButtonTarget
+@synthesize owner = owner_;
 - (IBAction)buttonPressed:(id)sender
 {
   (void)sender;

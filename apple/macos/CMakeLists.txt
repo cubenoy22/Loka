@@ -62,7 +62,7 @@ target_include_directories(LokaMacOSCore PUBLIC
 
 target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 
-target_compile_options(LokaMacOSCore PRIVATE "-fno-objc-arc")
+# Loka core is ObjC1/non-ARC by design; do not force ARC flags here.
 target_compile_definitions(LokaMacOSCore PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
@@ -73,15 +73,17 @@ set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
+if(NOT LOKA_MAC_OS_10_4)
+  add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
 
-target_include_directories(LokaTestsMacOS PRIVATE
-  ${PROJECT_SOURCE_DIR}/common
-  ${PROJECT_SOURCE_DIR}/tests
-  ${CMAKE_CURRENT_LIST_DIR}/src
-)
+  target_include_directories(LokaTestsMacOS PRIVATE
+    ${PROJECT_SOURCE_DIR}/common
+    ${PROJECT_SOURCE_DIR}/tests
+    ${CMAKE_CURRENT_LIST_DIR}/src
+  )
 
-target_link_libraries(LokaTestsMacOS PRIVATE LokaAppleCommonCocoa "-framework CoreFoundation")
-target_compile_definitions(LokaTestsMacOS PRIVATE
-  $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
-)
+  target_link_libraries(LokaTestsMacOS PRIVATE LokaAppleCommonCocoa "-framework CoreFoundation")
+  target_compile_definitions(LokaTestsMacOS PRIVATE
+    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+  )
+endif()

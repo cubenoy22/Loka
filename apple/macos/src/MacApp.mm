@@ -1,14 +1,20 @@
 #include "MacApp.hpp"
 #include "MacWindow.hpp"
+#include "MacObjCCompat.hpp"
 #include <AppKit/AppKit.h>
+#include <ApplicationServices/ApplicationServices.h>
 #include "app/AppComponent.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 @interface LokaMenuTarget : NSObject
+{
+  MacApp *owner_;
+}
 @property(nonatomic, assign) MacApp *owner;
 @end
 
 @implementation LokaMenuTarget
+@synthesize owner = owner_;
 - (void)handleMenuAction:(id)sender
 {
   if (self.owner)
@@ -49,8 +55,15 @@ MacApp::~MacApp()
 
 void MacApp::run()
 {
+  ProcessSerialNumber psn = {0, kCurrentProcess};
+  TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+  SetFrontProcess(&psn);
+
   [NSApplication sharedApplication];
-  [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+  if ([NSApp respondsToSelector:@selector(setActivationPolicy:)])
+  {
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+  }
 
   App::run();
 

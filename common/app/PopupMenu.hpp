@@ -175,17 +175,17 @@ namespace loka
 
     struct PopupMenuDefinition : public loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>
     {
-      PopupMenuDefinition() : NodeDefinition() {}
-      PopupMenuDefinition(const PopupMenuProps &p) : NodeDefinition(p) {}
-      PopupMenuDefinition(const loka::Vector<loka::core::String> &items) : NodeDefinition()
+      PopupMenuDefinition() : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>() {}
+      PopupMenuDefinition(const PopupMenuProps &p) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>(p) {}
+      PopupMenuDefinition(const loka::Vector<loka::core::String> &items) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
       {
         this->props.items(items);
       }
-      PopupMenuDefinition(const loka::Vector<loka::core::String> *items) : NodeDefinition()
+      PopupMenuDefinition(const loka::Vector<loka::core::String> *items) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
       {
         this->props.items(items);
       }
-      PopupMenuDefinition(const char **items, std::size_t count) : NodeDefinition()
+      PopupMenuDefinition(const char **items, std::size_t count) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
       {
         this->props.items(items, count);
       }

@@ -3,13 +3,18 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_TYPE="${BUILD_TYPE:-Release}"
-BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos/${BUILD_TYPE}}"
-DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.7}"
+DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.6}"
 GENERATOR="${GENERATOR:-}"
 ARCHS="${ARCHS:-}"
 TARGET="${TARGET:-}"
 MAC_OS_10_4="${MAC_OS_10_4:-${MAC_LEGACY:-0}}"
 MAC_OS_10_4_SYSROOT="${MAC_OS_10_4_SYSROOT:-${LEGACY_SYSROOT:-}}"
+
+if [[ "${MAC_OS_10_4}" == "1" ]]; then
+  BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos-10.4/${BUILD_TYPE}}"
+else
+  BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos/${BUILD_TYPE}}"
+fi
 
 if [[ -z "${GENERATOR}" ]]; then
   if command -v ninja >/dev/null 2>&1; then
@@ -26,6 +31,14 @@ CMAKE_ARGS=(
   "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   "-DCMAKE_OSX_DEPLOYMENT_TARGET=${DEPLOYMENT_TARGET}"
 )
+
+if [[ -n "${CC:-}" ]]; then
+  CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${CC}")
+fi
+
+if [[ -n "${CXX:-}" ]]; then
+  CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${CXX}")
+fi
 
 if [[ -n "${ARCHS}" ]]; then
   CMAKE_ARGS+=("-DCMAKE_OSX_ARCHITECTURES=${ARCHS}")

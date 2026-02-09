@@ -1,14 +1,19 @@
 #include "MacPopupMenuContext.hpp"
+#include "MacObjCCompat.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "loka/platform/StringUTF8.hpp"
 
 @interface LokaPopupMenuTarget : NSObject
+{
+  MacPopupMenuContext *owner_;
+}
 @property(nonatomic, assign) MacPopupMenuContext *owner;
 - (IBAction)popupChanged:(id)sender;
 @end
 
 @implementation LokaPopupMenuTarget
+@synthesize owner = owner_;
 - (IBAction)popupChanged:(id)sender
 {
   (void)sender;

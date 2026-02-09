@@ -147,8 +147,8 @@ namespace loka
 
     struct OpenFileDialogDefinition : public loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>
     {
-      OpenFileDialogDefinition() : NodeDefinition() {}
-      OpenFileDialogDefinition(const OpenFileDialogProps &p) : NodeDefinition(p) {}
+      OpenFileDialogDefinition() : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>() {}
+      OpenFileDialogDefinition(const OpenFileDialogProps &p) : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>(p) {}
 
       OpenFileDialogDefinition &isVisible(loka::core::State<bool> *state)
       {

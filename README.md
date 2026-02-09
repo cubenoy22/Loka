@@ -200,6 +200,8 @@ This setup allows fully native development.
 > **Note (macOS targets):**
 > Until UB1 support is available, the minimum macOS deployment target may vary depending on the Xcode + CMake environment.
 > In practice, targets may range from **OS X Lion (Objective-C 2.0 with ARC)** up to **macOS 11 Big Sur or later**.
+>
+> Script entry points for macOS target selection are documented in `scripts/macos/README.md`.
 
 ### Win32 quick notes (VSCode)
 

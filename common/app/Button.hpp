@@ -112,22 +112,22 @@ namespace loka
 
     struct ButtonDefinition : public loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>
     {
-      ButtonDefinition() : NodeDefinition() {}
-      ButtonDefinition(const ButtonProps &p) : NodeDefinition(p) {}
-      ButtonDefinition(const char *text) : NodeDefinition()
+      ButtonDefinition() : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>() {}
+      ButtonDefinition(const ButtonProps &p) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>(p) {}
+      ButtonDefinition(const char *text) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
       }
-      ButtonDefinition(loka::core::State<loka::core::String> *text) : NodeDefinition()
+      ButtonDefinition(loka::core::State<loka::core::String> *text) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text_ = text;
       }
-      ButtonDefinition(const char *text, loka::core::EmitterState *onClick) : NodeDefinition()
+      ButtonDefinition(const char *text, loka::core::EmitterState *onClick) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
         this->props.onClick_ = onClick;
       }
-      ButtonDefinition(loka::core::State<loka::core::String> *text, loka::core::EmitterState *onClick) : NodeDefinition()
+      ButtonDefinition(loka::core::State<loka::core::String> *text, loka::core::EmitterState *onClick) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text_ = text;
         this->props.onClick_ = onClick;

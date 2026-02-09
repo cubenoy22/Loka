@@ -92,11 +92,11 @@ namespace loka
 
     struct TextDefinition : public scene::NodeDefinition<TextProps, TextNode>
     {
-      TextDefinition() : NodeDefinition() {}
-      TextDefinition(const TextProps &p) : NodeDefinition(p) {}
-      TextDefinition(const char *value) : NodeDefinition(TextProps(value)) {}
-      TextDefinition(const loka::core::String &value) : NodeDefinition(TextProps(value)) {}
-      TextDefinition(loka::core::State<loka::core::String> *state) : NodeDefinition(TextProps(state)) {}
+      TextDefinition() : loka::app::scene::NodeDefinition<TextProps, TextNode>() {}
+      TextDefinition(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
+      TextDefinition(const char *value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
+      TextDefinition(const loka::core::String &value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
+      TextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state)) {}
     };
 
     typedef TextDefinition Text;

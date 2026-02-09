@@ -1,4 +1,5 @@
 #include "MacOpenFileDialogContext.hpp"
+#include "MacObjCCompat.hpp"
 #include "Utf8String.hpp"
 #import <AppKit/AppKit.h>
 

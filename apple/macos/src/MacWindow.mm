@@ -1,5 +1,6 @@
 #include "MacWindow.hpp"
 #include "MacApp.hpp"
+#include "MacObjCCompat.hpp"
 #include "MacScenePlatformController.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
@@ -18,11 +19,15 @@
 
 @class LokaWindowDelegate;
 
-@interface LokaWindowDelegate : NSObject <NSWindowDelegate>
+@interface LokaWindowDelegate : NSObject
+{
+  MacWindow *owner_;
+}
 @property(nonatomic, assign) MacWindow *owner;
 @end
 
 @implementation LokaWindowDelegate
+@synthesize owner = owner_;
 - (void)windowWillClose:(NSNotification *)notification
 {
   (void)notification;
@@ -300,6 +305,11 @@ void MacWindow::handleWindowWillClose()
     return;
   }
   closing_ = true;
+  NSWindow *window = (NSWindow *)window_;
+  if (window)
+  {
+    [window setDelegate:nil];
+  }
   teardownScene();
   this->onDestroy();
   if (delegate_)

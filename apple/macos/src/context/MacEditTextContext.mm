@@ -1,15 +1,20 @@
 #include "MacEditTextContext.hpp"
+#include "MacObjCCompat.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/EditText.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-@interface LokaTextFieldDelegate : NSObject <NSTextFieldDelegate>
+@interface LokaTextFieldDelegate : NSObject
+{
+  MacEditTextContext *owner_;
+}
 @property(nonatomic, assign) MacEditTextContext *owner;
 @end
 
 @implementation LokaTextFieldDelegate
+@synthesize owner = owner_;
 - (void)controlTextDidChange:(NSNotification *)notification
 {
   (void)notification;
