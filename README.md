@@ -148,6 +148,12 @@ The goal of this release is **demonstration and exploration**, not stability gua
 
 ---
 
+## Contributing
+
+Contribution guidelines are documented in `CONTRIBUTING.md`.
+
+---
+
 ## Who this is for
 
 * engineers interested in **declarative UI internals**

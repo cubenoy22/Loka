@@ -32,3 +32,9 @@
 - Commit policy: Do not amend commits. Only small fixes found immediately after a commit may be amended.
 - When adding a new example target, update `.vscode/launch.json` to include its run config.
 - When adding a new example target, update `.vscode/tasks.json` so the matching build task exists for `preLaunchTask`.
+- macOS support policy: library/core implementation targets Tiger through Snow Leopard compatibility; consumer applications are expected to run on Big Sur and newer and may integrate modern Swift/C++ features at the app layer.
+- macOS Objective-C policy: library/core code must stay ObjC1-style manual memory management (non-ARC); `@property`/`@synthesize` are allowed, but direct ivar access (`obj->ivar`) is forbidden and internal state access must go through private getter/setter methods.
+- macOS examples policy: example targets default to non-ARC for consistency with library/core; ARC is allowed only as an explicit per-target opt-in when integration requirements demand it.
+- Objective-C property policy (library/core): when using `@property`, always declare explicit ownership semantics (`retain`/`assign`/`copy`) and avoid implicit/default memory behavior.
+- Objective-C access-scope policy: the no-direct-ivar-access rule applies to all library/core Objective-C(++) code under `apple/macos/src`; examples may diverge only when explicitly documented.
+- macOS support terminology: mark compatibility claims explicitly as either `build-verified` (compiles/links) or `runtime-verified` (launched/tested on target OS/hardware); do not mix these terms.
