@@ -93,11 +93,7 @@ if(APPLE)
 
   target_link_libraries(LokaHelloMacOS PRIVATE LokaMacOSCore)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    if(LOKA_MAC_OS_10_4)
-      target_compile_options(LokaHelloMacOS PRIVATE "-fno-objc-arc")
-    else()
-      target_compile_options(LokaHelloMacOS PRIVATE "-fobjc-arc")
-    endif()
+    target_compile_options(LokaHelloMacOS PRIVATE "-fno-objc-arc")
   endif()
   target_compile_definitions(LokaHelloMacOS PRIVATE
     $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>

@@ -20,15 +20,7 @@ namespace loka
     }
     NSData *data = [NSData dataWithBytes:value.data() length:value.size()];
     string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-#ifdef __has_feature
-#if __has_feature(objc_arc)
-    return string ? string : @"";
-#else
     return string ? [string autorelease] : @"";
-#endif
-#else
-    return string ? [string autorelease] : @"";
-#endif
   }
 
   inline std::string Utf8FromNSString(NSString *string)
