@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/scripts/macos/lib-common.sh"
 
 export MAC_OS_10_4=0
 export DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.5}"
@@ -35,52 +36,11 @@ BUILD_CFG="${BUILD_TYPE:-Release}"
 for ARCH in "${ARCH_LIST[@]}"; do
   export ARCHS="${ARCH}"
   export BUILD_DIR="${BUILD_ROOT}/${BUILD_CFG}-${ARCH}"
-  if [[ -n "${OLD_TARGET}" ]]; then
-    export TARGET="${OLD_TARGET}"
-    "${ROOT_DIR}/scripts/macos/build.sh"
-  else
-    export TARGET="LokaHelloMacOS"
-    "${ROOT_DIR}/scripts/macos/build.sh"
-    export TARGET="LokaMineMacOS"
-    "${ROOT_DIR}/scripts/macos/build.sh"
-    export TARGET="LokaSimpleViewerMacOS"
-    "${ROOT_DIR}/scripts/macos/build.sh"
-  fi
+  loka_cleanup_stale_output_dirs "${BUILD_DIR}"
+  loka_build_requested_or_known_targets "${ROOT_DIR}"
 done
 
-mkdir -p "${BUILD_ROOT}/universal"
-
-merge_one() {
-  local rel_path="$1"
-  local out_bin="${BUILD_ROOT}/universal/$(basename "${rel_path}")"
-  local inputs=()
-  local bin
-  local arch
-  for arch in "${ARCH_LIST[@]}"; do
-    bin="${BUILD_ROOT}/${BUILD_CFG}-${arch}/${rel_path}"
-    if [[ -f "${bin}" ]]; then
-      inputs+=("${bin}")
-    fi
-  done
-  if [[ "${#inputs[@]}" -ge 2 ]]; then
-    lipo -create "${inputs[@]}" -output "${out_bin}"
-    lipo -info "${out_bin}"
-  elif [[ "${#inputs[@]}" -eq 1 ]]; then
-    cp -f "${inputs[0]}" "${out_bin}"
-  fi
-}
-
-if [[ -n "${OLD_TARGET}" ]]; then
-  case "${OLD_TARGET}" in
-    LokaHelloMacOS) merge_one "example/HelloWorld/LokaHelloMacOS" ;;
-    LokaMineMacOS) merge_one "example/MineSweeper/LokaMineMacOS" ;;
-    LokaSimpleViewerMacOS) merge_one "example/SimpleViewer/LokaSimpleViewerMacOS" ;;
-  esac
-else
-  merge_one "example/HelloWorld/LokaHelloMacOS"
-  merge_one "example/MineSweeper/LokaMineMacOS"
-  merge_one "example/SimpleViewer/LokaSimpleViewerMacOS"
-fi
+loka_merge_requested_or_known_targets_multi_arch "${BUILD_ROOT}" "${BUILD_CFG}" "${OLD_ARCHS}"
 
 if [[ -n "${OLD_TARGET}" ]]; then
   export TARGET="${OLD_TARGET}"

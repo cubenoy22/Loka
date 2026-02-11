@@ -2,21 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-
-cleanup_stale_output_dirs() {
-  local build_dir="$1"
-  local stale_paths=(
-    "${build_dir}/example/HelloWorld/LokaHelloMacOS"
-    "${build_dir}/example/MineSweeper/LokaMineMacOS"
-    "${build_dir}/example/SimpleViewer/LokaSimpleViewerMacOS"
-  )
-  local stale_path
-  for stale_path in "${stale_paths[@]}"; do
-    if [[ -d "${stale_path}" ]]; then
-      rm -rf "${stale_path}"
-    fi
-  done
-}
+source "${ROOT_DIR}/scripts/macos/lib-common.sh"
 
 export MAC_OS_10_4=1
 export DEPLOYMENT_TARGET=10.4
@@ -117,40 +103,17 @@ if [[ "${ARCHS}" == *";"* ]]; then
   for ARCH in "${ARCH_LIST[@]}"; do
     export ARCHS="${ARCH}"
     export BUILD_DIR="${ROOT_DIR}/build/macos-10.4-ub1/${BUILD_TYPE:-Release}-${ARCH}"
-    cleanup_stale_output_dirs "${BUILD_DIR}"
-    "${ROOT_DIR}/scripts/macos/build.sh"
+    loka_cleanup_stale_output_dirs "${BUILD_DIR}"
+    loka_build_requested_or_known_targets "${ROOT_DIR}"
   done
 
   if [[ "${#ARCH_LIST[@]}" -eq 2 && "${ARCH_LIST[0]}" == "ppc" && "${ARCH_LIST[1]}" == "i386" ]]; then
-    mkdir -p "${BUILD_ROOT}/universal"
-
-    merge_one() {
-      local rel_path="$1"
-      local ppc_bin="${BUILD_ROOT}/${BUILD_CFG}-ppc/${rel_path}"
-      local i386_bin="${BUILD_ROOT}/${BUILD_CFG}-i386/${rel_path}"
-      local out_bin="${BUILD_ROOT}/universal/$(basename "${rel_path}")"
-      if [[ -f "${ppc_bin}" && -f "${i386_bin}" ]]; then
-        lipo -create "${ppc_bin}" "${i386_bin}" -output "${out_bin}"
-        lipo -info "${out_bin}"
-      fi
-    }
-
-    if [[ -n "${TARGET:-}" ]]; then
-      case "${TARGET}" in
-        LokaHelloMacOS) merge_one "example/HelloWorld/LokaHelloMacOS" ;;
-        LokaMineMacOS) merge_one "example/MineSweeper/LokaMineMacOS" ;;
-        LokaSimpleViewerMacOS) merge_one "example/SimpleViewer/LokaSimpleViewerMacOS" ;;
-      esac
-    else
-      merge_one "example/HelloWorld/LokaHelloMacOS"
-      merge_one "example/MineSweeper/LokaMineMacOS"
-      merge_one "example/SimpleViewer/LokaSimpleViewerMacOS"
-    fi
+    loka_merge_requested_or_known_targets_two_arch "${BUILD_ROOT}" "${BUILD_CFG}" "ppc" "i386"
   fi
 
   export ARCHS="${OLD_ARCHS}"
 else
   export BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos-10.4-ub1/${BUILD_TYPE:-Release}-${ARCHS}}"
-  cleanup_stale_output_dirs "${BUILD_DIR}"
+  loka_cleanup_stale_output_dirs "${BUILD_DIR}"
   exec "${ROOT_DIR}/scripts/macos/build.sh"
 fi
