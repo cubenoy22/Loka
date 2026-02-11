@@ -86,16 +86,15 @@ namespace simpleviewer
     {
       using namespace loka::app;
       this->props.assertInitialized();
-      OpenFileDialog dialog;
-      dialog.isVisible(this->props.dialogVisible_);
-      dialog.result(this->props.result_);
-      dialog.onResult(this->props.onResult_);
       c.declare(
           VStack()
           << Empty()
           << Text("You chose:")
           << Text(this->props.message_)
-          << dialog);
+          << OpenFileDialog()
+                 .isVisible(this->props.dialogVisible_)
+                 .result(this->props.result_)
+                 .onResult(this->props.onResult_));
     }
   };
 } // namespace simpleviewer
