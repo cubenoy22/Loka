@@ -25,6 +25,8 @@
 - When profiling multiple sections inside one function, use `PROFILE_SECTION_ID` to avoid `__LINE__` collisions.
 - DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `LightComponent` to inline into the parent composition when you don't need an independent lifecycle.
 - DSL design: prefer one-shot Static composition for 68k/Classic unless you truly need updates; extra compose passes are expensive.
+- DSL props API policy: `Props` is the canonical/full API surface. `Definition` setters are optional shorthand only for frequently used fields in DSL call sites.
+- DSL shorthand policy: for common cases, prefer concise `Definition` constructors/factories that accept the most-used inputs; for less common fields, construct `Props` explicitly and pass it through rather than duplicating every setter in both `Props` and `Definition`.
 - Performance triage steps: 1) reproduce on modern OS with profiling on, 2) capture tick breakdown, 3) isolate by commenting out components or toggling features, 4) optimize top hotspots first, 5) re-measure, 6) record findings in docs/TODO.md.
 - If a crash occurs, first confirm whether it reproduces on a modern OS build; use breakpoints, LLDB commands, and targeted logging to identify the cause quickly.
 - If a request is ambiguous, stop and ask before implementing.
