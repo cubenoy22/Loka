@@ -75,6 +75,21 @@ void Win32TextContext::applyText()
   {
     SetWindowTextA(hwnd_, utf8.c_str());
   }
+  else
+  {
+    SetWindowTextA(hwnd_, "");
+  }
+  HWND parent = GetParent(hwnd_);
+  if (parent)
+  {
+    RECT rc;
+    if (GetWindowRect(hwnd_, &rc))
+    {
+      MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rc), 2);
+      InvalidateRect(parent, &rc, TRUE);
+    }
+  }
+  InvalidateRect(hwnd_, NULL, TRUE);
 }
 
 void Win32TextContext::TextChangedThunk(void *userData)

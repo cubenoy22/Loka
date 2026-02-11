@@ -20,6 +20,7 @@
 - DerivedState::EvalFn ownership/cleanup and dependency registration policy.
 - StateBatch: add useLargeStates path for large initializers (heap-backed initial copies).
 - Wire Node.dirty with IPlatformController::synchronize (diff-based redraw path).
+- Smart redraw scheduler at Window/Scene scope: collect dirty rects per tick and flush once via platform invalidate APIs.
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).
 - Decide where Scene.lifecycle\_ is written (SceneManager2 vs disabled).
 - SceneManager2: finalize lifecycle updates (ON_DETACH/ON_ATTACH/ON_DESTROY) and make Scene subscribe-ready.
