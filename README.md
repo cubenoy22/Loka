@@ -49,17 +49,23 @@ Loka favors *locality*, *predictability*, and *auditability* over convenience.
 
 ---
 
-## Supported platforms (current & planned)
+## Support matrix (current snapshot)
 
-| Platform                             | Status                                      |
-| ------------------------------------ | ------------------------------------------- |
-| Classic Mac OS (68k / PPC)           | ✅ working                                   |
-| Mac OS X Tiger / Leopard             | ✅ working                                   |
-| Modern macOS (Intel / Apple Silicon) | ✅ working                                   |
-| Windows (Win32)                      | ✅ Windows XP verified (Windows 10 Mobile is next target) |
-| Linux                                | 🟡 community-driven (future)                |
-| iOS / iPadOS                         | 🟡 expected to be possible                  |
-| Windows Mobile / PocketPC            | 🟡 community-driven (future)                |
+Compatibility claims are labeled as:
+
+- `build-verified`: confirmed compile/link for the target
+- `runtime-verified`: confirmed launch/test on the target OS/hardware
+
+| Platform / OS range | build-verified | runtime-verified | Notes |
+| --- | --- | --- | --- |
+| Classic Mac OS (System 7 to Mac OS 9.2.2, 68k/PPC) | ✅ | 🟡 | Runtime validation is currently emulator-first; 68k real-hardware validation is still needed. |
+| Mac OS X Tiger to Snow Leopard (PPC/Intel) | ✅ | ✅ | Runtime-verified on both PPC and Intel. Known issue: menu title can appear as generic "App" in some configurations. |
+| Modern macOS (Big Sur and newer, app layer) | ✅ | ✅ | Native Cocoa backend is active for current examples. |
+| Windows XP (Win32) | ✅ | ✅ | Verified with VS 2017-based toolchain. |
+| Windows (Vista and newer, Win32) | ✅ | ✅ | Current Win32 backend runs on modern Windows versions. |
+| Linux | 🟡 | 🟡 | Community-driven / future path. |
+| iOS / iPadOS | 🟡 | 🟡 | Expected to be possible, not yet verified. |
+| Windows Mobile / PocketPC | 🟡 | 🟡 | Community-driven / future path. |
 
 **Minimum RAM (Classic Mac OS examples):** ~300 KB or above
 
