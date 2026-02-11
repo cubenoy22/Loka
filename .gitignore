@@ -217,4 +217,7 @@ win32/DesktopApp/*.suo
 win32/DesktopApp/*.VC.db
 win32/DesktopApp/*.VC.VC.opendb
 
+# Local Claude Code settings
+.claude/settings.local.json
+
 # End of https://www.toptal.com/developers/gitignore/api/node,macos,linux
