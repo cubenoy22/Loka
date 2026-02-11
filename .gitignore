@@ -1,9 +1,6 @@
 # CUSTOM
 /agent/pilot.md
 **/build
-build-retro68/
-build-retro68-release/
-build-xp/
 compile_commands.json
 CMakeUserPresets.json
 

@@ -9,9 +9,31 @@ This project supports building Classic Mac OS targets with Retro68.
 
 ## Configuration
 
-Retro68 presets are machine-specific, so they are configured via `CMakeUserPresets.json` (not tracked in git).
+This repo includes shared Retro68 presets in `CMakePresets.json`:
 
-Create `CMakeUserPresets.json` in the project root:
+- `retro68-default-release`
+
+These presets use `cmake/toolchains/Retro68.cmake`, which resolves the toolchain
+from environment variables or common default paths.
+
+### Option A: Use shared presets directly
+
+Set one of the following so the toolchain can be found:
+
+- `RETRO68_TOOLCHAIN_DIR` (path to Retro68 toolchain CMake dir or toolchain file)
+- `RETRO68_BUILD_DIR` (path to Retro68 build output directory)
+
+Then run:
+
+```sh
+cmake --preset retro68-default-release
+cmake --build --preset retro68-default-release
+```
+
+### Option B: Add local `CMakeUserPresets.json`
+
+If you want machine-specific overrides (for example custom `PATH`), create
+`CMakeUserPresets.json` in the project root:
 
 ```json
 {
@@ -21,7 +43,7 @@ Create `CMakeUserPresets.json` in the project root:
       "name": "retro68-debug",
       "displayName": "Retro68 (Debug)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-retro68",
+      "binaryDir": "${sourceDir}/build/retro68/Debug",
       "environment": {
         "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
       },
@@ -35,7 +57,7 @@ Create `CMakeUserPresets.json` in the project root:
       "name": "retro68-release",
       "displayName": "Retro68 (Release)",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build-retro68-release",
+      "binaryDir": "${sourceDir}/build/retro68/Release",
       "environment": {
         "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
       },
@@ -56,13 +78,15 @@ Replace `/path/to/Retro68-build` with your actual Retro68 build directory.
 ## Building
 
 ```sh
-cmake --preset retro68-debug
-cmake --build build-retro68 --target LokaHelloClassic
+cmake --preset retro68-default-release
+cmake --build --preset retro68-default-release --target LokaHelloClassic
 ```
 
 Output files:
-- `build-retro68/example/HelloWorld/LokaHelloClassic.dsk` - Disk image for emulator
-- `build-retro68/example/HelloWorld/LokaHelloClassic.bin` - BinHex file
+- Shared preset default:
+  - `build/retro68/Release/example/HelloWorld/LokaHelloClassic.dsk`
+  - `build/retro68/Release/example/HelloWorld/LokaHelloClassic.bin`
+- If you use custom `CMakeUserPresets.json`, paths follow your `binaryDir`.
 
 ## Environment variables (alternative)
 

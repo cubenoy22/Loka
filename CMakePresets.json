@@ -48,7 +48,7 @@
       "name": "win32-xp-debug",
       "displayName": "Win32 XP Debug (Ninja)",
       "generator": "Ninja",
-      "binaryDir": "build-xp/Debug",
+      "binaryDir": "build/winxp/Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
@@ -62,13 +62,25 @@
       "name": "win32-xp-release",
       "displayName": "Win32 XP Release (Ninja)",
       "generator": "Ninja",
-      "binaryDir": "build-xp/Release",
+      "binaryDir": "build/winxp/Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_CXX_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS,5.01",
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      }
+    },
+    {
+      "name": "retro68-default-release",
+      "displayName": "Retro68 Release (Ninja, shared preset)",
+      "generator": "Ninja",
+      "binaryDir": "build/retro68/Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
+        "CMAKE_CXX_FLAGS_RELEASE": "-Os -ffunction-sections -fdata-sections -fno-exceptions",
+        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-Wl,--gc-sections"
       }
     }
   ],
@@ -106,6 +118,10 @@
       "name": "win32-xp-release",
       "configurePreset": "win32-xp-release",
       "configuration": "Release"
+    },
+    {
+      "name": "retro68-default-release",
+      "configurePreset": "retro68-default-release"
     }
   ]
 }
