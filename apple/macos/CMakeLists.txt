@@ -7,6 +7,7 @@ set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 
 option(TEST_BUILD "Include unit test sources in app target" OFF)
 option(LOKA_MAC_OS_10_4 "Enable macOS 10.4u SDK mode" OFF)
+option(LOKA_BUILD_MACOS_TESTS "Build macOS unit test target (LokaTestsMacOS)" ON)
 set(LOKA_MAC_OS_10_4_SYSROOT "/Developer/SDKs/MacOSX10.4u.sdk" CACHE PATH
   "Path to macOS 10.4u SDK used when LOKA_MAC_OS_10_4=ON")
 
@@ -67,13 +68,21 @@ target_compile_definitions(LokaMacOSCore PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
 
+set(LOKA_ENABLE_MACOS_TESTS ${LOKA_BUILD_MACOS_TESTS})
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.6")
+    set(LOKA_ENABLE_MACOS_TESTS OFF)
+    message(STATUS "Disabling LokaTestsMacOS for GNU C++ < 4.6 due to template limitations in tests.")
+  endif()
+endif()
+
 set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestMain.cpp
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-if(NOT LOKA_MAC_OS_10_4)
+if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
   add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
 
   target_include_directories(LokaTestsMacOS PRIVATE

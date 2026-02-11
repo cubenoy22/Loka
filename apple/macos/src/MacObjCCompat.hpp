@@ -16,7 +16,7 @@ typedef float CGFloat;
 #endif
 #endif
 
-#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1070)
+#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1060)
 #ifndef NSApplicationActivationPolicyRegular
 #define NSApplicationActivationPolicyRegular 0
 #endif

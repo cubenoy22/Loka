@@ -174,13 +174,16 @@ Loka uses a **CMake + Ninja** based build system.
 On modern macOS or Windows, you can develop and build Loka natively by installing:
 
 * VS Code
-* CMake
-* Ninja
-* **Xcode Command Line Tools** (macOS)
+* CMake (**latest 3.x or 4.x**)
+* Ninja (**latest**)
+* macOS toolchain:
+
+  * **Xcode 3.2.6** (legacy UB1 / 10.4-10.6 oriented workflows)
+  * or **Xcode Command Line Tools** on **OS X Lion (10.7) or newer** (modern workflows)
 * **Visual Studio Build Tools** (Windows)
 
-  * **VS 2017** required for Windows XP (static linking with legacy VC++ runtime)
-  * Newer toolchains (e.g. VS 2026) may not support XP-compatible static builds
+  * **VS 2017** for Windows XP targets (legacy runtime/static-link constraints)
+  * **VS 2022 / VS 2026** for Vista and newer targets
 * a C++98-capable compiler (Clang or MSVC)
 
 This setup allows fully native development.
@@ -198,7 +201,7 @@ This setup allows fully native development.
 > * Use **x64_x86 Cross Tools Command Prompt for VS 2017**
 > * Launch VS Code from that prompt using `code .`
 >
-> Newer Visual Studio prompts or default shells may select incompatible runtimes.
+> For Vista+ targets, use newer MSVC toolchains (VS 2022 / VS 2026).
 >
 > On **Windows on ARM**, builds currently target **ARM only**.
 > On macOS, **Parallels Desktop** can be used to host a Windows environment, enabling a *single-machine* workflow for both platforms.
@@ -219,11 +222,21 @@ This setup allows fully native development.
 
 For Classic Mac OS targets, Loka is built using **Retro68**.
 
+Retro68 builds require:
+
+* CMake (required by Retro68)
+* Ninja (installed in the build environment)
+
 Recommended environments:
 
 * Linux
 * WSL (Windows Subsystem for Linux)
 * macOS with Linux containers (e.g. colima)
+
+Author-verified environments:
+
+* WSL2
+* macOS + colima
 
 The typical workflow is:
 
