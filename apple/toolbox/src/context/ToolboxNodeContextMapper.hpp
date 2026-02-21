@@ -7,6 +7,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
+#include "app/ImageView.hpp"
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
@@ -33,6 +34,7 @@ public:
   void ensureEditTextContext(loka::app::EditTextNode *node);
   void ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node);
   void ensurePopupMenuContext(loka::app::PopupMenuNode *node);
+  void ensureImageViewContext(loka::app::ImageViewNode *node);
 
 private:
   int capabilities_;

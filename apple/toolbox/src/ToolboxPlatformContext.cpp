@@ -5,6 +5,8 @@
 #include "app/AppConfigurable.hpp"
 #include "app/scene/NativeNodeContext.hpp"
 #include "app/scene/Node.hpp"
+#include "core/resource/Blob.hpp"
+#include "core/resource/Image.hpp"
 
 ToolboxPlatformContext::ToolboxPlatformContext() {}
 ToolboxPlatformContext::~ToolboxPlatformContext() {}
@@ -37,4 +39,11 @@ bool ToolboxPlatformContext::openFile(const loka::file::File &item, loka::platfo
   out.hasSpec = false;
 #endif
   return !out.displayPath.empty();
+}
+
+bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blob &,
+                                                 loka::core::resource::Image &out) const
+{
+  out = loka::core::resource::Image::Empty();
+  return false;
 }

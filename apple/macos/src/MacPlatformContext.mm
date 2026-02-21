@@ -5,6 +5,9 @@
 #include "app/AppConfigurable.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/NativeNodeContext.hpp"
+#include "core/resource/Blob.hpp"
+#include "core/resource/Image.hpp"
+#include <AppKit/AppKit.h>
 
 MacPlatformContext::MacPlatformContext() {}
 MacPlatformContext::~MacPlatformContext() {}
@@ -34,4 +37,48 @@ bool MacPlatformContext::openFile(const loka::file::File &item, loka::platform::
   out.displayPath = item.toString();
   out.kind = item.kind();
   return !out.displayPath.empty();
+}
+
+namespace
+{
+  void ReleaseNSImage(void *handle, void *)
+  {
+    if (handle)
+    {
+      [(NSImage *)handle release];
+    }
+  }
+}
+
+bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
+                                             loka::core::resource::Image &out) const
+{
+  out = loka::core::resource::Image::Empty();
+  if (!blob.isValid())
+  {
+    return false;
+  }
+  const std::vector<unsigned char> &bytes = blob.bytes();
+  if (bytes.empty())
+  {
+    return false;
+  }
+
+  NSData *data = [NSData dataWithBytes:&bytes[0] length:bytes.size()];
+  if (!data)
+  {
+    return false;
+  }
+  NSImage *image = [[NSImage alloc] initWithData:data];
+  if (!image)
+  {
+    return false;
+  }
+  NSSize size = [image size];
+  out = loka::core::resource::Image::FromNative(image,
+                                                static_cast<int>(size.width),
+                                                static_cast<int>(size.height),
+                                                &ReleaseNSImage,
+                                                0);
+  return out.isValid();
 }

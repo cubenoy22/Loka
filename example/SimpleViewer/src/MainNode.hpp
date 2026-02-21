@@ -6,6 +6,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include "app/ImageView.hpp"
 #include <cassert>
 
 namespace simpleviewer
@@ -24,7 +25,8 @@ namespace simpleviewer
     loka::core::State<loka::core::String> *message_;
     loka::core::MutableState<loka::app::FileChooserResult> *result_;
     loka::core::EmitterState *onResult_;
-    MainProps() : dialogVisible_(0), message_(0), result_(0), onResult_(0) {}
+    loka::core::State<loka::core::resource::Image> *image_;
+    MainProps() : dialogVisible_(0), message_(0), result_(0), onResult_(0), image_(0) {}
 
     MainProps &dialogVisible(loka::core::State<bool> *state)
     {
@@ -50,12 +52,19 @@ namespace simpleviewer
       return *this;
     }
 
+    MainProps &image(loka::core::State<loka::core::resource::Image> *state)
+    {
+      this->image_ = state;
+      return *this;
+    }
+
     void assertInitialized() const
     {
       assert(this->dialogVisible_);
       assert(this->message_);
       assert(this->result_);
       assert(this->onResult_);
+      assert(this->image_);
     }
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
@@ -71,7 +80,9 @@ namespace simpleviewer
         return message_ < other.message_;
       if (result_ != other.result_)
         return result_ < other.result_;
-      return onResult_ < other.onResult_;
+      if (onResult_ != other.onResult_)
+        return onResult_ < other.onResult_;
+      return image_ < other.image_;
     }
   };
 
@@ -89,8 +100,11 @@ namespace simpleviewer
       c.declare(
           VStack()
           << Empty()
-          << Text("You chose:")
+          << Text("Loka file:")
           << Text(this->props.message_)
+          << ImageView()
+                 .image(this->props.image_)
+                 .size(0, 180)
           << OpenFileDialog()
                  .isVisible(this->props.dialogVisible_)
                  .result(this->props.result_)

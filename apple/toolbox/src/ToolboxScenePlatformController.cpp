@@ -21,6 +21,7 @@ static bool sProfileCaptured = false;
 #include "app/EditText.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
+#include "app/ImageView.hpp"
 #include "app/Box.hpp"
 #include "app/Grid.hpp"
 #include "app/ZStack.hpp"
@@ -31,6 +32,7 @@ static bool sProfileCaptured = false;
 #include "context/ToolboxCellContext.hpp"
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxTextContext.hpp"
+#include "context/ToolboxImageViewContext.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/node/Boundary.hpp"
@@ -490,6 +492,20 @@ namespace
       }
       return 0;
     }
+    case loka::app::scene::NODE_KIND_IMAGE_VIEW:
+    {
+      loka::app::ImageViewNode *image = static_cast<loka::app::ImageViewNode *>(node);
+      if (controller && controller->contextMapper())
+      {
+        controller->contextMapper()->ensureImageViewContext(image);
+      }
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
     default:
       break;
     }
@@ -535,6 +551,7 @@ namespace
     case loka::app::scene::NODE_KIND_BUTTON:
     case loka::app::scene::NODE_KIND_EDIT_TEXT:
     case loka::app::scene::NODE_KIND_POPUP_MENU:
+    case loka::app::scene::NODE_KIND_IMAGE_VIEW:
       node->render(controller);
       return;
     case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:

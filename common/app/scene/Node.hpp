@@ -62,7 +62,8 @@ namespace loka
         NODE_KIND_BUTTON,
         NODE_KIND_EDIT_TEXT,
         NODE_KIND_POPUP_MENU,
-        NODE_KIND_OPEN_FILE_DIALOG
+        NODE_KIND_OPEN_FILE_DIALOG,
+        NODE_KIND_IMAGE_VIEW
       };
 
       struct INestable;
@@ -88,6 +89,7 @@ namespace loka
     class EditTextNode;
     class PopupMenuNode;
     class OpenFileDialogNode;
+    class ImageViewNode;
   } // namespace app
 
   namespace app
@@ -178,6 +180,7 @@ namespace loka
         virtual ::loka::app::EditTextNode *asEditTextNode() { return 0; }
         virtual ::loka::app::PopupMenuNode *asPopupMenuNode() { return 0; }
         virtual ::loka::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
+        virtual ::loka::app::ImageViewNode *asImageViewNode() { return 0; }
         // Generic interface query (for findBoundary without RTTI)
         virtual void *queryInterface(const char *name) { (void)name; return 0; }
         virtual void render(IPlatformController *controller)

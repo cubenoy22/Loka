@@ -5,6 +5,7 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxTextContext.hpp"
+#include "context/ToolboxImageViewContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 
 void ToolboxNodeContextMapper::ensureTextContext(loka::app::TextNode *node)
@@ -87,6 +88,20 @@ void ToolboxNodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *
   if (!ctx)
   {
     ctx = new ToolboxPopupMenuContext(node);
+    node->setContext(ctx);
+  }
+}
+
+void ToolboxNodeContextMapper::ensureImageViewContext(loka::app::ImageViewNode *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxImageViewContext *ctx = static_cast<ToolboxImageViewContext *>(node->getContext());
+  if (!ctx)
+  {
+    ctx = new ToolboxImageViewContext(node);
     node->setContext(ctx);
   }
 }

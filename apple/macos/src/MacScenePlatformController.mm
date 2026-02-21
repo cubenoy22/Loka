@@ -12,6 +12,7 @@
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
+#include "app/ImageView.hpp"
 #include "app/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
 #include "context/MacCellContext.hpp"
@@ -19,6 +20,7 @@
 #include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
+#include "context/MacImageViewContext.hpp"
 #include "loka/core/Profiler.hpp"
 
 namespace
@@ -344,6 +346,28 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + kTextHeight + kVerticalSpacing;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+  }
+
+  if (loka::app::ImageViewNode *image = node->asImageViewNode())
+  {
+    int imageWidth = image->props.width_ > 0 ? image->props.width_ : state.width;
+    int imageHeight = image->props.height_;
+    if (imageHeight <= 0 && image->props.image_)
+    {
+      const loka::core::resource::Image current = image->props.image_->get();
+      imageHeight = current.height();
+    }
+    if (imageHeight <= 0)
+    {
+      imageHeight = 160;
+    }
+
+    MacImageViewContext *ctx = new MacImageViewContext(rootView_, state.x, state.y, imageWidth, imageHeight, image);
+    image->setContext(ctx);
+
+    LayoutState nextState = state;
+    nextState.y = state.y + imageHeight + kVerticalSpacing;
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 

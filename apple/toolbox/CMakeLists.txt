@@ -14,6 +14,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/context/ToolboxNodeContextMapper.cpp
   src/context/ToolboxPopupMenuContext.cpp
   src/context/ToolboxTextContext.cpp
+  src/context/ToolboxImageViewContext.cpp
   src/ToolboxScenePlatformController.cpp
   src/ToolboxWindow.cpp
   src/ToolboxWindowContext.cpp

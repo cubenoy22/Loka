@@ -21,6 +21,7 @@ set(SOURCES
   src/context/Win32EditTextContext.cpp
   src/context/Win32OpenFileDialogContext.cpp
   src/context/Win32PopupMenuContext.cpp
+  src/context/Win32ImageViewContext.cpp
   src/platform/Win32DebugLog.cpp
   src/platform/Win32String.cpp
 )
@@ -34,6 +35,8 @@ target_include_directories(LokaWin32Core PUBLIC
 target_compile_definitions(LokaWin32Core PRIVATE
   $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
 )
+
+target_link_libraries(LokaWin32Core PRIVATE windowscodecs ole32)
 
 # Windows 固有の警告抑制など（必要なら追加）
 if(MSVC)

@@ -28,6 +28,15 @@ namespace loka
     }
   }
 
+  namespace core
+  {
+    namespace resource
+    {
+      class Blob;
+      class Image;
+    }
+  }
+
   namespace app
   {
     namespace scene
@@ -53,6 +62,8 @@ public:
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const = 0;
   virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const = 0;
+  virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
+                                   loka::core::resource::Image &out) const = 0;
 };
 
 #endif // LOKA_PLATFORMCONTEXT_HPP

@@ -12,9 +12,11 @@
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
+#include "app/ImageView.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/Profiler.hpp"
 #include "context/Win32CellContext.hpp"
+#include "context/Win32ImageViewContext.hpp"
 
 namespace
 {
@@ -372,6 +374,28 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
     LayoutState nextState = state;
     nextState.y = state.y + kTextHeight + kVerticalSpacing;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+  }
+
+  if (loka::app::ImageViewNode *image = node->asImageViewNode())
+  {
+    int imageWidth = image->props.width_ > 0 ? image->props.width_ : state.width;
+    int imageHeight = image->props.height_;
+    if (imageHeight <= 0 && image->props.image_)
+    {
+      const loka::core::resource::Image current = image->props.image_->get();
+      imageHeight = current.height();
+    }
+    if (imageHeight <= 0)
+    {
+      imageHeight = 160;
+    }
+
+    Win32ImageViewContext *ctx = new Win32ImageViewContext(rootHwnd_, state.x, state.y, imageWidth, imageHeight, image);
+    image->setContext(ctx);
+
+    LayoutState nextState = state;
+    nextState.y = state.y + imageHeight + kVerticalSpacing;
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
