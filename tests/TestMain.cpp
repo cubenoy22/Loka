@@ -8,6 +8,8 @@ int main()
   testDeferredSideEffect();
   testBatchTransaction();
   testRAIITransaction();
+  testNestedTransaction();
+  testNestedTransactionInvalidateTiming();
   testTextInputOnChange();
   testDerivedStruct();
   testSceneManagerTransaction();

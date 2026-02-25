@@ -669,3 +669,139 @@ void testLokaCoreCollections()
   printf("[Loka::core::Dictionary] keys after remove=%zu\n", extracted.size());
   printf("==== [testLokaCoreCollections] end ====\n");
 }
+
+void testNestedTransaction()
+{
+  printf("\n==== [testNestedTransaction] start ====\n");
+
+  // --- Test 1: Nested StateTrackerGuard preserves both dirty changes ---
+  {
+    printf("[test1] Nested StateTrackerGuard\n");
+    loka::core::MutableState<int> a(0);
+    loka::core::MutableState<int> b(0);
+    std::vector<loka::core::StateBase *> states = loka::core::makeStateVector(&a, &b, STATE_NULL);
+    loka::core::PushStateTracker tracker(states);
+    {
+      loka::core::StateTrackerGuard outer(&tracker);
+      a.set(10);
+      {
+        loka::core::StateTrackerGuard inner(&tracker);
+        b.set(20);
+      }
+      // inner guard ended, but outer transaction still active
+      // dirty info must be preserved
+    }
+    // outer guard ended, commit should have fired
+    assert(a.get() == 10);
+    assert(b.get() == 20);
+    printf("[test1] a=%d (expect 10), b=%d (expect 20)\n", a.get(), b.get());
+  }
+
+  // --- Test 2: Nested direct begin/end works the same ---
+  {
+    printf("[test2] Nested direct begin/end\n");
+    loka::core::MutableState<int> a(0);
+    loka::core::MutableState<int> b(0);
+    std::vector<loka::core::StateBase *> states = loka::core::makeStateVector(&a, &b, STATE_NULL);
+    loka::core::PushStateTracker tracker(states);
+    tracker.begin();
+    a.set(100);
+    tracker.begin(); // nested
+    b.set(200);
+    tracker.end(); // inner end - should be no-op
+    // phase should still be PRECOMMIT (not IDLE)
+    assert(tracker.phase() == loka::core::TRACKER_PRECOMMIT);
+    tracker.end(); // outer end - should commit
+    assert(a.get() == 100);
+    assert(b.get() == 200);
+    printf("[test2] a=%d (expect 100), b=%d (expect 200)\n", a.get(), b.get());
+  }
+
+  // --- Test 3: Deferred callbacks fire only at outermost end ---
+  {
+    printf("[test3] Deferred fires only at outermost end\n");
+    loka::core::MutableState<int> s(0);
+    std::vector<loka::core::StateBase *> states = loka::core::makeStateVector(&s, STATE_NULL);
+    loka::core::PushStateTracker tracker(states);
+    int deferredCount = 0;
+    struct DeferredCallback
+    {
+      static void callback(void *userData) { ++(*static_cast<int *>(userData)); }
+    };
+
+    tracker.begin();
+    s.set(1);
+    tracker.defer(DeferredCallback::callback, &deferredCount);
+
+    tracker.begin(); // nested
+    s.set(2);
+    tracker.defer(DeferredCallback::callback, &deferredCount);
+    tracker.end(); // inner end - deferred must NOT fire yet
+    assert(deferredCount == 0);
+
+    tracker.end(); // outer end - both deferred callbacks fire
+    assert(deferredCount == 2);
+    assert(s.get() == 2);
+    printf("[test3] deferred count=%d (expect 2), s=%d (expect 2)\n", deferredCount, s.get());
+  }
+
+  printf("==== [testNestedTransaction] end ====\n");
+}
+
+void testNestedTransactionInvalidateTiming()
+{
+  printf("\n==== [testNestedTransactionInvalidateTiming] start ====\n");
+
+  // --- Test 1: nested guard must not invalidate before outer guard ends ---
+  {
+    printf("[test1] nested guard invalidate timing\n");
+    loka::core::MutableState<int> s(0);
+    std::vector<loka::core::StateBase *> states = loka::core::makeStateVector(&s, STATE_NULL);
+    loka::core::PushStateTracker tracker(states);
+    int invalidateCount = 0;
+    struct InvalidateCounter
+    {
+      static void callback(void *userData) { ++(*static_cast<int *>(userData)); }
+    };
+
+    {
+      loka::core::StateTrackerGuard outer(&tracker, InvalidateCounter::callback, &invalidateCount);
+      s.set(1);
+      {
+        loka::core::StateTrackerGuard inner(&tracker, InvalidateCounter::callback, &invalidateCount);
+        s.set(2);
+      }
+      // Inner scope finished, but outer transaction still open.
+      // Invalidate callback must not fire before outer guard exits.
+      assert(invalidateCount == 0);
+    }
+    assert(invalidateCount == 1);
+    assert(s.get() == 2);
+    printf("[test1] invalidateCount=%d (expect 1), s=%d (expect 2)\n", invalidateCount, s.get());
+  }
+
+  // --- Test 2: consumeDirty inside nested transaction should not clear outer dirty ---
+  {
+    printf("[test2] nested consumeDirty visibility\n");
+    loka::core::MutableState<int> s(0);
+    std::vector<loka::core::StateBase *> states = loka::core::makeStateVector(&s, STATE_NULL);
+    loka::core::PushStateTracker tracker(states);
+    tracker.begin();
+    s.set(10);
+    tracker.begin(); // nested begin
+    s.set(20);
+    tracker.end(); // inner end
+    bool consumedInInner = tracker.consumeDirty();
+    assert(consumedInInner == false);
+    tracker.end();
+    bool consumedAfterOuter = tracker.consumeDirty();
+    assert(consumedAfterOuter == true);
+    assert(s.get() == 20);
+    printf("[test2] inner=%s (expect false), outer=%s (expect true), s=%d (expect 20)\n",
+           consumedInInner ? "true" : "false",
+           consumedAfterOuter ? "true" : "false",
+           s.get());
+  }
+
+  printf("==== [testNestedTransactionInvalidateTiming] end ====\n");
+}

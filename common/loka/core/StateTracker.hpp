@@ -93,6 +93,8 @@ namespace loka
       TrackerPhase phase_;
       /// dirtyFlag_: トランザクション中にdirtyが発生したか
       bool dirtyFlag_;
+      /// depth_: ネストされたbegin/endの深さカウンタ
+      unsigned int depth_;
       /// invalidate callback (optional)
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;

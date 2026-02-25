@@ -26,7 +26,9 @@ namespace loka
         if (tracker)
         {
           tracker->end();
-          if (invalidateFn && tracker->consumeDirty())
+          if (invalidateFn &&
+              tracker->phase() == TRACKER_IDLE &&
+              tracker->consumeDirty())
           {
             invalidateFn(invalidateUserData);
           }

@@ -7,11 +7,11 @@ namespace loka
   {
 
     PushStateTracker::PushStateTracker()
-        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
+        : phase_(TRACKER_IDLE), dirtyFlag_(false), depth_(0), invalidateFn_(0), invalidateUserData_(0),
           statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0) {}
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
-        : phase_(TRACKER_IDLE), dirtyFlag_(false), invalidateFn_(0), invalidateUserData_(0),
+        : phase_(TRACKER_IDLE), dirtyFlag_(false), depth_(0), invalidateFn_(0), invalidateUserData_(0),
           statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0)
     {
       for (size_t i = 0; i < states.size(); ++i)
@@ -27,6 +27,12 @@ namespace loka
 
     void PushStateTracker::begin()
     {
+      if (depth_ > 0)
+      {
+        ++depth_;
+        return;
+      }
+      ++depth_;
       for (StateEntry *e = statesHead_; e; e = e->next)
         e->state->currentTracker = this;
 #ifdef TEST_BUILD
@@ -186,6 +192,11 @@ namespace loka
 
     bool PushStateTracker::end()
     {
+      if (depth_ == 0)
+        return true;
+      --depth_;
+      if (depth_ > 0)
+        return true;
 #ifdef TEST_BUILD
       printf("[end] dependents.size()=%zu\n", dependents.size());
   for (DependencyMap::iterator it = dependents.begin(); it != dependents.end(); ++it)
@@ -294,6 +305,10 @@ namespace loka
 
     bool PushStateTracker::consumeDirty()
     {
+      if (depth_ > 0)
+      {
+        return false;
+      }
       bool dirty = dirtyFlag_;
       dirtyFlag_ = false;
       return dirty;

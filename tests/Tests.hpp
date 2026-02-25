@@ -16,5 +16,7 @@ void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();
 void testStateBatchOverflow();
+void testNestedTransaction();
+void testNestedTransactionInvalidateTiming();
 
 #endif // LOKA_TESTS_HPP
