@@ -1,4 +1,5 @@
 #include "SceneTests.hpp"
+#include "FlowDslTests.hpp"
 #include "Tests.hpp"
 
 int main()
@@ -19,6 +20,7 @@ int main()
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();
+  testLokaFlowDslV1Core();
   testStateBatchOverflow();
   SceneTests::runAll();
   return 0;

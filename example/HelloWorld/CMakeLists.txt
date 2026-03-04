@@ -18,6 +18,7 @@ if(WIN32)
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
   )
 
@@ -53,6 +54,7 @@ if(WIN32)
   # Test target (console app)
   set(WIN32_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
   )
 

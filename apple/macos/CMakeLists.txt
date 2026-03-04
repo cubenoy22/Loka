@@ -79,6 +79,7 @@ endif()
 
 set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
+  ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestMain.cpp
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
