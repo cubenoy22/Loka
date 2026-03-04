@@ -4,6 +4,7 @@
 - Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.
 - Use TypeTag static checks in debug builds; allow overriding with `USE_LOKA_STATIC_ASSERT`. Prefer `static_assert` when C++11+ is available; in C++98 builds, keep them behind `LOKA_*_CHECK_TYPETAG`.
 - C++ exceptions are disabled; do not add `try`/`catch` or rely on throwing.
+- Loka applications are single-threaded at the application layer; all UI and DSL logic must execute on the Main Thread. Multi-threading and concurrency are deferred to OS/platform-specific implementations, which must dispatch results back to the Main Thread.
 - Prefer explicit error handling and nothrow/nullable patterns in Classic builds.
 - Use `assert` for contract violations (e.g., null PlatformContext); do not throw.
 - Rename mission: user-visible/app-layer strings and titles should move to "Loka";
