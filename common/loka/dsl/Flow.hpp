@@ -6,6 +6,18 @@
 
 namespace loka {
   namespace dsl {
+    enum StepRunStatus {
+      FLOW_STEP_PENDING = 0,
+      FLOW_STEP_SUCCEEDED = 1,
+      FLOW_STEP_FAILED = 2
+    };
+
+    enum FlowRunResult {
+      FLOW_RUN_PENDING = 0,
+      FLOW_RUN_SUCCEEDED = 1,
+      FLOW_RUN_FAILED = 2
+    };
+
     struct FlowError {
       int kind;
       int code;
@@ -142,7 +154,8 @@ namespace loka {
 
     class FlowChainImpl {
     public:
-      FlowChainImpl() : finallyFn_(0), finallyUser_(0), refs_(1) {
+      FlowChainImpl()
+          : finallyFn_(0), finallyUser_(0), loadingState_(0), refs_(1) {
       }
 
       ~FlowChainImpl() {
@@ -177,6 +190,7 @@ namespace loka {
       std::vector<FlowFailureCallback> failureCallbacks_;
       void (*finallyFn_)(void *);
       void *finallyUser_;
+      bool *loadingState_;
 
       class IRuntimeStep {
       public:
@@ -184,7 +198,7 @@ namespace loka {
         }
         virtual IRuntimeStep *clone() const = 0;
         virtual int stepId() const = 0;
-        virtual bool
+        virtual StepRunStatus
         run(const void *inputFromPrev, FlowError &error, bool &errorHandled)
             = 0;
         virtual const void *outputPtr() const = 0;
@@ -198,6 +212,7 @@ namespace loka {
         next->failureCallbacks_ = this->failureCallbacks_;
         next->finallyFn_ = this->finallyFn_;
         next->finallyUser_ = this->finallyUser_;
+        next->loadingState_ = this->loadingState_;
         for (std::size_t i = 0; i < this->steps_.size(); ++i) {
           next->steps_.push_back(this->steps_[i]->clone());
         }
@@ -226,7 +241,7 @@ namespace loka {
         return this->spec_.id();
       }
 
-      virtual bool
+      virtual StepRunStatus
       run(const void *inputFromPrev, FlowError &error, bool &errorHandled) {
         errorHandled = false;
         const In *in = this->spec_.inputPtr();
@@ -235,7 +250,8 @@ namespace loka {
         }
         assert(in != 0);
 
-        if (this->spec_.adapter().run(*in, this->out_, error)) {
+        StepRunStatus status = this->spec_.adapter().run(*in, this->out_, error);
+        if (status == FLOW_STEP_SUCCEEDED) {
           const std::vector<typename Spec::SuccessCallback> &callbacks
               = this->spec_.successCallbacks();
           for (std::size_t i = 0; i < callbacks.size(); ++i) {
@@ -252,7 +268,11 @@ namespace loka {
           if (this->spec_.finallyFn() != 0) {
             this->spec_.finallyFn()(this->spec_.finallyUser());
           }
-          return true;
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+        if (status == FLOW_STEP_PENDING) {
+          return FLOW_STEP_PENDING;
         }
 
         const std::vector<typename Spec::FailureCallback> &failureCallbacks
@@ -270,7 +290,7 @@ namespace loka {
         if (this->spec_.finallyFn() != 0) {
           this->spec_.finallyFn()(this->spec_.finallyUser());
         }
-        return false;
+        return FLOW_STEP_FAILED;
       }
 
       virtual const void *outputPtr() const {
@@ -354,31 +374,49 @@ namespace loka {
         return *this;
       }
 
+      FlowChain &trackLoading(bool *loadingState) {
+        this->detachIfShared();
+        this->impl_->loadingState_ = loadingState;
+        return *this;
+      }
+
       bool run() const {
+        return this->runResult() == FLOW_RUN_SUCCEEDED;
+      }
+
+      FlowRunResult runResult() const {
         return this->runFromIndex(0);
       }
 
       bool resume(int stepId) const {
+        return this->resumeResult(stepId) == FLOW_RUN_SUCCEEDED;
+      }
+
+      FlowRunResult resumeResult(int stepId) const {
         std::size_t start = 0;
         if (!this->findStepIndex(stepId, start)) {
-          return false;
+          return FLOW_RUN_FAILED;
         }
         return this->runFromIndex(start);
       }
 
     private:
-      bool runFromIndex(std::size_t startIndex) const {
+      FlowRunResult runFromIndex(std::size_t startIndex) const {
         if (startIndex >= this->impl_->steps_.size()) {
-          return false;
+          return FLOW_RUN_FAILED;
         }
 
         const void *current = 0;
         FlowError error;
-        bool finishedOk = true;
+        if (this->impl_->loadingState_ != 0) {
+          *this->impl_->loadingState_ = true;
+        }
 
         for (std::size_t i = startIndex; i < this->impl_->steps_.size(); ++i) {
           bool stepHandled = false;
-          if (this->impl_->steps_[i]->run(current, error, stepHandled)) {
+          StepRunStatus stepStatus
+              = this->impl_->steps_[i]->run(current, error, stepHandled);
+          if (stepStatus == FLOW_STEP_SUCCEEDED) {
             current = this->impl_->steps_[i]->outputPtr();
             for (std::size_t k = 0; k < this->impl_->successCallbacks_.size();
                  ++k) {
@@ -386,6 +424,10 @@ namespace loka {
                   this->impl_->successCallbacks_[k].user);
             }
             continue;
+          }
+
+          if (stepStatus == FLOW_STEP_PENDING) {
+            return FLOW_RUN_PENDING;
           }
 
           bool flowHandled = false;
@@ -400,16 +442,23 @@ namespace loka {
               break; // first-match-wins
             }
           }
-
-          finishedOk = stepHandled || flowHandled;
-          break;
+          if (this->impl_->finallyFn_ != 0) {
+            this->impl_->finallyFn_(this->impl_->finallyUser_);
+          }
+          if (this->impl_->loadingState_ != 0) {
+            *this->impl_->loadingState_ = false;
+          }
+          return stepHandled || flowHandled ? FLOW_RUN_SUCCEEDED : FLOW_RUN_FAILED;
         }
 
         if (this->impl_->finallyFn_ != 0) {
           this->impl_->finallyFn_(this->impl_->finallyUser_);
         }
+        if (this->impl_->loadingState_ != 0) {
+          *this->impl_->loadingState_ = false;
+        }
 
-        return finishedOk;
+        return FLOW_RUN_SUCCEEDED;
       }
 
       bool findStepIndex(int stepId, std::size_t &indexOut) const {

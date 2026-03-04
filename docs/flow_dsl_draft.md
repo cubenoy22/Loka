@@ -73,6 +73,23 @@ Step boundary rule:
 - Do not use `endStep()` style terminators.
 - Configure a step with chained methods/operators inside the step segment.
 
+### 1.1) Step run status (v1)
+
+Adapter execution is tri-state:
+
+```cpp
+enum StepRunStatus
+{
+  FLOW_STEP_PENDING = 0,
+  FLOW_STEP_SUCCEEDED = 1,
+  FLOW_STEP_FAILED = 2
+};
+```
+
+- `SUCCEEDED`: continue to next step.
+- `FAILED`: enter local `onFailure` chain.
+- `PENDING`: pause flow without terminal cleanup and wait for explicit `resume(StepId)`.
+
 ### 2) Step-first composition (v1)
 
 v1 prefers step-first composition without placeholder syntax.
@@ -92,6 +109,18 @@ Any step may expose a typed step ID:
 Runtime API:
 
 - `resume(StepId id)`
+- `runResult()` / `resumeResult(StepId id)`
+
+Flow run result is also tri-state:
+
+```cpp
+enum FlowRunResult
+{
+  FLOW_RUN_PENDING = 0,
+  FLOW_RUN_SUCCEEDED = 1,
+  FLOW_RUN_FAILED = 2
+};
+```
 
 If ID is not reachable/valid, return failure result (no throw).
 
@@ -250,7 +279,7 @@ Use optional output state bindings:
 v1 loading contract:
 
 - set `isLoading = true` when flow starts
-- keep `isLoading = true` until flow terminal cleanup
+- keep `isLoading = true` while active or paused in `PENDING`
 - set `isLoading = false` in terminal cleanup
 
 `onSuccess` is not required for correctness; flows may terminate without updating a user-visible `result` state.
@@ -293,6 +322,7 @@ Attachment rule:
 - Flow-scoped `onFinally` runs once at flow terminal.
 - A step may declare at most one `onFinally`; flow may declare at most one flow-level `onFinally`.
 - If step-scoped `onFinally` proves too costly in v1 implementation, fallback to flow-terminal-only mode is permitted and must be documented at build time.
+- `PENDING` is not terminal; step/flow `onFinally` does not run on `PENDING`.
 
 Execution order rule (v1, explicit):
 
@@ -507,13 +537,15 @@ This enables static validation of missing handlers and unreachable transitions.
 - `onFailureGlobal` is removed; `Unhandled` bubbles to parent `onFailure`.
 - `Step(...)` boundaries are explicit in the `|` chain and do not require `endStep()`.
 - `StepId` is opt-in; only ID-marked steps are resumable.
+- Adapter run is tri-state (`PENDING/SUCCEEDED/FAILED`), not bool.
 - `timeoutMs(ms, handler, resumeStep)` is shorthand for timeout + local `onFailure`.
 - Matching order in `onFailure`: equality (`==`) -> `Pattern::match` -> custom functor (first-match-wins).
 - `onSuccess` is optional; a flow may finish without writing a user-visible result state.
 - handler-attached jump destinations (`..., STEP_X`) are the primary control-flow mechanism.
 - `resume(StepId)` is per-flow only in v1 (no global resume registry).
 - For cross-flow bubbling, use typed local errors internally and convert to lightweight `ErrorEnvelope(kind, code)` at boundaries.
-- `trackLoading` in v1 is simple bool lifecycle (`start=true`, `finally=false`) with terminal/destructor cleanup fallback.
+- `trackLoading` in v1 is simple bool lifecycle (`start=true`, `terminal=false`) with terminal/destructor cleanup fallback.
+- During `PENDING`, `trackLoading` remains `true`.
 - `STEP_CANCELED` is a standard terminal destination for user-initiated or owner-driven cancellation.
 - `timeoutMs(ms, handler, resumeStep)` requires an active `PlatformContext` or timer system passed at start.
 - `EmitterState`-driven resume is out of scope for v1 and deferred to v1.1+.
@@ -530,6 +562,7 @@ This enables static validation of missing handlers and unreachable transitions.
 - handler-attached jump destinations (`..., STEP_X`) are the control-flow mechanism in v1.
 - `cancel` is modeled as terminal step transition (`STEP_CANCELED`).
 - `onFinally` is step-scoped by default and argument-less; flow-level `onFinally` remains available for terminal-only cleanup.
+- `onFinally` does not run on `PENDING`; it runs only on terminal finalization.
 - Handler execution order is deterministic: step scope (top-to-bottom) first, flow scope after, and flow `onFinally` last.
 - v1 omits `Conditional`; branch routing is expressed by explicit steps and handler-driven step jumps.
 - Local flow errors remain typed; parent bubbling crosses lightweight `ErrorEnvelope(kind, code)` boundary.
@@ -541,6 +574,7 @@ This enables static validation of missing handlers and unreachable transitions.
 - `EmitterState`-driven resume is deferred until after explicit `flow->resume(id)` behavior is validated.
 - `Step(id, adapter)` is the single composition primitive for bounded transform/async stages that are expected to terminate.
 - Long-lived resource holders (for example always-on players) should live outside v1 Flow runtime ownership.
+- Runtime result model is tri-state (`FLOW_RUN_PENDING/SUCCEEDED/FAILED`) to support explicit pause/resume semantics.
 
 ### v2 direction (kept as future note)
 

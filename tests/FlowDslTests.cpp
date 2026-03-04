@@ -27,22 +27,19 @@ namespace {
       ctx->order->push_back(ctx->marker);
     }
 
-    static loka::dsl::FlowHandleResult
-    onFlowFailureHandled(const loka::dsl::FlowError &, void *user) {
+    static loka::dsl::FlowHandleResult onFlowFailureHandled(const loka::dsl::FlowError &, void *user) {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
       return loka::dsl::FLOW_ERROR_HANDLED;
     }
 
-    static loka::dsl::FlowHandleResult
-    onStepFailureUnhandled(const loka::dsl::FlowError &, void *user) {
+    static loka::dsl::FlowHandleResult onStepFailureUnhandled(const loka::dsl::FlowError &, void *user) {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
       return loka::dsl::FLOW_ERROR_UNHANDLED;
     }
 
-    static loka::dsl::FlowHandleResult
-    onStepFailureHandled(const loka::dsl::FlowError &, void *user) {
+    static loka::dsl::FlowHandleResult onStepFailureHandled(const loka::dsl::FlowError &, void *user) {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
       return loka::dsl::FLOW_ERROR_HANDLED;
@@ -56,30 +53,67 @@ namespace {
   struct FlowTestMul2Adapter {
     typedef int In;
     typedef int Out;
-    bool run(const int &in, int &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
       out = in * 2;
-      return true;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
   };
 
   struct FlowTestAdd1Adapter {
     typedef int In;
     typedef int Out;
-    bool run(const int &in, int &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
       out = in + 1;
-      return true;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
   };
 
   struct FlowTestFail500Adapter {
     typedef int In;
     typedef int Out;
-    bool run(const int &, int &out, loka::dsl::FlowError &error) const {
+    loka::dsl::StepRunStatus run(const int &, int &out, loka::dsl::FlowError &error) const {
       out = 0;
       error.kind = 1;
       error.code = 500;
-      return false;
+      return loka::dsl::FLOW_STEP_FAILED;
     }
+  };
+
+  struct FlowTestCheckLoadingAdapter {
+    typedef int In;
+    typedef int Out;
+
+    explicit FlowTestCheckLoadingAdapter(const bool *loadingState) : loadingState_(loadingState) {
+    }
+
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
+      assert(this->loadingState_ != 0);
+      assert(*this->loadingState_ == true);
+      out = in;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    const bool *loadingState_;
+  };
+
+  struct FlowTestPendingThenSuccessAdapter {
+    typedef int In;
+    typedef int Out;
+
+    FlowTestPendingThenSuccessAdapter(bool *ready, int *calls) : ready_(ready), calls_(calls) {
+    }
+
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
+      ++(*this->calls_);
+      if (!*this->ready_) {
+        return loka::dsl::FLOW_STEP_PENDING;
+      }
+      out = in + 100;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    bool *ready_;
+    int *calls_;
   };
 } // namespace
 
@@ -99,7 +133,7 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext fs2 = {&order, 22};
     FlowTestMarkerContext ff = {&order, 99};
 
-    loka::dsl::FlowChain<int, int> chain =
+    loka::dsl::FlowChain<int, int> chain = //
         loka::dsl::Flow()
         | loka::dsl::Step(1, FlowTestMul2Adapter())
               .input(&input)
@@ -149,14 +183,10 @@ void testLokaFlowDslV1Core() {
               .onSuccess(&FlowTestMarker::onStepSuccess, &s1)
               .onFinally(&FlowTestMarker::onStepFinally, &f1)
         | loka::dsl::Step(2, FlowTestFail500Adapter())
-              .onFailure(&FlowTestMarker::is500,
-                         &FlowTestMarker::onStepFailureUnhandled,
-                         &failMatchUnhandled)
-              .onFailure(&FlowTestMarker::onStepFailureHandled,
-                         &failDefaultHandled)
+              .onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &failMatchUnhandled)
+              .onFailure(&FlowTestMarker::onStepFailureHandled, &failDefaultHandled)
               .onFinally(&FlowTestMarker::onStepFinally, &f2)
-        | loka::dsl::Step(3, FlowTestAdd1Adapter())
-              .onSuccess(&FlowTestMarker::onStepSuccess, &s3);
+        | loka::dsl::Step(3, FlowTestAdd1Adapter()).onSuccess(&FlowTestMarker::onStepSuccess, &s3);
     chain.onSuccess(&FlowTestMarker::onFlowSuccess, &fs);
     chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowFail);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
@@ -202,7 +232,7 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext f2 = {&order, 221};
     FlowTestMarkerContext flowFinal = {&order, 299};
 
-    loka::dsl::FlowChain<int, int> chain =
+    loka::dsl::FlowChain<int, int> chain = //
         loka::dsl::Flow()
         | loka::dsl::Step(1, FlowTestMul2Adapter())
               .input(&inputA)
@@ -225,6 +255,83 @@ void testLokaFlowDslV1Core() {
 
     const bool missing = chain.resume(9999);
     assert(!missing);
+  }
+
+  {
+    int input = 10;
+    bool loading = false;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 399};
+
+    // Keep this chain multi-line for readability of the DSL flow.
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestCheckLoadingAdapter(&loading))
+              .input(&input);
+    chain.trackLoading(&loading);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(loading == false);
+    const bool ok = chain.run();
+    assert(ok);
+    assert(loading == false);
+    assert(order.size() == 1);
+    assert(order[0] == 399);
+  }
+
+  {
+    int input = 9;
+    bool loading = false;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 499};
+
+    loka::dsl::FlowChain<int, int> chain = //
+        loka::dsl::Flow()                  //
+        | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input);
+    chain.trackLoading(&loading);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(loading == false);
+    const bool ok = chain.run();
+    assert(!ok);
+    assert(loading == false);
+    assert(order.size() == 1);
+    assert(order[0] == 499);
+  }
+
+  {
+    int input = 23;
+    int calls = 0;
+    bool ready = false;
+    bool loading = false;
+    int captured = 0;
+    std::vector<int> order;
+    FlowTestMarkerContext stepFinal = {&order, 510};
+    FlowTestMarkerContext flowFinal = {&order, 599};
+
+    loka::dsl::FlowChain<int, int> chain = loka::dsl::Flow()
+                                           | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+                                                 .input(&input)
+                                                 .onSuccess(&captured)
+                                                 .onFinally(&FlowTestMarker::onStepFinally, &stepFinal);
+    chain.trackLoading(&loading);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const loka::dsl::FlowRunResult first = chain.runResult();
+    assert(first == loka::dsl::FLOW_RUN_PENDING);
+    assert(calls == 1);
+    assert(loading == true);
+    assert(order.empty()); // no finally on pending
+
+    ready = true;
+    const loka::dsl::FlowRunResult resumed = chain.resumeResult(1);
+    assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(calls == 2);
+    assert(captured == 123);
+    assert(loading == false);
+    assert(order.size() == 2);
+    assert(order[0] == 510);
+    assert(order[1] == 599);
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");

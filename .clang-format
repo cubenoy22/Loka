@@ -1,6 +1,7 @@
 BasedOnStyle: LLVM
 Language: Cpp
 Standard: Cpp03
+ColumnLimit: 120
 # Keep formatting conservative to avoid breaking C++98 parsing
 SpacesInAngles: false
 BinPackParameters: false
