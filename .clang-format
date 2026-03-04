@@ -1,10 +1,12 @@
 BasedOnStyle: LLVM
 Language: Cpp
-Standard: Cpp98
+Standard: Cpp03
 # Keep formatting conservative to avoid breaking C++98 parsing
 SpacesInAngles: false
 BinPackParameters: false
 BinPackArguments: false
 AllowShortFunctionsOnASingleLine: None
 SortIncludes: false
-NamespaceIndentation: None
+# TODO: Revisit and switch back to None after broader formatting migration.
+NamespaceIndentation: All
+BreakBeforeBinaryOperators: NonAssignment
