@@ -137,6 +137,23 @@ namespace {
 
     bool *failedOnce_;
   };
+
+  struct FlowTestCountedPassAdapter {
+    typedef int In;
+    typedef int Out;
+
+    explicit FlowTestCountedPassAdapter(int *calls) : calls_(calls) {
+    }
+
+    loka::dsl::StepRunStatus run(const int &in, int &out,
+                                 loka::dsl::FlowError &) const {
+      ++(*this->calls_);
+      out = in + 1;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    int *calls_;
+  };
 } // namespace
 
 void testLokaFlowDslV1Core() {
@@ -408,6 +425,56 @@ void testLokaFlowDslV1Core() {
     assert(order[0] == 710);
     assert(order[1] == 711);
     assert(order[2] == 799);
+  }
+
+  {
+    int input = 10;
+    int out = 0;
+    int callsA = 0;
+    int callsB = 0;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 899};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA))
+                .input(&input)
+                .onSuccess(&out, 2)
+          | loka::dsl::Step(2, FlowTestCountedPassAdapter(&callsB))
+                .onSuccess(&out);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const bool ok = chain.run();
+    assert(ok);
+    assert(callsA == 1);
+    assert(callsB == 1);
+    assert(out == 12);
+    assert(order.size() == 1);
+    assert(order[0] == 899);
+  }
+
+  {
+    int input = 20;
+    int out = 0;
+    std::vector<int> flowMarks;
+    FlowTestMarkerContext flowSuccess = {&flowMarks, 1};
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 999};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestAdd1Adapter())
+                .input(&input)
+                .onSuccess(&out);
+    chain.onSuccess(&FlowTestMarker::onFlowSuccess, &flowSuccess, 9999);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const bool ok = chain.run();
+    assert(!ok);
+    assert(flowMarks.size() == 1);
+    assert(out == 21);
+    assert(order.size() == 1);
+    assert(order[0] == 999);
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");

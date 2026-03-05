@@ -270,6 +270,18 @@ Jump rule (v1):
 - `Unhandled` never triggers a jump and continues bubbling.
 - Jump lookup uses the same per-flow `StepId` table used by `resume(StepId)`.
 
+Success-jump form (v1):
+
+```cpp
+onSuccess(&cacheResult, STEP_NEXT);
+```
+
+Success-jump rule (v1):
+
+- `onSuccess(..., STEP_X)` requests a jump after success observers run.
+- Matching remains declaration-order; first jump request in the chain wins.
+- `onSuccess(..., STEP_X)` uses the same per-flow `StepId` lookup as failure-jump/resume.
+
 Parent-side matching:
 
 1. fast path: `kind/code`

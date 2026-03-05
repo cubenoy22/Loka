@@ -49,6 +49,7 @@ namespace loka {
       struct SuccessCallback {
         SuccessFn fn;
         void *user;
+        int resumeStepId;
       };
 
       struct FailureCallback {
@@ -72,12 +73,32 @@ namespace loka {
         SuccessCallback cb;
         cb.fn = fn;
         cb.user = user;
+        cb.resumeStepId = -1;
+        this->successCallbacks_.push_back(cb);
+        return *this;
+      }
+
+      StepSpec &onSuccess(SuccessFn fn, void *user, int resumeStepId) {
+        SuccessCallback cb;
+        cb.fn = fn;
+        cb.user = user;
+        cb.resumeStepId = resumeStepId;
         this->successCallbacks_.push_back(cb);
         return *this;
       }
 
       StepSpec &onSuccess(Out *targetState) {
         this->successStates_.push_back(targetState);
+        return *this;
+      }
+
+      StepSpec &onSuccess(Out *targetState, int resumeStepId) {
+        this->successStates_.push_back(targetState);
+        SuccessCallback cb;
+        cb.fn = 0;
+        cb.user = 0;
+        cb.resumeStepId = resumeStepId;
+        this->successCallbacks_.push_back(cb);
         return *this;
       }
 
@@ -195,6 +216,7 @@ namespace loka {
       struct FlowSuccessCallback {
         void (*fn)(void *);
         void *user;
+        int resumeStepId;
       };
 
       struct FlowFailureCallback {
@@ -218,7 +240,7 @@ namespace loka {
         virtual int stepId() const = 0;
         virtual StepRunStatus
         run(const void *inputFromPrev, FlowError &error, bool &errorHandled,
-            int &resumeStepId)
+            int &resumeStepId, int &successResumeStepId)
             = 0;
         virtual const void *outputPtr() const = 0;
       };
@@ -262,9 +284,10 @@ namespace loka {
 
       virtual StepRunStatus
       run(const void *inputFromPrev, FlowError &error, bool &errorHandled,
-          int &resumeStepId) {
+          int &resumeStepId, int &successResumeStepId) {
         errorHandled = false;
         resumeStepId = -1;
+        successResumeStepId = -1;
         const In *in = this->spec_.inputPtr();
         if (in == 0) {
           in = static_cast<const In *>(inputFromPrev);
@@ -276,7 +299,12 @@ namespace loka {
           const std::vector<typename Spec::SuccessCallback> &callbacks
               = this->spec_.successCallbacks();
           for (std::size_t i = 0; i < callbacks.size(); ++i) {
-            callbacks[i].fn(this->out_, callbacks[i].user);
+            if (callbacks[i].fn != 0) {
+              callbacks[i].fn(this->out_, callbacks[i].user);
+            }
+            if (successResumeStepId < 0 && callbacks[i].resumeStepId >= 0) {
+              successResumeStepId = callbacks[i].resumeStepId;
+            }
           }
 
           const std::vector<Out *> &states = this->spec_.successStates();
@@ -373,6 +401,17 @@ namespace loka {
         FlowChainImpl::FlowSuccessCallback cb;
         cb.fn = fn;
         cb.user = user;
+        cb.resumeStepId = -1;
+        this->impl_->successCallbacks_.push_back(cb);
+        return *this;
+      }
+
+      FlowChain &onSuccess(void (*fn)(void *), void *user, int resumeStepId) {
+        this->detachIfShared();
+        FlowChainImpl::FlowSuccessCallback cb;
+        cb.fn = fn;
+        cb.user = user;
+        cb.resumeStepId = resumeStepId;
         this->impl_->successCallbacks_.push_back(cb);
         return *this;
       }
@@ -458,15 +497,41 @@ namespace loka {
         for (std::size_t i = startIndex; i < this->impl_->steps_.size(); ++i) {
           bool stepHandled = false;
           int stepResumeStepId = -1;
+          int stepSuccessResumeStepId = -1;
           StepRunStatus stepStatus
               = this->impl_->steps_[i]->run(current, error, stepHandled,
-                                            stepResumeStepId);
+                                            stepResumeStepId,
+                                            stepSuccessResumeStepId);
           if (stepStatus == FLOW_STEP_SUCCEEDED) {
             current = this->impl_->steps_[i]->outputPtr();
+            int flowSuccessResumeStepId = -1;
             for (std::size_t k = 0; k < this->impl_->successCallbacks_.size();
                  ++k) {
               this->impl_->successCallbacks_[k].fn(
                   this->impl_->successCallbacks_[k].user);
+              if (flowSuccessResumeStepId < 0
+                  && this->impl_->successCallbacks_[k].resumeStepId >= 0) {
+                flowSuccessResumeStepId
+                    = this->impl_->successCallbacks_[k].resumeStepId;
+              }
+            }
+
+            const int jumpStepId = stepSuccessResumeStepId >= 0
+                                       ? stepSuccessResumeStepId
+                                       : flowSuccessResumeStepId;
+            if (jumpStepId >= 0) {
+              std::size_t jumpIndex = 0;
+              if (!this->findStepIndex(jumpStepId, jumpIndex)) {
+                if (this->impl_->finallyFn_ != 0) {
+                  this->impl_->finallyFn_(this->impl_->finallyUser_);
+                }
+                if (this->impl_->loadingState_ != 0) {
+                  *this->impl_->loadingState_ = false;
+                }
+                return FLOW_RUN_FAILED;
+              }
+              i = (jumpIndex == 0) ? static_cast<std::size_t>(-1)
+                                   : (jumpIndex - 1);
             }
             continue;
           }
@@ -506,7 +571,6 @@ namespace loka {
               }
               return FLOW_RUN_FAILED;
             }
-            current = 0;
             i = (jumpIndex == 0) ? static_cast<std::size_t>(-1) : (jumpIndex - 1);
             continue;
           }
