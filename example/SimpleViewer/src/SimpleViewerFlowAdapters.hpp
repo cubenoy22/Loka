@@ -11,6 +11,18 @@
 
 namespace simpleviewer
 {
+  enum SimpleViewerFlowErrorKind
+  {
+    SIMPLE_VIEWER_FLOW_ERROR_NONE = 0,
+    SIMPLE_VIEWER_FLOW_ERROR_DECODE = 1
+  };
+
+  enum SimpleViewerFlowErrorCode
+  {
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_CONTEXT_MISSING = 1001,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED = 1002
+  };
+
   struct ChooserContext
   {
     ChooserContext()
@@ -115,15 +127,25 @@ namespace simpleviewer
 
     explicit BlobToDecodeAttemptAdapter(PlatformContext *ctx) : ctx_(ctx) {}
 
-    loka::dsl::StepRunStatus run(const In &blob, Out &attempt, loka::dsl::FlowError &) const
+    loka::dsl::StepRunStatus run(const In &blob, Out &attempt, loka::dsl::FlowError &error) const
     {
       attempt = Out();
-      if (this->ctx_ && this->ctx_->createImageFromBlob(blob, attempt.image))
+      if (!this->ctx_)
+      {
+        error.kind = SIMPLE_VIEWER_FLOW_ERROR_DECODE;
+        error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_CONTEXT_MISSING;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+
+      if (this->ctx_->createImageFromBlob(blob, attempt.image))
       {
         attempt.decoded = true;
         return loka::dsl::FLOW_STEP_SUCCEEDED;
       }
-      return loka::dsl::FLOW_STEP_SUCCEEDED;
+
+      error.kind = SIMPLE_VIEWER_FLOW_ERROR_DECODE;
+      error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED;
+      return loka::dsl::FLOW_STEP_FAILED;
     }
 
     PlatformContext *ctx_;

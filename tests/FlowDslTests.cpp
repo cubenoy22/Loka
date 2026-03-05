@@ -12,6 +12,12 @@ namespace {
     int marker;
   };
 
+  struct FlowErrorCapture {
+    int kind;
+    int code;
+    int calls;
+  };
+
   struct FlowTestMarker {
     static void onStepSuccess(const int &, void *user) {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
@@ -48,6 +54,16 @@ namespace {
 
     static bool is500(const loka::dsl::FlowError &error, void *) {
       return error.code == 500;
+    }
+
+    static loka::dsl::FlowHandleResult captureFailure(const loka::dsl::FlowError &error, void *user) {
+      FlowErrorCapture *capture = static_cast<FlowErrorCapture *>(user);
+      if (capture) {
+        capture->kind = error.kind;
+        capture->code = error.code;
+        ++capture->calls;
+      }
+      return loka::dsl::FLOW_ERROR_HANDLED;
     }
   };
 
@@ -724,17 +740,22 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
     simpleviewer::BlobDecodeAttempt attempt;
     loka::core::resource::Image image;
+    FlowErrorCapture capture = {0, 0, 0};
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
         = loka::dsl::Flow()
           | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(0))
                 .input(&blob)
                 .onSuccess(&attempt)
+                .onFailure(&FlowTestMarker::captureFailure, &capture)
           | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
                 .onSuccess(&image);
 
     assert(chain.run());
     assert(!image.isValid());
+    assert(capture.calls == 1);
+    assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_DECODE);
+    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_CONTEXT_MISSING);
   }
 
   {
@@ -743,12 +764,14 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
     simpleviewer::BlobDecodeAttempt attempt;
     loka::core::resource::Image image;
+    FlowErrorCapture capture = {0, 0, 0};
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
         = loka::dsl::Flow()
           | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
                 .input(&blob)
                 .onSuccess(&attempt)
+                .onFailure(&FlowTestMarker::captureFailure, &capture)
           | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
                 .onSuccess(&image);
 
@@ -757,6 +780,7 @@ void testLokaFlowDslV1Core() {
     assert(image.isValid());
     assert(image.width() == 16);
     assert(image.height() == 16);
+    assert(capture.calls == 0);
   }
 
   {
@@ -765,18 +789,23 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
     simpleviewer::BlobDecodeAttempt attempt;
     loka::core::resource::Image image;
+    FlowErrorCapture capture = {0, 0, 0};
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
         = loka::dsl::Flow()
           | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
                 .input(&blob)
                 .onSuccess(&attempt)
+                .onFailure(&FlowTestMarker::captureFailure, &capture)
           | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
                 .onSuccess(&image);
 
     assert(chain.run());
     assert(ctx.createImageCalls_ == 1);
     assert(!image.isValid());
+    assert(capture.calls == 1);
+    assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_DECODE);
+    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED);
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");

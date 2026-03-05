@@ -28,6 +28,10 @@ public:
         blobRequest_(),
         blob_(),
         image_(),
+        chooserInput_(),
+        blobInput_(),
+        chooserFlow_(buildChooserFlow(this)),
+        blobFlow_(buildBlobFlow(this)),
         tracker_(),
         openDialogEvent_()
   {
@@ -67,6 +71,9 @@ public:
   }
 
 private:
+  typedef loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> ChooserFlowChain;
+  typedef loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> BlobFlowChain;
+
   enum FlowStepId
   {
     FLOW_STEP_CHOOSER_TO_CONTEXT = 1,
@@ -92,44 +99,14 @@ private:
 
   void runChooserPipeline()
   {
-    const loka::app::FileChooserResult result = this->chooserResult_.get();
-    simpleviewer::ChooserContext context;
-    simpleviewer::ChooserProjection projection;
-
-    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(FLOW_STEP_CHOOSER_TO_CONTEXT, simpleviewer::ChooserToContextAdapter())
-              .input(&result)
-              .onSuccess(&context)
-        | loka::dsl::Step(FLOW_STEP_CONTEXT_TO_PROJECTION, simpleviewer::ContextToProjectionAdapter())
-              .onSuccess(&projection);
-    (void)chain.run();
-
-    this->applyChooserProjection(projection);
+    this->chooserInput_ = this->chooserResult_.get();
+    (void)this->chooserFlow_.run();
   }
 
   void runBlobPipeline()
   {
-    PlatformContext *ctx = this->getPlatformContext();
-    if (!ctx)
-    {
-      return;
-    }
-
-    const loka::core::resource::Blob blob = this->blob_.get();
-    simpleviewer::BlobDecodeAttempt attempt;
-    loka::core::resource::Image image;
-
-    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(FLOW_STEP_BLOB_DECODE_ATTEMPT, simpleviewer::BlobToDecodeAttemptAdapter(ctx))
-              .input(&blob)
-              .onSuccess(&attempt)
-        | loka::dsl::Step(FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE, simpleviewer::DecodeAttemptToImageAdapter())
-              .onSuccess(&image);
-    (void)chain.run();
-
-    this->applyDecodedImage(image);
+    this->blobInput_ = this->blob_.get();
+    (void)this->blobFlow_.run();
   }
 
   void applyChooserProjection(const simpleviewer::ChooserProjection &projection)
@@ -143,6 +120,71 @@ private:
   {
     loka::core::StateTrackerGuard guard(&this->tracker_);
     this->image_.set(image, true);
+  }
+
+  void applyBlobDecodeError(const loka::dsl::FlowError &error)
+  {
+    loka::core::StateTrackerGuard guard(&this->tracker_);
+    this->image_.set(loka::core::resource::Image::Empty(), true);
+    this->chooserMessage_.set(loka::core::String::Literal("Decode error ")
+                                  + loka::core::String::FromInt(error.code),
+                              true);
+  }
+
+  static void OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData)
+  {
+    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    if (self)
+    {
+      self->applyChooserProjection(projection);
+    }
+  }
+
+  static void OnDecodedImage(const loka::core::resource::Image &image, void *userData)
+  {
+    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    if (self)
+    {
+      self->applyDecodedImage(image);
+    }
+  }
+
+  static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData)
+  {
+    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    if (self)
+    {
+      self->applyBlobDecodeError(error);
+    }
+    return loka::dsl::FLOW_ERROR_HANDLED;
+  }
+
+  static void OnFlowFinally(void *) {}
+
+  static ChooserFlowChain buildChooserFlow(MyAppConfig *self)
+  {
+    ChooserFlowChain chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(FLOW_STEP_CHOOSER_TO_CONTEXT, simpleviewer::ChooserToContextAdapter())
+              .input(&self->chooserInput_)
+        | loka::dsl::Step(FLOW_STEP_CONTEXT_TO_PROJECTION, simpleviewer::ContextToProjectionAdapter())
+              .onSuccess(&MyAppConfig::OnChooserProjection, self);
+    chain.onFinally(&MyAppConfig::OnFlowFinally, self);
+    return chain;
+  }
+
+  static BlobFlowChain buildBlobFlow(MyAppConfig *self)
+  {
+    BlobFlowChain chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(FLOW_STEP_BLOB_DECODE_ATTEMPT,
+                          simpleviewer::BlobToDecodeAttemptAdapter(self->getPlatformContext()))
+              .input(&self->blobInput_)
+              .onFailure(&MyAppConfig::OnBlobDecodeFailure, self)
+        | loka::dsl::Step(FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE, simpleviewer::DecodeAttemptToImageAdapter())
+              .onSuccess(&MyAppConfig::OnDecodedImage, self);
+    chain.onFinally(&MyAppConfig::OnFlowFinally, self);
+    return chain;
   }
 
   template <void (MyAppConfig::*Method)()>
@@ -161,6 +203,10 @@ private:
   loka::core::MutableState<loka::core::resource::BlobLoaderRequest> blobRequest_;
   loka::core::MutableState<loka::core::resource::Blob> blob_;
   loka::core::MutableState<loka::core::resource::Image> image_;
+  loka::app::FileChooserResult chooserInput_;
+  loka::core::resource::Blob blobInput_;
+  ChooserFlowChain chooserFlow_;
+  BlobFlowChain blobFlow_;
   loka::core::resource::BlobLoader blobLoader_;
   loka::core::PushStateTracker tracker_;
   loka::core::EmitterState openDialogEvent_;
