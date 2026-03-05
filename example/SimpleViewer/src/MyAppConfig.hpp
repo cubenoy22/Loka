@@ -67,6 +67,12 @@ public:
   }
 
 private:
+  enum FlowStepId
+  {
+    FLOW_STEP_CHOOSER_PROJECTION = 1,
+    FLOW_STEP_BLOB_TO_IMAGE = 2
+  };
+
   enum PipelineTrigger
   {
     PIPELINE_TRIGGER_CHOOSER = 0,
@@ -97,13 +103,10 @@ private:
     if (trigger == PIPELINE_TRIGGER_CHOOSER)
     {
       this->runChooserPipeline();
-      return;
     }
-
-    if (trigger == PIPELINE_TRIGGER_BLOB)
+    else if (trigger == PIPELINE_TRIGGER_BLOB)
     {
       this->runBlobPipeline();
-      return;
     }
   }
 
@@ -114,14 +117,12 @@ private:
 
     loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
+        | loka::dsl::Step(FLOW_STEP_CHOOSER_PROJECTION, simpleviewer::ChooserToProjectionAdapter())
               .input(&result)
               .onSuccess(&projection);
     (void)chain.run();
 
-    loka::core::StateTrackerGuard guard(&this->tracker_);
-    this->chooserMessage_.set(projection.message, true);
-    this->blobRequest_.set(projection.request, true);
+    this->applyChooserProjection(projection);
   }
 
   void runBlobPipeline()
@@ -137,11 +138,23 @@ private:
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(ctx))
+        | loka::dsl::Step(FLOW_STEP_BLOB_TO_IMAGE, simpleviewer::BlobToImageAdapter(ctx))
               .input(&blob)
               .onSuccess(&image);
     (void)chain.run();
 
+    this->applyDecodedImage(image);
+  }
+
+  void applyChooserProjection(const simpleviewer::ChooserProjection &projection)
+  {
+    loka::core::StateTrackerGuard guard(&this->tracker_);
+    this->chooserMessage_.set(projection.message, true);
+    this->blobRequest_.set(projection.request, true);
+  }
+
+  void applyDecodedImage(const loka::core::resource::Image &image)
+  {
     loka::core::StateTrackerGuard guard(&this->tracker_);
     this->image_.set(image, true);
   }
