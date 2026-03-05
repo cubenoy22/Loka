@@ -257,6 +257,13 @@ Default-clause shorthand:
 onFailure(&showErrorDialog); // same as onFailure(Handler::always, &showErrorDialog)
 ```
 
+Ordering note (v1, explicit):
+
+- `onFailure` chain is strictly declaration-order.
+- The first matched handler is the only handler that runs for that failure event.
+- Therefore, default-clause shorthand (`onFailure(handler)`) works as a fallback only when declared last.
+- If a prior matcher returns `Unhandled`, traversal still stops (no later handler in the same chain is evaluated); bubbling proceeds to parent/flow scope.
+
 Jump-on-handle form:
 
 ```cpp
