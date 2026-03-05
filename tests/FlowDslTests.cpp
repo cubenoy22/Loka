@@ -559,6 +559,67 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    int input = 6;
+    std::vector<int> order;
+    FlowTestMarkerContext stepFirstMatch = {&order, 1201};
+    FlowTestMarkerContext stepDefault = {&order, 1202};
+    FlowTestMarkerContext flowFinal = {&order, 1299};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestFail500Adapter())
+                .input(&input)
+                .onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &stepFirstMatch)
+                .onFailure(&FlowTestMarker::onStepFailureHandled, &stepDefault);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(!chain.run());
+    assert(order.size() == 2);
+    assert(order[0] == 1201);
+    assert(order[1] == 1299);
+  }
+
+  {
+    int input = 8;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFirstMatch = {&order, 1301};
+    FlowTestMarkerContext flowDefault = {&order, 1302};
+    FlowTestMarkerContext flowFinal = {&order, 1399};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input);
+    chain.onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &flowFirstMatch);
+    chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowDefault);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(!chain.run());
+    assert(order.size() == 2);
+    assert(order[0] == 1301);
+    assert(order[1] == 1399);
+  }
+
+  {
+    int input = 9;
+    std::vector<int> order;
+    FlowTestMarkerContext flowNoMatch = {&order, 1401};
+    FlowTestMarkerContext flowDefault = {&order, 1402};
+    FlowTestMarkerContext flowFinal = {&order, 1499};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input);
+    chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowDefault);
+    chain.onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &flowNoMatch);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(chain.run());
+    assert(order.size() == 2);
+    assert(order[0] == 1402);
+    assert(order[1] == 1499);
+  }
+
+  {
     loka::app::FileChooserResult fileResult;
     fileResult.kind = loka::app::FileChooserResult::RESULT_FILE;
     fileResult.item = loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/a.png"));
