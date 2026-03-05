@@ -623,81 +623,86 @@ void testLokaFlowDslV1Core() {
     loka::app::FileChooserResult fileResult;
     fileResult.kind = loka::app::FileChooserResult::RESULT_FILE;
     fileResult.item = loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/a.png"));
-    loka::core::resource::BlobLoaderRequest request;
+    simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
                 .input(&fileResult)
-                .onSuccess(&request);
+                .onSuccess(&projection);
 
     assert(chain.run());
-    assert(request.source == loka::core::resource::BLOB_SOURCE_FILE);
-    assert(!request.filePath.empty());
-    assert(request.tag.equals(loka::core::String::Literal("image-file")));
+    assert(projection.request.source == loka::core::resource::BLOB_SOURCE_FILE);
+    assert(!projection.request.filePath.empty());
+    assert(projection.request.tag.equals(loka::core::String::Literal("image-file")));
+    assert(projection.message.equals(loka::core::String::Literal("Loka file: C:/tmp/a.png")));
   }
 
   {
     loka::app::FileChooserResult canceled;
     canceled.kind = loka::app::FileChooserResult::RESULT_CANCELED;
-    loka::core::resource::BlobLoaderRequest request;
+    simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
                 .input(&canceled)
-                .onSuccess(&request);
+                .onSuccess(&projection);
 
     assert(chain.run());
-    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(projection.message.equals(loka::core::String::Literal("Canceled")));
   }
 
   {
     loka::app::FileChooserResult folder = loka::app::FileChooserResult::Folder(
         loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/images")));
-    loka::core::resource::BlobLoaderRequest request;
+    simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
                 .input(&folder)
-                .onSuccess(&request);
+                .onSuccess(&projection);
 
     assert(chain.run());
-    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
-    assert(request.filePath.empty());
+    assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(projection.request.filePath.empty());
+    assert(projection.message.equals(loka::core::String::Literal("Loka folder: C:/tmp/images")));
   }
 
   {
     loka::app::FileChooserResult errorResult = loka::app::FileChooserResult::Error(42);
-    loka::core::resource::BlobLoaderRequest request;
+    simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
                 .input(&errorResult)
-                .onSuccess(&request);
+                .onSuccess(&projection);
 
     assert(chain.run());
-    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
-    assert(request.filePath.empty());
+    assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(projection.request.filePath.empty());
+    assert(projection.message.equals(loka::core::String::Literal("Error 42")));
   }
 
   {
     loka::app::FileChooserResult fileEmptyPath;
     fileEmptyPath.kind = loka::app::FileChooserResult::RESULT_FILE;
-    loka::core::resource::BlobLoaderRequest request;
+    simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
                 .input(&fileEmptyPath)
-                .onSuccess(&request);
+                .onSuccess(&projection);
 
     assert(chain.run());
-    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
-    assert(request.filePath.empty());
-    assert(request.tag.empty());
+    assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(projection.request.filePath.empty());
+    assert(projection.request.tag.empty());
+    assert(projection.message.equals(loka::core::String::Literal("Loka file: (unknown)")));
   }
 
   {

@@ -97,19 +97,18 @@ private:
     if (trigger == PIPELINE_TRIGGER_CHOOSER)
     {
       const loka::app::FileChooserResult result = this->chooserResult_.get();
-      const loka::core::String message = formatChooserMessage(result);
-      loka::core::resource::BlobLoaderRequest request;
+      simpleviewer::ChooserProjection projection;
 
-      loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain =
+      loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
           loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
                 .input(&result)
-                .onSuccess(&request);
+                .onSuccess(&projection);
       (void)chain.run();
 
       loka::core::StateTrackerGuard guard(&this->tracker_);
-      this->chooserMessage_.set(message, true);
-      this->blobRequest_.set(request, true);
+      this->chooserMessage_.set(projection.message, true);
+      this->blobRequest_.set(projection.request, true);
       return;
     }
 
@@ -153,30 +152,6 @@ private:
     {
       self->handlePipelineUpdate(PIPELINE_TRIGGER_BLOB);
     }
-  }
-
-  static loka::core::String formatChooserMessage(const loka::app::FileChooserResult &result)
-  {
-    using namespace loka::app;
-    switch (result.kind)
-    {
-    case FileChooserResult::RESULT_FILE:
-      return loka::core::String::Literal("Loka file: ") + formatItem(result.item);
-    case FileChooserResult::RESULT_FOLDER:
-      return loka::core::String::Literal("Loka folder: ") + formatItem(result.item);
-    case FileChooserResult::RESULT_CANCELED:
-      return loka::core::String::Literal("Canceled");
-    case FileChooserResult::RESULT_ERROR:
-      return loka::core::String::Literal("Error ") + loka::core::String::FromInt(result.errorCode);
-    default:
-      return loka::core::String::Literal("(none)");
-    }
-  }
-
-  static loka::core::String formatItem(const loka::file::File &item)
-  {
-    const loka::core::String path = item.toString();
-    return path.empty() ? loka::core::String::Literal("(unknown)") : path;
   }
 
   loka::core::MutableState<bool> openDialogVisible_;
