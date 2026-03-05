@@ -96,44 +96,54 @@ private:
   {
     if (trigger == PIPELINE_TRIGGER_CHOOSER)
     {
-      const loka::app::FileChooserResult result = this->chooserResult_.get();
-      simpleviewer::ChooserProjection projection;
-
-      loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
-          loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
-                .input(&result)
-                .onSuccess(&projection);
-      (void)chain.run();
-
-      loka::core::StateTrackerGuard guard(&this->tracker_);
-      this->chooserMessage_.set(projection.message, true);
-      this->blobRequest_.set(projection.request, true);
+      this->runChooserPipeline();
       return;
     }
 
     if (trigger == PIPELINE_TRIGGER_BLOB)
     {
-      PlatformContext *ctx = this->getPlatformContext();
-      if (!ctx)
-      {
-        return;
-      }
-
-      const loka::core::resource::Blob blob = this->blob_.get();
-      loka::core::resource::Image image;
-
-      loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
-          loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(ctx))
-                .input(&blob)
-                .onSuccess(&image);
-      (void)chain.run();
-
-      loka::core::StateTrackerGuard guard(&this->tracker_);
-      this->image_.set(image, true);
+      this->runBlobPipeline();
       return;
     }
+  }
+
+  void runChooserPipeline()
+  {
+    const loka::app::FileChooserResult result = this->chooserResult_.get();
+    simpleviewer::ChooserProjection projection;
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
+              .input(&result)
+              .onSuccess(&projection);
+    (void)chain.run();
+
+    loka::core::StateTrackerGuard guard(&this->tracker_);
+    this->chooserMessage_.set(projection.message, true);
+    this->blobRequest_.set(projection.request, true);
+  }
+
+  void runBlobPipeline()
+  {
+    PlatformContext *ctx = this->getPlatformContext();
+    if (!ctx)
+    {
+      return;
+    }
+
+    const loka::core::resource::Blob blob = this->blob_.get();
+    loka::core::resource::Image image;
+
+    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(ctx))
+              .input(&blob)
+              .onSuccess(&image);
+    (void)chain.run();
+
+    loka::core::StateTrackerGuard guard(&this->tracker_);
+    this->image_.set(image, true);
   }
 
   static void ChooserResultThunk(void *userData)
