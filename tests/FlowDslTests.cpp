@@ -510,6 +510,55 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    int input = 4;
+    std::vector<int> order;
+    FlowTestMarkerContext step1Final = {&order, 1001};
+    FlowTestMarkerContext step2Final = {&order, 1002};
+    FlowTestMarkerContext flowFinal = {&order, 1099};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter())
+                .input(&input)
+                .onFinally(&FlowTestMarker::onStepFinally, &step1Final)
+          | loka::dsl::Step(2, FlowTestAdd1Adapter())
+                .onFinally(&FlowTestMarker::onStepFinally, &step2Final);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(chain.run());
+    assert(order.size() == 3);
+    assert(order[0] == 1001);
+    assert(order[1] == 1002);
+    assert(order[2] == 1099);
+  }
+
+  {
+    int input = 5;
+    std::vector<int> order;
+    FlowTestMarkerContext step1Final = {&order, 1101};
+    FlowTestMarkerContext step2Final = {&order, 1102};
+    FlowTestMarkerContext step3Final = {&order, 1103};
+    FlowTestMarkerContext flowFinal = {&order, 1199};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter())
+                .input(&input)
+                .onFinally(&FlowTestMarker::onStepFinally, &step1Final)
+          | loka::dsl::Step(2, FlowTestFail500Adapter())
+                .onFinally(&FlowTestMarker::onStepFinally, &step2Final)
+          | loka::dsl::Step(3, FlowTestAdd1Adapter())
+                .onFinally(&FlowTestMarker::onStepFinally, &step3Final);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(!chain.run());
+    assert(order.size() == 3);
+    assert(order[0] == 1101);
+    assert(order[1] == 1102);
+    assert(order[2] == 1199);
+  }
+
+  {
     loka::app::FileChooserResult fileResult;
     fileResult.kind = loka::app::FileChooserResult::RESULT_FILE;
     fileResult.item = loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/a.png"));
