@@ -55,6 +55,7 @@ namespace loka {
         ErrorMatcherFn matcher;
         ErrorHandlerFn handler;
         void *user;
+        int resumeStepId;
       };
 
       explicit StepSpec(int id, const AdapterT &adapter)
@@ -86,12 +87,28 @@ namespace loka {
         cb.matcher = matcher;
         cb.handler = handler;
         cb.user = user;
+        cb.resumeStepId = -1;
+        this->failureCallbacks_.push_back(cb);
+        return *this;
+      }
+
+      StepSpec &onFailure(ErrorMatcherFn matcher, ErrorHandlerFn handler,
+                          void *user, int resumeStepId) {
+        FailureCallback cb;
+        cb.matcher = matcher;
+        cb.handler = handler;
+        cb.user = user;
+        cb.resumeStepId = resumeStepId;
         this->failureCallbacks_.push_back(cb);
         return *this;
       }
 
       StepSpec &onFailure(ErrorHandlerFn handler, void *user) {
         return this->onFailure(&StepSpec::alwaysMatch, handler, user);
+      }
+
+      StepSpec &onFailure(ErrorHandlerFn handler, void *user, int resumeStepId) {
+        return this->onFailure(&StepSpec::alwaysMatch, handler, user, resumeStepId);
       }
 
       StepSpec &onFinally(FinallyFn fn, void *user) {
@@ -184,6 +201,7 @@ namespace loka {
         bool (*matcher)(const FlowError &, void *);
         FlowHandleResult (*handler)(const FlowError &, void *);
         void *user;
+        int resumeStepId;
       };
 
       std::vector<FlowSuccessCallback> successCallbacks_;
@@ -199,7 +217,8 @@ namespace loka {
         virtual IRuntimeStep *clone() const = 0;
         virtual int stepId() const = 0;
         virtual StepRunStatus
-        run(const void *inputFromPrev, FlowError &error, bool &errorHandled)
+        run(const void *inputFromPrev, FlowError &error, bool &errorHandled,
+            int &resumeStepId)
             = 0;
         virtual const void *outputPtr() const = 0;
       };
@@ -242,8 +261,10 @@ namespace loka {
       }
 
       virtual StepRunStatus
-      run(const void *inputFromPrev, FlowError &error, bool &errorHandled) {
+      run(const void *inputFromPrev, FlowError &error, bool &errorHandled,
+          int &resumeStepId) {
         errorHandled = false;
+        resumeStepId = -1;
         const In *in = this->spec_.inputPtr();
         if (in == 0) {
           in = static_cast<const In *>(inputFromPrev);
@@ -280,9 +301,13 @@ namespace loka {
         for (std::size_t i = 0; i < failureCallbacks.size(); ++i) {
           const typename Spec::FailureCallback &cb = failureCallbacks[i];
           if (cb.matcher != 0 && cb.matcher(error, cb.user)) {
-            errorHandled
+            const bool handled
                 = (cb.handler != 0
                    && cb.handler(error, cb.user) == FLOW_ERROR_HANDLED);
+            errorHandled = handled;
+            if (handled && cb.resumeStepId >= 0) {
+              resumeStepId = cb.resumeStepId;
+            }
             break; // first-match-wins
           }
         }
@@ -359,12 +384,30 @@ namespace loka {
         cb.matcher = matcher;
         cb.handler = handler;
         cb.user = user;
+        cb.resumeStepId = -1;
+        this->impl_->failureCallbacks_.push_back(cb);
+        return *this;
+      }
+
+      FlowChain &onFailure(ErrorMatcherFn matcher, ErrorHandlerFn handler,
+                           void *user, int resumeStepId) {
+        this->detachIfShared();
+        FlowChainImpl::FlowFailureCallback cb;
+        cb.matcher = matcher;
+        cb.handler = handler;
+        cb.user = user;
+        cb.resumeStepId = resumeStepId;
         this->impl_->failureCallbacks_.push_back(cb);
         return *this;
       }
 
       FlowChain &onFailure(ErrorHandlerFn handler, void *user) {
         return this->onFailure(&FlowChain::alwaysMatch, handler, user);
+      }
+
+      FlowChain &onFailure(ErrorHandlerFn handler, void *user, int resumeStepId) {
+        return this->onFailure(&FlowChain::alwaysMatch, handler, user,
+                               resumeStepId);
       }
 
       FlowChain &onFinally(void (*fn)(void *), void *user) {
@@ -414,8 +457,10 @@ namespace loka {
 
         for (std::size_t i = startIndex; i < this->impl_->steps_.size(); ++i) {
           bool stepHandled = false;
+          int stepResumeStepId = -1;
           StepRunStatus stepStatus
-              = this->impl_->steps_[i]->run(current, error, stepHandled);
+              = this->impl_->steps_[i]->run(current, error, stepHandled,
+                                            stepResumeStepId);
           if (stepStatus == FLOW_STEP_SUCCEEDED) {
             current = this->impl_->steps_[i]->outputPtr();
             for (std::size_t k = 0; k < this->impl_->successCallbacks_.size();
@@ -431,17 +476,41 @@ namespace loka {
           }
 
           bool flowHandled = false;
+          int flowResumeStepId = -1;
           for (std::size_t k = 0; k < this->impl_->failureCallbacks_.size();
                ++k) {
             const FlowChainImpl::FlowFailureCallback &cb
                 = this->impl_->failureCallbacks_[k];
             if (cb.matcher != 0 && cb.matcher(error, cb.user)) {
-              flowHandled
+              const bool handled
                   = (cb.handler != 0
                      && cb.handler(error, cb.user) == FLOW_ERROR_HANDLED);
+              flowHandled = handled;
+              if (handled && cb.resumeStepId >= 0) {
+                flowResumeStepId = cb.resumeStepId;
+              }
               break; // first-match-wins
             }
           }
+
+          const int jumpStepId
+              = stepResumeStepId >= 0 ? stepResumeStepId : flowResumeStepId;
+          if (jumpStepId >= 0) {
+            std::size_t jumpIndex = 0;
+            if (!this->findStepIndex(jumpStepId, jumpIndex)) {
+              if (this->impl_->finallyFn_ != 0) {
+                this->impl_->finallyFn_(this->impl_->finallyUser_);
+              }
+              if (this->impl_->loadingState_ != 0) {
+                *this->impl_->loadingState_ = false;
+              }
+              return FLOW_RUN_FAILED;
+            }
+            current = 0;
+            i = (jumpIndex == 0) ? static_cast<std::size_t>(-1) : (jumpIndex - 1);
+            continue;
+          }
+
           if (this->impl_->finallyFn_ != 0) {
             this->impl_->finallyFn_(this->impl_->finallyUser_);
           }

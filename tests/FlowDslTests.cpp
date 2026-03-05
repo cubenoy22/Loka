@@ -115,6 +115,28 @@ namespace {
     bool *ready_;
     int *calls_;
   };
+
+  struct FlowTestFailOnceAdapter {
+    typedef int In;
+    typedef int Out;
+
+    explicit FlowTestFailOnceAdapter(bool *failedOnce) : failedOnce_(failedOnce) {
+    }
+
+    loka::dsl::StepRunStatus run(const int &in, int &out,
+                                 loka::dsl::FlowError &error) const {
+      if (!*this->failedOnce_) {
+        *this->failedOnce_ = true;
+        error.kind = 9;
+        error.code = 500;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      out = in + 7;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    bool *failedOnce_;
+  };
 } // namespace
 
 void testLokaFlowDslV1Core() {
@@ -332,6 +354,60 @@ void testLokaFlowDslV1Core() {
     assert(order.size() == 2);
     assert(order[0] == 510);
     assert(order[1] == 599);
+  }
+
+  {
+    int input = 2;
+    int out = 0;
+    bool failedOnce = false;
+    std::vector<int> order;
+    FlowTestMarkerContext stepFail = {&order, 610};
+    FlowTestMarkerContext stepSuccess = {&order, 611};
+    FlowTestMarkerContext flowFinal = {&order, 699};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestFailOnceAdapter(&failedOnce))
+                .input(&input)
+                .onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureHandled, &stepFail, 1)
+                .onSuccess(&out)
+                .onSuccess(&FlowTestMarker::onStepSuccess, &stepSuccess);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const bool ok = chain.run();
+    assert(ok);
+    assert(out == 9);
+    assert(order.size() == 3);
+    assert(order[0] == 610);
+    assert(order[1] == 611);
+    assert(order[2] == 699);
+  }
+
+  {
+    int input = 3;
+    int out = 0;
+    bool failedOnce = false;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFail = {&order, 710};
+    FlowTestMarkerContext flowSuccess = {&order, 711};
+    FlowTestMarkerContext flowFinal = {&order, 799};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestFailOnceAdapter(&failedOnce))
+                .input(&input)
+                .onSuccess(&out);
+    chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowFail, 1);
+    chain.onSuccess(&FlowTestMarker::onFlowSuccess, &flowSuccess);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const bool ok = chain.run();
+    assert(ok);
+    assert(out == 10);
+    assert(order.size() == 3);
+    assert(order[0] == 710);
+    assert(order[1] == 711);
+    assert(order[2] == 799);
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");

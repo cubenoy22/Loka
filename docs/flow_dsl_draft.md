@@ -264,6 +264,12 @@ onFailure(Handler::is5xxError, &handleServerError, STEP_RETRY);
 onFailure(&showErrorDialog, STEP_TERMINATE); // default + jump
 ```
 
+Jump rule (v1):
+
+- Jump destination is applied only when the matched handler returns `Handled`.
+- `Unhandled` never triggers a jump and continues bubbling.
+- Jump lookup uses the same per-flow `StepId` table used by `resume(StepId)`.
+
 Parent-side matching:
 
 1. fast path: `kind/code`
