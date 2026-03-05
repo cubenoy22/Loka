@@ -11,6 +11,18 @@
 
 namespace simpleviewer
 {
+  struct ChooserContext
+  {
+    ChooserContext()
+        : result(),
+          message(loka::core::String::Literal("(none)"))
+    {
+    }
+
+    loka::app::FileChooserResult result;
+    loka::core::String message;
+  };
+
   struct ChooserProjection
   {
     ChooserProjection()
@@ -23,24 +35,16 @@ namespace simpleviewer
     loka::core::String message;
   };
 
-  struct ChooserToProjectionAdapter
+  struct ChooserToContextAdapter
   {
     typedef loka::app::FileChooserResult In;
-    typedef ChooserProjection Out;
+    typedef ChooserContext Out;
 
-    loka::dsl::StepRunStatus run(const In &result, Out &projection, loka::dsl::FlowError &) const
+    loka::dsl::StepRunStatus run(const In &result, Out &context, loka::dsl::FlowError &) const
     {
-      projection = Out();
-      projection.message = formatChooserMessage(result);
-      if (result.kind == loka::app::FileChooserResult::RESULT_FILE)
-      {
-        const loka::core::String path = result.item.toString();
-        if (!path.empty())
-        {
-          projection.request.setFilePath(path);
-          projection.request.setTag(loka::core::String::Literal("image-file"));
-        }
-      }
+      context = Out();
+      context.result = result;
+      context.message = formatChooserMessage(result);
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
 
@@ -70,24 +74,71 @@ namespace simpleviewer
     }
   };
 
-  struct BlobToImageAdapter
+  struct ContextToProjectionAdapter
+  {
+    typedef ChooserContext In;
+    typedef ChooserProjection Out;
+
+    loka::dsl::StepRunStatus run(const In &context, Out &projection, loka::dsl::FlowError &) const
+    {
+      projection = Out();
+      projection.message = context.message;
+      if (context.result.kind == loka::app::FileChooserResult::RESULT_FILE)
+      {
+        const loka::core::String path = context.result.item.toString();
+        if (!path.empty())
+        {
+          projection.request.setFilePath(path);
+          projection.request.setTag(loka::core::String::Literal("image-file"));
+        }
+      }
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+  };
+
+  struct BlobDecodeAttempt
+  {
+    BlobDecodeAttempt()
+        : image(loka::core::resource::Image::Empty()),
+          decoded(false)
+    {
+    }
+
+    loka::core::resource::Image image;
+    bool decoded;
+  };
+
+  struct BlobToDecodeAttemptAdapter
   {
     typedef loka::core::resource::Blob In;
-    typedef loka::core::resource::Image Out;
+    typedef BlobDecodeAttempt Out;
 
-    explicit BlobToImageAdapter(PlatformContext *ctx) : ctx_(ctx) {}
+    explicit BlobToDecodeAttemptAdapter(PlatformContext *ctx) : ctx_(ctx) {}
 
-    loka::dsl::StepRunStatus run(const In &blob, Out &image, loka::dsl::FlowError &) const
+    loka::dsl::StepRunStatus run(const In &blob, Out &attempt, loka::dsl::FlowError &) const
     {
-      image = Out::Empty();
-      if (this->ctx_ && this->ctx_->createImageFromBlob(blob, image))
+      attempt = Out();
+      if (this->ctx_ && this->ctx_->createImageFromBlob(blob, attempt.image))
       {
+        attempt.decoded = true;
         return loka::dsl::FLOW_STEP_SUCCEEDED;
       }
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
 
     PlatformContext *ctx_;
+  };
+
+  struct DecodeAttemptToImageAdapter
+  {
+    typedef BlobDecodeAttempt In;
+    typedef loka::core::resource::Image Out;
+
+    loka::dsl::StepRunStatus run(const In &attempt, Out &image, loka::dsl::FlowError &) const
+    {
+      image = attempt.decoded ? attempt.image : Out::Empty();
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
   };
 } // namespace simpleviewer
 

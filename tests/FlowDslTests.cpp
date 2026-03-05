@@ -623,12 +623,15 @@ void testLokaFlowDslV1Core() {
     loka::app::FileChooserResult fileResult;
     fileResult.kind = loka::app::FileChooserResult::RESULT_FILE;
     fileResult.item = loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/a.png"));
+    simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
     loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
                 .input(&fileResult)
+                .onSuccess(&context)
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
                 .onSuccess(&projection);
 
     assert(chain.run());
@@ -641,12 +644,15 @@ void testLokaFlowDslV1Core() {
   {
     loka::app::FileChooserResult canceled;
     canceled.kind = loka::app::FileChooserResult::RESULT_CANCELED;
+    simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
     loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
                 .input(&canceled)
+                .onSuccess(&context)
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
                 .onSuccess(&projection);
 
     assert(chain.run());
@@ -657,12 +663,15 @@ void testLokaFlowDslV1Core() {
   {
     loka::app::FileChooserResult folder = loka::app::FileChooserResult::Folder(
         loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/images")));
+    simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
     loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
                 .input(&folder)
+                .onSuccess(&context)
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
                 .onSuccess(&projection);
 
     assert(chain.run());
@@ -673,12 +682,15 @@ void testLokaFlowDslV1Core() {
 
   {
     loka::app::FileChooserResult errorResult = loka::app::FileChooserResult::Error(42);
+    simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
     loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
                 .input(&errorResult)
+                .onSuccess(&context)
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
                 .onSuccess(&projection);
 
     assert(chain.run());
@@ -690,12 +702,15 @@ void testLokaFlowDslV1Core() {
   {
     loka::app::FileChooserResult fileEmptyPath;
     fileEmptyPath.kind = loka::app::FileChooserResult::RESULT_FILE;
+    simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
     loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToProjectionAdapter())
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
                 .input(&fileEmptyPath)
+                .onSuccess(&context)
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
                 .onSuccess(&projection);
 
     assert(chain.run());
@@ -707,12 +722,15 @@ void testLokaFlowDslV1Core() {
 
   {
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    simpleviewer::BlobDecodeAttempt attempt;
     loka::core::resource::Image image;
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(0))
+          | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(0))
                 .input(&blob)
+                .onSuccess(&attempt)
+          | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
                 .onSuccess(&image);
 
     assert(chain.run());
@@ -723,12 +741,15 @@ void testLokaFlowDslV1Core() {
     FlowTestPlatformContext ctx;
     ctx.createImageResult_ = true;
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    simpleviewer::BlobDecodeAttempt attempt;
     loka::core::resource::Image image;
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(&ctx))
+          | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
                 .input(&blob)
+                .onSuccess(&attempt)
+          | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
                 .onSuccess(&image);
 
     assert(chain.run());
@@ -742,12 +763,15 @@ void testLokaFlowDslV1Core() {
     FlowTestPlatformContext ctx;
     ctx.createImageResult_ = false;
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    simpleviewer::BlobDecodeAttempt attempt;
     loka::core::resource::Image image;
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
         = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(&ctx))
+          | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
                 .input(&blob)
+                .onSuccess(&attempt)
+          | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
                 .onSuccess(&image);
 
     assert(chain.run());

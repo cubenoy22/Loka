@@ -69,8 +69,10 @@ public:
 private:
   enum FlowStepId
   {
-    FLOW_STEP_CHOOSER_PROJECTION = 1,
-    FLOW_STEP_BLOB_TO_IMAGE = 2
+    FLOW_STEP_CHOOSER_TO_CONTEXT = 1,
+    FLOW_STEP_CONTEXT_TO_PROJECTION = 2,
+    FLOW_STEP_BLOB_DECODE_ATTEMPT = 3,
+    FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE = 4
   };
 
   void runOpenDialogPipeline()
@@ -91,12 +93,15 @@ private:
   void runChooserPipeline()
   {
     const loka::app::FileChooserResult result = this->chooserResult_.get();
+    simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
     loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(FLOW_STEP_CHOOSER_PROJECTION, simpleviewer::ChooserToProjectionAdapter())
+        | loka::dsl::Step(FLOW_STEP_CHOOSER_TO_CONTEXT, simpleviewer::ChooserToContextAdapter())
               .input(&result)
+              .onSuccess(&context)
+        | loka::dsl::Step(FLOW_STEP_CONTEXT_TO_PROJECTION, simpleviewer::ContextToProjectionAdapter())
               .onSuccess(&projection);
     (void)chain.run();
 
@@ -112,12 +117,15 @@ private:
     }
 
     const loka::core::resource::Blob blob = this->blob_.get();
+    simpleviewer::BlobDecodeAttempt attempt;
     loka::core::resource::Image image;
 
     loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(FLOW_STEP_BLOB_TO_IMAGE, simpleviewer::BlobToImageAdapter(ctx))
+        | loka::dsl::Step(FLOW_STEP_BLOB_DECODE_ATTEMPT, simpleviewer::BlobToDecodeAttemptAdapter(ctx))
               .input(&blob)
+              .onSuccess(&attempt)
+        | loka::dsl::Step(FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE, simpleviewer::DecodeAttemptToImageAdapter())
               .onSuccess(&image);
     (void)chain.run();
 
