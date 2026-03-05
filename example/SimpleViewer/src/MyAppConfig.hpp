@@ -28,8 +28,7 @@ public:
         blob_(),
         image_(),
         tracker_(),
-        openDialogEvent_(),
-        chooserResultEvent_()
+        openDialogEvent_()
   {
     this->tracker_.addState(&this->openDialogVisible_);
     this->tracker_.addState(&this->chooserResult_);
@@ -38,7 +37,7 @@ public:
     this->tracker_.addState(&this->blob_);
     this->tracker_.addState(&this->image_);
     this->openDialogEvent_.deferBind(&MyAppConfig::OpenDialogThunk, this);
-    this->chooserResultEvent_.deferBind(&MyAppConfig::ChooserResultThunk, this);
+    this->chooserResult_.deferBind(&MyAppConfig::ChooserResultThunk, this);
     this->blob_.deferBind(&MyAppConfig::BlobChangedThunk, this);
     this->blobLoader_.attach(&this->blobRequest_, &this->blob_, 0);
   }
@@ -52,7 +51,6 @@ public:
                                .dialogVisible(&this->openDialogVisible_)
                                .message(&this->chooserMessage_)
                                .result(&this->chooserResult_)
-                               .onResult(&this->chooserResultEvent_)
                                .image(&this->image_)))
                        .title("LokaSimpleViewer")
                        .visible(true));
@@ -218,7 +216,6 @@ private:
   loka::core::resource::BlobLoader blobLoader_;
   loka::core::PushStateTracker tracker_;
   loka::core::EmitterState openDialogEvent_;
-  loka::core::EmitterState chooserResultEvent_;
 };
 
 #endif // LOKA_SIMPLE_VIEWER_APP_CONFIG_HPP
