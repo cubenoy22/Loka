@@ -73,12 +73,6 @@ private:
     FLOW_STEP_BLOB_TO_IMAGE = 2
   };
 
-  enum PipelineTrigger
-  {
-    PIPELINE_TRIGGER_CHOOSER = 0,
-    PIPELINE_TRIGGER_BLOB = 1
-  };
-
   void handleOpenDialog()
   {
     loka::core::StateTrackerGuard guard(&this->tracker_);
@@ -95,18 +89,6 @@ private:
     if (self)
     {
       self->handleOpenDialog();
-    }
-  }
-
-  void handlePipelineUpdate(PipelineTrigger trigger)
-  {
-    if (trigger == PIPELINE_TRIGGER_CHOOSER)
-    {
-      this->runChooserPipeline();
-    }
-    else if (trigger == PIPELINE_TRIGGER_BLOB)
-    {
-      this->runBlobPipeline();
     }
   }
 
@@ -164,7 +146,7 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->handlePipelineUpdate(PIPELINE_TRIGGER_CHOOSER);
+      self->runChooserPipeline();
     }
   }
 
@@ -173,7 +155,7 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->handlePipelineUpdate(PIPELINE_TRIGGER_BLOB);
+      self->runBlobPipeline();
     }
   }
 
