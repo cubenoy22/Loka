@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <functional>
+#include <cstdio>
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/String.hpp"
 

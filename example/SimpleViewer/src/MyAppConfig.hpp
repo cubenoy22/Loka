@@ -13,6 +13,7 @@
 #include "core/resource/BlobLoader.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/dsl/dsl.hpp"
+#include "SimpleViewerFlowAdapters.hpp"
 #include "MainNode.hpp"
 #include <string>
 
@@ -66,45 +67,10 @@ public:
   }
 
 private:
-  struct ChooserToBlobRequestAdapter
+  enum PipelineTrigger
   {
-    typedef loka::app::FileChooserResult In;
-    typedef loka::core::resource::BlobLoaderRequest Out;
-
-    loka::dsl::StepRunStatus run(const In &result, Out &request, loka::dsl::FlowError &) const
-    {
-      request = Out();
-      if (result.kind == loka::app::FileChooserResult::RESULT_FILE)
-      {
-        const loka::core::String path = result.item.toString();
-        if (!path.empty())
-        {
-          request.setFilePath(path);
-          request.setTag(loka::core::String::Literal("image-file"));
-        }
-      }
-      return loka::dsl::FLOW_STEP_SUCCEEDED;
-    }
-  };
-
-  struct BlobToImageAdapter
-  {
-    typedef loka::core::resource::Blob In;
-    typedef loka::core::resource::Image Out;
-
-    explicit BlobToImageAdapter(PlatformContext *ctx) : ctx_(ctx) {}
-
-    loka::dsl::StepRunStatus run(const In &blob, Out &image, loka::dsl::FlowError &) const
-    {
-      image = Out::Empty();
-      if (this->ctx_ && this->ctx_->createImageFromBlob(blob, image))
-      {
-        return loka::dsl::FLOW_STEP_SUCCEEDED;
-      }
-      return loka::dsl::FLOW_STEP_SUCCEEDED;
-    }
-
-    PlatformContext *ctx_;
+    PIPELINE_TRIGGER_CHOOSER = 0,
+    PIPELINE_TRIGGER_BLOB = 1
   };
 
   void handleOpenDialog()
@@ -126,22 +92,49 @@ private:
     }
   }
 
-  void handleChooserResult()
+  void handlePipelineUpdate(PipelineTrigger trigger)
   {
-    const loka::app::FileChooserResult result = this->chooserResult_.get();
-    const loka::core::String message = formatChooserMessage(result);
-    loka::core::resource::BlobLoaderRequest request;
+    if (trigger == PIPELINE_TRIGGER_CHOOSER)
+    {
+      const loka::app::FileChooserResult result = this->chooserResult_.get();
+      const loka::core::String message = formatChooserMessage(result);
+      loka::core::resource::BlobLoaderRequest request;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, ChooserToBlobRequestAdapter())
-              .input(&result)
-              .onSuccess(&request);
-    (void)chain.run();
+      loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain =
+          loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+                .input(&result)
+                .onSuccess(&request);
+      (void)chain.run();
 
-    loka::core::StateTrackerGuard guard(&this->tracker_);
-    this->chooserMessage_.set(message, true);
-    this->blobRequest_.set(request, true);
+      loka::core::StateTrackerGuard guard(&this->tracker_);
+      this->chooserMessage_.set(message, true);
+      this->blobRequest_.set(request, true);
+      return;
+    }
+
+    if (trigger == PIPELINE_TRIGGER_BLOB)
+    {
+      PlatformContext *ctx = this->getPlatformContext();
+      if (!ctx)
+      {
+        return;
+      }
+
+      const loka::core::resource::Blob blob = this->blob_.get();
+      loka::core::resource::Image image;
+
+      loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
+          loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(ctx))
+                .input(&blob)
+                .onSuccess(&image);
+      (void)chain.run();
+
+      loka::core::StateTrackerGuard guard(&this->tracker_);
+      this->image_.set(image, true);
+      return;
+    }
   }
 
   static void ChooserResultThunk(void *userData)
@@ -149,29 +142,8 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->handleChooserResult();
+      self->handlePipelineUpdate(PIPELINE_TRIGGER_CHOOSER);
     }
-  }
-
-  void handleBlobChanged()
-  {
-    PlatformContext *ctx = this->getPlatformContext();
-    if (!ctx)
-    {
-      return;
-    }
-    const loka::core::resource::Blob blob = this->blob_.get();
-    loka::core::resource::Image image;
-
-    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BlobToImageAdapter(ctx))
-              .input(&blob)
-              .onSuccess(&image);
-    (void)chain.run();
-
-    loka::core::StateTrackerGuard guard(&this->tracker_);
-    this->image_.set(image, true);
   }
 
   static void BlobChangedThunk(void *userData)
@@ -179,7 +151,7 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->handleBlobChanged();
+      self->handlePipelineUpdate(PIPELINE_TRIGGER_BLOB);
     }
   }
 

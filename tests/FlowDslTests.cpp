@@ -3,6 +3,7 @@
 #include <cassert>
 #include <vector>
 
+#include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/dsl/dsl.hpp"
 
 namespace {
@@ -475,6 +476,39 @@ void testLokaFlowDslV1Core() {
     assert(out == 21);
     assert(order.size() == 1);
     assert(order[0] == 999);
+  }
+
+  {
+    loka::app::FileChooserResult fileResult;
+    fileResult.kind = loka::app::FileChooserResult::RESULT_FILE;
+    fileResult.item = loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/a.png"));
+    loka::core::resource::BlobLoaderRequest request;
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+                .input(&fileResult)
+                .onSuccess(&request);
+
+    assert(chain.run());
+    assert(request.source == loka::core::resource::BLOB_SOURCE_FILE);
+    assert(!request.filePath.empty());
+    assert(request.tag.equals(loka::core::String::Literal("image-file")));
+  }
+
+  {
+    loka::app::FileChooserResult canceled;
+    canceled.kind = loka::app::FileChooserResult::RESULT_CANCELED;
+    loka::core::resource::BlobLoaderRequest request;
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+                .input(&canceled)
+                .onSuccess(&request);
+
+    assert(chain.run());
+    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");
