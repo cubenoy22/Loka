@@ -37,9 +37,9 @@ public:
     this->tracker_.addState(&this->blobRequest_);
     this->tracker_.addState(&this->blob_);
     this->tracker_.addState(&this->image_);
-    this->openDialogEvent_.deferBind(&MyAppConfig::OpenDialogThunk, this);
-    this->chooserResult_.deferBind(&MyAppConfig::ChooserResultThunk, this);
-    this->blob_.deferBind(&MyAppConfig::BlobChangedThunk, this);
+    this->openDialogEvent_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runOpenDialogPipeline>, this);
+    this->chooserResult_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runChooserPipeline>, this);
+    this->blob_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runBlobPipeline>, this);
     this->blobLoader_.attach(&this->blobRequest_, &this->blob_, 0);
   }
 
@@ -86,15 +86,6 @@ private:
       this->openDialogVisible_.set(false, true);
     }
     this->openDialogVisible_.set(true, true);
-  }
-
-  static void OpenDialogThunk(void *userData)
-  {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
-    if (self)
-    {
-      self->runOpenDialogPipeline();
-    }
   }
 
   void runChooserPipeline()
@@ -146,21 +137,13 @@ private:
     this->image_.set(image, true);
   }
 
-  static void ChooserResultThunk(void *userData)
+  template <void (MyAppConfig::*Method)()>
+  static void Invoke(void *userData)
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->runChooserPipeline();
-    }
-  }
-
-  static void BlobChangedThunk(void *userData)
-  {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
-    if (self)
-    {
-      self->runBlobPipeline();
+      (self->*Method)();
     }
   }
 
