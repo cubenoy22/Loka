@@ -73,7 +73,12 @@ private:
     FLOW_STEP_BLOB_TO_IMAGE = 2
   };
 
-  void handleOpenDialog()
+  void runOpenDialogPipeline()
+  {
+    this->applyOpenDialogVisible();
+  }
+
+  void applyOpenDialogVisible()
   {
     loka::core::StateTrackerGuard guard(&this->tracker_);
     if (this->openDialogVisible_.get())
@@ -88,7 +93,7 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->handleOpenDialog();
+      self->runOpenDialogPipeline();
     }
   }
 
