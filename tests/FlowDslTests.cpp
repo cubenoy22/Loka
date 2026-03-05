@@ -155,6 +155,37 @@ namespace {
 
     int *calls_;
   };
+
+  struct FlowTestPlatformContext : public PlatformContext {
+    FlowTestPlatformContext()
+        : createImageResult_(false),
+          createImageCalls_(0),
+          width_(16),
+          height_(16) {
+    }
+
+    virtual App *createApp(AppConfigurable *, HINSTANCE, int) const { return 0; }
+    virtual Window *createWindow(const WindowProps &) { return 0; }
+    virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *) const { return 0; }
+    virtual bool openFile(const loka::file::File &, loka::platform::file::FileHandle &) const { return false; }
+    virtual bool createImageFromBlob(const loka::core::resource::Blob &,
+                                     loka::core::resource::Image &out) const {
+      ++createImageCalls_;
+      if (!createImageResult_) {
+        return false;
+      }
+      out = loka::core::resource::Image::FromNative(reinterpret_cast<void *>(0x1), width_, height_,
+                                                    &FlowTestPlatformContext::ReleaseNativeNoop, 0);
+      return true;
+    }
+
+    static void ReleaseNativeNoop(void *, void *) {}
+
+    bool createImageResult_;
+    mutable int createImageCalls_;
+    int width_;
+    int height_;
+  };
 } // namespace
 
 void testLokaFlowDslV1Core() {
@@ -509,6 +540,104 @@ void testLokaFlowDslV1Core() {
 
     assert(chain.run());
     assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
+  }
+
+  {
+    loka::app::FileChooserResult folder = loka::app::FileChooserResult::Folder(
+        loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/images")));
+    loka::core::resource::BlobLoaderRequest request;
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+                .input(&folder)
+                .onSuccess(&request);
+
+    assert(chain.run());
+    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(request.filePath.empty());
+  }
+
+  {
+    loka::app::FileChooserResult errorResult = loka::app::FileChooserResult::Error(42);
+    loka::core::resource::BlobLoaderRequest request;
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+                .input(&errorResult)
+                .onSuccess(&request);
+
+    assert(chain.run());
+    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(request.filePath.empty());
+  }
+
+  {
+    loka::app::FileChooserResult fileEmptyPath;
+    fileEmptyPath.kind = loka::app::FileChooserResult::RESULT_FILE;
+    loka::core::resource::BlobLoaderRequest request;
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::BlobLoaderRequest> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToBlobRequestAdapter())
+                .input(&fileEmptyPath)
+                .onSuccess(&request);
+
+    assert(chain.run());
+    assert(request.source == loka::core::resource::BLOB_SOURCE_NONE);
+    assert(request.filePath.empty());
+    assert(request.tag.empty());
+  }
+
+  {
+    loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    loka::core::resource::Image image;
+
+    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(0))
+                .input(&blob)
+                .onSuccess(&image);
+
+    assert(chain.run());
+    assert(!image.isValid());
+  }
+
+  {
+    FlowTestPlatformContext ctx;
+    ctx.createImageResult_ = true;
+    loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    loka::core::resource::Image image;
+
+    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(&ctx))
+                .input(&blob)
+                .onSuccess(&image);
+
+    assert(chain.run());
+    assert(ctx.createImageCalls_ == 1);
+    assert(image.isValid());
+    assert(image.width() == 16);
+    assert(image.height() == 16);
+  }
+
+  {
+    FlowTestPlatformContext ctx;
+    ctx.createImageResult_ = false;
+    loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    loka::core::resource::Image image;
+
+    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::BlobToImageAdapter(&ctx))
+                .input(&blob)
+                .onSuccess(&image);
+
+    assert(chain.run());
+    assert(ctx.createImageCalls_ == 1);
+    assert(!image.isValid());
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");
