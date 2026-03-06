@@ -20,7 +20,7 @@ class MyAppConfig : public AppConfigurable
 public:
   explicit MyAppConfig(PlatformContext *ctx)
       : AppConfigurable(ctx),
-        openDialogVisible_(false),
+        isDialogShown_(false),
         chooserResult_(),
         chooserMessage_(loka::core::String::Literal("(none)")),
         image_(),
@@ -28,11 +28,11 @@ public:
         tracker_(),
         openDialogEvent_()
   {
-    this->tracker_.addState(&this->openDialogVisible_);
+    this->tracker_.addState(&this->isDialogShown_);
     this->tracker_.addState(&this->chooserResult_);
     this->tracker_.addState(&this->chooserMessage_);
     this->tracker_.addState(&this->image_);
-    this->openDialogEvent_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runOpenDialogPipeline>, this);
+    this->openDialogEvent_.deferBind(&MyAppConfig::OnOpenDialogEvent, this);
   }
 
   virtual void compose(AppComposition &c)
@@ -41,7 +41,7 @@ public:
                        .frame(40, 40, 320, 240)
                        .scene(loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
                            simpleviewer::MainProps()
-                               .dialogVisible(&this->openDialogVisible_)
+                               .isDialogShown(&this->isDialogShown_)
                                .message(&this->chooserMessage_)
                                .result(&this->chooserResult_)
                                .image(&this->image_)))
@@ -70,19 +70,16 @@ private:
     FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE = 5
   };
 
-  void runOpenDialogPipeline()
+  static void OnOpenDialogEvent(void *userData)
   {
-    this->applyOpenDialogVisible();
-  }
-
-  void applyOpenDialogVisible()
-  {
-    loka::core::StateTrackerGuard guard(&this->tracker_);
-    if (this->openDialogVisible_.get())
+    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    if (!self) return;
+    loka::core::StateTrackerGuard guard(&self->tracker_);
+    if (self->isDialogShown_.get())
     {
-      this->openDialogVisible_.set(false, true);
+      self->isDialogShown_.set(false, true);
     }
-    this->openDialogVisible_.set(true, true);
+    self->isDialogShown_.set(true, true);
   }
 
   static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData)
@@ -116,17 +113,7 @@ private:
     return chain;
   }
 
-  template <void (MyAppConfig::*Method)()>
-  static void Invoke(void *userData)
-  {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
-    if (self)
-    {
-      (self->*Method)();
-    }
-  }
-
-  loka::core::MutableState<bool> openDialogVisible_;
+  loka::core::MutableState<bool> isDialogShown_;
   loka::core::MutableState<loka::app::FileChooserResult> chooserResult_;
   loka::core::MutableState<loka::core::String> chooserMessage_;
   loka::core::MutableState<loka::core::resource::Image> image_;

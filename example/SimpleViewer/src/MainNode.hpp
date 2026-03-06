@@ -21,15 +21,15 @@ namespace simpleviewer
   {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
-    loka::core::State<bool> *dialogVisible_;
+    loka::core::State<bool> *isDialogShown_;
     loka::core::State<loka::core::String> *message_;
     loka::core::MutableState<loka::app::FileChooserResult> *result_;
     loka::core::State<loka::core::resource::Image> *image_;
-    MainProps() : dialogVisible_(0), message_(0), result_(0), image_(0) {}
+    MainProps() : isDialogShown_(0), message_(0), result_(0), image_(0) {}
 
-    MainProps &dialogVisible(loka::core::State<bool> *state)
+    MainProps &isDialogShown(loka::core::State<bool> *state)
     {
-      this->dialogVisible_ = state;
+      this->isDialogShown_ = state;
       return *this;
     }
 
@@ -53,7 +53,7 @@ namespace simpleviewer
 
     void assertInitialized() const
     {
-      assert(this->dialogVisible_);
+      assert(this->isDialogShown_);
       assert(this->message_);
       assert(this->result_);
       assert(this->image_);
@@ -66,8 +66,8 @@ namespace simpleviewer
         return false;
       }
       const MainProps &other = static_cast<const MainProps &>(rhs);
-      if (dialogVisible_ != other.dialogVisible_)
-        return dialogVisible_ < other.dialogVisible_;
+      if (isDialogShown_ != other.isDialogShown_)
+        return isDialogShown_ < other.isDialogShown_;
       if (message_ != other.message_)
         return message_ < other.message_;
       if (result_ != other.result_)
@@ -96,7 +96,7 @@ namespace simpleviewer
                  .image(this->props.image_)
                  .size(0, 180)
           << OpenFileDialog()
-                 .isVisible(this->props.dialogVisible_)
+                 .isVisible(this->props.isDialogShown_)
                  .result(this->props.result_));
     }
   };
