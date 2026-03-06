@@ -109,43 +109,13 @@ private:
     (void)this->blobFlow_.run();
   }
 
-  void applyChooserProjection(const simpleviewer::ChooserProjection &projection)
-  {
-    loka::core::StateTrackerGuard guard(&this->tracker_);
-    this->chooserMessage_.set(projection.message, true);
-    this->blobRequest_.set(projection.request, true);
-  }
-
-  void applyDecodedImage(const loka::core::resource::Image &image)
-  {
-    loka::core::StateTrackerGuard guard(&this->tracker_);
-    this->image_.set(image, true);
-  }
-
-  void applyBlobDecodeError(const loka::dsl::FlowError &error)
-  {
-    loka::core::StateTrackerGuard guard(&this->tracker_);
-    this->image_.set(loka::core::resource::Image::Empty(), true);
-    this->chooserMessage_.set(loka::core::String::Literal("Decode error ")
-                                  + loka::core::String::FromInt(error.code),
-                              true);
-  }
-
   static void OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData)
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->applyChooserProjection(projection);
-    }
-  }
-
-  static void OnDecodedImage(const loka::core::resource::Image &image, void *userData)
-  {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
-    if (self)
-    {
-      self->applyDecodedImage(image);
+      self->chooserMessage_.set(projection.message, true);
+      self->blobRequest_.set(projection.request, true);
     }
   }
 
@@ -154,7 +124,10 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->applyBlobDecodeError(error);
+      self->image_.set(loka::core::resource::Image::Empty(), true);
+      self->chooserMessage_.set(loka::core::String::Literal("Decode error ")
+                                    + loka::core::String::FromInt(error.code),
+                                true);
     }
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
@@ -169,6 +142,7 @@ private:
               .input(&self->chooserInput_)
         | loka::dsl::Step(FLOW_STEP_CONTEXT_TO_PROJECTION, simpleviewer::ContextToProjectionAdapter())
               .onSuccess(&MyAppConfig::OnChooserProjection, self);
+    chain.withTracker(&self->tracker_);
     chain.onFinally(&MyAppConfig::OnFlowFinally, self);
     return chain;
   }
@@ -182,7 +156,8 @@ private:
               .input(&self->blobInput_)
               .onFailure(&MyAppConfig::OnBlobDecodeFailure, self)
         | loka::dsl::Step(FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE, simpleviewer::DecodeAttemptToImageAdapter())
-              .onSuccess(&MyAppConfig::OnDecodedImage, self);
+              .onSuccess(&self->image_);
+    chain.withTracker(&self->tracker_);
     chain.onFinally(&MyAppConfig::OnFlowFinally, self);
     return chain;
   }
