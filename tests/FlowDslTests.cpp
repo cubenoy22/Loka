@@ -846,6 +846,23 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    int input = 7;
+    loka::core::MutableState<int> result;
+    loka::core::PushStateTracker tracker;
+    tracker.addState(&result);
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter())
+                .input(&input)
+                .onSuccess(&result);
+    chain.withTracker(&tracker);
+
+    assert(chain.run());
+    assert(result.get() == 14);
+  }
+
+  {
     int input = 1;
     int callsA = 0;
     std::vector<int> order;

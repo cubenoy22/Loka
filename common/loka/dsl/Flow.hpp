@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "loka/core/State.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 
 namespace loka {
   namespace dsl {
@@ -219,7 +220,8 @@ namespace loka {
     class FlowChainImpl {
     public:
       FlowChainImpl()
-          : finallyFn_(0), finallyUser_(0), loadingState_(0), refs_(1) {
+          : finallyFn_(0), finallyUser_(0), loadingState_(0), tracker_(0),
+            refs_(1) {
       }
 
       ~FlowChainImpl() {
@@ -261,6 +263,7 @@ namespace loka {
       void (*finallyFn_)(void *);
       void *finallyUser_;
       bool *loadingState_;
+      loka::core::PushStateTracker *tracker_;
 
       class IRuntimeStep {
       public:
@@ -284,6 +287,7 @@ namespace loka {
         next->finallyFn_ = this->finallyFn_;
         next->finallyUser_ = this->finallyUser_;
         next->loadingState_ = this->loadingState_;
+        next->tracker_ = this->tracker_;
         for (std::size_t i = 0; i < this->steps_.size(); ++i) {
           next->steps_.push_back(this->steps_[i]->clone());
         }
@@ -500,6 +504,12 @@ namespace loka {
         return *this;
       }
 
+      FlowChain &withTracker(loka::core::PushStateTracker *tracker) {
+        this->detachIfShared();
+        this->impl_->tracker_ = tracker;
+        return *this;
+      }
+
       bool run() const {
         return this->runResult() == FLOW_RUN_SUCCEEDED;
       }
@@ -522,6 +532,9 @@ namespace loka {
 
     private:
       void terminalCleanup() const {
+        if (this->impl_->tracker_ != 0) {
+          this->impl_->tracker_->end();
+        }
         if (this->impl_->finallyFn_ != 0) {
           this->impl_->finallyFn_(this->impl_->finallyUser_);
         }
@@ -540,6 +553,9 @@ namespace loka {
           current = this->impl_->steps_[startIndex - 1]->outputPtr();
         }
         FlowError error;
+        if (this->impl_->tracker_ != 0) {
+          this->impl_->tracker_->begin();
+        }
         if (this->impl_->loadingState_ != 0) {
           *this->impl_->loadingState_ = true;
         }
@@ -574,6 +590,9 @@ namespace loka {
           }
 
           if (stepStatus == FLOW_STEP_PENDING) {
+            if (this->impl_->tracker_ != 0) {
+              this->impl_->tracker_->end();
+            }
             return FLOW_RUN_PENDING;
           }
 
