@@ -176,6 +176,22 @@ namespace {
     int *calls_;
   };
 
+  struct FlowTestFieldOutput {
+    int value;
+    int extra;
+    FlowTestFieldOutput() : value(0), extra(0) {}
+  };
+
+  struct FlowTestFieldAdapter {
+    typedef int In;
+    typedef FlowTestFieldOutput Out;
+    loka::dsl::StepRunStatus run(const int &in, FlowTestFieldOutput &out, loka::dsl::FlowError &) const {
+      out.value = in * 10;
+      out.extra = in + 1;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+  };
+
   struct FlowTestPlatformContext : public PlatformContext {
     FlowTestPlatformContext()
         : createImageResult_(false),
@@ -1024,6 +1040,68 @@ void testLokaFlowDslV1Core() {
     assert(capture.calls == 1);
     assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_DECODE);
     assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED);
+  }
+
+  // --- onSuccess field extraction: extract single field into MutableState ---
+  {
+    int input = 5;
+    loka::core::MutableState<int> valueState;
+    loka::core::MutableState<int> extraState;
+
+    loka::dsl::FlowChain<int, FlowTestFieldOutput> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestFieldAdapter())
+                .input(&input)
+                .onSuccess(&valueState, &FlowTestFieldOutput::value)
+                .onSuccess(&extraState, &FlowTestFieldOutput::extra);
+
+    assert(chain.run());
+    assert(valueState.get() == 50);  // 5 * 10
+    assert(extraState.get() == 6);   // 5 + 1
+  }
+
+  // --- bindTrigger: auto-execute flow on state change ---
+  {
+    loka::core::MutableState<int> trigger;
+    loka::core::MutableState<int> result;
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter())
+                .onSuccess(&result);
+    chain.bindTrigger(&trigger);
+
+    trigger.set(7, true);
+    assert(result.get() == 14);  // 7 * 2
+
+    trigger.set(3, true);
+    assert(result.get() == 6);   // 3 * 2
+  }
+
+  // --- bindTrigger: reentry guard prevents double execution ---
+  {
+    loka::core::MutableState<int> trigger;
+    int calls = 0;
+
+    // Callback that re-sets the trigger during step onSuccess processing.
+    // This fires while the flow is still running, so reentry guard must block it.
+    struct ReentryHelper {
+      static void reSetTrigger(const int &, void *user) {
+        loka::core::MutableState<int> *t
+            = static_cast<loka::core::MutableState<int> *>(user);
+        t->set(99);  // value changes → notifyStateChanged → OnTriggerChanged
+      }
+    };
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestCountedPassAdapter(&calls))
+                .onSuccess(&ReentryHelper::reSetTrigger, &trigger);
+    chain.bindTrigger(&trigger);
+
+    trigger.set(10);
+    assert(calls == 1);  // reentry blocked: flow ran only once
+    assert(trigger.get() == 99);  // but the trigger value was updated
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");

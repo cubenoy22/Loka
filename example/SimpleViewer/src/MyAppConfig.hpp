@@ -24,7 +24,6 @@ public:
         chooserResult_(),
         chooserMessage_(loka::core::String::Literal("(none)")),
         image_(),
-        chooserInput_(),
         flow_(buildFlow(this)),
         tracker_(),
         openDialogEvent_()
@@ -34,7 +33,6 @@ public:
     this->tracker_.addState(&this->chooserMessage_);
     this->tracker_.addState(&this->image_);
     this->openDialogEvent_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runOpenDialogPipeline>, this);
-    this->chooserResult_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runChooserPipeline>, this);
   }
 
   virtual void compose(AppComposition &c)
@@ -87,21 +85,6 @@ private:
     this->openDialogVisible_.set(true, true);
   }
 
-  void runChooserPipeline()
-  {
-    this->chooserInput_ = this->chooserResult_.get();
-    (void)this->flow_.run();
-  }
-
-  static void OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData)
-  {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
-    if (self)
-    {
-      self->chooserMessage_.set(projection.message, true);
-    }
-  }
-
   static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData)
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
@@ -115,24 +98,21 @@ private:
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
 
-  static void OnFlowFinally(void *) {}
-
   static ViewerFlowChain buildFlow(MyAppConfig *self)
   {
     ViewerFlowChain chain =
         loka::dsl::Flow()
         | loka::dsl::Step(FLOW_STEP_CHOOSER_TO_CONTEXT, simpleviewer::ChooserToContextAdapter())
-              .input(&self->chooserInput_)
         | loka::dsl::Step(FLOW_STEP_CONTEXT_TO_PROJECTION, simpleviewer::ContextToProjectionAdapter())
-              .onSuccess(&MyAppConfig::OnChooserProjection, self)
+              .onSuccess(&self->chooserMessage_, &simpleviewer::ChooserProjection::message)
         | loka::dsl::Step(FLOW_STEP_PROJECTION_TO_BLOB, simpleviewer::ProjectionToBlobAdapter())
         | loka::dsl::Step(FLOW_STEP_BLOB_DECODE_ATTEMPT,
                           simpleviewer::BlobToDecodeAttemptAdapter(self->getPlatformContext()))
               .onFailure(&MyAppConfig::OnBlobDecodeFailure, self)
         | loka::dsl::Step(FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE, simpleviewer::DecodeAttemptToImageAdapter())
               .onSuccess(&self->image_);
+    chain.bindTrigger(&self->chooserResult_);
     chain.withTracker(&self->tracker_);
-    chain.onFinally(&MyAppConfig::OnFlowFinally, self);
     return chain;
   }
 
@@ -150,7 +130,6 @@ private:
   loka::core::MutableState<loka::app::FileChooserResult> chooserResult_;
   loka::core::MutableState<loka::core::String> chooserMessage_;
   loka::core::MutableState<loka::core::resource::Image> image_;
-  loka::app::FileChooserResult chooserInput_;
   ViewerFlowChain flow_;
   loka::core::PushStateTracker tracker_;
   loka::core::EmitterState openDialogEvent_;

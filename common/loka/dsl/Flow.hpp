@@ -51,6 +51,21 @@ namespace loka {
           *static_cast<const T *>(val), true);
     }
 
+    struct MutableStateFieldBinding {
+      void *statePtr;
+      void (*setter)(void *statePtr, const void *outputPtr, std::size_t offset);
+      std::size_t offset;
+    };
+
+    template <typename FieldT>
+    static void MutableStateFieldSetter(void *statePtr, const void *outputPtr,
+                                        std::size_t offset) {
+      const char *base = static_cast<const char *>(outputPtr);
+      const FieldT *field = reinterpret_cast<const FieldT *>(base + offset);
+      static_cast<loka::core::MutableState<FieldT> *>(statePtr)->set(*field,
+                                                                     true);
+    }
+
     template <typename AdapterT> class StepSpec {
     public:
       typedef typename AdapterT::In In;
@@ -124,6 +139,23 @@ namespace loka {
         return *this;
       }
 
+      template <typename FieldT, typename ClassT>
+      StepSpec &onSuccess(loka::core::MutableState<FieldT> *state,
+                          FieldT ClassT::*member) {
+        typedef char LokaFieldBindingTypeMismatch
+            [(flow_detail::IsSame<Out, ClassT>::value) ? 1 : -1];
+        (void)sizeof(LokaFieldBindingTypeMismatch);
+        MutableStateFieldBinding binding;
+        binding.statePtr = state;
+        binding.setter = &MutableStateFieldSetter<FieldT>;
+        Out temp = Out();
+        binding.offset = static_cast<std::size_t>(
+            reinterpret_cast<const char *>(&(temp.*member))
+            - reinterpret_cast<const char *>(&temp));
+        this->fieldBindings_.push_back(binding);
+        return *this;
+      }
+
       StepSpec &
       onFailure(ErrorMatcherFn matcher, ErrorHandlerFn handler, void *user) {
         FailureCallback cb;
@@ -192,6 +224,10 @@ namespace loka {
         return this->mutableStateBindings_;
       }
 
+      const std::vector<MutableStateFieldBinding> &fieldBindings() const {
+        return this->fieldBindings_;
+      }
+
       FinallyFn finallyFn() const {
         return this->finallyFn_;
       }
@@ -208,6 +244,7 @@ namespace loka {
       std::vector<Out *> successStates_;
       std::vector<FailureCallback> failureCallbacks_;
       std::vector<MutableStateBinding> mutableStateBindings_;
+      std::vector<MutableStateFieldBinding> fieldBindings_;
       FinallyFn finallyFn_;
       void *finallyUser_;
     };
@@ -221,10 +258,13 @@ namespace loka {
     public:
       FlowChainImpl()
           : finallyFn_(0), finallyUser_(0), loadingState_(0), tracker_(0),
+            triggerState_(0), triggerInputBuffer_(0), triggerReadFn_(0),
+            triggerDeleteFn_(0), triggerCallback_(0), triggerRunning_(false),
             refs_(1) {
       }
 
       ~FlowChainImpl() {
+        this->clearTrigger();
         for (std::size_t i = 0; i < this->steps_.size(); ++i) {
           delete this->steps_[i];
         }
@@ -265,6 +305,14 @@ namespace loka {
       bool *loadingState_;
       loka::core::PushStateTracker *tracker_;
 
+      // Trigger state members
+      loka::core::StateBase *triggerState_;
+      void *triggerInputBuffer_;
+      void (*triggerReadFn_)(void *buffer, loka::core::StateBase *state);
+      void (*triggerDeleteFn_)(void *buffer);
+      loka::core::StateBase::OnChangeFn triggerCallback_;
+      bool triggerRunning_;
+
       class IRuntimeStep {
       public:
         virtual ~IRuntimeStep() {
@@ -288,10 +336,194 @@ namespace loka {
         next->finallyUser_ = this->finallyUser_;
         next->loadingState_ = this->loadingState_;
         next->tracker_ = this->tracker_;
+        // trigger is NOT cloned
         for (std::size_t i = 0; i < this->steps_.size(); ++i) {
           next->steps_.push_back(this->steps_[i]->clone());
         }
         return next;
+      }
+
+      // --- Methods moved from FlowChain ---
+
+      void terminalCleanup() const {
+        if (this->tracker_ != 0) {
+          this->tracker_->end();
+        }
+        if (this->finallyFn_ != 0) {
+          this->finallyFn_(this->finallyUser_);
+        }
+        if (this->loadingState_ != 0) {
+          *this->loadingState_ = false;
+        }
+      }
+
+      bool findStepIndex(int stepId, std::size_t &indexOut) const {
+        for (std::size_t i = 0; i < this->steps_.size(); ++i) {
+          if (this->steps_[i]->stepId() == stepId) {
+            indexOut = i;
+            return true;
+          }
+        }
+        return false;
+      }
+
+      FlowRunResult runFromIndex(std::size_t startIndex) const {
+        if (startIndex >= this->steps_.size()) {
+          return FLOW_RUN_FAILED;
+        }
+
+        const void *current = 0;
+        if (startIndex == 0 && this->triggerInputBuffer_) {
+          current = this->triggerInputBuffer_;
+        } else if (startIndex > 0 && startIndex < this->steps_.size()) {
+          current = this->steps_[startIndex - 1]->outputPtr();
+        }
+        FlowError error;
+        if (this->tracker_ != 0) {
+          this->tracker_->begin();
+        }
+        if (this->loadingState_ != 0) {
+          *this->loadingState_ = true;
+        }
+
+        static const std::size_t MAX_ITERATIONS = 1024;
+        std::size_t iterations = 0;
+        for (std::size_t i = startIndex; i < this->steps_.size(); ++i) {
+          if (++iterations > MAX_ITERATIONS) {
+            this->terminalCleanup();
+            return FLOW_RUN_FAILED;
+          }
+          bool stepHandled = false;
+          int stepResumeStepId = -1;
+          int stepSuccessResumeStepId = -1;
+          StepRunStatus stepStatus
+              = this->steps_[i]->run(current, error, stepHandled,
+                                     stepResumeStepId,
+                                     stepSuccessResumeStepId);
+          if (stepStatus == FLOW_STEP_SUCCEEDED) {
+            current = this->steps_[i]->outputPtr();
+
+            if (stepSuccessResumeStepId >= 0) {
+              std::size_t jumpIndex = 0;
+              if (!this->findStepIndex(stepSuccessResumeStepId, jumpIndex)) {
+                this->terminalCleanup();
+                return FLOW_RUN_FAILED;
+              }
+              i = (jumpIndex == 0) ? static_cast<std::size_t>(-1)
+                                   : (jumpIndex - 1);
+            }
+            continue;
+          }
+
+          if (stepStatus == FLOW_STEP_PENDING) {
+            if (this->tracker_ != 0) {
+              this->tracker_->end();
+            }
+            return FLOW_RUN_PENDING;
+          }
+
+          bool flowHandled = false;
+          int flowResumeStepId = -1;
+          for (std::size_t k = 0; k < this->failureCallbacks_.size();
+               ++k) {
+            const FlowFailureCallback &cb = this->failureCallbacks_[k];
+            if (cb.matcher != 0 && cb.matcher(error, cb.user)) {
+              const bool handled
+                  = (cb.handler != 0
+                     && cb.handler(error, cb.user) == FLOW_ERROR_HANDLED);
+              flowHandled = handled;
+              if (handled && cb.resumeStepId >= 0) {
+                flowResumeStepId = cb.resumeStepId;
+              }
+              break; // first-match-wins
+            }
+          }
+
+          const int jumpStepId
+              = stepResumeStepId >= 0 ? stepResumeStepId : flowResumeStepId;
+          if (jumpStepId >= 0) {
+            std::size_t jumpIndex = 0;
+            if (!this->findStepIndex(jumpStepId, jumpIndex)) {
+              this->terminalCleanup();
+              return FLOW_RUN_FAILED;
+            }
+            i = (jumpIndex == 0) ? static_cast<std::size_t>(-1) : (jumpIndex - 1);
+            continue;
+          }
+
+          this->terminalCleanup();
+          return stepHandled || flowHandled ? FLOW_RUN_SUCCEEDED : FLOW_RUN_FAILED;
+        }
+
+        // Flow completed successfully — fire flow-level success callbacks.
+        int flowSuccessResumeStepId = -1;
+        for (std::size_t k = 0; k < this->successCallbacks_.size();
+             ++k) {
+          this->successCallbacks_[k].fn(
+              this->successCallbacks_[k].user);
+          if (flowSuccessResumeStepId < 0
+              && this->successCallbacks_[k].resumeStepId >= 0) {
+            flowSuccessResumeStepId
+                = this->successCallbacks_[k].resumeStepId;
+          }
+        }
+
+        if (flowSuccessResumeStepId >= 0) {
+          std::size_t jumpIndex = 0;
+          if (!this->findStepIndex(flowSuccessResumeStepId, jumpIndex)) {
+            this->terminalCleanup();
+            return FLOW_RUN_FAILED;
+          }
+          this->terminalCleanup();
+          return this->runFromIndex(jumpIndex);
+        }
+
+        this->terminalCleanup();
+        return FLOW_RUN_SUCCEEDED;
+      }
+
+      // --- Trigger support ---
+
+      void setTrigger(loka::core::StateBase *state, void *buffer,
+                      void (*readFn)(void *, loka::core::StateBase *),
+                      void (*deleteFn)(void *),
+                      loka::core::StateBase::OnChangeFn callback) {
+        this->clearTrigger();
+        this->triggerState_ = state;
+        this->triggerInputBuffer_ = buffer;
+        this->triggerReadFn_ = readFn;
+        this->triggerDeleteFn_ = deleteFn;
+        this->triggerCallback_ = callback;
+        this->triggerRunning_ = false;
+        state->deferBind(callback, this);
+      }
+
+      void clearTrigger() {
+        if (this->triggerState_ && this->triggerCallback_) {
+          this->triggerState_->deferUnbind(this->triggerCallback_, this);
+        }
+        if (this->triggerDeleteFn_ && this->triggerInputBuffer_) {
+          this->triggerDeleteFn_(this->triggerInputBuffer_);
+        }
+        this->triggerState_ = 0;
+        this->triggerInputBuffer_ = 0;
+        this->triggerReadFn_ = 0;
+        this->triggerDeleteFn_ = 0;
+        this->triggerCallback_ = 0;
+        this->triggerRunning_ = false;
+      }
+
+      static void OnTriggerChanged(void *userData) {
+        FlowChainImpl *self = static_cast<FlowChainImpl *>(userData);
+        if (self->triggerRunning_) return;
+        self->triggerRunning_ = true;
+        if (self->triggerReadFn_ && self->triggerInputBuffer_) {
+          self->triggerReadFn_(self->triggerInputBuffer_, self->triggerState_);
+        }
+        FlowRunResult result = self->runFromIndex(0);
+        if (result != FLOW_RUN_PENDING) {
+          self->triggerRunning_ = false;
+        }
       }
 
     private:
@@ -354,6 +586,12 @@ namespace loka {
               = this->spec_.mutableStateBindings();
           for (std::size_t i = 0; i < bindings.size(); ++i) {
             bindings[i].setter(bindings[i].statePtr, &this->out_);
+          }
+
+          const std::vector<MutableStateFieldBinding> &fields
+              = this->spec_.fieldBindings();
+          for (std::size_t i = 0; i < fields.size(); ++i) {
+            fields[i].setter(fields[i].statePtr, &this->out_, fields[i].offset);
           }
 
           if (this->spec_.finallyFn() != 0) {
@@ -510,12 +748,22 @@ namespace loka {
         return *this;
       }
 
+      FlowChain &bindTrigger(loka::core::State<InT> *source) {
+        this->detachIfShared();
+        InT *buffer = new InT();
+        this->impl_->setTrigger(
+            source, buffer,
+            &FlowChain::TriggerRead, &FlowChain::TriggerDelete,
+            &FlowChainImpl::OnTriggerChanged);
+        return *this;
+      }
+
       bool run() const {
-        return this->runResult() == FLOW_RUN_SUCCEEDED;
+        return impl_->runFromIndex(0) == FLOW_RUN_SUCCEEDED;
       }
 
       FlowRunResult runResult() const {
-        return this->runFromIndex(0);
+        return impl_->runFromIndex(0);
       }
 
       bool resume(int stepId) const {
@@ -524,147 +772,14 @@ namespace loka {
 
       FlowRunResult resumeResult(int stepId) const {
         std::size_t start = 0;
-        if (!this->findStepIndex(stepId, start)) {
+        if (!impl_->findStepIndex(stepId, start)) {
           return FLOW_RUN_FAILED;
         }
-        return this->runFromIndex(start);
-      }
-
-    private:
-      void terminalCleanup() const {
-        if (this->impl_->tracker_ != 0) {
-          this->impl_->tracker_->end();
+        FlowRunResult result = impl_->runFromIndex(start);
+        if (result != FLOW_RUN_PENDING) {
+          impl_->triggerRunning_ = false;
         }
-        if (this->impl_->finallyFn_ != 0) {
-          this->impl_->finallyFn_(this->impl_->finallyUser_);
-        }
-        if (this->impl_->loadingState_ != 0) {
-          *this->impl_->loadingState_ = false;
-        }
-      }
-
-      FlowRunResult runFromIndex(std::size_t startIndex) const {
-        if (startIndex >= this->impl_->steps_.size()) {
-          return FLOW_RUN_FAILED;
-        }
-
-        const void *current = 0;
-        if (startIndex > 0 && startIndex < this->impl_->steps_.size()) {
-          current = this->impl_->steps_[startIndex - 1]->outputPtr();
-        }
-        FlowError error;
-        if (this->impl_->tracker_ != 0) {
-          this->impl_->tracker_->begin();
-        }
-        if (this->impl_->loadingState_ != 0) {
-          *this->impl_->loadingState_ = true;
-        }
-
-        static const std::size_t MAX_ITERATIONS = 1024;
-        std::size_t iterations = 0;
-        for (std::size_t i = startIndex; i < this->impl_->steps_.size(); ++i) {
-          if (++iterations > MAX_ITERATIONS) {
-            this->terminalCleanup();
-            return FLOW_RUN_FAILED;
-          }
-          bool stepHandled = false;
-          int stepResumeStepId = -1;
-          int stepSuccessResumeStepId = -1;
-          StepRunStatus stepStatus
-              = this->impl_->steps_[i]->run(current, error, stepHandled,
-                                            stepResumeStepId,
-                                            stepSuccessResumeStepId);
-          if (stepStatus == FLOW_STEP_SUCCEEDED) {
-            current = this->impl_->steps_[i]->outputPtr();
-
-            if (stepSuccessResumeStepId >= 0) {
-              std::size_t jumpIndex = 0;
-              if (!this->findStepIndex(stepSuccessResumeStepId, jumpIndex)) {
-                this->terminalCleanup();
-                return FLOW_RUN_FAILED;
-              }
-              i = (jumpIndex == 0) ? static_cast<std::size_t>(-1)
-                                   : (jumpIndex - 1);
-            }
-            continue;
-          }
-
-          if (stepStatus == FLOW_STEP_PENDING) {
-            if (this->impl_->tracker_ != 0) {
-              this->impl_->tracker_->end();
-            }
-            return FLOW_RUN_PENDING;
-          }
-
-          bool flowHandled = false;
-          int flowResumeStepId = -1;
-          for (std::size_t k = 0; k < this->impl_->failureCallbacks_.size();
-               ++k) {
-            const FlowChainImpl::FlowFailureCallback &cb
-                = this->impl_->failureCallbacks_[k];
-            if (cb.matcher != 0 && cb.matcher(error, cb.user)) {
-              const bool handled
-                  = (cb.handler != 0
-                     && cb.handler(error, cb.user) == FLOW_ERROR_HANDLED);
-              flowHandled = handled;
-              if (handled && cb.resumeStepId >= 0) {
-                flowResumeStepId = cb.resumeStepId;
-              }
-              break; // first-match-wins
-            }
-          }
-
-          const int jumpStepId
-              = stepResumeStepId >= 0 ? stepResumeStepId : flowResumeStepId;
-          if (jumpStepId >= 0) {
-            std::size_t jumpIndex = 0;
-            if (!this->findStepIndex(jumpStepId, jumpIndex)) {
-              this->terminalCleanup();
-              return FLOW_RUN_FAILED;
-            }
-            i = (jumpIndex == 0) ? static_cast<std::size_t>(-1) : (jumpIndex - 1);
-            continue;
-          }
-
-          this->terminalCleanup();
-          return stepHandled || flowHandled ? FLOW_RUN_SUCCEEDED : FLOW_RUN_FAILED;
-        }
-
-        // Flow completed successfully — fire flow-level success callbacks.
-        int flowSuccessResumeStepId = -1;
-        for (std::size_t k = 0; k < this->impl_->successCallbacks_.size();
-             ++k) {
-          this->impl_->successCallbacks_[k].fn(
-              this->impl_->successCallbacks_[k].user);
-          if (flowSuccessResumeStepId < 0
-              && this->impl_->successCallbacks_[k].resumeStepId >= 0) {
-            flowSuccessResumeStepId
-                = this->impl_->successCallbacks_[k].resumeStepId;
-          }
-        }
-
-        if (flowSuccessResumeStepId >= 0) {
-          std::size_t jumpIndex = 0;
-          if (!this->findStepIndex(flowSuccessResumeStepId, jumpIndex)) {
-            this->terminalCleanup();
-            return FLOW_RUN_FAILED;
-          }
-          this->terminalCleanup();
-          return this->runFromIndex(jumpIndex);
-        }
-
-        this->terminalCleanup();
-        return FLOW_RUN_SUCCEEDED;
-      }
-
-      bool findStepIndex(int stepId, std::size_t &indexOut) const {
-        for (std::size_t i = 0; i < this->impl_->steps_.size(); ++i) {
-          if (this->impl_->steps_[i]->stepId() == stepId) {
-            indexOut = i;
-            return true;
-          }
-        }
-        return false;
+        return result;
       }
 
     public:
@@ -682,6 +797,16 @@ namespace loka {
       }
 
       FlowChainImpl *impl_;
+
+    private:
+      static void TriggerRead(void *buf, loka::core::StateBase *st) {
+        *static_cast<InT *>(buf)
+            = static_cast<loka::core::State<InT> *>(st)->get();
+      }
+
+      static void TriggerDelete(void *buf) {
+        delete static_cast<InT *>(buf);
+      }
     };
 
     class Flow {
