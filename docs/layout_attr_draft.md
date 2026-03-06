@@ -41,6 +41,15 @@ v1 ではレイアウト指定の実装は既存 API を継続利用し、`layou
 - 既定経路（高速・固定ルール）と、例外経路（Functor）を分離する
 - `Boundary` では resolver 差し替えと同様に layout resolver 差し替えを許可する
 
+### Overflow Strategy (v1)
+
+- v1 は親コンテナ側に `isClipped`（bool）のみを導入対象とする
+  - `false`: はみ出し表示を許可
+  - `true`: 親矩形でクリップ
+- `SCROLL` は v1 スコープ外（通常コンテナに持たせない）
+- スクロールは `ScrollView` コンポーネント責務として実装する
+- `LazyColumn`/`LazyRow` は `ScrollView + virtualization` 実装時に overflow 戦略を拡張する
+
 ## Confirmed Rules
 
 1. `.attr(...)` は 1 ノードにつき 1 回のみ
