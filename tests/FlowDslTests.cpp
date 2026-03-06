@@ -4,6 +4,8 @@
 #include <vector>
 
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/dsl/dsl.hpp"
 
 namespace {
@@ -827,6 +829,20 @@ void testLokaFlowDslV1Core() {
     assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(calls == 2);
     assert(captured == 120);
+  }
+
+  {
+    int input = 5;
+    loka::core::MutableState<int> result;
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter())
+                .input(&input)
+                .onSuccess(&result);
+
+    assert(chain.run());
+    assert(result.get() == 10);
   }
 
   {

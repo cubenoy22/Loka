@@ -4,6 +4,8 @@
 #include <cassert>
 #include <vector>
 
+#include "loka/core/State.hpp"
+
 namespace loka {
   namespace dsl {
     enum StepRunStatus {
@@ -36,6 +38,17 @@ namespace loka {
         enum { value = 1 };
       };
     } // namespace flow_detail
+
+    struct MutableStateBinding {
+      void *statePtr;
+      void (*setter)(void *statePtr, const void *valuePtr);
+    };
+
+    template <typename T>
+    static void MutableStateSetter(void *ptr, const void *val) {
+      static_cast<loka::core::MutableState<T> *>(ptr)->set(
+          *static_cast<const T *>(val), true);
+    }
 
     template <typename AdapterT> class StepSpec {
     public:
@@ -99,6 +112,14 @@ namespace loka {
         cb.user = 0;
         cb.resumeStepId = resumeStepId;
         this->successCallbacks_.push_back(cb);
+        return *this;
+      }
+
+      StepSpec &onSuccess(loka::core::MutableState<Out> *state) {
+        MutableStateBinding binding;
+        binding.statePtr = state;
+        binding.setter = &MutableStateSetter<Out>;
+        this->mutableStateBindings_.push_back(binding);
         return *this;
       }
 
@@ -166,6 +187,10 @@ namespace loka {
         return this->failureCallbacks_;
       }
 
+      const std::vector<MutableStateBinding> &mutableStateBindings() const {
+        return this->mutableStateBindings_;
+      }
+
       FinallyFn finallyFn() const {
         return this->finallyFn_;
       }
@@ -181,6 +206,7 @@ namespace loka {
       std::vector<SuccessCallback> successCallbacks_;
       std::vector<Out *> successStates_;
       std::vector<FailureCallback> failureCallbacks_;
+      std::vector<MutableStateBinding> mutableStateBindings_;
       FinallyFn finallyFn_;
       void *finallyUser_;
     };
@@ -318,6 +344,12 @@ namespace loka {
             if (states[i] != 0) {
               *states[i] = this->out_;
             }
+          }
+
+          const std::vector<MutableStateBinding> &bindings
+              = this->spec_.mutableStateBindings();
+          for (std::size_t i = 0; i < bindings.size(); ++i) {
+            bindings[i].setter(bindings[i].statePtr, &this->out_);
           }
 
           if (this->spec_.finallyFn() != 0) {
