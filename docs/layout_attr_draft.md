@@ -10,6 +10,16 @@
 - API は `attributes` を中心にする
 - `decorator/resolver` は内部実装として扱う
 - CSS 的な広域解決は採用しない（直近コンテナ文脈を優先）
+- `layout` と `attr` を分離する（`layout`: 親→子、`attr`: 自分自身）
+
+## Layout Definition (v1 spec lock)
+
+- `layout` は「親コンテナが子をどう配置するか」を記述する
+- `attr` は「そのノード自身の見た目/振る舞い」を記述する
+- `layout` は親ノード側 API で指定し、子ノード側には持たせない
+- `layout` と `attr` は責務を混ぜない（同じ型に統合しない）
+
+v1 ではレイアウト指定の実装は既存 API を継続利用し、`layout(...)` は仕様先行で定義のみ行う。
 
 ## Confirmed Rules
 
@@ -34,7 +44,8 @@
   - 各プロパティに `T` リテラルと `State<T>*` の両オーバーロードを用意
 
 6. Attr データ方針
-  - 既定 attr は小型 POD 前提
+  - 既定 attr は小型 POD 前提（目安: `sizeof(default attr) <= 16-32 bytes`）
+  - 長い文字列/複雑データなど重い payload は既定 attr に直接保持しない
   - 重い表現は `Extended*Attr` / `Pro*Attr` の明示 opt-in で分離
 
 7. Resolver: Boundary 単位注入、関数ポインタテーブル
@@ -42,6 +53,7 @@
   - Node/Menu は描画時に現在 Boundary の resolver を参照
   - Boundary が無い、または resolver 未指定なら `DefaultAttrResolver`（パススルー）
   - 解決単位は Attr 型単位（`resolve(attr, context)` で丸ごと受け取り）
+  - v1 は `1関数 + attrTypeId` 分岐（switch-case）を標準とする
   - 局所差し替え可能、グローバル汚染なし、68k で低コスト
 
 8. Resolver の適用順序（固定）
@@ -86,6 +98,22 @@ struct ResolverContext {
 // 将来: ゲーム viewport / 設定パネル等で局所差し替え
 ```
 
+v1 推奨実装:
+
+- `attrTypeId` を `switch` で分岐して必要な Attr だけ処理する
+- 型ごとの個別関数スロット配列は v1 では採用しない（構造体肥大化を避ける）
+
+## Common/Control Attr Layering (spec note)
+
+- v1 では共通プロパティを `CommonAttr` として扱う想定を持つ
+  - 例: `disabled`, `visible`, `opacity`
+- 入力系共通プロパティは `ControlAttr` 層として拡張可能にする
+  - 例: `focusable`, `tabIndex`, control-state style hooks
+- 各要素 attr はこれらを内包して保持する（多重継承ではなく has-a を推奨）
+  - 例: `TextAttr { CommonAttr common; ControlAttr control; ... }`
+- Resolver は `CommonAttr` / `ControlAttr` を先に適用し、その後に要素固有 attr を適用する
+- 未対応要素では該当共通項目を no-op 扱い（debug では警告/assert）
+
 ## API Sketch (v1)
 
 ```cpp
@@ -107,6 +135,12 @@ MenuItem("Open...").attr(MenuItemAttr().disabled(&isProcessing))
 
 // v1 ではレイアウトは既存 API を継続利用
 ImageView().image(&imageState).size(0, 180);
+
+// 将来の layout 記法（仕様先行）
+VStack()
+  .layout(VStackLayout().padding(8).gap(6))
+  << Text("A").attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
+  << ImageView().image(&imageState).attr(ImageAttr().fit(IMAGE_FIT_CONTAIN));
 ```
 
 ## Type Safety Policy
@@ -125,11 +159,49 @@ ImageView().image(&imageState).size(0, 180);
 | 要素 attr | `ImageAttr`, `TextAttr` 等 | 同左 |
 | レイアウト attr | なし | `VStackChildAttr` 等を追加 |
 | `.size()` 等既存API | 互換維持 | attr へ段階移行 |
+| `layout(...)` | 仕様のみ定義（実装なし） | 実装導入 |
 | Menu attr | `MenuItemAttr` 等 | 同左 |
 | Resolver | `DefaultAttrResolver`（パススルー） | 局所差し替え活用 |
 | 合成型 | 不要 | 必要になったら検討 |
 
 ## Open (v1 implementation detail)
 
-- Resolver 関数ポインタテーブルの粒度: 1関数で `attrTypeId` 分岐 vs Attr 型ごとに個別スロット
 - `MenuDSL` 側の最小 attr セット（font/shortcut emphasis/disabled style）の具体リスト
+
+## Internal Storage Direction (v1.1 candidate)
+
+v1 API は維持しつつ、内部表現は以下を候補とする。
+
+- 既定は可読性優先の TLV 方式（`enum tag + value`）
+- bit レベル圧縮は行わない（保守性優先）
+- `SmallBuffer`（例: 16 bytes）に優先格納
+- オーバーフロー時は Arena チャンク連結で拡張
+- decode/hydrate は必要な項目のみ行う
+
+導入タイミング:
+
+- v1.0: 固定 POD 内部表現で API/挙動を先に安定化
+- v1.1: API 互換を維持したまま TLV 内部表現へ移行
+
+重い値の扱い:
+
+- `fontName` 等の可変長データは既定 TLV に埋め込まない
+- ポインタ参照または外部テーブル ID 参照で扱う
+
+安全ガード:
+
+- TLV version/type id を保持
+- 2-byte alignment 規約を維持
+- debug で TLV 検証（範囲外/不正列の assert）
+
+Hydrate/適用方針:
+
+- v1.1 では「Resolver が TLV をパースしながら直接適用」を標準とする
+- 毎フレームの恒久 hydrate キャッシュは持たない（メモリ優先）
+- 高頻度ノードのみ将来最適化として一時キャッシュを検討
+
+変更判定方針:
+
+- まず TLV バイト列同一性（length + memcmp）で高速判定
+- 参照系（`State<T>*` / `fontName*`）は既定でポインタ同一性比較
+- 値比較が必要なタグのみ、タグ単位で明示的に比較戦略を追加
