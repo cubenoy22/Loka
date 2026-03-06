@@ -54,6 +54,16 @@ void testLokaAttrDslV1Core()
     assert(!left.equalsStructure(changed));
   }
 
+  // --- MenuItem.attr mutates lvalue definitions (compatibility contract) ---
+  {
+    loka::app::MenuItemDefinition item("Open");
+    assert(!item.hasAttr_);
+    item.attr(loka::app::MenuItemAttr().disabled(true));
+    assert(item.hasAttr_);
+    assert(item.attr_.hasDisabledValue_);
+    assert(item.attr_.disabledValue_);
+  }
+
   // --- MenuItem disabled attr -> effective enabled projection ---
   {
     loka::app::MenuItemDefinition disabledByValue("Open");
