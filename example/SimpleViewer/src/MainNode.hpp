@@ -21,13 +21,13 @@ namespace simpleviewer
   {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
-    loka::core::State<bool> *isDialogShown_;
+    loka::core::MutableState<bool> *isDialogShown_;
     loka::core::State<loka::core::String> *message_;
     loka::core::MutableState<loka::app::FileChooserResult> *result_;
     loka::core::State<loka::core::resource::Image> *image_;
     MainProps() : isDialogShown_(0), message_(0), result_(0), image_(0) {}
 
-    MainProps &isDialogShown(loka::core::State<bool> *state)
+    MainProps &isDialogShown(loka::core::MutableState<bool> *state)
     {
       this->isDialogShown_ = state;
       return *this;

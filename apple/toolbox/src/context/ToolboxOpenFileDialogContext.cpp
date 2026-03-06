@@ -20,7 +20,6 @@ ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDi
       visibleState_(0),
       resultState_(0),
       onResult_(0),
-      lastVisible_(false),
       presenting_(false)
 {
   visibleState_ = node_ ? node_->props.isVisible_ : 0;
@@ -28,9 +27,7 @@ ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDi
   onResult_ = node_ ? node_->props.onResult_ : 0;
   if (visibleState_)
   {
-    lastVisible_ = visibleState_->get();
     bindVisible();
-    applyVisible();
   }
 }
 
@@ -63,12 +60,10 @@ void ToolboxOpenFileDialogContext::applyVisible()
   {
     return;
   }
-  const bool visible = visibleState_->get();
-  if (visible && !lastVisible_)
+  if (visibleState_->get())
   {
     presentDialog();
   }
-  lastVisible_ = visible;
 }
 
 void ToolboxOpenFileDialogContext::presentDialog()
@@ -94,6 +89,10 @@ void ToolboxOpenFileDialogContext::presentDialog()
   }
 
   presenting_ = false;
+  if (visibleState_)
+  {
+    visibleState_->set(false);
+  }
 }
 
 void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)

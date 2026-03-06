@@ -7,7 +7,6 @@ Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::O
       visibleState_(0),
       resultState_(0),
       onResult_(0),
-      lastVisible_(false),
       presenting_(false)
 {
   visibleState_ = node_ ? node_->props.isVisible_ : 0;
@@ -15,9 +14,7 @@ Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::O
   onResult_ = node_ ? node_->props.onResult_ : 0;
   if (visibleState_)
   {
-    lastVisible_ = visibleState_->get();
     bindVisible();
-    applyVisible();
   }
 }
 
@@ -50,12 +47,10 @@ void Win32OpenFileDialogContext::applyVisible()
   {
     return;
   }
-  const bool visible = visibleState_->get();
-  if (visible && !lastVisible_)
+  if (visibleState_->get())
   {
     presentDialog();
   }
-  lastVisible_ = visible;
 }
 
 void Win32OpenFileDialogContext::presentDialog()
@@ -99,6 +94,10 @@ void Win32OpenFileDialogContext::presentDialog()
   }
 
   presenting_ = false;
+  if (visibleState_)
+  {
+    visibleState_->set(false);
+  }
 }
 
 void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)

@@ -9,7 +9,6 @@ MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::
       visibleState_(0),
       resultState_(0),
       onResult_(0),
-      lastVisible_(false),
       presenting_(false)
 {
   visibleState_ = node_ ? node_->props.isVisible_ : 0;
@@ -17,9 +16,7 @@ MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::
   onResult_ = node_ ? node_->props.onResult_ : 0;
   if (visibleState_)
   {
-    lastVisible_ = visibleState_->get();
     bindVisible();
-    applyVisible();
   }
 }
 
@@ -52,12 +49,10 @@ void MacOpenFileDialogContext::applyVisible()
   {
     return;
   }
-  const bool visible = visibleState_->get();
-  if (visible && !lastVisible_)
+  if (visibleState_->get())
   {
     presentDialog();
   }
-  lastVisible_ = visible;
 }
 
 void MacOpenFileDialogContext::presentDialog()
@@ -103,6 +98,10 @@ void MacOpenFileDialogContext::presentDialog()
     setResult(loka::app::FileChooserResult::Canceled());
   }
   presenting_ = false;
+  if (visibleState_)
+  {
+    visibleState_->set(false);
+  }
 }
 
 void MacOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)

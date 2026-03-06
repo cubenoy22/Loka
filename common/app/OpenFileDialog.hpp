@@ -90,13 +90,13 @@ namespace loka
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
-      loka::core::State<bool> *isVisible_;
+      loka::core::MutableState<bool> *isVisible_;
       loka::core::MutableState<FileChooserResult> *result_;
       loka::core::EmitterState *onResult_;
       void *windowToAttach_;
       OpenFileDialogProps() : isVisible_(0), result_(0), onResult_(0), windowToAttach_(0) {}
 
-      OpenFileDialogProps &isVisible(loka::core::State<bool> *state)
+      OpenFileDialogProps &isVisible(loka::core::MutableState<bool> *state)
       {
         this->isVisible_ = state;
         return *this;
@@ -150,7 +150,7 @@ namespace loka
       OpenFileDialogDefinition() : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>() {}
       OpenFileDialogDefinition(const OpenFileDialogProps &p) : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>(p) {}
 
-      OpenFileDialogDefinition &isVisible(loka::core::State<bool> *state)
+      OpenFileDialogDefinition &isVisible(loka::core::MutableState<bool> *state)
       {
         this->props.isVisible_ = state;
         return *this;

@@ -6,7 +6,6 @@
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "app/WindowDefinition.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
 #include "app/Menu.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "core/resource/Image.hpp"
@@ -74,11 +73,6 @@ private:
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (!self) return;
-    loka::core::StateTrackerGuard guard(&self->tracker_);
-    if (self->isDialogShown_.get())
-    {
-      self->isDialogShown_.set(false, true);
-    }
     self->isDialogShown_.set(true, true);
   }
 
