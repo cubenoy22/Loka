@@ -384,7 +384,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     if (imageHeight <= 0 && image->props.image_)
     {
       const loka::core::resource::Image current = image->props.image_->get();
-      imageHeight = current.height();
+      const int srcWidth = current.width();
+      const int srcHeight = current.height();
+      if (srcWidth > 0 && srcHeight > 0 && imageWidth > 0)
+      {
+        imageHeight = (imageWidth * srcHeight) / srcWidth;
+      }
+      else
+      {
+        imageHeight = srcHeight;
+      }
     }
     if (imageHeight <= 0)
     {

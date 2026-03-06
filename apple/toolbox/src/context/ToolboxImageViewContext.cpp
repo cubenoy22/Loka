@@ -23,6 +23,20 @@ short ToolboxImageViewContext::layout(loka::app::scene::IPlatformController *, l
     {
       height = static_cast<short>(node_->props.height_);
     }
+    else if (node_->props.image_)
+    {
+      const loka::core::resource::Image current = node_->props.image_->get();
+      const int srcWidth = current.width();
+      const int srcHeight = current.height();
+      if (srcWidth > 0 && srcHeight > 0 && width > 0)
+      {
+        height = static_cast<short>((width * srcHeight) / srcWidth);
+      }
+      else if (srcHeight > 0)
+      {
+        height = static_cast<short>(srcHeight);
+      }
+    }
   }
   state.y = static_cast<short>(state.y + height + state.spacing);
   return width;
