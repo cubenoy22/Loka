@@ -36,7 +36,7 @@
 - DSL shorthand ideas: direct props overloads (Text("...")), direct State props (EditText(State*)), optional prepare/compose merge, namespace alias, Fragment helper.
 - Node種別の分散化: NODE_KIND enum + asXxxNode() + PlatformController switch の一極集中を解消。各ノードクラスが自身のコンテキスト生成を持ち込める登録型アーキテクチャへ移行する。68k以外はRTTIでasXxxNode()を廃止、コンテキストファクトリ登録でenum/switchも不要にする。ユーザー定義コンポーネントの拡張性確保が目標。
 - ImageView rendering policy: keep platform contexts on custom drawing paths (NSView/GDI/Toolbox) and avoid tying behavior to NSImageView-specific features for cross-platform parity.
-- ImageView scaling contract: define shared fit/fill/center modes and align macOS/Win32/Toolbox behavior.
+- ImageView scaling contract: `fit` mode handling aligned on Win32/macOS (`NONE/CONTAIN/COVER/STRETCH`); Toolbox path still pending because ImageView context is layout-only today (no render implementation yet).
 - Win32 image backend split plan: keep legacy GDI path for XP/2k compatibility and add capability-based modern path (WIC/high-DPI aware) without OS-name hard forks.
 - Win32 compatibility note for planning: treat XP/2k as legacy baseline (build-verified target) and Vista+ as modern-capability tier; record per-feature support in the matrix.
 - Flow DSL use-case validation: keep `Step(id, adapter)` focused on bounded-lifetime async/transform pipelines and verify readability/testability.
