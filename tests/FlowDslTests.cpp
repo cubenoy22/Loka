@@ -470,6 +470,57 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    int input = 41;
+    int calls = 0;
+    bool ready = false;
+    int captured = 0;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 615};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+                .input(&input)
+                .onSuccess(&captured);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+    assert(calls == 1);
+
+    chain.cancel();
+    chain.clearCancel();
+    ready = true;
+
+    const loka::dsl::FlowRunResult resumed = chain.resumeResult(1);
+    assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(calls == 2);
+    assert(captured == 141);
+    assert(order.size() == 1);
+    assert(order[0] == 615);
+  }
+
+  {
+    int input = 11;
+    int out = 0;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 625};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestAdd1Adapter())
+                .input(&input)
+                .onSuccess(&out);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+    chain.cancel();
+
+    const loka::dsl::FlowRunResult canceled = chain.runResult();
+    assert(canceled == loka::dsl::FLOW_RUN_CANCELED);
+    assert(out == 0);
+    assert(order.size() == 1);
+    assert(order[0] == 625);
+  }
+
+  {
     int input = 2;
     int out = 0;
     bool failedOnce = false;
@@ -878,6 +929,34 @@ void testLokaFlowDslV1Core() {
     assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(calls == 2);
     assert(captured == 120);
+  }
+
+  {
+    loka::core::MutableState<int> trigger;
+    int calls = 0;
+    bool ready = false;
+    int captured = 0;
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+                .onSuccess(&captured);
+    chain.bindTrigger(&trigger);
+
+    trigger.set(9, true);
+    assert(calls == 1);
+    assert(captured == 0);
+
+    chain.cancel();
+    ready = true;
+    const loka::dsl::FlowRunResult canceled = chain.resumeResult(1);
+    assert(canceled == loka::dsl::FLOW_RUN_CANCELED);
+    assert(calls == 1);
+    assert(captured == 0);
+
+    // Cancel terminal must not consume pending step output.
+    assert(calls == 1);
+    assert(captured == 0);
   }
 
   {
