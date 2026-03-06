@@ -499,6 +499,11 @@ namespace
       {
         controller->contextMapper()->ensureImageViewContext(image);
       }
+      if (image->getContext())
+      {
+        ToolboxImageViewContext *ctx = static_cast<ToolboxImageViewContext *>(image->getContext());
+        ctx->setBoundary(activeBoundary);
+      }
       short width = node->layout(controller, state);
       if (boundary)
       {
