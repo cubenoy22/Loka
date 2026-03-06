@@ -78,7 +78,7 @@ v1 では **要素固有 attr のみ** を対象とする。レイアウト attr
 
 - 全既存要素に最小限の attr を適用（`Text`, `ImageView`, `Empty`, `MenuItem` 等）
 - 要素 attr: `ImageAttr`, `TextAttr`, `MenuItemAttr` 等
-- レイアウト attr (`VStackChildAttr`, `fillX`, `minHeight` 等): v1.1 以降
+- 子の sizing 要求（`fillX`, `minHeight` 等）は要素 attr 側に段階導入（v1.1 以降）
 - 合成型 (`ImageViewAttr().layout().image()`): 不要（attr 1回 + 要素 attr のみ）
 - MenuDSL: 同じ attr 基盤を共有（`disabled` 等の共通プロパティ）
 
@@ -148,7 +148,7 @@ VStack()
 - `NodeDefinition<T>` に `.attr()` すると `NodeDefinition<T, AttrTag>` を返す
 - `<<` 演算子で `IsAllowed<ContainerTag, AttrTag>` を静的チェック
 - 不適切な組み合わせはコンパイルエラー
-- 例: `VStack` 文脈で `ZStackChildAttr` は不可（v1.1 以降で適用）
+- 例: `VStack` 文脈で `ZStack` 専用 attr は不可
 
 ## Roadmap
 
@@ -157,7 +157,7 @@ VStack()
 | attr 回数 | 1回（型レベル強制） | 1回 |
 | 型チェック | `NodeDefinition<T, AttrTag>` + `<<` で static | 同左 |
 | 要素 attr | `ImageAttr`, `TextAttr` 等 | 同左 |
-| レイアウト attr | なし | `VStackChildAttr` 等を追加 |
+| 子 sizing 要求 | なし | 要素 attr 側に追加（`fillX`, `minHeight` 等） |
 | `.size()` 等既存API | 互換維持 | attr へ段階移行 |
 | `layout(...)` | 仕様のみ定義（実装なし） | 実装導入 |
 | Menu attr | `MenuItemAttr` 等 | 同左 |
