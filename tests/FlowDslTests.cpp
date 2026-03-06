@@ -808,5 +808,29 @@ void testLokaFlowDslV1Core() {
     assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED);
   }
 
+  {
+    int input = 10;
+    int calls = 0;
+    bool ready = false;
+    int captured = 0;
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter())
+                .input(&input)
+          | loka::dsl::Step(2, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+                .onSuccess(&captured);
+
+    const loka::dsl::FlowRunResult first = chain.runResult();
+    assert(first == loka::dsl::FLOW_RUN_PENDING);
+    assert(calls == 1);
+
+    ready = true;
+    const loka::dsl::FlowRunResult resumed = chain.resumeResult(2);
+    assert(resumed == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(calls == 2);
+    assert(captured == 120);
+  }
+
   printf("==== [testLokaFlowDslV1Core] end ====\n");
 }

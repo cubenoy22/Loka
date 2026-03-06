@@ -489,6 +489,9 @@ namespace loka {
         }
 
         const void *current = 0;
+        if (startIndex > 0 && startIndex < this->impl_->steps_.size()) {
+          current = this->impl_->steps_[startIndex - 1]->outputPtr();
+        }
         FlowError error;
         if (this->impl_->loadingState_ != 0) {
           *this->impl_->loadingState_ = true;
