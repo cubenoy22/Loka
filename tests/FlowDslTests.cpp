@@ -237,16 +237,14 @@ void testLokaFlowDslV1Core() {
     const bool ok = chain.run();
     assert(ok);
     assert(captured == 6);
-    assert(order.size() == 9);
+    assert(order.size() == 7);
     assert(order[0] == 10);
     assert(order[1] == 11);
-    assert(order[2] == 12);
-    assert(order[3] == 22);
-    assert(order[4] == 20);
-    assert(order[5] == 21);
-    assert(order[6] == 12);
-    assert(order[7] == 22);
-    assert(order[8] == 99);
+    assert(order[2] == 20);
+    assert(order[3] == 21);
+    assert(order[4] == 12);
+    assert(order[5] == 22);
+    assert(order[6] == 99);
   }
 
   {
@@ -280,14 +278,13 @@ void testLokaFlowDslV1Core() {
 
     const bool ok = chain.run();
     assert(ok);
-    assert(order.size() == 7);
+    assert(order.size() == 6);
     assert(order[0] == 110);
     assert(order[1] == 111);
-    assert(order[2] == 112);
-    assert(order[3] == 130);
-    assert(order[4] == 132);
-    assert(order[5] == 150);
-    assert(order[6] == 199);
+    assert(order[2] == 130);
+    assert(order[3] == 132);
+    assert(order[4] == 150);
+    assert(order[5] == 199);
 
     // Flow failure handler must run, default step failure handler must not run
     // (first-match-wins).

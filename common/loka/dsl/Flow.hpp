@@ -489,6 +489,15 @@ namespace loka {
       }
 
     private:
+      void terminalCleanup() const {
+        if (this->impl_->finallyFn_ != 0) {
+          this->impl_->finallyFn_(this->impl_->finallyUser_);
+        }
+        if (this->impl_->loadingState_ != 0) {
+          *this->impl_->loadingState_ = false;
+        }
+      }
+
       FlowRunResult runFromIndex(std::size_t startIndex) const {
         if (startIndex >= this->impl_->steps_.size()) {
           return FLOW_RUN_FAILED;
@@ -507,12 +516,7 @@ namespace loka {
         std::size_t iterations = 0;
         for (std::size_t i = startIndex; i < this->impl_->steps_.size(); ++i) {
           if (++iterations > MAX_ITERATIONS) {
-            if (this->impl_->finallyFn_ != 0) {
-              this->impl_->finallyFn_(this->impl_->finallyUser_);
-            }
-            if (this->impl_->loadingState_ != 0) {
-              *this->impl_->loadingState_ = false;
-            }
+            this->terminalCleanup();
             return FLOW_RUN_FAILED;
           }
           bool stepHandled = false;
@@ -524,30 +528,11 @@ namespace loka {
                                             stepSuccessResumeStepId);
           if (stepStatus == FLOW_STEP_SUCCEEDED) {
             current = this->impl_->steps_[i]->outputPtr();
-            int flowSuccessResumeStepId = -1;
-            for (std::size_t k = 0; k < this->impl_->successCallbacks_.size();
-                 ++k) {
-              this->impl_->successCallbacks_[k].fn(
-                  this->impl_->successCallbacks_[k].user);
-              if (flowSuccessResumeStepId < 0
-                  && this->impl_->successCallbacks_[k].resumeStepId >= 0) {
-                flowSuccessResumeStepId
-                    = this->impl_->successCallbacks_[k].resumeStepId;
-              }
-            }
 
-            const int jumpStepId = stepSuccessResumeStepId >= 0
-                                       ? stepSuccessResumeStepId
-                                       : flowSuccessResumeStepId;
-            if (jumpStepId >= 0) {
+            if (stepSuccessResumeStepId >= 0) {
               std::size_t jumpIndex = 0;
-              if (!this->findStepIndex(jumpStepId, jumpIndex)) {
-                if (this->impl_->finallyFn_ != 0) {
-                  this->impl_->finallyFn_(this->impl_->finallyUser_);
-                }
-                if (this->impl_->loadingState_ != 0) {
-                  *this->impl_->loadingState_ = false;
-                }
+              if (!this->findStepIndex(stepSuccessResumeStepId, jumpIndex)) {
+                this->terminalCleanup();
                 return FLOW_RUN_FAILED;
               }
               i = (jumpIndex == 0) ? static_cast<std::size_t>(-1)
@@ -583,34 +568,41 @@ namespace loka {
           if (jumpStepId >= 0) {
             std::size_t jumpIndex = 0;
             if (!this->findStepIndex(jumpStepId, jumpIndex)) {
-              if (this->impl_->finallyFn_ != 0) {
-                this->impl_->finallyFn_(this->impl_->finallyUser_);
-              }
-              if (this->impl_->loadingState_ != 0) {
-                *this->impl_->loadingState_ = false;
-              }
+              this->terminalCleanup();
               return FLOW_RUN_FAILED;
             }
             i = (jumpIndex == 0) ? static_cast<std::size_t>(-1) : (jumpIndex - 1);
             continue;
           }
 
-          if (this->impl_->finallyFn_ != 0) {
-            this->impl_->finallyFn_(this->impl_->finallyUser_);
-          }
-          if (this->impl_->loadingState_ != 0) {
-            *this->impl_->loadingState_ = false;
-          }
+          this->terminalCleanup();
           return stepHandled || flowHandled ? FLOW_RUN_SUCCEEDED : FLOW_RUN_FAILED;
         }
 
-        if (this->impl_->finallyFn_ != 0) {
-          this->impl_->finallyFn_(this->impl_->finallyUser_);
-        }
-        if (this->impl_->loadingState_ != 0) {
-          *this->impl_->loadingState_ = false;
+        // Flow completed successfully — fire flow-level success callbacks.
+        int flowSuccessResumeStepId = -1;
+        for (std::size_t k = 0; k < this->impl_->successCallbacks_.size();
+             ++k) {
+          this->impl_->successCallbacks_[k].fn(
+              this->impl_->successCallbacks_[k].user);
+          if (flowSuccessResumeStepId < 0
+              && this->impl_->successCallbacks_[k].resumeStepId >= 0) {
+            flowSuccessResumeStepId
+                = this->impl_->successCallbacks_[k].resumeStepId;
+          }
         }
 
+        if (flowSuccessResumeStepId >= 0) {
+          std::size_t jumpIndex = 0;
+          if (!this->findStepIndex(flowSuccessResumeStepId, jumpIndex)) {
+            this->terminalCleanup();
+            return FLOW_RUN_FAILED;
+          }
+          this->terminalCleanup();
+          return this->runFromIndex(jumpIndex);
+        }
+
+        this->terminalCleanup();
         return FLOW_RUN_SUCCEEDED;
       }
 
