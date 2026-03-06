@@ -131,7 +131,12 @@ static void MenuEnabledChangedThunk(void *userData)
   if (!binding || !binding->menuItem || !binding->enabledState)
     return;
   NSMenuItem *item = (NSMenuItem *)binding->menuItem;
-  [item setEnabled:binding->enabledState->get()];
+  bool enabled = binding->enabledState->get();
+  if (binding->invertEnabled)
+  {
+    enabled = !enabled;
+  }
+  [item setEnabled:enabled ? YES : NO];
 }
 
 void MacApp::clearMenuBindings()
@@ -223,13 +228,20 @@ static std::size_t BuildMenuItem(NSMenu *menu,
     commands.push_back(command);
   }
 
-  if (itemDef->enabledState)
+  if (!itemDef->isEnabledInitial())
   {
-    [menuItem setEnabled:itemDef->enabledState->get()];
+    [menuItem setEnabled:NO];
+  }
+
+  loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
+  if (enabledBindingState)
+  {
+    [menuItem setEnabled:itemDef->isEnabledInitial() ? YES : NO];
     MacApp::MenuBinding *binding = new MacApp::MenuBinding();
     binding->menuItem = (void *)menuItem;
-    binding->enabledState = itemDef->enabledState;
-    itemDef->enabledState->deferBind(&MenuEnabledChangedThunk, binding);
+    binding->enabledState = enabledBindingState;
+    binding->invertEnabled = itemDef->enabledBindingInvert();
+    enabledBindingState->deferBind(&MenuEnabledChangedThunk, binding);
     bindings.push_back(binding);
   }
 

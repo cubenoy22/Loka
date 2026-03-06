@@ -35,6 +35,7 @@ public:
     MenuHandle menu;
     short itemIndex;
     loka::core::State<bool> *enabledState;
+    bool invertEnabled;
   };
 
 private:

@@ -130,6 +130,10 @@ void Win32App::MenuEnabledChangedThunk(void *userData)
   if (!binding || !binding->enabledState || !binding->menu)
     return;
   bool enabled = binding->enabledState->get();
+  if (binding->invertEnabled)
+  {
+    enabled = !enabled;
+  }
   EnableMenuItem(binding->menu, binding->commandId, MF_BYCOMMAND | (enabled ? MF_ENABLED : MF_GRAYED));
   if (binding->hwnd)
   {
@@ -170,7 +174,7 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   std::string titleUtf8;
   loka::platform::CollectUtf8(itemDef->title, titleUtf8);
   UINT flags = MF_STRING;
-  if (itemDef->enabledState && !itemDef->enabledState->get())
+  if (!itemDef->isEnabledInitial())
   {
     flags |= MF_GRAYED;
   }
@@ -195,13 +199,15 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   command.action = itemDef->action;
   command.emitter = itemDef->onClickState;
   commands_.push_back(command);
-  if (itemDef->enabledState)
+  loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
+  if (enabledBindingState)
   {
     Win32App::MenuBinding *binding = new Win32App::MenuBinding();
     binding->menu = menu;
     binding->commandId = commandId;
     binding->hwnd = hwnd;
-    binding->enabledState = itemDef->enabledState;
+    binding->enabledState = enabledBindingState;
+    binding->invertEnabled = itemDef->enabledBindingInvert();
     binding->enabledState->deferBind(&Win32App::MenuEnabledChangedThunk, binding);
     bindings_.push_back(binding);
   }

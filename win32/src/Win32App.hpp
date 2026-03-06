@@ -37,6 +37,7 @@ private:
     UINT commandId;
     HWND hwnd;
     loka::core::State<bool> *enabledState;
+    bool invertEnabled;
   };
 
   void clearMenuBindings();

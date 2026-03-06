@@ -1257,5 +1257,31 @@ void testLokaFlowDslV1Core() {
     assert(!left.equalsStructure(changed));
   }
 
+  // --- MenuItem disabled attr -> effective enabled projection ---
+  {
+    loka::app::MenuItemDefinition disabledByValue("Open");
+    disabledByValue.attr(loka::app::MenuItemAttr().disabled(true));
+    assert(!disabledByValue.isEnabledInitial());
+    assert(disabledByValue.enabledBindingState() == 0);
+
+    loka::core::MutableState<bool> disabledState(false);
+    loka::app::MenuItemDefinition disabledByState("Open");
+    disabledByState.attr(loka::app::MenuItemAttr().disabled(&disabledState));
+    assert(disabledByState.isEnabledInitial());
+    assert(disabledByState.enabledBindingState() == &disabledState);
+    assert(disabledByState.enabledBindingInvert());
+    disabledState.set(true);
+    assert(!disabledByState.isEnabledInitial());
+
+    loka::core::MutableState<bool> enabledState(true);
+    loka::app::MenuItemDefinition explicitEnabled("Open");
+    explicitEnabled.enabled(&enabledState).attr(loka::app::MenuItemAttr().disabled(true));
+    assert(explicitEnabled.enabledBindingState() == &enabledState);
+    assert(!explicitEnabled.enabledBindingInvert());
+    assert(explicitEnabled.isEnabledInitial());
+    enabledState.set(false);
+    assert(!explicitEnabled.isEnabledInitial());
+  }
+
   printf("==== [testLokaFlowDslV1Core] end ====\n");
 }

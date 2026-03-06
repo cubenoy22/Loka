@@ -27,6 +27,7 @@ public:
   {
     void *menuItem;
     loka::core::State<bool> *enabledState;
+    bool invertEnabled;
   };
 
 protected:

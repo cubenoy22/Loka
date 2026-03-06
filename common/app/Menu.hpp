@@ -177,6 +177,45 @@ namespace loka
         return *this;
       }
 
+      bool isEnabledInitial() const
+      {
+        if (this->enabledState)
+        {
+          return this->enabledState->get();
+        }
+        if (!this->hasAttr_)
+        {
+          return true;
+        }
+        if (this->attr_.disabledState_)
+        {
+          return !this->attr_.disabledState_->get();
+        }
+        if (this->attr_.hasDisabledValue_)
+        {
+          return !this->attr_.disabledValue_;
+        }
+        return true;
+      }
+
+      loka::core::State<bool> *enabledBindingState() const
+      {
+        if (this->enabledState)
+        {
+          return this->enabledState;
+        }
+        if (this->hasAttr_ && this->attr_.disabledState_)
+        {
+          return this->attr_.disabledState_;
+        }
+        return 0;
+      }
+
+      bool enabledBindingInvert() const
+      {
+        return (!this->enabledState && this->hasAttr_ && this->attr_.disabledState_);
+      }
+
       MenuItemDefinition &operator<<(const MenuItemDefinition &child)
       {
         children_.appendClone(child);
