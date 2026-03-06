@@ -363,6 +363,11 @@ static void BuildMenuItems(MenuHandle menu,
       itemDef = itemDef->nextInComposition;
       continue;
     }
+    if (!itemDef->isVisibleInitial())
+    {
+      itemDef = itemDef->nextInComposition;
+      continue;
+    }
     if (itemDef->isSeparator)
     {
       AppendMenu(menu, "\p-");
@@ -524,7 +529,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       {
         if (itemDef->action == loka::app::MENU_ACTION_ABOUT_APP)
         {
-          aboutItems.push_back(itemDef);
+          if (itemDef->isVisibleInitial())
+          {
+            aboutItems.push_back(itemDef);
+          }
         }
         itemDef = itemDef->nextInComposition;
       }
@@ -673,7 +681,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
         {
           if (itemDef->action == loka::app::MENU_ACTION_ABOUT_APP)
           {
-            aboutItems.push_back(itemDef);
+            if (itemDef->isVisibleInitial())
+            {
+              aboutItems.push_back(itemDef);
+            }
           }
           itemDef = itemDef->nextInComposition;
         }

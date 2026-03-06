@@ -158,6 +158,7 @@ Text("hi").attr(TextAttr().fontSize(&fontSizeState))
 
 // Menu: 同じ基盤
 MenuItem("Open...").attr(MenuItemAttr().disabled(&isProcessing))
+MenuItem("Debug...").attr(MenuItemAttr().visible(false))
 
 // v1 ではレイアウトは既存 API を継続利用
 ImageView().image(&imageState).size(0, 180);

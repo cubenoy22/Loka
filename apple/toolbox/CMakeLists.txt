@@ -6,6 +6,7 @@ add_library(LokaAppleToolbox INTERFACE)
 set(LOKA_TOOLBOX_SOURCES
   src/ToolboxString.cpp
   src/ToolboxApp.cpp
+  src/ToolboxNativeImage.cpp
   src/ToolboxProfiler.cpp
   src/context/ToolboxButtonContext.cpp
   src/context/ToolboxCellContext.cpp

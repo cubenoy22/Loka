@@ -191,6 +191,8 @@ static std::size_t BuildMenuItem(NSMenu *menu,
 {
   if (!itemDef)
     return 0;
+  if (!itemDef->isVisibleInitial())
+    return 0;
   if (!allowQuit && itemDef->action == loka::app::MENU_ACTION_QUIT_APP)
     return 0;
   if (itemDef->isSeparator)

@@ -93,5 +93,19 @@ void testLokaAttrDslV1Core()
     assert(!explicitEnabled.isEnabledInitial());
   }
 
+  // --- MenuItem visible projection ---
+  {
+    loka::app::MenuItemDefinitionWithAttr hiddenByValue =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().visible(false));
+    assert(!hiddenByValue.isVisibleInitial());
+
+    loka::core::MutableState<bool> visibleState(false);
+    loka::app::MenuItemDefinitionWithAttr hiddenByState =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().visible(&visibleState));
+    assert(!hiddenByState.isVisibleInitial());
+    visibleState.set(true);
+    assert(hiddenByState.isVisibleInitial());
+  }
+
   printf("==== [testLokaAttrDslV1Core] end ====\n");
 }

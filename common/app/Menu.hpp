@@ -194,6 +194,23 @@ namespace loka
         return true;
       }
 
+      bool isVisibleInitial() const
+      {
+        if (!this->hasAttr_)
+        {
+          return true;
+        }
+        if (this->attr_.visibleState_)
+        {
+          return this->attr_.visibleState_->get();
+        }
+        if (this->attr_.hasVisibleValue_)
+        {
+          return this->attr_.visibleValue_;
+        }
+        return true;
+      }
+
       loka::core::State<bool> *enabledBindingState() const
       {
         if (this->enabledState)

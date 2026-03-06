@@ -1,5 +1,6 @@
 #include "context/ToolboxImageViewContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxNativeImage.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include <cstdio>
 #include <cstring>
@@ -23,6 +24,49 @@ namespace
     }
     MoveTo(x, y);
     DrawString(text);
+  }
+
+  static Rect ComputeImageDrawRect(const Rect &frameRect,
+                                   int fitMode,
+                                   int imageWidth,
+                                   int imageHeight)
+  {
+    Rect out = frameRect;
+    const int frameWidth = frameRect.right - frameRect.left;
+    const int frameHeight = frameRect.bottom - frameRect.top;
+    if (imageWidth <= 0 || imageHeight <= 0 || frameWidth <= 0 || frameHeight <= 0)
+    {
+      return out;
+    }
+
+    if (fitMode == loka::app::IMAGE_FIT_NONE)
+    {
+      out.right = static_cast<short>(out.left + imageWidth);
+      out.bottom = static_cast<short>(out.top + imageHeight);
+      return out;
+    }
+
+    if (fitMode == loka::app::IMAGE_FIT_STRETCH)
+    {
+      return out;
+    }
+
+    // contain / cover
+    const double sx = static_cast<double>(frameWidth) / static_cast<double>(imageWidth);
+    const double sy = static_cast<double>(frameHeight) / static_cast<double>(imageHeight);
+    const double scale = (fitMode == loka::app::IMAGE_FIT_COVER)
+                             ? ((sx > sy) ? sx : sy)
+                             : ((sx < sy) ? sx : sy);
+
+    const int dstW = static_cast<int>(imageWidth * scale);
+    const int dstH = static_cast<int>(imageHeight * scale);
+    const int offsetX = (frameWidth - dstW) / 2;
+    const int offsetY = (frameHeight - dstH) / 2;
+    out.left = static_cast<short>(frameRect.left + offsetX);
+    out.top = static_cast<short>(frameRect.top + offsetY);
+    out.right = static_cast<short>(out.left + dstW);
+    out.bottom = static_cast<short>(out.top + dstH);
+    return out;
   }
 }
 
@@ -140,12 +184,49 @@ void ToolboxImageViewContext::draw()
     return;
   }
 
+  int fitMode = loka::app::IMAGE_FIT_STRETCH;
+  if (node_->props.hasAttr_ && node_->props.attr_.hasFitValue_)
+  {
+    fitMode = static_cast<int>(node_->props.attr_.fitValue_);
+  }
+
+  const loka::toolbox::ToolboxNativeImage *native =
+      loka::toolbox::TryGetToolboxNativeImage(image_);
+  if (native &&
+      native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT &&
+      native->payload)
+  {
+    PicHandle picture = static_cast<PicHandle>(native->payload);
+    Rect dstRect = ComputeImageDrawRect(rect_, fitMode, image_.width(), image_.height());
+    if (fitMode == loka::app::IMAGE_FIT_COVER)
+    {
+      RgnHandle oldClip = NewRgn();
+      if (oldClip)
+      {
+        GetClip(oldClip);
+        ClipRect(&rect_);
+        DrawPicture(picture, &dstRect);
+        SetClip(oldClip);
+        DisposeRgn(oldClip);
+      }
+      else
+      {
+        DrawPicture(picture, &dstRect);
+      }
+    }
+    else
+    {
+      DrawPicture(picture, &dstRect);
+    }
+    return;
+  }
+
   MoveTo(rect_.left, rect_.top);
   LineTo(rect_.right, rect_.bottom);
   MoveTo(rect_.right, rect_.top);
   LineTo(rect_.left, rect_.bottom);
 
   char label[64];
-  std::sprintf(label, "Image: %dx%d", image_.width(), image_.height());
+  std::sprintf(label, "Image(native?): %dx%d", image_.width(), image_.height());
   DrawPascalStringAt(static_cast<short>(rect_.left + 6), static_cast<short>(rect_.top + 14), label);
 }

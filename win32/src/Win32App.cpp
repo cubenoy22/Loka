@@ -161,6 +161,10 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
 {
   if (!itemDef)
     return;
+  if (!itemDef->isVisibleInitial())
+  {
+    return;
+  }
   if (itemDef->isSeparator)
   {
     AppendMenuA(menu, MF_SEPARATOR, 0, NULL);
