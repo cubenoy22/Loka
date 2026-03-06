@@ -12,6 +12,8 @@ namespace loka
 {
   namespace app
   {
+    struct MenuItemDefinitionWithAttr;
+
     enum MenuActionType
     {
       MENU_ACTION_NONE = 0,
@@ -169,13 +171,7 @@ namespace loka
         return *this;
       }
 
-      MenuItemDefinition &attr(const MenuItemAttr &value)
-      {
-        assert(!this->hasAttr_ && "MenuItem.attr() can only be set once per item");
-        this->attr_ = value;
-        this->hasAttr_ = true;
-        return *this;
-      }
+      MenuItemDefinitionWithAttr attr(const MenuItemAttr &value) const;
 
       bool isEnabledInitial() const
       {
@@ -277,6 +273,24 @@ namespace loka
       bool hasAttr_;
       MenuItemDefinition *nextInComposition;
     };
+
+    struct MenuItemDefinitionWithAttr : public MenuItemDefinition
+    {
+      MenuItemDefinitionWithAttr() : MenuItemDefinition() {}
+      MenuItemDefinitionWithAttr(const MenuItemDefinition &base) : MenuItemDefinition(base) {}
+
+    private:
+      MenuItemDefinitionWithAttr attr(const MenuItemAttr &value) const;
+    };
+
+    inline MenuItemDefinitionWithAttr MenuItemDefinition::attr(const MenuItemAttr &value) const
+    {
+      MenuItemDefinition copy(*this);
+      assert(!copy.hasAttr_ && "MenuItem.attr() can only be set once per item");
+      copy.attr_ = value;
+      copy.hasAttr_ = true;
+      return MenuItemDefinitionWithAttr(copy);
+    }
 
     struct MenuDefinition
     {

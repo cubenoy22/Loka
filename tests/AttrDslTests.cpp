@@ -42,23 +42,22 @@ void testLokaAttrDslV1Core()
   // --- MenuItem attr participates in structure equality ---
   {
     loka::core::MutableState<bool> disabledState(true);
-    loka::app::MenuItemDefinition left("Open");
-    left.attr(loka::app::MenuItemAttr().disabled(&disabledState));
+    loka::app::MenuItemDefinitionWithAttr left =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(&disabledState));
 
-    loka::app::MenuItemDefinition right("Open");
-    right.attr(loka::app::MenuItemAttr().disabled(&disabledState));
+    loka::app::MenuItemDefinitionWithAttr right =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(&disabledState));
     assert(left.equalsStructure(right));
 
-    loka::app::MenuItemDefinition changed("Open");
-    changed.attr(loka::app::MenuItemAttr().disabled(false));
+    loka::app::MenuItemDefinitionWithAttr changed =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(false));
     assert(!left.equalsStructure(changed));
   }
 
-  // --- MenuItem.attr mutates lvalue definitions (compatibility contract) ---
+  // --- MenuItem.attr is chain-style: returned definition carries attr ---
   {
-    loka::app::MenuItemDefinition item("Open");
-    assert(!item.hasAttr_);
-    item.attr(loka::app::MenuItemAttr().disabled(true));
+    loka::app::MenuItemDefinitionWithAttr item =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(true));
     assert(item.hasAttr_);
     assert(item.attr_.hasDisabledValue_);
     assert(item.attr_.disabledValue_);
@@ -66,14 +65,14 @@ void testLokaAttrDslV1Core()
 
   // --- MenuItem disabled attr -> effective enabled projection ---
   {
-    loka::app::MenuItemDefinition disabledByValue("Open");
-    disabledByValue.attr(loka::app::MenuItemAttr().disabled(true));
+    loka::app::MenuItemDefinitionWithAttr disabledByValue =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(true));
     assert(!disabledByValue.isEnabledInitial());
     assert(disabledByValue.enabledBindingState() == 0);
 
     loka::core::MutableState<bool> disabledState(false);
-    loka::app::MenuItemDefinition disabledByState("Open");
-    disabledByState.attr(loka::app::MenuItemAttr().disabled(&disabledState));
+    loka::app::MenuItemDefinitionWithAttr disabledByState =
+        loka::app::MenuItem("Open").attr(loka::app::MenuItemAttr().disabled(&disabledState));
     assert(disabledByState.isEnabledInitial());
     assert(disabledByState.enabledBindingState() == &disabledState);
     assert(disabledByState.enabledBindingInvert());
@@ -81,8 +80,8 @@ void testLokaAttrDslV1Core()
     assert(!disabledByState.isEnabledInitial());
 
     loka::core::MutableState<bool> enabledState(true);
-    loka::app::MenuItemDefinition explicitEnabled("Open");
-    explicitEnabled.enabled(&enabledState).attr(loka::app::MenuItemAttr().disabled(true));
+    loka::app::MenuItemDefinitionWithAttr explicitEnabled =
+        loka::app::MenuItem("Open").enabled(&enabledState).attr(loka::app::MenuItemAttr().disabled(true));
     assert(explicitEnabled.enabledBindingState() == &enabledState);
     assert(!explicitEnabled.enabledBindingInvert());
     assert(explicitEnabled.isEnabledInitial());
