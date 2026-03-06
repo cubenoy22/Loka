@@ -3,6 +3,85 @@
 namespace
 {
   const char *kImageViewClassName = "LOKA_IMAGE_VIEW";
+
+  struct BlitRect
+  {
+    int dstX;
+    int dstY;
+    int dstW;
+    int dstH;
+    int srcX;
+    int srcY;
+    int srcW;
+    int srcH;
+  };
+
+  static BlitRect ComputeBlitRect(int fitMode, const RECT &rect, int srcWidth, int srcHeight)
+  {
+    BlitRect out;
+    out.dstX = rect.left;
+    out.dstY = rect.top;
+    out.dstW = rect.right - rect.left;
+    out.dstH = rect.bottom - rect.top;
+    out.srcX = 0;
+    out.srcY = 0;
+    out.srcW = srcWidth;
+    out.srcH = srcHeight;
+
+    if (srcWidth <= 0 || srcHeight <= 0 || out.dstW <= 0 || out.dstH <= 0)
+    {
+      return out;
+    }
+
+    if (fitMode == loka::app::IMAGE_FIT_STRETCH)
+    {
+      return out;
+    }
+
+    if (fitMode == loka::app::IMAGE_FIT_NONE)
+    {
+      out.dstW = srcWidth;
+      out.dstH = srcHeight;
+      return out;
+    }
+
+    const double srcAspect = static_cast<double>(srcWidth) / static_cast<double>(srcHeight);
+    const double dstAspect = static_cast<double>(out.dstW) / static_cast<double>(out.dstH);
+
+    if (fitMode == loka::app::IMAGE_FIT_CONTAIN)
+    {
+      if (srcAspect > dstAspect)
+      {
+        out.dstH = static_cast<int>(out.dstW / srcAspect);
+      }
+      else
+      {
+        out.dstW = static_cast<int>(out.dstH * srcAspect);
+      }
+      out.dstX = rect.left + ((rect.right - rect.left) - out.dstW) / 2;
+      out.dstY = rect.top + ((rect.bottom - rect.top) - out.dstH) / 2;
+      return out;
+    }
+
+    if (fitMode == loka::app::IMAGE_FIT_COVER)
+    {
+      if (srcAspect > dstAspect)
+      {
+        const int cropWidth = static_cast<int>(srcHeight * dstAspect);
+        out.srcX = (srcWidth - cropWidth) / 2;
+        out.srcW = cropWidth;
+      }
+      else
+      {
+        const int cropHeight = static_cast<int>(srcWidth / dstAspect);
+        out.srcY = (srcHeight - cropHeight) / 2;
+        out.srcH = cropHeight;
+      }
+      return out;
+    }
+
+    return out;
+  }
 }
 
 Win32ImageViewContext::Win32ImageViewContext(HWND parent, int x, int y, int width, int height, loka::app::ImageViewNode *node)
@@ -154,8 +233,24 @@ void Win32ImageViewContext::drawImage(HDC hdc, const RECT &rect)
   int srcHeight = image_.height();
   if (srcWidth > 0 && srcHeight > 0 && dstWidth > 0 && dstHeight > 0)
   {
+    int fitMode = loka::app::IMAGE_FIT_STRETCH;
+    if (node_ && node_->props.hasAttr_ && node_->props.attr_.hasFitValue_)
+    {
+      fitMode = static_cast<int>(node_->props.attr_.fitValue_);
+    }
+    BlitRect blit = ComputeBlitRect(fitMode, rect, srcWidth, srcHeight);
     SetStretchBltMode(hdc, COLORONCOLOR);
-    StretchBlt(hdc, rect.left, rect.top, dstWidth, dstHeight, memdc, 0, 0, srcWidth, srcHeight, SRCCOPY);
+    StretchBlt(hdc,
+               blit.dstX,
+               blit.dstY,
+               blit.dstW,
+               blit.dstH,
+               memdc,
+               blit.srcX,
+               blit.srcY,
+               blit.srcW,
+               blit.srcH,
+               SRCCOPY);
   }
   SelectObject(memdc, old);
   DeleteDC(memdc);
