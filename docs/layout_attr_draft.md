@@ -54,6 +54,12 @@ v1 ではレイアウト指定の実装は既存 API を継続利用し、`layou
   - Dynamic Binding: `State<T>*`（`fontSize(&fontSizeState)`, `visible(&visibleState)`）
   カテゴリは API 上で明示的に区別する。
 
+7.1 ImageView size policy（v1 実装済み）
+  - `IMAGE_VIEW_SIZE_AUTO`: 既定。`width/height` 指定優先、未指定は親幅+画像アスペクトで高さ算出
+  - `IMAGE_VIEW_SIZE_FILL_PARENT`: `width/height` 未指定時は親領域を優先（高さは親高さがある場合に追従）
+  - `IMAGE_VIEW_SIZE_INTRINSIC`: `width/height` 未指定時は画像の自然サイズを優先
+  - `fit` は「描画の詰め方」、`sizePolicy` は「ビュー矩形の決め方」として分離する
+
 8. Resolver: Boundary 単位注入、関数ポインタテーブル
   - Boundary ごとに `ResolverContext` を1つ保持
   - Node/Menu は描画時に現在 Boundary の resolver を参照
@@ -165,17 +171,16 @@ VStack()
 
 ## Type Safety Policy
 
-- `NodeDefinition<T>` に `.attr()` すると `NodeDefinition<T, AttrTag>` を返す
-- `<<` 演算子で `IsAllowed<ContainerTag, AttrTag>` を静的チェック
-- 不適切な組み合わせはコンパイルエラー
-- 例: `VStack` 文脈で `ZStack` 専用 attr は不可
+- `Text`/`ImageView`/`MenuItem` は `.attr()` 呼び出し後に `*WithAttr` 型を返す（2回目 `.attr()` は型上で不可）
+- v1 は要素固有 attr のみを対象にし、コンテナ依存 attr の静的チェックは v1.1 以降で導入
+- 不適切な組み合わせはコンパイルエラー（または v1 では未提供 API により記述不能）
 
 ## Roadmap
 
 | | v1 | v1.1+ |
 |---|---|---|
 | attr 回数 | 1回（型レベル強制） | 1回 |
-| 型チェック | `NodeDefinition<T, AttrTag>` + `<<` で static | 同左 |
+| 型チェック | `*WithAttr` への型遷移で attr 1回制約 | コンテナ制約を静的チェックへ拡張 |
 | 要素 attr | `ImageViewAttr`, `TextAttr` 等 | 同左 |
 | 子 sizing 要求 | なし | 要素 attr 側に追加（`fillX`, `minHeight` 等） |
 | `.size()` 等既存API | 互換維持 | attr へ段階移行 |
