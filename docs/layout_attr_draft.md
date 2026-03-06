@@ -142,7 +142,7 @@ VStack()
   << Text("Title").attr(TextAttr().fontSize(14).weight(TEXT_WEIGHT_BOLD))
   << ImageView()
        .image(&imageState)
-       .attr(ImageViewAttr().fit(IMAGE_FIT_CONTAIN))
+       .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
 
 // Static: 構築時に条件分岐
 Text("hi").attr(isLarge ? TextAttr().fontSize(18) : TextAttr().fontSize(12))
@@ -160,7 +160,7 @@ ImageView().image(&imageState).size(0, 180);
 VStack()
   .layout(VStackLayout().padding(8).gap(6))
   << Text("A").attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
-  << ImageView().image(&imageState).attr(ImageViewAttr().fit(IMAGE_FIT_CONTAIN));
+  << ImageView().image(&imageState).attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN));
 ```
 
 ## Type Safety Policy

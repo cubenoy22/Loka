@@ -379,18 +379,45 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::ImageViewNode *image = node->asImageViewNode())
   {
-    int imageWidth = image->props.width_ > 0 ? image->props.width_ : state.width;
+    int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
+    if (image->props.hasAttr_ && image->props.attr_.hasSizePolicyValue_)
+    {
+      sizePolicy = static_cast<int>(image->props.attr_.sizePolicyValue_);
+    }
+
+    const bool hasExplicitWidth = image->props.width_ > 0;
+    const bool hasExplicitHeight = image->props.height_ > 0;
+    int imageWidth = hasExplicitWidth ? image->props.width_ : state.width;
     int imageHeight = image->props.height_;
-    if (imageHeight <= 0 && image->props.image_)
+    int srcWidth = 0;
+    int srcHeight = 0;
+    if (image->props.image_)
     {
       const loka::core::resource::Image current = image->props.image_->get();
-      const int srcWidth = current.width();
-      const int srcHeight = current.height();
-      if (srcWidth > 0 && srcHeight > 0 && imageWidth > 0)
+      srcWidth = current.width();
+      srcHeight = current.height();
+    }
+
+    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && !hasExplicitWidth && srcWidth > 0)
+    {
+      imageWidth = srcWidth;
+    }
+    else if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && !hasExplicitWidth)
+    {
+      imageWidth = state.width;
+    }
+
+    if (!hasExplicitHeight)
+    {
+      if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && state.height > 0)
+      {
+        imageHeight = state.height;
+      }
+      else if (srcWidth > 0 && srcHeight > 0 && imageWidth > 0)
       {
         imageHeight = (imageWidth * srcHeight) / srcWidth;
       }
-      else
+      else if (srcHeight > 0)
       {
         imageHeight = srcHeight;
       }

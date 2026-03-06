@@ -23,10 +23,14 @@ void testLokaAttrDslV1Core()
     assert(text.props.attr_.weightValue_ == loka::app::TEXT_WEIGHT_BOLD);
 
     loka::app::ImageViewDefinitionWithAttr image = loka::app::ImageView().attr(
-        loka::app::ImageViewAttr().fit(loka::app::IMAGE_FIT_CONTAIN));
+        loka::app::ImageViewAttr()
+            .sizePolicy(loka::app::IMAGE_VIEW_SIZE_FILL_PARENT)
+            .fit(loka::app::IMAGE_FIT_CONTAIN));
     assert(image.props.hasAttr_);
     assert(image.props.attr_.hasFitValue_);
     assert(image.props.attr_.fitValue_ == loka::app::IMAGE_FIT_CONTAIN);
+    assert(image.props.attr_.hasSizePolicyValue_);
+    assert(image.props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
   }
 
   // --- v1 attr copy safety (POD): copy should stay independent ---

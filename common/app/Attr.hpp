@@ -21,6 +21,13 @@ namespace loka
       IMAGE_FIT_STRETCH = 3
     };
 
+    enum ImageViewSizePolicy
+    {
+      IMAGE_VIEW_SIZE_AUTO = 0,
+      IMAGE_VIEW_SIZE_FILL_PARENT = 1,
+      IMAGE_VIEW_SIZE_INTRINSIC = 2
+    };
+
     struct TextAttr
     {
       TextAttr()
@@ -85,7 +92,13 @@ namespace loka
 
     struct ImageViewAttr
     {
-      ImageViewAttr() : hasFitValue_(false), fitValue_(IMAGE_FIT_NONE) {}
+      ImageViewAttr()
+          : hasFitValue_(false),
+            fitValue_(IMAGE_FIT_NONE),
+            hasSizePolicyValue_(false),
+            sizePolicyValue_(IMAGE_VIEW_SIZE_AUTO)
+      {
+      }
 
       ImageViewAttr &fit(ImageFit value)
       {
@@ -94,21 +107,36 @@ namespace loka
         return *this;
       }
 
+      ImageViewAttr &sizePolicy(ImageViewSizePolicy value)
+      {
+        this->hasSizePolicyValue_ = true;
+        this->sizePolicyValue_ = value;
+        return *this;
+      }
+
       bool operator==(const ImageViewAttr &other) const
       {
         return this->hasFitValue_ == other.hasFitValue_ &&
-               this->fitValue_ == other.fitValue_;
+               this->fitValue_ == other.fitValue_ &&
+               this->hasSizePolicyValue_ == other.hasSizePolicyValue_ &&
+               this->sizePolicyValue_ == other.sizePolicyValue_;
       }
 
       bool operator<(const ImageViewAttr &other) const
       {
         if (this->hasFitValue_ != other.hasFitValue_)
           return this->hasFitValue_ < other.hasFitValue_;
-        return this->fitValue_ < other.fitValue_;
+        if (this->fitValue_ != other.fitValue_)
+          return this->fitValue_ < other.fitValue_;
+        if (this->hasSizePolicyValue_ != other.hasSizePolicyValue_)
+          return this->hasSizePolicyValue_ < other.hasSizePolicyValue_;
+        return this->sizePolicyValue_ < other.sizePolicyValue_;
       }
 
       bool hasFitValue_;
       ImageFit fitValue_;
+      bool hasSizePolicyValue_;
+      ImageViewSizePolicy sizePolicyValue_;
     };
 
     // Backward-compatible alias. Keep until all call sites migrate.

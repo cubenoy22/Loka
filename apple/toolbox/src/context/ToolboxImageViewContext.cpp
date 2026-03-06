@@ -11,33 +11,61 @@ ToolboxImageViewContext::~ToolboxImageViewContext()
 
 short ToolboxImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  short width = state.width;
-  short height = state.lineHeight > 0 ? state.lineHeight : 80;
+  int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
+  int width = state.width;
+  int height = state.lineHeight > 0 ? state.lineHeight : 80;
   if (node_)
   {
-    if (node_->props.width_ > 0)
+    const bool hasExplicitWidth = node_->props.width_ > 0;
+    const bool hasExplicitHeight = node_->props.height_ > 0;
+    if (node_->props.hasAttr_ && node_->props.attr_.hasSizePolicyValue_)
     {
-      width = static_cast<short>(node_->props.width_);
+      sizePolicy = static_cast<int>(node_->props.attr_.sizePolicyValue_);
     }
-    if (node_->props.height_ > 0)
+
+    if (hasExplicitWidth)
     {
-      height = static_cast<short>(node_->props.height_);
+      width = node_->props.width_;
     }
-    else if (node_->props.image_)
+    if (hasExplicitHeight)
+    {
+      height = node_->props.height_;
+    }
+
+    int srcWidth = 0;
+    int srcHeight = 0;
+    if (node_->props.image_)
     {
       const loka::core::resource::Image current = node_->props.image_->get();
-      const int srcWidth = current.width();
-      const int srcHeight = current.height();
-      if (srcWidth > 0 && srcHeight > 0 && width > 0)
+      srcWidth = current.width();
+      srcHeight = current.height();
+    }
+
+    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && !hasExplicitWidth && srcWidth > 0)
+    {
+      width = srcWidth;
+    }
+    else if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && !hasExplicitWidth)
+    {
+      width = state.width;
+    }
+
+    if (!hasExplicitHeight)
+    {
+      if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && state.height > 0)
       {
-        height = static_cast<short>((width * srcHeight) / srcWidth);
+        height = state.height;
+      }
+      else if (srcWidth > 0 && srcHeight > 0 && width > 0)
+      {
+        height = (width * srcHeight) / srcWidth;
       }
       else if (srcHeight > 0)
       {
-        height = static_cast<short>(srcHeight);
+        height = srcHeight;
       }
     }
   }
-  state.y = static_cast<short>(state.y + height + state.spacing);
-  return width;
+  state.y = static_cast<short>(state.y + static_cast<short>(height) + state.spacing);
+  return static_cast<short>(width);
 }
