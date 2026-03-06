@@ -266,6 +266,8 @@ namespace loka {
 
     private:
       int refs_;
+      FlowChainImpl(const FlowChainImpl &);
+      FlowChainImpl &operator=(const FlowChainImpl &);
     };
 
     template <typename AdapterT>
@@ -501,7 +503,18 @@ namespace loka {
           *this->impl_->loadingState_ = true;
         }
 
+        static const std::size_t MAX_ITERATIONS = 1024;
+        std::size_t iterations = 0;
         for (std::size_t i = startIndex; i < this->impl_->steps_.size(); ++i) {
+          if (++iterations > MAX_ITERATIONS) {
+            if (this->impl_->finallyFn_ != 0) {
+              this->impl_->finallyFn_(this->impl_->finallyUser_);
+            }
+            if (this->impl_->loadingState_ != 0) {
+              *this->impl_->loadingState_ = false;
+            }
+            return FLOW_RUN_FAILED;
+          }
           bool stepHandled = false;
           int stepResumeStepId = -1;
           int stepSuccessResumeStepId = -1;

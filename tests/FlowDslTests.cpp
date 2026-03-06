@@ -832,5 +832,25 @@ void testLokaFlowDslV1Core() {
     assert(captured == 120);
   }
 
+  {
+    int input = 1;
+    int callsA = 0;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 1599};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA))
+                .input(&input)
+                .onSuccess(&input, 1);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_FAILED);
+    assert(callsA <= 1024);
+    assert(order.size() == 1);
+    assert(order[0] == 1599);
+  }
+
   printf("==== [testLokaFlowDslV1Core] end ====\n");
 }
