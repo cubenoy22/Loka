@@ -18,8 +18,28 @@
 - `attr` は「そのノード自身の見た目/振る舞い」を記述する
 - `layout` は親ノード側 API で指定し、子ノード側には持たせない
 - `layout` と `attr` は責務を混ぜない（同じ型に統合しない）
+- 通常ポリシーはコンテナ（`VStack`/`ZStack`/`Grid` 等）が解釈する
+- `Boundary` は通常ポリシーの差し替えポイントとして使う（既定実装の置換は局所化）
 
 v1 ではレイアウト指定の実装は既存 API を継続利用し、`layout(...)` は仕様先行で定義のみ行う。
+
+### Parent vs Child Priority (policy)
+
+- 既定は「親制約が最終決定権」を持つ（子要求は親制約内でクランプ）
+- 優先順位（同一軸の競合時）:
+  1. 子の `FIXED`（明示サイズ）
+  2. 親の最大/最小制約（超過は不可）
+  3. 子の `INTRINSIC`（自然サイズ）
+  4. 子の `FILL`（残余領域）
+- 将来 `priority`（整数）を導入し、同カテゴリ競合の解決に使用する
+  - ただし `priority` が高くても親制約は破らない
+
+### Layout Override Strategy
+
+- `attr` は宣言データのみ（`sizePolicy`, `priority` 等）
+- 特殊レイアウト戦略は `layout(...).overrideOption(Functor)` 側で指定する
+- 既定経路（高速・固定ルール）と、例外経路（Functor）を分離する
+- `Boundary` では resolver 差し替えと同様に layout resolver 差し替えを許可する
 
 ## Confirmed Rules
 
