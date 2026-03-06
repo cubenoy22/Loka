@@ -9,8 +9,6 @@
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "app/Menu.hpp"
 #include "app/OpenFileDialog.hpp"
-#include "core/resource/Blob.hpp"
-#include "core/resource/BlobLoader.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/dsl/dsl.hpp"
 #include "SimpleViewerFlowAdapters.hpp"
@@ -25,26 +23,18 @@ public:
         openDialogVisible_(false),
         chooserResult_(),
         chooserMessage_(loka::core::String::Literal("(none)")),
-        blobRequest_(),
-        blob_(),
         image_(),
         chooserInput_(),
-        blobInput_(),
-        chooserFlow_(buildChooserFlow(this)),
-        blobFlow_(buildBlobFlow(this)),
+        flow_(buildFlow(this)),
         tracker_(),
         openDialogEvent_()
   {
     this->tracker_.addState(&this->openDialogVisible_);
     this->tracker_.addState(&this->chooserResult_);
     this->tracker_.addState(&this->chooserMessage_);
-    this->tracker_.addState(&this->blobRequest_);
-    this->tracker_.addState(&this->blob_);
     this->tracker_.addState(&this->image_);
     this->openDialogEvent_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runOpenDialogPipeline>, this);
     this->chooserResult_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runChooserPipeline>, this);
-    this->blob_.deferBind(&MyAppConfig::Invoke<&MyAppConfig::runBlobPipeline>, this);
-    this->blobLoader_.attach(&this->blobRequest_, &this->blob_, 0);
   }
 
   virtual void compose(AppComposition &c)
@@ -71,15 +61,15 @@ public:
   }
 
 private:
-  typedef loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> ChooserFlowChain;
-  typedef loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> BlobFlowChain;
+  typedef loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> ViewerFlowChain;
 
   enum FlowStepId
   {
     FLOW_STEP_CHOOSER_TO_CONTEXT = 1,
     FLOW_STEP_CONTEXT_TO_PROJECTION = 2,
-    FLOW_STEP_BLOB_DECODE_ATTEMPT = 3,
-    FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE = 4
+    FLOW_STEP_PROJECTION_TO_BLOB = 3,
+    FLOW_STEP_BLOB_DECODE_ATTEMPT = 4,
+    FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE = 5
   };
 
   void runOpenDialogPipeline()
@@ -100,13 +90,7 @@ private:
   void runChooserPipeline()
   {
     this->chooserInput_ = this->chooserResult_.get();
-    (void)this->chooserFlow_.run();
-  }
-
-  void runBlobPipeline()
-  {
-    this->blobInput_ = this->blob_.get();
-    (void)this->blobFlow_.run();
+    (void)this->flow_.run();
   }
 
   static void OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData)
@@ -115,7 +99,6 @@ private:
     if (self)
     {
       self->chooserMessage_.set(projection.message, true);
-      self->blobRequest_.set(projection.request, true);
     }
   }
 
@@ -134,26 +117,17 @@ private:
 
   static void OnFlowFinally(void *) {}
 
-  static ChooserFlowChain buildChooserFlow(MyAppConfig *self)
+  static ViewerFlowChain buildFlow(MyAppConfig *self)
   {
-    ChooserFlowChain chain =
+    ViewerFlowChain chain =
         loka::dsl::Flow()
         | loka::dsl::Step(FLOW_STEP_CHOOSER_TO_CONTEXT, simpleviewer::ChooserToContextAdapter())
               .input(&self->chooserInput_)
         | loka::dsl::Step(FLOW_STEP_CONTEXT_TO_PROJECTION, simpleviewer::ContextToProjectionAdapter())
-              .onSuccess(&MyAppConfig::OnChooserProjection, self);
-    chain.withTracker(&self->tracker_);
-    chain.onFinally(&MyAppConfig::OnFlowFinally, self);
-    return chain;
-  }
-
-  static BlobFlowChain buildBlobFlow(MyAppConfig *self)
-  {
-    BlobFlowChain chain =
-        loka::dsl::Flow()
+              .onSuccess(&MyAppConfig::OnChooserProjection, self)
+        | loka::dsl::Step(FLOW_STEP_PROJECTION_TO_BLOB, simpleviewer::ProjectionToBlobAdapter())
         | loka::dsl::Step(FLOW_STEP_BLOB_DECODE_ATTEMPT,
                           simpleviewer::BlobToDecodeAttemptAdapter(self->getPlatformContext()))
-              .input(&self->blobInput_)
               .onFailure(&MyAppConfig::OnBlobDecodeFailure, self)
         | loka::dsl::Step(FLOW_STEP_DECODE_ATTEMPT_TO_IMAGE, simpleviewer::DecodeAttemptToImageAdapter())
               .onSuccess(&self->image_);
@@ -175,14 +149,9 @@ private:
   loka::core::MutableState<bool> openDialogVisible_;
   loka::core::MutableState<loka::app::FileChooserResult> chooserResult_;
   loka::core::MutableState<loka::core::String> chooserMessage_;
-  loka::core::MutableState<loka::core::resource::BlobLoaderRequest> blobRequest_;
-  loka::core::MutableState<loka::core::resource::Blob> blob_;
   loka::core::MutableState<loka::core::resource::Image> image_;
   loka::app::FileChooserResult chooserInput_;
-  loka::core::resource::Blob blobInput_;
-  ChooserFlowChain chooserFlow_;
-  BlobFlowChain blobFlow_;
-  loka::core::resource::BlobLoader blobLoader_;
+  ViewerFlowChain flow_;
   loka::core::PushStateTracker tracker_;
   loka::core::EmitterState openDialogEvent_;
 };

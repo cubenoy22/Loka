@@ -1,6 +1,8 @@
 #include "FlowDslTests.hpp"
 
 #include <cassert>
+#include <cstdio>
+#include <fstream>
 #include <vector>
 
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
@@ -880,6 +882,148 @@ void testLokaFlowDslV1Core() {
     assert(callsA <= 1024);
     assert(order.size() == 1);
     assert(order[0] == 1599);
+  }
+
+  // --- ProjectionToBlobAdapter: source=NONE (cancel) → empty Blob, success ---
+  {
+    simpleviewer::ChooserProjection projection;
+    // default: source == BLOB_SOURCE_NONE
+    loka::core::resource::Blob blob;
+
+    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
+                .input(&projection)
+                .onSuccess(&blob);
+
+    assert(chain.run());
+    assert(blob.isValid());
+    assert(blob.bytes().empty());
+  }
+
+  // --- ProjectionToBlobAdapter: source=FILE → reads bytes from file ---
+  {
+    const char *tmpPath = "_loka_test_blob_adapter.bin";
+    {
+      std::ofstream out(tmpPath, std::ios::binary);
+      const unsigned char data[] = {0xDE, 0xAD, 0xBE, 0xEF};
+      out.write(reinterpret_cast<const char *>(data), sizeof(data));
+    }
+
+    simpleviewer::ChooserProjection projection;
+    projection.request.setFilePath(loka::core::String::Literal(tmpPath));
+
+    loka::core::resource::Blob blob;
+    FlowErrorCapture capture = {0, 0, 0};
+
+    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
+                .input(&projection)
+                .onSuccess(&blob)
+                .onFailure(&FlowTestMarker::captureFailure, &capture);
+
+    assert(chain.run());
+    assert(capture.calls == 0);
+    assert(blob.isValid());
+    assert(blob.bytes().size() == 4);
+    assert(blob.bytes()[0] == 0xDE);
+    assert(blob.bytes()[1] == 0xAD);
+    assert(blob.bytes()[2] == 0xBE);
+    assert(blob.bytes()[3] == 0xEF);
+    assert(blob.isCompleted());
+
+    std::remove(tmpPath);
+  }
+
+  // --- ProjectionToBlobAdapter: source=FILE, missing file → failure ---
+  {
+    simpleviewer::ChooserProjection projection;
+    projection.request.setFilePath(loka::core::String::Literal("_loka_nonexistent_file.bin"));
+
+    loka::core::resource::Blob blob;
+    FlowErrorCapture capture = {0, 0, 0};
+
+    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
+                .input(&projection)
+                .onFailure(&FlowTestMarker::captureFailure, &capture)
+                .onSuccess(&blob);
+
+    assert(chain.run());
+    assert(capture.calls == 1);
+    assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD);
+    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED);
+  }
+
+  // --- Full 6-step integrated chain: FileChooserResult → Image ---
+  {
+    const char *tmpPath = "_loka_test_full_chain.bin";
+    {
+      std::ofstream out(tmpPath, std::ios::binary);
+      const unsigned char data[] = {0x89, 0x50, 0x4E, 0x47}; // fake PNG header
+      out.write(reinterpret_cast<const char *>(data), sizeof(data));
+    }
+
+    FlowTestPlatformContext ctx;
+    ctx.createImageResult_ = true;
+
+    loka::app::FileChooserResult fileResult;
+    fileResult.kind = loka::app::FileChooserResult::RESULT_FILE;
+    fileResult.item = loka::file::File::FromPath(loka::core::String::Literal(tmpPath));
+
+    loka::core::resource::Image image;
+    FlowErrorCapture capture = {0, 0, 0};
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
+                .input(&fileResult)
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
+          | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter())
+          | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
+                .onFailure(&FlowTestMarker::captureFailure, &capture)
+          | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
+                .onSuccess(&image);
+
+    assert(chain.run());
+    assert(capture.calls == 0);
+    assert(ctx.createImageCalls_ == 1);
+    assert(image.isValid());
+    assert(image.width() == 16);
+    assert(image.height() == 16);
+
+    std::remove(tmpPath);
+  }
+
+  // --- Full 6-step chain: canceled → empty image (decode fail on empty blob) ---
+  {
+    FlowTestPlatformContext ctx;
+    ctx.createImageResult_ = false;
+
+    loka::app::FileChooserResult canceled;
+    canceled.kind = loka::app::FileChooserResult::RESULT_CANCELED;
+
+    loka::core::resource::Image image;
+    FlowErrorCapture capture = {0, 0, 0};
+
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
+                .input(&canceled)
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
+          | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter())
+          | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
+                .onFailure(&FlowTestMarker::captureFailure, &capture)
+          | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
+                .onSuccess(&image);
+
+    assert(chain.run());
+    assert(!image.isValid());
+    assert(capture.calls == 1);
+    assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_DECODE);
+    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED);
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");

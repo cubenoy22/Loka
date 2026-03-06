@@ -1,6 +1,8 @@
 #ifndef LOKA_SIMPLE_VIEWER_FLOW_ADAPTERS_HPP
 #define LOKA_SIMPLE_VIEWER_FLOW_ADAPTERS_HPP
 
+#include <fstream>
+
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
 #include "core/resource/Blob.hpp"
@@ -8,19 +10,22 @@
 #include "core/resource/Image.hpp"
 #include "loka/core/String.hpp"
 #include "loka/dsl/dsl.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 namespace simpleviewer
 {
   enum SimpleViewerFlowErrorKind
   {
     SIMPLE_VIEWER_FLOW_ERROR_NONE = 0,
-    SIMPLE_VIEWER_FLOW_ERROR_DECODE = 1
+    SIMPLE_VIEWER_FLOW_ERROR_DECODE = 1,
+    SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD = 2
   };
 
   enum SimpleViewerFlowErrorCode
   {
     SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_CONTEXT_MISSING = 1001,
-    SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED = 1002
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED = 1002,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED = 1003
   };
 
   struct ChooserContext
@@ -104,6 +109,96 @@ namespace simpleviewer
           projection.request.setTag(loka::core::String::Literal("image-file"));
         }
       }
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+  };
+
+  struct ProjectionToBlobAdapter
+  {
+    typedef ChooserProjection In;
+    typedef loka::core::resource::Blob Out;
+
+    loka::dsl::StepRunStatus run(const In &projection, Out &out, loka::dsl::FlowError &error) const
+    {
+      using namespace loka::core::resource;
+
+      if (projection.request.source == BLOB_SOURCE_NONE)
+      {
+        out = Blob::Empty();
+        return loka::dsl::FLOW_STEP_SUCCEEDED;
+      }
+
+      if (projection.request.source == BLOB_SOURCE_FILE)
+      {
+        std::string utf8Path;
+        if (!loka::platform::CollectUtf8(projection.request.filePath, utf8Path))
+        {
+          error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
+          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
+          return loka::dsl::FLOW_STEP_FAILED;
+        }
+
+        std::ifstream file(utf8Path.c_str(), std::ios::binary);
+        if (!file)
+        {
+          error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
+          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
+          return loka::dsl::FLOW_STEP_FAILED;
+        }
+
+        std::vector<unsigned char> bytes;
+        file.seekg(0, std::ios::end);
+        std::ifstream::pos_type lengthPos = file.tellg();
+        if (lengthPos < 0)
+        {
+          file.clear();
+          file.seekg(0, std::ios::beg);
+          const std::size_t kBuffer = 4096;
+          unsigned char buffer[kBuffer];
+          while (file)
+          {
+            file.read(reinterpret_cast<char *>(buffer), static_cast<std::streamsize>(kBuffer));
+            std::streamsize readBytes = file.gcount();
+            if (readBytes <= 0)
+              break;
+            std::size_t oldSize = bytes.size();
+            bytes.resize(oldSize + static_cast<std::size_t>(readBytes));
+            for (std::size_t i = 0; i < static_cast<std::size_t>(readBytes); ++i)
+              bytes[oldSize + i] = buffer[i];
+          }
+        }
+        else
+        {
+          std::size_t length = static_cast<std::size_t>(lengthPos);
+          bytes.resize(length);
+          file.seekg(0, std::ios::beg);
+          if (!bytes.empty())
+            file.read(reinterpret_cast<char *>(&bytes[0]), static_cast<std::streamsize>(length));
+          if (!file)
+          {
+            std::streamsize readBytes = file.gcount();
+            if (readBytes < 0)
+              readBytes = 0;
+            bytes.resize(static_cast<std::size_t>(readBytes));
+          }
+        }
+
+        if (!file && !file.eof())
+        {
+          error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
+          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
+          return loka::dsl::FLOW_STEP_FAILED;
+        }
+
+        Blob blob = Blob::Create();
+        blob.setBytes(bytes);
+        blob.setCompleted(true);
+        out = blob;
+        return loka::dsl::FLOW_STEP_SUCCEEDED;
+      }
+
+      // BLOB_SOURCE_BYTES — not used in SimpleViewer but handle gracefully
+      out = Blob::Empty();
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
   };
