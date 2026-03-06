@@ -1220,13 +1220,13 @@ void testLokaFlowDslV1Core() {
   // --- v1 attr storage: Text/ImageView should preserve attr on props ---
   {
     loka::core::MutableState<int> dynamicFontSize(22);
-    loka::app::Text text = loka::app::Text("Hello").attr(loka::app::TextAttr().fontSize(&dynamicFontSize).weight(loka::app::TEXT_WEIGHT_BOLD));
+    loka::app::TextDefinitionWithAttr text = loka::app::Text("Hello").attr(loka::app::TextAttr().fontSize(&dynamicFontSize).weight(loka::app::TEXT_WEIGHT_BOLD));
     assert(text.props.hasAttr_);
     assert(text.props.attr_.fontSizeState_ == &dynamicFontSize);
     assert(text.props.attr_.hasWeightValue_);
     assert(text.props.attr_.weightValue_ == loka::app::TEXT_WEIGHT_BOLD);
 
-    loka::app::ImageView image = loka::app::ImageView().attr(loka::app::ImageViewAttr().fit(loka::app::IMAGE_FIT_CONTAIN));
+    loka::app::ImageViewDefinitionWithAttr image = loka::app::ImageView().attr(loka::app::ImageViewAttr().fit(loka::app::IMAGE_FIT_CONTAIN));
     assert(image.props.hasAttr_);
     assert(image.props.attr_.hasFitValue_);
     assert(image.props.attr_.fitValue_ == loka::app::IMAGE_FIT_CONTAIN);

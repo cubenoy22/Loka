@@ -16,6 +16,7 @@ namespace loka
     };
 
     class ImageViewNode;
+    struct ImageViewDefinitionWithAttr;
 
     struct ImageViewProps : public scene::NodePropsBase<ImageViewProps>
     {
@@ -98,14 +99,38 @@ namespace loka
         return *this;
       }
 
-      ImageViewDefinition &attr(const ImageViewAttr &value)
+      ImageViewDefinitionWithAttr attr(const ImageViewAttr &value) const;
+
+      using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
+    };
+
+    struct ImageViewDefinitionWithAttr : public scene::NodeDefinition<ImageViewProps, ImageViewNode>
+    {
+      ImageViewDefinitionWithAttr() : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>() {}
+      ImageViewDefinitionWithAttr(const ImageViewProps &p) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p) {}
+      ImageViewDefinitionWithAttr(const ImageViewDefinition &def) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(def.props) {}
+
+      ImageViewDefinitionWithAttr &image(loka::core::State<loka::core::resource::Image> *state)
       {
-        this->props.attr(value);
+        this->props.image(state);
+        return *this;
+      }
+
+      ImageViewDefinitionWithAttr &size(int width, int height)
+      {
+        this->props.size(width, height);
         return *this;
       }
 
       using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
     };
+
+    inline ImageViewDefinitionWithAttr ImageViewDefinition::attr(const ImageViewAttr &value) const
+    {
+      ImageViewProps p = this->props;
+      p.attr(value);
+      return ImageViewDefinitionWithAttr(p);
+    }
 
     typedef ImageViewDefinition ImageView;
   } // namespace app

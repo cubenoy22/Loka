@@ -16,6 +16,7 @@ namespace loka
     };
 
     class TextNode;
+    struct TextDefinitionWithAttr;
 
     struct TextProps : public scene::NodePropsBase<TextProps>
     {
@@ -117,12 +118,22 @@ namespace loka
       TextDefinition(const loka::core::String &value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
       TextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state)) {}
 
-      TextDefinition &attr(const TextAttr &value)
-      {
-        this->props.attr(value);
-        return *this;
-      }
+      TextDefinitionWithAttr attr(const TextAttr &value) const;
     };
+
+    struct TextDefinitionWithAttr : public scene::NodeDefinition<TextProps, TextNode>
+    {
+      TextDefinitionWithAttr() : loka::app::scene::NodeDefinition<TextProps, TextNode>() {}
+      TextDefinitionWithAttr(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
+      TextDefinitionWithAttr(const TextDefinition &def) : loka::app::scene::NodeDefinition<TextProps, TextNode>(def.props) {}
+    };
+
+    inline TextDefinitionWithAttr TextDefinition::attr(const TextAttr &value) const
+    {
+      TextProps p = this->props;
+      p.attr(value);
+      return TextDefinitionWithAttr(p);
+    }
 
     typedef TextDefinition Text;
   } // namespace app
