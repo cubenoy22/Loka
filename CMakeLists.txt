@@ -35,6 +35,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
 
   set(LOKA_FLOW_TEST_SOURCES
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
   )
 
