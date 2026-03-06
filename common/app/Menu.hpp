@@ -2,9 +2,11 @@
 #define LOKA_APP_MENU_HPP
 
 #include <vector>
+#include <cassert>
 #include "loka/core/String.hpp"
 #include "loka/dsl/CompositionList.hpp"
 #include "app/MenuComposition.hpp"
+#include "app/Attr.hpp"
 
 namespace loka
 {
@@ -30,6 +32,8 @@ namespace loka
             children_(),
             hasShortcut(false),
             shortcutKey(0),
+            attr_(),
+            hasAttr_(false),
             nextInComposition(0)
       {
       }
@@ -43,6 +47,8 @@ namespace loka
             children_(),
             hasShortcut(false),
             shortcutKey(0),
+            attr_(),
+            hasAttr_(false),
             nextInComposition(0)
       {
       }
@@ -56,6 +62,8 @@ namespace loka
             children_(),
             hasShortcut(false),
             shortcutKey(0),
+            attr_(),
+            hasAttr_(false),
             nextInComposition(0)
       {
       }
@@ -69,6 +77,8 @@ namespace loka
             children_(),
             hasShortcut(other.hasShortcut),
             shortcutKey(other.shortcutKey),
+            attr_(other.attr_),
+            hasAttr_(other.hasAttr_),
             nextInComposition(0)
       {
         const MenuItemDefinition *cur = other.children_.head();
@@ -95,6 +105,8 @@ namespace loka
         isSeparator = other.isSeparator;
         hasShortcut = other.hasShortcut;
         shortcutKey = other.shortcutKey;
+        attr_ = other.attr_;
+        hasAttr_ = other.hasAttr_;
         nextInComposition = 0;
         clearChildren();
         const MenuItemDefinition *cur = other.children_.head();
@@ -157,6 +169,14 @@ namespace loka
         return *this;
       }
 
+      MenuItemDefinition &attr(const MenuItemAttr &value)
+      {
+        assert(!this->hasAttr_ && "MenuItem.attr() can only be set once per item");
+        this->attr_ = value;
+        this->hasAttr_ = true;
+        return *this;
+      }
+
       MenuItemDefinition &operator<<(const MenuItemDefinition &child)
       {
         children_.appendClone(child);
@@ -178,6 +198,10 @@ namespace loka
         if (hasShortcut != other.hasShortcut)
           return false;
         if (shortcutKey != other.shortcutKey)
+          return false;
+        if (hasAttr_ != other.hasAttr_)
+          return false;
+        if (!(attr_ == other.attr_))
           return false;
         if (children_.count() != other.children_.count())
           return false;
@@ -210,6 +234,8 @@ namespace loka
       loka::dsl::CompositionList<MenuItemDefinition> children_;
       bool hasShortcut;
       char shortcutKey;
+      MenuItemAttr attr_;
+      bool hasAttr_;
       MenuItemDefinition *nextInComposition;
     };
 

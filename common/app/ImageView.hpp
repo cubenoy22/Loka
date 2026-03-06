@@ -4,6 +4,7 @@
 #include "app/scene/Node.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
+#include "app/Attr.hpp"
 #include <cassert>
 
 namespace loka
@@ -24,8 +25,10 @@ namespace loka
       loka::core::State<loka::core::resource::Image> *image_;
       int width_;
       int height_;
+      ImageViewAttr attr_;
+      bool hasAttr_;
 
-      ImageViewProps() : image_(0), width_(0), height_(0) {}
+      ImageViewProps() : image_(0), width_(0), height_(0), attr_(), hasAttr_(false) {}
 
       ImageViewProps &image(loka::core::State<loka::core::resource::Image> *state)
       {
@@ -37,6 +40,14 @@ namespace loka
       {
         this->width_ = width;
         this->height_ = height;
+        return *this;
+      }
+
+      ImageViewProps &attr(const ImageViewAttr &value)
+      {
+        assert(!this->hasAttr_ && "ImageView.attr() can only be set once per node");
+        this->attr_ = value;
+        this->hasAttr_ = true;
         return *this;
       }
 
@@ -54,7 +65,11 @@ namespace loka
           return image_ < other.image_;
         if (width_ != other.width_)
           return width_ < other.width_;
-        return height_ < other.height_;
+        if (height_ != other.height_)
+          return height_ < other.height_;
+        if (hasAttr_ != other.hasAttr_)
+          return hasAttr_ < other.hasAttr_;
+        return attr_ < other.attr_;
       }
     };
 
@@ -82,6 +97,13 @@ namespace loka
         this->props.size(width, height);
         return *this;
       }
+
+      ImageViewDefinition &attr(const ImageViewAttr &value)
+      {
+        this->props.attr(value);
+        return *this;
+      }
+
       using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
     };
 

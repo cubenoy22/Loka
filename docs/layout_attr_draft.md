@@ -84,7 +84,7 @@ v1 では **要素固有 attr のみ** を対象とする。レイアウト attr
 既存のレイアウト系 API (`.size()` 等) は v1 では互換維持し、v1.1 以降で attr への移行計画を進める。
 
 - 全既存要素に最小限の attr を適用（`Text`, `ImageView`, `Empty`, `MenuItem` 等）
-- 要素 attr: `ImageAttr`, `TextAttr`, `MenuItemAttr` 等
+- 要素 attr: `ImageViewAttr`, `TextAttr`, `MenuItemAttr` 等
 - 子の sizing 要求（`fillX`, `minHeight` 等）は要素 attr 側に段階導入（v1.1 以降）
 - 合成型 (`ImageViewAttr().layout().image()`): 不要（attr 1回 + 要素 attr のみ）
 - MenuDSL: 同じ attr 基盤を共有（`disabled` 等の共通プロパティ）
@@ -123,7 +123,7 @@ v1 推奨実装:
 
 ## Attr Types as Typed Façades
 
-`TextAttr`, `ImageAttr`, `MenuItemAttr` 等は typed façade として位置づける。
+`TextAttr`, `ImageViewAttr`, `MenuItemAttr` 等は typed façade として位置づける。
 
 役割:
 1. 型安全性（コンパイル時に不正な組み合わせを検出）
@@ -142,7 +142,7 @@ VStack()
   << Text("Title").attr(TextAttr().fontSize(14).weight(TEXT_WEIGHT_BOLD))
   << ImageView()
        .image(&imageState)
-       .attr(ImageAttr().fit(IMAGE_FIT_CONTAIN))
+       .attr(ImageViewAttr().fit(IMAGE_FIT_CONTAIN))
 
 // Static: 構築時に条件分岐
 Text("hi").attr(isLarge ? TextAttr().fontSize(18) : TextAttr().fontSize(12))
@@ -160,7 +160,7 @@ ImageView().image(&imageState).size(0, 180);
 VStack()
   .layout(VStackLayout().padding(8).gap(6))
   << Text("A").attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
-  << ImageView().image(&imageState).attr(ImageAttr().fit(IMAGE_FIT_CONTAIN));
+  << ImageView().image(&imageState).attr(ImageViewAttr().fit(IMAGE_FIT_CONTAIN));
 ```
 
 ## Type Safety Policy
@@ -176,7 +176,7 @@ VStack()
 |---|---|---|
 | attr 回数 | 1回（型レベル強制） | 1回 |
 | 型チェック | `NodeDefinition<T, AttrTag>` + `<<` で static | 同左 |
-| 要素 attr | `ImageAttr`, `TextAttr` 等 | 同左 |
+| 要素 attr | `ImageViewAttr`, `TextAttr` 等 | 同左 |
 | 子 sizing 要求 | なし | 要素 attr 側に追加（`fillX`, `minHeight` 等） |
 | `.size()` 等既存API | 互換維持 | attr へ段階移行 |
 | `layout(...)` | 仕様のみ定義（実装なし） | 実装導入 |

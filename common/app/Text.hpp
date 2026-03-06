@@ -4,6 +4,8 @@
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/String.hpp"
+#include "app/Attr.hpp"
+#include <cassert>
 
 namespace loka
 {
@@ -22,18 +24,20 @@ namespace loka
       loka::core::State<loka::core::String> *text_;
       loka::core::MutableState<loka::core::String> ownedText;
       bool ownsText;
-      TextProps() : text_(0), ownedText(), ownsText(false) {}
-      TextProps(loka::core::State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false) {}
-      TextProps(const loka::core::String &value) : text_(0), ownedText(value), ownsText(true)
+      TextAttr attr_;
+      bool hasAttr_;
+      TextProps() : text_(0), ownedText(), ownsText(false), attr_(), hasAttr_(false) {}
+      TextProps(loka::core::State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false), attr_(), hasAttr_(false) {}
+      TextProps(const loka::core::String &value) : text_(0), ownedText(value), ownsText(true), attr_(), hasAttr_(false)
       {
         text_ = &ownedText;
       }
-      TextProps(const char *value) : text_(0), ownedText(loka::core::String::Literal(value)), ownsText(true)
+      TextProps(const char *value) : text_(0), ownedText(loka::core::String::Literal(value)), ownsText(true), attr_(), hasAttr_(false)
       {
         text_ = &ownedText;
       }
       TextProps(const TextProps &other)
-          : text_(other.text_), ownedText(other.ownedText), ownsText(other.ownsText)
+          : text_(other.text_), ownedText(other.ownedText), ownsText(other.ownsText), attr_(other.attr_), hasAttr_(other.hasAttr_)
       {
         if (ownsText)
         {
@@ -47,6 +51,8 @@ namespace loka
           text_ = other.text_;
           ownedText = other.ownedText;
           ownsText = other.ownsText;
+          attr_ = other.attr_;
+          hasAttr_ = other.hasAttr_;
           if (ownsText)
           {
             text_ = &ownedText;
@@ -71,12 +77,25 @@ namespace loka
       {
         return text(loka::core::String::Literal(value));
       }
+
+      TextProps &attr(const TextAttr &value)
+      {
+        assert(!this->hasAttr_ && "Text.attr() can only be set once per node");
+        this->attr_ = value;
+        this->hasAttr_ = true;
+        return *this;
+      }
+
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const TextProps &other = static_cast<const TextProps &>(rhs);
-        return text_ < other.text_;
+        if (text_ != other.text_)
+          return text_ < other.text_;
+        if (hasAttr_ != other.hasAttr_)
+          return hasAttr_ < other.hasAttr_;
+        return attr_ < other.attr_;
       }
     };
 
@@ -97,6 +116,12 @@ namespace loka
       TextDefinition(const char *value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
       TextDefinition(const loka::core::String &value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
       TextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state)) {}
+
+      TextDefinition &attr(const TextAttr &value)
+      {
+        this->props.attr(value);
+        return *this;
+      }
     };
 
     typedef TextDefinition Text;
