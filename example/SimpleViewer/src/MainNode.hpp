@@ -94,6 +94,7 @@ namespace simpleviewer
           << Text(this->props.message_)
           << ImageView()
                  .image(this->props.image_)
+                 .attr(ImageViewAttr().fit(IMAGE_FIT_CONTAIN))
                  .size(0, 180)
           << OpenFileDialog()
                  .isVisible(this->props.isDialogShown_)
