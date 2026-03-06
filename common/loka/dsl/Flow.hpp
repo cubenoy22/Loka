@@ -202,6 +202,10 @@ namespace loka {
         }
       }
 
+      bool isShared() const {
+        return this->refs_ > 1;
+      }
+
       void retain() {
         ++this->refs_;
       }
@@ -613,6 +617,9 @@ namespace loka {
       }
 
       void detachIfShared() {
+        if (!this->impl_->isShared()) {
+          return;
+        }
         FlowChainImpl *next = this->impl_->clone();
         this->impl_->release();
         this->impl_ = next;
