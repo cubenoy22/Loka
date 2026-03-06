@@ -18,7 +18,8 @@ namespace loka {
     enum FlowRunResult {
       FLOW_RUN_PENDING = 0,
       FLOW_RUN_SUCCEEDED = 1,
-      FLOW_RUN_FAILED = 2
+      FLOW_RUN_FAILED = 2,
+      FLOW_RUN_CANCELED = 3
     };
 
     struct FlowError {
@@ -260,6 +261,7 @@ namespace loka {
           : finallyFn_(0), finallyUser_(0), loadingState_(0), tracker_(0),
             triggerState_(0), triggerInputBuffer_(0), triggerReadFn_(0),
             triggerDeleteFn_(0), triggerCallback_(0), triggerRunning_(false),
+            cancelRequested_(false),
             refs_(1) {
       }
 
@@ -312,6 +314,7 @@ namespace loka {
       void (*triggerDeleteFn_)(void *buffer);
       loka::core::StateBase::OnChangeFn triggerCallback_;
       bool triggerRunning_;
+      mutable bool cancelRequested_;
 
       class IRuntimeStep {
       public:
@@ -336,6 +339,7 @@ namespace loka {
         next->finallyUser_ = this->finallyUser_;
         next->loadingState_ = this->loadingState_;
         next->tracker_ = this->tracker_;
+        next->cancelRequested_ = this->cancelRequested_;
         // trigger is NOT cloned
         for (std::size_t i = 0; i < this->steps_.size(); ++i) {
           next->steps_.push_back(this->steps_[i]->clone());
@@ -389,6 +393,11 @@ namespace loka {
         static const std::size_t MAX_ITERATIONS = 1024;
         std::size_t iterations = 0;
         for (std::size_t i = startIndex; i < this->steps_.size(); ++i) {
+          if (this->cancelRequested_) {
+            this->cancelRequested_ = false;
+            this->terminalCleanup();
+            return FLOW_RUN_CANCELED;
+          }
           if (++iterations > MAX_ITERATIONS) {
             this->terminalCleanup();
             return FLOW_RUN_FAILED;
@@ -745,6 +754,18 @@ namespace loka {
       FlowChain &withTracker(loka::core::PushStateTracker *tracker) {
         this->detachIfShared();
         this->impl_->tracker_ = tracker;
+        return *this;
+      }
+
+      FlowChain &cancel() {
+        this->detachIfShared();
+        this->impl_->cancelRequested_ = true;
+        return *this;
+      }
+
+      FlowChain &clearCancel() {
+        this->detachIfShared();
+        this->impl_->cancelRequested_ = false;
         return *this;
       }
 

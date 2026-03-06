@@ -439,6 +439,37 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    int input = 31;
+    int calls = 0;
+    bool ready = false;
+    int captured = 0;
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 605};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+                .input(&input)
+                .onSuccess(&captured);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const loka::dsl::FlowRunResult first = chain.runResult();
+    assert(first == loka::dsl::FLOW_RUN_PENDING);
+    assert(calls == 1);
+    assert(captured == 0);
+    assert(order.empty());
+
+    chain.cancel();
+    ready = true;
+    const loka::dsl::FlowRunResult canceled = chain.resumeResult(1);
+    assert(canceled == loka::dsl::FLOW_RUN_CANCELED);
+    assert(calls == 1);
+    assert(captured == 0);
+    assert(order.size() == 1);
+    assert(order[0] == 605);
+  }
+
+  {
     int input = 2;
     int out = 0;
     bool failedOnce = false;

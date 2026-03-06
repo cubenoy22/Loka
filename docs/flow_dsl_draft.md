@@ -110,6 +110,7 @@ Runtime API:
 
 - `resume(StepId id)`
 - `runResult()` / `resumeResult(StepId id)`
+- `cancel()` / `clearCancel()`
 
 Flow run result is also tri-state:
 
@@ -123,6 +124,12 @@ enum FlowRunResult
 ```
 
 If ID is not reachable/valid, return failure result (no throw).
+
+Cancel semantics (v1):
+
+- If a flow is `PENDING`, calling `cancel()` requests terminal stop on next `resume/run`.
+- Cancel terminal returns `FLOW_RUN_CANCELED`.
+- Terminal cleanup (`onFinally`, loading reset, tracker end) still runs.
 
 String labels are optional debug metadata only:
 
