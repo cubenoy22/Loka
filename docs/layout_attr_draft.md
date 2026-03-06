@@ -48,7 +48,13 @@ v1 ではレイアウト指定の実装は既存 API を継続利用し、`layou
   - 長い文字列/複雑データなど重い payload は既定 attr に直接保持しない
   - 重い表現は `Extended*Attr` / `Pro*Attr` の明示 opt-in で分離
 
-7. Resolver: Boundary 単位注入、関数ポインタテーブル
+7. Attr 値カテゴリ（3種）
+  - Immediate: リテラル値（`fontSize(14)`, `opacity(0.8)`, `disabled(true)`）
+  - Reference: ポインタ/ID 参照（`fontName("Chicago")`, `imageHandle(asset)`）
+  - Dynamic Binding: `State<T>*`（`fontSize(&fontSizeState)`, `visible(&visibleState)`）
+  カテゴリは API 上で明示的に区別する。
+
+8. Resolver: Boundary 単位注入、関数ポインタテーブル
   - Boundary ごとに `ResolverContext` を1つ保持
   - Node/Menu は描画時に現在 Boundary の resolver を参照
   - Boundary が無い、または resolver 未指定なら `DefaultAttrResolver`（パススルー）
@@ -56,18 +62,19 @@ v1 ではレイアウト指定の実装は既存 API を継続利用し、`layou
   - v1 は `1関数 + attrTypeId` 分岐（switch-case）を標準とする
   - 局所差し替え可能、グローバル汚染なし、68k で低コスト
 
-8. Resolver の適用順序（固定）
+9. Resolver の適用順序（固定）
   `Node attr -> Container 補正 -> Platform 補正`
+  順序はプラットフォーム間で安定でなければならない。
 
-9. 未対応 Attr の扱い
+10. 未対応 Attr の扱い
   - debug: assert / log
   - release: 無視して継続
 
-10. コンテナ-Attr 型整合チェックは `<<` 演算子側で行う
+11. コンテナ-Attr 型整合チェックは `<<` 演算子側で行う
   各 Attr が scope tag を持ち、`Container::operator<<` 内で
   `IsAllowed<ContainerTag, AttrTag>` を静的チェック。
 
-11. 同カテゴリ Attr の上書きは型単位
+12. 同カテゴリ Attr の上書きは型単位
   プロパティ単位マージはしない。後から同型の attr を設定した場合は丸ごと置換。
   （v1 では attr 1回制約のため実質発生しない）
 
@@ -113,6 +120,19 @@ v1 推奨実装:
   - 例: `TextAttr { CommonAttr common; ControlAttr control; ... }`
 - Resolver は `CommonAttr` / `ControlAttr` を先に適用し、その後に要素固有 attr を適用する
 - 未対応要素では該当共通項目を no-op 扱い（debug では警告/assert）
+
+## Attr Types as Typed Façades
+
+`TextAttr`, `ImageAttr`, `MenuItemAttr` 等は typed façade として位置づける。
+
+役割:
+1. 型安全性（コンパイル時に不正な組み合わせを検出）
+2. 許可タグの名前空間（要素ごとに設定可能なプロパティを制限）
+3. Builder API（`TextAttr().fontSize(14).weight(BOLD)` のチェーン記法）
+4. Getter API（v1: 直接メンバアクセス、v1.1: 非 hydrate getter）
+
+v1 では固定 POD struct がそのまま storage。
+v1.1 で TLV 導入時に façade + 共有 TLV backend に分離する。
 
 ## API Sketch (v1)
 
@@ -205,3 +225,28 @@ Hydrate/適用方針:
 - まず TLV バイト列同一性（length + memcmp）で高速判定
 - 参照系（`State<T>*` / `fontName*`）は既定でポインタ同一性比較
 - 値比較が必要なタグのみ、タグ単位で明示的に比較戦略を追加
+
+Global AttrTag Namespace（v1.1）:
+
+- TLV 導入時にプロパティ単位のグローバル一意タグを定義
+- 例: `ATTR_TAG_COMMON_VISIBLE`, `ATTR_TAG_TEXT_FONT_SIZE`, `ATTR_TAG_IMAGE_FIT`
+- type id と tag id を混同しない（v1 の `AttrTypeId` は型単位、v1.1 のタグはプロパティ単位）
+- Resolver は `switch(tag)` で直接ディスパッチ可能
+
+Attr Freeze After Attach（v1.1）:
+
+- v1 は固定 POD + 値コピーなので freeze 不要（alias 安全）
+- v1.1 で TLV バッファをポインタ共有する場合、Builder → `.attr()` → `freezeAttr()` で immutable 化
+- Frozen attr は copy-safe を保証
+
+Attr Equality（v1.1）:
+
+- v1: POD `operator==` / `memcmp` 相当で十分
+- v1.1: TLV length + memcmp による高速判定
+- `State<T>*` 含有時はポインタ同一性比較
+
+Getter API 最適化（v1.1）:
+
+- v1: 直接メンバアクセス（`attr.fontSize_`）
+- v1.1: 非 hydrate getter（`hasFontSize()`, `fontSizeValueOr(fallback)`, `fontSizeState()`）
+- TLV 全体をパースせず、必要なタグのみ読み取る
