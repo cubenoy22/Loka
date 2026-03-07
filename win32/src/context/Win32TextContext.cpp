@@ -4,7 +4,7 @@
 #include "loka/platform/StringUTF8.hpp"
 
 Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node)
-    : node_(node), hwnd_(NULL), textState_(0)
+    : node_(node), hwnd_(NULL), textState_(0), didInitialApply_(false)
 {
   DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
   if (node_ && node_->props.hasAttr_)
@@ -111,6 +111,37 @@ void Win32TextContext::applyText()
     }
   }
   InvalidateRect(hwnd_, NULL, TRUE);
+  requestRelayoutIfNeeded();
+  if (!didInitialApply_)
+  {
+    didInitialApply_ = true;
+  }
+}
+
+void Win32TextContext::requestRelayoutIfNeeded()
+{
+  if (!didInitialApply_ || !node_ || !node_->props.hasAttr_ || !node_->props.attr_.hasWrapValue_)
+  {
+    return;
+  }
+  if (node_->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+  {
+    return;
+  }
+  HWND parent = GetParent(hwnd_);
+  if (!parent)
+  {
+    return;
+  }
+  RECT rc;
+  if (!GetClientRect(parent, &rc))
+  {
+    return;
+  }
+  const int width = rc.right - rc.left;
+  const int height = rc.bottom - rc.top;
+  PostMessage(parent, WM_SIZE, static_cast<WPARAM>(SIZE_RESTORED),
+              static_cast<LPARAM>(MAKELPARAM(width, height)));
 }
 
 void Win32TextContext::TextChangedThunk(void *userData)

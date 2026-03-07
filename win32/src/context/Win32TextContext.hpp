@@ -32,11 +32,13 @@ private:
   void bindText();
   void unbindText();
   void applyText();
+  void requestRelayoutIfNeeded();
   static void TextChangedThunk(void *userData);
 
   loka::app::TextNode *node_;
   HWND hwnd_;
   loka::core::State<loka::core::String> *textState_;
+  bool didInitialApply_;
 };
 
 #endif // LOKA_WIN32_TEXT_CONTEXT_HPP
