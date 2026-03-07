@@ -41,14 +41,113 @@ v1 ではレイアウト指定の実装は既存 API を継続利用し、`layou
 - 既定経路（高速・固定ルール）と、例外経路（Functor）を分離する
 - `Boundary` では resolver 差し替えと同様に layout resolver 差し替えを許可する
 
+### Layout Execution Direction (safety rule)
+
+- レイアウト実行は親→子の一方向で固定する
+- 子が親サイズを直接変更する逆流は許可しない
+- `Boundary`/override でも同一パス内の逆流更新は許可しない
+- 再レイアウト要求が必要な場合は次サイクルへ遅延し、同一パス再入を防止する
+
+### v1.1 Layout Unification Plan
+
+- v1.1 では `VStack`/`HStack`/`ZStack` 等の既存標準レイアウトを共通レイアウトフローに載せる
+- 標準レイアウトは固定アルゴリズム（最適化対象）として維持する
+- 任意レイアウトは `CustomLayout`（または等価ノード）で扱い、標準経路と責務分離する
+- これにより自由度を確保しつつ、68k 向けの予測可能な実行コストを維持する
+
 ### Overflow Strategy (v1)
 
 - v1 は親コンテナ側に `isClipped`（bool）のみを導入対象とする
   - `false`: はみ出し表示を許可
   - `true`: 親矩形でクリップ
+- `isClipped` は `CommonAttr` で保持する（要素共通）
+- 描画フェーズで clip を適用する
+  - Toolbox: `ClipRect` / `SetClip`
+  - Win/macOS: 各 backend の clip API へマップ
 - `SCROLL` は v1 スコープ外（通常コンテナに持たせない）
 - スクロールは `ScrollView` コンポーネント責務として実装する
 - `LazyColumn`/`LazyRow` は `ScrollView + virtualization` 実装時に overflow 戦略を拡張する
+
+ScrollView 仕様メモ（v1.1+）:
+
+- `ScrollView` は特殊コンテナとして定義する
+- スクロール軸方向は子へ `UNCONSTRAINED` 制約を渡す
+- 反対軸は通常の親制約を維持する
+- これにより `LazyColumn`/`LazyRow` 実装時の仮想化戦略と整合する
+
+### Spacing Strategy (v1)
+
+- `margin` は v1 では導入しない
+- 余白は親コンテナ側の `padding` / `gap` で統一する
+- 個別調整が必要な場合は `Spacer`（または等価ノード）で表現する
+- これによりレイアウト責務を親に集約し、計算分岐と仕様複雑性を抑える
+
+### Z-Order Strategy (v1)
+
+- `ZStack` の既定重なり順は定義順（後ろに書いた要素が前面）
+- `zIndex` は子 attr に保持し、`ZStack` 親が解釈して描画順を決定する
+- 同一 `zIndex` の場合は定義順で安定ソートする
+- `ZStack` 以外では `zIndex` は意味を持たない
+  - v1: 無視（debug で警告/assert 推奨）
+  - 将来: 可能なら静的制約へ拡張
+
+### Hit Test Strategy (v1)
+
+- hit test は Node レベルで扱う（`hitTest` / `handleEvent` を想定）
+- v1 最小仕様:
+  - `isHitTestVisible(bool)` を共通 attr として導入候補にする
+  - `isHitTestVisible == false` のノードはヒット対象外
+  - `isClipped == true` の親では、クリップ外座標は常にヒット対象外
+- 伝播順:
+  - 通常コンテナは後勝ち（後に配置された子を優先）
+  - `ZStack` は前面から判定（`zIndex` + 定義順）
+- `pointerEvents(NONE | ALL | SELF...)` は v1.1 以降で拡張する
+
+### Visibility Strategy (v1)
+
+- `GONE` は attr に持たせない。構造側（`if` / `ShowIf(cond) << Node`）で表現する
+- attr 側は「表示だけ消す」用途に限定し、`HIDDEN` 相当を扱う
+- 68k 最適化方針として、レイアウト時の可視判定分岐を減らすため、`GONE` は構造解決で確定させる
+- 既存 `MenuItemAttr.visible(false)` はメニュー構築時のスキップとして扱い、実質的に構造的 `GONE` に相当
+
+### Units Strategy (v1)
+
+- v1 の単位は `px` のみを実装するが、API は `Length` 抽象を使用する
+- `Length` は POD 値型として保持し、ヒープ確保や共有管理を行わない
+- 推奨形:
+  - `struct Length { short unit; int value; };`
+  - `Length::px(int)` を提供
+- 予約単位（v1 では未実装）:
+  - `PT`, `PERCENT`, `EM`
+  - 未実装単位は compile error か debug assert で拒否
+
+### Px Constants (v1 helper)
+
+- 頻出値は定数として提供する（C++98 互換）
+  - `loka::util::Px::k0`, `k1`, `k2`, `k4`, `k8`, `k12`, `k16`, `k24`, `k32`
+- `Px::4` のような識別子は C++ 上扱えないため `kN` 命名を採用する
+
+### HiDPI and Scaling
+
+- レイアウト計算は論理 px（DIP）として扱う
+- 実ピクセル変換は各 platform backend が吸収する
+  - Toolbox/68k: `scale = 1` 固定
+  - Win/macOS: 将来 `scale != 1` を許容
+- v1 は整数演算中心（68k 互換）で進め、必要なら将来 fixed-point へ拡張可能な API 形を維持する
+
+### TLV Compatibility (v1.1+)
+
+- `Length` を採用しても TLV 移行と矛盾しない
+- TLV では `ATTR_TAG_WIDTH` 等のタグに対して payload として `{unit, value}` を格納する
+- `ATTR_TAG_WIDTH_PX` / `ATTR_TAG_WIDTH_PT` のようなタグ分割は行わず、タグ爆発を回避する
+
+### Attr Composition (v1.1+ candidate)
+
+- v1 は「1ノード1attr」を維持する
+- v1.1 以降で attr 合成を候補化する（例: `ImageViewAttr() + ZStackChildAttr()`）
+- 合成結果は `AttrPack` として保持し、Resolver/Container は必要キーのみ参照する
+- 同一キー競合は「右優先（last-wins）」を基本ルールとする
+- `ZStack` は `AttrPack` から `zIndex` を取得し、他キーは無視できる
 
 ## Confirmed Rules
 
@@ -88,6 +187,16 @@ v1 ではレイアウト指定の実装は既存 API を継続利用し、`layou
   - `IMAGE_VIEW_SIZE_FILL_PARENT`: `width/height` 未指定時は親領域を優先（高さは親高さがある場合に追従）
   - `IMAGE_VIEW_SIZE_INTRINSIC`: `width/height` 未指定時は画像の自然サイズを優先
   - `fit` は「描画の詰め方」、`sizePolicy` は「ビュー矩形の決め方」として分離する
+
+7.2 Implicit defaults（v1）
+  - attr 未指定時は要素デフォルト値を使用する
+  - attr は「上書き指定のみ」を保持する（`hasX` フラグ付き）
+  - 実効値は `effective = componentDefault + attrOverride` で解決する
+  - デフォルト値は `Default*Attr`（または等価の resolver テーブル）で定義する
+  - 初期デフォルト（v1 方針）:
+    - `Text`: `sizePolicy = INTRINSIC`
+    - `ImageView`: `sizePolicy = AUTO`, `fit = STRETCH`
+    - `MenuItem`: `visible = true`, `disabled = false`
 
 8. Resolver: Boundary 単位注入、関数ポインタテーブル
   - Boundary ごとに `ResolverContext` を1つ保持
