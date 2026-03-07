@@ -187,13 +187,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
       childState.y = currentY;
       if (state.height > 0)
       {
-        const int usedHeight = currentY - state.y;
-        int remainingHeight = state.height - usedHeight;
-        if (remainingHeight < 0)
-        {
-          remainingHeight = 0;
-        }
-        childState.height = remainingHeight;
+        childState.height = loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY);
       }
       int childWidth = state.width;
       int childOffset = 0;

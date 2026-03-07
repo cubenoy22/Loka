@@ -7,6 +7,7 @@
 #include "app/Menu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include "app/layout/LayoutHeuristics.hpp"
 #include "loka/core/State.hpp"
 
 void testLokaAttrDslV1Core()
@@ -58,6 +59,14 @@ void testLokaAttrDslV1Core()
     loka::app::HStack row = loka::app::HStack().alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM);
     assert(row.props.hasVerticalAlignment_);
     assert(row.props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM);
+  }
+
+  // --- Column remaining-height helper ---
+  {
+    assert(loka::app::layout::remainingChildHeightForColumn(400, 20, 20) == 400);
+    assert(loka::app::layout::remainingChildHeightForColumn(400, 20, 120) == 300);
+    assert(loka::app::layout::remainingChildHeightForColumn(400, 20, 999) == 0);
+    assert(loka::app::layout::remainingChildHeightForColumn(0, 20, 50) == 0);
   }
 
   // --- v1 attr copy safety (POD): copy should stay independent ---

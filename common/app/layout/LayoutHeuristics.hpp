@@ -39,6 +39,21 @@ namespace loka
         return clampToAvailable(availableWidth, availableWidth);
       }
 
+      inline int remainingChildHeightForColumn(int parentHeight, int parentStartY, int currentY)
+      {
+        if (parentHeight <= 0)
+        {
+          return parentHeight;
+        }
+        const int usedHeight = currentY - parentStartY;
+        int remainingHeight = parentHeight - usedHeight;
+        if (remainingHeight < 0)
+        {
+          remainingHeight = 0;
+        }
+        return remainingHeight;
+      }
+
       inline int preferredChildHeightForRow(loka::app::scene::Node *child,
                                             int fallbackHeight,
                                             int buttonHeight,

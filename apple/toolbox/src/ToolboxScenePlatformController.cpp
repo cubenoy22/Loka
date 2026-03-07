@@ -26,6 +26,7 @@ static bool sProfileCaptured = false;
 #include "app/Grid.hpp"
 #include "app/ZStack.hpp"
 #include "app/RowColumn.hpp"
+#include "app/layout/LayoutHeuristics.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxButtonContext.hpp"
@@ -276,13 +277,8 @@ namespace
         childState.y = currentY;
         if (state.height > 0)
         {
-          short usedHeight = static_cast<short>(currentY - state.y);
-          short remainingHeight = static_cast<short>(state.height - usedHeight);
-          if (remainingHeight < 0)
-          {
-            remainingHeight = 0;
-          }
-          childState.height = remainingHeight;
+          childState.height = static_cast<short>(
+              loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
         }
         short childWidth = state.width;
         short childOffset = 0;
