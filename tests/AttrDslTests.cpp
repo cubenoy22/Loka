@@ -48,6 +48,11 @@ void testLokaAttrDslV1Core()
     assert(text.props.attr_.wrapValue_ == loka::app::TEXT_WRAP_WORD);
     assert(text.props.attr_.hasTruncationValue_);
     assert(text.props.attr_.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS);
+
+    loka::app::TextDefinitionWithAttr charWrap = loka::app::Text("Path").attr(
+        loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_CHAR));
+    assert(charWrap.props.attr_.hasWrapValue_);
+    assert(charWrap.props.attr_.wrapValue_ == loka::app::TEXT_WRAP_CHAR);
   }
 
   // --- Row/Column alignment props storage ---

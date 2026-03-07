@@ -44,7 +44,7 @@ namespace
       return defaultHeight;
     }
     if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
-        text->props.attr_.wrapValue_ != loka::app::TEXT_WRAP_WORD)
+        text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
     {
       return defaultHeight;
     }

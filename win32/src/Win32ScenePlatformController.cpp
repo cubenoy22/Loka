@@ -40,7 +40,7 @@ namespace
       return defaultHeight;
     }
     if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
-        text->props.attr_.wrapValue_ != loka::app::TEXT_WRAP_WORD)
+        text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
     {
       return defaultHeight;
     }
@@ -69,7 +69,15 @@ namespace
     rc.top = 0;
     rc.right = width;
     rc.bottom = 0;
-    const UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK;
+    UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT;
+    if (text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_WORD)
+    {
+      flags |= DT_WORDBREAK;
+    }
+    else
+    {
+      flags |= DT_EDITCONTROL;
+    }
     DrawTextA(hdc, utf8.c_str(), -1, &rc, flags);
     ReleaseDC(hwnd, hdc);
 

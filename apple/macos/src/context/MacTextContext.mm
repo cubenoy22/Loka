@@ -19,12 +19,13 @@ MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int he
     NSTextFieldCell *cell = [label cell];
     const loka::app::TextAttr &attr = node_->props.attr_;
     const bool wrapWord = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_WORD;
-    if (wrapWord)
+    const bool wrapChar = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_CHAR;
+    if (wrapWord || wrapChar)
     {
       [label setUsesSingleLineMode:NO];
       [cell setWraps:YES];
       [cell setScrollable:NO];
-      [cell setLineBreakMode:NSLineBreakByWordWrapping];
+      [cell setLineBreakMode:wrapChar ? NSLineBreakByCharWrapping : NSLineBreakByWordWrapping];
     }
     else
     {

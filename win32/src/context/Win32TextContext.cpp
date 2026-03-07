@@ -10,12 +10,18 @@ Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int hei
   if (node_ && node_->props.hasAttr_)
   {
     const loka::app::TextAttr &attr = node_->props.attr_;
-    const bool wrapWord = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_WORD;
+    const bool wrapEnabled = attr.hasWrapValue_ &&
+                             (attr.wrapValue_ == loka::app::TEXT_WRAP_WORD ||
+                              attr.wrapValue_ == loka::app::TEXT_WRAP_CHAR);
     const bool truncEllipsis = attr.hasTruncationValue_ &&
                                attr.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
-    if (!wrapWord)
+    if (!wrapEnabled)
     {
       style |= SS_LEFTNOWORDWRAP;
+    }
+    else
+    {
+      style |= SS_EDITCONTROL;
     }
     if (truncEllipsis)
     {
