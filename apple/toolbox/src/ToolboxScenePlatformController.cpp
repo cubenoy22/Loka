@@ -274,6 +274,16 @@ namespace
       {
         loka::app::scene::LayoutState childState = state;
         childState.y = currentY;
+        if (state.height > 0)
+        {
+          short usedHeight = static_cast<short>(currentY - state.y);
+          short remainingHeight = static_cast<short>(state.height - usedHeight);
+          if (remainingHeight < 0)
+          {
+            remainingHeight = 0;
+          }
+          childState.height = remainingHeight;
+        }
         short childWidth = state.width;
         short childOffset = 0;
         if (column->props.hasHorizontalAlignment_)

@@ -185,6 +185,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     {
       childState = state;
       childState.y = currentY;
+      if (state.height > 0)
+      {
+        const int usedHeight = currentY - state.y;
+        int remainingHeight = state.height - usedHeight;
+        if (remainingHeight < 0)
+        {
+          remainingHeight = 0;
+        }
+        childState.height = remainingHeight;
+      }
       int childWidth = state.width;
       int childOffset = 0;
       if (column->props.hasHorizontalAlignment_)
