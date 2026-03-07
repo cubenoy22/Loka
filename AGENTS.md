@@ -11,6 +11,7 @@
   core namespaces/types should also move to "Loka" as part of the rename effort.
 - UI layers should follow platform-native naming and conventions; core stays neutral.
 - Classic Mac UI uses Toolbox/Control Manager APIs; avoid Carbon/Cocoa in Classic paths.
+- Toolbox/68k binary size policy: avoid `std::fstream`/iostream-based file I/O in Classic paths because it pulls large libstdc++ locale/stream machinery; prefer C stdio (`fopen`/`fread`) or platform file APIs.
 - MutableState<T>::set() must be wrapped in a StateTracker transaction (use RAII guard).
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.

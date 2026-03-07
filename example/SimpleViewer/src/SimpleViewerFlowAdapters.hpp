@@ -1,7 +1,7 @@
 #ifndef LOKA_SIMPLE_VIEWER_FLOW_ADAPTERS_HPP
 #define LOKA_SIMPLE_VIEWER_FLOW_ADAPTERS_HPP
 
-#include <fstream>
+#include <cstdio>
 
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
@@ -137,53 +137,8 @@ namespace simpleviewer
           error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
           return loka::dsl::FLOW_STEP_FAILED;
         }
-
-        std::ifstream file(utf8Path.c_str(), std::ios::binary);
-        if (!file)
-        {
-          error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
-          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
-          return loka::dsl::FLOW_STEP_FAILED;
-        }
-
         std::vector<unsigned char> bytes;
-        file.seekg(0, std::ios::end);
-        std::ifstream::pos_type lengthPos = file.tellg();
-        if (lengthPos < 0)
-        {
-          file.clear();
-          file.seekg(0, std::ios::beg);
-          const std::size_t kBuffer = 4096;
-          unsigned char buffer[kBuffer];
-          while (file)
-          {
-            file.read(reinterpret_cast<char *>(buffer), static_cast<std::streamsize>(kBuffer));
-            std::streamsize readBytes = file.gcount();
-            if (readBytes <= 0)
-              break;
-            std::size_t oldSize = bytes.size();
-            bytes.resize(oldSize + static_cast<std::size_t>(readBytes));
-            for (std::size_t i = 0; i < static_cast<std::size_t>(readBytes); ++i)
-              bytes[oldSize + i] = buffer[i];
-          }
-        }
-        else
-        {
-          std::size_t length = static_cast<std::size_t>(lengthPos);
-          bytes.resize(length);
-          file.seekg(0, std::ios::beg);
-          if (!bytes.empty())
-            file.read(reinterpret_cast<char *>(&bytes[0]), static_cast<std::streamsize>(length));
-          if (!file)
-          {
-            std::streamsize readBytes = file.gcount();
-            if (readBytes < 0)
-              readBytes = 0;
-            bytes.resize(static_cast<std::size_t>(readBytes));
-          }
-        }
-
-        if (!file && !file.eof())
+        if (!readFileBytes(utf8Path.c_str(), bytes))
         {
           error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
           error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
@@ -200,6 +155,86 @@ namespace simpleviewer
       // BLOB_SOURCE_BYTES — not used in SimpleViewer but handle gracefully
       out = Blob::Empty();
       return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+  private:
+    static bool readFileBytes(const char *path, std::vector<unsigned char> &out)
+    {
+      out.clear();
+      if (!path || !*path)
+      {
+        return false;
+      }
+      FILE *file = std::fopen(path, "rb");
+      if (!file)
+      {
+        return false;
+      }
+
+      if (std::fseek(file, 0, SEEK_END) == 0)
+      {
+        long length = std::ftell(file);
+        if (length >= 0)
+        {
+          out.resize(static_cast<std::size_t>(length));
+          if (std::fseek(file, 0, SEEK_SET) != 0)
+          {
+            std::fclose(file);
+            out.clear();
+            return false;
+          }
+          if (!out.empty())
+          {
+            std::size_t readBytes = std::fread(&out[0], 1, out.size(), file);
+            if (readBytes != out.size())
+            {
+              if (std::ferror(file))
+              {
+                std::fclose(file);
+                out.clear();
+                return false;
+              }
+              out.resize(readBytes);
+            }
+          }
+          std::fclose(file);
+          return true;
+        }
+      }
+
+      if (std::fseek(file, 0, SEEK_SET) != 0)
+      {
+        std::fclose(file);
+        return false;
+      }
+      const std::size_t kBufferSize = 4096;
+      unsigned char buffer[kBufferSize];
+      for (;;)
+      {
+        std::size_t readBytes = std::fread(buffer, 1, kBufferSize, file);
+        if (readBytes > 0)
+        {
+          std::size_t oldSize = out.size();
+          out.resize(oldSize + readBytes);
+          for (std::size_t i = 0; i < readBytes; ++i)
+          {
+            out[oldSize + i] = buffer[i];
+          }
+        }
+        if (readBytes < kBufferSize)
+        {
+          if (std::ferror(file))
+          {
+            std::fclose(file);
+            out.clear();
+            return false;
+          }
+          break;
+        }
+      }
+
+      std::fclose(file);
+      return true;
     }
   };
 
