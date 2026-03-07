@@ -70,6 +70,56 @@ namespace
     DrawString(text);
   }
 
+  short ClampToAvailable(short value, short available)
+  {
+    if (value < 0)
+    {
+      return 0;
+    }
+    if (available >= 0 && value > available)
+    {
+      return available;
+    }
+    return value;
+  }
+
+  short PreferredChildWidthForColumn(loka::app::scene::Node *child, short availableWidth)
+  {
+    if (!child)
+    {
+      return ClampToAvailable(availableWidth, availableWidth);
+    }
+    if (loka::app::ImageViewNode *image = child->asImageViewNode())
+    {
+      if (image->props.width_ > 0)
+      {
+        return ClampToAvailable(static_cast<short>(image->props.width_), availableWidth);
+      }
+    }
+    return ClampToAvailable(availableWidth, availableWidth);
+  }
+
+  short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
+  {
+    if (!child)
+    {
+      return fallbackHeight;
+    }
+    if (loka::app::ImageViewNode *image = child->asImageViewNode())
+    {
+      if (image->props.height_ > 0)
+      {
+        return static_cast<short>(image->props.height_);
+      }
+      if (fallbackHeight > 0)
+      {
+        return fallbackHeight;
+      }
+      return 80;
+    }
+    return fallbackHeight;
+  }
+
   void CopyToPascalString(const loka::core::String &value, Str255 out)
   {
     std::string utf8;
@@ -215,7 +265,42 @@ namespace
     {
     case loka::app::scene::NODE_KIND_COLUMN:
     {
-      short width = LayoutChildren(node->asNestable(), state, controller, activeBoundary);
+      loka::app::ColumnNode *column = static_cast<loka::app::ColumnNode *>(node);
+      short width = 0;
+      short currentY = state.y;
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        loka::app::scene::LayoutState childState = state;
+        childState.y = currentY;
+        short childWidth = state.width;
+        short childOffset = 0;
+        if (column->props.hasHorizontalAlignment_)
+        {
+          childWidth = PreferredChildWidthForColumn(child, state.width);
+          short remain = static_cast<short>(state.width - childWidth);
+          if (remain > 0)
+          {
+            if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+            {
+              childOffset = static_cast<short>(remain / 2);
+            }
+            else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
+            {
+              childOffset = remain;
+            }
+          }
+        }
+        childState.x = static_cast<short>(state.x + childOffset);
+        childState.width = childWidth;
+        short childUsedWidth = LayoutNode(child, childState, controller, activeBoundary);
+        if (childUsedWidth > width)
+        {
+          width = childUsedWidth;
+        }
+        currentY = childState.y;
+      }
+      state.y = currentY;
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
@@ -361,17 +446,55 @@ namespace
     }
     case loka::app::scene::NODE_KIND_ROW:
     {
-      loka::app::scene::NestableNode *nestable = static_cast<loka::app::scene::NestableNode *>(node);
+      loka::app::RowNode *row = static_cast<loka::app::RowNode *>(node);
       short rowStartX = state.x;
       short maxHeight = 0;
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+      if (row->props.hasVerticalAlignment_)
+      {
+        rowHeight = 0;
+        loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
+        for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
+        {
+          short h = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
+          if (h > rowHeight)
+          {
+            rowHeight = h;
+          }
+        }
+        if (rowHeight <= 0)
+        {
+          rowHeight = 12;
+        }
+      }
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());
       for (loka::app::scene::Node *child = it.next(); child; child = it.next())
       {
         loka::app::scene::LayoutState rowState = state;
         rowState.x = rowStartX;
+        if (row->props.hasVerticalAlignment_)
+        {
+          short childHeight = PreferredChildHeightForRow(child, rowHeight);
+          short remain = static_cast<short>(rowHeight - childHeight);
+          short offset = 0;
+          if (remain > 0)
+          {
+            if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_CENTER)
+            {
+              offset = static_cast<short>(remain / 2);
+            }
+            else if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM)
+            {
+              offset = remain;
+            }
+          }
+          rowState.y = static_cast<short>(state.y + offset);
+          rowState.height = childHeight;
+        }
         short width = LayoutNode(child, rowState, controller, activeBoundary);
         rowStartX = static_cast<short>(rowStartX + width + state.spacing);
-        if (rowState.y > state.y)
+        if (rowState.y > state.y &&
+            static_cast<short>(rowState.y - state.y) > maxHeight)
         {
           maxHeight = static_cast<short>(rowState.y - state.y);
         }

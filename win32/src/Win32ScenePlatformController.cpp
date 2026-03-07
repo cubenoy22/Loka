@@ -26,6 +26,72 @@ namespace
   const int kTextHeight = 20;
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
+
+  int ClampToAvailable(int value, int available)
+  {
+    if (value < 0)
+    {
+      return 0;
+    }
+    if (available >= 0 && value > available)
+    {
+      return available;
+    }
+    return value;
+  }
+
+  int PreferredChildWidthForColumn(loka::app::scene::Node *child, int availableWidth)
+  {
+    if (!child)
+    {
+      return ClampToAvailable(availableWidth, availableWidth);
+    }
+    if (loka::app::ImageViewNode *image = child->asImageViewNode())
+    {
+      if (image->props.width_ > 0)
+      {
+        return ClampToAvailable(image->props.width_, availableWidth);
+      }
+    }
+    return ClampToAvailable(availableWidth, availableWidth);
+  }
+
+  int PreferredChildHeightForRow(loka::app::scene::Node *child, int fallbackHeight)
+  {
+    if (!child)
+    {
+      return fallbackHeight;
+    }
+    if (child->asButtonNode())
+    {
+      return kButtonHeight;
+    }
+    if (child->asEditTextNode())
+    {
+      return kEditTextHeight;
+    }
+    if (child->asPopupMenuNode())
+    {
+      return kPopupMenuHeight;
+    }
+    if (child->asTextNode())
+    {
+      return kTextHeight;
+    }
+    if (loka::app::ImageViewNode *image = child->asImageViewNode())
+    {
+      if (image->props.height_ > 0)
+      {
+        return image->props.height_;
+      }
+      if (fallbackHeight > 0)
+      {
+        return fallbackHeight;
+      }
+      return 160;
+    }
+    return fallbackHeight;
+  }
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
@@ -170,6 +236,44 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   const int startY = state.y;
   const int startWidth = state.width;
 
+  if (loka::app::ColumnNode *column = node->asColumnNode())
+  {
+    if (column->childrenHead() == 0 || column->childrenCount() == 0)
+    {
+      return state.y;
+    }
+    LayoutState childState = state;
+    int currentY = state.y;
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      childState = state;
+      childState.y = currentY;
+      int childWidth = state.width;
+      int childOffset = 0;
+      if (column->props.hasHorizontalAlignment_)
+      {
+        childWidth = PreferredChildWidthForColumn(child, state.width);
+        const int remain = state.width - childWidth;
+        if (remain > 0)
+        {
+          if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+          {
+            childOffset = remain / 2;
+          }
+          else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
+          {
+            childOffset = remain;
+          }
+        }
+      }
+      childState.x = state.x + childOffset;
+      childState.width = childWidth;
+      currentY = layoutNode(child, childState);
+    }
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, currentY);
+  }
+
   if (loka::app::RowNode *row = node->asRowNode())
   {
     size_t childCount = row->childrenCount();
@@ -188,6 +292,24 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     }
     const int baseWidth = childCountInt > 0 ? availableWidth / childCountInt : 0;
     int remainder = childCountInt > 0 ? availableWidth - baseWidth * childCountInt : 0;
+    int rowHeight = state.height > 0 ? state.height : 0;
+    if (row->props.hasVerticalAlignment_)
+    {
+      rowHeight = 0;
+      loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), childCount);
+      for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
+      {
+        const int h = PreferredChildHeightForRow(child, kTextHeight);
+        if (h > rowHeight)
+        {
+          rowHeight = h;
+        }
+      }
+      if (rowHeight <= 0)
+      {
+        rowHeight = kTextHeight;
+      }
+    }
     int currentX = state.x;
     int maxY = state.y;
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), childCount);
@@ -202,6 +324,25 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
       childState.x = currentX;
       childState.y = state.y;
       childState.width = childWidth;
+      if (row->props.hasVerticalAlignment_)
+      {
+        const int childHeight = PreferredChildHeightForRow(child, rowHeight);
+        int offset = 0;
+        const int remain = rowHeight - childHeight;
+        if (remain > 0)
+        {
+          if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_CENTER)
+          {
+            offset = remain / 2;
+          }
+          else if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM)
+          {
+            offset = remain;
+          }
+        }
+        childState.y = state.y + offset;
+        childState.height = childHeight;
+      }
       int childY = layoutNode(child, childState);
       if (childY > maxY)
       {
