@@ -88,10 +88,10 @@ namespace simpleviewer
       using namespace loka::app;
       this->props.assertInitialized();
       c.declare(
-          VStack()
+          VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
           << Empty()
           << Text("Loka file:")
-          << Text(this->props.message_)
+          << Text(this->props.message_).attr(TextAttr().wrap(TEXT_WRAP_NONE).truncation(TEXT_TRUNCATION_ELLIPSIS))
           << ImageView()
                  .image(this->props.image_)
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
