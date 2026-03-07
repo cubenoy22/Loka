@@ -91,7 +91,7 @@ namespace simpleviewer
           VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
           << Empty()
           << Text("Loka file:")
-          << Text(this->props.message_).attr(TextAttr().wrap(TEXT_WRAP_NONE).truncation(TEXT_TRUNCATION_ELLIPSIS))
+          << Text(this->props.message_).attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
           << ImageView()
                  .image(this->props.image_)
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
