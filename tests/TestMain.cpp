@@ -16,6 +16,7 @@ int main()
   testDerivedStruct();
   testSceneManagerTransaction();
   testNodeCompositionTree();
+  testNodeCompositionShowIf();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testLokaCoreString();

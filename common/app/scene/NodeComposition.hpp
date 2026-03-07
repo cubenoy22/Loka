@@ -7,6 +7,7 @@
 #include "app/scene/Node.hpp"
 #include "app/scene/StreamView.hpp"
 #include "app/scene/node/Conditional.hpp"
+#include "app/Empty.hpp"
 #include "app/scene/BoundState.hpp"
 #include "app/scene/ComponentContext.hpp"
 #include "app/scene/StateOwner.hpp"
@@ -343,18 +344,42 @@ namespace loka
         NodeDefinitionBase *root() const { return root_; }
 
         // --- DSL helpers ---
+        template <typename TTrue, typename TFalse>
+        ConditionalDefinition conditional(const loka::core::State<bool> &condition, TTrue &trueDef, TFalse &falseDef)
+        {
+          return ConditionalDefinition(ConditionalProps(&condition, &trueDef, &falseDef));
+        }
+
+        template <typename TTrue, typename TFalse>
+        ConditionalDefinition conditional(loka::core::State<bool> &condition, TTrue &trueDef, TFalse &falseDef)
+        {
+          return ConditionalDefinition(ConditionalProps(&condition, &trueDef, &falseDef));
+        }
+
         template <typename T>
         ConditionalDefinition conditional(const loka::core::State<bool> &condition, T &x)
         {
-          extern T Empty;
-          return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
+          static loka::app::Empty emptyDef;
+          return this->conditional(condition, x, emptyDef);
         }
 
         template <typename T>
         ConditionalDefinition conditional(loka::core::State<bool> &condition, T &x)
         {
-          extern T Empty;
-          return ConditionalDefinition(ConditionalProps(&condition, &x, &Empty));
+          static loka::app::Empty emptyDef;
+          return this->conditional(condition, x, emptyDef);
+        }
+
+        template <typename TTrue, typename TFalse>
+        ConditionalDefinition showIf(const loka::core::State<bool> &condition, TTrue &trueDef, TFalse &falseDef)
+        {
+          return this->conditional(condition, trueDef, falseDef);
+        }
+
+        template <typename T>
+        ConditionalDefinition showIf(const loka::core::State<bool> &condition, T &trueDef)
+        {
+          return this->conditional(condition, trueDef);
         }
 
         template <typename T>

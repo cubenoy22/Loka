@@ -478,6 +478,47 @@ void testNodeCompositionTree()
   delete tree;
 }
 
+void testNodeCompositionShowIf()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  loka::core::MutableState<bool> show;
+  show.set(true, true);
+
+  NodeComposition composition;
+  BoxDefinition root = composition.declare(Box());
+  ButtonDefinition trueButton = Button("Shown");
+  TextDefinition falseText = Text("Hidden");
+  root << composition.showIf(show, trueButton, falseText);
+
+  Node *tree = composition.createNodeTree();
+  assert(tree != 0);
+
+  BoxNode *boxNode = dynamic_cast<BoxNode *>(tree);
+  assert(boxNode != 0);
+  Node *conditionalNodeBase = boxNode->childrenHead();
+  assert(conditionalNodeBase != 0);
+
+  ConditionalNode *conditionalNode = dynamic_cast<ConditionalNode *>(conditionalNodeBase);
+  assert(conditionalNode != 0);
+  conditionalNode->compose();
+  assert(conditionalNode->activeNode != 0);
+  assert(dynamic_cast<ButtonNode *>(conditionalNode->activeNode) != 0);
+
+  {
+    loka::core::StateTracker tracker;
+    loka::core::StateTrackerGuard guard(tracker);
+    show.set(false, true);
+  }
+
+  conditionalNode->compose();
+  assert(conditionalNode->activeNode != 0);
+  assert(dynamic_cast<TextNode *>(conditionalNode->activeNode) != 0);
+
+  delete tree;
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

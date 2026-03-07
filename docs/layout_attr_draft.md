@@ -60,7 +60,7 @@ v1 ではレイアウト指定の実装は既存 API を継続利用し、`layou
 - v1 は親コンテナ側に `isClipped`（bool）のみを導入対象とする
   - `false`: はみ出し表示を許可
   - `true`: 親矩形でクリップ
-- `isClipped` は `CommonAttr` で保持する（要素共通）
+- `isClipped` は `layout` 側（親コンテナ設定）で保持する
 - 描画フェーズで clip を適用する
   - Toolbox: `ClipRect` / `SetClip`
   - Win/macOS: 各 backend の clip API へマップ
@@ -82,6 +82,14 @@ ScrollView 仕様メモ（v1.1+）:
 - 個別調整が必要な場合は `Spacer`（または等価ノード）で表現する
 - これによりレイアウト責務を親に集約し、計算分岐と仕様複雑性を抑える
 
+### Alignment Strategy (v1)
+
+- alignment は `layout` 側（親コンテナ設定）で扱う
+- `VStack`: 子の水平方向揃え（`leading/center/trailing`）
+- `HStack`: 子の垂直方向揃え（`top/center/bottom`）
+- v1 はコンテナ全体に対する単一 alignment を対象とする
+- 子ごとの `alignSelf` は v1.1+ へ延期する
+
 ### Z-Order Strategy (v1)
 
 - `ZStack` の既定重なり順は定義順（後ろに書いた要素が前面）
@@ -98,6 +106,8 @@ ScrollView 仕様メモ（v1.1+）:
   - `isHitTestVisible(bool)` を共通 attr として導入候補にする
   - `isHitTestVisible == false` のノードはヒット対象外
   - `isClipped == true` の親では、クリップ外座標は常にヒット対象外
+- 描画とイベントで clip 判定を一致させるため、親コンテナの有効 clip 矩形を共有する
+  - 例: レイアウト結果に `clipRect` を保持し、render/hit-test の両方で参照する
 - 伝播順:
   - 通常コンテナは後勝ち（後に配置された子を優先）
   - `ZStack` は前面から判定（`zIndex` + 定義順）
@@ -110,13 +120,23 @@ ScrollView 仕様メモ（v1.1+）:
 - 68k 最適化方針として、レイアウト時の可視判定分岐を減らすため、`GONE` は構造解決で確定させる
 - 既存 `MenuItemAttr.visible(false)` はメニュー構築時のスキップとして扱い、実質的に構造的 `GONE` に相当
 
+### Text Overflow Strategy (v1)
+
+- `isClipped` はコンテナ境界（描画/ヒット）制御であり、Text の行分割仕様とは分離する
+- Text のはみ出し制御は `TextAttr` 側で扱う
+- v1 最小セット:
+  - `wrap`: `none` / `word`
+  - `truncation`: `none` / `clip` / `ellipsis`
+- 複雑な禁則処理や高度な段落整形は v1 スコープ外（v1.1+）
+
 ### Units Strategy (v1)
 
 - v1 の単位は `px` のみを実装するが、API は `Length` 抽象を使用する
 - `Length` は POD 値型として保持し、ヒープ確保や共有管理を行わない
 - 推奨形:
-  - `struct Length { short unit; int value; };`
-  - `Length::px(int)` を提供
+  - `struct Length { LokaI16 unit; LokaI32 value; };`
+  - `Length::px(LokaI32)` を提供
+- 型幅はターゲット依存 `int` / `short` に依存しない（固定幅 typedef を使用）
 - 予約単位（v1 では未実装）:
   - `PT`, `PERCENT`, `EM`
   - 未実装単位は compile error か debug assert で拒否
@@ -253,6 +273,22 @@ v1 推奨実装:
 
 - `attrTypeId` を `switch` で分岐して必要な Attr だけ処理する
 - 型ごとの個別関数スロット配列は v1 では採用しない（構造体肥大化を避ける）
+
+## Cond Direction (next)
+
+- OS 差分は `Cond` によるコンポーネント出し分けで扱う
+- 例（仕様案）:
+
+```cpp
+Cond()
+  .when(OS_WINDOWS, RibbonToolbar())
+  .when(OS_TOOLBOX, RetroToolbar())
+  .otherwise(NativeToolbar());
+```
+
+- 必要な初期化/接続は各ノードの `onAttach` で通常 C++ として処理する
+- `#if` は必要最小限で platform 実装側に閉じる（DSL 側へ拡散させない）
+- `ShowIf` / `Cond` は「compose 時に枝を確定」する static 構成を基本とし、68k での実行時分岐コストを抑える
 
 ## Common/Control Attr Layering (spec note)
 

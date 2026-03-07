@@ -42,6 +42,13 @@
 - Flow DSL use-case validation: keep `Step(id, adapter)` focused on bounded-lifetime async/transform pipelines and verify readability/testability.
 - Flow DSL composition hygiene: avoid one-step flows by default; split into 2+ steps at meaningful boundaries (transform/decision/side-effect) or use a plain function when flow orchestration value is absent.
 - Flow DSL use-case validation: add video encoder stub scenarios (Qt / AVFoundation / Windows API style) for `open -> frame push -> finalize` and failure-path coverage.
+- NodeDSL control components: prioritize `Cond`/`ShowIf` for OS-specific component branching; keep platform `#if` isolated in capability/platform implementation layers.
+- Control components roadmap: `ShowIf`/`Cond` first (compose-time branch fixup), then constrained `For` (static/fixed list) to avoid 68k runtime loop costs.
+- Cond/ShowIf test matrix: cover true/false branch selection, default/otherwise branch, nested Cond evaluation order, and stable node tree creation across recomposition.
+- Cond/ShowIf state-change tests: verify branch switching when bound `State<bool>` changes, no stale active node retention, and expected cleanup/destructor calls on old branch nodes.
+- Cond/ShowIf platform-branch tests: validate OS-specific component selection via stubs (Toolbox/Win32/macOS) without DSL-side `#if`.
+- Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
+- Text overflow tests: validate `TextAttr` wrap/truncation (`none/word`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
 
 ## Completed (recent)
 

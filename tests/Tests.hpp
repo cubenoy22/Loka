@@ -10,6 +10,7 @@ void testRAIITransaction();
 void testDerivedStruct();
 void testSceneManagerTransaction();
 void testNodeCompositionTree();
+void testNodeCompositionShowIf();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testLokaCoreString();
