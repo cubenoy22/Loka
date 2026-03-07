@@ -125,7 +125,7 @@ ScrollView 仕様メモ（v1.1+）:
 - `isClipped` はコンテナ境界（描画/ヒット）制御であり、Text の行分割仕様とは分離する
 - Text のはみ出し制御は `TextAttr` 側で扱う
 - v1 最小セット:
-  - `wrap`: `none` / `word`
+  - `wrap`: `none` / `word` / `char`
   - `truncation`: `none` / `clip` / `ellipsis`
 - 複雑な禁則処理や高度な段落整形は v1 スコープ外（v1.1+）
 
