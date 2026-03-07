@@ -127,6 +127,10 @@ ScrollView 仕様メモ（v1.1+）:
 - v1 最小セット:
   - `wrap`: `none` / `word` / `char`
   - `truncation`: `none` / `clip` / `ellipsis`
+- `wrap != none` の Text は内容更新時に再レイアウト対象とする（少なくとも Win32/macOS で実装）
+- platform note:
+  - Win32/macOS: native 計測 API ベース + 安全マージンで高さ算出
+  - Toolbox: 低メモリ互換を優先した簡易 wrap/ellipsis フォールバック
 - 複雑な禁則処理や高度な段落整形は v1 スコープ外（v1.1+）
 
 ### Units Strategy (v1)
@@ -345,7 +349,7 @@ VStack()
 
 // alignment / text overflow (v1 API)
 VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_CENTER)
-  << Text("Title").attr(TextAttr().wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_ELLIPSIS));
+  << Text("Title").attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE));
 ```
 
 ## Type Safety Policy
