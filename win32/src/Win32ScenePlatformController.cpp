@@ -69,20 +69,12 @@ namespace
     rc.top = 0;
     rc.right = width;
     rc.bottom = 0;
-    UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT;
-    if (text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_WORD)
-    {
-      flags |= DT_WORDBREAK;
-    }
-    else
-    {
-      flags |= DT_EDITCONTROL;
-    }
+    UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
     DrawTextA(hdc, utf8.c_str(), -1, &rc, flags);
     ReleaseDC(hwnd, hdc);
 
     const int measured = rc.bottom - rc.top;
-    const int measuredWithPadding = measured + 4;
+    const int measuredWithPadding = measured + 8;
     if (measuredWithPadding > defaultHeight)
     {
       return measuredWithPadding;
