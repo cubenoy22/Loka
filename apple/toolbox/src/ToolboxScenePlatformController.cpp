@@ -1107,7 +1107,8 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
                                                    short x,
                                                    short y,
                                                    loka::core::State<loka::core::String> *text,
-                                                   loka::app::scene::BoundaryNode *boundary)
+                                                   loka::app::scene::BoundaryNode *boundary,
+                                                   bool needsRelayoutOnChange)
 {
   if (!text)
   {
@@ -1120,6 +1121,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   hit.text = text;
   hit.boundary = boundary;
   hit.lastMeasuredWidth = static_cast<short>(rect.right - rect.left);
+  hit.needsRelayoutOnChange = needsRelayoutOnChange;
   textHits_.push_back(hit);
   bindTextState(text);
 }
@@ -1250,6 +1252,18 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
     TextHit &hit = textHits_[i];
     if (hit.text == text)
     {
+      if (hit.needsRelayoutOnChange)
+      {
+        if (inBatchUpdate_)
+        {
+          pendingFullInvalidate_ = true;
+        }
+        else
+        {
+          window_->requestInvalidate();
+        }
+        return;
+      }
       // Just redraw the text rect (no width checking for now)
       if (inBatchUpdate_)
       {

@@ -43,7 +43,8 @@ public:
                      short x,
                      short y,
                      loka::core::State<loka::core::String> *text,
-                     loka::app::scene::BoundaryNode *boundary);
+                     loka::app::scene::BoundaryNode *boundary,
+                     bool needsRelayoutOnChange);
   void registerPopupContext(ToolboxPopupMenuContext *context);
   void applyPopupSelectionChange(const Rect &rect,
                                  loka::app::scene::BoundaryNode *boundary,
@@ -96,6 +97,7 @@ private:
     loka::core::State<loka::core::String> *text;
     loka::app::scene::BoundaryNode *boundary;
     short lastMeasuredWidth;
+    bool needsRelayoutOnChange;
   };
   struct TextBinding
   {

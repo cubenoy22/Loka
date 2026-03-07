@@ -245,7 +245,12 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
   }
   if (controller)
   {
-    controller->recordTextHit(rect_, textX_, textY_, text_, boundary_);
+    controller->recordTextHit(rect_,
+                              textX_,
+                              textY_,
+                              text_,
+                              boundary_,
+                              wrapMode_ != loka::app::TEXT_WRAP_NONE);
   }
 }
 
