@@ -4,13 +4,127 @@
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/String.hpp"
-#include "app/Attr.hpp"
 #include <cassert>
 
 namespace loka
 {
   namespace app
   {
+    enum TextWeight
+    {
+      TEXT_WEIGHT_NORMAL = 0,
+      TEXT_WEIGHT_BOLD = 1
+    };
+
+    enum TextWrap
+    {
+      TEXT_WRAP_NONE = 0,
+      TEXT_WRAP_WORD = 1
+    };
+
+    enum TextTruncation
+    {
+      TEXT_TRUNCATION_NONE = 0,
+      TEXT_TRUNCATION_CLIP = 1,
+      TEXT_TRUNCATION_ELLIPSIS = 2
+    };
+
+    struct TextAttr
+    {
+      TextAttr()
+          : hasFontSizeValue_(false),
+            fontSizeValue_(0),
+            fontSizeState_(0),
+            hasWeightValue_(false),
+            weightValue_(TEXT_WEIGHT_NORMAL),
+            hasWrapValue_(false),
+            wrapValue_(TEXT_WRAP_NONE),
+            hasTruncationValue_(false),
+            truncationValue_(TEXT_TRUNCATION_NONE)
+      {
+      }
+
+      TextAttr &fontSize(int value)
+      {
+        this->hasFontSizeValue_ = true;
+        this->fontSizeValue_ = value;
+        this->fontSizeState_ = 0;
+        return *this;
+      }
+
+      TextAttr &fontSize(loka::core::State<int> *state)
+      {
+        this->hasFontSizeValue_ = false;
+        this->fontSizeState_ = state;
+        return *this;
+      }
+
+      TextAttr &weight(TextWeight value)
+      {
+        this->hasWeightValue_ = true;
+        this->weightValue_ = value;
+        return *this;
+      }
+
+      TextAttr &wrap(TextWrap value)
+      {
+        this->hasWrapValue_ = true;
+        this->wrapValue_ = value;
+        return *this;
+      }
+
+      TextAttr &truncation(TextTruncation value)
+      {
+        this->hasTruncationValue_ = true;
+        this->truncationValue_ = value;
+        return *this;
+      }
+
+      bool operator==(const TextAttr &other) const
+      {
+        return this->hasFontSizeValue_ == other.hasFontSizeValue_ &&
+               this->fontSizeValue_ == other.fontSizeValue_ &&
+               this->fontSizeState_ == other.fontSizeState_ &&
+               this->hasWeightValue_ == other.hasWeightValue_ &&
+               this->weightValue_ == other.weightValue_ &&
+               this->hasWrapValue_ == other.hasWrapValue_ &&
+               this->wrapValue_ == other.wrapValue_ &&
+               this->hasTruncationValue_ == other.hasTruncationValue_ &&
+               this->truncationValue_ == other.truncationValue_;
+      }
+
+      bool operator<(const TextAttr &other) const
+      {
+        if (this->hasFontSizeValue_ != other.hasFontSizeValue_)
+          return this->hasFontSizeValue_ < other.hasFontSizeValue_;
+        if (this->fontSizeValue_ != other.fontSizeValue_)
+          return this->fontSizeValue_ < other.fontSizeValue_;
+        if (this->fontSizeState_ != other.fontSizeState_)
+          return this->fontSizeState_ < other.fontSizeState_;
+        if (this->hasWeightValue_ != other.hasWeightValue_)
+          return this->hasWeightValue_ < other.hasWeightValue_;
+        if (this->weightValue_ != other.weightValue_)
+          return this->weightValue_ < other.weightValue_;
+        if (this->hasWrapValue_ != other.hasWrapValue_)
+          return this->hasWrapValue_ < other.hasWrapValue_;
+        if (this->wrapValue_ != other.wrapValue_)
+          return this->wrapValue_ < other.wrapValue_;
+        if (this->hasTruncationValue_ != other.hasTruncationValue_)
+          return this->hasTruncationValue_ < other.hasTruncationValue_;
+        return this->truncationValue_ < other.truncationValue_;
+      }
+
+      bool hasFontSizeValue_;
+      int fontSizeValue_;
+      loka::core::State<int> *fontSizeState_;
+      bool hasWeightValue_;
+      TextWeight weightValue_;
+      bool hasWrapValue_;
+      TextWrap wrapValue_;
+      bool hasTruncationValue_;
+      TextTruncation truncationValue_;
+    };
+
     struct TextTypeTag
     {
     };

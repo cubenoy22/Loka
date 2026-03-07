@@ -4,14 +4,89 @@
 #include <vector>
 #include <cassert>
 #include "loka/core/String.hpp"
+#include "loka/core/State.hpp"
 #include "loka/dsl/CompositionList.hpp"
 #include "app/MenuComposition.hpp"
-#include "app/Attr.hpp"
 
 namespace loka
 {
   namespace app
   {
+    struct MenuItemAttr
+    {
+      MenuItemAttr()
+          : hasDisabledValue_(false),
+            disabledValue_(false),
+            disabledState_(0),
+            hasVisibleValue_(false),
+            visibleValue_(true),
+            visibleState_(0)
+      {
+      }
+
+      MenuItemAttr &disabled(bool value)
+      {
+        this->hasDisabledValue_ = true;
+        this->disabledValue_ = value;
+        this->disabledState_ = 0;
+        return *this;
+      }
+
+      MenuItemAttr &disabled(loka::core::State<bool> *state)
+      {
+        this->hasDisabledValue_ = false;
+        this->disabledState_ = state;
+        return *this;
+      }
+
+      MenuItemAttr &visible(bool value)
+      {
+        this->hasVisibleValue_ = true;
+        this->visibleValue_ = value;
+        this->visibleState_ = 0;
+        return *this;
+      }
+
+      MenuItemAttr &visible(loka::core::State<bool> *state)
+      {
+        this->hasVisibleValue_ = false;
+        this->visibleState_ = state;
+        return *this;
+      }
+
+      bool operator==(const MenuItemAttr &other) const
+      {
+        return this->hasDisabledValue_ == other.hasDisabledValue_ &&
+               this->disabledValue_ == other.disabledValue_ &&
+               this->disabledState_ == other.disabledState_ &&
+               this->hasVisibleValue_ == other.hasVisibleValue_ &&
+               this->visibleValue_ == other.visibleValue_ &&
+               this->visibleState_ == other.visibleState_;
+      }
+
+      bool operator<(const MenuItemAttr &other) const
+      {
+        if (this->hasDisabledValue_ != other.hasDisabledValue_)
+          return this->hasDisabledValue_ < other.hasDisabledValue_;
+        if (this->disabledValue_ != other.disabledValue_)
+          return this->disabledValue_ < other.disabledValue_;
+        if (this->disabledState_ != other.disabledState_)
+          return this->disabledState_ < other.disabledState_;
+        if (this->hasVisibleValue_ != other.hasVisibleValue_)
+          return this->hasVisibleValue_ < other.hasVisibleValue_;
+        if (this->visibleValue_ != other.visibleValue_)
+          return this->visibleValue_ < other.visibleValue_;
+        return this->visibleState_ < other.visibleState_;
+      }
+
+      bool hasDisabledValue_;
+      bool disabledValue_;
+      loka::core::State<bool> *disabledState_;
+      bool hasVisibleValue_;
+      bool visibleValue_;
+      loka::core::State<bool> *visibleState_;
+    };
+
     struct MenuItemDefinitionWithAttr;
 
     enum MenuActionType

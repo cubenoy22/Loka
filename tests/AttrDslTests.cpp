@@ -5,6 +5,7 @@
 
 #include "app/ImageView.hpp"
 #include "app/Menu.hpp"
+#include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "loka/core/State.hpp"
 
@@ -21,6 +22,8 @@ void testLokaAttrDslV1Core()
     assert(text.props.attr_.fontSizeState_ == &dynamicFontSize);
     assert(text.props.attr_.hasWeightValue_);
     assert(text.props.attr_.weightValue_ == loka::app::TEXT_WEIGHT_BOLD);
+    assert(!text.props.attr_.hasWrapValue_);
+    assert(!text.props.attr_.hasTruncationValue_);
 
     loka::app::ImageViewDefinitionWithAttr image = loka::app::ImageView().attr(
         loka::app::ImageViewAttr()
@@ -31,6 +34,30 @@ void testLokaAttrDslV1Core()
     assert(image.props.attr_.fitValue_ == loka::app::IMAGE_FIT_CONTAIN);
     assert(image.props.attr_.hasSizePolicyValue_);
     assert(image.props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
+  }
+
+  // --- Text overflow attr storage ---
+  {
+    loka::app::TextDefinitionWithAttr text = loka::app::Text("Hello").attr(
+        loka::app::TextAttr()
+            .wrap(loka::app::TEXT_WRAP_WORD)
+            .truncation(loka::app::TEXT_TRUNCATION_ELLIPSIS));
+    assert(text.props.hasAttr_);
+    assert(text.props.attr_.hasWrapValue_);
+    assert(text.props.attr_.wrapValue_ == loka::app::TEXT_WRAP_WORD);
+    assert(text.props.attr_.hasTruncationValue_);
+    assert(text.props.attr_.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS);
+  }
+
+  // --- Row/Column alignment props storage ---
+  {
+    loka::app::VStack column = loka::app::VStack().alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_CENTER);
+    assert(column.props.hasHorizontalAlignment_);
+    assert(column.props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER);
+
+    loka::app::HStack row = loka::app::HStack().alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM);
+    assert(row.props.hasVerticalAlignment_);
+    assert(row.props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM);
   }
 
   // --- v1 attr copy safety (POD): copy should stay independent ---

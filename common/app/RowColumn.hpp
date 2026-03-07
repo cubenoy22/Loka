@@ -7,6 +7,20 @@ namespace loka
 {
   namespace app
   {
+    enum HorizontalAlignment
+    {
+      HORIZONTAL_ALIGNMENT_LEADING = 0,
+      HORIZONTAL_ALIGNMENT_CENTER = 1,
+      HORIZONTAL_ALIGNMENT_TRAILING = 2
+    };
+
+    enum VerticalAlignment
+    {
+      VERTICAL_ALIGNMENT_TOP = 0,
+      VERTICAL_ALIGNMENT_CENTER = 1,
+      VERTICAL_ALIGNMENT_BOTTOM = 2
+    };
+
     struct ColumnTypeTag
     {
     };
@@ -17,12 +31,25 @@ namespace loka
     {
       typedef ColumnTypeTag TypeTag;
       typedef ColumnNode NodeType;
-      ColumnProps() {}
+      bool hasHorizontalAlignment_;
+      HorizontalAlignment horizontalAlignment_;
+      ColumnProps()
+          : hasHorizontalAlignment_(false),
+            horizontalAlignment_(HORIZONTAL_ALIGNMENT_LEADING) {}
+      ColumnProps &alignHorizontal(HorizontalAlignment value)
+      {
+        this->hasHorizontalAlignment_ = true;
+        this->horizontalAlignment_ = value;
+        return *this;
+      }
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
-        return false; // no fields to compare
+        const ColumnProps &other = static_cast<const ColumnProps &>(rhs);
+        if (this->hasHorizontalAlignment_ != other.hasHorizontalAlignment_)
+          return this->hasHorizontalAlignment_ < other.hasHorizontalAlignment_;
+        return this->horizontalAlignment_ < other.horizontalAlignment_;
       }
     };
 
@@ -55,6 +82,11 @@ namespace loka
       {
         return new ColumnDefinition(*this);
       }
+      ColumnDefinition &alignHorizontal(HorizontalAlignment value)
+      {
+        this->props.alignHorizontal(value);
+        return *this;
+      }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
@@ -69,12 +101,25 @@ namespace loka
     {
       typedef RowTypeTag TypeTag;
       typedef RowNode NodeType;
-      RowProps() {}
+      bool hasVerticalAlignment_;
+      VerticalAlignment verticalAlignment_;
+      RowProps()
+          : hasVerticalAlignment_(false),
+            verticalAlignment_(VERTICAL_ALIGNMENT_TOP) {}
+      RowProps &alignVertical(VerticalAlignment value)
+      {
+        this->hasVerticalAlignment_ = true;
+        this->verticalAlignment_ = value;
+        return *this;
+      }
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
-        return false; // no fields to compare
+        const RowProps &other = static_cast<const RowProps &>(rhs);
+        if (this->hasVerticalAlignment_ != other.hasVerticalAlignment_)
+          return this->hasVerticalAlignment_ < other.hasVerticalAlignment_;
+        return this->verticalAlignment_ < other.verticalAlignment_;
       }
     };
 
@@ -106,6 +151,11 @@ namespace loka
       virtual scene::NodeDefinitionBase *clone() const
       {
         return new RowDefinition(*this);
+      }
+      RowDefinition &alignVertical(VerticalAlignment value)
+      {
+        this->props.alignVertical(value);
+        return *this;
       }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }

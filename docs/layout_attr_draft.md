@@ -342,6 +342,10 @@ VStack()
   .layout(VStackLayout().padding(8).gap(6))
   << Text("A").attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
   << ImageView().image(&imageState).attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN));
+
+// alignment / text overflow (v1 API)
+VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_CENTER)
+  << Text("Title").attr(TextAttr().wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_ELLIPSIS));
 ```
 
 ## Type Safety Policy

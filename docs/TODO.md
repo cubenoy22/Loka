@@ -49,6 +49,8 @@
 - Cond/ShowIf platform-branch tests: validate OS-specific component selection via stubs (Toolbox/Win32/macOS) without DSL-side `#if`.
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
+- Wire `VStack/HStack` alignment props into platform layout engines (Win32/macOS/Toolbox) with consistent default behavior and fallback for unsupported native controls.
+- Wire `TextAttr` overflow (`wrap`/`truncation`) into native text contexts (Win32 STATIC/AppKit NSTextField/Toolbox draw path) with explicit per-platform limitation notes.
 
 ## Completed (recent)
 
