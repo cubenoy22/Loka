@@ -49,7 +49,7 @@
 - Cond/ShowIf platform-branch tests: validate OS-specific component selection via stubs (Toolbox/Win32/macOS) without DSL-side `#if`.
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word/char`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
-- Text wrap relayout trigger: when wrapped Text content changes, request relayout immediately (not only on window resize) to avoid stale clipped height.
+- Toolbox parity: add wrapped-text content-change relayout trigger (Win32/macOS already request relayout on wrapped text updates).
 - Row alignment measure pass currently does a 2-pass scan when vertical alignment is enabled; keep as-is for now, revisit for large-child optimization if profiling shows cost.
 - State scheduler idea: add `NextEventTracker` (next-event-cycle flush, setTimeout(..., 0)-like batching) to coalesce rapid `State::set()` bursts on Main Thread.
 - Motion architecture note: keep `attr()` static and model time-based behavior in `Flow`/`State` (`TimeController`, timeline/Frame/delay chain). Backends resolve execution quality (GPU interpolation vs CPU step/invert fallback) via capabilities.
