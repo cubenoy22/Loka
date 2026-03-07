@@ -51,6 +51,12 @@
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
 - Wire `VStack/HStack` alignment props into platform layout engines (Win32/macOS/Toolbox) with consistent default behavior and fallback for unsupported native controls.
 - Wire `TextAttr` overflow (`wrap`/`truncation`) into native text contexts (Win32 STATIC/AppKit NSTextField/Toolbox draw path) with explicit per-platform limitation notes.
+- Motion architecture note: keep `attr()` static and model time-based behavior in `Flow`/`State` (`TimeController`, timeline/Frame/delay chain). Backends resolve execution quality (GPU interpolation vs CPU step/invert fallback) via capabilities.
+  - Sketch:
+    `TimeController(ctrlState)`
+    `  | Step(STEP_BLINK_ON, Frame(InvertRgn(target)).delayMs(1000))`
+    `  | Step(STEP_BLINK_OFF, Frame(InvertRgn(target)).delayMs(1000))`
+    `  | onSuccess(Handler::noop, STEP_BLINK_ON);`
 
 ## Completed (recent)
 
