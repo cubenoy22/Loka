@@ -49,8 +49,6 @@
 - Cond/ShowIf platform-branch tests: validate OS-specific component selection via stubs (Toolbox/Win32/macOS) without DSL-side `#if`.
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
-- Wire `VStack/HStack` alignment props into platform layout engines (Win32/macOS/Toolbox) with consistent default behavior and fallback for unsupported native controls.
-- Wire `TextAttr` overflow (`wrap`/`truncation`) into native text contexts (Win32 STATIC/AppKit NSTextField/Toolbox draw path) with explicit per-platform limitation notes.
 - Row alignment measure pass currently does a 2-pass scan when vertical alignment is enabled; keep as-is for now, revisit for large-child optimization if profiling shows cost.
 - Motion architecture note: keep `attr()` static and model time-based behavior in `Flow`/`State` (`TimeController`, timeline/Frame/delay chain). Backends resolve execution quality (GPU interpolation vs CPU step/invert fallback) via capabilities.
   - Sketch:
@@ -68,3 +66,5 @@
 - Classic Toolbox image roadmap: move JPEG/PNG decode through QuickTime-backed multimedia decoder, then feed `Image` as normalized native handle (PICT/GWorld policy decided in multimedia).
 - ConditionalDefinition/ConditionalNode and `NodeComposition::conditional(..., node)` default false/Empty path implemented.
 - BoundaryNode owns StateTracker; useState auto-registers; Context API removed; RootBoundaryWrapper in Scene; DSL naming cleanup.
+- `VStack/HStack` alignment props are wired into platform layout engines (Win32/macOS/Toolbox), including remaining-height handling for `VStack + ImageView(FILL_PARENT)`.
+- `TextAttr` overflow (`wrap`/`truncation`) is wired into native text contexts (Win32/macOS/Toolbox with low-memory-safe clip fallback).
