@@ -7,6 +7,21 @@ Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int hei
     : node_(node), hwnd_(NULL), textState_(0)
 {
   DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
+  if (node_ && node_->props.hasAttr_)
+  {
+    const loka::app::TextAttr &attr = node_->props.attr_;
+    const bool wrapWord = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_WORD;
+    const bool truncEllipsis = attr.hasTruncationValue_ &&
+                               attr.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
+    if (!wrapWord)
+    {
+      style |= SS_LEFTNOWORDWRAP;
+    }
+    if (truncEllipsis)
+    {
+      style |= SS_ENDELLIPSIS;
+    }
+  }
   hwnd_ = CreateWindowExA(
       0,
       "STATIC",

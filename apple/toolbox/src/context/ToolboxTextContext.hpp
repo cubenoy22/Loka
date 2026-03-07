@@ -48,6 +48,9 @@ private:
   Rect rect_;
   short textX_;
   short textY_;
+  short maxWidth_;
+  int wrapMode_;
+  int truncationMode_;
   loka::core::State<loka::core::String> *text_;
 };
 

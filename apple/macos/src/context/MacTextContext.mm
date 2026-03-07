@@ -14,6 +14,38 @@ MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int he
   [label setSelectable:NO];
   [label setBezeled:NO];
   [label setDrawsBackground:NO];
+  if (node_ && node_->props.hasAttr_)
+  {
+    NSTextFieldCell *cell = [label cell];
+    const loka::app::TextAttr &attr = node_->props.attr_;
+    const bool wrapWord = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_WORD;
+    if (wrapWord)
+    {
+      [label setUsesSingleLineMode:NO];
+      [cell setWraps:YES];
+      [cell setScrollable:NO];
+      [cell setLineBreakMode:NSLineBreakByWordWrapping];
+    }
+    else
+    {
+      [label setUsesSingleLineMode:YES];
+      [cell setWraps:NO];
+      [cell setScrollable:YES];
+      NSLineBreakMode mode = NSLineBreakByClipping;
+      if (attr.hasTruncationValue_)
+      {
+        if (attr.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
+        {
+          mode = NSLineBreakByTruncatingTail;
+        }
+        else if (attr.truncationValue_ == loka::app::TEXT_TRUNCATION_CLIP)
+        {
+          mode = NSLineBreakByClipping;
+        }
+      }
+      [cell setLineBreakMode:mode];
+    }
+  }
 
   if (parent)
   {
