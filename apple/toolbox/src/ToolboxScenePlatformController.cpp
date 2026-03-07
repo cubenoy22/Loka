@@ -47,6 +47,7 @@ namespace
 #endif
 
   static const short kAutoControlBaseId = 128;
+  static const short kImageFallbackHeightToolbox = 80;
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
@@ -115,7 +116,7 @@ namespace
       {
         return fallbackHeight;
       }
-      return 80;
+      return kImageFallbackHeightToolbox;
     }
     return fallbackHeight;
   }

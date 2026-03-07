@@ -76,7 +76,18 @@ namespace
       {
         return candidate;
       }
-      prefix.erase(prefix.size() - 1);
+      // Remove one UTF-8 code point from the tail.
+      std::size_t pos = prefix.size();
+      if (pos == 0)
+      {
+        break;
+      }
+      do
+      {
+        --pos;
+      } while (pos > 0 &&
+               (static_cast<unsigned char>(prefix[pos]) & 0xC0u) == 0x80u);
+      prefix.erase(pos);
     }
     return std::string("...");
   }
@@ -121,24 +132,26 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
     short oldX = textX_;
     short oldY = textY_;
     RgnHandle oldClip = NewRgn();
-    if (oldClip)
+    if (oldClip != 0)
     {
       GetClip(oldClip);
-    }
-    ClipRect(&clipRect);
-    if (truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
-    {
-      const std::string truncated = TruncateWithEllipsis(text_->get(), maxWidth_);
-      DrawUtf8At(oldX, oldY, truncated);
+      ClipRect(&clipRect);
+      if (truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
+      {
+        const std::string truncated = TruncateWithEllipsis(text_->get(), maxWidth_);
+        DrawUtf8At(oldX, oldY, truncated);
+      }
+      else
+      {
+        DrawStringAt(oldX, oldY, text_->get());
+      }
+      SetClip(oldClip);
+      DisposeRgn(oldClip);
     }
     else
     {
+      // Low-memory fallback: draw without changing clip state.
       DrawStringAt(oldX, oldY, text_->get());
-    }
-    if (oldClip)
-    {
-      SetClip(oldClip);
-      DisposeRgn(oldClip);
     }
   }
   else
@@ -160,16 +173,16 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   }
   if (node_->props.hasAttr_)
   {
-    wrapMode_ = node_->props.attr_.hasWrapValue_ ? static_cast<int>(node_->props.attr_.wrapValue_)
-                                                 : static_cast<int>(loka::app::TEXT_WRAP_NONE);
+    wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_
+                                                 : loka::app::TEXT_WRAP_NONE;
     truncationMode_ = node_->props.attr_.hasTruncationValue_
-                          ? static_cast<int>(node_->props.attr_.truncationValue_)
-                          : static_cast<int>(loka::app::TEXT_TRUNCATION_NONE);
+                          ? node_->props.attr_.truncationValue_
+                          : loka::app::TEXT_TRUNCATION_NONE;
   }
   else
   {
-    wrapMode_ = static_cast<int>(loka::app::TEXT_WRAP_NONE);
-    truncationMode_ = static_cast<int>(loka::app::TEXT_TRUNCATION_NONE);
+    wrapMode_ = loka::app::TEXT_WRAP_NONE;
+    truncationMode_ = loka::app::TEXT_TRUNCATION_NONE;
   }
   const loka::core::String &value = node_->props.text_->get();
   short measuredWidth = ToolboxMeasureTextWidth(value);

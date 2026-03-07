@@ -13,6 +13,7 @@
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
 #include "app/ImageView.hpp"
+#include "app/layout/LayoutHeuristics.hpp"
 #include "app/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
 #include "context/MacCellContext.hpp"
@@ -31,72 +32,7 @@ namespace
   const int kTextHeight = 20;
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
-
-  int ClampToAvailable(int value, int available)
-  {
-    if (value < 0)
-    {
-      return 0;
-    }
-    if (available >= 0 && value > available)
-    {
-      return available;
-    }
-    return value;
-  }
-
-  int PreferredChildWidthForColumn(loka::app::scene::Node *child, int availableWidth)
-  {
-    if (!child)
-    {
-      return ClampToAvailable(availableWidth, availableWidth);
-    }
-    if (loka::app::ImageViewNode *image = child->asImageViewNode())
-    {
-      if (image->props.width_ > 0)
-      {
-        return ClampToAvailable(image->props.width_, availableWidth);
-      }
-    }
-    return ClampToAvailable(availableWidth, availableWidth);
-  }
-
-  int PreferredChildHeightForRow(loka::app::scene::Node *child, int fallbackHeight)
-  {
-    if (!child)
-    {
-      return fallbackHeight;
-    }
-    if (child->asButtonNode())
-    {
-      return kButtonHeight;
-    }
-    if (child->asEditTextNode())
-    {
-      return kEditTextHeight;
-    }
-    if (child->asPopupMenuNode())
-    {
-      return kPopupMenuHeight;
-    }
-    if (child->asTextNode())
-    {
-      return kTextHeight;
-    }
-    if (loka::app::ImageViewNode *image = child->asImageViewNode())
-    {
-      if (image->props.height_ > 0)
-      {
-        return image->props.height_;
-      }
-      if (fallbackHeight > 0)
-      {
-        return fallbackHeight;
-      }
-      return 160;
-    }
-    return fallbackHeight;
-  }
+  const int kImageFallbackHeightModern = 160;
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
@@ -231,7 +167,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
       int childOffset = 0;
       if (column->props.hasHorizontalAlignment_)
       {
-        childWidth = PreferredChildWidthForColumn(child, state.width);
+        childWidth = loka::app::layout::preferredChildWidthForColumn(child, state.width);
         const int remain = state.width - childWidth;
         if (remain > 0)
         {
@@ -277,7 +213,13 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
       loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), childCount);
       for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
       {
-        const int h = PreferredChildHeightForRow(child, kTextHeight);
+        const int h = loka::app::layout::preferredChildHeightForRow(child,
+                                                                    kTextHeight,
+                                                                    kButtonHeight,
+                                                                    kEditTextHeight,
+                                                                    kPopupMenuHeight,
+                                                                    kTextHeight,
+                                                                    kImageFallbackHeightModern);
         if (h > rowHeight)
         {
           rowHeight = h;
@@ -304,7 +246,13 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
       childState.width = childWidth;
       if (row->props.hasVerticalAlignment_)
       {
-        const int childHeight = PreferredChildHeightForRow(child, rowHeight);
+        const int childHeight = loka::app::layout::preferredChildHeightForRow(child,
+                                                                               rowHeight,
+                                                                               kButtonHeight,
+                                                                               kEditTextHeight,
+                                                                               kPopupMenuHeight,
+                                                                               kTextHeight,
+                                                                               kImageFallbackHeightModern);
         int offset = 0;
         const int remain = rowHeight - childHeight;
         if (remain > 0)
