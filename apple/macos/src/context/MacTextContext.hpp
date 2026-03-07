@@ -23,11 +23,14 @@ private:
   void bindText();
   void unbindText();
   void applyText();
+  void requestRelayoutIfNeeded();
   static void TextChangedThunk(void *userData);
 
   loka::app::TextNode *node_;
+  void *parentView_;
   void *label_;
   loka::core::State<loka::core::String> *textState_;
+  bool didInitialApply_;
 };
 
 #endif // LOKA_MAC_TEXT_CONTEXT_HPP

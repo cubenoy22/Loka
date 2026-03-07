@@ -24,9 +24,12 @@
 #include "context/MacImageViewContext.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/platform/StringUTF8.hpp"
+#include <map>
 
 namespace
 {
+  static std::map<void *, MacScenePlatformController *> gControllerByRootView;
+
   const int kButtonHeight = 32;
   const int kEditTextHeight = 24;
   const int kPopupMenuHeight = 26;
@@ -91,11 +94,37 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
       firstEditField_(0),
       lastEditField_(0)
 {
+  if (rootView_)
+  {
+    gControllerByRootView[rootView_] = this;
+  }
 }
 
 MacScenePlatformController::~MacScenePlatformController()
 {
+  if (rootView_)
+  {
+    std::map<void *, MacScenePlatformController *>::iterator it = gControllerByRootView.find(rootView_);
+    if (it != gControllerByRootView.end() && it->second == this)
+    {
+      gControllerByRootView.erase(it);
+    }
+  }
   clearContexts();
+}
+
+MacScenePlatformController *MacScenePlatformController::findForRootView(void *rootView)
+{
+  if (!rootView)
+  {
+    return 0;
+  }
+  std::map<void *, MacScenePlatformController *>::iterator it = gControllerByRootView.find(rootView);
+  if (it == gControllerByRootView.end())
+  {
+    return 0;
+  }
+  return it->second;
 }
 
 void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)

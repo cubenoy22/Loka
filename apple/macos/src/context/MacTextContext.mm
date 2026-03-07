@@ -1,4 +1,5 @@
 #include "MacTextContext.hpp"
+#include "../MacScenePlatformController.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Text.hpp"
@@ -6,7 +7,7 @@
 #include "loka/platform/StringUTF8.hpp"
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
-    : node_(node), label_(0), textState_(0)
+    : node_(node), parentView_(parentView), label_(0), textState_(0), didInitialApply_(false)
 {
   NSView *parent = (NSView *)parentView;
   NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -107,6 +108,35 @@ void MacTextContext::applyText()
   {
     [label setStringValue:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
+  requestRelayoutIfNeeded();
+  if (!didInitialApply_)
+  {
+    didInitialApply_ = true;
+  }
+}
+
+void MacTextContext::requestRelayoutIfNeeded()
+{
+  if (!didInitialApply_ || !node_ || !node_->props.hasAttr_ || !node_->props.attr_.hasWrapValue_)
+  {
+    return;
+  }
+  if (node_->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+  {
+    return;
+  }
+  if (!parentView_)
+  {
+    return;
+  }
+  MacScenePlatformController *controller = MacScenePlatformController::findForRootView(parentView_);
+  if (!controller)
+  {
+    return;
+  }
+  NSView *view = (NSView *)parentView_;
+  NSRect bounds = [view bounds];
+  controller->relayout(static_cast<int>(bounds.size.width), static_cast<int>(bounds.size.height));
 }
 
 void MacTextContext::TextChangedThunk(void *userData)

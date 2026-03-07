@@ -25,6 +25,7 @@ public:
   virtual void destroy();
 
   void relayout(int clientWidth, int clientHeight);
+  static MacScenePlatformController *findForRootView(void *rootView);
 
 private:
   struct LayoutState
