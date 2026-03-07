@@ -50,6 +50,7 @@
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
 - Row alignment measure pass currently does a 2-pass scan when vertical alignment is enabled; keep as-is for now, revisit for large-child optimization if profiling shows cost.
+- Text wrap limitation (v1): current `TEXT_WRAP_WORD` does not force-break long tokens (paths/IDs). Add `TEXT_WRAP_CHAR` (or equivalent break strategy) for narrow-width robustness.
 - Motion architecture note: keep `attr()` static and model time-based behavior in `Flow`/`State` (`TimeController`, timeline/Frame/delay chain). Backends resolve execution quality (GPU interpolation vs CPU step/invert fallback) via capabilities.
   - Sketch:
     `TimeController(ctrlState)`

@@ -16,6 +16,7 @@
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/Profiler.hpp"
+#include "loka/platform/StringUTF8.hpp"
 #include "context/Win32CellContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
 
@@ -28,6 +29,58 @@ namespace
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
+
+  int MeasureTextHeightForWidth(HWND hwnd,
+                                const loka::app::TextNode *text,
+                                int width,
+                                int defaultHeight)
+  {
+    if (!hwnd || !text || !text->props.text_)
+    {
+      return defaultHeight;
+    }
+    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
+        text->props.attr_.wrapValue_ != loka::app::TEXT_WRAP_WORD)
+    {
+      return defaultHeight;
+    }
+    if (width <= 0)
+    {
+      return defaultHeight;
+    }
+
+    std::string utf8;
+    if (!loka::platform::CollectUtf8(text->props.text_->get(), utf8))
+    {
+      return defaultHeight;
+    }
+    if (utf8.empty())
+    {
+      return defaultHeight;
+    }
+
+    HDC hdc = GetDC(hwnd);
+    if (!hdc)
+    {
+      return defaultHeight;
+    }
+    RECT rc;
+    rc.left = 0;
+    rc.top = 0;
+    rc.right = width;
+    rc.bottom = 0;
+    const UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK;
+    DrawTextA(hdc, utf8.c_str(), -1, &rc, flags);
+    ReleaseDC(hwnd, hdc);
+
+    const int measured = rc.bottom - rc.top;
+    const int measuredWithPadding = measured + 4;
+    if (measuredWithPadding > defaultHeight)
+    {
+      return measuredWithPadding;
+    }
+    return defaultHeight;
+  }
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
@@ -462,11 +515,12 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::TextNode *text = node->asTextNode())
   {
-    Win32TextContext *ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, kTextHeight, text);
+    const int textHeight = MeasureTextHeightForWidth(rootHwnd_, text, state.width, kTextHeight);
+    Win32TextContext *ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, textHeight, text);
     text->setContext(ctx);
 
     LayoutState nextState = state;
-    nextState.y = state.y + kTextHeight + kVerticalSpacing;
+    nextState.y = state.y + textHeight + kVerticalSpacing;
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 

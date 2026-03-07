@@ -23,6 +23,7 @@
 #include "context/MacPopupMenuContext.hpp"
 #include "context/MacImageViewContext.hpp"
 #include "loka/core/Profiler.hpp"
+#include "loka/platform/StringUTF8.hpp"
 
 namespace
 {
@@ -33,6 +34,53 @@ namespace
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
+
+  int MeasureTextHeightForWidth(const loka::app::TextNode *text,
+                                int width,
+                                int defaultHeight)
+  {
+    if (!text || !text->props.text_)
+    {
+      return defaultHeight;
+    }
+    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
+        text->props.attr_.wrapValue_ != loka::app::TEXT_WRAP_WORD)
+    {
+      return defaultHeight;
+    }
+    if (width <= 0)
+    {
+      return defaultHeight;
+    }
+
+    std::string utf8;
+    if (!loka::platform::CollectUtf8(text->props.text_->get(), utf8))
+    {
+      return defaultHeight;
+    }
+    if (utf8.empty())
+    {
+      return defaultHeight;
+    }
+
+    NSString *string = [NSString stringWithUTF8String:utf8.c_str()];
+    if (!string)
+    {
+      return defaultHeight;
+    }
+    NSDictionary *attrs = [NSDictionary dictionaryWithObject:[NSFont systemFontOfSize:[NSFont systemFontSize]]
+                                                      forKey:NSFontAttributeName];
+    NSRect rect = [string boundingRectWithSize:NSMakeSize(static_cast<CGFloat>(width), CGFLOAT_MAX)
+                                       options:(NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading)
+                                    attributes:attrs];
+    const int measured = static_cast<int>(rect.size.height + 0.5f);
+    const int measuredWithPadding = measured + 2;
+    if (measuredWithPadding > defaultHeight)
+    {
+      return measuredWithPadding;
+    }
+    return defaultHeight;
+  }
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
@@ -434,11 +482,12 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::TextNode *text = node->asTextNode())
   {
-    MacTextContext *ctx = new MacTextContext(rootView_, state.x, state.y, state.width, kTextHeight, text);
+    const int textHeight = MeasureTextHeightForWidth(text, state.width, kTextHeight);
+    MacTextContext *ctx = new MacTextContext(rootView_, state.x, state.y, state.width, textHeight, text);
     text->setContext(ctx);
 
     LayoutState nextState = state;
-    nextState.y = state.y + kTextHeight + kVerticalSpacing;
+    nextState.y = state.y + textHeight + kVerticalSpacing;
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
