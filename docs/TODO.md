@@ -37,6 +37,7 @@
 - Node種別の分散化: NODE_KIND enum + asXxxNode() + PlatformController switch の一極集中を解消。各ノードクラスが自身のコンテキスト生成を持ち込める登録型アーキテクチャへ移行する。68k以外はRTTIでasXxxNode()を廃止、コンテキストファクトリ登録でenum/switchも不要にする。ユーザー定義コンポーネントの拡張性確保が目標。
 - ImageView rendering policy: keep platform contexts on custom drawing paths (NSView/GDI/Toolbox) and avoid tying behavior to NSImageView-specific features for cross-platform parity.
 - ImageView scaling contract: `fit` mode handling aligned on Win32/macOS (`NONE/CONTAIN/COVER/STRETCH`); Toolbox now has ImageView render path (frame + loaded-state overlay), but native image blit from `Image::nativeHandle` is still pending.
+- SimpleViewer (Toolbox): add optional QuickTime decode path via `loka::multimedia` and surface explicit error codes for `QT_UNAVAILABLE` / `QT_DECODE_FAILED` when fallback PICT decode cannot render.
 - Win32 image backend split plan: keep legacy GDI path for XP/2k compatibility and add capability-based modern path (WIC/high-DPI aware) without OS-name hard forks.
 - Win32 compatibility note for planning: treat XP/2k as legacy baseline (build-verified target) and Vista+ as modern-capability tier; record per-feature support in the matrix.
 - Flow DSL use-case validation: keep `Step(id, adapter)` focused on bounded-lifetime async/transform pipelines and verify readability/testability.
