@@ -8,6 +8,137 @@
 
 namespace
 {
+  static const loka::toolbox::ToolboxPictBytesPayload *gActivePictBytes = 0;
+  static std::size_t gActivePictReadPos = 0;
+  static QDGetPicUPP gReadPictFromBytesUPP = 0;
+  static CQDProcs gStreamPictProcs;
+  static bool gStreamPictProcsInitialized = false;
+  static QDProcs gBWStreamPictProcs;
+  static bool gBWStreamPictProcsInitialized = false;
+
+  static pascal void ReadPictDataFromActiveBytes(void *dataPtr, short byteCount)
+  {
+    if (!gActivePictBytes || !dataPtr || byteCount <= 0)
+    {
+      return;
+    }
+    unsigned char *dst = static_cast<unsigned char *>(dataPtr);
+    long remain = byteCount;
+    while (remain > 0)
+    {
+      if (gActivePictReadPos >= gActivePictBytes->bytes.size())
+      {
+        std::memset(dst, 0, static_cast<std::size_t>(remain));
+        return;
+      }
+      std::size_t available = gActivePictBytes->bytes.size() - gActivePictReadPos;
+      std::size_t chunk = static_cast<std::size_t>(remain);
+      if (chunk > available)
+      {
+        chunk = available;
+      }
+      std::memcpy(dst, &gActivePictBytes->bytes[gActivePictReadPos], chunk);
+      dst += chunk;
+      gActivePictReadPos += chunk;
+      remain -= static_cast<long>(chunk);
+    }
+  }
+
+  static bool DrawPictBytes(const loka::toolbox::ToolboxPictBytesPayload *payload, const Rect &dstRect)
+  {
+    if (!payload)
+    {
+      return false;
+    }
+    const std::size_t headerSize = sizeof(Picture) + sizeof(long) * 8;
+    if (payload->pictureOffset + headerSize > payload->bytes.size())
+    {
+      return false;
+    }
+
+    PicHandle picHandle = (PicHandle)NewHandle(static_cast<Size>(headerSize));
+    if (!picHandle || !*picHandle)
+    {
+      return false;
+    }
+
+    HLock((Handle)picHandle);
+    std::memcpy(*picHandle, &payload->bytes[payload->pictureOffset], headerSize);
+    HUnlock((Handle)picHandle);
+
+    if (!gReadPictFromBytesUPP)
+    {
+      gReadPictFromBytesUPP = NewQDGetPicUPP(ReadPictDataFromActiveBytes);
+    }
+
+    GrafPtr port = 0;
+    GetPort(&port);
+
+    // Detect B&W GrafPort vs CGrafPort.
+    // In a CGrafPort the first field (portVersion) has bits 14-15 set;
+    // in a classic B&W GrafPort those bits are the high bits of portBits.baseAddr
+    // which is always in low memory (bits clear).
+    bool isColorPort = false;
+    if (port)
+    {
+      short firstWord = *reinterpret_cast<short *>(port);
+      isColorPort = (firstWord & static_cast<short>(0xC000)) != 0;
+    }
+
+    QDProcsPtr oldBWProcs = 0;
+    CQDProcsPtr oldColorProcs = 0;
+
+    if (isColorPort)
+    {
+      oldColorProcs = ((CGrafPtr)port)->grafProcs;
+      if (oldColorProcs)
+      {
+        gStreamPictProcs = *oldColorProcs;
+        gStreamPictProcsInitialized = true;
+      }
+      else if (!gStreamPictProcsInitialized)
+      {
+        SetStdCProcs(&gStreamPictProcs);
+        gStreamPictProcsInitialized = true;
+      }
+      gStreamPictProcs.getPicProc = gReadPictFromBytesUPP;
+      ((CGrafPtr)port)->grafProcs = &gStreamPictProcs;
+    }
+    else if (port)
+    {
+      oldBWProcs = port->grafProcs;
+      if (oldBWProcs)
+      {
+        gBWStreamPictProcs = *oldBWProcs;
+        gBWStreamPictProcsInitialized = true;
+      }
+      else if (!gBWStreamPictProcsInitialized)
+      {
+        SetStdProcs(&gBWStreamPictProcs);
+        gBWStreamPictProcsInitialized = true;
+      }
+      gBWStreamPictProcs.getPicProc = gReadPictFromBytesUPP;
+      port->grafProcs = &gBWStreamPictProcs;
+    }
+
+    gActivePictBytes = payload;
+    gActivePictReadPos = payload->pictureOffset + sizeof(Picture);
+    DrawPicture(picHandle, &dstRect);
+    gActivePictBytes = 0;
+    gActivePictReadPos = 0;
+
+    if (isColorPort)
+    {
+      ((CGrafPtr)port)->grafProcs = oldColorProcs;
+    }
+    else if (port)
+    {
+      port->grafProcs = oldBWProcs;
+    }
+    KillPicture(picHandle);
+    return true;
+  }
+
   static void DrawPascalStringAt(short x, short y, const char *utf8)
   {
     if (!utf8)
@@ -219,6 +350,19 @@ void ToolboxImageViewContext::draw()
       DrawPicture(picture, &dstRect);
     }
     return;
+  }
+
+  if (native &&
+      native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES &&
+      native->payload)
+  {
+    const loka::toolbox::ToolboxPictBytesPayload *payload =
+        static_cast<const loka::toolbox::ToolboxPictBytesPayload *>(native->payload);
+    Rect dstRect = ComputeImageDrawRect(rect_, fitMode, image_.width(), image_.height());
+    if (DrawPictBytes(payload, dstRect))
+    {
+      return;
+    }
   }
 
   MoveTo(rect_.left, rect_.top);

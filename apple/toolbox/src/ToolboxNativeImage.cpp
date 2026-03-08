@@ -17,6 +17,10 @@ namespace
       {
         KillPicture(static_cast<PicHandle>(native->payload));
       }
+      else if (native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES)
+      {
+        delete static_cast<loka::toolbox::ToolboxPictBytesPayload *>(native->payload);
+      }
     }
 
     delete native;
@@ -42,6 +46,33 @@ namespace loka
       native->kind = TOOLBOX_NATIVE_IMAGE_KIND_PICT;
       native->payload = picture;
       native->ownsPayload = takeOwnership ? 1 : 0;
+
+      return loka::core::resource::Image::FromNative(native,
+                                                     width,
+                                                     height,
+                                                     &ReleaseToolboxNativeImage,
+                                                     0);
+    }
+
+    loka::core::resource::Image MakeImageFromPictBytes(const std::vector<unsigned char> &bytes,
+                                                       std::size_t pictureOffset,
+                                                       int width,
+                                                       int height)
+    {
+      if (pictureOffset >= bytes.size() || width <= 0 || height <= 0)
+      {
+        return loka::core::resource::Image::Empty();
+      }
+
+      ToolboxPictBytesPayload *payload = new ToolboxPictBytesPayload();
+      payload->bytes = bytes;
+      payload->pictureOffset = pictureOffset;
+
+      ToolboxNativeImage *native = new ToolboxNativeImage();
+      native->magic = kToolboxNativeImageMagic;
+      native->kind = TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES;
+      native->payload = payload;
+      native->ownsPayload = 1;
 
       return loka::core::resource::Image::FromNative(native,
                                                      width,

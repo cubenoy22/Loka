@@ -24,7 +24,7 @@ namespace loka
       };
 
       // ConditionalNode: node that switches by condition
-      class ConditionalNode : public Node
+      class ConditionalNode : public NestableNode
       {
       public:
         ConditionalProps props;
@@ -34,6 +34,8 @@ namespace loka
         static void onConditionChanged(void *userData);
         void compose();
         void updateActiveNode();
+        void render(IPlatformController *controller);
+        short layout(IPlatformController *controller, LayoutState &state);
       };
 
       struct ConditionalDefinition : public NodeDefinitionBase

@@ -512,7 +512,6 @@ void testNodeCompositionShowIf()
     show.set(false, true);
   }
 
-  conditionalNode->compose();
   assert(conditionalNode->activeNode != 0);
   assert(dynamic_cast<TextNode *>(conditionalNode->activeNode) != 0);
 

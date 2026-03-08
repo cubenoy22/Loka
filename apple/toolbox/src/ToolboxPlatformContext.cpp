@@ -9,9 +9,30 @@
 #include "core/resource/Image.hpp"
 #include "ToolboxNativeImage.hpp"
 #include <cstring>
+#include <vector>
 
 namespace
 {
+  struct SpecBinding
+  {
+    loka::core::String displayPath;
+    FSSpec spec;
+  };
+
+  static std::vector<SpecBinding> gChosenSpecs;
+
+  static bool FindChosenSpec(const loka::core::String &displayPath, FSSpec &specOut)
+  {
+    for (std::size_t i = 0; i < gChosenSpecs.size(); ++i)
+    {
+      if (gChosenSpecs[i].displayPath.equals(displayPath))
+      {
+        specOut = gChosenSpecs[i].spec;
+        return true;
+      }
+    }
+    return false;
+  }
   static unsigned short ReadU16BE(const unsigned char *p)
   {
     return static_cast<unsigned short>(
@@ -24,30 +45,45 @@ namespace
     return static_cast<short>(ReadU16BE(p));
   }
 
+  static std::size_t FindPictSizeByTerminator(const std::vector<unsigned char> &bytes,
+                                              std::size_t offset)
+  {
+    // PICT end opcode is 0x00FF on word boundary.
+    if (offset + 12 > bytes.size())
+    {
+      return 0;
+    }
+    std::size_t last = 0;
+    for (std::size_t pos = offset + 10; pos + 1 < bytes.size(); pos += 2)
+    {
+      if (bytes[pos] == 0x00 && bytes[pos + 1] == 0xFF)
+      {
+        last = (pos + 2) - offset;
+      }
+    }
+    return last;
+  }
+
   static bool TryParsePictAt(const std::vector<unsigned char> &bytes,
                              std::size_t offset,
                              std::size_t &pictureOffsetOut,
                              std::size_t &pictureSizeOut,
                              int &widthOut,
-                             int &heightOut)
+                             int &heightOut,
+                             bool &sizeFieldFallbackOut,
+                             bool &zeroSizeFieldOut)
   {
     if (offset + 10 > bytes.size())
     {
       return false;
     }
+    sizeFieldFallbackOut = false;
+    zeroSizeFieldOut = false;
 
     const unsigned char *base = &bytes[offset];
     const unsigned short pictSize = ReadU16BE(base);
-    if (pictSize < 10)
-    {
-      return false;
-    }
-
-    const std::size_t pictureSize = static_cast<std::size_t>(pictSize);
-    if (offset + pictureSize > bytes.size())
-    {
-      return false;
-    }
+    zeroSizeFieldOut = (pictSize == 0);
+    std::size_t pictureSize = static_cast<std::size_t>(pictSize);
 
     const short top = ReadS16BE(base + 2);
     const short left = ReadS16BE(base + 4);
@@ -64,6 +100,30 @@ namespace
     {
       height = -height;
     }
+    if (width == 0 || height == 0)
+    {
+      return false;
+    }
+
+    if (!(pictureSize >= 10 && offset + pictureSize <= bytes.size()))
+    {
+      pictureSize = FindPictSizeByTerminator(bytes, offset);
+      if (pictureSize >= 10 && offset + pictureSize <= bytes.size())
+      {
+        sizeFieldFallbackOut = true;
+      }
+      else
+      {
+        // Keep stream path permissive: if size field/terminator are unreliable,
+        // draw from the remaining bytes like SimpleText's file-backed path.
+        pictureSize = bytes.size() - offset;
+        if (pictureSize < 10)
+        {
+          return false;
+        }
+        sizeFieldFallbackOut = true;
+      }
+    }
 
     pictureOffsetOut = offset;
     pictureSizeOut = pictureSize;
@@ -76,16 +136,20 @@ namespace
                         std::size_t &pictureOffsetOut,
                         std::size_t &pictureSizeOut,
                         int &widthOut,
-                        int &heightOut)
+                        int &heightOut,
+                        bool &sizeFieldFallbackOut,
+                        bool &zeroSizeFieldOut)
   {
+    sizeFieldFallbackOut = false;
+    zeroSizeFieldOut = false;
     // 1) Raw PICT stream
-    if (TryParsePictAt(bytes, 0, pictureOffsetOut, pictureSizeOut, widthOut, heightOut))
+    if (TryParsePictAt(bytes, 0, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
     {
       return true;
     }
     // 2) Classic file format with 512-byte header
     if (bytes.size() > 522 &&
-        TryParsePictAt(bytes, 512, pictureOffsetOut, pictureSizeOut, widthOut, heightOut))
+        TryParsePictAt(bytes, 512, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
     {
       return true;
     }
@@ -122,6 +186,12 @@ bool ToolboxPlatformContext::openFile(const loka::file::File &item, loka::platfo
   out.kind = item.kind();
 #if defined(LOKA_RETRO68)
   out.hasSpec = false;
+  FSSpec spec;
+  if (FindChosenSpec(out.displayPath, spec))
+  {
+    out.spec = spec;
+    out.hasSpec = true;
+  }
 #endif
   return !out.displayPath.empty();
 }
@@ -140,26 +210,36 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
   std::size_t pictureSize = 0;
   int width = 0;
   int height = 0;
-  if (!ParsePict(bytes, pictureOffset, pictureSize, width, height))
+  bool usedSizeFallback = false;
+  bool zeroSizeField = false;
+  if (!ParsePict(bytes, pictureOffset, pictureSize, width, height, usedSizeFallback, zeroSizeField))
   {
     return false;
   }
 
-  PicHandle picture = (PicHandle)NewHandleClear((Size)pictureSize);
-  if (!picture || !*picture)
+  if (pictureSize == 0)
   {
     return false;
   }
 
-  HLock((Handle)picture);
-  std::memcpy(*picture, &bytes[pictureOffset], pictureSize);
-  HUnlock((Handle)picture);
-
-  out = loka::toolbox::MakeImageFromPicHandle(picture, width, height, true);
-  if (!out.isValid())
-  {
-    KillPicture(picture);
-    return false;
-  }
-  return true;
+  out = loka::toolbox::MakeImageFromPictBytes(bytes, pictureOffset, width, height);
+  return out.isValid();
 }
+
+#if defined(LOKA_RETRO68)
+void ToolboxPlatformContext::registerChosenFileSpec(const loka::core::String &displayPath, const FSSpec &spec)
+{
+  for (std::size_t i = 0; i < gChosenSpecs.size(); ++i)
+  {
+    if (gChosenSpecs[i].displayPath.equals(displayPath))
+    {
+      gChosenSpecs[i].spec = spec;
+      return;
+    }
+  }
+  SpecBinding binding;
+  binding.displayPath = displayPath;
+  binding.spec = spec;
+  gChosenSpecs.push_back(binding);
+}
+#endif

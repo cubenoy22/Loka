@@ -8,6 +8,34 @@ namespace loka
   {
     namespace scene
     {
+      static Node *createConditionalNodeRecursive(NodeDefinitionBase *def)
+      {
+        if (!def)
+        {
+          return 0;
+        }
+
+        Node *node = def->create();
+        INestableDefinition *nestableDef = def->asNestableDefinition();
+        INestable *nestableNode = node->asNestable();
+        if (!nestableDef || !nestableNode)
+        {
+          return node;
+        }
+
+        NodeDefinitionBase *childDef = nestableDef->childrenHead();
+        while (childDef)
+        {
+          Node *childNode = createConditionalNodeRecursive(childDef);
+          if (childNode)
+          {
+            nestableNode->addChild(childNode);
+          }
+          childDef = childDef->nextInComposition;
+        }
+        return node;
+      }
+
       ConditionalProps::ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
           : condition(cond), trueDef(tDef), falseDef(fDef) {}
 
@@ -15,11 +43,22 @@ namespace loka
           : condition(const_cast<loka::core::State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
 
       ConditionalNode::ConditionalNode(const ConditionalProps &p)
-          : props(p), activeNode(0) {}
+          : NestableNode(), props(p), activeNode(0)
+      {
+        if (props.condition)
+        {
+          props.condition->bind(&ConditionalNode::onConditionChanged, this, false);
+        }
+        updateActiveNode();
+      }
 
       ConditionalNode::~ConditionalNode()
       {
-        delete activeNode;
+        if (props.condition)
+        {
+          props.condition->unbind(&ConditionalNode::onConditionChanged, this);
+        }
+        activeNode = 0;
       }
 
       void ConditionalNode::onConditionChanged(void *userData)
@@ -44,8 +83,30 @@ namespace loka
         }
         bool cond = props.condition->get();
         NodeDefinitionBase *def = cond ? props.trueDef : props.falseDef;
-        delete activeNode;
-        activeNode = def ? def->create() : 0;
+        Node *nextNode = createConditionalNodeRecursive(def);
+        clearChildrenInternal(false);
+        activeNode = nextNode;
+        if (activeNode)
+        {
+          addChild(activeNode);
+        }
+      }
+
+      void ConditionalNode::render(IPlatformController *controller)
+      {
+        if (activeNode)
+        {
+          activeNode->render(controller);
+        }
+      }
+
+      short ConditionalNode::layout(IPlatformController *controller, LayoutState &state)
+      {
+        if (activeNode)
+        {
+          return activeNode->layout(controller, state);
+        }
+        return 0;
       }
 
       ConditionalDefinition::ConditionalDefinition(const ConditionalProps &p)

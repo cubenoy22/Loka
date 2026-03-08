@@ -12,6 +12,7 @@
 - UI layers should follow platform-native naming and conventions; core stays neutral.
 - Classic Mac UI uses Toolbox/Control Manager APIs; avoid Carbon/Cocoa in Classic paths.
 - Toolbox/68k binary size policy: avoid `std::fstream`/iostream-based file I/O in Classic paths because it pulls large libstdc++ locale/stream machinery; prefer C stdio (`fopen`/`fread`) or platform file APIs.
+- Retro68 workflow policy: if `.dsk` is mounted (emulator/host), unmount it before rebuild. Building while mounted can leave stale artifacts or produce corruption-like runtime issues; when users report corrupted/unchanged Classic output, first retry with `.dsk` unmounted, then rebuild.
 - MutableState<T>::set() must be wrapped in a StateTracker transaction (use RAII guard).
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.

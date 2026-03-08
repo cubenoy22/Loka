@@ -1,4 +1,5 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
+#include "ToolboxPlatformContext.hpp"
 #include <StandardFile.h>
 #include <string>
 
@@ -79,8 +80,12 @@ void ToolboxOpenFileDialogContext::presentDialog()
 
   if (reply.sfGood)
   {
-    loka::file::File file(displayPathFromSpec(reply.sfFile));
+    const loka::core::String displayPath = displayPathFromSpec(reply.sfFile);
+    loka::file::File file(displayPath);
     file.setKind(loka::file::File::KIND_FILE);
+#if defined(LOKA_RETRO68)
+    ToolboxPlatformContext::registerChosenFileSpec(displayPath, reply.sfFile);
+#endif
     setResult(loka::app::FileChooserResult::File(file));
   }
   else

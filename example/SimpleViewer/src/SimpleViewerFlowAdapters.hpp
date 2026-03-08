@@ -11,6 +11,10 @@
 #include "loka/core/String.hpp"
 #include "loka/dsl/dsl.hpp"
 #include "loka/platform/StringUTF8.hpp"
+#include "loka/platform/file/FileHandle.hpp"
+#if defined(LOKA_RETRO68)
+#include <Files.h>
+#endif
 
 namespace simpleviewer
 {
@@ -25,7 +29,17 @@ namespace simpleviewer
   {
     SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_CONTEXT_MISSING = 1001,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED = 1002,
-    SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED = 1003
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED = 1003,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED = 1004,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED = 1005,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED = 1006,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_NO_FSSPEC = 1007,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_OPEN_DF_FAILED = 1008,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_GETEOF_FAILED = 1009,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_READ_FAILED = 1010,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED = 1011,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED = 1012,
+    SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED = 1013
   };
 
   struct ChooserContext
@@ -44,12 +58,16 @@ namespace simpleviewer
   {
     ChooserProjection()
         : request(),
-          message(loka::core::String::Literal("(none)"))
+          message(loka::core::String::Literal("(none)")),
+          fileItem(),
+          hasFileItem(false)
     {
     }
 
     loka::core::resource::BlobLoaderRequest request;
     loka::core::String message;
+    loka::file::File fileItem;
+    bool hasFileItem;
   };
 
   struct ChooserToContextAdapter
@@ -107,6 +125,8 @@ namespace simpleviewer
         {
           projection.request.setFilePath(path);
           projection.request.setTag(loka::core::String::Literal("image-file"));
+          projection.fileItem = context.result.item;
+          projection.hasFileItem = true;
         }
       }
       return loka::dsl::FLOW_STEP_SUCCEEDED;
@@ -117,6 +137,8 @@ namespace simpleviewer
   {
     typedef ChooserProjection In;
     typedef loka::core::resource::Blob Out;
+    explicit ProjectionToBlobAdapter(PlatformContext *ctx) : ctx_(ctx) {}
+    ProjectionToBlobAdapter() : ctx_(0) {}
 
     loka::dsl::StepRunStatus run(const In &projection, Out &out, loka::dsl::FlowError &error) const
     {
@@ -124,8 +146,9 @@ namespace simpleviewer
 
       if (projection.request.source == BLOB_SOURCE_NONE)
       {
-        out = Blob::Empty();
-        return loka::dsl::FLOW_STEP_SUCCEEDED;
+        error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
+        error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED;
+        return loka::dsl::FLOW_STEP_FAILED;
       }
 
       if (projection.request.source == BLOB_SOURCE_FILE)
@@ -134,14 +157,16 @@ namespace simpleviewer
         if (!loka::platform::CollectUtf8(projection.request.filePath, utf8Path))
         {
           error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
-          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
+          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED;
           return loka::dsl::FLOW_STEP_FAILED;
         }
         std::vector<unsigned char> bytes;
-        if (!readFileBytes(utf8Path.c_str(), bytes))
+        int detailCode = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
+        if (!readBytesViaPlatform(projection, bytes, detailCode) &&
+            !readFileBytes(utf8Path.c_str(), bytes, detailCode))
         {
           error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
-          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
+          error.code = detailCode;
           return loka::dsl::FLOW_STEP_FAILED;
         }
 
@@ -158,16 +183,18 @@ namespace simpleviewer
     }
 
   private:
-    static bool readFileBytes(const char *path, std::vector<unsigned char> &out)
+    static bool readFileBytes(const char *path, std::vector<unsigned char> &out, int &detailCodeOut)
     {
       out.clear();
       if (!path || !*path)
       {
+        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED;
         return false;
       }
       FILE *file = std::fopen(path, "rb");
       if (!file)
       {
+        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED;
         return false;
       }
 
@@ -181,6 +208,7 @@ namespace simpleviewer
           {
             std::fclose(file);
             out.clear();
+            detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED;
             return false;
           }
           if (!out.empty())
@@ -192,6 +220,7 @@ namespace simpleviewer
               {
                 std::fclose(file);
                 out.clear();
+                detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED;
                 return false;
               }
               out.resize(readBytes);
@@ -205,6 +234,7 @@ namespace simpleviewer
       if (std::fseek(file, 0, SEEK_SET) != 0)
       {
         std::fclose(file);
+        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED;
         return false;
       }
       const std::size_t kBufferSize = 4096;
@@ -227,6 +257,7 @@ namespace simpleviewer
           {
             std::fclose(file);
             out.clear();
+            detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED;
             return false;
           }
           break;
@@ -236,6 +267,74 @@ namespace simpleviewer
       std::fclose(file);
       return true;
     }
+
+    bool readBytesViaPlatform(const In &projection, std::vector<unsigned char> &out, int &detailCodeOut) const
+    {
+      out.clear();
+      if (!ctx_ || !projection.hasFileItem)
+      {
+        return false;
+      }
+      loka::platform::file::FileHandle handle;
+      if (!ctx_->openFile(projection.fileItem, handle))
+      {
+        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED;
+        return false;
+      }
+#if defined(LOKA_RETRO68)
+      if (!handle.hasSpec)
+      {
+        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_NO_FSSPEC;
+        return false;
+      }
+      if (handle.hasSpec)
+      {
+        short refNum = 0;
+        OSErr err = FSpOpenDF(&handle.spec, fsRdPerm, &refNum);
+        if (err != noErr)
+        {
+          detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_OPEN_DF_FAILED;
+          return false;
+        }
+        long fileSize = 0;
+        err = GetEOF(refNum, &fileSize);
+        if (err != noErr || fileSize < 0)
+        {
+          FSClose(refNum);
+          detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_GETEOF_FAILED;
+          return false;
+        }
+        out.resize(static_cast<std::size_t>(fileSize));
+        if (fileSize > 0)
+        {
+          long count = fileSize;
+          err = FSRead(refNum, &count, &out[0]);
+          if (err != noErr && err != eofErr)
+          {
+            FSClose(refNum);
+            out.clear();
+            detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_READ_FAILED;
+            return false;
+          }
+          if (count < fileSize)
+          {
+            out.resize(static_cast<std::size_t>(count < 0 ? 0 : count));
+          }
+        }
+        FSClose(refNum);
+        return true;
+      }
+#endif
+      std::string path;
+      if (!loka::platform::CollectUtf8(handle.displayPath, path))
+      {
+        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED;
+        return false;
+      }
+      return readFileBytes(path.c_str(), out, detailCodeOut);
+    }
+
+    PlatformContext *ctx_;
   };
 
   struct BlobDecodeAttempt
