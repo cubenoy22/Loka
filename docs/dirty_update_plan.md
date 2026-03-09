@@ -119,6 +119,11 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
    - ViewDirtyFlags (`DIRTY_LAYOUT/PROPS/CHILD`) の発生妥当性
    - Static 即時 / Dynamic 次 tick のポリシー差
    - Dump への dirty reason (state trigger) 記録
+   - flush/recompose/layout の tick 時間を `.snap` に記録し性能退行を検知
+7. Profiling 出力を段階移行
+   - `PROFILE_SECTION` / `PROFILE_FUNC` マクロは維持
+   - 出力先を `profile.txt` 単体から Flow `.snap` 集約へ移行
+   - 移行完了後に `profile.txt` 既定出力を廃止（必要時のみ opt-in）
 
 ## Acceptance Criteria
 
@@ -129,6 +134,7 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 | UpdateRgn / InvalidateRect | 同一 tick 内で 1 回に統合して発行される |
 | macOS: Text wrap 行数変化 | テキスト変更後の次 tick で正しくリレイアウトされる |
 | Toolbox: 再描画漏れ | `WaitNextEvent` 前の flush により漏れゼロ |
+| 性能回帰検知 | `.snap` の時間指標差分で PR で検知できる |
 
 ## Test Plan
 

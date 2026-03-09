@@ -41,6 +41,7 @@ Loka (C++98)           外部 CLI / AI
 ### Layer 2: .snap Parameter Assertion
 
 - Flow 内に `Snap()` ステップを書くと、対象ノードのパラメータ（height, x, y, width など）をファイルに書き出す
+- 同時に tick 単位の時間指標（`flushTimeMs`, `recomposeTimeMs`, `layoutTimeMs` など）も書き出す
 - `.snap` ファイルが存在しない場合: 新規生成して **PASS**（初回受け入れ）
 - `.snap` ファイルが存在する場合: 今回の値を別ファイルに書き出し、diff は外部ツールが担う
 - Loka 側は「値を書くだけ」に徹し、判定ロジックを持たない
@@ -54,7 +55,9 @@ TestFlow(testState)
   | Step(UPDATE_TEXT, SetState(textState, "long long long..."))
   | Step(WAIT_TICK,   WaitNextTick())
   | Step(SCREENSHOT,  CaptureScreen("after-wrap"))
-  | Step(SNAP,        Snap("MainText"))   // height, x, y, width を書き出す
+  | Step(SNAP,        Snap("MainText")
+                        .expect(FlushTimeMs(LessThan(16)))
+                        .expect(RecomposeTimeMs(LessThan(8))))
   | onFailure(Dump(testState), ABORT);
 ```
 
@@ -107,6 +110,11 @@ Step(SET_STATIC,  SetState(staticState, 1))
 
 これにより「なぜ汚れたか」を追跡可能にする。
 
+### D. Timing Regression Assertion
+
+- 見た目/値だけでなく実行時間も回帰検知対象にする。
+- 例: `FlushTimeMs`, `RecomposeTimeMs`, `LayoutTimeMs` を `.snap` に記録し、CI で前回との差分を判定する。
+
 ## Capture Output Policy
 
 ```
@@ -140,6 +148,7 @@ CI では `capture_dir` に workspace パスを明示的に渡し、artifact と
 - CI は主実行環境。PR ごとに `current/` と `golden/` を比較して自動判定。
 - PASS / FAIL / SKIP を明示的に分離して報告する。
 - 有料ビジュアルリグレッションサービス不要。Loka がデータを出力し、外部 CLI / AI が判定する。
+- 時間系メトリクスも `.snap` diff に含め、性能退行を PR で自動検出する。
 - Runtime verification for text relayout should include:
   - short -> long text
   - long -> short text
