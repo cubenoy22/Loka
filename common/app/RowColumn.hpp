@@ -92,6 +92,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      ColumnDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
@@ -165,6 +170,11 @@ namespace loka
       RowDefinition &testId(const char *value)
       {
         this->setTestId(value);
+        return *this;
+      }
+      RowDefinition &testId()
+      {
+        this->setAutoTestId();
         return *this;
       }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }

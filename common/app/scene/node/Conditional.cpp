@@ -1,5 +1,6 @@
 #include "Conditional.hpp"
 #include "../Node.hpp"
+#include <cstdio>
 #include <new>
 
 namespace loka
@@ -8,7 +9,7 @@ namespace loka
   {
     namespace scene
     {
-      static Node *createConditionalNodeRecursive(NodeDefinitionBase *def)
+      static Node *createConditionalNodeRecursiveWithAutoId(NodeDefinitionBase *def, long &autoIdCounter)
       {
         if (!def)
         {
@@ -16,7 +17,16 @@ namespace loka
         }
 
         Node *node = def->create();
-        node->setTestId(def->testIdValue());
+        if (def->hasTestId())
+        {
+          node->setTestId(def->testIdValue());
+        }
+        else if (def->wantsAutoTestId())
+        {
+          char sAutoBuf[64];
+          snprintf(sAutoBuf, sizeof(sAutoBuf), "auto-%ld", autoIdCounter++);
+          node->setTestId(std::string(sAutoBuf));
+        }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
         if (!nestableDef || !nestableNode)
@@ -27,7 +37,7 @@ namespace loka
         NodeDefinitionBase *childDef = nestableDef->childrenHead();
         while (childDef)
         {
-          Node *childNode = createConditionalNodeRecursive(childDef);
+          Node *childNode = createConditionalNodeRecursiveWithAutoId(childDef, autoIdCounter);
           if (childNode)
           {
             nestableNode->addChild(childNode);
@@ -35,6 +45,12 @@ namespace loka
           childDef = childDef->nextInComposition;
         }
         return node;
+      }
+
+      static Node *createConditionalNodeRecursive(NodeDefinitionBase *def)
+      {
+        long autoIdCounter = 1;
+        return createConditionalNodeRecursiveWithAutoId(def, autoIdCounter);
       }
 
       ConditionalProps::ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)

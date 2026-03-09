@@ -178,6 +178,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      OpenFileDialogDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
     };

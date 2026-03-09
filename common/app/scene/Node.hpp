@@ -284,14 +284,22 @@ namespace loka
       public:
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
 
-        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_() {}
-        NodeDefinitionBase(const NodeDefinitionBase &other) : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_(other.testId_) {}
+        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_(), hasTestId_(false), autoTestId_(false) {}
+        NodeDefinitionBase(const NodeDefinitionBase &other)
+            : cleanupHook_(0),
+              cleanupContext_(0),
+              nextInComposition(0),
+              testId_(other.testId_),
+              hasTestId_(other.hasTestId_),
+              autoTestId_(other.autoTestId_) {}
         NodeDefinitionBase &operator=(const NodeDefinitionBase &other)
         {
           this->cleanupHook_ = 0;
           this->cleanupContext_ = 0;
           this->nextInComposition = 0;
           this->testId_ = other.testId_;
+          this->hasTestId_ = other.hasTestId_;
+          this->autoTestId_ = other.autoTestId_;
           return *this;
         }
         virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
@@ -316,11 +324,40 @@ namespace loka
         }
         void setTestId(const char *value)
         {
-          this->testId_ = value ? value : "";
+          if (value && value[0] != '\0')
+          {
+            this->testId_ = value;
+            this->hasTestId_ = true;
+            this->autoTestId_ = false;
+            return;
+          }
+          this->testId_.clear();
+          this->hasTestId_ = false;
+          this->autoTestId_ = false;
+        }
+        void setAutoTestId()
+        {
+          this->testId_.clear();
+          this->hasTestId_ = false;
+          this->autoTestId_ = true;
+        }
+        bool hasTestId() const
+        {
+          return this->hasTestId_;
+        }
+        bool wantsAutoTestId() const
+        {
+          return this->autoTestId_;
         }
         const std::string &testIdValue() const
         {
           return this->testId_;
+        }
+        void copyTestIdPolicyFrom(const NodeDefinitionBase &other)
+        {
+          this->testId_ = other.testId_;
+          this->hasTestId_ = other.hasTestId_;
+          this->autoTestId_ = other.autoTestId_;
         }
 
       protected:
@@ -341,6 +378,8 @@ namespace loka
         CleanupHook cleanupHook_;
         void *cleanupContext_;
         std::string testId_;
+        bool hasTestId_;
+        bool autoTestId_;
       };
 
       // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---

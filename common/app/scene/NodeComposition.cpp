@@ -3,6 +3,7 @@
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include "app/Window.hpp"
+#include <cstdio>
 #include <new>
 
 namespace loka
@@ -58,7 +59,31 @@ namespace loka
       }
 
       // Pass 2: Create nodes using arena
-      static Node *createNodeWithArena(NodeDefinitionBase *def, NodeArena *arena)
+      static std::string makeAutoTestId(long index)
+      {
+        char buf[64];
+        snprintf(buf, sizeof(buf), "auto-%ld", index);
+        return std::string(buf);
+      }
+
+      static void assignNodeTestId(Node *node, const NodeDefinitionBase *def, long &autoIdCounter)
+      {
+        if (!node || !def)
+        {
+          return;
+        }
+        if (def->hasTestId())
+        {
+          node->setTestId(def->testIdValue());
+          return;
+        }
+        if (def->wantsAutoTestId())
+        {
+          node->setTestId(makeAutoTestId(autoIdCounter++));
+        }
+      }
+
+      static Node *createNodeWithArena(NodeDefinitionBase *def, NodeArena *arena, long &autoIdCounter)
       {
         if (!def)
         {
@@ -81,7 +106,7 @@ namespace loka
           // Fallback to regular allocation
           node = def->create();
         }
-        node->setTestId(def->testIdValue());
+        assignNodeTestId(node, def, autoIdCounter);
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
@@ -91,7 +116,7 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            Node *childNode = createNodeWithArena(child, arena);
+            Node *childNode = createNodeWithArena(child, arena, autoIdCounter);
             if (childNode)
             {
               nestableNode->addChild(childNode);
@@ -104,7 +129,7 @@ namespace loka
       }
 
       // Fallback: create without arena
-      static Node *createNodeRecursive(NodeDefinitionBase *def)
+      static Node *createNodeRecursive(NodeDefinitionBase *def, long &autoIdCounter)
       {
         if (!def)
         {
@@ -112,7 +137,7 @@ namespace loka
         }
 
         Node *node = def->create();
-        node->setTestId(def->testIdValue());
+        assignNodeTestId(node, def, autoIdCounter);
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
@@ -122,7 +147,7 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            Node *childNode = createNodeRecursive(child);
+            Node *childNode = createNodeRecursive(child, autoIdCounter);
             if (childNode)
             {
               nestableNode->addChild(childNode);
@@ -155,12 +180,14 @@ namespace loka
               size_t totalSize = calculateTotalNodeSize(root);
               arena->reserve(totalSize);
             }
-            return createNodeWithArena(root, arena);
+            long autoIdCounter = 1;
+            return createNodeWithArena(root, arena, autoIdCounter);
           }
         }
 
         // Fallback without arena
-        return createNodeRecursive(root);
+        long autoIdCounter = 1;
+        return createNodeRecursive(root, autoIdCounter);
       }
 
       BoundaryNode *NodeComposition::boundary() const

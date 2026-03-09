@@ -47,6 +47,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      EmptyDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
       using scene::NodeDefinition<EmptyProps, EmptyNode>::create;
     };
     // Short name for DSL

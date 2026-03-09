@@ -455,7 +455,7 @@ void testNodeCompositionTree()
 
   loka::app::scene::NodeComposition composition;
   BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-  ButtonDefinition button = Button("Hello").testId("PrimaryButton");
+  ButtonDefinition button = Button("Hello").testId();
 
   root << button;
 
@@ -471,7 +471,8 @@ void testNodeCompositionTree()
   assert(childCount == 1);
   ButtonNode *buttonNode = dynamic_cast<ButtonNode *>(child);
   assert(buttonNode != NULL);
-  assert(buttonNode->testId() == "PrimaryButton");
+  assert(!buttonNode->testId().empty());
+  assert(buttonNode->testId().find("auto-") == 0);
 
   delete tree;
 }

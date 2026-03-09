@@ -77,6 +77,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      GridDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
     };
 
     typedef GridDefinition Grid;

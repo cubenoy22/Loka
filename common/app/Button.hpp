@@ -160,6 +160,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      ButtonDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };

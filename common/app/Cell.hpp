@@ -97,6 +97,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      CellDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
     };
 
     typedef CellDefinition Cell;

@@ -169,6 +169,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      ImageViewDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
 
       ImageViewDefinitionWithAttr attr(const ImageViewAttr &value) const;
 
@@ -181,7 +186,7 @@ namespace loka
       ImageViewDefinitionWithAttr(const ImageViewProps &p) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p) {}
       ImageViewDefinitionWithAttr(const ImageViewDefinition &def) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(def.props)
       {
-        this->setTestId(def.testIdValue().c_str());
+        this->copyTestIdPolicyFrom(def);
       }
 
       ImageViewDefinitionWithAttr &image(loka::core::State<loka::core::resource::Image> *state)
@@ -200,6 +205,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      ImageViewDefinitionWithAttr &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
     };
@@ -209,7 +219,7 @@ namespace loka
       ImageViewProps p = this->props;
       p.attr(value);
       ImageViewDefinitionWithAttr result(p);
-      result.setTestId(this->testIdValue().c_str());
+      result.copyTestIdPolicyFrom(*this);
       return result;
     }
 

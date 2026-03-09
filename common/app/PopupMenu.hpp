@@ -236,6 +236,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      PopupMenuDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>::create;
     };

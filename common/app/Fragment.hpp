@@ -58,6 +58,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      FragmentDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };

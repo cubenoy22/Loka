@@ -83,6 +83,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      BoxDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
     };
     // DSL向け短縮名
     typedef BoxDefinition Box;

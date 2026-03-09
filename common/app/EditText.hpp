@@ -85,6 +85,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      EditTextDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
     };
 
     typedef EditTextDefinition EditText;

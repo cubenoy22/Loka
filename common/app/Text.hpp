@@ -237,6 +237,11 @@ namespace loka
         this->setTestId(value);
         return *this;
       }
+      TextDefinition &testId()
+      {
+        this->setAutoTestId();
+        return *this;
+      }
 
       TextDefinitionWithAttr attr(const TextAttr &value) const;
     };
@@ -247,11 +252,16 @@ namespace loka
       TextDefinitionWithAttr(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
       TextDefinitionWithAttr(const TextDefinition &def) : loka::app::scene::NodeDefinition<TextProps, TextNode>(def.props)
       {
-        this->setTestId(def.testIdValue().c_str());
+        this->copyTestIdPolicyFrom(def);
       }
       TextDefinitionWithAttr &testId(const char *value)
       {
         this->setTestId(value);
+        return *this;
+      }
+      TextDefinitionWithAttr &testId()
+      {
+        this->setAutoTestId();
         return *this;
       }
     };
@@ -261,7 +271,7 @@ namespace loka
       TextProps p = this->props;
       p.attr(value);
       TextDefinitionWithAttr result(p);
-      result.setTestId(this->testIdValue().c_str());
+      result.copyTestIdPolicyFrom(*this);
       return result;
     }
 
