@@ -46,18 +46,45 @@ Loka (C++98)           外部 CLI / AI
 - `.snap` ファイルが存在する場合: 今回の値を別ファイルに書き出し、diff は外部ツールが担う
 - Loka 側は「値を書くだけ」に徹し、判定ロジックを持たない
 
-#### Minimal `.snap` Schema (v1, TSV line format)
+#### Minimal `.snap` Schema (v1, TSV key/value format)
 
 ```txt
-SNAP	v1	test=TextWrapRelayout	step=after-wrap	tick=12	node=MainText	x=20	y=40	w=220	h=64	dirty=LAYOUT|PROPS	flush_ms=3	recompose_ms=1	layout_ms=2
+dirty	LAYOUT|PROPS
+flush_ms	3
+format_version	1
+h	64
+layout_ms	2
+node	MainText
+recompose_ms	1
+scenario_version	3
+schema_version	1
+step	after-wrap
+test	TextWrapRelayout
+tick	12
+w	220
+x	20
+y	40
 ```
 
 v1 ルール:
 - 1 行 1 レコード（追記型 stream out 前提）。
-- `\t` 区切りの key=value 形式。
+- 1 レコードは `key\tvalue` の複数行で構成する。
+- 同一レコード内のキーは **ASCII 昇順で固定**（diff 安定化のため）。
+- 同名キー禁止。
+- 文字列は `\t`, `\n`, `\\` のみエスケープする。
 - 整数値のみ（小数なし）。
 - 時間は ms 単位の tick 集計値。
 - `dirty` は `|` 区切り集合（重複なし）。
+
+バージョンキー:
+- `format_version`: ランナー実装の出力形式バージョン。
+- `schema_version`: snap キー意味論のバージョン。
+- `scenario_version`: テスト作成者が管理するシナリオバージョン。
+
+Node 識別子:
+- 比較主キーは `node` (= `test-id`) を使用する。
+- `test-id` 明示指定を推奨。
+- 未指定時は自動IDを生成して `WARN`（ローカル向け）。CI strict では未指定を `FAIL` 扱いにできる。
 
 ## API Sketch
 
@@ -172,6 +199,8 @@ CI では `capture_dir` に workspace パスを明示的に渡し、artifact と
 ### CI Failure Policy (v1)
 
 - `FAIL`:
+  - `format_version` がランナー非対応
+  - `schema_version` 不一致
   - bounds/value の差分が許容外
   - dirty flags が期待に反する
   - timing が許容幅を継続超過
@@ -180,6 +209,7 @@ CI では `capture_dir` に workspace パスを明示的に渡し、artifact と
   - platform capability 不足
 - `PASS`:
   - 上記に該当せず、比較対象との差分が許容内
+- `scenario_version` 不一致は golden 更新要求として扱う（運用ポリシーで FAIL/保留を選択）。
 
 ## Alignment with Existing Design
 
