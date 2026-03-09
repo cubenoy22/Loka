@@ -33,6 +33,10 @@ namespace loka
     public:
       static bool appendRecord(const char *path, const SnapRecord &record);
       static bool appendRecordWithMaxBytes(const char *path, const SnapRecord &record, long maxTotalBytes);
+      static bool appendRecordWithLimits(const char *path,
+                                         const SnapRecord &record,
+                                         long maxTotalBytes,
+                                         long maxRecords);
     };
 
     class SnapTestConfig

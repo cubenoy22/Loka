@@ -252,9 +252,9 @@ Implemented:
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
 - `max_total_bytes` enforcement on append.
+- `max_files` enforcement per snap file (keep latest N records).
 
 Not yet implemented:
-- `max_files` pruning policy.
 - Golden update policy automation.
 - Strict CI defaults and thresholds.
 
@@ -285,4 +285,3 @@ Deferred for v0.0.2+:
 - default timing thresholds
 - golden update policy
 - strict CI defaults
-- `max_files` pruning behavior

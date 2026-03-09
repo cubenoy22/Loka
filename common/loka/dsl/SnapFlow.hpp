@@ -57,9 +57,12 @@ namespace loka
         SnapTestConfig::Settings settings;
         const bool hasConfig = SnapTestConfig::load(configPath_.c_str(), settings);
         bool writeOk = false;
-        if (hasConfig && settings.hasMaxTotalBytes)
+        if (hasConfig && (settings.hasMaxTotalBytes || settings.hasMaxFiles))
         {
-          writeOk = SnapFileWriter::appendRecordWithMaxBytes(outputPath.c_str(), out, settings.maxTotalBytes);
+          writeOk = SnapFileWriter::appendRecordWithLimits(outputPath.c_str(),
+                                                           out,
+                                                           settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
+                                                           settings.hasMaxFiles ? settings.maxFiles : 0);
         }
         else
         {

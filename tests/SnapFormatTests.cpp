@@ -283,6 +283,58 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *cfgPath = "LokaTest-max-files.cfg";
+    const char *captureDir = "snap_capture_max_files_dir";
+    const char *path = "snap_cfg_max_files.tmp";
+    const int inputForMaxFiles = 0;
+
+    {
+      std::ofstream cfg(cfgPath, std::ios::binary);
+      cfg << "capture_dir = " << captureDir << "\n";
+      cfg << "max_files = 1\n";
+    }
+
+    (void)createDirectoryIfMissing(captureDir);
+
+    {
+      loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+          loka::dsl::Flow()
+          | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "first", "NodeA", 1, 2)).input(&inputForMaxFiles)
+          | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(path, true, 0, cfgPath));
+      assert(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    }
+
+    {
+      loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+          loka::dsl::Flow()
+          | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "second", "NodeA", 2, 2)).input(&inputForMaxFiles)
+          | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(path, true, 0, cfgPath));
+      assert(chain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    }
+
+    const std::string outputPath = std::string(captureDir) + "/" + path;
+    std::ifstream ifs(outputPath.c_str(), std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("step\tsecond\n") != std::string::npos);
+    assert(content.find("step\tfirst\n") == std::string::npos);
+
+    std::remove(outputPath.c_str());
+    std::remove(cfgPath);
+#if defined(_WIN32)
+    _rmdir(captureDir);
+#else
+    rmdir(captureDir);
+#endif
+  }
+
+  {
     const char *builderPath = "snap_flow_builder.tmp";
     const int inputForBuilder = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =

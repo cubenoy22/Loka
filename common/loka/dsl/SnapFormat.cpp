@@ -164,25 +164,67 @@ namespace loka
         return base + "/" + leaf;
       }
 
-      static long fileSize(const char *path)
+      static bool readFile(const char *path, std::string &out)
       {
+        out.clear();
         if (!path || !*path)
         {
-          return -1;
+          return false;
         }
         FILE *fp = std::fopen(path, "rb");
         if (!fp)
         {
-          return 0;
+          return true;
         }
-        if (std::fseek(fp, 0, SEEK_END) != 0)
+
+        char buf[1024];
+        size_t n = 0;
+        while ((n = std::fread(buf, 1, sizeof(buf), fp)) > 0)
         {
-          std::fclose(fp);
-          return -1;
+          out.append(buf, n);
         }
-        const long size = std::ftell(fp);
+        const bool ok = std::ferror(fp) == 0;
         std::fclose(fp);
-        return size;
+        return ok;
+      }
+
+      static void parseRecords(const std::string &content, std::vector<std::string> &records)
+      {
+        records.clear();
+        size_t start = 0;
+        for (;;)
+        {
+          const size_t pos = content.find("\n\n", start);
+          if (pos == std::string::npos)
+          {
+            break;
+          }
+          records.push_back(content.substr(start, (pos + 2) - start));
+          start = pos + 2;
+        }
+        if (start < content.size())
+        {
+          std::string trailing = content.substr(start);
+          if (trailing[trailing.size() - 1] != '\n')
+          {
+            trailing += '\n';
+          }
+          trailing += '\n';
+          records.push_back(trailing);
+        }
+      }
+
+      static bool writeFile(const char *path, const std::string &content)
+      {
+        FILE *fp = std::fopen(path, "wb");
+        if (!fp)
+        {
+          return false;
+        }
+        const size_t written = std::fwrite(content.data(), 1, content.size(), fp);
+        const int flushResult = std::fflush(fp);
+        const int closeResult = std::fclose(fp);
+        return written == content.size() && flushResult == 0 && closeResult == 0;
       }
     } // namespace
 
@@ -299,42 +341,70 @@ namespace loka
 
     bool SnapFileWriter::appendRecord(const char *path, const SnapRecord &record)
     {
-      return appendRecordWithMaxBytes(path, record, 0);
+      return appendRecordWithLimits(path, record, 0, 0);
     }
 
     bool SnapFileWriter::appendRecordWithMaxBytes(const char *path, const SnapRecord &record, long maxTotalBytes)
+    {
+      return appendRecordWithLimits(path, record, maxTotalBytes, 0);
+    }
+
+    bool SnapFileWriter::appendRecordWithLimits(const char *path,
+                                                const SnapRecord &record,
+                                                long maxTotalBytes,
+                                                long maxRecords)
     {
       if (!path || !*path)
       {
         return false;
       }
       const std::string payload = record.serialize(true);
-      if (maxTotalBytes > 0)
+
+      if (maxTotalBytes <= 0 && maxRecords <= 0)
       {
-        const long size = fileSize(path);
-        if (size < 0)
+        FILE *fp = std::fopen(path, "ab");
+        if (!fp)
         {
           return false;
         }
-        const long payloadBytes = static_cast<long>(payload.size());
-        if (payloadBytes > maxTotalBytes)
-        {
-          return false;
-        }
-        if (size > maxTotalBytes - payloadBytes)
-        {
-          return false;
-        }
+        const size_t written = std::fwrite(payload.data(), 1, payload.size(), fp);
+        const int flushResult = std::fflush(fp);
+        const int closeResult = std::fclose(fp);
+        return written == payload.size() && flushResult == 0 && closeResult == 0;
       }
-      FILE *fp = std::fopen(path, "ab");
-      if (!fp)
+
+      std::string current;
+      if (!readFile(path, current))
       {
         return false;
       }
-      const size_t written = std::fwrite(payload.data(), 1, payload.size(), fp);
-      const int flushResult = std::fflush(fp);
-      const int closeResult = std::fclose(fp);
-      return written == payload.size() && flushResult == 0 && closeResult == 0;
+      std::vector<std::string> records;
+      parseRecords(current, records);
+      records.push_back(payload);
+
+      if (maxRecords > 0)
+      {
+        while (static_cast<long>(records.size()) > maxRecords)
+        {
+          records.erase(records.begin());
+        }
+      }
+
+      std::string out;
+      for (size_t i = 0; i < records.size(); ++i)
+      {
+        out += records[i];
+      }
+
+      if (maxTotalBytes > 0)
+      {
+        if (static_cast<long>(out.size()) > maxTotalBytes)
+        {
+          return false;
+        }
+      }
+
+      return writeFile(path, out);
     }
 
     std::string SnapTestConfig::resolveCapturePath(const char *path, const char *configPath)
