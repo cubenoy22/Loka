@@ -314,5 +314,38 @@ void testSnapFlowWriteAdapter()
     std::remove(errorPath);
   }
 
+  {
+    const char *partialPath = "snap_flow_partial.tmp";
+    const int inputForPartial = 0;
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "partial", "PartialNode", 12, 2)
+                              .status("partial")
+                              .timingFlushNa()
+                              .timingRecomposeNa()
+                              .timingLayoutNa())
+              .input(&inputForPartial)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(partialPath));
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::ifstream ifs(partialPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("status\tpartial\n") != std::string::npos);
+    assert(content.find("timing.flush_ms\tna\n") != std::string::npos);
+    assert(content.find("timing.recompose_ms\tna\n") != std::string::npos);
+    assert(content.find("timing.layout_ms\tna\n") != std::string::npos);
+    std::remove(partialPath);
+  }
+
   printf("==== [testSnapFlowWriteAdapter] end ====\n");
 }

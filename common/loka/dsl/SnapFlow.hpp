@@ -90,13 +90,22 @@ namespace loka
             status_(status ? status : "ok"),
             dirty_(),
             hasTimingFlushMs_(false),
+            hasTimingFlushNa_(false),
             hasTimingRecomposeMs_(false),
+            hasTimingRecomposeNa_(false),
             hasTimingLayoutMs_(false),
+            hasTimingLayoutNa_(false),
             timingFlushMs_(0),
             timingRecomposeMs_(0),
             timingLayoutMs_(0),
             errorCode_(),
             errorMessage_() {}
+
+      BuildSnapV1RecordAdapter &status(const char *value)
+      {
+        status_ = value ? value : "";
+        return *this;
+      }
 
       BuildSnapV1RecordAdapter &dirty(const char *value)
       {
@@ -107,21 +116,45 @@ namespace loka
       BuildSnapV1RecordAdapter &timingFlushMs(long value)
       {
         hasTimingFlushMs_ = true;
+        hasTimingFlushNa_ = false;
         timingFlushMs_ = value;
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &timingFlushNa()
+      {
+        hasTimingFlushMs_ = false;
+        hasTimingFlushNa_ = true;
         return *this;
       }
 
       BuildSnapV1RecordAdapter &timingRecomposeMs(long value)
       {
         hasTimingRecomposeMs_ = true;
+        hasTimingRecomposeNa_ = false;
         timingRecomposeMs_ = value;
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &timingRecomposeNa()
+      {
+        hasTimingRecomposeMs_ = false;
+        hasTimingRecomposeNa_ = true;
         return *this;
       }
 
       BuildSnapV1RecordAdapter &timingLayoutMs(long value)
       {
         hasTimingLayoutMs_ = true;
+        hasTimingLayoutNa_ = false;
         timingLayoutMs_ = value;
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &timingLayoutNa()
+      {
+        hasTimingLayoutMs_ = false;
+        hasTimingLayoutNa_ = true;
         return *this;
       }
 
@@ -159,13 +192,25 @@ namespace loka
         {
           out.setInt("timing.flush_ms", timingFlushMs_);
         }
+        else if (hasTimingFlushNa_)
+        {
+          out.set("timing.flush_ms", "na");
+        }
         if (hasTimingRecomposeMs_)
         {
           out.setInt("timing.recompose_ms", timingRecomposeMs_);
         }
+        else if (hasTimingRecomposeNa_)
+        {
+          out.set("timing.recompose_ms", "na");
+        }
         if (hasTimingLayoutMs_)
         {
           out.setInt("timing.layout_ms", timingLayoutMs_);
+        }
+        else if (hasTimingLayoutNa_)
+        {
+          out.set("timing.layout_ms", "na");
         }
         if (!errorCode_.empty())
         {
@@ -187,8 +232,11 @@ namespace loka
       std::string status_;
       std::string dirty_;
       bool hasTimingFlushMs_;
+      bool hasTimingFlushNa_;
       bool hasTimingRecomposeMs_;
+      bool hasTimingRecomposeNa_;
       bool hasTimingLayoutMs_;
+      bool hasTimingLayoutNa_;
       long timingFlushMs_;
       long timingRecomposeMs_;
       long timingLayoutMs_;
