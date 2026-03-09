@@ -46,6 +46,32 @@ Loka (C++98)           外部 CLI / AI
 - `.snap` ファイルが存在する場合: 今回の値を別ファイルに書き出し、diff は外部ツールが担う
 - Loka 側は「値を書くだけ」に徹し、判定ロジックを持たない
 
+#### Minimal `.snap` Schema (v1)
+
+```json
+{
+  "schema": "loka.snap.v1",
+  "test": "TextWrapRelayout",
+  "step": "after-wrap",
+  "tick": 12,
+  "node": {
+    "id": "MainText",
+    "bounds": {"x": 20, "y": 40, "width": 220, "height": 64},
+    "dirty": ["DIRTY_LAYOUT", "DIRTY_PROPS"]
+  },
+  "timing_ms": {
+    "flush": 3,
+    "recompose": 1,
+    "layout": 2
+  }
+}
+```
+
+v1 ルール:
+- 整数値のみ（小数なし）。
+- 時間は ms 単位の tick 集計値。
+- `dirty` は発生順ではなく集合（重複なし）。
+
 ## API Sketch
 
 ```cpp
@@ -114,6 +140,8 @@ Step(SET_STATIC,  SetState(staticState, 1))
 
 - 見た目/値だけでなく実行時間も回帰検知対象にする。
 - 例: `FlushTimeMs`, `RecomposeTimeMs`, `LayoutTimeMs` を `.snap` に記録し、CI で前回との差分を判定する。
+- 判定時は OS ぶれ対策として許容幅を持つ（例: `<= baseline + 2ms`）。
+- 連続 N 回中 M 回超過で FAIL とする運用を推奨（例: 5 回中 3 回超過で FAIL）。
 
 ## Capture Output Policy
 
@@ -153,6 +181,18 @@ CI では `capture_dir` に workspace パスを明示的に渡し、artifact と
   - short -> long text
   - long -> short text
   - resize + text update
+
+### CI Failure Policy (v1)
+
+- `FAIL`:
+  - bounds/value の差分が許容外
+  - dirty flags が期待に反する
+  - timing が許容幅を継続超過
+- `SKIP`:
+  - 権限不足（global probe）
+  - platform capability 不足
+- `PASS`:
+  - 上記に該当せず、比較対象との差分が許容内
 
 ## Alignment with Existing Design
 

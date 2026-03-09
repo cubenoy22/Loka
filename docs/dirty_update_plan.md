@@ -125,6 +125,18 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
    - 出力先を `profile.txt` 単体から Flow `.snap` 集約へ移行
    - 移行完了後に `profile.txt` 既定出力を廃止（必要時のみ opt-in）
 
+### Profiling Migration Phases
+
+1. **Phase A (Dual Output)**
+   - 既存 `profile.txt` 出力を維持しつつ、同じ tick 計測を `.snap` にも書き出す。
+   - 期間中は双方の値を比較し乖離がないことを確認。
+2. **Phase B (Snap Primary)**
+   - CI 判定は `.snap` のみを正とする。
+   - `profile.txt` はローカルデバッグ用 opt-in に切り替える。
+3. **Phase C (Legacy Off by Default)**
+   - `profile.txt` の既定出力を停止。
+   - 必要時は `LokaTest.cfg` かビルドフラグで有効化する。
+
 ## Acceptance Criteria
 
 | 項目 | 期待動作 |
