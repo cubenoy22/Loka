@@ -1,0 +1,6 @@
+#ifndef LOKA_STATE_NOTIFY_TESTS_HPP
+#define LOKA_STATE_NOTIFY_TESTS_HPP
+
+void testStateNotify();
+
+#endif // LOKA_STATE_NOTIFY_TESTS_HPP

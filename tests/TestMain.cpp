@@ -1,10 +1,12 @@
 #include "SceneTests.hpp"
+#include "StateNotifyTests.hpp"
 #include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
 #include "Tests.hpp"
 
 int main()
 {
+  testStateNotify();
   testDependencyPropagationCases();
   testTrackerPropagation();
   testDeferredSideEffect();
