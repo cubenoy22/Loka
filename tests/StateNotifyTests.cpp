@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <vector>
 #include "loka/core/State.hpp"
+#include "loka/dsl/NextTickTracker.hpp"
 
 // ============================================================
 // Helpers
@@ -347,6 +348,22 @@ void testStateNotify()
     s.set(1);
     assert(ctx.primaryCalls == 1);
     assert(ctx.siblingCalls == 0);
+  }
+
+  // --- NextTickTracker: delay accumulation keeps earliest request (min wins) ---
+  {
+    loka::dsl::NextTickTracker tracker;
+    assert(!tracker.hasPendingRequest());
+
+    tracker.request(1000);
+    assert(tracker.hasPendingRequest());
+    assert(tracker.pendingDelayMs() == 1000UL);
+
+    tracker.request(0);
+    assert(tracker.pendingDelayMs() == 0UL);
+
+    tracker.request(250);
+    assert(tracker.pendingDelayMs() == 0UL);
   }
 
   printf("==== [testStateNotify] end ====\n");

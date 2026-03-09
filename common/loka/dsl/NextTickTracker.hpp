@@ -16,8 +16,14 @@ namespace loka
 
       void request(unsigned long delayMs = 0)
       {
-        requested_ = true;
-        if (delayMs > pendingDelayMs_)
+        if (!requested_)
+        {
+          requested_ = true;
+          pendingDelayMs_ = delayMs;
+          return;
+        }
+        // Keep the earliest requested execution time.
+        if (delayMs < pendingDelayMs_)
         {
           pendingDelayMs_ = delayMs;
         }

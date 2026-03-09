@@ -10,7 +10,6 @@
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/StaticComposition.hpp"
-#include "app/scene/node/StaticComposition.hpp"
 #include "app/scene/node/DynamicComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
