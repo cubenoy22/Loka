@@ -488,7 +488,7 @@ void testNodeCompositionShowIf()
   show.set(true, true);
 
   NodeComposition composition;
-  BoxDefinition root = composition.declare(Box());
+  BoxDefinition &root = composition.declare(Box());
   ButtonDefinition trueButton = Button("Shown");
   TextDefinition falseText = Text("Hidden");
   root << composition.showIf(show, trueButton, falseText);
