@@ -464,6 +464,35 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *errorAutoPath = "snap_flow_error_auto.tmp";
+    const int inputForErrorAuto = 0;
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "error-auto", "ErrorNode", 13, 2)
+                              .snapFlowError(loka::dsl::FLOW_ERROR_SNAP_LIMIT_EXCEEDED))
+              .input(&inputForErrorAuto)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorAutoPath));
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::ifstream ifs(errorAutoPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("status\terror\n") != std::string::npos);
+    assert(content.find("error_code\tSNAP_LIMIT_EXCEEDED\n") != std::string::npos);
+    assert(content.find("error_msg\tsnap write exceeds configured limits\n") != std::string::npos);
+    std::remove(errorAutoPath);
+  }
+
+  {
     const char *partialPath = "snap_flow_partial.tmp";
     const int inputForPartial = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =

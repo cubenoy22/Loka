@@ -23,6 +23,44 @@ namespace loka
       FLOW_ERROR_SNAP_IO_ERROR = 5
     };
 
+    inline const char *snapFlowErrorCodeString(int code)
+    {
+      switch (code)
+      {
+      case FLOW_ERROR_SNAP_MISSING_REQUIRED_KEY:
+        return "SNAP_MISSING_REQUIRED_KEY";
+      case FLOW_ERROR_SNAP_WRITE_FAILED:
+        return "SNAP_WRITE_FAILED";
+      case FLOW_ERROR_SNAP_LIMIT_EXCEEDED:
+        return "SNAP_LIMIT_EXCEEDED";
+      case FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH:
+        return "SNAP_INVALID_OUTPUT_PATH";
+      case FLOW_ERROR_SNAP_IO_ERROR:
+        return "SNAP_IO_ERROR";
+      default:
+        return "SNAP_UNKNOWN_ERROR";
+      }
+    }
+
+    inline const char *snapFlowErrorMessage(int code)
+    {
+      switch (code)
+      {
+      case FLOW_ERROR_SNAP_MISSING_REQUIRED_KEY:
+        return "required snap key is missing";
+      case FLOW_ERROR_SNAP_WRITE_FAILED:
+        return "snap write failed";
+      case FLOW_ERROR_SNAP_LIMIT_EXCEEDED:
+        return "snap write exceeds configured limits";
+      case FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH:
+        return "snap output path is invalid";
+      case FLOW_ERROR_SNAP_IO_ERROR:
+        return "snap I/O operation failed";
+      default:
+        return "unknown snap error";
+      }
+    }
+
     class SnapWriteAdapter
     {
     public:
@@ -196,6 +234,14 @@ namespace loka
       BuildSnapV1RecordAdapter &errorMessage(const char *value)
       {
         errorMessage_ = value ? value : "";
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &snapFlowError(int code)
+      {
+        this->status("error");
+        this->errorCode(snapFlowErrorCodeString(code));
+        this->errorMessage(snapFlowErrorMessage(code));
         return *this;
       }
 
