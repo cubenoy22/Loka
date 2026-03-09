@@ -156,6 +156,7 @@ Step(SET_STATIC,  SetState(staticState, 1))
 - 例: `FlushTimeMs`, `RecomposeTimeMs`, `LayoutTimeMs` を `.snap` に記録し、CI で前回との差分を判定する。
 - 判定時は OS ぶれ対策として許容幅を持つ（例: `<= baseline + 2ms`）。
 - 連続 N 回中 M 回超過で FAIL とする運用を推奨（例: 5 回中 3 回超過で FAIL）。
+- 68k/Toolbox は jitter が小さいため、v1 では単純閾値（1 回でも超過で FAIL）でもよい。
 
 ## Capture Output Policy
 
