@@ -78,6 +78,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 set(LOKA_MACOS_TEST_SOURCES
+  ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
