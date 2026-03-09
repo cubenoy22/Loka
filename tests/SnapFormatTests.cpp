@@ -249,6 +249,40 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *cfgPath = "LokaTest-limit.cfg";
+    const char *captureDir = "snap_capture_limit_dir";
+    const char *limitedPath = "snap_cfg_limit.tmp";
+
+    {
+      std::ofstream cfg(cfgPath, std::ios::binary);
+      cfg << "capture_dir = " << captureDir << "\n";
+      cfg << "max_total_bytes = 10\n";
+    }
+
+    (void)createDirectoryIfMissing(captureDir);
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(limitedPath, true, 0, cfgPath));
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_FAILED);
+
+    const std::string expectedOutput = std::string(captureDir) + "/" + limitedPath;
+    std::ifstream ifs(expectedOutput.c_str(), std::ios::binary);
+    assert(!ifs.good());
+
+    std::remove(expectedOutput.c_str());
+    std::remove(cfgPath);
+#if defined(_WIN32)
+    _rmdir(captureDir);
+#else
+    rmdir(captureDir);
+#endif
+  }
+
+  {
     const char *builderPath = "snap_flow_builder.tmp";
     const int inputForBuilder = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =

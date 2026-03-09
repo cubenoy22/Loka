@@ -54,7 +54,18 @@ namespace loka
           }
         }
         const std::string outputPath = SnapTestConfig::resolveCapturePath(path_.c_str(), configPath_.c_str());
-        if (!SnapFileWriter::appendRecord(outputPath.c_str(), out))
+        SnapTestConfig::Settings settings;
+        const bool hasConfig = SnapTestConfig::load(configPath_.c_str(), settings);
+        bool writeOk = false;
+        if (hasConfig && settings.hasMaxTotalBytes)
+        {
+          writeOk = SnapFileWriter::appendRecordWithMaxBytes(outputPath.c_str(), out, settings.maxTotalBytes);
+        }
+        else
+        {
+          writeOk = SnapFileWriter::appendRecord(outputPath.c_str(), out);
+        }
+        if (!writeOk)
         {
           error.kind = FLOW_ERROR_KIND_SNAP;
           error.code = FLOW_ERROR_SNAP_WRITE_FAILED;

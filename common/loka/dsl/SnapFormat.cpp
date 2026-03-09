@@ -163,6 +163,27 @@ namespace loka
         }
         return base + "/" + leaf;
       }
+
+      static long fileSize(const char *path)
+      {
+        if (!path || !*path)
+        {
+          return -1;
+        }
+        FILE *fp = std::fopen(path, "rb");
+        if (!fp)
+        {
+          return 0;
+        }
+        if (std::fseek(fp, 0, SEEK_END) != 0)
+        {
+          std::fclose(fp);
+          return -1;
+        }
+        const long size = std::ftell(fp);
+        std::fclose(fp);
+        return size;
+      }
     } // namespace
 
     void SnapRecord::set(const char *key, const char *value)
@@ -278,11 +299,33 @@ namespace loka
 
     bool SnapFileWriter::appendRecord(const char *path, const SnapRecord &record)
     {
+      return appendRecordWithMaxBytes(path, record, 0);
+    }
+
+    bool SnapFileWriter::appendRecordWithMaxBytes(const char *path, const SnapRecord &record, long maxTotalBytes)
+    {
       if (!path || !*path)
       {
         return false;
       }
       const std::string payload = record.serialize(true);
+      if (maxTotalBytes > 0)
+      {
+        const long size = fileSize(path);
+        if (size < 0)
+        {
+          return false;
+        }
+        const long payloadBytes = static_cast<long>(payload.size());
+        if (payloadBytes > maxTotalBytes)
+        {
+          return false;
+        }
+        if (size > maxTotalBytes - payloadBytes)
+        {
+          return false;
+        }
+      }
       FILE *fp = std::fopen(path, "ab");
       if (!fp)
       {
