@@ -1,0 +1,143 @@
+# Dirty Update / Boundary Update Plan (Draft v5)
+
+## Goal
+
+- macOS で `Text` の行数変化が反映されないケースを解消する
+- Toolbox の再描画漏れを構造的に潰し、描画パスを一本化する
+- `UpdateRgn`/invalidate の重複発行を抑え、次サイクル一括更新へ寄せる
+- 各所の「その場しのぎ」な遅延更新ロジックを一掃し、設計を一本化する
+
+## Core Design (2-layer Responsibility)
+
+責務を2層に分け、「何が dirty か」と「いつ・どうまとめて実行するか」を分離する。
+> 注: この2層は概念的な分離。実装では既存の Boundary クラス階層 (StaticComposition / DynamicComposition) と NextTickTracker に統合する。
+
+### Layer 1: Node / NativeContext (What is dirty?)
+
+- 責務: プロパティ変更を検知し、dirty の種別を判定して Boundary へ報告する
+- 既存の `NodeDirtyFlags` をそのまま使用（新フラグ定義は不要）:
+  - `NODE_DIRTY_PROPS`: 色・描画のみの変化
+  - `NODE_DIRTY_LAYOUT`: サイズ・配置への影響あり
+  - `NODE_DIRTY_CHILD`: 子ノード構造の変化
+- **Node/NativeContext はタイマーや遅延処理を持たない**。dirty の種別判定に専念する。
+
+### Layer 2: Boundary + NextTickTracker (When & How to execute?)
+
+この層が「実行タイミングの裁量」と「一括実行」の両方を担う。
+
+#### Boundary (Policy)
+
+既存の StaticComposition / DynamicComposition クラスがポリシーを体現する：
+
+| 既存クラス | ポリシー | 動作 |
+|---|---|---|
+| `StaticCompositionBoundaryNodeBase` | STATIC | 即時反映が原則。`flushViewDirty()` をその場で実行し OS API を叩く。 |
+| `DynamicCompositionBoundaryNodeBase` | DYNAMIC | 遅延反映。`NextTickTracker` に Boundary 単位で Dirty を登録する。 |
+
+#### NextTickTracker (Batch Execution)
+
+- 責務: `DYNAMIC` な Dirty を溜め、OS イベントループの隙間で一括実行する
+- 現状の `RefreshLoop` を**置き換える**。Timer 用途にも使えるよう汎用的に設計する。
+- 実行順序: `RECOMPOSE (CHILD)` → `RELAYOUT (LAYOUT)` → `APPLY (PROPS)` → `INVALIDATE (Region Union)`
+- **スコープ: Window 単位**（Loka はマルチウィンドウをサポートするため）。`App` が全 Window の NextTickTracker を一括 pump できるインターフェースを持つ。これにより OS のウィンドウ更新イベント（`WM_PAINT`、`NSView` 再描画）と同期しやすくなる。
+- v1 スコープでは payload 拡張は行わず、遅延制御は `delayMs` のみを扱う（必要最小限）。
+
+**STATIC 例外ルール（安全性）:**
+- `STATIC` は即時反映を原則とする。
+- ただし、同期実行で再入/破棄リスクがある更新は安全性優先で deferred を許可する。
+  - 例: macOS の `MacTextContext` — text wrap relayout 中に同期 relayout を呼ぶと再入するため、NextTickTracker 経由の deferred に移行する（現行 `NSTimer(0)` の置換先）。
+- deferred 例外は platform ごとに明示し、常用しない。
+
+**delay 仕様:**
+- `delayMs == 0`: 次の OS イベントループ tick での実行を**保証**する
+- `delayMs > 0`: best-effort（プラットフォーム依存、例: 1000ms 指定でも OS の都合で前後する）
+
+> 現状の `Scene::invalidate()` は `request()` の直後に `run()` を同期呼び出しており、真の「次サイクル遅延」になっていない。NextTickTracker への置き換えでこれを是正する。
+
+## Cleanup & Consolidation (Removing Ad-hoc Logic)
+
+### 1. StaticComposition の UPDATE 遮断バグ修正
+
+- **問題**: `StaticCompositionBoundaryNodeBase::composeWithContext()` が `COMPOSE_EVENT_UPDATE` を無条件に捨てており、Static Boundary の下にある Dynamic Boundary に UPDATE が届かない。
+- **修正**: UPDATE イベントを子ノードへ必ず伝播させる。Static Boundary 自身は recompose しないが、子への伝播は行う。
+
+```
+// 現状: UPDATE も DETACH 以外は全て return
+if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
+
+// 修正後: UPDATE は子へ伝播、ATTACH 時のみ自身が compose
+```
+
+### 2. Scene::refreshLoop_ の廃止
+
+- 理由: `RefreshLoop` は同期実行のため「次サイクル遅延」の意味を成していない。`NextTickTracker` に置き換えることで真の遅延実行を実現する。
+- 変更: `Scene::invalidate()` は `NextTickTracker::request()` を呼ぶだけにし、flush は OS イベントループ側から呼ばれる。
+
+### 3. 実行順序の厳格化
+
+- `PushStateTracker` (Micro-tick: データ整合) → `NextTickTracker` (Main-tick: 描画反映) の順序を保証する。
+- 同一 OS イベント内での重複描画を物理的に防ぐ。
+
+## Design Discussion (Arena & Lifecycle)
+
+`RECOMPOSE` 時のメモリとポインタの安全性についての検討が必要。
+
+- **問題**: `DynamicComposition` で `RECOMPOSE` が走ると `nodeArena()->clear()` が呼ばれ、Node インスタンスが破棄される。
+- **リスク**: プラットフォーム側の `NativeContext` が古い Node ポインタを保持している場合、`flush` 時にクラッシュする可能性がある。
+- **採用方針**: 案 A — `RECOMPOSE` 前に必ず NativeContext を明示的に破棄（Detach）する。
+
+## Platform Notes
+
+### macOS
+
+- `NSTimer(0)` による個別の遅延処理（`MacTextContext::requestRelayoutIfNeeded`）を全廃し、`NextTickTracker` に統合。
+- `setNeedsDisplayInRect:` を発行する代わりに、`NextTickTracker` が算出した統合 Region を 1 回で通知。
+
+### Toolbox (Classic Mac)
+
+- **Flush タイミング**: `WaitNextEvent` を呼ぶ**直前**に `NextTickTracker::flush()` を実行。
+- これにより、ユーザー操作に対する体感レスポンスを最大化し、描画漏れをゼロにする。
+- `STATIC` Policy を活用し、メニューのハイライトなど即時性が求められる UI の応答性を維持。
+
+**既知の未解決課題（公開前に対処が必要）:**
+- **ZStack hit test**: Toolbox は z-order を OS でサポートしないため、hit test をノードツリーの逆順走査で自前実装する必要がある。ZStack の入れ子が深い場合の正確性と性能が課題。
+- **テキスト高さの 2 パス問題**: `wrap != none` の Text は、レイアウト時点では行数が確定しないため「レイアウト → 描画 → 高さ確定 → 再レイアウト要求」の 2 パスが必要。NextTickTracker の次 tick 遅延で再レイアウトを投げる経路が確立されると解決できる見込み（macOS と共通の仕組み）。
+
+### Win32
+
+- `InvalidateRect` の乱発による Flicker を抑制。
+- `WM_SIZE` 等の OS 起点イベントも `NODE_DIRTY_LAYOUT` として Tracker 経由で処理。
+
+## Migration Steps
+
+1. `StaticCompositionBoundaryNodeBase::composeWithContext()` の UPDATE 伝播修正（独立バグ修正、即着手可能）
+2. `NextTickTracker` インターフェースの設計と `RefreshLoop` の置き換え
+3. `Boundary` (StaticComposition / DynamicComposition) に `NextTickTracker` との接続口を追加
+4. `NativeContext` 各実装で、タイマー管理を `NextTickTracker::request()` 呼び出しに置換
+5. macOS / Toolbox / Win32 のメインループへ `NextTickTracker::flush()` を組み込み
+
+## Acceptance Criteria
+
+| 項目 | 期待動作 |
+|---|---|
+| STATIC Boundary 下の変化 | 同一サイクル内に反映される |
+| DYNAMIC Boundary 下の変化 | 次 tick に反映される（同一 tick での重複実行なし） |
+| UpdateRgn / InvalidateRect | 同一 tick 内で 1 回に統合して発行される |
+| macOS: Text wrap 行数変化 | テキスト変更後の次 tick で正しくリレイアウトされる |
+| Toolbox: 再描画漏れ | `WaitNextEvent` 前の flush により漏れゼロ |
+
+## Test Plan
+
+### 必須 100% カバレッジ経路
+
+以下の経路はすべてのコードパスをテストで通過させること（行/分岐の % 目標は設けない）:
+
+- **Merge 規則**: `NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS` の OR 蓄積が正しく機能する
+- **Flush 順序**: RECOMPOSE → RELAYOUT → APPLY → INVALIDATE の順が崩れないこと
+- **再入防止**: flush 中に新たな dirty が発生しても、現サイクルには混入せず次 tick に回ること
+
+### 検証方法
+
+- `TraceSink` を導入し、`markDirty → flushBegin → applyPaint` の順序を時系列で記録・検証。
+- `flushNow()` を用いて、遅延反映が期待通りに（かつ 1 回に集約されて）実行されるかを単体テスト。
+- macOS Text wrap と Toolbox redraw の再現ケースを回帰テストとして追加する。
