@@ -118,6 +118,68 @@ namespace loka
         return token && token->alive;
       }
 
+      // Handler and handler lists shared by all State specializations.
+      // deferredHandlers is mutable to allow registration from const deferBind.
+      struct Handler
+      {
+        OnChangeFn cb;
+        void *userData;
+        bool callOnce;
+        int priority;
+        bool operator==(const Handler &other) const
+        {
+          return cb == other.cb && userData == other.userData;
+        }
+      };
+      std::vector<Handler> handlers;
+      mutable std::vector<Handler> deferredHandlers;
+
+      // Shared notification loop used by all State specializations.
+      // - Snapshots both lists before iterating so bind/unbind or self-deletion
+      //   inside a callback does not corrupt the loop.
+      // - Skips any handler that was dynamically unbound by a sibling callback.
+      void notifyHandlers()
+      {
+        LifetimeToken *token = retainNotifyToken();
+        std::vector<Handler> snapshot = handlers;
+        for (size_t i = 0; i < snapshot.size(); ++i)
+        {
+          const Handler &h = snapshot[i];
+          bool bound = false;
+          for (size_t j = 0; j < handlers.size(); ++j)
+            if (handlers[j] == h) { bound = true; break; }
+          if (!bound)
+            continue;
+          if (h.callOnce)
+            unbind(h.cb, h.userData);
+          if (h.cb)
+            h.cb(h.userData);
+          if (!isNotifyTokenAlive(token))
+          {
+            releaseNotifyToken(token);
+            return;
+          }
+        }
+        std::vector<Handler> snapshotDeferred = deferredHandlers;
+        for (size_t i = 0; i < snapshotDeferred.size(); ++i)
+        {
+          const Handler &h = snapshotDeferred[i];
+          bool bound = false;
+          for (size_t j = 0; j < deferredHandlers.size(); ++j)
+            if (deferredHandlers[j] == h) { bound = true; break; }
+          if (!bound)
+            continue;
+          if (h.cb)
+            h.cb(h.userData);
+          if (!isNotifyTokenAlive(token))
+          {
+            releaseNotifyToken(token);
+            return;
+          }
+        }
+        releaseNotifyToken(token);
+      }
+
       friend class PushStateTracker;
       StateTracker *currentTracker;
       bool arenaAllocated_;
@@ -144,11 +206,11 @@ namespace loka
       virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
       {
         Handler h = {cb, userData, callOnce, priority};
-        typename std::vector<Handler>::iterator it = handlers.begin();
-        for (; it != handlers.end(); ++it)
+        typename std::vector<Handler>::iterator it = this->handlers.begin();
+        for (; it != this->handlers.end(); ++it)
           if (priority > it->priority)
             break;
-        handlers.insert(it, h);
+        this->handlers.insert(it, h);
         if (callImmediately && cb)
         {
           cb(userData);
@@ -159,11 +221,11 @@ namespace loka
       virtual void unbind(OnChangeFn cb, void *userData)
       {
         Handler target = {cb, userData, false, 0};
-        for (size_t i = 0; i < handlers.size(); ++i)
+        for (size_t i = 0; i < this->handlers.size(); ++i)
         {
-          if (handlers[i] == target)
+          if (this->handlers[i] == target)
           {
-            handlers.erase(handlers.begin() + i);
+            this->handlers.erase(this->handlers.begin() + i);
             break;
           }
         }
@@ -171,22 +233,20 @@ namespace loka
       virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
       {
         Handler h = {cb, userData, false, priority};
-        std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
-        typename std::vector<Handler>::iterator it = ref.begin();
-        for (; it != ref.end(); ++it)
+        typename std::vector<Handler>::iterator it = this->deferredHandlers.begin();
+        for (; it != this->deferredHandlers.end(); ++it)
           if (priority > it->priority)
             break;
-        ref.insert(it, h);
+        this->deferredHandlers.insert(it, h);
       }
       virtual void deferUnbind(OnChangeFn cb, void *userData) const
       {
         Handler target = {cb, userData, false, 0};
-        std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
-        for (size_t i = 0; i < ref.size(); ++i)
+        for (size_t i = 0; i < this->deferredHandlers.size(); ++i)
         {
-          if (ref[i] == target)
+          if (this->deferredHandlers[i] == target)
           {
-            ref.erase(ref.begin() + i);
+            this->deferredHandlers.erase(this->deferredHandlers.begin() + i);
             break;
           }
         }
@@ -204,17 +264,7 @@ namespace loka
       }
 
     protected:
-      struct Handler
-      {
-        OnChangeFn cb;
-        void *userData;
-        bool callOnce;
-        int priority;
-        bool operator==(const Handler &other) const
-        {
-          return cb == other.cb && userData == other.userData;
-        }
-      };
+      typedef StateBase::Handler Handler;
 
       virtual void set(const T &v)
       {
@@ -226,84 +276,11 @@ namespace loka
       }
       virtual void setValue(const T &v) { set(v); }
       // setValue(const ValueHolderBase&) removed as no longer needed
-      // Notify
-      void notifyStateChanged()
-      {
-        StateBase::LifetimeToken *token = this->retainNotifyToken();
-        std::vector<Handler> snapshotHandlers = handlers;
-        for (size_t i = 0; i < snapshotHandlers.size(); ++i)
-        {
-          Handler handler = snapshotHandlers[i];
-          if (!isHandlerBound(handler))
-          {
-            continue;
-          }
-          if (handler.callOnce)
-          {
-            unbind(handler.cb, handler.userData);
-          }
-          if (handler.cb)
-          {
-            handler.cb(handler.userData);
-          }
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
-            return;
-          }
-        }
+      void notifyStateChanged() { notifyHandlers(); }
 
-        std::vector<Handler> snapshotDeferredHandlers = deferredHandlers;
-        for (size_t i = 0; i < snapshotDeferredHandlers.size(); ++i)
-        {
-          Handler handler = snapshotDeferredHandlers[i];
-          if (!isDeferredHandlerBound(handler))
-          {
-            continue;
-          }
-          if (handler.cb)
-          {
-            handler.cb(handler.userData);
-          }
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
-            return;
-          }
-        }
-        StateBase::releaseNotifyToken(token);
-      }
-
-    protected:
-      std::vector<Handler> handlers;
-      std::vector<Handler> deferredHandlers;
       T value;
 
     private:
-      bool isHandlerBound(const Handler &handler) const
-      {
-        for (size_t i = 0; i < handlers.size(); ++i)
-        {
-          if (handlers[i] == handler)
-          {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      bool isDeferredHandlerBound(const Handler &handler) const
-      {
-        for (size_t i = 0; i < deferredHandlers.size(); ++i)
-        {
-          if (deferredHandlers[i] == handler)
-          {
-            return true;
-          }
-        }
-        return false;
-      }
-
       struct OldNewCtx
       {
         T lastValue;
@@ -366,114 +343,28 @@ namespace loka
       virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
       {
         Handler h = {cb, userData, false, priority};
-        std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
-        std::vector<Handler>::iterator it = ref.begin();
-        for (; it != ref.end(); ++it)
+        std::vector<Handler>::iterator it = deferredHandlers.begin();
+        for (; it != deferredHandlers.end(); ++it)
           if (priority > it->priority)
             break;
-        ref.insert(it, h);
+        deferredHandlers.insert(it, h);
       }
       virtual void deferUnbind(OnChangeFn cb, void *userData) const
       {
         Handler target = {cb, userData, false, 0};
-        std::vector<Handler> &ref = const_cast<std::vector<Handler> &>(deferredHandlers);
-        for (size_t i = 0; i < ref.size(); ++i)
+        for (size_t i = 0; i < deferredHandlers.size(); ++i)
         {
-          if (ref[i] == target)
+          if (deferredHandlers[i] == target)
           {
-            ref.erase(ref.begin() + i);
+            deferredHandlers.erase(deferredHandlers.begin() + i);
             break;
           }
         }
       }
 
     protected:
-      struct Handler
-      {
-        OnChangeFn cb;
-        void *userData;
-        bool callOnce;
-        int priority;
-        bool operator==(const Handler &other) const
-        {
-          return cb == other.cb && userData == other.userData;
-        }
-      };
-
       // Event notification API - Used by derived classes like EmitterState
-      void notifyStateChanged()
-      {
-        StateBase::LifetimeToken *token = this->retainNotifyToken();
-        std::vector<Handler> snapshotHandlers = handlers;
-        for (size_t i = 0; i < snapshotHandlers.size(); ++i)
-        {
-          Handler handler = snapshotHandlers[i];
-          if (!isHandlerBound(handler))
-          {
-            continue;
-          }
-          if (handler.callOnce)
-          {
-            unbind(handler.cb, handler.userData);
-          }
-          if (handler.cb)
-          {
-            handler.cb(handler.userData);
-          }
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
-            return;
-          }
-        }
-
-        std::vector<Handler> snapshotDeferredHandlers = deferredHandlers;
-        for (size_t i = 0; i < snapshotDeferredHandlers.size(); ++i)
-        {
-          Handler handler = snapshotDeferredHandlers[i];
-          if (!isDeferredHandlerBound(handler))
-          {
-            continue;
-          }
-          if (handler.cb)
-          {
-            handler.cb(handler.userData);
-          }
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
-            return;
-          }
-        }
-        StateBase::releaseNotifyToken(token);
-      }
-
-      bool isHandlerBound(const Handler &handler) const
-      {
-        for (size_t i = 0; i < handlers.size(); ++i)
-        {
-          if (handlers[i] == handler)
-          {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      bool isDeferredHandlerBound(const Handler &handler) const
-      {
-        for (size_t i = 0; i < deferredHandlers.size(); ++i)
-        {
-          if (deferredHandlers[i] == handler)
-          {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      std::vector<Handler> handlers;
-      std::vector<Handler> deferredHandlers;
+      void notifyStateChanged() { notifyHandlers(); }
     };
 
     // --- EmitterState: Pure event State without value ---
