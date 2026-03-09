@@ -17,6 +17,23 @@
 
 namespace
 {
+  struct SnapFlowErrorCapture
+  {
+    int kind;
+    int code;
+  };
+
+  static loka::dsl::FlowHandleResult captureSnapFlowError(const loka::dsl::FlowError &error, void *user)
+  {
+    SnapFlowErrorCapture *capture = static_cast<SnapFlowErrorCapture *>(user);
+    if (capture)
+    {
+      capture->kind = error.kind;
+      capture->code = error.code;
+    }
+    return loka::dsl::FLOW_ERROR_HANDLED;
+  }
+
   static bool createDirectoryIfMissing(const char *path)
   {
     if (!path || !*path)
@@ -159,15 +176,33 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
         | loka::dsl::Step(1, BuildSnapRecordAdapter(false, true)).input(&input)
-        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(badPath));
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(badPath))
+              .onFailure(&captureSnapFlowError, &capture);
     const loka::dsl::FlowRunResult result = chain.runResult();
-    assert(result == loka::dsl::FLOW_RUN_FAILED);
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_MISSING_REQUIRED_KEY);
     std::ifstream ifs(badPath, std::ios::binary);
     assert(!ifs.good());
     std::remove(badPath);
+  }
+
+  {
+    const char *invalidPath = "";
+    SnapFlowErrorCapture capture = {0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath))
+              .onFailure(&captureSnapFlowError, &capture);
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH);
   }
 
   {
@@ -261,13 +296,17 @@ void testSnapFlowWriteAdapter()
 
     (void)createDirectoryIfMissing(captureDir);
 
+    SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
         | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
-        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(limitedPath, true, 0, cfgPath));
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(limitedPath, true, 0, cfgPath))
+              .onFailure(&captureSnapFlowError, &capture);
 
     const loka::dsl::FlowRunResult result = chain.runResult();
-    assert(result == loka::dsl::FLOW_RUN_FAILED);
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_LIMIT_EXCEEDED);
 
     const std::string expectedOutput = std::string(captureDir) + "/" + limitedPath;
     std::ifstream ifs(expectedOutput.c_str(), std::ios::binary);

@@ -17,7 +17,10 @@ namespace loka
     enum SnapFlowErrorCode
     {
       FLOW_ERROR_SNAP_MISSING_REQUIRED_KEY = 1,
-      FLOW_ERROR_SNAP_WRITE_FAILED = 2
+      FLOW_ERROR_SNAP_WRITE_FAILED = 2,
+      FLOW_ERROR_SNAP_LIMIT_EXCEEDED = 3,
+      FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH = 4,
+      FLOW_ERROR_SNAP_IO_ERROR = 5
     };
 
     class SnapWriteAdapter
@@ -56,22 +59,34 @@ namespace loka
         const std::string outputPath = SnapTestConfig::resolveCapturePath(path_.c_str(), configPath_.c_str());
         SnapTestConfig::Settings settings;
         const bool hasConfig = SnapTestConfig::load(configPath_.c_str(), settings);
-        bool writeOk = false;
+        SnapWriteStatus writeStatus = SNAP_WRITE_OK;
         if (hasConfig && (settings.hasMaxTotalBytes || settings.hasMaxFiles))
         {
-          writeOk = SnapFileWriter::appendRecordWithLimits(outputPath.c_str(),
-                                                           out,
-                                                           settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
-                                                           settings.hasMaxFiles ? settings.maxFiles : 0);
+          writeStatus = SnapFileWriter::appendRecordStatusWithLimits(outputPath.c_str(),
+                                                                     out,
+                                                                     settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
+                                                                     settings.hasMaxFiles ? settings.maxFiles : 0);
         }
         else
         {
-          writeOk = SnapFileWriter::appendRecord(outputPath.c_str(), out);
+          writeStatus = SnapFileWriter::appendRecordStatus(outputPath.c_str(), out);
         }
-        if (!writeOk)
+        if (writeStatus != SNAP_WRITE_OK)
         {
           error.kind = FLOW_ERROR_KIND_SNAP;
           error.code = FLOW_ERROR_SNAP_WRITE_FAILED;
+          if (writeStatus == SNAP_WRITE_LIMIT_EXCEEDED)
+          {
+            error.code = FLOW_ERROR_SNAP_LIMIT_EXCEEDED;
+          }
+          else if (writeStatus == SNAP_WRITE_INVALID_PATH)
+          {
+            error.code = FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH;
+          }
+          else if (writeStatus == SNAP_WRITE_IO_ERROR)
+          {
+            error.code = FLOW_ERROR_SNAP_IO_ERROR;
+          }
           return FLOW_STEP_FAILED;
         }
         return FLOW_STEP_SUCCEEDED;

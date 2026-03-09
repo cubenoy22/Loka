@@ -341,12 +341,17 @@ namespace loka
 
     bool SnapFileWriter::appendRecord(const char *path, const SnapRecord &record)
     {
-      return appendRecordWithLimits(path, record, 0, 0);
+      return appendRecordStatus(path, record) == SNAP_WRITE_OK;
+    }
+
+    SnapWriteStatus SnapFileWriter::appendRecordStatus(const char *path, const SnapRecord &record)
+    {
+      return appendRecordStatusWithLimits(path, record, 0, 0);
     }
 
     bool SnapFileWriter::appendRecordWithMaxBytes(const char *path, const SnapRecord &record, long maxTotalBytes)
     {
-      return appendRecordWithLimits(path, record, maxTotalBytes, 0);
+      return appendRecordStatusWithLimits(path, record, maxTotalBytes, 0) == SNAP_WRITE_OK;
     }
 
     bool SnapFileWriter::appendRecordWithLimits(const char *path,
@@ -354,9 +359,17 @@ namespace loka
                                                 long maxTotalBytes,
                                                 long maxRecords)
     {
+      return appendRecordStatusWithLimits(path, record, maxTotalBytes, maxRecords) == SNAP_WRITE_OK;
+    }
+
+    SnapWriteStatus SnapFileWriter::appendRecordStatusWithLimits(const char *path,
+                                                                 const SnapRecord &record,
+                                                                 long maxTotalBytes,
+                                                                 long maxRecords)
+    {
       if (!path || !*path)
       {
-        return false;
+        return SNAP_WRITE_INVALID_PATH;
       }
       const std::string payload = record.serialize(true);
 
@@ -365,18 +378,20 @@ namespace loka
         FILE *fp = std::fopen(path, "ab");
         if (!fp)
         {
-          return false;
+          return SNAP_WRITE_IO_ERROR;
         }
         const size_t written = std::fwrite(payload.data(), 1, payload.size(), fp);
         const int flushResult = std::fflush(fp);
         const int closeResult = std::fclose(fp);
-        return written == payload.size() && flushResult == 0 && closeResult == 0;
+        return (written == payload.size() && flushResult == 0 && closeResult == 0)
+                   ? SNAP_WRITE_OK
+                   : SNAP_WRITE_IO_ERROR;
       }
 
       std::string current;
       if (!readFile(path, current))
       {
-        return false;
+        return SNAP_WRITE_IO_ERROR;
       }
       std::vector<std::string> records;
       parseRecords(current, records);
@@ -400,11 +415,11 @@ namespace loka
       {
         if (static_cast<long>(out.size()) > maxTotalBytes)
         {
-          return false;
+          return SNAP_WRITE_LIMIT_EXCEEDED;
         }
       }
 
-      return writeFile(path, out);
+      return writeFile(path, out) ? SNAP_WRITE_OK : SNAP_WRITE_IO_ERROR;
     }
 
     std::string SnapTestConfig::resolveCapturePath(const char *path, const char *configPath)

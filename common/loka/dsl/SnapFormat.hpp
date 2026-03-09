@@ -8,6 +8,14 @@ namespace loka
 {
   namespace dsl
   {
+    enum SnapWriteStatus
+    {
+      SNAP_WRITE_OK = 0,
+      SNAP_WRITE_INVALID_PATH = 1,
+      SNAP_WRITE_LIMIT_EXCEEDED = 2,
+      SNAP_WRITE_IO_ERROR = 3
+    };
+
     struct SnapKeyValue
     {
       std::string key;
@@ -31,6 +39,11 @@ namespace loka
     class SnapFileWriter
     {
     public:
+      static SnapWriteStatus appendRecordStatus(const char *path, const SnapRecord &record);
+      static SnapWriteStatus appendRecordStatusWithLimits(const char *path,
+                                                          const SnapRecord &record,
+                                                          long maxTotalBytes,
+                                                          long maxRecords);
       static bool appendRecord(const char *path, const SnapRecord &record);
       static bool appendRecordWithMaxBytes(const char *path, const SnapRecord &record, long maxTotalBytes);
       static bool appendRecordWithLimits(const char *path,
