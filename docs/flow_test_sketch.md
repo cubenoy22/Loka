@@ -16,15 +16,45 @@ Flow's `Step` / `goto` / `loop` / error handling maps directly to test scenario 
 `NextTickTracker` is used as the deterministic observation boundary:
 - `update request -> next tick flush -> capture/assert`
 - Multiple updates in the same tick are treated as one flush unit.
+- `WaitNextTick()` は sleep 置換プリミティブとして扱い、待ち時間固定 (`sleep 100ms`) を禁止する。
+
+## Two-Layer Test Strategy
+
+テストは2層で構成し、Loka はデータ出力に徹する。判定はすべて外部 CLI / AI が担う。
+
+```
+Layer 1: Screenshot sequence diff (視覚的デグレ検出)
+Layer 2: .snap parameter assert  (数値的デグレ検出)
+
+Loka (C++98)           外部 CLI / AI
+────────────────       ─────────────────────────────
+スクショ連番保存   →   sequence diff → 視覚判定
+.snap 書き出し     →   diff → 数値変化検出 → PR 判定
+```
+
+### Layer 1: Screenshot Sequence
+
+- tick ごとにスクショを連番保存
+- sequence 全体を diff することで「最終状態だけでなく中間状態のデグレ」も検出できる
+- 外部 AI が「デグレか仕様変更か」を判定し PR に自動フィードバック
+
+### Layer 2: .snap Parameter Assertion
+
+- Flow 内に `Snap()` ステップを書くと、対象ノードのパラメータ（height, x, y, width など）をファイルに書き出す
+- `.snap` ファイルが存在しない場合: 新規生成して **PASS**（初回受け入れ）
+- `.snap` ファイルが存在する場合: 今回の値を別ファイルに書き出し、diff は外部ツールが担う
+- Loka 側は「値を書くだけ」に徹し、判定ロジックを持たない
 
 ## API Sketch
 
 ```cpp
+// Layer 1: スクショ + Layer 2: snap を組み合わせた例
 TestFlow(testState)
   | Step(WAIT_WINDOW, WaitFor(WindowVisible("Main")))
   | Step(UPDATE_TEXT, SetState(textState, "long long long..."))
   | Step(WAIT_TICK,   WaitNextTick())
-  | Step(CAPTURE,     CaptureScene().expect(TextHeightIncreased("MainText")))
+  | Step(SCREENSHOT,  CaptureScreen("after-wrap"))
+  | Step(SNAP,        Snap("MainText"))   // height, x, y, width を書き出す
   | onFailure(Dump(testState), ABORT);
 ```
 
@@ -38,15 +68,62 @@ if (probe.canInspectGlobalUi()) {
 }
 ```
 
+## Assertion Extensions (Quality / Performance)
+
+### A. ViewDirtyFlags Assertion
+
+見た目一致に加えて内部 dirty も検証対象にする。
+
+```cpp
+CaptureScene()
+  .expect(WasDirty(DIRTY_LAYOUT))
+  .expect(NotDirty(DIRTY_CHILD));
+```
+
+目的:
+- 見た目は同じでも毎回 `DIRTY_CHILD` (全再構築) が走る退行を検知する。
+
+### B. Static / Dynamic Policy Assertion
+
+- STATIC: `SetState()` の直後に反映されることを検証。
+- DYNAMIC: `WaitNextTick()` 前は未反映、後に反映されることを検証。
+
+```cpp
+Step(SET_STATIC,  SetState(staticState, 1))
+  | Step(ASSERT_IMMEDIATE, CaptureScene().expect(ValueEquals("StaticText", "1")))
+  | Step(SET_DYNAMIC, SetState(dynamicState, 1))
+  | Step(ASSERT_NOT_YET, CaptureScene().expect(ValueEquals("DynamicText", "0")))
+  | Step(WAIT_TICK, WaitNextTick())
+  | Step(ASSERT_AFTER_TICK, CaptureScene().expect(ValueEquals("DynamicText", "1")));
+```
+
+### C. Dump Dirty Reason Trace
+
+失敗時 `Dump()` に以下を含める:
+- dirty 発生 Boundary
+- dirty flags
+- trigger になった State ID / Name
+- tick ID
+
+これにより「なぜ汚れたか」を追跡可能にする。
+
 ## Capture Output Policy
 
-- Default output root: `./captures/` (same directory level as executable).
-- Per-run directory: `LokaTest-<locale>-<timestamp>/`.
-- File-safe timestamp format only (no `:` or `/`).
+```
+captures/
+  golden/          ← 承認済みシーケンス・snap（CI artifact または git 管理）
+  current/         ← 今回の run 出力
+  diff/            ← 差分出力（外部ツールが生成）
+```
+
+- `current/` の per-run ディレクトリ名: `LokaTest-<locale>-<timestamp>/`
+- File-safe timestamp format only (no `:` or `/`)
 - Toolbox/retro targets should enforce limits:
   - max files
   - max total bytes
   - delete oldest first when limit is exceeded
+- 68k/Retro68 では `CaptureScene` の既定をテキスト snap (Node tree + bounds) にする。
+- bitmap screenshot は明示 opt-in のみ（メモリ/ディスク制約対策）。
 
 ## Config Hook (`LokaTest.cfg`)
 
@@ -56,13 +133,13 @@ When present in the executable directory, load optional test settings:
 - `max_files`
 - `max_total_bytes`
 
-If missing, run with defaults.
+CI では `capture_dir` に workspace パスを明示的に渡し、artifact として収集する。設定がない場合はデフォルト値で動作する。
 
-## CI Considerations
+## CI Integration
 
-- CI is the primary execution environment.
-- CI jobs should set `capture_dir` to a workspace path collected as artifact.
-- Test results should separate `PASS/FAIL/SKIP` explicitly.
+- CI は主実行環境。PR ごとに `current/` と `golden/` を比較して自動判定。
+- PASS / FAIL / SKIP を明示的に分離して報告する。
+- 有料ビジュアルリグレッションサービス不要。Loka がデータを出力し、外部 CLI / AI が判定する。
 - Runtime verification for text relayout should include:
   - short -> long text
   - long -> short text
@@ -87,6 +164,7 @@ If missing, run with defaults.
 
 - Typical GUI test automation frameworks assume modern environments
 - Flow-based testing runs on the same runtime as the app itself, enabling self-tests on 68k/Classic
+- `.snap` format is plain text, readable by any external tool regardless of the host environment
 
 ## Status
 

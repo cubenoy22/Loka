@@ -115,6 +115,10 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 3. `Boundary` (StaticComposition / DynamicComposition) に `NextTickTracker` との接続口を追加
 4. `NativeContext` 各実装で、タイマー管理を `NextTickTracker::request()` 呼び出しに置換
 5. macOS / Toolbox / Win32 のメインループへ `NextTickTracker::flush()` を組み込み
+6. Flow API ベースの検証フェーズを追加し、`WaitNextTick()` を使って以下を自動検証
+   - ViewDirtyFlags (`DIRTY_LAYOUT/PROPS/CHILD`) の発生妥当性
+   - Static 即時 / Dynamic 次 tick のポリシー差
+   - Dump への dirty reason (state trigger) 記録
 
 ## Acceptance Criteria
 
