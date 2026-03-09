@@ -162,8 +162,8 @@ void testStateNotify()
     CallLogCtx lo = {&log, 0};
     CallLogCtx hi = {&log, 1};
     loka::core::EmitterState s;
-    s.bind(&logId, &lo, false, false, STATE_PRIORITY_NORMAL);
-    s.bind(&logId, &hi, false, false, STATE_PRIORITY_HIGH);
+    s.bind(&logId, &lo, false, false, loka::core::STATE_PRIORITY_NORMAL);
+    s.bind(&logId, &hi, false, false, loka::core::STATE_PRIORITY_HIGH);
     s.emit();
     assert(log.ids.size() == 2);
     assert(log.ids[0] == 1); // high fires first
