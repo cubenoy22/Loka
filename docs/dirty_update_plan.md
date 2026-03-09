@@ -141,3 +141,24 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 - `TraceSink` を導入し、`markDirty → flushBegin → applyPaint` の順序を時系列で記録・検証。
 - `flushNow()` を用いて、遅延反映が期待通りに（かつ 1 回に集約されて）実行されるかを単体テスト。
 - macOS Text wrap と Toolbox redraw の再現ケースを回帰テストとして追加する。
+
+### macOS Runtime Verification Checklist (Text wrap relayout)
+
+`build-verified` だけでなく、以下は `runtime-verified` として記録する:
+
+1. **準備**
+   - `cmake -S . -B build/Testing -DTEST_BUILD=ON`
+   - `cmake --build build/Testing`
+   - `cmake --build --preset macos-debug`
+2. **再現シナリオ**
+   - 折り返し有効 (`wrap=word` か `wrap=char`) の `Text` を含む画面を表示する。
+   - 初期表示時に 1 行に収まる短文を表示する。
+   - 同一 `State<String>` を長文へ更新して、行数が増える入力を行う。
+3. **期待結果**
+   - 更新した tick では再入クラッシュしない（同期 relayout をしない）。
+   - **次 tick で** Text の高さが再計算され、下位 UI の配置が崩れず追従する。
+   - 同一イベント中に複数回更新しても、relayout は 1 回に集約される。
+4. **回帰観点**
+   - 長文 -> 短文（行数減少）でも高さが縮む。
+   - Window resize 直後の text 更新でも反映漏れしない。
+   - `wrap=none` の Text はこの deferred relayout 経路に入らない。
