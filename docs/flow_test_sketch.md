@@ -83,7 +83,7 @@ v1 ルール:
 
 Node 識別子:
 - 比較主キーは `node` (= `test-id`) を使用する。
-- `test-id` 明示指定を推奨。
+- `.snap` 比較対象の重要ノードは `testId("...")` の明示指定を強く推奨。
 - 未指定時は自動IDを生成して `WARN`（ローカル向け）。CI strict では未指定を `FAIL` 扱いにできる。
 
 ## API Sketch
@@ -157,6 +157,7 @@ Step(SET_STATIC,  SetState(staticState, 1))
 - 判定時は OS ぶれ対策として許容幅を持つ（例: `<= baseline + 2ms`）。
 - 連続 N 回中 M 回超過で FAIL とする運用を推奨（例: 5 回中 3 回超過で FAIL）。
 - 68k/Toolbox は jitter が小さいため、v1 では単純閾値（1 回でも超過で FAIL）でもよい。
+- Retro68/Toolbox で ms 精度が取れない場合は tick (1/60s) 記録へフォールバックし、未取得値は `na` を許容する。
 
 ## Capture Output Policy
 
@@ -196,6 +197,12 @@ CI では `capture_dir` に workspace パスを明示的に渡し、artifact と
   - short -> long text
   - long -> short text
   - resize + text update
+
+### AI Review Workflow (Suggested)
+
+- PR で sequence diff と `.snap` diff を収集。
+- 外部 AI が視覚差分の要約（退行候補/仕様変更候補）を作成。
+- 人間レビューで承認した差分のみ `golden` 昇格を許可する。
 
 ### CI Failure Policy (v1)
 
