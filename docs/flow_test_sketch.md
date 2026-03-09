@@ -242,7 +242,21 @@ CI では `capture_dir` に workspace パスを明示的に渡し、artifact と
 
 ## Status
 
-Conceptual. Prepare now, implement in phases after core behavior stabilizes.
+In progress (v0.0.1 baseline partially implemented).
+
+Implemented:
+- `snap v1` serializer (flat `key\tvalue`, ASCII key sort, blank-line record separator).
+- `SnapWriteAdapter` validation for required v1 keys.
+- Snap flow builder (`SnapV1`) for common keys, dirty flags, timing metrics.
+- Error fields (`error_code`, `error_msg`) and `status=partial` with `na` timings.
+- `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
+- `capture_dir` output path resolution.
+- `max_total_bytes` enforcement on append.
+
+Not yet implemented:
+- `max_files` pruning policy.
+- Golden update policy automation.
+- Strict CI defaults and thresholds.
 
 ## v0.0.1 Fixed Decisions
 
@@ -271,3 +285,4 @@ Deferred for v0.0.2+:
 - default timing thresholds
 - golden update policy
 - strict CI defaults
+- `max_files` pruning behavior
