@@ -263,6 +263,22 @@ namespace {
         ctx->state->unbind(&StateNotifyHelpers::selfUnbind, user);
       }
     }
+
+    static void unbindSibling(void *user) {
+      StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
+      ++ctx->destroyCalls;
+      if (ctx->state) {
+        ctx->state->unbind(&StateNotifyHelpers::sibling, user);
+      }
+    }
+
+    static void unbindValueSibling(void *user) {
+      StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
+      ++ctx->destroyCalls;
+      if (ctx->valueState) {
+        ctx->valueState->unbind(&StateNotifyHelpers::sibling, user);
+      }
+    }
   };
 } // namespace
 
@@ -1296,6 +1312,23 @@ void testLokaFlowDslV1Core() {
     assert(ctx.siblingCalls == 2);
   }
 
+  // --- State<void>: unbound sibling must not run in same emit ---
+  {
+    StateNotifyDeleteCtx ctx;
+    loka::core::EmitterState state;
+    ctx.state = &state;
+    ctx.valueState = 0;
+    ctx.destroyCalls = 0;
+    ctx.siblingCalls = 0;
+
+    state.bind(&StateNotifyHelpers::unbindSibling, &ctx, false);
+    state.bind(&StateNotifyHelpers::sibling, &ctx, false);
+    state.emit();
+
+    assert(ctx.destroyCalls == 1);
+    assert(ctx.siblingCalls == 0);
+  }
+
   // --- State<T>: callback may delete mutable state safely ---
   {
     StateNotifyDeleteCtx ctx;
@@ -1309,6 +1342,23 @@ void testLokaFlowDslV1Core() {
     ctx.valueState->set(1);
 
     assert(ctx.valueState == 0);
+    assert(ctx.destroyCalls == 1);
+    assert(ctx.siblingCalls == 0);
+  }
+
+  // --- State<T>: unbound sibling must not run in same notify ---
+  {
+    StateNotifyDeleteCtx ctx;
+    loka::core::MutableState<int> valueState(0);
+    ctx.state = 0;
+    ctx.valueState = &valueState;
+    ctx.destroyCalls = 0;
+    ctx.siblingCalls = 0;
+
+    valueState.bind(&StateNotifyHelpers::unbindValueSibling, &ctx, false);
+    valueState.bind(&StateNotifyHelpers::sibling, &ctx, false);
+    valueState.set(1);
+
     assert(ctx.destroyCalls == 1);
     assert(ctx.siblingCalls == 0);
   }

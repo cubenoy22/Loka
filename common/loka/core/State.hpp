@@ -234,6 +234,10 @@ namespace loka
         for (size_t i = 0; i < snapshotHandlers.size(); ++i)
         {
           Handler handler = snapshotHandlers[i];
+          if (!isHandlerBound(handler))
+          {
+            continue;
+          }
           if (handler.callOnce)
           {
             unbind(handler.cb, handler.userData);
@@ -253,6 +257,10 @@ namespace loka
         for (size_t i = 0; i < snapshotDeferredHandlers.size(); ++i)
         {
           Handler handler = snapshotDeferredHandlers[i];
+          if (!isDeferredHandlerBound(handler))
+          {
+            continue;
+          }
           if (handler.cb)
           {
             handler.cb(handler.userData);
@@ -272,6 +280,30 @@ namespace loka
       T value;
 
     private:
+      bool isHandlerBound(const Handler &handler) const
+      {
+        for (size_t i = 0; i < handlers.size(); ++i)
+        {
+          if (handlers[i] == handler)
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      bool isDeferredHandlerBound(const Handler &handler) const
+      {
+        for (size_t i = 0; i < deferredHandlers.size(); ++i)
+        {
+          if (deferredHandlers[i] == handler)
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
       struct OldNewCtx
       {
         T lastValue;
@@ -376,6 +408,10 @@ namespace loka
         for (size_t i = 0; i < snapshotHandlers.size(); ++i)
         {
           Handler handler = snapshotHandlers[i];
+          if (!isHandlerBound(handler))
+          {
+            continue;
+          }
           if (handler.callOnce)
           {
             unbind(handler.cb, handler.userData);
@@ -395,6 +431,10 @@ namespace loka
         for (size_t i = 0; i < snapshotDeferredHandlers.size(); ++i)
         {
           Handler handler = snapshotDeferredHandlers[i];
+          if (!isDeferredHandlerBound(handler))
+          {
+            continue;
+          }
           if (handler.cb)
           {
             handler.cb(handler.userData);
@@ -406,6 +446,30 @@ namespace loka
           }
         }
         StateBase::releaseNotifyToken(token);
+      }
+
+      bool isHandlerBound(const Handler &handler) const
+      {
+        for (size_t i = 0; i < handlers.size(); ++i)
+        {
+          if (handlers[i] == handler)
+          {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      bool isDeferredHandlerBound(const Handler &handler) const
+      {
+        for (size_t i = 0; i < deferredHandlers.size(); ++i)
+        {
+          if (deferredHandlers[i] == handler)
+          {
+            return true;
+          }
+        }
+        return false;
       }
 
       std::vector<Handler> handlers;

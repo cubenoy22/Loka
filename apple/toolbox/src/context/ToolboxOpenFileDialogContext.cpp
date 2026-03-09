@@ -105,9 +105,7 @@ void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult 
   {
     resultState_->set(result, true);
   }
-  // Prefer resultState-driven flow. Emit fallback event only when no result
-  // state is wired to avoid duplicate/unstable notification paths.
-  if (onResult_ && !resultState_)
+  if (onResult_)
   {
     onResult_->emit();
   }
