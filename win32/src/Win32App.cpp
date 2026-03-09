@@ -76,6 +76,7 @@ void Win32App::run()
     }
     TranslateMessage(&msg);
     DispatchMessage(&msg);
+    this->flushWindowInvalidations();
   }
   // GetMessageが0を返したら (PostQuitMessageが呼ばれたら) ループを抜ける
   // run()メソッドが終了し、WinMainに戻る

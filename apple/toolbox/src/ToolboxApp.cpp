@@ -61,6 +61,7 @@ void ToolboxApp::run()
   running_ = true;
   while (running_)
   {
+    this->flushWindowInvalidations();
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
     // TODO: Re-enable invalidation once Classic update flow is stable.

@@ -321,6 +321,7 @@ public:
   PlatformContext *context() const { return context_; }
   loka::app::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
   SceneManager2 *sceneManager() { return &sceneManager_; }
+  bool flushSceneInvalidation();
 
   loka::core::MutableState<bool> &visibilityState() { return *visibility_; }
   loka::core::MutableState<loka::core::String> &titleState() { return *title_; }

@@ -81,6 +81,23 @@ void App::reflectInitialVisibilityChunks()
   }
 }
 
+void App::flushWindowInvalidations()
+{
+  if (!group_)
+  {
+    return;
+  }
+  const std::vector<AppComponent *> &comps = group_->getComponents();
+  for (size_t i = 0; i < comps.size(); ++i)
+  {
+    Window *win = comps[i] ? comps[i]->asWindow() : 0;
+    if (win)
+    {
+      win->flushSceneInvalidation();
+    }
+  }
+}
+
 // App::windowClosed の実装
 void App::windowClosed(Window *window)
 {

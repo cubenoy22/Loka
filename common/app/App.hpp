@@ -44,6 +44,7 @@ protected:
   void clearMenuDiff();
 
   void reflectInitialVisibilityChunks();
+  void flushWindowInvalidations();
 
 private:
   static bool MenuRefreshThunk(void *userData);
