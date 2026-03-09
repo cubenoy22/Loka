@@ -26,12 +26,16 @@ namespace loka
       typedef SnapRecord In;
       typedef SnapRecord Out;
 
-      explicit SnapWriteAdapter(const char *path, bool requireV1 = true)
-          : path_(path ? path : ""), requireV1_(requireV1) {}
+      explicit SnapWriteAdapter(const char *path, bool requireV1 = true, const char *defaultNodeId = 0)
+          : path_(path ? path : ""), requireV1_(requireV1), defaultNodeId_(defaultNodeId ? defaultNodeId : "") {}
 
       StepRunStatus run(const In &in, Out &out, FlowError &error) const
       {
         out = in;
+        if (!defaultNodeId_.empty() && !out.has("node"))
+        {
+          out.set("node", defaultNodeId_.c_str());
+        }
         if (requireV1_)
         {
           std::string missingKey;
@@ -55,6 +59,7 @@ namespace loka
     private:
       std::string path_;
       bool requireV1_;
+      std::string defaultNodeId_;
     };
   } // namespace dsl
 } // namespace loka

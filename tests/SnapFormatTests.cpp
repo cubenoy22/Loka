@@ -14,14 +14,18 @@ namespace
     typedef int In;
     typedef loka::dsl::SnapRecord Out;
 
-    explicit BuildSnapRecordAdapter(bool valid) : valid_(valid) {}
+    BuildSnapRecordAdapter(bool valid, bool includeNode)
+        : valid_(valid), includeNode_(includeNode) {}
 
     loka::dsl::StepRunStatus run(const int &in, Out &out, loka::dsl::FlowError &) const
     {
       (void)in;
       out.set("test", "SnapFlow");
       out.set("step", "write");
-      out.set("node", "MainText");
+      if (includeNode_)
+      {
+        out.set("node", "MainText");
+      }
       out.setInt("tick", 1);
       out.set("status", "ok");
       if (valid_)
@@ -34,6 +38,7 @@ namespace
     }
 
     bool valid_;
+    bool includeNode_;
   };
 } // namespace
 
@@ -114,7 +119,7 @@ void testSnapFlowWriteAdapter()
   {
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true)).input(&input)
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(okPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
@@ -134,13 +139,34 @@ void testSnapFlowWriteAdapter()
   {
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(false)).input(&input)
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(false, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(badPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_FAILED);
     std::ifstream ifs(badPath, std::ios::binary);
     assert(!ifs.good());
     std::remove(badPath);
+  }
+
+  {
+    const char *autoNodePath = "snap_flow_auto_node.tmp";
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, false)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(autoNodePath, true, "FallbackNode"));
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    std::ifstream ifs(autoNodePath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("node\tFallbackNode\n") != std::string::npos);
+    std::remove(autoNodePath);
   }
 
   printf("==== [testSnapFlowWriteAdapter] end ====\n");
