@@ -79,7 +79,41 @@ namespace loka
             nodeId_(nodeId ? nodeId : ""),
             tick_(tick),
             scenarioVersion_(scenarioVersion),
-            status_(status ? status : "ok") {}
+            status_(status ? status : "ok"),
+            dirty_(),
+            hasTimingFlushMs_(false),
+            hasTimingRecomposeMs_(false),
+            hasTimingLayoutMs_(false),
+            timingFlushMs_(0),
+            timingRecomposeMs_(0),
+            timingLayoutMs_(0) {}
+
+      BuildSnapV1RecordAdapter &dirty(const char *value)
+      {
+        dirty_ = value ? value : "";
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &timingFlushMs(long value)
+      {
+        hasTimingFlushMs_ = true;
+        timingFlushMs_ = value;
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &timingRecomposeMs(long value)
+      {
+        hasTimingRecomposeMs_ = true;
+        timingRecomposeMs_ = value;
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &timingLayoutMs(long value)
+      {
+        hasTimingLayoutMs_ = true;
+        timingLayoutMs_ = value;
+        return *this;
+      }
 
       StepRunStatus run(const int &in, Out &out, FlowError &) const
       {
@@ -95,6 +129,22 @@ namespace loka
         {
           out.set("node", nodeId_.c_str());
         }
+        if (!dirty_.empty())
+        {
+          out.set("dirty", dirty_.c_str());
+        }
+        if (hasTimingFlushMs_)
+        {
+          out.setInt("timing.flush_ms", timingFlushMs_);
+        }
+        if (hasTimingRecomposeMs_)
+        {
+          out.setInt("timing.recompose_ms", timingRecomposeMs_);
+        }
+        if (hasTimingLayoutMs_)
+        {
+          out.setInt("timing.layout_ms", timingLayoutMs_);
+        }
         return FLOW_STEP_SUCCEEDED;
       }
 
@@ -105,6 +155,13 @@ namespace loka
       long tick_;
       long scenarioVersion_;
       std::string status_;
+      std::string dirty_;
+      bool hasTimingFlushMs_;
+      bool hasTimingRecomposeMs_;
+      bool hasTimingLayoutMs_;
+      long timingFlushMs_;
+      long timingRecomposeMs_;
+      long timingLayoutMs_;
     };
 
     inline StepSpec<BuildSnapV1RecordAdapter> SnapStep(

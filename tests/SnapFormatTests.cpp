@@ -174,7 +174,13 @@ void testSnapFlowWriteAdapter()
     const int inputForBuilder = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
-        | loka::dsl::SnapStep(1, "SnapFlow", "builder", "BuilderNode", 9, 2, "ok").input(&inputForBuilder)
+        | loka::dsl::Step(1,
+                          loka::dsl::BuildSnapV1RecordAdapter("SnapFlow", "builder", "BuilderNode", 9, 2, "ok")
+                              .dirty("LAYOUT|PROPS")
+                              .timingFlushMs(3)
+                              .timingRecomposeMs(1)
+                              .timingLayoutMs(2))
+              .input(&inputForBuilder)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(builderPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
@@ -192,6 +198,10 @@ void testSnapFlowWriteAdapter()
     assert(content.find("node\tBuilderNode\n") != std::string::npos);
     assert(content.find("tick\t9\n") != std::string::npos);
     assert(content.find("scenario_version\t2\n") != std::string::npos);
+    assert(content.find("dirty\tLAYOUT|PROPS\n") != std::string::npos);
+    assert(content.find("timing.flush_ms\t3\n") != std::string::npos);
+    assert(content.find("timing.recompose_ms\t1\n") != std::string::npos);
+    assert(content.find("timing.layout_ms\t2\n") != std::string::npos);
     std::remove(builderPath);
   }
 
