@@ -235,3 +235,31 @@ CI では `capture_dir` に workspace パスを明示的に渡し、artifact と
 ## Status
 
 Conceptual. Prepare now, implement in phases after core behavior stabilizes.
+
+## v0.0.1 Fixed Decisions
+
+- `snap v1` is flat `key\tvalue` text.
+- One record is a block of lines; blank line terminates a record.
+- Keys in a record are output in ASCII ascending order.
+- Nested data is expressed by dotted keys (e.g. `timing.flush_ms`), not indentation.
+- Required keys:
+  - `format_version`
+  - `schema_version`
+  - `scenario_version`
+  - `test`
+  - `step`
+  - `node`
+  - `tick`
+  - `status`
+- `node` is `test-id` and is the primary comparison key.
+- Missing data handling:
+  - `status` is one of `ok|partial|error`
+  - unavailable values are written as `na`
+  - when `status=error`, include `error_code` and `error_msg`
+- Keep serialization platform-independent (no platform-specific serializer dependency such as NSCoder).
+- Toolbox/68k prefers text snapshots; bitmap capture is optional.
+
+Deferred for v0.0.2+:
+- default timing thresholds
+- golden update policy
+- strict CI defaults
