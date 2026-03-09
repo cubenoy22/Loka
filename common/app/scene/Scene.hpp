@@ -12,7 +12,7 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
-#include "loka/dsl/RefreshLoop.hpp"
+#include "loka/dsl/NextTickTracker.hpp"
 #include "loka/dsl/CompositionDiff.hpp"
 
 class Window;
@@ -134,8 +134,8 @@ namespace loka
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogRecomposeQueued(static_cast<void *>(this));
 #endif
-          refreshLoop_.request();
-          refreshLoop_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
+          nextTickTracker_.request();
+          nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }
 
       protected:
@@ -150,7 +150,7 @@ namespace loka
         Window *window_;
         bool mounted_;
         bool composed_;
-        loka::dsl::RefreshLoop refreshLoop_;
+        loka::dsl::NextTickTracker nextTickTracker_;
         SceneCompositionDiff compositionDiff_;
 
         // SceneManager2からlifecycle_/attachedを書き換え可能に
