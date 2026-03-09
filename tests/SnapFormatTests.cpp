@@ -272,5 +272,35 @@ void testSnapFlowWriteAdapter()
     std::remove(builderPath);
   }
 
+  {
+    const char *errorPath = "snap_flow_error.tmp";
+    const int inputForError = 0;
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "error", "ErrorNode", 11, 2, "error")
+                              .errorCode("E_TIMEOUT")
+                              .errorMessage("wait-next-tick timeout"))
+              .input(&inputForError)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorPath));
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::ifstream ifs(errorPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("status\terror\n") != std::string::npos);
+    assert(content.find("error_code\tE_TIMEOUT\n") != std::string::npos);
+    assert(content.find("error_msg\twait-next-tick timeout\n") != std::string::npos);
+    std::remove(errorPath);
+  }
+
   printf("==== [testSnapFlowWriteAdapter] end ====\n");
 }
