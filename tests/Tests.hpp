@@ -15,6 +15,7 @@ void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();
 void testSceneInvalidateUsesRequestedDirtyFlags();
+void testSceneRequestInvalidateDefersUntilFlush();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();

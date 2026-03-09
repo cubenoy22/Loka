@@ -23,6 +23,7 @@ int main()
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();
   testSceneInvalidateUsesRequestedDirtyFlags();
+  testSceneRequestInvalidateDefersUntilFlush();
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();

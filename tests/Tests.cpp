@@ -780,6 +780,49 @@ void testSceneInvalidateUsesRequestedDirtyFlags()
   scene.unmount();
 }
 
+void testSceneRequestInvalidateDefersUntilFlush()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : lastMaterialized_(0), destroyed_(false), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() { destroyed_ = true; }
+
+    Node *lastMaterialized_;
+    bool destroyed_;
+    NodeDirtyFlags lastFlags_;
+    int calls_;
+  };
+
+  Scene scene(RootBoundary());
+  DirtyCapturePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  assert(platform.calls_ == 1);
+
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_LAYOUT);
+  assert(platform.calls_ == 1); // still deferred
+
+  const bool flushed = scene.flushInvalidation();
+  assert(flushed);
+  assert(platform.calls_ == 2);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+
+  scene.unmount();
+}
+
 void testLokaCoreString()
 {
   printf("\n==== [testLokaCoreString] start ====\n");
