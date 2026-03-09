@@ -37,6 +37,7 @@
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
 - Commit policy: Do not amend commits. Only small fixes found immediately after a commit may be amended.
 - Test build output policy: use `build/Testing` as the canonical test build directory (`cmake -S . -B build/Testing -DTEST_BUILD=ON`, then build/ctest from there).
+- When a directly runnable test environment is available (e.g. Linux/WSL headless), always build and run the relevant tests before committing code or test changes. Do not skip this step even for "obviously correct" changes.
 - When adding a new example target, update `.vscode/launch.json` to include its run config.
 - When adding a new example target, update `.vscode/tasks.json` so the matching build task exists for `preLaunchTask`.
 - macOS support policy: library/core implementation targets Tiger through Snow Leopard compatibility; consumer applications are expected to run on Big Sur and newer and may integrate modern Swift/C++ features at the app layer.
