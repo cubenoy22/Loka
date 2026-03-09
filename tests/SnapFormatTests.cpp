@@ -169,5 +169,31 @@ void testSnapFlowWriteAdapter()
     std::remove(autoNodePath);
   }
 
+  {
+    const char *builderPath = "snap_flow_builder.tmp";
+    const int inputForBuilder = 0;
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::SnapStep(1, "SnapFlow", "builder", "BuilderNode", 9, 2, "ok").input(&inputForBuilder)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(builderPath));
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    std::ifstream ifs(builderPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("test\tSnapFlow\n") != std::string::npos);
+    assert(content.find("step\tbuilder\n") != std::string::npos);
+    assert(content.find("node\tBuilderNode\n") != std::string::npos);
+    assert(content.find("tick\t9\n") != std::string::npos);
+    assert(content.find("scenario_version\t2\n") != std::string::npos);
+    std::remove(builderPath);
+  }
+
   printf("==== [testSnapFlowWriteAdapter] end ====\n");
 }
