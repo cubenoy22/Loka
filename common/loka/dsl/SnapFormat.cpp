@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cstdlib>
 #include <cstdio>
 #include <sstream>
 
@@ -56,9 +57,28 @@ namespace loka
         return false;
       }
 
-      static bool readCaptureDir(const char *configPath, std::string &captureDir)
+      static bool parseLong(const std::string &value, long &out)
       {
-        captureDir.clear();
+        if (value.empty())
+        {
+          return false;
+        }
+        char *end = 0;
+        const long parsed = std::strtol(value.c_str(), &end, 10);
+        if (!end)
+        {
+          return false;
+        }
+        if (*end != '\0')
+        {
+          return false;
+        }
+        out = parsed;
+        return true;
+      }
+
+      static bool readSettings(const char *configPath, SnapTestConfig::Settings &out)
+      {
         if (!configPath || !*configPath)
         {
           return false;
@@ -91,22 +111,43 @@ namespace loka
           }
 
           const std::string key = trim(entry.substr(0, eq));
-          if (key != "capture_dir")
+          const std::string value = trim(entry.substr(eq + 1));
+
+          if (key == "capture_dir")
           {
+            if (!value.empty())
+            {
+              out.captureDir = value;
+              out.hasCaptureDir = true;
+            }
             continue;
           }
 
-          const std::string value = trim(entry.substr(eq + 1));
-          if (!value.empty())
+          if (key == "max_files")
           {
-            captureDir = value;
-            std::fclose(fp);
-            return true;
+            long parsed = 0;
+            if (parseLong(value, parsed))
+            {
+              out.maxFiles = parsed;
+              out.hasMaxFiles = true;
+            }
+            continue;
+          }
+
+          if (key == "max_total_bytes")
+          {
+            long parsed = 0;
+            if (parseLong(value, parsed))
+            {
+              out.maxTotalBytes = parsed;
+              out.hasMaxTotalBytes = true;
+            }
+            continue;
           }
         }
 
         std::fclose(fp);
-        return false;
+        return true;
       }
 
       static std::string joinPath(const std::string &base, const std::string &leaf)
@@ -266,13 +307,19 @@ namespace loka
         return pathStr;
       }
 
-      std::string captureDir;
-      if (!readCaptureDir(configPath, captureDir) || captureDir.empty())
+      SnapTestConfig::Settings settings;
+      if (!readSettings(configPath, settings) || !settings.hasCaptureDir || settings.captureDir.empty())
       {
         return pathStr;
       }
 
-      return joinPath(captureDir, pathStr);
+      return joinPath(settings.captureDir, pathStr);
+    }
+
+    bool SnapTestConfig::load(const char *configPath, Settings &out)
+    {
+      out = Settings();
+      return readSettings(configPath, out);
     }
   } // namespace dsl
 } // namespace loka

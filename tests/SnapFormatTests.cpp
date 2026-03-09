@@ -201,9 +201,21 @@ void testSnapFlowWriteAdapter()
       std::ofstream cfg(cfgPath, std::ios::binary);
       cfg << "# Loka test config\n";
       cfg << "capture_dir = " << captureDir << "\n";
+      cfg << "max_files = 120\n";
+      cfg << "max_total_bytes = 4096\n";
+      cfg << "max_files_bad = x\n";
     }
 
     (void)createDirectoryIfMissing(captureDir);
+
+    loka::dsl::SnapTestConfig::Settings settings;
+    assert(loka::dsl::SnapTestConfig::load(cfgPath, settings));
+    assert(settings.hasCaptureDir);
+    assert(settings.captureDir == std::string(captureDir));
+    assert(settings.hasMaxFiles);
+    assert(settings.maxFiles == 120);
+    assert(settings.hasMaxTotalBytes);
+    assert(settings.maxTotalBytes == 4096);
 
     const std::string resolved = loka::dsl::SnapTestConfig::resolveCapturePath(captureFile, cfgPath);
     assert(resolved == std::string("snap_capture_dir/snap_cfg_capture.tmp"));

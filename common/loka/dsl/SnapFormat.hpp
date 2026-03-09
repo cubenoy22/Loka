@@ -37,6 +37,26 @@ namespace loka
     class SnapTestConfig
     {
     public:
+      struct Settings
+      {
+        Settings()
+            : captureDir(),
+              hasCaptureDir(false),
+              maxFiles(0),
+              hasMaxFiles(false),
+              maxTotalBytes(0),
+              hasMaxTotalBytes(false) {}
+
+        std::string captureDir;
+        bool hasCaptureDir;
+        long maxFiles;
+        bool hasMaxFiles;
+        long maxTotalBytes;
+        bool hasMaxTotalBytes;
+      };
+
+      static bool load(const char *configPath, Settings &out);
+
       // Resolves relative output path with capture_dir in LokaTest.cfg.
       // Returns original path when config is missing/invalid or path is absolute.
       static std::string resolveCapturePath(const char *path, const char *configPath = "LokaTest.cfg");
