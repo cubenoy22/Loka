@@ -92,6 +92,11 @@ namespace loka
         this->props.onClick_ = e;
         return *this;
       }
+      CellDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
     };
 
     typedef CellDefinition Cell;

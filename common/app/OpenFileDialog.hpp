@@ -173,6 +173,11 @@ namespace loka
         this->props.onResult_ = emitter;
         return *this;
       }
+      OpenFileDialogDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
     };

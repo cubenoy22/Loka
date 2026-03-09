@@ -78,6 +78,11 @@ namespace loka
         this->props.setPadding(value);
         return *this;
       }
+      BoxDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
     };
     // DSL向け短縮名
     typedef BoxDefinition Box;

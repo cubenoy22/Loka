@@ -72,6 +72,11 @@ namespace loka
         this->props.cols = value;
         return *this;
       }
+      GridDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
     };
 
     typedef GridDefinition Grid;

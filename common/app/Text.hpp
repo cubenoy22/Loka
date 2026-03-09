@@ -232,6 +232,11 @@ namespace loka
       TextDefinition(const char *value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
       TextDefinition(const loka::core::String &value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
       TextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state)) {}
+      TextDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
 
       TextDefinitionWithAttr attr(const TextAttr &value) const;
     };
@@ -240,14 +245,24 @@ namespace loka
     {
       TextDefinitionWithAttr() : loka::app::scene::NodeDefinition<TextProps, TextNode>() {}
       TextDefinitionWithAttr(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
-      TextDefinitionWithAttr(const TextDefinition &def) : loka::app::scene::NodeDefinition<TextProps, TextNode>(def.props) {}
+      TextDefinitionWithAttr(const TextDefinition &def) : loka::app::scene::NodeDefinition<TextProps, TextNode>(def.props)
+      {
+        this->setTestId(def.testIdValue().c_str());
+      }
+      TextDefinitionWithAttr &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
     };
 
     inline TextDefinitionWithAttr TextDefinition::attr(const TextAttr &value) const
     {
       TextProps p = this->props;
       p.attr(value);
-      return TextDefinitionWithAttr(p);
+      TextDefinitionWithAttr result(p);
+      result.setTestId(this->testIdValue().c_str());
+      return result;
     }
 
     typedef TextDefinition Text;

@@ -231,6 +231,11 @@ namespace loka
         this->props.controlTag(tag);
         return *this;
       }
+      PopupMenuDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>::create;
     };

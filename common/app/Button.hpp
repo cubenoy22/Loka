@@ -155,6 +155,11 @@ namespace loka
         this->props.controlTag_ = tag;
         return *this;
       }
+      ButtonDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };

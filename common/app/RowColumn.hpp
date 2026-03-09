@@ -87,6 +87,11 @@ namespace loka
         this->props.alignHorizontal(value);
         return *this;
       }
+      ColumnDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };
@@ -155,6 +160,11 @@ namespace loka
       RowDefinition &alignVertical(VerticalAlignment value)
       {
         this->props.alignVertical(value);
+        return *this;
+      }
+      RowDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
         return *this;
       }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }

@@ -454,15 +454,8 @@ void testNodeCompositionTree()
   using namespace loka::app;
 
   loka::app::scene::NodeComposition composition;
-  BoxProps boxProps;
-  BoxDefinition box(boxProps);
-  BoxDefinition &root = composition.declare(box);
-  root.setTestId("RootBox");
-
-  ButtonProps buttonProps;
-  buttonProps.text("Hello");
-  ButtonDefinition button(buttonProps);
-  button.setTestId("PrimaryButton");
+  BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+  ButtonDefinition button = Button("Hello").testId("PrimaryButton");
 
   root << button;
 

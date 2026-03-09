@@ -164,6 +164,11 @@ namespace loka
         this->props.size(width, height);
         return *this;
       }
+      ImageViewDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
 
       ImageViewDefinitionWithAttr attr(const ImageViewAttr &value) const;
 
@@ -174,7 +179,10 @@ namespace loka
     {
       ImageViewDefinitionWithAttr() : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>() {}
       ImageViewDefinitionWithAttr(const ImageViewProps &p) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p) {}
-      ImageViewDefinitionWithAttr(const ImageViewDefinition &def) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(def.props) {}
+      ImageViewDefinitionWithAttr(const ImageViewDefinition &def) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(def.props)
+      {
+        this->setTestId(def.testIdValue().c_str());
+      }
 
       ImageViewDefinitionWithAttr &image(loka::core::State<loka::core::resource::Image> *state)
       {
@@ -187,6 +195,11 @@ namespace loka
         this->props.size(width, height);
         return *this;
       }
+      ImageViewDefinitionWithAttr &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
 
       using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
     };
@@ -195,7 +208,9 @@ namespace loka
     {
       ImageViewProps p = this->props;
       p.attr(value);
-      return ImageViewDefinitionWithAttr(p);
+      ImageViewDefinitionWithAttr result(p);
+      result.setTestId(this->testIdValue().c_str());
+      return result;
     }
 
     typedef ImageViewDefinition ImageView;

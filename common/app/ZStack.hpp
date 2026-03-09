@@ -55,6 +55,11 @@ namespace loka
       {
         return new ZStackDefinition(*this);
       }
+      ZStackDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
     };

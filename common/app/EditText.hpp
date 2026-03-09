@@ -80,6 +80,11 @@ namespace loka
         this->props.controlTag_ = tag;
         return *this;
       }
+      EditTextDefinition &testId(const char *value)
+      {
+        this->setTestId(value);
+        return *this;
+      }
     };
 
     typedef EditTextDefinition EditText;
