@@ -11,6 +11,7 @@
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/node/DynamicComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
 #include "app/Text.hpp"
@@ -553,6 +554,8 @@ namespace
 {
   int g_rootComposeCount = 0;
   int g_childComposeCount = 0;
+  int g_dynamicChildAttachComposeCount = 0;
+  int g_dynamicChildUpdateEventCount = 0;
 
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
@@ -594,6 +597,56 @@ namespace
   loka::app::scene::BoundaryDefinition<RootBoundaryProps, RootBoundaryNode> RootBoundary()
   {
     return loka::app::scene::Boundary<RootBoundaryNode>();
+  }
+
+  class ChildDynamicBoundaryNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<ChildDynamicBoundaryNode> ChildDynamicBoundaryProps;
+
+  class ChildDynamicBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<ChildDynamicBoundaryNode>
+  {
+  public:
+    ChildDynamicBoundaryNode(const ChildDynamicBoundaryProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<ChildDynamicBoundaryNode>(ChildDynamicBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      ++g_dynamicChildAttachComposeCount;
+    }
+
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE)
+      {
+        ++g_dynamicChildUpdateEventCount;
+      }
+      loka::app::scene::DynamicCompositionNodeFor<ChildDynamicBoundaryNode>::composeWithContext(context, event);
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<ChildDynamicBoundaryProps, ChildDynamicBoundaryNode> ChildDynamicBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<ChildDynamicBoundaryNode>();
+  }
+
+  class RootStaticWithDynamicChildNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootStaticWithDynamicChildNode> RootStaticWithDynamicChildProps;
+
+  class RootStaticWithDynamicChildNode : public loka::app::scene::BoundaryNodeFor<RootStaticWithDynamicChildNode>
+  {
+  public:
+    RootStaticWithDynamicChildNode(const RootStaticWithDynamicChildProps &p)
+        : loka::app::scene::BoundaryNodeFor<RootStaticWithDynamicChildNode>(RootStaticWithDynamicChildProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(ChildDynamicBoundary());
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<RootStaticWithDynamicChildProps, RootStaticWithDynamicChildNode> RootStaticWithDynamicChildBoundary()
+  {
+    return loka::app::scene::Boundary<RootStaticWithDynamicChildNode>();
   }
 }
 
@@ -638,6 +691,47 @@ void testSceneBoundaryNestedCompose()
   assert(g_childComposeCount == 2);
 
   // Unmount before stack-allocated platform is destroyed
+  scene.unmount();
+}
+
+void testStaticBoundaryPropagatesUpdateToDynamicChild()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::Scene;
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
+    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+    {
+      (void)flags;
+      lastMaterialized_ = rootNode;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() { destroyed_ = true; }
+
+    Node *lastMaterialized_;
+    bool destroyed_;
+  };
+
+  g_dynamicChildAttachComposeCount = 0;
+  g_dynamicChildUpdateEventCount = 0;
+
+  Scene scene(RootStaticWithDynamicChildBoundary());
+  DummyPlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  assert(g_dynamicChildAttachComposeCount == 1);
+  assert(g_dynamicChildUpdateEventCount == 0);
+
+  scene.invalidate();
+
+  assert(g_dynamicChildAttachComposeCount == 1);
+  assert(g_dynamicChildUpdateEventCount == 1);
+
   scene.unmount();
 }
 

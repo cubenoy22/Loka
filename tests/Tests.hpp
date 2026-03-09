@@ -13,6 +13,7 @@ void testNodeCompositionTree();
 void testNodeCompositionShowIf();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
+void testStaticBoundaryPropagatesUpdateToDynamicChild();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();

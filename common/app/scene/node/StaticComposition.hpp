@@ -91,14 +91,28 @@ namespace loka
 
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
         {
+          if (event == COMPOSE_EVENT_DETACH)
+          {
+            NodeComposition &composition = this->beginComposition(context);
+            this->detachNode(composition);
+            composed_ = false;
+            return;
+          }
+          if (event == COMPOSE_EVENT_UPDATE)
+          {
+            if (!composed_)
+            {
+              return;
+            }
+            loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+            for (Node *child = it.next(); child; child = it.next())
+            {
+              this->composeTree(child, context, event, this);
+            }
+            return;
+          }
           if (event != COMPOSE_EVENT_ATTACH)
           {
-            if (event == COMPOSE_EVENT_DETACH)
-            {
-              NodeComposition &composition = this->beginComposition(context);
-              this->detachNode(composition);
-              composed_ = false;
-            }
             return;
           }
           if (composed_)

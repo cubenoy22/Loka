@@ -21,6 +21,7 @@ int main()
   testNodeCompositionShowIf();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
+  testStaticBoundaryPropagatesUpdateToDynamicChild();
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();
