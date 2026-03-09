@@ -162,3 +162,15 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
    - 長文 -> 短文（行数減少）でも高さが縮む。
    - Window resize 直後の text 更新でも反映漏れしない。
    - `wrap=none` の Text はこの deferred relayout 経路に入らない。
+
+### Runtime Verification Record (macOS)
+
+| Date | Commit | Environment | Scenario | Result | Notes |
+|---|---|---|---|---|---|
+| YYYY-MM-DD | `<hash>` | macOS / CPU arch | short->long text wrap | PASS/FAIL | |
+| YYYY-MM-DD | `<hash>` | macOS / CPU arch | long->short text wrap | PASS/FAIL | |
+| YYYY-MM-DD | `<hash>` | macOS / CPU arch | resize + text update | PASS/FAIL | |
+
+記録ルール:
+- `PASS` は再現シナリオの期待結果 3 項目を満たした場合のみ。
+- `FAIL` の場合は最小再現手順とスクリーンショット/ログの保存先を Notes に残す。
