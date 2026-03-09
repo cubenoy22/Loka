@@ -206,6 +206,30 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *cfgPath = "LokaTest-io.cfg";
+    const char *relativeBadDir = "missing_dir/subdir";
+    const char *ioPath = "snap_io_error.tmp";
+    {
+      std::ofstream cfg(cfgPath, std::ios::binary);
+      cfg << "capture_dir = " << relativeBadDir << "\n";
+    }
+
+    SnapFlowErrorCapture capture = {0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(ioPath, true, 0, cfgPath))
+              .onFailure(&captureSnapFlowError, &capture);
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_IO_ERROR);
+
+    std::remove(cfgPath);
+  }
+
+  {
     const char *autoNodePath = "snap_flow_auto_node.tmp";
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
