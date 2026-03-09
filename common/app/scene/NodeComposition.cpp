@@ -81,6 +81,7 @@ namespace loka
           // Fallback to regular allocation
           node = def->create();
         }
+        node->setTestId(def->testIdValue());
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
@@ -111,6 +112,7 @@ namespace loka
         }
 
         Node *node = def->create();
+        node->setTestId(def->testIdValue());
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();

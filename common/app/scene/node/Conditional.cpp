@@ -16,6 +16,7 @@ namespace loka
         }
 
         Node *node = def->create();
+        node->setTestId(def->testIdValue());
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
         if (!nestableDef || !nestableNode)

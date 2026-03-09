@@ -457,10 +457,12 @@ void testNodeCompositionTree()
   BoxProps boxProps;
   BoxDefinition box(boxProps);
   BoxDefinition &root = composition.declare(box);
+  root.setTestId("RootBox");
 
   ButtonProps buttonProps;
   buttonProps.text("Hello");
   ButtonDefinition button(buttonProps);
+  button.setTestId("PrimaryButton");
 
   root << button;
 
@@ -469,12 +471,14 @@ void testNodeCompositionTree()
 
   BoxNode *boxNode = dynamic_cast<BoxNode *>(tree);
   assert(boxNode != NULL);
+  assert(boxNode->testId() == "RootBox");
   Node *child = boxNode->childrenHead();
   size_t childCount = boxNode->childrenCount();
   assert(child != NULL);
   assert(childCount == 1);
   ButtonNode *buttonNode = dynamic_cast<ButtonNode *>(child);
   assert(buttonNode != NULL);
+  assert(buttonNode->testId() == "PrimaryButton");
 
   delete tree;
 }

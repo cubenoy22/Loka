@@ -17,6 +17,7 @@
 #endif
 
 #include <cstddef>
+#include <string>
 #include <vector>
 #include "loka/dsl/CompositionList.hpp"
 
@@ -136,8 +137,9 @@ namespace loka
         loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
         bool arenaAllocated_;
+        std::string testId_;
 
-        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false) {}
+        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), testId_() {}
 
         virtual ~Node()
         {
@@ -218,6 +220,8 @@ namespace loka
         }
 
         NodeContext *getContext() const { return context; }
+        void setTestId(const std::string &value) { testId_ = value; }
+        const std::string &testId() const { return testId_; }
       };
 
       // --- Generic Props base ---
@@ -280,13 +284,14 @@ namespace loka
       public:
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
 
-        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0) {}
-        NodeDefinitionBase(const NodeDefinitionBase &) : cleanupHook_(0), cleanupContext_(0), nextInComposition(0) {}
-        NodeDefinitionBase &operator=(const NodeDefinitionBase &)
+        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_() {}
+        NodeDefinitionBase(const NodeDefinitionBase &other) : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_(other.testId_) {}
+        NodeDefinitionBase &operator=(const NodeDefinitionBase &other)
         {
           this->cleanupHook_ = 0;
           this->cleanupContext_ = 0;
           this->nextInComposition = 0;
+          this->testId_ = other.testId_;
           return *this;
         }
         virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
@@ -309,6 +314,14 @@ namespace loka
           this->cleanupHook_ = 0;
           this->cleanupContext_ = 0;
         }
+        void setTestId(const char *value)
+        {
+          this->testId_ = value ? value : "";
+        }
+        const std::string &testIdValue() const
+        {
+          return this->testId_;
+        }
 
       protected:
         void invokeCleanupHook()
@@ -327,6 +340,7 @@ namespace loka
       private:
         CleanupHook cleanupHook_;
         void *cleanupContext_;
+        std::string testId_;
       };
 
       // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---
