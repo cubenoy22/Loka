@@ -6,53 +6,6 @@
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
-@interface LokaMacDeferredRelayoutTarget : NSObject
-{
-@private
-  NSView *view_;
-}
-@property(retain) NSView *view;
-- (id)initWithView:(NSView *)view;
-- (void)fire:(NSTimer *)timer;
-@end
-
-@implementation LokaMacDeferredRelayoutTarget
-@synthesize view = view_;
-
-- (id)initWithView:(NSView *)view
-{
-  self = [super init];
-  if (self)
-  {
-    [self setView:view];
-  }
-  return self;
-}
-
-- (void)dealloc
-{
-  [self setView:nil];
-  [super dealloc];
-}
-
-- (void)fire:(NSTimer *)timer
-{
-  (void)timer;
-  NSView *view = [self view];
-  if (!view)
-  {
-    return;
-  }
-  MacScenePlatformController *controller = MacScenePlatformController::findForRootView((void *)view);
-  if (!controller)
-  {
-    return;
-  }
-  NSRect bounds = [view bounds];
-  controller->relayout(static_cast<int>(bounds.size.width), static_cast<int>(bounds.size.height));
-}
-@end
-
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
     : node_(node), parentView_(parentView), label_(0), textState_(0), didInitialApply_(false)
 {
@@ -177,13 +130,13 @@ void MacTextContext::requestRelayoutIfNeeded()
   {
     return;
   }
-  // Defer relayout so we do not re-enter layout while text notification is on-stack.
-  LokaMacDeferredRelayoutTarget *target = [[[LokaMacDeferredRelayoutTarget alloc] initWithView:view] autorelease];
-  [NSTimer scheduledTimerWithTimeInterval:0.0
-                                   target:target
-                                 selector:@selector(fire:)
-                                 userInfo:nil
-                                  repeats:NO];
+  MacScenePlatformController *controller = MacScenePlatformController::findForRootView((void *)view);
+  if (!controller)
+  {
+    return;
+  }
+  // Defer relayout to app flush tick to avoid re-entering layout on notify stack.
+  controller->requestRelayout();
 }
 
 void MacTextContext::TextChangedThunk(void *userData)

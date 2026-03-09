@@ -25,7 +25,10 @@ public:
   virtual void destroy();
 
   void relayout(int clientWidth, int clientHeight);
+  void requestRelayout();
+  bool hasPendingRelayout() const { return relayoutPending_; }
   static MacScenePlatformController *findForRootView(void *rootView);
+  static void flushPendingRelayouts();
 
 private:
   struct LayoutState
@@ -50,6 +53,7 @@ private:
   int clientHeight_;
   void *firstEditField_;
   void *lastEditField_;
+  bool relayoutPending_;
 };
 
 #endif // LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP

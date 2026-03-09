@@ -92,7 +92,8 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
       clientWidth_(0),
       clientHeight_(0),
       firstEditField_(0),
-      lastEditField_(0)
+      lastEditField_(0),
+      relayoutPending_(false)
 {
   if (rootView_)
   {
@@ -131,6 +132,7 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka
 {
   (void)flags;
   rootNode_ = rootNode;
+  relayoutPending_ = false;
   if (!rootView_ || !rootNode_)
   {
     return;
@@ -154,10 +156,12 @@ void MacScenePlatformController::destroy()
   rootNode_ = 0;
   clientWidth_ = 0;
   clientHeight_ = 0;
+  relayoutPending_ = false;
 }
 
 void MacScenePlatformController::relayout(int clientWidth, int clientHeight)
 {
+  relayoutPending_ = false;
   if (!rootNode_)
   {
     return;
@@ -175,6 +179,29 @@ void MacScenePlatformController::relayout(int clientWidth, int clientHeight)
   clientWidth_ = clientWidth;
   clientHeight_ = clientHeight;
   performLayout(clientWidth_, clientHeight_);
+}
+
+void MacScenePlatformController::requestRelayout()
+{
+  if (!rootNode_ || !rootView_)
+  {
+    return;
+  }
+  relayoutPending_ = true;
+}
+
+void MacScenePlatformController::flushPendingRelayouts()
+{
+  std::map<void *, MacScenePlatformController *>::iterator it = gControllerByRootView.begin();
+  for (; it != gControllerByRootView.end(); ++it)
+  {
+    MacScenePlatformController *controller = it->second;
+    if (!controller || !controller->hasPendingRelayout())
+    {
+      continue;
+    }
+    controller->relayout(0, 0);
+  }
 }
 
 void MacScenePlatformController::performLayout(int clientWidth, int clientHeight)

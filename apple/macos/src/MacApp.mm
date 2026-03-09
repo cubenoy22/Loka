@@ -1,5 +1,6 @@
 #include "MacApp.hpp"
 #include "MacWindow.hpp"
+#include "MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
 #include <AppKit/AppKit.h>
 #include <ApplicationServices/ApplicationServices.h>
@@ -116,6 +117,7 @@ void MacApp::quit()
 void MacApp::flushInvalidationsTick()
 {
   this->flushWindowInvalidations();
+  MacScenePlatformController::flushPendingRelayouts();
 }
 
 void MacApp::startInvalidationFlushTimer()
