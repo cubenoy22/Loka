@@ -50,12 +50,12 @@ Loka (C++98)           外部 CLI / AI
 
 ```txt
 dirty	LAYOUT|PROPS
-flush_ms	3
+timing.flush_ms	3
 format_version	1
 h	64
-layout_ms	2
+timing.layout_ms	2
 node	MainText
-recompose_ms	1
+timing.recompose_ms	1
 scenario_version	3
 schema_version	1
 step	after-wrap
