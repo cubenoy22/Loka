@@ -2,6 +2,7 @@
 #include "StateNotifyTests.hpp"
 #include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
+#include "SnapFormatTests.hpp"
 #include "Tests.hpp"
 
 int main()
@@ -27,6 +28,7 @@ int main()
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();
+  testSnapFormatV1();
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
   testStateBatchOverflow();
