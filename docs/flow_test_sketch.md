@@ -46,31 +46,18 @@ Loka (C++98)           外部 CLI / AI
 - `.snap` ファイルが存在する場合: 今回の値を別ファイルに書き出し、diff は外部ツールが担う
 - Loka 側は「値を書くだけ」に徹し、判定ロジックを持たない
 
-#### Minimal `.snap` Schema (v1)
+#### Minimal `.snap` Schema (v1, TSV line format)
 
-```json
-{
-  "schema": "loka.snap.v1",
-  "test": "TextWrapRelayout",
-  "step": "after-wrap",
-  "tick": 12,
-  "node": {
-    "id": "MainText",
-    "bounds": {"x": 20, "y": 40, "width": 220, "height": 64},
-    "dirty": ["DIRTY_LAYOUT", "DIRTY_PROPS"]
-  },
-  "timing_ms": {
-    "flush": 3,
-    "recompose": 1,
-    "layout": 2
-  }
-}
+```txt
+SNAP	v1	test=TextWrapRelayout	step=after-wrap	tick=12	node=MainText	x=20	y=40	w=220	h=64	dirty=LAYOUT|PROPS	flush_ms=3	recompose_ms=1	layout_ms=2
 ```
 
 v1 ルール:
+- 1 行 1 レコード（追記型 stream out 前提）。
+- `\t` 区切りの key=value 形式。
 - 整数値のみ（小数なし）。
 - 時間は ms 単位の tick 集計値。
-- `dirty` は発生順ではなく集合（重複なし）。
+- `dirty` は `|` 区切り集合（重複なし）。
 
 ## API Sketch
 
