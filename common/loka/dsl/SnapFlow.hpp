@@ -26,8 +26,14 @@ namespace loka
       typedef SnapRecord In;
       typedef SnapRecord Out;
 
-      explicit SnapWriteAdapter(const char *path, bool requireV1 = true, const char *defaultNodeId = 0)
-          : path_(path ? path : ""), requireV1_(requireV1), defaultNodeId_(defaultNodeId ? defaultNodeId : "") {}
+      explicit SnapWriteAdapter(const char *path,
+                                bool requireV1 = true,
+                                const char *defaultNodeId = 0,
+                                const char *configPath = "LokaTest.cfg")
+          : path_(path ? path : ""),
+            requireV1_(requireV1),
+            defaultNodeId_(defaultNodeId ? defaultNodeId : ""),
+            configPath_(configPath ? configPath : "") {}
 
       StepRunStatus run(const In &in, Out &out, FlowError &error) const
       {
@@ -47,7 +53,8 @@ namespace loka
             return FLOW_STEP_FAILED;
           }
         }
-        if (!SnapFileWriter::appendRecord(path_.c_str(), out))
+        const std::string outputPath = SnapTestConfig::resolveCapturePath(path_.c_str(), configPath_.c_str());
+        if (!SnapFileWriter::appendRecord(outputPath.c_str(), out))
         {
           error.kind = FLOW_ERROR_KIND_SNAP;
           error.code = FLOW_ERROR_SNAP_WRITE_FAILED;
@@ -60,6 +67,7 @@ namespace loka
       std::string path_;
       bool requireV1_;
       std::string defaultNodeId_;
+      std::string configPath_;
     };
 
     class BuildSnapV1RecordAdapter

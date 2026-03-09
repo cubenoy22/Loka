@@ -1,14 +1,36 @@
 #include "SnapFormatTests.hpp"
 #include <cassert>
+#include <cerrno>
 #include <cstdio>
 #include <fstream>
 #include <string>
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 #include "loka/dsl/Flow.hpp"
 #include "loka/dsl/SnapFormat.hpp"
 #include "loka/dsl/SnapFlow.hpp"
 
 namespace
 {
+  static bool createDirectoryIfMissing(const char *path)
+  {
+    if (!path || !*path)
+    {
+      return false;
+    }
+#if defined(_WIN32)
+    const int rc = _mkdir(path);
+#else
+    const int rc = mkdir(path, 0755);
+#endif
+    return rc == 0 || errno == EEXIST;
+  }
+
   struct BuildSnapRecordAdapter
   {
     typedef int In;
@@ -167,6 +189,51 @@ void testSnapFlowWriteAdapter()
     }
     assert(content.find("node\tFallbackNode\n") != std::string::npos);
     std::remove(autoNodePath);
+  }
+
+  {
+    const char *cfgPath = "LokaTest.cfg";
+    const char *captureDir = "snap_capture_dir";
+    const char *captureFile = "snap_cfg_capture.tmp";
+    const char *cfgOutputPath = "snap_cfg_adapter.tmp";
+
+    {
+      std::ofstream cfg(cfgPath, std::ios::binary);
+      cfg << "# Loka test config\n";
+      cfg << "capture_dir = " << captureDir << "\n";
+    }
+
+    (void)createDirectoryIfMissing(captureDir);
+
+    const std::string resolved = loka::dsl::SnapTestConfig::resolveCapturePath(captureFile, cfgPath);
+    assert(resolved == std::string("snap_capture_dir/snap_cfg_capture.tmp"));
+
+    const std::string absoluteUnchanged = loka::dsl::SnapTestConfig::resolveCapturePath("/tmp/loka_abs.snap", cfgPath);
+    assert(absoluteUnchanged == std::string("/tmp/loka_abs.snap"));
+
+    const std::string fallback = loka::dsl::SnapTestConfig::resolveCapturePath(captureFile, "missing.cfg");
+    assert(fallback == std::string(captureFile));
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(cfgOutputPath, true, 0, cfgPath));
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    const std::string expectedOutput = std::string(captureDir) + "/" + cfgOutputPath;
+    std::ifstream ifs(expectedOutput.c_str(), std::ios::binary);
+    assert(ifs.good());
+    ifs.close();
+
+    std::remove(expectedOutput.c_str());
+    std::remove(cfgPath);
+#if defined(_WIN32)
+    _rmdir(captureDir);
+#else
+    rmdir(captureDir);
+#endif
   }
 
   {

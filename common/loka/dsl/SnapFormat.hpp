@@ -33,6 +33,14 @@ namespace loka
     public:
       static bool appendRecord(const char *path, const SnapRecord &record);
     };
+
+    class SnapTestConfig
+    {
+    public:
+      // Resolves relative output path with capture_dir in LokaTest.cfg.
+      // Returns original path when config is missing/invalid or path is absolute.
+      static std::string resolveCapturePath(const char *path, const char *configPath = "LokaTest.cfg");
+    };
   } // namespace dsl
 } // namespace loka
 
