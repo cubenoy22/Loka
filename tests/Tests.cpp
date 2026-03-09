@@ -13,6 +13,7 @@
 #include "app/scene/node/StaticComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/Text.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Value.hpp"
@@ -507,8 +508,8 @@ void testNodeCompositionShowIf()
   assert(dynamic_cast<ButtonNode *>(conditionalNode->activeNode) != 0);
 
   {
-    loka::core::StateTracker tracker;
-    loka::core::StateTrackerGuard guard(tracker);
+    loka::core::PushStateTracker tracker(loka::core::makeStateVector(&show, STATE_NULL));
+    loka::core::StateTrackerGuard guard(&tracker);
     show.set(false, true);
   }
 
