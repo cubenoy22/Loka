@@ -17,7 +17,7 @@ namespace loka
         {
           return;
         }
-        scene->invalidate(flags);
+        scene->requestInvalidate(flags);
       }
 
       void BoundaryNode::InvalidateSceneThunk(void *userData)
