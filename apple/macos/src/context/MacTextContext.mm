@@ -117,26 +117,9 @@ void MacTextContext::applyText()
 
 void MacTextContext::requestRelayoutIfNeeded()
 {
-  if (!didInitialApply_ || !node_ || !node_->props.hasAttr_ || !node_->props.attr_.hasWrapValue_)
-  {
-    return;
-  }
-  if (node_->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
-  {
-    return;
-  }
-  if (!parentView_)
-  {
-    return;
-  }
-  MacScenePlatformController *controller = MacScenePlatformController::findForRootView(parentView_);
-  if (!controller)
-  {
-    return;
-  }
-  NSView *view = (NSView *)parentView_;
-  NSRect bounds = [view bounds];
-  controller->relayout(static_cast<int>(bounds.size.width), static_cast<int>(bounds.size.height));
+  // Calling relayout synchronously from inside text-state notification can
+  // tear down this context while applyText() is still on stack.
+  // Keep this path disabled until relayout is deferred safely.
 }
 
 void MacTextContext::TextChangedThunk(void *userData)

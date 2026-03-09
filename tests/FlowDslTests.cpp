@@ -222,6 +222,48 @@ namespace {
     int width_;
     int height_;
   };
+
+  struct StateNotifyDeleteCtx {
+    loka::core::EmitterState *state;
+    loka::core::MutableState<int> *valueState;
+    int destroyCalls;
+    int siblingCalls;
+  };
+
+  struct StateNotifyHelpers {
+    static void destroySelf(void *user) {
+      StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
+      ++ctx->destroyCalls;
+      if (ctx->state) {
+        loka::core::EmitterState *owned = ctx->state;
+        ctx->state = 0;
+        delete owned;
+      }
+    }
+
+    static void sibling(void *user) {
+      StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
+      ++ctx->siblingCalls;
+    }
+
+    static void destroyValueSelf(void *user) {
+      StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
+      ++ctx->destroyCalls;
+      if (ctx->valueState) {
+        loka::core::MutableState<int> *owned = ctx->valueState;
+        ctx->valueState = 0;
+        delete owned;
+      }
+    }
+
+    static void selfUnbind(void *user) {
+      StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
+      ++ctx->destroyCalls;
+      if (ctx->state) {
+        ctx->state->unbind(&StateNotifyHelpers::selfUnbind, user);
+      }
+    }
+  };
 } // namespace
 
 void testLokaFlowDslV1Core() {
@@ -1015,16 +1057,19 @@ void testLokaFlowDslV1Core() {
     simpleviewer::ChooserProjection projection;
     // default: source == BLOB_SOURCE_NONE
     loka::core::resource::Blob blob;
+    FlowErrorCapture capture = {0, 0, 0};
 
     loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain
         = loka::dsl::Flow()
           | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
                 .input(&projection)
+                .onFailure(&FlowTestMarker::captureFailure, &capture)
                 .onSuccess(&blob);
 
     assert(chain.run());
-    assert(blob.isValid());
-    assert(blob.bytes().empty());
+    assert(capture.calls == 1);
+    assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD);
+    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED);
   }
 
   // --- ProjectionToBlobAdapter: source=FILE → reads bytes from file ---
@@ -1080,7 +1125,7 @@ void testLokaFlowDslV1Core() {
     assert(chain.run());
     assert(capture.calls == 1);
     assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD);
-    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED);
+    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED);
   }
 
   // --- Full 6-step integrated chain: FileChooserResult → Image ---
@@ -1123,7 +1168,7 @@ void testLokaFlowDslV1Core() {
     std::remove(tmpPath);
   }
 
-  // --- Full 6-step chain: canceled → empty image (decode fail on empty blob) ---
+  // --- Full 6-step chain: canceled → no-file-selected at blob projection ---
   {
     FlowTestPlatformContext ctx;
     ctx.createImageResult_ = false;
@@ -1144,12 +1189,13 @@ void testLokaFlowDslV1Core() {
                 .onFailure(&FlowTestMarker::captureFailure, &capture)
           | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
                 .onSuccess(&image);
+    chain.onFailure(&FlowTestMarker::captureFailure, &capture);
 
     assert(chain.run());
     assert(!image.isValid());
     assert(capture.calls == 1);
-    assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_DECODE);
-    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED);
+    assert(capture.kind == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD);
+    assert(capture.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED);
   }
 
   // --- onSuccess field extraction: extract single field into MutableState ---
@@ -1212,6 +1258,59 @@ void testLokaFlowDslV1Core() {
     trigger.set(10);
     assert(calls == 1);  // reentry blocked: flow ran only once
     assert(trigger.get() == 99);  // but the trigger value was updated
+  }
+
+  // --- State<void>: callback may delete emitter safely ---
+  {
+    StateNotifyDeleteCtx ctx;
+    ctx.state = new loka::core::EmitterState();
+    ctx.valueState = 0;
+    ctx.destroyCalls = 0;
+    ctx.siblingCalls = 0;
+
+    ctx.state->bind(&StateNotifyHelpers::destroySelf, &ctx, false);
+    ctx.state->bind(&StateNotifyHelpers::sibling, &ctx, false);
+    ctx.state->emit();
+
+    assert(ctx.state == 0);
+    assert(ctx.destroyCalls == 1);
+    assert(ctx.siblingCalls == 0);
+  }
+
+  // --- State<void>: self-unbind runs once across multiple emits ---
+  {
+    StateNotifyDeleteCtx ctx;
+    loka::core::EmitterState state;
+    ctx.state = &state;
+    ctx.valueState = 0;
+    ctx.destroyCalls = 0;
+    ctx.siblingCalls = 0;
+
+    state.bind(&StateNotifyHelpers::selfUnbind, &ctx, false);
+    state.bind(&StateNotifyHelpers::sibling, &ctx, false);
+
+    state.emit();
+    state.emit();
+
+    assert(ctx.destroyCalls == 1);
+    assert(ctx.siblingCalls == 2);
+  }
+
+  // --- State<T>: callback may delete mutable state safely ---
+  {
+    StateNotifyDeleteCtx ctx;
+    ctx.state = 0;
+    ctx.valueState = new loka::core::MutableState<int>(0);
+    ctx.destroyCalls = 0;
+    ctx.siblingCalls = 0;
+
+    ctx.valueState->bind(&StateNotifyHelpers::destroyValueSelf, &ctx, false);
+    ctx.valueState->bind(&StateNotifyHelpers::sibling, &ctx, false);
+    ctx.valueState->set(1);
+
+    assert(ctx.valueState == 0);
+    assert(ctx.destroyCalls == 1);
+    assert(ctx.siblingCalls == 0);
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");

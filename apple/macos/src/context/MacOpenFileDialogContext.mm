@@ -51,6 +51,9 @@ void MacOpenFileDialogContext::applyVisible()
   }
   if (visibleState_->get())
   {
+    // Consume the visible trigger first so duplicate listeners in the same
+    // notification cycle do not re-open the dialog.
+    visibleState_->set(false);
     presentDialog();
   }
 }
@@ -98,10 +101,6 @@ void MacOpenFileDialogContext::presentDialog()
     setResult(loka::app::FileChooserResult::Canceled());
   }
   presenting_ = false;
-  if (visibleState_)
-  {
-    visibleState_->set(false);
-  }
 }
 
 void MacOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
@@ -110,7 +109,9 @@ void MacOpenFileDialogContext::setResult(const loka::app::FileChooserResult &res
   {
     resultState_->set(result, true);
   }
-  if (onResult_)
+  // Prefer resultState-driven flow. Emit fallback event only when no result
+  // state is wired to avoid duplicate/unstable notification paths.
+  if (onResult_ && !resultState_)
   {
     onResult_->emit();
   }
