@@ -129,11 +129,16 @@ namespace loka
           }
         }
 
-        void invalidate()
+        void invalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
         {
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogRecomposeQueued(static_cast<void *>(this));
 #endif
+          if (flags == NODE_DIRTY_NONE)
+          {
+            flags = NODE_DIRTY_PROPS;
+          }
+          compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | flags);
           nextTickTracker_.request();
           nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }
@@ -275,7 +280,10 @@ namespace loka
           }
           compositionDiff_.valid = true;
           compositionDiff_.fullRebuild = false;
-          compositionDiff_.flags = NODE_DIRTY_PROPS;
+          if (compositionDiff_.flags == NODE_DIRTY_NONE)
+          {
+            compositionDiff_.flags = NODE_DIRTY_PROPS;
+          }
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
           return true;
         }

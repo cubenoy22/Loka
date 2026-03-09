@@ -10,6 +10,16 @@ namespace loka
   {
     namespace scene
     {
+      void BoundaryNode::markViewDirty(NodeDirtyFlags flags)
+      {
+        Scene *scene = this->getScene();
+        if (!scene)
+        {
+          return;
+        }
+        scene->invalidate(flags);
+      }
+
       void BoundaryNode::InvalidateSceneThunk(void *userData)
       {
         BoundaryNode *self = static_cast<BoundaryNode *>(userData);
@@ -23,7 +33,7 @@ namespace loka
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogRecomposeTracked(static_cast<void *>(self), static_cast<void *>(scene));
 #endif
-          scene->invalidate();
+          self->markViewDirty(NODE_DIRTY_PROPS);
         }
       }
     } // namespace scene

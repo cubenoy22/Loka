@@ -234,7 +234,10 @@ namespace loka
           LayoutBounds() : x(0), y(0), width(0), height(0), valid(false) {}
         };
 
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_() {}
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_()
+        {
+          this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
+        }
         virtual ~BoundaryNode()
         {
           // Detach children before the arena is cleared to avoid touching freed nodes.
@@ -248,6 +251,7 @@ namespace loka
         virtual IStateOwner *asStateOwner() { return this; }
 
         virtual loka::core::StateTracker *tracker() { return &tracker_; }
+        void markViewDirty(NodeDirtyFlags flags);
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
