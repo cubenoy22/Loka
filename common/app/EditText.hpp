@@ -63,7 +63,7 @@ namespace loka
       virtual EditTextNode *asEditTextNode() { return this; }
     };
 
-    struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>
+    struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>, public scene::TestIdDslMixin<EditTextDefinition>
     {
       EditTextDefinition() : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>() {}
       EditTextDefinition(const EditTextProps &p) : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(p) {}
@@ -78,16 +78,6 @@ namespace loka
       EditTextDefinition &controlTag(int tag)
       {
         this->props.controlTag_ = tag;
-        return *this;
-      }
-      EditTextDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      EditTextDefinition &testId()
-      {
-        this->setAutoTestId();
         return *this;
       }
     };

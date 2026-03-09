@@ -145,7 +145,7 @@ namespace loka
       virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
     };
 
-    struct OpenFileDialogDefinition : public loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>
+    struct OpenFileDialogDefinition : public loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>, public loka::app::scene::TestIdDslMixin<OpenFileDialogDefinition>
     {
       OpenFileDialogDefinition() : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>() {}
       OpenFileDialogDefinition(const OpenFileDialogProps &p) : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>(p) {}
@@ -173,17 +173,6 @@ namespace loka
         this->props.onResult_ = emitter;
         return *this;
       }
-      OpenFileDialogDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      OpenFileDialogDefinition &testId()
-      {
-        this->setAutoTestId();
-        return *this;
-      }
-
       using loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
     };
 

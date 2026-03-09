@@ -110,7 +110,7 @@ namespace loka
       virtual ButtonNode *asButtonNode() { return this; }
     };
 
-    struct ButtonDefinition : public loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>
+    struct ButtonDefinition : public loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>, public loka::app::scene::TestIdDslMixin<ButtonDefinition>
     {
       ButtonDefinition() : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>() {}
       ButtonDefinition(const ButtonProps &p) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>(p) {}
@@ -155,17 +155,6 @@ namespace loka
         this->props.controlTag_ = tag;
         return *this;
       }
-      ButtonDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      ButtonDefinition &testId()
-      {
-        this->setAutoTestId();
-        return *this;
-      }
-
       using loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };
     // DSL向け短縮名

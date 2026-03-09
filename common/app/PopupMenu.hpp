@@ -173,7 +173,7 @@ namespace loka
       virtual PopupMenuNode *asPopupMenuNode() { return this; }
     };
 
-    struct PopupMenuDefinition : public loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>
+    struct PopupMenuDefinition : public loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>, public loka::app::scene::TestIdDslMixin<PopupMenuDefinition>
     {
       PopupMenuDefinition() : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>() {}
       PopupMenuDefinition(const PopupMenuProps &p) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>(p) {}
@@ -231,17 +231,6 @@ namespace loka
         this->props.controlTag(tag);
         return *this;
       }
-      PopupMenuDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      PopupMenuDefinition &testId()
-      {
-        this->setAutoTestId();
-        return *this;
-      }
-
       using loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>::create;
     };
 

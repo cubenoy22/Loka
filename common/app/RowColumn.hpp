@@ -63,7 +63,7 @@ namespace loka
       virtual ColumnNode *asColumnNode() { return this; }
     };
 
-    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>, public scene::NestableDefinitionBase
+    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<ColumnDefinition>
     {
       typedef scene::NodeDefinition<ColumnProps, ColumnNode> BaseType;
       ColumnDefinition() : BaseType(), scene::NestableDefinitionBase() {}
@@ -85,16 +85,6 @@ namespace loka
       ColumnDefinition &alignHorizontal(HorizontalAlignment value)
       {
         this->props.alignHorizontal(value);
-        return *this;
-      }
-      ColumnDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      ColumnDefinition &testId()
-      {
-        this->setAutoTestId();
         return *this;
       }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
@@ -143,7 +133,7 @@ namespace loka
       virtual RowNode *asRowNode() { return this; }
     };
 
-    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>, public scene::NestableDefinitionBase
+    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<RowDefinition>
     {
       typedef scene::NodeDefinition<RowProps, RowNode> BaseType;
       RowDefinition() : BaseType(), scene::NestableDefinitionBase() {}
@@ -165,16 +155,6 @@ namespace loka
       RowDefinition &alignVertical(VerticalAlignment value)
       {
         this->props.alignVertical(value);
-        return *this;
-      }
-      RowDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      RowDefinition &testId()
-      {
-        this->setAutoTestId();
         return *this;
       }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }

@@ -38,20 +38,10 @@ namespace loka
     };
 
     // Definition for Empty node
-    struct EmptyDefinition : public scene::NodeDefinition<EmptyProps, EmptyNode>
+    struct EmptyDefinition : public scene::NodeDefinition<EmptyProps, EmptyNode>, public scene::TestIdDslMixin<EmptyDefinition>
     {
       EmptyDefinition() : scene::NodeDefinition<EmptyProps, EmptyNode>() {}
       EmptyDefinition(const EmptyProps &p) : scene::NodeDefinition<EmptyProps, EmptyNode>(p) {}
-      EmptyDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      EmptyDefinition &testId()
-      {
-        this->setAutoTestId();
-        return *this;
-      }
       using scene::NodeDefinition<EmptyProps, EmptyNode>::create;
     };
     // Short name for DSL

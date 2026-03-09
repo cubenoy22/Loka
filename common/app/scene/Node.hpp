@@ -383,6 +383,23 @@ namespace loka
       };
 
       // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---
+      template <class DerivedT>
+      struct TestIdDslMixin
+      {
+        DerivedT &testId(const char *value)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          self->setTestId(value);
+          return *self;
+        }
+        DerivedT &testId()
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          self->setAutoTestId();
+          return *self;
+        }
+      };
+
       template <class PropsT, class NodeT>
       struct NodeDefinition : public NodeDefinitionBase
       {

@@ -51,7 +51,7 @@ namespace loka
       virtual BoxNode *asBoxNode() { return this; }
     };
 
-    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>, public scene::NestableDefinitionBase
+    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<BoxDefinition>
     {
       typedef scene::NodeDefinition<BoxProps, BoxNode> BaseType;
 
@@ -76,16 +76,6 @@ namespace loka
       BoxDefinition &padding(int value)
       {
         this->props.setPadding(value);
-        return *this;
-      }
-      BoxDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      BoxDefinition &testId()
-      {
-        this->setAutoTestId();
         return *this;
       }
     };

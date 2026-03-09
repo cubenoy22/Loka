@@ -65,7 +65,7 @@ namespace loka
       virtual CellNode *asCellNode() { return this; }
     };
 
-    struct CellDefinition : public scene::NodeDefinition<CellProps, CellNode>
+    struct CellDefinition : public scene::NodeDefinition<CellProps, CellNode>, public scene::TestIdDslMixin<CellDefinition>
     {
       CellDefinition() : loka::app::scene::NodeDefinition<CellProps, CellNode>() {}
       CellDefinition(const CellProps &p) : loka::app::scene::NodeDefinition<CellProps, CellNode>(p) {}
@@ -90,16 +90,6 @@ namespace loka
       CellDefinition &onClick(loka::core::EmitterState *e)
       {
         this->props.onClick_ = e;
-        return *this;
-      }
-      CellDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      CellDefinition &testId()
-      {
-        this->setAutoTestId();
         return *this;
       }
     };

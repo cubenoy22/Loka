@@ -34,7 +34,7 @@ namespace loka
       FragmentNode(const FragmentProps &p) : props(p) {}
     };
 
-    struct FragmentDefinition : public scene::NodeDefinition<FragmentProps, FragmentNode>, public scene::NestableDefinitionBase
+    struct FragmentDefinition : public scene::NodeDefinition<FragmentProps, FragmentNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<FragmentDefinition>
     {
       typedef scene::NodeDefinition<FragmentProps, FragmentNode> BaseType;
       FragmentDefinition() : BaseType(), scene::NestableDefinitionBase() {}
@@ -52,16 +52,6 @@ namespace loka
       virtual scene::NodeDefinitionBase *clone() const
       {
         return new FragmentDefinition(*this);
-      }
-      FragmentDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      FragmentDefinition &testId()
-      {
-        this->setAutoTestId();
-        return *this;
       }
       virtual scene::INestableDefinition *asNestableDefinition() { return this; }
       virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }

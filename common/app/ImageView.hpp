@@ -150,7 +150,7 @@ namespace loka
       virtual ImageViewNode *asImageViewNode() { return this; }
     };
 
-    struct ImageViewDefinition : public scene::NodeDefinition<ImageViewProps, ImageViewNode>
+    struct ImageViewDefinition : public scene::NodeDefinition<ImageViewProps, ImageViewNode>, public scene::TestIdDslMixin<ImageViewDefinition>
     {
       ImageViewDefinition() : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>() {}
       ImageViewDefinition(const ImageViewProps &p) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p) {}
@@ -164,23 +164,12 @@ namespace loka
         this->props.size(width, height);
         return *this;
       }
-      ImageViewDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      ImageViewDefinition &testId()
-      {
-        this->setAutoTestId();
-        return *this;
-      }
-
       ImageViewDefinitionWithAttr attr(const ImageViewAttr &value) const;
 
       using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
     };
 
-    struct ImageViewDefinitionWithAttr : public scene::NodeDefinition<ImageViewProps, ImageViewNode>
+    struct ImageViewDefinitionWithAttr : public scene::NodeDefinition<ImageViewProps, ImageViewNode>, public scene::TestIdDslMixin<ImageViewDefinitionWithAttr>
     {
       ImageViewDefinitionWithAttr() : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>() {}
       ImageViewDefinitionWithAttr(const ImageViewProps &p) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p) {}
@@ -200,17 +189,6 @@ namespace loka
         this->props.size(width, height);
         return *this;
       }
-      ImageViewDefinitionWithAttr &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      ImageViewDefinitionWithAttr &testId()
-      {
-        this->setAutoTestId();
-        return *this;
-      }
-
       using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
     };
 

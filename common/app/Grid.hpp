@@ -44,7 +44,7 @@ namespace loka
       virtual GridNode *asGridNode() { return this; }
     };
 
-    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>, public scene::NestableDefinitionBase
+    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<GridDefinition>
     {
       typedef scene::NodeDefinition<GridProps, GridNode> BaseType;
       GridDefinition() : BaseType(), NestableDefinitionBase() {}
@@ -70,16 +70,6 @@ namespace loka
       GridDefinition &cols(short value)
       {
         this->props.cols = value;
-        return *this;
-      }
-      GridDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      GridDefinition &testId()
-      {
-        this->setAutoTestId();
         return *this;
       }
     };

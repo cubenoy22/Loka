@@ -225,44 +225,23 @@ namespace loka
       virtual TextNode *asTextNode() { return this; }
     };
 
-    struct TextDefinition : public scene::NodeDefinition<TextProps, TextNode>
+    struct TextDefinition : public scene::NodeDefinition<TextProps, TextNode>, public scene::TestIdDslMixin<TextDefinition>
     {
       TextDefinition() : loka::app::scene::NodeDefinition<TextProps, TextNode>() {}
       TextDefinition(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
       TextDefinition(const char *value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
       TextDefinition(const loka::core::String &value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
       TextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state)) {}
-      TextDefinition &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      TextDefinition &testId()
-      {
-        this->setAutoTestId();
-        return *this;
-      }
-
       TextDefinitionWithAttr attr(const TextAttr &value) const;
     };
 
-    struct TextDefinitionWithAttr : public scene::NodeDefinition<TextProps, TextNode>
+    struct TextDefinitionWithAttr : public scene::NodeDefinition<TextProps, TextNode>, public scene::TestIdDslMixin<TextDefinitionWithAttr>
     {
       TextDefinitionWithAttr() : loka::app::scene::NodeDefinition<TextProps, TextNode>() {}
       TextDefinitionWithAttr(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
       TextDefinitionWithAttr(const TextDefinition &def) : loka::app::scene::NodeDefinition<TextProps, TextNode>(def.props)
       {
         this->copyTestIdPolicyFrom(def);
-      }
-      TextDefinitionWithAttr &testId(const char *value)
-      {
-        this->setTestId(value);
-        return *this;
-      }
-      TextDefinitionWithAttr &testId()
-      {
-        this->setAutoTestId();
-        return *this;
       }
     };
 
