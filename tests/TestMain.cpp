@@ -29,6 +29,7 @@ int main()
   testLokaCoreCollections();
   testLokaDslStream();
   testSnapFormatV1();
+  testSnapFlowWriteAdapter();
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
   testStateBatchOverflow();

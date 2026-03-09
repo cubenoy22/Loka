@@ -6,6 +6,7 @@
 int main() {
   testStateNotify();
   testSnapFormatV1();
+  testSnapFlowWriteAdapter();
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
   return 0;

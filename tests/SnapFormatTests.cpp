@@ -3,7 +3,39 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include "loka/dsl/Flow.hpp"
 #include "loka/dsl/SnapFormat.hpp"
+#include "loka/dsl/SnapFlow.hpp"
+
+namespace
+{
+  struct BuildSnapRecordAdapter
+  {
+    typedef int In;
+    typedef loka::dsl::SnapRecord Out;
+
+    explicit BuildSnapRecordAdapter(bool valid) : valid_(valid) {}
+
+    loka::dsl::StepRunStatus run(const int &in, Out &out, loka::dsl::FlowError &) const
+    {
+      (void)in;
+      out.set("test", "SnapFlow");
+      out.set("step", "write");
+      out.set("node", "MainText");
+      out.setInt("tick", 1);
+      out.set("status", "ok");
+      if (valid_)
+      {
+        out.setInt("format_version", 1);
+        out.setInt("schema_version", 1);
+        out.setInt("scenario_version", 1);
+      }
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    bool valid_;
+  };
+} // namespace
 
 void testSnapFormatV1()
 {
@@ -70,4 +102,46 @@ void testSnapFormatV1()
   assert(missingKey == "format_version");
 
   printf("==== [testSnapFormatV1] end ====\n");
+}
+
+void testSnapFlowWriteAdapter()
+{
+  printf("\n==== [testSnapFlowWriteAdapter] start ====\n");
+  const char *okPath = "snap_flow_ok.tmp";
+  const char *badPath = "snap_flow_bad.tmp";
+  const int input = 7;
+
+  {
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(okPath));
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    std::ifstream ifs(okPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("format_version\t1\n") != std::string::npos);
+    std::remove(okPath);
+  }
+
+  {
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(false)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(badPath));
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_FAILED);
+    std::ifstream ifs(badPath, std::ios::binary);
+    assert(!ifs.good());
+    std::remove(badPath);
+  }
+
+  printf("==== [testSnapFlowWriteAdapter] end ====\n");
 }
