@@ -25,6 +25,25 @@
 }
 @end
 
+@interface LokaFlushTarget : NSObject
+{
+  MacApp *owner_;
+}
+@property(nonatomic, assign) MacApp *owner;
+@end
+
+@implementation LokaFlushTarget
+@synthesize owner = owner_;
+- (void)handleFlush:(id)sender
+{
+  (void)sender;
+  if (self.owner)
+  {
+    self.owner->flushInvalidationsTick();
+  }
+}
+@end
+
 namespace
 {
   static NSString *MenuTitleFromString(const loka::core::String &title, const char *fallback)
@@ -39,7 +58,7 @@ namespace
 }
 
 MacApp::MacApp(AppConfigurable *config)
-    : App(config), nextCommandId_(1), commands_(), bindings_(), menuTarget_(0)
+    : App(config), nextCommandId_(1), commands_(), bindings_(), menuTarget_(0), flushTarget_(0), flushTimer_(0)
 {
 }
 
@@ -51,6 +70,7 @@ MacApp::~MacApp()
     [(id)menuTarget_ release];
     menuTarget_ = 0;
   }
+  stopInvalidationFlushTimer();
 }
 
 void MacApp::run()
@@ -81,13 +101,59 @@ void MacApp::run()
     }
   }
 
+  startInvalidationFlushTimer();
   [NSApp activateIgnoringOtherApps:YES];
   [NSApp run];
+  stopInvalidationFlushTimer();
 }
 
 void MacApp::quit()
 {
+  stopInvalidationFlushTimer();
   [NSApp terminate:nil];
+}
+
+void MacApp::flushInvalidationsTick()
+{
+  this->flushWindowInvalidations();
+}
+
+void MacApp::startInvalidationFlushTimer()
+{
+  if (flushTimer_)
+  {
+    return;
+  }
+  LokaFlushTarget *target = [[LokaFlushTarget alloc] init];
+  [target setOwner:this];
+  NSTimer *timer = [NSTimer timerWithTimeInterval:0.0
+                                           target:target
+                                         selector:@selector(handleFlush:)
+                                         userInfo:nil
+                                          repeats:YES];
+  if (!timer)
+  {
+    [target release];
+    return;
+  }
+  [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSDefaultRunLoopMode];
+  [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+  flushTarget_ = target;
+  flushTimer_ = timer;
+}
+
+void MacApp::stopInvalidationFlushTimer()
+{
+  if (flushTimer_)
+  {
+    [(NSTimer *)flushTimer_ invalidate];
+    flushTimer_ = 0;
+  }
+  if (flushTarget_)
+  {
+    [(id)flushTarget_ release];
+    flushTarget_ = 0;
+  }
 }
 
 void MacApp::handleMenuCommand(int commandId)

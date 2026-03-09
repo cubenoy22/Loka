@@ -15,6 +15,7 @@ public:
   virtual void run();
   virtual void quit();
   void handleMenuCommand(int commandId);
+  void flushInvalidationsTick();
 
   struct MenuCommand
   {
@@ -35,10 +36,14 @@ protected:
 
 private:
   void clearMenuBindings();
+  void startInvalidationFlushTimer();
+  void stopInvalidationFlushTimer();
   int nextCommandId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;
   void *menuTarget_;
+  void *flushTarget_;
+  void *flushTimer_;
 };
 
 #endif // LOKA_MAC_APP_HPP
