@@ -175,7 +175,7 @@ void testSnapFlowWriteAdapter()
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
         | loka::dsl::Step(1,
-                          loka::dsl::BuildSnapV1RecordAdapter("SnapFlow", "builder", "BuilderNode", 9, 2, "ok")
+                          loka::dsl::SnapV1("SnapFlow", "builder", "BuilderNode", 9, 2)
                               .dirty("LAYOUT|PROPS")
                               .timingFlushMs(3)
                               .timingRecomposeMs(1)

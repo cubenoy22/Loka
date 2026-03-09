@@ -181,6 +181,37 @@ namespace loka
                                            scenarioVersion,
                                            status));
     }
+
+    inline BuildSnapV1RecordAdapter SnapV1(
+        const char *testName,
+        const char *stepName,
+        const char *nodeId,
+        long tick,
+        long scenarioVersion,
+        const char *status)
+    {
+      return BuildSnapV1RecordAdapter(testName,
+                                      stepName,
+                                      nodeId,
+                                      tick,
+                                      scenarioVersion,
+                                      status);
+    }
+
+    inline BuildSnapV1RecordAdapter SnapV1(
+        const char *testName,
+        const char *stepName,
+        const char *nodeId,
+        long tick,
+        long scenarioVersion)
+    {
+      return BuildSnapV1RecordAdapter(testName,
+                                      stepName,
+                                      nodeId,
+                                      tick,
+                                      scenarioVersion,
+                                      "ok");
+    }
   } // namespace dsl
 } // namespace loka
 
