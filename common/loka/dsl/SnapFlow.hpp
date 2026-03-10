@@ -559,6 +559,7 @@ namespace loka
             nodeId_(nodeId ? nodeId : ""),
             tick_(tick),
             scenarioVersion_(scenarioVersion),
+            status_("error"),
             dirty_(),
             hasTimingFlushMs_(false),
             hasTimingFlushNa_(false),
@@ -569,6 +570,12 @@ namespace loka
             timingFlushMs_(0),
             timingRecomposeMs_(0),
             timingLayoutMs_(0) {}
+
+      BuildSnapErrorV1RecordAdapter &status(const char *value)
+      {
+        status_ = value ? value : "";
+        return *this;
+      }
 
       BuildSnapErrorV1RecordAdapter &dirty(const char *value)
       {
@@ -628,8 +635,9 @@ namespace loka
                                       nodeId_.c_str(),
                                       tick_,
                                       scenarioVersion_,
-                                      "error");
+                                      status_.c_str());
         base.snapFlowError(in);
+        base.status(status_.c_str());
         if (!dirty_.empty())
         {
           base.dirty(dirty_.c_str());
@@ -670,6 +678,7 @@ namespace loka
       std::string nodeId_;
       long tick_;
       long scenarioVersion_;
+      std::string status_;
       std::string dirty_;
       bool hasTimingFlushMs_;
       bool hasTimingFlushNa_;

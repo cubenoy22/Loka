@@ -290,6 +290,26 @@ void testSnapFlowWriteAdapter()
     assert(content2.find("timing.recompose_ms\tna\n") != std::string::npos);
     assert(content2.find("timing.layout_ms\t1\n") != std::string::npos);
     std::remove(relayPath2);
+
+    const char *relayPath3 = "snap_flow_error_relay_partial.tmp";
+    loka::dsl::FlowChain<loka::dsl::SnapFlowErrorSnapshot, loka::dsl::SnapRecord> relayChain3 =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapErrorV1("SnapFlow", "relay-partial", "RelayNode", 102, 2)
+                              .status("partial")
+                              .timingFlushNa())
+              .input(&snapshot)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath3));
+
+    const loka::dsl::FlowRunResult relayResult3 = relayChain3.runResult();
+    assert(relayResult3 == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::string content3;
+    assert(readFileBinary(relayPath3, content3));
+    assert(content3.find("step\trelay-partial\n") != std::string::npos);
+    assert(content3.find("status\tpartial\n") != std::string::npos);
+    assert(content3.find("timing.flush_ms\tna\n") != std::string::npos);
+    std::remove(relayPath3);
   }
 
   {
