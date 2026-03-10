@@ -64,18 +64,20 @@ namespace loka
     struct SnapFlowErrorSnapshot
     {
       SnapFlowErrorSnapshot()
-          : kind(0), code(0), detail() {}
+          : kind(0), code(0), detail(), sourceStep() {}
 
       void clear()
       {
         kind = 0;
         code = 0;
         detail.clear();
+        sourceStep.clear();
       }
 
       int kind;
       int code;
       std::string detail;
+      std::string sourceStep;
     };
 
     class SnapErrorDetailBuilder
@@ -130,19 +132,21 @@ namespace loka
     struct SnapFlowErrorCaptureContext
     {
       SnapFlowErrorCaptureContext()
-          : out(0), detail(0) {}
+          : out(0), detail(0), sourceStep(0) {}
 
       SnapFlowErrorSnapshot *out;
       const char *detail;
+      const char *sourceStep;
     };
 
     struct SnapFlowErrorCaptureBuilderContext
     {
       SnapFlowErrorCaptureBuilderContext()
-          : out(0), detailBuilder(0) {}
+          : out(0), detailBuilder(0), sourceStep(0) {}
 
       SnapFlowErrorSnapshot *out;
       const SnapErrorDetailBuilder *detailBuilder;
+      const char *sourceStep;
     };
 
     inline FlowHandleResult captureSnapFlowError(const FlowError &error, void *user)
@@ -155,6 +159,7 @@ namespace loka
       snapshot->kind = error.kind;
       snapshot->code = error.code;
       snapshot->detail.clear();
+      snapshot->sourceStep.clear();
       return FLOW_ERROR_HANDLED;
     }
 
@@ -168,6 +173,7 @@ namespace loka
       ctx->out->kind = error.kind;
       ctx->out->code = error.code;
       ctx->out->detail = ctx->detail ? ctx->detail : "";
+      ctx->out->sourceStep = ctx->sourceStep ? ctx->sourceStep : "";
       return FLOW_ERROR_HANDLED;
     }
 
@@ -188,6 +194,7 @@ namespace loka
       {
         ctx->out->detail.clear();
       }
+      ctx->out->sourceStep = ctx->sourceStep ? ctx->sourceStep : "";
       return FLOW_ERROR_HANDLED;
     }
 
@@ -297,7 +304,8 @@ namespace loka
             timingLayoutMs_(0),
             errorCode_(),
             errorMessage_(),
-            errorDetail_() {}
+            errorDetail_(),
+            sourceStep_() {}
 
       BuildSnapV1RecordAdapter &status(const char *value)
       {
@@ -383,6 +391,10 @@ namespace loka
         {
           this->errorDetail(error.detail.c_str());
         }
+        if (!error.sourceStep.empty())
+        {
+          this->sourceStep(error.sourceStep.c_str());
+        }
         return *this;
       }
 
@@ -396,6 +408,12 @@ namespace loka
       BuildSnapV1RecordAdapter &errorDetail(const char *value)
       {
         errorDetail_ = value ? value : "";
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &sourceStep(const char *value)
+      {
+        sourceStep_ = value ? value : "";
         return *this;
       }
 
@@ -453,6 +471,10 @@ namespace loka
         {
           out.set("error_detail", errorDetail_.c_str());
         }
+        if (!sourceStep_.empty())
+        {
+          out.set("source_step", sourceStep_.c_str());
+        }
         return FLOW_STEP_SUCCEEDED;
       }
 
@@ -476,6 +498,7 @@ namespace loka
       std::string errorCode_;
       std::string errorMessage_;
       std::string errorDetail_;
+      std::string sourceStep_;
     };
 
     inline StepSpec<BuildSnapV1RecordAdapter> SnapStep(

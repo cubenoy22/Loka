@@ -252,6 +252,7 @@ Implemented:
 - `SnapV1(...).snapFlowError(code)` helper for standard error snapshot fields.
 - `onFailure` relay helpers (`captureSnapFlowError*`) to bridge `FlowError` into `SnapV1(...).snapFlowError(...)`.
 - `SnapErrorDetailBuilder` for stable `error_detail` payload (`key=value;...`, escaped).
+- Optional `source_step` for failure snapshots (where the error originated).
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
 - `max_total_bytes` enforcement on append.
@@ -280,7 +281,7 @@ Not yet implemented:
 - Missing data handling:
   - `status` is one of `ok|partial|error`
   - unavailable values are written as `na`
-  - when `status=error`, include `error_code` and `error_msg` (`error_detail` is optional)
+  - when `status=error`, include `error_code` and `error_msg` (`error_detail` / `source_step` are optional)
 - Keep serialization platform-independent (no platform-specific serializer dependency such as NSCoder).
 - Toolbox/68k prefers text snapshots; bitmap capture is optional.
 
