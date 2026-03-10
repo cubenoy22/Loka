@@ -248,7 +248,7 @@ Implemented:
 - `snap v1` serializer (flat `key\tvalue`, ASCII key sort, blank-line record separator).
 - `SnapWriteAdapter` validation for required v1 keys.
 - Snap flow builder (`SnapV1`) for common keys, dirty flags, timing metrics.
-- Error fields (`error_code`, `error_msg`) and `status=partial` with `na` timings.
+- Error fields (`error_code`, `error_msg`, optional `error_detail`) and `status=partial` with `na` timings.
 - `SnapV1(...).snapFlowError(code)` helper for standard error snapshot fields.
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
@@ -278,7 +278,7 @@ Not yet implemented:
 - Missing data handling:
   - `status` is one of `ok|partial|error`
   - unavailable values are written as `na`
-  - when `status=error`, include `error_code` and `error_msg`
+  - when `status=error`, include `error_code` and `error_msg` (`error_detail` is optional)
 - Keep serialization platform-independent (no platform-specific serializer dependency such as NSCoder).
 - Toolbox/68k prefers text snapshots; bitmap capture is optional.
 
