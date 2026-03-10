@@ -253,6 +253,7 @@ Implemented:
 - `onFailure` relay helpers (`captureSnapFlowError*`) to bridge `FlowError` into `SnapV1(...).snapFlowError(...)`.
 - `SnapErrorDetailBuilder` for stable `error_detail` payload (`key=value;...`, escaped).
 - Optional `source_step` for failure snapshots (where the error originated).
+- `snapSourceStepFromId(id)` helper for stable `source_step` labels (`step#<id>`).
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
 - `max_total_bytes` enforcement on append.

@@ -1,6 +1,7 @@
 #ifndef LOKA_DSL_SNAP_FLOW_HPP
 #define LOKA_DSL_SNAP_FLOW_HPP
 
+#include <sstream>
 #include <string>
 #include "loka/dsl/Flow.hpp"
 #include "loka/dsl/SnapFormat.hpp"
@@ -59,6 +60,13 @@ namespace loka
       default:
         return "unknown snap error";
       }
+    }
+
+    inline std::string snapSourceStepFromId(int stepId)
+    {
+      std::ostringstream oss;
+      oss << "step#" << stepId;
+      return oss.str();
     }
 
     struct SnapFlowErrorSnapshot

@@ -212,9 +212,10 @@ void testSnapFlowWriteAdapter()
 
     loka::dsl::SnapFlowErrorSnapshot snapshot;
     loka::dsl::SnapFlowErrorCaptureContext context;
+    const std::string sourceStep = loka::dsl::snapSourceStepFromId(2);
     context.out = &snapshot;
     context.detail = "while writing relay snap";
-    context.sourceStep = "snap-write";
+    context.sourceStep = sourceStep.c_str();
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
         loka::dsl::Flow()
@@ -252,7 +253,7 @@ void testSnapFlowWriteAdapter()
     assert(content.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
     assert(content.find("error_msg\tsnap output path is invalid\n") != std::string::npos);
     assert(content.find("error_detail\twhile writing relay snap\n") != std::string::npos);
-    assert(content.find("source_step\tsnap-write\n") != std::string::npos);
+    assert(content.find("source_step\tstep#2\n") != std::string::npos);
     std::remove(relayPath);
   }
 
@@ -264,11 +265,12 @@ void testSnapFlowWriteAdapter()
     loka::dsl::SnapFlowErrorSnapshot snapshot;
     loka::dsl::SnapErrorDetailBuilder detail;
     detail.add("platform", "Toolbox").add("errno", "28").add("path", "caps=1;tmp");
+    const std::string sourceStep = loka::dsl::snapSourceStepFromId(7);
 
     loka::dsl::SnapFlowErrorCaptureBuilderContext context;
     context.out = &snapshot;
     context.detailBuilder = &detail;
-    context.sourceStep = "snap-write-kv";
+    context.sourceStep = sourceStep.c_str();
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
         loka::dsl::Flow()
@@ -301,7 +303,7 @@ void testSnapFlowWriteAdapter()
       content += '\n';
     }
     assert(content.find("error_detail\tplatform=Toolbox;errno=28;path=caps\\\\=1\\\\;tmp\n") != std::string::npos);
-    assert(content.find("source_step\tsnap-write-kv\n") != std::string::npos);
+    assert(content.find("source_step\tstep#7\n") != std::string::npos);
     std::remove(relayPath);
   }
 
