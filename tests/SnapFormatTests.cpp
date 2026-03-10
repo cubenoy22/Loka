@@ -319,7 +319,11 @@ void testSnapFlowWriteAdapter()
 
     std::string content;
     assert(readFileBinary(relayPath, content));
-    assert(content.find("error_detail\tplatform=Toolbox;errno=28;path=caps\\\\=1\\\\;tmp\n") != std::string::npos);
+    assert(content.find("error_detail\terror_kind=1001;error_code=4;extra=") != std::string::npos);
+    assert(content.find("platform\\\\=Toolbox") != std::string::npos);
+    assert(content.find("errno\\\\=28") != std::string::npos);
+    assert(content.find("path\\\\=caps") != std::string::npos);
+    assert(content.find("tmp\n") != std::string::npos);
     assert(content.find("source_step\tstep#7\n") != std::string::npos);
     std::remove(relayPath);
   }

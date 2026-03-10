@@ -253,6 +253,7 @@ Implemented:
 - `SnapV1(...).snapFlowError(code)` helper for standard error snapshot fields.
 - `onFailure` relay helpers (`captureSnapFlowError*`) to bridge `FlowError` into `SnapV1(...).snapFlowError(...)`.
 - `SnapErrorDetailBuilder` for stable `error_detail` payload (`key=value;...`, escaped).
+- `captureSnapFlowErrorWithDetailBuilder` always prefixes `error_detail` with `error_kind` / `error_code`.
 - Optional `source_step` for failure snapshots (where the error originated).
 - `snapSourceStepFromId(id)` helper for stable `source_step` labels (`step#<id>`).
 - Error capture contexts can set `sourceStepId` directly (preferred over raw `sourceStep` strings).
@@ -262,6 +263,7 @@ Implemented:
 - `max_total_bytes` enforcement on append.
 - `max_total_bytes` enforcement per snap file (drop oldest first, reject only when one record is too large).
 - `max_files` enforcement per snap file (keep latest N records).
+- When both `max_files` and `max_total_bytes` are set, pruning continues until both constraints are satisfied.
 
 Not yet implemented:
 - Golden update policy automation.

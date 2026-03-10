@@ -111,6 +111,13 @@ namespace loka
         return *this;
       }
 
+      SnapErrorDetailBuilder &addInt(const char *key, long value)
+      {
+        char buf[64];
+        std::sprintf(buf, "%ld", value);
+        return add(key, buf);
+      }
+
       const std::string &str() const
       {
         return detail_;
@@ -203,14 +210,16 @@ namespace loka
       }
       ctx->out->kind = error.kind;
       ctx->out->code = error.code;
+
+      SnapErrorDetailBuilder merged;
+      merged.addInt("error_kind", error.kind);
+      merged.addInt("error_code", error.code);
       if (ctx->detailBuilder)
       {
-        ctx->out->detail = ctx->detailBuilder->str();
+        merged.add("extra", ctx->detailBuilder->str().c_str());
       }
-      else
-      {
-        ctx->out->detail.clear();
-      }
+      ctx->out->detail = merged.str();
+
       if (ctx->sourceStepId >= 0)
       {
         ctx->out->sourceStep = snapSourceStepFromId(ctx->sourceStepId);
