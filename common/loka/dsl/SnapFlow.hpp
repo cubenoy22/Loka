@@ -166,7 +166,8 @@ namespace loka
             timingRecomposeMs_(0),
             timingLayoutMs_(0),
             errorCode_(),
-            errorMessage_() {}
+            errorMessage_(),
+            errorDetail_() {}
 
       BuildSnapV1RecordAdapter &status(const char *value)
       {
@@ -245,6 +246,19 @@ namespace loka
         return *this;
       }
 
+      BuildSnapV1RecordAdapter &snapFlowError(int code, const char *detail)
+      {
+        this->snapFlowError(code);
+        this->errorDetail(detail);
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &errorDetail(const char *value)
+      {
+        errorDetail_ = value ? value : "";
+        return *this;
+      }
+
       StepRunStatus run(const int &in, Out &out, FlowError &) const
       {
         (void)in;
@@ -295,6 +309,10 @@ namespace loka
         {
           out.set("error_msg", errorMessage_.c_str());
         }
+        if (!errorDetail_.empty())
+        {
+          out.set("error_detail", errorDetail_.c_str());
+        }
         return FLOW_STEP_SUCCEEDED;
       }
 
@@ -317,6 +335,7 @@ namespace loka
       long timingLayoutMs_;
       std::string errorCode_;
       std::string errorMessage_;
+      std::string errorDetail_;
     };
 
     inline StepSpec<BuildSnapV1RecordAdapter> SnapStep(

@@ -470,7 +470,7 @@ void testSnapFlowWriteAdapter()
         loka::dsl::Flow()
         | loka::dsl::Step(1,
                           loka::dsl::SnapV1("SnapFlow", "error-auto", "ErrorNode", 13, 2)
-                              .snapFlowError(loka::dsl::FLOW_ERROR_SNAP_LIMIT_EXCEEDED))
+                              .snapFlowError(loka::dsl::FLOW_ERROR_SNAP_LIMIT_EXCEEDED, "errno=28"))
               .input(&inputForErrorAuto)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorAutoPath));
 
@@ -489,7 +489,36 @@ void testSnapFlowWriteAdapter()
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tSNAP_LIMIT_EXCEEDED\n") != std::string::npos);
     assert(content.find("error_msg\tsnap write exceeds configured limits\n") != std::string::npos);
+    assert(content.find("error_detail\terrno=28\n") != std::string::npos);
     std::remove(errorAutoPath);
+  }
+
+  {
+    const char *errorUnknownPath = "snap_flow_error_unknown.tmp";
+    const int inputForUnknown = 0;
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "error-unknown", "ErrorNode", 14, 2)
+                              .snapFlowError(9999))
+              .input(&inputForUnknown)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorUnknownPath));
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::ifstream ifs(errorUnknownPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("error_code\tSNAP_UNKNOWN_ERROR\n") != std::string::npos);
+    assert(content.find("error_msg\tunknown snap error\n") != std::string::npos);
+    std::remove(errorUnknownPath);
   }
 
   {
