@@ -254,6 +254,7 @@ Implemented:
 - `SnapErrorDetailBuilder` for stable `error_detail` payload (`key=value;...`, escaped).
 - Optional `source_step` for failure snapshots (where the error originated).
 - `snapSourceStepFromId(id)` helper for stable `source_step` labels (`step#<id>`).
+- Error capture contexts can set `sourceStepId` directly (preferred over raw `sourceStep` strings).
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
 - `max_total_bytes` enforcement on append.

@@ -140,21 +140,23 @@ namespace loka
     struct SnapFlowErrorCaptureContext
     {
       SnapFlowErrorCaptureContext()
-          : out(0), detail(0), sourceStep(0) {}
+          : out(0), detail(0), sourceStep(0), sourceStepId(-1) {}
 
       SnapFlowErrorSnapshot *out;
       const char *detail;
       const char *sourceStep;
+      int sourceStepId;
     };
 
     struct SnapFlowErrorCaptureBuilderContext
     {
       SnapFlowErrorCaptureBuilderContext()
-          : out(0), detailBuilder(0), sourceStep(0) {}
+          : out(0), detailBuilder(0), sourceStep(0), sourceStepId(-1) {}
 
       SnapFlowErrorSnapshot *out;
       const SnapErrorDetailBuilder *detailBuilder;
       const char *sourceStep;
+      int sourceStepId;
     };
 
     inline FlowHandleResult captureSnapFlowError(const FlowError &error, void *user)
@@ -181,7 +183,14 @@ namespace loka
       ctx->out->kind = error.kind;
       ctx->out->code = error.code;
       ctx->out->detail = ctx->detail ? ctx->detail : "";
-      ctx->out->sourceStep = ctx->sourceStep ? ctx->sourceStep : "";
+      if (ctx->sourceStepId >= 0)
+      {
+        ctx->out->sourceStep = snapSourceStepFromId(ctx->sourceStepId);
+      }
+      else
+      {
+        ctx->out->sourceStep = ctx->sourceStep ? ctx->sourceStep : "";
+      }
       return FLOW_ERROR_HANDLED;
     }
 
@@ -202,7 +211,14 @@ namespace loka
       {
         ctx->out->detail.clear();
       }
-      ctx->out->sourceStep = ctx->sourceStep ? ctx->sourceStep : "";
+      if (ctx->sourceStepId >= 0)
+      {
+        ctx->out->sourceStep = snapSourceStepFromId(ctx->sourceStepId);
+      }
+      else
+      {
+        ctx->out->sourceStep = ctx->sourceStep ? ctx->sourceStep : "";
+      }
       return FLOW_ERROR_HANDLED;
     }
 

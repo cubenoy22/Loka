@@ -212,10 +212,9 @@ void testSnapFlowWriteAdapter()
 
     loka::dsl::SnapFlowErrorSnapshot snapshot;
     loka::dsl::SnapFlowErrorCaptureContext context;
-    const std::string sourceStep = loka::dsl::snapSourceStepFromId(2);
     context.out = &snapshot;
     context.detail = "while writing relay snap";
-    context.sourceStep = sourceStep.c_str();
+    context.sourceStepId = 2;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
         loka::dsl::Flow()
@@ -265,12 +264,11 @@ void testSnapFlowWriteAdapter()
     loka::dsl::SnapFlowErrorSnapshot snapshot;
     loka::dsl::SnapErrorDetailBuilder detail;
     detail.add("platform", "Toolbox").add("errno", "28").add("path", "caps=1;tmp");
-    const std::string sourceStep = loka::dsl::snapSourceStepFromId(7);
 
     loka::dsl::SnapFlowErrorCaptureBuilderContext context;
     context.out = &snapshot;
     context.detailBuilder = &detail;
-    context.sourceStep = sourceStep.c_str();
+    context.sourceStepId = 7;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
         loka::dsl::Flow()
