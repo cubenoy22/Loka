@@ -531,6 +531,58 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *path = "snap_combined_limits.tmp";
+
+    loka::dsl::SnapRecord r1;
+    r1.setInt("format_version", 1);
+    r1.setInt("schema_version", 1);
+    r1.setInt("scenario_version", 2);
+    r1.set("test", "SnapFlow");
+    r1.set("step", "a");
+    r1.set("node", "NodeA");
+    r1.setInt("tick", 1);
+    r1.set("status", "ok");
+
+    loka::dsl::SnapRecord r2;
+    r2.setInt("format_version", 1);
+    r2.setInt("schema_version", 1);
+    r2.setInt("scenario_version", 2);
+    r2.set("test", "SnapFlow");
+    r2.set("step", "b");
+    r2.set("node", "NodeA");
+    r2.setInt("tick", 2);
+    r2.set("status", "ok");
+
+    loka::dsl::SnapRecord r3;
+    r3.setInt("format_version", 1);
+    r3.setInt("schema_version", 1);
+    r3.setInt("scenario_version", 2);
+    r3.set("test", "SnapFlow");
+    r3.set("step", "c");
+    r3.set("node", "NodeA");
+    r3.setInt("tick", 3);
+    r3.set("status", "ok");
+
+    const long singleBytes = static_cast<long>(r1.serialize(true).size());
+    const long maxTotalBytes = singleBytes * 2 + 8;
+    const long maxRecords = 3;
+
+    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r1, maxTotalBytes, maxRecords)
+           == loka::dsl::SNAP_WRITE_OK);
+    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r2, maxTotalBytes, maxRecords)
+           == loka::dsl::SNAP_WRITE_OK);
+    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r3, maxTotalBytes, maxRecords)
+           == loka::dsl::SNAP_WRITE_OK);
+
+    std::string content;
+    assert(readFileBinary(path, content));
+    assert(content.find("step\tc\n") != std::string::npos);
+    assert(content.find("step\tb\n") != std::string::npos);
+    assert(content.find("step\ta\n") == std::string::npos);
+    std::remove(path);
+  }
+
+  {
     const char *builderPath = "snap_flow_builder.tmp";
     const int inputForBuilder = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
