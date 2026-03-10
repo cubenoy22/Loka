@@ -250,6 +250,7 @@ Implemented:
 - Snap flow builder (`SnapV1`) for common keys, dirty flags, timing metrics.
 - Error fields (`error_code`, `error_msg`, optional `error_detail`) and `status=partial` with `na` timings.
 - `SnapV1(...).snapFlowError(code)` helper for standard error snapshot fields.
+- `onFailure` relay helpers (`captureSnapFlowError*`) to bridge `FlowError` into `SnapV1(...).snapFlowError(...)`.
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
 - `max_total_bytes` enforcement on append.
