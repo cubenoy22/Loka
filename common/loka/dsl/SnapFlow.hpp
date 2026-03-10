@@ -189,7 +189,16 @@ namespace loka
       }
       ctx->out->kind = error.kind;
       ctx->out->code = error.code;
-      ctx->out->detail = ctx->detail ? ctx->detail : "";
+
+      SnapErrorDetailBuilder merged;
+      merged.addInt("error_kind", error.kind);
+      merged.addInt("error_code", error.code);
+      if (ctx->detail && *ctx->detail)
+      {
+        merged.add("extra", ctx->detail);
+      }
+      ctx->out->detail = merged.str();
+
       if (ctx->sourceStepId >= 0)
       {
         ctx->out->sourceStep = snapSourceStepFromId(ctx->sourceStepId);

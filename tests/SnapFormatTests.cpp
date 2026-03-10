@@ -240,7 +240,8 @@ void testSnapFlowWriteAdapter()
     assert(failingResult == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(snapshot.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(snapshot.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH);
-    assert(snapshot.detail == std::string("while writing relay snap"));
+    assert(snapshot.detail.find("error_kind=1001;error_code=4;extra=") == 0);
+    assert(snapshot.detail.find("while writing relay snap") != std::string::npos);
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> relayChain =
         loka::dsl::Flow()
@@ -258,7 +259,8 @@ void testSnapFlowWriteAdapter()
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
     assert(content.find("error_msg\tsnap output path is invalid\n") != std::string::npos);
-    assert(content.find("error_detail\twhile writing relay snap\n") != std::string::npos);
+    assert(content.find("error_detail\terror_kind=1001;error_code=4;extra=while writing relay snap\n")
+           != std::string::npos);
     assert(content.find("source_step\tstep#2\n") != std::string::npos);
     std::remove(relayPath);
 
