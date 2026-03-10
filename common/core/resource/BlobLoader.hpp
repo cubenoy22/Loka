@@ -2,7 +2,7 @@
 #define LOKA_CORE2_RESOURCE_BLOB_LOADER_HPP
 
 #include <cstddef>
-#include <fstream>
+#include <cstdio>
 #include <vector>
 
 #include "loka/core/State.hpp"
@@ -246,60 +246,91 @@ namespace loka
           std::string utf8Path;
           if (!loka::platform::CollectUtf8(path, utf8Path))
             return false;
-          std::ifstream file(utf8Path.c_str(), std::ios::binary);
+          FILE *file = std::fopen(utf8Path.c_str(), "rb");
           if (!file)
             return false;
 
           std::vector<unsigned char> bytes;
-          file.seekg(0, std::ios::end);
-          std::ifstream::pos_type lengthPos = file.tellg();
-          if (lengthPos < 0)
+          if (std::fseek(file, 0, SEEK_END) == 0)
           {
-            file.clear();
-            file.seekg(0, std::ios::beg);
-            copyStream(file, &bytes);
+            long lengthPos = std::ftell(file);
+            if (lengthPos >= 0)
+            {
+              std::size_t length = static_cast<std::size_t>(lengthPos);
+              bytes.resize(length);
+              if (std::fseek(file, 0, SEEK_SET) != 0)
+              {
+                std::fclose(file);
+                return false;
+              }
+              if (!bytes.empty())
+              {
+                const std::size_t readBytes = std::fread(&bytes[0], 1, length, file);
+                if (readBytes < length)
+                {
+                  if (std::ferror(file))
+                  {
+                    std::fclose(file);
+                    return false;
+                  }
+                  bytes.resize(readBytes);
+                }
+              }
+            }
+            else
+            {
+              if (std::fseek(file, 0, SEEK_SET) != 0)
+              {
+                std::fclose(file);
+                return false;
+              }
+              if (!copyStream(file, &bytes))
+              {
+                std::fclose(file);
+                return false;
+              }
+            }
           }
           else
           {
-            std::size_t length = static_cast<std::size_t>(lengthPos);
-            bytes.resize(length);
-            file.seekg(0, std::ios::beg);
-            if (!bytes.empty())
-              file.read(reinterpret_cast<char *>(&bytes[0]), static_cast<std::streamsize>(length));
-            if (!file)
+            if (std::fseek(file, 0, SEEK_SET) != 0)
             {
-              std::streamsize readBytes = file.gcount();
-              if (readBytes < 0)
-                readBytes = 0;
-              bytes.resize(static_cast<std::size_t>(readBytes));
+              std::fclose(file);
+              return false;
+            }
+            if (!copyStream(file, &bytes))
+            {
+              std::fclose(file);
+              return false;
             }
           }
 
-          if (!file && !file.eof())
-          {
-            return false;
-          }
+          std::fclose(file);
 
           blob->setBytes(bytes);
           blob->setMutable(writable);
           return true;
         }
 
-        void copyStream(std::ifstream &file, std::vector<unsigned char> *out)
+        bool copyStream(FILE *file, std::vector<unsigned char> *out)
         {
           const std::size_t kBuffer = 4096;
           unsigned char buffer[kBuffer];
-          while (file)
+          for (;;)
           {
-            file.read(reinterpret_cast<char *>(buffer), static_cast<std::streamsize>(kBuffer));
-            std::streamsize readBytes = file.gcount();
-            if (readBytes <= 0)
+            const std::size_t readBytes = std::fread(buffer, 1, kBuffer, file);
+            if (readBytes == 0)
+            {
+              if (std::ferror(file))
+                return false;
               break;
-            std::size_t oldSize = out->size();
-            out->resize(oldSize + static_cast<std::size_t>(readBytes));
-            for (std::size_t i = 0; i < static_cast<std::size_t>(readBytes); ++i)
+            }
+            const std::size_t oldSize = out->size();
+            out->resize(oldSize + readBytes);
+            for (std::size_t i = 0; i < readBytes; ++i)
               (*out)[oldSize + i] = buffer[i];
           }
+          return true;
         }
 
         void emitError(const BlobLoaderRequest &request, const String &message)
