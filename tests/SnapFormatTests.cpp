@@ -206,6 +206,55 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *invalidPath = "";
+    const char *relayPath = "snap_flow_error_relay.tmp";
+    const int inputForRelay = 0;
+
+    loka::dsl::SnapFlowErrorSnapshot snapshot;
+    loka::dsl::SnapFlowErrorCaptureContext context;
+    context.out = &snapshot;
+    context.detail = "while writing relay snap";
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&inputForRelay)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath))
+              .onFailure(&loka::dsl::captureSnapFlowErrorWithDetail, &context);
+
+    const loka::dsl::FlowRunResult failingResult = failingChain.runResult();
+    assert(failingResult == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(snapshot.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(snapshot.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH);
+    assert(snapshot.detail == std::string("while writing relay snap"));
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> relayChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "relay", "RelayNode", 99, 2)
+                              .snapFlowError(snapshot))
+              .input(&inputForRelay)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath));
+
+    const loka::dsl::FlowRunResult relayResult = relayChain.runResult();
+    assert(relayResult == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::ifstream ifs(relayPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("status\terror\n") != std::string::npos);
+    assert(content.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
+    assert(content.find("error_msg\tsnap output path is invalid\n") != std::string::npos);
+    assert(content.find("error_detail\twhile writing relay snap\n") != std::string::npos);
+    std::remove(relayPath);
+  }
+
+  {
     const char *cfgPath = "LokaTest-io.cfg";
     const char *relativeBadDir = "missing_dir/subdir";
     const char *ioPath = "snap_io_error.tmp";

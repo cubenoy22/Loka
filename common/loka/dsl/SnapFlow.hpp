@@ -61,6 +61,58 @@ namespace loka
       }
     }
 
+    struct SnapFlowErrorSnapshot
+    {
+      SnapFlowErrorSnapshot()
+          : kind(0), code(0), detail() {}
+
+      void clear()
+      {
+        kind = 0;
+        code = 0;
+        detail.clear();
+      }
+
+      int kind;
+      int code;
+      std::string detail;
+    };
+
+    struct SnapFlowErrorCaptureContext
+    {
+      SnapFlowErrorCaptureContext()
+          : out(0), detail(0) {}
+
+      SnapFlowErrorSnapshot *out;
+      const char *detail;
+    };
+
+    inline FlowHandleResult captureSnapFlowError(const FlowError &error, void *user)
+    {
+      SnapFlowErrorSnapshot *snapshot = static_cast<SnapFlowErrorSnapshot *>(user);
+      if (!snapshot)
+      {
+        return FLOW_ERROR_UNHANDLED;
+      }
+      snapshot->kind = error.kind;
+      snapshot->code = error.code;
+      snapshot->detail.clear();
+      return FLOW_ERROR_HANDLED;
+    }
+
+    inline FlowHandleResult captureSnapFlowErrorWithDetail(const FlowError &error, void *user)
+    {
+      SnapFlowErrorCaptureContext *ctx = static_cast<SnapFlowErrorCaptureContext *>(user);
+      if (!ctx || !ctx->out)
+      {
+        return FLOW_ERROR_UNHANDLED;
+      }
+      ctx->out->kind = error.kind;
+      ctx->out->code = error.code;
+      ctx->out->detail = ctx->detail ? ctx->detail : "";
+      return FLOW_ERROR_HANDLED;
+    }
+
     class SnapWriteAdapter
     {
     public:
@@ -243,6 +295,16 @@ namespace loka
         this->status("error");
         this->errorCode(snapFlowErrorCodeString(code));
         this->errorMessage(snapFlowErrorMessage(code));
+        return *this;
+      }
+
+      BuildSnapV1RecordAdapter &snapFlowError(const SnapFlowErrorSnapshot &error)
+      {
+        this->snapFlowError(error.code);
+        if (!error.detail.empty())
+        {
+          this->errorDetail(error.detail.c_str());
+        }
         return *this;
       }
 
