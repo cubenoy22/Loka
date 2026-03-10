@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <cstdio>
-#include <fstream>
 #include <vector>
 
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
@@ -1092,9 +1091,12 @@ void testLokaFlowDslV1Core() {
   {
     const char *tmpPath = "_loka_test_blob_adapter.bin";
     {
-      std::ofstream out(tmpPath, std::ios::binary);
       const unsigned char data[] = {0xDE, 0xAD, 0xBE, 0xEF};
-      out.write(reinterpret_cast<const char *>(data), sizeof(data));
+      FILE *out = std::fopen(tmpPath, "wb");
+      assert(out != 0);
+      const std::size_t written = std::fwrite(data, 1, sizeof(data), out);
+      assert(written == sizeof(data));
+      assert(std::fclose(out) == 0);
     }
 
     simpleviewer::ChooserProjection projection;
@@ -1148,9 +1150,12 @@ void testLokaFlowDslV1Core() {
   {
     const char *tmpPath = "_loka_test_full_chain.bin";
     {
-      std::ofstream out(tmpPath, std::ios::binary);
       const unsigned char data[] = {0x89, 0x50, 0x4E, 0x47}; // fake PNG header
-      out.write(reinterpret_cast<const char *>(data), sizeof(data));
+      FILE *out = std::fopen(tmpPath, "wb");
+      assert(out != 0);
+      const std::size_t written = std::fwrite(data, 1, sizeof(data), out);
+      assert(written == sizeof(data));
+      assert(std::fclose(out) == 0);
     }
 
     FlowTestPlatformContext ctx;
