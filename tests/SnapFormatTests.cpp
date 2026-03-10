@@ -254,6 +254,32 @@ void testSnapFlowWriteAdapter()
     assert(content.find("error_detail\twhile writing relay snap\n") != std::string::npos);
     assert(content.find("source_step\tstep#2\n") != std::string::npos);
     std::remove(relayPath);
+
+    const char *relayPath2 = "snap_flow_error_relay_adapter.tmp";
+    loka::dsl::FlowChain<loka::dsl::SnapFlowErrorSnapshot, loka::dsl::SnapRecord> relayChain2 =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapErrorV1("SnapFlow", "relay-adapter", "RelayNode", 101, 2))
+              .input(&snapshot)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath2));
+
+    const loka::dsl::FlowRunResult relayResult2 = relayChain2.runResult();
+    assert(relayResult2 == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::ifstream ifs2(relayPath2, std::ios::binary);
+    assert(ifs2.good());
+    std::string content2;
+    std::string line2;
+    while (std::getline(ifs2, line2))
+    {
+      content2 += line2;
+      content2 += '\n';
+    }
+    assert(content2.find("step\trelay-adapter\n") != std::string::npos);
+    assert(content2.find("status\terror\n") != std::string::npos);
+    assert(content2.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
+    assert(content2.find("source_step\tstep#2\n") != std::string::npos);
+    std::remove(relayPath2);
   }
 
   {

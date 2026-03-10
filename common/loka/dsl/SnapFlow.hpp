@@ -525,6 +525,46 @@ namespace loka
       std::string sourceStep_;
     };
 
+    class BuildSnapErrorV1RecordAdapter
+    {
+    public:
+      typedef SnapFlowErrorSnapshot In;
+      typedef SnapRecord Out;
+
+      BuildSnapErrorV1RecordAdapter(const char *testName,
+                                    const char *stepName,
+                                    const char *nodeId,
+                                    long tick,
+                                    long scenarioVersion)
+          : testName_(testName ? testName : ""),
+            stepName_(stepName ? stepName : ""),
+            nodeId_(nodeId ? nodeId : ""),
+            tick_(tick),
+            scenarioVersion_(scenarioVersion) {}
+
+      StepRunStatus run(const In &in, Out &out, FlowError &) const
+      {
+        BuildSnapV1RecordAdapter base(testName_.c_str(),
+                                      stepName_.c_str(),
+                                      nodeId_.c_str(),
+                                      tick_,
+                                      scenarioVersion_,
+                                      "error");
+        base.snapFlowError(in);
+
+        const int dummy = 0;
+        FlowError ignored;
+        return base.run(dummy, out, ignored);
+      }
+
+    private:
+      std::string testName_;
+      std::string stepName_;
+      std::string nodeId_;
+      long tick_;
+      long scenarioVersion_;
+    };
+
     inline StepSpec<BuildSnapV1RecordAdapter> SnapStep(
         int id,
         const char *testName,
@@ -572,6 +612,20 @@ namespace loka
                                       tick,
                                       scenarioVersion,
                                       "ok");
+    }
+
+    inline BuildSnapErrorV1RecordAdapter SnapErrorV1(
+        const char *testName,
+        const char *stepName,
+        const char *nodeId,
+        long tick,
+        long scenarioVersion)
+    {
+      return BuildSnapErrorV1RecordAdapter(testName,
+                                           stepName,
+                                           nodeId,
+                                           tick,
+                                           scenarioVersion);
     }
   } // namespace dsl
 } // namespace loka
