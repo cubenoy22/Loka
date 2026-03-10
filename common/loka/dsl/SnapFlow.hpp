@@ -78,6 +78,55 @@ namespace loka
       std::string detail;
     };
 
+    class SnapErrorDetailBuilder
+    {
+    public:
+      SnapErrorDetailBuilder()
+          : detail_(), hasPair_(false) {}
+
+      SnapErrorDetailBuilder &add(const char *key, const char *value)
+      {
+        if (!key || !*key)
+        {
+          return *this;
+        }
+        if (hasPair_)
+        {
+          detail_ += ';';
+        }
+        detail_ += escapeToken(key);
+        detail_ += '=';
+        detail_ += escapeToken(value ? value : "");
+        hasPair_ = true;
+        return *this;
+      }
+
+      const std::string &str() const
+      {
+        return detail_;
+      }
+
+    private:
+      static std::string escapeToken(const std::string &token)
+      {
+        std::string escaped;
+        escaped.reserve(token.size());
+        for (size_t i = 0; i < token.size(); ++i)
+        {
+          const char c = token[i];
+          if (c == '\\' || c == ';' || c == '=')
+          {
+            escaped += '\\';
+          }
+          escaped += c;
+        }
+        return escaped;
+      }
+
+      std::string detail_;
+      bool hasPair_;
+    };
+
     struct SnapFlowErrorCaptureContext
     {
       SnapFlowErrorCaptureContext()
@@ -85,6 +134,15 @@ namespace loka
 
       SnapFlowErrorSnapshot *out;
       const char *detail;
+    };
+
+    struct SnapFlowErrorCaptureBuilderContext
+    {
+      SnapFlowErrorCaptureBuilderContext()
+          : out(0), detailBuilder(0) {}
+
+      SnapFlowErrorSnapshot *out;
+      const SnapErrorDetailBuilder *detailBuilder;
     };
 
     inline FlowHandleResult captureSnapFlowError(const FlowError &error, void *user)
@@ -110,6 +168,26 @@ namespace loka
       ctx->out->kind = error.kind;
       ctx->out->code = error.code;
       ctx->out->detail = ctx->detail ? ctx->detail : "";
+      return FLOW_ERROR_HANDLED;
+    }
+
+    inline FlowHandleResult captureSnapFlowErrorWithDetailBuilder(const FlowError &error, void *user)
+    {
+      SnapFlowErrorCaptureBuilderContext *ctx = static_cast<SnapFlowErrorCaptureBuilderContext *>(user);
+      if (!ctx || !ctx->out)
+      {
+        return FLOW_ERROR_UNHANDLED;
+      }
+      ctx->out->kind = error.kind;
+      ctx->out->code = error.code;
+      if (ctx->detailBuilder)
+      {
+        ctx->out->detail = ctx->detailBuilder->str();
+      }
+      else
+      {
+        ctx->out->detail.clear();
+      }
       return FLOW_ERROR_HANDLED;
     }
 

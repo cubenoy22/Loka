@@ -255,6 +255,53 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *invalidPath = "";
+    const char *relayPath = "snap_flow_error_relay_kv.tmp";
+    const int inputForRelay = 0;
+
+    loka::dsl::SnapFlowErrorSnapshot snapshot;
+    loka::dsl::SnapErrorDetailBuilder detail;
+    detail.add("platform", "Toolbox").add("errno", "28").add("path", "caps=1;tmp");
+
+    loka::dsl::SnapFlowErrorCaptureBuilderContext context;
+    context.out = &snapshot;
+    context.detailBuilder = &detail;
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&inputForRelay)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath))
+              .onFailure(&loka::dsl::captureSnapFlowErrorWithDetailBuilder, &context);
+
+    const loka::dsl::FlowRunResult failingResult = failingChain.runResult();
+    assert(failingResult == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(snapshot.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH);
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> relayChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "relay-kv", "RelayNode", 100, 2)
+                              .snapFlowError(snapshot))
+              .input(&inputForRelay)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath));
+
+    const loka::dsl::FlowRunResult relayResult = relayChain.runResult();
+    assert(relayResult == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::ifstream ifs(relayPath, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("error_detail\tplatform=Toolbox;errno=28;path=caps\\\\=1\\\\;tmp\n") != std::string::npos);
+    std::remove(relayPath);
+  }
+
+  {
     const char *cfgPath = "LokaTest-io.cfg";
     const char *relativeBadDir = "missing_dir/subdir";
     const char *ioPath = "snap_io_error.tmp";
