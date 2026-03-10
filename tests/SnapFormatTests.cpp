@@ -2,7 +2,6 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
-#include <fstream>
 #include <string>
 #if defined(_WIN32)
 #include <direct.h>
@@ -46,6 +45,38 @@ namespace
     const int rc = mkdir(path, 0755);
 #endif
     return rc == 0 || errno == EEXIST;
+  }
+
+  static bool writeFileBinary(const char *path, const std::string &content)
+  {
+    FILE *fp = std::fopen(path, "wb");
+    if (!fp)
+    {
+      return false;
+    }
+    const size_t written = std::fwrite(content.data(), 1, content.size(), fp);
+    const int flushResult = std::fflush(fp);
+    const int closeResult = std::fclose(fp);
+    return written == content.size() && flushResult == 0 && closeResult == 0;
+  }
+
+  static bool readFileBinary(const char *path, std::string &out)
+  {
+    out.clear();
+    FILE *fp = std::fopen(path, "rb");
+    if (!fp)
+    {
+      return false;
+    }
+    char buf[1024];
+    size_t n = 0;
+    while ((n = std::fread(buf, 1, sizeof(buf), fp)) > 0)
+    {
+      out.append(buf, n);
+    }
+    const bool ok = std::ferror(fp) == 0;
+    std::fclose(fp);
+    return ok;
   }
 
   struct BuildSnapRecordAdapter
@@ -125,18 +156,8 @@ void testSnapFormatV1()
   const char *path = "snap_format_test.tmp";
   assert(loka::dsl::SnapFileWriter::appendRecord(path, record));
 
-  std::ifstream ifs(path, std::ios::binary);
-  assert(ifs.good());
   std::string fileContent;
-  {
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      fileContent += line;
-      fileContent += '\n';
-    }
-  }
-  ifs.close();
+  assert(readFileBinary(path, fileContent));
   assert(fileContent == expected);
   std::remove(path);
 
@@ -162,15 +183,8 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(okPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
-    std::ifstream ifs(okPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(okPath, content));
     assert(content.find("format_version\t1\n") != std::string::npos);
     std::remove(okPath);
   }
@@ -186,8 +200,8 @@ void testSnapFlowWriteAdapter()
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
     assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_MISSING_REQUIRED_KEY);
-    std::ifstream ifs(badPath, std::ios::binary);
-    assert(!ifs.good());
+    std::string content;
+    assert(!readFileBinary(badPath, content));
     std::remove(badPath);
   }
 
@@ -239,15 +253,8 @@ void testSnapFlowWriteAdapter()
     const loka::dsl::FlowRunResult relayResult = relayChain.runResult();
     assert(relayResult == loka::dsl::FLOW_RUN_SUCCEEDED);
 
-    std::ifstream ifs(relayPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(relayPath, content));
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
     assert(content.find("error_msg\tsnap output path is invalid\n") != std::string::npos);
@@ -266,15 +273,8 @@ void testSnapFlowWriteAdapter()
     const loka::dsl::FlowRunResult relayResult2 = relayChain2.runResult();
     assert(relayResult2 == loka::dsl::FLOW_RUN_SUCCEEDED);
 
-    std::ifstream ifs2(relayPath2, std::ios::binary);
-    assert(ifs2.good());
     std::string content2;
-    std::string line2;
-    while (std::getline(ifs2, line2))
-    {
-      content2 += line2;
-      content2 += '\n';
-    }
+    assert(readFileBinary(relayPath2, content2));
     assert(content2.find("step\trelay-adapter\n") != std::string::npos);
     assert(content2.find("status\terror\n") != std::string::npos);
     assert(content2.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
@@ -317,15 +317,8 @@ void testSnapFlowWriteAdapter()
     const loka::dsl::FlowRunResult relayResult = relayChain.runResult();
     assert(relayResult == loka::dsl::FLOW_RUN_SUCCEEDED);
 
-    std::ifstream ifs(relayPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(relayPath, content));
     assert(content.find("error_detail\tplatform=Toolbox;errno=28;path=caps\\\\=1\\\\;tmp\n") != std::string::npos);
     assert(content.find("source_step\tstep#7\n") != std::string::npos);
     std::remove(relayPath);
@@ -335,10 +328,7 @@ void testSnapFlowWriteAdapter()
     const char *cfgPath = "LokaTest-io.cfg";
     const char *relativeBadDir = "missing_dir/subdir";
     const char *ioPath = "snap_io_error.tmp";
-    {
-      std::ofstream cfg(cfgPath, std::ios::binary);
-      cfg << "capture_dir = " << relativeBadDir << "\n";
-    }
+    assert(writeFileBinary(cfgPath, std::string("capture_dir = ") + relativeBadDir + "\n"));
 
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
@@ -363,15 +353,8 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(autoNodePath, true, "FallbackNode"));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
-    std::ifstream ifs(autoNodePath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(autoNodePath, content));
     assert(content.find("node\tFallbackNode\n") != std::string::npos);
     std::remove(autoNodePath);
   }
@@ -382,14 +365,12 @@ void testSnapFlowWriteAdapter()
     const char *captureFile = "snap_cfg_capture.tmp";
     const char *cfgOutputPath = "snap_cfg_adapter.tmp";
 
-    {
-      std::ofstream cfg(cfgPath, std::ios::binary);
-      cfg << "# Loka test config\n";
-      cfg << "capture_dir = " << captureDir << "\n";
-      cfg << "max_files = 120\n";
-      cfg << "max_total_bytes = 4096\n";
-      cfg << "max_files_bad = x\n";
-    }
+    assert(writeFileBinary(cfgPath,
+                           std::string("# Loka test config\n")
+                           + "capture_dir = " + captureDir + "\n"
+                           + "max_files = 120\n"
+                           + "max_total_bytes = 4096\n"
+                           + "max_files_bad = x\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
@@ -420,9 +401,8 @@ void testSnapFlowWriteAdapter()
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
     const std::string expectedOutput = std::string(captureDir) + "/" + cfgOutputPath;
-    std::ifstream ifs(expectedOutput.c_str(), std::ios::binary);
-    assert(ifs.good());
-    ifs.close();
+    std::string content;
+    assert(readFileBinary(expectedOutput.c_str(), content));
 
     std::remove(expectedOutput.c_str());
     std::remove(cfgPath);
@@ -438,11 +418,9 @@ void testSnapFlowWriteAdapter()
     const char *captureDir = "snap_capture_limit_dir";
     const char *limitedPath = "snap_cfg_limit.tmp";
 
-    {
-      std::ofstream cfg(cfgPath, std::ios::binary);
-      cfg << "capture_dir = " << captureDir << "\n";
-      cfg << "max_total_bytes = 10\n";
-    }
+    assert(writeFileBinary(cfgPath,
+                           std::string("capture_dir = ") + captureDir + "\n"
+                           + "max_total_bytes = 10\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
@@ -459,8 +437,8 @@ void testSnapFlowWriteAdapter()
     assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_LIMIT_EXCEEDED);
 
     const std::string expectedOutput = std::string(captureDir) + "/" + limitedPath;
-    std::ifstream ifs(expectedOutput.c_str(), std::ios::binary);
-    assert(!ifs.good());
+    std::string content;
+    assert(!readFileBinary(expectedOutput.c_str(), content));
 
     std::remove(expectedOutput.c_str());
     std::remove(cfgPath);
@@ -477,11 +455,9 @@ void testSnapFlowWriteAdapter()
     const char *path = "snap_cfg_max_files.tmp";
     const int inputForMaxFiles = 0;
 
-    {
-      std::ofstream cfg(cfgPath, std::ios::binary);
-      cfg << "capture_dir = " << captureDir << "\n";
-      cfg << "max_files = 1\n";
-    }
+    assert(writeFileBinary(cfgPath,
+                           std::string("capture_dir = ") + captureDir + "\n"
+                           + "max_files = 1\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
@@ -502,15 +478,8 @@ void testSnapFlowWriteAdapter()
     }
 
     const std::string outputPath = std::string(captureDir) + "/" + path;
-    std::ifstream ifs(outputPath.c_str(), std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(outputPath.c_str(), content));
     assert(content.find("step\tsecond\n") != std::string::npos);
     assert(content.find("step\tfirst\n") == std::string::npos);
 
@@ -554,15 +523,8 @@ void testSnapFlowWriteAdapter()
     assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r2, maxTotalBytes, 0)
            == loka::dsl::SNAP_WRITE_OK);
 
-    std::ifstream ifs(path, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(path, content));
     assert(content.find("step\ttwo\n") != std::string::npos);
     assert(content.find("step\tone\n") == std::string::npos);
     std::remove(path);
@@ -583,15 +545,8 @@ void testSnapFlowWriteAdapter()
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(builderPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
-    std::ifstream ifs(builderPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(builderPath, content));
     assert(content.find("test\tSnapFlow\n") != std::string::npos);
     assert(content.find("step\tbuilder\n") != std::string::npos);
     assert(content.find("node\tBuilderNode\n") != std::string::npos);
@@ -619,15 +574,8 @@ void testSnapFlowWriteAdapter()
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
-    std::ifstream ifs(errorPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(errorPath, content));
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tE_TIMEOUT\n") != std::string::npos);
     assert(content.find("error_msg\twait-next-tick timeout\n") != std::string::npos);
@@ -648,15 +596,8 @@ void testSnapFlowWriteAdapter()
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
-    std::ifstream ifs(errorAutoPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(errorAutoPath, content));
     assert(content.find("status\terror\n") != std::string::npos);
     assert(content.find("error_code\tSNAP_LIMIT_EXCEEDED\n") != std::string::npos);
     assert(content.find("error_msg\tsnap write exceeds configured limits\n") != std::string::npos);
@@ -678,15 +619,8 @@ void testSnapFlowWriteAdapter()
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
-    std::ifstream ifs(errorUnknownPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(errorUnknownPath, content));
     assert(content.find("error_code\tSNAP_UNKNOWN_ERROR\n") != std::string::npos);
     assert(content.find("error_msg\tunknown snap error\n") != std::string::npos);
     std::remove(errorUnknownPath);
@@ -709,15 +643,8 @@ void testSnapFlowWriteAdapter()
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
 
-    std::ifstream ifs(partialPath, std::ios::binary);
-    assert(ifs.good());
     std::string content;
-    std::string line;
-    while (std::getline(ifs, line))
-    {
-      content += line;
-      content += '\n';
-    }
+    assert(readFileBinary(partialPath, content));
     assert(content.find("status\tpartial\n") != std::string::npos);
     assert(content.find("timing.flush_ms\tna\n") != std::string::npos);
     assert(content.find("timing.recompose_ms\tna\n") != std::string::npos);
