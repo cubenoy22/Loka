@@ -258,6 +258,7 @@ Implemented:
 - `snapSourceStepFromId(id)` helper for stable `source_step` labels (`step#<id>`).
 - Error capture contexts can set `sourceStepId` directly (preferred over raw `sourceStep` strings).
 - `SnapErrorV1(...)` adapter for direct `SnapFlowErrorSnapshot -> snap v1` error record conversion.
+- `SnapErrorV1(...)` also supports optional `dirty` and `timing.*` fields.
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
 - `max_total_bytes` enforcement on append.

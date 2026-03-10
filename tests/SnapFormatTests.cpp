@@ -268,7 +268,11 @@ void testSnapFlowWriteAdapter()
     loka::dsl::FlowChain<loka::dsl::SnapFlowErrorSnapshot, loka::dsl::SnapRecord> relayChain2 =
         loka::dsl::Flow()
         | loka::dsl::Step(1,
-                          loka::dsl::SnapErrorV1("SnapFlow", "relay-adapter", "RelayNode", 101, 2))
+                          loka::dsl::SnapErrorV1("SnapFlow", "relay-adapter", "RelayNode", 101, 2)
+                              .dirty("LAYOUT")
+                              .timingFlushMs(5)
+                              .timingRecomposeNa()
+                              .timingLayoutMs(1))
               .input(&snapshot)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath2));
 
@@ -281,6 +285,10 @@ void testSnapFlowWriteAdapter()
     assert(content2.find("status\terror\n") != std::string::npos);
     assert(content2.find("error_code\tSNAP_INVALID_OUTPUT_PATH\n") != std::string::npos);
     assert(content2.find("source_step\tstep#2\n") != std::string::npos);
+    assert(content2.find("dirty\tLAYOUT\n") != std::string::npos);
+    assert(content2.find("timing.flush_ms\t5\n") != std::string::npos);
+    assert(content2.find("timing.recompose_ms\tna\n") != std::string::npos);
+    assert(content2.find("timing.layout_ms\t1\n") != std::string::npos);
     std::remove(relayPath2);
   }
 
