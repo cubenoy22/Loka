@@ -524,6 +524,51 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *path = "snap_max_bytes_drop_oldest.tmp";
+
+    loka::dsl::SnapRecord r1;
+    r1.setInt("format_version", 1);
+    r1.setInt("schema_version", 1);
+    r1.setInt("scenario_version", 2);
+    r1.set("test", "SnapFlow");
+    r1.set("step", "one");
+    r1.set("node", "NodeA");
+    r1.setInt("tick", 1);
+    r1.set("status", "ok");
+
+    loka::dsl::SnapRecord r2;
+    r2.setInt("format_version", 1);
+    r2.setInt("schema_version", 1);
+    r2.setInt("scenario_version", 2);
+    r2.set("test", "SnapFlow");
+    r2.set("step", "two");
+    r2.set("node", "NodeA");
+    r2.setInt("tick", 2);
+    r2.set("status", "ok");
+
+    const long singleBytes = static_cast<long>(r1.serialize(true).size());
+    const long maxTotalBytes = singleBytes + 8;
+
+    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r1, maxTotalBytes, 0)
+           == loka::dsl::SNAP_WRITE_OK);
+    assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r2, maxTotalBytes, 0)
+           == loka::dsl::SNAP_WRITE_OK);
+
+    std::ifstream ifs(path, std::ios::binary);
+    assert(ifs.good());
+    std::string content;
+    std::string line;
+    while (std::getline(ifs, line))
+    {
+      content += line;
+      content += '\n';
+    }
+    assert(content.find("step\ttwo\n") != std::string::npos);
+    assert(content.find("step\tone\n") == std::string::npos);
+    std::remove(path);
+  }
+
+  {
     const char *builderPath = "snap_flow_builder.tmp";
     const int inputForBuilder = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =

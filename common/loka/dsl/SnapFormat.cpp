@@ -413,6 +413,16 @@ namespace loka
 
       if (maxTotalBytes > 0)
       {
+        while (static_cast<long>(out.size()) > maxTotalBytes && records.size() > 1)
+        {
+          records.erase(records.begin());
+          out.clear();
+          for (size_t i = 0; i < records.size(); ++i)
+          {
+            out += records[i];
+          }
+        }
+
         if (static_cast<long>(out.size()) > maxTotalBytes)
         {
           return SNAP_WRITE_LIMIT_EXCEEDED;

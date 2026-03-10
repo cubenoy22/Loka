@@ -173,7 +173,8 @@ captures/
 - Toolbox/retro targets should enforce limits:
   - max files
   - max total bytes
-  - delete oldest first when limit is exceeded
+  - delete oldest first when limit is exceeded (for both limits)
+  - if one record itself exceeds `max_total_bytes`, reject write
 - 68k/Retro68 では `CaptureScene` の既定をテキスト snap (Node tree + bounds) にする。
 - bitmap screenshot は明示 opt-in のみ（メモリ/ディスク制約対策）。
 
@@ -259,6 +260,7 @@ Implemented:
 - `LokaTest.cfg` loading for `capture_dir`, `max_total_bytes`, `max_files` parsing.
 - `capture_dir` output path resolution.
 - `max_total_bytes` enforcement on append.
+- `max_total_bytes` enforcement per snap file (drop oldest first, reject only when one record is too large).
 - `max_files` enforcement per snap file (keep latest N records).
 
 Not yet implemented:
