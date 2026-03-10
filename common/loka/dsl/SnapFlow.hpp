@@ -1,7 +1,7 @@
 #ifndef LOKA_DSL_SNAP_FLOW_HPP
 #define LOKA_DSL_SNAP_FLOW_HPP
 
-#include <sstream>
+#include <cstdio>
 #include <string>
 #include "loka/dsl/Flow.hpp"
 #include "loka/dsl/SnapFormat.hpp"
@@ -64,9 +64,9 @@ namespace loka
 
     inline std::string snapSourceStepFromId(int stepId)
     {
-      std::ostringstream oss;
-      oss << "step#" << stepId;
-      return oss.str();
+      char buf[32];
+      std::sprintf(buf, "step#%d", stepId);
+      return std::string(buf);
     }
 
     struct SnapFlowErrorSnapshot

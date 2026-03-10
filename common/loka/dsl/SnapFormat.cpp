@@ -4,7 +4,6 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstdio>
-#include <sstream>
 
 namespace loka
 {
@@ -252,9 +251,9 @@ namespace loka
 
     void SnapRecord::setInt(const char *key, long value)
     {
-      std::ostringstream oss;
-      oss << value;
-      set(key, oss.str().c_str());
+      char buf[64];
+      std::sprintf(buf, "%ld", value);
+      set(key, buf);
     }
 
     bool SnapRecord::has(const char *key) const
