@@ -599,7 +599,7 @@ void testSnapFlowWriteAdapter()
 
     const long singleBytes = static_cast<long>(r1.serialize(true).size());
     const long maxTotalBytes = singleBytes * 2 + 8;
-    const long maxRecords = 3;
+    const long maxRecords = 2;
 
     assert(loka::dsl::SnapFileWriter::appendRecordStatusWithLimits(path, r1, maxTotalBytes, maxRecords)
            == loka::dsl::SNAP_WRITE_OK);
@@ -610,6 +610,7 @@ void testSnapFlowWriteAdapter()
 
     std::string content;
     assert(readFileBinary(path, content));
+    // Both limits are configured; max_files(=2) must drop oldest even if bytes may still fit.
     assert(content.find("step\tc\n") != std::string::npos);
     assert(content.find("step\tb\n") != std::string::npos);
     assert(content.find("step\ta\n") == std::string::npos);
