@@ -123,10 +123,10 @@ Minimal scene/node split:
 ```cpp
 TestFlow(testState)
   | Step(CHECK_TEXT, CheckText("MainText", "Ready"))
+  | Step(CHECK_NOT_DIRTY, CheckTextDirtyEquals("MainText", NODE_DIRTY_NONE))
   | Step(SNAP_TEXT, SnapText("MainText", "SceneTest", "after-ready", 1, 1))
-  | Step(CHECK_NOT_DIRTY, CheckDirtyEquals(NODE_DIRTY_NONE))
   | Step(CHECK_SNAP_TEXT, CheckSnapStringEquals("text.value", "Ready"))
-  | Step(CHECK_DIRTY, CheckDirtyHasBits(NODE_DIRTY_LAYOUT))
+  | Step(CHECK_DIRTY, CheckTextDirtyHasBits("MainText", NODE_DIRTY_LAYOUT))
   | Step(CHECK_TIME, CheckTimingLessEqual("timing.flush_ms", 16))
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```

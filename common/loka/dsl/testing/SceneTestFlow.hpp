@@ -746,6 +746,72 @@ namespace loka
         return CheckTextAdapter(testId, expected);
       }
 
+      class CheckTextDirtyHasBitsAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        CheckTextDirtyHasBitsAdapter(const char *testId, long mask)
+            : testId_(testId ? testId : ""),
+              mask_(mask) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          SnapRecord snap;
+          StepRunStatus snapStatus = SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
+          if (snapStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return snapStatus;
+          }
+          SnapRecord ignored;
+          return CheckDirtyHasBits(mask_).run(snap, ignored, error);
+        }
+
+      private:
+        std::string testId_;
+        long mask_;
+      };
+
+      inline CheckTextDirtyHasBitsAdapter CheckTextDirtyHasBits(const char *testId, long mask)
+      {
+        return CheckTextDirtyHasBitsAdapter(testId, mask);
+      }
+
+      class CheckTextDirtyEqualsAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        CheckTextDirtyEqualsAdapter(const char *testId, long expectedMask)
+            : testId_(testId ? testId : ""),
+              expectedMask_(expectedMask) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          SnapRecord snap;
+          StepRunStatus snapStatus = SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
+          if (snapStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return snapStatus;
+          }
+          SnapRecord ignored;
+          return CheckDirtyEquals(expectedMask_).run(snap, ignored, error);
+        }
+
+      private:
+        std::string testId_;
+        long expectedMask_;
+      };
+
+      inline CheckTextDirtyEqualsAdapter CheckTextDirtyEquals(const char *testId, long expectedMask)
+      {
+        return CheckTextDirtyEqualsAdapter(testId, expectedMask);
+      }
+
       class CheckTimingLessEqualAdapter
       {
       public:
