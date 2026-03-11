@@ -767,6 +767,27 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const char *errorInvalidConfigPath = "snap_flow_error_invalid_config.tmp";
+    const int inputForInvalidConfig = 0;
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "error-invalid-config", "ErrorNode", 15, 2)
+                              .snapFlowError(loka::dsl::FLOW_ERROR_SNAP_INVALID_CONFIG))
+              .input(&inputForInvalidConfig)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorInvalidConfigPath));
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    std::string content;
+    assert(readFileBinary(errorInvalidConfigPath, content));
+    assert(content.find("error_code\tSNAP_INVALID_CONFIG\n") != std::string::npos);
+    assert(content.find("error_msg\tsnap config contains invalid values\n") != std::string::npos);
+    std::remove(errorInvalidConfigPath);
+  }
+
+  {
     const char *partialPath = "snap_flow_partial.tmp";
     const int inputForPartial = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =

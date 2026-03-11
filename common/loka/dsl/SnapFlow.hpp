@@ -353,7 +353,7 @@ namespace loka
             nodeId_(nodeId ? nodeId : ""),
             tick_(tick),
             scenarioVersion_(scenarioVersion),
-            status_(status ? status : "ok"),
+            status_("ok"),
             dirty_(),
             hasTimingFlushMs_(false),
             hasTimingFlushNa_(false),
@@ -367,12 +367,20 @@ namespace loka
             errorCode_(),
             errorMessage_(),
             errorDetail_(),
-            sourceStep_() {}
+            sourceStep_()
+      {
+        assert(isSnapStatusAllowed(status) && "status must be one of: ok, partial, error");
+        if (isSnapStatusAllowed(status))
+        {
+          status_ = status;
+        }
+      }
 
       BuildSnapV1RecordAdapter &status(const char *value)
       {
-        assert(isSnapStatusAllowed(value) && "status must be one of: ok, partial, error");
-        if (isSnapStatusAllowed(value))
+        const bool valid = isSnapStatusAllowed(value);
+        assert(valid && "status must be one of: ok, partial, error");
+        if (valid)
         {
           status_ = value;
         }
@@ -597,8 +605,9 @@ namespace loka
 
       BuildSnapErrorV1RecordAdapter &status(const char *value)
       {
-        assert(isSnapStatusAllowed(value) && "status must be one of: ok, partial, error");
-        if (isSnapStatusAllowed(value))
+        const bool valid = isSnapStatusAllowed(value);
+        assert(valid && "status must be one of: ok, partial, error");
+        if (valid)
         {
           status_ = value;
         }
