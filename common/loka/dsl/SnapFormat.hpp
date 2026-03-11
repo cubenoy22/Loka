@@ -63,7 +63,8 @@ namespace loka
               maxFiles(0),
               hasMaxFiles(false),
               maxTotalBytes(0),
-              hasMaxTotalBytes(false) {}
+              hasMaxTotalBytes(false),
+              hasParseError(false) {}
 
         std::string captureDir;
         bool hasCaptureDir;
@@ -71,6 +72,7 @@ namespace loka
         bool hasMaxFiles;
         long maxTotalBytes;
         bool hasMaxTotalBytes;
+        bool hasParseError;
       };
 
       static bool load(const char *configPath, Settings &out);

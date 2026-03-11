@@ -21,7 +21,8 @@ namespace loka
       FLOW_ERROR_SNAP_WRITE_FAILED = 2,
       FLOW_ERROR_SNAP_LIMIT_EXCEEDED = 3,
       FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH = 4,
-      FLOW_ERROR_SNAP_IO_ERROR = 5
+      FLOW_ERROR_SNAP_IO_ERROR = 5,
+      FLOW_ERROR_SNAP_INVALID_CONFIG = 6
     };
 
     inline const char *snapFlowErrorCodeString(int code)
@@ -38,6 +39,8 @@ namespace loka
         return "SNAP_INVALID_OUTPUT_PATH";
       case FLOW_ERROR_SNAP_IO_ERROR:
         return "SNAP_IO_ERROR";
+      case FLOW_ERROR_SNAP_INVALID_CONFIG:
+        return "SNAP_INVALID_CONFIG";
       default:
         return "SNAP_UNKNOWN_ERROR";
       }
@@ -57,9 +60,20 @@ namespace loka
         return "snap output path is invalid";
       case FLOW_ERROR_SNAP_IO_ERROR:
         return "snap I/O operation failed";
+      case FLOW_ERROR_SNAP_INVALID_CONFIG:
+        return "snap config contains invalid values";
       default:
         return "unknown snap error";
       }
+    }
+
+    inline bool isSnapStatusAllowed(const char *value)
+    {
+      if (!value)
+      {
+        return false;
+      }
+      return std::string(value) == "ok" || std::string(value) == "partial" || std::string(value) == "error";
     }
 
     inline std::string snapSourceStepFromId(int stepId)
@@ -276,6 +290,12 @@ namespace loka
         const std::string outputPath = SnapTestConfig::resolveCapturePath(path_.c_str(), configPath_.c_str());
         SnapTestConfig::Settings settings;
         const bool hasConfig = SnapTestConfig::load(configPath_.c_str(), settings);
+        if (!hasConfig && settings.hasParseError)
+        {
+          error.kind = FLOW_ERROR_KIND_SNAP;
+          error.code = FLOW_ERROR_SNAP_INVALID_CONFIG;
+          return FLOW_STEP_FAILED;
+        }
         SnapWriteStatus writeStatus = SNAP_WRITE_OK;
         if (hasConfig && (settings.hasMaxTotalBytes || settings.hasMaxFiles))
         {
@@ -351,7 +371,11 @@ namespace loka
 
       BuildSnapV1RecordAdapter &status(const char *value)
       {
-        status_ = value ? value : "";
+        assert(isSnapStatusAllowed(value) && "status must be one of: ok, partial, error");
+        if (isSnapStatusAllowed(value))
+        {
+          status_ = value;
+        }
         return *this;
       }
 
@@ -573,7 +597,11 @@ namespace loka
 
       BuildSnapErrorV1RecordAdapter &status(const char *value)
       {
-        status_ = value ? value : "";
+        assert(isSnapStatusAllowed(value) && "status must be one of: ok, partial, error");
+        if (isSnapStatusAllowed(value))
+        {
+          status_ = value;
+        }
         return *this;
       }
 

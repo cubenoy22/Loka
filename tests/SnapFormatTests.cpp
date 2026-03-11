@@ -166,6 +166,18 @@ void testSnapFormatV1()
   assert(!incomplete.validateV1RequiredKeys(missingKey));
   assert(missingKey == "format_version");
 
+  loka::dsl::SnapRecord invalidStatus;
+  invalidStatus.setInt("format_version", 1);
+  invalidStatus.setInt("schema_version", 1);
+  invalidStatus.setInt("scenario_version", 1);
+  invalidStatus.set("test", "X");
+  invalidStatus.set("step", "Y");
+  invalidStatus.set("node", "N");
+  invalidStatus.setInt("tick", 1);
+  invalidStatus.set("status", "bogus");
+  assert(!invalidStatus.validateV1RequiredKeys(missingKey));
+  assert(missingKey == "status");
+
   printf("==== [testSnapFormatV1] end ====\n");
 }
 
@@ -437,6 +449,45 @@ void testSnapFlowWriteAdapter()
     const std::string expectedOutput = std::string(captureDir) + "/" + cfgOutputPath;
     std::string content;
     assert(readFileBinary(expectedOutput.c_str(), content));
+
+    std::remove(expectedOutput.c_str());
+    std::remove(cfgPath);
+#if defined(_WIN32)
+    _rmdir(captureDir);
+#else
+    rmdir(captureDir);
+#endif
+  }
+
+  {
+    const char *cfgPath = "LokaTest-invalid.cfg";
+    const char *captureDir = "snap_capture_invalid_dir";
+    const char *invalidCfgPath = "snap_cfg_invalid.tmp";
+    assert(writeFileBinary(cfgPath,
+                           std::string("capture_dir = ") + captureDir + "\n"
+                           + "max_files = -1\n"
+                           + "max_total_bytes = 128\n"));
+    (void)createDirectoryIfMissing(captureDir);
+
+    loka::dsl::SnapTestConfig::Settings settings;
+    assert(!loka::dsl::SnapTestConfig::load(cfgPath, settings));
+    assert(settings.hasParseError);
+
+    SnapFlowErrorCapture capture = {0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidCfgPath, true, 0, cfgPath))
+              .onFailure(&captureSnapFlowError, &capture);
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(capture.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_CONFIG);
+
+    const std::string expectedOutput = std::string(captureDir) + "/" + invalidCfgPath;
+    std::string content;
+    assert(!readFileBinary(expectedOutput.c_str(), content));
 
     std::remove(expectedOutput.c_str());
     std::remove(cfgPath);

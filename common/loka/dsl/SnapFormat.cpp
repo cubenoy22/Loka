@@ -11,6 +11,11 @@ namespace loka
   {
     namespace
     {
+      static bool isValidSnapStatusValue(const std::string &value)
+      {
+        return value == "ok" || value == "partial" || value == "error";
+      }
+
       static bool keyEquals(const std::string &lhs, const char *rhs)
       {
         return rhs ? lhs == rhs : false;
@@ -125,10 +130,14 @@ namespace loka
           if (key == "max_files")
           {
             long parsed = 0;
-            if (parseLong(value, parsed))
+            if (parseLong(value, parsed) && parsed >= 0)
             {
               out.maxFiles = parsed;
               out.hasMaxFiles = true;
+            }
+            else
+            {
+              out.hasParseError = true;
             }
             continue;
           }
@@ -136,10 +145,14 @@ namespace loka
           if (key == "max_total_bytes")
           {
             long parsed = 0;
-            if (parseLong(value, parsed))
+            if (parseLong(value, parsed) && parsed >= 0)
             {
               out.maxTotalBytes = parsed;
               out.hasMaxTotalBytes = true;
+            }
+            else
+            {
+              out.hasParseError = true;
             }
             continue;
           }
@@ -286,6 +299,18 @@ namespace loka
         {
           missingKey = kRequired[i];
           return false;
+        }
+      }
+      for (size_t i = 0; i < entries_.size(); ++i)
+      {
+        if (entries_[i].key == "status")
+        {
+          if (!isValidSnapStatusValue(entries_[i].value))
+          {
+            missingKey = "status";
+            return false;
+          }
+          break;
         }
       }
       missingKey.clear();
@@ -456,7 +481,7 @@ namespace loka
     bool SnapTestConfig::load(const char *configPath, Settings &out)
     {
       out = Settings();
-      return readSettings(configPath, out);
+      return readSettings(configPath, out) && !out.hasParseError;
     }
   } // namespace dsl
 } // namespace loka
