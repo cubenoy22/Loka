@@ -112,9 +112,8 @@ TestFlow(testState)
   | Step(UPDATE_TEXT, SetState(textState, "long long long..."))
   | Step(WAIT_TICK,   WaitNextTick())
   | Step(SCREENSHOT,  CaptureScreen("after-wrap"))
-  | Step(FIND_TEXT,   FindNodeById<TextNode>("MainText"))
-  | Step(SNAP_NODE,   CaptureNode<TextNode>("after-wrap")
-                        .expect(LineCountEquals(2)))
+  | Step(CHECK_TEXT,  CheckText("MainText", "long long long..."))
+  | Step(SNAP_NODE,   CaptureNode<TextNode>("TextWrapRelayout", "after-wrap", 12, 3))
   | Step(ASSERT_TIME, AssertTimingLessEqual("timing.flush_ms", 16))
   | onFailure(Dump(testState), ABORT);
 ```
@@ -123,9 +122,9 @@ Minimal scene/node split:
 
 ```cpp
 TestFlow(testState)
-  | Step(FIND_TEXT, FindNodeById<TextNode>("MainText"))
-  | Step(ASSERT_NODE, AssertTextEquals("Ready"))
-  | Step(SNAP_NODE, CaptureNode<TextNode>("after-ready", 1, 1))
+  | Step(CHECK_TEXT, CheckText("MainText", "Ready"))
+  | Step(SNAP_NODE, CaptureNode<TextNode>("SceneTest", "after-ready", 1, 1))
+  | Step(ASSERT_TIME, AssertSnapIntLessEqual("timing.flush_ms", 16))
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
 
@@ -327,3 +326,5 @@ Deferred for v0.0.2+:
 - default timing thresholds
 - golden update policy
 - strict CI defaults
+- child-flow composition (`RunFlow(child)` / reusable check subflows)
+- logical flow combinators for scenario semantics (`all`, `race`) after child-flow support is defined

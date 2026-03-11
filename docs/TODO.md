@@ -44,6 +44,8 @@
 - Win32 compatibility note for planning: treat XP/2k as legacy baseline (build-verified target) and Vista+ as modern-capability tier; record per-feature support in the matrix.
 - Flow DSL use-case validation: keep `Step(id, adapter)` focused on bounded-lifetime async/transform pipelines and verify readability/testability.
 - Flow DSL composition hygiene: avoid one-step flows by default; split into 2+ steps at meaningful boundaries (transform/decision/side-effect) or use a plain function when flow orchestration value is absent.
+- Flow DSL nesting/composition: design `RunFlow(child)` or equivalent child-flow invocation so parent scenarios can keep coarse-grained steps while low-level checks stay encapsulated in reusable subflows.
+- Flow DSL combinators: revisit logical `all` / `race` after child-flow support lands; prioritize test/scenario semantics (grouped checks, timeout-vs-event wait) over concurrency.
 - Flow DSL use-case validation: add video encoder stub scenarios (Qt / AVFoundation / Windows API style) for `open -> frame push -> finalize` and failure-path coverage.
 - NodeDSL control components: prioritize `Cond`/`ShowIf` for OS-specific component branching; keep platform `#if` isolated in capability/platform implementation layers.
 - Control components roadmap: `ShowIf`/`Cond` first (compose-time branch fixup), then constrained `For` (static/fixed list) to avoid 68k runtime loop costs.
