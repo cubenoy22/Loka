@@ -123,7 +123,8 @@ Minimal scene/node split:
 ```cpp
 TestFlow(testState)
   | Step(FIND_TEXT, FindNodeById<TextNode>("MainText"))
-  | Step(ASSERT_NODE, CaptureNode<TextNode>().expect(TextEquals("Ready")))
+  | Step(ASSERT_NODE, AssertTextEquals("Ready"))
+  | Step(SNAP_NODE, CaptureNode<TextNode>("after-ready", 1, 1))
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
 

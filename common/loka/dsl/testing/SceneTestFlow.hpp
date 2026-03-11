@@ -36,7 +36,8 @@ namespace loka
         FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH = 4,
         FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID = 5,
         FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID = 6,
-        FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE = 7
+        FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE = 7,
+        FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED = 8
       };
 
       template <class NodeT>
@@ -258,6 +259,51 @@ namespace loka
                                                    long scenarioVersion)
       {
         return CaptureNodeAdapter<NodeT>(testName, stepName, tick, scenarioVersion);
+      }
+
+      class AssertTextEqualsAdapter
+      {
+      public:
+        typedef ::loka::app::TextNode *In;
+        typedef ::loka::app::TextNode *Out;
+
+        explicit AssertTextEqualsAdapter(const char *expected)
+            : expected_(expected ? expected : "") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          if (!in || !in->props.text_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+
+          std::string actual;
+          if (!::loka::platform::CollectUtf8(in->props.text_->get(), actual))
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+
+          if (actual != expected_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED;
+            return FLOW_STEP_FAILED;
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string expected_;
+      };
+
+      inline AssertTextEqualsAdapter AssertTextEquals(const char *expected)
+      {
+        return AssertTextEqualsAdapter(expected);
       }
     } // namespace testing
   } // namespace dsl

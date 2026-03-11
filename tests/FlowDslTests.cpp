@@ -858,6 +858,45 @@ void testLokaFlowDslV1Core() {
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text("Ready").testId("StatusText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, TextNode *> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("StatusText"))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::AssertTextEquals("Ready"));
+
+    assert(okChain.run());
+
+    FlowErrorCapture capture = {0, 0, 0};
+    loka::dsl::FlowChain<Scene *, TextNode *> failChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("StatusText"))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::AssertTextEquals("Busy"))
+              .onFailure(&FlowTestMarker::captureFailure, &capture);
+
+    assert(failChain.run());
+    assert(capture.calls == 1);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST);
+    assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Press").testId("ActionButton");
 
     Scene scene(composition.root()->clone());
