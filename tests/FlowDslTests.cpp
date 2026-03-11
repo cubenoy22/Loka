@@ -885,7 +885,7 @@ void testLokaFlowDslV1Core() {
 
     assert(failChain.run());
     assert(capture.calls == 1);
-    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
 
     scene.unmount();
@@ -915,7 +915,7 @@ void testLokaFlowDslV1Core() {
 
     assert(chain.run());
     assert(capture.calls == 1);
-    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
 
     scene.unmount();
@@ -946,7 +946,7 @@ void testLokaFlowDslV1Core() {
 
     assert(chain.run());
     assert(capture.calls == 1);
-    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID);
 
     scene.unmount();

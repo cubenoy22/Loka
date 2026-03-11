@@ -25,7 +25,8 @@ namespace loka
 
       enum SceneTestFlowErrorKind
       {
-        FLOW_ERROR_KIND_SCENE_TEST = 1002
+        FLOW_ERROR_KIND_SCENE_SCENARIO = 1002,
+        FLOW_ERROR_KIND_SCENE_TEST_ASSERT = 1003
       };
 
       enum SceneTestFlowErrorCode
@@ -110,14 +111,14 @@ namespace loka
           out = 0;
           if (!in)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
             return FLOW_STEP_FAILED;
           }
           ::loka::app::scene::Node *root = SceneTestAccess::rootNode(*in);
           if (!root)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
             return FLOW_STEP_FAILED;
           }
@@ -126,19 +127,19 @@ namespace loka
           scene_test_detail::findNodeByIdRecursive<NodeT>(root, testId_, idMatches, typedMatches, out);
           if (idMatches == 0)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
             return FLOW_STEP_FAILED;
           }
           if (idMatches > 1)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID;
             return FLOW_STEP_FAILED;
           }
           if (typedMatches == 0 || !out)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH;
             return FLOW_STEP_FAILED;
           }
@@ -199,14 +200,14 @@ namespace loka
         {
           if (!in)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
             return FLOW_STEP_FAILED;
           }
           const std::string &nodeId = in->testId();
           if (nodeId.empty())
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID;
             return FLOW_STEP_FAILED;
           }
@@ -227,7 +228,7 @@ namespace loka
           }
           if (!SceneCaptureTraits<NodeT>::capture(in, out))
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
             return FLOW_STEP_FAILED;
           }
@@ -275,7 +276,7 @@ namespace loka
           out = in;
           if (!in || !in->props.text_)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
             return FLOW_STEP_FAILED;
           }
@@ -283,14 +284,14 @@ namespace loka
           std::string actual;
           if (!::loka::platform::CollectUtf8(in->props.text_->get(), actual))
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
             error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
             return FLOW_STEP_FAILED;
           }
 
           if (actual != expected_)
           {
-            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST_ASSERT;
             error.code = FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED;
             return FLOW_STEP_FAILED;
           }

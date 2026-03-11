@@ -97,6 +97,7 @@ Canonical lookup API for v0.0.1:
 Error model for v0.0.1:
 - `ScenarioError`: execution failed before the assertion could be evaluated (node not found, type mismatch, timeout, invalid config, missing `testId`, duplicate `testId`).
 - `TestError`: execution succeeded but the captured value violated an expectation (bounds/value/timing threshold mismatch).
+- Current lightweight implementation keeps a single `FlowError` payload but splits `kind` into scenario vs assertion domains.
 - Debug builds should `assert` for programmer mistakes; runtime test execution should surface structured scenario/test errors instead of aborting the whole runner.
 
 `testId` policy:
