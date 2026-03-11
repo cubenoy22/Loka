@@ -509,6 +509,45 @@ namespace loka
         return AssertSnapIntLessEqualAdapter(key, maxValue);
       }
 
+      class AssertSnapIntEqualsAdapter
+      {
+      public:
+        typedef SnapRecord In;
+        typedef SnapRecord Out;
+
+        AssertSnapIntEqualsAdapter(const char *key, long expectedValue)
+            : key_(key ? key : ""),
+              expectedValue_(expectedValue) {}
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          long actual = 0;
+          if (key_.empty() || !in.getInt(key_.c_str(), actual))
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          if (actual != expectedValue_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST_ASSERT;
+            error.code = FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED;
+            return FLOW_STEP_FAILED;
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string key_;
+        long expectedValue_;
+      };
+
+      inline AssertSnapIntEqualsAdapter AssertSnapIntEquals(const char *key, long expectedValue)
+      {
+        return AssertSnapIntEqualsAdapter(key, expectedValue);
+      }
+
       class AssertSnapIntGreaterEqualAdapter
       {
       public:
@@ -609,6 +648,30 @@ namespace loka
       inline CheckDirtyHasBitsAdapter CheckDirtyHasBits(long mask)
       {
         return CheckDirtyHasBitsAdapter(mask);
+      }
+
+      class CheckDirtyEqualsAdapter
+      {
+      public:
+        typedef SnapRecord In;
+        typedef SnapRecord Out;
+
+        explicit CheckDirtyEqualsAdapter(long expectedMask)
+            : expectedMask_(expectedMask) {}
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          return AssertSnapIntEquals("dirty.mask", expectedMask_).run(in, out, error);
+        }
+
+      private:
+        long expectedMask_;
+      };
+
+      inline CheckDirtyEqualsAdapter CheckDirtyEquals(long expectedMask)
+      {
+        return CheckDirtyEqualsAdapter(expectedMask);
       }
 
       class CheckSnapIntGreaterEqualAdapter

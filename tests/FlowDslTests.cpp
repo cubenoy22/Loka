@@ -988,6 +988,34 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestSnapDirtyMaskAdapter("dirty-equals-ok", 0, 14))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyEquals(0));
+
+    assert(okChain.run());
+
+    FlowErrorCapture failCapture = {0, 0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          FlowTestSnapDirtyMaskAdapter("dirty-equals-fail",
+                                                       loka::app::scene::NODE_DIRTY_PROPS,
+                                                       15))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyEquals(0))
+              .onFailure(&FlowTestMarker::captureFailure, &failCapture);
+
+    assert(failChain.run());
+    assert(failCapture.calls == 1);
+    assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
+    assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
+  }
+
+  {
+    const int input = 0;
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
         | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-ok", "Hello Flow", 2))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapStringEquals("text.value", "Hello Flow"));
