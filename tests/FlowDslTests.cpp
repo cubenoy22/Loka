@@ -198,6 +198,32 @@ namespace {
     }
   };
 
+  struct FlowTestSnapTextValueAdapter {
+    typedef int In;
+    typedef loka::dsl::SnapRecord Out;
+
+    FlowTestSnapTextValueAdapter(const char *stepName, const char *value, long tick)
+        : stepName_(stepName ? stepName : ""),
+          value_(value ? value : ""),
+          tick_(tick) {
+    }
+
+    loka::dsl::StepRunStatus run(const int &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &) const {
+      out.set("test", "SceneFlow");
+      out.set("step", this->stepName_.c_str());
+      out.set("node", "MainText");
+      out.setInt("tick", this->tick_);
+      out.setInt("scenario_version", 1);
+      out.set("status", loka::dsl::SNAP_STATUS_OK);
+      out.set("text.value", this->value_.c_str());
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    std::string stepName_;
+    std::string value_;
+    long tick_;
+  };
+
   struct FlowTestPlatformContext : public PlatformContext {
     FlowTestPlatformContext()
         : createImageResult_(false),
@@ -850,6 +876,31 @@ void testLokaFlowDslV1Core() {
     assert(capturedText == "Hello Flow");
 
     scene.unmount();
+  }
+
+  {
+    const int input = 0;
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-ok", "Hello Flow", 2))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckSnapStringEquals("text.value", "Hello Flow"));
+
+    assert(okChain.run());
+
+    FlowErrorCapture failCapture = {0, 0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-fail", "Hello Flow", 3))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckSnapStringEquals("text.value", "Mismatch"))
+              .onFailure(&FlowTestMarker::captureFailure, &failCapture);
+
+    assert(failChain.run());
+    assert(failCapture.calls == 1);
+    assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
+    assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
   }
 
   {

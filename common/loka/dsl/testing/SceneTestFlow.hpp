@@ -329,6 +329,32 @@ namespace loka
         return AssertSnapStringEqualsAdapter(key, expected);
       }
 
+      class CheckSnapStringEqualsAdapter
+      {
+      public:
+        typedef SnapRecord In;
+        typedef SnapRecord Out;
+
+        CheckSnapStringEqualsAdapter(const char *key, const char *expected)
+            : key_(key ? key : ""),
+              expected_(expected ? expected : "") {}
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          return AssertSnapStringEquals(key_.c_str(), expected_.c_str()).run(in, out, error);
+        }
+
+      private:
+        std::string key_;
+        std::string expected_;
+      };
+
+      inline CheckSnapStringEqualsAdapter CheckSnapStringEquals(const char *key, const char *expected)
+      {
+        return CheckSnapStringEqualsAdapter(key, expected);
+      }
+
       class AssertSnapIntLessEqualAdapter
       {
       public:

@@ -124,6 +124,7 @@ Minimal scene/node split:
 TestFlow(testState)
   | Step(CHECK_TEXT, CheckText("MainText", "Ready"))
   | Step(SNAP_NODE, CaptureNode<TextNode>("SceneTest", "after-ready", 1, 1))
+  | Step(CHECK_SNAP_TEXT, CheckSnapStringEquals("text.value", "Ready"))
   | Step(CHECK_TIME, CheckTimingLessEqual("timing.flush_ms", 16))
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
