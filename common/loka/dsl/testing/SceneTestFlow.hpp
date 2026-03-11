@@ -22,6 +22,16 @@ namespace loka
         {
           return scene.rootNode_;
         }
+
+        static ::loka::app::scene::BoundaryNode *rootBoundary(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.rootNode_ ? scene.rootNode_->asBoundary() : 0;
+        }
+
+        static bool flushInvalidation(::loka::app::scene::Scene &scene)
+        {
+          return scene.flushInvalidation();
+        }
       };
 
       enum SceneTestFlowErrorKind
@@ -810,6 +820,31 @@ namespace loka
       inline CheckTextDirtyEqualsAdapter CheckTextDirtyEquals(const char *testId, long expectedMask)
       {
         return CheckTextDirtyEqualsAdapter(testId, expectedMask);
+      }
+
+      class FlushSceneInvalidationAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          if (!in)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+          SceneTestAccess::flushInvalidation(*in);
+          return FLOW_STEP_SUCCEEDED;
+        }
+      };
+
+      inline FlushSceneInvalidationAdapter FlushSceneInvalidation()
+      {
+        return FlushSceneInvalidationAdapter();
       }
 
       class CheckTimingLessEqualAdapter
