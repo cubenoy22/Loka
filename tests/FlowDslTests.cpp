@@ -887,6 +887,35 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    const int input = 0;
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SceneFlow", "timing-check-ok", "TimingNode", 6, 1)
+                              .timingFlushMs(4))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckTimingLessEqual("timing.flush_ms", 5));
+
+    assert(okChain.run());
+
+    FlowErrorCapture failCapture = {0, 0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SceneFlow", "timing-check-fail", "TimingNode", 7, 1)
+                              .timingFlushMs(8))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckTimingLessEqual("timing.flush_ms", 5))
+              .onFailure(&FlowTestMarker::captureFailure, &failCapture);
+
+    assert(failChain.run());
+    assert(failCapture.calls == 1);
+    assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
+    assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
+  }
+
+  {
     using namespace loka::app;
     using namespace loka::app::scene;
 

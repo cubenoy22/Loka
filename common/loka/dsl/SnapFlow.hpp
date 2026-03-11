@@ -78,14 +78,6 @@ namespace loka
       }
     }
 
-    inline bool isSnapStatusAllowed(const char *value)
-    {
-      return value
-             && (std::strcmp(value, "ok") == 0
-                 || std::strcmp(value, "partial") == 0
-                 || std::strcmp(value, "error") == 0);
-    }
-
     inline std::string snapSourceStepFromId(int stepId)
     {
       char buf[32];
@@ -363,7 +355,7 @@ namespace loka
             nodeId_(nodeId ? nodeId : ""),
             tick_(tick),
             scenarioVersion_(scenarioVersion),
-            status_("ok"),
+            status_(SNAP_STATUS_OK),
             dirty_(),
             hasTimingFlushMs_(false),
             hasTimingFlushNa_(false),
@@ -379,20 +371,22 @@ namespace loka
             errorDetail_(),
             sourceStep_()
       {
-        assert(isSnapStatusAllowed(status) && "status must be one of: ok, partial, error");
-        if (isSnapStatusAllowed(status))
+        const char *resolvedStatus = status ? status : SNAP_STATUS_OK;
+        assert(isValidSnapStatusValue(resolvedStatus) && "status must be one of: ok, partial, error");
+        if (isValidSnapStatusValue(resolvedStatus))
         {
-          status_ = status;
+          status_ = resolvedStatus;
         }
       }
 
       BuildSnapV1RecordAdapter &status(const char *value)
       {
-        const bool valid = isSnapStatusAllowed(value);
+        const char *resolvedValue = value ? value : SNAP_STATUS_OK;
+        const bool valid = isValidSnapStatusValue(resolvedValue);
         assert(valid && "status must be one of: ok, partial, error");
         if (valid)
         {
-          status_ = value;
+          status_ = resolvedValue;
         }
         return *this;
       }
@@ -462,7 +456,7 @@ namespace loka
 
       BuildSnapV1RecordAdapter &snapFlowError(int code)
       {
-        this->status("error");
+        this->status(SNAP_STATUS_ERROR);
         this->errorCode(snapFlowErrorCodeString(code));
         this->errorMessage(snapFlowErrorMessage(code));
         return *this;
@@ -640,7 +634,7 @@ namespace loka
             nodeId_(nodeId ? nodeId : ""),
             tick_(tick),
             scenarioVersion_(scenarioVersion),
-            status_("error"),
+            status_(SNAP_STATUS_ERROR),
             dirty_(),
             hasTimingFlushMs_(false),
             hasTimingFlushNa_(false),
@@ -654,11 +648,12 @@ namespace loka
 
       BuildSnapErrorV1RecordAdapter &status(const char *value)
       {
-        const bool valid = isSnapStatusAllowed(value);
+        const char *resolvedValue = value ? value : SNAP_STATUS_OK;
+        const bool valid = isValidSnapStatusValue(resolvedValue);
         assert(valid && "status must be one of: ok, partial, error");
         if (valid)
         {
-          status_ = value;
+          status_ = resolvedValue;
         }
         return *this;
       }
@@ -823,7 +818,7 @@ namespace loka
                                       nodeId,
                                       tick,
                                       scenarioVersion,
-                                      "ok");
+                                      SNAP_STATUS_OK);
     }
 
     inline BuildSnapErrorV1RecordAdapter SnapErrorV1(

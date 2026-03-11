@@ -43,6 +43,19 @@ namespace loka
 
       template <class NodeT>
       struct SceneNodeCast;
+      // Add explicit specializations for each supported node type so misuse fails at compile time,
+      // not later as an unresolved symbol.
+
+      template <class NodeT>
+      struct SceneNodeCast
+      {
+        static NodeT *cast(::loka::app::scene::Node *)
+        {
+          typedef char LokaSceneNodeCastRequiresSpecialization[(sizeof(NodeT) == 0) ? 1 : -1];
+          (void)sizeof(LokaSceneNodeCastRequiresSpecialization);
+          return 0;
+        }
+      };
 
       template <>
       struct SceneNodeCast< ::loka::app::TextNode>
@@ -204,12 +217,12 @@ namespace loka
                            const char *stepName,
                            long tick,
                            long scenarioVersion,
-                           const char *status = "ok")
+                           const char *status = SNAP_STATUS_OK)
             : testName_(testName ? testName : ""),
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : "ok") {}
+              status_(status ? status : SNAP_STATUS_OK) {}
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -399,6 +412,32 @@ namespace loka
       inline CheckTextAdapter CheckText(const char *testId, const char *expected)
       {
         return CheckTextAdapter(testId, expected);
+      }
+
+      class CheckTimingLessEqualAdapter
+      {
+      public:
+        typedef SnapRecord In;
+        typedef SnapRecord Out;
+
+        CheckTimingLessEqualAdapter(const char *key, long maxValue)
+            : key_(key ? key : ""),
+              maxValue_(maxValue) {}
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          return AssertSnapIntLessEqual(key_.c_str(), maxValue_).run(in, out, error);
+        }
+
+      private:
+        std::string key_;
+        long maxValue_;
+      };
+
+      inline CheckTimingLessEqualAdapter CheckTimingLessEqual(const char *key, long maxValue)
+      {
+        return CheckTimingLessEqualAdapter(key, maxValue);
       }
 
       class AssertTextEqualsAdapter

@@ -114,7 +114,7 @@ TestFlow(testState)
   | Step(SCREENSHOT,  CaptureScreen("after-wrap"))
   | Step(CHECK_TEXT,  CheckText("MainText", "long long long..."))
   | Step(SNAP_NODE,   CaptureNode<TextNode>("TextWrapRelayout", "after-wrap", 12, 3))
-  | Step(ASSERT_TIME, AssertTimingLessEqual("timing.flush_ms", 16))
+  | Step(CHECK_TIME,  CheckTimingLessEqual("timing.flush_ms", 16))
   | onFailure(Dump(testState), ABORT);
 ```
 
@@ -124,7 +124,7 @@ Minimal scene/node split:
 TestFlow(testState)
   | Step(CHECK_TEXT, CheckText("MainText", "Ready"))
   | Step(SNAP_NODE, CaptureNode<TextNode>("SceneTest", "after-ready", 1, 1))
-  | Step(ASSERT_TIME, AssertSnapIntLessEqual("timing.flush_ms", 16))
+  | Step(CHECK_TIME, CheckTimingLessEqual("timing.flush_ms", 16))
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
 

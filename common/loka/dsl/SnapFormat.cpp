@@ -11,11 +11,6 @@ namespace loka
   {
     namespace
     {
-      static bool isValidSnapStatusValue(const std::string &value)
-      {
-        return value == "ok" || value == "partial" || value == "error";
-      }
-
       static bool keyEquals(const std::string &lhs, const char *rhs)
       {
         return rhs ? lhs == rhs : false;
