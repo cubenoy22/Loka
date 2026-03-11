@@ -700,6 +700,47 @@ void testSnapFlowWriteAdapter()
   }
 
   {
+    const int inputForTiming = 0;
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "timing-ok", "TimingNode", 16, 2)
+                              .timingFlushMs(3))
+              .input(&inputForTiming)
+        | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5));
+
+    assert(okChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+
+    SnapFlowErrorCapture thresholdCapture = {0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "timing-fail", "TimingNode", 17, 2)
+                              .timingFlushMs(7))
+              .input(&inputForTiming)
+        | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5))
+              .onFailure(&captureSnapFlowError, &thresholdCapture);
+
+    assert(failChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(thresholdCapture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(thresholdCapture.code == loka::dsl::FLOW_ERROR_SNAP_TIMING_THRESHOLD_EXCEEDED);
+
+    SnapFlowErrorCapture invalidValueCapture = {0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> invalidValueChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          loka::dsl::SnapV1("SnapFlow", "timing-na", "TimingNode", 18, 2)
+                              .timingFlushNa())
+              .input(&inputForTiming)
+        | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5))
+              .onFailure(&captureSnapFlowError, &invalidValueCapture);
+
+    assert(invalidValueChain.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(invalidValueCapture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
+    assert(invalidValueCapture.code == loka::dsl::FLOW_ERROR_SNAP_INVALID_TIMING_VALUE);
+  }
+
+  {
     const char *errorPath = "snap_flow_error.tmp";
     const int inputForError = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =

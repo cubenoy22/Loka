@@ -88,6 +88,22 @@ Node 識別子:
 
 ## API Sketch
 
+Canonical lookup API for v0.0.1:
+- `FindNodeById<T>(testId)` is the primary lookup entry point.
+- `T` is the expected node type and must be checked via `NodeKind` / `asXxx()` helpers, not RTTI.
+- `CaptureNode<T>()` consumes a previously resolved `T*`; it does not perform lookup.
+- `CaptureScene()` is a separate scene-level API for tree/bounds/dirty/timing capture and must not implicitly perform node lookup.
+
+Error model for v0.0.1:
+- `ScenarioError`: execution failed before the assertion could be evaluated (node not found, type mismatch, timeout, invalid config, missing `testId`, duplicate `testId`).
+- `TestError`: execution succeeded but the captured value violated an expectation (bounds/value/timing threshold mismatch).
+- Debug builds should `assert` for programmer mistakes; runtime test execution should surface structured scenario/test errors instead of aborting the whole runner.
+
+`testId` policy:
+- `Snap` / `Capture` target nodes must provide a `testId`.
+- `testId` uniqueness is required within a Scene.
+- `testId` is opt-in for the general UI tree, but mandatory for nodes addressed by test flows.
+
 ```cpp
 // Layer 1: スクショ + Layer 2: snap を組み合わせた例
 TestFlow(testState)
@@ -95,10 +111,20 @@ TestFlow(testState)
   | Step(UPDATE_TEXT, SetState(textState, "long long long..."))
   | Step(WAIT_TICK,   WaitNextTick())
   | Step(SCREENSHOT,  CaptureScreen("after-wrap"))
-  | Step(SNAP,        Snap("MainText")
-                        .expect(FlushTimeMs(LessThan(16)))
-                        .expect(RecomposeTimeMs(LessThan(8))))
+  | Step(FIND_TEXT,   FindNodeById<TextNode>("MainText"))
+  | Step(SNAP_NODE,   CaptureNode<TextNode>("after-wrap")
+                        .expect(LineCountEquals(2)))
+  | Step(ASSERT_TIME, AssertTimingLessEqual("timing.flush_ms", 16))
   | onFailure(Dump(testState), ABORT);
+```
+
+Minimal scene/node split:
+
+```cpp
+TestFlow(testState)
+  | Step(FIND_TEXT, FindNodeById<TextNode>("MainText"))
+  | Step(ASSERT_NODE, CaptureNode<TextNode>().expect(TextEquals("Ready")))
+  | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
 
 Privileged probe sketch:
@@ -154,6 +180,7 @@ Step(SET_STATIC,  SetState(staticState, 1))
 
 - 見た目/値だけでなく実行時間も回帰検知対象にする。
 - 例: `FlushTimeMs`, `RecomposeTimeMs`, `LayoutTimeMs` を `.snap` に記録し、CI で前回との差分を判定する。
+- v0.0.1 の最小実装は単純閾値アサート (`AssertTimingLessEqual("timing.flush_ms", 16)`) とする。
 - 判定時は OS ぶれ対策として許容幅を持つ（例: `<= baseline + 2ms`）。
 - 連続 N 回中 M 回超過で FAIL とする運用を推奨（例: 5 回中 3 回超過で FAIL）。
 - 68k/Toolbox は jitter が小さいため、v1 では単純閾値（1 回でも超過で FAIL）でもよい。

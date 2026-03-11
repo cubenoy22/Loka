@@ -23,7 +23,9 @@ namespace loka
       FLOW_ERROR_SNAP_LIMIT_EXCEEDED = 3,
       FLOW_ERROR_SNAP_INVALID_OUTPUT_PATH = 4,
       FLOW_ERROR_SNAP_IO_ERROR = 5,
-      FLOW_ERROR_SNAP_INVALID_CONFIG = 6
+      FLOW_ERROR_SNAP_INVALID_CONFIG = 6,
+      FLOW_ERROR_SNAP_TIMING_THRESHOLD_EXCEEDED = 7,
+      FLOW_ERROR_SNAP_INVALID_TIMING_VALUE = 8
     };
 
     inline const char *snapFlowErrorCodeString(int code)
@@ -42,6 +44,10 @@ namespace loka
         return "SNAP_IO_ERROR";
       case FLOW_ERROR_SNAP_INVALID_CONFIG:
         return "SNAP_INVALID_CONFIG";
+      case FLOW_ERROR_SNAP_TIMING_THRESHOLD_EXCEEDED:
+        return "SNAP_TIMING_THRESHOLD_EXCEEDED";
+      case FLOW_ERROR_SNAP_INVALID_TIMING_VALUE:
+        return "SNAP_INVALID_TIMING_VALUE";
       default:
         return "SNAP_UNKNOWN_ERROR";
       }
@@ -63,6 +69,10 @@ namespace loka
         return "snap I/O operation failed";
       case FLOW_ERROR_SNAP_INVALID_CONFIG:
         return "snap config contains invalid values";
+      case FLOW_ERROR_SNAP_TIMING_THRESHOLD_EXCEEDED:
+        return "snap timing exceeds configured threshold";
+      case FLOW_ERROR_SNAP_INVALID_TIMING_VALUE:
+        return "snap timing value is missing or invalid";
       default:
         return "unknown snap error";
       }
@@ -574,6 +584,45 @@ namespace loka
       std::string errorDetail_;
       std::string sourceStep_;
     };
+
+    class AssertSnapTimingLessEqualAdapter
+    {
+    public:
+      typedef SnapRecord In;
+      typedef SnapRecord Out;
+
+      AssertSnapTimingLessEqualAdapter(const char *key, long maxValueMs)
+          : key_(key ? key : ""),
+            maxValueMs_(maxValueMs) {}
+
+      StepRunStatus run(const In &in, Out &out, FlowError &error) const
+      {
+        out = in;
+        long actual = 0;
+        if (key_.empty() || !in.getInt(key_.c_str(), actual))
+        {
+          error.kind = FLOW_ERROR_KIND_SNAP;
+          error.code = FLOW_ERROR_SNAP_INVALID_TIMING_VALUE;
+          return FLOW_STEP_FAILED;
+        }
+        if (actual > maxValueMs_)
+        {
+          error.kind = FLOW_ERROR_KIND_SNAP;
+          error.code = FLOW_ERROR_SNAP_TIMING_THRESHOLD_EXCEEDED;
+          return FLOW_STEP_FAILED;
+        }
+        return FLOW_STEP_SUCCEEDED;
+      }
+
+    private:
+      std::string key_;
+      long maxValueMs_;
+    };
+
+    inline AssertSnapTimingLessEqualAdapter AssertTimingLessEqual(const char *key, long maxValueMs)
+    {
+      return AssertSnapTimingLessEqualAdapter(key, maxValueMs);
+    }
 
     class BuildSnapErrorV1RecordAdapter
     {

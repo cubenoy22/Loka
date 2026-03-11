@@ -281,6 +281,34 @@ namespace loka
       return false;
     }
 
+    bool SnapRecord::get(const char *key, std::string &out) const
+    {
+      out.clear();
+      if (!key)
+      {
+        return false;
+      }
+      for (size_t i = 0; i < entries_.size(); ++i)
+      {
+        if (keyEquals(entries_[i].key, key))
+        {
+          out = entries_[i].value;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    bool SnapRecord::getInt(const char *key, long &out) const
+    {
+      std::string value;
+      if (!get(key, value))
+      {
+        return false;
+      }
+      return parseLong(value, out);
+    }
+
     bool SnapRecord::validateV1RequiredKeys(std::string &missingKey) const
     {
       static const char *kRequired[] = {

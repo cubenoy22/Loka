@@ -28,6 +28,8 @@ namespace loka
       void set(const char *key, const char *value);
       void setInt(const char *key, long value);
       bool has(const char *key) const;
+      bool get(const char *key, std::string &out) const;
+      bool getInt(const char *key, long &out) const;
       bool validateV1RequiredKeys(std::string &missingKey) const;
       std::string serialize(bool appendBlankLine) const;
 
