@@ -4,9 +4,16 @@
 #include <cstdio>
 #include <vector>
 
+#include "app/Box.hpp"
+#include "app/Button.hpp"
+#include "app/Text.hpp"
+#include "app/scene/NodeComposition.hpp"
+#include "app/scene/PlatformController.hpp"
+#include "app/scene/Scene.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
+#include "loka/dsl/testing/SceneTestFlow.hpp"
 #include "loka/dsl/dsl.hpp"
 
 namespace {
@@ -278,6 +285,27 @@ namespace {
         ctx->valueState->unbind(&StateNotifyHelpers::sibling, user);
       }
     }
+  };
+
+  struct FlowScenePlatformController : public loka::app::scene::IPlatformController {
+    FlowScenePlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), destroyed_(false) {
+    }
+
+    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags) {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+    }
+
+    virtual void synchronize() {
+    }
+
+    virtual void destroy() {
+      destroyed_ = true;
+    }
+
+    loka::app::scene::Node *lastMaterialized_;
+    loka::app::scene::NodeDirtyFlags lastFlags_;
+    bool destroyed_;
   };
 } // namespace
 
@@ -789,6 +817,100 @@ void testLokaFlowDslV1Core() {
     assert(order.size() == 2);
     assert(order[0] == 1402);
     assert(order[1] == 1499);
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text("Hello Flow").testId("MainText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord capture;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("MainText"))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CaptureNode<TextNode>("SceneFlow", "capture-text", 1, 1))
+              .onSuccess(&capture);
+
+    assert(chain.run());
+    std::string capturedText;
+    assert(capture.get("node", capturedText));
+    assert(capturedText == "MainText");
+    assert(capture.get("text.value", capturedText));
+    assert(capturedText == "Hello Flow");
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Button("Press").testId("ActionButton");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    FlowErrorCapture capture = {0, 0, 0};
+
+    loka::dsl::FlowChain<Scene *, TextNode *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("ActionButton"))
+              .input(&scenePtr)
+              .onFailure(&FlowTestMarker::captureFailure, &capture);
+
+    assert(chain.run());
+    assert(capture.calls == 1);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST);
+    assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text("A").testId("DupText");
+    root << Text("B").testId("DupText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    FlowErrorCapture capture = {0, 0, 0};
+
+    loka::dsl::FlowChain<Scene *, TextNode *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("DupText"))
+              .input(&scenePtr)
+              .onFailure(&FlowTestMarker::captureFailure, &capture);
+
+    assert(chain.run());
+    assert(capture.calls == 1);
+    assert(capture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST);
+    assert(capture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID);
+
+    scene.unmount();
   }
 
   {

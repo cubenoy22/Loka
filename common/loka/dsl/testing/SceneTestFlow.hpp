@@ -1,0 +1,266 @@
+#ifndef LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
+#define LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
+
+#include <string>
+
+#include "app/Text.hpp"
+#include "app/scene/Scene.hpp"
+#include "loka/dsl/SnapFlow.hpp"
+#include "loka/platform/StringUTF8.hpp"
+
+namespace loka
+{
+  namespace dsl
+  {
+    namespace testing
+    {
+      class SceneTestAccess
+      {
+      public:
+        static ::loka::app::scene::Node *rootNode(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.rootNode_;
+        }
+      };
+
+      enum SceneTestFlowErrorKind
+      {
+        FLOW_ERROR_KIND_SCENE_TEST = 1002
+      };
+
+      enum SceneTestFlowErrorCode
+      {
+        FLOW_ERROR_SCENE_TEST_NULL_SCENE = 1,
+        FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE = 2,
+        FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND = 3,
+        FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH = 4,
+        FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID = 5,
+        FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID = 6,
+        FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE = 7
+      };
+
+      template <class NodeT>
+      struct SceneNodeCast;
+
+      template <>
+      struct SceneNodeCast< ::loka::app::TextNode>
+      {
+        static ::loka::app::TextNode *cast(::loka::app::scene::Node *node)
+        {
+          return node ? node->asTextNode() : 0;
+        }
+      };
+
+      namespace scene_test_detail
+      {
+        template <class NodeT>
+        static void findNodeByIdRecursive(::loka::app::scene::Node *node,
+                                          const std::string &testId,
+                                          long &idMatches,
+                                          long &typedMatches,
+                                          NodeT *&result)
+        {
+          if (!node)
+          {
+            return;
+          }
+
+          if (node->testId() == testId)
+          {
+            ++idMatches;
+            NodeT *typed = SceneNodeCast<NodeT>::cast(node);
+            if (typed)
+            {
+              ++typedMatches;
+              if (!result)
+              {
+                result = typed;
+              }
+            }
+          }
+
+          ::loka::app::scene::INestable *nestable = node->asNestable();
+          if (!nestable)
+          {
+            return;
+          }
+
+          ::loka::app::scene::Node *child = nestable->childrenHead();
+          while (child)
+          {
+            findNodeByIdRecursive<NodeT>(child, testId, idMatches, typedMatches, result);
+            child = child->nextInComposition;
+          }
+        }
+      } // namespace scene_test_detail
+
+      template <class NodeT>
+      class FindNodeByIdAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef NodeT *Out;
+
+        explicit FindNodeByIdAdapter(const char *testId)
+            : testId_(testId ? testId : "") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = 0;
+          if (!in)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::app::scene::Node *root = SceneTestAccess::rootNode(*in);
+          if (!root)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
+            return FLOW_STEP_FAILED;
+          }
+          long idMatches = 0;
+          long typedMatches = 0;
+          scene_test_detail::findNodeByIdRecursive<NodeT>(root, testId_, idMatches, typedMatches, out);
+          if (idMatches == 0)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
+            return FLOW_STEP_FAILED;
+          }
+          if (idMatches > 1)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_DUPLICATE_TEST_ID;
+            return FLOW_STEP_FAILED;
+          }
+          if (typedMatches == 0 || !out)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_NODE_TYPE_MISMATCH;
+            return FLOW_STEP_FAILED;
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testId_;
+      };
+
+      template <class NodeT>
+      inline FindNodeByIdAdapter<NodeT> FindNodeById(const char *testId)
+      {
+        return FindNodeByIdAdapter<NodeT>(testId);
+      }
+
+      template <class NodeT>
+      struct SceneCaptureTraits;
+
+      template <>
+      struct SceneCaptureTraits< ::loka::app::TextNode>
+      {
+        static bool capture(::loka::app::TextNode *node, SnapRecord &out)
+        {
+          if (!node || !node->props.text_)
+          {
+            return false;
+          }
+          std::string utf8;
+          if (!::loka::platform::CollectUtf8(node->props.text_->get(), utf8))
+          {
+            return false;
+          }
+          out.set("text.value", utf8.c_str());
+          return true;
+        }
+      };
+
+      template <class NodeT>
+      class CaptureNodeAdapter
+      {
+      public:
+        typedef NodeT *In;
+        typedef SnapRecord Out;
+
+        CaptureNodeAdapter(const char *testName,
+                           const char *stepName,
+                           long tick,
+                           long scenarioVersion,
+                           const char *status = "ok")
+            : testName_(testName ? testName : ""),
+              stepName_(stepName ? stepName : ""),
+              tick_(tick),
+              scenarioVersion_(scenarioVersion),
+              status_(status ? status : "ok") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          if (!in)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
+            return FLOW_STEP_FAILED;
+          }
+          const std::string &nodeId = in->testId();
+          if (nodeId.empty())
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_MISSING_TEST_ID;
+            return FLOW_STEP_FAILED;
+          }
+
+          BuildSnapV1RecordAdapter base(testName_.c_str(),
+                                        stepName_.c_str(),
+                                        nodeId.c_str(),
+                                        tick_,
+                                        scenarioVersion_,
+                                        status_.c_str());
+          const int unused = 0;
+          FlowError ignored;
+          if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
+          {
+            error.kind = FLOW_ERROR_KIND_SNAP;
+            error.code = FLOW_ERROR_SNAP_WRITE_FAILED;
+            return FLOW_STEP_FAILED;
+          }
+          if (!SceneCaptureTraits<NodeT>::capture(in, out))
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testName_;
+        std::string stepName_;
+        long tick_;
+        long scenarioVersion_;
+        std::string status_;
+      };
+
+      template <class NodeT>
+      inline CaptureNodeAdapter<NodeT> CaptureNode(const char *testName,
+                                                   const char *stepName,
+                                                   long tick,
+                                                   long scenarioVersion,
+                                                   const char *status)
+      {
+        return CaptureNodeAdapter<NodeT>(testName, stepName, tick, scenarioVersion, status);
+      }
+
+      template <class NodeT>
+      inline CaptureNodeAdapter<NodeT> CaptureNode(const char *testName,
+                                                   const char *stepName,
+                                                   long tick,
+                                                   long scenarioVersion)
+      {
+        return CaptureNodeAdapter<NodeT>(testName, stepName, tick, scenarioVersion);
+      }
+    } // namespace testing
+  } // namespace dsl
+} // namespace loka
+
+#endif // LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP

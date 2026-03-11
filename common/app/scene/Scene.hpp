@@ -26,6 +26,14 @@ enum SceneLifecycle
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class SceneTestAccess;
+    }
+  }
+
   namespace app
   {
     namespace scene
@@ -170,6 +178,7 @@ namespace loka
 
         // SceneManager2からlifecycle_/attachedを書き換え可能に
         friend class SceneManager2;
+        friend class ::loka::dsl::testing::SceneTestAccess;
 
       private:
         static bool RefreshThunk(void *userData)
