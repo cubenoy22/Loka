@@ -472,6 +472,8 @@ void testSnapFlowWriteAdapter()
     loka::dsl::SnapTestConfig::Settings settings;
     assert(!loka::dsl::SnapTestConfig::load(cfgPath, settings));
     assert(settings.hasParseError);
+    assert(loka::dsl::SnapTestConfig::resolveCapturePath(invalidCfgPath, cfgPath)
+           == std::string(invalidCfgPath));
 
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =

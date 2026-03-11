@@ -1,6 +1,7 @@
 #ifndef LOKA_DSL_SNAP_FLOW_HPP
 #define LOKA_DSL_SNAP_FLOW_HPP
 
+#include <cstring>
 #include <cstdio>
 #include <string>
 #include "loka/dsl/Flow.hpp"
@@ -69,11 +70,10 @@ namespace loka
 
     inline bool isSnapStatusAllowed(const char *value)
     {
-      if (!value)
-      {
-        return false;
-      }
-      return std::string(value) == "ok" || std::string(value) == "partial" || std::string(value) == "error";
+      return value
+             && (std::strcmp(value, "ok") == 0
+                 || std::strcmp(value, "partial") == 0
+                 || std::strcmp(value, "error") == 0);
     }
 
     inline std::string snapSourceStepFromId(int stepId)

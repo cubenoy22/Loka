@@ -470,7 +470,10 @@ namespace loka
       }
 
       SnapTestConfig::Settings settings;
-      if (!readSettings(configPath, settings) || !settings.hasCaptureDir || settings.captureDir.empty())
+      if (!readSettings(configPath, settings)
+          || settings.hasParseError
+          || !settings.hasCaptureDir
+          || settings.captureDir.empty())
       {
         return pathStr;
       }
