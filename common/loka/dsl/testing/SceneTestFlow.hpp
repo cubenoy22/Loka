@@ -290,6 +290,69 @@ namespace loka
         return CaptureNodeAdapter<NodeT>(testName, stepName, tick, scenarioVersion);
       }
 
+      class SnapTextAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef SnapRecord Out;
+
+        SnapTextAdapter(const char *testId,
+                        const char *testName,
+                        const char *stepName,
+                        long tick,
+                        long scenarioVersion,
+                        const char *status = SNAP_STATUS_OK)
+            : testId_(testId ? testId : ""),
+              testName_(testName ? testName : ""),
+              stepName_(stepName ? stepName : ""),
+              tick_(tick),
+              scenarioVersion_(scenarioVersion),
+              status_(status ? status : SNAP_STATUS_OK) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          ::loka::app::TextNode *node = 0;
+          StepRunStatus lookupStatus = LookupNodeById< ::loka::app::TextNode>(in, testId_, node, error);
+          if (lookupStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return lookupStatus;
+          }
+          return CaptureNode< ::loka::app::TextNode>(testName_.c_str(),
+                                                     stepName_.c_str(),
+                                                     tick_,
+                                                     scenarioVersion_,
+                                                     status_.c_str())
+              .run(node, out, error);
+        }
+
+      private:
+        std::string testId_;
+        std::string testName_;
+        std::string stepName_;
+        long tick_;
+        long scenarioVersion_;
+        std::string status_;
+      };
+
+      inline SnapTextAdapter SnapText(const char *testId,
+                                      const char *testName,
+                                      const char *stepName,
+                                      long tick,
+                                      long scenarioVersion,
+                                      const char *status)
+      {
+        return SnapTextAdapter(testId, testName, stepName, tick, scenarioVersion, status);
+      }
+
+      inline SnapTextAdapter SnapText(const char *testId,
+                                      const char *testName,
+                                      const char *stepName,
+                                      long tick,
+                                      long scenarioVersion)
+      {
+        return SnapTextAdapter(testId, testName, stepName, tick, scenarioVersion);
+      }
+
       class AssertSnapStringEqualsAdapter
       {
       public:

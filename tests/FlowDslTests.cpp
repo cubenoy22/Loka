@@ -879,6 +879,48 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text("Hello SnapText").testId("MainText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord captured;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SnapText("MainText", "SceneFlow", "snap-text", 10, 1))
+              .input(&scenePtr)
+              .onSuccess(&captured);
+
+    assert(okChain.run());
+    std::string value;
+    assert(captured.get("text.value", value));
+    assert(value == "Hello SnapText");
+
+    FlowErrorCapture failCapture = {0, 0, 0};
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> failChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SnapText("MissingText", "SceneFlow", "snap-text-missing", 11, 1))
+              .input(&scenePtr)
+              .onFailure(&FlowTestMarker::captureFailure, &failCapture);
+
+    assert(failChain.run());
+    assert(failCapture.calls == 1);
+    assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO);
+    assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
+
+    scene.unmount();
+  }
+
+  {
     const int input = 0;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
