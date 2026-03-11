@@ -126,6 +126,7 @@ TestFlow(testState)
   | Step(SNAP_NODE, CaptureNode<TextNode>("SceneTest", "after-ready", 1, 1))
   | Step(CHECK_SNAP_TEXT, CheckSnapStringEquals("text.value", "Ready"))
   | Step(CHECK_TIME, CheckTimingLessEqual("timing.flush_ms", 16))
+  | Step(CHECK_HEIGHT, CheckSnapIntGreaterEqual("layout.height", 20))
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
 
