@@ -1,6 +1,7 @@
 #ifndef LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 #define LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 
+#include <cstdio>
 #include <string>
 
 #include "app/Text.hpp"
@@ -68,6 +69,54 @@ namespace loka
 
       namespace scene_test_detail
       {
+        inline void appendDirtyFlagName(std::string &out, const char *name)
+        {
+          if (!out.empty())
+          {
+            out += '|';
+          }
+          out += name;
+        }
+
+        inline std::string nodeDirtyFlagsToString(::loka::app::scene::NodeDirtyFlags flags)
+        {
+          if (flags == ::loka::app::scene::NODE_DIRTY_NONE)
+          {
+            return std::string("NONE");
+          }
+
+          std::string result;
+          if (flags & ::loka::app::scene::NODE_DIRTY_PROPS)
+          {
+            appendDirtyFlagName(result, "PROPS");
+          }
+          if (flags & ::loka::app::scene::NODE_DIRTY_CHILD)
+          {
+            appendDirtyFlagName(result, "CHILD");
+          }
+          if (flags & ::loka::app::scene::NODE_DIRTY_LAYOUT)
+          {
+            appendDirtyFlagName(result, "LAYOUT");
+          }
+          if (flags & ::loka::app::scene::NODE_DIRTY_INITIAL)
+          {
+            appendDirtyFlagName(result, "INITIAL");
+          }
+
+          const int knownMask = ::loka::app::scene::NODE_DIRTY_PROPS |
+                                ::loka::app::scene::NODE_DIRTY_CHILD |
+                                ::loka::app::scene::NODE_DIRTY_LAYOUT |
+                                ::loka::app::scene::NODE_DIRTY_INITIAL;
+          const int unknownBits = static_cast<int>(flags) & ~knownMask;
+          if (unknownBits != 0)
+          {
+            char buf[32];
+            std::sprintf(buf, "0x%X", unknownBits);
+            appendDirtyFlagName(result, buf);
+          }
+          return result.empty() ? std::string("NONE") : result;
+        }
+
         template <class NodeT>
         static void findNodeByIdRecursive(::loka::app::scene::Node *node,
                                           const std::string &testId,
@@ -202,6 +251,9 @@ namespace loka
             return false;
           }
           out.set("text.value", utf8.c_str());
+          const ::loka::app::scene::NodeDirtyFlags dirtyFlags = node->dirty.get();
+          out.setInt("dirty.mask", static_cast<long>(dirtyFlags));
+          out.set("dirty.flags", scene_test_detail::nodeDirtyFlagsToString(dirtyFlags).c_str());
           return true;
         }
       };
@@ -494,6 +546,69 @@ namespace loka
       inline AssertSnapIntGreaterEqualAdapter AssertSnapIntGreaterEqual(const char *key, long minValue)
       {
         return AssertSnapIntGreaterEqualAdapter(key, minValue);
+      }
+
+      class AssertSnapIntMaskHasBitsAdapter
+      {
+      public:
+        typedef SnapRecord In;
+        typedef SnapRecord Out;
+
+        AssertSnapIntMaskHasBitsAdapter(const char *key, long mask)
+            : key_(key ? key : ""),
+              mask_(mask) {}
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          long actual = 0;
+          if (key_.empty() || !in.getInt(key_.c_str(), actual))
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          if ((actual & mask_) != mask_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_TEST_ASSERT;
+            error.code = FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED;
+            return FLOW_STEP_FAILED;
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string key_;
+        long mask_;
+      };
+
+      inline AssertSnapIntMaskHasBitsAdapter AssertSnapIntMaskHasBits(const char *key, long mask)
+      {
+        return AssertSnapIntMaskHasBitsAdapter(key, mask);
+      }
+
+      class CheckDirtyHasBitsAdapter
+      {
+      public:
+        typedef SnapRecord In;
+        typedef SnapRecord Out;
+
+        explicit CheckDirtyHasBitsAdapter(long mask)
+            : mask_(mask) {}
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          return AssertSnapIntMaskHasBits("dirty.mask", mask_).run(in, out, error);
+        }
+
+      private:
+        long mask_;
+      };
+
+      inline CheckDirtyHasBitsAdapter CheckDirtyHasBits(long mask)
+      {
+        return CheckDirtyHasBitsAdapter(mask);
       }
 
       class CheckSnapIntGreaterEqualAdapter

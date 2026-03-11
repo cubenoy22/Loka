@@ -224,6 +224,32 @@ namespace {
     long tick_;
   };
 
+  struct FlowTestSnapDirtyMaskAdapter {
+    typedef int In;
+    typedef loka::dsl::SnapRecord Out;
+
+    FlowTestSnapDirtyMaskAdapter(const char *stepName, long dirtyMask, long tick)
+        : stepName_(stepName ? stepName : ""),
+          dirtyMask_(dirtyMask),
+          tick_(tick) {
+    }
+
+    loka::dsl::StepRunStatus run(const int &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &) const {
+      out.set("test", "SceneFlow");
+      out.set("step", this->stepName_.c_str());
+      out.set("node", "MainText");
+      out.setInt("tick", this->tick_);
+      out.setInt("scenario_version", 1);
+      out.set("status", loka::dsl::SNAP_STATUS_OK);
+      out.setInt("dirty.mask", this->dirtyMask_);
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    std::string stepName_;
+    long dirtyMask_;
+    long tick_;
+  };
+
   struct FlowTestPlatformContext : public PlatformContext {
     FlowTestPlatformContext()
         : createImageResult_(false),
@@ -904,6 +930,11 @@ void testLokaFlowDslV1Core() {
     std::string value;
     assert(captured.get("text.value", value));
     assert(value == "Hello SnapText");
+    long dirtyMask = -1;
+    assert(captured.getInt("dirty.mask", dirtyMask));
+    assert(dirtyMask == 0);
+    assert(captured.get("dirty.flags", value));
+    assert(value == "NONE");
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> failChain =
@@ -918,6 +949,38 @@ void testLokaFlowDslV1Core() {
     assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
 
     scene.unmount();
+  }
+
+  {
+    const int input = 0;
+
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          FlowTestSnapDirtyMaskAdapter("dirty-mask-ok",
+                                                       loka::app::scene::NODE_DIRTY_LAYOUT |
+                                                           loka::app::scene::NODE_DIRTY_PROPS,
+                                                       12))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyHasBits(loka::app::scene::NODE_DIRTY_LAYOUT));
+
+    assert(okChain.run());
+
+    FlowErrorCapture failCapture = {0, 0, 0};
+    loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1,
+                          FlowTestSnapDirtyMaskAdapter("dirty-mask-fail",
+                                                       loka::app::scene::NODE_DIRTY_PROPS,
+                                                       13))
+              .input(&input)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyHasBits(loka::app::scene::NODE_DIRTY_LAYOUT))
+              .onFailure(&FlowTestMarker::captureFailure, &failCapture);
+
+    assert(failChain.run());
+    assert(failCapture.calls == 1);
+    assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
+    assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
   }
 
   {
