@@ -145,6 +145,14 @@ TestFlow(testState)
 // platform flags should include NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT
 ```
 
+macOS native relayout probe:
+
+```cpp
+// test-only access under apple/macos/src/testing
+expect(MacScenePlatformTestAccess::hasPendingRelayout(controller));
+expect((MacScenePlatformTestAccess::lastChangeFlags(controller) & NODE_DIRTY_LAYOUT) != 0);
+```
+
 Conditional child swap:
 
 ```cpp

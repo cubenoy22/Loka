@@ -5,6 +5,17 @@
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class MacScenePlatformTestAccess;
+    }
+  }
+}
+
+namespace loka
+{
   namespace core
   {
     namespace scene
@@ -31,6 +42,8 @@ public:
   static void flushPendingRelayouts();
 
 private:
+  friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
+
   struct LayoutState
   {
     int x;
@@ -49,6 +62,7 @@ private:
 
   void *rootView_;
   loka::app::scene::Node *rootNode_;
+  loka::app::scene::NodeDirtyFlags lastChangeFlags_;
   int clientWidth_;
   int clientHeight_;
   void *firstEditField_;

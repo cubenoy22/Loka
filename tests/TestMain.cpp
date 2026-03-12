@@ -4,6 +4,9 @@
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "Tests.hpp"
+#ifdef __APPLE__
+#include "MacScenePlatformTests.hpp"
+#endif
 
 int main()
 {
@@ -32,6 +35,9 @@ int main()
   testSnapFlowWriteAdapter();
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
+#ifdef __APPLE__
+  testMacScenePlatformRelayoutRequest();
+#endif
   testStateBatchOverflow();
   SceneTests::runAll();
   return 0;

@@ -78,17 +78,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 set(LOKA_MACOS_TEST_SOURCES
+  ${PROJECT_SOURCE_DIR}/tests/MacScenePlatformTests.mm
+  ${PROJECT_SOURCE_DIR}/tests/MacScenePlatformTests.hpp
   ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestMain.cpp
-  ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
 if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
-  add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES} ${COMMON_SOURCES})
+  add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES})
 
   target_include_directories(LokaTestsMacOS PRIVATE
     ${PROJECT_SOURCE_DIR}/common
@@ -96,7 +97,7 @@ if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
     ${CMAKE_CURRENT_LIST_DIR}/src
   )
 
-  target_link_libraries(LokaTestsMacOS PRIVATE LokaAppleCommonCocoa "-framework CoreFoundation")
+  target_link_libraries(LokaTestsMacOS PRIVATE LokaMacOSCore)
   target_compile_definitions(LokaTestsMacOS PRIVATE
     $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
   )

@@ -89,6 +89,7 @@ namespace
 MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
       rootNode_(0),
+      lastChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
       clientWidth_(0),
       clientHeight_(0),
       firstEditField_(0),
@@ -130,8 +131,8 @@ MacScenePlatformController *MacScenePlatformController::findForRootView(void *ro
 
 void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
 {
-  (void)flags;
   rootNode_ = rootNode;
+  lastChangeFlags_ = flags;
   relayoutPending_ = false;
   if (!rootView_ || !rootNode_)
   {
@@ -154,6 +155,7 @@ void MacScenePlatformController::destroy()
 {
   clearContexts();
   rootNode_ = 0;
+  lastChangeFlags_ = loka::app::scene::NODE_DIRTY_NONE;
   clientWidth_ = 0;
   clientHeight_ = 0;
   relayoutPending_ = false;
