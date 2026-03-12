@@ -3,6 +3,7 @@
 
 #include <cstdarg>
 #include <vector>
+#include "app/Text.hpp"
 #include "../Node.hpp"
 #include "ComposableNode.hpp"
 #include "../BoundState.hpp"
@@ -368,6 +369,14 @@ namespace loka
               boundary->setScene(currentBoundary->getScene());
             }
             nextBoundary = boundary;
+          }
+          if (nextBoundary)
+          {
+            ::loka::app::TextNode *textNode = node->asTextNode();
+            if (textNode && textNode->props.text_)
+            {
+              nextBoundary->registerState(textNode->props.text_);
+            }
           }
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);

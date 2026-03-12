@@ -6,6 +6,7 @@
 
 #include "app/Text.hpp"
 #include "app/scene/Scene.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/dsl/SnapFlow.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -845,6 +846,80 @@ namespace loka
       inline FlushSceneInvalidationAdapter FlushSceneInvalidation()
       {
         return FlushSceneInvalidationAdapter();
+      }
+
+      class SetStringStateAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        SetStringStateAdapter(::loka::core::MutableState< ::loka::core::String> *state, const char *value)
+            : state_(state),
+              value_(value ? value : "") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          if (!in || !state_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::app::scene::BoundaryNode *boundary = SceneTestAccess::rootBoundary(*in);
+          if (!boundary || !boundary->tracker())
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::core::StateTrackerGuard guard(boundary->tracker());
+          state_->set(::loka::core::String::Literal(value_.c_str()));
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        ::loka::core::MutableState< ::loka::core::String> *state_;
+        std::string value_;
+      };
+
+      inline SetStringStateAdapter SetStringState(::loka::core::MutableState< ::loka::core::String> *state,
+                                                  const char *value)
+      {
+        return SetStringStateAdapter(state, value);
+      }
+
+      class SetStringStateAndFlushAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        SetStringStateAndFlushAdapter(::loka::core::MutableState< ::loka::core::String> *state, const char *value)
+            : state_(state),
+              value_(value ? value : "") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          StepRunStatus updateStatus = SetStringState(state_, value_.c_str()).run(in, out, error);
+          if (updateStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return updateStatus;
+          }
+          return FlushSceneInvalidation().run(out, out, error);
+        }
+
+      private:
+        ::loka::core::MutableState< ::loka::core::String> *state_;
+        std::string value_;
+      };
+
+      inline SetStringStateAndFlushAdapter SetStringStateAndFlush(::loka::core::MutableState< ::loka::core::String> *state,
+                                                                  const char *value)
+      {
+        return SetStringStateAndFlushAdapter(state, value);
       }
 
       class CheckTimingLessEqualAdapter

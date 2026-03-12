@@ -250,38 +250,6 @@ namespace {
     long tick_;
   };
 
-  struct FlowTestSetStringStateAdapter {
-    typedef loka::app::scene::Scene *In;
-    typedef loka::app::scene::Scene *Out;
-
-    FlowTestSetStringStateAdapter(loka::core::MutableState<loka::core::String> *state, const char *value)
-        : state_(state),
-          value_(value ? value : "") {
-    }
-
-    loka::dsl::StepRunStatus run(loka::app::scene::Scene *const &in,
-                                 loka::app::scene::Scene *&out,
-                                 loka::dsl::FlowError &error) const {
-      out = in;
-      if (!in || !state_) {
-        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
-        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
-        return loka::dsl::FLOW_STEP_FAILED;
-      }
-      loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(*in);
-      if (!boundary || !boundary->tracker()) {
-        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
-        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
-        return loka::dsl::FLOW_STEP_FAILED;
-      }
-      loka::core::StateTrackerGuard guard(boundary->tracker());
-      state_->set(loka::core::String::Literal(value_.c_str()));
-      return loka::dsl::FLOW_STEP_SUCCEEDED;
-    }
-
-    loka::core::MutableState<loka::core::String> *state_;
-    std::string value_;
-  };
 
   struct FlowTestPlatformContext : public PlatformContext {
     FlowTestPlatformContext()
@@ -1042,9 +1010,8 @@ void testLokaFlowDslV1Core() {
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", loka::app::scene::NODE_DIRTY_NONE))
               .input(&scenePtr)
-        | loka::dsl::Step(2, FlowTestSetStringStateAdapter(&textState, "After"))
-        | loka::dsl::Step(3, loka::dsl::testing::FlushSceneInvalidation())
-        | loka::dsl::Step(4, loka::dsl::testing::CheckText("MainText", "After"));
+        | loka::dsl::Step(2, loka::dsl::testing::SetStringStateAndFlush(&textState, "After"))
+        | loka::dsl::Step(3, loka::dsl::testing::CheckText("MainText", "After"));
 
     assert(okChain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
