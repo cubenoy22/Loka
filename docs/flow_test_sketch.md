@@ -134,6 +134,17 @@ TestFlow(testState)
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
 
+Mixed props/layout update:
+
+```cpp
+TestFlow(testState)
+  | Step(UPDATE_TEXT, SetStringState(textState, "Updated"))
+  | Step(UPDATE_FONT, SetIntState(fontSizeState, 20))
+  | Step(FLUSH, FlushSceneInvalidation())
+  | Step(CHECK_TEXT, CheckText("MainText", "Updated"));
+// platform flags should include NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT
+```
+
 Conditional child swap:
 
 ```cpp

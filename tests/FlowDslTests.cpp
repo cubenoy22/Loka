@@ -1109,6 +1109,39 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Before"));
+    loka::core::MutableState<int> fontSizeState(12);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text(&textState).attr(TextAttr().fontSize(&fontSizeState)).testId("MixedText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetStringState(&textState, "After"))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::SetIntState(&fontSizeState, 18))
+        | loka::dsl::Step(3, loka::dsl::testing::FlushSceneInvalidation())
+        | loka::dsl::Step(4, loka::dsl::testing::CheckText("MixedText", "After"));
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+
+    scene.unmount();
+  }
+
+  {
     const int input = 0;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
