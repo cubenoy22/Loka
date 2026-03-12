@@ -229,6 +229,10 @@ namespace loka
         {
           registrar.observe(this->props.text_, scene::NODE_DIRTY_PROPS);
         }
+        if (this->props.hasAttr_ && this->props.attr_.fontSizeState_)
+        {
+          registrar.observe(this->props.attr_.fontSizeState_, scene::NODE_DIRTY_LAYOUT);
+        }
       }
     };
 

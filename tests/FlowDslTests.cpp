@@ -1080,6 +1080,35 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<int> fontSizeState(12);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text("Sized").attr(TextAttr().fontSize(&fontSizeState)).testId("SizedText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckText("SizedText", "Sized"));
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+
+    scene.unmount();
+  }
+
+  {
     const int input = 0;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
