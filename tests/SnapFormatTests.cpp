@@ -97,7 +97,7 @@ namespace
         out.set("node", "MainText");
       }
       out.setInt("tick", 1);
-      out.set("status", loka::dsl::SNAP_STATUS_OK);
+      out.set("status", loka::dsl::SnapStatusOk());
       if (valid_)
       {
         out.setInt("format_version", 1);
@@ -121,7 +121,7 @@ void testSnapFormatV1()
   record.set("test", "TextWrapRelayout");
   record.set("node", "MainText");
   record.setInt("tick", 12);
-  record.set("status", loka::dsl::SNAP_STATUS_OK);
+  record.set("status", loka::dsl::SnapStatusOk());
   record.setInt("format_version", 1);
   record.setInt("schema_version", 1);
   record.setInt("scenario_version", 3);
@@ -308,7 +308,7 @@ void testSnapFlowWriteAdapter()
         loka::dsl::Flow()
         | loka::dsl::Step(1,
                           loka::dsl::SnapErrorV1("SnapFlow", "relay-partial", "RelayNode", 102, 2)
-                              .status(loka::dsl::SNAP_STATUS_PARTIAL)
+                              .status(loka::dsl::SnapStatusPartial())
                               .timingFlushNa())
               .input(&snapshot)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath3));
@@ -590,7 +590,7 @@ void testSnapFlowWriteAdapter()
     r1.set("step", "one");
     r1.set("node", "NodeA");
     r1.setInt("tick", 1);
-    r1.set("status", loka::dsl::SNAP_STATUS_OK);
+    r1.set("status", loka::dsl::SnapStatusOk());
 
     loka::dsl::SnapRecord r2;
     r2.setInt("format_version", 1);
@@ -600,7 +600,7 @@ void testSnapFlowWriteAdapter()
     r2.set("step", "two");
     r2.set("node", "NodeA");
     r2.setInt("tick", 2);
-    r2.set("status", loka::dsl::SNAP_STATUS_OK);
+    r2.set("status", loka::dsl::SnapStatusOk());
 
     const long singleBytes = static_cast<long>(r1.serialize(true).size());
     const long maxTotalBytes = singleBytes + 8;
@@ -628,7 +628,7 @@ void testSnapFlowWriteAdapter()
     r1.set("step", "a");
     r1.set("node", "NodeA");
     r1.setInt("tick", 1);
-    r1.set("status", loka::dsl::SNAP_STATUS_OK);
+    r1.set("status", loka::dsl::SnapStatusOk());
 
     loka::dsl::SnapRecord r2;
     r2.setInt("format_version", 1);
@@ -638,7 +638,7 @@ void testSnapFlowWriteAdapter()
     r2.set("step", "b");
     r2.set("node", "NodeA");
     r2.setInt("tick", 2);
-    r2.set("status", loka::dsl::SNAP_STATUS_OK);
+    r2.set("status", loka::dsl::SnapStatusOk());
 
     loka::dsl::SnapRecord r3;
     r3.setInt("format_version", 1);
@@ -648,7 +648,7 @@ void testSnapFlowWriteAdapter()
     r3.set("step", "c");
     r3.set("node", "NodeA");
     r3.setInt("tick", 3);
-    r3.set("status", loka::dsl::SNAP_STATUS_OK);
+    r3.set("status", loka::dsl::SnapStatusOk());
 
     const long singleBytes = static_cast<long>(r1.serialize(true).size());
     const long maxTotalBytes = singleBytes * 2 + 8;
@@ -764,7 +764,7 @@ void testSnapFlowWriteAdapter()
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
         | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "error", "ErrorNode", 11, 2, loka::dsl::SNAP_STATUS_ERROR)
+                          loka::dsl::SnapV1("SnapFlow", "error", "ErrorNode", 11, 2, loka::dsl::SnapStatusError())
                               .errorCode("E_TIMEOUT")
                               .errorMessage("wait-next-tick timeout"))
               .input(&inputForError)
@@ -853,7 +853,7 @@ void testSnapFlowWriteAdapter()
         loka::dsl::Flow()
         | loka::dsl::Step(1,
                           loka::dsl::SnapV1("SnapFlow", "partial", "PartialNode", 12, 2)
-                              .status(loka::dsl::SNAP_STATUS_PARTIAL)
+                              .status(loka::dsl::SnapStatusPartial())
                               .timingFlushNa()
                               .timingRecomposeNa()
                               .timingLayoutNa())

@@ -355,7 +355,7 @@ namespace loka
             nodeId_(nodeId ? nodeId : ""),
             tick_(tick),
             scenarioVersion_(scenarioVersion),
-            status_(SNAP_STATUS_OK),
+            status_(SnapStatusOk()),
             dirty_(),
             hasTimingFlushMs_(false),
             hasTimingFlushNa_(false),
@@ -371,7 +371,7 @@ namespace loka
             errorDetail_(),
             sourceStep_()
       {
-        const char *resolvedStatus = status ? status : SNAP_STATUS_OK;
+        const char *resolvedStatus = status ? status : SnapStatusOk();
         assert(isValidSnapStatusValue(resolvedStatus) && "status must be one of: ok, partial, error");
         if (isValidSnapStatusValue(resolvedStatus))
         {
@@ -381,7 +381,7 @@ namespace loka
 
       BuildSnapV1RecordAdapter &status(const char *value)
       {
-        const char *resolvedValue = value ? value : SNAP_STATUS_OK;
+        const char *resolvedValue = value ? value : SnapStatusOk();
         const bool valid = isValidSnapStatusValue(resolvedValue);
         assert(valid && "status must be one of: ok, partial, error");
         if (valid)
@@ -456,7 +456,7 @@ namespace loka
 
       BuildSnapV1RecordAdapter &snapFlowError(int code)
       {
-        this->status(SNAP_STATUS_ERROR);
+        this->status(SnapStatusError());
         this->errorCode(snapFlowErrorCodeString(code));
         this->errorMessage(snapFlowErrorMessage(code));
         return *this;
@@ -634,7 +634,7 @@ namespace loka
             nodeId_(nodeId ? nodeId : ""),
             tick_(tick),
             scenarioVersion_(scenarioVersion),
-            status_(SNAP_STATUS_ERROR),
+            status_(SnapStatusError()),
             dirty_(),
             hasTimingFlushMs_(false),
             hasTimingFlushNa_(false),
@@ -648,7 +648,7 @@ namespace loka
 
       BuildSnapErrorV1RecordAdapter &status(const char *value)
       {
-        const char *resolvedValue = value ? value : SNAP_STATUS_OK;
+        const char *resolvedValue = value ? value : SnapStatusOk();
         const bool valid = isValidSnapStatusValue(resolvedValue);
         assert(valid && "status must be one of: ok, partial, error");
         if (valid)
@@ -818,7 +818,7 @@ namespace loka
                                       nodeId,
                                       tick,
                                       scenarioVersion,
-                                      SNAP_STATUS_OK);
+                                      SnapStatusOk());
     }
 
     inline BuildSnapErrorV1RecordAdapter SnapErrorV1(

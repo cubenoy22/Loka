@@ -383,6 +383,7 @@ namespace loka
                 {
                   return;
                 }
+                // Dirty-category routing is not wired yet; for now we only need tracker registration.
                 boundary_->registerState(state);
               }
 

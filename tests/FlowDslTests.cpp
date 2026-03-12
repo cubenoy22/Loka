@@ -214,7 +214,7 @@ namespace {
       out.set("node", "MainText");
       out.setInt("tick", this->tick_);
       out.setInt("scenario_version", 1);
-      out.set("status", loka::dsl::SNAP_STATUS_OK);
+      out.set("status", loka::dsl::SnapStatusOk());
       out.set("text.value", this->value_.c_str());
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
@@ -240,7 +240,7 @@ namespace {
       out.set("node", "MainText");
       out.setInt("tick", this->tick_);
       out.setInt("scenario_version", 1);
-      out.set("status", loka::dsl::SNAP_STATUS_OK);
+      out.set("status", loka::dsl::SnapStatusOk());
       out.setInt("dirty.mask", this->dirtyMask_);
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }

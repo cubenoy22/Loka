@@ -280,12 +280,12 @@ namespace loka
                            const char *stepName,
                            long tick,
                            long scenarioVersion,
-                           const char *status = SNAP_STATUS_OK)
+                           const char *status = SnapStatusOk())
             : testName_(testName ? testName : ""),
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : SNAP_STATUS_OK) {}
+              status_(status ? status : SnapStatusOk()) {}
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -364,13 +364,13 @@ namespace loka
                         const char *stepName,
                         long tick,
                         long scenarioVersion,
-                        const char *status = SNAP_STATUS_OK)
+                        const char *status = SnapStatusOk())
             : testId_(testId ? testId : ""),
               testName_(testName ? testName : ""),
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : SNAP_STATUS_OK) {}
+              status_(status ? status : SnapStatusOk()) {}
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -770,6 +770,7 @@ namespace loka
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
           out = in;
+          // Internal snap only: used as a transient assertion payload, not for file output.
           SnapRecord snap;
           StepRunStatus snapStatus = SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
           if (snapStatus != FLOW_STEP_SUCCEEDED)
@@ -803,6 +804,7 @@ namespace loka
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
           out = in;
+          // Internal snap only: used as a transient assertion payload, not for file output.
           SnapRecord snap;
           StepRunStatus snapStatus = SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
           if (snapStatus != FLOW_STEP_SUCCEEDED)

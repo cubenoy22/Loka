@@ -8,16 +8,27 @@ namespace loka
 {
   namespace dsl
   {
-    static const char *const SNAP_STATUS_OK = "ok";
-    static const char *const SNAP_STATUS_PARTIAL = "partial";
-    static const char *const SNAP_STATUS_ERROR = "error";
+    inline const char *SnapStatusOk()
+    {
+      return "ok";
+    }
+
+    inline const char *SnapStatusPartial()
+    {
+      return "partial";
+    }
+
+    inline const char *SnapStatusError()
+    {
+      return "error";
+    }
 
     inline bool isValidSnapStatusValue(const char *value)
     {
       return value
-             && ((std::string(value) == SNAP_STATUS_OK)
-                 || (std::string(value) == SNAP_STATUS_PARTIAL)
-                 || (std::string(value) == SNAP_STATUS_ERROR));
+             && ((std::string(value) == SnapStatusOk())
+                 || (std::string(value) == SnapStatusPartial())
+                 || (std::string(value) == SnapStatusError()));
     }
 
     inline bool isValidSnapStatusValue(const std::string &value)

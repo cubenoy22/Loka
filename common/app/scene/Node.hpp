@@ -229,6 +229,8 @@ namespace loka
       struct ObservedStateRegistrar
       {
         virtual ~ObservedStateRegistrar() {}
+        // `flags` is reserved for future fine-grained dirty routing
+        // (e.g. CHILD/LAYOUT/PROPS) once Boundary tracks observed-state categories.
         virtual void observe(loka::core::StateBase *state, NodeDirtyFlags flags) = 0;
       };
 
