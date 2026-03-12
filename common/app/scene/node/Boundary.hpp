@@ -234,7 +234,7 @@ namespace loka
           LayoutBounds() : x(0), y(0), width(0), height(0), valid(false) {}
         };
 
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_()
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -275,6 +275,16 @@ namespace loka
         void clearLayoutBounds() { layoutBounds_ = LayoutBounds(); }
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
+        void clearObservedDirtyFlags() { observedDirtyFlags_ = NODE_DIRTY_NONE; }
+        void addObservedDirtyFlags(NodeDirtyFlags flags)
+        {
+          if (flags == NODE_DIRTY_NONE)
+          {
+            return;
+          }
+          observedDirtyFlags_ = static_cast<NodeDirtyFlags>(observedDirtyFlags_ | flags);
+        }
+        NodeDirtyFlags observedDirtyFlags() const { return observedDirtyFlags_; }
 
         NodeArena *nodeArena() { return &nodeArena_; }
         virtual void *allocateStateMemory(size_t size, size_t align) { return stateArena_.allocate(size, align); }
@@ -367,6 +377,7 @@ namespace loka
             {
               boundary->setScene(currentBoundary->getScene());
             }
+            boundary->clearObservedDirtyFlags();
             nextBoundary = boundary;
           }
           if (nextBoundary)
@@ -377,13 +388,13 @@ namespace loka
               explicit LocalObservedStateRegistrar(BoundaryNode *boundary)
                   : boundary_(boundary) {}
 
-              virtual void observe(loka::core::StateBase *state, NodeDirtyFlags)
+              virtual void observe(loka::core::StateBase *state, NodeDirtyFlags flags)
               {
                 if (!boundary_ || !state)
                 {
                   return;
                 }
-                // Dirty-category routing is not wired yet; for now we only need tracker registration.
+                boundary_->addObservedDirtyFlags(flags);
                 boundary_->registerState(state);
               }
 
@@ -521,6 +532,7 @@ namespace loka
         Scene *scene_;
         BoundaryNode *parentBoundary_;
         LayoutBounds layoutBounds_;
+        NodeDirtyFlags observedDirtyFlags_;
         NodeArena nodeArena_;
         StateArena stateArena_;
       };

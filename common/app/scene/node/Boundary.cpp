@@ -33,7 +33,12 @@ namespace loka
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogRecomposeTracked(static_cast<void *>(self), static_cast<void *>(scene));
 #endif
-          self->markViewDirty(NODE_DIRTY_PROPS);
+          NodeDirtyFlags flags = self->observedDirtyFlags();
+          if (flags == NODE_DIRTY_NONE)
+          {
+            flags = NODE_DIRTY_PROPS;
+          }
+          self->markViewDirty(flags);
         }
       }
     } // namespace scene

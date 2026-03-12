@@ -133,6 +133,15 @@ TestFlow(testState)
   | Step(SNAP_SCENE,  CaptureScene("after-ready"));
 ```
 
+Conditional child swap:
+
+```cpp
+TestFlow(testState)
+  | Step(CHECK_FALSE_BRANCH, CheckText("OffText", "Off"))
+  | Step(SWAP_BRANCH, SetBoolStateAndFlush(showState, true))
+  | Step(CHECK_TRUE_BRANCH, CheckText("OnText", "On"));
+```
+
 Privileged probe sketch:
 
 ```cpp
