@@ -223,6 +223,13 @@ namespace loka
       TextNode(const TextProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_TEXT; }
       virtual TextNode *asTextNode() { return this; }
+      virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
+      {
+        if (this->props.text_)
+        {
+          registrar.observe(this->props.text_, scene::NODE_DIRTY_PROPS);
+        }
+      }
     };
 
     struct TextDefinition : public scene::NodeDefinition<TextProps, TextNode>, public scene::TestIdDslMixin<TextDefinition>

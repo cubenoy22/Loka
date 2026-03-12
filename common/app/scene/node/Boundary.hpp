@@ -3,7 +3,6 @@
 
 #include <cstdarg>
 #include <vector>
-#include "app/Text.hpp"
 #include "../Node.hpp"
 #include "ComposableNode.hpp"
 #include "../BoundState.hpp"
@@ -372,11 +371,26 @@ namespace loka
           }
           if (nextBoundary)
           {
-            ::loka::app::TextNode *textNode = node->asTextNode();
-            if (textNode && textNode->props.text_)
+            class LocalObservedStateRegistrar : public ObservedStateRegistrar
             {
-              nextBoundary->registerState(textNode->props.text_);
-            }
+            public:
+              explicit LocalObservedStateRegistrar(BoundaryNode *boundary)
+                  : boundary_(boundary) {}
+
+              virtual void observe(loka::core::StateBase *state, NodeDirtyFlags)
+              {
+                if (!boundary_ || !state)
+                {
+                  return;
+                }
+                boundary_->registerState(state);
+              }
+
+            private:
+              BoundaryNode *boundary_;
+            };
+            LocalObservedStateRegistrar registrar(nextBoundary);
+            node->declareObservedStates(registrar);
           }
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);

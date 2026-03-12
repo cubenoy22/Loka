@@ -73,6 +73,7 @@ namespace loka
       class ComposableNode;
       class BoundaryNode;
       class IStateOwner;
+      struct ObservedStateRegistrar;
     } // namespace scene
   } // namespace app
 
@@ -183,6 +184,7 @@ namespace loka
         virtual ::loka::app::PopupMenuNode *asPopupMenuNode() { return 0; }
         virtual ::loka::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
         virtual ::loka::app::ImageViewNode *asImageViewNode() { return 0; }
+        virtual void declareObservedStates(ObservedStateRegistrar &) {}
         // Generic interface query (for findBoundary without RTTI)
         virtual void *queryInterface(const char *name) { (void)name; return 0; }
         virtual void render(IPlatformController *controller)
@@ -222,6 +224,12 @@ namespace loka
         NodeContext *getContext() const { return context; }
         void setTestId(const std::string &value) { testId_ = value; }
         const std::string &testId() const { return testId_; }
+      };
+
+      struct ObservedStateRegistrar
+      {
+        virtual ~ObservedStateRegistrar() {}
+        virtual void observe(loka::core::StateBase *state, NodeDirtyFlags flags) = 0;
       };
 
       // --- Generic Props base ---
