@@ -1020,6 +1020,34 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<bool> enabledState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Button("Run").enabled(&enabledState).testId("MainButton");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
+              .input(&scenePtr);
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+
+    scene.unmount();
+  }
+
+  {
     const int input = 0;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =

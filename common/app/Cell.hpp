@@ -63,6 +63,13 @@ namespace loka
       CellNode(const CellProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_CELL; }
       virtual CellNode *asCellNode() { return this; }
+      virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
+      {
+        if (this->props.text_)
+        {
+          registrar.observe(this->props.text_, scene::NODE_DIRTY_PROPS);
+        }
+      }
     };
 
     struct CellDefinition : public scene::NodeDefinition<CellProps, CellNode>, public scene::TestIdDslMixin<CellDefinition>

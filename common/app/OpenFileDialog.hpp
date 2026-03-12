@@ -143,6 +143,17 @@ namespace loka
       OpenFileDialogNode(const OpenFileDialogProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG; }
       virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
+      virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+      {
+        if (this->props.isVisible_)
+        {
+          registrar.observe(this->props.isVisible_, loka::app::scene::NODE_DIRTY_CHILD);
+        }
+        if (this->props.result_)
+        {
+          registrar.observe(this->props.result_, loka::app::scene::NODE_DIRTY_PROPS);
+        }
+      }
     };
 
     struct OpenFileDialogDefinition : public loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>, public loka::app::scene::TestIdDslMixin<OpenFileDialogDefinition>

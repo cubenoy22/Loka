@@ -108,6 +108,17 @@ namespace loka
       ButtonNode(const ButtonProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_BUTTON; }
       virtual ButtonNode *asButtonNode() { return this; }
+      virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+      {
+        if (this->props.text_)
+        {
+          registrar.observe(this->props.text_, loka::app::scene::NODE_DIRTY_PROPS);
+        }
+        if (this->props.enabled_)
+        {
+          registrar.observe(this->props.enabled_, loka::app::scene::NODE_DIRTY_PROPS);
+        }
+      }
     };
 
     struct ButtonDefinition : public loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>, public loka::app::scene::TestIdDslMixin<ButtonDefinition>

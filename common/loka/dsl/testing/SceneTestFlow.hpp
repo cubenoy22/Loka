@@ -924,6 +924,78 @@ namespace loka
         return SetStringStateAndFlushAdapter(state, value);
       }
 
+      class SetBoolStateAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        SetBoolStateAdapter(::loka::core::MutableState<bool> *state, bool value)
+            : state_(state),
+              value_(value) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          if (!in || !state_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::app::scene::BoundaryNode *boundary = SceneTestAccess::rootBoundary(*in);
+          if (!boundary || !boundary->tracker())
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::core::StateTrackerGuard guard(boundary->tracker());
+          state_->set(value_);
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        ::loka::core::MutableState<bool> *state_;
+        bool value_;
+      };
+
+      inline SetBoolStateAdapter SetBoolState(::loka::core::MutableState<bool> *state, bool value)
+      {
+        return SetBoolStateAdapter(state, value);
+      }
+
+      class SetBoolStateAndFlushAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        SetBoolStateAndFlushAdapter(::loka::core::MutableState<bool> *state, bool value)
+            : state_(state),
+              value_(value) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          StepRunStatus updateStatus = SetBoolState(state_, value_).run(in, out, error);
+          if (updateStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return updateStatus;
+          }
+          return FlushSceneInvalidation().run(out, out, error);
+        }
+
+      private:
+        ::loka::core::MutableState<bool> *state_;
+        bool value_;
+      };
+
+      inline SetBoolStateAndFlushAdapter SetBoolStateAndFlush(::loka::core::MutableState<bool> *state, bool value)
+      {
+        return SetBoolStateAndFlushAdapter(state, value);
+      }
+
       class CheckTimingLessEqualAdapter
       {
       public:

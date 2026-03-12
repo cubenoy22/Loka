@@ -171,6 +171,17 @@ namespace loka
       PopupMenuNode(const PopupMenuProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_POPUP_MENU; }
       virtual PopupMenuNode *asPopupMenuNode() { return this; }
+      virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+      {
+        if (this->props.selectedIndex_)
+        {
+          registrar.observe(this->props.selectedIndex_, loka::app::scene::NODE_DIRTY_PROPS);
+        }
+        if (this->props.enabled_)
+        {
+          registrar.observe(this->props.enabled_, loka::app::scene::NODE_DIRTY_PROPS);
+        }
+      }
     };
 
     struct PopupMenuDefinition : public loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>, public loka::app::scene::TestIdDslMixin<PopupMenuDefinition>

@@ -148,6 +148,13 @@ namespace loka
       ImageViewNode(const ImageViewProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_IMAGE_VIEW; }
       virtual ImageViewNode *asImageViewNode() { return this; }
+      virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
+      {
+        if (this->props.image_)
+        {
+          registrar.observe(this->props.image_, scene::NODE_DIRTY_PROPS);
+        }
+      }
     };
 
     struct ImageViewDefinition : public scene::NodeDefinition<ImageViewProps, ImageViewNode>, public scene::TestIdDslMixin<ImageViewDefinition>

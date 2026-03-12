@@ -31,6 +31,13 @@ namespace loka
         Node *activeNode;
         ConditionalNode(const ConditionalProps &p);
         ~ConditionalNode();
+        virtual void declareObservedStates(ObservedStateRegistrar &registrar)
+        {
+          if (this->props.condition)
+          {
+            registrar.observe(this->props.condition, NODE_DIRTY_CHILD);
+          }
+        }
         static void onConditionChanged(void *userData);
         void compose();
         void updateActiveNode();
