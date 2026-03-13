@@ -27,6 +27,8 @@ int main()
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();
   testDynamicBoundaryRecomposesOnlyOnChildDirty();
+  testDynamicBoundaryDetachesSubtreeBeforeChildRecompose();
+  testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();

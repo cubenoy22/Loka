@@ -72,11 +72,21 @@ namespace loka
         // Build node definitions into composition container (default: no children)
         virtual void composeNode(NodeComposition &c) { (void)c; }
 
+        void detachExistingChildren(ComponentContext &context)
+        {
+          loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
+          {
+            this->composeTree(child, context, COMPOSE_EVENT_DETACH, this);
+          }
+        }
+
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
         {
           PROFILE_FUNC();
           if (event == COMPOSE_EVENT_DETACH)
           {
+            this->detachExistingChildren(context);
             NodeComposition &composition = this->beginComposition(context);
             this->detachNode(composition);
             return;
@@ -102,6 +112,9 @@ namespace loka
               return;
             }
           }
+          NodeComposition &detachComposition = this->beginComposition(context);
+          this->detachNode(detachComposition);
+          this->detachExistingChildren(context);
           this->clearChildren();
           // Reset arena for this boundary compose pass.
           this->nodeArena()->clear();

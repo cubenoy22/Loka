@@ -650,6 +650,11 @@ namespace
 
   int g_dynamicRootComposeCount = 0;
   int g_dynamicRootUpdateEventCount = 0;
+  int g_dynamicDetachChildAttachCount = 0;
+  int g_dynamicDetachChildDetachCount = 0;
+  bool g_dynamicDetachShowChild = true;
+  int g_dynamicCallbackFireCount = 0;
+  loka::core::EmitterState *g_dynamicCallbackEmitter = 0;
 
   class RootDynamicBoundaryNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<RootDynamicBoundaryNode> RootDynamicBoundaryProps;
@@ -679,6 +684,88 @@ namespace
   loka::app::scene::BoundaryDefinition<RootDynamicBoundaryProps, RootDynamicBoundaryNode> RootDynamicBoundary()
   {
     return loka::app::scene::DynamicCompositionBoundary<RootDynamicBoundaryNode>();
+  }
+
+  class DynamicDetachChildNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicDetachChildNode> DynamicDetachChildProps;
+
+  class DynamicDetachChildNode : public loka::app::scene::BoundaryNodeFor<DynamicDetachChildNode>
+  {
+  public:
+    DynamicDetachChildNode(const DynamicDetachChildProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicDetachChildNode>(DynamicDetachChildProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      ++g_dynamicDetachChildAttachCount;
+    }
+
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_DETACH)
+      {
+        ++g_dynamicDetachChildDetachCount;
+      }
+      loka::app::scene::BoundaryNodeFor<DynamicDetachChildNode>::composeWithContext(context, event);
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicDetachChildProps, DynamicDetachChildNode> DynamicDetachChildBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicDetachChildNode>();
+  }
+
+  class DynamicDetachRootNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicDetachRootNode> DynamicDetachRootProps;
+
+  class DynamicDetachRootNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicDetachRootNode>
+  {
+  public:
+    DynamicDetachRootNode(const DynamicDetachRootProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicDetachRootNode>(DynamicDetachRootProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      if (g_dynamicDetachShowChild)
+      {
+        c.declare(DynamicDetachChildBoundary());
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicDetachRootProps, DynamicDetachRootNode> DynamicDetachRootBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicDetachRootNode>();
+  }
+
+  class DynamicCallbackRootNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicCallbackRootNode> DynamicCallbackRootProps;
+
+  class DynamicCallbackRootNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicCallbackRootNode>
+  {
+  public:
+    DynamicCallbackRootNode(const DynamicCallbackRootProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicCallbackRootNode>(DynamicCallbackRootProps(p)) {}
+
+    void onEmitter()
+    {
+      ++g_dynamicCallbackFireCount;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      if (g_dynamicCallbackEmitter)
+      {
+        this->bindForUi(*g_dynamicCallbackEmitter, this, &DynamicCallbackRootNode::onEmitter);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicCallbackRootProps, DynamicCallbackRootNode> DynamicCallbackRootBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicCallbackRootNode>();
   }
 
   class StaticObservedBoundaryNode;
@@ -911,6 +998,99 @@ void testDynamicBoundaryRecomposesOnlyOnChildDirty()
   assert(g_dynamicRootUpdateEventCount == 3);
 
   scene.unmount();
+}
+
+void testDynamicBoundaryDetachesSubtreeBeforeChildRecompose()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+  };
+
+  g_dynamicDetachChildAttachCount = 0;
+  g_dynamicDetachChildDetachCount = 0;
+  g_dynamicDetachShowChild = true;
+
+  Scene scene(DynamicDetachRootBoundary());
+  DummyPlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  assert(g_dynamicDetachChildAttachCount == 1);
+  assert(g_dynamicDetachChildDetachCount == 0);
+
+  g_dynamicDetachShowChild = false;
+  scene.invalidate(loka::app::scene::NODE_DIRTY_CHILD);
+
+  assert(g_dynamicDetachChildAttachCount == 1);
+  assert(g_dynamicDetachChildDetachCount == 1);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+  scene.unmount();
+  g_dynamicDetachShowChild = true;
+}
+
+void testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+  };
+
+  loka::core::EmitterState emitter;
+  g_dynamicCallbackEmitter = &emitter;
+  g_dynamicCallbackFireCount = 0;
+
+  Scene scene(DynamicCallbackRootBoundary());
+  DummyPlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  emitter.emit();
+  assert(g_dynamicCallbackFireCount == 1);
+
+  scene.invalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  emitter.emit();
+  assert(g_dynamicCallbackFireCount == 2);
+
+  scene.invalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  emitter.emit();
+  assert(g_dynamicCallbackFireCount == 3);
+
+  scene.unmount();
+  g_dynamicCallbackEmitter = 0;
 }
 
 void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
