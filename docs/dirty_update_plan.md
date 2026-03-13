@@ -44,7 +44,7 @@ Boundary は Node が申告した observed states を所有し、**直近 commit
 #### NextTickTracker (Batch Execution)
 
 - 責務: `DYNAMIC` な Dirty を溜め、OS イベントループの隙間で一括実行する
-- 現状の `RefreshLoop` を**置き換える**。Timer 用途にも使えるよう汎用的に設計する。
+- `RefreshLoop` は廃止し、Timer 用途も含めて `NextTickTracker` へ統合する。
 - 実行順序: `RECOMPOSE (CHILD)` → `RELAYOUT (LAYOUT)` → `APPLY (PROPS)` → `INVALIDATE (Region Union)`
 - **スコープ: Window 単位**（Loka はマルチウィンドウをサポートするため）。`App` が全 Window の NextTickTracker を一括 pump できるインターフェースを持つ。これにより OS のウィンドウ更新イベント（`WM_PAINT`、`NSView` 再描画）と同期しやすくなる。
 - v1 スコープでは payload 拡張は行わず、遅延制御は `delayMs` のみを扱う（必要最小限）。
@@ -123,10 +123,9 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 ## Migration Steps
 
 1. `StaticCompositionBoundaryNodeBase::composeWithContext()` の UPDATE 伝播修正（独立バグ修正、即着手可能）
-2. `NextTickTracker` インターフェースの設計と `RefreshLoop` の置き換え
-3. `Boundary` (StaticComposition / DynamicComposition) に `NextTickTracker` との接続口を追加
-4. `NativeContext` 各実装で、タイマー管理を `NextTickTracker::request()` 呼び出しに置換
-5. macOS / Toolbox / Win32 のメインループへ `NextTickTracker::flush()` を組み込み
+2. `Boundary` (StaticComposition / DynamicComposition) に `NextTickTracker` との接続口を追加
+3. `NativeContext` 各実装で、タイマー管理を `NextTickTracker::request()` 呼び出しに置換
+4. macOS / Toolbox / Win32 のメインループへ `NextTickTracker::flush()` を組み込み
 6. Flow API ベースの検証フェーズを追加し、`WaitNextTick()` を使って以下を自動検証
    - ViewDirtyFlags (`DIRTY_LAYOUT/PROPS/CHILD`) の発生妥当性
    - Static 即時 / Dynamic 次 tick のポリシー差
