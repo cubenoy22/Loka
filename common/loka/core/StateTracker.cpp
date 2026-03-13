@@ -43,6 +43,7 @@ namespace loka
       }
 #endif
       dirtyStates.clear();
+      committedDirtyStates_.clear();
       deferred.clear();
       dirtyFlag_ = false;
       phase_ = TRACKER_PRECOMMIT;
@@ -219,6 +220,19 @@ namespace loka
         for (size_t i = 0; i < current.size(); ++i)
         {
           StateBase *s = current[i];
+          bool alreadyCommitted = false;
+          for (size_t committedIndex = 0; committedIndex < committedDirtyStates_.size(); ++committedIndex)
+          {
+            if (committedDirtyStates_[committedIndex] == s)
+            {
+              alreadyCommitted = true;
+              break;
+            }
+          }
+          if (!alreadyCommitted)
+          {
+            committedDirtyStates_.push_back(s);
+          }
           bool changed = s->recompute();
           if (changed)
           {

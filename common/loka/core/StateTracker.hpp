@@ -41,6 +41,7 @@ namespace loka
     {
     public:
       typedef void (*InvalidateFn)(void *);
+      typedef std::vector<StateBase *> StateList;
       PushStateTracker(const std::vector<StateBase *> &states);
       PushStateTracker();
       void begin();
@@ -51,6 +52,7 @@ namespace loka
       void reserveStates(size_t count);
       bool end();
       bool consumeDirty();
+      const StateList &committedDirtyStates() const { return committedDirtyStates_; }
       void setInvalidateCallback(InvalidateFn fn, void *userData)
       {
         invalidateFn_ = fn;
@@ -62,6 +64,7 @@ namespace loka
       void registerDependency(StateBase *dependent, StateBase *dependency);
       TrackerPhase phase() const;
       PushStateTracker *asPushTracker() { return this; }
+      const PushStateTracker *asPushTracker() const { return this; }
       ~PushStateTracker();
 
     private:
@@ -80,11 +83,12 @@ namespace loka
       };
 
       // Typedefs to avoid nested template closers in C++98
-      typedef std::vector<StateBase *> StateList;
       typedef std::pair<void (*)(void *), void *> DeferredEntry;
       typedef std::map<StateBase *, StateList> DependencyMap;
-      /// dirtyStates: トランザクション中にdirtyなStateを管理（伝播バッファ）
+      /// dirtyStates: states marked dirty during the current transaction.
       StateList dirtyStates;
+      /// committedDirtyStates_: snapshot of states dirtied by the most recent commit.
+      StateList committedDirtyStates_;
       /// deferred: commit時に一括発火する副作用コールバック
       std::vector<DeferredEntry> deferred;
       /// dependents: 依存グラフ（依存元→依存先リスト）。registerDependencyで構築され、依存伝播の起点となる。

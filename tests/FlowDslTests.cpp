@@ -1053,6 +1053,70 @@ void testLokaFlowDslV1Core() {
     using namespace loka::app;
     using namespace loka::app::scene;
 
+    loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Before"));
+    loka::core::MutableState<bool> enabledState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text(&textState).attr(TextAttr().wrap(TEXT_WRAP_WORD)).testId("WrapText");
+    root << Button("Run").enabled(&enabledState).testId("MainButton");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
+              .input(&scenePtr);
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<bool> showState(false);
+    loka::core::MutableState<bool> enabledState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    TextDefinition falseText = Text("Off").testId("OffText");
+    TextDefinition trueText = Text("On").testId("OnText");
+    root << composition.showIf(showState, trueText, falseText);
+    root << Button("Run").enabled(&enabledState).testId("MainButton");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
+              .input(&scenePtr);
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
     loka::core::MutableState<bool> enabledState(false);
 
     NodeComposition composition;

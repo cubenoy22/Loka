@@ -37,6 +37,7 @@ int main()
   testLokaAttrDslV1Core();
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
+  testMacScenePlatformIgnoresNonLayoutDirtyRequest();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();

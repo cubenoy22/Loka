@@ -35,6 +35,7 @@
 - If a crash occurs, first confirm whether it reproduces on a modern OS build; use breakpoints, LLDB commands, and targeted logging to identify the cause quickly.
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
+- Use English for code comments, code-facing docs, and API/design notes that ship with the repository; keep non-English prose for user conversation only unless a file already has an established localized convention.
 - Commit policy: Do not amend commits. Only small fixes found immediately after a commit may be amended.
 - Test build output policy: use `build/Testing` as the canonical test build directory (`cmake -S . -B build/Testing -DTEST_BUILD=ON`, then build/ctest from there).
 - When a directly runnable test environment is available (e.g. Linux/WSL headless), always build and run the relevant tests before committing code or test changes. Do not skip this step even for "obviously correct" changes.

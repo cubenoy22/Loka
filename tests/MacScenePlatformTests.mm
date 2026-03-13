@@ -5,6 +5,7 @@
 #include <AppKit/AppKit.h>
 
 #include "app/Box.hpp"
+#include "app/Button.hpp"
 #include "app/Text.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/Scene.hpp"
@@ -45,6 +46,44 @@ void testMacScenePlatformRelayoutRequest()
           loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
   assert(loka::dsl::testing::MacScenePlatformTestAccess::hasPendingRelayout(controller));
   MacScenePlatformController::flushPendingRelayouts();
+  assert(!loka::dsl::testing::MacScenePlatformTestAccess::hasPendingRelayout(controller));
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+}
+
+void testMacScenePlatformIgnoresNonLayoutDirtyRequest()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Short"));
+  loka::core::MutableState<bool> enabledState(false);
+
+  loka::app::scene::NodeComposition composition;
+  loka::app::BoxDefinition &root = composition.declare(loka::app::Box().testId("RootBox"));
+  root << loka::app::Text(&textState).attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD)).testId("MainText");
+  root << loka::app::Button("Run").enabled(&enabledState).testId("MainButton");
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 120)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(composition.root()->clone());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  assert(!loka::dsl::testing::MacScenePlatformTestAccess::hasPendingRelayout(controller));
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    enabledState.set(true);
+  }
+
+  const loka::app::scene::NodeDirtyFlags flags =
+      loka::dsl::testing::MacScenePlatformTestAccess::lastChangeFlags(controller);
+  assert((flags & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+  assert((flags & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
   assert(!loka::dsl::testing::MacScenePlatformTestAccess::hasPendingRelayout(controller));
 
   scene.unmount();

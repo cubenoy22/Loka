@@ -276,6 +276,7 @@ namespace loka
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
         void clearObservedDirtyFlags() { observedDirtyFlags_ = NODE_DIRTY_NONE; }
+        void clearObservedStateEntries() { observedStateEntries_.clear(); }
         void addObservedDirtyFlags(NodeDirtyFlags flags)
         {
           if (flags == NODE_DIRTY_NONE)
@@ -284,7 +285,49 @@ namespace loka
           }
           observedDirtyFlags_ = static_cast<NodeDirtyFlags>(observedDirtyFlags_ | flags);
         }
+        void registerObservedState(loka::core::StateBase *state, NodeDirtyFlags flags)
+        {
+          if (!state || flags == NODE_DIRTY_NONE)
+          {
+            return;
+          }
+          this->addObservedDirtyFlags(flags);
+          for (size_t i = 0; i < observedStateEntries_.size(); ++i)
+          {
+            if (observedStateEntries_[i].state == state)
+            {
+              observedStateEntries_[i].flags = static_cast<NodeDirtyFlags>(observedStateEntries_[i].flags | flags);
+              return;
+            }
+          }
+          ObservedStateEntry entry;
+          entry.state = state;
+          entry.flags = flags;
+          observedStateEntries_.push_back(entry);
+        }
         NodeDirtyFlags observedDirtyFlags() const { return observedDirtyFlags_; }
+        NodeDirtyFlags observedDirtyFlagsForCommittedStates() const
+        {
+          NodeDirtyFlags flags = NODE_DIRTY_NONE;
+          const loka::core::PushStateTracker *pushTracker = this->tracker_.asPushTracker();
+          if (!pushTracker)
+          {
+            return flags;
+          }
+          const std::vector<loka::core::StateBase *> &dirtyStates = pushTracker->committedDirtyStates();
+          for (size_t stateIndex = 0; stateIndex < dirtyStates.size(); ++stateIndex)
+          {
+            loka::core::StateBase *dirtyState = dirtyStates[stateIndex];
+            for (size_t entryIndex = 0; entryIndex < observedStateEntries_.size(); ++entryIndex)
+            {
+              if (observedStateEntries_[entryIndex].state == dirtyState)
+              {
+                flags = static_cast<NodeDirtyFlags>(flags | observedStateEntries_[entryIndex].flags);
+              }
+            }
+          }
+          return flags;
+        }
 
         NodeArena *nodeArena() { return &nodeArena_; }
         virtual void *allocateStateMemory(size_t size, size_t align) { return stateArena_.allocate(size, align); }
@@ -378,6 +421,7 @@ namespace loka
               boundary->setScene(currentBoundary->getScene());
             }
             boundary->clearObservedDirtyFlags();
+            boundary->clearObservedStateEntries();
             nextBoundary = boundary;
           }
           if (nextBoundary)
@@ -394,8 +438,8 @@ namespace loka
                 {
                   return;
                 }
-                boundary_->addObservedDirtyFlags(flags);
                 boundary_->registerState(state);
+                boundary_->registerObservedState(state, flags);
               }
 
             private:
@@ -526,6 +570,13 @@ namespace loka
           ownedStateHandles_.clear();
         }
 
+        struct ObservedStateEntry
+        {
+          ObservedStateEntry() : state(0), flags(NODE_DIRTY_NONE) {}
+          loka::core::StateBase *state;
+          NodeDirtyFlags flags;
+        };
+
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
@@ -533,6 +584,7 @@ namespace loka
         BoundaryNode *parentBoundary_;
         LayoutBounds layoutBounds_;
         NodeDirtyFlags observedDirtyFlags_;
+        std::vector<ObservedStateEntry> observedStateEntries_;
         NodeArena nodeArena_;
         StateArena stateArena_;
       };
