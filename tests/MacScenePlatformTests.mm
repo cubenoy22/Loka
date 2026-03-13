@@ -41,6 +41,8 @@ void testMacScenePlatformRelayoutRequest()
     textState.set(loka::core::String::Literal("A much longer line that should request relayout"));
   }
 
+  assert((loka::dsl::testing::MacScenePlatformTestAccess::lastChangeFlags(controller) &
+          loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
   assert(loka::dsl::testing::MacScenePlatformTestAccess::hasPendingRelayout(controller));
   MacScenePlatformController::flushPendingRelayouts();
   assert(!loka::dsl::testing::MacScenePlatformTestAccess::hasPendingRelayout(controller));

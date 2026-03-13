@@ -227,7 +227,14 @@ namespace loka
       {
         if (this->props.text_)
         {
-          registrar.observe(this->props.text_, scene::NODE_DIRTY_PROPS);
+          scene::NodeDirtyFlags textFlags = scene::NODE_DIRTY_PROPS;
+          if (this->props.hasAttr_ &&
+              this->props.attr_.hasWrapValue_ &&
+              this->props.attr_.wrapValue_ != TEXT_WRAP_NONE)
+          {
+            textFlags = static_cast<scene::NodeDirtyFlags>(textFlags | scene::NODE_DIRTY_LAYOUT);
+          }
+          registrar.observe(this->props.text_, textFlags);
         }
         if (this->props.hasAttr_ && this->props.attr_.fontSizeState_)
         {
