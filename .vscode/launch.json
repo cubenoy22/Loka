@@ -3,42 +3,34 @@
   "configurations": [
     {
       "name": "Run (macOS HelloWorld)",
-      "type": "cppdbg",
+      "type": "lldb-dap",
       "request": "launch",
       "program": "${workspaceFolder}/build/macos/Debug/example/HelloWorld/LokaHelloMacOS",
       "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "MIMode": "lldb",
       "preLaunchTask": "Build: macOS App"
     },
     {
       "name": "Run (macOS MineSweeper)",
-      "type": "cppdbg",
+      "type": "lldb-dap",
       "request": "launch",
       "program": "${workspaceFolder}/build/macos/Debug/example/MineSweeper/LokaMineMacOS",
       "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "MIMode": "lldb",
       "preLaunchTask": "Build: macOS MineSweeper"
     },
     {
       "name": "Run (macOS SimpleViewer)",
-      "type": "cppdbg",
+      "type": "lldb-dap",
       "request": "launch",
       "program": "${workspaceFolder}/build/macos/Debug/example/SimpleViewer/LokaSimpleViewerMacOS",
       "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "MIMode": "lldb",
       "preLaunchTask": "Build: macOS SimpleViewer"
     },
     {
       "name": "Test (macOS)",
-      "type": "cppdbg",
+      "type": "lldb-dap",
       "request": "launch",
       "program": "${workspaceFolder}/build/macos/Debug/apple/macos/LokaTestsMacOS",
       "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "MIMode": "lldb",
       "preLaunchTask": "Build: macOS Tests"
     },
     {

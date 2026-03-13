@@ -2,6 +2,17 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Configure: macOS Native",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "macos-debug"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS App",
       "type": "shell",
       "command": "cmake",
@@ -9,6 +20,9 @@
         "--build",
         "--preset",
         "macos-debug"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
@@ -24,6 +38,9 @@
         "--target",
         "LokaMineMacOS"
       ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
       "group": "build",
       "problemMatcher": "$gcc"
     },
@@ -38,6 +55,9 @@
         "--target",
         "LokaSimpleViewerMacOS"
       ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
       "group": "build",
       "problemMatcher": "$gcc"
     },
@@ -49,6 +69,9 @@
         "--build",
         "--preset",
         "macos-tests"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
       ],
       "group": "build",
       "problemMatcher": "$gcc"
