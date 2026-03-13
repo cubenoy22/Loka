@@ -21,6 +21,7 @@
 #include "loka/platform/StringUTF8.hpp"
 #include "loka/platform/String.hpp"
 #include "loka/dsl/dsl.hpp"
+#include "loka/dsl/testing/SceneTestFlow.hpp"
 
 // --- main.cppから移動したテスト関数をここに実装 ---
 
@@ -735,6 +736,46 @@ namespace
   {
     return loka::app::scene::DynamicCompositionBoundary<DynamicObservedBoundaryNode>();
   }
+
+  class StaticObservedHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<StaticObservedHostNode> StaticObservedHostProps;
+
+  class StaticObservedHostNode : public loka::app::scene::BoundaryNodeFor<StaticObservedHostNode>
+  {
+  public:
+    StaticObservedHostNode(const StaticObservedHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<StaticObservedHostNode>(StaticObservedHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(StaticObservedBoundary());
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<StaticObservedHostProps, StaticObservedHostNode> StaticObservedHostBoundary()
+  {
+    return loka::app::scene::Boundary<StaticObservedHostNode>();
+  }
+
+  class DynamicObservedHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicObservedHostNode> DynamicObservedHostProps;
+
+  class DynamicObservedHostNode : public loka::app::scene::BoundaryNodeFor<DynamicObservedHostNode>
+  {
+  public:
+    DynamicObservedHostNode(const DynamicObservedHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicObservedHostNode>(DynamicObservedHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicObservedBoundary());
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicObservedHostProps, DynamicObservedHostNode> DynamicObservedHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicObservedHostNode>();
+  }
 }
 
 void testSceneBoundaryNestedCompose()
@@ -900,13 +941,14 @@ void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
   g_boundaryObservedState = &observedState;
 
   {
-    Scene scene(StaticObservedBoundary());
+    Scene scene(StaticObservedHostBoundary());
     DirtyCapturePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
     assert(platform.calls_ == 1);
 
-    loka::app::scene::BoundaryNode *boundary = scene.rootNode()->asBoundary();
+    loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    boundary = boundary ? boundary->childrenHead() ? boundary->childrenHead()->asBoundary() : 0 : 0;
     assert(boundary != 0);
     {
       loka::core::StateTrackerGuard guard(boundary->tracker());
@@ -921,13 +963,14 @@ void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
   observedState.set(false, true);
 
   {
-    Scene scene(DynamicObservedBoundary());
+    Scene scene(DynamicObservedHostBoundary());
     DirtyCapturePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
     assert(platform.calls_ == 1);
 
-    loka::app::scene::BoundaryNode *boundary = scene.rootNode()->asBoundary();
+    loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    boundary = boundary ? boundary->childrenHead() ? boundary->childrenHead()->asBoundary() : 0 : 0;
     assert(boundary != 0);
     {
       loka::core::StateTrackerGuard guard(boundary->tracker());
