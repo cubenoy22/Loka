@@ -140,7 +140,7 @@ Mixed props/layout update:
 TestFlow(testState)
   | Step(UPDATE_TEXT, SetStringState(textState, "Updated"))
   | Step(UPDATE_FONT, SetIntState(fontSizeState, 20))
-  | Step(FLUSH, FlushSceneInvalidation())
+  | Step(FLUSH, FlushSceneInvalidation()) // deterministic flush for deferred/dynamic path
   | Step(CHECK_TEXT, CheckText("MainText", "Updated"));
 // platform flags should include NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT
 ```
@@ -200,7 +200,7 @@ CaptureScene()
 ### B. Static / Dynamic Policy Assertion
 
 - STATIC: `SetState()` の直後に反映されることを検証。
-- DYNAMIC: `WaitNextTick()` 前は未反映、後に反映されることを検証。
+- DYNAMIC: `requestInvalidate()` / deferred path では `WaitNextTick()` or `FlushSceneInvalidation()` 前は未反映、後に反映されることを検証。
 
 ```cpp
 Step(SET_STATIC,  SetState(staticState, 1))

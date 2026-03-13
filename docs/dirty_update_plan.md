@@ -35,8 +35,8 @@
 
 | 既存クラス | ポリシー | 動作 |
 |---|---|---|
-| `StaticCompositionBoundaryNodeBase` | STATIC | 即時反映が原則。`flushViewDirty()` をその場で実行し OS API を叩く。 |
-| `DynamicCompositionBoundaryNodeBase` | DYNAMIC | 遅延反映。`NextTickTracker` に Boundary 単位で Dirty を登録する。 |
+| `StaticCompositionBoundaryNodeBase` | STATIC | 即時反映。Boundary dirty は `Scene::invalidate(flags)` に流し、同一サイクルで flush/apply する。 |
+| `DynamicCompositionBoundaryNodeBase` | DYNAMIC | 遅延反映。Boundary dirty は `Scene::requestInvalidate(flags)` に流し、後段の flush でまとめて apply する。 |
 
 Boundary は Node が申告した observed states を所有し、**直近 commit で dirty になった state だけ**から dirty flags を合成する。
 これは単純な boundary-wide union よりも正確で、同じ Boundary 内の unrelated state update で `NODE_DIRTY_LAYOUT` / `NODE_DIRTY_CHILD` が混入するのを防ぐ。
@@ -59,7 +59,7 @@ Boundary は Node が申告した observed states を所有し、**直近 commit
 - `delayMs == 0`: 次の OS イベントループ tick での実行を**保証**する
 - `delayMs > 0`: best-effort（プラットフォーム依存、例: 1000ms 指定でも OS の都合で前後する）
 
-> 現状の `Scene::invalidate()` は `request()` の直後に `run()` を同期呼び出しており、真の「次サイクル遅延」になっていない。NextTickTracker への置き換えでこれを是正する。
+> 現状実装では `Scene::invalidate()` は同期 flush helper、`Scene::requestInvalidate()` は deferred helper であり、この差を Static / Dynamic policy が使い分ける。
 
 ## Cleanup & Consolidation (Removing Ad-hoc Logic)
 
@@ -75,10 +75,15 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 // 修正後: UPDATE は子へ伝播、ATTACH 時のみ自身が compose
 ```
 
-### 2. Scene::refreshLoop_ の廃止
+### 2. Scene scheduler の整理
 
-- 理由: `RefreshLoop` は同期実行のため「次サイクル遅延」の意味を成していない。`NextTickTracker` に置き換えることで真の遅延実行を実現する。
-- 変更: `Scene::invalidate()` は `NextTickTracker::request()` を呼ぶだけにし、flush は OS イベントループ側から呼ばれる。
+- 理由: scene 側はすでに `NextTickTracker` を持つが、helper semantics を明確化する必要がある。
+- 現状:
+  - `Scene::invalidate()` は synchronous flush helper
+  - `Scene::requestInvalidate()` は deferred helper
+- 次段:
+  - OS イベントループ統合後は DYNAMIC 側の flush 呼び出し元を platform scheduler へ寄せる
+  - test helper (`FlushSceneInvalidation()`) は deterministic flush entry として維持する
 
 ### 3. 実行順序の厳格化
 
@@ -149,7 +154,7 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 | 項目 | 期待動作 |
 |---|---|
 | STATIC Boundary 下の変化 | 同一サイクル内に反映される |
-| DYNAMIC Boundary 下の変化 | 次 tick に反映される（同一 tick での重複実行なし） |
+| DYNAMIC Boundary 下の変化 | `requestInvalidate()` 後の flush/tick で反映される |
 | UpdateRgn / InvalidateRect | 同一 tick 内で 1 回に統合して発行される |
 | macOS: Text wrap 行数変化 | テキスト変更後の次 tick で正しくリレイアウトされる |
 | Toolbox: 再描画漏れ | `WaitNextEvent` 前の flush により漏れゼロ |
