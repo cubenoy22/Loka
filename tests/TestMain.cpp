@@ -26,6 +26,8 @@ int main()
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();
+  testDynamicBoundaryRecomposesOnlyOnChildDirty();
+  testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
   testLokaCoreString();

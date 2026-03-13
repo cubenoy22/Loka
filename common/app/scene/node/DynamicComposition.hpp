@@ -63,6 +63,11 @@ namespace loka
         DynamicCompositionBoundaryNodeBase(const PropsT &p)
             : BoundaryNode(), props(p) {}
         virtual ~DynamicCompositionBoundaryNodeBase() {}
+        virtual bool flushViewDirtyImmediately(NodeDirtyFlags flags) const
+        {
+          (void)flags;
+          return false;
+        }
 
         // Build node definitions into composition container (default: no children)
         virtual void composeNode(NodeComposition &c) { (void)c; }

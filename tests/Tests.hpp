@@ -14,6 +14,8 @@ void testNodeCompositionShowIf();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();
+void testDynamicBoundaryRecomposesOnlyOnChildDirty();
+void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
 void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
 void testLokaCoreString();

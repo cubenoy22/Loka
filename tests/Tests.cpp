@@ -553,6 +553,7 @@ namespace
   int g_childComposeCount = 0;
   int g_dynamicChildAttachComposeCount = 0;
   int g_dynamicChildUpdateEventCount = 0;
+  loka::core::MutableState<bool> *g_boundaryObservedState = 0;
 
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
@@ -645,6 +646,95 @@ namespace
   {
     return loka::app::scene::Boundary<RootStaticWithDynamicChildNode>();
   }
+
+  int g_dynamicRootComposeCount = 0;
+  int g_dynamicRootUpdateEventCount = 0;
+
+  class RootDynamicBoundaryNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<RootDynamicBoundaryNode> RootDynamicBoundaryProps;
+
+  class RootDynamicBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<RootDynamicBoundaryNode>
+  {
+  public:
+    RootDynamicBoundaryNode(const RootDynamicBoundaryProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<RootDynamicBoundaryNode>(RootDynamicBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      ++g_dynamicRootComposeCount;
+    }
+
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE)
+      {
+        ++g_dynamicRootUpdateEventCount;
+      }
+      loka::app::scene::DynamicCompositionNodeFor<RootDynamicBoundaryNode>::composeWithContext(context, event);
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<RootDynamicBoundaryProps, RootDynamicBoundaryNode> RootDynamicBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<RootDynamicBoundaryNode>();
+  }
+
+  class StaticObservedBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<StaticObservedBoundaryNode> StaticObservedBoundaryProps;
+
+  class StaticObservedBoundaryNode : public loka::app::scene::BoundaryNodeFor<StaticObservedBoundaryNode>
+  {
+  public:
+    StaticObservedBoundaryNode(const StaticObservedBoundaryProps &p)
+        : loka::app::scene::BoundaryNodeFor<StaticObservedBoundaryNode>(StaticObservedBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_boundaryObservedState)
+      {
+        registrar.observe(g_boundaryObservedState, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<StaticObservedBoundaryProps, StaticObservedBoundaryNode> StaticObservedBoundary()
+  {
+    return loka::app::scene::Boundary<StaticObservedBoundaryNode>();
+  }
+
+  class DynamicObservedBoundaryNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicObservedBoundaryNode> DynamicObservedBoundaryProps;
+
+  class DynamicObservedBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicObservedBoundaryNode>
+  {
+  public:
+    DynamicObservedBoundaryNode(const DynamicObservedBoundaryProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicObservedBoundaryNode>(DynamicObservedBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_boundaryObservedState)
+      {
+        registrar.observe(g_boundaryObservedState, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicObservedBoundaryProps, DynamicObservedBoundaryNode> DynamicObservedBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicObservedBoundaryNode>();
+  }
 }
 
 void testSceneBoundaryNestedCompose()
@@ -730,6 +820,128 @@ void testStaticBoundaryPropagatesUpdateToDynamicChild()
   assert(g_dynamicChildUpdateEventCount == 1);
 
   scene.unmount();
+}
+
+void testDynamicBoundaryRecomposesOnlyOnChildDirty()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), destroyed_(false), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() { destroyed_ = true; }
+
+    Node *lastMaterialized_;
+    bool destroyed_;
+    NodeDirtyFlags lastFlags_;
+  };
+
+  g_dynamicRootComposeCount = 0;
+  g_dynamicRootUpdateEventCount = 0;
+
+  Scene scene(RootDynamicBoundary());
+  DummyPlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  assert(g_dynamicRootComposeCount == 1);
+  assert(g_dynamicRootUpdateEventCount == 0);
+
+  scene.invalidate(loka::app::scene::NODE_DIRTY_PROPS);
+  assert(g_dynamicRootComposeCount == 1);
+  assert(g_dynamicRootUpdateEventCount == 1);
+
+  scene.invalidate(loka::app::scene::NODE_DIRTY_LAYOUT);
+  assert(g_dynamicRootComposeCount == 1);
+  assert(g_dynamicRootUpdateEventCount == 2);
+
+  scene.invalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(g_dynamicRootComposeCount == 2);
+  assert(g_dynamicRootUpdateEventCount == 3);
+
+  scene.unmount();
+}
+
+void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      (void)rootNode;
+      lastFlags_ = flags;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() {}
+
+    int calls_;
+    NodeDirtyFlags lastFlags_;
+  };
+
+  loka::core::MutableState<bool> observedState(false);
+  g_boundaryObservedState = &observedState;
+
+  {
+    Scene scene(StaticObservedBoundary());
+    DirtyCapturePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(platform.calls_ == 1);
+
+    loka::app::scene::BoundaryNode *boundary = scene.rootNode()->asBoundary();
+    assert(boundary != 0);
+    {
+      loka::core::StateTrackerGuard guard(boundary->tracker());
+      observedState.set(true);
+    }
+
+    assert(platform.calls_ == 2);
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+    scene.unmount();
+  }
+
+  observedState.set(false, true);
+
+  {
+    Scene scene(DynamicObservedBoundary());
+    DirtyCapturePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(platform.calls_ == 1);
+
+    loka::app::scene::BoundaryNode *boundary = scene.rootNode()->asBoundary();
+    assert(boundary != 0);
+    {
+      loka::core::StateTrackerGuard guard(boundary->tracker());
+      observedState.set(true);
+    }
+
+    assert(platform.calls_ == 1);
+    scene.flushInvalidation();
+    assert(platform.calls_ == 2);
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+    scene.unmount();
+  }
+
+  g_boundaryObservedState = 0;
 }
 
 void testSceneInvalidateUsesRequestedDirtyFlags()

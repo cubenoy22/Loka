@@ -17,6 +17,11 @@ namespace loka
         {
           return;
         }
+        if (this->flushViewDirtyImmediately(flags))
+        {
+          scene->invalidate(flags);
+          return;
+        }
         scene->requestInvalidate(flags);
       }
 

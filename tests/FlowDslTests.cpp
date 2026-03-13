@@ -1229,7 +1229,6 @@ void testLokaFlowDslV1Core() {
         | loka::dsl::Step(4, loka::dsl::testing::CheckText("MixedText", "After"));
 
     assert(chain.run());
-    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
     scene.unmount();

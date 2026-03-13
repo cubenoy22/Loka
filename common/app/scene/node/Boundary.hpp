@@ -251,6 +251,11 @@ namespace loka
         virtual IStateOwner *asStateOwner() { return this; }
 
         virtual loka::core::StateTracker *tracker() { return &tracker_; }
+        virtual bool flushViewDirtyImmediately(NodeDirtyFlags flags) const
+        {
+          (void)flags;
+          return true;
+        }
         void markViewDirty(NodeDirtyFlags flags);
         Scene *scene() const { return scene_; }
         Scene *getScene() const
