@@ -116,6 +116,7 @@ void MacApp::quit()
 
 void MacApp::flushInvalidationsTick()
 {
+  this->flushMenuInvalidation();
   this->flushWindowInvalidations();
   MacScenePlatformController::flushPendingRelayouts();
 }
@@ -187,7 +188,7 @@ void MacApp::handleMenuCommand(int commandId)
     }
     if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
     {
-      invalidateMenu();
+      requestMenuInvalidation();
     }
     return;
   }

@@ -21,6 +21,8 @@ public:
   virtual void quit() = 0;
   virtual void windowClosed(Window *window);
   virtual bool handleMenuCommand(int commandId, Window *window);
+  void requestMenuInvalidation();
+  bool flushMenuInvalidation();
   void invalidateMenu();
   void setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar);
   const loka::app::MenuBarDefinition *defaultMenuBar() const { return menuBar_; }

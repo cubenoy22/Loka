@@ -61,6 +61,7 @@ void ToolboxApp::run()
   running_ = true;
   while (running_)
   {
+    this->flushMenuInvalidation();
     this->flushWindowInvalidations();
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
@@ -778,7 +779,7 @@ void ToolboxApp::handleMenuCommand(short menuId, short item)
     }
     if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
     {
-      invalidateMenu();
+      requestMenuInvalidation();
     }
     return;
   }

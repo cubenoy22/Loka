@@ -61,13 +61,6 @@ namespace loka
       EditTextNode(const EditTextProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_EDIT_TEXT; }
       virtual EditTextNode *asEditTextNode() { return this; }
-      virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
-      {
-        if (this->props.text_)
-        {
-          registrar.observe(this->props.text_, scene::NODE_DIRTY_PROPS);
-        }
-      }
     };
 
     struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>, public scene::TestIdDslMixin<EditTextDefinition>

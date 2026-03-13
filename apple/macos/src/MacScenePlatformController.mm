@@ -94,6 +94,8 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
       clientHeight_(0),
       firstEditField_(0),
       lastEditField_(0),
+      focusedEditTextState_(0),
+      focusedEditTextControlTag_(0),
       relayoutPending_(false)
 {
   if (rootView_)
@@ -139,6 +141,14 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka
     return;
   }
 
+  const bool requiresLayout = (flags & loka::app::scene::NODE_DIRTY_INITIAL) != 0 ||
+                              (flags & loka::app::scene::NODE_DIRTY_LAYOUT) != 0 ||
+                              (flags & loka::app::scene::NODE_DIRTY_CHILD) != 0;
+  if (!requiresLayout)
+  {
+    return;
+  }
+
   NSView *view = (NSView *)rootView_;
   NSRect bounds = [view bounds];
   clientWidth_ = static_cast<int>(bounds.size.width);
@@ -159,6 +169,8 @@ void MacScenePlatformController::destroy()
   clientWidth_ = 0;
   clientHeight_ = 0;
   relayoutPending_ = false;
+  focusedEditTextState_ = 0;
+  focusedEditTextControlTag_ = 0;
 }
 
 void MacScenePlatformController::relayout(int clientWidth, int clientHeight)
@@ -208,6 +220,7 @@ void MacScenePlatformController::flushPendingRelayouts()
 
 void MacScenePlatformController::performLayout(int clientWidth, int clientHeight)
 {
+  captureFocusedEditField();
   clearContexts();
   if (!rootNode_ || !rootView_)
   {
@@ -227,6 +240,7 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
   PROFILE_SECTION("layout");
   layoutNode(rootNode_, state);
   finalizeKeyLoop();
+  restoreFocusedEditField();
 }
 
 namespace
@@ -652,6 +666,112 @@ void MacScenePlatformController::finalizeKeyLoop()
       [window setInitialFirstResponder:firstField];
     }
   }
+}
+
+void MacScenePlatformController::captureFocusedEditField()
+{
+  focusedEditTextState_ = 0;
+  focusedEditTextControlTag_ = 0;
+  if (!rootNode_ || !rootView_)
+  {
+    return;
+  }
+  void *state = findFocusedEditTextState(rootNode_);
+  if (!state)
+  {
+    return;
+  }
+  focusedEditTextState_ = state;
+}
+
+void *MacScenePlatformController::findFocusedEditTextState(loka::app::scene::Node *node) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  if (loka::app::EditTextNode *edit = node->asEditTextNode())
+  {
+    MacEditTextContext *ctx = static_cast<MacEditTextContext *>(edit->getContext());
+    NSTextField *field = ctx ? (NSTextField *)ctx->nativeField() : 0;
+    if (field && [field currentEditor] != nil)
+    {
+      if (edit->props.controlTag_ != 0)
+      {
+        const_cast<MacScenePlatformController *>(this)->focusedEditTextControlTag_ = edit->props.controlTag_;
+      }
+      return edit->props.text_;
+    }
+  }
+  if (loka::app::scene::INestable *nestable = node->asNestable())
+  {
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      void *state = findFocusedEditTextState(child);
+      if (state)
+      {
+        return state;
+      }
+    }
+  }
+  return 0;
+}
+
+void *MacScenePlatformController::findFieldForFocusedEdit(loka::app::scene::Node *node) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  if (loka::app::EditTextNode *edit = node->asEditTextNode())
+  {
+    const bool controlTagMatches = focusedEditTextControlTag_ != 0 && edit->props.controlTag_ == focusedEditTextControlTag_;
+    const bool stateMatches = focusedEditTextState_ != 0 && edit->props.text_ == focusedEditTextState_;
+    if (controlTagMatches || (focusedEditTextControlTag_ == 0 && stateMatches))
+    {
+      MacEditTextContext *ctx = static_cast<MacEditTextContext *>(edit->getContext());
+      return ctx ? ctx->nativeField() : 0;
+    }
+  }
+  if (loka::app::scene::INestable *nestable = node->asNestable())
+  {
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      void *field = findFieldForFocusedEdit(child);
+      if (field)
+      {
+        return field;
+      }
+    }
+  }
+  return 0;
+}
+
+void MacScenePlatformController::restoreFocusedEditField()
+{
+  if (!focusedEditTextState_ || !rootView_ || !rootNode_)
+  {
+    focusedEditTextState_ = 0;
+    focusedEditTextControlTag_ = 0;
+    return;
+  }
+  NSView *view = (NSView *)rootView_;
+  NSWindow *window = [view window];
+  if (!window)
+  {
+    focusedEditTextState_ = 0;
+    focusedEditTextControlTag_ = 0;
+    return;
+  }
+  NSTextField *field = (NSTextField *)findFieldForFocusedEdit(rootNode_);
+  if (field)
+  {
+    [window makeFirstResponder:field];
+  }
+  focusedEditTextState_ = 0;
+  focusedEditTextControlTag_ = 0;
 }
 
 void MacScenePlatformController::clearContexts()

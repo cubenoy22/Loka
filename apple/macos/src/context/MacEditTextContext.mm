@@ -34,6 +34,10 @@ MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width
   [field setSelectable:YES];
   [field setBezeled:YES];
   [field setDrawsBackground:YES];
+  if (node_)
+  {
+    [field setTag:node_->props.controlTag_];
+  }
 
   LokaTextFieldDelegate *delegate = [[LokaTextFieldDelegate alloc] init];
   delegate.owner = this;

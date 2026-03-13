@@ -28,7 +28,7 @@ static void MenuInvalidateThunk(void *userData)
   App *app = static_cast<App *>(userData);
   if (app)
   {
-    app->invalidateMenu();
+    app->requestMenuInvalidation();
   }
 }
 
@@ -123,8 +123,18 @@ bool App::handleMenuCommand(int commandId, Window *window)
 
 void App::invalidateMenu()
 {
+  requestMenuInvalidation();
+  flushMenuInvalidation();
+}
+
+void App::requestMenuInvalidation()
+{
   menuRefresh_.request();
-  menuRefresh_.run(&MenuRefreshThunk, &MenuApplyThunk, this);
+}
+
+bool App::flushMenuInvalidation()
+{
+  return menuRefresh_.run(&MenuRefreshThunk, &MenuApplyThunk, this);
 }
 
 void App::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar)
