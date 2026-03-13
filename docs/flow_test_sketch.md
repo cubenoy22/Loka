@@ -145,6 +145,15 @@ TestFlow(testState)
 // platform flags should include NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT
 ```
 
+State-level dirty routing:
+
+```cpp
+TestFlow(testState)
+  | Step(ENABLE_BUTTON, SetBoolStateAndFlush(enabledState, true));
+// same Boundary may also contain wrapped Text / Conditional nodes
+// platform flags should include NODE_DIRTY_PROPS only
+```
+
 macOS native relayout probe:
 
 ```cpp
@@ -186,6 +195,7 @@ CaptureScene()
 
 目的:
 - 見た目は同じでも毎回 `DIRTY_CHILD` (全再構築) が走る退行を検知する。
+- 同じ Boundary に wrap text や conditional が同居していても、unrelated state update で `DIRTY_LAYOUT` / `DIRTY_CHILD` が混入しないことを検知する。
 
 ### B. Static / Dynamic Policy Assertion
 

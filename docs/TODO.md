@@ -69,6 +69,7 @@
 - Support matrix in README: split compatibility claims into `build-verified` and `runtime-verified`.
 - Menu bar support implemented across macOS/Win32/Toolbox app layers.
 - MenuItemAttr `visible` is evaluated during menu build. Runtime visibility toggles currently require menu invalidation/rebuild to reapply.
+- Menu/Scene architecture convergence: keep boundary-local tracking, minimal diff output, and immediate-vs-deferred policy split aligned so menu refresh can later migrate from `RefreshLoop` to the same scheduling model without duplicating dirty semantics.
 - ConditionalDefinition/ConditionalNode and `NodeComposition::conditional(..., node)` default false/Empty path implemented.
 - BoundaryNode owns StateTracker; useState auto-registers; Context API removed; RootBoundaryWrapper in Scene; DSL naming cleanup.
 - `VStack/HStack` alignment props are wired into platform layout engines (Win32/macOS/Toolbox), including remaining-height handling for `VStack + ImageView(FILL_PARENT)`.

@@ -20,6 +20,10 @@
   - `NODE_DIRTY_LAYOUT`: サイズ・配置への影響あり
   - `NODE_DIRTY_CHILD`: 子ノード構造の変化
 - **Node/NativeContext はタイマーや遅延処理を持たない**。dirty の種別判定に専念する。
+- 各 Node は `declareObservedStates(...)` で **state -> dirty flags** を明示的に申告する。
+  - 例: wrap あり `Text.text` は `NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT`
+  - 例: `Button.enabled` は `NODE_DIRTY_PROPS`
+  - 例: `Conditional.visible` は `NODE_DIRTY_CHILD`
 
 ### Layer 2: Boundary + NextTickTracker (When & How to execute?)
 
@@ -33,6 +37,9 @@
 |---|---|---|
 | `StaticCompositionBoundaryNodeBase` | STATIC | 即時反映が原則。`flushViewDirty()` をその場で実行し OS API を叩く。 |
 | `DynamicCompositionBoundaryNodeBase` | DYNAMIC | 遅延反映。`NextTickTracker` に Boundary 単位で Dirty を登録する。 |
+
+Boundary は Node が申告した observed states を所有し、**直近 commit で dirty になった state だけ**から dirty flags を合成する。
+これは単純な boundary-wide union よりも正確で、同じ Boundary 内の unrelated state update で `NODE_DIRTY_LAYOUT` / `NODE_DIRTY_CHILD` が混入するのを防ぐ。
 
 #### NextTickTracker (Batch Execution)
 
@@ -155,6 +162,7 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 以下の経路はすべてのコードパスをテストで通過させること（行/分岐の % 目標は設けない）:
 
 - **Merge 規則**: `NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT | NODE_DIRTY_PROPS` の OR 蓄積が正しく機能する
+- **State-level routing**: 同じ Boundary に複数種別の observed state が同居していても、dirty になった state 由来の flags のみが通知される
 - **Flush 順序**: RECOMPOSE → RELAYOUT → APPLY → INVALIDATE の順が崩れないこと
 - **再入防止**: flush 中に新たな dirty が発生しても、現サイクルには混入せず次 tick に回ること
 
