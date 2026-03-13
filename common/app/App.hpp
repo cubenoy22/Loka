@@ -5,7 +5,7 @@
 #include "app/AppComponent.hpp"
 #include "app/AppConfigurable.hpp"
 #include "app/Menu.hpp"
-#include "loka/dsl/RefreshLoop.hpp"
+#include "loka/dsl/NextTickTracker.hpp"
 #include <cassert>
 
 class Window;
@@ -33,7 +33,7 @@ protected:
   AppConfigurable *config_;
   loka::app::MenuBarDefinition *menuBar_;
   Window *activeWindow_;
-  loka::dsl::RefreshLoop menuRefresh_;
+  loka::dsl::NextTickTracker menuRefresh_;
   loka::app::MenuCompositionDiff menuDiff_;
 
   const loka::app::MenuBarDefinition *resolveMenuBar(Window *window);
