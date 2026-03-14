@@ -9,6 +9,9 @@ bool Window::flushSceneInvalidation()
     return false;
   }
   const bool changed = current->flushInvalidation();
-  this->synchronizeScenePlatform();
+  if (changed || this->hasPendingScenePlatformSync())
+  {
+    this->synchronizeScenePlatform();
+  }
   return changed;
 }

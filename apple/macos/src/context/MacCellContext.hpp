@@ -19,6 +19,7 @@ public:
   MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node);
   virtual ~MacCellContext();
   void handleClick();
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindText();

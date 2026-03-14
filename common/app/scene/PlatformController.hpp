@@ -25,6 +25,7 @@ namespace loka
 
         // 変更があったNodeをUIに同期する
         virtual void synchronize() = 0;
+        virtual bool hasPendingSync() const = 0;
 
         // UIリソースを破棄する
         virtual void destroy() = 0;

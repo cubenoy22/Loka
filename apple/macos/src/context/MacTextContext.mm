@@ -73,6 +73,17 @@ MacTextContext::~MacTextContext()
   label_ = 0;
 }
 
+void MacTextContext::relayout(int x, int y, int width, int height)
+{
+  NSTextField *label = (NSTextField *)label_;
+  if (!label)
+  {
+    return;
+  }
+  [label setFrame:NSMakeRect(x, y, width, height)];
+  [label setNeedsDisplay:YES];
+}
+
 void MacTextContext::bindText()
 {
   if (!node_)

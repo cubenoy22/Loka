@@ -27,6 +27,7 @@ class Win32TextContext : public loka::app::scene::NativeNodeContext
 public:
   Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node);
   virtual ~Win32TextContext();
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindText();

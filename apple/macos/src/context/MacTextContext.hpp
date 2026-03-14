@@ -18,6 +18,7 @@ class MacTextContext : public loka::app::scene::NativeNodeContext
 public:
   MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node);
   virtual ~MacTextContext();
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindText();

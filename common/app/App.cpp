@@ -93,6 +93,10 @@ void App::flushWindowInvalidations()
     Window *win = comps[i] ? comps[i]->asWindow() : 0;
     if (win)
     {
+      if (!win->hasPendingSceneInvalidation() && !win->hasPendingScenePlatformSync())
+      {
+        continue;
+      }
       win->flushSceneInvalidation();
     }
   }

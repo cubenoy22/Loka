@@ -28,6 +28,7 @@ class Win32CellContext : public loka::app::scene::NativeNodeContext
 public:
   Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node);
   virtual ~Win32CellContext();
+  void relayout(int x, int y, int width, int height);
 
 private:
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);

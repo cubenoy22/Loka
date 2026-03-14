@@ -42,6 +42,16 @@ Win32CellContext::~Win32CellContext()
   }
 }
 
+void Win32CellContext::relayout(int x, int y, int width, int height)
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  MoveWindow(hwnd_, x, y, width, height, TRUE);
+  Win32ScenePlatformController::redrawDirtySubtreeNow(hwnd_, NULL, TRUE);
+}
+
 void Win32CellContext::EnsureClassRegistered()
 {
   static bool registered = false;

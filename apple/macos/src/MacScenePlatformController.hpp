@@ -33,6 +33,7 @@ public:
 
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
   virtual void synchronize();
+  virtual bool hasPendingSync() const;
   virtual void destroy();
 
   void relayout(int clientWidth, int clientHeight);
@@ -53,7 +54,7 @@ private:
   };
 
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
-  void performLayout(int clientWidth, int clientHeight);
+  void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;

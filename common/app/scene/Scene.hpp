@@ -163,6 +163,11 @@ namespace loka
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }
 
+        bool hasPendingInvalidation() const
+        {
+          return nextTickTracker_.hasPendingRequest();
+        }
+
         void invalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
         {
           requestInvalidate(flags);

@@ -38,6 +38,7 @@ public:
   // --- Windowのイベントハンドラを明示的にoverride ---
   virtual void onShow();
   virtual void onHide();
+  virtual bool hasPendingScenePlatformSync() const;
   virtual void synchronizeScenePlatform();
 
 protected:

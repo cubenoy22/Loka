@@ -70,6 +70,7 @@ namespace SceneTests
         lastMaterialized_ = rootNode;
       }
       virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
       virtual void destroy() { destroyed_ = true; }
 
       Node *lastMaterialized_;

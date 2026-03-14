@@ -787,6 +787,11 @@ void ToolboxScenePlatformController::synchronize()
   // Toolbox doesn't have a retained scene graph; rely on Update events.
 }
 
+bool ToolboxScenePlatformController::hasPendingSync() const
+{
+  return false;
+}
+
 void ToolboxScenePlatformController::destroy()
 {
   rootNode_ = 0;

@@ -298,6 +298,11 @@ void ToolboxWindow::synchronizeScenePlatform()
   }
 }
 
+bool ToolboxWindow::hasPendingScenePlatformSync() const
+{
+  return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;
+}
+
 void ToolboxWindow::mountScene()
 {
   loka::app::scene::Scene *currentScene = this->scene();

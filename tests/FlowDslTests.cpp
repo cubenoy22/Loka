@@ -352,6 +352,10 @@ namespace {
     virtual void synchronize() {
     }
 
+    virtual bool hasPendingSync() const {
+      return false;
+    }
+
     virtual void destroy() {
       destroyed_ = true;
     }

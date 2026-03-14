@@ -287,6 +287,11 @@ void Win32Window::synchronizeScenePlatform()
   }
 }
 
+bool Win32Window::hasPendingScenePlatformSync() const
+{
+  return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;
+}
+
 void Win32Window::mountScene()
 {
   if (scenePlatformController_ || !this->hwnd_)

@@ -28,6 +28,7 @@ public:
 
   virtual void onShow();
   virtual void onHide();
+  virtual bool hasPendingScenePlatformSync() const;
   virtual void synchronizeScenePlatform();
 
   void handleWindowWillClose();

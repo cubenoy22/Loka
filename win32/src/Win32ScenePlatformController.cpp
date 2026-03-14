@@ -185,7 +185,8 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, lo
     clientWidth_ = rc.right - rc.left;
     clientHeight_ = rc.bottom - rc.top;
   }
-  performLayout(clientWidth_, clientHeight_);
+  performLayout(clientWidth_, clientHeight_,
+                (flags & (loka::app::scene::NODE_DIRTY_INITIAL | loka::app::scene::NODE_DIRTY_CHILD)) != 0);
 }
 
 void Win32ScenePlatformController::synchronize()
@@ -209,6 +210,11 @@ void Win32ScenePlatformController::synchronize()
     RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL, flags);
   }
   pendingInvalidations_.clear();
+}
+
+bool Win32ScenePlatformController::hasPendingSync() const
+{
+  return !pendingInvalidations_.empty();
 }
 
 void Win32ScenePlatformController::destroy()
@@ -329,13 +335,19 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
   }
   clientWidth_ = clientWidth;
   clientHeight_ = clientHeight;
-  performLayout(clientWidth_, clientHeight_);
+  performLayout(clientWidth_, clientHeight_, false);
 }
 
-void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight)
+void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight, bool rebuildContexts)
 {
   pendingInvalidations_.clear();
-  clearContexts();
+  buttonMap_.clear();
+  editMap_.clear();
+  popupMap_.clear();
+  if (rebuildContexts)
+  {
+    clearNodeContexts(rootNode_);
+  }
   if (!rootNode_ || !rootHwnd_)
   {
     return;
@@ -656,8 +668,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   if (loka::app::CellNode *cell = node->asCellNode())
   {
     const int cellHeight = state.height > 0 ? state.height : kTextHeight;
-    Win32CellContext *ctx = new Win32CellContext(rootHwnd_, state.x, state.y, state.width, cellHeight, cell);
-    cell->setContext(ctx);
+    Win32CellContext *ctx = static_cast<Win32CellContext *>(cell->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, cellHeight);
+    }
+    else
+    {
+      ctx = new Win32CellContext(rootHwnd_, state.x, state.y, state.width, cellHeight, cell);
+      cell->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + cellHeight;
@@ -671,8 +691,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   if (loka::app::TextNode *text = node->asTextNode())
   {
     const int textHeight = MeasureTextHeightForWidth(rootHwnd_, text, state.width, kTextHeight);
-    Win32TextContext *ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, textHeight, text);
-    text->setContext(ctx);
+    Win32TextContext *ctx = static_cast<Win32TextContext *>(text->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, textHeight);
+    }
+    else
+    {
+      ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, textHeight, text);
+      text->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + textHeight + kVerticalSpacing;

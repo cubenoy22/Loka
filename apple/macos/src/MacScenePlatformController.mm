@@ -153,12 +153,18 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka
   NSRect bounds = [view bounds];
   clientWidth_ = static_cast<int>(bounds.size.width);
   clientHeight_ = static_cast<int>(bounds.size.height);
-  performLayout(clientWidth_, clientHeight_);
+  performLayout(clientWidth_, clientHeight_,
+                (flags & (loka::app::scene::NODE_DIRTY_INITIAL | loka::app::scene::NODE_DIRTY_CHILD)) != 0);
 }
 
 void MacScenePlatformController::synchronize()
 {
   // Solid-mode（固定ツリー）では即時反映済みのため、現状何もしない。
+}
+
+bool MacScenePlatformController::hasPendingSync() const
+{
+  return false;
 }
 
 void MacScenePlatformController::destroy()
@@ -192,7 +198,7 @@ void MacScenePlatformController::relayout(int clientWidth, int clientHeight)
   }
   clientWidth_ = clientWidth;
   clientHeight_ = clientHeight;
-  performLayout(clientWidth_, clientHeight_);
+  performLayout(clientWidth_, clientHeight_, false);
 }
 
 void MacScenePlatformController::requestRelayout()
@@ -218,10 +224,13 @@ void MacScenePlatformController::flushPendingRelayouts()
   }
 }
 
-void MacScenePlatformController::performLayout(int clientWidth, int clientHeight)
+void MacScenePlatformController::performLayout(int clientWidth, int clientHeight, bool rebuildContexts)
 {
-  captureFocusedEditField();
-  clearContexts();
+  if (rebuildContexts)
+  {
+    captureFocusedEditField();
+    clearContexts();
+  }
   if (!rootNode_ || !rootView_)
   {
     return;
@@ -240,7 +249,10 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
   PROFILE_SECTION("layout");
   layoutNode(rootNode_, state);
   finalizeKeyLoop();
-  restoreFocusedEditField();
+  if (rebuildContexts)
+  {
+    restoreFocusedEditField();
+  }
 }
 
 namespace
@@ -544,8 +556,16 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   if (loka::app::CellNode *cell = node->asCellNode())
   {
     const int cellHeight = state.height > 0 ? state.height : kTextHeight;
-    MacCellContext *ctx = new MacCellContext(rootView_, state.x, state.y, state.width, cellHeight, cell);
-    cell->setContext(ctx);
+    MacCellContext *ctx = static_cast<MacCellContext *>(cell->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, cellHeight);
+    }
+    else
+    {
+      ctx = new MacCellContext(rootView_, state.x, state.y, state.width, cellHeight, cell);
+      cell->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + cellHeight;
@@ -555,8 +575,16 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   if (loka::app::TextNode *text = node->asTextNode())
   {
     const int textHeight = MeasureTextHeightForWidth(text, state.width, kTextHeight);
-    MacTextContext *ctx = new MacTextContext(rootView_, state.x, state.y, state.width, textHeight, text);
-    text->setContext(ctx);
+    MacTextContext *ctx = static_cast<MacTextContext *>(text->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, textHeight);
+    }
+    else
+    {
+      ctx = new MacTextContext(rootView_, state.x, state.y, state.width, textHeight, text);
+      text->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + textHeight + kVerticalSpacing;

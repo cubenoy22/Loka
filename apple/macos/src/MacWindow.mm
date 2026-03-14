@@ -306,6 +306,11 @@ void MacWindow::synchronizeScenePlatform()
   }
 }
 
+bool MacWindow::hasPendingScenePlatformSync() const
+{
+  return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;
+}
+
 void MacWindow::handleWindowWillClose()
 {
   if (closing_)

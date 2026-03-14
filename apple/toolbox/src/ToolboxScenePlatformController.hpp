@@ -22,6 +22,7 @@ public:
 
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
   virtual void synchronize();
+  virtual bool hasPendingSync() const;
   virtual void destroy();
 
   void render();

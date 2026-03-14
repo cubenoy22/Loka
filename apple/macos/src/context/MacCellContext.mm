@@ -120,6 +120,17 @@ MacCellContext::~MacCellContext()
   view_ = 0;
 }
 
+void MacCellContext::relayout(int x, int y, int width, int height)
+{
+  LokaCellView *view = (LokaCellView *)view_;
+  if (!view)
+  {
+    return;
+  }
+  [view setFrame:NSMakeRect(x, y, width, height)];
+  [view setNeedsDisplay:YES];
+}
+
 void MacCellContext::handleClick()
 {
   if (!node_ || !node_->props.onClick_)

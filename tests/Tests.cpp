@@ -534,6 +534,7 @@ void testSceneMountLifecycle()
       lastMaterialized_ = rootNode;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() { destroyed_ = true; }
 
     Node *lastMaterialized_;
@@ -946,6 +947,7 @@ void testSceneBoundaryNestedCompose()
       lastMaterialized_ = rootNode;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() { destroyed_ = true; }
 
     Node *lastMaterialized_;
@@ -990,6 +992,7 @@ void testStaticBoundaryPropagatesUpdateToDynamicChild()
       lastMaterialized_ = rootNode;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() { destroyed_ = true; }
 
     Node *lastMaterialized_;
@@ -1032,6 +1035,7 @@ void testDynamicBoundaryRecomposesOnlyOnChildDirty()
       lastFlags_ = flags;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() { destroyed_ = true; }
 
     Node *lastMaterialized_;
@@ -1082,6 +1086,7 @@ void testDynamicBoundaryDetachesSubtreeBeforeChildRecompose()
       lastFlags_ = flags;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() {}
 
     Node *lastMaterialized_;
@@ -1128,6 +1133,7 @@ void testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks()
       lastFlags_ = flags;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() {}
 
     Node *lastMaterialized_;
@@ -1176,6 +1182,7 @@ void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
       ++calls_;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() {}
 
     int calls_;
@@ -1250,6 +1257,7 @@ void testPopupMenuSelectionStateDoesNotInvalidateScene()
       ++calls_;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() {}
 
     int calls_;
@@ -1309,6 +1317,7 @@ void testOpenFileDialogStatesDoNotInvalidateScene()
       ++calls_;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() {}
 
     int calls_;
@@ -1369,6 +1378,7 @@ void testSceneInvalidateUsesRequestedDirtyFlags()
       ++calls_;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() { destroyed_ = true; }
 
     Node *lastMaterialized_;
@@ -1415,6 +1425,7 @@ void testSceneRequestInvalidateDefersUntilFlush()
       ++calls_;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() { destroyed_ = true; }
 
     Node *lastMaterialized_;
@@ -1458,6 +1469,7 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild()
       ++calls_;
     }
     virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
     virtual void destroy() {}
 
     Node *lastMaterialized_;

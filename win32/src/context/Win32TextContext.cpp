@@ -64,6 +64,25 @@ Win32TextContext::~Win32TextContext()
   }
 }
 
+void Win32TextContext::relayout(int x, int y, int width, int height)
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  MoveWindow(hwnd_, x, y, width, height, TRUE);
+  HWND parent = GetParent(hwnd_);
+  if (parent)
+  {
+    RECT rc;
+    if (GetWindowRect(hwnd_, &rc))
+    {
+      MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rc), 2);
+      Win32ScenePlatformController::redrawDirtySubtreeNow(parent, &rc, TRUE);
+    }
+  }
+}
+
 void Win32TextContext::bindText()
 {
   if (!node_)
