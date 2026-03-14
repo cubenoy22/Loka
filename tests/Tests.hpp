@@ -15,6 +15,7 @@ void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();
 void testDynamicBoundaryRecomposesOnlyOnChildDirty();
+void testDynamicBoundaryPreservesChildIdentityUntilChildDirty();
 void testDynamicBoundaryDetachesSubtreeBeforeChildRecompose();
 void testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
 void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();

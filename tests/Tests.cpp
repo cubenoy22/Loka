@@ -653,11 +653,15 @@ namespace
 
   int g_dynamicRootComposeCount = 0;
   int g_dynamicRootUpdateEventCount = 0;
+  int g_dynamicIdentityChildComposeCount = 0;
   int g_dynamicDetachChildAttachCount = 0;
   int g_dynamicDetachChildDetachCount = 0;
   bool g_dynamicDetachShowChild = true;
   int g_dynamicCallbackFireCount = 0;
   loka::core::EmitterState *g_dynamicCallbackEmitter = 0;
+  loka::core::MutableState<bool> *g_dynamicIdentityPropsState = 0;
+  loka::core::MutableState<int> *g_dynamicIdentityLayoutState = 0;
+  loka::core::MutableState<bool> *g_dynamicIdentityChildState = 0;
   loka::core::MutableState<int> *g_popupSelectedIndexState = 0;
   loka::core::MutableState<bool> *g_popupEnabledState = 0;
   loka::core::MutableState<loka::app::FileChooserResult> *g_openFileResultState = 0;
@@ -691,6 +695,83 @@ namespace
   loka::app::scene::BoundaryDefinition<RootDynamicBoundaryProps, RootDynamicBoundaryNode> RootDynamicBoundary()
   {
     return loka::app::scene::DynamicCompositionBoundary<RootDynamicBoundaryNode>();
+  }
+
+  class DynamicIdentityChildNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicIdentityChildNode> DynamicIdentityChildProps;
+
+  class DynamicIdentityChildNode : public loka::app::scene::BoundaryNodeFor<DynamicIdentityChildNode>
+  {
+  public:
+    DynamicIdentityChildNode(const DynamicIdentityChildProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicIdentityChildNode>(DynamicIdentityChildProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      ++g_dynamicIdentityChildComposeCount;
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicIdentityChildProps, DynamicIdentityChildNode> DynamicIdentityChildBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicIdentityChildNode>();
+  }
+
+  class DynamicIdentityRootNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicIdentityRootNode> DynamicIdentityRootProps;
+
+  class DynamicIdentityRootNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicIdentityRootNode>
+  {
+  public:
+    DynamicIdentityRootNode(const DynamicIdentityRootProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicIdentityRootNode>(DynamicIdentityRootProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicIdentityChildBoundary());
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_dynamicIdentityPropsState)
+      {
+        registrar.observe(g_dynamicIdentityPropsState, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+      if (g_dynamicIdentityLayoutState)
+      {
+        registrar.observe(g_dynamicIdentityLayoutState, loka::app::scene::NODE_DIRTY_LAYOUT);
+      }
+      if (g_dynamicIdentityChildState)
+      {
+        registrar.observe(g_dynamicIdentityChildState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicIdentityRootProps, DynamicIdentityRootNode> DynamicIdentityRootBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicIdentityRootNode>();
+  }
+
+  class DynamicIdentityHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicIdentityHostNode> DynamicIdentityHostProps;
+
+  class DynamicIdentityHostNode : public loka::app::scene::BoundaryNodeFor<DynamicIdentityHostNode>
+  {
+  public:
+    DynamicIdentityHostNode(const DynamicIdentityHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicIdentityHostNode>(DynamicIdentityHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicIdentityRootBoundary());
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicIdentityHostProps, DynamicIdentityHostNode> DynamicIdentityHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicIdentityHostNode>();
   }
 
   class DynamicDetachChildNode;
@@ -1067,6 +1148,87 @@ void testDynamicBoundaryRecomposesOnlyOnChildDirty()
   assert(g_dynamicRootUpdateEventCount == 3);
 
   scene.unmount();
+}
+
+void testDynamicBoundaryPreservesChildIdentityUntilChildDirty()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), lastFullRebuild_(false) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+  };
+
+  loka::core::MutableState<bool> propsState(false);
+  loka::core::MutableState<int> layoutState(12);
+  loka::core::MutableState<bool> childState(false);
+  g_dynamicIdentityPropsState = &propsState;
+  g_dynamicIdentityLayoutState = &layoutState;
+  g_dynamicIdentityChildState = &childState;
+  g_dynamicIdentityChildComposeCount = 0;
+
+  Scene scene(DynamicIdentityHostBoundary());
+  DummyPlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  loka::app::scene::BoundaryNode *rootBoundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  rootBoundary = rootBoundary ? rootBoundary->childrenHead() ? rootBoundary->childrenHead()->asBoundary() : 0 : 0;
+  assert(rootBoundary != 0);
+  Node *initialChild = rootBoundary->childrenHead();
+  assert(initialChild != 0);
+  assert(g_dynamicIdentityChildComposeCount == 1);
+
+  {
+    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+    propsState.set(true);
+  }
+  scene.flushInvalidation();
+  assert(rootBoundary->childrenHead() == initialChild);
+  assert(g_dynamicIdentityChildComposeCount == 1);
+  assert(platform.lastFullRebuild_ == false);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+
+  {
+    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+    layoutState.set(20);
+  }
+  scene.flushInvalidation();
+  assert(rootBoundary->childrenHead() == initialChild);
+  assert(g_dynamicIdentityChildComposeCount == 1);
+  assert(platform.lastFullRebuild_ == false);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+
+  {
+    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+    childState.set(true);
+  }
+  scene.flushInvalidation();
+  assert(rootBoundary->childrenHead() != 0);
+  assert(platform.lastFullRebuild_ == true);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+  scene.unmount();
+  g_dynamicIdentityPropsState = 0;
+  g_dynamicIdentityLayoutState = 0;
+  g_dynamicIdentityChildState = 0;
 }
 
 void testDynamicBoundaryDetachesSubtreeBeforeChildRecompose()

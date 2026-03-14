@@ -30,6 +30,7 @@ int main()
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();
   testDynamicBoundaryRecomposesOnlyOnChildDirty();
+  testDynamicBoundaryPreservesChildIdentityUntilChildDirty();
   testDynamicBoundaryDetachesSubtreeBeforeChildRecompose();
   testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
