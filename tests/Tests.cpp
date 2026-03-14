@@ -13,6 +13,7 @@
 #include "app/scene/node/DynamicComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/String.hpp"
@@ -655,6 +656,8 @@ namespace
   bool g_dynamicDetachShowChild = true;
   int g_dynamicCallbackFireCount = 0;
   loka::core::EmitterState *g_dynamicCallbackEmitter = 0;
+  loka::core::MutableState<int> *g_popupSelectedIndexState = 0;
+  loka::core::MutableState<bool> *g_popupEnabledState = 0;
 
   class RootDynamicBoundaryNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<RootDynamicBoundaryNode> RootDynamicBoundaryProps;
@@ -766,6 +769,36 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicCallbackRootProps, DynamicCallbackRootNode> DynamicCallbackRootBoundary()
   {
     return loka::app::scene::DynamicCompositionBoundary<DynamicCallbackRootNode>();
+  }
+
+  class PopupObservedHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<PopupObservedHostNode> PopupObservedHostProps;
+
+  class PopupObservedHostNode : public loka::app::scene::BoundaryNodeFor<PopupObservedHostNode>
+  {
+  public:
+    PopupObservedHostNode(const PopupObservedHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<PopupObservedHostNode>(PopupObservedHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      loka::app::PopupMenu popup(kItems, 3);
+      if (g_popupSelectedIndexState)
+      {
+        popup.selectedIndex(g_popupSelectedIndexState);
+      }
+      if (g_popupEnabledState)
+      {
+        popup.enabled(g_popupEnabledState);
+      }
+      c.declare(popup);
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<PopupObservedHostProps, PopupObservedHostNode> PopupObservedHostBoundary()
+  {
+    return loka::app::scene::Boundary<PopupObservedHostNode>();
   }
 
   class StaticObservedBoundaryNode;
@@ -1165,6 +1198,65 @@ void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
   }
 
   g_boundaryObservedState = 0;
+}
+
+void testPopupMenuSelectionStateDoesNotInvalidateScene()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      (void)rootNode;
+      lastFlags_ = flags;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() {}
+
+    int calls_;
+    NodeDirtyFlags lastFlags_;
+  };
+
+  loka::core::MutableState<int> selectedIndex(0);
+  loka::core::MutableState<bool> enabled(true);
+  g_popupSelectedIndexState = &selectedIndex;
+  g_popupEnabledState = &enabled;
+
+  Scene scene(PopupObservedHostBoundary());
+  DirtyCapturePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  assert(platform.calls_ == 1);
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    selectedIndex.set(1);
+  }
+
+  assert(platform.calls_ == 1);
+  assert(scene.flushInvalidation() == false);
+  assert(platform.calls_ == 1);
+
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    enabled.set(false);
+  }
+
+  assert(platform.calls_ == 2);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+
+  scene.unmount();
+  g_popupSelectedIndexState = 0;
+  g_popupEnabledState = 0;
 }
 
 void testSceneInvalidateUsesRequestedDirtyFlags()

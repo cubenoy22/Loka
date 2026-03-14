@@ -30,6 +30,7 @@ int main()
   testDynamicBoundaryDetachesSubtreeBeforeChildRecompose();
   testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
+  testPopupMenuSelectionStateDoesNotInvalidateScene();
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
   testSceneCompositionDiffMarksChildDirtyAsFullRebuild();

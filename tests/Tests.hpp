@@ -18,6 +18,7 @@ void testDynamicBoundaryRecomposesOnlyOnChildDirty();
 void testDynamicBoundaryDetachesSubtreeBeforeChildRecompose();
 void testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
 void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
+void testPopupMenuSelectionStateDoesNotInvalidateScene();
 void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
 void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
