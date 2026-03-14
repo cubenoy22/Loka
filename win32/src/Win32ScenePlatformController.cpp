@@ -95,9 +95,16 @@ Win32ScenePlatformController::~Win32ScenePlatformController()
 
 void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
 {
-  (void)flags;
   rootNode_ = rootNode;
   if (!rootHwnd_ || !rootNode_)
+  {
+    return;
+  }
+
+  const bool requiresLayout = (flags & loka::app::scene::NODE_DIRTY_INITIAL) != 0 ||
+                              (flags & loka::app::scene::NODE_DIRTY_LAYOUT) != 0 ||
+                              (flags & loka::app::scene::NODE_DIRTY_CHILD) != 0;
+  if (!requiresLayout)
   {
     return;
   }
