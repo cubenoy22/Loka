@@ -46,11 +46,15 @@ namespace loka
       public:
         struct SceneCompositionDiff : public loka::dsl::CompositionDiff
         {
-          SceneCompositionDiff() : loka::dsl::CompositionDiff(), flags(NODE_DIRTY_NONE) {}
+          SceneCompositionDiff() : loka::dsl::CompositionDiff(), flags(NODE_DIRTY_NONE)
+          {
+            fullRebuild = false;
+          }
           void clear()
           {
             loka::dsl::CompositionDiff::clear();
             flags = NODE_DIRTY_NONE;
+            fullRebuild = false;
           }
           NodeDirtyFlags flags;
         };

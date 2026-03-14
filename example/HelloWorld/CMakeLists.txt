@@ -17,9 +17,6 @@ if(WIN32)
     src/main.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
   )
 
   if(NOT TARGET LokaWin32Core)
@@ -53,8 +50,11 @@ if(WIN32)
 
   # Test target (console app)
   set(WIN32_TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/AttrDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
   )
 
