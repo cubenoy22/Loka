@@ -149,10 +149,6 @@ namespace loka
         {
           registrar.observe(this->props.isVisible_, loka::app::scene::NODE_DIRTY_CHILD);
         }
-        if (this->props.result_)
-        {
-          registrar.observe(this->props.result_, loka::app::scene::NODE_DIRTY_PROPS);
-        }
       }
     };
 

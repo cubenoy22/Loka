@@ -13,6 +13,7 @@
 #include "app/scene/node/DynamicComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include "loka/core/Managed.hpp"
@@ -658,6 +659,8 @@ namespace
   loka::core::EmitterState *g_dynamicCallbackEmitter = 0;
   loka::core::MutableState<int> *g_popupSelectedIndexState = 0;
   loka::core::MutableState<bool> *g_popupEnabledState = 0;
+  loka::core::MutableState<loka::app::FileChooserResult> *g_openFileResultState = 0;
+  loka::core::MutableState<bool> *g_openFileVisibleState = 0;
 
   class RootDynamicBoundaryNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<RootDynamicBoundaryNode> RootDynamicBoundaryProps;
@@ -799,6 +802,35 @@ namespace
   loka::app::scene::BoundaryDefinition<PopupObservedHostProps, PopupObservedHostNode> PopupObservedHostBoundary()
   {
     return loka::app::scene::Boundary<PopupObservedHostNode>();
+  }
+
+  class OpenFileObservedHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<OpenFileObservedHostNode> OpenFileObservedHostProps;
+
+  class OpenFileObservedHostNode : public loka::app::scene::BoundaryNodeFor<OpenFileObservedHostNode>
+  {
+  public:
+    OpenFileObservedHostNode(const OpenFileObservedHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<OpenFileObservedHostNode>(OpenFileObservedHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      loka::app::OpenFileDialog dialog;
+      if (g_openFileVisibleState)
+      {
+        dialog.isVisible(g_openFileVisibleState);
+      }
+      if (g_openFileResultState)
+      {
+        dialog.result(g_openFileResultState);
+      }
+      c.declare(dialog);
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<OpenFileObservedHostProps, OpenFileObservedHostNode> OpenFileObservedHostBoundary()
+  {
+    return loka::app::scene::Boundary<OpenFileObservedHostNode>();
   }
 
   class StaticObservedBoundaryNode;
@@ -1257,6 +1289,65 @@ void testPopupMenuSelectionStateDoesNotInvalidateScene()
   scene.unmount();
   g_popupSelectedIndexState = 0;
   g_popupEnabledState = 0;
+}
+
+void testOpenFileDialogResultStateDoesNotInvalidateScene()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      (void)rootNode;
+      lastFlags_ = flags;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() {}
+
+    int calls_;
+    NodeDirtyFlags lastFlags_;
+  };
+
+  loka::core::MutableState<loka::app::FileChooserResult> result(loka::app::FileChooserResult::Canceled());
+  loka::core::MutableState<bool> visible(false);
+  g_openFileResultState = &result;
+  g_openFileVisibleState = &visible;
+
+  Scene scene(OpenFileObservedHostBoundary());
+  DirtyCapturePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  assert(platform.calls_ == 1);
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    result.set(loka::app::FileChooserResult::Error(7));
+  }
+
+  assert(platform.calls_ == 1);
+  assert(scene.flushInvalidation() == false);
+  assert(platform.calls_ == 1);
+
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    visible.set(true);
+  }
+
+  assert(platform.calls_ == 2);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+  scene.unmount();
+  g_openFileResultState = 0;
+  g_openFileVisibleState = 0;
 }
 
 void testSceneInvalidateUsesRequestedDirtyFlags()
