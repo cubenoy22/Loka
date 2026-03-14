@@ -14,6 +14,7 @@
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/node/DynamicComposition.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
@@ -22,6 +23,16 @@
 
 namespace
 {
+  int countChildWindows(HWND parent)
+  {
+    int count = 0;
+    for (HWND child = GetWindow(parent, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+    {
+      ++count;
+    }
+    return count;
+  }
+
   ::loka::app::scene::Node *findNodeByTestId(::loka::app::scene::Node *node, const std::string &testId)
   {
     if (!node)
@@ -53,6 +64,7 @@ namespace
   loka::core::MutableState<loka::core::String> *g_staticEditTextState = 0;
   loka::core::MutableState<int> *g_staticSelectedIndexState = 0;
   loka::core::MutableState<loka::core::resource::Image> *g_staticImageState = 0;
+  loka::core::MutableState<bool> *g_swapChildState = 0;
 
   class StaticWin32ControlNode;
   typedef loka::app::scene::StaticCompositionPropsFor<StaticWin32ControlNode> StaticWin32ControlProps;
@@ -78,6 +90,63 @@ namespace
   loka::app::scene::BoundaryDefinition<StaticWin32ControlProps, StaticWin32ControlNode> StaticWin32ControlBoundary()
   {
     return loka::app::scene::StaticCompositionBoundary<StaticWin32ControlNode>();
+  }
+
+  class DynamicWin32SwapNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicWin32SwapNode> DynamicWin32SwapProps;
+
+  class DynamicWin32SwapNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicWin32SwapNode>
+  {
+  public:
+    DynamicWin32SwapNode(const DynamicWin32SwapProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicWin32SwapNode>(DynamicWin32SwapProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      if (g_swapChildState && g_swapChildState->get())
+      {
+        c.declare(loka::app::EditText(loka::core::StaticState<loka::core::String>(loka::core::String::Literal("Edit")))
+                      .controlTag(401)
+                      .testId("SwapEdit"));
+      }
+      else
+      {
+        c.declare(loka::app::Button("Run").testId("SwapButton"));
+      }
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_swapChildState)
+      {
+        registrar.observe(g_swapChildState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicWin32SwapProps, DynamicWin32SwapNode> DynamicWin32SwapBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicWin32SwapNode>();
+  }
+
+  class DynamicWin32SwapHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicWin32SwapHostNode> DynamicWin32SwapHostProps;
+
+  class DynamicWin32SwapHostNode : public loka::app::scene::BoundaryNodeFor<DynamicWin32SwapHostNode>
+  {
+  public:
+    DynamicWin32SwapHostNode(const DynamicWin32SwapHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicWin32SwapHostNode>(DynamicWin32SwapHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicWin32SwapBoundary());
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicWin32SwapHostProps, DynamicWin32SwapHostNode> DynamicWin32SwapHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicWin32SwapHostNode>();
   }
 
   loka::core::MutableState<loka::core::String> *g_staticTextState = 0;
@@ -240,6 +309,48 @@ void testWin32ScenePlatformFullRebuildFlagControlsContextReuse()
   g_staticEditTextState = 0;
   g_staticSelectedIndexState = 0;
   g_staticImageState = 0;
+}
+
+void testWin32ScenePlatformChildRebuildCleansUpOldContexts()
+{
+  loka::core::MutableState<bool> swapState(false);
+  g_swapChildState = &swapState;
+
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  loka::app::scene::Scene scene(DynamicWin32SwapHostBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "SwapButton");
+  assert(buttonNode != 0);
+  assert(buttonNode->getContext() != 0);
+  assert(countChildWindows(rootHwnd) == 1);
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  boundary = boundary ? boundary->childrenHead() ? boundary->childrenHead()->asBoundary() : 0 : 0;
+  assert(boundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    swapState.set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(findNodeByTestId(root, "SwapButton") == 0);
+  ::loka::app::scene::Node *editNode = findNodeByTestId(root, "SwapEdit");
+  assert(editNode != 0);
+  assert(editNode->getContext() != 0);
+  assert(countChildWindows(rootHwnd) == 1);
+
+  scene.unmount();
+  DestroyWindow(rootHwnd);
+  g_swapChildState = 0;
 }
 
 #endif

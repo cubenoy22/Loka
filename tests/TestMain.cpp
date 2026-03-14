@@ -50,6 +50,7 @@ int main()
   testWin32ScenePlatformRelayoutReusesControlContexts();
   testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
   testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
+  testWin32ScenePlatformChildRebuildCleansUpOldContexts();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
@@ -57,6 +58,7 @@ int main()
   testMacScenePlatformRelayoutReusesControlContexts();
   testMacScenePlatformRelayoutReusesCellAndTextContexts();
   testMacScenePlatformFullRebuildFlagControlsContextReuse();
+  testMacScenePlatformChildRebuildCleansUpOldContexts();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();

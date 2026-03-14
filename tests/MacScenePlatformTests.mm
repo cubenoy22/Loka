@@ -27,6 +27,7 @@ namespace
 {
   loka::core::MutableState<loka::core::String> *g_textState = 0;
   loka::core::MutableState<bool> *g_enabledState = 0;
+  loka::core::MutableState<bool> *g_swapChildState = 0;
 
   class DynamicMacTestNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacTestNode> DynamicMacTestProps;
@@ -55,6 +56,63 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicMacTestProps, DynamicMacTestNode> DynamicMacTestBoundary()
   {
     return loka::app::scene::DynamicCompositionBoundary<DynamicMacTestNode>();
+  }
+
+  class DynamicMacSwapNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacSwapNode> DynamicMacSwapProps;
+
+  class DynamicMacSwapNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicMacSwapNode>
+  {
+  public:
+    DynamicMacSwapNode(const DynamicMacSwapProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicMacSwapNode>(DynamicMacSwapProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      if (g_swapChildState && g_swapChildState->get())
+      {
+        c.declare(loka::app::EditText(loka::core::StaticState<loka::core::String>(loka::core::String::Literal("Edit")))
+                      .controlTag(301)
+                      .testId("SwapEdit"));
+      }
+      else
+      {
+        c.declare(loka::app::Button("Run").testId("SwapButton"));
+      }
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_swapChildState)
+      {
+        registrar.observe(g_swapChildState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacSwapProps, DynamicMacSwapNode> DynamicMacSwapBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicMacSwapNode>();
+  }
+
+  class DynamicMacSwapHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicMacSwapHostNode> DynamicMacSwapHostProps;
+
+  class DynamicMacSwapHostNode : public loka::app::scene::BoundaryNodeFor<DynamicMacSwapHostNode>
+  {
+  public:
+    DynamicMacSwapHostNode(const DynamicMacSwapHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicMacSwapHostNode>(DynamicMacSwapHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicMacSwapBoundary());
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacSwapHostProps, DynamicMacSwapHostNode> DynamicMacSwapHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicMacSwapHostNode>();
   }
 
   ::loka::app::scene::Node *findNodeByTestId(::loka::app::scene::Node *node, const std::string &testId)
@@ -350,4 +408,47 @@ void testMacScenePlatformFullRebuildFlagControlsContextReuse()
   g_staticEditTextState = 0;
   g_staticSelectedIndexState = 0;
   g_staticImageState = 0;
+}
+
+void testMacScenePlatformChildRebuildCleansUpOldContexts()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<bool> swapState(false);
+  g_swapChildState = &swapState;
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 160)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(DynamicMacSwapHostBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "SwapButton");
+  assert(buttonNode != 0);
+  assert(buttonNode->getContext() != 0);
+  assert([rootView subviews] != nil);
+  assert([[rootView subviews] count] == 1);
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  boundary = boundary ? boundary->childrenHead() ? boundary->childrenHead()->asBoundary() : 0 : 0;
+  assert(boundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    swapState.set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(findNodeByTestId(root, "SwapButton") == 0);
+  ::loka::app::scene::Node *editNode = findNodeByTestId(root, "SwapEdit");
+  assert(editNode != 0);
+  assert(editNode->getContext() != 0);
+  assert([[rootView subviews] count] == 1);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_swapChildState = 0;
 }
