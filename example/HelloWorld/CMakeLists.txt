@@ -50,6 +50,8 @@ if(WIN32)
 
   # Test target (console app)
   set(WIN32_TEST_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ScenePlatformTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ScenePlatformTests.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp

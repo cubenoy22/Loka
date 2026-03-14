@@ -4,6 +4,9 @@
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "Tests.hpp"
+#if defined(_WIN32) || defined(WIN32)
+#include "Win32ScenePlatformTests.hpp"
+#endif
 #ifdef __APPLE__
 #include "MacScenePlatformTests.hpp"
 #endif
@@ -42,6 +45,9 @@ int main()
   testSnapFlowWriteAdapter();
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
+#if defined(_WIN32) || defined(WIN32)
+  testWin32ScenePlatformRelayoutReusesControlContexts();
+#endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
   testMacScenePlatformIgnoresNonLayoutDirtyRequest();
