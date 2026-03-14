@@ -2,5 +2,6 @@
 #define LOKA_WIN32_SCENE_PLATFORM_TESTS_HPP
 
 void testWin32ScenePlatformRelayoutReusesControlContexts();
+void testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
 
 #endif // LOKA_WIN32_SCENE_PLATFORM_TESTS_HPP

@@ -7,10 +7,12 @@
 #include <windows.h>
 
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "core/resource/Image.hpp"
@@ -77,6 +79,32 @@ namespace
   {
     return loka::app::scene::StaticCompositionBoundary<StaticWin32ControlNode>();
   }
+
+  loka::core::MutableState<loka::core::String> *g_staticTextState = 0;
+  loka::core::MutableState<loka::core::String> *g_staticCellState = 0;
+
+  class StaticWin32CellTextNode;
+  typedef loka::app::scene::StaticCompositionPropsFor<StaticWin32CellTextNode> StaticWin32CellTextProps;
+
+  class StaticWin32CellTextNode : public loka::app::scene::StaticCompositionNodeFor<StaticWin32CellTextNode>
+  {
+  public:
+    StaticWin32CellTextNode(const StaticWin32CellTextProps &p)
+        : loka::app::scene::StaticCompositionNodeFor<StaticWin32CellTextNode>(StaticWin32CellTextProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(
+          loka::app::VStack()
+          << loka::app::Text(g_staticTextState).testId("ReuseText")
+          << loka::app::Cell(g_staticCellState).testId("ReuseCell"));
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<StaticWin32CellTextProps, StaticWin32CellTextNode> StaticWin32CellTextBoundary()
+  {
+    return loka::app::scene::StaticCompositionBoundary<StaticWin32CellTextNode>();
+  }
 }
 
 void testWin32ScenePlatformRelayoutReusesControlContexts()
@@ -131,6 +159,46 @@ void testWin32ScenePlatformRelayoutReusesControlContexts()
   g_staticEditTextState = 0;
   g_staticSelectedIndexState = 0;
   g_staticImageState = 0;
+}
+
+void testWin32ScenePlatformRelayoutReusesCellAndTextContexts()
+{
+  loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Label"));
+  loka::core::MutableState<loka::core::String> cellState(loka::core::String::Literal("42"));
+  g_staticTextState = &textState;
+  g_staticCellState = &cellState;
+
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  loka::app::scene::Scene scene(StaticWin32CellTextBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+
+  ::loka::app::scene::Node *textNode = findNodeByTestId(root, "ReuseText");
+  ::loka::app::scene::Node *cellNode = findNodeByTestId(root, "ReuseCell");
+  assert(textNode != 0);
+  assert(cellNode != 0);
+
+  ::loka::app::scene::NodeContext *textContext = textNode->getContext();
+  ::loka::app::scene::NodeContext *cellContext = cellNode->getContext();
+  assert(textContext != 0);
+  assert(cellContext != 0);
+
+  controller.relayout(520, 360);
+
+  assert(textNode->getContext() == textContext);
+  assert(cellNode->getContext() == cellContext);
+
+  scene.unmount();
+  DestroyWindow(rootHwnd);
+  g_staticTextState = 0;
+  g_staticCellState = 0;
 }
 
 #endif

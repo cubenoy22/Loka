@@ -1,12 +1,12 @@
 #include "MacScenePlatformTests.hpp"
 
 #include <cassert>
-#include <cstdio>
 
 #include <AppKit/AppKit.h>
 
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/PopupMenu.hpp"
@@ -85,35 +85,6 @@ namespace
     return 0;
   }
 
-  void dumpNodeTree(::loka::app::scene::Node *node, int depth)
-  {
-    if (!node)
-    {
-      return;
-    }
-    for (int i = 0; i < depth; ++i)
-    {
-      std::fprintf(stderr, "  ");
-    }
-    std::fprintf(stderr,
-                 "node kind=%d testId='%s' ctx=%p self=%p\n",
-                 static_cast<int>(node->kind()),
-                 node->testId().c_str(),
-                 (void *)node->getContext(),
-                 (void *)node);
-    ::loka::app::scene::INestable *nestable = node->asNestable();
-    if (!nestable)
-    {
-      return;
-    }
-    ::loka::app::scene::Node *child = nestable->childrenHead();
-    while (child)
-    {
-      dumpNodeTree(child, depth + 1);
-      child = child->nextInComposition;
-    }
-  }
-
   loka::core::MutableState<loka::core::String> *g_staticEditTextState = 0;
   loka::core::MutableState<int> *g_staticSelectedIndexState = 0;
   loka::core::MutableState<loka::core::resource::Image> *g_staticImageState = 0;
@@ -142,6 +113,32 @@ namespace
   loka::app::scene::BoundaryDefinition<StaticMacControlProps, StaticMacControlNode> StaticMacControlBoundary()
   {
     return loka::app::scene::StaticCompositionBoundary<StaticMacControlNode>();
+  }
+
+  loka::core::MutableState<loka::core::String> *g_staticTextState = 0;
+  loka::core::MutableState<loka::core::String> *g_staticCellState = 0;
+
+  class StaticMacCellTextNode;
+  typedef loka::app::scene::StaticCompositionPropsFor<StaticMacCellTextNode> StaticMacCellTextProps;
+
+  class StaticMacCellTextNode : public loka::app::scene::StaticCompositionNodeFor<StaticMacCellTextNode>
+  {
+  public:
+    StaticMacCellTextNode(const StaticMacCellTextProps &p)
+        : loka::app::scene::StaticCompositionNodeFor<StaticMacCellTextNode>(StaticMacCellTextProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(
+          loka::app::VStack()
+          << loka::app::Text(g_staticTextState).testId("ReuseText")
+          << loka::app::Cell(g_staticCellState).testId("ReuseCell"));
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<StaticMacCellTextProps, StaticMacCellTextNode> StaticMacCellTextBoundary()
+  {
+    return loka::app::scene::StaticCompositionBoundary<StaticMacCellTextNode>();
   }
 }
 
@@ -245,17 +242,6 @@ void testMacScenePlatformRelayoutReusesControlContexts()
   ::loka::app::scene::Node *editNode = findNodeByTestId(root, "ReuseEdit");
   ::loka::app::scene::Node *popupNode = findNodeByTestId(root, "ReusePopup");
   ::loka::app::scene::Node *imageNode = findNodeByTestId(root, "ReuseImage");
-  if (!buttonNode || !editNode || !popupNode || !imageNode)
-  {
-    std::fprintf(stderr,
-                 "reuse lookup failed: button=%p edit=%p popup=%p image=%p root=%p\n",
-                 (void *)buttonNode,
-                 (void *)editNode,
-                 (void *)popupNode,
-                 (void *)imageNode,
-                 (void *)root);
-    dumpNodeTree(root, 0);
-  }
   assert(buttonNode != 0);
   assert(editNode != 0);
   assert(popupNode != 0);
@@ -283,4 +269,44 @@ void testMacScenePlatformRelayoutReusesControlContexts()
   g_staticEditTextState = 0;
   g_staticSelectedIndexState = 0;
   g_staticImageState = 0;
+}
+
+void testMacScenePlatformRelayoutReusesCellAndTextContexts()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Label"));
+  loka::core::MutableState<loka::core::String> cellState(loka::core::String::Literal("42"));
+  g_staticTextState = &textState;
+  g_staticCellState = &cellState;
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 220)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(StaticMacCellTextBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+
+  ::loka::app::scene::Node *textNode = findNodeByTestId(root, "ReuseText");
+  ::loka::app::scene::Node *cellNode = findNodeByTestId(root, "ReuseCell");
+  assert(textNode != 0);
+  assert(cellNode != 0);
+
+  ::loka::app::scene::NodeContext *textContext = textNode->getContext();
+  ::loka::app::scene::NodeContext *cellContext = cellNode->getContext();
+  assert(textContext != 0);
+  assert(cellContext != 0);
+
+  controller.relayout(320, 240);
+
+  assert(textNode->getContext() == textContext);
+  assert(cellNode->getContext() == cellContext);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_staticTextState = 0;
+  g_staticCellState = 0;
 }

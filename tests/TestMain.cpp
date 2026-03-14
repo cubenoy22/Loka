@@ -47,11 +47,13 @@ int main()
   testLokaAttrDslV1Core();
 #if defined(_WIN32) || defined(WIN32)
   testWin32ScenePlatformRelayoutReusesControlContexts();
+  testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
   testMacScenePlatformIgnoresNonLayoutDirtyRequest();
   testMacScenePlatformRelayoutReusesControlContexts();
+  testMacScenePlatformRelayoutReusesCellAndTextContexts();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();
