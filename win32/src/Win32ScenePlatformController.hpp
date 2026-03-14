@@ -39,7 +39,7 @@ public:
   static void requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
   static void redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
 
-  virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
+  virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();

@@ -131,7 +131,7 @@ MacScenePlatformController *MacScenePlatformController::findForRootView(void *ro
   return it->second;
 }
 
-void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
 {
   rootNode_ = rootNode;
   lastChangeFlags_ = flags;
@@ -153,8 +153,7 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka
   NSRect bounds = [view bounds];
   clientWidth_ = static_cast<int>(bounds.size.width);
   clientHeight_ = static_cast<int>(bounds.size.height);
-  performLayout(clientWidth_, clientHeight_,
-                (flags & (loka::app::scene::NODE_DIRTY_INITIAL | loka::app::scene::NODE_DIRTY_CHILD)) != 0);
+  performLayout(clientWidth_, clientHeight_, fullRebuild);
 }
 
 void MacScenePlatformController::synchronize()

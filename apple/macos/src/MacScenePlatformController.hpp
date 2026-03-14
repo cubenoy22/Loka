@@ -31,7 +31,7 @@ public:
   explicit MacScenePlatformController(void *rootView);
   virtual ~MacScenePlatformController();
 
-  virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
+  virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();

@@ -64,7 +64,7 @@ namespace SceneTests
     {
     public:
       DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-      virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+      virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
       {
         (void)flags;
         lastMaterialized_ = rootNode;

@@ -528,7 +528,7 @@ void testSceneMountLifecycle()
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)flags;
       lastMaterialized_ = rootNode;
@@ -941,7 +941,7 @@ void testSceneBoundaryNestedCompose()
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)flags;
       lastMaterialized_ = rootNode;
@@ -986,7 +986,7 @@ void testStaticBoundaryPropagatesUpdateToDynamicChild()
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
-    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)flags;
       lastMaterialized_ = rootNode;
@@ -1029,7 +1029,7 @@ void testDynamicBoundaryRecomposesOnlyOnChildDirty()
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), destroyed_(false), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
@@ -1080,7 +1080,7 @@ void testDynamicBoundaryDetachesSubtreeBeforeChildRecompose()
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
@@ -1127,7 +1127,7 @@ void testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks()
   {
   public:
     DummyPlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
@@ -1175,7 +1175,7 @@ void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
   {
   public:
     DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)rootNode;
       lastFlags_ = flags;
@@ -1250,7 +1250,7 @@ void testPopupMenuSelectionStateDoesNotInvalidateScene()
   {
   public:
     DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)rootNode;
       lastFlags_ = flags;
@@ -1310,7 +1310,7 @@ void testOpenFileDialogStatesDoNotInvalidateScene()
   {
   public:
     DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)rootNode;
       lastFlags_ = flags;
@@ -1371,7 +1371,7 @@ void testSceneInvalidateUsesRequestedDirtyFlags()
   {
   public:
     DirtyCapturePlatformController() : lastMaterialized_(0), destroyed_(false), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), calls_(0) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
@@ -1418,7 +1418,7 @@ void testSceneRequestInvalidateDefersUntilFlush()
   {
   public:
     DirtyCapturePlatformController() : lastMaterialized_(0), destroyed_(false), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), calls_(0) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
@@ -1461,11 +1461,13 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild()
   class DirtyCapturePlatformController : public IPlatformController
   {
   public:
-    DirtyCapturePlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), calls_(0) {}
-    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    DirtyCapturePlatformController()
+        : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
       ++calls_;
     }
     virtual void synchronize() {}
@@ -1474,6 +1476,7 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild()
 
     Node *lastMaterialized_;
     NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
     int calls_;
   };
 
@@ -1486,11 +1489,13 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild()
   assert(scene.compositionDiff().fullRebuild == false);
   scene.flushInvalidation();
   assert(scene.compositionDiff().valid == false);
+  assert(platform.lastFullRebuild_ == false);
 
   scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
   assert(scene.compositionDiff().fullRebuild == true);
   scene.flushInvalidation();
   assert(platform.calls_ == 3);
+  assert(platform.lastFullRebuild_ == true);
 
   scene.unmount();
 }

@@ -344,7 +344,7 @@ namespace {
     FlowScenePlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), destroyed_(false) {
     }
 
-    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags) {
+    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild) {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
     }

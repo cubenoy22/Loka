@@ -163,7 +163,7 @@ void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const 
   RedrawWindow(targetHwnd, rect, NULL, flags);
 }
 
-void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
 {
   rootNode_ = rootNode;
   if (!rootHwnd_ || !rootNode_)
@@ -185,8 +185,7 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, lo
     clientWidth_ = rc.right - rc.left;
     clientHeight_ = rc.bottom - rc.top;
   }
-  performLayout(clientWidth_, clientHeight_,
-                (flags & (loka::app::scene::NODE_DIRTY_INITIAL | loka::app::scene::NODE_DIRTY_CHILD)) != 0);
+  performLayout(clientWidth_, clientHeight_, fullRebuild);
 }
 
 void Win32ScenePlatformController::synchronize()

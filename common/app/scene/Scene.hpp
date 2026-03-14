@@ -280,7 +280,7 @@ namespace loka
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
           boundary->compose(rootContext, event);
-          platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL);
+          platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
           composed_ = true;
         }
 
@@ -332,7 +332,7 @@ namespace loka
           {
             flags = NODE_DIRTY_PROPS;
           }
-          platformController_->onChange(rootNode_, flags);
+          platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
           compositionDiff_.clear();
         }
 

@@ -759,7 +759,7 @@ short ToolboxScenePlatformController::allocateControlId()
   return id;
 }
 
-void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
+void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
 {
   rootNode_ = rootNode;
   if (!window_ || !window_->window())
@@ -768,15 +768,13 @@ void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, 
   }
   if (inBatchUpdate_)
   {
-    if (flags & (loka::app::scene::NODE_DIRTY_CHILD | loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL))
+    if ((flags & (loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL)) != 0 || fullRebuild)
     {
       pendingFullInvalidate_ = true;
     }
     return;
   }
-  // NODE_DIRTY_PROPSだけなら全体invalidateは不要
-  // 個々のContextがState bindで自分のRectを再描画する
-  if (flags & (loka::app::scene::NODE_DIRTY_CHILD | loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL))
+  if ((flags & (loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL)) != 0 || fullRebuild)
   {
     window_->requestInvalidate();
   }

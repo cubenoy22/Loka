@@ -21,7 +21,7 @@ namespace loka
         virtual ~IPlatformController() {}
 
         // Nodeツリーを受け取り、UIに反映する（flagsは将来の差分用）
-        virtual void onChange(Node *rootNode, NodeDirtyFlags flags) = 0;
+        virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild) = 0;
 
         // 変更があったNodeをUIに同期する
         virtual void synchronize() = 0;
