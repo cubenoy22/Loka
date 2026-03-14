@@ -47,6 +47,7 @@
 - Flow DSL composition hygiene: avoid one-step flows by default; split into 2+ steps at meaningful boundaries (transform/decision/side-effect) or use a plain function when flow orchestration value is absent.
 - Flow DSL nesting/composition: design `RunFlow(child)` or equivalent child-flow invocation so parent scenarios can keep coarse-grained steps while low-level checks stay encapsulated in reusable subflows.
 - Flow DSL combinators: revisit logical `all` / `race` after child-flow support lands; prioritize test/scenario semantics (grouped checks, timeout-vs-event wait) over concurrency.
+- Flow DSL perf harness: add a measurement flow that runs an operation/scenario flow 3-10 times, records per-run timing/profile data, and exits with a summarized report so the same harness works on Toolbox/macOS/Win32.
 - Flow DSL use-case validation: add video encoder stub scenarios (Qt / AVFoundation / Windows API style) for `open -> frame push -> finalize` and failure-path coverage.
 - NodeDSL control components: prioritize `Cond`/`ShowIf` for OS-specific component branching; keep platform `#if` isolated in capability/platform implementation layers.
 - Control components roadmap: `ShowIf`/`Cond` first (compose-time branch fixup), then constrained `For` (static/fixed list) to avoid 68k runtime loop costs.
