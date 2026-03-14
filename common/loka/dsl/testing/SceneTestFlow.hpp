@@ -122,7 +122,7 @@ namespace loka
           if (unknownBits != 0)
           {
             char buf[32];
-            std::sprintf(buf, "0x%X", unknownBits);
+            ::snprintf(buf, sizeof(buf), "0x%X", unknownBits);
             appendDirtyFlagName(result, buf);
           }
           return result.empty() ? std::string("NONE") : result;

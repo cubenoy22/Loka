@@ -371,6 +371,6 @@ void ToolboxImageViewContext::draw()
   LineTo(rect_.left, rect_.bottom);
 
   char label[64];
-  std::sprintf(label, "Image(native?): %dx%d", image_.width(), image_.height());
+  ::snprintf(label, sizeof(label), "Image(native?): %dx%d", image_.width(), image_.height());
   DrawPascalStringAt(static_cast<short>(rect_.left + 6), static_cast<short>(rect_.top + 14), label);
 }

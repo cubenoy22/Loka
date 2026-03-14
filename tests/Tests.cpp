@@ -14,6 +14,7 @@
 #include "app/Box.hpp"
 #include "app/Button.hpp"
 #include "app/OpenFileDialog.hpp"
+#include "app/Window.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include "loka/core/Managed.hpp"
@@ -441,14 +442,6 @@ void testDerivedStruct()
   tracker.end();
   assert(isValid->get() == true); // 全てOK
   printf("==== [testDerivedStruct] end ====\n");
-}
-
-void testSceneManagerTransaction()
-{
-  printf("\n==== [testSceneManagerTransaction/SceneManager2] start ====\n");
-  SceneManager2 mgr;
-  // ...必要に応じてテスト内容を追加...
-  printf("--- [testSceneManagerTransaction/SceneManager2] end ---\n");
 }
 
 void testNodeCompositionTree()
@@ -1660,6 +1653,133 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild()
   assert(platform.lastFullRebuild_ == true);
 
   scene.unmount();
+}
+
+void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+    int calls_;
+  };
+
+  class TestWindow : public Window
+  {
+  public:
+    explicit TestWindow(Scene *scene)
+        : Window(0, WindowProps().scene(scene)), pendingSync_(false), synchronizeCalls_(0) {}
+
+    virtual bool hasPendingScenePlatformSync() const { return pendingSync_; }
+
+    virtual void synchronizeScenePlatform()
+    {
+      ++synchronizeCalls_;
+      pendingSync_ = false;
+    }
+
+    bool pendingSync_;
+    int synchronizeCalls_;
+  };
+
+  Scene scene(RootBoundary());
+  DummyPlatformController platform;
+  scene.mount(&platform);
+
+  {
+    TestWindow window(&scene);
+    assert(window.scene() == &scene);
+
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
+    const bool changed = window.flushSceneInvalidation();
+    assert(changed);
+    assert(window.synchronizeCalls_ == 1);
+
+    window.pendingSync_ = true;
+    const bool changedPendingOnly = window.flushSceneInvalidation();
+    assert(changedPendingOnly == false);
+    assert(window.synchronizeCalls_ == 2);
+
+    window.sceneManager()->commitTransaction(&scene, 0);
+  }
+
+  scene.unmount();
+}
+
+void testSceneManagerTransaction()
+{
+  printf("\n==== [testSceneManagerTransaction/SceneManager2] start ====\n");
+  using loka::app::scene::Scene;
+
+  class TestWindow : public Window
+  {
+  public:
+    TestWindow() : Window(0, WindowProps()) {}
+  };
+
+  Scene *sceneA = new Scene(RootBoundary());
+  Scene *sceneB = new Scene(RootBoundary());
+  TestWindow window;
+  SceneManager2 *mgr = window.sceneManager();
+  assert(mgr != 0);
+
+  assert(mgr->getCurrentScene().get() == 0);
+  assert(sceneA->getWindow() == 0);
+  assert(sceneB->getWindow() == 0);
+  assert(sceneA->getAttachedState()->get() == false);
+  assert(sceneB->getAttachedState()->get() == false);
+  assert(sceneA->getLifecycleState()->get() == ON_CREATE);
+  assert(sceneB->getLifecycleState()->get() == ON_CREATE);
+
+  mgr->commitTransaction(0, sceneA);
+  assert(mgr->getCurrentScene().get() == sceneA);
+  assert(sceneA->getWindow() == &window);
+  assert(sceneA->getAttachedState()->get() == true);
+  assert(sceneA->getLifecycleState()->get() == ON_ATTACH);
+
+  mgr->commitTransaction(sceneA, sceneB);
+  assert(mgr->getCurrentScene().get() == sceneB);
+  assert(sceneA->getWindow() == 0);
+  assert(sceneA->getAttachedState()->get() == false);
+  assert(sceneA->getLifecycleState()->get() == ON_DETACH);
+  assert(sceneB->getWindow() == &window);
+  assert(sceneB->getAttachedState()->get() == true);
+  assert(sceneB->getLifecycleState()->get() == ON_ATTACH);
+
+  mgr->commitTransaction(sceneB, sceneB);
+  assert(mgr->getCurrentScene().get() == sceneB);
+  assert(sceneB->getWindow() == &window);
+  assert(sceneB->getAttachedState()->get() == true);
+  assert(sceneB->getLifecycleState()->get() == ON_ATTACH);
+
+  mgr->commitTransaction(sceneB, 0);
+  assert(mgr->getCurrentScene().get() == 0);
+  assert(sceneB->getWindow() == 0);
+  assert(sceneB->getAttachedState()->get() == false);
+  assert(sceneB->getLifecycleState()->get() == ON_DETACH);
+
+  delete sceneA;
+  delete sceneB;
+  printf("--- [testSceneManagerTransaction/SceneManager2] end ---\n");
 }
 
 void testLokaCoreString()

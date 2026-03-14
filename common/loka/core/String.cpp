@@ -87,7 +87,7 @@ namespace loka
     String String::FromInt(int value)
     {
       char buf[32];
-      std::sprintf(buf, "%d", value);
+      ::snprintf(buf, sizeof(buf), "%d", value);
       return String::Utf8(buf, std::strlen(buf));
     }
 

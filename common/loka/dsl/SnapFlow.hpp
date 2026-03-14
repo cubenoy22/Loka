@@ -81,7 +81,7 @@ namespace loka
     inline std::string snapSourceStepFromId(int stepId)
     {
       char buf[32];
-      std::sprintf(buf, "step#%d", stepId);
+      ::snprintf(buf, sizeof(buf), "step#%d", stepId);
       return std::string(buf);
     }
 
@@ -130,7 +130,7 @@ namespace loka
       SnapErrorDetailBuilder &addInt(const char *key, long value)
       {
         char buf[64];
-        std::sprintf(buf, "%ld", value);
+        ::snprintf(buf, sizeof(buf), "%ld", value);
         return add(key, buf);
       }
 

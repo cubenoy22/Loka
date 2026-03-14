@@ -24,6 +24,7 @@ void testOpenFileDialogStatesDoNotInvalidateScene();
 void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
 void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
+void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();

@@ -39,6 +39,7 @@ int main()
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
   testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
+  testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();

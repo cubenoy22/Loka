@@ -27,7 +27,7 @@ void BuildProfileResultString()
   for (int i = 0; i < gProfileCount; i++)
   {
     char part[48];
-    std::sprintf(part, "%s:%ld\n", gProfileData[i].name, gProfileData[i].ticks);
+    ::snprintf(part, sizeof(part), "%s:%ld\n", gProfileData[i].name, gProfileData[i].ticks);
     gProfileResultString += part;
   }
   gProfileCount = 0;

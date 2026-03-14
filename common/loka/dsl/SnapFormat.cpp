@@ -260,7 +260,7 @@ namespace loka
     void SnapRecord::setInt(const char *key, long value)
     {
       char buf[64];
-      std::sprintf(buf, "%ld", value);
+      ::snprintf(buf, sizeof(buf), "%ld", value);
       set(key, buf);
     }
 
