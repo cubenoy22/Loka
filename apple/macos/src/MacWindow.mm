@@ -298,6 +298,14 @@ void MacWindow::onHide()
 {
 }
 
+void MacWindow::synchronizeScenePlatform()
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->synchronize();
+  }
+}
+
 void MacWindow::handleWindowWillClose()
 {
   if (closing_)

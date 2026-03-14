@@ -290,6 +290,14 @@ void ToolboxWindow::draw()
   SetPort(oldPort);
 }
 
+void ToolboxWindow::synchronizeScenePlatform()
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->synchronize();
+  }
+}
+
 void ToolboxWindow::mountScene()
 {
   loka::app::scene::Scene *currentScene = this->scene();

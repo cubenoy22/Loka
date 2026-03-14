@@ -19,6 +19,7 @@
 - StateBatch: add useLargeStates path for large initializers (heap-backed initial copies).
 - Wire Node.dirty with IPlatformController::synchronize (diff-based redraw path).
 - Smart redraw scheduler at Window/Scene scope: collect dirty rects per tick and flush once via platform invalidate APIs.
+- Win32 redraw policy follow-up: keep `Text`/`Cell` immediate for correctness for now, but revisit a clearer control-type policy once transparent text/custom child repaint contracts are documented.
 - Toolbox/68k redraw policy: replace direct `drawDirty` calls with `markDirty` accumulation, then flush once in `updateEvt` (`BeginUpdate/EndUpdate`) using `InvalRect`/`InvalRgn`.
 - Toolbox/68k profiling: count redraw triggers and merged dirty regions per interaction to remove duplicate invalidation paths before deeper redraw refactors.
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).

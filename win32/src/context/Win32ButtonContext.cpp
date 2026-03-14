@@ -1,4 +1,5 @@
 #include "Win32ButtonContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
 #include "app/Button.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -6,7 +7,8 @@
 Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node)
     : node_(node),
       hwnd_(NULL),
-      textState_(0)
+      textState_(0),
+      enabledState_(0)
 {
   DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON;
   hwnd_ = CreateWindowExA(
@@ -23,11 +25,13 @@ Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int
       GetModuleHandle(NULL),
       NULL);
   bindText();
+  bindEnabled();
 }
 
 Win32ButtonContext::~Win32ButtonContext()
 {
   unbindText();
+  unbindEnabled();
   if (hwnd_)
   {
     DestroyWindow(hwnd_);
@@ -65,6 +69,26 @@ void Win32ButtonContext::unbindText()
   }
 }
 
+void Win32ButtonContext::bindEnabled()
+{
+  if (!node_)
+    return;
+  enabledState_ = static_cast<loka::core::State<bool> *>(node_->props.enabled_);
+  if (enabledState_)
+  {
+    enabledState_->bind(&Win32ButtonContext::EnabledChangedThunk, this, true);
+  }
+}
+
+void Win32ButtonContext::unbindEnabled()
+{
+  if (enabledState_)
+  {
+    enabledState_->unbind(&Win32ButtonContext::EnabledChangedThunk, this);
+    enabledState_ = 0;
+  }
+}
+
 void Win32ButtonContext::applyText()
 {
   if (!hwnd_ || !textState_)
@@ -76,6 +100,17 @@ void Win32ButtonContext::applyText()
   {
     SetWindowTextA(hwnd_, utf8.c_str());
   }
+  Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
+}
+
+void Win32ButtonContext::applyEnabled()
+{
+  if (!hwnd_ || !enabledState_)
+  {
+    return;
+  }
+  EnableWindow(hwnd_, enabledState_->get() ? TRUE : FALSE);
+  Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
 }
 
 void Win32ButtonContext::TextChangedThunk(void *userData)
@@ -84,5 +119,14 @@ void Win32ButtonContext::TextChangedThunk(void *userData)
   if (self)
   {
     self->applyText();
+  }
+}
+
+void Win32ButtonContext::EnabledChangedThunk(void *userData)
+{
+  Win32ButtonContext *self = static_cast<Win32ButtonContext *>(userData);
+  if (self)
+  {
+    self->applyEnabled();
   }
 }

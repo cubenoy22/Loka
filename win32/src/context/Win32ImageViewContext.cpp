@@ -1,4 +1,5 @@
 #include "Win32ImageViewContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
 
 namespace
 {
@@ -200,7 +201,7 @@ void Win32ImageViewContext::applyImage()
   image_ = imageState_->get();
   if (hwnd_)
   {
-    InvalidateRect(hwnd_, NULL, TRUE);
+    Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
   }
 }
 

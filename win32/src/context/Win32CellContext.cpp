@@ -1,4 +1,5 @@
 #include "Win32CellContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
 #include "app/Cell.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -137,7 +138,7 @@ void Win32CellContext::applyText()
   }
   if (hwnd_)
   {
-    InvalidateRect(hwnd_, NULL, TRUE);
+    Win32ScenePlatformController::redrawDirtySubtreeNow(hwnd_, NULL, TRUE);
   }
 }
 

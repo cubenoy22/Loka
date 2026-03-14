@@ -22,6 +22,9 @@
 
 namespace
 {
+  typedef std::map<HWND, Win32ScenePlatformController *> Win32ControllerMap;
+  Win32ControllerMap gControllersByRootHwnd;
+
   const int kButtonHeight = 32;
   const int kEditTextHeight = 24;
   const int kPopupMenuHeight = 26;
@@ -86,11 +89,78 @@ namespace
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
+  if (rootHwnd_)
+  {
+    gControllersByRootHwnd[rootHwnd_] = this;
+  }
 }
 
 Win32ScenePlatformController::~Win32ScenePlatformController()
 {
+  if (rootHwnd_)
+  {
+    Win32ControllerMap::iterator it = gControllersByRootHwnd.find(rootHwnd_);
+    if (it != gControllersByRootHwnd.end() && it->second == this)
+    {
+      gControllersByRootHwnd.erase(it);
+    }
+  }
   clearContexts();
+}
+
+void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
+{
+  if (!targetHwnd)
+  {
+    return;
+  }
+  HWND root = GetAncestor(targetHwnd, GA_ROOT);
+  if (!root)
+  {
+    root = targetHwnd;
+  }
+  Win32ControllerMap::iterator it = gControllersByRootHwnd.find(root);
+  if (it == gControllersByRootHwnd.end() || !it->second)
+  {
+    InvalidateRect(targetHwnd, rect, eraseBackground);
+    return;
+  }
+  it->second->queueDirtyRect(targetHwnd, rect, eraseBackground, false);
+}
+
+void Win32ScenePlatformController::requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
+{
+  if (!targetHwnd)
+  {
+    return;
+  }
+  HWND root = GetAncestor(targetHwnd, GA_ROOT);
+  if (!root)
+  {
+    root = targetHwnd;
+  }
+  Win32ControllerMap::iterator it = gControllersByRootHwnd.find(root);
+  if (it == gControllersByRootHwnd.end() || !it->second)
+  {
+    UINT flags = RDW_INVALIDATE | (eraseBackground ? RDW_ERASE : 0) | RDW_ALLCHILDREN;
+    RedrawWindow(targetHwnd, rect, NULL, flags);
+    return;
+  }
+  it->second->queueDirtyRect(targetHwnd, rect, eraseBackground, true);
+}
+
+void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
+{
+  if (!targetHwnd)
+  {
+    return;
+  }
+  UINT flags = RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW;
+  if (eraseBackground)
+  {
+    flags |= RDW_ERASE;
+  }
+  RedrawWindow(targetHwnd, rect, NULL, flags);
 }
 
 void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags)
@@ -120,15 +190,88 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, lo
 
 void Win32ScenePlatformController::synchronize()
 {
-  // Solid-mode（固定ツリー）では即時反映済みのため、現状何もしない。
+  for (size_t i = 0; i < pendingInvalidations_.size(); ++i)
+  {
+    PendingInvalidate &entry = pendingInvalidations_[i];
+    UINT flags = RDW_INVALIDATE | RDW_UPDATENOW;
+    if (entry.eraseBackground)
+    {
+      flags |= RDW_ERASE;
+    }
+    if (entry.includeChildren)
+    {
+      flags |= RDW_ALLCHILDREN;
+    }
+    RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL, flags);
+  }
+  pendingInvalidations_.clear();
 }
 
 void Win32ScenePlatformController::destroy()
 {
+  pendingInvalidations_.clear();
   clearContexts();
   rootNode_ = 0;
   clientWidth_ = 0;
   clientHeight_ = 0;
+}
+
+void Win32ScenePlatformController::queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren)
+{
+  if (!targetHwnd)
+  {
+    return;
+  }
+  for (size_t i = 0; i < pendingInvalidations_.size(); ++i)
+  {
+    PendingInvalidate &entry = pendingInvalidations_[i];
+    if (entry.hwnd != targetHwnd)
+    {
+      continue;
+    }
+    entry.eraseBackground = (entry.eraseBackground || eraseBackground) ? TRUE : FALSE;
+    entry.includeChildren = entry.includeChildren || includeChildren;
+    if (!rect)
+    {
+      entry.fullWindow = true;
+      return;
+    }
+    if (entry.fullWindow)
+    {
+      return;
+    }
+    if (rect->left < entry.rect.left)
+    {
+      entry.rect.left = rect->left;
+    }
+    if (rect->top < entry.rect.top)
+    {
+      entry.rect.top = rect->top;
+    }
+    if (rect->right > entry.rect.right)
+    {
+      entry.rect.right = rect->right;
+    }
+    if (rect->bottom > entry.rect.bottom)
+    {
+      entry.rect.bottom = rect->bottom;
+    }
+    return;
+  }
+
+  PendingInvalidate entry;
+  entry.hwnd = targetHwnd;
+  entry.eraseBackground = eraseBackground;
+  entry.includeChildren = includeChildren;
+  if (!rect)
+  {
+    entry.fullWindow = true;
+  }
+  else
+  {
+    entry.rect = *rect;
+  }
+  pendingInvalidations_.push_back(entry);
 }
 
 bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)

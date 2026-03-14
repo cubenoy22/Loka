@@ -28,6 +28,7 @@ public:
 
   virtual void onShow();
   virtual void onHide();
+  virtual void synchronizeScenePlatform();
 
   void handleWindowWillClose();
   void handleWindowDidResize();

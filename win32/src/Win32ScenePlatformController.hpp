@@ -35,6 +35,10 @@ public:
   explicit Win32ScenePlatformController(HWND rootHwnd);
   virtual ~Win32ScenePlatformController();
 
+  static void requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
+  static void requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
+  static void redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
+
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags);
   virtual void synchronize();
   virtual void destroy();
@@ -43,6 +47,19 @@ public:
   void relayout(int clientWidth, int clientHeight);
 
 private:
+  struct PendingInvalidate
+  {
+    PendingInvalidate() : hwnd(0), eraseBackground(TRUE), fullWindow(false), includeChildren(false)
+    {
+      rect.left = rect.top = rect.right = rect.bottom = 0;
+    }
+    HWND hwnd;
+    RECT rect;
+    BOOL eraseBackground;
+    bool fullWindow;
+    bool includeChildren;
+  };
+
   struct LayoutState
   {
     int x;
@@ -56,6 +73,7 @@ private:
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
+  void queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren);
 
   HWND rootHwnd_;
   loka::app::scene::Node *rootNode_;
@@ -64,6 +82,7 @@ private:
   std::map<HWND, Win32ButtonContext *> buttonMap_;
   std::map<HWND, Win32EditTextContext *> editMap_;
   std::map<HWND, Win32PopupMenuContext *> popupMap_;
+  std::vector<PendingInvalidate> pendingInvalidations_;
 };
 
 #endif // LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP

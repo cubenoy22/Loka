@@ -28,6 +28,7 @@ public:
   void invalidateWindow();
   void draw();
   void refreshFrame();
+  virtual void synchronizeScenePlatform();
   WindowPtr window() const { return window_; }
   ToolboxWindowContext *context() const { return context_; }
 

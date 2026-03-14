@@ -38,6 +38,7 @@ public:
   // --- Windowのイベントハンドラを明示的にoverride ---
   virtual void onShow();
   virtual void onHide();
+  virtual void synchronizeScenePlatform();
 
 protected:
   HWND hwnd_;

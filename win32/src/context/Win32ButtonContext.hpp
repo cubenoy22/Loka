@@ -35,12 +35,17 @@ public:
 private:
   void bindText();
   void unbindText();
+  void bindEnabled();
+  void unbindEnabled();
   void applyText();
+  void applyEnabled();
   static void TextChangedThunk(void *userData);
+  static void EnabledChangedThunk(void *userData);
 
   loka::app::ButtonNode *node_;
   HWND hwnd_;
   loka::core::State<loka::core::String> *textState_;
+  loka::core::State<bool> *enabledState_;
 };
 
 #endif // LOKA_WIN32_BUTTON_CONTEXT_HPP

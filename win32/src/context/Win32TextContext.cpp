@@ -1,4 +1,5 @@
 #include "Win32TextContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
 #include "app/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -107,10 +108,9 @@ void Win32TextContext::applyText()
     if (GetWindowRect(hwnd_, &rc))
     {
       MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rc), 2);
-      InvalidateRect(parent, &rc, TRUE);
+      Win32ScenePlatformController::redrawDirtySubtreeNow(parent, &rc, TRUE);
     }
   }
-  InvalidateRect(hwnd_, NULL, TRUE);
   requestRelayoutIfNeeded();
   if (!didInitialApply_)
   {

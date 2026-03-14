@@ -322,6 +322,7 @@ public:
   loka::app::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
   SceneManager2 *sceneManager() { return &sceneManager_; }
   bool flushSceneInvalidation();
+  virtual void synchronizeScenePlatform() {}
 
   loka::core::MutableState<bool> &visibilityState() { return *visibility_; }
   loka::core::MutableState<loka::core::String> &titleState() { return *title_; }

@@ -94,6 +94,7 @@ void App::flushWindowInvalidations()
     if (win)
     {
       win->flushSceneInvalidation();
+      win->synchronizeScenePlatform();
     }
   }
 }

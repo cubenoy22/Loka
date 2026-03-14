@@ -279,6 +279,14 @@ void Win32Window::onHide()
   // Win32ではdestroyNativeWindowで破棄するため、ここでSW_HIDEは不要
 }
 
+void Win32Window::synchronizeScenePlatform()
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->synchronize();
+  }
+}
+
 void Win32Window::mountScene()
 {
   if (scenePlatformController_ || !this->hwnd_)
