@@ -45,6 +45,14 @@
 Boundary は Node が申告した observed states を所有し、**直近 commit で dirty になった state だけ**から dirty flags を合成する。
 これは単純な boundary-wide union よりも正確で、同じ Boundary 内の unrelated state update で `NODE_DIRTY_LAYOUT` / `NODE_DIRTY_CHILD` が混入するのを防ぐ。
 
+Scene は flush 時に `SceneCompositionDiff.fullRebuild` を確定し、platform controller へ明示的に渡す。
+- `fullRebuild = true`: `NODE_DIRTY_CHILD` または `NODE_DIRTY_INITIAL`
+- `fullRebuild = false`: `NODE_DIRTY_LAYOUT` / `NODE_DIRTY_PROPS` のみ
+
+この値は platform 側で「native context を再生成してよいか」の契約として使う。
+- `fullRebuild = true`: subtree/context recreate を許可
+- `fullRebuild = false`: 既存 context を維持し、`relayout(...)` / props apply で済ませる
+
 #### NextTickTracker (Batch Execution)
 
 - 責務: `DYNAMIC` な Dirty を溜め、OS イベントループの隙間で一括実行する
@@ -108,6 +116,7 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 
 - `NSTimer(0)` による個別の遅延処理（`MacTextContext::requestRelayoutIfNeeded`）を全廃し、`NextTickTracker` に統合。
 - `setNeedsDisplayInRect:` を発行する代わりに、`NextTickTracker` が算出した統合 Region を 1 回で通知。
+- `NODE_DIRTY_LAYOUT` では native control/context を再生成せず、既存 context の `relayout(...)` を使う。
 
 ### Toolbox (Classic Mac)
 
@@ -123,6 +132,7 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 
 - `InvalidateRect` の乱発による Flicker を抑制。
 - `WM_SIZE` 等の OS 起点イベントも `NODE_DIRTY_LAYOUT` として Tracker 経由で処理。
+- `NODE_DIRTY_LAYOUT` では native child/control を再生成せず、既存 context の `relayout(...)` を使う。
 
 ## Migration Steps
 
@@ -173,12 +183,14 @@ if (event != COMPOSE_EVENT_ATTACH) { ...; return; }
 - **State-level routing**: 同じ Boundary に複数種別の observed state が同居していても、dirty になった state 由来の flags のみが通知される
 - **Flush 順序**: RECOMPOSE → RELAYOUT → APPLY → INVALIDATE の順が崩れないこと
 - **再入防止**: flush 中に新たな dirty が発生しても、現サイクルには混入せず次 tick に回ること
+- **Rebuild contract**: `fullRebuild=false` の update では native context identity を維持し、`fullRebuild=true` のときだけ recreate を許可する
 
 ### 検証方法
 
 - `TraceSink` を導入し、`markDirty → flushBegin → applyPaint` の順序を時系列で記録・検証。
 - `flushNow()` を用いて、遅延反映が期待通りに（かつ 1 回に集約されて）実行されるかを単体テスト。
 - macOS Text wrap と Toolbox redraw の再現ケースを回帰テストとして追加する。
+- macOS / Win32 では `Button/EditText/PopupMenu/ImageView/Text/Cell` の relayout reuse を platform test で固定する。
 
 ### macOS Runtime Verification Checklist (Text wrap relayout)
 

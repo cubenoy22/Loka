@@ -154,6 +154,18 @@ TestFlow(testState)
 // platform flags should include NODE_DIRTY_PROPS only
 ```
 
+Full rebuild contract:
+
+```cpp
+TestFlow(testState)
+  | Step(UPDATE_LAYOUT, SetIntStateAndFlush(fontSizeState, 20));
+// Scene should report fullRebuild=false to the platform controller
+
+TestFlow(testState)
+  | Step(SWAP_BRANCH, SetBoolStateAndFlush(showState, true));
+// Scene should report fullRebuild=true to the platform controller
+```
+
 macOS native relayout probe:
 
 ```cpp
@@ -196,6 +208,7 @@ CaptureScene()
 目的:
 - 見た目は同じでも毎回 `DIRTY_CHILD` (全再構築) が走る退行を検知する。
 - 同じ Boundary に wrap text や conditional が同居していても、unrelated state update で `DIRTY_LAYOUT` / `DIRTY_CHILD` が混入しないことを検知する。
+- `LAYOUT` update で `fullRebuild=false` が維持され、native context identity が保たれることも検証対象に含める。
 
 ### B. Static / Dynamic Policy Assertion
 
