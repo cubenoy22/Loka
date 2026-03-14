@@ -52,6 +52,19 @@ bool Win32PopupMenuContext::handleCommand(WPARAM, LPARAM)
   return true;
 }
 
+void Win32PopupMenuContext::relayout(int x, int y, int width, int height)
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  baseWidth_ = width;
+  baseHeight_ = height;
+  MoveWindow(hwnd_, x, y, width, height, TRUE);
+  applyItems();
+  applySelection();
+}
+
 void Win32PopupMenuContext::bindSelection()
 {
   if (!node_)

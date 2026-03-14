@@ -49,6 +49,15 @@ bool Win32ButtonContext::handleCommand(WPARAM, LPARAM)
   return false;
 }
 
+void Win32ButtonContext::relayout(int x, int y, int width, int height)
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  MoveWindow(hwnd_, x, y, width, height, TRUE);
+}
+
 void Win32ButtonContext::bindText()
 {
   if (!node_)

@@ -80,6 +80,16 @@ void MacPopupMenuContext::handleSelectionChange()
   }
 }
 
+void MacPopupMenuContext::relayout(int x, int y, int width, int height)
+{
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
+  if (!popup)
+  {
+    return;
+  }
+  [popup setFrame:NSMakeRect(x, y, width, height)];
+}
+
 void MacPopupMenuContext::bindSelection()
 {
   if (!node_)

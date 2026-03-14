@@ -87,6 +87,16 @@ void MacButtonContext::handlePress()
   }
 }
 
+void MacButtonContext::relayout(int x, int y, int width, int height)
+{
+  NSButton *button = (NSButton *)button_;
+  if (!button)
+  {
+    return;
+  }
+  [button setFrame:NSMakeRect(x, y, width, height)];
+}
+
 void MacButtonContext::bindText()
 {
   if (!node_)

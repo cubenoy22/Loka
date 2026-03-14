@@ -634,8 +634,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::ButtonNode *button = node->asButtonNode())
   {
-    Win32ButtonContext *ctx = new Win32ButtonContext(rootHwnd_, state.x, state.y, state.width, kButtonHeight, button);
-    button->setContext(ctx);
+    Win32ButtonContext *ctx = static_cast<Win32ButtonContext *>(button->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, kButtonHeight);
+    }
+    else
+    {
+      ctx = new Win32ButtonContext(rootHwnd_, state.x, state.y, state.width, kButtonHeight, button);
+      button->setContext(ctx);
+    }
     buttonMap_[ctx->hwnd()] = ctx;
 
     LayoutState nextState = state;
@@ -645,8 +653,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
   {
-    Win32EditTextContext *ctx = new Win32EditTextContext(rootHwnd_, state.x, state.y, state.width, kEditTextHeight, edit);
-    edit->setContext(ctx);
+    Win32EditTextContext *ctx = static_cast<Win32EditTextContext *>(edit->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, kEditTextHeight);
+    }
+    else
+    {
+      ctx = new Win32EditTextContext(rootHwnd_, state.x, state.y, state.width, kEditTextHeight, edit);
+      edit->setContext(ctx);
+    }
     editMap_[ctx->hwnd()] = ctx;
 
     LayoutState nextState = state;
@@ -656,8 +672,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
   {
-    Win32PopupMenuContext *ctx = new Win32PopupMenuContext(rootHwnd_, state.x, state.y, state.width, kPopupMenuHeight, popup);
-    popup->setContext(ctx);
+    Win32PopupMenuContext *ctx = static_cast<Win32PopupMenuContext *>(popup->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, kPopupMenuHeight);
+    }
+    else
+    {
+      ctx = new Win32PopupMenuContext(rootHwnd_, state.x, state.y, state.width, kPopupMenuHeight, popup);
+      popup->setContext(ctx);
+    }
     popupMap_[ctx->hwnd()] = ctx;
 
     LayoutState nextState = state;
@@ -757,8 +781,16 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
       imageHeight = 160;
     }
 
-    Win32ImageViewContext *ctx = new Win32ImageViewContext(rootHwnd_, state.x, state.y, imageWidth, imageHeight, image);
-    image->setContext(ctx);
+    Win32ImageViewContext *ctx = static_cast<Win32ImageViewContext *>(image->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, imageWidth, imageHeight);
+    }
+    else
+    {
+      ctx = new Win32ImageViewContext(rootHwnd_, state.x, state.y, imageWidth, imageHeight, image);
+      image->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + imageHeight + kVerticalSpacing;

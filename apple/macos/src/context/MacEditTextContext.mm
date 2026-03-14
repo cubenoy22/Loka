@@ -87,6 +87,16 @@ void *MacEditTextContext::nativeField() const
   return field_;
 }
 
+void MacEditTextContext::relayout(int x, int y, int width, int height)
+{
+  NSTextField *field = (NSTextField *)field_;
+  if (!field)
+  {
+    return;
+  }
+  [field setFrame:NSMakeRect(x, y, width, height)];
+}
+
 void MacEditTextContext::bindText()
 {
   if (!node_)

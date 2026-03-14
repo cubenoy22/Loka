@@ -13,6 +13,7 @@ public:
   virtual ~Win32ImageViewContext();
 
   static void EnsureClassRegistered();
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindImage();

@@ -524,8 +524,16 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::ButtonNode *button = node->asButtonNode())
   {
-    MacButtonContext *ctx = new MacButtonContext(rootView_, state.x, state.y, state.width, kButtonHeight, button);
-    button->setContext(ctx);
+    MacButtonContext *ctx = static_cast<MacButtonContext *>(button->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, kButtonHeight);
+    }
+    else
+    {
+      ctx = new MacButtonContext(rootView_, state.x, state.y, state.width, kButtonHeight, button);
+      button->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + kButtonHeight + kVerticalSpacing;
@@ -534,8 +542,16 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
   {
-    MacEditTextContext *ctx = new MacEditTextContext(rootView_, state.x, state.y, state.width, kEditTextHeight, edit);
-    edit->setContext(ctx);
+    MacEditTextContext *ctx = static_cast<MacEditTextContext *>(edit->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, kEditTextHeight);
+    }
+    else
+    {
+      ctx = new MacEditTextContext(rootView_, state.x, state.y, state.width, kEditTextHeight, edit);
+      edit->setContext(ctx);
+    }
     registerEditField(ctx->nativeField());
 
     LayoutState nextState = state;
@@ -545,8 +561,16 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
   {
-    MacPopupMenuContext *ctx = new MacPopupMenuContext(rootView_, state.x, state.y, state.width, kPopupMenuHeight, popup);
-    popup->setContext(ctx);
+    MacPopupMenuContext *ctx = static_cast<MacPopupMenuContext *>(popup->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, state.width, kPopupMenuHeight);
+    }
+    else
+    {
+      ctx = new MacPopupMenuContext(rootView_, state.x, state.y, state.width, kPopupMenuHeight, popup);
+      popup->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
@@ -641,8 +665,16 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
       imageHeight = 160;
     }
 
-    MacImageViewContext *ctx = new MacImageViewContext(rootView_, state.x, state.y, imageWidth, imageHeight, image);
-    image->setContext(ctx);
+    MacImageViewContext *ctx = static_cast<MacImageViewContext *>(image->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, imageWidth, imageHeight);
+    }
+    else
+    {
+      ctx = new MacImageViewContext(rootView_, state.x, state.y, imageWidth, imageHeight, image);
+      image->setContext(ctx);
+    }
 
     LayoutState nextState = state;
     nextState.y = state.y + imageHeight + kVerticalSpacing;

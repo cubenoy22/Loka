@@ -157,6 +157,17 @@ MacImageViewContext::~MacImageViewContext()
   imageView_ = 0;
 }
 
+void MacImageViewContext::relayout(int x, int y, int width, int height)
+{
+  LokaImageView *view = (LokaImageView *)imageView_;
+  if (!view)
+  {
+    return;
+  }
+  [view setFrame:NSMakeRect(x, y, width, height)];
+  [view setNeedsDisplay:YES];
+}
+
 void MacImageViewContext::bindImage()
 {
   if (!node_)

@@ -20,6 +20,7 @@ public:
   virtual ~MacButtonContext();
 
   void handlePress();
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindText();

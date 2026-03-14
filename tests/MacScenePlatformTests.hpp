@@ -3,5 +3,6 @@
 
 void testMacScenePlatformRelayoutRequest();
 void testMacScenePlatformIgnoresNonLayoutDirtyRequest();
+void testMacScenePlatformRelayoutReusesControlContexts();
 
 #endif // LOKA_MAC_SCENE_PLATFORM_TESTS_HPP

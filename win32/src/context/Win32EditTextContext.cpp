@@ -48,6 +48,15 @@ bool Win32EditTextContext::handleCommand(WPARAM wParam, LPARAM)
   return false;
 }
 
+void Win32EditTextContext::relayout(int x, int y, int width, int height)
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  MoveWindow(hwnd_, x, y, width, height, TRUE);
+}
+
 void Win32EditTextContext::bindText()
 {
   if (!node_)

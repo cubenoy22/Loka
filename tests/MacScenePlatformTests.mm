@@ -1,17 +1,24 @@
 #include "MacScenePlatformTests.hpp"
 
 #include <cassert>
+#include <cstdio>
 
 #include <AppKit/AppKit.h>
 
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/EditText.hpp"
+#include "app/ImageView.hpp"
+#include "app/PopupMenu.hpp"
+#include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/DynamicComposition.hpp"
+#include "app/scene/node/StaticComposition.hpp"
 #include "MacScenePlatformController.hpp"
 #include "testing/MacScenePlatformTestAccess.hpp"
+#include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/dsl/testing/SceneTestFlow.hpp"
@@ -48,6 +55,93 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicMacTestProps, DynamicMacTestNode> DynamicMacTestBoundary()
   {
     return loka::app::scene::DynamicCompositionBoundary<DynamicMacTestNode>();
+  }
+
+  ::loka::app::scene::Node *findNodeByTestId(::loka::app::scene::Node *node, const std::string &testId)
+  {
+    if (!node)
+    {
+      return 0;
+    }
+    if (node->testId() == testId)
+    {
+      return node;
+    }
+    ::loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return 0;
+    }
+    ::loka::app::scene::Node *child = nestable->childrenHead();
+    while (child)
+    {
+      ::loka::app::scene::Node *found = findNodeByTestId(child, testId);
+      if (found)
+      {
+        return found;
+      }
+      child = child->nextInComposition;
+    }
+    return 0;
+  }
+
+  void dumpNodeTree(::loka::app::scene::Node *node, int depth)
+  {
+    if (!node)
+    {
+      return;
+    }
+    for (int i = 0; i < depth; ++i)
+    {
+      std::fprintf(stderr, "  ");
+    }
+    std::fprintf(stderr,
+                 "node kind=%d testId='%s' ctx=%p self=%p\n",
+                 static_cast<int>(node->kind()),
+                 node->testId().c_str(),
+                 (void *)node->getContext(),
+                 (void *)node);
+    ::loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return;
+    }
+    ::loka::app::scene::Node *child = nestable->childrenHead();
+    while (child)
+    {
+      dumpNodeTree(child, depth + 1);
+      child = child->nextInComposition;
+    }
+  }
+
+  loka::core::MutableState<loka::core::String> *g_staticEditTextState = 0;
+  loka::core::MutableState<int> *g_staticSelectedIndexState = 0;
+  loka::core::MutableState<loka::core::resource::Image> *g_staticImageState = 0;
+
+  class StaticMacControlNode;
+  typedef loka::app::scene::StaticCompositionPropsFor<StaticMacControlNode> StaticMacControlProps;
+
+  class StaticMacControlNode : public loka::app::scene::StaticCompositionNodeFor<StaticMacControlNode>
+  {
+  public:
+    StaticMacControlNode(const StaticMacControlProps &p)
+        : loka::app::scene::StaticCompositionNodeFor<StaticMacControlNode>(StaticMacControlProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      static const char *kPopupItems[] = {"One", "Two", "Three"};
+      c.declare(
+          loka::app::VStack()
+          << loka::app::Button("Run").testId("ReuseButton")
+          << loka::app::EditText(g_staticEditTextState).controlTag(101).testId("ReuseEdit")
+          << loka::app::PopupMenu(kPopupItems, 3).selectedIndex(g_staticSelectedIndexState).testId("ReusePopup")
+          << loka::app::ImageView().image(g_staticImageState).size(64, 64).testId("ReuseImage"));
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<StaticMacControlProps, StaticMacControlNode> StaticMacControlBoundary()
+  {
+    return loka::app::scene::StaticCompositionBoundary<StaticMacControlNode>();
   }
 }
 
@@ -124,4 +218,69 @@ void testMacScenePlatformIgnoresNonLayoutDirtyRequest()
   [pool drain];
   g_textState = 0;
   g_enabledState = 0;
+}
+
+void testMacScenePlatformRelayoutReusesControlContexts()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<loka::core::String> editTextState(loka::core::String::Literal("Hello"));
+  loka::core::MutableState<int> selectedIndexState(1);
+  loka::core::resource::Image initialImage;
+  loka::core::MutableState<loka::core::resource::Image> imageState(initialImage);
+  g_staticEditTextState = &editTextState;
+  g_staticSelectedIndexState = &selectedIndexState;
+  g_staticImageState = &imageState;
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 220)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(StaticMacControlBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "ReuseButton");
+  ::loka::app::scene::Node *editNode = findNodeByTestId(root, "ReuseEdit");
+  ::loka::app::scene::Node *popupNode = findNodeByTestId(root, "ReusePopup");
+  ::loka::app::scene::Node *imageNode = findNodeByTestId(root, "ReuseImage");
+  if (!buttonNode || !editNode || !popupNode || !imageNode)
+  {
+    std::fprintf(stderr,
+                 "reuse lookup failed: button=%p edit=%p popup=%p image=%p root=%p\n",
+                 (void *)buttonNode,
+                 (void *)editNode,
+                 (void *)popupNode,
+                 (void *)imageNode,
+                 (void *)root);
+    dumpNodeTree(root, 0);
+  }
+  assert(buttonNode != 0);
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  assert(imageNode != 0);
+
+  ::loka::app::scene::NodeContext *buttonContext = buttonNode->getContext();
+  ::loka::app::scene::NodeContext *editContext = editNode->getContext();
+  ::loka::app::scene::NodeContext *popupContext = popupNode->getContext();
+  ::loka::app::scene::NodeContext *imageContext = imageNode->getContext();
+  assert(buttonContext != 0);
+  assert(editContext != 0);
+  assert(popupContext != 0);
+  assert(imageContext != 0);
+
+  controller.relayout(320, 240);
+
+  assert(buttonNode->getContext() == buttonContext);
+  assert(editNode->getContext() == editContext);
+  assert(popupNode->getContext() == popupContext);
+  assert(imageNode->getContext() == imageContext);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_staticEditTextState = 0;
+  g_staticSelectedIndexState = 0;
+  g_staticImageState = 0;
 }

@@ -11,6 +11,7 @@ public:
   virtual ~MacPopupMenuContext();
 
   void handleSelectionChange();
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindSelection();

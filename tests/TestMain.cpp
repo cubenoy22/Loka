@@ -45,6 +45,7 @@ int main()
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
   testMacScenePlatformIgnoresNonLayoutDirtyRequest();
+  testMacScenePlatformRelayoutReusesControlContexts();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();

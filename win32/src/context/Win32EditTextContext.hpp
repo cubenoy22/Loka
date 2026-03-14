@@ -31,6 +31,7 @@ public:
   virtual ~Win32EditTextContext();
 
   HWND hwnd() const { return hwnd_; }
+  void relayout(int x, int y, int width, int height);
   bool handleCommand(WPARAM wParam, LPARAM lParam);
 
 private:

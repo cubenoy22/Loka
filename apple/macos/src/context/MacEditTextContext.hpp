@@ -21,6 +21,7 @@ public:
 
   void handleTextDidChange();
   void *nativeField() const;
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindText();

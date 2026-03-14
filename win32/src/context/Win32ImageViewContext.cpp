@@ -118,6 +118,16 @@ Win32ImageViewContext::~Win32ImageViewContext()
   }
 }
 
+void Win32ImageViewContext::relayout(int x, int y, int width, int height)
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  MoveWindow(hwnd_, x, y, width, height, TRUE);
+  Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
+}
+
 void Win32ImageViewContext::EnsureClassRegistered()
 {
   static bool registered = false;

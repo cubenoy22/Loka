@@ -10,6 +10,7 @@ class MacImageViewContext : public loka::app::scene::NodeContext
 public:
   MacImageViewContext(void *parentView, int x, int y, int width, int height, loka::app::ImageViewNode *node);
   virtual ~MacImageViewContext();
+  void relayout(int x, int y, int width, int height);
 
 private:
   void bindImage();
