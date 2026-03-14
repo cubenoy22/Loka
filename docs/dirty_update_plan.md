@@ -24,6 +24,10 @@
   - 例: wrap あり `Text.text` は `NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT`
   - 例: `Button.enabled` は `NODE_DIRTY_PROPS`
   - 例: `Conditional.visible` は `NODE_DIRTY_CHILD`
+- **Self-updating / output-only control state** は observed state に含めない。
+  - 例: `EditText.text`, `PopupMenu.selectedIndex`, `OpenFileDialog.result`
+  - これらは native control/context が user interaction や dialog completion で state を更新する。
+  - 外部 state からの UI 反映は各 platform context の bind/apply が担当し、scene dirty source にはしない。
 
 ### Layer 2: Boundary + NextTickTracker (When & How to execute?)
 
