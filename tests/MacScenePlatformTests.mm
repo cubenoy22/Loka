@@ -310,3 +310,44 @@ void testMacScenePlatformRelayoutReusesCellAndTextContexts()
   g_staticTextState = 0;
   g_staticCellState = 0;
 }
+
+void testMacScenePlatformFullRebuildFlagControlsContextReuse()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<loka::core::String> editTextState(loka::core::String::Literal("Hello"));
+  loka::core::MutableState<int> selectedIndexState(1);
+  loka::core::resource::Image initialImage;
+  loka::core::MutableState<loka::core::resource::Image> imageState(initialImage);
+  g_staticEditTextState = &editTextState;
+  g_staticSelectedIndexState = &selectedIndexState;
+  g_staticImageState = &imageState;
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 220)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(StaticMacControlBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "ReuseButton");
+  assert(buttonNode != 0);
+  ::loka::app::scene::NodeContext *buttonContext = buttonNode->getContext();
+  assert(buttonContext != 0);
+
+  controller.onChange(root, loka::app::scene::NODE_DIRTY_LAYOUT, false);
+  assert(buttonNode->getContext() == buttonContext);
+
+  controller.onChange(root, loka::app::scene::NODE_DIRTY_CHILD, true);
+  assert(buttonNode->getContext() != 0);
+  assert(buttonNode->getContext() != buttonContext);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_staticEditTextState = 0;
+  g_staticSelectedIndexState = 0;
+  g_staticImageState = 0;
+}

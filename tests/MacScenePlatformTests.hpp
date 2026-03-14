@@ -5,5 +5,6 @@ void testMacScenePlatformRelayoutRequest();
 void testMacScenePlatformIgnoresNonLayoutDirtyRequest();
 void testMacScenePlatformRelayoutReusesControlContexts();
 void testMacScenePlatformRelayoutReusesCellAndTextContexts();
+void testMacScenePlatformFullRebuildFlagControlsContextReuse();
 
 #endif // LOKA_MAC_SCENE_PLATFORM_TESTS_HPP

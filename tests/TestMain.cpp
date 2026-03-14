@@ -48,12 +48,14 @@ int main()
 #if defined(_WIN32) || defined(WIN32)
   testWin32ScenePlatformRelayoutReusesControlContexts();
   testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
+  testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
   testMacScenePlatformIgnoresNonLayoutDirtyRequest();
   testMacScenePlatformRelayoutReusesControlContexts();
   testMacScenePlatformRelayoutReusesCellAndTextContexts();
+  testMacScenePlatformFullRebuildFlagControlsContextReuse();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();

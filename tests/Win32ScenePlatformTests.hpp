@@ -3,5 +3,6 @@
 
 void testWin32ScenePlatformRelayoutReusesControlContexts();
 void testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
+void testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
 
 #endif // LOKA_WIN32_SCENE_PLATFORM_TESTS_HPP
