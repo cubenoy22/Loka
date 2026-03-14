@@ -193,6 +193,10 @@ void Win32ScenePlatformController::synchronize()
   for (size_t i = 0; i < pendingInvalidations_.size(); ++i)
   {
     PendingInvalidate &entry = pendingInvalidations_[i];
+    if (!IsWindow(entry.hwnd))
+    {
+      continue;
+    }
     UINT flags = RDW_INVALIDATE | RDW_UPDATENOW;
     if (entry.eraseBackground)
     {
@@ -330,6 +334,7 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
 
 void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight)
 {
+  pendingInvalidations_.clear();
   clearContexts();
   if (!rootNode_ || !rootHwnd_)
   {
