@@ -1291,7 +1291,7 @@ void testPopupMenuSelectionStateDoesNotInvalidateScene()
   g_popupEnabledState = 0;
 }
 
-void testOpenFileDialogResultStateDoesNotInvalidateScene()
+void testOpenFileDialogStatesDoNotInvalidateScene()
 {
   using loka::app::scene::IPlatformController;
   using loka::app::scene::Node;
@@ -1342,8 +1342,9 @@ void testOpenFileDialogResultStateDoesNotInvalidateScene()
     visible.set(true);
   }
 
-  assert(platform.calls_ == 2);
-  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+  assert(platform.calls_ == 1);
+  assert(scene.flushInvalidation() == false);
+  assert(platform.calls_ == 1);
 
   scene.unmount();
   g_openFileResultState = 0;

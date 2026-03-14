@@ -25,7 +25,7 @@
   - 例: `Button.enabled` は `NODE_DIRTY_PROPS`
   - 例: `Conditional.visible` は `NODE_DIRTY_CHILD`
 - **Self-updating / output-only control state** は observed state に含めない。
-  - 例: `EditText.text`, `PopupMenu.selectedIndex`, `OpenFileDialog.result`
+  - 例: `EditText.text`, `PopupMenu.selectedIndex`, `OpenFileDialog.isVisible`, `OpenFileDialog.result`
   - これらは native control/context が user interaction や dialog completion で state を更新する。
   - 外部 state からの UI 反映は各 platform context の bind/apply が担当し、scene dirty source にはしない。
 

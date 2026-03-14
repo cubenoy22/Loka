@@ -31,7 +31,7 @@ int main()
   testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
   testPopupMenuSelectionStateDoesNotInvalidateScene();
-  testOpenFileDialogResultStateDoesNotInvalidateScene();
+  testOpenFileDialogStatesDoNotInvalidateScene();
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
   testSceneCompositionDiffMarksChildDirtyAsFullRebuild();

@@ -145,10 +145,7 @@ namespace loka
       virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
-        if (this->props.isVisible_)
-        {
-          registrar.observe(this->props.isVisible_, loka::app::scene::NODE_DIRTY_CHILD);
-        }
+        (void)registrar;
       }
     };
 
