@@ -32,6 +32,7 @@ int main()
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
+  testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();

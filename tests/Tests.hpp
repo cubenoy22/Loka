@@ -20,6 +20,7 @@ void testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
 void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
 void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
+void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();

@@ -147,6 +147,10 @@ namespace loka
             flags = NODE_DIRTY_PROPS;
           }
           compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | flags);
+          if ((flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
+          {
+            compositionDiff_.fullRebuild = true;
+          }
           nextTickTracker_.request();
         }
 
@@ -298,10 +302,11 @@ namespace loka
             return false;
           }
           compositionDiff_.valid = true;
-          compositionDiff_.fullRebuild = false;
+          compositionDiff_.fullRebuild = (compositionDiff_.flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0;
           if (compositionDiff_.flags == NODE_DIRTY_NONE)
           {
             compositionDiff_.flags = NODE_DIRTY_PROPS;
+            compositionDiff_.fullRebuild = false;
           }
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
           return true;

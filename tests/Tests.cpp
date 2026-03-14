@@ -1256,6 +1256,49 @@ void testSceneRequestInvalidateDefersUntilFlush()
   scene.unmount();
 }
 
+void testSceneCompositionDiffMarksChildDirtyAsFullRebuild()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+    int calls_;
+  };
+
+  Scene scene(RootBoundary());
+  DirtyCapturePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_LAYOUT);
+  assert(scene.compositionDiff().fullRebuild == false);
+  scene.flushInvalidation();
+  assert(scene.compositionDiff().valid == false);
+
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.compositionDiff().fullRebuild == true);
+  scene.flushInvalidation();
+  assert(platform.calls_ == 3);
+
+  scene.unmount();
+}
+
 void testLokaCoreString()
 {
   printf("\n==== [testLokaCoreString] start ====\n");
