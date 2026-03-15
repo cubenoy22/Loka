@@ -26,7 +26,6 @@
 - SceneManager: finalize lifecycle updates (ON_DETACH/ON_ATTACH/ON_DESTROY) and make Scene subscribe-ready.
 - SceneManager: review API for swapping to CompositeNode/NodeComposition once Window::mount lands.
 - requestDiscard protocol for save/confirm flows via EmitterState.
-- SceneManager tests for pendingTransactions\_ behavior and Tracker integration.
 - Suppress clangd incomplete type warning for AttachedContext -> BoundaryNode access (include or type split).
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
 - C++98: reintroduce NodeComposition map/filter via C++98-friendly adapters.

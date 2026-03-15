@@ -9,6 +9,7 @@ void testBatchTransaction();
 void testRAIITransaction();
 void testDerivedStruct();
 void testSceneManagerTransaction();
+void testSceneManagerPendingTransactionsAndBindings();
 void testNodeCompositionTree();
 void testNodeCompositionShowIf();
 void testSceneMountLifecycle();

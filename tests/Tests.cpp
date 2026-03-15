@@ -1782,6 +1782,81 @@ void testSceneManagerTransaction()
   printf("--- [testSceneManagerTransaction/SceneManager] end ---\n");
 }
 
+void testSceneManagerPendingTransactionsAndBindings()
+{
+  printf("\n==== [testSceneManagerPendingTransactionsAndBindings/SceneManager] start ====\n");
+  using loka::app::scene::Scene;
+
+  class InspectableSceneManager : public SceneManager
+  {
+  public:
+    SceneTransactionList pendingTransactions() const
+    {
+      return getPendingTransactions();
+    }
+
+    void handleNextPending()
+    {
+      handleNextTransaction();
+    }
+  };
+
+  class TestWindow : public Window
+  {
+  public:
+    TestWindow() : Window(0, WindowProps()) {}
+  };
+
+  struct ChangeCounter
+  {
+    static void onChange(void *userData)
+    {
+      int *count = static_cast<int *>(userData);
+      ++(*count);
+    }
+  };
+
+  Scene *sceneA = new Scene(RootBoundary());
+  Scene *sceneB = new Scene(RootBoundary());
+  TestWindow window;
+  InspectableSceneManager mgr;
+  int currentSceneNotifyCount = 0;
+
+  mgr.setWindow(&window);
+  assert(mgr.pendingTransactions().empty());
+  mgr.handleNextPending();
+  assert(mgr.pendingTransactions().empty());
+
+  loka::core::State<Scene *> *currentSceneState =
+      const_cast<loka::core::State<Scene *> *>(&mgr.getCurrentScene());
+  currentSceneState->bind(&ChangeCounter::onChange, &currentSceneNotifyCount, false);
+
+  mgr.commitTransaction(0, sceneA);
+  assert(mgr.pendingTransactions().empty());
+  assert(mgr.getCurrentScene().get() == sceneA);
+  assert(currentSceneNotifyCount == 1);
+
+  mgr.commitTransaction(sceneA, sceneB);
+  assert(mgr.pendingTransactions().empty());
+  assert(mgr.getCurrentScene().get() == sceneB);
+  assert(currentSceneNotifyCount == 2);
+
+  mgr.commitTransaction(sceneB, sceneB);
+  assert(mgr.pendingTransactions().empty());
+  assert(mgr.getCurrentScene().get() == sceneB);
+  assert(currentSceneNotifyCount == 2);
+
+  mgr.commitTransaction(sceneB, 0);
+  assert(mgr.pendingTransactions().empty());
+  assert(mgr.getCurrentScene().get() == 0);
+  assert(currentSceneNotifyCount == 3);
+
+  currentSceneState->unbind(&ChangeCounter::onChange, &currentSceneNotifyCount);
+  delete sceneA;
+  delete sceneB;
+  printf("--- [testSceneManagerPendingTransactionsAndBindings/SceneManager] end ---\n");
+}
+
 void testLokaCoreString()
 {
   printf("\n==== [testLokaCoreString] start ====\n");

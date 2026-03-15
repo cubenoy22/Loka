@@ -24,6 +24,7 @@ int main()
   testTextInputOnChange();
   testDerivedStruct();
   testSceneManagerTransaction();
+  testSceneManagerPendingTransactionsAndBindings();
   testNodeCompositionTree();
   testNodeCompositionShowIf();
   testSceneMountLifecycle();
