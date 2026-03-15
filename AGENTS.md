@@ -34,6 +34,7 @@
 - DSL shorthand policy: for common cases, prefer concise `Definition` constructors/factories that accept the most-used inputs; for less common fields, construct `Props` explicitly and pass it through rather than duplicating every setter in both `Props` and `Definition`.
 - Performance triage steps: 1) reproduce on modern OS with profiling on, 2) capture tick breakdown, 3) isolate by commenting out components or toggling features, 4) optimize top hotspots first, 5) re-measure, 6) record findings in docs/TODO.md.
 - If a crash occurs, first confirm whether it reproduces on a modern OS build; use breakpoints, LLDB commands, and targeted logging to identify the cause quickly.
+- For runtime behavior regressions in compose/dirty routing, prefer path verification before speculative edits: place breakpoints on the user action handler, observed-state thunk(s), `Scene`/`PlatformController` apply path, and the target node's `composeWithContext`/`composeNode`, then confirm where the flow stops.
 - If a request is ambiguous, stop and ask before implementing.
 - Secrets/PII must not be hardcoded; use env vars and avoid logging sensitive data.
 - Use English for code comments, code-facing docs, and API/design notes that ship with the repository; keep non-English prose for user conversation only unless a file already has an established localized convention.

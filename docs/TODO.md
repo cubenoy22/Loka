@@ -25,6 +25,7 @@
 - requestDiscard protocol for save/confirm flows via EmitterState.
 - Menu rebuild contract: `MENU_ACTION_REBUILD_MENU` and menu-local state changes do not yet produce reliable reactive rebuild/apply across platforms, especially on macOS menu tracking. Add dedicated contract tests before expanding reactive menu samples.
 - DSL definition lifetime safety: `Conditional/showIf` still depends on stable definition storage across updates. Move toward owned/cloned definitions (or stricter API constraints) so temporary DSL definitions are safe at app call sites.
+- Dynamic subtree granularity: `NODE_DIRTY_CHILD` currently rebuilds the whole dynamic boundary subtree. Branch swapping works, but sibling native controls in the same dynamic boundary are not yet guaranteed to preserve context/value identity. Revisit with a lighter-weight container/tagged-child diff model.
 - Suppress clangd incomplete type warning for AttachedContext -> BoundaryNode access (include or type split).
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
 - C++98: reintroduce NodeComposition map/filter via C++98-friendly adapters.

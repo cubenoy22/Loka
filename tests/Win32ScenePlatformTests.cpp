@@ -185,6 +185,8 @@ namespace
   loka::core::MutableState<loka::core::String> *g_staticTextState = 0;
   loka::core::MutableState<loka::core::String> *g_staticCellState = 0;
   loka::core::MutableState<bool> *g_foreignSwapChildState = 0;
+  loka::core::MutableState<loka::core::String> *g_foreignPersistEditState = 0;
+  loka::core::MutableState<int> *g_foreignPersistSelectedIndexState = 0;
 
   class StaticWin32CellTextNode;
   typedef loka::app::scene::StaticCompositionPropsFor<StaticWin32CellTextNode> StaticWin32CellTextProps;
@@ -279,6 +281,81 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicWin32ForeignSwapHostProps, DynamicWin32ForeignSwapHostNode> DynamicWin32ForeignSwapHostBoundary()
   {
     return loka::app::scene::Boundary<DynamicWin32ForeignSwapHostNode>();
+  }
+
+  class DynamicWin32ForeignPersistNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicWin32ForeignPersistNode> DynamicWin32ForeignPersistProps;
+
+  class DynamicWin32ForeignPersistNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicWin32ForeignPersistNode>
+  {
+  public:
+    DynamicWin32ForeignPersistNode(const DynamicWin32ForeignPersistProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicWin32ForeignPersistNode>(DynamicWin32ForeignPersistProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      loka::app::ColumnDefinition column = loka::app::VStack();
+      if (g_foreignSwapChildState && g_foreignSwapChildState->get())
+      {
+        column << loka::app::Text("Dynamic rebuild branch").testId("ForeignPersistText");
+      }
+      else
+      {
+        column << loka::app::Button("Dynamic hidden branch").testId("ForeignPersistButton");
+      }
+      column << loka::app::EditText(g_foreignPersistEditState).controlTag(451).testId("ForeignPersistEdit")
+             << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignPersistPopup");
+      c.declare(column);
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_foreignSwapChildState)
+      {
+        registrar.observe(g_foreignSwapChildState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicWin32ForeignPersistProps, DynamicWin32ForeignPersistNode> DynamicWin32ForeignPersistBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicWin32ForeignPersistNode>();
+  }
+
+  class DynamicWin32ForeignPersistHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicWin32ForeignPersistHostNode> DynamicWin32ForeignPersistHostProps;
+
+  class DynamicWin32ForeignPersistHostNode : public loka::app::scene::BoundaryNodeFor<DynamicWin32ForeignPersistHostNode>
+  {
+  public:
+    DynamicWin32ForeignPersistHostNode(const DynamicWin32ForeignPersistHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicWin32ForeignPersistHostNode>(DynamicWin32ForeignPersistHostProps(p)), observed_() {}
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->observed_, false);
+      g_foreignSwapChildState = this->observed_.mutableState();
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      g_foreignSwapChildState = 0;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicWin32ForeignPersistBoundary());
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> observed_;
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicWin32ForeignPersistHostProps, DynamicWin32ForeignPersistHostNode> DynamicWin32ForeignPersistHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicWin32ForeignPersistHostNode>();
   }
 }
 
@@ -562,6 +639,61 @@ void testWin32ScenePlatformForeignObservedChildRebuildSwapsContexts()
 
   scene.unmount();
   DestroyWindow(rootHwnd);
+  g_foreignSwapChildState = 0;
+}
+
+void testWin32ScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
+{
+  loka::core::MutableState<loka::core::String> editTextState(loka::core::String::Literal("Hello"));
+  loka::core::MutableState<int> selectedIndexState(1);
+  g_foreignPersistEditState = &editTextState;
+  g_foreignPersistSelectedIndexState = &selectedIndexState;
+
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  loka::app::scene::Scene scene(DynamicWin32ForeignPersistHostBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "ForeignPersistButton");
+  ::loka::app::scene::Node *editNode = findNodeByTestId(root, "ForeignPersistEdit");
+  ::loka::app::scene::Node *popupNode = findNodeByTestId(root, "ForeignPersistPopup");
+  assert(buttonNode != 0);
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  ::loka::app::scene::NodeContext *editContext = editNode->getContext();
+  ::loka::app::scene::NodeContext *popupContext = popupNode->getContext();
+  assert(editContext != 0);
+  assert(popupContext != 0);
+  const int initialChildWindowCount = countChildWindows(rootHwnd);
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  assert(g_foreignSwapChildState != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    g_foreignSwapChildState->set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(findNodeByTestId(root, "ForeignPersistButton") == 0);
+  assert(findNodeByTestId(root, "ForeignPersistText") != 0);
+  editNode = findNodeByTestId(root, "ForeignPersistEdit");
+  popupNode = findNodeByTestId(root, "ForeignPersistPopup");
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  assert(countChildWindows(rootHwnd) == initialChildWindowCount);
+
+  scene.unmount();
+  DestroyWindow(rootHwnd);
+  g_foreignPersistEditState = 0;
+  g_foreignPersistSelectedIndexState = 0;
   g_foreignSwapChildState = 0;
 }
 

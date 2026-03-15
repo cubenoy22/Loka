@@ -29,6 +29,8 @@ namespace
   loka::core::MutableState<bool> *g_enabledState = 0;
   loka::core::MutableState<bool> *g_swapChildState = 0;
   loka::core::MutableState<bool> *g_foreignSwapChildState = 0;
+  loka::core::MutableState<loka::core::String> *g_foreignPersistEditState = 0;
+  loka::core::MutableState<int> *g_foreignPersistSelectedIndexState = 0;
 
   class DynamicMacTestNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacTestNode> DynamicMacTestProps;
@@ -188,6 +190,81 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicMacForeignSwapHostProps, DynamicMacForeignSwapHostNode> DynamicMacForeignSwapHostBoundary()
   {
     return loka::app::scene::Boundary<DynamicMacForeignSwapHostNode>();
+  }
+
+  class DynamicMacForeignPersistNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacForeignPersistNode> DynamicMacForeignPersistProps;
+
+  class DynamicMacForeignPersistNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicMacForeignPersistNode>
+  {
+  public:
+    DynamicMacForeignPersistNode(const DynamicMacForeignPersistProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicMacForeignPersistNode>(DynamicMacForeignPersistProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      loka::app::ColumnDefinition column = loka::app::VStack();
+      if (g_foreignSwapChildState && g_foreignSwapChildState->get())
+      {
+        column << loka::app::Text("Dynamic rebuild branch").testId("ForeignPersistText");
+      }
+      else
+      {
+        column << loka::app::Button("Dynamic hidden branch").testId("ForeignPersistButton");
+      }
+      column << loka::app::EditText(g_foreignPersistEditState).controlTag(351).testId("ForeignPersistEdit")
+             << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignPersistPopup");
+      c.declare(column);
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_foreignSwapChildState)
+      {
+        registrar.observe(g_foreignSwapChildState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacForeignPersistProps, DynamicMacForeignPersistNode> DynamicMacForeignPersistBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicMacForeignPersistNode>();
+  }
+
+  class DynamicMacForeignPersistHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicMacForeignPersistHostNode> DynamicMacForeignPersistHostProps;
+
+  class DynamicMacForeignPersistHostNode : public loka::app::scene::BoundaryNodeFor<DynamicMacForeignPersistHostNode>
+  {
+  public:
+    DynamicMacForeignPersistHostNode(const DynamicMacForeignPersistHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicMacForeignPersistHostNode>(DynamicMacForeignPersistHostProps(p)), observed_() {}
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->observed_, false);
+      g_foreignSwapChildState = this->observed_.mutableState();
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      g_foreignSwapChildState = 0;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicMacForeignPersistBoundary());
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> observed_;
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacForeignPersistHostProps, DynamicMacForeignPersistHostNode> DynamicMacForeignPersistHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicMacForeignPersistHostNode>();
   }
 
   ::loka::app::scene::Node *findNodeByTestId(::loka::app::scene::Node *node, const std::string &testId)
@@ -631,5 +708,60 @@ void testMacScenePlatformForeignObservedChildRebuildSwapsContexts()
   scene.unmount();
   [rootView release];
   [pool drain];
+  g_foreignSwapChildState = 0;
+}
+
+void testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<loka::core::String> editTextState(loka::core::String::Literal("Hello"));
+  loka::core::MutableState<int> selectedIndexState(1);
+  g_foreignPersistEditState = &editTextState;
+  g_foreignPersistSelectedIndexState = &selectedIndexState;
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 200)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(DynamicMacForeignPersistHostBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "ForeignPersistButton");
+  ::loka::app::scene::Node *editNode = findNodeByTestId(root, "ForeignPersistEdit");
+  ::loka::app::scene::Node *popupNode = findNodeByTestId(root, "ForeignPersistPopup");
+  assert(buttonNode != 0);
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  ::loka::app::scene::NodeContext *editContext = editNode->getContext();
+  ::loka::app::scene::NodeContext *popupContext = popupNode->getContext();
+  assert(editContext != 0);
+  assert(popupContext != 0);
+  const NSUInteger initialSubviewCount = [[rootView subviews] count];
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  assert(g_foreignSwapChildState != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    g_foreignSwapChildState->set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(findNodeByTestId(root, "ForeignPersistButton") == 0);
+  assert(findNodeByTestId(root, "ForeignPersistText") != 0);
+  editNode = findNodeByTestId(root, "ForeignPersistEdit");
+  popupNode = findNodeByTestId(root, "ForeignPersistPopup");
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  assert([[rootView subviews] count] == initialSubviewCount);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_foreignPersistEditState = 0;
+  g_foreignPersistSelectedIndexState = 0;
   g_foreignSwapChildState = 0;
 }

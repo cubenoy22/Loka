@@ -61,6 +61,7 @@ int main()
   testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
   testWin32ScenePlatformChildRebuildCleansUpOldContexts();
   testWin32ScenePlatformForeignObservedChildRebuildSwapsContexts();
+  testWin32ScenePlatformForeignObservedChildRebuildPreservesSiblingContexts();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
@@ -71,6 +72,7 @@ int main()
   testMacScenePlatformFullRebuildFlagControlsContextReuse();
   testMacScenePlatformChildRebuildCleansUpOldContexts();
   testMacScenePlatformForeignObservedChildRebuildSwapsContexts();
+  testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();
