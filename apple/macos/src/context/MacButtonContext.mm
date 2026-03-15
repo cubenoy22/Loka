@@ -27,7 +27,7 @@
 @end
 
 MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node)
-    : node_(node), button_(0), target_(0), textState_(0)
+    : node_(node), button_(0), target_(0), textState_(0), enabledState_(0)
 {
   NSView *parent = (NSView *)parentView;
   NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -55,11 +55,13 @@ MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, in
   button_ = (void *)button;
   target_ = (void *)target;
   bindText();
+  bindEnabled();
 }
 
 MacButtonContext::~MacButtonContext()
 {
   unbindText();
+  unbindEnabled();
   NSButton *button = (NSButton *)button_;
   if (button)
   {
@@ -120,6 +122,29 @@ void MacButtonContext::unbindText()
   }
 }
 
+void MacButtonContext::bindEnabled()
+{
+  if (!node_)
+  {
+    return;
+  }
+  enabledState_ = static_cast<loka::core::State<bool> *>(node_->props.enabled_);
+  if (enabledState_)
+  {
+    enabledState_->deferBind(&MacButtonContext::EnabledChangedThunk, this);
+    applyEnabled();
+  }
+}
+
+void MacButtonContext::unbindEnabled()
+{
+  if (enabledState_)
+  {
+    enabledState_->deferUnbind(&MacButtonContext::EnabledChangedThunk, this);
+    enabledState_ = 0;
+  }
+}
+
 void MacButtonContext::applyText()
 {
   NSButton *button = (NSButton *)button_;
@@ -134,11 +159,30 @@ void MacButtonContext::applyText()
   }
 }
 
+void MacButtonContext::applyEnabled()
+{
+  NSButton *button = (NSButton *)button_;
+  if (!button || !enabledState_)
+  {
+    return;
+  }
+  [button setEnabled:enabledState_->get() ? YES : NO];
+}
+
 void MacButtonContext::TextChangedThunk(void *userData)
 {
   MacButtonContext *self = static_cast<MacButtonContext *>(userData);
   if (self)
   {
     self->applyText();
+  }
+}
+
+void MacButtonContext::EnabledChangedThunk(void *userData)
+{
+  MacButtonContext *self = static_cast<MacButtonContext *>(userData);
+  if (self)
+  {
+    self->applyEnabled();
   }
 }

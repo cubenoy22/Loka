@@ -31,25 +31,61 @@ namespace loka
       typedef ButtonTypeTag TypeTag;
       typedef ButtonNode NodeType;
       loka::core::State<loka::core::String> *text_;
+      loka::core::MutableState<loka::core::String> ownedText_;
+      bool ownsText_;
       loka::core::State<bool> *enabled_;
       loka::core::EmitterState *onClick_;
       short toolboxControlId_;
       int controlTag_;
-      ButtonProps() : text_(0), enabled_(0), onClick_(0), toolboxControlId_(0), controlTag_(0) {}
+      ButtonProps() : text_(0), ownedText_(), ownsText_(false), enabled_(0), onClick_(0), toolboxControlId_(0), controlTag_(0) {}
+      ButtonProps(const ButtonProps &other)
+          : text_(other.text_),
+            ownedText_(other.ownedText_),
+            ownsText_(other.ownsText_),
+            enabled_(other.enabled_),
+            onClick_(other.onClick_),
+            toolboxControlId_(other.toolboxControlId_),
+            controlTag_(other.controlTag_)
+      {
+        if (ownsText_)
+        {
+          text_ = &ownedText_;
+        }
+      }
+      ButtonProps &operator=(const ButtonProps &other)
+      {
+        if (this != &other)
+        {
+          text_ = other.text_;
+          ownedText_ = other.ownedText_;
+          ownsText_ = other.ownsText_;
+          enabled_ = other.enabled_;
+          onClick_ = other.onClick_;
+          toolboxControlId_ = other.toolboxControlId_;
+          controlTag_ = other.controlTag_;
+          if (ownsText_)
+          {
+            text_ = &ownedText_;
+          }
+        }
+        return *this;
+      }
       ButtonProps &text(loka::core::State<loka::core::String> *t)
       {
         this->text_ = t;
+        this->ownsText_ = false;
         return *this;
       }
       ButtonProps &text(const loka::core::String &s)
       {
-        this->text_ = loka::core::StaticState<loka::core::String>(s);
+        this->ownedText_ = loka::core::MutableState<loka::core::String>(s);
+        this->text_ = &this->ownedText_;
+        this->ownsText_ = true;
         return *this;
       }
       ButtonProps &text(const char *s)
       {
-        this->text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(s));
-        return *this;
+        return this->text(loka::core::String::Literal(s));
       }
       ButtonProps &enabled(loka::core::State<bool> *e)
       {
@@ -127,7 +163,7 @@ namespace loka
       ButtonDefinition(const ButtonProps &p) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>(p) {}
       ButtonDefinition(const char *text) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
-        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
+        this->props.text(text);
       }
       ButtonDefinition(loka::core::State<loka::core::String> *text) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
@@ -135,7 +171,7 @@ namespace loka
       }
       ButtonDefinition(const char *text, loka::core::EmitterState *onClick) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
-        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
+        this->props.text(text);
         this->props.onClick_ = onClick;
       }
       ButtonDefinition(loka::core::State<loka::core::String> *text, loka::core::EmitterState *onClick) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()

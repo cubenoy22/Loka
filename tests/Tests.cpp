@@ -13,6 +13,7 @@
 #include "app/scene/node/DynamicComposition.hpp"
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/Window.hpp"
 #include "app/PopupMenu.hpp"
@@ -2106,4 +2107,40 @@ void testNestedTransactionInvalidateTiming()
   }
 
   printf("==== [testNestedTransactionInvalidateTiming] end ====\n");
+}
+
+void testStaticButtonAndCellTextAreOwnedPerDefinition()
+{
+  loka::app::ButtonDefinition firstButton("First");
+  loka::app::ButtonDefinition secondButton("Second");
+  assert(firstButton.props.text_ != 0);
+  assert(secondButton.props.text_ != 0);
+  assert(firstButton.props.text_ != secondButton.props.text_);
+  assert(firstButton.props.text_->get().equals(loka::core::String::Literal("First")));
+  assert(secondButton.props.text_->get().equals(loka::core::String::Literal("Second")));
+
+  loka::app::CellDefinition firstCell("A1");
+  loka::app::CellDefinition secondCell("B2");
+  assert(firstCell.props.text_ != 0);
+  assert(secondCell.props.text_ != 0);
+  assert(firstCell.props.text_ != secondCell.props.text_);
+  assert(firstCell.props.text_->get().equals(loka::core::String::Literal("A1")));
+  assert(secondCell.props.text_->get().equals(loka::core::String::Literal("B2")));
+}
+
+void testMenuItemEnabledBoolDoesNotUseSharedStaticState()
+{
+  loka::app::MenuItemDefinition enabledItem("Enabled");
+  enabledItem.enabled(true);
+  assert(enabledItem.enabledBindingState() == 0);
+  assert(enabledItem.isEnabledInitial() == true);
+
+  loka::app::MenuItemDefinition disabledItem("Disabled");
+  disabledItem.enabled(false);
+  assert(disabledItem.enabledBindingState() == 0);
+  assert(disabledItem.isEnabledInitial() == false);
+
+  assert(enabledItem.equalsStructure(enabledItem));
+  assert(disabledItem.equalsStructure(disabledItem));
+  assert(!enabledItem.equalsStructure(disabledItem));
 }

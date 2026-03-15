@@ -30,11 +30,19 @@ namespace helloworld
 
   private:
     void toggleMessage();
+    void toggleActionEnabled();
+    void handleActionProbe();
+    void refreshActionSummary();
 
     MainNode *owner_;
     bool initialized_;
     loka::app::scene::BoundState<loka::core::String> message_;
     loka::core::EmitterState toggleEvent_;
+    loka::app::scene::BoundState<bool> actionEnabled_;
+    loka::app::scene::BoundState<int> actionProbeCount_;
+    loka::app::scene::BoundState<loka::core::String> actionSummary_;
+    loka::core::EmitterState toggleActionEnabledEvent_;
+    loka::core::EmitterState actionProbeEvent_;
     BmiCalculatorComponent bmiCalculator_;
   };
 

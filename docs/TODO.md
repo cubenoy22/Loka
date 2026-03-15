@@ -23,6 +23,7 @@
 - Toolbox/68k profiling: count redraw triggers and merged dirty regions per interaction to remove duplicate invalidation paths before deeper redraw refactors.
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).
 - requestDiscard protocol for save/confirm flows via EmitterState.
+- Menu rebuild contract: `MENU_ACTION_REBUILD_MENU` and menu-local state changes do not yet produce reliable reactive rebuild/apply across platforms, especially on macOS menu tracking. Add dedicated contract tests before expanding reactive menu samples.
 - Suppress clangd incomplete type warning for AttachedContext -> BoundaryNode access (include or type split).
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
 - C++98: reintroduce NodeComposition map/filter via C++98-friendly adapters.

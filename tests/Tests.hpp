@@ -27,6 +27,8 @@ void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
 void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
 void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
+void testStaticButtonAndCellTextAreOwnedPerDefinition();
+void testMenuItemEnabledBoolDoesNotUseSharedStaticState();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();

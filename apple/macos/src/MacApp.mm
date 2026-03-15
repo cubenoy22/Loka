@@ -56,6 +56,20 @@ namespace
     }
     return [NSString stringWithUTF8String:fallback];
   }
+
+  static bool IsEventTrackingRunLoopMode()
+  {
+    NSString *mode = [[NSRunLoop currentRunLoop] currentMode];
+    if (!mode)
+    {
+      return false;
+    }
+#ifdef NSEventTrackingRunLoopMode
+    return [mode isEqualToString:NSEventTrackingRunLoopMode] ? true : false;
+#else
+    return false;
+#endif
+  }
 }
 
 MacApp::MacApp(AppConfigurable *config)
@@ -116,7 +130,10 @@ void MacApp::quit()
 
 void MacApp::flushInvalidationsTick()
 {
-  this->flushMenuInvalidation();
+  if (!IsEventTrackingRunLoopMode())
+  {
+    this->flushMenuInvalidation();
+  }
   this->flushWindowInvalidations();
   MacScenePlatformController::flushPendingRelayouts();
 }

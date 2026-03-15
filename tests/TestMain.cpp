@@ -42,6 +42,8 @@ int main()
   testSceneRequestInvalidateDefersUntilFlush();
   testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
   testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
+  testStaticButtonAndCellTextAreOwnedPerDefinition();
+  testMenuItemEnabledBoolDoesNotUseSharedStaticState();
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();

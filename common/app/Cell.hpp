@@ -20,21 +20,48 @@ namespace loka
       typedef CellTypeTag TypeTag;
       typedef CellNode NodeType;
       loka::core::State<loka::core::String> *text_;
+      loka::core::MutableState<loka::core::String> ownedText_;
+      bool ownsText_;
       loka::core::EmitterState *onClick_;
-      CellProps() : text_(0), onClick_(0) {}
+      CellProps() : text_(0), ownedText_(), ownsText_(false), onClick_(0) {}
+      CellProps(const CellProps &other)
+          : text_(other.text_), ownedText_(other.ownedText_), ownsText_(other.ownsText_), onClick_(other.onClick_)
+      {
+        if (ownsText_)
+        {
+          text_ = &ownedText_;
+        }
+      }
+      CellProps &operator=(const CellProps &other)
+      {
+        if (this != &other)
+        {
+          text_ = other.text_;
+          ownedText_ = other.ownedText_;
+          ownsText_ = other.ownsText_;
+          onClick_ = other.onClick_;
+          if (ownsText_)
+          {
+            text_ = &ownedText_;
+          }
+        }
+        return *this;
+      }
       CellProps &text(loka::core::State<loka::core::String> *state)
       {
         text_ = state;
+        ownsText_ = false;
         return *this;
       }
       CellProps &text(const char *value)
       {
-        text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
-        return *this;
+        return text(loka::core::String::Literal(value));
       }
       CellProps &text(const loka::core::String &value)
       {
-        text_ = loka::core::StaticState<loka::core::String>(value);
+        ownedText_ = loka::core::MutableState<loka::core::String>(value);
+        text_ = &ownedText_;
+        ownsText_ = true;
         return *this;
       }
       CellProps &onClick(loka::core::EmitterState *e)
@@ -78,7 +105,7 @@ namespace loka
       CellDefinition(const CellProps &p) : loka::app::scene::NodeDefinition<CellProps, CellNode>(p) {}
       CellDefinition(const char *text) : loka::app::scene::NodeDefinition<CellProps, CellNode>()
       {
-        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(text));
+        this->props.text(text);
       }
       CellDefinition(loka::core::State<loka::core::String> *text) : loka::app::scene::NodeDefinition<CellProps, CellNode>()
       {
@@ -91,7 +118,7 @@ namespace loka
       }
       CellDefinition &text(const char *value)
       {
-        this->props.text_ = loka::core::StaticState<loka::core::String>(loka::core::String::Literal(value));
+        this->props.text(value);
         return *this;
       }
       CellDefinition &onClick(loka::core::EmitterState *e)

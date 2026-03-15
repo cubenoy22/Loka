@@ -103,6 +103,8 @@ namespace loka
       MenuItemDefinition()
           : title(),
             enabledState(0),
+            enabledValue_(true),
+            hasEnabledValue_(false),
             onClickState(0),
             action(MENU_ACTION_NONE),
             isSeparator(false),
@@ -118,6 +120,8 @@ namespace loka
       explicit MenuItemDefinition(const char *text)
           : title(loka::core::String::Literal(text)),
             enabledState(0),
+            enabledValue_(true),
+            hasEnabledValue_(false),
             onClickState(0),
             action(MENU_ACTION_NONE),
             isSeparator(false),
@@ -133,6 +137,8 @@ namespace loka
       explicit MenuItemDefinition(const loka::core::String &text)
           : title(text),
             enabledState(0),
+            enabledValue_(true),
+            hasEnabledValue_(false),
             onClickState(0),
             action(MENU_ACTION_NONE),
             isSeparator(false),
@@ -148,6 +154,8 @@ namespace loka
       MenuItemDefinition(const MenuItemDefinition &other)
           : title(other.title),
             enabledState(other.enabledState),
+            enabledValue_(other.enabledValue_),
+            hasEnabledValue_(other.hasEnabledValue_),
             onClickState(other.onClickState),
             action(other.action),
             isSeparator(other.isSeparator),
@@ -177,6 +185,8 @@ namespace loka
           return *this;
         title = other.title;
         enabledState = other.enabledState;
+        enabledValue_ = other.enabledValue_;
+        hasEnabledValue_ = other.hasEnabledValue_;
         onClickState = other.onClickState;
         action = other.action;
         isSeparator = other.isSeparator;
@@ -212,12 +222,15 @@ namespace loka
       MenuItemDefinition &enabled(loka::core::State<bool> *state)
       {
         enabledState = state;
+        hasEnabledValue_ = false;
         return *this;
       }
 
       MenuItemDefinition &enabled(bool value)
       {
-        enabledState = loka::core::StaticState<bool>(value);
+        enabledState = 0;
+        enabledValue_ = value;
+        hasEnabledValue_ = true;
         return *this;
       }
 
@@ -253,6 +266,10 @@ namespace loka
         if (this->enabledState)
         {
           return this->enabledState->get();
+        }
+        if (this->hasEnabledValue_)
+        {
+          return this->enabledValue_;
         }
         if (!this->hasAttr_)
         {
@@ -318,6 +335,10 @@ namespace loka
           return false;
         if (enabledState != other.enabledState)
           return false;
+        if (enabledValue_ != other.enabledValue_)
+          return false;
+        if (hasEnabledValue_ != other.hasEnabledValue_)
+          return false;
         if (onClickState != other.onClickState)
           return false;
         if (action != other.action)
@@ -355,6 +376,8 @@ namespace loka
 
       loka::core::String title;
       loka::core::State<bool> *enabledState;
+      bool enabledValue_;
+      bool hasEnabledValue_;
       loka::core::EmitterState *onClickState;
       MenuActionType action;
       bool isSeparator;

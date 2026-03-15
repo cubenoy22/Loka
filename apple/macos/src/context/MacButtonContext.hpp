@@ -25,13 +25,18 @@ public:
 private:
   void bindText();
   void unbindText();
+  void bindEnabled();
+  void unbindEnabled();
   void applyText();
+  void applyEnabled();
   static void TextChangedThunk(void *userData);
+  static void EnabledChangedThunk(void *userData);
 
   loka::app::ButtonNode *node_;
   void *button_;
   void *target_;
   loka::core::State<loka::core::String> *textState_;
+  loka::core::State<bool> *enabledState_;
 };
 
 #endif // LOKA_MAC_BUTTON_CONTEXT_HPP
