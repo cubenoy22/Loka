@@ -4,7 +4,6 @@
 
 - Define Modifier system (Text style + Window sizing) and wire through WindowProps/Layout.
 - Decide default window size (macOS/Win32/Toolbox) and unify hardcoded values.
-- Sample: Image viewer.
 - Sample: MyTracker (editable device spec catalog).
 - Sample: FloppyBird (FlappyBird clone).
 - Audit remaining `std::string` usage and keep only intentional interop edges (UTF-8/platform bridge paths).
@@ -23,7 +22,6 @@
 - Toolbox/68k redraw policy: replace direct `drawDirty` calls with `markDirty` accumulation, then flush once in `updateEvt` (`BeginUpdate/EndUpdate`) using `InvalRect`/`InvalRgn`.
 - Toolbox/68k profiling: count redraw triggers and merged dirty regions per interaction to remove duplicate invalidation paths before deeper redraw refactors.
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).
-- SceneManager: review API for swapping to CompositeNode/NodeComposition once Window::mount lands.
 - requestDiscard protocol for save/confirm flows via EmitterState.
 - Suppress clangd incomplete type warning for AttachedContext -> BoundaryNode access (include or type split).
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
@@ -32,7 +30,7 @@
 - Docs/tests: document C++98 constraints and add checks for accidental C++11 usage.
 - Cleanup staged work from earlier C++98 retrofit (split/rebase if needed).
 - DSL shorthand ideas: direct props overloads (Text("...")), direct State props (EditText(State*)), optional prepare/compose merge, namespace alias, Fragment helper.
-- Node種別の分散化: NODE_KIND enum + asXxxNode() + PlatformController switch の一極集中を解消。各ノードクラスが自身のコンテキスト生成を持ち込める登録型アーキテクチャへ移行する。68k以外はRTTIでasXxxNode()を廃止、コンテキストファクトリ登録でenum/switchも不要にする。ユーザー定義コンポーネントの拡張性確保が目標。
+- Decentralize node-type dispatch: replace the single `NODE_KIND` + `asXxxNode()` + `PlatformController` switch concentration with a registration-based context factory model. The long-term goal is to remove enum/switch dispatch and most `asXxxNode()` paths outside 68k-sensitive builds while preserving user-defined component extensibility.
 - Introduce `loka::multimedia` layer for codec/media responsibilities (ImageDecoder/Audio/Video), keeping `app` layer UI-only. Platform contexts should call multimedia abstractions instead of embedding QuickTime/AVFoundation/Win32 decode logic directly.
 - ImageView rendering policy: keep platform contexts on custom drawing paths (NSView/GDI/Toolbox) and avoid tying behavior to NSImageView-specific features for cross-platform parity.
 - ImageView scaling contract: `fit` mode handling aligned on Win32/macOS (`NONE/CONTAIN/COVER/STRETCH`); Toolbox now has ImageView render path (frame + loaded-state overlay), but native image blit from `Image::nativeHandle` is still pending.
@@ -46,8 +44,7 @@
 - Flow DSL combinators: revisit logical `all` / `race` after child-flow support lands; prioritize test/scenario semantics (grouped checks, timeout-vs-event wait) over concurrency.
 - Flow DSL perf harness: add a measurement flow that runs an operation/scenario flow 3-10 times, records per-run timing/profile data, and exits with a summarized report so the same harness works on Toolbox/macOS/Win32.
 - Flow DSL use-case validation: add video encoder stub scenarios (Qt / AVFoundation / Windows API style) for `open -> frame push -> finalize` and failure-path coverage.
-- NodeDSL control components: prioritize `Cond`/`ShowIf` for OS-specific component branching; keep platform `#if` isolated in capability/platform implementation layers.
-- Control components roadmap: `ShowIf`/`Cond` first (compose-time branch fixup), then constrained `For` (static/fixed list) to avoid 68k runtime loop costs.
+- Control components roadmap: add constrained `For` (static/fixed list) after `Cond`/`ShowIf`, while keeping platform `#if` isolated in capability/platform implementation layers and avoiding unnecessary 68k runtime loop costs.
 - Cond/ShowIf test matrix: cover true/false branch selection, default/otherwise branch, nested Cond evaluation order, and stable node tree creation across recomposition.
 - Cond/ShowIf state-change tests: verify branch switching when bound `State<bool>` changes, no stale active node retention, and expected cleanup/destructor calls on old branch nodes.
 - Cond/ShowIf platform-branch tests: validate OS-specific component selection via stubs (Toolbox/Win32/macOS) without DSL-side `#if`.
