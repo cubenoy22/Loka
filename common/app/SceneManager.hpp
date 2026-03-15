@@ -1,5 +1,5 @@
-#ifndef LOKA_SCENEMANAGER2_HPP
-#define LOKA_SCENEMANAGER2_HPP
+#ifndef LOKA_SCENEMANAGER_HPP
+#define LOKA_SCENEMANAGER_HPP
 
 #include "app/scene/Scene.hpp"
 #include "loka/core/State.hpp"
@@ -113,17 +113,17 @@ public:
   SceneManager();
   ~SceneManager();
 
-  // トランザクション追加
+  // Queue and apply a scene transition immediately.
   void commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to);
-  // 現在のシーン取得
+  // Return the currently attached scene state.
   const loka::core::State<loka::app::scene::Scene *> &getCurrentScene() const;
 
 protected:
-  // ペンディングトランザクション取得
+  // Return the pending transition queue snapshot.
   SceneTransactionList getPendingTransactions() const;
-  // トランザクション進行
+  // Consume the next queued transition.
   void handleNextTransaction();
-  // 副作用: シーン切り替え
+  // Apply the actual scene swap side effects.
   void swapScene(loka::app::scene::Scene *oldScene, loka::app::scene::Scene *newScene);
 
 public:
@@ -137,4 +137,4 @@ private:
   Window *window_;
 };
 
-#endif // LOKA_SCENEMANAGER2_HPP
+#endif // LOKA_SCENEMANAGER_HPP

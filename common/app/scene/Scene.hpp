@@ -6,7 +6,7 @@
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
 #include "loka/platform/DebugLog.hpp"
 #endif
-#include "app/scene/Node.hpp" // NodeDefinitionBase 使用のため定義を取得
+#include "app/scene/Node.hpp" // Required for NodeDefinitionBase.
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/ComponentContext.hpp"
 #include "app/scene/NodeComposition.hpp"
@@ -38,7 +38,7 @@ namespace loka
   {
     namespace scene
     {
-      // 前方宣言のみ。詳細は利用側の実装ファイルでincludeする
+      // Forward declaration only. Include the concrete type where needed.
       struct NodeComposition;
 
       class Scene
@@ -58,20 +58,20 @@ namespace loka
           }
           NodeDirtyFlags flags;
         };
-        // Boundary 定義のみを受け付ける (compile-time check via IsBoundaryDefinition)
+        // Accept Boundary definitions only (compile-time check via IsBoundaryDefinition).
         template <class DefT>
         explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
             : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
         {
           assert(def && "Scene requires a root definition");
         }
-        // NodeDefinitionBase からの構築（非Boundaryは自動ラップ）
+        // Construct from NodeDefinitionBase and auto-wrap non-boundary roots.
         explicit Scene(NodeDefinitionBase *def)
             : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
         {
           assert(def && "Scene requires a root definition");
         }
-        // ルート定義を clone して所有するオーバーロード
+        // Clone and take ownership of the root definition.
         template <class DefT>
         explicit Scene(const DefT &def, typename DefT::IsBoundaryDefinition * = 0)
             : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
@@ -92,12 +92,12 @@ namespace loka
         void setWindow(Window *window) { window_ = window; }
         const SceneCompositionDiff &compositionDiff() const { return compositionDiff_; }
 
-        // 外部公開: State*として取得
+        // Expose lifecycle and attached states for observation.
         loka::core::State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
         loka::core::State<bool> *getAttachedState() { return &attached_; }
 
-        // 公開ラッパ: 外部から安全にライフサイクル/アタッチ状態を更新する用途
-        // (SceneManager 以外での最小限の操作許可。副作用管理は呼び出し側で StateTracker を利用する想定)
+        // Public wrappers for controlled lifecycle and attached updates.
+        // SceneManager is the main caller; other callers must manage side effects via StateTracker.
         void updateAttached(bool v)
         {
           setAttached(v);
@@ -189,7 +189,7 @@ namespace loka
         loka::dsl::NextTickTracker nextTickTracker_;
         SceneCompositionDiff compositionDiff_;
 
-        // SceneManagerからlifecycle_/attachedを書き換え可能に
+        // SceneManager owns lifecycle_/attached mutations.
         friend class SceneManager;
         friend class ::loka::dsl::testing::SceneTestAccess;
 

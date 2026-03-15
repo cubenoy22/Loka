@@ -25,7 +25,7 @@ void SceneManager::commitTransaction(loka::app::scene::Scene *from, loka::app::s
   txns.push(from, to);
   pendingTransactions_.set(txns);
   tracker_.end();
-  handleNextTransaction(); // 追加: 追加直後に即時遷移
+  handleNextTransaction(); // Apply the queued transition immediately.
 }
 
 const loka::core::State<loka::app::scene::Scene *> &SceneManager::getCurrentScene() const
@@ -45,7 +45,7 @@ void SceneManager::handleNextTransaction()
     return;
   loka::app::scene::Scene *oldScene = currentScene_.get();
   loka::app::scene::Scene *newScene = txns.head()->to;
-  // attached の切り替えは swapScene 内で行う
+  // swapScene owns the attached/lifecycle updates.
   swapScene(oldScene, newScene);
   tracker_.begin();
   SceneTransactionList nextTxns = txns;
@@ -58,8 +58,7 @@ void SceneManager::swapScene(loka::app::scene::Scene *oldScene, loka::app::scene
 {
   if (oldScene == newScene)
     return;
-  // if (oldScene)
-  //   oldScene->onDetach(); // observableなstateで管理するためコールバック呼び出しを廃止
+  // Lifecycle is expressed through observable state instead of direct callbacks.
   tracker_.begin();
   if (oldScene)
   {
@@ -75,6 +74,4 @@ void SceneManager::swapScene(loka::app::scene::Scene *oldScene, loka::app::scene
     newScene->updateLifecycle(ON_ATTACH);
   }
   tracker_.end();
-  // if (newScene)
-  //   newScene->onAttach(); // observableなstateで管理するためコールバック呼び出しを廃止
 }
