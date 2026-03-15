@@ -249,6 +249,7 @@ namespace staticvsdynamic
     MainNode(const MainProps &p)
         : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false),
+          composeProbeRefreshPending_(false),
           lastStaticComposeCount_(0),
           lastDynamicComposeCount_(0),
           sharedCount_(),
@@ -282,8 +283,7 @@ namespace staticvsdynamic
       this->bindForUi(this->toggleEnabledEvent_, this, &MainNode::toggleEnabled);
       this->bindForUi(this->resetCountEvent_, this, &MainNode::resetCount);
       this->refreshLabels();
-      this->refreshCountsLabel();
-      this->refreshWindowTitle();
+      this->scheduleComposeProbeRefresh();
       this->initialized_ = true;
     }
 
@@ -305,15 +305,13 @@ namespace staticvsdynamic
     virtual void noteStaticCompose(int count)
     {
       this->lastStaticComposeCount_ = count;
-      this->refreshCountsLabel();
-      this->refreshWindowTitle();
+      this->scheduleComposeProbeRefresh();
     }
 
     virtual void noteDynamicCompose(int count)
     {
       this->lastDynamicComposeCount_ = count;
-      this->refreshCountsLabel();
-      this->refreshWindowTitle();
+      this->scheduleComposeProbeRefresh();
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -365,28 +363,57 @@ namespace staticvsdynamic
     {
       this->sharedCount_.set(this->sharedCount_.get() + 1, true);
       this->refreshLabels();
-      this->refreshCountsLabel();
     }
 
     void toggleDetails()
     {
       this->detailsVisible_.set(!this->detailsVisible_.get(), true);
       this->refreshLabels();
-      this->refreshCountsLabel();
     }
 
     void toggleEnabled()
     {
       this->actionEnabled_.set(!this->actionEnabled_.get(), true);
       this->refreshLabels();
-      this->refreshCountsLabel();
     }
 
     void resetCount()
     {
       this->sharedCount_.set(0, true);
       this->refreshLabels();
-      this->refreshCountsLabel();
+    }
+
+    static void RefreshComposeProbeThunk(void *userData)
+    {
+      MainNode *self = static_cast<MainNode *>(userData);
+      if (!self)
+      {
+        return;
+      }
+      self->composeProbeRefreshPending_ = false;
+      self->refreshCountsLabel();
+      self->refreshWindowTitle();
+    }
+
+    void scheduleComposeProbeRefresh()
+    {
+      if (this->composeProbeRefreshPending_)
+      {
+        return;
+      }
+      loka::core::StateTracker *tracker = this->tracker();
+      if (!tracker)
+      {
+        return;
+      }
+      if (tracker->phase() == loka::core::TRACKER_IDLE)
+      {
+        this->refreshCountsLabel();
+        this->refreshWindowTitle();
+        return;
+      }
+      this->composeProbeRefreshPending_ = true;
+      tracker->defer(&MainNode::RefreshComposeProbeThunk, this);
     }
 
     void refreshLabels()
@@ -426,6 +453,7 @@ namespace staticvsdynamic
     }
 
     bool initialized_;
+    bool composeProbeRefreshPending_;
     int lastStaticComposeCount_;
     int lastDynamicComposeCount_;
     loka::app::scene::BoundState<int> sharedCount_;

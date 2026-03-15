@@ -6,5 +6,6 @@ void testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
 void testWin32ScenePlatformDynamicPropsAndLayoutReuseContexts();
 void testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
 void testWin32ScenePlatformChildRebuildCleansUpOldContexts();
+void testWin32ScenePlatformForeignObservedChildRebuildSwapsContexts();
 
 #endif // LOKA_WIN32_SCENE_PLATFORM_TESTS_HPP

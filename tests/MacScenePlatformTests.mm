@@ -28,6 +28,7 @@ namespace
   loka::core::MutableState<loka::core::String> *g_textState = 0;
   loka::core::MutableState<bool> *g_enabledState = 0;
   loka::core::MutableState<bool> *g_swapChildState = 0;
+  loka::core::MutableState<bool> *g_foreignSwapChildState = 0;
 
   class DynamicMacTestNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacTestNode> DynamicMacTestProps;
@@ -115,6 +116,78 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicMacSwapHostProps, DynamicMacSwapHostNode> DynamicMacSwapHostBoundary()
   {
     return loka::app::scene::Boundary<DynamicMacSwapHostNode>();
+  }
+
+  class DynamicMacForeignSwapNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacForeignSwapNode> DynamicMacForeignSwapProps;
+
+  class DynamicMacForeignSwapNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicMacForeignSwapNode>
+  {
+  public:
+    DynamicMacForeignSwapNode(const DynamicMacForeignSwapProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicMacForeignSwapNode>(DynamicMacForeignSwapProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      if (g_foreignSwapChildState && g_foreignSwapChildState->get())
+      {
+        c.declare(loka::app::Text("Dynamic rebuild branch").testId("ForeignSwapText"));
+      }
+      else
+      {
+        c.declare(loka::app::Button("Dynamic hidden branch").testId("ForeignSwapButton"));
+      }
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_foreignSwapChildState)
+      {
+        registrar.observe(g_foreignSwapChildState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacForeignSwapProps, DynamicMacForeignSwapNode> DynamicMacForeignSwapBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicMacForeignSwapNode>();
+  }
+
+  class DynamicMacForeignSwapHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicMacForeignSwapHostNode> DynamicMacForeignSwapHostProps;
+
+  class DynamicMacForeignSwapHostNode : public loka::app::scene::BoundaryNodeFor<DynamicMacForeignSwapHostNode>
+  {
+  public:
+    DynamicMacForeignSwapHostNode(const DynamicMacForeignSwapHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicMacForeignSwapHostNode>(DynamicMacForeignSwapHostProps(p)), observed_() {}
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->observed_, false);
+      g_foreignSwapChildState = this->observed_.mutableState();
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      g_foreignSwapChildState = 0;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::HStack()
+                << loka::app::Text("StaticMarker").testId("ForeignStaticMarker")
+                << DynamicMacForeignSwapBoundary());
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> observed_;
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacForeignSwapHostProps, DynamicMacForeignSwapHostNode> DynamicMacForeignSwapHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicMacForeignSwapHostNode>();
   }
 
   ::loka::app::scene::Node *findNodeByTestId(::loka::app::scene::Node *node, const std::string &testId)
@@ -519,4 +592,44 @@ void testMacScenePlatformChildRebuildCleansUpOldContexts()
   [rootView release];
   [pool drain];
   g_swapChildState = 0;
+}
+
+void testMacScenePlatformForeignObservedChildRebuildSwapsContexts()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 160)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(DynamicMacForeignSwapHostBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "ForeignSwapButton");
+  assert(buttonNode != 0);
+  assert(buttonNode->getContext() != 0);
+  assert(findNodeByTestId(root, "ForeignSwapText") == 0);
+  const NSUInteger initialSubviewCount = [[rootView subviews] count];
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  assert(g_foreignSwapChildState != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    g_foreignSwapChildState->set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(findNodeByTestId(root, "ForeignSwapButton") == 0);
+  ::loka::app::scene::Node *textNode = findNodeByTestId(root, "ForeignSwapText");
+  assert(textNode != 0);
+  assert(textNode->getContext() != 0);
+  assert([[rootView subviews] count] == initialSubviewCount);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_foreignSwapChildState = 0;
 }

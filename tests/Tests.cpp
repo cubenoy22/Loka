@@ -556,6 +556,34 @@ namespace
   loka::core::MutableState<bool> *g_foreignBoundaryObservedState = 0;
   int g_foreignDynamicObservedComposeCount = 0;
 
+  static loka::app::scene::Node *findNodeByTestIdRecursive(loka::app::scene::Node *node, const char *testId)
+  {
+    if (!node || !testId)
+    {
+      return 0;
+    }
+    if (node->testId() == testId)
+    {
+      return node;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return 0;
+    }
+    loka::app::scene::Node *child = nestable->childrenHead();
+    while (child)
+    {
+      loka::app::scene::Node *found = findNodeByTestIdRecursive(child, testId);
+      if (found)
+      {
+        return found;
+      }
+      child = child->nextInComposition;
+    }
+    return 0;
+  }
+
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
@@ -1071,6 +1099,79 @@ namespace
   {
     return loka::app::scene::Boundary<ForeignDynamicObservedHostNode>();
   }
+
+  class SampleLikeDynamicPaneNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<SampleLikeDynamicPaneNode> SampleLikeDynamicPaneProps;
+
+  class SampleLikeDynamicPaneNode : public loka::app::scene::DynamicCompositionNodeFor<SampleLikeDynamicPaneNode>
+  {
+  public:
+    SampleLikeDynamicPaneNode(const SampleLikeDynamicPaneProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<SampleLikeDynamicPaneNode>(SampleLikeDynamicPaneProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      ++g_foreignDynamicObservedComposeCount;
+      if (g_foreignBoundaryObservedState && g_foreignBoundaryObservedState->get())
+      {
+        c.declare(loka::app::Text("Dynamic rebuild branch").testId("DynamicDetailsText"));
+      }
+      else
+      {
+        c.declare(loka::app::Button("Dynamic hidden branch").testId("DynamicDetailsButton"));
+      }
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_foreignBoundaryObservedState)
+      {
+        registrar.observe(g_foreignBoundaryObservedState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<SampleLikeDynamicPaneProps, SampleLikeDynamicPaneNode> SampleLikeDynamicPaneBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<SampleLikeDynamicPaneNode>();
+  }
+
+  class SampleLikeHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<SampleLikeHostNode> SampleLikeHostProps;
+
+  class SampleLikeHostNode : public loka::app::scene::BoundaryNodeFor<SampleLikeHostNode>
+  {
+  public:
+    SampleLikeHostNode(const SampleLikeHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<SampleLikeHostNode>(SampleLikeHostProps(p)), observed_() {}
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->observed_, false);
+      g_foreignBoundaryObservedState = this->observed_.mutableState();
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      g_foreignBoundaryObservedState = 0;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::HStack()
+                << loka::app::Text("Static pane marker").testId("StaticMarker")
+                << SampleLikeDynamicPaneBoundary());
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> observed_;
+  };
+
+  loka::app::scene::BoundaryDefinition<SampleLikeHostProps, SampleLikeHostNode> SampleLikeHostBoundary()
+  {
+    return loka::app::scene::Boundary<SampleLikeHostNode>();
+  }
 }
 
 void testSceneBoundaryNestedCompose()
@@ -1511,6 +1612,63 @@ void testDynamicBoundaryObservedParentOwnedStateTriggersChildRecompose()
   assert(g_foreignDynamicObservedComposeCount >= 2);
   assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
   assert(platform.lastFullRebuild_ == true);
+
+  scene.unmount();
+  g_foreignBoundaryObservedState = 0;
+}
+
+void testDynamicBoundaryObservedParentOwnedStateSwapsSampleLikeBranch()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      (void)fullRebuild;
+      lastFlags_ = flags;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+    NodeDirtyFlags lastFlags_;
+  };
+
+  g_foreignDynamicObservedComposeCount = 0;
+  g_foreignBoundaryObservedState = 0;
+
+  Scene scene(SampleLikeHostBoundary());
+  DirtyCapturePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  assert(findNodeByTestIdRecursive(root, "DynamicDetailsButton") != 0);
+  assert(findNodeByTestIdRecursive(root, "DynamicDetailsText") == 0);
+
+  loka::app::scene::BoundaryNode *rootBoundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(rootBoundary != 0);
+  assert(g_foreignBoundaryObservedState != 0);
+  {
+    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+    g_foreignBoundaryObservedState->set(true);
+  }
+
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  assert(findNodeByTestIdRecursive(root, "DynamicDetailsButton") == 0);
+  assert(findNodeByTestIdRecursive(root, "DynamicDetailsText") != 0);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+  assert(g_foreignDynamicObservedComposeCount >= 2);
 
   scene.unmount();
   g_foreignBoundaryObservedState = 0;

@@ -37,6 +37,7 @@ int main()
   testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
   testDynamicBoundaryObservedParentOwnedStateTriggersChildRecompose();
+  testDynamicBoundaryObservedParentOwnedStateSwapsSampleLikeBranch();
   testPopupMenuSelectionStateDoesNotInvalidateScene();
   testOpenFileDialogStatesDoNotInvalidateScene();
   testSceneInvalidateUsesRequestedDirtyFlags();
@@ -59,6 +60,7 @@ int main()
   testWin32ScenePlatformDynamicPropsAndLayoutReuseContexts();
   testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
   testWin32ScenePlatformChildRebuildCleansUpOldContexts();
+  testWin32ScenePlatformForeignObservedChildRebuildSwapsContexts();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
@@ -68,6 +70,7 @@ int main()
   testMacScenePlatformRelayoutReusesCellAndTextContexts();
   testMacScenePlatformFullRebuildFlagControlsContextReuse();
   testMacScenePlatformChildRebuildCleansUpOldContexts();
+  testMacScenePlatformForeignObservedChildRebuildSwapsContexts();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();

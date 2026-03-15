@@ -22,6 +22,7 @@ void testDynamicBoundaryDetachesSubtreeBeforeChildRecompose();
 void testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
 void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
 void testDynamicBoundaryObservedParentOwnedStateTriggersChildRecompose();
+void testDynamicBoundaryObservedParentOwnedStateSwapsSampleLikeBranch();
 void testPopupMenuSelectionStateDoesNotInvalidateScene();
 void testOpenFileDialogStatesDoNotInvalidateScene();
 void testSceneInvalidateUsesRequestedDirtyFlags();

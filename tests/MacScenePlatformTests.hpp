@@ -8,5 +8,6 @@ void testMacScenePlatformRelayoutReusesControlContexts();
 void testMacScenePlatformRelayoutReusesCellAndTextContexts();
 void testMacScenePlatformFullRebuildFlagControlsContextReuse();
 void testMacScenePlatformChildRebuildCleansUpOldContexts();
+void testMacScenePlatformForeignObservedChildRebuildSwapsContexts();
 
 #endif // LOKA_MAC_SCENE_PLATFORM_TESTS_HPP
