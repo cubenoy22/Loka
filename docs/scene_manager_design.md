@@ -1,6 +1,6 @@
-# SceneManager2 設計ノート（2025-11）
+# SceneManager 設計ノート（2025-11）
 
-`common/app/SceneManager2.*` を中心に、現状の Scene 遷移制御と今後強化したいポイントをまとめる。
+`common/app/SceneManager.*` を中心に、現状の Scene 遷移制御と今後強化したいポイントをまとめる。
 
 ---
 
@@ -8,11 +8,11 @@
 
 | モジュール                    | 役割                                                                                                                           | 主要メンバ                                                                                                                                     |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SceneManager2`               | Window 1 枚あたり 1 つ保持。Scene の差し替えとトランザクションキューを管理。                                                   | `MutableState<Scene*> currentScene_`, `MutableState<std::vector<std::pair<Scene*, Scene*>>> pendingTransactions_`, `PushStateTracker tracker_` |
-| `Window`                      | `SceneManager2` を内包し、`sceneManager()->commitTransaction(...)` を外部 API にする。                                         | `SceneManager2 sceneManager_`                                                                                                                  |
+| `SceneManager`                | Window 1 枚あたり 1 つ保持。Scene の差し替えとトランザクションキューを管理。                                                   | `MutableState<Scene*> currentScene_`, `MutableState<std::vector<std::pair<Scene*, Scene*>>> pendingTransactions_`, `PushStateTracker tracker_` |
+| `Window`                      | `SceneManager` を内包し、`sceneManager()->commitTransaction(...)` を外部 API にする。                                          | `SceneManager sceneManager_`                                                                                                                   |
 | `loka::app::scene::Scene` | SceneLifecycle を `MutableState<SceneLifecycle>` で保持。BoundaryNode をルートとして管理。非Boundaryルートは自動ラップ。 | `MutableState<SceneLifecycle> lifecycle_`, `BoundaryNode* rootNode_`                                                                                                      |
 
-`SceneManager2` は旧仕様の `SceneTransaction`/`SceneManagerDelegate` を廃止し、「単純な from/to キュー + Tracker による再描画通知」に縮約している。
+`SceneManager` は旧仕様の `SceneTransaction`/`SceneManagerDelegate` を廃止し、「単純な from/to キュー + Tracker による再描画通知」に縮約している。
 
 ---
 
@@ -39,9 +39,9 @@
 
 ## 3. Window / Scene との連携
 
-- `Window` のコンストラクタで `SceneManager2` を初期化し、`sceneManager_.getCurrentScene()` を `State<Scene*>` として公開している。
+- `Window` のコンストラクタで `SceneManager` を初期化し、`sceneManager_.getCurrentScene()` を `State<Scene*>` として公開している。
 - `Window::scene()` は `sceneManager_.getCurrentScene().get()` の薄いラッパー。
-- `design_minutes.md` の Solid-mode 仕様では「Window::mount(CompositeNode&)」を最小スコープとして扱う計画なので、SceneManager2 は「Window 単位の Scene スロット」を維持する役割に専念させる。
+- `design_minutes.md` の Solid-mode 仕様では「Window::mount(CompositeNode&)」を最小スコープとして扱う計画なので、SceneManager は「Window 単位の Scene スロット」を維持する役割に専念させる。
 
 ---
 
@@ -49,7 +49,7 @@
 
 1. **ライフサイクル通知の整理**
 
-   - `SceneManager2::swapScene` で `Scene::updateAttached` と `Scene::updateLifecycle` を書き換える方針で実装済み。
+   - `SceneManager::swapScene` で `Scene::updateAttached` と `Scene::updateLifecycle` を書き換える方針で実装済み。
 
 2. **discardable/requestDiscard の未実装**
 
@@ -70,8 +70,8 @@
 
 ## 6. 参照
 
-- `common/app/SceneManager2.hpp`
-- `common/app/SceneManager2.cpp`
+- `common/app/SceneManager.hpp`
+- `common/app/SceneManager.cpp`
 - `common/app/Window.hpp`
 - `common/app/scene/Scene.hpp`
 - `docs/design_minutes.md`（Solid-mode の Window/Scene 設計方針）
