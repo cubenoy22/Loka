@@ -36,6 +36,7 @@ int main()
   testDynamicBoundaryDetachesSubtreeBeforeChildRecompose();
   testDynamicBoundaryRecomposeDoesNotDuplicateBoundaryCallbacks();
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
+  testDynamicBoundaryObservedParentOwnedStateTriggersChildRecompose();
   testPopupMenuSelectionStateDoesNotInvalidateScene();
   testOpenFileDialogStatesDoNotInvalidateScene();
   testSceneInvalidateUsesRequestedDirtyFlags();

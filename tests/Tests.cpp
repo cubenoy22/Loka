@@ -17,6 +17,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/Window.hpp"
 #include "app/PopupMenu.hpp"
+#include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/String.hpp"
@@ -552,6 +553,8 @@ namespace
   int g_dynamicChildAttachComposeCount = 0;
   int g_dynamicChildUpdateEventCount = 0;
   loka::core::MutableState<bool> *g_boundaryObservedState = 0;
+  loka::core::MutableState<bool> *g_foreignBoundaryObservedState = 0;
+  int g_foreignDynamicObservedComposeCount = 0;
 
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
@@ -1004,6 +1007,70 @@ namespace
   {
     return loka::app::scene::Boundary<DynamicObservedHostNode>();
   }
+
+  class ForeignDynamicObservedBoundaryNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<ForeignDynamicObservedBoundaryNode> ForeignDynamicObservedBoundaryProps;
+
+  class ForeignDynamicObservedBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<ForeignDynamicObservedBoundaryNode>
+  {
+  public:
+    ForeignDynamicObservedBoundaryNode(const ForeignDynamicObservedBoundaryProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<ForeignDynamicObservedBoundaryNode>(ForeignDynamicObservedBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      ++g_foreignDynamicObservedComposeCount;
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_foreignBoundaryObservedState)
+      {
+        registrar.observe(g_foreignBoundaryObservedState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<ForeignDynamicObservedBoundaryProps, ForeignDynamicObservedBoundaryNode> ForeignDynamicObservedBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<ForeignDynamicObservedBoundaryNode>();
+  }
+
+  class ForeignDynamicObservedHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<ForeignDynamicObservedHostNode> ForeignDynamicObservedHostProps;
+
+  class ForeignDynamicObservedHostNode : public loka::app::scene::BoundaryNodeFor<ForeignDynamicObservedHostNode>
+  {
+  public:
+    ForeignDynamicObservedHostNode(const ForeignDynamicObservedHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<ForeignDynamicObservedHostNode>(ForeignDynamicObservedHostProps(p)), observed_() {}
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->observed_, false);
+      g_foreignBoundaryObservedState = this->observed_.mutableState();
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      g_foreignBoundaryObservedState = 0;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(ForeignDynamicObservedBoundary());
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> observed_;
+  };
+
+  loka::app::scene::BoundaryDefinition<ForeignDynamicObservedHostProps, ForeignDynamicObservedHostNode> ForeignDynamicObservedHostBoundary()
+  {
+    return loka::app::scene::Boundary<ForeignDynamicObservedHostNode>();
+  }
 }
 
 void testSceneBoundaryNestedCompose()
@@ -1393,6 +1460,60 @@ void testBoundaryDirtyPolicyStaticImmediateDynamicDeferred()
   }
 
   g_boundaryObservedState = 0;
+}
+
+void testDynamicBoundaryObservedParentOwnedStateTriggersChildRecompose()
+{
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), lastFullRebuild_(false) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    int calls_;
+    NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+  };
+
+  g_foreignDynamicObservedComposeCount = 0;
+  g_foreignBoundaryObservedState = 0;
+
+  Scene scene(ForeignDynamicObservedHostBoundary());
+  DirtyCapturePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  assert(g_foreignBoundaryObservedState != 0);
+  assert(g_foreignDynamicObservedComposeCount == 1);
+
+  loka::app::scene::BoundaryNode *rootBoundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(rootBoundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+    g_foreignBoundaryObservedState->set(true);
+  }
+
+  scene.flushInvalidation();
+  assert(g_foreignDynamicObservedComposeCount >= 2);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+  assert(platform.lastFullRebuild_ == true);
+
+  scene.unmount();
+  g_foreignBoundaryObservedState = 0;
 }
 
 void testPopupMenuSelectionStateDoesNotInvalidateScene()
@@ -2157,7 +2278,9 @@ void testConditionalNodeTeardownAfterOwnedStateIsSafe()
   {
   public:
     ConditionalTeardownRootNode(const ConditionalTeardownRootProps &p)
-        : BoundaryNodeFor<ConditionalTeardownRootNode>(ConditionalTeardownRootProps(p)), showDetails_()
+        : BoundaryNodeFor<ConditionalTeardownRootNode>(ConditionalTeardownRootProps(p)),
+          showDetails_(),
+          details_(Text("Detail"))
     {
     }
 
@@ -2168,12 +2291,12 @@ void testConditionalNodeTeardownAfterOwnedStateIsSafe()
 
     virtual void composeNode(NodeComposition &c)
     {
-      TextDefinition details = Text("Detail");
-      c.declare(VStack() << c.showIf(showDetails_, details));
+      c.declare(VStack() << c.showIf(*showDetails_.state(), details_));
     }
 
   private:
     BoundState<bool> showDetails_;
+    TextDefinition details_;
   };
 
   class DummyPlatformController : public IPlatformController

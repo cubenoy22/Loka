@@ -2,24 +2,52 @@
 #define LOKA_STATIC_VS_DYNAMIC_MAIN_NODE_HPP
 
 #include <cstdio>
+#include <cstring>
 
 #include "app/Button.hpp"
 #include "app/Empty.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include "app/Window.hpp"
+#include "app/scene/BoundState.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/node/DynamicComposition.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "loka/core/String.hpp"
+#include "loka/core/util/StateTrackerGuard.hpp"
+
+class Window;
 
 namespace staticvsdynamic
 {
+  class MainBoundary
+  {
+  public:
+    static const char *kInterfaceName() { return "StaticVsDynamicMainBoundary"; }
+
+    static MainBoundary *fromNode(loka::app::scene::Node *node)
+    {
+      if (!node)
+      {
+        return 0;
+      }
+      return static_cast<MainBoundary *>(node->queryInterface(kInterfaceName()));
+    }
+
+    virtual ~MainBoundary() {}
+    virtual void noteStaticCompose(int count) = 0;
+    virtual void noteDynamicCompose(int count) = 0;
+  };
+
+  class MainNode;
+
   struct SharedPaneRefs
   {
     SharedPaneRefs()
         : sharedCountText_(0),
           statusText_(0),
+          composeCountText_(0),
           actionEnabled_(0),
           detailsVisible_(0),
           sharedAction_(0)
@@ -28,6 +56,7 @@ namespace staticvsdynamic
 
     loka::core::State<loka::core::String> *sharedCountText_;
     loka::core::State<loka::core::String> *statusText_;
+    loka::core::State<loka::core::String> *composeCountText_;
     loka::core::State<bool> *actionEnabled_;
     loka::core::State<bool> *detailsVisible_;
     loka::core::EmitterState *sharedAction_;
@@ -115,17 +144,28 @@ namespace staticvsdynamic
     StaticPaneNode(const StaticPaneProps &p)
         : loka::app::scene::StaticCompositionBoundaryNodeBase<StaticPaneProps>(p),
           composeCount_(0),
-          detailsDefinition_(loka::app::Text("Details node is visible."))
+          detailsDefinition_(loka::app::Text("Details node is visible.")),
+          mainBoundary_(0)
     {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      this->mainBoundary_ = c.findBoundary<MainBoundary>();
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       ++this->composeCount_;
       std::printf("[StaticVsDynamic] static pane compose #%d\n", this->composeCount_);
+      if (this->mainBoundary_)
+      {
+        this->mainBoundary_->noteStaticCompose(this->composeCount_);
+      }
       c.declare(
           loka::app::VStack()
           << loka::app::Text("Static Boundary")
+          << loka::app::Text(this->props.shared_.composeCountText_)
           << loka::app::Text(this->props.shared_.sharedCountText_)
           << loka::app::Text(this->props.shared_.statusText_)
           << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_)
@@ -135,6 +175,7 @@ namespace staticvsdynamic
   private:
     int composeCount_;
     loka::app::TextDefinition detailsDefinition_;
+    MainBoundary *mainBoundary_;
   };
 
   inline loka::app::scene::BoundaryDefinition<StaticPaneProps, StaticPaneNode> StaticPaneBoundary(const StaticPaneProps &p)
@@ -146,22 +187,38 @@ namespace staticvsdynamic
   {
   public:
     DynamicPaneNode(const DynamicPaneProps &p)
-        : loka::app::scene::DynamicCompositionBoundaryNodeBase<DynamicPaneProps>(p), composeCount_(0)
+        : loka::app::scene::DynamicCompositionBoundaryNodeBase<DynamicPaneProps>(p), composeCount_(0), mainBoundary_(0)
     {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      this->mainBoundary_ = c.findBoundary<MainBoundary>();
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       ++this->composeCount_;
       std::printf("[StaticVsDynamic] dynamic pane compose #%d\n", this->composeCount_);
+      if (this->mainBoundary_)
+      {
+        this->mainBoundary_->noteDynamicCompose(this->composeCount_);
+      }
       loka::app::ColumnDefinition column = loka::app::VStack();
       column << loka::app::Text("Dynamic Boundary")
+             << loka::app::Text(this->props.shared_.composeCountText_)
              << loka::app::Text(this->props.shared_.sharedCountText_)
              << loka::app::Text(this->props.shared_.statusText_)
              << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_);
       if (this->props.shared_.detailsVisible_ && this->props.shared_.detailsVisible_->get())
       {
-        column << loka::app::Text("Details node is visible.");
+        column << loka::app::Text("Dynamic rebuild branch").testId("DynamicDetailsText");
+      }
+      else
+      {
+        column << loka::app::Button("Dynamic hidden branch", this->props.shared_.sharedAction_)
+                      .enabled(this->props.shared_.actionEnabled_)
+                      .testId("DynamicDetailsButton");
       }
       c.declare(column);
     }
@@ -176,6 +233,7 @@ namespace staticvsdynamic
 
   private:
     int composeCount_;
+    MainBoundary *mainBoundary_;
   };
 
   inline loka::app::scene::BoundaryDefinition<DynamicPaneProps, DynamicPaneNode> DynamicPaneBoundary(const DynamicPaneProps &p)
@@ -183,18 +241,20 @@ namespace staticvsdynamic
     return loka::app::scene::BoundaryDefinition<DynamicPaneProps, DynamicPaneNode>(p);
   }
 
-  class MainNode;
   typedef loka::app::scene::StaticCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>
+  class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>, public MainBoundary
   {
   public:
     MainNode(const MainProps &p)
         : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false),
+          lastStaticComposeCount_(0),
+          lastDynamicComposeCount_(0),
           sharedCount_(),
           sharedCountText_(),
           statusText_(),
+          composeCountText_(),
           detailsVisible_(),
           actionEnabled_(),
           sharedActionEvent_(),
@@ -214,6 +274,7 @@ namespace staticvsdynamic
           .state(this->sharedCount_, 0)
           .state(this->sharedCountText_, loka::core::String::Literal("Shared clicks: 0"))
           .state(this->statusText_, loka::core::String::Literal("Details: hidden / action: enabled"))
+          .state(this->composeCountText_, loka::core::String::Literal("Observed compose counts: S=0 D=0"))
           .state(this->detailsVisible_, false)
           .state(this->actionEnabled_, true);
       this->bindForUi(this->sharedActionEvent_, this, &MainNode::handleSharedAction);
@@ -221,7 +282,38 @@ namespace staticvsdynamic
       this->bindForUi(this->toggleEnabledEvent_, this, &MainNode::toggleEnabled);
       this->bindForUi(this->resetCountEvent_, this, &MainNode::resetCount);
       this->refreshLabels();
+      this->refreshCountsLabel();
+      this->refreshWindowTitle();
       this->initialized_ = true;
+    }
+
+    ::Window *windowOrNull() const
+    {
+      const AttachedContext *ctx = this->attachedContext();
+      return ctx ? ctx->window() : 0;
+    }
+
+    virtual void *queryInterface(const char *name)
+    {
+      if (std::strcmp(name, MainBoundary::kInterfaceName()) == 0)
+      {
+        return static_cast<MainBoundary *>(this);
+      }
+      return loka::app::scene::StaticCompositionNodeFor<MainNode>::queryInterface(name);
+    }
+
+    virtual void noteStaticCompose(int count)
+    {
+      this->lastStaticComposeCount_ = count;
+      this->refreshCountsLabel();
+      this->refreshWindowTitle();
+    }
+
+    virtual void noteDynamicCompose(int count)
+    {
+      this->lastDynamicComposeCount_ = count;
+      this->refreshCountsLabel();
+      this->refreshWindowTitle();
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -238,7 +330,6 @@ namespace staticvsdynamic
       c.declare(loka::app::VStack()
                 << loka::app::Text("Static vs Dynamic")
                 << loka::app::Text("Toggle details to compare showIf against boundary child rebuild.")
-                << loka::app::Text("Compose counts are logged to stdout.")
                 << controls
                 << panes);
     }
@@ -263,6 +354,7 @@ namespace staticvsdynamic
       SharedPaneRefs refs;
       refs.sharedCountText_ = this->sharedCountText_.state();
       refs.statusText_ = this->statusText_.state();
+      refs.composeCountText_ = this->composeCountText_.state();
       refs.actionEnabled_ = this->actionEnabled_.state();
       refs.detailsVisible_ = this->detailsVisible_.state();
       refs.sharedAction_ = &this->sharedActionEvent_;
@@ -273,24 +365,28 @@ namespace staticvsdynamic
     {
       this->sharedCount_.set(this->sharedCount_.get() + 1, true);
       this->refreshLabels();
+      this->refreshCountsLabel();
     }
 
     void toggleDetails()
     {
       this->detailsVisible_.set(!this->detailsVisible_.get(), true);
       this->refreshLabels();
+      this->refreshCountsLabel();
     }
 
     void toggleEnabled()
     {
       this->actionEnabled_.set(!this->actionEnabled_.get(), true);
       this->refreshLabels();
+      this->refreshCountsLabel();
     }
 
     void resetCount()
     {
       this->sharedCount_.set(0, true);
       this->refreshLabels();
+      this->refreshCountsLabel();
     }
 
     void refreshLabels()
@@ -306,10 +402,36 @@ namespace staticvsdynamic
                             true);
     }
 
+    void refreshCountsLabel()
+    {
+      this->composeCountText_.set(loka::core::String::Literal("Observed compose counts: S=")
+                                      + loka::core::String::FromInt(this->lastStaticComposeCount_)
+                                      + loka::core::String::Literal(" D=")
+                                      + loka::core::String::FromInt(this->lastDynamicComposeCount_),
+                                  true);
+    }
+
+    void refreshWindowTitle()
+    {
+      ::Window *window = this->windowOrNull();
+      if (!window)
+      {
+        return;
+      }
+      loka::core::StateTrackerGuard guard(window->getTracker());
+      window->titleState().set(loka::core::String::Literal("LokaStaticVsDynamic S:")
+                                   + loka::core::String::FromInt(this->lastStaticComposeCount_)
+                                   + loka::core::String::Literal(" D:")
+                                   + loka::core::String::FromInt(this->lastDynamicComposeCount_));
+    }
+
     bool initialized_;
+    int lastStaticComposeCount_;
+    int lastDynamicComposeCount_;
     loka::app::scene::BoundState<int> sharedCount_;
     loka::app::scene::BoundState<loka::core::String> sharedCountText_;
     loka::app::scene::BoundState<loka::core::String> statusText_;
+    loka::app::scene::BoundState<loka::core::String> composeCountText_;
     loka::app::scene::BoundState<bool> detailsVisible_;
     loka::app::scene::BoundState<bool> actionEnabled_;
     loka::core::EmitterState sharedActionEvent_;

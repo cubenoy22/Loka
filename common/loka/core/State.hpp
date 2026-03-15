@@ -188,6 +188,7 @@ namespace loka
     public:
       void setArenaAllocated(bool v) { arenaAllocated_ = v; }
       bool isArenaAllocated() const { return arenaAllocated_; }
+      StateTracker *trackerOwner() const { return currentTracker; }
     };
 
     // State<T>: Inherits StateBase, implements value holding and subscribe API

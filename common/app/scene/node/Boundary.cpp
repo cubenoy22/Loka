@@ -50,6 +50,30 @@ namespace loka
           self->markViewDirty(flags);
         }
       }
+
+      void BoundaryNode::ObservedStateChangedThunk(void *userData)
+      {
+        BoundaryNode::ObservedStateBinding *binding = static_cast<BoundaryNode::ObservedStateBinding *>(userData);
+        if (!binding || !binding->boundary)
+        {
+          return;
+        }
+        if (binding->state && binding->state->trackerOwner() == binding->boundary->tracker())
+        {
+          return;
+        }
+        Scene *scene = binding->boundary->getScene();
+        if (!scene)
+        {
+          return;
+        }
+        NodeDirtyFlags flags = binding->flags;
+        if (flags == NODE_DIRTY_NONE)
+        {
+          flags = NODE_DIRTY_PROPS;
+        }
+        scene->requestInvalidate(flags);
+      }
     } // namespace scene
   } // namespace app
 } // namespace loka

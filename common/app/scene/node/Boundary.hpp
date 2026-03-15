@@ -240,6 +240,7 @@ namespace loka
         }
         virtual ~BoundaryNode()
         {
+          clearObservedStateEntries();
           // Detach children before the arena is cleared to avoid touching freed nodes.
           clearChildren();
           nodeArena_.clear();
@@ -282,7 +283,21 @@ namespace loka
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
         void clearObservedDirtyFlags() { observedDirtyFlags_ = NODE_DIRTY_NONE; }
-        void clearObservedStateEntries() { observedStateEntries_.clear(); }
+        void clearObservedStateEntries()
+        {
+          for (size_t i = 0; i < observedStateEntries_.size(); ++i)
+          {
+            ObservedStateEntry &entry = observedStateEntries_[i];
+            if (entry.state && entry.binding)
+            {
+              entry.binding->boundary = 0;
+              entry.binding->state = 0;
+              entry.binding->flags = NODE_DIRTY_NONE;
+              entry.binding = 0;
+            }
+          }
+          observedStateEntries_.clear();
+        }
         void addObservedDirtyFlags(NodeDirtyFlags flags)
         {
           if (flags == NODE_DIRTY_NONE)
@@ -303,12 +318,21 @@ namespace loka
             if (observedStateEntries_[i].state == state)
             {
               observedStateEntries_[i].flags = static_cast<NodeDirtyFlags>(observedStateEntries_[i].flags | flags);
+              if (observedStateEntries_[i].binding)
+              {
+                observedStateEntries_[i].binding->flags = observedStateEntries_[i].flags;
+              }
               return;
             }
           }
           ObservedStateEntry entry;
           entry.state = state;
           entry.flags = flags;
+          entry.binding = new ObservedStateBinding();
+          entry.binding->boundary = this;
+          entry.binding->state = state;
+          entry.binding->flags = flags;
+          state->deferBind(&BoundaryNode::ObservedStateChangedThunk, entry.binding);
           observedStateEntries_.push_back(entry);
         }
         NodeDirtyFlags observedDirtyFlags() const { return observedDirtyFlags_; }
@@ -350,6 +374,7 @@ namespace loka
         }
 
         static void InvalidateSceneThunk(void *userData);
+        static void ObservedStateChangedThunk(void *userData);
 
         template <class T>
         BoundState<T> useState()
@@ -576,11 +601,20 @@ namespace loka
           ownedStateHandles_.clear();
         }
 
-        struct ObservedStateEntry
+        struct ObservedStateBinding
         {
-          ObservedStateEntry() : state(0), flags(NODE_DIRTY_NONE) {}
+          ObservedStateBinding() : boundary(0), state(0), flags(NODE_DIRTY_NONE) {}
+          BoundaryNode *boundary;
           loka::core::StateBase *state;
           NodeDirtyFlags flags;
+        };
+
+        struct ObservedStateEntry
+        {
+          ObservedStateEntry() : state(0), flags(NODE_DIRTY_NONE), binding(0) {}
+          loka::core::StateBase *state;
+          NodeDirtyFlags flags;
+          ObservedStateBinding *binding;
         };
 
         loka::core::PushStateTracker tracker_;
