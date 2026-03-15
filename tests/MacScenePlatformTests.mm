@@ -40,16 +40,18 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
+      loka::app::ColumnDefinition stack = loka::app::VStack();
       if (g_textState)
       {
-        c.declare(loka::app::Text(g_textState)
-                      .attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD))
-                      .testId("MainText"));
+        stack << loka::app::Text(g_textState)
+                     .attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD))
+                     .testId("MainText");
       }
       if (g_enabledState)
       {
-        c.declare(loka::app::Button("Run").enabled(g_enabledState).testId("MainButton"));
+        stack << loka::app::Button("Run").enabled(g_enabledState).testId("MainButton");
       }
+      c.declare(stack);
     }
   };
 
@@ -267,6 +269,72 @@ void testMacScenePlatformIgnoresNonLayoutDirtyRequest()
       loka::dsl::testing::MacScenePlatformTestAccess::lastChangeFlags(controller);
   assert((flags & loka::app::scene::NODE_DIRTY_PROPS) != 0);
   assert((flags & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_textState = 0;
+  g_enabledState = 0;
+}
+
+void testMacScenePlatformDynamicPropsAndLayoutReuseContexts()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Short"));
+  loka::core::MutableState<bool> enabledState(false);
+  g_textState = &textState;
+  g_enabledState = &enabledState;
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 120)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(DynamicMacTestBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *textNode = findNodeByTestId(root, "MainText");
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "MainButton");
+  assert(textNode != 0);
+  assert(buttonNode != 0);
+  ::loka::app::scene::NodeContext *textContext = textNode->getContext();
+  ::loka::app::scene::NodeContext *buttonContext = buttonNode->getContext();
+  assert(textContext != 0);
+  assert(buttonContext != 0);
+  const NSUInteger initialSubviewCount = [[rootView subviews] count];
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    enabledState.set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  textNode = findNodeByTestId(root, "MainText");
+  buttonNode = findNodeByTestId(root, "MainButton");
+  assert(textNode != 0);
+  assert(buttonNode != 0);
+  assert(textNode->getContext() == textContext);
+  assert(buttonNode->getContext() == buttonContext);
+  assert([[rootView subviews] count] == initialSubviewCount);
+
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    textState.set(loka::core::String::Literal("A much longer line that should relayout without rebuilding controls"));
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  textNode = findNodeByTestId(root, "MainText");
+  buttonNode = findNodeByTestId(root, "MainButton");
+  assert(textNode != 0);
+  assert(buttonNode != 0);
+  assert(textNode->getContext() == textContext);
+  assert(buttonNode->getContext() == buttonContext);
+  assert([[rootView subviews] count] == initialSubviewCount);
 
   scene.unmount();
   [rootView release];

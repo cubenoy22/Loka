@@ -61,10 +61,43 @@ namespace
     return 0;
   }
 
+  loka::core::MutableState<loka::core::String> *g_textState = 0;
+  loka::core::MutableState<bool> *g_enabledState = 0;
   loka::core::MutableState<loka::core::String> *g_staticEditTextState = 0;
   loka::core::MutableState<int> *g_staticSelectedIndexState = 0;
   loka::core::MutableState<loka::core::resource::Image> *g_staticImageState = 0;
   loka::core::MutableState<bool> *g_swapChildState = 0;
+
+  class DynamicWin32TestNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicWin32TestNode> DynamicWin32TestProps;
+
+  class DynamicWin32TestNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicWin32TestNode>
+  {
+  public:
+    DynamicWin32TestNode(const DynamicWin32TestProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicWin32TestNode>(DynamicWin32TestProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      loka::app::ColumnDefinition stack = loka::app::VStack();
+      if (g_textState)
+      {
+        stack << loka::app::Text(g_textState)
+                     .attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD))
+                     .testId("MainText");
+      }
+      if (g_enabledState)
+      {
+        stack << loka::app::Button("Run").enabled(g_enabledState).testId("MainButton");
+      }
+      c.declare(stack);
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicWin32TestProps, DynamicWin32TestNode> DynamicWin32TestBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicWin32TestNode>();
+  }
 
   class StaticWin32ControlNode;
   typedef loka::app::scene::StaticCompositionPropsFor<StaticWin32ControlNode> StaticWin32ControlProps;
@@ -268,6 +301,72 @@ void testWin32ScenePlatformRelayoutReusesCellAndTextContexts()
   DestroyWindow(rootHwnd);
   g_staticTextState = 0;
   g_staticCellState = 0;
+}
+
+void testWin32ScenePlatformDynamicPropsAndLayoutReuseContexts()
+{
+  loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Short"));
+  loka::core::MutableState<bool> enabledState(false);
+  g_textState = &textState;
+  g_enabledState = &enabledState;
+
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  loka::app::scene::Scene scene(DynamicWin32TestBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *textNode = findNodeByTestId(root, "MainText");
+  ::loka::app::scene::Node *buttonNode = findNodeByTestId(root, "MainButton");
+  assert(textNode != 0);
+  assert(buttonNode != 0);
+  ::loka::app::scene::NodeContext *textContext = textNode->getContext();
+  ::loka::app::scene::NodeContext *buttonContext = buttonNode->getContext();
+  assert(textContext != 0);
+  assert(buttonContext != 0);
+  const int initialChildWindowCount = countChildWindows(rootHwnd);
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    enabledState.set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  textNode = findNodeByTestId(root, "MainText");
+  buttonNode = findNodeByTestId(root, "MainButton");
+  assert(textNode != 0);
+  assert(buttonNode != 0);
+  assert(textNode->getContext() == textContext);
+  assert(buttonNode->getContext() == buttonContext);
+  assert(countChildWindows(rootHwnd) == initialChildWindowCount);
+
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    textState.set(loka::core::String::Literal("A much longer line that should relayout without rebuilding controls"));
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  textNode = findNodeByTestId(root, "MainText");
+  buttonNode = findNodeByTestId(root, "MainButton");
+  assert(textNode != 0);
+  assert(buttonNode != 0);
+  assert(textNode->getContext() == textContext);
+  assert(buttonNode->getContext() == buttonContext);
+  assert(countChildWindows(rootHwnd) == initialChildWindowCount);
+
+  scene.unmount();
+  DestroyWindow(rootHwnd);
+  g_textState = 0;
+  g_enabledState = 0;
 }
 
 void testWin32ScenePlatformFullRebuildFlagControlsContextReuse()

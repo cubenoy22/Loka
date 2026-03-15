@@ -3,6 +3,7 @@
 
 void testWin32ScenePlatformRelayoutReusesControlContexts();
 void testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
+void testWin32ScenePlatformDynamicPropsAndLayoutReuseContexts();
 void testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
 void testWin32ScenePlatformChildRebuildCleansUpOldContexts();
 

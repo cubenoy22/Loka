@@ -3,6 +3,7 @@
 
 void testMacScenePlatformRelayoutRequest();
 void testMacScenePlatformIgnoresNonLayoutDirtyRequest();
+void testMacScenePlatformDynamicPropsAndLayoutReuseContexts();
 void testMacScenePlatformRelayoutReusesControlContexts();
 void testMacScenePlatformRelayoutReusesCellAndTextContexts();
 void testMacScenePlatformFullRebuildFlagControlsContextReuse();

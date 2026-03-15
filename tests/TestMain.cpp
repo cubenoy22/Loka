@@ -52,12 +52,14 @@ int main()
 #if defined(_WIN32) || defined(WIN32)
   testWin32ScenePlatformRelayoutReusesControlContexts();
   testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
+  testWin32ScenePlatformDynamicPropsAndLayoutReuseContexts();
   testWin32ScenePlatformFullRebuildFlagControlsContextReuse();
   testWin32ScenePlatformChildRebuildCleansUpOldContexts();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
   testMacScenePlatformIgnoresNonLayoutDirtyRequest();
+  testMacScenePlatformDynamicPropsAndLayoutReuseContexts();
   testMacScenePlatformRelayoutReusesControlContexts();
   testMacScenePlatformRelayoutReusesCellAndTextContexts();
   testMacScenePlatformFullRebuildFlagControlsContextReuse();
