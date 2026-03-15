@@ -6,6 +6,8 @@
 
 #include "app/Button.hpp"
 #include "app/Empty.hpp"
+#include "app/EditText.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/Window.hpp"
@@ -50,7 +52,9 @@ namespace staticvsdynamic
           composeCountText_(0),
           actionEnabled_(0),
           detailsVisible_(0),
-          sharedAction_(0)
+          sharedAction_(0),
+          editText_(0),
+          selectedIndex_(0)
     {
     }
 
@@ -60,6 +64,8 @@ namespace staticvsdynamic
     loka::core::State<bool> *actionEnabled_;
     loka::core::State<bool> *detailsVisible_;
     loka::core::EmitterState *sharedAction_;
+    loka::core::State<loka::core::String> *editText_;
+    loka::core::State<int> *selectedIndex_;
   };
 
   class StaticPaneNode;
@@ -169,7 +175,15 @@ namespace staticvsdynamic
           << loka::app::Text(this->props.shared_.sharedCountText_)
           << loka::app::Text(this->props.shared_.statusText_)
           << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_)
+          << loka::app::EditText(this->props.shared_.editText_).controlTag(601).testId("StaticPersistEdit")
+          << loka::app::PopupMenu(staticItems(), 3).selectedIndex(this->props.shared_.selectedIndex_).testId("StaticPersistPopup")
           << c.showIf(*this->props.shared_.detailsVisible_, this->detailsDefinition_));
+    }
+
+    static const char **staticItems()
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      return kItems;
     }
 
   private:
@@ -209,7 +223,9 @@ namespace staticvsdynamic
              << loka::app::Text(this->props.shared_.composeCountText_)
              << loka::app::Text(this->props.shared_.sharedCountText_)
              << loka::app::Text(this->props.shared_.statusText_)
-             << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_);
+             << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_)
+             << loka::app::EditText(this->props.shared_.editText_).controlTag(701).testId("DynamicPersistEdit")
+             << loka::app::PopupMenu(staticItems(), 3).selectedIndex(this->props.shared_.selectedIndex_).testId("DynamicPersistPopup");
       if (this->props.shared_.detailsVisible_ && this->props.shared_.detailsVisible_->get())
       {
         column << loka::app::Text("Dynamic rebuild branch").testId("DynamicDetailsText");
@@ -221,6 +237,12 @@ namespace staticvsdynamic
                       .testId("DynamicDetailsButton");
       }
       c.declare(column);
+    }
+
+    static const char **staticItems()
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      return kItems;
     }
 
     virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
@@ -255,7 +277,10 @@ namespace staticvsdynamic
           sharedCount_(),
           sharedCountText_(),
           statusText_(),
-          composeCountText_(),
+          staticComposeCountText_(),
+          dynamicComposeCountText_(),
+          editText_(),
+          selectedIndex_(),
           detailsVisible_(),
           actionEnabled_(),
           sharedActionEvent_(),
@@ -275,7 +300,10 @@ namespace staticvsdynamic
           .state(this->sharedCount_, 0)
           .state(this->sharedCountText_, loka::core::String::Literal("Shared clicks: 0"))
           .state(this->statusText_, loka::core::String::Literal("Details: hidden / action: enabled"))
-          .state(this->composeCountText_, loka::core::String::Literal("Observed compose counts: S=0 D=0"))
+          .state(this->staticComposeCountText_, loka::core::String::Literal("Static compose count: 0"))
+          .state(this->dynamicComposeCountText_, loka::core::String::Literal("Dynamic compose count: 0"))
+          .state(this->editText_, loka::core::String::Literal("Edit me"))
+          .state(this->selectedIndex_, 1)
           .state(this->detailsVisible_, false)
           .state(this->actionEnabled_, true);
       this->bindForUi(this->sharedActionEvent_, this, &MainNode::handleSharedAction);
@@ -337,6 +365,7 @@ namespace staticvsdynamic
     {
       StaticPaneProps props;
       props.shared_ = this->makeSharedPaneRefs();
+      props.shared_.composeCountText_ = this->staticComposeCountText_.state();
       return props;
     }
 
@@ -344,6 +373,7 @@ namespace staticvsdynamic
     {
       DynamicPaneProps props;
       props.shared_ = this->makeSharedPaneRefs();
+      props.shared_.composeCountText_ = this->dynamicComposeCountText_.state();
       return props;
     }
 
@@ -352,10 +382,11 @@ namespace staticvsdynamic
       SharedPaneRefs refs;
       refs.sharedCountText_ = this->sharedCountText_.state();
       refs.statusText_ = this->statusText_.state();
-      refs.composeCountText_ = this->composeCountText_.state();
       refs.actionEnabled_ = this->actionEnabled_.state();
       refs.detailsVisible_ = this->detailsVisible_.state();
       refs.sharedAction_ = &this->sharedActionEvent_;
+      refs.editText_ = this->editText_.state();
+      refs.selectedIndex_ = this->selectedIndex_.state();
       return refs;
     }
 
@@ -431,11 +462,12 @@ namespace staticvsdynamic
 
     void refreshCountsLabel()
     {
-      this->composeCountText_.set(loka::core::String::Literal("Observed compose counts: S=")
-                                      + loka::core::String::FromInt(this->lastStaticComposeCount_)
-                                      + loka::core::String::Literal(" D=")
-                                      + loka::core::String::FromInt(this->lastDynamicComposeCount_),
-                                  true);
+      this->staticComposeCountText_.set(loka::core::String::Literal("Static compose count: ")
+                                            + loka::core::String::FromInt(this->lastStaticComposeCount_),
+                                        true);
+      this->dynamicComposeCountText_.set(loka::core::String::Literal("Dynamic compose count: ")
+                                             + loka::core::String::FromInt(this->lastDynamicComposeCount_),
+                                         true);
     }
 
     void refreshWindowTitle()
@@ -459,7 +491,10 @@ namespace staticvsdynamic
     loka::app::scene::BoundState<int> sharedCount_;
     loka::app::scene::BoundState<loka::core::String> sharedCountText_;
     loka::app::scene::BoundState<loka::core::String> statusText_;
-    loka::app::scene::BoundState<loka::core::String> composeCountText_;
+    loka::app::scene::BoundState<loka::core::String> staticComposeCountText_;
+    loka::app::scene::BoundState<loka::core::String> dynamicComposeCountText_;
+    loka::app::scene::BoundState<loka::core::String> editText_;
+    loka::app::scene::BoundState<int> selectedIndex_;
     loka::app::scene::BoundState<bool> detailsVisible_;
     loka::app::scene::BoundState<bool> actionEnabled_;
     loka::core::EmitterState sharedActionEvent_;
