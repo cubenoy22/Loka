@@ -2144,3 +2144,60 @@ void testMenuItemEnabledBoolDoesNotUseSharedStaticState()
   assert(disabledItem.equalsStructure(disabledItem));
   assert(!enabledItem.equalsStructure(disabledItem));
 }
+
+void testConditionalNodeTeardownAfterOwnedStateIsSafe()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class ConditionalTeardownRootNode;
+  typedef BoundaryPropsFor<ConditionalTeardownRootNode> ConditionalTeardownRootProps;
+
+  class ConditionalTeardownRootNode : public BoundaryNodeFor<ConditionalTeardownRootNode>
+  {
+  public:
+    ConditionalTeardownRootNode(const ConditionalTeardownRootProps &p)
+        : BoundaryNodeFor<ConditionalTeardownRootNode>(ConditionalTeardownRootProps(p)), showDetails_()
+    {
+    }
+
+    virtual void attachNode(NodeComposition &c)
+    {
+      c.declareStates().state(showDetails_, true);
+    }
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      TextDefinition details = Text("Detail");
+      c.declare(VStack() << c.showIf(showDetails_, details));
+    }
+
+  private:
+    BoundState<bool> showDetails_;
+  };
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
+    virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)flags;
+      (void)fullRebuild;
+      lastMaterialized_ = rootNode;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() { destroyed_ = true; }
+
+    Node *lastMaterialized_;
+    bool destroyed_;
+  };
+
+  Scene *scene = new Scene(BoundaryDefinition<ConditionalTeardownRootProps, ConditionalTeardownRootNode>());
+  DummyPlatformController platform;
+  scene->mount(&platform);
+  scene->updateAttached(true);
+  assert(platform.lastMaterialized_ != 0);
+  delete scene;
+}

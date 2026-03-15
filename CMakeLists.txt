@@ -25,6 +25,7 @@ if(WIN32 OR (APPLE AND LOKA_ENABLE_APPLE) OR (CMAKE_SYSTEM_NAME STREQUAL "Retro6
 add_subdirectory(example/HelloWorld)
 add_subdirectory(example/MineSweeper)
 add_subdirectory(example/SimpleViewer)
+add_subdirectory(example/StaticVsDynamic)
 endif()
 
 # Linux/WSL headless tests (Flow DSL focused).

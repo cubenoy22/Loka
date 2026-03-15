@@ -44,6 +44,7 @@ int main()
   testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
   testStaticButtonAndCellTextAreOwnedPerDefinition();
   testMenuItemEnabledBoolDoesNotUseSharedStaticState();
+  testConditionalNodeTeardownAfterOwnedStateIsSafe();
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();

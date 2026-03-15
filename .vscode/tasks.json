@@ -62,6 +62,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS StaticVsDynamic",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaStaticVsDynamicMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Tests",
       "type": "shell",
       "command": "cmake",
@@ -112,6 +129,20 @@
         "win32-debug",
         "--target",
         "LokaSimpleViewerWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 StaticVsDynamic",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaStaticVsDynamicWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"

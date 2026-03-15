@@ -29,6 +29,7 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
 void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
 void testStaticButtonAndCellTextAreOwnedPerDefinition();
 void testMenuItemEnabledBoolDoesNotUseSharedStaticState();
+void testConditionalNodeTeardownAfterOwnedStateIsSafe();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();

@@ -26,6 +26,14 @@
       "preLaunchTask": "Build: macOS SimpleViewer"
     },
     {
+      "name": "Run (macOS StaticVsDynamic)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/StaticVsDynamic/LokaStaticVsDynamicMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS StaticVsDynamic"
+    },
+    {
       "name": "Test (macOS)",
       "type": "lldb-dap",
       "request": "launch",
@@ -59,6 +67,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 SimpleViewer"
+    },
+    {
+      "name": "Run (Windows StaticVsDynamic)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/StaticVsDynamic/LokaStaticVsDynamicWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 StaticVsDynamic"
     },
     {
       "name": "Test (Windows)",
