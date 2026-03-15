@@ -62,8 +62,7 @@ namespace loka
         {
           return;
         }
-        Scene *scene = binding->boundary->getScene();
-        if (!scene)
+        if (!binding->boundary->getScene())
         {
           return;
         }
@@ -72,7 +71,28 @@ namespace loka
         {
           flags = NODE_DIRTY_PROPS;
         }
-        scene->requestInvalidate(flags);
+        loka::core::StateTracker *ownerTracker = binding->state ? binding->state->trackerOwner() : 0;
+        if (ownerTracker && ownerTracker->phase() != loka::core::TRACKER_IDLE)
+        {
+          ownerTracker->defer(&BoundaryNode::ObservedStateDeferredInvalidateThunk, binding);
+          return;
+        }
+        binding->boundary->markViewDirty(flags);
+      }
+
+      void BoundaryNode::ObservedStateDeferredInvalidateThunk(void *userData)
+      {
+        BoundaryNode::ObservedStateBinding *binding = static_cast<BoundaryNode::ObservedStateBinding *>(userData);
+        if (!binding || !binding->boundary)
+        {
+          return;
+        }
+        NodeDirtyFlags flags = binding->flags;
+        if (flags == NODE_DIRTY_NONE)
+        {
+          flags = NODE_DIRTY_PROPS;
+        }
+        binding->boundary->markViewDirty(flags);
       }
     } // namespace scene
   } // namespace app

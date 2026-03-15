@@ -19,7 +19,7 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(80, 80, 720, 320)
-                       .scene(loka::app::scene::NodeDefinition<staticvsdynamic::MainProps, staticvsdynamic::MainNode>())
+                       .scene(loka::app::scene::BoundaryDefinition<staticvsdynamic::MainProps, staticvsdynamic::MainNode>())
                        .title("LokaStaticVsDynamic")
                        .visible(true));
   }

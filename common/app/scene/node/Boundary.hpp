@@ -375,6 +375,7 @@ namespace loka
 
         static void InvalidateSceneThunk(void *userData);
         static void ObservedStateChangedThunk(void *userData);
+        static void ObservedStateDeferredInvalidateThunk(void *userData);
 
         template <class T>
         BoundState<T> useState()
