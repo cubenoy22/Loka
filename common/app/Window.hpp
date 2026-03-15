@@ -4,7 +4,7 @@
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "app/AppComponent.hpp"
-#include "app/SceneManager2.hpp"
+#include "app/SceneManager.hpp"
 #include "loka/core/util/StateUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
@@ -320,7 +320,7 @@ public:
 
   PlatformContext *context() const { return context_; }
   loka::app::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
-  SceneManager2 *sceneManager() { return &sceneManager_; }
+  SceneManager *sceneManager() { return &sceneManager_; }
   bool flushSceneInvalidation();
   bool hasPendingSceneInvalidation() const
   {
@@ -365,7 +365,7 @@ private:
 protected:
   PlatformContext *context_;
   loka::core::StateTracker *tracker_;
-  SceneManager2 sceneManager_;
+  SceneManager sceneManager_;
   loka::core::MutableState<loka::core::String> titleStorage_;
   loka::core::MutableState<bool> visibilityStorage_;
   loka::core::MutableState<loka::core::Frame> frameState_;

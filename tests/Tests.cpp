@@ -5,7 +5,7 @@
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/util/StateUtil.hpp"
-#include "app/SceneManager2.hpp"
+#include "app/SceneManager.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
@@ -1727,7 +1727,7 @@ void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork()
 
 void testSceneManagerTransaction()
 {
-  printf("\n==== [testSceneManagerTransaction/SceneManager2] start ====\n");
+  printf("\n==== [testSceneManagerTransaction/SceneManager] start ====\n");
   using loka::app::scene::Scene;
 
   class TestWindow : public Window
@@ -1739,7 +1739,7 @@ void testSceneManagerTransaction()
   Scene *sceneA = new Scene(RootBoundary());
   Scene *sceneB = new Scene(RootBoundary());
   TestWindow window;
-  SceneManager2 *mgr = window.sceneManager();
+  SceneManager *mgr = window.sceneManager();
   assert(mgr != 0);
 
   assert(mgr->getCurrentScene().get() == 0);
@@ -1779,7 +1779,7 @@ void testSceneManagerTransaction()
 
   delete sceneA;
   delete sceneB;
-  printf("--- [testSceneManagerTransaction/SceneManager2] end ---\n");
+  printf("--- [testSceneManagerTransaction/SceneManager] end ---\n");
 }
 
 void testLokaCoreString()

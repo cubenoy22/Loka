@@ -97,7 +97,7 @@ namespace loka
         loka::core::State<bool> *getAttachedState() { return &attached_; }
 
         // 公開ラッパ: 外部から安全にライフサイクル/アタッチ状態を更新する用途
-        // (SceneManager2 以外での最小限の操作許可。副作用管理は呼び出し側で StateTracker を利用する想定)
+        // (SceneManager 以外での最小限の操作許可。副作用管理は呼び出し側で StateTracker を利用する想定)
         void updateAttached(bool v)
         {
           setAttached(v);
@@ -189,8 +189,8 @@ namespace loka
         loka::dsl::NextTickTracker nextTickTracker_;
         SceneCompositionDiff compositionDiff_;
 
-        // SceneManager2からlifecycle_/attachedを書き換え可能に
-        friend class SceneManager2;
+        // SceneManagerからlifecycle_/attachedを書き換え可能に
+        friend class SceneManager;
         friend class ::loka::dsl::testing::SceneTestAccess;
 
       private:
