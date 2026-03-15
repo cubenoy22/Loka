@@ -1857,6 +1857,51 @@ void testSceneManagerPendingTransactionsAndBindings()
   printf("--- [testSceneManagerPendingTransactionsAndBindings/SceneManager] end ---\n");
 }
 
+void testSceneLifecyclePublishesDestroy()
+{
+  printf("\n==== [testSceneLifecyclePublishesDestroy/Scene] start ====\n");
+  using loka::app::scene::Scene;
+
+  struct LifecycleCapture
+  {
+    static void onChange(void *userData)
+    {
+      Capture *capture = static_cast<Capture *>(userData);
+      capture->values.push_back(capture->scene->getLifecycleState()->get());
+    }
+
+    struct Capture
+    {
+      Capture() : scene(0), values() {}
+      Scene *scene;
+      std::vector<SceneLifecycle> values;
+    };
+  };
+
+  class TestWindow : public Window
+  {
+  public:
+    TestWindow() : Window(0, WindowProps()) {}
+  };
+
+  Scene *scene = new Scene(RootBoundary());
+  TestWindow window;
+  LifecycleCapture::Capture capture;
+  capture.scene = scene;
+  scene->getLifecycleState()->bind(&LifecycleCapture::onChange, &capture, false);
+
+  window.sceneManager()->commitTransaction(0, scene);
+  window.sceneManager()->commitTransaction(scene, 0);
+  delete scene;
+
+  assert(capture.values.size() == 3);
+  assert(capture.values[0] == ON_ATTACH);
+  assert(capture.values[1] == ON_DETACH);
+  assert(capture.values[2] == ON_DESTROY);
+
+  printf("--- [testSceneLifecyclePublishesDestroy/Scene] end ---\n");
+}
+
 void testLokaCoreString()
 {
   printf("\n==== [testLokaCoreString] start ====\n");

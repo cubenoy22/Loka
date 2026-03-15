@@ -21,7 +21,8 @@ enum SceneLifecycle
 {
   ON_CREATE = 0,
   ON_ATTACH = 1,
-  ON_DETACH = 2
+  ON_DETACH = 2,
+  ON_DESTROY = 3
 };
 
 namespace loka
@@ -79,6 +80,7 @@ namespace loka
         }
         virtual ~Scene()
         {
+          updateLifecycle(ON_DESTROY);
           unmount();
           if (rootDefinition_)
           {
@@ -175,8 +177,8 @@ namespace loka
         }
 
       protected:
-        void setAttached(bool v) { attached_.set(v, true); }
-        void setLifecycle(SceneLifecycle v) { lifecycle_.set(v, true); }
+        void setAttached(bool v) { attached_.set(v); }
+        void setLifecycle(SceneLifecycle v) { lifecycle_.set(v); }
 
         loka::core::MutableState<SceneLifecycle> lifecycle_;
         loka::core::MutableState<bool> attached_;

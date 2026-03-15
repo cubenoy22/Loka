@@ -25,6 +25,7 @@ int main()
   testDerivedStruct();
   testSceneManagerTransaction();
   testSceneManagerPendingTransactionsAndBindings();
+  testSceneLifecyclePublishesDestroy();
   testNodeCompositionTree();
   testNodeCompositionShowIf();
   testSceneMountLifecycle();

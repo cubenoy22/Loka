@@ -23,7 +23,6 @@
 - Toolbox/68k redraw policy: replace direct `drawDirty` calls with `markDirty` accumulation, then flush once in `updateEvt` (`BeginUpdate/EndUpdate`) using `InvalRect`/`InvalRgn`.
 - Toolbox/68k profiling: count redraw triggers and merged dirty regions per interaction to remove duplicate invalidation paths before deeper redraw refactors.
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).
-- SceneManager: finalize lifecycle updates (ON_DETACH/ON_ATTACH/ON_DESTROY) and make Scene subscribe-ready.
 - SceneManager: review API for swapping to CompositeNode/NodeComposition once Window::mount lands.
 - requestDiscard protocol for save/confirm flows via EmitterState.
 - Suppress clangd incomplete type warning for AttachedContext -> BoundaryNode access (include or type split).
