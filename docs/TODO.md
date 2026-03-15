@@ -45,9 +45,7 @@
 - Flow DSL perf harness: add a measurement flow that runs an operation/scenario flow 3-10 times, records per-run timing/profile data, and exits with a summarized report so the same harness works on Toolbox/macOS/Win32.
 - Flow DSL use-case validation: add video encoder stub scenarios (Qt / AVFoundation / Windows API style) for `open -> frame push -> finalize` and failure-path coverage.
 - Control components roadmap: add constrained `For` (static/fixed list) after `Cond`/`ShowIf`, while keeping platform `#if` isolated in capability/platform implementation layers and avoiding unnecessary 68k runtime loop costs.
-- Cond/ShowIf test matrix: cover true/false branch selection, default/otherwise branch, nested Cond evaluation order, and stable node tree creation across recomposition.
-- Cond/ShowIf state-change tests: verify branch switching when bound `State<bool>` changes, no stale active node retention, and expected cleanup/destructor calls on old branch nodes.
-- Cond/ShowIf platform-branch tests: validate OS-specific component selection via stubs (Toolbox/Win32/macOS) without DSL-side `#if`.
+- Cond/ShowIf remaining coverage: fill the gaps beyond the current basic branch-switch tests, specifically default/otherwise branches, nested evaluation order, cleanup/destructor behavior on branch replacement, and platform-selection stubs without DSL-side `#if`.
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word/char`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
 - Toolbox wrapped-text relayout behavior: runtime-verify that content-change triggers relayout correctly (build/test path implemented).
