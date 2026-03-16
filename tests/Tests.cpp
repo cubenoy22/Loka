@@ -592,8 +592,12 @@ void testNodeCompositionTransactionTracksWorkingSet()
 
   NodeComposition previous;
   NodeComposition current;
-  previous.declareTagged(10, loka::app::Text("Previous"));
-  current.declareTagged(20, loka::app::Text("Current"));
+  previous.declare(loka::app::VStack()
+                   << loka::app::Text("Previous A").tag(10)
+                   << loka::app::Text("Shared").tag(20));
+  current.declare(loka::app::VStack()
+                  << loka::app::Text("Shared updated").tag(20)
+                  << loka::app::Text("Current C").tag(30));
 
   NodeCompositionTransaction transaction;
   assert(transaction.empty());
@@ -609,8 +613,11 @@ void testNodeCompositionTransactionTracksWorkingSet()
   assert(transaction.retiredCount() == 0);
   assert(transaction.diff().empty());
 
-  transaction.diff().addEntry(20, 0, NodeCompositionDiff::ACTION_REPLACE, 0, 0);
-  assert(transaction.diff().entryCount() == 1);
+  bool built = transaction.buildDiffByTag();
+  assert(built);
+  assert(transaction.diff().valid);
+  assert(!transaction.diff().fullRebuild);
+  assert(transaction.diff().entryCount() == 2);
   transaction.noteRetiredChild();
   assert(transaction.retiredCount() == 1);
 

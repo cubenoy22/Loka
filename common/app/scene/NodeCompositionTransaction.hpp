@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_NODECOMPOSITIONTRANSACTION_HPP
 #define LOKA_CORE2_SCENE_NODECOMPOSITIONTRANSACTION_HPP
 
-#include "app/scene/NodeCompositionDiff.hpp"
+#include "app/scene/NodeCompositionCompare.hpp"
 
 namespace loka
 {
@@ -47,6 +47,16 @@ namespace loka
 
         NodeCompositionDiff &diff() { return this->diff_; }
         const NodeCompositionDiff &diff() const { return this->diff_; }
+
+        bool buildDiffByTag()
+        {
+          if (!this->previous_ || !this->current_)
+          {
+            this->diff_.clear();
+            return false;
+          }
+          return buildNodeCompositionDiffByTag(*this->previous_, *this->current_, this->diff_);
+        }
 
         void noteRetiredChild()
         {
