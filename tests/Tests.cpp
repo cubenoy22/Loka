@@ -8,6 +8,7 @@
 #include "app/SceneManager.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/NodeCompositionDiff.hpp"
+#include "app/scene/NodeCompositionTransaction.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/StaticComposition.hpp"
@@ -582,6 +583,42 @@ void testNodeCompositionDiffTracksEntries()
   assert(diff.fullRebuild == true);
   assert(diff.empty());
   assert(diff.entryCount() == 0);
+}
+
+void testNodeCompositionTransactionTracksWorkingSet()
+{
+  using namespace loka::app::scene;
+
+  NodeComposition previous;
+  NodeComposition current;
+  previous.declareTagged(10, loka::app::Text("Previous"));
+  current.declareTagged(20, loka::app::Text("Current"));
+
+  NodeCompositionTransaction transaction;
+  assert(transaction.empty());
+  assert(transaction.previous() == 0);
+  assert(transaction.current() == 0);
+  assert(transaction.retiredCount() == 0);
+  assert(transaction.diff().empty());
+
+  transaction.begin(&previous, &current);
+  assert(!transaction.empty());
+  assert(transaction.previous() == &previous);
+  assert(transaction.current() == &current);
+  assert(transaction.retiredCount() == 0);
+  assert(transaction.diff().empty());
+
+  transaction.diff().addEntry(20, 0, NodeCompositionDiff::ACTION_REPLACE, 0, 0);
+  assert(transaction.diff().entryCount() == 1);
+  transaction.noteRetiredChild();
+  assert(transaction.retiredCount() == 1);
+
+  transaction.clear();
+  assert(transaction.empty());
+  assert(transaction.previous() == 0);
+  assert(transaction.current() == 0);
+  assert(transaction.retiredCount() == 0);
+  assert(transaction.diff().empty());
 }
 
 void testSceneMountLifecycle()
