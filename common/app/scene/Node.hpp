@@ -67,6 +67,12 @@ namespace loka
         NODE_KIND_IMAGE_VIEW
       };
 
+      typedef unsigned short NodeTag;
+      enum
+      {
+        NODE_TAG_NONE = 0
+      };
+
       struct INestable;
       class IPlatformController;
       class Node; // forward declaration for NodeContext owner
@@ -139,8 +145,9 @@ namespace loka
         Node *nextInComposition;
         bool arenaAllocated_;
         std::string testId_;
+        NodeTag nodeTag_;
 
-        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), testId_() {}
+        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), testId_(), nodeTag_(NODE_TAG_NONE) {}
 
         virtual ~Node()
         {
@@ -224,6 +231,8 @@ namespace loka
         NodeContext *getContext() const { return context; }
         void setTestId(const std::string &value) { testId_ = value; }
         const std::string &testId() const { return testId_; }
+        void setNodeTag(NodeTag tag) { nodeTag_ = tag; }
+        NodeTag nodeTag() const { return nodeTag_; }
       };
 
       struct ObservedStateRegistrar
@@ -294,14 +303,15 @@ namespace loka
       public:
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
 
-        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_(), hasTestId_(false), autoTestId_(false) {}
+        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_(), hasTestId_(false), autoTestId_(false), nodeTag_(NODE_TAG_NONE) {}
         NodeDefinitionBase(const NodeDefinitionBase &other)
             : cleanupHook_(0),
               cleanupContext_(0),
               nextInComposition(0),
               testId_(other.testId_),
               hasTestId_(other.hasTestId_),
-              autoTestId_(other.autoTestId_) {}
+              autoTestId_(other.autoTestId_),
+              nodeTag_(other.nodeTag_) {}
         NodeDefinitionBase &operator=(const NodeDefinitionBase &other)
         {
           this->cleanupHook_ = 0;
@@ -310,6 +320,7 @@ namespace loka
           this->testId_ = other.testId_;
           this->hasTestId_ = other.hasTestId_;
           this->autoTestId_ = other.autoTestId_;
+          this->nodeTag_ = other.nodeTag_;
           return *this;
         }
         virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
@@ -363,11 +374,20 @@ namespace loka
         {
           return this->testId_;
         }
+        void setNodeTag(NodeTag tag)
+        {
+          this->nodeTag_ = tag;
+        }
+        NodeTag nodeTag() const
+        {
+          return this->nodeTag_;
+        }
         void copyTestIdPolicyFrom(const NodeDefinitionBase &other)
         {
           this->testId_ = other.testId_;
           this->hasTestId_ = other.hasTestId_;
           this->autoTestId_ = other.autoTestId_;
+          this->nodeTag_ = other.nodeTag_;
         }
 
       protected:
@@ -390,6 +410,7 @@ namespace loka
         std::string testId_;
         bool hasTestId_;
         bool autoTestId_;
+        NodeTag nodeTag_;
       };
 
       // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---
@@ -430,14 +451,35 @@ namespace loka
           props = p;
           return *this;
         }
+        NodeDefinition &tag(NodeTag value)
+        {
+          this->setNodeTag(value);
+          return *this;
+        }
         template <typename F>
         NodeDefinition &mutate(F f)
         {
           f(props);
           return *this;
         }
-        Node *create() const { return new NodeT(props); }
-        Node *createInPlace(void *mem) const { return new (mem) NodeT(props); }
+        Node *create() const
+        {
+          Node *node = new NodeT(props);
+          if (node)
+          {
+            node->setNodeTag(this->nodeTag());
+          }
+          return node;
+        }
+        Node *createInPlace(void *mem) const
+        {
+          Node *node = new (mem) NodeT(props);
+          if (node)
+          {
+            node->setNodeTag(this->nodeTag());
+          }
+          return node;
+        }
         size_t nodeSize() const { return sizeof(NodeT); }
         size_t nodeAlign() const { return AlignOf<NodeT>::value; }
         virtual NodeDefinitionBase *clone() const { return new NodeDefinition(*this); }

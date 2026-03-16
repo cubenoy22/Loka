@@ -296,6 +296,14 @@ namespace loka
           this->root_ = newRoot;
           return *newRoot;
         }
+
+        template <typename T>
+        T &declareTagged(NodeTag tag, const T &def)
+        {
+          T tagged(def);
+          tagged.tag(tag);
+          return this->declare(tagged);
+        }
         NodeDefinitionBase &declare(const NodeDefinitionBase &def)
         {
           if (activeParent_)
@@ -307,11 +315,31 @@ namespace loka
           this->root_ = newRoot;
           return *newRoot;
         }
+        NodeDefinitionBase &declareTagged(NodeTag tag, const NodeDefinitionBase &def)
+        {
+          NodeDefinitionBase *tagged = def.clone();
+          tagged->setNodeTag(tag);
+          if (activeParent_)
+          {
+            activeParent_->addOwnedChild(tagged);
+            return *tagged;
+          }
+          tagged->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
+          arena_.push_back(tagged);
+          this->root_ = tagged;
+          return *tagged;
+        }
         NodeDefinitionBase &declare(const INestableDefinition &def)
         {
           const NodeDefinitionBase *base = def.asNodeDefinitionBase();
           assert(base && "Nestable definitions must derive from NodeDefinitionBase");
           return this->declare(*base);
+        }
+        NodeDefinitionBase &declareTagged(NodeTag tag, const INestableDefinition &def)
+        {
+          const NodeDefinitionBase *base = def.asNodeDefinitionBase();
+          assert(base && "Nestable definitions must derive from NodeDefinitionBase");
+          return this->declareTagged(tag, *base);
         }
 
         void setContext(ComponentContext *context) { context_ = context; }

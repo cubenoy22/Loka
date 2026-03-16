@@ -28,6 +28,8 @@ int main()
   testSceneLifecyclePublishesDestroy();
   testNodeCompositionTree();
   testNodeCompositionShowIf();
+  testNodeDefinitionTagPropagatesToCreatedNodes();
+  testNodeCompositionDiffTracksEntries();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();

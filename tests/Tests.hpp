@@ -13,6 +13,8 @@ void testSceneManagerPendingTransactionsAndBindings();
 void testSceneLifecyclePublishesDestroy();
 void testNodeCompositionTree();
 void testNodeCompositionShowIf();
+void testNodeDefinitionTagPropagatesToCreatedNodes();
+void testNodeCompositionDiffTracksEntries();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();

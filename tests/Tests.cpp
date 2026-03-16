@@ -7,6 +7,7 @@
 #include "loka/core/util/StateUtil.hpp"
 #include "app/SceneManager.hpp"
 #include "app/scene/NodeComposition.hpp"
+#include "app/scene/NodeCompositionDiff.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/StaticComposition.hpp"
@@ -513,6 +514,74 @@ void testNodeCompositionShowIf()
   assert(dynamic_cast<TextNode *>(conditionalNode->activeNode) != 0);
 
   delete tree;
+}
+
+void testNodeDefinitionTagPropagatesToCreatedNodes()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  NodeComposition composition;
+  BoxDefinition &root = static_cast<BoxDefinition &>(composition.declareTagged(100, Box()));
+  ButtonDefinition button = Button("Hello");
+  {
+    NodeComposition::ChildComposition child(composition, root);
+    child.composition().declareTagged(200, button);
+  }
+
+  Node *tree = composition.createNodeTree();
+  assert(tree != 0);
+  assert(tree->nodeTag() == 100);
+
+  BoxNode *boxNode = static_cast<BoxNode *>(tree->asBoxNode());
+  assert(boxNode != 0);
+  Node *child = boxNode->childrenHead();
+  assert(child != 0);
+  assert(child->nodeTag() == 200);
+  assert(child->asButtonNode() != 0);
+
+  delete tree;
+}
+
+void testNodeCompositionDiffTracksEntries()
+{
+  using namespace loka::app::scene;
+
+  NodeCompositionDiff diff;
+  assert(diff.valid == false);
+  assert(diff.fullRebuild == true);
+  assert(diff.empty());
+  assert(diff.entryCount() == 0);
+
+  diff.valid = true;
+  diff.fullRebuild = false;
+  diff.addEntry(100, 0, NodeCompositionDiff::ACTION_RETAIN, 0, 0);
+  diff.addEntry(200, 1, NodeCompositionDiff::ACTION_REPLACE, 1, 1);
+  diff.addEntry(300, 2, NodeCompositionDiff::ACTION_RETIRE, 2, -1);
+
+  assert(!diff.empty());
+  assert(diff.entryCount() == 3);
+
+  NodeCompositionDiff::Entry *entry = diff.entriesHead();
+  assert(entry != 0);
+  assert(entry->tag == 100);
+  assert(entry->slot == 0);
+  assert(entry->action == NodeCompositionDiff::ACTION_RETAIN);
+  entry = entry->nextInComposition;
+  assert(entry != 0);
+  assert(entry->tag == 200);
+  assert(entry->action == NodeCompositionDiff::ACTION_REPLACE);
+  entry = entry->nextInComposition;
+  assert(entry != 0);
+  assert(entry->tag == 300);
+  assert(entry->action == NodeCompositionDiff::ACTION_RETIRE);
+  assert(entry->currentIndex == -1);
+
+  diff.clear();
+  assert(diff.valid == false);
+  assert(diff.fullRebuild == true);
+  assert(diff.empty());
+  assert(diff.entryCount() == 0);
 }
 
 void testSceneMountLifecycle()
