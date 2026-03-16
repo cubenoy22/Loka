@@ -32,6 +32,7 @@ int main()
   testNodeCompositionDiffTracksEntries();
   testNodeCompositionTransactionTracksWorkingSet();
   testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
+  testNodeDefinitionsReportCompatibleLiveNodeKinds();
   testNodeCompositionSnapshotOwnsClonedRoot();
   testNodeCompositionSnapshotRetainsOwnedPropsSafely();
   testBoundaryCompositionStateStoresSnapshotsLocally();

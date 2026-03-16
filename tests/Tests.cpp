@@ -686,6 +686,31 @@ void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire()
   assert(entry->currentIndex == -1);
 }
 
+void testNodeDefinitionsReportCompatibleLiveNodeKinds()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  TextDefinition textDef("Hello");
+  ButtonDefinition buttonDef("Run");
+
+  Node *textNode = textDef.create();
+  Node *buttonNode = buttonDef.create();
+  assert(textNode != 0);
+  assert(buttonNode != 0);
+
+  assert(textDef.nodeKind() == NODE_KIND_TEXT);
+  assert(buttonDef.nodeKind() == NODE_KIND_BUTTON);
+
+  assert(textDef.isCompatibleWithNode(textNode));
+  assert(!textDef.isCompatibleWithNode(buttonNode));
+  assert(buttonDef.isCompatibleWithNode(buttonNode));
+  assert(!buttonDef.isCompatibleWithNode(textNode));
+
+  delete textNode;
+  delete buttonNode;
+}
+
 void testNodeCompositionSnapshotOwnsClonedRoot()
 {
   using namespace loka::app;

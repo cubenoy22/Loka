@@ -17,6 +17,7 @@ void testNodeDefinitionTagPropagatesToCreatedNodes();
 void testNodeCompositionDiffTracksEntries();
 void testNodeCompositionTransactionTracksWorkingSet();
 void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
+void testNodeDefinitionsReportCompatibleLiveNodeKinds();
 void testNodeCompositionSnapshotOwnsClonedRoot();
 void testNodeCompositionSnapshotRetainsOwnedPropsSafely();
 void testBoundaryCompositionStateStoresSnapshotsLocally();
