@@ -61,6 +61,11 @@ namespace loka
           (void)other;
           return false;
         }
+        virtual bool applyPropsToNode(Node *node) const
+        {
+          (void)node;
+          return false;
+        }
       };
 
     } // namespace scene
