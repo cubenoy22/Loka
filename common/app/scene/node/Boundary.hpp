@@ -409,6 +409,32 @@ namespace loka
         {
           return compositionTransaction_.diff().valid ? &compositionTransaction_.diff() : 0;
         }
+        Node *compositionRootNode() const
+        {
+          return this->childrenHead();
+        }
+        INestable *compositionRootNestable() const
+        {
+          Node *root = compositionRootNode();
+          return root ? root->asNestable() : 0;
+        }
+        Node *findCompositionChildByTag(NodeTag tag) const
+        {
+          INestable *nestable = compositionRootNestable();
+          if (!nestable)
+          {
+            return 0;
+          }
+          loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
+          {
+            if (child->nodeTag() == tag)
+            {
+              return child;
+            }
+          }
+          return 0;
+        }
         bool hasLocalCompositionDiff() const
         {
           return localCompositionDiff() != 0;

@@ -1100,6 +1100,47 @@ void testDynamicBoundarySkipsRebuildForStableRetainOnlyDiff()
   assert(node.asNestable()->childrenHead() == firstChild);
 }
 
+void testBoundaryCanFindLiveCompositionChildByTag()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicLiveChildLookupProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLiveChildLookupProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLiveChildLookupProbeNode> PropsType;
+
+    DynamicLiveChildLookupProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack()
+                << Text("A").tag(10)
+                << Button("B").tag(20));
+    }
+  };
+
+  DynamicLiveChildLookupProbeNode node(BoundaryPropsFor<DynamicLiveChildLookupProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  assert(node.compositionRootNode() != 0);
+  assert(node.compositionRootNestable() != 0);
+
+  Node *first = node.findCompositionChildByTag(10);
+  Node *second = node.findCompositionChildByTag(20);
+  Node *missing = node.findCompositionChildByTag(30);
+  assert(first != 0);
+  assert(first->nodeTag() == 10);
+  assert(first->asTextNode() != 0);
+  assert(second != 0);
+  assert(second->nodeTag() == 20);
+  assert(second->asButtonNode() != 0);
+  assert(missing == 0);
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;
