@@ -4,6 +4,7 @@
 #include <vector>
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/NodeCompositionDiff.hpp"
+#include "app/scene/NodeCompositionSnapshot.hpp"
 
 namespace loka
 {
@@ -54,14 +55,12 @@ namespace loka
         }
       } // namespace detail
 
-      inline bool buildNodeCompositionDiffByTag(NodeComposition &previous,
-                                                NodeComposition &current,
-                                                NodeCompositionDiff &out)
+      inline bool buildNodeDefinitionDiffByTag(NodeDefinitionBase *previousRoot,
+                                               NodeDefinitionBase *currentRoot,
+                                               NodeCompositionDiff &out)
       {
         out.clear();
 
-        NodeDefinitionBase *previousRoot = previous.root();
-        NodeDefinitionBase *currentRoot = current.root();
         if (!previousRoot && !currentRoot)
         {
           out.valid = true;
@@ -118,6 +117,20 @@ namespace loka
         out.valid = true;
         out.fullRebuild = false;
         return true;
+      }
+
+      inline bool buildNodeCompositionDiffByTag(NodeComposition &previous,
+                                                NodeComposition &current,
+                                                NodeCompositionDiff &out)
+      {
+        return buildNodeDefinitionDiffByTag(previous.root(), current.root(), out);
+      }
+
+      inline bool buildNodeCompositionDiffByTag(NodeCompositionSnapshot &previous,
+                                                NodeCompositionSnapshot &current,
+                                                NodeCompositionDiff &out)
+      {
+        return buildNodeDefinitionDiffByTag(previous.root(), current.root(), out);
       }
     }
   }

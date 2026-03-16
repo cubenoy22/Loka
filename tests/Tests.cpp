@@ -710,6 +710,20 @@ void testNodeCompositionSnapshotOwnsClonedRoot()
   assert(child != 0);
   assert(child->nodeTag() == 100);
 
+  NodeComposition nextComposition;
+  nextComposition.declare(VStack()
+                          << Text("B updated").tag(200)
+                          << Text("C").tag(300));
+  NodeCompositionSnapshot nextSnapshot;
+  nextSnapshot.capture(nextComposition);
+
+  NodeCompositionDiff diff;
+  bool built = buildNodeCompositionDiffByTag(snapshot, nextSnapshot, diff);
+  assert(built);
+  assert(diff.valid);
+  assert(!diff.fullRebuild);
+  assert(diff.entryCount() == 3);
+
   snapshot.clear();
   assert(snapshot.empty());
   assert(snapshot.root() == 0);
