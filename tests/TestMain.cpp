@@ -32,6 +32,7 @@ int main()
   testNodeCompositionDiffTracksEntries();
   testNodeCompositionTransactionTracksWorkingSet();
   testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
+  testNodeCompositionSnapshotOwnsClonedRoot();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();

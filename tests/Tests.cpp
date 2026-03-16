@@ -9,6 +9,7 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/NodeCompositionCompare.hpp"
 #include "app/scene/NodeCompositionDiff.hpp"
+#include "app/scene/NodeCompositionSnapshot.hpp"
 #include "app/scene/NodeCompositionTransaction.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
@@ -671,6 +672,47 @@ void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire()
   assert(entry->action == NodeCompositionDiff::ACTION_RETIRE);
   assert(entry->previousIndex == 0);
   assert(entry->currentIndex == -1);
+}
+
+void testNodeCompositionSnapshotOwnsClonedRoot()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  NodeComposition composition;
+  composition.declare(VStack()
+                      << Text("A").tag(100)
+                      << Button("B").tag(200));
+
+  NodeCompositionSnapshot snapshot;
+  assert(snapshot.empty());
+  snapshot.capture(composition);
+  assert(!snapshot.empty());
+  assert(snapshot.root() != 0);
+  assert(snapshot.root() != composition.root());
+
+  INestableDefinition *root = snapshot.root()->asNestableDefinition();
+  assert(root != 0);
+  NodeDefinitionBase *child = root->childrenHead();
+  assert(child != 0);
+  assert(child->nodeTag() == 100);
+  child = child->nextInComposition;
+  assert(child != 0);
+  assert(child->nodeTag() == 200);
+  child = child->nextInComposition;
+  assert(child == 0);
+
+  composition.reset();
+  assert(snapshot.root() != 0);
+  root = snapshot.root()->asNestableDefinition();
+  assert(root != 0);
+  child = root->childrenHead();
+  assert(child != 0);
+  assert(child->nodeTag() == 100);
+
+  snapshot.clear();
+  assert(snapshot.empty());
+  assert(snapshot.root() == 0);
 }
 
 void testSceneMountLifecycle()
