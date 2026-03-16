@@ -18,6 +18,7 @@ void testNodeCompositionDiffTracksEntries();
 void testNodeCompositionTransactionTracksWorkingSet();
 void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
 void testNodeCompositionSnapshotOwnsClonedRoot();
+void testBoundaryCompositionStateStoresSnapshotsLocally();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();

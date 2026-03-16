@@ -7,6 +7,8 @@
 #include "ComposableNode.hpp"
 #include "../BoundState.hpp"
 #include "../ComponentContext.hpp"
+#include "../NodeCompositionSnapshot.hpp"
+#include "../NodeCompositionTransaction.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/util/StateUtil.hpp"
@@ -401,6 +403,13 @@ namespace loka
           return useManagedStateWithValue(initial);
         }
 
+        NodeCompositionTransaction &compositionTransaction() { return compositionTransaction_; }
+        const NodeCompositionTransaction &compositionTransaction() const { return compositionTransaction_; }
+        NodeCompositionSnapshot &previousCompositionSnapshot() { return previousCompositionSnapshot_; }
+        const NodeCompositionSnapshot &previousCompositionSnapshot() const { return previousCompositionSnapshot_; }
+        NodeCompositionSnapshot &currentCompositionSnapshot() { return currentCompositionSnapshot_; }
+        const NodeCompositionSnapshot &currentCompositionSnapshot() const { return currentCompositionSnapshot_; }
+
       protected:
         virtual void adoptState(loka::core::StateBase *state)
         {
@@ -542,6 +551,17 @@ namespace loka
           }
         }
 
+        void captureCurrentCompositionSnapshot()
+        {
+          currentCompositionSnapshot_.capture(this->composition());
+        }
+
+        void promoteCurrentCompositionSnapshot()
+        {
+          previousCompositionSnapshot_ = currentCompositionSnapshot_;
+          currentCompositionSnapshot_.clear();
+        }
+
       private:
         struct StateHandleBase
         {
@@ -628,6 +648,9 @@ namespace loka
         std::vector<ObservedStateEntry> observedStateEntries_;
         NodeArena nodeArena_;
         StateArena stateArena_;
+        NodeCompositionSnapshot previousCompositionSnapshot_;
+        NodeCompositionSnapshot currentCompositionSnapshot_;
+        NodeCompositionTransaction compositionTransaction_;
       };
 
       template <class PropsT, class NodeT>

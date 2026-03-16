@@ -729,6 +729,75 @@ void testNodeCompositionSnapshotOwnsClonedRoot()
   assert(snapshot.root() == 0);
 }
 
+void testBoundaryCompositionStateStoresSnapshotsLocally()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class BoundaryCompositionProbeNode : public BoundaryNodeFor<BoundaryCompositionProbeNode>
+  {
+  public:
+    BoundaryCompositionProbeNode(const BoundaryPropsFor<BoundaryCompositionProbeNode> &p)
+        : BoundaryNodeFor<BoundaryCompositionProbeNode>(p) {}
+
+    void captureForTest(NodeTag tag, const char *label)
+    {
+      ComponentContext context;
+      NodeComposition &composition = this->beginComposition(context);
+      composition.declare(VStack() << Text(label).tag(tag));
+      this->captureCurrentCompositionSnapshot();
+    }
+
+    void promoteForTest()
+    {
+      this->promoteCurrentCompositionSnapshot();
+    }
+
+    NodeTag previousFirstChildTag() const
+    {
+      const INestableDefinition *root = this->previousCompositionSnapshot().root()
+                                            ? this->previousCompositionSnapshot().root()->asNestableDefinition()
+                                            : 0;
+      if (!root || !root->childrenHead())
+      {
+        return NODE_TAG_NONE;
+      }
+      return root->childrenHead()->nodeTag();
+    }
+
+    NodeTag currentFirstChildTag() const
+    {
+      const INestableDefinition *root = this->currentCompositionSnapshot().root()
+                                            ? this->currentCompositionSnapshot().root()->asNestableDefinition()
+                                            : 0;
+      if (!root || !root->childrenHead())
+      {
+        return NODE_TAG_NONE;
+      }
+      return root->childrenHead()->nodeTag();
+    }
+  };
+
+  BoundaryCompositionProbeNode node(BoundaryPropsFor<BoundaryCompositionProbeNode>());
+  assert(node.previousCompositionSnapshot().empty());
+  assert(node.currentCompositionSnapshot().empty());
+  assert(node.compositionTransaction().empty());
+
+  node.captureForTest(100, "Previous");
+  assert(node.previousCompositionSnapshot().empty());
+  assert(!node.currentCompositionSnapshot().empty());
+  assert(node.currentFirstChildTag() == 100);
+
+  node.promoteForTest();
+  assert(!node.previousCompositionSnapshot().empty());
+  assert(node.currentCompositionSnapshot().empty());
+  assert(node.previousFirstChildTag() == 100);
+
+  node.captureForTest(200, "Current");
+  assert(node.previousFirstChildTag() == 100);
+  assert(node.currentFirstChildTag() == 200);
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;
