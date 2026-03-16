@@ -26,6 +26,7 @@ void testBoundaryReportsLocalCompositionDiffAvailability();
 void testBoundaryRejectsLocalDiffWhenRetainedTypeChanges();
 void testDynamicBoundarySkipsRebuildForStableRetainOnlyDiff();
 void testBoundaryCanFindLiveCompositionChildByTag();
+void testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();

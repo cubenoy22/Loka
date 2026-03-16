@@ -1166,6 +1166,61 @@ void testBoundaryCanFindLiveCompositionChildByTag()
   assert(missing == 0);
 }
 
+void testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicLocalPropsProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLocalPropsProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLocalPropsProbeNode> PropsType;
+
+    DynamicLocalPropsProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          alt_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack() << Text(alt_ ? "Alt" : "Base").tag(10));
+    }
+
+    void setAlt(bool value)
+    {
+      this->alt_ = value;
+    }
+
+  private:
+    bool alt_;
+  };
+
+  DynamicLocalPropsProbeNode node(BoundaryPropsFor<DynamicLocalPropsProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  Node *liveChild = node.findCompositionChildByTag(10);
+  assert(liveChild != 0);
+  TextNode *textNode = liveChild->asTextNode();
+  assert(textNode != 0);
+  assert(textNode->props.text_ != 0);
+  assert(textNode->props.text_->get().equals(loka::core::String::Literal("Base")));
+
+  node.setAlt(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  Node *updatedChild = node.findCompositionChildByTag(10);
+  assert(updatedChild == liveChild);
+  textNode = updatedChild->asTextNode();
+  assert(textNode != 0);
+  assert(textNode->props.text_ != 0);
+  assert(textNode->props.text_->get().equals(loka::core::String::Literal("Alt")));
+  assert(node.localCompositionDiff() != 0);
+  assert(node.localCompositionDiff()->isCompatibleRetainOnly());
+  assert(!node.localCompositionDiff()->isStableRetainOnly());
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

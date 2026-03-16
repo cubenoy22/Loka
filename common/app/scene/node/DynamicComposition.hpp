@@ -123,8 +123,18 @@ namespace loka
           }
           this->captureCurrentCompositionSnapshot();
           this->rebuildCompositionTransactionFromSnapshots();
-          if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() && this->localCompositionDiff()->isStableRetainOnly())
+          if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() && this->localCompositionDiff()->isCompatibleRetainOnly())
           {
+            if (!this->localCompositionDiff()->isStableRetainOnly())
+            {
+              for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry; entry = entry->nextInComposition)
+              {
+                if (!entry->equivalentProps)
+                {
+                  this->applyCurrentDefinitionPropsToLiveChild(entry->tag);
+                }
+              }
+            }
             this->promoteCurrentCompositionSnapshot();
             loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
             for (Node *child = it.next(); child; child = it.next())

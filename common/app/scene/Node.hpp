@@ -281,6 +281,16 @@ namespace loka
       struct ComponentDefinitionBase;
       struct LightComponentDefinitionBase;
 
+      template <typename NodeT, typename PropsT>
+      struct NodePropsApplier
+      {
+        static bool apply(NodeT *node, const PropsT &props)
+        {
+          node->props = props;
+          return true;
+        }
+      };
+
       // C++98 alignof alternative
       template <typename T>
       struct AlignOfHelper
@@ -332,6 +342,7 @@ namespace loka
         virtual NodeKind nodeKind() const = 0;
         virtual const PropsBase *propsBase() const = 0;
         virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const = 0;
+        virtual bool applyPropsToNode(Node *node) const = 0;
         virtual bool isCompatibleWithNode(const Node *node) const
         {
           return node && node->kind() == this->nodeKind();
@@ -508,6 +519,20 @@ namespace loka
             return false;
           }
           return !(this->props < *otherProps) && !(*otherProps < this->props);
+        }
+        virtual bool applyPropsToNode(Node *node) const
+        {
+          if (!this->isCompatibleWithNode(node))
+          {
+            return false;
+          }
+          NodeT *typed = static_cast<NodeT *>(node);
+          bool applied = NodePropsApplier<NodeT, PropsT>::apply(typed, this->props);
+          if (applied)
+          {
+            typed->setNodeTag(this->nodeTag());
+          }
+          return applied;
         }
       };
 

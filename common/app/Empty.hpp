@@ -46,6 +46,20 @@ namespace loka
     };
     // Short name for DSL
     typedef EmptyDefinition Empty;
+
+    namespace scene
+    {
+      template <>
+      struct NodePropsApplier< ::loka::app::EmptyNode, ::loka::app::EmptyProps>
+      {
+        static bool apply(::loka::app::EmptyNode *node, const ::loka::app::EmptyProps &props)
+        {
+          (void)node;
+          (void)props;
+          return false;
+        }
+      };
+    }
   } // namespace app
 } // namespace loka
 

@@ -435,6 +435,36 @@ namespace loka
           }
           return 0;
         }
+        NodeDefinitionBase *findCurrentCompositionDefinitionByTag(NodeTag tag) const
+        {
+          const INestableDefinition *root = currentCompositionSnapshot_.root()
+                                                ? currentCompositionSnapshot_.root()->asNestableDefinition()
+                                                : 0;
+          if (!root)
+          {
+            return 0;
+          }
+          NodeDefinitionBase *child = root->childrenHead();
+          while (child)
+          {
+            if (child->nodeTag() == tag)
+            {
+              return child;
+            }
+            child = child->nextInComposition;
+          }
+          return 0;
+        }
+        bool applyCurrentDefinitionPropsToLiveChild(NodeTag tag)
+        {
+          Node *liveChild = findCompositionChildByTag(tag);
+          NodeDefinitionBase *definition = findCurrentCompositionDefinitionByTag(tag);
+          if (!liveChild || !definition)
+          {
+            return false;
+          }
+          return definition->applyPropsToNode(liveChild);
+        }
         bool hasLocalCompositionDiff() const
         {
           return localCompositionDiff() != 0;

@@ -152,6 +152,29 @@ namespace loka
           }
           return true;
         }
+        bool isCompatibleRetainOnly() const
+        {
+          if (empty())
+          {
+            return false;
+          }
+          for (Entry *entry = entries.head(); entry; entry = entry->nextInComposition)
+          {
+            if (entry->action != ACTION_RETAIN)
+            {
+              return false;
+            }
+            if (!entry->compatibleType)
+            {
+              return false;
+            }
+            if (entry->previousIndex != entry->currentIndex)
+            {
+              return false;
+            }
+          }
+          return true;
+        }
 
         loka::dsl::CompositionList<Entry> entries;
       };
