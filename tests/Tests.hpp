@@ -16,6 +16,7 @@ void testNodeCompositionShowIf();
 void testNodeDefinitionTagPropagatesToCreatedNodes();
 void testNodeCompositionDiffTracksEntries();
 void testNodeCompositionTransactionTracksWorkingSet();
+void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();

@@ -7,6 +7,7 @@
 #include "loka/core/util/StateUtil.hpp"
 #include "app/SceneManager.hpp"
 #include "app/scene/NodeComposition.hpp"
+#include "app/scene/NodeCompositionCompare.hpp"
 #include "app/scene/NodeCompositionDiff.hpp"
 #include "app/scene/NodeCompositionTransaction.hpp"
 #include "app/scene/PlatformController.hpp"
@@ -619,6 +620,50 @@ void testNodeCompositionTransactionTracksWorkingSet()
   assert(transaction.current() == 0);
   assert(transaction.retiredCount() == 0);
   assert(transaction.diff().empty());
+}
+
+void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  NodeComposition previous;
+  previous.declare(VStack()
+                   << Text("Previous A").tag(100)
+                   << Text("Shared").tag(200));
+
+  NodeComposition current;
+  current.declare(VStack()
+                  << Text("Shared updated").tag(200)
+                  << Text("Current C").tag(300));
+
+  NodeCompositionDiff diff;
+  bool built = buildNodeCompositionDiffByTag(previous, current, diff);
+  assert(built);
+  assert(diff.valid);
+  assert(!diff.fullRebuild);
+  assert(diff.entryCount() == 3);
+
+  NodeCompositionDiff::Entry *entry = diff.entriesHead();
+  assert(entry != 0);
+  assert(entry->tag == 200);
+  assert(entry->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(entry->previousIndex == 1);
+  assert(entry->currentIndex == 0);
+
+  entry = entry->nextInComposition;
+  assert(entry != 0);
+  assert(entry->tag == 300);
+  assert(entry->action == NodeCompositionDiff::ACTION_REPLACE);
+  assert(entry->previousIndex == -1);
+  assert(entry->currentIndex == 1);
+
+  entry = entry->nextInComposition;
+  assert(entry != 0);
+  assert(entry->tag == 100);
+  assert(entry->action == NodeCompositionDiff::ACTION_RETIRE);
+  assert(entry->previousIndex == 0);
+  assert(entry->currentIndex == -1);
 }
 
 void testSceneMountLifecycle()

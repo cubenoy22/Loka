@@ -31,6 +31,7 @@ int main()
   testNodeDefinitionTagPropagatesToCreatedNodes();
   testNodeCompositionDiffTracksEntries();
   testNodeCompositionTransactionTracksWorkingSet();
+  testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();
