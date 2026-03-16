@@ -1392,6 +1392,77 @@ void testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild()
   assert(node.findCompositionChildByTag(20) == 0);
 }
 
+void testDynamicBoundaryLocallyReordersTaggedChildren()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicLocalReorderProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLocalReorderProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLocalReorderProbeNode> PropsType;
+
+    DynamicLocalReorderProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          reversed_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (reversed_)
+      {
+        c.declare(VStack()
+                  << Text("B").tag(20)
+                  << Text("A").tag(10));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << Text("A").tag(10)
+                  << Text("B").tag(20));
+      }
+    }
+
+    void setReversed(bool value)
+    {
+      this->reversed_ = value;
+    }
+
+  private:
+    bool reversed_;
+  };
+
+  DynamicLocalReorderProbeNode node(BoundaryPropsFor<DynamicLocalReorderProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  Node *aBefore = node.findCompositionChildByTag(10);
+  Node *bBefore = node.findCompositionChildByTag(20);
+  assert(aBefore != 0);
+  assert(bBefore != 0);
+
+  INestable *root = node.compositionRootNestable();
+  assert(root != 0);
+  Node *firstBefore = root->childrenHead();
+  assert(firstBefore == aBefore);
+  assert(firstBefore->nextInComposition == bBefore);
+
+  node.setReversed(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  Node *aAfter = node.findCompositionChildByTag(10);
+  Node *bAfter = node.findCompositionChildByTag(20);
+  assert(aAfter == aBefore);
+  assert(bAfter == bBefore);
+
+  root = node.compositionRootNestable();
+  assert(root != 0);
+  Node *firstAfter = root->childrenHead();
+  assert(firstAfter == bAfter);
+  assert(firstAfter->nextInComposition == aAfter);
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

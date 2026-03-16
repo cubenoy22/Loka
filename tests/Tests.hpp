@@ -30,6 +30,7 @@ void testBoundaryCanFindLiveCompositionChildByTag();
 void testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild();
 void testDynamicBoundaryLocallyReplacesTaggedChild();
 void testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild();
+void testDynamicBoundaryLocallyReordersTaggedChildren();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();
