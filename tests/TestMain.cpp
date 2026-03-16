@@ -35,6 +35,7 @@ int main()
   testNodeCompositionSnapshotOwnsClonedRoot();
   testBoundaryCompositionStateStoresSnapshotsLocally();
   testBoundaryComposePathsPopulateTransactions();
+  testBoundaryReportsLocalCompositionDiffAvailability();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();

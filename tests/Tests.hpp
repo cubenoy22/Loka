@@ -20,6 +20,7 @@ void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
 void testNodeCompositionSnapshotOwnsClonedRoot();
 void testBoundaryCompositionStateStoresSnapshotsLocally();
 void testBoundaryComposePathsPopulateTransactions();
+void testBoundaryReportsLocalCompositionDiffAvailability();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();

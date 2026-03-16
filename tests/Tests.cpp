@@ -875,6 +875,53 @@ void testBoundaryComposePathsPopulateTransactions()
   assert(dynamicNode.compositionTransaction().diff().entryCount() == 3);
 }
 
+void testBoundaryReportsLocalCompositionDiffAvailability()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicLocalDiffProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLocalDiffProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLocalDiffProbeNode> PropsType;
+
+    DynamicLocalDiffProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showAlt_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack()
+                << Text("Shared").tag(10)
+                << (showAlt_ ? Text("Alt").tag(30) : Text("Base").tag(20)));
+    }
+
+    void setShowAlt(bool value)
+    {
+      this->showAlt_ = value;
+    }
+
+  private:
+    bool showAlt_;
+  };
+
+  DynamicLocalDiffProbeNode node(BoundaryPropsFor<DynamicLocalDiffProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+  assert(!node.hasLocalCompositionDiff());
+  assert(!node.canApplyLocalCompositionDiff());
+  assert(node.localCompositionDiff() == 0);
+
+  node.setShowAlt(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+  assert(node.hasLocalCompositionDiff());
+  assert(node.canApplyLocalCompositionDiff());
+  assert(node.localCompositionDiff() != 0);
+  assert(node.localCompositionDiff()->entryCount() == 3);
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

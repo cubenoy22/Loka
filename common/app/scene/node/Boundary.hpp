@@ -405,6 +405,19 @@ namespace loka
 
         NodeCompositionTransaction &compositionTransaction() { return compositionTransaction_; }
         const NodeCompositionTransaction &compositionTransaction() const { return compositionTransaction_; }
+        const NodeCompositionDiff *localCompositionDiff() const
+        {
+          return compositionTransaction_.diff().valid ? &compositionTransaction_.diff() : 0;
+        }
+        bool hasLocalCompositionDiff() const
+        {
+          return localCompositionDiff() != 0;
+        }
+        bool canApplyLocalCompositionDiff() const
+        {
+          const NodeCompositionDiff *diff = localCompositionDiff();
+          return diff != 0 && !diff->fullRebuild && !diff->empty();
+        }
         NodeCompositionSnapshot &previousCompositionSnapshot() { return previousCompositionSnapshot_; }
         const NodeCompositionSnapshot &previousCompositionSnapshot() const { return previousCompositionSnapshot_; }
         NodeCompositionSnapshot &currentCompositionSnapshot() { return currentCompositionSnapshot_; }
