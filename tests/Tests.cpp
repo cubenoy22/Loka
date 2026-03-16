@@ -741,6 +741,69 @@ void testNodeCompositionSnapshotOwnsClonedRoot()
   assert(snapshot.root() == 0);
 }
 
+void testNodeCompositionSnapshotRetainsOwnedPropsSafely()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  NodeComposition composition;
+  const char *items[] = {"One", "Two", "Three"};
+  composition.declare(VStack()
+                      << Text("Owned text").tag(100)
+                      << PopupMenu(items, 3).tag(200));
+
+  NodeCompositionSnapshot snapshot;
+  snapshot.capture(composition);
+  composition.reset();
+
+  INestableDefinition *root = snapshot.root() ? snapshot.root()->asNestableDefinition() : 0;
+  assert(root != 0);
+
+  NodeDefinitionBase *textBase = root->childrenHead();
+  assert(textBase != 0);
+  const TextDefinition *textDef = static_cast<const TextDefinition *>(textBase);
+  assert(textDef->props.ownsText);
+  assert(textDef->props.text_ == &textDef->props.ownedText);
+  assert(textDef->props.text_ != 0);
+  assert(textDef->props.text_->get().equals(loka::core::String::Literal("Owned text")));
+
+  NodeDefinitionBase *popupBase = textBase->nextInComposition;
+  assert(popupBase != 0);
+  const PopupMenuDefinition *popupDef = static_cast<const PopupMenuDefinition *>(popupBase);
+  assert(popupDef->props.ownsItems_);
+  assert(popupDef->props.items_ == &popupDef->props.ownedItems_);
+  assert(popupDef->props.items_ != 0);
+  assert(popupDef->props.items_->size() == 3);
+  assert((*popupDef->props.items_)[0].equals(loka::core::String::Literal("One")));
+  assert((*popupDef->props.items_)[2].equals(loka::core::String::Literal("Three")));
+
+  NodeComposition nextComposition;
+  nextComposition.declare(VStack()
+                          << Text("Owned text").tag(100)
+                          << PopupMenu(items, 3).tag(200));
+  NodeCompositionSnapshot nextSnapshot;
+  nextSnapshot.capture(nextComposition);
+
+  NodeCompositionDiff diff;
+  bool built = buildNodeCompositionDiffByTag(snapshot, nextSnapshot, diff);
+  assert(built);
+  assert(diff.entryCount() == 2);
+
+  NodeCompositionDiff::Entry *entry = diff.entriesHead();
+  assert(entry != 0);
+  assert(entry->tag == 100);
+  assert(entry->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(entry->compatibleType);
+  assert(entry->equivalentProps);
+
+  entry = entry->nextInComposition;
+  assert(entry != 0);
+  assert(entry->tag == 200);
+  assert(entry->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(entry->compatibleType);
+  assert(entry->equivalentProps);
+}
+
 void testBoundaryCompositionStateStoresSnapshotsLocally()
 {
   using namespace loka::app;

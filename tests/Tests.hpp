@@ -18,6 +18,7 @@ void testNodeCompositionDiffTracksEntries();
 void testNodeCompositionTransactionTracksWorkingSet();
 void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
 void testNodeCompositionSnapshotOwnsClonedRoot();
+void testNodeCompositionSnapshotRetainsOwnedPropsSafely();
 void testBoundaryCompositionStateStoresSnapshotsLocally();
 void testBoundaryComposePathsPopulateTransactions();
 void testBoundaryReportsLocalCompositionDiffAvailability();

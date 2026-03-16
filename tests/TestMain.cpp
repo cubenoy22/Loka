@@ -33,6 +33,7 @@ int main()
   testNodeCompositionTransactionTracksWorkingSet();
   testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
   testNodeCompositionSnapshotOwnsClonedRoot();
+  testNodeCompositionSnapshotRetainsOwnedPropsSafely();
   testBoundaryCompositionStateStoresSnapshotsLocally();
   testBoundaryComposePathsPopulateTransactions();
   testBoundaryReportsLocalCompositionDiffAvailability();
