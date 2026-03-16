@@ -167,6 +167,16 @@ namespace loka
           return 0;
         }
 
+        return this->createNodeFromDefinition(root);
+      }
+
+      Node *NodeComposition::createNodeFromDefinition(NodeDefinitionBase *root) const
+      {
+        if (!root)
+        {
+          return 0;
+        }
+
         // Try to use arena if boundary is available
         if (context_)
         {

@@ -465,6 +465,38 @@ namespace loka
           }
           return definition->applyPropsToNode(liveChild);
         }
+        bool replaceCompositionChildFromCurrentDefinition(NodeTag tag, ComponentContext &context)
+        {
+          INestable *root = compositionRootNestable();
+          Node *liveChild = findCompositionChildByTag(tag);
+          NodeDefinitionBase *definition = findCurrentCompositionDefinitionByTag(tag);
+          if (!root || !liveChild || !definition)
+          {
+            return false;
+          }
+          NodeComposition composition;
+          composition.setContext(&context);
+          Node *replacement = composition.createNodeFromDefinition(definition);
+          if (!replacement)
+          {
+            return false;
+          }
+          this->composeTree(liveChild, context, COMPOSE_EVENT_DETACH, this);
+          if (!root->replaceChild(liveChild, replacement))
+          {
+            if (!replacement->isArenaAllocated())
+            {
+              delete replacement;
+            }
+            return false;
+          }
+          this->composeTree(replacement, context, COMPOSE_EVENT_ATTACH, this);
+          if (!liveChild->isArenaAllocated())
+          {
+            delete liveChild;
+          }
+          return true;
+        }
         bool hasLocalCompositionDiff() const
         {
           return localCompositionDiff() != 0;

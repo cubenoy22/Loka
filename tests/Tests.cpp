@@ -1260,6 +1260,64 @@ void testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild()
   assert(!node.localCompositionDiff()->isStableRetainOnly());
 }
 
+void testDynamicBoundaryLocallyReplacesTaggedChild()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicLocalReplaceProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLocalReplaceProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLocalReplaceProbeNode> PropsType;
+
+    DynamicLocalReplaceProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showText_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack()
+                << Text("Stable").tag(10)
+                << (showText_
+                        ? Text("BranchText").tag(20)
+                        : Button("BranchButton").tag(20)));
+    }
+
+    void setShowText(bool value)
+    {
+      this->showText_ = value;
+    }
+
+  private:
+    bool showText_;
+  };
+
+  DynamicLocalReplaceProbeNode node(BoundaryPropsFor<DynamicLocalReplaceProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  Node *stableBefore = node.findCompositionChildByTag(10);
+  Node *branchBefore = node.findCompositionChildByTag(20);
+  assert(stableBefore != 0);
+  assert(stableBefore->asTextNode() != 0);
+  assert(branchBefore != 0);
+  assert(branchBefore->asButtonNode() != 0);
+
+  node.setShowText(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  Node *stableAfter = node.findCompositionChildByTag(10);
+  Node *branchAfter = node.findCompositionChildByTag(20);
+  assert(stableAfter == stableBefore);
+  assert(branchAfter != 0);
+  assert(branchAfter != branchBefore);
+  assert(branchAfter->asTextNode() != 0);
+  assert(node.localCompositionDiff() != 0);
+  assert(node.localCompositionDiff()->isCompatibleRetainOrReplaceOnly());
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

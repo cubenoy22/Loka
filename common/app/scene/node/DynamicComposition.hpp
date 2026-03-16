@@ -143,6 +143,47 @@ namespace loka
             }
             return;
           }
+          if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() && this->localCompositionDiff()->isCompatibleRetainOrReplaceOnly())
+          {
+            bool localApplied = true;
+            for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry; entry = entry->nextInComposition)
+            {
+              if (entry->action == NodeCompositionDiff::ACTION_RETAIN)
+              {
+                if (!entry->equivalentProps && !this->applyCurrentDefinitionPropsToLiveChild(entry->tag))
+                {
+                  localApplied = false;
+                  break;
+                }
+                continue;
+              }
+              if (entry->action == NodeCompositionDiff::ACTION_REPLACE)
+              {
+                if (!this->replaceCompositionChildFromCurrentDefinition(entry->tag, context))
+                {
+                  localApplied = false;
+                  break;
+                }
+              }
+            }
+            if (localApplied)
+            {
+              this->promoteCurrentCompositionSnapshot();
+              for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry; entry = entry->nextInComposition)
+              {
+                if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
+                {
+                  continue;
+                }
+                Node *child = this->findCompositionChildByTag(entry->tag);
+                if (child)
+                {
+                  this->composeTree(child, context, event, this);
+                }
+              }
+              return;
+            }
+          }
           NodeComposition detachComposition;
           detachComposition.setContext(&context);
           this->detachNode(detachComposition);

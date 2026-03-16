@@ -368,6 +368,7 @@ namespace loka
 
         // Create node tree
         Node *createNodeTree() const;
+        Node *createNodeFromDefinition(NodeDefinitionBase *definition) const;
 
         NodeDefinitionBase *root() const { return root_; }
 
