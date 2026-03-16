@@ -115,6 +115,17 @@ namespace loka
         bool empty() const { return entries.count() == 0; }
         size_t entryCount() const { return entries.count(); }
         Entry *entriesHead() const { return entries.head(); }
+        bool hasIncompatibleRetain() const
+        {
+          for (Entry *entry = entries.head(); entry; entry = entry->nextInComposition)
+          {
+            if (entry->action == ACTION_RETAIN && !entry->compatibleType)
+            {
+              return true;
+            }
+          }
+          return false;
+        }
 
         loka::dsl::CompositionList<Entry> entries;
       };

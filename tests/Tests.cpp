@@ -997,6 +997,60 @@ void testBoundaryReportsLocalCompositionDiffAvailability()
   assert(node.localCompositionDiff()->entryCount() == 3);
 }
 
+void testBoundaryRejectsLocalDiffWhenRetainedTypeChanges()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicIncompatibleRetainProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicIncompatibleRetainProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicIncompatibleRetainProbeNode> PropsType;
+
+    DynamicIncompatibleRetainProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showButton_(true) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (showButton_)
+      {
+        c.declare(VStack() << Button("A").tag(10));
+      }
+      else
+      {
+        c.declare(VStack() << Text("A").tag(10));
+      }
+    }
+
+    void setShowButton(bool value)
+    {
+      this->showButton_ = value;
+    }
+
+  private:
+    bool showButton_;
+  };
+
+  DynamicIncompatibleRetainProbeNode node(BoundaryPropsFor<DynamicIncompatibleRetainProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+  assert(!node.hasLocalCompositionDiff());
+
+  node.setShowButton(false);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+  assert(node.hasLocalCompositionDiff());
+  assert(node.localCompositionDiff() != 0);
+  assert(node.localCompositionDiff()->entryCount() == 1);
+  assert(node.localCompositionDiff()->entriesHead()->tag == 10);
+  assert(node.localCompositionDiff()->entriesHead()->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(!node.localCompositionDiff()->entriesHead()->compatibleType);
+  assert(!node.localCompositionDiff()->entriesHead()->equivalentProps);
+  assert(!node.canApplyLocalCompositionDiff());
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

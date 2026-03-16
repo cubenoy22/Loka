@@ -416,7 +416,7 @@ namespace loka
         bool canApplyLocalCompositionDiff() const
         {
           const NodeCompositionDiff *diff = localCompositionDiff();
-          return diff != 0 && !diff->fullRebuild && !diff->empty();
+          return diff != 0 && !diff->fullRebuild && !diff->empty() && !diff->hasIncompatibleRetain();
         }
         NodeCompositionSnapshot &previousCompositionSnapshot() { return previousCompositionSnapshot_; }
         const NodeCompositionSnapshot &previousCompositionSnapshot() const { return previousCompositionSnapshot_; }
