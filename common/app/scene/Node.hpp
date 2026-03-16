@@ -329,6 +329,8 @@ namespace loka
         virtual size_t nodeSize() const = 0;
         virtual size_t nodeAlign() const = 0;
         virtual NodeDefinitionBase *clone() const = 0;
+        virtual const PropsBase *propsBase() const = 0;
+        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const = 0;
         virtual bool isBoundary() const { return false; }
         virtual INestableDefinition *asNestableDefinition() { return 0; }
         NodeDefinitionBase *nextInComposition;
@@ -483,6 +485,20 @@ namespace loka
         size_t nodeSize() const { return sizeof(NodeT); }
         size_t nodeAlign() const { return AlignOf<NodeT>::value; }
         virtual NodeDefinitionBase *clone() const { return new NodeDefinition(*this); }
+        virtual const PropsBase *propsBase() const { return &props; }
+        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const
+        {
+          const PropsBase *otherProps = other.propsBase();
+          if (!otherProps)
+          {
+            return false;
+          }
+          if (this->props.propsTypeId() != otherProps->propsTypeId())
+          {
+            return false;
+          }
+          return !(this->props < *otherProps) && !(*otherProps < this->props);
+        }
       };
 
       // --- Interface for nestable NodeDefinition ---

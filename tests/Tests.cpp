@@ -558,9 +558,9 @@ void testNodeCompositionDiffTracksEntries()
 
   diff.valid = true;
   diff.fullRebuild = false;
-  diff.addEntry(100, 0, NodeCompositionDiff::ACTION_RETAIN, 0, 0);
-  diff.addEntry(200, 1, NodeCompositionDiff::ACTION_REPLACE, 1, 1);
-  diff.addEntry(300, 2, NodeCompositionDiff::ACTION_RETIRE, 2, -1);
+  diff.addEntry(100, 0, NodeCompositionDiff::ACTION_RETAIN, true, true, 0, 0);
+  diff.addEntry(200, 1, NodeCompositionDiff::ACTION_REPLACE, false, false, 1, 1);
+  diff.addEntry(300, 2, NodeCompositionDiff::ACTION_RETIRE, false, false, 2, -1);
 
   assert(!diff.empty());
   assert(diff.entryCount() == 3);
@@ -570,14 +570,20 @@ void testNodeCompositionDiffTracksEntries()
   assert(entry->tag == 100);
   assert(entry->slot == 0);
   assert(entry->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(entry->compatibleType);
+  assert(entry->equivalentProps);
   entry = entry->nextInComposition;
   assert(entry != 0);
   assert(entry->tag == 200);
   assert(entry->action == NodeCompositionDiff::ACTION_REPLACE);
+  assert(!entry->compatibleType);
+  assert(!entry->equivalentProps);
   entry = entry->nextInComposition;
   assert(entry != 0);
   assert(entry->tag == 300);
   assert(entry->action == NodeCompositionDiff::ACTION_RETIRE);
+  assert(!entry->compatibleType);
+  assert(!entry->equivalentProps);
   assert(entry->currentIndex == -1);
 
   diff.clear();
@@ -656,6 +662,8 @@ void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire()
   assert(entry != 0);
   assert(entry->tag == 200);
   assert(entry->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(entry->compatibleType);
+  assert(!entry->equivalentProps);
   assert(entry->previousIndex == 1);
   assert(entry->currentIndex == 0);
 
@@ -663,6 +671,8 @@ void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire()
   assert(entry != 0);
   assert(entry->tag == 300);
   assert(entry->action == NodeCompositionDiff::ACTION_REPLACE);
+  assert(!entry->compatibleType);
+  assert(!entry->equivalentProps);
   assert(entry->previousIndex == -1);
   assert(entry->currentIndex == 1);
 
@@ -670,6 +680,8 @@ void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire()
   assert(entry != 0);
   assert(entry->tag == 100);
   assert(entry->action == NodeCompositionDiff::ACTION_RETIRE);
+  assert(!entry->compatibleType);
+  assert(!entry->equivalentProps);
   assert(entry->previousIndex == 0);
   assert(entry->currentIndex == -1);
 }

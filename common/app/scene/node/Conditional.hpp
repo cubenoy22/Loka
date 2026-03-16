@@ -54,6 +54,12 @@ namespace loka
         size_t nodeSize() const;
         size_t nodeAlign() const;
         virtual NodeDefinitionBase *clone() const { return new ConditionalDefinition(*this); }
+        virtual const PropsBase *propsBase() const { return 0; }
+        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const
+        {
+          (void)other;
+          return false;
+        }
       };
 
     } // namespace scene

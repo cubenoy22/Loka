@@ -26,16 +26,26 @@ namespace loka
               : tag(NODE_TAG_NONE),
                 slot(-1),
                 action(ACTION_RETAIN),
+                compatibleType(false),
+                equivalentProps(false),
                 previousIndex(-1),
                 currentIndex(-1),
                 nextInComposition(0)
           {
           }
 
-          Entry(NodeTag tagValue, int slotValue, Action actionValue, int previousIndexValue, int currentIndexValue)
+          Entry(NodeTag tagValue,
+                int slotValue,
+                Action actionValue,
+                bool compatibleTypeValue,
+                bool equivalentPropsValue,
+                int previousIndexValue,
+                int currentIndexValue)
               : tag(tagValue),
                 slot(slotValue),
                 action(actionValue),
+                compatibleType(compatibleTypeValue),
+                equivalentProps(equivalentPropsValue),
                 previousIndex(previousIndexValue),
                 currentIndex(currentIndexValue),
                 nextInComposition(0)
@@ -46,6 +56,8 @@ namespace loka
               : tag(other.tag),
                 slot(other.slot),
                 action(other.action),
+                compatibleType(other.compatibleType),
+                equivalentProps(other.equivalentProps),
                 previousIndex(other.previousIndex),
                 currentIndex(other.currentIndex),
                 nextInComposition(0)
@@ -61,6 +73,8 @@ namespace loka
             tag = other.tag;
             slot = other.slot;
             action = other.action;
+            compatibleType = other.compatibleType;
+            equivalentProps = other.equivalentProps;
             previousIndex = other.previousIndex;
             currentIndex = other.currentIndex;
             nextInComposition = 0;
@@ -72,6 +86,8 @@ namespace loka
           NodeTag tag;
           int slot;
           Action action;
+          bool compatibleType;
+          bool equivalentProps;
           int previousIndex;
           int currentIndex;
           Entry *nextInComposition;
@@ -85,9 +101,15 @@ namespace loka
           entries.clear();
         }
 
-        void addEntry(NodeTag tag, int slot, Action action, int previousIndex, int currentIndex)
+        void addEntry(NodeTag tag,
+                      int slot,
+                      Action action,
+                      bool compatibleType,
+                      bool equivalentProps,
+                      int previousIndex,
+                      int currentIndex)
         {
-          entries.appendOwned(new Entry(tag, slot, action, previousIndex, currentIndex));
+          entries.appendOwned(new Entry(tag, slot, action, compatibleType, equivalentProps, previousIndex, currentIndex));
         }
 
         bool empty() const { return entries.count() == 0; }

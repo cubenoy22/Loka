@@ -96,11 +96,29 @@ namespace loka
           int previousIndex = detail::indexOfTag(previousChildren, currentChild->nodeTag());
           if (previousIndex >= 0)
           {
-            out.addEntry(currentChild->nodeTag(), static_cast<int>(i), NodeCompositionDiff::ACTION_RETAIN, previousIndex, static_cast<int>(i));
+            NodeDefinitionBase *previousChild = previousChildren[previousIndex];
+            const scene::PropsBase *previousProps = previousChild ? previousChild->propsBase() : 0;
+            const scene::PropsBase *currentProps = currentChild ? currentChild->propsBase() : 0;
+            bool compatibleType = previousProps && currentProps &&
+                                  previousProps->propsTypeId() == currentProps->propsTypeId();
+            bool equivalentProps = compatibleType && previousChild->hasEquivalentProps(*currentChild);
+            out.addEntry(currentChild->nodeTag(),
+                         static_cast<int>(i),
+                         NodeCompositionDiff::ACTION_RETAIN,
+                         compatibleType,
+                         equivalentProps,
+                         previousIndex,
+                         static_cast<int>(i));
           }
           else
           {
-            out.addEntry(currentChild->nodeTag(), static_cast<int>(i), NodeCompositionDiff::ACTION_REPLACE, -1, static_cast<int>(i));
+            out.addEntry(currentChild->nodeTag(),
+                         static_cast<int>(i),
+                         NodeCompositionDiff::ACTION_REPLACE,
+                         false,
+                         false,
+                         -1,
+                         static_cast<int>(i));
           }
         }
 
@@ -110,7 +128,13 @@ namespace loka
           int currentIndex = detail::indexOfTag(currentChildren, previousChild->nodeTag());
           if (currentIndex < 0)
           {
-            out.addEntry(previousChild->nodeTag(), static_cast<int>(i), NodeCompositionDiff::ACTION_RETIRE, static_cast<int>(i), -1);
+            out.addEntry(previousChild->nodeTag(),
+                         static_cast<int>(i),
+                         NodeCompositionDiff::ACTION_RETIRE,
+                         false,
+                         false,
+                         static_cast<int>(i),
+                         -1);
           }
         }
 
