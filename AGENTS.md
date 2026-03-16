@@ -28,6 +28,7 @@
 - On 68k hot paths, avoid `StateStream` unless justified; manual `bind` + compute can be significantly faster for startup/compose.
 - When profiling multiple sections inside one function, use `PROFILE_SECTION_ID` to avoid `__LINE__` collisions.
 - DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `LightComponent` to inline into the parent composition when you don't need an independent lifecycle.
+- Ownership policy: follow gravity. Parent owns child-facing state/data by default; cross-boundary sharing must be explicit (`Managed<T>` or equivalent), and broad reuse should prefer global caches for immutable/shared resources. Avoid designs where a child effectively owns or stabilizes its parent.
 - DSL design: prefer one-shot Static composition for 68k/Classic unless you truly need updates; extra compose passes are expensive.
 - Attr policy (68k): keep default attr structs as small PODs (target roughly <= 16-32 bytes). Avoid embedding heavy owned data in default attrs; route heavier payloads through explicit extended/pro attr types or external state handles.
 - DSL props API policy: `Props` is the canonical/full API surface. `Definition` setters are optional shorthand only for frequently used fields in DSL call sites.
