@@ -798,6 +798,83 @@ void testBoundaryCompositionStateStoresSnapshotsLocally()
   assert(node.currentFirstChildTag() == 200);
 }
 
+void testBoundaryComposePathsPopulateTransactions()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class StaticTransactionProbeNode : public BoundaryNodeFor<StaticTransactionProbeNode>
+  {
+  public:
+    StaticTransactionProbeNode(const BoundaryPropsFor<StaticTransactionProbeNode> &p)
+        : BoundaryNodeFor<StaticTransactionProbeNode>(p) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack() << Text("Static").tag(100));
+    }
+
+    NodeTag previousFirstChildTag() const
+    {
+      const INestableDefinition *root = this->previousCompositionSnapshot().root()
+                                            ? this->previousCompositionSnapshot().root()->asNestableDefinition()
+                                            : 0;
+      if (!root || !root->childrenHead())
+      {
+        return NODE_TAG_NONE;
+      }
+      return root->childrenHead()->nodeTag();
+    }
+  };
+
+  class DynamicTransactionProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicTransactionProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicTransactionProbeNode> PropsType;
+
+    DynamicTransactionProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showAlt_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack()
+                << Text("Shared").tag(10)
+                << (showAlt_ ? Text("Alt").tag(30) : Text("Base").tag(20)));
+    }
+
+    void setShowAlt(bool value)
+    {
+      this->showAlt_ = value;
+    }
+
+  private:
+    bool showAlt_;
+  };
+
+  StaticTransactionProbeNode staticNode(BoundaryPropsFor<StaticTransactionProbeNode>());
+  ComponentContext staticContext;
+  staticContext.setBoundary(&staticNode);
+  staticNode.compose(staticContext, COMPOSE_EVENT_ATTACH);
+  assert(!staticNode.previousCompositionSnapshot().empty());
+  assert(staticNode.previousFirstChildTag() == 100);
+  assert(staticNode.compositionTransaction().diff().empty());
+
+  DynamicTransactionProbeNode dynamicNode(BoundaryPropsFor<DynamicTransactionProbeNode>());
+  ComponentContext dynamicContext;
+  dynamicContext.setBoundary(&dynamicNode);
+  dynamicNode.compose(dynamicContext, COMPOSE_EVENT_ATTACH);
+  assert(!dynamicNode.previousCompositionSnapshot().empty());
+  assert(dynamicNode.compositionTransaction().diff().empty());
+
+  dynamicNode.setShowAlt(true);
+  dynamicContext.setDirtyFlags(NODE_DIRTY_CHILD);
+  dynamicNode.compose(dynamicContext, COMPOSE_EVENT_UPDATE);
+  assert(dynamicNode.compositionTransaction().diff().valid);
+  assert(!dynamicNode.compositionTransaction().diff().fullRebuild);
+  assert(dynamicNode.compositionTransaction().diff().entryCount() == 3);
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

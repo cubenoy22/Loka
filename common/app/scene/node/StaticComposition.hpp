@@ -131,6 +131,9 @@ namespace loka
             NodeComposition::CompositionScope scope(composition);
             this->composeNode(composition);
           }
+          this->captureCurrentCompositionSnapshot();
+          this->rebuildCompositionTransactionFromSnapshots();
+          this->promoteCurrentCompositionSnapshot();
           // Pass composition to children via context
           context.setComposition(&composition);
           Node *child;

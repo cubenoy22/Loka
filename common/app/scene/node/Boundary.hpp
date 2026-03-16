@@ -556,6 +556,15 @@ namespace loka
           currentCompositionSnapshot_.capture(this->composition());
         }
 
+        void rebuildCompositionTransactionFromSnapshots()
+        {
+          compositionTransaction_.beginSnapshots(&previousCompositionSnapshot_, &currentCompositionSnapshot_);
+          if (!compositionTransaction_.buildDiffByTag())
+          {
+            compositionTransaction_.diff().clear();
+          }
+        }
+
         void promoteCurrentCompositionSnapshot()
         {
           previousCompositionSnapshot_ = currentCompositionSnapshot_;

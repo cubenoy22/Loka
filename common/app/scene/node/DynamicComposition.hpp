@@ -125,6 +125,9 @@ namespace loka
           }
           NodeComposition::CompositionScope scope(composition);
           this->composeNode(composition);
+          this->captureCurrentCompositionSnapshot();
+          this->rebuildCompositionTransactionFromSnapshots();
+          this->promoteCurrentCompositionSnapshot();
           context.setComposition(&composition);
           Node *child = composition.createNodeTree();
           if (child)
