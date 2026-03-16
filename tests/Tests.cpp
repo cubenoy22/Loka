@@ -1318,6 +1318,80 @@ void testDynamicBoundaryLocallyReplacesTaggedChild()
   assert(node.localCompositionDiff()->isCompatibleRetainOrReplaceOnly());
 }
 
+void testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicLocalAttachRetireProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLocalAttachRetireProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLocalAttachRetireProbeNode> PropsType;
+
+    DynamicLocalAttachRetireProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showMiddle_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (showMiddle_)
+      {
+        c.declare(VStack()
+                  << Text("Head").tag(10)
+                  << Text("Middle").tag(20)
+                  << Text("Tail").tag(30));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << Text("Head").tag(10)
+                  << Text("Tail").tag(30));
+      }
+    }
+
+    void setShowMiddle(bool value)
+    {
+      this->showMiddle_ = value;
+    }
+
+  private:
+    bool showMiddle_;
+  };
+
+  DynamicLocalAttachRetireProbeNode node(BoundaryPropsFor<DynamicLocalAttachRetireProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  Node *headBefore = node.findCompositionChildByTag(10);
+  Node *tailBefore = node.findCompositionChildByTag(30);
+  assert(headBefore != 0);
+  assert(tailBefore != 0);
+  assert(node.findCompositionChildByTag(20) == 0);
+
+  node.setShowMiddle(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  Node *headAfterInsert = node.findCompositionChildByTag(10);
+  Node *middleAfterInsert = node.findCompositionChildByTag(20);
+  Node *tailAfterInsert = node.findCompositionChildByTag(30);
+  assert(headAfterInsert == headBefore);
+  assert(tailAfterInsert == tailBefore);
+  assert(middleAfterInsert != 0);
+  assert(middleAfterInsert->asTextNode() != 0);
+
+  node.setShowMiddle(false);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  Node *headAfterRemove = node.findCompositionChildByTag(10);
+  Node *tailAfterRemove = node.findCompositionChildByTag(30);
+  assert(headAfterRemove == headBefore);
+  assert(tailAfterRemove == tailBefore);
+  assert(node.findCompositionChildByTag(20) == 0);
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

@@ -662,6 +662,7 @@ namespace loka
         virtual ~INestable() {}
         virtual void addChild(Node *child) = 0;
         virtual bool replaceChild(Node *oldChild, Node *newChild) = 0;
+        virtual void detachChildrenTo(std::vector<Node *> &out) = 0;
         virtual Node *childrenHead() const = 0;
         virtual size_t childrenCount() const = 0;
       };
@@ -687,6 +688,11 @@ namespace loka
         virtual bool replaceChild(Node *oldChild, Node *newChild)
         {
           return children_.replace(oldChild, newChild);
+        }
+
+        virtual void detachChildrenTo(std::vector<Node *> &out)
+        {
+          children_.detachTo(out);
         }
 
         virtual Node *childrenHead() const { return children_.head(); }

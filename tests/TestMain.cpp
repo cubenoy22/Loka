@@ -44,6 +44,7 @@ int main()
   testBoundaryCanFindLiveCompositionChildByTag();
   testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild();
   testDynamicBoundaryLocallyReplacesTaggedChild();
+  testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();

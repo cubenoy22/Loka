@@ -143,42 +143,17 @@ namespace loka
             }
             return;
           }
-          if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() && this->localCompositionDiff()->isCompatibleRetainOrReplaceOnly())
+          if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff())
           {
-            bool localApplied = true;
-            for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry; entry = entry->nextInComposition)
-            {
-              if (entry->action == NodeCompositionDiff::ACTION_RETAIN)
-              {
-                if (!entry->equivalentProps && !this->applyCurrentDefinitionPropsToLiveChild(entry->tag))
-                {
-                  localApplied = false;
-                  break;
-                }
-                continue;
-              }
-              if (entry->action == NodeCompositionDiff::ACTION_REPLACE)
-              {
-                if (!this->replaceCompositionChildFromCurrentDefinition(entry->tag, context))
-                {
-                  localApplied = false;
-                  break;
-                }
-              }
-            }
-            if (localApplied)
+            std::vector<Node *> retainedChildren;
+            if (this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren))
             {
               this->promoteCurrentCompositionSnapshot();
-              for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry; entry = entry->nextInComposition)
+              for (size_t i = 0; i < retainedChildren.size(); ++i)
               {
-                if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
+                if (retainedChildren[i])
                 {
-                  continue;
-                }
-                Node *child = this->findCompositionChildByTag(entry->tag);
-                if (child)
-                {
-                  this->composeTree(child, context, event, this);
+                  this->composeTree(retainedChildren[i], context, event, this);
                 }
               }
               return;
