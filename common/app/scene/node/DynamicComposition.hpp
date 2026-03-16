@@ -112,21 +112,34 @@ namespace loka
               return;
             }
           }
-          NodeComposition &detachComposition = this->beginComposition(context);
-          this->detachNode(detachComposition);
-          this->detachExistingChildren(context);
-          this->clearChildren();
-          // Reset arena for this boundary compose pass.
-          this->nodeArena()->clear();
           NodeComposition &composition = this->beginComposition(context);
           if (event == COMPOSE_EVENT_ATTACH)
           {
             this->attachNode(composition);
           }
-          NodeComposition::CompositionScope scope(composition);
-          this->composeNode(composition);
+          {
+            NodeComposition::CompositionScope scope(composition);
+            this->composeNode(composition);
+          }
           this->captureCurrentCompositionSnapshot();
           this->rebuildCompositionTransactionFromSnapshots();
+          if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() && this->localCompositionDiff()->isStableRetainOnly())
+          {
+            this->promoteCurrentCompositionSnapshot();
+            loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+            for (Node *child = it.next(); child; child = it.next())
+            {
+              this->composeTree(child, context, event, this);
+            }
+            return;
+          }
+          NodeComposition detachComposition;
+          detachComposition.setContext(&context);
+          this->detachNode(detachComposition);
+          this->detachExistingChildren(context);
+          this->clearChildren();
+          // Reset arena for this boundary compose pass.
+          this->nodeArena()->clear();
           this->promoteCurrentCompositionSnapshot();
           context.setComposition(&composition);
           Node *child = composition.createNodeTree();

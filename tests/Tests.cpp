@@ -1051,6 +1051,55 @@ void testBoundaryRejectsLocalDiffWhenRetainedTypeChanges()
   assert(!node.canApplyLocalCompositionDiff());
 }
 
+void testDynamicBoundarySkipsRebuildForStableRetainOnlyDiff()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicStableRetainProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicStableRetainProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicStableRetainProbeNode> PropsType;
+
+    DynamicStableRetainProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          flip_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      (void)flip_;
+      c.declare(VStack() << Text("Stable").tag(10));
+    }
+
+    void setFlip(bool value)
+    {
+      this->flip_ = value;
+    }
+
+  private:
+    bool flip_;
+  };
+
+  DynamicStableRetainProbeNode node(BoundaryPropsFor<DynamicStableRetainProbeNode>());
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  INestable *nestable = node.asNestable();
+  assert(nestable != 0);
+  Node *firstChild = nestable->childrenHead();
+  assert(firstChild != 0);
+
+  node.setFlip(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  assert(node.localCompositionDiff() != 0);
+  assert(node.localCompositionDiff()->isStableRetainOnly());
+  assert(node.canApplyLocalCompositionDiff());
+  assert(node.asNestable()->childrenHead() == firstChild);
+}
+
 void testSceneMountLifecycle()
 {
   using namespace loka::app::scene;

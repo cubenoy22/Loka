@@ -38,6 +38,7 @@ int main()
   testBoundaryComposePathsPopulateTransactions();
   testBoundaryReportsLocalCompositionDiffAvailability();
   testBoundaryRejectsLocalDiffWhenRetainedTypeChanges();
+  testDynamicBoundarySkipsRebuildForStableRetainOnlyDiff();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();

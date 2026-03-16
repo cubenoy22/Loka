@@ -117,6 +117,9 @@ namespace loka
         Entry *entriesHead() const { return entries.head(); }
         bool hasIncompatibleRetain() const
         {
+          // A retained slot/tag is only safe for local apply when the retained
+          // child still resolves to a compatible definition type. If the type
+          // changed under the same tag, callers must fall back to rebuild.
           for (Entry *entry = entries.head(); entry; entry = entry->nextInComposition)
           {
             if (entry->action == ACTION_RETAIN && !entry->compatibleType)
@@ -125,6 +128,29 @@ namespace loka
             }
           }
           return false;
+        }
+        bool isStableRetainOnly() const
+        {
+          if (empty())
+          {
+            return false;
+          }
+          for (Entry *entry = entries.head(); entry; entry = entry->nextInComposition)
+          {
+            if (entry->action != ACTION_RETAIN)
+            {
+              return false;
+            }
+            if (!entry->compatibleType || !entry->equivalentProps)
+            {
+              return false;
+            }
+            if (entry->previousIndex != entry->currentIndex)
+            {
+              return false;
+            }
+          }
+          return true;
         }
 
         loka::dsl::CompositionList<Entry> entries;

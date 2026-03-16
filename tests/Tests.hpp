@@ -23,6 +23,7 @@ void testBoundaryCompositionStateStoresSnapshotsLocally();
 void testBoundaryComposePathsPopulateTransactions();
 void testBoundaryReportsLocalCompositionDiffAvailability();
 void testBoundaryRejectsLocalDiffWhenRetainedTypeChanges();
+void testDynamicBoundarySkipsRebuildForStableRetainOnlyDiff();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();
