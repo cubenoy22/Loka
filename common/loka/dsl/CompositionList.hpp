@@ -104,6 +104,41 @@ namespace loka
         return false;
       }
 
+      bool replace(DefT *oldNode, DefT *newNode)
+      {
+        if (!oldNode || !newNode)
+        {
+          return false;
+        }
+        DefT *prev = 0;
+        DefT *cur = head_;
+        while (cur)
+        {
+          if (cur == oldNode)
+          {
+            newNode->nextInComposition = cur->nextInComposition;
+            if (prev)
+            {
+              prev->nextInComposition = newNode;
+            }
+            else
+            {
+              head_ = newNode;
+            }
+            if (tail_ == cur)
+            {
+              tail_ = newNode;
+            }
+            cur->nextInComposition = 0;
+            return true;
+          }
+          prev = cur;
+          cur = cur->nextInComposition;
+        }
+        newNode->nextInComposition = 0;
+        return false;
+      }
+
       void clear()
       {
         while (head_)

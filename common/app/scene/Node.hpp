@@ -683,6 +683,11 @@ namespace loka
           }
         }
 
+        bool replaceChild(Node *oldChild, Node *newChild)
+        {
+          return children_.replace(oldChild, newChild);
+        }
+
         virtual Node *childrenHead() const { return children_.head(); }
         virtual size_t childrenCount() const { return children_.count(); }
         virtual INestable *asNestable() { return this; }

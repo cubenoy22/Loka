@@ -30,6 +30,7 @@
 #include "loka/platform/StringUTF8.hpp"
 #include "loka/platform/String.hpp"
 #include "loka/dsl/dsl.hpp"
+#include "loka/dsl/CompositionList.hpp"
 #include "loka/dsl/testing/SceneTestFlow.hpp"
 
 // --- main.cppから移動したテスト関数をここに実装 ---
@@ -709,6 +710,44 @@ void testNodeDefinitionsReportCompatibleLiveNodeKinds()
 
   delete textNode;
   delete buttonNode;
+}
+
+void testCompositionListReplacePreservesOrder()
+{
+  struct TestItem
+  {
+    TestItem(int v) : value(v), nextInComposition(0) {}
+    TestItem *clone() const { return new TestItem(value); }
+    int value;
+    TestItem *nextInComposition;
+  };
+
+  loka::dsl::CompositionList<TestItem> list;
+  TestItem *first = new TestItem(1);
+  TestItem *second = new TestItem(2);
+  TestItem *third = new TestItem(3);
+  list.appendOwned(first);
+  list.appendOwned(second);
+  list.appendOwned(third);
+
+  TestItem *replacement = new TestItem(20);
+  bool replaced = list.replace(second, replacement);
+  assert(replaced);
+  assert(list.count() == 3);
+
+  TestItem *head = list.head();
+  assert(head == first);
+  assert(head->value == 1);
+  head = head->nextInComposition;
+  assert(head == replacement);
+  assert(head->value == 20);
+  head = head->nextInComposition;
+  assert(head == third);
+  assert(head->value == 3);
+  assert(head->nextInComposition == 0);
+  assert(second->nextInComposition == 0);
+
+  delete second;
 }
 
 void testNodeCompositionSnapshotOwnsClonedRoot()
