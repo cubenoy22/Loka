@@ -758,7 +758,7 @@ void testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
   assert(popupNode != 0);
   assert(editNode->getContext() == editContext);
   assert(popupNode->getContext() == popupContext);
-  (void)initialSubviewCount;
+  assert([[rootView subviews] count] == initialSubviewCount);
 
   scene.unmount();
   [rootView release];

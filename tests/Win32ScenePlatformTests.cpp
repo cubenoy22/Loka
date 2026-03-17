@@ -690,7 +690,7 @@ void testWin32ScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
   assert(popupNode != 0);
   assert(editNode->getContext() == editContext);
   assert(popupNode->getContext() == popupContext);
-  (void)initialChildWindowCount;
+  assert(countChildWindows(rootHwnd) == initialChildWindowCount);
 
   scene.unmount();
   DestroyWindow(rootHwnd);
