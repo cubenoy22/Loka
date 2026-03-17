@@ -37,6 +37,7 @@ void testDynamicBoundaryLocalDiffPreservesRetainedChildBoundary();
 void testDynamicBoundaryLocalDiffHandlesMixedRetainReplaceAndReorder();
 void testDynamicBoundaryLocalDiffHandlesMixedPropsReplaceAndReorder();
 void testSceneDowngradesNoOpChildDirtyForLocalDiff();
+void testSceneKeepsLocalDiffForReplaceableMixedLocalDiff();
 void testFrozenBoundaryIgnoresObservedStateInvalidation();
 void testFrozenBoundaryIgnoresOwnedStateInvalidation();
 void testSceneMountLifecycle();

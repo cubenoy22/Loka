@@ -2087,6 +2087,110 @@ void testSceneDowngradesNoOpChildDirtyForLocalDiff()
   scene.unmount();
 }
 
+void testSceneKeepsLocalDiffForReplaceableMixedLocalDiff()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  class ReplaceableMixedLocalDiffNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<ReplaceableMixedLocalDiffNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<ReplaceableMixedLocalDiffNode> PropsType;
+
+    ReplaceableMixedLocalDiffNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          alt_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (alt_)
+      {
+        c.declare(VStack()
+                  << Text("Retained").tag(10)
+                  << Text("ReplaceableText").tag(20)
+                  << Text("Tail").tag(30));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << Text("Retained").tag(10)
+                  << Button("ReplaceableButton").tag(20)
+                  << Text("Tail").tag(30));
+      }
+    }
+
+    void setAlt(bool value)
+    {
+      this->alt_ = value;
+    }
+
+  private:
+    bool alt_;
+  };
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController()
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+    int calls_;
+  } platform;
+
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<ReplaceableMixedLocalDiffNode>, ReplaceableMixedLocalDiffNode>()));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  ReplaceableMixedLocalDiffNode *host = static_cast<ReplaceableMixedLocalDiffNode *>(SceneTestAccess::rootBoundary(scene));
+  assert(host != 0);
+  assert(platform.calls_ == 1);
+
+  Node *stableBefore = host->findCompositionChildByTag(10);
+  Node *unsafeBefore = host->findCompositionChildByTag(20);
+  Node *tailBefore = host->findCompositionChildByTag(30);
+  assert(stableBefore != 0);
+  assert(unsafeBefore != 0);
+  assert(tailBefore != 0);
+  assert(unsafeBefore->asButtonNode() != 0);
+
+  {
+    loka::core::StateTrackerGuard guard(host->tracker());
+    host->setAlt(true);
+  }
+  scene.invalidate(NODE_DIRTY_CHILD);
+
+  assert(platform.calls_ >= 2);
+  assert((platform.lastFlags_ & NODE_DIRTY_CHILD) != 0);
+  assert(platform.lastFullRebuild_ == false);
+  assert(scene.compositionDiff().fullRebuild == false);
+
+  Node *stableAfter = host->findCompositionChildByTag(10);
+  Node *unsafeAfter = host->findCompositionChildByTag(20);
+  Node *tailAfter = host->findCompositionChildByTag(30);
+  assert(stableAfter != 0);
+  assert(unsafeAfter != 0);
+  assert(tailAfter != 0);
+  assert(unsafeAfter->asTextNode() != 0);
+  assert(stableAfter == stableBefore);
+  assert(tailAfter == tailBefore);
+
+  scene.unmount();
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;
