@@ -2002,6 +2002,91 @@ void testDynamicBoundaryLocalDiffHandlesMixedPropsReplaceAndReorder()
   scene.unmount();
 }
 
+void testSceneDowngradesNoOpChildDirtyForLocalDiff()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  class NoOpChildDirtyNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<NoOpChildDirtyNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<NoOpChildDirtyNode> PropsType;
+
+    NoOpChildDirtyNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          flip_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      (void)flip_;
+      c.declare(VStack()
+                << Text("Stable").tag(10)
+                << Button("StableButton").tag(20));
+    }
+
+    void setFlip(bool value)
+    {
+      this->flip_ = value;
+    }
+
+  private:
+    bool flip_;
+  };
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController()
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(true), calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+    int calls_;
+  } platform;
+
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<NoOpChildDirtyNode>, NoOpChildDirtyNode>()));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  NoOpChildDirtyNode *host = static_cast<NoOpChildDirtyNode *>(SceneTestAccess::rootBoundary(scene));
+  assert(host != 0);
+  assert(platform.calls_ == 1);
+
+  Node *firstBefore = host->findCompositionChildByTag(10);
+  Node *secondBefore = host->findCompositionChildByTag(20);
+  assert(firstBefore != 0);
+  assert(secondBefore != 0);
+
+  {
+    loka::core::StateTrackerGuard guard(host->tracker());
+    host->setFlip(true);
+  }
+  scene.invalidate(NODE_DIRTY_CHILD);
+
+  Node *firstAfter = host->findCompositionChildByTag(10);
+  Node *secondAfter = host->findCompositionChildByTag(20);
+  assert(firstAfter == firstBefore);
+  assert(secondAfter == secondBefore);
+  assert(platform.calls_ >= 2);
+  assert((platform.lastFlags_ & NODE_DIRTY_CHILD) != 0);
+  assert(platform.lastFullRebuild_ == false);
+  assert(scene.compositionDiff().fullRebuild == false);
+
+  scene.unmount();
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;

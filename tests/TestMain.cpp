@@ -51,6 +51,7 @@ int main()
   testDynamicBoundaryLocalDiffPreservesRetainedChildBoundary();
   testDynamicBoundaryLocalDiffHandlesMixedRetainReplaceAndReorder();
   testDynamicBoundaryLocalDiffHandlesMixedPropsReplaceAndReorder();
+  testSceneDowngradesNoOpChildDirtyForLocalDiff();
   testFrozenBoundaryIgnoresObservedStateInvalidation();
   testFrozenBoundaryIgnoresOwnedStateInvalidation();
   testSceneMountLifecycle();
