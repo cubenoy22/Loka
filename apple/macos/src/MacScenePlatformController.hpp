@@ -35,6 +35,7 @@ public:
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
+  virtual void releaseNodeContexts(loka::app::scene::Node *node);
 
   void relayout(int clientWidth, int clientHeight);
   void requestRelayout();

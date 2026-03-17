@@ -4,6 +4,7 @@
 #include <cstdarg>
 #include <vector>
 #include "../Node.hpp"
+#include "../PlatformController.hpp"
 #include "ComposableNode.hpp"
 #include "../BoundState.hpp"
 #include "../ComponentContext.hpp"
@@ -500,6 +501,10 @@ namespace loka
             return false;
           }
           this->composeTree(replacement, context, COMPOSE_EVENT_ATTACH, this);
+          if (context.platformController())
+          {
+            context.platformController()->releaseNodeContexts(liveChild);
+          }
           if (!liveChild->isArenaAllocated())
           {
             delete liveChild;
@@ -597,6 +602,10 @@ namespace loka
               continue;
             }
             this->composeTree(retired, context, COMPOSE_EVENT_DETACH, this);
+            if (context.platformController())
+            {
+              context.platformController()->releaseNodeContexts(retired);
+            }
             if (!retired->isArenaAllocated())
             {
               delete retired;
@@ -703,6 +712,7 @@ namespace loka
             PROFILE_SECTION("ctx");
             nodeContext.setStateOwner(parentContext.stateOwner());
             nodeContext.setBoundary(nextBoundary);
+            nodeContext.setPlatformController(parentContext.platformController());
             Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
             nodeContext.setScene(scene);
             nodeContext.setWindow(parentContext.window());

@@ -225,6 +225,11 @@ void Win32ScenePlatformController::destroy()
   clientHeight_ = 0;
 }
 
+void Win32ScenePlatformController::releaseNodeContexts(loka::app::scene::Node *node)
+{
+  clearNodeContexts(node);
+}
+
 void Win32ScenePlatformController::queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren)
 {
   if (!targetHwnd)

@@ -15,15 +15,16 @@ namespace loka
       class BoundaryNode;
       class Node;
       class IStateOwner;
+      class IPlatformController;
       class Scene;
       class NodeComposition;
 
       class ComponentContext
       {
       public:
-        ComponentContext() : parent_(0), owner_(0), stateOwner_(0), boundary_(0), scene_(0), window_(0), composition_(0), dirtyFlags_(NODE_DIRTY_NONE) {}
+        ComponentContext() : parent_(0), owner_(0), stateOwner_(0), boundary_(0), platformController_(0), scene_(0), window_(0), composition_(0), dirtyFlags_(NODE_DIRTY_NONE) {}
         explicit ComponentContext(ComponentContext *parent)
-            : parent_(parent), owner_(0), stateOwner_(0), boundary_(0), scene_(0), window_(0), composition_(0), dirtyFlags_(NODE_DIRTY_NONE) {}
+            : parent_(parent), owner_(0), stateOwner_(0), boundary_(0), platformController_(0), scene_(0), window_(0), composition_(0), dirtyFlags_(NODE_DIRTY_NONE) {}
 
         ComponentContext *parent() const { return parent_; }
         void setParent(ComponentContext *parent) { parent_ = parent; }
@@ -33,6 +34,8 @@ namespace loka
         void setStateOwner(IStateOwner *owner) { stateOwner_ = owner; }
         BoundaryNode *boundary() const { return boundary_; }
         void setBoundary(BoundaryNode *boundary) { boundary_ = boundary; }
+        IPlatformController *platformController() const { return platformController_; }
+        void setPlatformController(IPlatformController *controller) { platformController_ = controller; }
         Scene *scene() const { return scene_; }
         void setScene(Scene *scene) { scene_ = scene; }
         ::Window *window() const { return window_; }
@@ -48,6 +51,7 @@ namespace loka
         Node *owner_;
         IStateOwner *stateOwner_;
         BoundaryNode *boundary_;
+        IPlatformController *platformController_;
         Scene *scene_;
         ::Window *window_;
         NodeComposition *composition_;

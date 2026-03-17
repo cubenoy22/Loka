@@ -833,6 +833,11 @@ void MacScenePlatformController::restoreFocusedEditField()
   focusedEditTextControlTag_ = 0;
 }
 
+void MacScenePlatformController::releaseNodeContexts(loka::app::scene::Node *node)
+{
+  clearNodeContexts(node);
+}
+
 void MacScenePlatformController::clearContexts()
 {
   clearNodeContexts(rootNode_);

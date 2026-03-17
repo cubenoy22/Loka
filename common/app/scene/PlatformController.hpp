@@ -29,6 +29,9 @@ namespace loka
 
         // UIリソースを破棄する
         virtual void destroy() = 0;
+
+        // Retired subtree cleanup without forcing a full scene rebuild.
+        virtual void releaseNodeContexts(Node *) {}
       };
 
     }

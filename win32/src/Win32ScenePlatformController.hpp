@@ -43,6 +43,7 @@ public:
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
+  virtual void releaseNodeContexts(loka::app::scene::Node *node);
 
   bool handleCommand(WPARAM wParam, LPARAM lParam);
   void relayout(int clientWidth, int clientHeight);

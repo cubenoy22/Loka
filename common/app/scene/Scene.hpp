@@ -279,6 +279,7 @@ namespace loka
           assert(boundary && "Scene root must be a Boundary node");
           ComponentContext rootContext;
           rootContext.setBoundary(boundary);
+          rootContext.setPlatformController(platformController_);
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
           boundary->compose(rootContext, event);
@@ -299,6 +300,7 @@ namespace loka
           }
           ComponentContext rootContext;
           rootContext.setBoundary(boundary);
+          rootContext.setPlatformController(platformController_);
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
           rootContext.setDirtyFlags(compositionDiff_.flags);
