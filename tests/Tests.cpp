@@ -1759,6 +1759,144 @@ void testDynamicBoundaryLocalDiffPreservesRetainedChildBoundary()
   scene.unmount();
 }
 
+void testDynamicBoundaryLocalDiffHandlesMixedRetainReplaceAndReorder()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  class MixedStableChildNode;
+  typedef BoundaryPropsFor<MixedStableChildNode> MixedStableChildProps;
+
+  class MixedStableChildNode : public BoundaryNodeFor<MixedStableChildNode>
+  {
+  public:
+    MixedStableChildNode(const MixedStableChildProps &p)
+        : BoundaryNodeFor<MixedStableChildNode>(MixedStableChildProps(p)) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack()
+                << Text("InnerStable").tag(100));
+    }
+  };
+
+  class DynamicMixedLocalDiffNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicMixedLocalDiffNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicMixedLocalDiffNode> PropsType;
+
+    DynamicMixedLocalDiffNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          alt_(false),
+          controlValue_(loka::core::String::Literal("Keep")) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (alt_)
+      {
+        c.declare(VStack()
+                  << PopupMenu(items(), 3).tag(31)
+                  << BoundaryDefinition<MixedStableChildProps, MixedStableChildNode>().tag(10)
+                  << EditText(&controlValue_).tag(30)
+                  << Text("BranchText").tag(20));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << EditText(&controlValue_).tag(30)
+                  << BoundaryDefinition<MixedStableChildProps, MixedStableChildNode>().tag(10)
+                  << PopupMenu(items(), 3).tag(31)
+                  << Button("BranchButton").tag(20));
+      }
+    }
+
+    void setAlt(bool value)
+    {
+      this->alt_ = value;
+    }
+
+  private:
+    static const char **items()
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      return kItems;
+    }
+
+    bool alt_;
+    loka::core::MutableState<loka::core::String> controlValue_;
+  };
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      (void)flags;
+      (void)fullRebuild;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+  } platform;
+
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<DynamicMixedLocalDiffNode>, DynamicMixedLocalDiffNode>()));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  DynamicMixedLocalDiffNode *host = static_cast<DynamicMixedLocalDiffNode *>(SceneTestAccess::rootBoundary(scene));
+  assert(host != 0);
+
+  Node *boundaryBefore = host->findCompositionChildByTag(10);
+  Node *branchBefore = host->findCompositionChildByTag(20);
+  Node *editBefore = host->findCompositionChildByTag(30);
+  Node *popupBefore = host->findCompositionChildByTag(31);
+  assert(boundaryBefore != 0);
+  assert(boundaryBefore->asBoundary() != 0);
+  assert(branchBefore != 0);
+  assert(branchBefore->asButtonNode() != 0);
+  assert(editBefore != 0);
+  assert(editBefore->asEditTextNode() != 0);
+  assert(popupBefore != 0);
+  assert(popupBefore->asPopupMenuNode() != 0);
+
+  BoundaryNode *innerBoundaryBefore = boundaryBefore->asBoundary();
+  Node *innerBefore = innerBoundaryBefore->findCompositionChildByTag(100);
+  assert(innerBefore != 0);
+
+  {
+    loka::core::StateTrackerGuard guard(host->tracker());
+    host->setAlt(true);
+  }
+  scene.invalidate(NODE_DIRTY_CHILD);
+
+  Node *boundaryAfter = host->findCompositionChildByTag(10);
+  Node *branchAfter = host->findCompositionChildByTag(20);
+  Node *editAfter = host->findCompositionChildByTag(30);
+  Node *popupAfter = host->findCompositionChildByTag(31);
+  assert(boundaryAfter == boundaryBefore);
+  assert(editAfter == editBefore);
+  assert(popupAfter == popupBefore);
+  assert(branchAfter != 0);
+  assert(branchAfter != branchBefore);
+  assert(branchAfter->asTextNode() != 0);
+
+  BoundaryNode *innerBoundaryAfter = boundaryAfter->asBoundary();
+  Node *innerAfter = innerBoundaryAfter->findCompositionChildByTag(100);
+  assert(innerAfter == innerBefore);
+
+  INestable *root = host->compositionRootNestable();
+  assert(root != 0);
+  Node *first = root->childrenHead();
+  assert(first == popupAfter);
+  assert(first->nextInComposition == boundaryAfter);
+  assert(boundaryAfter->nextInComposition == editAfter);
+  assert(editAfter->nextInComposition == branchAfter);
+
+  scene.unmount();
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;

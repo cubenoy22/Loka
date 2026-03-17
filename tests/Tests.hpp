@@ -34,6 +34,7 @@ void testDynamicBoundaryLocallyReordersTaggedChildren();
 void testDynamicBoundaryLocalReplacePreservesRetainedControlNode();
 void testDynamicBoundaryLocalDiffReleasesRetiredSubtrees();
 void testDynamicBoundaryLocalDiffPreservesRetainedChildBoundary();
+void testDynamicBoundaryLocalDiffHandlesMixedRetainReplaceAndReorder();
 void testFrozenBoundaryIgnoresObservedStateInvalidation();
 void testFrozenBoundaryIgnoresOwnedStateInvalidation();
 void testSceneMountLifecycle();
