@@ -238,27 +238,29 @@ namespace loka
         };
         struct LocalRebuildPlanEntry
         {
-          LocalRebuildPlanEntry() : node(0), action(NodeCompositionDiff::ACTION_RETAIN), tag(NODE_TAG_NONE) {}
+          enum Action
+          {
+            ACTION_RETAIN = 0,
+            ACTION_ATTACH = 1,
+            ACTION_REPLACE = 2,
+            ACTION_RETIRE = 3
+          };
+          LocalRebuildPlanEntry() : node(0), previousNode(0), action(ACTION_RETAIN), tag(NODE_TAG_NONE) {}
           Node *node;
-          NodeCompositionDiff::Action action;
+          Node *previousNode;
+          Action action;
           NodeTag tag;
         };
         struct LocalRebuildPlan
         {
           std::vector<LocalRebuildPlanEntry> entries;
-          std::vector<Node *> attachedChildren;
-          std::vector<Node *> retiredChildren;
           void reserve(size_t count)
           {
             entries.reserve(count);
-            attachedChildren.reserve(count);
-            retiredChildren.reserve(count);
           }
           void clear()
           {
             entries.clear();
-            attachedChildren.clear();
-            retiredChildren.clear();
           }
         };
 
@@ -577,7 +579,7 @@ namespace loka
             {
               LocalRebuildPlanEntry entry;
               entry.node = existing;
-              entry.action = NodeCompositionDiff::ACTION_RETAIN;
+              entry.action = LocalRebuildPlanEntry::ACTION_RETAIN;
               entry.tag = definition->nodeTag();
               plan.entries.push_back(entry);
             }
@@ -592,17 +594,10 @@ namespace loka
               }
               LocalRebuildPlanEntry entry;
               entry.node = created;
-              // First pass: newly attached children reuse the same apply path as
-              // retained/replaced entries and are tracked separately via
-              // attachedChildren/retiredChildren.
-              entry.action = existing ? NodeCompositionDiff::ACTION_REPLACE : NodeCompositionDiff::ACTION_RETAIN;
+              entry.previousNode = existing;
+              entry.action = existing ? LocalRebuildPlanEntry::ACTION_REPLACE : LocalRebuildPlanEntry::ACTION_ATTACH;
               entry.tag = definition->nodeTag();
               plan.entries.push_back(entry);
-              plan.attachedChildren.push_back(created);
-              if (existing)
-              {
-                plan.retiredChildren.push_back(existing);
-              }
             }
             definition = definition->nextInComposition;
           }
@@ -617,7 +612,11 @@ namespace loka
           {
             if (findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
             {
-              plan.retiredChildren.push_back(liveChild);
+              LocalRebuildPlanEntry entry;
+              entry.node = liveChild;
+              entry.action = LocalRebuildPlanEntry::ACTION_RETIRE;
+              entry.tag = liveChild->nodeTag();
+              plan.entries.push_back(entry);
             }
           }
           return true;
@@ -631,7 +630,11 @@ namespace loka
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            if (plan.entries[i].action == NodeCompositionDiff::ACTION_RETAIN)
+            if (plan.entries[i].action == LocalRebuildPlanEntry::ACTION_RETIRE)
+            {
+              continue;
+            }
+            if (plan.entries[i].action == LocalRebuildPlanEntry::ACTION_RETAIN)
             {
               NodeDefinitionBase *retainedDefinition = findCurrentCompositionDefinitionByTag(plan.entries[i].tag);
               if (retainedDefinition && !retainedDefinition->applyPropsToNode(plan.entries[i].node))
@@ -643,25 +646,41 @@ namespace loka
             root.addChild(plan.entries[i].node);
           }
 
-          for (size_t i = 0; i < plan.attachedChildren.size(); ++i)
+          for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            this->composeTree(plan.attachedChildren[i], context, COMPOSE_EVENT_ATTACH, this);
+            LocalRebuildPlanEntry &entry = plan.entries[i];
+            if (entry.action == LocalRebuildPlanEntry::ACTION_ATTACH ||
+                entry.action == LocalRebuildPlanEntry::ACTION_REPLACE)
+            {
+              this->composeTree(entry.node, context, COMPOSE_EVENT_ATTACH, this);
+            }
           }
-          for (size_t i = 0; i < plan.retiredChildren.size(); ++i)
+          for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            Node *retired = plan.retiredChildren[i];
-            if (!retired)
+            LocalRebuildPlanEntry &entry = plan.entries[i];
+            if (entry.action == LocalRebuildPlanEntry::ACTION_REPLACE && entry.previousNode)
             {
-              continue;
+              this->composeTree(entry.previousNode, context, COMPOSE_EVENT_DETACH, this);
+              if (context.platformController())
+              {
+                context.platformController()->releaseNodeContexts(entry.previousNode);
+              }
+              if (!entry.previousNode->isArenaAllocated())
+              {
+                delete entry.previousNode;
+              }
             }
-            this->composeTree(retired, context, COMPOSE_EVENT_DETACH, this);
-            if (context.platformController())
+            else if (entry.action == LocalRebuildPlanEntry::ACTION_RETIRE && entry.node)
             {
-              context.platformController()->releaseNodeContexts(retired);
-            }
-            if (!retired->isArenaAllocated())
-            {
-              delete retired;
+              this->composeTree(entry.node, context, COMPOSE_EVENT_DETACH, this);
+              if (context.platformController())
+              {
+                context.platformController()->releaseNodeContexts(entry.node);
+              }
+              if (!entry.node->isArenaAllocated())
+              {
+                delete entry.node;
+              }
             }
           }
           return true;
