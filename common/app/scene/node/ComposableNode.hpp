@@ -170,6 +170,7 @@ namespace loka
 
         NodeComposition &beginComposition(ComponentContext &context)
         {
+          releaseCallbacks();
           composition_.reset();
           composition_.setContext(&context);
           return composition_;

@@ -1,10 +1,11 @@
 #ifndef LOKA_APP2_TEXT_HPP
 #define LOKA_APP2_TEXT_HPP
 
+#include <cassert>
+#include <cstring>
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/String.hpp"
-#include <cassert>
 
 namespace loka
 {
@@ -202,13 +203,63 @@ namespace loka
         return *this;
       }
 
+      static int compareTextState(loka::core::State<loka::core::String> *left,
+                                  loka::core::State<loka::core::String> *right)
+      {
+        if (left == right)
+        {
+          return 0;
+        }
+        if (!left)
+        {
+          return -1;
+        }
+        if (!right)
+        {
+          return 1;
+        }
+        const loka::core::String &leftString = left->get();
+        const loka::core::String &rightString = right->get();
+        if (leftString.equals(rightString))
+        {
+          return 0;
+        }
+        loka::core::StringBuffer leftBuffer = leftString.bufferWithEncoding(loka::core::StringEncodingUtf8);
+        loka::core::StringBuffer rightBuffer = rightString.bufferWithEncoding(loka::core::StringEncodingUtf8);
+        std::size_t leftLength = leftBuffer.length();
+        std::size_t rightLength = rightBuffer.length();
+        std::size_t commonLength = leftLength < rightLength ? leftLength : rightLength;
+        if (commonLength > 0)
+        {
+          int compare = std::memcmp(leftBuffer.data(), rightBuffer.data(), commonLength);
+          if (compare < 0)
+          {
+            return -1;
+          }
+          if (compare > 0)
+          {
+            return 1;
+          }
+        }
+        if (leftLength < rightLength)
+        {
+          return -1;
+        }
+        if (rightLength < leftLength)
+        {
+          return 1;
+        }
+        return 0;
+      }
+
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const TextProps &other = static_cast<const TextProps &>(rhs);
-        if (text_ != other.text_)
-          return text_ < other.text_;
+        int textCompare = compareTextState(text_, other.text_);
+        if (textCompare != 0)
+          return textCompare < 0;
         if (hasAttr_ != other.hasAttr_)
           return hasAttr_ < other.hasAttr_;
         return attr_ < other.attr_;

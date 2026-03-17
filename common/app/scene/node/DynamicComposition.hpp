@@ -159,14 +159,23 @@ namespace loka
               return;
             }
           }
-          NodeComposition detachComposition;
-          detachComposition.setContext(&context);
-          this->detachNode(detachComposition);
+          this->promoteCurrentCompositionSnapshot();
+          if (event == COMPOSE_EVENT_ATTACH)
+          {
+            context.setComposition(&composition);
+            Node *child = composition.createNodeTree();
+            if (child)
+            {
+              this->addChild(child);
+              this->composeTree(child, context, event, this);
+            }
+            context.setComposition(0);
+            return;
+          }
           this->detachExistingChildren(context);
           this->clearChildren();
           // Reset arena for this boundary compose pass.
           this->nodeArena()->clear();
-          this->promoteCurrentCompositionSnapshot();
           context.setComposition(&composition);
           Node *child = composition.createNodeTree();
           if (child)

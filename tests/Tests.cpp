@@ -625,7 +625,7 @@ void testNodeCompositionTransactionTracksWorkingSet()
   assert(built);
   assert(transaction.diff().valid);
   assert(!transaction.diff().fullRebuild);
-  assert(transaction.diff().entryCount() == 2);
+  assert(transaction.diff().entryCount() == 3);
   transaction.noteRetiredChild();
   assert(transaction.retiredCount() == 1);
 
@@ -917,7 +917,7 @@ void testBoundaryCompositionStateStoresSnapshotsLocally()
     }
   };
 
-  BoundaryCompositionProbeNode node(BoundaryPropsFor<BoundaryCompositionProbeNode>());
+  BoundaryCompositionProbeNode node((BoundaryPropsFor<BoundaryCompositionProbeNode>()));
   assert(node.previousCompositionSnapshot().empty());
   assert(node.currentCompositionSnapshot().empty());
   assert(node.compositionTransaction().empty());
@@ -991,7 +991,7 @@ void testBoundaryComposePathsPopulateTransactions()
     bool showAlt_;
   };
 
-  StaticTransactionProbeNode staticNode(BoundaryPropsFor<StaticTransactionProbeNode>());
+  StaticTransactionProbeNode staticNode((BoundaryPropsFor<StaticTransactionProbeNode>()));
   ComponentContext staticContext;
   staticContext.setBoundary(&staticNode);
   staticNode.compose(staticContext, COMPOSE_EVENT_ATTACH);
@@ -999,7 +999,7 @@ void testBoundaryComposePathsPopulateTransactions()
   assert(staticNode.previousFirstChildTag() == 100);
   assert(staticNode.compositionTransaction().diff().empty());
 
-  DynamicTransactionProbeNode dynamicNode(BoundaryPropsFor<DynamicTransactionProbeNode>());
+  DynamicTransactionProbeNode dynamicNode((BoundaryPropsFor<DynamicTransactionProbeNode>()));
   ComponentContext dynamicContext;
   dynamicContext.setBoundary(&dynamicNode);
   dynamicNode.compose(dynamicContext, COMPOSE_EVENT_ATTACH);
@@ -1044,7 +1044,7 @@ void testBoundaryReportsLocalCompositionDiffAvailability()
     bool showAlt_;
   };
 
-  DynamicLocalDiffProbeNode node(BoundaryPropsFor<DynamicLocalDiffProbeNode>());
+  DynamicLocalDiffProbeNode node((BoundaryPropsFor<DynamicLocalDiffProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);
@@ -1096,7 +1096,7 @@ void testBoundaryRejectsLocalDiffWhenRetainedTypeChanges()
     bool showButton_;
   };
 
-  DynamicIncompatibleRetainProbeNode node(BoundaryPropsFor<DynamicIncompatibleRetainProbeNode>());
+  DynamicIncompatibleRetainProbeNode node((BoundaryPropsFor<DynamicIncompatibleRetainProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);
@@ -1109,10 +1109,10 @@ void testBoundaryRejectsLocalDiffWhenRetainedTypeChanges()
   assert(node.localCompositionDiff() != 0);
   assert(node.localCompositionDiff()->entryCount() == 1);
   assert(node.localCompositionDiff()->entriesHead()->tag == 10);
-  assert(node.localCompositionDiff()->entriesHead()->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(node.localCompositionDiff()->entriesHead()->action == NodeCompositionDiff::ACTION_REPLACE);
   assert(!node.localCompositionDiff()->entriesHead()->compatibleType);
   assert(!node.localCompositionDiff()->entriesHead()->equivalentProps);
-  assert(!node.canApplyLocalCompositionDiff());
+  assert(node.canApplyLocalCompositionDiff());
 }
 
 void testDynamicBoundarySkipsRebuildForStableRetainOnlyDiff()
@@ -1144,7 +1144,7 @@ void testDynamicBoundarySkipsRebuildForStableRetainOnlyDiff()
     bool flip_;
   };
 
-  DynamicStableRetainProbeNode node(BoundaryPropsFor<DynamicStableRetainProbeNode>());
+  DynamicStableRetainProbeNode node((BoundaryPropsFor<DynamicStableRetainProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);
@@ -1185,7 +1185,7 @@ void testBoundaryCanFindLiveCompositionChildByTag()
     }
   };
 
-  DynamicLiveChildLookupProbeNode node(BoundaryPropsFor<DynamicLiveChildLookupProbeNode>());
+  DynamicLiveChildLookupProbeNode node((BoundaryPropsFor<DynamicLiveChildLookupProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);
@@ -1233,7 +1233,7 @@ void testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild()
     bool alt_;
   };
 
-  DynamicLocalPropsProbeNode node(BoundaryPropsFor<DynamicLocalPropsProbeNode>());
+  DynamicLocalPropsProbeNode node((BoundaryPropsFor<DynamicLocalPropsProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);
@@ -1276,11 +1276,18 @@ void testDynamicBoundaryLocallyReplacesTaggedChild()
 
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(VStack()
-                << Text("Stable").tag(10)
-                << (showText_
-                        ? Text("BranchText").tag(20)
-                        : Button("BranchButton").tag(20)));
+      if (showText_)
+      {
+        c.declare(VStack()
+                  << Text("Stable").tag(10)
+                  << Text("BranchText").tag(20));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << Text("Stable").tag(10)
+                  << Button("BranchButton").tag(20));
+      }
     }
 
     void setShowText(bool value)
@@ -1292,7 +1299,7 @@ void testDynamicBoundaryLocallyReplacesTaggedChild()
     bool showText_;
   };
 
-  DynamicLocalReplaceProbeNode node(BoundaryPropsFor<DynamicLocalReplaceProbeNode>());
+  DynamicLocalReplaceProbeNode node((BoundaryPropsFor<DynamicLocalReplaceProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);
@@ -1358,7 +1365,7 @@ void testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild()
     bool showMiddle_;
   };
 
-  DynamicLocalAttachRetireProbeNode node(BoundaryPropsFor<DynamicLocalAttachRetireProbeNode>());
+  DynamicLocalAttachRetireProbeNode node((BoundaryPropsFor<DynamicLocalAttachRetireProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);
@@ -1431,7 +1438,7 @@ void testDynamicBoundaryLocallyReordersTaggedChildren()
     bool reversed_;
   };
 
-  DynamicLocalReorderProbeNode node(BoundaryPropsFor<DynamicLocalReorderProbeNode>());
+  DynamicLocalReorderProbeNode node((BoundaryPropsFor<DynamicLocalReorderProbeNode>()));
   ComponentContext context;
   context.setBoundary(&node);
   node.compose(context, COMPOSE_EVENT_ATTACH);

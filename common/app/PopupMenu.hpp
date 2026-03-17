@@ -2,6 +2,7 @@
 #define LOKA_APP_POPUP_MENU_HPP
 
 #include <cstddef>
+#include <cstring>
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
@@ -148,13 +149,66 @@ namespace loka
         return static_cast<int>(h);
       }
 
+      static int compareItems(const loka::Vector<loka::core::String> *left,
+                              const loka::Vector<loka::core::String> *right)
+      {
+        if (left == right)
+        {
+          return 0;
+        }
+        if (!left)
+        {
+          return -1;
+        }
+        if (!right)
+        {
+          return 1;
+        }
+        if (left->size() != right->size())
+        {
+          return left->size() < right->size() ? -1 : 1;
+        }
+        for (std::size_t i = 0; i < left->size(); ++i)
+        {
+          const loka::core::String &leftString = (*left)[i];
+          const loka::core::String &rightString = (*right)[i];
+          loka::core::StringBuffer leftBuffer = leftString.bufferWithEncoding(loka::core::StringEncodingUtf8);
+          loka::core::StringBuffer rightBuffer = rightString.bufferWithEncoding(loka::core::StringEncodingUtf8);
+          std::size_t leftLength = leftBuffer.length();
+          std::size_t rightLength = rightBuffer.length();
+          std::size_t commonLength = leftLength < rightLength ? leftLength : rightLength;
+          if (commonLength > 0)
+          {
+            int compare = std::memcmp(leftBuffer.data(), rightBuffer.data(), commonLength);
+            if (compare < 0)
+            {
+              return -1;
+            }
+            if (compare > 0)
+            {
+              return 1;
+            }
+          }
+          if (leftLength < rightLength)
+          {
+            return -1;
+          }
+          if (rightLength < leftLength)
+          {
+            return 1;
+          }
+        }
+        return 0;
+      }
+
       bool operator<(const loka::app::scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const PopupMenuProps &other = static_cast<const PopupMenuProps &>(rhs);
-        if (items_ != other.items_)
-          return items_ < other.items_;
+        int itemCompare = compareItems(items_, other.items_);
+        if (itemCompare != 0)
+          return itemCompare < 0;
         if (controlTag_ != other.controlTag_)
           return controlTag_ < other.controlTag_;
         if (selectedIndex_ != other.selectedIndex_)

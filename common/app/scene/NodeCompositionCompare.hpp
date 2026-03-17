@@ -104,7 +104,7 @@ namespace loka
             bool equivalentProps = compatibleType && previousChild->hasEquivalentProps(*currentChild);
             out.addEntry(currentChild->nodeTag(),
                          static_cast<int>(i),
-                         NodeCompositionDiff::ACTION_RETAIN,
+                         compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
                          compatibleType,
                          equivalentProps,
                          previousIndex,
