@@ -12,6 +12,10 @@ namespace loka
     {
       void BoundaryNode::markViewDirty(NodeDirtyFlags flags)
       {
+        if (this->isFrozen())
+        {
+          return;
+        }
         Scene *scene = this->getScene();
         if (!scene)
         {

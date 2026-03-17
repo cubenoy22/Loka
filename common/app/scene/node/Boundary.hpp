@@ -243,7 +243,7 @@ namespace loka
           NodeTag tag;
         };
 
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), frozen_(false)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -268,6 +268,8 @@ namespace loka
           return true;
         }
         void markViewDirty(NodeDirtyFlags flags);
+        void setFrozen(bool frozen) { this->frozen_ = frozen; }
+        bool isFrozen() const { return this->frozen_; }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -860,6 +862,7 @@ namespace loka
         BoundaryNode *parentBoundary_;
         LayoutBounds layoutBounds_;
         NodeDirtyFlags observedDirtyFlags_;
+        bool frozen_;
         std::vector<ObservedStateEntry> observedStateEntries_;
         NodeArena nodeArena_;
         StateArena stateArena_;

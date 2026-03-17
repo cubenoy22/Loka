@@ -31,6 +31,7 @@ void testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild();
 void testDynamicBoundaryLocallyReplacesTaggedChild();
 void testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild();
 void testDynamicBoundaryLocallyReordersTaggedChildren();
+void testFrozenBoundaryIgnoresObservedStateInvalidation();
 void testSceneMountLifecycle();
 void testSceneBoundaryNestedCompose();
 void testStaticBoundaryPropagatesUpdateToDynamicChild();

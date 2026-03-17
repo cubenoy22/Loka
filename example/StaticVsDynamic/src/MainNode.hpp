@@ -40,6 +40,7 @@ namespace staticvsdynamic
     virtual ~MainBoundary() {}
     virtual void noteStaticCompose(int count) = 0;
     virtual void noteDynamicCompose(int count) = 0;
+    virtual void registerDynamicBoundary(loka::app::scene::BoundaryNode *boundary) = 0;
   };
 
   class MainNode;
@@ -158,6 +159,10 @@ namespace staticvsdynamic
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       this->mainBoundary_ = c.findBoundary<MainBoundary>();
+      if (this->mainBoundary_)
+      {
+        this->mainBoundary_->registerDynamicBoundary(this);
+      }
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -282,11 +287,14 @@ namespace staticvsdynamic
           editText_(),
           selectedIndex_(),
           detailsVisible_(),
+          dynamicFrozen_(),
           actionEnabled_(),
           sharedActionEvent_(),
           toggleDetailsEvent_(),
+          toggleFreezeEvent_(),
           toggleEnabledEvent_(),
-          resetCountEvent_()
+          resetCountEvent_(),
+          dynamicBoundary_(0)
     {
     }
 
@@ -305,9 +313,11 @@ namespace staticvsdynamic
           .state(this->editText_, loka::core::String::Literal("Edit me"))
           .state(this->selectedIndex_, 1)
           .state(this->detailsVisible_, false)
+          .state(this->dynamicFrozen_, false)
           .state(this->actionEnabled_, true);
       this->bindForUi(this->sharedActionEvent_, this, &MainNode::handleSharedAction);
       this->bindForUi(this->toggleDetailsEvent_, this, &MainNode::toggleDetails);
+      this->bindForUi(this->toggleFreezeEvent_, this, &MainNode::toggleFreeze);
       this->bindForUi(this->toggleEnabledEvent_, this, &MainNode::toggleEnabled);
       this->bindForUi(this->resetCountEvent_, this, &MainNode::resetCount);
       this->refreshLabels();
@@ -342,10 +352,20 @@ namespace staticvsdynamic
       this->scheduleComposeProbeRefresh();
     }
 
+    virtual void registerDynamicBoundary(loka::app::scene::BoundaryNode *boundary)
+    {
+      this->dynamicBoundary_ = boundary;
+      if (this->dynamicBoundary_)
+      {
+        this->dynamicBoundary_->setFrozen(this->dynamicFrozen_.get());
+      }
+    }
+
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       loka::app::RowDefinition controls = loka::app::HStack();
       controls << loka::app::Button("Toggle Details", &this->toggleDetailsEvent_)
+               << loka::app::Button(this->dynamicFrozen_.get() ? "Unfreeze Dynamic" : "Freeze Dynamic", &this->toggleFreezeEvent_)
                << loka::app::Button("Toggle Enabled", &this->toggleEnabledEvent_)
                << loka::app::Button("Reset Count", &this->resetCountEvent_);
 
@@ -408,6 +428,17 @@ namespace staticvsdynamic
       this->refreshLabels();
     }
 
+    void toggleFreeze()
+    {
+      bool frozen = !this->dynamicFrozen_.get();
+      this->dynamicFrozen_.set(frozen, true);
+      if (this->dynamicBoundary_)
+      {
+        this->dynamicBoundary_->setFrozen(frozen);
+      }
+      this->refreshLabels();
+    }
+
     void resetCount()
     {
       this->sharedCount_.set(0, true);
@@ -456,7 +487,12 @@ namespace staticvsdynamic
       const loka::core::String enabledText = this->actionEnabled_.get()
                                                  ? loka::core::String::Literal("enabled")
                                                  : loka::core::String::Literal("disabled");
-      this->statusText_.set(loka::core::String::Literal("Details: ") + detailText + loka::core::String::Literal(" / action: ") + enabledText,
+      const loka::core::String freezeText = this->dynamicFrozen_.get()
+                                                ? loka::core::String::Literal("frozen")
+                                                : loka::core::String::Literal("live");
+      this->statusText_.set(loka::core::String::Literal("Details: ") + detailText
+                                + loka::core::String::Literal(" / action: ") + enabledText
+                                + loka::core::String::Literal(" / dynamic: ") + freezeText,
                             true);
     }
 
@@ -496,11 +532,14 @@ namespace staticvsdynamic
     loka::app::scene::BoundState<loka::core::String> editText_;
     loka::app::scene::BoundState<int> selectedIndex_;
     loka::app::scene::BoundState<bool> detailsVisible_;
+    loka::app::scene::BoundState<bool> dynamicFrozen_;
     loka::app::scene::BoundState<bool> actionEnabled_;
     loka::core::EmitterState sharedActionEvent_;
     loka::core::EmitterState toggleDetailsEvent_;
+    loka::core::EmitterState toggleFreezeEvent_;
     loka::core::EmitterState toggleEnabledEvent_;
     loka::core::EmitterState resetCountEvent_;
+    loka::app::scene::BoundaryNode *dynamicBoundary_;
   };
 }
 
