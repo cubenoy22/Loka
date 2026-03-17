@@ -3,6 +3,7 @@
 
 #include "app/Window.hpp"
 #include <Windows.h>
+#include <vector>
 
 class App;
 class ToolboxScenePlatformController;
@@ -19,6 +20,7 @@ public:
   void ensureSceneMounted();
   void open();
   void requestInvalidate();
+  void requestInvalidateRect(const Rect &rect);
   void flushInvalidate();
   bool handleMouseDown(const Point &globalPoint);
   bool handleKeyDown(char key);
@@ -41,6 +43,7 @@ private:
   ToolboxScenePlatformController *scenePlatformController_;
   ToolboxWindowContext *context_;
   bool needsInvalidate_;
+  std::vector<Rect> pendingInvalidateRects_;
   short titleBarHeight_;
 
   void mountScene();

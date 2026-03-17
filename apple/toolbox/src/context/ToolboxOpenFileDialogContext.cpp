@@ -52,7 +52,7 @@ void ToolboxOpenFileDialogContext::unbindVisible()
   {
     return;
   }
-  visibleState_->deferUnbind(&ToolboxOpenFileDialogContext::VisibleChangedThunk, this);
+  visibleState_ = 0;
 }
 
 void ToolboxOpenFileDialogContext::applyVisible()
@@ -114,7 +114,7 @@ void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult 
 void ToolboxOpenFileDialogContext::VisibleChangedThunk(void *userData)
 {
   ToolboxOpenFileDialogContext *self = static_cast<ToolboxOpenFileDialogContext *>(userData);
-  if (self)
+  if (self && self->visibleState_)
   {
     self->applyVisible();
   }

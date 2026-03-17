@@ -720,6 +720,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       hasFocusedRect_(false),
       inBatchUpdate_(false),
       pendingFullInvalidate_(false),
+      pendingInvalidateFlags_(loka::app::scene::NODE_DIRTY_NONE),
       forceFullRedraw_(false),
       pendingDirtyRects_(),
       clipRgn_(NewRgn()),
@@ -768,16 +769,14 @@ void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, 
   }
   if (inBatchUpdate_)
   {
+    pendingInvalidateFlags_ = static_cast<loka::app::scene::NodeDirtyFlags>(pendingInvalidateFlags_ | flags);
     if (flags != loka::app::scene::NODE_DIRTY_NONE || fullRebuild)
     {
       pendingFullInvalidate_ = true;
     }
     return;
   }
-  if (flags != loka::app::scene::NODE_DIRTY_NONE || fullRebuild)
-  {
-    window_->requestInvalidate();
-  }
+  requestInvalidateForChange(flags, fullRebuild);
 }
 
 void ToolboxScenePlatformController::synchronize()
@@ -1329,6 +1328,7 @@ void ToolboxScenePlatformController::beginBatchUpdate()
   pendingDirtyRects_.clear();
   pendingTextStates_.clear();
   pendingFullInvalidate_ = false;
+  pendingInvalidateFlags_ = loka::app::scene::NODE_DIRTY_NONE;
 }
 
 void ToolboxScenePlatformController::endBatchUpdate()
@@ -1346,14 +1346,12 @@ void ToolboxScenePlatformController::endBatchUpdate()
     {
       redrawTextFor(pendingTextStates_[i]);
     }
-    if (pendingFullInvalidate_ && window_->window())
-    {
-      window_->requestInvalidate();
-    }
+    requestInvalidateForChange(pendingInvalidateFlags_, pendingFullInvalidate_);
   }
   pendingDirtyRects_.clear();
   pendingTextStates_.clear();
   pendingFullInvalidate_ = false;
+  pendingInvalidateFlags_ = loka::app::scene::NODE_DIRTY_NONE;
 }
 
 void ToolboxScenePlatformController::addPendingDirty(const Rect &rect)
@@ -1403,6 +1401,71 @@ void ToolboxScenePlatformController::addPendingText(loka::core::State<loka::core
   pendingTextStates_.push_back(text);
 }
 
+bool ToolboxScenePlatformController::collectLocalBoundaryDirtyRects(loka::app::scene::Node *node, const Rect &fallback)
+{
+  if (!node || !window_)
+  {
+    return false;
+  }
+  bool added = false;
+  loka::app::scene::BoundaryNode *boundary = node->asBoundary();
+  if (boundary && boundary->hasLayoutBounds() && boundary->canApplyLocalCompositionDiff())
+  {
+    window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
+    added = true;
+  }
+  loka::app::scene::INestable *nestable = node->asNestable();
+  if (!nestable)
+  {
+    return added;
+  }
+  loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+  for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+  {
+    if (collectLocalBoundaryDirtyRects(child, fallback))
+    {
+      added = true;
+    }
+  }
+  return added;
+}
+
+void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+{
+  if (!window_ || !window_->window())
+  {
+    return;
+  }
+  if ((flags == loka::app::scene::NODE_DIRTY_NONE) && !fullRebuild)
+  {
+    return;
+  }
+  if (fullRebuild || !rootNode_)
+  {
+    window_->requestInvalidate();
+    return;
+  }
+
+  Rect fallback = window_->window()->portRect;
+  bool queued = false;
+  if (flags & loka::app::scene::NODE_DIRTY_CHILD)
+  {
+    queued = collectLocalBoundaryDirtyRects(rootNode_, fallback);
+  }
+  if (!queued)
+  {
+    loka::app::scene::BoundaryNode *boundary = rootNode_->asBoundary();
+    if (boundary && boundary->hasLayoutBounds())
+    {
+      window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
+    }
+    else
+    {
+      window_->requestInvalidate();
+    }
+  }
+}
+
 void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
 {
   if (!window_ || !window_->window() || !hit.text)
@@ -1438,11 +1501,11 @@ void ToolboxScenePlatformController::clearTextBindings()
   for (size_t i = 0; i < textBindings_.size(); ++i)
   {
     TextBinding *binding = textBindings_[i];
-    if (binding && binding->state)
+    if (binding)
     {
-      binding->state->unbind(&ToolboxScenePlatformController::TextStateChangedThunk, binding);
+      binding->state = 0;
+      binding->controller = 0;
     }
-    delete binding;
   }
   textBindings_.clear();
   boundTextStates_.clear();
@@ -1780,7 +1843,7 @@ bool ToolboxScenePlatformController::handleControlClick(const Point &point)
 void ToolboxScenePlatformController::TextStateChangedThunk(void *userData)
 {
   TextBinding *binding = static_cast<TextBinding *>(userData);
-  if (!binding || !binding->controller)
+  if (!binding || !binding->controller || !binding->state)
   {
     return;
   }

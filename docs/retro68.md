@@ -102,6 +102,78 @@ If you prefer environment variables over CMakeUserPresets.json:
 - Retro68 builds use the `apple/toolbox` target.
 - Release builds use `-Os` and section garbage collection for smaller binaries.
 - The `LOKA_RETRO68` preprocessor define is set for Classic Mac builds.
+- If a `.dsk` is mounted, unmount it before rebuilding. Mounted images can leave stale artifacts or misleading runtime results.
+
+## Debug Workflow
+
+Use different tools for different failure classes.
+
+### 1. Modern-host profiling first
+
+For performance problems, first reproduce on a modern host build and profile there.
+
+- macOS: use `Time Profiler`
+- Look for the top hot path before touching code
+- Typical order:
+  1. reproduce
+  2. capture top symbols
+  3. isolate by toggling sample features or commenting out components
+  4. optimize only the top hotspot
+  5. re-measure
+
+This was effective for distinguishing:
+
+- reconciler/local-diff cost
+- state propagation fanout
+- backend redraw cost
+
+### 2. Classic crash debugging
+
+For Classic-only crashes, use native Mac OS with MacsBug.
+
+Recommended setup:
+
+- OS 9 native on PPC hardware is preferred over Classic mode
+- `MacsBug` installed
+- Retro68-built `.dsk` / `.APPL`
+
+Why:
+
+- close/teardown crashes are often Toolbox/TE/Control Manager specific
+- Classic mode adds another compatibility layer and makes root-cause analysis noisier
+
+### 3. When to switch to MacsBug
+
+Switch to MacsBug when the problem is:
+
+- `illegal instruction`
+- `CHK`
+- `bad F-Line`
+- bus error / address error
+- close/quit-only crash
+- crash that does not reproduce on modern macOS/Win32/Linux
+
+### 4. Minimal MacsBug workflow
+
+For a crash, record at least:
+
+- crashing symbol / offset
+- `sc6`
+- `es` if it is still valid
+
+In this project, that was enough to isolate a Classic close crash to:
+
+- `ToolboxScenePlatformController::clearTextBindings()`
+
+### 5. Practical rule
+
+Do not guess for long on Classic teardown bugs.
+
+- modern host + `Time Profiler` for performance
+- OS 9 + `MacsBug` for Classic crash points
+- if needed, ask someone with native hardware to reproduce and capture the crash symbol/stack
+
+That hybrid workflow is faster than trying to solve all Classic issues from Linux/macOS alone.
 
 ## VSCode (IntelliSense)
 

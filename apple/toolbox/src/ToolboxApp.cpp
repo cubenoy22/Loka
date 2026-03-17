@@ -13,7 +13,7 @@
 #include "loka/platform/StringUTF8.hpp"
 
 ToolboxApp::ToolboxApp(AppConfigurable *config)
-    : App(config), nextMenuId_(128), commands_(), bindings_(), menuEntries_(), hierarchicalMenus_(), running_(false)
+    : App(config), nextMenuId_(128), commands_(), bindings_(), menuEntries_(), hierarchicalMenus_(), pendingWindowClosures_(), running_(false)
 {
 }
 ToolboxApp::~ToolboxApp()
@@ -61,6 +61,7 @@ void ToolboxApp::run()
   running_ = true;
   while (running_)
   {
+    flushPendingWindowClosures();
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
     EventRecord event;
@@ -154,8 +155,7 @@ void ToolboxApp::run()
           }
           if (closing)
           {
-            closing->invalidateWindow();
-            windowClosed(closing);
+            requestWindowClose(closing);
           }
         }
       }
@@ -237,6 +237,7 @@ void ToolboxApp::run()
         HiliteMenu(0);
       }
     }
+    flushPendingWindowClosures();
   }
 }
 
@@ -248,6 +249,37 @@ void ToolboxApp::quit()
 void ToolboxApp::windowClosed(Window *window)
 {
   App::windowClosed(window);
+}
+
+void ToolboxApp::requestWindowClose(Window *window)
+{
+  if (!window)
+  {
+    return;
+  }
+  for (size_t i = 0; i < pendingWindowClosures_.size(); ++i)
+  {
+    if (pendingWindowClosures_[i] == window)
+    {
+      return;
+    }
+  }
+  pendingWindowClosures_.push_back(window);
+}
+
+void ToolboxApp::flushPendingWindowClosures()
+{
+  if (pendingWindowClosures_.empty())
+  {
+    return;
+  }
+  std::vector<Window *> pending = pendingWindowClosures_;
+  pendingWindowClosures_.clear();
+  for (size_t i = 0; i < pending.size(); ++i)
+  {
+    Window *window = pending[i];
+    windowClosed(window);
+  }
 }
 
 static void CopyToPascalString(const loka::core::String &value, Str255 out)
@@ -292,9 +324,10 @@ void ToolboxApp::clearMenuBindings()
   for (size_t i = 0; i < bindings_.size(); ++i)
   {
     MenuBinding *binding = bindings_[i];
-    if (binding && binding->enabledState)
+    if (binding)
     {
-      binding->enabledState->deferUnbind(&ToolboxApp::MenuEnabledChangedThunk, binding);
+      binding->menu = 0;
+      binding->enabledState = 0;
     }
     delete binding;
   }
@@ -309,10 +342,8 @@ void ToolboxApp::clearMenuBindingsFor(MenuHandle menuHandle, short menuId)
     MenuBinding *binding = bindings_[i];
     if (binding && binding->menu == menuHandle)
     {
-      if (binding->enabledState)
-      {
-        binding->enabledState->deferUnbind(&ToolboxApp::MenuEnabledChangedThunk, binding);
-      }
+      binding->menu = 0;
+      binding->enabledState = 0;
       delete binding;
       bindings_.erase(bindings_.begin() + i);
       continue;

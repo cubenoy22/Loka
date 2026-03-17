@@ -40,7 +40,7 @@ namespace
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context,
                              const WindowProps &props)
-    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), titleBarHeight_(0)
+    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), pendingInvalidateRects_(), titleBarHeight_(0)
 {
   window_ = 0;
   context_ = new ToolboxWindowContext(
@@ -56,6 +56,10 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context,
 
 ToolboxWindow::~ToolboxWindow()
 {
+  this->titleState().unbind(&ToolboxWindow::TitleChangedThunk, this);
+  this->frameState().unbind(&ToolboxWindow::FrameChangedThunk, this);
+  needsInvalidate_ = false;
+  pendingInvalidateRects_.clear();
   teardownScene();
   delete context_;
   context_ = 0;
@@ -120,16 +124,68 @@ void ToolboxWindow::open()
 void ToolboxWindow::requestInvalidate()
 {
   needsInvalidate_ = true;
+  pendingInvalidateRects_.clear();
+}
+
+void ToolboxWindow::requestInvalidateRect(const Rect &rect)
+{
+  if (needsInvalidate_)
+  {
+    return;
+  }
+  for (std::size_t i = 0; i < pendingInvalidateRects_.size(); ++i)
+  {
+    Rect &pending = pendingInvalidateRects_[i];
+    if (rect.right < pending.left || rect.left > pending.right ||
+        rect.bottom < pending.top || rect.top > pending.bottom)
+    {
+      continue;
+    }
+    if (rect.left < pending.left)
+    {
+      pending.left = rect.left;
+    }
+    if (rect.top < pending.top)
+    {
+      pending.top = rect.top;
+    }
+    if (rect.right > pending.right)
+    {
+      pending.right = rect.right;
+    }
+    if (rect.bottom > pending.bottom)
+    {
+      pending.bottom = rect.bottom;
+    }
+    return;
+  }
+  pendingInvalidateRects_.push_back(rect);
 }
 
 void ToolboxWindow::flushInvalidate()
 {
-  if (!needsInvalidate_ || !window_)
+  if (!window_)
   {
     return;
   }
+  if (!needsInvalidate_ && pendingInvalidateRects_.empty())
+  {
+    return;
+  }
+  if (needsInvalidate_)
+  {
+    needsInvalidate_ = false;
+    pendingInvalidateRects_.clear();
+    this->draw();
+    return;
+  }
   needsInvalidate_ = false;
-  this->draw();
+  std::vector<Rect> rects = pendingInvalidateRects_;
+  pendingInvalidateRects_.clear();
+  for (std::size_t i = 0; i < rects.size(); ++i)
+  {
+    this->drawDirty(rects[i]);
+  }
 }
 
 void ToolboxWindow::refreshFrame()

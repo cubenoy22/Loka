@@ -148,6 +148,7 @@ private:
   std::vector<TextBinding *> textBindings_;
   bool inBatchUpdate_;
   bool pendingFullInvalidate_;
+  loka::app::scene::NodeDirtyFlags pendingInvalidateFlags_;
   bool forceFullRedraw_;
   std::vector<Rect> pendingDirtyRects_;
   std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
@@ -162,6 +163,8 @@ private:
   void endBatchUpdate();
   void addPendingDirty(const Rect &rect);
   void addPendingText(loka::core::State<loka::core::String> *text);
+  bool collectLocalBoundaryDirtyRects(loka::app::scene::Node *node, const Rect &fallback);
+  void requestInvalidateForChange(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
   void redrawTextHit(const TextHit &hit);
   void redrawTextFor(loka::core::State<loka::core::String> *text);
   void clearTextBindings();

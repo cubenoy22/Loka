@@ -256,6 +256,17 @@ void testStateNotify()
     assert(count == 0);
   }
 
+  // --- deferUnbind: removes duplicate deferred handlers, not just the first ---
+  {
+    int count = 0;
+    loka::core::EmitterState s;
+    s.deferBind(&increment, &count);
+    s.deferBind(&increment, &count);
+    s.deferUnbind(&increment, &count);
+    s.emit();
+    assert(count == 0);
+  }
+
   // --- notify: handler added during notification does not fire in that cycle ---
   {
     int lateCount = 0;

@@ -235,14 +235,20 @@ namespace loka
       virtual void unbind(OnChangeFn cb, void *userData)
       {
         Handler target = {cb, userData, false, 0};
-        for (size_t i = 0; i < this->handlers.size(); ++i)
+        bool removed = false;
+        for (size_t i = 0; i < this->handlers.size();)
         {
           if (this->handlers[i] == target)
           {
             this->handlers.erase(this->handlers.begin() + i);
-            ++this->handlersVersion_;
-            break;
+            removed = true;
+            continue;
           }
+          ++i;
+        }
+        if (removed)
+        {
+          ++this->handlersVersion_;
         }
       }
       virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
@@ -258,14 +264,20 @@ namespace loka
       virtual void deferUnbind(OnChangeFn cb, void *userData) const
       {
         Handler target = {cb, userData, false, 0};
-        for (size_t i = 0; i < this->deferredHandlers.size(); ++i)
+        bool removed = false;
+        for (size_t i = 0; i < this->deferredHandlers.size();)
         {
           if (this->deferredHandlers[i] == target)
           {
             this->deferredHandlers.erase(this->deferredHandlers.begin() + i);
-            ++this->deferredHandlersVersion_;
-            break;
+            removed = true;
+            continue;
           }
+          ++i;
+        }
+        if (removed)
+        {
+          ++this->deferredHandlersVersion_;
         }
       }
 
@@ -349,14 +361,20 @@ namespace loka
       virtual void unbind(OnChangeFn cb, void *userData)
       {
         Handler target = {cb, userData, false, 0};
-        for (size_t i = 0; i < handlers.size(); ++i)
+        bool removed = false;
+        for (size_t i = 0; i < handlers.size();)
         {
           if (handlers[i] == target)
           {
             handlers.erase(handlers.begin() + i);
-            ++handlersVersion_;
-            break;
+            removed = true;
+            continue;
           }
+          ++i;
+        }
+        if (removed)
+        {
+          ++handlersVersion_;
         }
       }
       virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
@@ -372,14 +390,20 @@ namespace loka
       virtual void deferUnbind(OnChangeFn cb, void *userData) const
       {
         Handler target = {cb, userData, false, 0};
-        for (size_t i = 0; i < deferredHandlers.size(); ++i)
+        bool removed = false;
+        for (size_t i = 0; i < deferredHandlers.size();)
         {
           if (deferredHandlers[i] == target)
           {
             deferredHandlers.erase(deferredHandlers.begin() + i);
-            ++deferredHandlersVersion_;
-            break;
+            removed = true;
+            continue;
           }
+          ++i;
+        }
+        if (removed)
+        {
+          ++deferredHandlersVersion_;
         }
       }
 
