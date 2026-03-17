@@ -238,9 +238,9 @@ namespace loka
         };
         struct LocalRebuildPlanEntry
         {
-          LocalRebuildPlanEntry() : node(0), retained(false), tag(NODE_TAG_NONE) {}
+          LocalRebuildPlanEntry() : node(0), action(NodeCompositionDiff::ACTION_RETAIN), tag(NODE_TAG_NONE) {}
           Node *node;
-          bool retained;
+          NodeCompositionDiff::Action action;
           NodeTag tag;
         };
         struct LocalRebuildPlan
@@ -577,7 +577,7 @@ namespace loka
             {
               LocalRebuildPlanEntry entry;
               entry.node = existing;
-              entry.retained = true;
+              entry.action = NodeCompositionDiff::ACTION_RETAIN;
               entry.tag = definition->nodeTag();
               plan.entries.push_back(entry);
             }
@@ -592,7 +592,10 @@ namespace loka
               }
               LocalRebuildPlanEntry entry;
               entry.node = created;
-              entry.retained = false;
+              // First pass: newly attached children reuse the same apply path as
+              // retained/replaced entries and are tracked separately via
+              // attachedChildren/retiredChildren.
+              entry.action = existing ? NodeCompositionDiff::ACTION_REPLACE : NodeCompositionDiff::ACTION_RETAIN;
               entry.tag = definition->nodeTag();
               plan.entries.push_back(entry);
               plan.attachedChildren.push_back(created);
@@ -628,7 +631,7 @@ namespace loka
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            if (plan.entries[i].retained)
+            if (plan.entries[i].action == NodeCompositionDiff::ACTION_RETAIN)
             {
               NodeDefinitionBase *retainedDefinition = findCurrentCompositionDefinitionByTag(plan.entries[i].tag);
               if (retainedDefinition && !retainedDefinition->applyPropsToNode(plan.entries[i].node))
