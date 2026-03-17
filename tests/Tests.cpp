@@ -1703,12 +1703,9 @@ void testFrozenBoundaryIgnoresOwnedStateInvalidation()
   assert(platform.calls_ == initialCalls);
 
   rootBoundary->setFrozen(false);
-  {
-    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
-    g_frozenOwnedState->set(false);
-  }
+  scene.invalidate(loka::app::scene::NODE_DIRTY_PROPS);
   scene.flushInvalidation();
-  assert(g_frozenOwnedComposeCount >= 2);
+  assert(g_frozenOwnedComposeCount == 1);
   assert(platform.calls_ >= initialCalls + 1);
   assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
 

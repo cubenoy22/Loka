@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_NODE_COMPOSABLENODE_HPP
 
 #include <cassert>
+#include <cstring>
 #include <vector>
 #include "../Node.hpp"
 #include "../ComponentContext.hpp"
@@ -80,6 +81,7 @@ namespace loka
           virtual ~CallbackEntryBase() {}
           virtual void unbind() = 0;
           virtual void invalidate() = 0;
+          virtual bool matches(loka::core::EmitterState *emitter, void *node, const void *methodBytes, size_t methodSize) const = 0;
         };
 
         template <class NodeT>
@@ -112,6 +114,15 @@ namespace loka
             valid_ = false;
           }
 
+          bool matches(loka::core::EmitterState *emitter, void *node, const void *methodBytes, size_t methodSize) const
+          {
+            if (emitter_ != emitter || node_ != node || methodSize != sizeof(method_))
+            {
+              return false;
+            }
+            return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+          }
+
           NodeT *node_;
           loka::core::EmitterState *emitter_;
           Method method_;
@@ -121,6 +132,13 @@ namespace loka
         template <class NodeT>
         void bindForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
         {
+          for (size_t i = 0; i < callbacks_.size(); ++i)
+          {
+            if (callbacks_[i] && callbacks_[i]->matches(&emitter, node, &method, sizeof(method)))
+            {
+              return;
+            }
+          }
           CallbackEntry<NodeT> *entry = new CallbackEntry<NodeT>(node, &emitter, method);
           callbacks_.push_back(entry);
           emitter.deferBind(&CallbackEntry<NodeT>::Invoke, entry);
