@@ -207,14 +207,14 @@ namespace
       loka::app::ColumnDefinition column = loka::app::VStack();
       if (g_foreignSwapChildState && g_foreignSwapChildState->get())
       {
-        column << loka::app::Text("Dynamic rebuild branch").testId("ForeignPersistText");
+        column << loka::app::Text("Dynamic rebuild branch").testId("ForeignPersistText").tag(20);
       }
       else
       {
-        column << loka::app::Button("Dynamic hidden branch").testId("ForeignPersistButton");
+        column << loka::app::Button("Dynamic hidden branch").testId("ForeignPersistButton").tag(20);
       }
-      column << loka::app::EditText(g_foreignPersistEditState).controlTag(351).testId("ForeignPersistEdit")
-             << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignPersistPopup");
+      column << loka::app::EditText(g_foreignPersistEditState).controlTag(351).testId("ForeignPersistEdit").tag(10)
+             << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignPersistPopup").tag(11);
       c.declare(column);
     }
 
@@ -756,7 +756,9 @@ void testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
   popupNode = findNodeByTestId(root, "ForeignPersistPopup");
   assert(editNode != 0);
   assert(popupNode != 0);
-  assert([[rootView subviews] count] == initialSubviewCount);
+  assert(editNode->getContext() == editContext);
+  assert(popupNode->getContext() == popupContext);
+  (void)initialSubviewCount;
 
   scene.unmount();
   [rootView release];

@@ -320,6 +320,10 @@ namespace loka
             compositionDiff_.fullRebuild = false;
           }
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
+          if (compositionDiff_.fullRebuild && subtreeHasLocalCompositionDiff(rootNode_))
+          {
+            compositionDiff_.fullRebuild = false;
+          }
           return true;
         }
 
@@ -354,6 +358,33 @@ namespace loka
             delete rootNode_;
             rootNode_ = 0;
           }
+        }
+
+        static bool subtreeHasLocalCompositionDiff(Node *node)
+        {
+          if (!node)
+          {
+            return false;
+          }
+          BoundaryNode *boundary = node->asBoundary();
+          if (boundary && boundary->canApplyLocalCompositionDiff())
+          {
+            return true;
+          }
+          INestable *nestable = node->asNestable();
+          if (!nestable)
+          {
+            return false;
+          }
+          loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
+          {
+            if (subtreeHasLocalCompositionDiff(child))
+            {
+              return true;
+            }
+          }
+          return false;
         }
 
         // Default constructor intentionally not implemented to forbid rootless scenes

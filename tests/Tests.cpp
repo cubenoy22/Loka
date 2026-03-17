@@ -18,6 +18,7 @@
 #include "app/Box.hpp"
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
+#include "app/EditText.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/Window.hpp"
 #include "app/PopupMenu.hpp"
@@ -1490,13 +1491,13 @@ void testDynamicBoundaryLocalReplacePreservesRetainedControlNode()
       if (this->showText_)
       {
         c.declare(VStack()
-                  << EditText(&this->value_).tag(10)
+                  << loka::app::EditText(&this->value_).tag(10)
                   << Text("BranchText").tag(20));
       }
       else
       {
         c.declare(VStack()
-                  << EditText(&this->value_).tag(10)
+                  << loka::app::EditText(&this->value_).tag(10)
                   << Button("BranchButton").tag(20));
       }
     }
