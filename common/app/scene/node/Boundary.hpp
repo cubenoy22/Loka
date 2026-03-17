@@ -243,6 +243,24 @@ namespace loka
           bool retained;
           NodeTag tag;
         };
+        struct LocalRebuildPlan
+        {
+          std::vector<LocalRebuildPlanEntry> entries;
+          std::vector<Node *> attachedChildren;
+          std::vector<Node *> retiredChildren;
+          void reserve(size_t count)
+          {
+            entries.reserve(count);
+            attachedChildren.reserve(count);
+            retiredChildren.reserve(count);
+          }
+          void clear()
+          {
+            entries.clear();
+            attachedChildren.clear();
+            retiredChildren.clear();
+          }
+        };
 
         BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), frozen_(false)
         {
@@ -522,96 +540,12 @@ namespace loka
             return false;
           }
 
-          std::vector<LocalRebuildPlanEntry> plan;
-          std::vector<Node *> attachedChildren;
-          std::vector<Node *> retiredChildren;
-          size_t currentCount = currentRoot->childrenCount();
-          plan.reserve(currentCount);
-          attachedChildren.reserve(currentCount);
-          retiredChildren.reserve(currentCount);
-
-          NodeDefinitionBase *definition = currentRoot->childrenHead();
-          while (definition)
+          LocalRebuildPlan plan;
+          if (!buildLocalRebuildPlan(context, *currentRoot, plan))
           {
-            Node *existing = findCompositionChildByTag(definition->nodeTag());
-            if (existing && definition->isCompatibleWithNode(existing))
-            {
-              LocalRebuildPlanEntry entry;
-              entry.node = existing;
-              entry.retained = true;
-              entry.tag = definition->nodeTag();
-              plan.push_back(entry);
-            }
-            else
-            {
-              NodeComposition composition;
-              composition.setContext(&context);
-              Node *created = composition.createNodeFromDefinition(definition);
-              if (!created)
-              {
-                return false;
-              }
-              LocalRebuildPlanEntry entry;
-              entry.node = created;
-              entry.retained = false;
-              entry.tag = definition->nodeTag();
-              plan.push_back(entry);
-              attachedChildren.push_back(created);
-              if (existing)
-              {
-                retiredChildren.push_back(existing);
-              }
-            }
-            definition = definition->nextInComposition;
+            return false;
           }
-
-          loka::dsl::CompositionCursor<Node> it(root->childrenHead(), root->childrenCount());
-          for (Node *liveChild = it.next(); liveChild; liveChild = it.next())
-          {
-            if (findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
-            {
-              retiredChildren.push_back(liveChild);
-            }
-          }
-
-          std::vector<Node *> detachedChildren;
-          root->detachChildrenTo(detachedChildren);
-          for (size_t i = 0; i < plan.size(); ++i)
-          {
-            if (plan[i].retained)
-            {
-              NodeDefinitionBase *retainedDefinition = findCurrentCompositionDefinitionByTag(plan[i].tag);
-              if (retainedDefinition && !retainedDefinition->applyPropsToNode(plan[i].node))
-              {
-                return false;
-              }
-              retainedChildren.push_back(plan[i].node);
-            }
-            root->addChild(plan[i].node);
-          }
-
-          for (size_t i = 0; i < attachedChildren.size(); ++i)
-          {
-            this->composeTree(attachedChildren[i], context, COMPOSE_EVENT_ATTACH, this);
-          }
-          for (size_t i = 0; i < retiredChildren.size(); ++i)
-          {
-            Node *retired = retiredChildren[i];
-            if (!retired)
-            {
-              continue;
-            }
-            this->composeTree(retired, context, COMPOSE_EVENT_DETACH, this);
-            if (context.platformController())
-            {
-              context.platformController()->releaseNodeContexts(retired);
-            }
-            if (!retired->isArenaAllocated())
-            {
-              delete retired;
-            }
-          }
-          return true;
+          return applyLocalRebuildPlan(context, *root, plan, retainedChildren);
         }
         bool hasLocalCompositionDiff() const
         {
@@ -628,6 +562,107 @@ namespace loka
         const NodeCompositionSnapshot &currentCompositionSnapshot() const { return currentCompositionSnapshot_; }
 
       protected:
+        bool buildLocalRebuildPlan(ComponentContext &context,
+                                   const INestableDefinition &currentRoot,
+                                   LocalRebuildPlan &plan)
+        {
+          plan.clear();
+          plan.reserve(currentRoot.childrenCount());
+
+          NodeDefinitionBase *definition = currentRoot.childrenHead();
+          while (definition)
+          {
+            Node *existing = findCompositionChildByTag(definition->nodeTag());
+            if (existing && definition->isCompatibleWithNode(existing))
+            {
+              LocalRebuildPlanEntry entry;
+              entry.node = existing;
+              entry.retained = true;
+              entry.tag = definition->nodeTag();
+              plan.entries.push_back(entry);
+            }
+            else
+            {
+              NodeComposition composition;
+              composition.setContext(&context);
+              Node *created = composition.createNodeFromDefinition(definition);
+              if (!created)
+              {
+                return false;
+              }
+              LocalRebuildPlanEntry entry;
+              entry.node = created;
+              entry.retained = false;
+              entry.tag = definition->nodeTag();
+              plan.entries.push_back(entry);
+              plan.attachedChildren.push_back(created);
+              if (existing)
+              {
+                plan.retiredChildren.push_back(existing);
+              }
+            }
+            definition = definition->nextInComposition;
+          }
+
+          INestable *root = compositionRootNestable();
+          if (!root)
+          {
+            return false;
+          }
+          loka::dsl::CompositionCursor<Node> it(root->childrenHead(), root->childrenCount());
+          for (Node *liveChild = it.next(); liveChild; liveChild = it.next())
+          {
+            if (findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
+            {
+              plan.retiredChildren.push_back(liveChild);
+            }
+          }
+          return true;
+        }
+        bool applyLocalRebuildPlan(ComponentContext &context,
+                                   INestable &root,
+                                   LocalRebuildPlan &plan,
+                                   std::vector<Node *> &retainedChildren)
+        {
+          std::vector<Node *> detachedChildren;
+          root.detachChildrenTo(detachedChildren);
+          for (size_t i = 0; i < plan.entries.size(); ++i)
+          {
+            if (plan.entries[i].retained)
+            {
+              NodeDefinitionBase *retainedDefinition = findCurrentCompositionDefinitionByTag(plan.entries[i].tag);
+              if (retainedDefinition && !retainedDefinition->applyPropsToNode(plan.entries[i].node))
+              {
+                return false;
+              }
+              retainedChildren.push_back(plan.entries[i].node);
+            }
+            root.addChild(plan.entries[i].node);
+          }
+
+          for (size_t i = 0; i < plan.attachedChildren.size(); ++i)
+          {
+            this->composeTree(plan.attachedChildren[i], context, COMPOSE_EVENT_ATTACH, this);
+          }
+          for (size_t i = 0; i < plan.retiredChildren.size(); ++i)
+          {
+            Node *retired = plan.retiredChildren[i];
+            if (!retired)
+            {
+              continue;
+            }
+            this->composeTree(retired, context, COMPOSE_EVENT_DETACH, this);
+            if (context.platformController())
+            {
+              context.platformController()->releaseNodeContexts(retired);
+            }
+            if (!retired->isArenaAllocated())
+            {
+              delete retired;
+            }
+          }
+          return true;
+        }
         virtual void adoptState(loka::core::StateBase *state)
         {
           if (!state)
