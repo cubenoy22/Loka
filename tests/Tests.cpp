@@ -1648,6 +1648,117 @@ void testDynamicBoundaryLocalDiffReleasesRetiredSubtrees()
   scene.unmount();
 }
 
+void testDynamicBoundaryLocalDiffPreservesRetainedChildBoundary()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  class NestedStableChildNode;
+  typedef BoundaryPropsFor<NestedStableChildNode> NestedStableChildProps;
+
+  class NestedStableChildNode : public BoundaryNodeFor<NestedStableChildNode>
+  {
+  public:
+    NestedStableChildNode(const NestedStableChildProps &p)
+        : BoundaryNodeFor<NestedStableChildNode>(NestedStableChildProps(p)) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack()
+                << Text("InnerStable").tag(100));
+    }
+  };
+
+  class DynamicNestedHostNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicNestedHostNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicNestedHostNode> PropsType;
+
+    DynamicNestedHostNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showText_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (showText_)
+      {
+        c.declare(VStack()
+                  << BoundaryDefinition<NestedStableChildProps, NestedStableChildNode>().tag(10)
+                  << Text("BranchText").tag(20));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << BoundaryDefinition<NestedStableChildProps, NestedStableChildNode>().tag(10)
+                  << Button("BranchButton").tag(20));
+      }
+    }
+
+    void setShowText(bool value)
+    {
+      this->showText_ = value;
+    }
+
+  private:
+    bool showText_;
+  };
+
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<DynamicNestedHostNode>, DynamicNestedHostNode>()));
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      (void)flags;
+      (void)fullRebuild;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+  } platform;
+
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  DynamicNestedHostNode *host = static_cast<DynamicNestedHostNode *>(SceneTestAccess::rootBoundary(scene));
+  assert(host != 0);
+
+  Node *childBoundaryBefore = host->findCompositionChildByTag(10);
+  Node *branchBefore = host->findCompositionChildByTag(20);
+  assert(childBoundaryBefore != 0);
+  assert(childBoundaryBefore->asBoundary() != 0);
+  assert(branchBefore != 0);
+  assert(branchBefore->asButtonNode() != 0);
+
+  BoundaryNode *retainedBoundary = childBoundaryBefore->asBoundary();
+  assert(retainedBoundary != 0);
+  Node *innerBefore = retainedBoundary->findCompositionChildByTag(100);
+  assert(innerBefore != 0);
+  assert(innerBefore->asTextNode() != 0);
+
+  {
+    loka::core::StateTrackerGuard guard(host->tracker());
+    host->setShowText(true);
+  }
+  scene.invalidate(NODE_DIRTY_CHILD);
+
+  Node *childBoundaryAfter = host->findCompositionChildByTag(10);
+  Node *branchAfter = host->findCompositionChildByTag(20);
+  assert(childBoundaryAfter == childBoundaryBefore);
+  assert(branchAfter != 0);
+  assert(branchAfter != branchBefore);
+  assert(branchAfter->asTextNode() != 0);
+
+  retainedBoundary = childBoundaryAfter->asBoundary();
+  assert(retainedBoundary != 0);
+  Node *innerAfter = retainedBoundary->findCompositionChildByTag(100);
+  assert(innerAfter == innerBefore);
+
+  scene.unmount();
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;

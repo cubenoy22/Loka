@@ -48,6 +48,7 @@ int main()
   testDynamicBoundaryLocallyReordersTaggedChildren();
   testDynamicBoundaryLocalReplacePreservesRetainedControlNode();
   testDynamicBoundaryLocalDiffReleasesRetiredSubtrees();
+  testDynamicBoundaryLocalDiffPreservesRetainedChildBoundary();
   testFrozenBoundaryIgnoresObservedStateInvalidation();
   testFrozenBoundaryIgnoresOwnedStateInvalidation();
   testSceneMountLifecycle();
