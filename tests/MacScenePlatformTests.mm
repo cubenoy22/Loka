@@ -31,6 +31,7 @@ namespace
   loka::core::MutableState<bool> *g_foreignSwapChildState = 0;
   loka::core::MutableState<loka::core::String> *g_foreignPersistEditState = 0;
   loka::core::MutableState<int> *g_foreignPersistSelectedIndexState = 0;
+  loka::core::MutableState<bool> *g_foreignReorderState = 0;
 
   class DynamicMacTestNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacTestNode> DynamicMacTestProps;
@@ -265,6 +266,81 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicMacForeignPersistHostProps, DynamicMacForeignPersistHostNode> DynamicMacForeignPersistHostBoundary()
   {
     return loka::app::scene::Boundary<DynamicMacForeignPersistHostNode>();
+  }
+
+  class DynamicMacForeignReorderNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicMacForeignReorderNode> DynamicMacForeignReorderProps;
+
+  class DynamicMacForeignReorderNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicMacForeignReorderNode>
+  {
+  public:
+    DynamicMacForeignReorderNode(const DynamicMacForeignReorderProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicMacForeignReorderNode>(DynamicMacForeignReorderProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      loka::app::ColumnDefinition column = loka::app::VStack();
+      if (g_foreignReorderState && g_foreignReorderState->get())
+      {
+        column << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignReorderPopup").tag(11)
+               << loka::app::EditText(g_foreignPersistEditState).controlTag(361).testId("ForeignReorderEdit").tag(10);
+      }
+      else
+      {
+        column << loka::app::EditText(g_foreignPersistEditState).controlTag(361).testId("ForeignReorderEdit").tag(10)
+               << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignReorderPopup").tag(11);
+      }
+      c.declare(column);
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_foreignReorderState)
+      {
+        registrar.observe(g_foreignReorderState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacForeignReorderProps, DynamicMacForeignReorderNode> DynamicMacForeignReorderBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicMacForeignReorderNode>();
+  }
+
+  class DynamicMacForeignReorderHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicMacForeignReorderHostNode> DynamicMacForeignReorderHostProps;
+
+  class DynamicMacForeignReorderHostNode : public loka::app::scene::BoundaryNodeFor<DynamicMacForeignReorderHostNode>
+  {
+  public:
+    DynamicMacForeignReorderHostNode(const DynamicMacForeignReorderHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicMacForeignReorderHostNode>(DynamicMacForeignReorderHostProps(p)), observed_() {}
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->observed_, false);
+      g_foreignReorderState = this->observed_.mutableState();
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      g_foreignReorderState = 0;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicMacForeignReorderBoundary());
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> observed_;
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicMacForeignReorderHostProps, DynamicMacForeignReorderHostNode> DynamicMacForeignReorderHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicMacForeignReorderHostNode>();
   }
 
   ::loka::app::scene::Node *findNodeByTestId(::loka::app::scene::Node *node, const std::string &testId)
@@ -766,4 +842,57 @@ void testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
   g_foreignPersistEditState = 0;
   g_foreignPersistSelectedIndexState = 0;
   g_foreignSwapChildState = 0;
+}
+
+void testMacScenePlatformForeignObservedChildReorderPreservesSiblingContexts()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  loka::core::MutableState<loka::core::String> editTextState(loka::core::String::Literal("Hello"));
+  loka::core::MutableState<int> selectedIndexState(1);
+  g_foreignPersistEditState = &editTextState;
+  g_foreignPersistSelectedIndexState = &selectedIndexState;
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 200)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(DynamicMacForeignReorderHostBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *editNode = findNodeByTestId(root, "ForeignReorderEdit");
+  ::loka::app::scene::Node *popupNode = findNodeByTestId(root, "ForeignReorderPopup");
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  ::loka::app::scene::NodeContext *editContext = editNode->getContext();
+  ::loka::app::scene::NodeContext *popupContext = popupNode->getContext();
+  assert(editContext != 0);
+  assert(popupContext != 0);
+  const NSUInteger initialSubviewCount = [[rootView subviews] count];
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  assert(g_foreignReorderState != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    g_foreignReorderState->set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  editNode = findNodeByTestId(root, "ForeignReorderEdit");
+  popupNode = findNodeByTestId(root, "ForeignReorderPopup");
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  assert(editNode->getContext() == editContext);
+  assert(popupNode->getContext() == popupContext);
+  assert([[rootView subviews] count] == initialSubviewCount);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+  g_foreignPersistEditState = 0;
+  g_foreignPersistSelectedIndexState = 0;
+  g_foreignReorderState = 0;
 }

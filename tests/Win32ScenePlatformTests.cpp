@@ -187,6 +187,7 @@ namespace
   loka::core::MutableState<bool> *g_foreignSwapChildState = 0;
   loka::core::MutableState<loka::core::String> *g_foreignPersistEditState = 0;
   loka::core::MutableState<int> *g_foreignPersistSelectedIndexState = 0;
+  loka::core::MutableState<bool> *g_foreignReorderState = 0;
 
   class StaticWin32CellTextNode;
   typedef loka::app::scene::StaticCompositionPropsFor<StaticWin32CellTextNode> StaticWin32CellTextProps;
@@ -356,6 +357,81 @@ namespace
   loka::app::scene::BoundaryDefinition<DynamicWin32ForeignPersistHostProps, DynamicWin32ForeignPersistHostNode> DynamicWin32ForeignPersistHostBoundary()
   {
     return loka::app::scene::Boundary<DynamicWin32ForeignPersistHostNode>();
+  }
+
+  class DynamicWin32ForeignReorderNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicWin32ForeignReorderNode> DynamicWin32ForeignReorderProps;
+
+  class DynamicWin32ForeignReorderNode : public loka::app::scene::DynamicCompositionNodeFor<DynamicWin32ForeignReorderNode>
+  {
+  public:
+    DynamicWin32ForeignReorderNode(const DynamicWin32ForeignReorderProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<DynamicWin32ForeignReorderNode>(DynamicWin32ForeignReorderProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      loka::app::ColumnDefinition column = loka::app::VStack();
+      if (g_foreignReorderState && g_foreignReorderState->get())
+      {
+        column << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignReorderPopup").tag(11)
+               << loka::app::EditText(g_foreignPersistEditState).controlTag(461).testId("ForeignReorderEdit").tag(10);
+      }
+      else
+      {
+        column << loka::app::EditText(g_foreignPersistEditState).controlTag(461).testId("ForeignReorderEdit").tag(10)
+               << loka::app::PopupMenu(kItems, 3).selectedIndex(g_foreignPersistSelectedIndexState).testId("ForeignReorderPopup").tag(11);
+      }
+      c.declare(column);
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      if (g_foreignReorderState)
+      {
+        registrar.observe(g_foreignReorderState, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicWin32ForeignReorderProps, DynamicWin32ForeignReorderNode> DynamicWin32ForeignReorderBoundary()
+  {
+    return loka::app::scene::DynamicCompositionBoundary<DynamicWin32ForeignReorderNode>();
+  }
+
+  class DynamicWin32ForeignReorderHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<DynamicWin32ForeignReorderHostNode> DynamicWin32ForeignReorderHostProps;
+
+  class DynamicWin32ForeignReorderHostNode : public loka::app::scene::BoundaryNodeFor<DynamicWin32ForeignReorderHostNode>
+  {
+  public:
+    DynamicWin32ForeignReorderHostNode(const DynamicWin32ForeignReorderHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<DynamicWin32ForeignReorderHostNode>(DynamicWin32ForeignReorderHostProps(p)), observed_() {}
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->observed_, false);
+      g_foreignReorderState = this->observed_.mutableState();
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      g_foreignReorderState = 0;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(DynamicWin32ForeignReorderBoundary());
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> observed_;
+  };
+
+  loka::app::scene::BoundaryDefinition<DynamicWin32ForeignReorderHostProps, DynamicWin32ForeignReorderHostNode> DynamicWin32ForeignReorderHostBoundary()
+  {
+    return loka::app::scene::Boundary<DynamicWin32ForeignReorderHostNode>();
   }
 }
 
@@ -697,6 +773,59 @@ void testWin32ScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
   g_foreignPersistEditState = 0;
   g_foreignPersistSelectedIndexState = 0;
   g_foreignSwapChildState = 0;
+}
+
+void testWin32ScenePlatformForeignObservedChildReorderPreservesSiblingContexts()
+{
+  loka::core::MutableState<loka::core::String> editTextState(loka::core::String::Literal("Hello"));
+  loka::core::MutableState<int> selectedIndexState(1);
+  g_foreignPersistEditState = &editTextState;
+  g_foreignPersistSelectedIndexState = &selectedIndexState;
+
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  loka::app::scene::Scene scene(DynamicWin32ForeignReorderHostBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(root != 0);
+  ::loka::app::scene::Node *editNode = findNodeByTestId(root, "ForeignReorderEdit");
+  ::loka::app::scene::Node *popupNode = findNodeByTestId(root, "ForeignReorderPopup");
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  ::loka::app::scene::NodeContext *editContext = editNode->getContext();
+  ::loka::app::scene::NodeContext *popupContext = popupNode->getContext();
+  assert(editContext != 0);
+  assert(popupContext != 0);
+  const int initialChildWindowCount = countChildWindows(rootHwnd);
+
+  loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+  assert(g_foreignReorderState != 0);
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    g_foreignReorderState->set(true);
+  }
+  scene.flushInvalidation();
+
+  root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  editNode = findNodeByTestId(root, "ForeignReorderEdit");
+  popupNode = findNodeByTestId(root, "ForeignReorderPopup");
+  assert(editNode != 0);
+  assert(popupNode != 0);
+  assert(editNode->getContext() == editContext);
+  assert(popupNode->getContext() == popupContext);
+  assert(countChildWindows(rootHwnd) == initialChildWindowCount);
+
+  scene.unmount();
+  DestroyWindow(rootHwnd);
+  g_foreignPersistEditState = 0;
+  g_foreignPersistSelectedIndexState = 0;
+  g_foreignReorderState = 0;
 }
 
 #endif
