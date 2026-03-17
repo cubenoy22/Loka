@@ -23,6 +23,7 @@ set(SOURCES
   src/context/Win32PopupMenuContext.cpp
   src/context/Win32ImageViewContext.cpp
   src/platform/Win32DebugLog.cpp
+  src/platform/Win32Profiler.cpp
   src/platform/Win32String.cpp
 )
 

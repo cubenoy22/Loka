@@ -45,6 +45,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS PerfArena",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaPerfArenaMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS SimpleViewer",
       "type": "shell",
       "command": "cmake",
@@ -115,6 +132,20 @@
         "win32-debug",
         "--target",
         "LokaMineWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 PerfArena",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaPerfArenaWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"

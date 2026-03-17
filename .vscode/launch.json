@@ -18,6 +18,14 @@
       "preLaunchTask": "Build: macOS MineSweeper"
     },
     {
+      "name": "Run (macOS PerfArena)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/PerfArena/LokaPerfArenaMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS PerfArena"
+    },
+    {
       "name": "Run (macOS SimpleViewer)",
       "type": "lldb-dap",
       "request": "launch",
@@ -58,6 +66,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 MineSweeper"
+    },
+    {
+      "name": "Run (Windows PerfArena)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/PerfArena/LokaPerfArenaWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 PerfArena"
     },
     {
       "name": "Run (Windows SimpleViewer)",

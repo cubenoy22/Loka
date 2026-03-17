@@ -39,9 +39,11 @@ namespace loka
     {
     public:
       StateBase()
-          : currentTracker(0), arenaAllocated_(false), lifetimeToken_(new LifetimeToken()) {}
+          : currentTracker(0), arenaAllocated_(false), lifetimeToken_(new LifetimeToken()),
+            handlersVersion_(0), deferredHandlersVersion_(0) {}
       StateBase(const StateBase &rhs)
-          : currentTracker(0), arenaAllocated_(rhs.arenaAllocated_), lifetimeToken_(new LifetimeToken()) {}
+          : currentTracker(0), arenaAllocated_(rhs.arenaAllocated_), lifetimeToken_(new LifetimeToken()),
+            handlersVersion_(0), deferredHandlersVersion_(0) {}
       StateBase &operator=(const StateBase &rhs)
       {
         if (this != &rhs)
@@ -133,6 +135,20 @@ namespace loka
       };
       std::vector<Handler> handlers;
       mutable std::vector<Handler> deferredHandlers;
+      unsigned long handlersVersion_;
+      mutable unsigned long deferredHandlersVersion_;
+
+      bool containsHandler(const std::vector<Handler> &list, const Handler &target) const
+      {
+        for (size_t i = 0; i < list.size(); ++i)
+        {
+          if (list[i] == target)
+          {
+            return true;
+          }
+        }
+        return false;
+      }
 
       // Shared notification loop used by all State specializations.
       // - Snapshots both lists before iterating so bind/unbind or self-deletion
@@ -142,13 +158,11 @@ namespace loka
       {
         LifetimeToken *token = retainNotifyToken();
         std::vector<Handler> snapshot = handlers;
+        const unsigned long snapshotHandlersVersion = handlersVersion_;
         for (size_t i = 0; i < snapshot.size(); ++i)
         {
           const Handler &h = snapshot[i];
-          bool bound = false;
-          for (size_t j = 0; j < handlers.size(); ++j)
-            if (handlers[j] == h) { bound = true; break; }
-          if (!bound)
+          if (snapshotHandlersVersion != handlersVersion_ && !containsHandler(handlers, h))
             continue;
           if (h.callOnce)
             unbind(h.cb, h.userData);
@@ -161,13 +175,11 @@ namespace loka
           }
         }
         std::vector<Handler> snapshotDeferred = deferredHandlers;
+        const unsigned long snapshotDeferredVersion = deferredHandlersVersion_;
         for (size_t i = 0; i < snapshotDeferred.size(); ++i)
         {
           const Handler &h = snapshotDeferred[i];
-          bool bound = false;
-          for (size_t j = 0; j < deferredHandlers.size(); ++j)
-            if (deferredHandlers[j] == h) { bound = true; break; }
-          if (!bound)
+          if (snapshotDeferredVersion != deferredHandlersVersion_ && !containsHandler(deferredHandlers, h))
             continue;
           if (h.cb)
             h.cb(h.userData);
@@ -212,6 +224,7 @@ namespace loka
           if (priority > it->priority)
             break;
         this->handlers.insert(it, h);
+        ++this->handlersVersion_;
         if (callImmediately && cb)
         {
           cb(userData);
@@ -227,6 +240,7 @@ namespace loka
           if (this->handlers[i] == target)
           {
             this->handlers.erase(this->handlers.begin() + i);
+            ++this->handlersVersion_;
             break;
           }
         }
@@ -239,6 +253,7 @@ namespace loka
           if (priority > it->priority)
             break;
         this->deferredHandlers.insert(it, h);
+        ++this->deferredHandlersVersion_;
       }
       virtual void deferUnbind(OnChangeFn cb, void *userData) const
       {
@@ -248,6 +263,7 @@ namespace loka
           if (this->deferredHandlers[i] == target)
           {
             this->deferredHandlers.erase(this->deferredHandlers.begin() + i);
+            ++this->deferredHandlersVersion_;
             break;
           }
         }
@@ -322,6 +338,7 @@ namespace loka
           if (priority > it->priority)
             break;
         handlers.insert(it, h);
+        ++handlersVersion_;
         if (callImmediately && cb)
         {
           cb(userData);
@@ -337,6 +354,7 @@ namespace loka
           if (handlers[i] == target)
           {
             handlers.erase(handlers.begin() + i);
+            ++handlersVersion_;
             break;
           }
         }
@@ -349,6 +367,7 @@ namespace loka
           if (priority > it->priority)
             break;
         deferredHandlers.insert(it, h);
+        ++deferredHandlersVersion_;
       }
       virtual void deferUnbind(OnChangeFn cb, void *userData) const
       {
@@ -358,6 +377,7 @@ namespace loka
           if (deferredHandlers[i] == target)
           {
             deferredHandlers.erase(deferredHandlers.begin() + i);
+            ++deferredHandlersVersion_;
             break;
           }
         }

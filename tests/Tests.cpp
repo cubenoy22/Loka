@@ -2191,6 +2191,100 @@ void testSceneKeepsLocalDiffForReplaceableMixedLocalDiff()
   scene.unmount();
 }
 
+void testDynamicBoundaryRepeatedLocalDiffDoesNotGrowChildren()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class RepeatedLocalDiffProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<RepeatedLocalDiffProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<RepeatedLocalDiffProbeNode> PropsType;
+
+    RepeatedLocalDiffProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          phase_(0),
+          value_(loka::core::String::Literal("v0")),
+          click_() {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      ColumnDefinition column = VStack();
+      column << Text("Phase").tag(10)
+             << EditText(&this->value_).tag(20)
+             << PopupMenu(popupItems(), 3).selectedIndex(&this->phase_).tag(30);
+      if ((this->phase_.get() % 2) == 0)
+      {
+        column << Button("BranchButton", &this->click_).tag(40);
+      }
+      else
+      {
+        column << Text("BranchText").tag(40);
+      }
+      if ((this->phase_.get() % 4) < 2)
+      {
+        column << Text("OrderA").tag(50)
+               << Text("OrderB").tag(60);
+      }
+      else
+      {
+        column << Text("OrderB").tag(60)
+               << Text("OrderA").tag(50);
+      }
+      c.declare(column);
+    }
+
+    void advance()
+    {
+      const int next = (this->phase_.get() + 1) % 3;
+      this->phase_.set(next, true);
+      this->value_.set(loka::core::String::Literal("v") + loka::core::String::FromInt(next), true);
+    }
+
+    static const char **popupItems()
+    {
+      static const char *kItems[] = {"One", "Two", "Three"};
+      return kItems;
+    }
+
+  private:
+    loka::core::MutableState<int> phase_;
+    loka::core::MutableState<loka::core::String> value_;
+    loka::core::EmitterState click_;
+  };
+
+  RepeatedLocalDiffProbeNode node((BoundaryPropsFor<RepeatedLocalDiffProbeNode>()));
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  INestable *root = node.compositionRootNestable();
+  assert(root != 0);
+  const size_t initialCount = root->childrenCount();
+  assert(initialCount == 6);
+
+  Node *editBefore = node.findCompositionChildByTag(20);
+  Node *popupBefore = node.findCompositionChildByTag(30);
+  assert(editBefore != 0);
+  assert(popupBefore != 0);
+
+  for (int i = 0; i < 64; ++i)
+  {
+    node.advance();
+    context.setDirtyFlags(NODE_DIRTY_CHILD);
+    node.compose(context, COMPOSE_EVENT_UPDATE);
+
+    root = node.compositionRootNestable();
+    assert(root != 0);
+    assert(root->childrenCount() == initialCount);
+    assert(node.findCompositionChildByTag(20) == editBefore);
+    assert(node.findCompositionChildByTag(30) == popupBefore);
+    assert(node.findCompositionChildByTag(40) != 0);
+    assert(node.findCompositionChildByTag(50) != 0);
+    assert(node.findCompositionChildByTag(60) != 0);
+  }
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;

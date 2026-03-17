@@ -1,0 +1,6 @@
+#ifndef LOKA_WIN32_PROFILER_HPP
+#define LOKA_WIN32_PROFILER_HPP
+
+void InitWin32Profiler();
+
+#endif // LOKA_WIN32_PROFILER_HPP

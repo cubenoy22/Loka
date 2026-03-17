@@ -16,5 +16,11 @@ namespace loka
       std::fprintf(stderr, "[recompose] queued update task (scene=%p)\n", scene);
       std::fflush(stderr);
     }
+
+    void DebugLogRecomposeMerged(void *scene)
+    {
+      std::fprintf(stderr, "[recompose] merged into pending update task (scene=%p)\n", scene);
+      std::fflush(stderr);
+    }
   } // namespace platform
 } // namespace loka

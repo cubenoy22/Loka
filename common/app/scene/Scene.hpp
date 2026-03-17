@@ -93,6 +93,10 @@ namespace loka
         Window *getWindow() const { return window_; }
         void setWindow(Window *window) { window_ = window; }
         const SceneCompositionDiff &compositionDiff() const { return compositionDiff_; }
+        size_t liveNodeCount() const
+        {
+          return countLiveNodes(rootNode_);
+        }
 
         // Expose lifecycle and attached states for observation.
         loka::core::State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
@@ -146,7 +150,15 @@ namespace loka
         void requestInvalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
         {
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
-          loka::platform::DebugLogRecomposeQueued(static_cast<void *>(this));
+          const bool alreadyPending = nextTickTracker_.hasPendingRequest();
+          if (alreadyPending)
+          {
+            loka::platform::DebugLogRecomposeMerged(static_cast<void *>(this));
+          }
+          else
+          {
+            loka::platform::DebugLogRecomposeQueued(static_cast<void *>(this));
+          }
 #endif
           if (flags == NODE_DIRTY_NONE)
           {
@@ -387,6 +399,26 @@ namespace loka
             }
           }
           return false;
+        }
+
+        static size_t countLiveNodes(Node *node)
+        {
+          if (!node)
+          {
+            return 0;
+          }
+          size_t count = 1;
+          INestable *nestable = node->asNestable();
+          if (!nestable)
+          {
+            return count;
+          }
+          loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
+          {
+            count += countLiveNodes(child);
+          }
+          return count;
         }
 
         // Default constructor intentionally not implemented to forbid rootless scenes

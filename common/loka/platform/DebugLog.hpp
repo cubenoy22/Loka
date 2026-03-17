@@ -7,6 +7,7 @@ namespace loka
   {
     void DebugLogRecomposeTracked(void *boundary, void *scene);
     void DebugLogRecomposeQueued(void *scene);
+    void DebugLogRecomposeMerged(void *scene);
   } // namespace platform
 } // namespace loka
 

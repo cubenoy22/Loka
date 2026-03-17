@@ -8,11 +8,13 @@
 
 #if defined(_WIN32) || defined(WIN32)
 #include "Win32PlatformContext.hpp"
+#include "platform/Win32Profiler.hpp"
 #elif defined(LOKA_RETRO68)
 #include "ToolboxPlatformContext.hpp"
 #include "ToolboxProfiler.hpp"
 #elif defined(__APPLE__)
 #include "MacPlatformContext.hpp"
+#include "MacProfiler.hpp"
 #endif
 
 namespace loka
@@ -37,6 +39,10 @@ namespace loka
     {
 #if defined(LOKA_RETRO68)
       InitToolboxProfiler();
+#elif defined(_WIN32) || defined(WIN32)
+      InitWin32Profiler();
+#elif defined(__APPLE__)
+      InitMacProfiler();
 #endif
       loka::core::ScopedPtr<PlatformContext> platformContext(CreatePlatformContext());
       assert(platformContext.get() && "PlatformContext is required");

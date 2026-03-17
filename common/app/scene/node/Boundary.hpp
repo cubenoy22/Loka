@@ -557,7 +557,6 @@ namespace loka
             else
             {
               NodeComposition composition;
-              composition.setContext(&context);
               Node *created = composition.createNodeFromDefinition(definition);
               if (!created)
               {
