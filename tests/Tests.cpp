@@ -1539,6 +1539,117 @@ void testDynamicBoundaryLocalReplacePreservesRetainedControlNode()
   assert(node.localCompositionDiff()->isCompatibleRetainOrReplaceOnly());
 }
 
+void testDynamicBoundaryLocalDiffReleasesRetiredSubtrees()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class CleanupCapturePlatformController : public IPlatformController
+  {
+  public:
+    CleanupCapturePlatformController() : releaseCalls_(0), lastReleased_(0), lastReleasedTag_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      (void)flags;
+      (void)fullRebuild;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+    virtual void releaseNodeContexts(Node *node)
+    {
+      ++releaseCalls_;
+      lastReleased_ = node;
+      lastReleasedTag_ = node ? node->nodeTag() : 0;
+    }
+
+    int releaseCalls_;
+    Node *lastReleased_;
+    NodeTag lastReleasedTag_;
+  };
+
+  class DynamicLocalCleanupProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLocalCleanupProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLocalCleanupProbeNode> PropsType;
+
+    DynamicLocalCleanupProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showMiddle_(false),
+          showText_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (this->showMiddle_)
+      {
+        c.declare(VStack()
+                  << Text("Head").tag(10)
+                  << Text("Middle").tag(20)
+                  << Text("Tail").tag(30));
+      }
+      else if (this->showText_)
+      {
+        c.declare(VStack()
+                  << Text("Head").tag(10)
+                  << Text("BranchText").tag(20));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << Text("Head").tag(10)
+                  << Button("BranchButton").tag(20));
+      }
+    }
+
+    void setShowMiddle(bool value) { this->showMiddle_ = value; }
+    void setShowText(bool value) { this->showText_ = value; }
+
+  private:
+    bool showMiddle_;
+    bool showText_;
+  };
+
+  DynamicLocalCleanupProbeNode node((BoundaryPropsFor<DynamicLocalCleanupProbeNode>()));
+  CleanupCapturePlatformController platform;
+  ComponentContext context;
+  context.setBoundary(&node);
+  context.setPlatformController(&platform);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  Node *branchBefore = node.findCompositionChildByTag(20);
+  assert(branchBefore != 0);
+  assert(branchBefore->asButtonNode() != 0);
+
+  node.setShowText(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  assert(platform.releaseCalls_ == 1);
+  assert(platform.lastReleased_ == branchBefore);
+  assert(platform.lastReleasedTag_ == 20);
+
+  node.setShowText(false);
+  node.setShowMiddle(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  Node *middleAfterInsert = node.findCompositionChildByTag(20);
+  assert(middleAfterInsert != 0);
+  assert(middleAfterInsert->asTextNode() != 0);
+  assert(platform.releaseCalls_ == 2);
+  assert(platform.lastReleasedTag_ == 20);
+
+  node.setShowMiddle(false);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  assert(node.findCompositionChildByTag(20) == 0);
+  assert(platform.releaseCalls_ == 3);
+  assert(platform.lastReleased_ == middleAfterInsert);
+  assert(platform.lastReleasedTag_ == 20);
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;
