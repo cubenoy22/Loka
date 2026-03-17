@@ -1472,6 +1472,8 @@ void testDynamicBoundaryLocallyReordersTaggedChildren()
 
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
+static int g_frozenOwnedComposeCount = 0;
+static loka::core::MutableState<bool> *g_frozenOwnedState = 0;
 
 void testFrozenBoundaryIgnoresObservedStateInvalidation()
 {
@@ -1615,6 +1617,103 @@ void testFrozenBoundaryIgnoresObservedStateInvalidation()
 
   scene.unmount();
   g_frozenObservedState = 0;
+}
+
+void testFrozenBoundaryIgnoresOwnedStateInvalidation()
+{
+  using loka::app::scene::BoundaryDefinition;
+  using loka::app::scene::BoundaryNode;
+  using loka::app::scene::BoundaryPropsFor;
+  using loka::app::scene::ComponentContext;
+  using loka::app::scene::DynamicCompositionBoundaryNodeBase;
+  using loka::app::scene::IPlatformController;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeDirtyFlags;
+  using loka::app::scene::Scene;
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController() : calls_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      (void)fullRebuild;
+      this->lastFlags_ = flags;
+      ++this->calls_;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    int calls_;
+    NodeDirtyFlags lastFlags_;
+  };
+
+  class FrozenOwnedDynamicNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<FrozenOwnedDynamicNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<FrozenOwnedDynamicNode> PropsType;
+
+    FrozenOwnedDynamicNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          owned_()
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declareStates().state(this->owned_, false);
+      g_frozenOwnedState = static_cast<loka::core::MutableState<bool> *>(this->owned_.state());
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      ++g_frozenOwnedComposeCount;
+      c.declare(this->owned_.get()
+                    ? loka::app::Text("Owned On").tag(20)
+                    : loka::app::Text("Owned Off").tag(20));
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> owned_;
+  };
+
+  g_frozenOwnedComposeCount = 0;
+  g_frozenOwnedState = 0;
+
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<FrozenOwnedDynamicNode>, FrozenOwnedDynamicNode>()));
+  DirtyCapturePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  assert(g_frozenOwnedComposeCount == 1);
+  assert(g_frozenOwnedState != 0);
+  int initialCalls = platform.calls_;
+
+  BoundaryNode *rootBoundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(rootBoundary != 0);
+  rootBoundary->setFrozen(true);
+  {
+    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+    g_frozenOwnedState->set(true);
+  }
+  scene.flushInvalidation();
+  assert(g_frozenOwnedComposeCount == 1);
+  assert(platform.calls_ == initialCalls);
+
+  rootBoundary->setFrozen(false);
+  {
+    loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+    g_frozenOwnedState->set(false);
+  }
+  scene.flushInvalidation();
+  assert(g_frozenOwnedComposeCount >= 2);
+  assert(platform.calls_ >= initialCalls + 1);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+
+  scene.unmount();
+  g_frozenOwnedState = 0;
 }
 
 void testSceneMountLifecycle()

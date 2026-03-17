@@ -47,6 +47,7 @@ int main()
   testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild();
   testDynamicBoundaryLocallyReordersTaggedChildren();
   testFrozenBoundaryIgnoresObservedStateInvalidation();
+  testFrozenBoundaryIgnoresOwnedStateInvalidation();
   testSceneMountLifecycle();
   testSceneBoundaryNestedCompose();
   testStaticBoundaryPropagatesUpdateToDynamicChild();
