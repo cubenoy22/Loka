@@ -31,6 +31,7 @@ void testDynamicBoundaryAppliesLocalPropsForCompatibleRetainedChild();
 void testDynamicBoundaryLocallyReplacesTaggedChild();
 void testDynamicBoundaryLocallyAttachesAndRetiresTaggedChild();
 void testDynamicBoundaryLocallyReordersTaggedChildren();
+void testDynamicBoundaryLocalReplacePreservesRetainedControlNode();
 void testFrozenBoundaryIgnoresObservedStateInvalidation();
 void testFrozenBoundaryIgnoresOwnedStateInvalidation();
 void testSceneMountLifecycle();

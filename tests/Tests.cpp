@@ -1470,6 +1470,74 @@ void testDynamicBoundaryLocallyReordersTaggedChildren()
   assert(firstAfter->nextInComposition == aAfter);
 }
 
+void testDynamicBoundaryLocalReplacePreservesRetainedControlNode()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  class DynamicLocalControlRetainProbeNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicLocalControlRetainProbeNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicLocalControlRetainProbeNode> PropsType;
+
+    DynamicLocalControlRetainProbeNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          showText_(false),
+          value_(loka::core::String::Literal("Keep Me")) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (this->showText_)
+      {
+        c.declare(VStack()
+                  << EditText(&this->value_).tag(10)
+                  << Text("BranchText").tag(20));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << EditText(&this->value_).tag(10)
+                  << Button("BranchButton").tag(20));
+      }
+    }
+
+    void setShowText(bool value)
+    {
+      this->showText_ = value;
+    }
+
+  private:
+    bool showText_;
+    loka::core::MutableState<loka::core::String> value_;
+  };
+
+  DynamicLocalControlRetainProbeNode node((BoundaryPropsFor<DynamicLocalControlRetainProbeNode>()));
+  ComponentContext context;
+  context.setBoundary(&node);
+  node.compose(context, COMPOSE_EVENT_ATTACH);
+
+  Node *controlBefore = node.findCompositionChildByTag(10);
+  Node *branchBefore = node.findCompositionChildByTag(20);
+  assert(controlBefore != 0);
+  assert(controlBefore->asEditTextNode() != 0);
+  assert(branchBefore != 0);
+  assert(branchBefore->asButtonNode() != 0);
+
+  node.setShowText(true);
+  context.setDirtyFlags(NODE_DIRTY_CHILD);
+  node.compose(context, COMPOSE_EVENT_UPDATE);
+
+  Node *controlAfter = node.findCompositionChildByTag(10);
+  Node *branchAfter = node.findCompositionChildByTag(20);
+  assert(controlAfter == controlBefore);
+  assert(controlAfter->asEditTextNode() != 0);
+  assert(branchAfter != 0);
+  assert(branchAfter != branchBefore);
+  assert(branchAfter->asTextNode() != 0);
+  assert(node.localCompositionDiff() != 0);
+  assert(node.localCompositionDiff()->isCompatibleRetainOrReplaceOnly());
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;

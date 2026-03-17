@@ -1,6 +1,7 @@
 #ifndef LOKA_STATIC_VS_DYNAMIC_MAIN_NODE_HPP
 #define LOKA_STATIC_VS_DYNAMIC_MAIN_NODE_HPP
 
+#include <cassert>
 #include <cstdio>
 #include <cstring>
 
@@ -354,6 +355,8 @@ namespace staticvsdynamic
 
     virtual void registerDynamicBoundary(loka::app::scene::BoundaryNode *boundary)
     {
+      assert((this->dynamicBoundary_ == 0 || this->dynamicBoundary_ == boundary) &&
+             "StaticVsDynamic should register exactly one dynamic boundary");
       this->dynamicBoundary_ = boundary;
       if (this->dynamicBoundary_)
       {
