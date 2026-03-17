@@ -100,6 +100,10 @@ namespace loka
           }
           if (event == COMPOSE_EVENT_UPDATE)
           {
+            if (this->isFrozen())
+            {
+              return;
+            }
             if (!composed_)
             {
               return;

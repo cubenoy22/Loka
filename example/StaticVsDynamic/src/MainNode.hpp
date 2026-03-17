@@ -159,10 +159,6 @@ namespace staticvsdynamic
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       this->mainBoundary_ = c.findBoundary<MainBoundary>();
-      if (this->mainBoundary_)
-      {
-        this->mainBoundary_->registerDynamicBoundary(this);
-      }
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -213,6 +209,10 @@ namespace staticvsdynamic
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
       this->mainBoundary_ = c.findBoundary<MainBoundary>();
+      if (this->mainBoundary_)
+      {
+        this->mainBoundary_->registerDynamicBoundary(this);
+      }
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)

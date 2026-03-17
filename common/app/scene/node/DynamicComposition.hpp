@@ -95,6 +95,10 @@ namespace loka
           {
             return;
           }
+          if (event == COMPOSE_EVENT_UPDATE && this->isFrozen())
+          {
+            return;
+          }
           // UPDATE時はdirtyフラグをチェック
           // NODE_DIRTY_CHILDがなければ子構造は変わらないのでrecomposeをスキップ
           if (event == COMPOSE_EVENT_UPDATE)
