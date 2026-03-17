@@ -1897,6 +1897,111 @@ void testDynamicBoundaryLocalDiffHandlesMixedRetainReplaceAndReorder()
   scene.unmount();
 }
 
+void testDynamicBoundaryLocalDiffHandlesMixedPropsReplaceAndReorder()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  class DynamicMixedPropsNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicMixedPropsNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicMixedPropsNode> PropsType;
+
+    DynamicMixedPropsNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p),
+          alt_(false) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (alt_)
+      {
+        c.declare(VStack()
+                  << Text("Tail").tag(30)
+                  << Text("StableAlt").tag(10)
+                  << Text("BranchText").tag(20));
+      }
+      else
+      {
+        c.declare(VStack()
+                  << Text("StableBase").tag(10)
+                  << Button("BranchButton").tag(20)
+                  << Text("Tail").tag(30));
+      }
+    }
+
+    void setAlt(bool value)
+    {
+      this->alt_ = value;
+    }
+
+  private:
+    bool alt_;
+  };
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      (void)flags;
+      (void)fullRebuild;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+  } platform;
+
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<DynamicMixedPropsNode>, DynamicMixedPropsNode>()));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  DynamicMixedPropsNode *host = static_cast<DynamicMixedPropsNode *>(SceneTestAccess::rootBoundary(scene));
+  assert(host != 0);
+
+  Node *stableBefore = host->findCompositionChildByTag(10);
+  Node *branchBefore = host->findCompositionChildByTag(20);
+  Node *tailBefore = host->findCompositionChildByTag(30);
+  assert(stableBefore != 0);
+  assert(branchBefore != 0);
+  assert(tailBefore != 0);
+  assert(stableBefore->asTextNode() != 0);
+  assert(branchBefore->asButtonNode() != 0);
+  assert(tailBefore->asTextNode() != 0);
+  assert(stableBefore->asTextNode()->props.text_ != 0);
+  assert(stableBefore->asTextNode()->props.text_->get().equals(loka::core::String::Literal("StableBase")));
+
+  {
+    loka::core::StateTrackerGuard guard(host->tracker());
+    host->setAlt(true);
+  }
+  scene.invalidate(NODE_DIRTY_CHILD);
+
+  Node *stableAfter = host->findCompositionChildByTag(10);
+  Node *branchAfter = host->findCompositionChildByTag(20);
+  Node *tailAfter = host->findCompositionChildByTag(30);
+  assert(stableAfter == stableBefore);
+  assert(tailAfter == tailBefore);
+  assert(branchAfter != 0);
+  assert(branchAfter != branchBefore);
+  assert(branchAfter->asTextNode() != 0);
+
+  TextNode *stableText = stableAfter->asTextNode();
+  assert(stableText != 0);
+  assert(stableText->props.text_ != 0);
+  assert(stableText->props.text_->get().equals(loka::core::String::Literal("StableAlt")));
+
+  INestable *root = host->compositionRootNestable();
+  assert(root != 0);
+  Node *first = root->childrenHead();
+  assert(first == tailAfter);
+  assert(first->nextInComposition == stableAfter);
+  assert(stableAfter->nextInComposition == branchAfter);
+
+  scene.unmount();
+}
+
 static int g_frozenObservedComposeCount = 0;
 static loka::core::MutableState<bool> *g_frozenObservedState = 0;
 static int g_frozenOwnedComposeCount = 0;
