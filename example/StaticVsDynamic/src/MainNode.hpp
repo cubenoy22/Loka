@@ -176,9 +176,9 @@ namespace staticvsdynamic
           << loka::app::Text(this->props.shared_.composeCountText_)
           << loka::app::Text(this->props.shared_.sharedCountText_)
           << loka::app::Text(this->props.shared_.statusText_)
-          << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_)
+          << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_).controlTag(600)
           << loka::app::EditText(this->props.shared_.editText_).controlTag(601).testId("StaticPersistEdit")
-          << loka::app::PopupMenu(staticItems(), 3).selectedIndex(this->props.shared_.selectedIndex_).testId("StaticPersistPopup")
+          << loka::app::PopupMenu(staticItems(), 3).selectedIndex(this->props.shared_.selectedIndex_).controlTag(602).testId("StaticPersistPopup")
           << c.showIf(*this->props.shared_.detailsVisible_, this->detailsDefinition_));
     }
 
@@ -229,16 +229,16 @@ namespace staticvsdynamic
              << loka::app::Text(this->props.shared_.composeCountText_)
              << loka::app::Text(this->props.shared_.sharedCountText_)
              << loka::app::Text(this->props.shared_.statusText_)
-             << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_)
+             << loka::app::Button("Shared Action", this->props.shared_.sharedAction_).enabled(this->props.shared_.actionEnabled_).controlTag(700)
              << loka::app::EditText(this->props.shared_.editText_).controlTag(701).testId("DynamicPersistEdit")
-             << loka::app::PopupMenu(staticItems(), 3).selectedIndex(this->props.shared_.selectedIndex_).testId("DynamicPersistPopup");
+             << loka::app::PopupMenu(staticItems(), 3).selectedIndex(this->props.shared_.selectedIndex_).controlTag(702).testId("DynamicPersistPopup");
       if (this->props.shared_.detailsVisible_ && this->props.shared_.detailsVisible_->get())
       {
         column << loka::app::Text("Dynamic rebuild branch").testId("DynamicDetailsText");
       }
       else
       {
-        column << loka::app::Button("Dynamic hidden branch", this->props.shared_.sharedAction_)
+        column << loka::app::Button("Dynamic hidden branch", this->props.shared_.sharedAction_).controlTag(703)
                       .enabled(this->props.shared_.actionEnabled_)
                       .testId("DynamicDetailsButton");
       }
@@ -368,9 +368,13 @@ namespace staticvsdynamic
     {
       loka::app::RowDefinition controls = loka::app::HStack();
       controls << loka::app::Button("Toggle Details", &this->toggleDetailsEvent_)
+                     .controlTag(1001)
                << loka::app::Button(this->dynamicFrozen_.get() ? "Unfreeze Dynamic" : "Freeze Dynamic", &this->toggleFreezeEvent_)
+                     .controlTag(1002)
                << loka::app::Button("Toggle Enabled", &this->toggleEnabledEvent_)
-               << loka::app::Button("Reset Count", &this->resetCountEvent_);
+                     .controlTag(1003)
+               << loka::app::Button("Reset Count", &this->resetCountEvent_)
+                     .controlTag(1004);
 
       loka::app::RowDefinition panes = loka::app::HStack();
       panes << StaticPaneBoundary(this->makeStaticPaneProps())

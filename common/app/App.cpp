@@ -105,16 +105,44 @@ void App::flushWindowInvalidations()
 // App::windowClosed の実装
 void App::windowClosed(Window *window)
 {
-  // group_のcomponentsから閉じたウィンドウを削除
-  if (!group_)
+  if (!group_ || !window)
+  {
     return;
+  }
   std::vector<AppComponent *> &comps = const_cast<std::vector<AppComponent *> &>(group_->getComponents());
-  comps.erase(std::remove(comps.begin(), comps.end(), window), comps.end());
+  std::vector<AppComponent *>::iterator eraseIt = comps.end();
+  Window *nextActive = 0;
+  for (std::vector<AppComponent *>::iterator it = comps.begin(); it != comps.end(); ++it)
+  {
+    Window *candidate = (*it) ? (*it)->asWindow() : 0;
+    if (candidate == window)
+    {
+      eraseIt = it;
+      continue;
+    }
+    if (!nextActive && candidate)
+    {
+      nextActive = candidate;
+    }
+  }
+  if (eraseIt == comps.end())
+  {
+    return;
+  }
+  comps.erase(eraseIt);
+  if (activeWindow_ == window)
+  {
+    activeWindow_ = 0;
+  }
+  delete window;
+  if (!activeWindow_ && nextActive)
+  {
+    setActiveWindow(nextActive);
+  }
 
-  // quitWhenLastWindowClosed_ が true で、ウィンドウがなくなったらアプリ終了処理を呼ぶ
   if (quitWhenLastWindowClosed_ && comps.empty())
   {
-    this->quit(); // プラットフォーム固有の終了処理を呼び出す
+    this->quit();
   }
 }
 

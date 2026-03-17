@@ -65,6 +65,19 @@ void ToolboxApp::run()
     this->flushWindowInvalidations();
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
+    if (event.what == nullEvent && group_)
+    {
+      const std::vector<AppComponent *> &comps = group_->getComponents();
+      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      {
+        Window *w = (*it)->asWindow();
+        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
+        if (toolboxWindow)
+        {
+          toolboxWindow->flushInvalidate();
+        }
+      }
+    }
     // TODO: Re-enable invalidation once Classic update flow is stable.
     if (group_)
     {

@@ -69,7 +69,57 @@ if(APPLE)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
-  add_custom_target(LokaStaticVsDynamicClassic ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "LokaStaticVsDynamicClassic is not implemented yet."
+  set(RETRO_SOURCES
+    src/main.cpp
   )
+
+  add_application(LokaStaticVsDynamicClassic ${RETRO_SOURCES})
+
+  target_include_directories(LokaStaticVsDynamicClassic PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
+  )
+
+  target_link_libraries(LokaStaticVsDynamicClassic PRIVATE LokaAppleToolboxCore)
+
+  target_compile_definitions(LokaStaticVsDynamicClassic PRIVATE
+    LOKA_RETRO68=1
+    LOKA_PROFILE_FUNC_TICKS=1
+  )
+
+  set_target_properties(LokaStaticVsDynamicClassic PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+
+  target_compile_options(LokaStaticVsDynamicClassic PRIVATE
+    -Os
+    -ffunction-sections
+    -fdata-sections
+    -fno-exceptions
+  )
+  target_link_options(LokaStaticVsDynamicClassic PRIVATE
+    -Wl,--gc-sections
+  )
+
+  option(LOKA_CLASSIC_STRIP "Strip Classic Mac binaries after link" ON)
+  if(LOKA_CLASSIC_STRIP)
+    find_program(RETRO68_STRIP
+      NAMES m68k-apple-macos-strip powerpc-apple-macos-strip
+      HINTS
+        "$ENV{RETRO68_BUILD_DIR}/toolchain/bin"
+        "${RETRO68_BUILD_DIR}/toolchain/bin"
+        "${RETRO68_TOOLCHAIN_DIR}/../bin"
+    )
+    if(RETRO68_STRIP)
+      add_custom_command(TARGET LokaStaticVsDynamicClassic POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+          -DSTRIP_TOOL="${RETRO68_STRIP}"
+          -DSTRIP_INPUT="$<TARGET_FILE:LokaStaticVsDynamicClassic>.gdb"
+          -P "${CMAKE_SOURCE_DIR}/cmake/strip_classic.cmake"
+        COMMENT "Stripping Classic debug binary"
+      )
+    endif()
+  endif()
 endif()

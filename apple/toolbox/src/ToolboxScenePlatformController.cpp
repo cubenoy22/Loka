@@ -768,13 +768,13 @@ void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, 
   }
   if (inBatchUpdate_)
   {
-    if ((flags & (loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL)) != 0 || fullRebuild)
+    if (flags != loka::app::scene::NODE_DIRTY_NONE || fullRebuild)
     {
       pendingFullInvalidate_ = true;
     }
     return;
   }
-  if ((flags & (loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_INITIAL)) != 0 || fullRebuild)
+  if (flags != loka::app::scene::NODE_DIRTY_NONE || fullRebuild)
   {
     window_->requestInvalidate();
   }
@@ -1348,8 +1348,7 @@ void ToolboxScenePlatformController::endBatchUpdate()
     }
     if (pendingFullInvalidate_ && window_->window())
     {
-      forceFullRedraw_ = true;
-      window_->drawDirty(window_->window()->portRect);
+      window_->requestInvalidate();
     }
   }
   pendingDirtyRects_.clear();
@@ -1475,7 +1474,8 @@ bool ToolboxScenePlatformController::ensureButtonControl(
     short resourceId,
     const Rect &rect,
     const loka::core::String &label,
-    loka::core::EmitterState *emitter)
+    loka::core::EmitterState *emitter,
+    loka::core::State<bool> *enabled)
 {
   if (!window_ || !window_->window() || resourceId <= 0)
   {
@@ -1514,6 +1514,7 @@ bool ToolboxScenePlatformController::ensureButtonControl(
     entry.resourceId = resourceId;
     entry.control = control;
     entry.emitter = emitter;
+    entry.enabled = enabled;
     entry.usedThisFrame = true;
     entry.needsDraw = true;
     entry.rect = rect;
@@ -1523,6 +1524,7 @@ bool ToolboxScenePlatformController::ensureButtonControl(
     created = true;
   }
   binding->emitter = emitter;
+  binding->enabled = enabled;
   binding->usedThisFrame = true;
   if (created ||
       binding->rect.left != rect.left || binding->rect.top != rect.top ||
@@ -1545,6 +1547,14 @@ bool ToolboxScenePlatformController::ensureButtonControl(
     SetControlTitle(binding->control, title);
     binding->label = labelUtf8;
     binding->needsDraw = true;
+  }
+  if (binding->enabled && !binding->enabled->get())
+  {
+    HiliteControl(binding->control, 255);
+  }
+  else
+  {
+    HiliteControl(binding->control, 0);
   }
   ShowControl(binding->control);
   return true;
@@ -1750,6 +1760,10 @@ bool ToolboxScenePlatformController::handleControlClick(const Point &point)
     ButtonControlBinding &binding = buttonControls_[i];
     if (binding.control == control && binding.emitter)
     {
+      if (binding.enabled && !binding.enabled->get())
+      {
+        return true;
+      }
       beginBatchUpdate();
       ControlPartCode tracked = TrackControl(control, point, 0);
       if (tracked != 0)

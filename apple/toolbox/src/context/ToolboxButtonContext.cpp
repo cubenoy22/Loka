@@ -75,7 +75,7 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   }
   if (controller && resourceId_ > 0)
   {
-    if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_))
+    if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_))
     {
       return;
     }

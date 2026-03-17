@@ -129,7 +129,7 @@ void ToolboxWindow::flushInvalidate()
     return;
   }
   needsInvalidate_ = false;
-  InvalRect(&window_->portRect);
+  this->draw();
 }
 
 void ToolboxWindow::refreshFrame()
@@ -268,7 +268,6 @@ void ToolboxWindow::drawDirty(const Rect &rect)
 void ToolboxWindow::invalidateWindow()
 {
   teardownScene();
-  window_ = 0;
 }
 
 void ToolboxWindow::draw()

@@ -55,7 +55,11 @@ public:
   bool handleKeyDown(char key);
   bool handleControlClick(const Point &point);
   void drawControlsInRect(const Rect &rect);
-  bool ensureButtonControl(short resourceId, const Rect &rect, const loka::core::String &label, loka::core::EmitterState *emitter);
+  bool ensureButtonControl(short resourceId,
+                           const Rect &rect,
+                           const loka::core::String &label,
+                           loka::core::EmitterState *emitter,
+                           loka::core::State<bool> *enabled);
   void drawFallbackControl(const Rect &rect);
   TEHandle ensureEditTextControl(const Rect &rect, loka::core::State<loka::core::String> *text);
   void idleTextEdits();
@@ -111,6 +115,7 @@ private:
     short resourceId;
     ControlRef control;
     loka::core::EmitterState *emitter;
+    loka::core::State<bool> *enabled;
     bool usedThisFrame;
     bool needsDraw;
     Rect rect;

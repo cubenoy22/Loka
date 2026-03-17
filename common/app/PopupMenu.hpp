@@ -227,6 +227,10 @@ namespace loka
       virtual PopupMenuNode *asPopupMenuNode() { return this; }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
+        if (this->props.selectedIndex_)
+        {
+          registrar.observe(this->props.selectedIndex_, loka::app::scene::NODE_DIRTY_PROPS);
+        }
         if (this->props.enabled_)
         {
           registrar.observe(this->props.enabled_, loka::app::scene::NODE_DIRTY_PROPS);
