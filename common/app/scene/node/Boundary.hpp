@@ -253,6 +253,9 @@ namespace loka
         };
         struct LocalRebuildPlan
         {
+          // Temporary apply plan derived from the current snapshot and live
+          // children. NodeCompositionDiff remains the comparison summary;
+          // LocalRebuildPlan is the boundary-local execution form.
           std::vector<LocalRebuildPlanEntry> entries;
           void reserve(size_t count)
           {
@@ -532,6 +535,10 @@ namespace loka
                                    const INestableDefinition &currentRoot,
                                    LocalRebuildPlan &plan)
         {
+          // This translates the current desired child set into a concrete
+          // boundary-local apply plan. It intentionally stays one level above
+          // raw NodeCompositionDiff entries because apply needs live-node and
+          // ownership details such as previousNode for replacement cleanup.
           plan.clear();
           plan.reserve(currentRoot.childrenCount());
 

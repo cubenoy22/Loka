@@ -26,7 +26,7 @@
 - Menu rebuild contract: `MENU_ACTION_REBUILD_MENU` and menu-local state changes do not yet produce reliable reactive rebuild/apply across platforms, especially on macOS menu tracking. Add dedicated contract tests before expanding reactive menu samples.
 - DSL definition lifetime safety: `Conditional/showIf` still depends on stable definition storage across updates. Move toward owned/cloned definitions (or stricter API constraints) so temporary DSL definitions are safe at app call sites.
 - Dynamic subtree granularity: `NODE_DIRTY_CHILD` currently rebuilds the whole dynamic boundary subtree. Branch swapping works, but sibling native controls in the same dynamic boundary are not yet guaranteed to preserve context/value identity. Revisit with a lighter-weight container/tagged-child diff model.
-- Local dynamic replace cleanup: retained sibling native contexts can now survive tagged child replacement in the first path, but retired branch native views/contexts still need an explicit cleanup contract on platforms such as macOS when `fullRebuild=false`.
+- Local dynamic diff follow-up: scene-side local rebuild planning is now split into comparison summary (`NodeCompositionDiff`) and boundary-local apply plan (`LocalRebuildPlan`). Remaining work is to decide how much of that kernel should be shared with menu diff/apply without forcing premature abstraction.
 - Manual wiring pitfalls: explicit registration/findBoundary-style coordination is Loka-like but easy to miswire (for example, registering the wrong boundary instance or forgetting a required hook). Add small helper APIs, debug asserts, and example/platform smoke tests for high-risk manual paths such as freeze targets, boundary-local callbacks, and owner registration.
 - Suppress clangd incomplete type warning for AttachedContext -> BoundaryNode access (include or type split).
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
@@ -74,3 +74,4 @@
 - BoundaryNode owns StateTracker; useState auto-registers; Context API removed; RootBoundaryWrapper in Scene; DSL naming cleanup.
 - `VStack/HStack` alignment props are wired into platform layout engines (Win32/macOS/Toolbox), including remaining-height handling for `VStack + ImageView(FILL_PARENT)`.
 - `TextAttr` overflow (`wrap`/`truncation`) is wired into native text contexts (Win32/macOS/Toolbox with low-memory-safe clip fallback).
+- Scene local diff first pass: retained native contexts now survive local replace/reorder paths across generic/macOS/Win32 tests, retired subtree cleanup has a platform seam, and boundary-local rebuild planning is separated from apply.
