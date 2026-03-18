@@ -3,8 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
-ARCHS="${ARCHS:-x86_64}"
-DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.8}"
+ARCHS="${ARCHS:-x86_64;arm64}"
+DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-11.0}"
+# Legacy example:
+# ARCHS="${ARCHS:-x86_64}"
+# DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.10}"
 OSX_SYSROOT="${OSX_SYSROOT:-}"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos-xcodeproj/${BUILD_TYPE}}"
 
@@ -26,8 +29,7 @@ if command -v xcodebuild >/dev/null 2>&1; then
     echo "Use wrapper build scripts with Makefiles/Ninja instead:" >&2
     echo "  ./scripts/macos/build-10_4.sh" >&2
     echo "  ./scripts/macos/build-10_5.sh" >&2
-    echo "For custom single-arch builds, use:" >&2
-    echo "  GENERATOR=\"Unix Makefiles\" ARCHS=\"x86_64\" DEPLOYMENT_TARGET=${DEPLOYMENT_TARGET} ./scripts/macos/build.sh" >&2
+    echo "For custom legacy single-arch builds, use the wrapper build scripts instead of Xcode project generation." >&2
     exit 1
   fi
 fi
@@ -64,5 +66,5 @@ cmake "${CMAKE_ARGS[@]}"
 
 echo "Generated Xcode project in:"
 echo "  ${BUILD_DIR}"
-echo "Archs: ${ARCHS}"
+echo "Archs (default UB2): ${ARCHS}"
 echo "Deployment target: ${DEPLOYMENT_TARGET}"
