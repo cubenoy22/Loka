@@ -175,6 +175,123 @@ Do not guess for long on Classic teardown bugs.
 
 That hybrid workflow is faster than trying to solve all Classic issues from Linux/macOS alone.
 
+## Classic investigation notes
+
+These notes come from stabilizing repeated `PopupMenu` crashes in the
+`StaticVsDynamicClassic` sample on System 7.1 / 9.1.
+
+### 1. Do not over-attribute crashes to "old OS instability"
+
+Classic Mac OS is fragile, but repeated crashes under the same interaction
+pattern usually still have a concrete cause.
+
+In this project, repeated `Toggle Details` / `Freeze` stress initially looked
+like generic Classic instability. It was not. The root cause was a persistent
+popup context design problem in the Toolbox backend.
+
+Practical rule:
+
+- if the crash is reproducible within tens or hundreds of actions, assume there
+  is a real bug until proven otherwise
+- use the old environment as a stress amplifier, not as an excuse to stop
+  debugging
+
+### 2. Cut the problem with sample variants first
+
+Before changing core code, create narrow diagnostic variants of the sample and
+ compare stability:
+
+- no native controls
+- no `EditText`
+- no `PopupMenu`
+
+This was decisive:
+
+- `ClassicLight`: stable
+- `NoPopupMenu`: stable
+- `NoEditText`: unstable
+
+That isolated the problem to `PopupMenu`, not to the reconciler or dynamic
+boundary logic.
+
+Practical rule:
+
+- when a Classic crash looks "random", first remove whole control classes and
+  compare runtime behavior
+- this is often faster than stepping through low-level crashes immediately
+
+### 3. Prefer frame-local snapshots over persistent UI-context registries
+
+The key Classic `PopupMenu` bug was caused by keeping persistent
+`ToolboxPopupMenuContext*` objects in a controller-managed vector and reusing
+them across redraw/input cycles.
+
+The stable fix was:
+
+- stop registering popup contexts into a persistent controller loop
+- replace them with frame-local popup hit snapshots
+  - rect
+  - line height
+  - items pointer
+  - selected-index state
+  - enabled state
+  - onChange emitter
+  - boundary
+  - menu id
+
+This significantly improved stability on:
+
+- mini vMac / System 7.1
+- native OS 9 PPC hardware
+
+Design rule:
+
+- on Classic Toolbox paths, do not retain more live native UI context than you
+  need
+- if a control can be described by a frame-local snapshot for hit-testing and
+  redraw, prefer that over a long-lived controller-side registry
+
+### 4. Persistent backend context is especially suspicious when
+
+Watch for backend-specific registries that hold:
+
+- raw node/context pointers
+- state pointers
+- emitters
+- layout rects
+
+If they survive longer than one render pass, they are prime suspects for:
+
+- illegal instruction
+- type 3 / type 10
+- bad F-Line
+- silent exits
+
+Practical review question:
+
+- can this be rebuilt every frame from current scene state instead of being
+  retained in a controller vector?
+
+If yes, that design is usually safer on Classic.
+
+### 5. Safe-side hardening is useful, but not always sufficient
+
+The following changes were still worthwhile:
+
+- invalidating popup raw pointers on teardown
+- avoiding fixed menu IDs when a stable control tag exists
+- removing per-draw `PolyHandle` churn
+- snapshotting popup state around `PopUpMenuSelect()`
+
+However, those did not fully solve the problem until the persistent popup
+context registry itself was removed.
+
+Practical rule:
+
+- hardening measures help
+- but if a crash remains after several safe-side fixes, question the ownership
+  model, not only the cleanup details
+
 ## VSCode (IntelliSense)
 
 To enable Classic Mac OS headers in IntelliSense, add the Retro68 interfaces
