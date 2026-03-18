@@ -4,6 +4,7 @@
 #include "app/scene/PlatformController.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
+#include "loka/core/Vector.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
@@ -46,7 +47,14 @@ public:
                      loka::core::State<loka::core::String> *text,
                      loka::app::scene::BoundaryNode *boundary,
                      bool needsRelayoutOnChange);
-  void registerPopupContext(ToolboxPopupMenuContext *context);
+  void recordPopupHit(const Rect &rect,
+                      short lineHeight,
+                      const loka::Vector<loka::core::String> *items,
+                      loka::core::State<int> *selectedIndex,
+                      loka::core::EmitterState *onChange,
+                      loka::core::State<bool> *enabled,
+                      loka::app::scene::BoundaryNode *boundary,
+                      short menuId);
   void applyPopupSelectionChange(const Rect &rect,
                                  loka::app::scene::BoundaryNode *boundary,
                                  loka::core::State<int> *selectedIndex,
@@ -104,6 +112,17 @@ private:
     short lastMeasuredWidth;
     bool needsRelayoutOnChange;
   };
+  struct PopupHit
+  {
+    Rect rect;
+    short lineHeight;
+    const loka::Vector<loka::core::String> *items;
+    loka::core::State<int> *selectedIndex;
+    loka::core::EmitterState *onChange;
+    loka::core::State<bool> *enabled;
+    loka::app::scene::BoundaryNode *boundary;
+    short menuId;
+  };
   struct TextBinding
   {
     loka::core::State<loka::core::String> *state;
@@ -138,7 +157,7 @@ private:
   std::vector<ButtonControlBinding> buttonControls_;
   std::vector<EditTextControlBinding> editControls_;
   std::vector<EditHit> editHits_;
-  std::vector<ToolboxPopupMenuContext *> popupContexts_;
+  std::vector<PopupHit> popupHits_;
   loka::core::State<loka::core::String> *focusedText_;
   EditTextControlBinding *focusedEdit_;
   Rect focusedRect_;
@@ -168,6 +187,7 @@ private:
   bool collectLocalBoundaryDirtyRects(loka::app::scene::Node *node, const Rect &fallback);
   void requestInvalidateForChange(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
   void redrawTextHit(const TextHit &hit);
+  void redrawPopupHit(const PopupHit &hit);
   void redrawTextFor(loka::core::State<loka::core::String> *text);
   void clearTextBindings();
   void clearControls();

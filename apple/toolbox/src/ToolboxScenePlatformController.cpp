@@ -795,14 +795,7 @@ bool ToolboxScenePlatformController::hasPendingSync() const
 void ToolboxScenePlatformController::destroy()
 {
   rootNode_ = 0;
-  for (size_t i = 0; i < popupContexts_.size(); ++i)
-  {
-    if (popupContexts_[i])
-    {
-      popupContexts_[i]->invalidate();
-    }
-  }
-  popupContexts_.clear();
+  popupHits_.clear();
   clearTextBindings();
   clearControls();
   flushRetiredNativeHandles();
@@ -835,7 +828,7 @@ void ToolboxScenePlatformController::render()
     editControls_[i].usedThisFrame = false;
   }
   textHits_.clear();
-  popupContexts_.clear();
+  popupHits_.clear();
   pendingTextStates_.clear();
   pendingDirtyRects_.clear();
   loka::app::scene::LayoutState state;
@@ -915,23 +908,19 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  if (textHits_.empty() && popupContexts_.empty() && buttonControls_.empty() && editControls_.empty())
+  if (textHits_.empty() && popupHits_.empty() && buttonControls_.empty() && editControls_.empty())
   {
     render();
     return;
   }
-  for (size_t i = 0; i < popupContexts_.size(); ++i)
+  for (size_t i = 0; i < popupHits_.size(); ++i)
   {
-    ToolboxPopupMenuContext *ctx = popupContexts_[i];
-    if (!ctx)
+    PopupHit &hit = popupHits_[i];
+    if (!RectsIntersect(rect, hit.rect))
     {
       continue;
     }
-    if (!RectsIntersect(rect, ctx->rect()))
-    {
-      continue;
-    }
-    ctx->draw();
+    redrawPopupHit(hit);
   }
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
@@ -1007,13 +996,70 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   }
   focusedText_ = 0;
   hasFocusedRect_ = false;
-  for (size_t i = 0; i < popupContexts_.size(); ++i)
+  for (size_t i = 0; i < popupHits_.size(); ++i)
   {
-    ToolboxPopupMenuContext *ctx = popupContexts_[i];
-    if (ctx && ctx->handleMouseDown(point, this))
+    PopupHit &hit = popupHits_[i];
+    if (hit.enabled && !hit.enabled->get())
+    {
+      continue;
+    }
+    if (!hit.items || hit.items->size() == 0 || !hit.selectedIndex)
+    {
+      continue;
+    }
+    if (!PtInRect(point, &hit.rect))
+    {
+      continue;
+    }
+    MenuHandle menu = NewMenu(hit.menuId, "\p");
+    if (!menu)
     {
       return false;
     }
+    for (std::size_t j = 0; j < hit.items->size(); ++j)
+    {
+      Str255 text;
+      std::string utf8;
+      if (!loka::platform::CollectUtf8((*hit.items)[j], utf8))
+      {
+        text[0] = 0;
+      }
+      else
+      {
+        std::size_t length = utf8.size();
+        if (length > 255)
+        {
+          length = 255;
+        }
+        text[0] = static_cast<unsigned char>(length);
+        if (length > 0)
+        {
+          std::memcpy(text + 1, utf8.data(), length);
+        }
+      }
+      AppendMenu(menu, text);
+    }
+    InsertMenu(menu, -1);
+    short currentIndex = 0;
+    if (hit.selectedIndex->get() > 0)
+    {
+      currentIndex = static_cast<short>(hit.selectedIndex->get());
+    }
+    if (static_cast<std::size_t>(currentIndex) >= hit.items->size())
+    {
+      currentIndex = static_cast<short>(hit.items->size() - 1);
+    }
+    Point globalPoint = point;
+    LocalToGlobal(&globalPoint);
+    long choice = PopUpMenuSelect(menu, globalPoint.v, globalPoint.h, static_cast<short>(currentIndex + 1));
+    short item = static_cast<short>(choice & 0xFFFF);
+    if (item > 0)
+    {
+      applyPopupSelectionChange(hit.rect, hit.boundary, hit.selectedIndex, hit.onChange, static_cast<int>(item - 1));
+    }
+    DeleteMenu(hit.menuId);
+    DisposeMenu(menu);
+    return false;
   }
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
@@ -1145,12 +1191,25 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   bindTextState(text);
 }
 
-void ToolboxScenePlatformController::registerPopupContext(ToolboxPopupMenuContext *context)
+void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
+                                                    short lineHeight,
+                                                    const loka::Vector<loka::core::String> *items,
+                                                    loka::core::State<int> *selectedIndex,
+                                                    loka::core::EmitterState *onChange,
+                                                    loka::core::State<bool> *enabled,
+                                                    loka::app::scene::BoundaryNode *boundary,
+                                                    short menuId)
 {
-  if (context)
-  {
-    popupContexts_.push_back(context);
-  }
+  PopupHit hit;
+  hit.rect = rect;
+  hit.lineHeight = lineHeight;
+  hit.items = items;
+  hit.selectedIndex = selectedIndex;
+  hit.onChange = onChange;
+  hit.enabled = enabled;
+  hit.boundary = boundary;
+  hit.menuId = menuId;
+  popupHits_.push_back(hit);
 }
 
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
@@ -1494,6 +1553,54 @@ void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
   SetPort(window_->window());
   EraseRect(&hit.rect);
   DrawStringAt(hit.x, hit.y, hit.text->get());
+  SetPort(oldPort);
+}
+
+void ToolboxScenePlatformController::redrawPopupHit(const PopupHit &hit)
+{
+  if (!window_ || !window_->window())
+  {
+    return;
+  }
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_->window());
+  loka::core::String label = loka::core::String::Literal("Select");
+  int selectedIndex = 0;
+  if (hit.selectedIndex)
+  {
+    selectedIndex = hit.selectedIndex->get();
+  }
+  if (hit.items && hit.items->size() > 0)
+  {
+    if (selectedIndex < 0)
+    {
+      selectedIndex = 0;
+    }
+    if (static_cast<std::size_t>(selectedIndex) >= hit.items->size())
+    {
+      selectedIndex = static_cast<int>(hit.items->size() - 1);
+    }
+    label = (*hit.items)[selectedIndex];
+  }
+  FrameRect(&hit.rect);
+  PenState penState;
+  GetPenState(&penState);
+  PenPat(&qd.gray);
+  MoveTo(hit.rect.left + 2, hit.rect.bottom);
+  LineTo(hit.rect.right, hit.rect.bottom);
+  LineTo(hit.rect.right, hit.rect.top + 2);
+  SetPenState(&penState);
+  short textY = static_cast<short>(hit.rect.top + hit.lineHeight - 2);
+  DrawStringAt(static_cast<short>(hit.rect.left + 4), textY, label);
+  short arrowRight = static_cast<short>(hit.rect.right - 4);
+  short arrowTop = static_cast<short>(hit.rect.top + 4);
+  short arrowBottom = static_cast<short>(hit.rect.bottom - 4);
+  short arrowMidY = static_cast<short>((arrowTop + arrowBottom) / 2);
+  MoveTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
+  LineTo(arrowRight, arrowMidY - 3);
+  LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
+  LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
   SetPort(oldPort);
 }
 

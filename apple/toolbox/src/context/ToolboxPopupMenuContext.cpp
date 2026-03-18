@@ -164,7 +164,14 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   if (toolbox)
   {
-    toolbox->registerPopupContext(this);
+    toolbox->recordPopupHit(rect_,
+                            lineHeight_,
+                            node_->props.items_,
+                            node_->props.selectedIndex_,
+                            node_->props.onChange_,
+                            node_->props.enabled_,
+                            boundary_,
+                            menuId());
   }
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;
