@@ -178,6 +178,10 @@ void ToolboxApp::run()
         }
         if (clicked)
         {
+          if (clicked->hasPendingInvalidate())
+          {
+            continue;
+          }
           bool inEdit = clicked->handleMouseDown(event.where);
           if (inEdit)
           {

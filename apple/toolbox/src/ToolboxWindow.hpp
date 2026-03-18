@@ -22,6 +22,7 @@ public:
   void requestInvalidate();
   void requestInvalidateRect(const Rect &rect);
   void flushInvalidate();
+  bool hasPendingInvalidate() const;
   bool handleMouseDown(const Point &globalPoint);
   bool handleKeyDown(char key);
   void drawDirty(const Rect &rect);

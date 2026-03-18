@@ -152,6 +152,8 @@ private:
   bool forceFullRedraw_;
   std::vector<Rect> pendingDirtyRects_;
   std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
+  std::vector<ControlRef> retiredControls_;
+  std::vector<TEHandle> retiredTextEdits_;
   RgnHandle clipRgn_;
   bool hasClip_;
   short nextControlId_;
@@ -169,9 +171,13 @@ private:
   void redrawTextFor(loka::core::State<loka::core::String> *text);
   void clearTextBindings();
   void clearControls();
+  void queueRetiredControl(ControlRef control);
+  void queueRetiredTextEdit(TEHandle te);
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
   static void TextStateChangedThunk(void *userData);
+public:
+  void flushRetiredNativeHandles();
 };
 
 #endif // LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP

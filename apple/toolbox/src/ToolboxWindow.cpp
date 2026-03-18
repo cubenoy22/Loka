@@ -188,6 +188,11 @@ void ToolboxWindow::flushInvalidate()
   }
 }
 
+bool ToolboxWindow::hasPendingInvalidate() const
+{
+  return needsInvalidate_ || !pendingInvalidateRects_.empty();
+}
+
 void ToolboxWindow::refreshFrame()
 {
   FrameChangedThunk(this);
@@ -273,6 +278,7 @@ void ToolboxWindow::idleControls()
   if (scenePlatformController_)
   {
     scenePlatformController_->idleTextEdits();
+    scenePlatformController_->flushRetiredNativeHandles();
   }
 }
 

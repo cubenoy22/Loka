@@ -723,6 +723,8 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       pendingInvalidateFlags_(loka::app::scene::NODE_DIRTY_NONE),
       forceFullRedraw_(false),
       pendingDirtyRects_(),
+      retiredControls_(),
+      retiredTextEdits_(),
       clipRgn_(NewRgn()),
       hasClip_(false),
       nextControlId_(kAutoControlBaseId)
@@ -733,6 +735,7 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
 {
   clearTextBindings();
   clearControls();
+  flushRetiredNativeHandles();
   if (clipRgn_)
   {
     DisposeRgn(clipRgn_);
@@ -795,6 +798,7 @@ void ToolboxScenePlatformController::destroy()
   popupContexts_.clear();
   clearTextBindings();
   clearControls();
+  flushRetiredNativeHandles();
 }
 
 void ToolboxScenePlatformController::render()
@@ -861,14 +865,20 @@ void ToolboxScenePlatformController::render()
   {
     if (!editControls_[i].usedThisFrame)
     {
-      if (editControls_[i].te)
-      {
-        TEDispose(editControls_[i].te);
-      }
       if (&editControls_[i] == focusedEdit_)
       {
+        if (focusedEdit_->te)
+        {
+          TEDeactivate(focusedEdit_->te);
+        }
         focusedEdit_ = 0;
       }
+      if (editControls_[i].te)
+      {
+        TEDeactivate(editControls_[i].te);
+        queueRetiredTextEdit(editControls_[i].te);
+      }
+      editControls_[i].te = 0;
       editControls_.erase(editControls_.begin() + i);
       continue;
     }
@@ -1409,7 +1419,7 @@ bool ToolboxScenePlatformController::collectLocalBoundaryDirtyRects(loka::app::s
   }
   bool added = false;
   loka::app::scene::BoundaryNode *boundary = node->asBoundary();
-  if (boundary && boundary->hasLayoutBounds() && boundary->canApplyLocalCompositionDiff())
+  if (boundary && boundary->parentBoundary() && boundary->hasLayoutBounds() && boundary->canApplyLocalCompositionDiff())
   {
     window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
     added = true;
@@ -1518,7 +1528,9 @@ void ToolboxScenePlatformController::clearControls()
   {
     if (buttonControls_[i].control)
     {
-      DisposeControl(buttonControls_[i].control);
+      HideControl(buttonControls_[i].control);
+      queueRetiredControl(buttonControls_[i].control);
+      buttonControls_[i].control = 0;
     }
   }
   buttonControls_.clear();
@@ -1526,11 +1538,65 @@ void ToolboxScenePlatformController::clearControls()
   {
     if (editControls_[i].te)
     {
-      TEDispose(editControls_[i].te);
+      TEDeactivate(editControls_[i].te);
+      queueRetiredTextEdit(editControls_[i].te);
+      editControls_[i].te = 0;
     }
   }
   editControls_.clear();
   focusedEdit_ = 0;
+}
+
+void ToolboxScenePlatformController::queueRetiredControl(ControlRef control)
+{
+  if (!control)
+  {
+    return;
+  }
+  for (size_t i = 0; i < retiredControls_.size(); ++i)
+  {
+    if (retiredControls_[i] == control)
+    {
+      return;
+    }
+  }
+  retiredControls_.push_back(control);
+}
+
+void ToolboxScenePlatformController::queueRetiredTextEdit(TEHandle te)
+{
+  if (!te)
+  {
+    return;
+  }
+  for (size_t i = 0; i < retiredTextEdits_.size(); ++i)
+  {
+    if (retiredTextEdits_[i] == te)
+    {
+      return;
+    }
+  }
+  retiredTextEdits_.push_back(te);
+}
+
+void ToolboxScenePlatformController::flushRetiredNativeHandles()
+{
+  for (size_t i = 0; i < retiredControls_.size(); ++i)
+  {
+    if (retiredControls_[i])
+    {
+      DisposeControl(retiredControls_[i]);
+    }
+  }
+  retiredControls_.clear();
+  for (size_t i = 0; i < retiredTextEdits_.size(); ++i)
+  {
+    if (retiredTextEdits_[i])
+    {
+      TEDispose(retiredTextEdits_[i]);
+    }
+  }
+  retiredTextEdits_.clear();
 }
 
 bool ToolboxScenePlatformController::ensureButtonControl(

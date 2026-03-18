@@ -49,7 +49,7 @@ namespace loka
           }
           if (flags == NODE_DIRTY_NONE)
           {
-            flags = NODE_DIRTY_PROPS;
+            return;
           }
           self->markViewDirty(flags);
         }
@@ -73,7 +73,7 @@ namespace loka
         NodeDirtyFlags flags = binding->flags;
         if (flags == NODE_DIRTY_NONE)
         {
-          flags = NODE_DIRTY_PROPS;
+          return;
         }
         loka::core::StateTracker *ownerTracker = binding->state ? binding->state->trackerOwner() : 0;
         if (ownerTracker && ownerTracker->phase() != loka::core::TRACKER_IDLE)
@@ -94,7 +94,7 @@ namespace loka
         NodeDirtyFlags flags = binding->flags;
         if (flags == NODE_DIRTY_NONE)
         {
-          flags = NODE_DIRTY_PROPS;
+          return;
         }
         binding->boundary->markViewDirty(flags);
       }

@@ -267,7 +267,7 @@ namespace loka
           }
         };
 
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), frozen_(false)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), frozen_(false), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -318,6 +318,22 @@ namespace loka
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
         void clearObservedDirtyFlags() { observedDirtyFlags_ = NODE_DIRTY_NONE; }
+        void beginObservedStatePass()
+        {
+          ++observedGeneration_;
+          if (observedGeneration_ == 0)
+          {
+            observedGeneration_ = 1;
+          }
+          for (size_t i = 0; i < observedStateEntries_.size(); ++i)
+          {
+            observedStateEntries_[i].flags = NODE_DIRTY_NONE;
+            if (observedStateEntries_[i].binding)
+            {
+              observedStateEntries_[i].binding->flags = NODE_DIRTY_NONE;
+            }
+          }
+        }
         void clearObservedStateEntries()
         {
           for (size_t i = 0; i < observedStateEntries_.size(); ++i)
@@ -352,10 +368,13 @@ namespace loka
           {
             if (observedStateEntries_[i].state == state)
             {
+              observedStateEntries_[i].observedGeneration = observedGeneration_;
               observedStateEntries_[i].flags = static_cast<NodeDirtyFlags>(observedStateEntries_[i].flags | flags);
               if (observedStateEntries_[i].binding)
               {
                 observedStateEntries_[i].binding->flags = observedStateEntries_[i].flags;
+                observedStateEntries_[i].binding->state = state;
+                observedStateEntries_[i].binding->boundary = this;
               }
               return;
             }
@@ -363,11 +382,12 @@ namespace loka
           ObservedStateEntry entry;
           entry.state = state;
           entry.flags = flags;
+          entry.observedGeneration = observedGeneration_;
           entry.binding = new ObservedStateBinding();
           entry.binding->boundary = this;
           entry.binding->state = state;
           entry.binding->flags = flags;
-          state->deferBind(&BoundaryNode::ObservedStateChangedThunk, entry.binding);
+          state->bind(&BoundaryNode::ObservedStateChangedThunk, entry.binding, false, false, 0);
           observedStateEntries_.push_back(entry);
         }
         NodeDirtyFlags observedDirtyFlags() const { return observedDirtyFlags_; }
@@ -387,6 +407,10 @@ namespace loka
             {
               if (observedStateEntries_[entryIndex].state == dirtyState)
               {
+                if (observedStateEntries_[entryIndex].observedGeneration != observedGeneration_)
+                {
+                  continue;
+                }
                 flags = static_cast<NodeDirtyFlags>(flags | observedStateEntries_[entryIndex].flags);
               }
             }
@@ -706,7 +730,7 @@ namespace loka
               boundary->setScene(currentBoundary->getScene());
             }
             boundary->clearObservedDirtyFlags();
-            boundary->clearObservedStateEntries();
+            boundary->beginObservedStatePass();
             nextBoundary = boundary;
           }
           if (nextBoundary)
@@ -886,9 +910,10 @@ namespace loka
 
         struct ObservedStateEntry
         {
-          ObservedStateEntry() : state(0), flags(NODE_DIRTY_NONE), binding(0) {}
+          ObservedStateEntry() : state(0), flags(NODE_DIRTY_NONE), observedGeneration(0), binding(0) {}
           loka::core::StateBase *state;
           NodeDirtyFlags flags;
+          unsigned long observedGeneration;
           ObservedStateBinding *binding;
         };
 
@@ -901,6 +926,7 @@ namespace loka
         NodeDirtyFlags observedDirtyFlags_;
         bool frozen_;
         std::vector<ObservedStateEntry> observedStateEntries_;
+        unsigned long observedGeneration_;
         NodeArena nodeArena_;
         StateArena stateArena_;
         NodeCompositionSnapshot previousCompositionSnapshot_;
