@@ -36,6 +36,7 @@ public:
   virtual ~ToolboxPopupMenuContext();
 
   void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void invalidate();
   void updateData(const loka::Vector<loka::core::String> *items,
                   loka::core::State<int> *selectedIndex,
                   loka::core::EmitterState *onChange,
@@ -52,6 +53,7 @@ public:
 private:
   short clampIndex(int index) const;
   void copyToPascalString(const loka::core::String &value, Str255 out) const;
+  short menuId() const;
 
   loka::app::PopupMenuNode *node_;
   loka::app::scene::BoundaryNode *boundary_;

@@ -43,6 +43,18 @@ ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node)
 
 ToolboxPopupMenuContext::~ToolboxPopupMenuContext() {}
 
+void ToolboxPopupMenuContext::invalidate()
+{
+  node_ = 0;
+  boundary_ = 0;
+  items_ = 0;
+  selectedIndex_ = 0;
+  onChange_ = 0;
+  enabled_ = 0;
+  lineHeight_ = 0;
+  rect_.left = rect_.top = rect_.right = rect_.bottom = 0;
+}
+
 void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> *items,
                                          loka::core::State<int> *selectedIndex,
                                          loka::core::EmitterState *onChange,
@@ -128,14 +140,10 @@ void ToolboxPopupMenuContext::draw()
   short arrowTop = static_cast<short>(rect_.top + 4);
   short arrowBottom = static_cast<short>(rect_.bottom - 4);
   short arrowMidY = static_cast<short>((arrowTop + arrowBottom) / 2);
-  PolyHandle arrow = OpenPoly();
   MoveTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
   LineTo(arrowRight, arrowMidY - 3);
   LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
   LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
-  ClosePoly();
-  PaintPoly(arrow);
-  KillPoly(arrow);
 }
 
 short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *controller,
@@ -176,28 +184,34 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   {
     return false;
   }
-  MenuHandle menu = NewMenu(2000, "\p");
+  const loka::Vector<loka::core::String> *items = items_;
+  loka::core::State<int> *selectedIndex = selectedIndex_;
+  loka::core::EmitterState *onChange = onChange_;
+  loka::app::scene::BoundaryNode *boundary = boundary_;
+  Rect rect = rect_;
+  short menuIdValue = menuId();
+  MenuHandle menu = NewMenu(menuIdValue, "\p");
   if (!menu)
   {
     return false;
   }
-  for (std::size_t j = 0; j < items_->size(); ++j)
+  for (std::size_t j = 0; j < items->size(); ++j)
   {
     Str255 text;
-    copyToPascalString((*items_)[j], text);
+    copyToPascalString((*items)[j], text);
     AppendMenu(menu, text);
   }
   InsertMenu(menu, -1);
-  short currentIndex = clampIndex(selectedIndex_->get());
+  short currentIndex = clampIndex(selectedIndex->get());
   Point globalPoint = point;
   LocalToGlobal(&globalPoint);
   long choice = PopUpMenuSelect(menu, globalPoint.v, globalPoint.h, static_cast<short>(currentIndex + 1));
   short item = static_cast<short>(choice & 0xFFFF);
   if (item > 0 && controller)
   {
-    controller->applyPopupSelectionChange(rect_, boundary_, selectedIndex_, onChange_, static_cast<int>(item - 1));
+    controller->applyPopupSelectionChange(rect, boundary, selectedIndex, onChange, static_cast<int>(item - 1));
   }
-  DeleteMenu(2000);
+  DeleteMenu(menuIdValue);
   DisposeMenu(menu);
   return true;
 }
@@ -205,4 +219,13 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
 void ToolboxPopupMenuContext::render(loka::app::scene::IPlatformController *)
 {
   draw();
+}
+
+short ToolboxPopupMenuContext::menuId() const
+{
+  if (node_ && node_->props.controlTag_ > 0 && node_->props.controlTag_ <= 32767)
+  {
+    return static_cast<short>(node_->props.controlTag_);
+  }
+  return 2000;
 }

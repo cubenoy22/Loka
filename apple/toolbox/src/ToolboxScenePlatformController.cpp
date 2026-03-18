@@ -795,6 +795,13 @@ bool ToolboxScenePlatformController::hasPendingSync() const
 void ToolboxScenePlatformController::destroy()
 {
   rootNode_ = 0;
+  for (size_t i = 0; i < popupContexts_.size(); ++i)
+  {
+    if (popupContexts_[i])
+    {
+      popupContexts_[i]->invalidate();
+    }
+  }
   popupContexts_.clear();
   clearTextBindings();
   clearControls();
