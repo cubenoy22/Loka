@@ -106,6 +106,17 @@ namespace {
     }
   };
 
+  struct FlowTestPredicates {
+    static bool greaterThan10(const int &value, void *) {
+      return value > 10;
+    }
+
+    static bool equalsExpected(const int &value, void *user) {
+      const int *expected = static_cast<const int *>(user);
+      return expected != 0 && value == *expected;
+    }
+  };
+
   struct FlowTestCheckLoadingAdapter {
     typedef int In;
     typedef int Out;
@@ -787,6 +798,37 @@ void testLokaFlowDslV1Core() {
     assert(order[0] == 710);
     assert(order[1] == 711);
     assert(order[2] == 799);
+  }
+
+  {
+    int input = 7;
+    int output = 0;
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input)
+          | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::greaterThan10, 0))
+          | loka::dsl::Step(3, FlowTestAdd1Adapter()).onSuccess(&output);
+
+    assert(chain.run());
+    assert(output == 15);
+  }
+
+  {
+    int input = 4;
+    int expected = 9;
+    FlowErrorCapture capture = {0, 0, 0};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input)
+          | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::equalsExpected, &expected))
+                .onFailure(&FlowTestMarker::captureFailure, &capture);
+
+    assert(chain.run());
+    assert(capture.calls == 1);
+    assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_FLOW);
+    assert(capture.code == loka::dsl::FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED);
   }
 
   {

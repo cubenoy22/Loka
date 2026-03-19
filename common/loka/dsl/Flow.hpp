@@ -34,7 +34,8 @@ namespace loka {
     };
 
     enum {
-      FLOW_ERROR_CODE_STEP_PENDING_TIMEOUT = 1001
+      FLOW_ERROR_CODE_STEP_PENDING_TIMEOUT = 1001,
+      FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED = 1002
     };
 
     enum FlowHandleResult { FLOW_ERROR_UNHANDLED = 0, FLOW_ERROR_HANDLED = 1 };
@@ -271,6 +272,47 @@ namespace loka {
     template <typename AdapterT>
     StepSpec<AdapterT> Step(int id, const AdapterT &adapter) {
       return StepSpec<AdapterT>(id, adapter);
+    }
+
+    template <typename T>
+    class AssertPredicateAdapter {
+    public:
+      typedef T In;
+      typedef T Out;
+      typedef bool (*PredicateFn)(const T &, void *);
+
+      AssertPredicateAdapter(PredicateFn predicate, void *user,
+                             int errorKind = FLOW_ERROR_KIND_FLOW,
+                             int errorCode = FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED)
+          : predicate_(predicate),
+            user_(user),
+            errorKind_(errorKind),
+            errorCode_(errorCode) {
+      }
+
+      StepRunStatus run(const T &in, T &out, FlowError &error) const {
+        out = in;
+        if (!this->predicate_ || this->predicate_(in, this->user_)) {
+          return FLOW_STEP_SUCCEEDED;
+        }
+        error.kind = this->errorKind_;
+        error.code = this->errorCode_;
+        return FLOW_STEP_FAILED;
+      }
+
+    private:
+      PredicateFn predicate_;
+      void *user_;
+      int errorKind_;
+      int errorCode_;
+    };
+
+    template <typename T>
+    AssertPredicateAdapter<T> AssertPredicate(
+        typename AssertPredicateAdapter<T>::PredicateFn predicate, void *user,
+        int errorKind = FLOW_ERROR_KIND_FLOW,
+        int errorCode = FLOW_ERROR_CODE_ASSERT_PREDICATE_FAILED) {
+      return AssertPredicateAdapter<T>(predicate, user, errorKind, errorCode);
     }
 
     class FlowChainImpl {
