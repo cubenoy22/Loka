@@ -58,6 +58,8 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/AttrDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
+    src/MainLeftPanel.cpp
+    src/MainRightPanel.cpp
   )
 
   add_executable(LokaTestsWin32 ${WIN32_TEST_SOURCES})
@@ -66,10 +68,12 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
 
   target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32Core)
   target_compile_definitions(LokaTestsWin32 PRIVATE
+    TEST_BUILD
     $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
   )
 
