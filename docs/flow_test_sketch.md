@@ -92,7 +92,10 @@ Canonical lookup API for v0.0.1:
 - `FindNodeById<T>(testId)` is the primary lookup entry point.
 - `T` is the expected node type and must be checked via `NodeKind` / `asXxx()` helpers, not RTTI.
 - `CaptureNode<T>()` consumes a previously resolved `T*`; it does not perform lookup.
-- `CaptureScene()` is a separate scene-level API for tree/bounds/dirty/timing capture and must not implicitly perform node lookup.
+- `CaptureScene()` is a separate scene-level API for scene/root metadata capture and must not implicitly perform node lookup.
+- `CaptureViewTarget(testId)` resolves a raw node/view target from `Scene*` by `testId`.
+- `CaptureView()` consumes a previously resolved `ViewCaptureTarget`; v1 records target/context metadata only.
+- Bitmap/image screenshot capture should be a later adapter layered after `CaptureViewTarget`, not part of `CaptureScene()`.
 
 Error model for v0.0.1:
 - `ScenarioError`: execution failed before the assertion could be evaluated (node not found, type mismatch, timeout, invalid config, missing `testId`, duplicate `testId`).
@@ -205,6 +208,11 @@ CaptureScene()
   .expect(NotDirty(DIRTY_CHILD));
 ```
 
+Capture layering guideline:
+- `CaptureNode<T>`: lightweight node-level assertions (`text`, `dirty.mask`, small props).
+- `CaptureScene`: scene/root metadata (`root present`, `root boundary present`, scene-wide dirty/timing later).
+- `CaptureViewTarget -> CaptureViewBitmap`: platform/native screenshot path; keep it explicit and opt-in.
+
 目的:
 - 見た目は同じでも毎回 `DIRTY_CHILD` (全再構築) が走る退行を検知する。
 - 同じ Boundary に wrap text や conditional が同居していても、unrelated state update で `DIRTY_LAYOUT` / `DIRTY_CHILD` が混入しないことを検知する。
@@ -262,6 +270,10 @@ captures/
   - if one record itself exceeds `max_total_bytes`, reject write
 - 68k/Retro68 では `CaptureScene` の既定をテキスト snap (Node tree + bounds) にする。
 - bitmap screenshot は明示 opt-in のみ（メモリ/ディスク制約対策）。
+- capture layering should stay explicit:
+  - `CaptureNode<T>` for lightweight node assertions
+  - `CaptureScene` for scene/root metadata
+  - `CaptureViewTarget -> CaptureViewBitmap` for platform/native screenshots
 
 ## Config Hook (`LokaTest.cfg`)
 

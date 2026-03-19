@@ -566,6 +566,71 @@ namespace loka
         return CaptureViewTargetSnapAdapter(testName, stepName, tick, scenarioVersion);
       }
 
+      struct ViewBitmapCapture
+      {
+        ViewBitmapCapture()
+            : image(::loka::core::resource::Image::Empty()),
+              captured(false),
+              width(0),
+              height(0) {}
+
+        ::loka::core::resource::Image image;
+        bool captured;
+        int width;
+        int height;
+      };
+
+      class CaptureViewBitmapAdapter
+      {
+      public:
+        typedef ViewCaptureTarget In;
+        typedef ViewBitmapCapture Out;
+        typedef bool (*CaptureFn)(const ViewCaptureTarget &target,
+                                  ViewBitmapCapture &out,
+                                  FlowError &error,
+                                  void *user);
+
+        CaptureViewBitmapAdapter(CaptureFn captureFn, void *user)
+            : captureFn_(captureFn),
+              user_(user) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          if (!in.node)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
+            return FLOW_STEP_FAILED;
+          }
+          if (!this->captureFn_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          if (!this->captureFn_(in, out, error, this->user_))
+          {
+            if (error.kind == 0 && error.code == 0)
+            {
+              error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+              error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            }
+            return FLOW_STEP_FAILED;
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        CaptureFn captureFn_;
+        void *user_;
+      };
+
+      inline CaptureViewBitmapAdapter CaptureViewBitmap(CaptureViewBitmapAdapter::CaptureFn captureFn,
+                                                        void *user)
+      {
+        return CaptureViewBitmapAdapter(captureFn, user);
+      }
+
       class SnapTextAdapter
       {
       public:
