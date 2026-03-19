@@ -33,6 +33,11 @@ namespace loka
         {
           return scene.flushInvalidation();
         }
+
+        static ::loka::app::scene::IPlatformController *platformController(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.platformController_;
+        }
       };
 
       enum SceneTestFlowErrorKind
@@ -448,11 +453,13 @@ namespace loka
         ViewCaptureTarget()
             : node(0),
               hasContext(false),
+              capturableBitmap(0),
               kind(0),
               testId() {}
 
         ::loka::app::scene::Node *node;
         bool hasContext;
+        const ::loka::app::scene::ICapturableBitmap *capturableBitmap;
         long kind;
         std::string testId;
       };
@@ -476,6 +483,7 @@ namespace loka
           }
           out.node = node;
           out.hasContext = node && node->getContext() != 0;
+          out.capturableBitmap = (node && node->getContext()) ? node->getContext()->asCapturableBitmap() : 0;
           out.kind = node ? static_cast<long>(node->kind()) : 0;
           out.testId = node ? node->testId() : std::string();
           return FLOW_STEP_SUCCEEDED;
@@ -629,6 +637,107 @@ namespace loka
                                                         void *user)
       {
         return CaptureViewBitmapAdapter(captureFn, user);
+      }
+
+      class CaptureViewBitmapFromPlatformAdapter
+      {
+      public:
+        typedef ViewCaptureTarget In;
+        typedef ViewBitmapCapture Out;
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          if (!in.node)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
+            return FLOW_STEP_FAILED;
+          }
+          if (!in.capturableBitmap)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          if (!in.capturableBitmap->captureBitmap(out.image))
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          out.captured = out.image.isValid();
+          out.width = out.image.width();
+          out.height = out.image.height();
+          return FLOW_STEP_SUCCEEDED;
+        }
+      };
+
+      inline CaptureViewBitmapFromPlatformAdapter CaptureViewBitmapFromPlatform()
+      {
+        return CaptureViewBitmapFromPlatformAdapter();
+      }
+
+      class CaptureViewBitmapSnapAdapter
+      {
+      public:
+        typedef ViewBitmapCapture In;
+        typedef SnapRecord Out;
+
+        CaptureViewBitmapSnapAdapter(const char *testName,
+                                     const char *stepName,
+                                     long tick,
+                                     long scenarioVersion,
+                                     const char *status = SnapStatusOk())
+            : testName_(testName ? testName : ""),
+              stepName_(stepName ? stepName : ""),
+              tick_(tick),
+              scenarioVersion_(scenarioVersion),
+              status_(status ? status : SnapStatusOk()) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &) const
+        {
+          BuildSnapV1RecordAdapter base(this->testName_.c_str(),
+                                        this->stepName_.c_str(),
+                                        "ViewBitmap",
+                                        this->tick_,
+                                        this->scenarioVersion_,
+                                        this->status_.c_str());
+          const int unused = 0;
+          FlowError ignored;
+          if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
+          {
+            return FLOW_STEP_FAILED;
+          }
+          out.setInt("view.bitmap.captured", in.captured ? 1 : 0);
+          out.setInt("view.bitmap.image.valid", in.image.isValid() ? 1 : 0);
+          out.setInt("view.bitmap.width", in.width);
+          out.setInt("view.bitmap.height", in.height);
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testName_;
+        std::string stepName_;
+        long tick_;
+        long scenarioVersion_;
+        std::string status_;
+      };
+
+      inline CaptureViewBitmapSnapAdapter CaptureViewBitmapSnap(const char *testName,
+                                                                const char *stepName,
+                                                                long tick,
+                                                                long scenarioVersion,
+                                                                const char *status)
+      {
+        return CaptureViewBitmapSnapAdapter(testName, stepName, tick, scenarioVersion, status);
+      }
+
+      inline CaptureViewBitmapSnapAdapter CaptureViewBitmapSnap(const char *testName,
+                                                                const char *stepName,
+                                                                long tick,
+                                                                long scenarioVersion)
+      {
+        return CaptureViewBitmapSnapAdapter(testName, stepName, tick, scenarioVersion);
       }
 
       class SnapTextAdapter

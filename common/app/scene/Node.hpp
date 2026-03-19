@@ -23,6 +23,7 @@
 
 #include "loka/core/State.hpp"
 #include "loka/core/Profiler.hpp"
+#include "app/scene/ability/CapturableBitmap.hpp"
 // StreamView is only needed by NodeComposition; avoid including here to reduce coupling
 
 namespace loka
@@ -127,6 +128,8 @@ namespace loka
 
         void setOwner(Node *owner) { owner_ = owner; }
         Node *owner() const { return owner_; }
+        virtual ICapturableBitmap *asCapturableBitmap() { return 0; }
+        virtual const ICapturableBitmap *asCapturableBitmap() const { return 0; }
         virtual void render(IPlatformController *) {}
         virtual short layout(IPlatformController *, LayoutState &) { return 0; }
 

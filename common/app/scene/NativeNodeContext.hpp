@@ -42,6 +42,9 @@ namespace loka
 
         virtual ~NativeNodeContext() {}
 
+        virtual ICapturableBitmap *asCapturableBitmap() { return 0; }
+        virtual const ICapturableBitmap *asCapturableBitmap() const { return 0; }
+
         void setPriority(ResourcePriority priority) { priority_ = priority; }
         ResourcePriority priority() const { return priority_; }
 

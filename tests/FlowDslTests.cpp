@@ -292,6 +292,27 @@ namespace {
     int height_;
   };
 
+  struct FlowTestCapturableBitmap : public loka::app::scene::ICapturableBitmap {
+    virtual bool captureBitmap(loka::core::resource::Image &out) const {
+      out = loka::core::resource::Image::FromNative(reinterpret_cast<void *>(0x2),
+                                                    80,
+                                                    40,
+                                                    &FlowTestPlatformContext::ReleaseNativeNoop,
+                                                    0);
+      return out.isValid();
+    }
+  };
+
+  struct FlowTestCapturableNodeContext : public loka::app::scene::NodeContext {
+    FlowTestCapturableNodeContext() : bitmap_() {}
+
+    virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return &bitmap_; }
+    virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return &bitmap_; }
+
+  private:
+    FlowTestCapturableBitmap bitmap_;
+  };
+
   struct StateNotifyDeleteCtx {
     loka::core::EmitterState *state;
     loka::core::MutableState<int> *valueState;
@@ -1142,6 +1163,11 @@ void testLokaFlowDslV1Core() {
     FlowScenePlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
+    loka::app::scene::Node *actionButton = 0;
+    loka::dsl::FlowError lookupError;
+    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(&scene, std::string("ActionButton"), actionButton, lookupError) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    assert(actionButton);
+    actionButton->setContext(new FlowTestCapturableNodeContext());
 
     Scene *scenePtr = &scene;
     loka::dsl::testing::ViewBitmapCapture bitmap;
@@ -1157,6 +1183,74 @@ void testLokaFlowDslV1Core() {
     assert(bitmap.image.isValid());
     assert(bitmap.width == 64);
     assert(bitmap.height == 32);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Button("Press").testId("ActionButton");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    loka::app::scene::Node *actionButton = 0;
+    loka::dsl::FlowError lookupError;
+    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(&scene, std::string("ActionButton"), actionButton, lookupError) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    assert(actionButton);
+    actionButton->setContext(new FlowTestCapturableNodeContext());
+
+    Scene *scenePtr = &scene;
+    loka::dsl::testing::ViewBitmapCapture bitmap;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::testing::ViewBitmapCapture> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmapFromPlatform())
+              .onSuccess(&bitmap);
+
+    assert(chain.run());
+    assert(bitmap.captured);
+    assert(bitmap.image.isValid());
+    assert(bitmap.width == 80);
+    assert(bitmap.height == 40);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Button("Press").testId("ActionButton");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord captured;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmap(&FlowTestViewBitmapCaptureHelpers::capture, 0))
+        | loka::dsl::Step(3, loka::dsl::testing::CaptureViewBitmapSnap("SceneFlow", "capture-view-bitmap", 50, 1))
+              .onSuccess(&captured)
+        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntEquals("view.bitmap.captured", 1))
+        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntEquals("view.bitmap.image.valid", 1))
+        | loka::dsl::Step(6, loka::dsl::testing::AssertSnapIntEquals("view.bitmap.width", 64))
+        | loka::dsl::Step(7, loka::dsl::testing::AssertSnapIntEquals("view.bitmap.height", 32));
+
+    assert(chain.run());
 
     scene.unmount();
   }
