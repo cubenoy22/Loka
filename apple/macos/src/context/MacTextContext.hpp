@@ -13,11 +13,15 @@ namespace loka
   }
 }
 
-class MacTextContext : public loka::app::scene::NativeNodeContext
+class MacTextContext : public loka::app::scene::NativeNodeContext,
+                       public loka::app::scene::ICapturableBitmap
 {
 public:
   MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node);
   virtual ~MacTextContext();
+  virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return this; }
+  virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return this; }
+  virtual bool captureBitmap(loka::core::resource::Image &out) const;
   void relayout(int x, int y, int width, int height);
 
 private:

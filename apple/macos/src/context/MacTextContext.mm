@@ -5,6 +5,50 @@
 #include "app/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
+#include "core/resource/Image.hpp"
+
+namespace
+{
+  static void ReleaseCapturedBitmap(void *handle, void *)
+  {
+    NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
+    if (bitmap)
+    {
+      [bitmap release];
+    }
+  }
+
+  static bool CaptureViewBitmap(NSView *view, loka::core::resource::Image &out)
+  {
+    if (!view)
+    {
+      return false;
+    }
+    NSRect bounds = [view bounds];
+    if (bounds.size.width <= 0 || bounds.size.height <= 0)
+    {
+      return false;
+    }
+    NSBitmapImageRep *bitmap = [view bitmapImageRepForCachingDisplayInRect:bounds];
+    if (!bitmap)
+    {
+      return false;
+    }
+    [bitmap retain];
+    [view cacheDisplayInRect:bounds toBitmapImageRep:bitmap];
+    out = loka::core::resource::Image::FromNative((void *)bitmap,
+                                                  (int)bounds.size.width,
+                                                  (int)bounds.size.height,
+                                                  &ReleaseCapturedBitmap,
+                                                  0);
+    if (!out.isValid())
+    {
+      [bitmap release];
+      return false;
+    }
+    return true;
+  }
+}
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
     : node_(node), parentView_(parentView), label_(0), textState_(0), didInitialApply_(false)
@@ -71,6 +115,11 @@ MacTextContext::~MacTextContext()
     [(id)label_ release];
   }
   label_ = 0;
+}
+
+bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const
+{
+  return CaptureViewBitmap((NSView *)label_, out);
 }
 
 void MacTextContext::relayout(int x, int y, int width, int height)

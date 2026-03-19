@@ -23,11 +23,15 @@ namespace loka
   }
 }
 
-class Win32ButtonContext : public loka::app::scene::NativeNodeContext
+class Win32ButtonContext : public loka::app::scene::NativeNodeContext,
+                           public loka::app::scene::ICapturableBitmap
 {
 public:
   Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node);
   virtual ~Win32ButtonContext();
+  virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return this; }
+  virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return this; }
+  virtual bool captureBitmap(loka::core::resource::Image &out) const;
 
   HWND hwnd() const { return hwnd_; }
   void relayout(int x, int y, int width, int height);

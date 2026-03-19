@@ -1,8 +1,80 @@
 #include "Win32TextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/Text.hpp"
+#include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
+
+namespace
+{
+  void ReleaseCapturedBitmap(void *handle, void *)
+  {
+    if (handle)
+    {
+      DeleteObject(static_cast<HBITMAP>(handle));
+    }
+  }
+
+  bool CaptureWindowBitmap(HWND hwnd, loka::core::resource::Image &out)
+  {
+    out = loka::core::resource::Image::Empty();
+    if (!hwnd)
+    {
+      return false;
+    }
+
+    RECT rc;
+    if (!GetClientRect(hwnd, &rc))
+    {
+      return false;
+    }
+    const int width = rc.right - rc.left;
+    const int height = rc.bottom - rc.top;
+    if (width <= 0 || height <= 0)
+    {
+      return false;
+    }
+
+    HDC windowDC = GetWindowDC(hwnd);
+    if (!windowDC)
+    {
+      return false;
+    }
+
+    HDC memDC = CreateCompatibleDC(windowDC);
+    if (!memDC)
+    {
+      ReleaseDC(hwnd, windowDC);
+      return false;
+    }
+
+    HBITMAP bitmap = CreateCompatibleBitmap(windowDC, width, height);
+    if (!bitmap)
+    {
+      DeleteDC(memDC);
+      ReleaseDC(hwnd, windowDC);
+      return false;
+    }
+
+    HGDIOBJ oldBitmap = SelectObject(memDC, bitmap);
+    const BOOL copied = BitBlt(memDC, 0, 0, width, height, windowDC, 0, 0, SRCCOPY);
+    SelectObject(memDC, oldBitmap);
+    DeleteDC(memDC);
+    ReleaseDC(hwnd, windowDC);
+    if (!copied)
+    {
+      DeleteObject(bitmap);
+      return false;
+    }
+
+    out = loka::core::resource::Image::FromNative(bitmap,
+                                                  width,
+                                                  height,
+                                                  &ReleaseCapturedBitmap,
+                                                  0);
+    return out.isValid();
+  }
+}
 
 Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node)
     : node_(node), hwnd_(NULL), textState_(0), didInitialApply_(false)
@@ -62,6 +134,11 @@ Win32TextContext::~Win32TextContext()
     DestroyWindow(hwnd_);
     hwnd_ = NULL;
   }
+}
+
+bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
+{
+  return CaptureWindowBitmap(this->hwnd_, out);
 }
 
 void Win32TextContext::relayout(int x, int y, int width, int height)

@@ -103,6 +103,7 @@ int main()
   testMacScenePlatformForeignObservedChildRebuildSwapsContexts();
   testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts();
   testMacScenePlatformForeignObservedChildReorderPreservesSiblingContexts();
+  testMacScenePlatformHelloWorldCapturesTextAndButtons();
 #endif
   testStateBatchOverflow();
   SceneTests::runAll();

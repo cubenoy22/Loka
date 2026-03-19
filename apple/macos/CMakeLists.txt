@@ -87,6 +87,8 @@ set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestMain.cpp
+  ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainLeftPanel.cpp
+  ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainRightPanel.cpp
 )
 
 if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
@@ -95,11 +97,13 @@ if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
   target_include_directories(LokaTestsMacOS PRIVATE
     ${PROJECT_SOURCE_DIR}/common
     ${PROJECT_SOURCE_DIR}/tests
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
     ${CMAKE_CURRENT_LIST_DIR}/src
   )
 
   target_link_libraries(LokaTestsMacOS PRIVATE LokaMacOSCore)
   target_compile_definitions(LokaTestsMacOS PRIVATE
+    TEST_BUILD
     $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
   )
 endif()

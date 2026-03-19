@@ -93,6 +93,15 @@ namespace loka
         }
       };
 
+      template <>
+      struct SceneNodeCast< ::loka::app::ButtonNode>
+      {
+        static ::loka::app::ButtonNode *cast(::loka::app::scene::Node *node)
+        {
+          return node ? node->asButtonNode() : 0;
+        }
+      };
+
       namespace scene_test_detail
       {
         inline void appendDirtyFlagName(std::string &out, const char *name)
@@ -1454,6 +1463,90 @@ namespace loka
       inline SetIntStateAndFlushAdapter SetIntStateAndFlush(::loka::core::MutableState<int> *state, int value)
       {
         return SetIntStateAndFlushAdapter(state, value);
+      }
+
+      class ClickButtonByIdAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        explicit ClickButtonByIdAdapter(const char *testId)
+            : testId_(testId ? testId : "") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          if (!in)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::app::ButtonNode *button = 0;
+          StepRunStatus lookupStatus = LookupNodeById< ::loka::app::ButtonNode>(in, testId_, button, error);
+          if (lookupStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return lookupStatus;
+          }
+          ::loka::app::scene::BoundaryNode *boundary = SceneTestAccess::rootBoundary(*in);
+          if (!boundary || !boundary->tracker())
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_ROOT_UNAVAILABLE;
+            return FLOW_STEP_FAILED;
+          }
+          if (button->props.enabled_ && !button->props.enabled_->get())
+          {
+            return FLOW_STEP_SUCCEEDED;
+          }
+          if (!button->props.onClick_)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_INVALID_CAPTURE_VALUE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::core::StateTrackerGuard guard(boundary->tracker());
+          button->props.onClick_->emit();
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testId_;
+      };
+
+      inline ClickButtonByIdAdapter ClickButtonById(const char *testId)
+      {
+        return ClickButtonByIdAdapter(testId);
+      }
+
+      class ClickButtonByIdAndFlushAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        explicit ClickButtonByIdAndFlushAdapter(const char *testId)
+            : testId_(testId ? testId : "") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          StepRunStatus clickStatus = ClickButtonById(testId_.c_str()).run(in, out, error);
+          if (clickStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return clickStatus;
+          }
+          return FlushSceneInvalidation().run(out, out, error);
+        }
+
+      private:
+        std::string testId_;
+      };
+
+      inline ClickButtonByIdAndFlushAdapter ClickButtonByIdAndFlush(const char *testId)
+      {
+        return ClickButtonByIdAndFlushAdapter(testId);
       }
 
       class CheckTimingLessEqualAdapter

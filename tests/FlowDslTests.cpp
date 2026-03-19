@@ -10,6 +10,7 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
+#include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
@@ -1251,6 +1252,52 @@ void testLokaFlowDslV1Core() {
         | loka::dsl::Step(7, loka::dsl::testing::AssertSnapIntEquals("view.bitmap.height", 32));
 
     assert(chain.run());
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app::scene;
+
+    NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDef;
+    Scene scene(mainDef.clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::FlowChain<Scene *, Scene *> addChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.AddButton")).input(&scenePtr);
+    assert(addChain.run());
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> addSnapChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SnapText("HelloWorld.LeftPanel.Message", "HelloWorldFlow", "message-after-add", 61, 1)).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapStringEquals("text.value", "Hello, Loka! +Loka"));
+    assert(addSnapChain.run());
+
+    loka::dsl::FlowChain<Scene *, Scene *> probeChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ProbeButton")).input(&scenePtr);
+    assert(probeChain.run());
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> probeSnapChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SnapText("HelloWorld.LeftPanel.ActionSummary", "HelloWorldFlow", "summary-after-probe", 62, 1)).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: yes / clicks: 1"));
+    assert(probeSnapChain.run());
+
+    loka::dsl::FlowChain<Scene *, Scene *> disableChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ToggleEnabledButton")).input(&scenePtr);
+    assert(disableChain.run());
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> disableSnapChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SnapText("HelloWorld.LeftPanel.ActionSummary", "HelloWorldFlow", "summary-after-disable", 63, 1)).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: no / clicks: 1"));
+    assert(disableSnapChain.run());
 
     scene.unmount();
   }

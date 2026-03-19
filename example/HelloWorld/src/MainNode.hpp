@@ -46,12 +46,12 @@ namespace helloworld
   inline void MainNode::composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
-    ZStack &root = c.declare(ZStack());
+    ZStack &root = c.declare(ZStack().TEST_ID("HelloWorld.Root"));
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
-    c.declare(HStack()
+    c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
               << loka::app::scene::LC(left_)
               << loka::app::scene::LC(right_));
-    c.declare(Text("*"));
+    c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
   }
 
 } // namespace helloworld

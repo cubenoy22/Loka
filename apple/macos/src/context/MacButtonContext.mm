@@ -4,6 +4,50 @@
 #include "app/Button.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
+#include "core/resource/Image.hpp"
+
+namespace
+{
+  static void ReleaseCapturedButtonBitmap(void *handle, void *)
+  {
+    NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
+    if (bitmap)
+    {
+      [bitmap release];
+    }
+  }
+
+  static bool CaptureButtonBitmap(NSView *view, loka::core::resource::Image &out)
+  {
+    if (!view)
+    {
+      return false;
+    }
+    NSRect bounds = [view bounds];
+    if (bounds.size.width <= 0 || bounds.size.height <= 0)
+    {
+      return false;
+    }
+    NSBitmapImageRep *bitmap = [view bitmapImageRepForCachingDisplayInRect:bounds];
+    if (!bitmap)
+    {
+      return false;
+    }
+    [bitmap retain];
+    [view cacheDisplayInRect:bounds toBitmapImageRep:bitmap];
+    out = loka::core::resource::Image::FromNative((void *)bitmap,
+                                                  (int)bounds.size.width,
+                                                  (int)bounds.size.height,
+                                                  &ReleaseCapturedButtonBitmap,
+                                                  0);
+    if (!out.isValid())
+    {
+      [bitmap release];
+      return false;
+    }
+    return true;
+  }
+}
 
 
 @interface LokaButtonTarget : NSObject
@@ -79,6 +123,11 @@ MacButtonContext::~MacButtonContext()
     [(id)button_ release];
   }
   button_ = 0;
+}
+
+bool MacButtonContext::captureBitmap(loka::core::resource::Image &out) const
+{
+  return CaptureButtonBitmap((NSView *)button_, out);
 }
 
 void MacButtonContext::handlePress()

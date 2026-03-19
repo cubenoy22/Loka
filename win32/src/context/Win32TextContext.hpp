@@ -22,11 +22,15 @@ namespace loka
   }
 }
 
-class Win32TextContext : public loka::app::scene::NativeNodeContext
+class Win32TextContext : public loka::app::scene::NativeNodeContext,
+                         public loka::app::scene::ICapturableBitmap
 {
 public:
   Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node);
   virtual ~Win32TextContext();
+  virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return this; }
+  virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return this; }
+  virtual bool captureBitmap(loka::core::resource::Image &out) const;
   void relayout(int x, int y, int width, int height);
 
 private:

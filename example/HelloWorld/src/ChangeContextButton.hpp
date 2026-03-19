@@ -31,7 +31,7 @@ namespace helloworld
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
-      c.declare(Button("Toggle Message", &this->toggleEvent_));
+      c.declare(Button("Toggle Message", &this->toggleEvent_).TEST_ID("HelloWorld.LeftPanel.ToggleMessageButton"));
     }
 
   private:

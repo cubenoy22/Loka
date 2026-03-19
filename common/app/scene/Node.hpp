@@ -26,6 +26,12 @@
 #include "app/scene/ability/CapturableBitmap.hpp"
 // StreamView is only needed by NodeComposition; avoid including here to reduce coupling
 
+#if defined(TEST_BUILD)
+#define TEST_ID(value) testId(value)
+#else
+#define TEST_ID(value) noop()
+#endif
+
 namespace loka
 {
   namespace app
@@ -438,6 +444,10 @@ namespace loka
       template <class DerivedT>
       struct TestIdDslMixin
       {
+        DerivedT &noop()
+        {
+          return *static_cast<DerivedT *>(this);
+        }
         DerivedT &testId(const char *value)
         {
           DerivedT *self = static_cast<DerivedT *>(this);

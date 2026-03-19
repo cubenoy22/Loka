@@ -41,6 +41,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainLeftPanel.cpp
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainRightPanel.cpp
   )
 
   add_executable(LokaFlowDslTests
@@ -51,11 +53,13 @@ if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
     ${PROJECT_SOURCE_DIR}/common
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/example/SimpleViewer/src
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
   )
   set_target_properties(LokaFlowDslTests PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
+  target_compile_definitions(LokaFlowDslTests PRIVATE TEST_BUILD)
 
   enable_testing()
   add_test(NAME LokaFlowDslTests COMMAND LokaFlowDslTests)

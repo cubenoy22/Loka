@@ -22,6 +22,7 @@
 #include "loka/core/State.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/dsl/testing/SceneTestFlow.hpp"
+#include "../example/HelloWorld/src/MainNode.hpp"
 
 namespace
 {
@@ -425,6 +426,19 @@ namespace
   loka::app::scene::BoundaryDefinition<StaticMacCellTextProps, StaticMacCellTextNode> StaticMacCellTextBoundary()
   {
     return loka::app::scene::StaticCompositionBoundary<StaticMacCellTextNode>();
+  }
+
+  bool captureBitmapByTestId(loka::app::scene::Scene &scene, const char *testId, loka::core::resource::Image &out)
+  {
+    ::loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+    assert(root != 0);
+    ::loka::app::scene::Node *node = findNodeByTestId(root, std::string(testId));
+    assert(node != 0);
+    ::loka::app::scene::NodeContext *context = node->getContext();
+    assert(context != 0);
+    const ::loka::app::scene::ICapturableBitmap *capturable = context->asCapturableBitmap();
+    assert(capturable != 0);
+    return capturable->captureBitmap(out);
   }
 }
 
@@ -895,4 +909,59 @@ void testMacScenePlatformForeignObservedChildReorderPreservesSiblingContexts()
   g_foreignPersistEditState = 0;
   g_foreignPersistSelectedIndexState = 0;
   g_foreignReorderState = 0;
+}
+
+void testMacScenePlatformHelloWorldCapturesTextAndButtons()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 640, 360)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDef;
+  loka::app::scene::Scene scene(mainDef.clone());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  loka::core::resource::Image initialMessage;
+  loka::core::resource::Image initialProbeButton;
+  assert(captureBitmapByTestId(scene, "HelloWorld.LeftPanel.Message", initialMessage));
+  assert(initialMessage.isValid());
+  assert(initialMessage.width() > 0);
+  assert(initialMessage.height() > 0);
+  assert(captureBitmapByTestId(scene, "HelloWorld.LeftPanel.ProbeButton", initialProbeButton));
+  assert(initialProbeButton.isValid());
+  assert(initialProbeButton.width() > 0);
+  assert(initialProbeButton.height() > 0);
+
+  loka::app::scene::Scene *scenePtr = &scene;
+  loka::dsl::FlowChain<loka::app::scene::Scene *, loka::app::scene::Scene *> addChain =
+      loka::dsl::Flow()
+      | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.AddButton")).input(&scenePtr);
+  assert(addChain.run());
+
+  loka::core::resource::Image updatedMessage;
+  assert(captureBitmapByTestId(scene, "HelloWorld.LeftPanel.Message", updatedMessage));
+  assert(updatedMessage.isValid());
+  assert(updatedMessage.width() > 0);
+  assert(updatedMessage.height() > 0);
+
+  loka::dsl::FlowChain<loka::app::scene::Scene *, loka::app::scene::Scene *> probeChain =
+      loka::dsl::Flow()
+      | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ProbeButton")).input(&scenePtr);
+  assert(probeChain.run());
+
+  loka::dsl::FlowChain<loka::app::scene::Scene *, loka::app::scene::Scene *> disableChain =
+      loka::dsl::Flow()
+      | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ToggleEnabledButton")).input(&scenePtr);
+  assert(disableChain.run());
+
+  loka::core::resource::Image disabledProbeButton;
+  assert(captureBitmapByTestId(scene, "HelloWorld.LeftPanel.ProbeButton", disabledProbeButton));
+  assert(disabledProbeButton.isValid());
+  assert(disabledProbeButton.width() > 0);
+  assert(disabledProbeButton.height() > 0);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
 }
