@@ -3687,7 +3687,7 @@ void testDynamicBoundaryObservedParentOwnedStateSwapsSampleLikeBranch()
   g_foreignBoundaryObservedState = 0;
 }
 
-void testPopupMenuSelectionStateDoesNotInvalidateScene()
+void testPopupMenuObservedStatesInvalidateSceneProps()
 {
   using loka::app::scene::IPlatformController;
   using loka::app::scene::Node;
@@ -3730,16 +3730,17 @@ void testPopupMenuSelectionStateDoesNotInvalidateScene()
     selectedIndex.set(1);
   }
 
-  assert(platform.calls_ == 1);
+  assert(platform.calls_ == 2);
+  assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
   assert(scene.flushInvalidation() == false);
-  assert(platform.calls_ == 1);
+  assert(platform.calls_ == 2);
 
   {
     loka::core::StateTrackerGuard guard(boundary->tracker());
     enabled.set(false);
   }
 
-  assert(platform.calls_ == 2);
+  assert(platform.calls_ == 3);
   assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
 
   scene.unmount();

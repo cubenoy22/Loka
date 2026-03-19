@@ -66,7 +66,7 @@ int main()
   testBoundaryDirtyPolicyStaticImmediateDynamicDeferred();
   testDynamicBoundaryObservedParentOwnedStateTriggersChildRecompose();
   testDynamicBoundaryObservedParentOwnedStateSwapsSampleLikeBranch();
-  testPopupMenuSelectionStateDoesNotInvalidateScene();
+  testPopupMenuObservedStatesInvalidateSceneProps();
   testOpenFileDialogStatesDoNotInvalidateScene();
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
