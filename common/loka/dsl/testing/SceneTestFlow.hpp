@@ -6,6 +6,7 @@
 
 #include "app/Text.hpp"
 #include "app/scene/Scene.hpp"
+#include "core/resource/Image.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/dsl/SnapFlow.hpp"
 #include "loka/platform/StringUTF8.hpp"
