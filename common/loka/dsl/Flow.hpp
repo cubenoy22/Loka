@@ -29,6 +29,14 @@ namespace loka {
       }
     };
 
+    enum {
+      FLOW_ERROR_KIND_FLOW = 1000
+    };
+
+    enum {
+      FLOW_ERROR_CODE_STEP_PENDING_TIMEOUT = 1001
+    };
+
     enum FlowHandleResult { FLOW_ERROR_UNHANDLED = 0, FLOW_ERROR_HANDLED = 1 };
 
     namespace flow_detail {
@@ -91,7 +99,7 @@ namespace loka {
 
       explicit StepSpec(int id, const AdapterT &adapter)
           : id_(id), adapter_(adapter), input_(0), finallyFn_(0),
-            finallyUser_(0) {
+            finallyUser_(0), pendingTimeout_(-1) {
       }
 
       StepSpec &input(const In *value) {
@@ -193,6 +201,11 @@ namespace loka {
         return *this;
       }
 
+      StepSpec &timeoutPending(int maxPendingRuns) {
+        this->pendingTimeout_ = maxPendingRuns;
+        return *this;
+      }
+
       static bool alwaysMatch(const FlowError &, void *) {
         return true;
       }
@@ -237,6 +250,10 @@ namespace loka {
         return this->finallyUser_;
       }
 
+      int pendingTimeout() const {
+        return this->pendingTimeout_;
+      }
+
     private:
       int id_;
       AdapterT adapter_;
@@ -248,6 +265,7 @@ namespace loka {
       std::vector<MutableStateFieldBinding> fieldBindings_;
       FinallyFn finallyFn_;
       void *finallyUser_;
+      int pendingTimeout_;
     };
 
     template <typename AdapterT>
@@ -548,7 +566,7 @@ namespace loka {
       typedef typename Spec::In In;
       typedef typename Spec::Out Out;
 
-      explicit RuntimeStep(const Spec &spec) : spec_(spec), out_() {
+      explicit RuntimeStep(const Spec &spec) : spec_(spec), out_(), pendingCount_(0) {
       }
 
       virtual FlowChainImpl::IRuntimeStep *clone() const {
@@ -573,6 +591,7 @@ namespace loka {
 
         StepRunStatus status = this->spec_.adapter().run(*in, this->out_, error);
         if (status == FLOW_STEP_SUCCEEDED) {
+          this->pendingCount_ = 0;
           const std::vector<typename Spec::SuccessCallback> &callbacks
               = this->spec_.successCallbacks();
           for (std::size_t i = 0; i < callbacks.size(); ++i) {
@@ -610,11 +629,22 @@ namespace loka {
         }
 
         if (status == FLOW_STEP_PENDING) {
-          return FLOW_STEP_PENDING;
+          ++this->pendingCount_;
+          if (this->spec_.pendingTimeout() >= 0
+              && this->pendingCount_ > this->spec_.pendingTimeout()) {
+            error.kind = FLOW_ERROR_KIND_FLOW;
+            error.code = FLOW_ERROR_CODE_STEP_PENDING_TIMEOUT;
+            status = FLOW_STEP_FAILED;
+          } else {
+            return FLOW_STEP_PENDING;
+          }
         }
+
+        this->pendingCount_ = 0;
 
         const std::vector<typename Spec::FailureCallback> &failureCallbacks
             = this->spec_.failureCallbacks();
+        this->pendingCount_ = 0;
         for (std::size_t i = 0; i < failureCallbacks.size(); ++i) {
           const typename Spec::FailureCallback &cb = failureCallbacks[i];
           if (cb.matcher != 0 && cb.matcher(error, cb.user)) {
@@ -642,6 +672,7 @@ namespace loka {
     private:
       Spec spec_;
       Out out_;
+      int pendingCount_;
     };
 
     template <typename InT, typename OutT> class FlowChain {

@@ -250,7 +250,6 @@ namespace {
     long tick_;
   };
 
-
   struct FlowTestPlatformContext : public PlatformContext {
     FlowTestPlatformContext()
         : createImageResult_(false),
@@ -341,12 +340,19 @@ namespace {
   };
 
   struct FlowScenePlatformController : public loka::app::scene::IPlatformController {
-    FlowScenePlatformController() : lastMaterialized_(0), lastFlags_(loka::app::scene::NODE_DIRTY_NONE), destroyed_(false) {
+    FlowScenePlatformController()
+        : lastMaterialized_(0),
+          lastFlags_(loka::app::scene::NODE_DIRTY_NONE),
+          lastFullRebuild_(false),
+          calls_(0),
+          destroyed_(false) {
     }
 
     virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild) {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+      ++calls_;
     }
 
     virtual void synchronize() {
@@ -362,7 +368,45 @@ namespace {
 
     loka::app::scene::Node *lastMaterialized_;
     loka::app::scene::NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+    int calls_;
     bool destroyed_;
+  };
+
+  struct FlowTestPlatformDirtyMaskAdapter {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::dsl::SnapRecord Out;
+
+    FlowTestPlatformDirtyMaskAdapter(const char *stepName,
+                                     const FlowScenePlatformController *platform,
+                                     long tick)
+        : stepName_(stepName ? stepName : ""),
+          platform_(platform),
+          tick_(tick) {
+    }
+
+    loka::dsl::StepRunStatus run(loka::app::scene::Scene *const &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &error) const {
+      if (!this->platform_) {
+        error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
+        error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      out.set("test", "SceneFlow");
+      out.set("step", this->stepName_.c_str());
+      out.set("node", "ScenePlatform");
+      out.setInt("tick", this->tick_);
+      out.setInt("scenario_version", 1);
+      out.set("status", loka::dsl::SnapStatusOk());
+      out.setInt("platform.dirty.mask", static_cast<long>(this->platform_->lastFlags_));
+      out.setInt("platform.materialized", this->platform_->lastMaterialized_ ? 1 : 0);
+      out.setInt("platform.full_rebuild", this->platform_->lastFullRebuild_ ? 1 : 0);
+      out.setInt("platform.calls", this->platform_->calls_);
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    std::string stepName_;
+    const FlowScenePlatformController *platform_;
+    long tick_;
   };
 } // namespace
 
@@ -609,6 +653,35 @@ void testLokaFlowDslV1Core() {
     assert(captured == 0);
     assert(order.size() == 1);
     assert(order[0] == 605);
+  }
+
+  {
+    int input = 37;
+    int calls = 0;
+    bool ready = false;
+    FlowErrorCapture capture = {0, 0, 0};
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 607};
+
+    loka::dsl::FlowChain<int, int> chain
+        = loka::dsl::Flow()
+          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+                .input(&input)
+                .timeoutPending(1)
+                .onFailure(&FlowTestMarker::captureFailure, &capture);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    assert(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
+    assert(calls == 1);
+    assert(capture.calls == 0);
+
+    assert(chain.resumeResult(1) == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(calls == 2);
+    assert(capture.calls == 1);
+    assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_FLOW);
+    assert(capture.code == loka::dsl::FLOW_ERROR_CODE_STEP_PENDING_TIMEOUT);
+    assert(order.size() == 1);
+    assert(order[0] == 607);
   }
 
   {
@@ -1149,6 +1222,49 @@ void testLokaFlowDslV1Core() {
     using namespace loka::app;
     using namespace loka::app::scene;
 
+    loka::core::MutableState<bool> enabledState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Button("Run").enabled(&enabledState).testId("MainButton");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord captured;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, FlowTestPlatformDirtyMaskAdapter("platform-props-dirty", &platform, 24))
+              .onSuccess(&captured)
+        | loka::dsl::Step(3, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_PROPS))
+        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
+
+    assert(okChain.run());
+    long dirtyMask = 0;
+    assert(captured.getInt("platform.dirty.mask", dirtyMask));
+    assert((dirtyMask & loka::app::scene::NODE_DIRTY_PROPS) != 0);
+    assert((dirtyMask & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
+    assert((dirtyMask & loka::app::scene::NODE_DIRTY_CHILD) == 0);
+    long fullRebuild = 1;
+    assert(captured.getInt("platform.full_rebuild", fullRebuild));
+    assert(fullRebuild == 0);
+    long platformCalls = 0;
+    assert(captured.getInt("platform.calls", platformCalls));
+    assert(platformCalls >= 1);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
     loka::core::MutableState<bool> showState(false);
 
     NodeComposition composition;
@@ -1173,6 +1289,92 @@ void testLokaFlowDslV1Core() {
 
     assert(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<bool> showState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    TextDefinition falseText = Text("Off").testId("OffText");
+    TextDefinition trueText = Text("On").testId("OnText");
+    root << composition.showIf(showState, trueText, falseText);
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord captured;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("OffText", "Off"))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
+        | loka::dsl::Step(3, loka::dsl::testing::CheckText("OnText", "On"))
+        | loka::dsl::Step(4, FlowTestPlatformDirtyMaskAdapter("platform-child-dirty", &platform, 16))
+              .onSuccess(&captured)
+        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_CHILD))
+        | loka::dsl::Step(6, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
+
+    assert(okChain.run());
+    long dirtyMask = 0;
+    assert(captured.getInt("platform.dirty.mask", dirtyMask));
+    assert((dirtyMask & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+    long fullRebuild = 0;
+    assert(captured.getInt("platform.full_rebuild", fullRebuild));
+    long platformCalls = 0;
+    assert(captured.getInt("platform.calls", platformCalls));
+    assert(platformCalls >= 1);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<int> fontSizeState(12);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text("Sized").attr(TextAttr().fontSize(&fontSizeState)).testId("SizedText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord captured;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckText("SizedText", "Sized"))
+        | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("platform-layout-dirty", &platform, 32))
+              .onSuccess(&captured)
+        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_LAYOUT))
+        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
+
+    assert(okChain.run());
+    long dirtyMask = 0;
+    assert(captured.getInt("platform.dirty.mask", dirtyMask));
+    assert((dirtyMask & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+    long fullRebuild = 1;
+    assert(captured.getInt("platform.full_rebuild", fullRebuild));
+    assert(fullRebuild == 0);
+    long platformCalls = 0;
+    assert(captured.getInt("platform.calls", platformCalls));
+    assert(platformCalls >= 1);
 
     scene.unmount();
   }
