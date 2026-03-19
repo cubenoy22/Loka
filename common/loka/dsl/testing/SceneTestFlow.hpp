@@ -70,6 +70,15 @@ namespace loka
       };
 
       template <>
+      struct SceneNodeCast< ::loka::app::scene::Node>
+      {
+        static ::loka::app::scene::Node *cast(::loka::app::scene::Node *node)
+        {
+          return node;
+        }
+      };
+
+      template <>
       struct SceneNodeCast< ::loka::app::TextNode>
       {
         static ::loka::app::TextNode *cast(::loka::app::scene::Node *node)
@@ -432,6 +441,129 @@ namespace loka
                                              long scenarioVersion)
       {
         return CaptureSceneAdapter(testName, stepName, tick, scenarioVersion);
+      }
+
+      struct ViewCaptureTarget
+      {
+        ViewCaptureTarget()
+            : node(0),
+              hasContext(false),
+              kind(0),
+              testId() {}
+
+        ::loka::app::scene::Node *node;
+        bool hasContext;
+        long kind;
+        std::string testId;
+      };
+
+      class CaptureViewTargetAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ViewCaptureTarget Out;
+
+        explicit CaptureViewTargetAdapter(const char *testId)
+            : testId_(testId ? testId : "") {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          ::loka::app::scene::Node *node = 0;
+          StepRunStatus lookupStatus = LookupNodeById< ::loka::app::scene::Node>(in, testId_, node, error);
+          if (lookupStatus != FLOW_STEP_SUCCEEDED)
+          {
+            return lookupStatus;
+          }
+          out.node = node;
+          out.hasContext = node && node->getContext() != 0;
+          out.kind = node ? static_cast<long>(node->kind()) : 0;
+          out.testId = node ? node->testId() : std::string();
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testId_;
+      };
+
+      inline CaptureViewTargetAdapter CaptureViewTarget(const char *testId)
+      {
+        return CaptureViewTargetAdapter(testId);
+      }
+
+      class CaptureViewTargetSnapAdapter
+      {
+      public:
+        typedef ViewCaptureTarget In;
+        typedef SnapRecord Out;
+
+        CaptureViewTargetSnapAdapter(const char *testName,
+                                     const char *stepName,
+                                     long tick,
+                                     long scenarioVersion,
+                                     const char *status = SnapStatusOk())
+            : testName_(testName ? testName : ""),
+              stepName_(stepName ? stepName : ""),
+              tick_(tick),
+              scenarioVersion_(scenarioVersion),
+              status_(status ? status : SnapStatusOk()) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          if (!in.node)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
+            return FLOW_STEP_FAILED;
+          }
+
+          BuildSnapV1RecordAdapter base(testName_.c_str(),
+                                        stepName_.c_str(),
+                                        in.testId.empty() ? "ViewTarget" : in.testId.c_str(),
+                                        tick_,
+                                        scenarioVersion_,
+                                        status_.c_str());
+          const int unused = 0;
+          FlowError ignored;
+          if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
+          {
+            error.kind = FLOW_ERROR_KIND_SNAP;
+            error.code = FLOW_ERROR_SNAP_WRITE_FAILED;
+            return FLOW_STEP_FAILED;
+          }
+
+          out.setInt("view.target.present", 1);
+          out.setInt("view.context.present", in.hasContext ? 1 : 0);
+          out.setInt("view.node.kind", in.kind);
+          if (!in.testId.empty())
+          {
+            out.set("view.node.test_id", in.testId.c_str());
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testName_;
+        std::string stepName_;
+        long tick_;
+        long scenarioVersion_;
+        std::string status_;
+      };
+
+      inline CaptureViewTargetSnapAdapter CaptureView(const char *testName,
+                                                      const char *stepName,
+                                                      long tick,
+                                                      long scenarioVersion,
+                                                      const char *status)
+      {
+        return CaptureViewTargetSnapAdapter(testName, stepName, tick, scenarioVersion, status);
+      }
+
+      inline CaptureViewTargetSnapAdapter CaptureView(const char *testName,
+                                                      const char *stepName,
+                                                      long tick,
+                                                      long scenarioVersion)
+      {
+        return CaptureViewTargetSnapAdapter(testName, stepName, tick, scenarioVersion);
       }
 
       class SnapTextAdapter
