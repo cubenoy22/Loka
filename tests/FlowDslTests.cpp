@@ -1112,6 +1112,36 @@ void testLokaFlowDslV1Core() {
     using namespace loka::app;
     using namespace loka::app::scene;
 
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << Text("Ready").testId("StatusText");
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord captured;
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CaptureScene("SceneFlow", "capture-scene", 40, 1))
+              .input(&scenePtr)
+              .onSuccess(&captured)
+        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapIntEquals("scene.root.present", 1))
+        | loka::dsl::Step(3, loka::dsl::testing::AssertSnapIntEquals("scene.root_boundary.present", 1))
+        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntGreaterEqual("scene.root.kind", 0));
+
+    assert(chain.run());
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
     loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Before"));
 
     NodeComposition composition;

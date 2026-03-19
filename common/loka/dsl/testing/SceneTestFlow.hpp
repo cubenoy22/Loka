@@ -353,6 +353,87 @@ namespace loka
         return CaptureNodeAdapter<NodeT>(testName, stepName, tick, scenarioVersion);
       }
 
+      class CaptureSceneAdapter
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef SnapRecord Out;
+
+        CaptureSceneAdapter(const char *testName,
+                            const char *stepName,
+                            long tick,
+                            long scenarioVersion,
+                            const char *status = SnapStatusOk())
+            : testName_(testName ? testName : ""),
+              stepName_(stepName ? stepName : ""),
+              tick_(tick),
+              scenarioVersion_(scenarioVersion),
+              status_(status ? status : SnapStatusOk()) {}
+
+        StepRunStatus run(In const &in, Out &out, FlowError &error) const
+        {
+          if (!in)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+
+          BuildSnapV1RecordAdapter base(testName_.c_str(),
+                                        stepName_.c_str(),
+                                        "Scene",
+                                        tick_,
+                                        scenarioVersion_,
+                                        status_.c_str());
+          const int unused = 0;
+          FlowError ignored;
+          if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
+          {
+            error.kind = FLOW_ERROR_KIND_SNAP;
+            error.code = FLOW_ERROR_SNAP_WRITE_FAILED;
+            return FLOW_STEP_FAILED;
+          }
+
+          ::loka::app::scene::Node *root = SceneTestAccess::rootNode(*in);
+          ::loka::app::scene::BoundaryNode *boundary = SceneTestAccess::rootBoundary(*in);
+          out.setInt("scene.root.present", root ? 1 : 0);
+          out.setInt("scene.root_boundary.present", boundary ? 1 : 0);
+          if (root)
+          {
+            out.setInt("scene.root.kind", static_cast<long>(root->kind()));
+            if (!root->testId().empty())
+            {
+              out.set("scene.root.test_id", root->testId().c_str());
+            }
+          }
+          return FLOW_STEP_SUCCEEDED;
+        }
+
+      private:
+        std::string testName_;
+        std::string stepName_;
+        long tick_;
+        long scenarioVersion_;
+        std::string status_;
+      };
+
+      inline CaptureSceneAdapter CaptureScene(const char *testName,
+                                             const char *stepName,
+                                             long tick,
+                                             long scenarioVersion,
+                                             const char *status)
+      {
+        return CaptureSceneAdapter(testName, stepName, tick, scenarioVersion, status);
+      }
+
+      inline CaptureSceneAdapter CaptureScene(const char *testName,
+                                             const char *stepName,
+                                             long tick,
+                                             long scenarioVersion)
+      {
+        return CaptureSceneAdapter(testName, stepName, tick, scenarioVersion);
+      }
+
       class SnapTextAdapter
       {
       public:
