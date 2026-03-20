@@ -40,7 +40,7 @@ namespace
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context,
                              const WindowProps &props)
-    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), pendingInvalidateRects_(), titleBarHeight_(0)
+    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), skipNextUpdateDraw_(false), pendingDebugDump_(false), pendingInvalidateRects_(), titleBarHeight_(0)
 {
   window_ = 0;
   context_ = new ToolboxWindowContext(
@@ -59,6 +59,7 @@ ToolboxWindow::~ToolboxWindow()
   this->titleState().unbind(&ToolboxWindow::TitleChangedThunk, this);
   this->frameState().unbind(&ToolboxWindow::FrameChangedThunk, this);
   needsInvalidate_ = false;
+  pendingDebugDump_ = false;
   pendingInvalidateRects_.clear();
   teardownScene();
   delete context_;
@@ -113,6 +114,10 @@ void ToolboxWindow::open()
   {
     title = "Loka";
   }
+  if (this->scenePlatformController_)
+  {
+    title += this->scenePlatformController_->debugStatsSummary();
+  }
   Str255 titleStr;
   CopyToPascalString(title, titleStr);
 
@@ -123,12 +128,25 @@ void ToolboxWindow::open()
 
 void ToolboxWindow::requestInvalidate()
 {
+  requestInvalidateWithReason("unknown");
+}
+
+void ToolboxWindow::requestInvalidateWithReason(const char *reason)
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->noteWindowFullRequest(reason);
+  }
   needsInvalidate_ = true;
   pendingInvalidateRects_.clear();
 }
 
 void ToolboxWindow::requestInvalidateRect(const Rect &rect)
 {
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->noteWindowRectRequest();
+  }
   if (needsInvalidate_)
   {
     return;
@@ -174,7 +192,12 @@ void ToolboxWindow::flushInvalidate()
   }
   if (needsInvalidate_)
   {
+    if (scenePlatformController_)
+    {
+      scenePlatformController_->noteWindowFlushFull();
+    }
     needsInvalidate_ = false;
+    skipNextUpdateDraw_ = true;
     pendingInvalidateRects_.clear();
     this->draw();
     return;
@@ -184,6 +207,11 @@ void ToolboxWindow::flushInvalidate()
   pendingInvalidateRects_.clear();
   for (std::size_t i = 0; i < rects.size(); ++i)
   {
+    if (scenePlatformController_)
+    {
+      scenePlatformController_->noteWindowFlushDirty();
+    }
+    skipNextUpdateDraw_ = true;
     this->drawDirty(rects[i]);
   }
 }
@@ -315,6 +343,7 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   {
     return;
   }
+  scenePlatformController_->noteWindowDirtyDraw();
   GrafPtr oldPort;
   GetPort(&oldPort);
   SetPort(window_);
@@ -325,6 +354,7 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   Rect bounds = window_->portRect;
   ClipRect(&bounds);
   SetPort(oldPort);
+  TitleChangedThunk(this);
 }
 
 void ToolboxWindow::invalidateWindow()
@@ -337,6 +367,10 @@ void ToolboxWindow::draw()
   if (!window_)
     return;
 
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->noteWindowDraw();
+  }
   GrafPtr oldPort;
   GetPort(&oldPort);
   SetPort(window_);
@@ -349,6 +383,7 @@ void ToolboxWindow::draw()
   }
 
   SetPort(oldPort);
+  TitleChangedThunk(this);
 }
 
 void ToolboxWindow::synchronizeScenePlatform()
@@ -373,6 +408,38 @@ void ToolboxWindow::mountScene()
   }
   scenePlatformController_ = new ToolboxScenePlatformController(this);
   currentScene->mount(scenePlatformController_);
+}
+
+bool ToolboxWindow::dumpDebugStatsToTimestampedFile()
+{
+  return scenePlatformController_ ? scenePlatformController_->dumpDebugStatsToTimestampedFile() : false;
+}
+
+void ToolboxWindow::resetDebugStats()
+{
+  if (scenePlatformController_)
+  {
+    scenePlatformController_->resetDebugStats();
+  }
+}
+
+void ToolboxWindow::requestDeferredDebugDump()
+{
+  pendingDebugDump_ = true;
+}
+
+void ToolboxWindow::flushDeferredDebugDump()
+{
+  if (!pendingDebugDump_)
+  {
+    return;
+  }
+  if (needsInvalidate_ || !pendingInvalidateRects_.empty())
+  {
+    return;
+  }
+  pendingDebugDump_ = false;
+  dumpDebugStatsToTimestampedFile();
 }
 
 void ToolboxWindow::teardownScene()

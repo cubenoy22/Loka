@@ -85,7 +85,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
 
   target_compile_definitions(LokaStaticVsDynamicClassic PRIVATE
     LOKA_RETRO68=1
-    LOKA_PROFILE_FUNC_TICKS=1
+    LOKA_PROFILE_FUNC_TICKS=0
   )
 
   set_target_properties(LokaStaticVsDynamicClassic PROPERTIES

@@ -318,9 +318,12 @@ namespace staticvsdynamic
           .state(this->actionEnabled_, true);
       this->bindForUi(this->sharedActionEvent_, this, &MainNode::handleSharedAction);
       this->bindForUi(this->toggleDetailsEvent_, this, &MainNode::toggleDetails);
+      this->bindForUi(this->profileToggleDetailsEvent_, this, &MainNode::profileToggleDetails);
       this->bindForUi(this->toggleFreezeEvent_, this, &MainNode::toggleFreeze);
       this->bindForUi(this->toggleEnabledEvent_, this, &MainNode::toggleEnabled);
       this->bindForUi(this->resetCountEvent_, this, &MainNode::resetCount);
+      this->bindForUi(this->dumpRedrawStatsEvent_, this, &MainNode::dumpRedrawStats);
+      this->bindForUi(this->resetRedrawStatsEvent_, this, &MainNode::resetRedrawStats);
       this->refreshLabels();
       this->scheduleComposeProbeRefresh();
       this->initialized_ = true;
@@ -366,15 +369,23 @@ namespace staticvsdynamic
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      loka::app::RowDefinition controls = loka::app::HStack();
-      controls << loka::app::Button("Toggle Details", &this->toggleDetailsEvent_)
-                     .controlTag(1001)
-               << loka::app::Button(this->dynamicFrozen_.get() ? "Unfreeze Dynamic" : "Freeze Dynamic", &this->toggleFreezeEvent_)
-                     .controlTag(1002)
-               << loka::app::Button("Toggle Enabled", &this->toggleEnabledEvent_)
-                     .controlTag(1003)
-               << loka::app::Button("Reset Count", &this->resetCountEvent_)
-                     .controlTag(1004);
+      loka::app::RowDefinition primaryControls = loka::app::HStack();
+      primaryControls << loka::app::Button("Toggle Details", &this->toggleDetailsEvent_)
+                             .controlTag(1001)
+                      << loka::app::Button(this->dynamicFrozen_.get() ? "Unfreeze Dynamic" : "Freeze Dynamic", &this->toggleFreezeEvent_)
+                             .controlTag(1002)
+                      << loka::app::Button("Toggle Enabled", &this->toggleEnabledEvent_)
+                             .controlTag(1003)
+                      << loka::app::Button("Reset Count", &this->resetCountEvent_)
+                             .controlTag(1004);
+
+      loka::app::RowDefinition profileControls = loka::app::HStack();
+      profileControls << loka::app::Button("Profile Toggle", &this->profileToggleDetailsEvent_)
+                             .controlTag(1007)
+                      << loka::app::Button("Dump Redraw Stats", &this->dumpRedrawStatsEvent_)
+                             .controlTag(1005)
+                      << loka::app::Button("Reset Redraw Stats", &this->resetRedrawStatsEvent_)
+                             .controlTag(1006);
 
       loka::app::RowDefinition panes = loka::app::HStack();
       panes << StaticPaneBoundary(this->makeStaticPaneProps())
@@ -383,7 +394,8 @@ namespace staticvsdynamic
       c.declare(loka::app::VStack()
                 << loka::app::Text("Static vs Dynamic")
                 << loka::app::Text("Toggle details to compare showIf against boundary child rebuild.")
-                << controls
+                << primaryControls
+                << profileControls
                 << panes);
     }
 
@@ -435,6 +447,17 @@ namespace staticvsdynamic
       this->refreshLabels();
     }
 
+    void profileToggleDetails()
+    {
+      this->resetRedrawStats();
+      this->toggleDetails();
+      ::Window *window = this->windowOrNull();
+      if (window)
+      {
+        window->requestDeferredDebugDump();
+      }
+    }
+
     void toggleFreeze()
     {
       bool frozen = !this->dynamicFrozen_.get();
@@ -450,6 +473,27 @@ namespace staticvsdynamic
     {
       this->sharedCount_.set(0, true);
       this->refreshLabels();
+    }
+
+    void dumpRedrawStats()
+    {
+      ::Window *window = this->windowOrNull();
+      if (!window)
+      {
+        return;
+      }
+      window->dumpDebugStatsToTimestampedFile();
+    }
+
+    void resetRedrawStats()
+    {
+      ::Window *window = this->windowOrNull();
+      if (!window)
+      {
+        return;
+      }
+      window->resetDebugStats();
+      this->refreshWindowTitle();
     }
 
     static void RefreshComposeProbeThunk(void *userData)
@@ -543,9 +587,12 @@ namespace staticvsdynamic
     loka::app::scene::BoundState<bool> actionEnabled_;
     loka::core::EmitterState sharedActionEvent_;
     loka::core::EmitterState toggleDetailsEvent_;
+    loka::core::EmitterState profileToggleDetailsEvent_;
     loka::core::EmitterState toggleFreezeEvent_;
     loka::core::EmitterState toggleEnabledEvent_;
     loka::core::EmitterState resetCountEvent_;
+    loka::core::EmitterState dumpRedrawStatsEvent_;
+    loka::core::EmitterState resetRedrawStatsEvent_;
     loka::app::scene::BoundaryNode *dynamicBoundary_;
   };
 }

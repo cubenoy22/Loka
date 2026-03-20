@@ -20,6 +20,7 @@ public:
   void ensureSceneMounted();
   void open();
   void requestInvalidate();
+  void requestInvalidateWithReason(const char *reason);
   void requestInvalidateRect(const Rect &rect);
   void flushInvalidate();
   bool hasPendingInvalidate() const;
@@ -33,8 +34,15 @@ public:
   void refreshFrame();
   virtual bool hasPendingScenePlatformSync() const;
   virtual void synchronizeScenePlatform();
+  virtual bool dumpDebugStatsToTimestampedFile();
+  virtual void resetDebugStats();
+  virtual void requestDeferredDebugDump();
+  virtual void flushDeferredDebugDump();
   WindowPtr window() const { return window_; }
   ToolboxWindowContext *context() const { return context_; }
+  ToolboxScenePlatformController *scenePlatformController() const { return scenePlatformController_; }
+  bool shouldSkipNextUpdateDraw() const { return skipNextUpdateDraw_; }
+  void clearSkipNextUpdateDraw() { skipNextUpdateDraw_ = false; }
 
 private:
   static void TitleChangedThunk(void *userData);
@@ -44,6 +52,8 @@ private:
   ToolboxScenePlatformController *scenePlatformController_;
   ToolboxWindowContext *context_;
   bool needsInvalidate_;
+  bool skipNextUpdateDraw_;
+  bool pendingDebugDump_;
   std::vector<Rect> pendingInvalidateRects_;
   short titleBarHeight_;
 

@@ -347,6 +347,10 @@ public:
   virtual ToolboxWindow *asToolboxWindow() { return 0; }
   virtual Win32Window *asWin32Window() { return 0; }
   virtual MacWindow *asMacWindow() { return 0; }
+  virtual bool dumpDebugStatsToTimestampedFile() { return false; }
+  virtual void resetDebugStats() {}
+  virtual void requestDeferredDebugDump() {}
+  virtual void flushDeferredDebugDump() {}
 
   bool hasPosition() const
   {

@@ -6,7 +6,9 @@
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <cstring>
+#include <cstdio>
 #include <string>
+#include <ctime>
 #include <Memory.h>
 #include <Menus.h>
 
@@ -49,6 +51,43 @@ namespace
 
   static const short kAutoControlBaseId = 128;
   static const short kImageFallbackHeightToolbox = 80;
+
+  void AppendInt(std::string &out, int value)
+  {
+    char buffer[32];
+    std::sprintf(buffer, "%d", value);
+    out += buffer;
+  }
+
+  void AppendDirtyFlagToken(std::string &out,
+                            loka::app::scene::NodeDirtyFlags flags,
+                            loka::app::scene::NodeDirtyFlags mask,
+                            char token)
+  {
+    if ((flags & mask) == 0)
+    {
+      return;
+    }
+    if (!out.empty())
+    {
+      out.push_back('+');
+    }
+    out.push_back(token);
+  }
+
+  std::string DirtyFlagsToString(loka::app::scene::NodeDirtyFlags flags)
+  {
+    if (flags == loka::app::scene::NODE_DIRTY_NONE)
+    {
+      return std::string("0");
+    }
+    std::string out;
+    AppendDirtyFlagToken(out, flags, loka::app::scene::NODE_DIRTY_INITIAL, 'I');
+    AppendDirtyFlagToken(out, flags, loka::app::scene::NODE_DIRTY_PROPS, 'P');
+    AppendDirtyFlagToken(out, flags, loka::app::scene::NODE_DIRTY_LAYOUT, 'L');
+    AppendDirtyFlagToken(out, flags, loka::app::scene::NODE_DIRTY_CHILD, 'C');
+    return out;
+  }
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
@@ -145,6 +184,16 @@ namespace
   bool UseBoundaryDirty(const loka::app::scene::BoundaryNode *boundary)
   {
     return boundary && boundary->parentBoundary() && boundary->hasLayoutBounds();
+  }
+
+  void BuildRedrawDumpFileName(char out[13], const std::tm &tmValue)
+  {
+    std::sprintf(out,
+                 "%02d%02d%02d%02d.TXT",
+                 tmValue.tm_mon + 1,
+                 tmValue.tm_mday,
+                 tmValue.tm_hour,
+                 tmValue.tm_sec);
   }
 
   Rect BoundaryToRect(const loka::app::scene::BoundaryNode *boundary, const Rect &fallback)
@@ -714,6 +763,7 @@ namespace
 ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *window)
     : window_(window),
       rootNode_(0),
+      pendingRootNode_(0),
       focusedText_(0),
       focusedEdit_(0),
       focusedRect_(),
@@ -727,7 +777,8 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       retiredTextEdits_(),
       clipRgn_(NewRgn()),
       hasClip_(false),
-      nextControlId_(kAutoControlBaseId)
+      nextControlId_(kAutoControlBaseId),
+      debugStats_()
 {
 }
 
@@ -766,20 +817,52 @@ short ToolboxScenePlatformController::allocateControlId()
 void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
 {
   rootNode_ = rootNode;
+  beginDebugStats(flags, fullRebuild);
+  debugStats_.lastRootPresent = (rootNode != 0);
   if (!window_ || !window_->window())
   {
     return;
   }
   if (inBatchUpdate_)
   {
+    ++debugStats_.batchOnChangeCount;
+    ++debugStats_.batchAccumOnChangeCount;
+    if (!debugStats_.batchAccumTrace.empty())
+    {
+      debugStats_.batchAccumTrace += " ";
+    }
+    debugStats_.batchAccumTrace += DirtyFlagsToString(flags);
+    debugStats_.batchAccumTrace += "/";
+    debugStats_.batchAccumTrace += fullRebuild ? "1" : "0";
+    debugStats_.batchAccumTrace += "/";
+    debugStats_.batchAccumTrace += rootNode ? "1" : "0";
+    if (!rootNode)
+    {
+      ++debugStats_.batchNullRootCount;
+      ++debugStats_.batchAccumNullRootCount;
+    }
+    if (fullRebuild)
+    {
+      ++debugStats_.batchFullRebuildCount;
+      debugStats_.batchAccumFullRebuild = true;
+    }
+    if (flags != loka::app::scene::NODE_DIRTY_NONE)
+    {
+      ++debugStats_.batchNonNoneFlagsCount;
+    }
+    debugStats_.batchAccumFlags = static_cast<loka::app::scene::NodeDirtyFlags>(debugStats_.batchAccumFlags | flags);
     pendingInvalidateFlags_ = static_cast<loka::app::scene::NodeDirtyFlags>(pendingInvalidateFlags_ | flags);
-    if (flags != loka::app::scene::NODE_DIRTY_NONE || fullRebuild)
+    if (rootNode)
+    {
+      pendingRootNode_ = rootNode;
+    }
+    if (fullRebuild)
     {
       pendingFullInvalidate_ = true;
     }
     return;
   }
-  requestInvalidateForChange(flags, fullRebuild);
+  requestInvalidateForChange(rootNode, flags, fullRebuild);
 }
 
 void ToolboxScenePlatformController::synchronize()
@@ -804,6 +887,8 @@ void ToolboxScenePlatformController::destroy()
 void ToolboxScenePlatformController::render()
 {
   PROFILE_FUNC();
+  ++debugStats_.renderCalls;
+  ++debugStats_.totalRenderCalls;
   if (!window_ || !window_->window() || !rootNode_)
   {
     return;
@@ -854,6 +939,7 @@ void ToolboxScenePlatformController::render()
   PROFILE_SECTION("layout");
   LayoutNode(rootNode_, state, this, 0);
   RenderNode(rootNode_, this);
+  refreshHitDebugStats();
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
     if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
@@ -898,6 +984,8 @@ void ToolboxScenePlatformController::render()
 
 void ToolboxScenePlatformController::renderDirty(const Rect &rect)
 {
+  ++debugStats_.renderDirtyCalls;
+  ++debugStats_.totalRenderDirtyCalls;
   if (!window_ || !window_->window() || !rootNode_)
   {
     return;
@@ -1228,20 +1316,13 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
     return;
   }
   beginBatchUpdate();
+  addPendingDirty(rect);
   mutableIndex->set(newIndex, true);
   if (onChange)
   {
     onChange->emit();
   }
   endBatchUpdate();
-  if (window_)
-  {
-    // Only redraw the popup rect, not the entire boundary
-    // Changed texts are handled separately via handleTextChanged
-    window_->drawDirty(rect);
-  }
-  // Note: Changed texts are handled via pendingTextStates_ in endBatchUpdate
-  // and subsequent scene invalidation cycle. No need to redraw ALL textHits.
 }
 
 bool ToolboxScenePlatformController::handleTextKey(char key)
@@ -1314,12 +1395,14 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
     CellHit &hit = cellHits_[i];
     if (hit.text == text)
     {
+      ++debugStats_.textChangedCellCount;
       if (inBatchUpdate_)
       {
         addPendingDirty(hit.rect);
       }
       else
       {
+        ++debugStats_.textChangedImmediateInvalidateCount;
         window_->drawDirty(hit.rect);
       }
       return;
@@ -1330,15 +1413,31 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
     TextHit &hit = textHits_[i];
     if (hit.text == text)
     {
+      ++debugStats_.textChangedTextCount;
       if (hit.needsRelayoutOnChange)
       {
+        ++debugStats_.relayoutTextCount;
+        std::string utf8;
+        if (loka::platform::CollectUtf8(text->get(), utf8))
+        {
+          if (utf8.size() > 48)
+          {
+            utf8.erase(48);
+          }
+          debugStats_.relayoutTextPreview = utf8;
+        }
+        else
+        {
+          debugStats_.relayoutTextPreview.clear();
+        }
         if (inBatchUpdate_)
         {
           pendingFullInvalidate_ = true;
         }
         else
         {
-          window_->requestInvalidate();
+          ++debugStats_.textChangedImmediateInvalidateCount;
+          window_->requestInvalidateWithReason("text_relayout");
         }
         return;
       }
@@ -1349,6 +1448,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       }
       else
       {
+        ++debugStats_.textChangedImmediateInvalidateCount;
         window_->drawDirty(hit.rect);
       }
       return;
@@ -1359,6 +1459,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
     EditHit &hit = editHits_[i];
     if (hit.text == text)
     {
+      ++debugStats_.textChangedEditHitCount;
       // Use text's own rect
       if (inBatchUpdate_)
       {
@@ -1366,6 +1467,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       }
       else
       {
+        ++debugStats_.textChangedImmediateInvalidateCount;
         window_->drawDirty(hit.rect);
       }
       return;
@@ -1375,12 +1477,14 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
   {
     if (editControls_[i].text == text)
     {
+      ++debugStats_.textChangedEditControlCount;
       if (inBatchUpdate_)
       {
         addPendingDirty(editControls_[i].rect);
         return;
       }
       syncEditTextFromState(editControls_[i]);
+      ++debugStats_.textChangedImmediateInvalidateCount;
       window_->drawDirty(editControls_[i].rect);
       return;
     }
@@ -1389,6 +1493,7 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
   // Add to pending list; will be resolved after next render populates textHits_.
   if (inBatchUpdate_)
   {
+    ++debugStats_.textChangedPendingCount;
     addPendingText(text);
   }
   else
@@ -1405,6 +1510,11 @@ void ToolboxScenePlatformController::beginBatchUpdate()
   pendingTextStates_.clear();
   pendingFullInvalidate_ = false;
   pendingInvalidateFlags_ = loka::app::scene::NODE_DIRTY_NONE;
+  pendingRootNode_ = 0;
+  debugStats_.batchAccumOnChangeCount = 0;
+  debugStats_.batchAccumNullRootCount = 0;
+  debugStats_.batchAccumFullRebuild = false;
+  debugStats_.batchAccumFlags = loka::app::scene::NODE_DIRTY_NONE;
 }
 
 void ToolboxScenePlatformController::endBatchUpdate()
@@ -1412,6 +1522,12 @@ void ToolboxScenePlatformController::endBatchUpdate()
   inBatchUpdate_ = false;
   if (window_)
   {
+    const bool handledLocalDirty = !pendingDirtyRects_.empty();
+    const bool handledLocalText = !pendingTextStates_.empty();
+    const bool skipFollowupInvalidate =
+        !pendingFullInvalidate_ &&
+        (pendingInvalidateFlags_ == loka::app::scene::NODE_DIRTY_PROPS) &&
+        (handledLocalDirty || handledLocalText);
     // Draw pending dirty rects without forcing full render
     // The textHits_ from previous render should still be valid for positions
     for (size_t i = 0; i < pendingDirtyRects_.size(); ++i)
@@ -1422,12 +1538,18 @@ void ToolboxScenePlatformController::endBatchUpdate()
     {
       redrawTextFor(pendingTextStates_[i]);
     }
-    requestInvalidateForChange(pendingInvalidateFlags_, pendingFullInvalidate_);
+    if (!skipFollowupInvalidate)
+    {
+      requestInvalidateForChange(pendingRootNode_ ? pendingRootNode_ : rootNode_,
+                                 pendingInvalidateFlags_,
+                                 pendingFullInvalidate_);
+    }
   }
   pendingDirtyRects_.clear();
   pendingTextStates_.clear();
   pendingFullInvalidate_ = false;
   pendingInvalidateFlags_ = loka::app::scene::NODE_DIRTY_NONE;
+  pendingRootNode_ = 0;
 }
 
 void ToolboxScenePlatformController::addPendingDirty(const Rect &rect)
@@ -1487,6 +1609,8 @@ bool ToolboxScenePlatformController::collectLocalBoundaryDirtyRects(loka::app::s
   loka::app::scene::BoundaryNode *boundary = node->asBoundary();
   if (boundary && boundary->parentBoundary() && boundary->hasLayoutBounds() && boundary->canApplyLocalCompositionDiff())
   {
+    ++debugStats_.rectInvalidateRequests;
+    ++debugStats_.totalRectInvalidateRequests;
     window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
     added = true;
   }
@@ -1506,8 +1630,20 @@ bool ToolboxScenePlatformController::collectLocalBoundaryDirtyRects(loka::app::s
   return added;
 }
 
-void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene::Node *rootNodeForChange,
+                                                               loka::app::scene::NodeDirtyFlags flags,
+                                                               bool fullRebuild)
 {
+  if (debugStats_.requestInvalidateCallCount == 0)
+  {
+    debugStats_.requestInvalidateFirstRootPresent = (rootNodeForChange != 0);
+    debugStats_.requestInvalidateFirstFullRebuild = fullRebuild;
+    debugStats_.requestInvalidateFirstFlags = flags;
+  }
+  ++debugStats_.requestInvalidateCallCount;
+  debugStats_.requestInvalidateRootPresent = (rootNodeForChange != 0);
+  debugStats_.requestInvalidateFullRebuild = fullRebuild;
+  debugStats_.requestInvalidateFlags = flags;
   if (!window_ || !window_->window())
   {
     return;
@@ -1516,9 +1652,11 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   {
     return;
   }
-  if (fullRebuild || !rootNode_)
+  if (fullRebuild || !rootNodeForChange)
   {
-    window_->requestInvalidate();
+    ++debugStats_.fullInvalidateRequests;
+    ++debugStats_.totalFullInvalidateRequests;
+    window_->requestInvalidateWithReason("full_rebuild_or_no_root");
     return;
   }
 
@@ -1526,20 +1664,211 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   bool queued = false;
   if (flags & loka::app::scene::NODE_DIRTY_CHILD)
   {
-    queued = collectLocalBoundaryDirtyRects(rootNode_, fallback);
+    queued = collectLocalBoundaryDirtyRects(rootNodeForChange, fallback);
   }
+  debugStats_.fallbackQueuedByChild = queued;
   if (!queued)
   {
-    loka::app::scene::BoundaryNode *boundary = rootNode_->asBoundary();
+    loka::app::scene::BoundaryNode *boundary = rootNodeForChange->asBoundary();
+    debugStats_.fallbackRootIsBoundary = (boundary != 0);
+    debugStats_.fallbackRootHasLayoutBounds = boundary && boundary->hasLayoutBounds();
     if (boundary && boundary->hasLayoutBounds())
     {
+      ++debugStats_.rectInvalidateRequests;
+      ++debugStats_.totalRectInvalidateRequests;
       window_->requestInvalidateRect(BoundaryToRect(boundary, fallback));
     }
     else
     {
-      window_->requestInvalidate();
+      debugStats_.fallbackUsedFullInvalidate = true;
+      ++debugStats_.rectInvalidateRequests;
+      ++debugStats_.totalRectInvalidateRequests;
+      window_->requestInvalidateRect(fallback);
     }
   }
+}
+
+void ToolboxScenePlatformController::beginDebugStats(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+{
+  debugStats_.changeSequence += 1;
+  debugStats_.totalChanges += 1;
+  debugStats_.lastFlags = flags;
+  debugStats_.lastFullRebuild = fullRebuild;
+  debugStats_.fullInvalidateRequests = 0;
+  debugStats_.rectInvalidateRequests = 0;
+  debugStats_.drawCalls = 0;
+  debugStats_.drawDirtyCalls = 0;
+  debugStats_.renderCalls = 0;
+  debugStats_.renderDirtyCalls = 0;
+  debugStats_.buttonHitCount = 0;
+  debugStats_.cellHitCount = 0;
+  debugStats_.editHitCount = 0;
+  debugStats_.textHitCount = 0;
+  debugStats_.popupHitCount = 0;
+  debugStats_.controlDrawCount = 0;
+  debugStats_.relayoutTextCount = 0;
+  debugStats_.textChangedCellCount = 0;
+  debugStats_.textChangedTextCount = 0;
+  debugStats_.textChangedEditHitCount = 0;
+  debugStats_.textChangedEditControlCount = 0;
+  debugStats_.textChangedPendingCount = 0;
+  debugStats_.textChangedImmediateInvalidateCount = 0;
+  debugStats_.batchOnChangeCount = 0;
+  debugStats_.batchNullRootCount = 0;
+  debugStats_.batchFullRebuildCount = 0;
+  debugStats_.batchNonNoneFlagsCount = 0;
+  debugStats_.relayoutTextPreview.clear();
+  debugStats_.fallbackRootIsBoundary = false;
+  debugStats_.fallbackRootHasLayoutBounds = false;
+  debugStats_.fallbackQueuedByChild = false;
+  debugStats_.fallbackUsedFullInvalidate = false;
+  debugStats_.windowFullRequestCount = 0;
+  debugStats_.windowRectRequestCount = 0;
+  debugStats_.windowFlushFullCount = 0;
+  debugStats_.windowFlushDirtyCount = 0;
+  debugStats_.windowUpdateEvtDrawCount = 0;
+  debugStats_.windowFullRequestSource = 0;
+  debugStats_.requestInvalidateCallCount = 0;
+  debugStats_.requestInvalidateFirstRootPresent = false;
+  debugStats_.requestInvalidateFirstFullRebuild = false;
+  debugStats_.requestInvalidateFirstFlags = loka::app::scene::NODE_DIRTY_NONE;
+  debugStats_.requestInvalidateRootPresent = false;
+  debugStats_.requestInvalidateFullRebuild = false;
+  debugStats_.requestInvalidateFlags = loka::app::scene::NODE_DIRTY_NONE;
+}
+
+void ToolboxScenePlatformController::refreshHitDebugStats()
+{
+  debugStats_.buttonHitCount = static_cast<int>(buttonHits_.size());
+  debugStats_.cellHitCount = static_cast<int>(cellHits_.size());
+  debugStats_.editHitCount = static_cast<int>(editHits_.size());
+  debugStats_.textHitCount = static_cast<int>(textHits_.size());
+  debugStats_.popupHitCount = static_cast<int>(popupHits_.size());
+}
+
+std::string ToolboxScenePlatformController::debugStatsSummary() const
+{
+  std::string out(" seq:");
+  AppendInt(out, static_cast<int>(debugStats_.changeSequence));
+  out += " f:";
+  out += DirtyFlagsToString(debugStats_.lastFlags);
+  out += debugStats_.lastFullRebuild ? "/full1" : "/full0";
+  out += " req:";
+  AppendInt(out, debugStats_.fullInvalidateRequests);
+  out += "/";
+  AppendInt(out, debugStats_.rectInvalidateRequests);
+  out += " draw:";
+  AppendInt(out, debugStats_.drawCalls);
+  out += "/";
+  AppendInt(out, debugStats_.drawDirtyCalls);
+  out += " render:";
+  AppendInt(out, debugStats_.renderCalls);
+  out += "/";
+  AppendInt(out, debugStats_.renderDirtyCalls);
+  out += " hits:";
+  AppendInt(out, debugStats_.buttonHitCount);
+  out += ",";
+  AppendInt(out, debugStats_.textHitCount);
+  out += ",";
+  AppendInt(out, debugStats_.popupHitCount);
+  out += ",";
+  AppendInt(out, debugStats_.editHitCount);
+  out += " ctl:";
+  AppendInt(out, debugStats_.controlDrawCount);
+  return out;
+}
+
+void ToolboxScenePlatformController::resetDebugStats()
+{
+  debugStats_ = DebugStats();
+}
+
+bool ToolboxScenePlatformController::dumpDebugStatsToTimestampedFile() const
+{
+  std::time_t now = std::time(0);
+  std::tm *local = std::localtime(&now);
+  if (!local)
+  {
+    return false;
+  }
+
+  char path[13];
+  BuildRedrawDumpFileName(path, *local);
+
+  FILE *fp = std::fopen(path, "wb");
+  if (!fp)
+  {
+    return false;
+  }
+
+  std::fprintf(fp,
+               "generated=%04d-%02d-%02d %02d:%02d:%02d\n",
+               local->tm_year + 1900,
+               local->tm_mon + 1,
+               local->tm_mday,
+               local->tm_hour,
+               local->tm_min,
+               local->tm_sec);
+  std::fprintf(fp, "last.seq=%lu\n", debugStats_.changeSequence);
+  std::fprintf(fp, "last.flags=%s\n", DirtyFlagsToString(debugStats_.lastFlags).c_str());
+  std::fprintf(fp, "last.full_rebuild=%d\n", debugStats_.lastFullRebuild ? 1 : 0);
+  std::fprintf(fp, "last.root_present=%d\n", debugStats_.lastRootPresent ? 1 : 0);
+  std::fprintf(fp, "last.invalidate.full=%d\n", debugStats_.fullInvalidateRequests);
+  std::fprintf(fp, "last.invalidate.rect=%d\n", debugStats_.rectInvalidateRequests);
+  std::fprintf(fp, "last.draw=%d\n", debugStats_.drawCalls);
+  std::fprintf(fp, "last.draw_dirty=%d\n", debugStats_.drawDirtyCalls);
+  std::fprintf(fp, "last.render=%d\n", debugStats_.renderCalls);
+  std::fprintf(fp, "last.render_dirty=%d\n", debugStats_.renderDirtyCalls);
+  std::fprintf(fp, "last.hits.button=%d\n", debugStats_.buttonHitCount);
+  std::fprintf(fp, "last.hits.cell=%d\n", debugStats_.cellHitCount);
+  std::fprintf(fp, "last.hits.edit=%d\n", debugStats_.editHitCount);
+  std::fprintf(fp, "last.hits.text=%d\n", debugStats_.textHitCount);
+  std::fprintf(fp, "last.hits.popup=%d\n", debugStats_.popupHitCount);
+  std::fprintf(fp, "last.control_draws=%d\n", debugStats_.controlDrawCount);
+  std::fprintf(fp, "last.relayout_texts=%d\n", debugStats_.relayoutTextCount);
+  std::fprintf(fp, "last.relayout_preview=%s\n", debugStats_.relayoutTextPreview.c_str());
+  std::fprintf(fp, "last.text_changed.cell=%d\n", debugStats_.textChangedCellCount);
+  std::fprintf(fp, "last.text_changed.text=%d\n", debugStats_.textChangedTextCount);
+  std::fprintf(fp, "last.text_changed.edit_hit=%d\n", debugStats_.textChangedEditHitCount);
+  std::fprintf(fp, "last.text_changed.edit_control=%d\n", debugStats_.textChangedEditControlCount);
+  std::fprintf(fp, "last.text_changed.pending=%d\n", debugStats_.textChangedPendingCount);
+  std::fprintf(fp, "last.text_changed.immediate=%d\n", debugStats_.textChangedImmediateInvalidateCount);
+  std::fprintf(fp, "last.batch.on_change=%d\n", debugStats_.batchOnChangeCount);
+  std::fprintf(fp, "last.batch.null_root=%d\n", debugStats_.batchNullRootCount);
+  std::fprintf(fp, "last.batch.full_rebuild=%d\n", debugStats_.batchFullRebuildCount);
+  std::fprintf(fp, "last.batch.non_none_flags=%d\n", debugStats_.batchNonNoneFlagsCount);
+  std::fprintf(fp, "last.batch.accum.on_change=%d\n", debugStats_.batchAccumOnChangeCount);
+  std::fprintf(fp, "last.batch.accum.null_root=%d\n", debugStats_.batchAccumNullRootCount);
+  std::fprintf(fp, "last.batch.accum.full_rebuild=%d\n", debugStats_.batchAccumFullRebuild ? 1 : 0);
+  std::fprintf(fp, "last.batch.accum.flags=%s\n", DirtyFlagsToString(debugStats_.batchAccumFlags).c_str());
+  std::fprintf(fp, "last.batch.accum.trace=%s\n", debugStats_.batchAccumTrace.c_str());
+  std::fprintf(fp, "last.fallback.root_is_boundary=%d\n", debugStats_.fallbackRootIsBoundary ? 1 : 0);
+  std::fprintf(fp, "last.fallback.root_has_layout_bounds=%d\n", debugStats_.fallbackRootHasLayoutBounds ? 1 : 0);
+  std::fprintf(fp, "last.fallback.queued_by_child=%d\n", debugStats_.fallbackQueuedByChild ? 1 : 0);
+  std::fprintf(fp, "last.fallback.used_full_invalidate=%d\n", debugStats_.fallbackUsedFullInvalidate ? 1 : 0);
+  std::fprintf(fp, "last.window.request_full=%d\n", debugStats_.windowFullRequestCount);
+  std::fprintf(fp, "last.window.request_full_source=%s\n", debugStats_.windowFullRequestSource ? debugStats_.windowFullRequestSource : "");
+  std::fprintf(fp, "last.request_invalidate.calls=%d\n", debugStats_.requestInvalidateCallCount);
+  std::fprintf(fp, "last.request_invalidate.first.root_present=%d\n", debugStats_.requestInvalidateFirstRootPresent ? 1 : 0);
+  std::fprintf(fp, "last.request_invalidate.first.full_rebuild=%d\n", debugStats_.requestInvalidateFirstFullRebuild ? 1 : 0);
+  std::fprintf(fp, "last.request_invalidate.first.flags=%s\n", DirtyFlagsToString(debugStats_.requestInvalidateFirstFlags).c_str());
+  std::fprintf(fp, "last.request_invalidate.root_present=%d\n", debugStats_.requestInvalidateRootPresent ? 1 : 0);
+  std::fprintf(fp, "last.request_invalidate.full_rebuild=%d\n", debugStats_.requestInvalidateFullRebuild ? 1 : 0);
+  std::fprintf(fp, "last.request_invalidate.flags=%s\n", DirtyFlagsToString(debugStats_.requestInvalidateFlags).c_str());
+  std::fprintf(fp, "last.window.request_rect=%d\n", debugStats_.windowRectRequestCount);
+  std::fprintf(fp, "last.window.flush_full=%d\n", debugStats_.windowFlushFullCount);
+  std::fprintf(fp, "last.window.flush_dirty=%d\n", debugStats_.windowFlushDirtyCount);
+  std::fprintf(fp, "last.window.updateevt_draw=%d\n", debugStats_.windowUpdateEvtDrawCount);
+  std::fprintf(fp, "total.changes=%lu\n", debugStats_.totalChanges);
+  std::fprintf(fp, "total.invalidate.full=%d\n", debugStats_.totalFullInvalidateRequests);
+  std::fprintf(fp, "total.invalidate.rect=%d\n", debugStats_.totalRectInvalidateRequests);
+  std::fprintf(fp, "total.draw=%d\n", debugStats_.totalDrawCalls);
+  std::fprintf(fp, "total.draw_dirty=%d\n", debugStats_.totalDrawDirtyCalls);
+  std::fprintf(fp, "total.render=%d\n", debugStats_.totalRenderCalls);
+  std::fprintf(fp, "total.render_dirty=%d\n", debugStats_.totalRenderDirtyCalls);
+  std::fprintf(fp, "total.control_draws=%d\n", debugStats_.totalControlDrawCount);
+  std::fclose(fp);
+  return true;
 }
 
 void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
@@ -1930,6 +2259,8 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
       continue;
     }
     Draw1Control(binding.control);
+    ++debugStats_.controlDrawCount;
+    ++debugStats_.totalControlDrawCount;
     binding.needsDraw = false;
   }
 }

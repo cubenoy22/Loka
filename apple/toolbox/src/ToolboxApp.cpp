@@ -1,5 +1,6 @@
 #include "ToolboxApp.hpp"
 #include "ToolboxWindow.hpp"
+#include "ToolboxScenePlatformController.hpp"
 
 #include <Dialogs.h>
 #include <Events.h>
@@ -78,6 +79,15 @@ void ToolboxApp::run()
           toolboxWindow->flushInvalidate();
         }
       }
+      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      {
+        Window *w = (*it)->asWindow();
+        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
+        if (toolboxWindow)
+        {
+          toolboxWindow->flushDeferredDebugDump();
+        }
+      }
     }
     // TODO: Re-enable invalidation once Classic update flow is stable.
     if (group_)
@@ -110,6 +120,15 @@ void ToolboxApp::run()
           ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
+            if (toolboxWindow->shouldSkipNextUpdateDraw())
+            {
+              toolboxWindow->clearSkipNextUpdateDraw();
+              break;
+            }
+            if (toolboxWindow->scenePlatformController())
+            {
+              toolboxWindow->scenePlatformController()->noteWindowUpdateEvtDraw();
+            }
             BeginUpdate(target);
             toolboxWindow->draw();
             EndUpdate(target);
