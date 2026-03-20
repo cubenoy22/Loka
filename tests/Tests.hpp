@@ -56,6 +56,8 @@ void testOpenFileDialogStatesDoNotInvalidateScene();
 void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
 void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
+void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
+void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
 void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
 void testStaticButtonAndCellTextAreOwnedPerDefinition();
 void testMenuItemEnabledBoolDoesNotUseSharedStaticState();

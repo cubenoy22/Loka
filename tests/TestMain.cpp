@@ -71,6 +71,8 @@ int main()
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
   testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
+  testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
+  testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
   testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
   testStaticButtonAndCellTextAreOwnedPerDefinition();
   testMenuItemEnabledBoolDoesNotUseSharedStaticState();
