@@ -57,6 +57,7 @@ void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
 void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
 void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
+void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild();
 void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
 void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
 void testStaticButtonAndCellTextAreOwnedPerDefinition();

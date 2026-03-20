@@ -72,6 +72,7 @@ int main()
   testSceneRequestInvalidateDefersUntilFlush();
   testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
   testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
+  testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild();
   testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
   testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
   testStaticButtonAndCellTextAreOwnedPerDefinition();

@@ -2653,6 +2653,7 @@ namespace
     return false;
   }
 
+
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
@@ -4206,6 +4207,208 @@ void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild()
   assert(platform.calls_ >= 2);
   assert((platform.lastFlags_ & NODE_DIRTY_CHILD) != 0);
   assert((platform.lastFlags_ & NODE_DIRTY_PROPS) != 0);
+  assert(platform.lastFullRebuild_ == true);
+
+  scene.unmount();
+}
+
+void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  struct MixedSharedRefs
+  {
+    MixedSharedRefs() : detailsVisible_(0), statusText_(0) {}
+    loka::core::State<bool> *detailsVisible_;
+    loka::core::State<loka::core::String> *statusText_;
+  };
+
+  class MixedStaticPaneNode;
+  struct MixedStaticPaneTypeTag {};
+  struct MixedStaticPaneProps : public NodePropsBase<MixedStaticPaneProps>
+  {
+    typedef MixedStaticPaneNode NodeType;
+    typedef MixedStaticPaneTypeTag TypeTag;
+    MixedSharedRefs shared_;
+
+    bool operator<(const PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const MixedStaticPaneProps &other = static_cast<const MixedStaticPaneProps &>(rhs);
+      if (this->shared_.detailsVisible_ != other.shared_.detailsVisible_)
+      {
+        return this->shared_.detailsVisible_ < other.shared_.detailsVisible_;
+      }
+      return this->shared_.statusText_ < other.shared_.statusText_;
+    }
+  };
+
+  class MixedStaticPaneNode : public StaticCompositionBoundaryNodeBase<MixedStaticPaneProps>
+  {
+  public:
+    MixedStaticPaneNode(const MixedStaticPaneProps &p)
+        : StaticCompositionBoundaryNodeBase<MixedStaticPaneProps>(p) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      assert(this->props.shared_.detailsVisible_ != 0);
+      assert(this->props.shared_.statusText_ != 0);
+      c.declare(VStack()
+                << Text(this->props.shared_.statusText_).tag(10)
+                << c.showIf(*this->props.shared_.detailsVisible_, Text("Static details visible").tag(100)));
+    }
+  };
+
+  class MixedDynamicPaneNode;
+  struct MixedDynamicPaneTypeTag {};
+  struct MixedDynamicPaneProps : public NodePropsBase<MixedDynamicPaneProps>
+  {
+    typedef MixedDynamicPaneNode NodeType;
+    typedef MixedDynamicPaneTypeTag TypeTag;
+    MixedSharedRefs shared_;
+
+    bool operator<(const PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const MixedDynamicPaneProps &other = static_cast<const MixedDynamicPaneProps &>(rhs);
+      if (this->shared_.detailsVisible_ != other.shared_.detailsVisible_)
+      {
+        return this->shared_.detailsVisible_ < other.shared_.detailsVisible_;
+      }
+      return this->shared_.statusText_ < other.shared_.statusText_;
+    }
+  };
+
+  class MixedDynamicPaneNode : public DynamicCompositionBoundaryNodeBase<MixedDynamicPaneProps>
+  {
+  public:
+    MixedDynamicPaneNode(const MixedDynamicPaneProps &p)
+        : DynamicCompositionBoundaryNodeBase<MixedDynamicPaneProps>(p) {}
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      assert(this->props.shared_.detailsVisible_ != 0);
+      assert(this->props.shared_.statusText_ != 0);
+      ColumnDefinition column = VStack();
+      column << Text(this->props.shared_.statusText_).tag(20);
+      if (this->props.shared_.detailsVisible_->get())
+      {
+        column << Text("Dynamic details visible").tag(21);
+      }
+      else
+      {
+        column << Button("Dynamic details hidden").tag(21);
+      }
+      c.declare(column);
+    }
+
+    virtual void declareObservedStates(ObservedStateRegistrar &registrar)
+    {
+      if (this->props.shared_.detailsVisible_)
+      {
+        registrar.observe(this->props.shared_.detailsVisible_, NODE_DIRTY_CHILD);
+      }
+    }
+  };
+
+  class MixedRootNode : public BoundaryNodeFor<MixedRootNode>
+  {
+  public:
+    typedef BoundaryPropsFor<MixedRootNode> PropsType;
+
+    MixedRootNode(const PropsType &p)
+        : BoundaryNodeFor<MixedRootNode>(PropsType(p)),
+          initialized_(false),
+          detailsVisible_(),
+          statusText_() {}
+
+    virtual void attachNode(NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      c.declareStates()
+          .state(this->detailsVisible_, false)
+          .state(this->statusText_, loka::core::String::Literal("Details: hidden"));
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      MixedSharedRefs refs;
+      refs.detailsVisible_ = this->detailsVisible_.state();
+      refs.statusText_ = this->statusText_.state();
+
+      MixedStaticPaneProps staticProps;
+      staticProps.shared_ = refs;
+
+      MixedDynamicPaneProps dynamicProps;
+      dynamicProps.shared_ = refs;
+
+      c.declare(HStack()
+                << BoundaryDefinition<MixedStaticPaneProps, MixedStaticPaneNode>(staticProps).tag(110)
+                << BoundaryDefinition<MixedDynamicPaneProps, MixedDynamicPaneNode>(dynamicProps).tag(120));
+    }
+
+    void toggleDetailsOnly()
+    {
+      this->detailsVisible_.set(!this->detailsVisible_.get(), true);
+    }
+
+  private:
+    bool initialized_;
+    BoundState<bool> detailsVisible_;
+    BoundState<loka::core::String> statusText_;
+  };
+
+  class DirtyCapturePlatformController : public IPlatformController
+  {
+  public:
+    DirtyCapturePlatformController()
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      lastMaterialized_ = rootNode;
+      lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    Node *lastMaterialized_;
+    NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+    int calls_;
+  } platform;
+
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<MixedRootNode>, MixedRootNode>()));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  MixedRootNode *root = static_cast<MixedRootNode *>(SceneTestAccess::rootBoundary(scene));
+  assert(root != 0);
+  assert(platform.calls_ == 1);
+
+  {
+    loka::core::StateTrackerGuard guard(root->tracker());
+    root->toggleDetailsOnly();
+  }
+  scene.flushInvalidation();
+
+  assert(platform.calls_ >= 2);
+  assert((platform.lastFlags_ & NODE_DIRTY_CHILD) != 0);
+  assert((platform.lastFlags_ & NODE_DIRTY_PROPS) == 0);
   assert(platform.lastFullRebuild_ == true);
 
   scene.unmount();
