@@ -334,7 +334,7 @@ namespace loka
             compositionDiff_.fullRebuild = false;
           }
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
-          if (compositionDiff_.fullRebuild && subtreeHasLocalCompositionDiff(rootNode_))
+          if (compositionDiff_.fullRebuild && rootBoundaryCanApplyLocalCompositionDiff(rootNode_))
           {
             compositionDiff_.fullRebuild = false;
           }
@@ -374,31 +374,14 @@ namespace loka
           }
         }
 
-        static bool subtreeHasLocalCompositionDiff(Node *node)
+        static bool rootBoundaryCanApplyLocalCompositionDiff(Node *node)
         {
           if (!node)
           {
             return false;
           }
           BoundaryNode *boundary = node->asBoundary();
-          if (boundary && boundary->canApplyLocalCompositionDiff())
-          {
-            return true;
-          }
-          INestable *nestable = node->asNestable();
-          if (!nestable)
-          {
-            return false;
-          }
-          loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
-          for (Node *child = it.next(); child; child = it.next())
-          {
-            if (subtreeHasLocalCompositionDiff(child))
-            {
-              return true;
-            }
-          }
-          return false;
+          return boundary && boundary->canApplyLocalCompositionDiff();
         }
 
         static size_t countLiveNodes(Node *node)
