@@ -48,7 +48,7 @@ namespace
                  local.tm_mon + 1,
                  local.tm_mday,
                  local.tm_hour,
-                 local.tm_min);
+                 local.tm_sec);
   }
 }
 
