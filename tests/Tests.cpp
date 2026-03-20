@@ -2625,6 +2625,34 @@ namespace
     return 0;
   }
 
+  static bool subtreeHasApplicableLocalDiffRecursive(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    loka::app::scene::BoundaryNode *boundary = node->asBoundary();
+    if (boundary && boundary->canApplyLocalCompositionDiff())
+    {
+      return true;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return false;
+    }
+    loka::app::scene::Node *child = nestable->childrenHead();
+    while (child)
+    {
+      if (subtreeHasApplicableLocalDiffRecursive(child))
+      {
+        return true;
+      }
+      child = child->nextInComposition;
+    }
+    return false;
+  }
+
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
 
@@ -4391,6 +4419,7 @@ void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState()
   assert(staticBoundary->canApplyLocalCompositionDiff() == false);
   assert(dynamicBoundary->hasLocalCompositionDiff() == true);
   assert(dynamicBoundary->canApplyLocalCompositionDiff() == true);
+  assert(subtreeHasApplicableLocalDiffRecursive(rootNode) == true);
   assert((platform.lastFlags_ & NODE_DIRTY_CHILD) != 0);
   assert((platform.lastFlags_ & NODE_DIRTY_PROPS) != 0);
   assert(platform.lastFullRebuild_ == true);
