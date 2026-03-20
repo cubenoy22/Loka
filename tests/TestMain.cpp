@@ -74,6 +74,8 @@ int main()
   testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
   testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild();
   testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
+  testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild();
+  testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild();
   testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
   testStaticButtonAndCellTextAreOwnedPerDefinition();
   testMenuItemEnabledBoolDoesNotUseSharedStaticState();

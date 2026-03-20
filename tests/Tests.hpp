@@ -59,6 +59,8 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
 void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
 void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild();
 void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
+void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild();
+void testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild();
 void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
 void testStaticButtonAndCellTextAreOwnedPerDefinition();
 void testMenuItemEnabledBoolDoesNotUseSharedStaticState();

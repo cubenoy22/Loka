@@ -6,6 +6,7 @@
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 #include "app/scene/node/Boundary.hpp"
+#include "debug/ToolboxSceneDebugStats.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <TextEdit.h>
@@ -150,129 +151,6 @@ private:
     std::string lastText;
   };
 
-  struct DebugStats
-  {
-    DebugStats()
-        : changeSequence(0),
-          totalChanges(0),
-          lastFlags(loka::app::scene::NODE_DIRTY_NONE),
-          lastFullRebuild(false),
-          lastRootPresent(false),
-          fullInvalidateRequests(0),
-          rectInvalidateRequests(0),
-          drawCalls(0),
-          drawDirtyCalls(0),
-          renderCalls(0),
-          renderDirtyCalls(0),
-          buttonHitCount(0),
-          cellHitCount(0),
-          editHitCount(0),
-          textHitCount(0),
-          popupHitCount(0),
-          controlDrawCount(0),
-          relayoutTextCount(0),
-          textChangedCellCount(0),
-          textChangedTextCount(0),
-          textChangedEditHitCount(0),
-          textChangedEditControlCount(0),
-          textChangedPendingCount(0),
-          textChangedImmediateInvalidateCount(0),
-          batchOnChangeCount(0),
-          batchNullRootCount(0),
-          batchFullRebuildCount(0),
-          batchNonNoneFlagsCount(0),
-          batchAccumOnChangeCount(0),
-          batchAccumNullRootCount(0),
-          batchAccumFullRebuild(false),
-          batchAccumFlags(loka::app::scene::NODE_DIRTY_NONE),
-          batchAccumTrace(),
-          fallbackRootIsBoundary(false),
-          fallbackRootHasLayoutBounds(false),
-          fallbackQueuedByChild(false),
-          fallbackUsedFullInvalidate(false),
-          windowFullRequestCount(0),
-          windowRectRequestCount(0),
-          windowFlushFullCount(0),
-          windowFlushDirtyCount(0),
-          windowUpdateEvtDrawCount(0),
-          windowFullRequestSource(0),
-          requestInvalidateCallCount(0),
-          requestInvalidateFirstRootPresent(false),
-          requestInvalidateFirstFullRebuild(false),
-          requestInvalidateFirstFlags(loka::app::scene::NODE_DIRTY_NONE),
-          requestInvalidateRootPresent(false),
-          requestInvalidateFullRebuild(false),
-          requestInvalidateFlags(loka::app::scene::NODE_DIRTY_NONE),
-          totalFullInvalidateRequests(0),
-          totalRectInvalidateRequests(0),
-          totalDrawCalls(0),
-          totalDrawDirtyCalls(0),
-          totalRenderCalls(0),
-          totalRenderDirtyCalls(0),
-          totalControlDrawCount(0)
-    {
-    }
-
-    unsigned long changeSequence;
-    unsigned long totalChanges;
-    loka::app::scene::NodeDirtyFlags lastFlags;
-    bool lastFullRebuild;
-    bool lastRootPresent;
-    int fullInvalidateRequests;
-    int rectInvalidateRequests;
-    int drawCalls;
-    int drawDirtyCalls;
-    int renderCalls;
-    int renderDirtyCalls;
-    int buttonHitCount;
-    int cellHitCount;
-    int editHitCount;
-    int textHitCount;
-    int popupHitCount;
-    int controlDrawCount;
-    int relayoutTextCount;
-    int textChangedCellCount;
-    int textChangedTextCount;
-    int textChangedEditHitCount;
-    int textChangedEditControlCount;
-    int textChangedPendingCount;
-    int textChangedImmediateInvalidateCount;
-    int batchOnChangeCount;
-    int batchNullRootCount;
-    int batchFullRebuildCount;
-    int batchNonNoneFlagsCount;
-    int batchAccumOnChangeCount;
-    int batchAccumNullRootCount;
-    bool batchAccumFullRebuild;
-    loka::app::scene::NodeDirtyFlags batchAccumFlags;
-    std::string batchAccumTrace;
-    std::string relayoutTextPreview;
-    bool fallbackRootIsBoundary;
-    bool fallbackRootHasLayoutBounds;
-    bool fallbackQueuedByChild;
-    bool fallbackUsedFullInvalidate;
-    int windowFullRequestCount;
-    int windowRectRequestCount;
-    int windowFlushFullCount;
-    int windowFlushDirtyCount;
-    int windowUpdateEvtDrawCount;
-    const char *windowFullRequestSource;
-    int requestInvalidateCallCount;
-    bool requestInvalidateFirstRootPresent;
-    bool requestInvalidateFirstFullRebuild;
-    loka::app::scene::NodeDirtyFlags requestInvalidateFirstFlags;
-    bool requestInvalidateRootPresent;
-    bool requestInvalidateFullRebuild;
-    loka::app::scene::NodeDirtyFlags requestInvalidateFlags;
-    int totalFullInvalidateRequests;
-    int totalRectInvalidateRequests;
-    int totalDrawCalls;
-    int totalDrawDirtyCalls;
-    int totalRenderCalls;
-    int totalRenderDirtyCalls;
-    int totalControlDrawCount;
-  };
-
   ToolboxWindow *window_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::Node *pendingRootNode_;
@@ -300,7 +178,7 @@ private:
   RgnHandle clipRgn_;
   bool hasClip_;
   short nextControlId_;
-  DebugStats debugStats_;
+  ToolboxSceneDebugStats debugStats_;
 
   bool handleTextKey(char key);
   void bindTextState(loka::core::State<loka::core::String> *text);
@@ -323,8 +201,6 @@ private:
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
   static void TextStateChangedThunk(void *userData);
-  void beginDebugStats(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
-  void refreshHitDebugStats();
 public:
   void flushRetiredNativeHandles();
   std::string debugStatsSummary() const;
