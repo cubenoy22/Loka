@@ -62,6 +62,7 @@ void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
 void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild();
 void testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild();
 void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
+void testDebugStatsControlDeferredDumpCompletionCanChainAnotherDump();
 void testStaticButtonAndCellTextAreOwnedPerDefinition();
 void testMenuItemEnabledBoolDoesNotUseSharedStaticState();
 void testConditionalNodeTeardownAfterOwnedStateIsSafe();

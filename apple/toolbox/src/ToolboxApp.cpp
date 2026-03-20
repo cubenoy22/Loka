@@ -76,6 +76,15 @@ void ToolboxApp::run()
         ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
         if (toolboxWindow)
         {
+          toolboxWindow->dispatchDeferredDebugDumpCompletion();
+        }
+      }
+      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      {
+        Window *w = (*it)->asWindow();
+        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
+        if (toolboxWindow)
+        {
           toolboxWindow->flushInvalidate();
         }
       }

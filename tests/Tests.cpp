@@ -5110,6 +5110,146 @@ void testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork()
   scene.unmount();
 }
 
+void testDebugStatsControlDeferredDumpCompletionCanChainAnotherDump()
+{
+  class FakeDebugStatsControl : public loka::app::IDebugStatsControl
+  {
+  public:
+    FakeDebugStatsControl()
+        : dumpCalls_(0),
+          pending_(false),
+          completion_(0),
+          completionUserData_(0),
+          deferredCompletion_(0),
+          deferredCompletionUserData_(0),
+          deferredCompletionDelay_(0)
+    {
+    }
+
+    virtual bool dumpDebugStatsToTimestampedFile()
+    {
+      ++dumpCalls_;
+      return true;
+    }
+
+    virtual void resetDebugStats()
+    {
+    }
+
+    virtual void requestDeferredDebugDump()
+    {
+      pending_ = true;
+      completion_ = 0;
+      completionUserData_ = 0;
+    }
+
+    virtual void requestDeferredDebugDumpWithCompletion(DeferredDumpCompletion completion, void *userData)
+    {
+      pending_ = true;
+      completion_ = completion;
+      completionUserData_ = userData;
+    }
+
+    virtual void flushDeferredDebugDump()
+    {
+      if (!pending_)
+      {
+        return;
+      }
+      pending_ = false;
+      this->dumpDebugStatsToTimestampedFile();
+      DeferredDumpCompletion completion = completion_;
+      void *userData = completionUserData_;
+      completion_ = 0;
+      completionUserData_ = 0;
+      if (completion)
+      {
+        deferredCompletion_ = completion;
+        deferredCompletionUserData_ = userData;
+        deferredCompletionDelay_ = 1;
+      }
+    }
+
+    void idle()
+    {
+      if (!deferredCompletion_)
+      {
+        return;
+      }
+      if (deferredCompletionDelay_ > 0)
+      {
+        --deferredCompletionDelay_;
+        return;
+      }
+      DeferredDumpCompletion completion = deferredCompletion_;
+      void *userData = deferredCompletionUserData_;
+      deferredCompletion_ = 0;
+      deferredCompletionUserData_ = 0;
+      deferredCompletionDelay_ = 0;
+      completion(userData);
+    }
+
+    int dumpCalls_;
+    bool pending_;
+    DeferredDumpCompletion completion_;
+    void *completionUserData_;
+    DeferredDumpCompletion deferredCompletion_;
+    void *deferredCompletionUserData_;
+    int deferredCompletionDelay_;
+  };
+
+  struct Chain
+  {
+    static void onFirstDumpComplete(void *userData)
+    {
+      Chain *self = static_cast<Chain *>(userData);
+      assert(self);
+      ++self->completionCalls_;
+      self->control_->requestDeferredDebugDump();
+    }
+
+    Chain()
+        : control_(0),
+          completionCalls_(0)
+    {
+    }
+
+    void run(FakeDebugStatsControl &control)
+    {
+      control_ = &control;
+      control.requestDeferredDebugDumpWithCompletion(&Chain::onFirstDumpComplete, this);
+    }
+
+    FakeDebugStatsControl *control_;
+    int completionCalls_;
+  };
+
+  FakeDebugStatsControl control;
+  Chain chain;
+
+  chain.run(control);
+  assert(control.dumpCalls_ == 0);
+  assert(control.pending_ == true);
+
+  control.flushDeferredDebugDump();
+  assert(control.dumpCalls_ == 1);
+  assert(chain.completionCalls_ == 0);
+  assert(control.pending_ == false);
+
+  control.idle();
+  assert(chain.completionCalls_ == 0);
+  assert(control.pending_ == false);
+
+  control.idle();
+  assert(chain.completionCalls_ == 1);
+  assert(control.pending_ == true);
+
+  control.flushDeferredDebugDump();
+  assert(control.dumpCalls_ == 2);
+  assert(chain.completionCalls_ == 1);
+  assert(control.pending_ == false);
+}
+
 void testSceneManagerTransaction()
 {
   printf("\n==== [testSceneManagerTransaction/SceneManager] start ====\n");

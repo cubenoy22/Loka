@@ -77,6 +77,7 @@ int main()
   testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild();
   testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild();
   testWindowFlushSceneInvalidationSynchronizesPendingPlatformWork();
+  testDebugStatsControlDeferredDumpCompletionCanChainAnotherDump();
   testStaticButtonAndCellTextAreOwnedPerDefinition();
   testMenuItemEnabledBoolDoesNotUseSharedStaticState();
   testConditionalNodeTeardownAfterOwnedStateIsSafe();

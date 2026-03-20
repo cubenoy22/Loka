@@ -21,6 +21,7 @@ public:
   void setApp(App *app);
   void ensureSceneMounted();
   void open();
+  void dispatchDeferredDebugDumpCompletion();
   void requestInvalidate();
   void requestInvalidateWithReason(const char *reason);
   void requestInvalidateRect(const Rect &rect);
@@ -39,6 +40,7 @@ public:
   virtual bool dumpDebugStatsToTimestampedFile();
   virtual void resetDebugStats();
   virtual void requestDeferredDebugDump();
+  virtual void requestDeferredDebugDumpWithCompletion(DeferredDumpCompletion completion, void *userData);
   virtual void flushDeferredDebugDump();
   WindowPtr window() const { return window_; }
   ToolboxWindowContext *context() const { return context_; }
@@ -56,6 +58,11 @@ private:
   bool needsInvalidate_;
   bool skipNextUpdateDraw_;
   bool pendingDebugDump_;
+  DeferredDumpCompletion pendingDebugDumpCompletion_;
+  void *pendingDebugDumpUserData_;
+  DeferredDumpCompletion pendingDeferredDebugDumpCompletion_;
+  void *pendingDeferredDebugDumpUserData_;
+  int pendingDeferredDebugDumpCompletionDelay_;
   std::vector<Rect> pendingInvalidateRects_;
   short titleBarHeight_;
 

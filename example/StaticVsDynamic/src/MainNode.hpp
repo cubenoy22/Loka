@@ -292,9 +292,13 @@ namespace staticvsdynamic
           actionEnabled_(),
           sharedActionEvent_(),
           toggleDetailsEvent_(),
+          profileToggleDetailsEvent_(),
+          profileToggleDetailsTwiceEvent_(),
           toggleFreezeEvent_(),
           toggleEnabledEvent_(),
           resetCountEvent_(),
+          dumpRedrawStatsEvent_(),
+          resetRedrawStatsEvent_(),
           dynamicBoundary_(0)
     {
     }
@@ -319,6 +323,7 @@ namespace staticvsdynamic
       this->bindForUi(this->sharedActionEvent_, this, &MainNode::handleSharedAction);
       this->bindForUi(this->toggleDetailsEvent_, this, &MainNode::toggleDetails);
       this->bindForUi(this->profileToggleDetailsEvent_, this, &MainNode::profileToggleDetails);
+      this->bindForUi(this->profileToggleDetailsTwiceEvent_, this, &MainNode::profileToggleDetailsTwice);
       this->bindForUi(this->toggleFreezeEvent_, this, &MainNode::toggleFreeze);
       this->bindForUi(this->toggleEnabledEvent_, this, &MainNode::toggleEnabled);
       this->bindForUi(this->resetCountEvent_, this, &MainNode::resetCount);
@@ -382,6 +387,8 @@ namespace staticvsdynamic
       loka::app::RowDefinition profileControls = loka::app::HStack();
       profileControls << loka::app::Button("Profile Toggle", &this->profileToggleDetailsEvent_)
                              .controlTag(1007)
+                      << loka::app::Button("Profile Toggle x2", &this->profileToggleDetailsTwiceEvent_)
+                             .controlTag(1008)
                       << loka::app::Button("Dump Redraw Stats", &this->dumpRedrawStatsEvent_)
                              .controlTag(1005)
                       << loka::app::Button("Reset Redraw Stats", &this->resetRedrawStatsEvent_)
@@ -456,6 +463,34 @@ namespace staticvsdynamic
       {
         window->asDebugStatsControl()->requestDeferredDebugDump();
       }
+    }
+
+    static void ProfileToggleSecondPassThunk(void *userData)
+    {
+      MainNode *self = static_cast<MainNode *>(userData);
+      if (!self)
+      {
+        return;
+      }
+      self->toggleDetails();
+      ::Window *window = self->windowOrNull();
+      if (window && window->asDebugStatsControl())
+      {
+        window->asDebugStatsControl()->requestDeferredDebugDump();
+      }
+    }
+
+    void profileToggleDetailsTwice()
+    {
+      ::Window *window = this->windowOrNull();
+      if (!window || !window->asDebugStatsControl())
+      {
+        this->profileToggleDetails();
+        return;
+      }
+      this->resetRedrawStats();
+      this->toggleDetails();
+      window->asDebugStatsControl()->requestDeferredDebugDumpWithCompletion(&MainNode::ProfileToggleSecondPassThunk, this);
     }
 
     void toggleFreeze()
@@ -588,6 +623,7 @@ namespace staticvsdynamic
     loka::core::EmitterState sharedActionEvent_;
     loka::core::EmitterState toggleDetailsEvent_;
     loka::core::EmitterState profileToggleDetailsEvent_;
+    loka::core::EmitterState profileToggleDetailsTwiceEvent_;
     loka::core::EmitterState toggleFreezeEvent_;
     loka::core::EmitterState toggleEnabledEvent_;
     loka::core::EmitterState resetCountEvent_;
