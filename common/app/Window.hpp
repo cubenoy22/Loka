@@ -8,6 +8,7 @@
 #include "loka/core/util/StateUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
+#include "app/window/ability/DebugStatsControl.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Frame.hpp"
 
@@ -347,10 +348,8 @@ public:
   virtual ToolboxWindow *asToolboxWindow() { return 0; }
   virtual Win32Window *asWin32Window() { return 0; }
   virtual MacWindow *asMacWindow() { return 0; }
-  virtual bool dumpDebugStatsToTimestampedFile() { return false; }
-  virtual void resetDebugStats() {}
-  virtual void requestDeferredDebugDump() {}
-  virtual void flushDeferredDebugDump() {}
+  virtual loka::app::IDebugStatsControl *asDebugStatsControl() { return 0; }
+  virtual const loka::app::IDebugStatsControl *asDebugStatsControl() const { return 0; }
 
   bool hasPosition() const
   {

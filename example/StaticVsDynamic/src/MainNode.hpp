@@ -452,9 +452,9 @@ namespace staticvsdynamic
       this->resetRedrawStats();
       this->toggleDetails();
       ::Window *window = this->windowOrNull();
-      if (window)
+      if (window && window->asDebugStatsControl())
       {
-        window->requestDeferredDebugDump();
+        window->asDebugStatsControl()->requestDeferredDebugDump();
       }
     }
 
@@ -478,21 +478,21 @@ namespace staticvsdynamic
     void dumpRedrawStats()
     {
       ::Window *window = this->windowOrNull();
-      if (!window)
+      if (!window || !window->asDebugStatsControl())
       {
         return;
       }
-      window->dumpDebugStatsToTimestampedFile();
+      window->asDebugStatsControl()->dumpDebugStatsToTimestampedFile();
     }
 
     void resetRedrawStats()
     {
       ::Window *window = this->windowOrNull();
-      if (!window)
+      if (!window || !window->asDebugStatsControl())
       {
         return;
       }
-      window->resetDebugStats();
+      window->asDebugStatsControl()->resetDebugStats();
       this->refreshWindowTitle();
     }
 
