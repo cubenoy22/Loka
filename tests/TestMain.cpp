@@ -72,7 +72,7 @@ int main()
   testSceneInvalidateUsesRequestedDirtyFlags();
   testSceneRequestInvalidateDefersUntilFlush();
   testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
-  testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
+  testSceneMixedStaticAndDynamicChildDirtyResolvesToPropsOnly();
   testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild();
   testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
   testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild();
@@ -115,6 +115,7 @@ int main()
   testStateBatchOverflow();
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
+  testStaticRootMountProducesExactlyOneFullRebuildOnChange();
   testDynamicRootMountProducesExactlyOneFullRebuildOnChange();
   SceneTests::runAll();
   return 0;

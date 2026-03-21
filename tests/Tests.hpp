@@ -56,7 +56,7 @@ void testOpenFileDialogStatesDoNotInvalidateScene();
 void testSceneInvalidateUsesRequestedDirtyFlags();
 void testSceneRequestInvalidateDefersUntilFlush();
 void testSceneCompositionDiffMarksChildDirtyAsFullRebuild();
-void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild();
+void testSceneMixedStaticAndDynamicChildDirtyResolvesToPropsOnly();
 void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild();
 void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState();
 void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild();
@@ -72,6 +72,7 @@ void testLokaDslStream();
 void testStateBatchOverflow();
 void testNestedTransaction();
 void testNestedTransactionInvalidateTiming();
+void testStaticRootMountProducesExactlyOneFullRebuildOnChange();
 void testDynamicRootMountProducesExactlyOneFullRebuildOnChange();
 
 #endif // LOKA_TESTS_HPP

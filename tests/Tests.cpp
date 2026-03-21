@@ -4006,7 +4006,7 @@ void testSceneCompositionDiffMarksChildDirtyAsFullRebuild()
   scene.unmount();
 }
 
-void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild()
+void testSceneMixedStaticAndDynamicChildDirtyResolvesToPropsOnly()
 {
   using namespace loka::app;
   using namespace loka::app::scene;
@@ -4172,12 +4172,15 @@ void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild()
   {
   public:
     DirtyCapturePlatformController()
-        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false),
+          calls_(0), everSawChildDirty_(false), everSawFullRebuild_(false) {}
     virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
+      if ((flags & NODE_DIRTY_CHILD) != 0) { everSawChildDirty_ = true; }
+      if (fullRebuild) { everSawFullRebuild_ = true; }
       ++calls_;
     }
     virtual void synchronize() {}
@@ -4188,6 +4191,8 @@ void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild()
     NodeDirtyFlags lastFlags_;
     bool lastFullRebuild_;
     int calls_;
+    bool everSawChildDirty_;
+    bool everSawFullRebuild_;
   } platform;
 
   Scene scene((BoundaryDefinition<BoundaryPropsFor<MixedRootNode>, MixedRootNode>()));
@@ -4198,6 +4203,10 @@ void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild()
   assert(root != 0);
   assert(platform.calls_ == 1);
 
+  // Reset history flags after mount (which fires fullRebuild=true)
+  platform.everSawChildDirty_ = false;
+  platform.everSawFullRebuild_ = false;
+
   {
     loka::core::StateTrackerGuard guard(root->tracker());
     root->toggleDetailsAndRefresh();
@@ -4205,10 +4214,11 @@ void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild()
   scene.flushInvalidation();
 
   assert(platform.calls_ >= 2);
-  // With ConditionalDefinition owning cloned defs, onConditionChanged succeeds
-  // and the last onChange carries only NODE_DIRTY_PROPS (from statusText).
-  // The static root boundary no longer sees NODE_DIRTY_CHILD in the final
-  // onChange, so fullRebuild is false.
+  // Verify that NODE_DIRTY_CHILD was seen at some point during the update
+  // sequence (the child-dirty contract), even though the final onChange
+  // resolves to NODE_DIRTY_PROPS only once the dynamic boundary applies
+  // its local diff.
+  assert(platform.everSawChildDirty_ == true);
   assert(platform.lastFlags_ == NODE_DIRTY_PROPS);
   assert(platform.lastFullRebuild_ == false);
 
@@ -4377,12 +4387,15 @@ void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild()
   {
   public:
     DirtyCapturePlatformController()
-        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false),
+          calls_(0), everSawChildDirty_(false), everSawFullRebuild_(false) {}
     virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
+      if ((flags & NODE_DIRTY_CHILD) != 0) { everSawChildDirty_ = true; }
+      if (fullRebuild) { everSawFullRebuild_ = true; }
       ++calls_;
     }
     virtual void synchronize() {}
@@ -4393,6 +4406,8 @@ void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild()
     NodeDirtyFlags lastFlags_;
     bool lastFullRebuild_;
     int calls_;
+    bool everSawChildDirty_;
+    bool everSawFullRebuild_;
   } platform;
 
   Scene scene((BoundaryDefinition<BoundaryPropsFor<MixedRootNode>, MixedRootNode>()));
@@ -4403,6 +4418,9 @@ void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild()
   assert(root != 0);
   assert(platform.calls_ == 1);
 
+  platform.everSawChildDirty_ = false;
+  platform.everSawFullRebuild_ = false;
+
   {
     loka::core::StateTrackerGuard guard(root->tracker());
     root->toggleDetailsOnly();
@@ -4410,8 +4428,9 @@ void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild()
   scene.flushInvalidation();
 
   assert(platform.calls_ >= 2);
-  // Pure child-dirty (no statusText props change): last onChange carries
-  // NODE_DIRTY_CHILD. Static root boundary keeps fullRebuild=true.
+  // Pure child-dirty (no statusText props change): NODE_DIRTY_CHILD was
+  // seen during the sequence and the final onChange keeps fullRebuild=true.
+  assert(platform.everSawChildDirty_ == true);
   assert(platform.lastFlags_ == NODE_DIRTY_CHILD);
   assert(platform.lastFullRebuild_ == true);
 
@@ -4584,12 +4603,15 @@ void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState()
   {
   public:
     DirtyCapturePlatformController()
-        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false),
+          calls_(0), everSawChildDirty_(false), everSawFullRebuild_(false) {}
     virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
+      if ((flags & NODE_DIRTY_CHILD) != 0) { everSawChildDirty_ = true; }
+      if (fullRebuild) { everSawFullRebuild_ = true; }
       ++calls_;
     }
     virtual void synchronize() {}
@@ -4600,6 +4622,8 @@ void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState()
     NodeDirtyFlags lastFlags_;
     bool lastFullRebuild_;
     int calls_;
+    bool everSawChildDirty_;
+    bool everSawFullRebuild_;
   } platform;
 
   Scene scene((BoundaryDefinition<BoundaryPropsFor<MixedRootNode>, MixedRootNode>()));
@@ -4608,6 +4632,9 @@ void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState()
 
   MixedRootNode *root = static_cast<MixedRootNode *>(SceneTestAccess::rootBoundary(scene));
   assert(root != 0);
+
+  platform.everSawChildDirty_ = false;
+  platform.everSawFullRebuild_ = false;
 
   {
     loka::core::StateTrackerGuard guard(root->tracker());
@@ -4627,9 +4654,7 @@ void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState()
   assert(dynamicBoundary->hasLocalCompositionDiff() == true);
   assert(dynamicBoundary->canApplyLocalCompositionDiff() == true);
   assert(subtreeHasApplicableLocalDiffRecursive(rootNode) == true);
-  // With ConditionalDefinition fix, last onChange carries NODE_DIRTY_PROPS
-  // (from statusText). fullRebuild=false because the static root boundary
-  // does not see NODE_DIRTY_CHILD in the final onChange.
+  assert(platform.everSawChildDirty_ == true);
   assert(platform.lastFlags_ == NODE_DIRTY_PROPS);
   assert(platform.lastFullRebuild_ == false);
 
@@ -4802,12 +4827,15 @@ void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild()
   {
   public:
     DirtyCapturePlatformController()
-        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false),
+          calls_(0), everSawChildDirty_(false), everSawFullRebuild_(false) {}
     virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
+      if ((flags & NODE_DIRTY_CHILD) != 0) { everSawChildDirty_ = true; }
+      if (fullRebuild) { everSawFullRebuild_ = true; }
       ++calls_;
     }
     virtual void synchronize() {}
@@ -4818,6 +4846,8 @@ void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild()
     NodeDirtyFlags lastFlags_;
     bool lastFullRebuild_;
     int calls_;
+    bool everSawChildDirty_;
+    bool everSawFullRebuild_;
   } platform;
 
   Scene scene((BoundaryDefinition<BoundaryPropsFor<MixedDynamicRootNode>, MixedDynamicRootNode>()));
@@ -4828,6 +4858,9 @@ void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild()
   assert(root != 0);
   assert(platform.calls_ == 1);
 
+  platform.everSawChildDirty_ = false;
+  platform.everSawFullRebuild_ = false;
+
   {
     loka::core::StateTrackerGuard guard(root->tracker());
     root->toggleDetailsAndRefresh();
@@ -4835,6 +4868,7 @@ void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild()
   scene.flushInvalidation();
 
   assert(platform.calls_ >= 2);
+  assert(platform.everSawChildDirty_ == true);
   // Dynamic root with mixed child dirty: last onChange carries NODE_DIRTY_PROPS.
   // Dynamic root downgrades fullRebuild to false.
   assert(platform.lastFlags_ == NODE_DIRTY_PROPS);
@@ -5005,12 +5039,15 @@ void testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild()
   {
   public:
     DirtyCapturePlatformController()
-        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false), calls_(0) {}
+        : lastMaterialized_(0), lastFlags_(NODE_DIRTY_NONE), lastFullRebuild_(false),
+          calls_(0), everSawChildDirty_(false), everSawFullRebuild_(false) {}
     virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
     {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
+      if ((flags & NODE_DIRTY_CHILD) != 0) { everSawChildDirty_ = true; }
+      if (fullRebuild) { everSawFullRebuild_ = true; }
       ++calls_;
     }
     virtual void synchronize() {}
@@ -5021,6 +5058,8 @@ void testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild()
     NodeDirtyFlags lastFlags_;
     bool lastFullRebuild_;
     int calls_;
+    bool everSawChildDirty_;
+    bool everSawFullRebuild_;
   } platform;
 
   Scene scene((BoundaryDefinition<BoundaryPropsFor<MixedDynamicRootNode>, MixedDynamicRootNode>()));
@@ -5031,6 +5070,9 @@ void testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild()
   assert(root != 0);
   assert(platform.calls_ == 1);
 
+  platform.everSawChildDirty_ = false;
+  platform.everSawFullRebuild_ = false;
+
   {
     loka::core::StateTrackerGuard guard(root->tracker());
     root->toggleDetailsOnly();
@@ -5038,6 +5080,7 @@ void testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild()
   scene.flushInvalidation();
 
   assert(platform.calls_ >= 2);
+  assert(platform.everSawChildDirty_ == true);
   // Pure child-dirty on dynamic root: last onChange carries NODE_DIRTY_CHILD.
   // Dynamic root downgrades fullRebuild to false.
   assert(platform.lastFlags_ == NODE_DIRTY_CHILD);
@@ -5734,9 +5777,9 @@ void testConditionalNodeTeardownAfterOwnedStateIsSafe()
   delete scene;
 }
 
-void testDynamicRootMountProducesExactlyOneFullRebuildOnChange()
+void testStaticRootMountProducesExactlyOneFullRebuildOnChange()
 {
-  printf("\n==== [testDynamicRootMountProducesExactlyOneFullRebuildOnChange] start ====\n");
+  printf("\n==== [testStaticRootMountProducesExactlyOneFullRebuildOnChange] start ====\n");
 
   // Verify at the Scene level that mounting a dynamic-root scene produces
   // exactly one onChange call with fullRebuild=true.
@@ -5771,9 +5814,7 @@ void testDynamicRootMountProducesExactlyOneFullRebuildOnChange()
     OnChangeRecord records_[16];
   };
 
-  // Use the MixedDynamicRootNode from testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild
-  // pattern — dynamic root + static child + dynamic child with showIf.
-  // We reuse RootBoundary() here; it is static, so mount always fullRebuild=true exactly once.
+  // Static root boundary: mount produces exactly one onChange with fullRebuild=true.
   RecordingPlatformController platform;
   Scene scene(RootBoundary());
   scene.mount(&platform);
@@ -5789,6 +5830,74 @@ void testDynamicRootMountProducesExactlyOneFullRebuildOnChange()
   SceneTestAccess::flushInvalidation(scene);
   printf("  after flushInvalidation: onChange calls = %d (was %d)\n", platform.calls_, callsBefore);
   // No additional onChange should have fired if no state changed
+  assert(platform.calls_ == callsBefore);
+
+  scene.unmount();
+  printf("==== [testStaticRootMountProducesExactlyOneFullRebuildOnChange] PASSED ====\n");
+}
+
+void testDynamicRootMountProducesExactlyOneFullRebuildOnChange()
+{
+  printf("\n==== [testDynamicRootMountProducesExactlyOneFullRebuildOnChange] start ====\n");
+
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  struct OnChangeRecord
+  {
+    NodeDirtyFlags flags;
+    bool fullRebuild;
+  };
+
+  class RecordingPlatformController : public IPlatformController
+  {
+  public:
+    RecordingPlatformController() : calls_(0) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)rootNode;
+      if (calls_ < 16)
+      {
+        records_[calls_].flags = flags;
+        records_[calls_].fullRebuild = fullRebuild;
+      }
+      ++calls_;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    int calls_;
+    OnChangeRecord records_[16];
+  };
+
+  // Minimal dynamic root boundary node for mount test.
+  class DynamicMountTestNode : public DynamicCompositionBoundaryNodeBase<BoundaryPropsFor<DynamicMountTestNode> >
+  {
+  public:
+    typedef BoundaryPropsFor<DynamicMountTestNode> PropsType;
+    DynamicMountTestNode(const PropsType &p)
+        : DynamicCompositionBoundaryNodeBase<PropsType>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(loka::app::VStack()
+                << loka::app::Text("Mount test").tag(1));
+    }
+  };
+
+  RecordingPlatformController platform;
+  Scene scene((BoundaryDefinition<BoundaryPropsFor<DynamicMountTestNode>, DynamicMountTestNode>()));
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  printf("  mount: onChange calls = %d\n", platform.calls_);
+  assert(platform.calls_ == 1);
+  assert(platform.records_[0].fullRebuild == true);
+  assert((platform.records_[0].flags & NODE_DIRTY_INITIAL) != 0);
+
+  const int callsBefore = platform.calls_;
+  SceneTestAccess::flushInvalidation(scene);
+  printf("  after flushInvalidation: onChange calls = %d (was %d)\n", platform.calls_, callsBefore);
   assert(platform.calls_ == callsBefore);
 
   scene.unmount();
