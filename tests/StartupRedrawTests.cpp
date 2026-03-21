@@ -53,6 +53,27 @@ namespace
       draw();
     }
   };
+
+  struct ToolboxChildDirtyInvalidationSimulator
+  {
+    enum InvalidateMode
+    {
+      INVALIDATE_NONE = 0,
+      INVALIDATE_RECT = 1,
+      INVALIDATE_FULL = 2
+    };
+
+    static InvalidateMode chooseInvalidateMode(bool hasRootNode,
+                                               bool fullRebuild,
+                                               bool hasChildDirty)
+    {
+      if (!hasRootNode || fullRebuild || hasChildDirty)
+      {
+        return INVALIDATE_FULL;
+      }
+      return INVALIDATE_RECT;
+    }
+  };
 } // namespace
 
 void testStartupRedrawCount_Before()
@@ -120,4 +141,22 @@ void testStartupRedrawCount_After()
   assert(sim.fullDrawCount_ == 1);
 
   printf("==== [testStartupRedrawCount_After] PASSED ====\n");
+}
+
+void testToolboxChildDirtyInvalidationPrefersFullRedraw()
+{
+  printf("\n==== [testToolboxChildDirtyInvalidationPrefersFullRedraw] start ====\n");
+
+  const ToolboxChildDirtyInvalidationSimulator::InvalidateMode childDirtyMode =
+      ToolboxChildDirtyInvalidationSimulator::chooseInvalidateMode(true, false, true);
+  const ToolboxChildDirtyInvalidationSimulator::InvalidateMode propsOnlyMode =
+      ToolboxChildDirtyInvalidationSimulator::chooseInvalidateMode(true, false, false);
+
+  printf("  child dirty mode = %d (expected full)\n", static_cast<int>(childDirtyMode));
+  printf("  props only mode = %d (expected rect)\n", static_cast<int>(propsOnlyMode));
+
+  assert(childDirtyMode == ToolboxChildDirtyInvalidationSimulator::INVALIDATE_FULL);
+  assert(propsOnlyMode == ToolboxChildDirtyInvalidationSimulator::INVALIDATE_RECT);
+
+  printf("==== [testToolboxChildDirtyInvalidationPrefersFullRedraw] PASSED ====\n");
 }

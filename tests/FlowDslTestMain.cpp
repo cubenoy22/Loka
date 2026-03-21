@@ -12,5 +12,6 @@ int main() {
   testLokaAttrDslV1Core();
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
+  testToolboxChildDirtyInvalidationPrefersFullRedraw();
   return 0;
 }

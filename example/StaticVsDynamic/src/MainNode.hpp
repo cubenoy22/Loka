@@ -269,13 +269,13 @@ namespace staticvsdynamic
     return loka::app::scene::BoundaryDefinition<DynamicPaneProps, DynamicPaneNode>(p);
   }
 
-  typedef loka::app::scene::DynamicCompositionPropsFor<MainNode> MainProps;
+  typedef loka::app::scene::StaticCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::DynamicCompositionNodeFor<MainNode>, public MainBoundary
+  class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>, public MainBoundary
   {
   public:
     MainNode(const MainProps &p)
-        : loka::app::scene::DynamicCompositionNodeFor<MainNode>(MainProps(p)),
+        : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false),
           composeProbeRefreshPending_(false),
           lastStaticComposeCount_(0),
@@ -346,7 +346,7 @@ namespace staticvsdynamic
       {
         return static_cast<MainBoundary *>(this);
       }
-      return loka::app::scene::DynamicCompositionNodeFor<MainNode>::queryInterface(name);
+      return loka::app::scene::StaticCompositionNodeFor<MainNode>::queryInterface(name);
     }
 
     virtual void noteStaticCompose(int count)

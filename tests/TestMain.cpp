@@ -115,6 +115,7 @@ int main()
   testStateBatchOverflow();
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
+  testToolboxChildDirtyInvalidationPrefersFullRedraw();
   testStaticRootMountProducesExactlyOneFullRebuildOnChange();
   testDynamicRootMountProducesExactlyOneFullRebuildOnChange();
   SceneTests::runAll();

@@ -1609,7 +1609,7 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   {
     return;
   }
-  if (fullRebuild || !rootNodeForChange)
+  if (fullRebuild || !rootNodeForChange || (flags & loka::app::scene::NODE_DIRTY_CHILD))
   {
     ++debugStats_.fullInvalidateRequests;
     ++debugStats_.totalFullInvalidateRequests;
