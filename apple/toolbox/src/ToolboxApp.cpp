@@ -51,7 +51,7 @@ void ToolboxApp::run()
         toolboxWindow->setApp(this);
         toolboxWindow->open();
         toolboxWindow->ensureSceneMounted();
-        toolboxWindow->draw();
+        toolboxWindow->flushInvalidate();
       }
     }
     if (!activeWindow() && firstWindow)
