@@ -706,9 +706,12 @@ void testMacScenePlatformFullRebuildFlagControlsContextReuse()
   controller.onChange(root, loka::app::scene::NODE_DIRTY_LAYOUT, false);
   assert(buttonNode->getContext() == buttonContext);
 
+  // fullRebuild=true with the same node tree: context is preserved because
+  // the composition system (not the platform controller) is responsible for
+  // releasing contexts of replaced/retired nodes.  Retained nodes keep theirs.
   controller.onChange(root, loka::app::scene::NODE_DIRTY_CHILD, true);
   assert(buttonNode->getContext() != 0);
-  assert(buttonNode->getContext() != buttonContext);
+  assert(buttonNode->getContext() == buttonContext);
 
   scene.unmount();
   [rootView release];
@@ -846,20 +849,9 @@ void testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
   popupNode = findNodeByTestId(root, "ForeignPersistPopup");
   assert(editNode != 0);
   assert(popupNode != 0);
-  // TODO: Context preservation across dynamic child rebuild needs investigation.
-  // These assertions were never reached before because an earlier test crashed
-  // due to ConditionalDefinition dangling pointer (now fixed).
-  if (editNode->getContext() != editContext) {
-    printf("  KNOWN: editNode context changed after child rebuild (was %p, now %p)\n",
-           (void *)editContext, (void *)editNode->getContext());
-  }
-  if (popupNode->getContext() != popupContext) {
-    printf("  KNOWN: popupNode context changed after child rebuild (was %p, now %p)\n",
-           (void *)popupContext, (void *)popupNode->getContext());
-  }
-  // assert(editNode->getContext() == editContext);
-  // assert(popupNode->getContext() == popupContext);
-  // assert([[rootView subviews] count] == initialSubviewCount);
+  assert(editNode->getContext() == editContext);
+  assert(popupNode->getContext() == popupContext);
+  assert([[rootView subviews] count] == initialSubviewCount);
 
   scene.unmount();
   [rootView release];
@@ -910,18 +902,9 @@ void testMacScenePlatformForeignObservedChildReorderPreservesSiblingContexts()
   popupNode = findNodeByTestId(root, "ForeignReorderPopup");
   assert(editNode != 0);
   assert(popupNode != 0);
-  // TODO: Same context-preservation issue as ForeignPersist test above.
-  if (editNode->getContext() != editContext) {
-    printf("  KNOWN: reorder editNode context changed (was %p, now %p)\n",
-           (void *)editContext, (void *)editNode->getContext());
-  }
-  if (popupNode->getContext() != popupContext) {
-    printf("  KNOWN: reorder popupNode context changed (was %p, now %p)\n",
-           (void *)popupContext, (void *)popupNode->getContext());
-  }
-  // assert(editNode->getContext() == editContext);
-  // assert(popupNode->getContext() == popupContext);
-  // assert([[rootView subviews] count] == initialSubviewCount);
+  assert(editNode->getContext() == editContext);
+  assert(popupNode->getContext() == popupContext);
+  assert([[rootView subviews] count] == initialSubviewCount);
 
   scene.unmount();
   [rootView release];

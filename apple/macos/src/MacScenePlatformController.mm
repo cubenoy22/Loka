@@ -228,7 +228,10 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
   if (rebuildContexts)
   {
     captureFocusedEditField();
-    clearContexts();
+    // Do NOT clearContexts() here: retained nodes (from local diff) keep
+    // their existing context and layoutNode() already creates new contexts
+    // for nodes that have none.  Replaced/retired nodes have their contexts
+    // released by the composition system via releaseNodeContexts().
   }
   if (!rootNode_ || !rootView_)
   {
