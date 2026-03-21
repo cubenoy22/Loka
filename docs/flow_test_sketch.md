@@ -1,5 +1,33 @@
 # Flow-Based UI Test Sketch
 
+## Status
+
+- Status: partially implemented
+- This file started as a sketch; several pieces are now real and should be read as current capability, not speculation.
+- Current source of truth:
+  - `common/loka/dsl/testing/SceneTestFlow.hpp`
+  - `common/loka/dsl/SnapFlow.hpp`
+  - `tests/FlowDslTests.cpp`
+
+Implemented now:
+
+- `CaptureNode`
+- `CaptureScene`
+- `CaptureViewTarget`
+- `CaptureView`
+- `CaptureViewBitmap`
+- `CaptureViewBitmapSnap`
+- `AssertPredicate(...)`
+- `timeoutPending(...)`
+- `SnapWriteAdapter`
+
+Still future / draft:
+
+- real multi-platform screenshot pipelines beyond current platform seams
+- global UI capture
+- CI-level screenshot sequence diff orchestration
+- broad timing regression policy and baseline management
+
 Exploration of reusing the Loka Flow DSL for automated UI testing.
 
 ## Scope and Security Model

@@ -1,5 +1,32 @@
 # Flow DSL Draft (Temporary)
 
+## Status
+
+- Status: partially implemented
+- This file mixes implemented v0/v1 pieces with future design notes.
+- Prefer current source/tests as the ground truth:
+  - `common/loka/dsl/Flow.hpp`
+  - `common/loka/dsl/SnapFlow.hpp`
+  - `common/loka/dsl/testing/SceneTestFlow.hpp`
+  - `tests/FlowDslTests.cpp`
+
+Implemented and validated now:
+
+- `Step(...)` chaining and typed adapters
+- `FLOW_STEP_PENDING`
+- `resume(...)`
+- `timeoutPending(...)`
+- predicate assertions via `AssertPredicate(...)`
+- snap/write integration via `SnapV1(...)` and `SnapWriteAdapter`
+- scene/node/view-target/bitmap capture skeleton for Flow-based testing
+
+Still draft / not yet a stable public contract:
+
+- cancellation policy details
+- parent/child flow bubbling surface
+- generic timer/scheduler ownership model
+- broad async resource pipeline API beyond the currently implemented helpers
+
 ## Goal
 
 Define a Slot-DSL-aligned, type-safe pipeline DSL for async/resource flows (file -> blob -> image) with:

@@ -1,5 +1,29 @@
 # Dirty Update / Boundary Update Plan (Draft v5)
 
+## Status
+
+- Status: mixed historical plan + partially completed work
+- This document is no longer a pure forward plan. Some items below are already implemented, some were superseded, and some remain future work.
+
+Implemented or validated since this draft started:
+
+- `StaticComposition` UPDATE propagation no longer blocks child updates
+- Flow-based dirty routing regressions exist in `tests/FlowDslTests.cpp`
+- mixed child-dirty scene regressions exist in `tests/Tests.cpp`
+- `Scene` local-diff downgrade policy is now root-boundary-only
+- `StaticVsDynamic` profiling work showed that root dynamic host boundaries materially reduce `fullRebuild -> full request` behavior in Classic
+
+Still active / unresolved:
+
+- startup full-draw noise in Classic Toolbox
+- residual `updateEvt` / window-event redraw duplication
+- broader scheduler unification and any `NextTickTracker`-style consolidation described below
+
+Reading rule:
+
+- treat this file as design context and a source of open questions
+- verify current behavior against source/tests before implementing from this draft literally
+
 ## Goal
 
 - macOS で `Text` の行数変化が反映されないケースを解消する

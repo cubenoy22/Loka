@@ -1,5 +1,28 @@
 # Layout/Attr Draft (v1)
 
+## Status
+
+- Status: mixed spec-lock + future draft
+- Some sections below are stable design rules, others are explicitly future work.
+
+Implemented or strongly confirmed:
+
+- `attr`/`layout` responsibility split is still the intended direction
+- small POD attr guidance for 68k/Classic remains valid
+- `ImageView` size-policy work exists and should be treated as current design, not speculation
+
+Still draft / not yet committed as a public stable contract:
+
+- broad unified layout override architecture
+- full `Length`/unit system rollout
+- attr composition packs
+- many v1.1+ sections in this file
+
+Reading rule:
+
+- treat `Confirmed Rules` and explicit `v1` statements as the most reliable parts
+- treat `v1.1+` and candidate sections as design notes, not implementation promises
+
 ## Goal
 
 - NodeDSL / MenuDSL で共通に使える装飾・レイアウト指定を導入する

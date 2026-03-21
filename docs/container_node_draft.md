@@ -1,5 +1,19 @@
 # ContainerNode Draft
 
+## Status
+
+- Status: draft only
+- No `ContainerNode` layer is implemented yet.
+- This file is still useful as design direction, but should not be read as current architecture.
+
+Current related confirmed direction:
+
+- `Boundary` remains the ownership unit
+- `Scene` should trust the root boundary only for local-diff downgrade decisions
+- subtree-recursive aggregate downgrade is too coarse and was intentionally avoided
+
+That means any future `ContainerNode` work must fit under boundary ownership rather than reintroducing scene-wide recursive policy.
+
 ## Goal
 
 Define a lighter-weight child-diff layer that sits below `Boundary` ownership without importing a full generic reconciler.

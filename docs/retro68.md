@@ -258,6 +258,83 @@ Watch for backend-specific registries that hold:
 - raw node/context pointers
 - state pointers
 - emitters
+
+## Classic redraw investigation notes
+
+These notes come from profiling `StaticVsDynamicClassic` redraw behavior on
+mini vMac/System 7.1 and native PPC OS 9.
+
+### 1. Split startup cost from interaction cost
+
+Do not mix these into one conclusion.
+
+- startup can show repeated full draws even before any user action
+- interaction cost can be much lower after core fixes, but still look bad if
+  startup/event-loop noise is included in the same measurement window
+
+Use separate captures:
+
+- startup: launch, then dump immediately
+- interaction: reset, perform one fixed action, then dump
+
+### 2. Root dynamic host boundary materially changed the result
+
+For `StaticVsDynamic`, switching the root host to a dynamic boundary removed the
+main `fullRebuild -> full invalidate` path for `Toggle Details`.
+
+Observed result after that change:
+
+- `full_rebuild=0`
+- `request_full=0`
+- `request_rect=1`
+
+That was the largest meaningful performance win in this phase.
+
+Practical rule:
+
+- if a sample mixes static host composition with dynamic child boundaries and
+  repeatedly toggles child structure, test a dynamic host root before spending
+  too long on backend redraw policy
+
+### 3. Dynamic pane and startup/event-loop noise are separate problems
+
+When the dynamic pane was temporarily removed from `StaticVsDynamicClassic`:
+
+- the second `Profile Toggle x2` dump became much cleaner
+- rect-path redraw was still visible
+- `flush_full` could drop to `0` for the second pass
+
+This means:
+
+- dynamic-pane interaction noise is real
+- but startup/update-event full draws are a different issue
+
+Do not treat them as one bug.
+
+### 4. Dump chaining is useful, but completion semantics matter
+
+`Profile Toggle x2` was only reliable after dump completion was chained through
+an explicit deferred path.
+
+However, "dump finished" and "UI/event-loop is stable enough for the next
+action" are not the same thing on Classic Toolbox.
+
+Practical rule:
+
+- use chained dumps for comparison
+- but do not assume a deferred callback means redraw/update events have fully
+  drained
+
+### 5. Prefer simple sample subtraction before deeper backend work
+
+When redraw profiling gets muddy, remove whole sample slices first:
+
+- dynamic pane
+- popup/edit controls
+- status/count text updates
+
+If removing a slice materially changes the redraw trace, that is more useful
+than adding another round of backend speculation.
 - layout rects
 
 If they survive longer than one render pass, they are prime suspects for:
