@@ -1,5 +1,15 @@
 # Loka TODO
 
+## Highly recommended
+
+These items address recurring bug patterns and structural risks identified during recent bugfixes (ConditionalDefinition dangling pointer, Mac platform context preservation, startup redraw).
+
+- **Definition ownership clarity**: `clone()` returns raw `new`-ed pointers across 19+ call sites with implicit ownership. Introduce a lightweight `OwnedDef<T>` wrapper (C++98-compatible) so ownership intent is visible in code. Priority: prevents the same class of bug as the ConditionalDefinition fix.
+- **Platform Controller layout共通化**: `layoutNode()` is near-identical across Mac/Win32/Toolbox (~2000 lines each). Extract platform-independent layout traversal and size calculation to shared code; platform-specific parts (NSView/HWND/QuickDraw context creation) become overrides. Priority: bug fixes (like removing `clearContexts()`) currently need manual porting to 3 implementations.
+- **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
+- **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH/RETAIN/REPLACE transitions in `DynamicCompositionBoundaryNodeBase::composeWithContext()` and `applyLocalRebuildPlan()`. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
+- **Scene fullRebuild accuracy**: Scene determines `fullRebuild` from root boundary only (Scene.hpp line 337). When a static root contains dynamic children that successfully apply local diffs, the platform still receives `fullRebuild=true`. Consider aggregating child boundary diff results so the platform gets a more accurate signal.
+
 ## Open
 
 - Define Modifier system (Text style + Window sizing) and wire through WindowProps/Layout.
@@ -24,8 +34,8 @@
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).
 - requestDiscard protocol for save/confirm flows via EmitterState.
 - Menu rebuild contract: `MENU_ACTION_REBUILD_MENU` and menu-local state changes do not yet produce reliable reactive rebuild/apply across platforms, especially on macOS menu tracking. Add dedicated contract tests before expanding reactive menu samples.
-- DSL definition lifetime safety: `Conditional/showIf` still depends on stable definition storage across updates. Move toward owned/cloned definitions (or stricter API constraints) so temporary DSL definitions are safe at app call sites.
-- Dynamic subtree granularity: `NODE_DIRTY_CHILD` currently rebuilds the whole dynamic boundary subtree. Branch swapping works, but sibling native controls in the same dynamic boundary are not yet guaranteed to preserve context/value identity. Revisit with a lighter-weight container/tagged-child diff model.
+- DSL definition lifetime safety: `ConditionalDefinition` now owns cloned trueDef/falseDef (fixed). Remaining: audit other definition types for similar raw-pointer-to-temporary patterns; see "Definition ownership clarity" in Highly recommended.
+- Dynamic subtree granularity: sibling context preservation now works via local diff RETAIN + removal of `clearContexts()` from platform layout (fixed). Remaining: `NODE_DIRTY_CHILD` still rebuilds the whole dynamic boundary subtree; lighter-weight partial-child diff is a future optimization.
 - Local dynamic diff follow-up: scene-side local rebuild planning is now split into comparison summary (`NodeCompositionDiff`) and boundary-local apply plan (`LocalRebuildPlan`). Remaining work is to decide how much of that kernel should be shared with menu diff/apply without forcing premature abstraction.
 - Manual wiring pitfalls: explicit registration/findBoundary-style coordination is Loka-like but easy to miswire (for example, registering the wrong boundary instance or forgetting a required hook). Add small helper APIs, debug asserts, and example/platform smoke tests for high-risk manual paths such as freeze targets, boundary-local callbacks, and owner registration.
 - Suppress clangd incomplete type warning for AttachedContext -> BoundaryNode access (include or type split).
