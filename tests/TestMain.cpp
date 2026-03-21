@@ -4,6 +4,7 @@
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "Tests.hpp"
+#include "StartupRedrawTests.hpp"
 #if defined(_WIN32) || defined(WIN32)
 #include "Win32ScenePlatformTests.hpp"
 #endif
@@ -112,6 +113,8 @@ int main()
   testMacScenePlatformHelloWorldCapturesTextAndButtons();
 #endif
   testStateBatchOverflow();
+  testStartupRedrawCount_Before();
+  testStartupRedrawCount_After();
   SceneTests::runAll();
   return 0;
 }

@@ -2,6 +2,7 @@
 #include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
+#include "StartupRedrawTests.hpp"
 
 int main() {
   testStateNotify();
@@ -9,5 +10,7 @@ int main() {
   testSnapFlowWriteAdapter();
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
+  testStartupRedrawCount_Before();
+  testStartupRedrawCount_After();
   return 0;
 }

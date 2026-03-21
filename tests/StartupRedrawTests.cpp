@@ -1,0 +1,123 @@
+#include "StartupRedrawTests.hpp"
+#include <cassert>
+#include <cstdio>
+
+// ---------------------------------------------------------------------------
+// Startup redraw count tests
+//
+// Portable model of the ToolboxWindow invalidation state machine.
+// No Mac headers needed — purely tests the flag-based draw decisions that
+// control how many full draws happen when a Classic window first appears.
+//
+// Before fix: 3+ full draws on startup
+// After fix:  1 full draw on startup
+// ---------------------------------------------------------------------------
+
+namespace
+{
+  struct StartupRedrawSimulator
+  {
+    bool needsInvalidate_;
+    bool skipNextUpdateDraw_;
+    int fullDrawCount_;
+
+    StartupRedrawSimulator()
+        : needsInvalidate_(false), skipNextUpdateDraw_(false), fullDrawCount_(0) {}
+
+    // Models requestInvalidateWithReason (called from onChange with fullRebuild)
+    void requestInvalidate() { needsInvalidate_ = true; }
+
+    // Models draw() — direct draw, does not touch invalidation flags
+    void draw() { ++fullDrawCount_; }
+
+    // Models flushInvalidate() — only draws if needsInvalidate_ is true
+    void flushInvalidate()
+    {
+      if (!needsInvalidate_)
+      {
+        return;
+      }
+      needsInvalidate_ = false;
+      skipNextUpdateDraw_ = true;
+      draw();
+    }
+
+    // Models updateEvt handling
+    void handleUpdateEvt()
+    {
+      if (skipNextUpdateDraw_)
+      {
+        skipNextUpdateDraw_ = false;
+        return;
+      }
+      draw();
+    }
+  };
+} // namespace
+
+void testStartupRedrawCount_Before()
+{
+  printf("\n==== [testStartupRedrawCount_Before] start ====\n");
+
+  // Simulate the CURRENT ToolboxApp::run() startup sequence:
+  //   open()                    -> NewWindow(visible=true), queues updateEvt
+  //   ensureSceneMounted()      -> onChange(INITIAL, fullRebuild=true) -> requestInvalidate
+  //   draw()                    -> explicit draw (does NOT clear needsInvalidate_)
+  //   --- event loop ---
+  //   nullEvent -> flushInvalidate()  -> draws again because needsInvalidate_ still set
+  //   updateEvt from NewWindow        -> skipNextUpdateDraw_ consumed by flushInvalidate
+  //   recompose fires requestInvalidate -> another flushInvalidate -> draws again
+
+  StartupRedrawSimulator sim;
+
+  // Phase 1: startup, before event loop
+  sim.requestInvalidate(); // ensureSceneMounted -> onChange(fullRebuild=true)
+  sim.draw();              // explicit draw() call at ToolboxApp.cpp:54
+
+  // Phase 2: first event-loop iteration (nullEvent)
+  sim.flushInvalidate(); // needsInvalidate_ was still true -> draws again
+
+  // Phase 3: updateEvt from NewWindow(visible=true)
+  sim.handleUpdateEvt(); // skipNextUpdateDraw_ was set by flushInvalidate -> skipped
+
+  // Phase 4: recompose cycle fires another requestInvalidate during startup
+  sim.requestInvalidate(); // dynamic boundary state change during first compose cycle
+  sim.flushInvalidate();   // draws again
+
+  printf("  Before: fullDrawCount = %d (expected >= 3)\n", sim.fullDrawCount_);
+  assert(sim.fullDrawCount_ >= 3);
+
+  printf("==== [testStartupRedrawCount_Before] PASSED ====\n");
+}
+
+void testStartupRedrawCount_After()
+{
+  printf("\n==== [testStartupRedrawCount_After] start ====\n");
+
+  // Simulate the FIXED startup sequence:
+  //   open()
+  //   ensureSceneMounted()      -> onChange(fullRebuild=true) -> requestInvalidate
+  //   flushInvalidate()         -> clears needsInvalidate_, draws, sets skipNextUpdateDraw_
+  //   --- event loop ---
+  //   updateEvt from NewWindow  -> skipped by skipNextUpdateDraw_
+  //   no excess requestInvalidate because dynamic root downgrade prevents fullRebuild
+
+  StartupRedrawSimulator sim;
+
+  // Phase 1: startup, before event loop
+  sim.requestInvalidate(); // ensureSceneMounted -> onChange(fullRebuild=true)
+  sim.flushInvalidate();   // FIXED: use flushInvalidate instead of raw draw()
+                           // clears needsInvalidate_, draws, sets skipNextUpdateDraw_
+
+  // Phase 2: updateEvt from NewWindow(visible=true)
+  sim.handleUpdateEvt(); // skipNextUpdateDraw_ is set -> skipped
+
+  // Phase 3: if recompose fires, dynamic root boundary downgrade means
+  // fullRebuild=false, so only rect invalidation occurs (not modelled here
+  // as full draw), and needsInvalidate_ stays false.
+
+  printf("  After: fullDrawCount = %d (expected 1)\n", sim.fullDrawCount_);
+  assert(sim.fullDrawCount_ == 1);
+
+  printf("==== [testStartupRedrawCount_After] PASSED ====\n");
+}

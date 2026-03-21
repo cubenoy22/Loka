@@ -57,6 +57,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/AttrDslTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StartupRedrawTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp

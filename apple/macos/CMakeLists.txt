@@ -86,6 +86,7 @@ set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
+  ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/TestMain.cpp
   ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainLeftPanel.cpp
   ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainRightPanel.cpp
