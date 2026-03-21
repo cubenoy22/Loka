@@ -72,5 +72,6 @@ void testLokaDslStream();
 void testStateBatchOverflow();
 void testNestedTransaction();
 void testNestedTransactionInvalidateTiming();
+void testDynamicRootMountProducesExactlyOneFullRebuildOnChange();
 
 #endif // LOKA_TESTS_HPP

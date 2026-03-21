@@ -115,6 +115,7 @@ int main()
   testStateBatchOverflow();
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
+  testDynamicRootMountProducesExactlyOneFullRebuildOnChange();
   SceneTests::runAll();
   return 0;
 }
