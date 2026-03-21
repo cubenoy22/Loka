@@ -4204,24 +4204,13 @@ void testSceneMixedStaticAndDynamicChildDirtyStaysFullRebuild()
   }
   scene.flushInvalidation();
 
-  printf("  testMixedStaticDynamic: calls=%d lastFlags=%d fullRebuild=%d\n",
-         platform.calls_, static_cast<int>(platform.lastFlags_), platform.lastFullRebuild_ ? 1 : 0);
-  printf("    NODE_DIRTY_CHILD=%d NODE_DIRTY_PROPS=%d NODE_DIRTY_INITIAL=%d\n",
-         (platform.lastFlags_ & NODE_DIRTY_CHILD) != 0 ? 1 : 0,
-         (platform.lastFlags_ & NODE_DIRTY_PROPS) != 0 ? 1 : 0,
-         (platform.lastFlags_ & NODE_DIRTY_INITIAL) != 0 ? 1 : 0);
   assert(platform.calls_ >= 2);
-  // ConditionalDefinition now owns cloned definitions, so ConditionalNode's
-  // onConditionChanged successfully updates children during the state change.
-  // The scene still sees at least NODE_DIRTY_PROPS from statusText and
-  // NODE_DIRTY_CHILD from the dynamic pane's observed state.  However the
-  // root boundary is static so fullRebuild is expected.
-  assert(platform.lastFlags_ != NODE_DIRTY_NONE);
-  // fullRebuild may be false now: ConditionalDefinition owns cloned defs,
-  // so ConditionalNode::onConditionChanged succeeds and the scene may
-  // downgrade the rebuild when the root boundary can apply a local diff.
-  printf("  fullRebuild=%d (was expected true, now may be false after ConditionalDefinition fix)\n",
-         platform.lastFullRebuild_ ? 1 : 0);
+  // With ConditionalDefinition owning cloned defs, onConditionChanged succeeds
+  // and the last onChange carries only NODE_DIRTY_PROPS (from statusText).
+  // The static root boundary no longer sees NODE_DIRTY_CHILD in the final
+  // onChange, so fullRebuild is false.
+  assert(platform.lastFlags_ == NODE_DIRTY_PROPS);
+  assert(platform.lastFullRebuild_ == false);
 
   scene.unmount();
 }
@@ -4420,12 +4409,11 @@ void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild()
   }
   scene.flushInvalidation();
 
-  printf("  testMixedStaticDynamicPure: calls=%d lastFlags=%d fullRebuild=%d\n",
-         platform.calls_, static_cast<int>(platform.lastFlags_), platform.lastFullRebuild_ ? 1 : 0);
   assert(platform.calls_ >= 2);
-  assert(platform.lastFlags_ != NODE_DIRTY_NONE);
-  printf("  fullRebuild=%d (was expected true, now may be false after ConditionalDefinition fix)\n",
-         platform.lastFullRebuild_ ? 1 : 0);
+  // Pure child-dirty (no statusText props change): last onChange carries
+  // NODE_DIRTY_CHILD. Static root boundary keeps fullRebuild=true.
+  assert(platform.lastFlags_ == NODE_DIRTY_CHILD);
+  assert(platform.lastFullRebuild_ == true);
 
   scene.unmount();
 }
@@ -4639,12 +4627,11 @@ void testSceneMixedStaticAndDynamicChildDirtyTracksBoundaryLocalDiffState()
   assert(dynamicBoundary->hasLocalCompositionDiff() == true);
   assert(dynamicBoundary->canApplyLocalCompositionDiff() == true);
   assert(subtreeHasApplicableLocalDiffRecursive(rootNode) == true);
-  printf("  testMixedChildDirtyLocalDiff: lastFlags=%d fullRebuild=%d\n",
-         static_cast<int>(platform.lastFlags_), platform.lastFullRebuild_ ? 1 : 0);
-  // After ConditionalDefinition ownership fix, ConditionalNode::onConditionChanged
-  // succeeds and updates children directly.  The scene's last onChange may only
-  // carry NODE_DIRTY_PROPS (from statusText) rather than NODE_DIRTY_CHILD.
-  assert(platform.lastFlags_ != NODE_DIRTY_NONE);
+  // With ConditionalDefinition fix, last onChange carries NODE_DIRTY_PROPS
+  // (from statusText). fullRebuild=false because the static root boundary
+  // does not see NODE_DIRTY_CHILD in the final onChange.
+  assert(platform.lastFlags_ == NODE_DIRTY_PROPS);
+  assert(platform.lastFullRebuild_ == false);
 
   scene.unmount();
 }
@@ -4847,10 +4834,10 @@ void testSceneMixedDynamicRootChildDirtyDowngradesFullRebuild()
   }
   scene.flushInvalidation();
 
-  printf("  testDynamicRootChildDirty: calls=%d lastFlags=%d fullRebuild=%d\n",
-         platform.calls_, static_cast<int>(platform.lastFlags_), platform.lastFullRebuild_ ? 1 : 0);
   assert(platform.calls_ >= 2);
-  assert(platform.lastFlags_ != NODE_DIRTY_NONE);
+  // Dynamic root with mixed child dirty: last onChange carries NODE_DIRTY_PROPS.
+  // Dynamic root downgrades fullRebuild to false.
+  assert(platform.lastFlags_ == NODE_DIRTY_PROPS);
   assert(platform.lastFullRebuild_ == false);
 
   scene.unmount();
@@ -5050,10 +5037,10 @@ void testSceneMixedDynamicRootPureChildDirtyDowngradesFullRebuild()
   }
   scene.flushInvalidation();
 
-  printf("  testDynamicRootPureChildDirty: calls=%d lastFlags=%d fullRebuild=%d\n",
-         platform.calls_, static_cast<int>(platform.lastFlags_), platform.lastFullRebuild_ ? 1 : 0);
   assert(platform.calls_ >= 2);
-  assert(platform.lastFlags_ != NODE_DIRTY_NONE);
+  // Pure child-dirty on dynamic root: last onChange carries NODE_DIRTY_CHILD.
+  // Dynamic root downgrades fullRebuild to false.
+  assert(platform.lastFlags_ == NODE_DIRTY_CHILD);
   assert(platform.lastFullRebuild_ == false);
 
   scene.unmount();
