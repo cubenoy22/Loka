@@ -127,7 +127,45 @@ namespace loka
       }
 
       ConditionalDefinition::ConditionalDefinition(const ConditionalProps &p)
-          : props(p) {}
+          : props(p),
+            ownedTrueDef(p.trueDef ? p.trueDef->clone() : 0),
+            ownedFalseDef(p.falseDef ? p.falseDef->clone() : 0)
+      {
+        props.trueDef = ownedTrueDef;
+        props.falseDef = ownedFalseDef;
+      }
+
+      ConditionalDefinition::ConditionalDefinition(const ConditionalDefinition &other)
+          : NodeDefinitionBase(other),
+            props(other.props),
+            ownedTrueDef(other.ownedTrueDef ? other.ownedTrueDef->clone() : 0),
+            ownedFalseDef(other.ownedFalseDef ? other.ownedFalseDef->clone() : 0)
+      {
+        props.trueDef = ownedTrueDef;
+        props.falseDef = ownedFalseDef;
+      }
+
+      ConditionalDefinition &ConditionalDefinition::operator=(const ConditionalDefinition &other)
+      {
+        if (this != &other)
+        {
+          NodeDefinitionBase::operator=(other);
+          delete ownedTrueDef;
+          delete ownedFalseDef;
+          props = other.props;
+          ownedTrueDef = other.ownedTrueDef ? other.ownedTrueDef->clone() : 0;
+          ownedFalseDef = other.ownedFalseDef ? other.ownedFalseDef->clone() : 0;
+          props.trueDef = ownedTrueDef;
+          props.falseDef = ownedFalseDef;
+        }
+        return *this;
+      }
+
+      ConditionalDefinition::~ConditionalDefinition()
+      {
+        delete ownedTrueDef;
+        delete ownedFalseDef;
+      }
 
       Node *ConditionalDefinition::create() const
       {

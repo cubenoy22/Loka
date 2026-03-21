@@ -48,7 +48,12 @@ namespace loka
       struct ConditionalDefinition : public NodeDefinitionBase
       {
         ConditionalProps props;
+        NodeDefinitionBase *ownedTrueDef;
+        NodeDefinitionBase *ownedFalseDef;
         ConditionalDefinition(const ConditionalProps &p);
+        ConditionalDefinition(const ConditionalDefinition &other);
+        ConditionalDefinition &operator=(const ConditionalDefinition &other);
+        ~ConditionalDefinition();
         Node *create() const;
         Node *createInPlace(void *mem) const;
         size_t nodeSize() const;
