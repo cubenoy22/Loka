@@ -1,7 +1,6 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxWindowContext.hpp"
-#include "ToolboxProfiler.hpp"
 #include "loka/core/Profiler.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
@@ -12,8 +11,6 @@
 #include <Memory.h>
 #include <Menus.h>
 
-// Profile result captured once on first render
-static bool sProfileCaptured = false;
 #include "loka/platform/StringUTF8.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
@@ -928,15 +925,6 @@ void ToolboxScenePlatformController::render()
     ++i;
   }
 
-#if LOKA_PROFILE_FUNC_TICKS
-  // Capture profile once on first render and dump to file.
-  if (!sProfileCaptured)
-  {
-    BuildProfileResultString();
-    DumpFuncProfileToFile("profile.txt");
-    sProfileCaptured = true;
-  }
-#endif
 }
 
 void ToolboxScenePlatformController::renderDirty(const Rect &rect)
