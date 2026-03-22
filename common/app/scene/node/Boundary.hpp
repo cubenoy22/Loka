@@ -10,6 +10,7 @@
 #include "../ComponentContext.hpp"
 #include "../NodeCompositionSnapshot.hpp"
 #include "../NodeCompositionTransaction.hpp"
+#include "BoundaryStateTypes.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/util/StateUtil.hpp"
@@ -266,46 +267,6 @@ namespace loka
             entries.clear();
           }
         };
-        struct PendingUpdateState
-        {
-          PendingUpdateState() : dirtyFlags(NODE_DIRTY_NONE), requested(false), nextBoundary(0) {}
-          void clear()
-          {
-            dirtyFlags = NODE_DIRTY_NONE;
-            requested = false;
-            nextBoundary = 0;
-          }
-          NodeDirtyFlags dirtyFlags;
-          bool requested;
-          BoundaryNode *nextBoundary;
-        };
-        struct BoundaryComposeResult
-        {
-          BoundaryComposeResult() : event(COMPOSE_EVENT_ATTACH), dirtyFlagsSeen(NODE_DIRTY_NONE), composed(false), preservedNativeContexts(false) {}
-          void clear()
-          {
-            event = COMPOSE_EVENT_ATTACH;
-            dirtyFlagsSeen = NODE_DIRTY_NONE;
-            composed = false;
-            preservedNativeContexts = false;
-          }
-          ComposeEvent event;
-          NodeDirtyFlags dirtyFlagsSeen;
-          bool composed;
-          bool preservedNativeContexts;
-        };
-        struct BoundaryUpdateResult
-        {
-          BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false) {}
-          void clear()
-          {
-            actualBoundsChanged = false;
-            affectsAncestorLayout = false;
-          }
-          bool actualBoundsChanged;
-          bool affectsAncestorLayout;
-        };
-
         BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), composeResult_(), updateResult_(), frozen_(false), applyingPlatform_(false), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);

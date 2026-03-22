@@ -10,6 +10,7 @@
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/ComponentContext.hpp"
 #include "app/scene/NodeComposition.hpp"
+#include "app/scene/PlatformApplyPlan.hpp"
 #include "app/scene/SceneDirector.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
@@ -59,39 +60,6 @@ namespace loka
             fullRebuild = false;
           }
           NodeDirtyFlags flags;
-        };
-        struct PlatformApplyPlan
-        {
-          enum PaintKind
-          {
-            PAINT_NONE = 0,
-            PAINT_LOCAL = 1,
-            PAINT_COMPOSITED = 2
-          };
-
-          PlatformApplyPlan()
-              : structureChanged(false),
-                layoutChanged(false),
-                paintKind(PAINT_NONE),
-                layoutRoot(0),
-                paintRoot(0)
-          {
-          }
-
-          void clear()
-          {
-            structureChanged = false;
-            layoutChanged = false;
-            paintKind = PAINT_NONE;
-            layoutRoot = 0;
-            paintRoot = 0;
-          }
-
-          bool structureChanged;
-          bool layoutChanged;
-          PaintKind paintKind;
-          BoundaryNode *layoutRoot;
-          BoundaryNode *paintRoot;
         };
         // Accept Boundary definitions only (compile-time check via IsBoundaryDefinition).
         template <class DefT>
@@ -454,7 +422,7 @@ namespace loka
           BoundaryNode *root = director.firstPendingUpdateRoot();
           while (root)
           {
-            const BoundaryNode::BoundaryComposeResult &result = root->composeResult();
+            const BoundaryComposeResult &result = root->composeResult();
             if (!result.composed || !result.preservedNativeContexts)
             {
               return false;
@@ -470,7 +438,7 @@ namespace loka
           BoundaryNode *root = director.firstPendingUpdateRoot();
           while (root)
           {
-            const BoundaryNode::BoundaryUpdateResult &result = root->updateResult();
+            const BoundaryUpdateResult &result = root->updateResult();
             if (result.actualBoundsChanged || result.affectsAncestorLayout)
             {
               return true;
