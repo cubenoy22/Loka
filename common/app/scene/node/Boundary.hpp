@@ -279,8 +279,34 @@ namespace loka
           bool requested;
           BoundaryNode *nextBoundary;
         };
+        struct BoundaryComposeResult
+        {
+          BoundaryComposeResult() : event(COMPOSE_EVENT_ATTACH), dirtyFlagsSeen(NODE_DIRTY_NONE), composed(false), preservedNativeContexts(false) {}
+          void clear()
+          {
+            event = COMPOSE_EVENT_ATTACH;
+            dirtyFlagsSeen = NODE_DIRTY_NONE;
+            composed = false;
+            preservedNativeContexts = false;
+          }
+          ComposeEvent event;
+          NodeDirtyFlags dirtyFlagsSeen;
+          bool composed;
+          bool preservedNativeContexts;
+        };
+        struct BoundaryUpdateResult
+        {
+          BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false) {}
+          void clear()
+          {
+            actualBoundsChanged = false;
+            affectsAncestorLayout = false;
+          }
+          bool actualBoundsChanged;
+          bool affectsAncestorLayout;
+        };
 
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), frozen_(false), observedStateEntries_(), observedGeneration_(0)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), composeResult_(), updateResult_(), frozen_(false), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -345,6 +371,27 @@ namespace loka
         void setUpdateRequested(bool value) { pendingUpdate_.requested = value; }
         BoundaryNode *nextPendingBoundary() const { return pendingUpdate_.nextBoundary; }
         void setNextPendingBoundary(BoundaryNode *next) { pendingUpdate_.nextBoundary = next; }
+        BoundaryComposeResult &composeResult() { return composeResult_; }
+        const BoundaryComposeResult &composeResult() const { return composeResult_; }
+        BoundaryUpdateResult &updateResult() { return updateResult_; }
+        const BoundaryUpdateResult &updateResult() const { return updateResult_; }
+        void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
+        {
+          composeResult_.event = event;
+          composeResult_.dirtyFlagsSeen = dirtyFlags;
+          composeResult_.composed = false;
+          composeResult_.preservedNativeContexts = false;
+        }
+        void completeComposeResult(bool preservedNativeContexts)
+        {
+          composeResult_.composed = true;
+          composeResult_.preservedNativeContexts = preservedNativeContexts;
+        }
+        void clearPhaseResults()
+        {
+          composeResult_.clear();
+          updateResult_.clear();
+        }
         void beginObservedStatePass()
         {
           ++observedGeneration_;
@@ -757,6 +804,8 @@ namespace loka
               boundary->setScene(currentBoundary->getScene());
             }
             boundary->clearObservedDirtyFlags();
+            boundary->clearPhaseResults();
+            boundary->beginComposeResult(event, parentContext.dirtyFlags());
             boundary->beginObservedStatePass();
             nextBoundary = boundary;
           }
@@ -809,6 +858,10 @@ namespace loka
             else
             {
               composable->compose(nodeContext, event);
+            }
+            if (boundary)
+            {
+              boundary->completeComposeResult(boundary->canApplyLocalCompositionDiff());
             }
             contextForChildren = &nodeContext;
           }
@@ -952,6 +1005,8 @@ namespace loka
         LayoutBounds layoutBounds_;
         NodeDirtyFlags observedDirtyFlags_;
         PendingUpdateState pendingUpdate_;
+        BoundaryComposeResult composeResult_;
+        BoundaryUpdateResult updateResult_;
         bool frozen_;
         std::vector<ObservedStateEntry> observedStateEntries_;
         unsigned long observedGeneration_;

@@ -353,7 +353,11 @@ namespace loka
             compositionDiff_.fullRebuild = false;
           }
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
-          if (compositionDiff_.fullRebuild && rootBoundaryCanApplyLocalCompositionDiff(rootNode_))
+          if (compositionDiff_.fullRebuild && pendingUpdateRootsCanApplyLocalCompositionDiff(director_))
+          {
+            compositionDiff_.fullRebuild = false;
+          }
+          else if (compositionDiff_.fullRebuild && rootBoundaryCanApplyLocalCompositionDiff(rootNode_))
           {
             compositionDiff_.fullRebuild = false;
           }
@@ -402,6 +406,23 @@ namespace loka
           }
           BoundaryNode *boundary = node->asBoundary();
           return boundary && boundary->canApplyLocalCompositionDiff();
+        }
+
+        static bool pendingUpdateRootsCanApplyLocalCompositionDiff(const SceneDirector &director)
+        {
+          bool sawRoot = false;
+          BoundaryNode *root = director.firstPendingUpdateRoot();
+          while (root)
+          {
+            const BoundaryNode::BoundaryComposeResult &result = root->composeResult();
+            if (!result.composed || !result.preservedNativeContexts)
+            {
+              return false;
+            }
+            sawRoot = true;
+            root = director.nextPendingUpdateRoot(root);
+          }
+          return sawRoot;
         }
 
         static size_t countLiveNodes(Node *node)
