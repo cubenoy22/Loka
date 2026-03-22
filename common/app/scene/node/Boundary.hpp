@@ -306,7 +306,7 @@ namespace loka
           bool affectsAncestorLayout;
         };
 
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), composeResult_(), updateResult_(), frozen_(false), observedStateEntries_(), observedGeneration_(0)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), composeResult_(), updateResult_(), frozen_(false), applyingPlatform_(false), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -330,9 +330,11 @@ namespace loka
           (void)flags;
           return true;
         }
+        virtual void applyPendingUpdate() {}
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
         bool isFrozen() const { return this->frozen_; }
+        bool isApplyingPlatform() const { return this->applyingPlatform_; }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -347,13 +349,41 @@ namespace loka
         void setParentBoundary(BoundaryNode *parent) { parentBoundary_ = parent; }
         void setLayoutBounds(int x, int y, int width, int height)
         {
+          const int normalizedWidth = width < 0 ? 0 : width;
+          const int normalizedHeight = height < 0 ? 0 : height;
+          const bool changed = !layoutBounds_.valid ||
+                               layoutBounds_.x != x ||
+                               layoutBounds_.y != y ||
+                               layoutBounds_.width != normalizedWidth ||
+                               layoutBounds_.height != normalizedHeight;
           layoutBounds_.x = x;
           layoutBounds_.y = y;
-          layoutBounds_.width = width < 0 ? 0 : width;
-          layoutBounds_.height = height < 0 ? 0 : height;
+          layoutBounds_.width = normalizedWidth;
+          layoutBounds_.height = normalizedHeight;
           layoutBounds_.valid = true;
+          if (changed)
+          {
+            updateResult_.actualBoundsChanged = true;
+            if (parentBoundary_)
+            {
+              updateResult_.affectsAncestorLayout = true;
+            }
+          }
         }
-        void clearLayoutBounds() { layoutBounds_ = LayoutBounds(); }
+        void clearLayoutBounds()
+        {
+          if (layoutBounds_.valid)
+          {
+            layoutBounds_ = LayoutBounds();
+            updateResult_.actualBoundsChanged = true;
+            if (parentBoundary_)
+            {
+              updateResult_.affectsAncestorLayout = true;
+            }
+            return;
+          }
+          layoutBounds_ = LayoutBounds();
+        }
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
         void clearObservedDirtyFlags() { observedDirtyFlags_ = NODE_DIRTY_NONE; }
@@ -392,6 +422,8 @@ namespace loka
           composeResult_.clear();
           updateResult_.clear();
         }
+        void beginPlatformApply() { applyingPlatform_ = true; }
+        void endPlatformApply() { applyingPlatform_ = false; }
         void beginObservedStatePass()
         {
           ++observedGeneration_;
@@ -1008,6 +1040,7 @@ namespace loka
         BoundaryComposeResult composeResult_;
         BoundaryUpdateResult updateResult_;
         bool frozen_;
+        bool applyingPlatform_;
         std::vector<ObservedStateEntry> observedStateEntries_;
         unsigned long observedGeneration_;
         NodeArena nodeArena_;

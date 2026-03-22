@@ -64,6 +64,28 @@ namespace {
   typedef loka::app::scene::BoundaryPropsFor<PendingStaticRootNode> PendingStaticRootProps;
   static loka::core::MutableState<bool> g_pendingChildSwapState(false);
 
+  class PendingLayoutBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PendingLayoutBoundaryNode> PendingLayoutBoundaryProps;
+  static loka::core::MutableState<int> g_pendingLayoutWidthState(32);
+
+  class PendingLayoutBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>
+  {
+  public:
+    PendingLayoutBoundaryNode(const PendingLayoutBoundaryProps &p)
+        : loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>(PendingLayoutBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      this->setLayoutBounds(0, 0, g_pendingLayoutWidthState.get(), 12);
+      c.declare(loka::app::Text("Sized").testId("PendingLayoutText"));
+    }
+
+    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+    {
+      registrar.observe(&g_pendingLayoutWidthState, loka::app::scene::NODE_DIRTY_PROPS);
+    }
+  };
+
   class PendingDynamicLeafNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<PendingDynamicLeafNode> PendingDynamicLeafProps;
 
@@ -1671,6 +1693,50 @@ void testLokaFlowDslV1Core() {
     using namespace loka::app::scene;
     using loka::dsl::testing::SceneTestAccess;
 
+    g_pendingLayoutWidthState.set(32);
+
+    Scene scene((BoundaryDefinition<PendingLayoutBoundaryProps, PendingLayoutBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+    loka::dsl::SnapRecord captured;
+    FlowErrorCapture failCapture = {0, 0, 0};
+
+    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&g_pendingLayoutWidthState, 64))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckText("PendingLayoutText", "Sized"))
+        | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("pending-layout-upgrade", &platform, 20))
+              .onSuccess(&captured)
+        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_PROPS))
+        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_LAYOUT));
+
+    okChain.onFailure(&FlowTestMarker::captureFailure, &failCapture);
+    const bool ok = okChain.run();
+    if (!ok)
+    {
+      std::printf("[pending-layout-upgrade] fail kind=%d code=%d calls=%d full=%d flags=%ld\n",
+                  failCapture.kind,
+                  failCapture.code,
+                  failCapture.calls,
+                  platform.lastFullRebuild_ ? 1 : 0,
+                  static_cast<long>(platform.lastFlags_));
+      std::fflush(stdout);
+    }
+    assert(ok);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
     g_pendingChildSwapState.set(false);
 
     Scene scene((BoundaryDefinition<PendingStaticRootProps, PendingStaticRootNode>()));
@@ -1680,7 +1746,7 @@ void testLokaFlowDslV1Core() {
 
     Scene *scenePtr = &scene;
     loka::dsl::SnapRecord captured;
-
+    FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
         | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&g_pendingChildSwapState, true))
@@ -1690,13 +1756,20 @@ void testLokaFlowDslV1Core() {
               .onSuccess(&captured)
         | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_CHILD))
         | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntEquals("platform.full_rebuild", 0));
-
-    assert(okChain.run());
+    okChain.onFailure(&FlowTestMarker::captureFailure, &failCapture);
+    const bool ok = okChain.run();
+    if (!ok)
+    {
+      std::printf("[pending-child-root-downgrade] fail kind=%d code=%d calls=%d full=%d flags=%ld\n",
+                  failCapture.kind,
+                  failCapture.code,
+                  failCapture.calls,
+                  platform.lastFullRebuild_ ? 1 : 0,
+                  static_cast<long>(platform.lastFlags_));
+      std::fflush(stdout);
+    }
+    assert(ok);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
-
-    long fullRebuild = 1;
-    assert(captured.getInt("platform.full_rebuild", fullRebuild));
-    assert(fullRebuild == 0);
 
     scene.unmount();
   }

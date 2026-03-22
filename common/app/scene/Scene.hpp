@@ -60,17 +60,50 @@ namespace loka
           }
           NodeDirtyFlags flags;
         };
+        struct PlatformApplyPlan
+        {
+          enum PaintKind
+          {
+            PAINT_NONE = 0,
+            PAINT_LOCAL = 1,
+            PAINT_COMPOSITED = 2
+          };
+
+          PlatformApplyPlan()
+              : structureChanged(false),
+                layoutChanged(false),
+                paintKind(PAINT_NONE),
+                layoutRoot(0),
+                paintRoot(0)
+          {
+          }
+
+          void clear()
+          {
+            structureChanged = false;
+            layoutChanged = false;
+            paintKind = PAINT_NONE;
+            layoutRoot = 0;
+            paintRoot = 0;
+          }
+
+          bool structureChanged;
+          bool layoutChanged;
+          PaintKind paintKind;
+          BoundaryNode *layoutRoot;
+          BoundaryNode *paintRoot;
+        };
         // Accept Boundary definitions only (compile-time check via IsBoundaryDefinition).
         template <class DefT>
         explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_()
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_()
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
         }
         // Construct from NodeDefinitionBase and auto-wrap non-boundary roots.
         explicit Scene(NodeDefinitionBase *def)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_()
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_()
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
@@ -78,7 +111,7 @@ namespace loka
         // Clone and take ownership of the root definition.
         template <class DefT>
         explicit Scene(const DefT &def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_()
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_()
         {
           director_.attach(this);
         }
@@ -215,6 +248,7 @@ namespace loka
         loka::dsl::NextTickTracker nextTickTracker_;
         SceneCompositionDiff compositionDiff_;
         SceneDirector director_;
+        PlatformApplyPlan lastApplyPlan_;
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class SceneManager;
@@ -353,6 +387,10 @@ namespace loka
             compositionDiff_.fullRebuild = false;
           }
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
+          if (pendingUpdateRootsRequireLayout(director_))
+          {
+            compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | NODE_DIRTY_LAYOUT);
+          }
           if (compositionDiff_.fullRebuild && pendingUpdateRootsCanApplyLocalCompositionDiff(director_))
           {
             compositionDiff_.fullRebuild = false;
@@ -375,6 +413,8 @@ namespace loka
           {
             flags = NODE_DIRTY_PROPS;
           }
+          lastApplyPlan_ = buildPlatformApplyPlan(rootNode_, director_, compositionDiff_);
+          applyPendingBoundaryUpdates(director_);
           platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
           compositionDiff_.clear();
           director_.clearPendingBoundaryRequest();
@@ -423,6 +463,51 @@ namespace loka
             root = director.nextPendingUpdateRoot(root);
           }
           return sawRoot;
+        }
+
+        static bool pendingUpdateRootsRequireLayout(const SceneDirector &director)
+        {
+          BoundaryNode *root = director.firstPendingUpdateRoot();
+          while (root)
+          {
+            const BoundaryNode::BoundaryUpdateResult &result = root->updateResult();
+            if (result.actualBoundsChanged || result.affectsAncestorLayout)
+            {
+              return true;
+            }
+            root = director.nextPendingUpdateRoot(root);
+          }
+          return false;
+        }
+
+        static PlatformApplyPlan buildPlatformApplyPlan(Node *rootNode,
+                                                        const SceneDirector &director,
+                                                        const SceneCompositionDiff &diff)
+        {
+          PlatformApplyPlan plan;
+          plan.structureChanged = (diff.flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0;
+          plan.layoutChanged = (diff.flags & NODE_DIRTY_LAYOUT) != 0 || pendingUpdateRootsRequireLayout(director);
+          if (diff.flags != NODE_DIRTY_NONE)
+          {
+            plan.paintKind = PlatformApplyPlan::PAINT_LOCAL;
+          }
+          BoundaryNode *rootBoundary = rootNode ? rootNode->asBoundary() : 0;
+          BoundaryNode *firstPendingRoot = director.firstPendingUpdateRoot();
+          plan.layoutRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
+          plan.paintRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
+          return plan;
+        }
+
+        static void applyPendingBoundaryUpdates(const SceneDirector &director)
+        {
+          BoundaryNode *root = director.firstPendingUpdateRoot();
+          while (root)
+          {
+            root->beginPlatformApply();
+            root->applyPendingUpdate();
+            root->endPlatformApply();
+            root = director.nextPendingUpdateRoot(root);
+          }
         }
 
         static size_t countLiveNodes(Node *node)
