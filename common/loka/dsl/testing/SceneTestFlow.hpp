@@ -40,6 +40,11 @@ namespace loka
           return scene.director_;
         }
 
+        static const ::loka::app::scene::PlatformApplyPlan &lastApplyPlan(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.lastApplyPlan_;
+        }
+
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
         {
           return scene.flushInvalidation();

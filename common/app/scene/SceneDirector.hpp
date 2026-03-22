@@ -20,6 +20,7 @@ namespace loka
         void attach(Scene *scene);
         void detach();
 
+        void registerBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags);
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
         BoundaryNode *lastRequestedBoundary() const;

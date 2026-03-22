@@ -67,6 +67,10 @@ namespace {
   class PendingLayoutBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingLayoutBoundaryNode> PendingLayoutBoundaryProps;
   static loka::core::MutableState<int> g_pendingLayoutWidthState(32);
+  class PendingApplyProbeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PendingApplyProbeBoundaryNode> PendingApplyProbeBoundaryProps;
+  static int g_pendingApplyCallCount = 0;
+  static int g_pendingApplyWhileApplyingCount = 0;
 
   class PendingLayoutBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>
   {
@@ -85,6 +89,29 @@ namespace {
       registrar.observe(&g_pendingLayoutWidthState, loka::app::scene::NODE_DIRTY_PROPS);
     }
   };
+
+  class PendingApplyProbeBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingApplyProbeBoundaryNode>
+  {
+  public:
+    PendingApplyProbeBoundaryNode(const PendingApplyProbeBoundaryProps &p)
+        : loka::app::scene::BoundaryNodeFor<PendingApplyProbeBoundaryNode>(PendingApplyProbeBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::Text("Apply").testId("PendingApplyText"));
+    }
+
+    virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      ++g_pendingApplyCallCount;
+      if (this->isApplyingPlatform())
+      {
+        ++g_pendingApplyWhileApplyingCount;
+      }
+      assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL);
+    }
+  };
+
 
   class PendingDynamicLeafNode;
   typedef loka::app::scene::DynamicCompositionPropsFor<PendingDynamicLeafNode> PendingDynamicLeafProps;
@@ -1727,6 +1754,35 @@ void testLokaFlowDslV1Core() {
       std::fflush(stdout);
     }
     assert(ok);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    g_pendingApplyCallCount = 0;
+    g_pendingApplyWhileApplyingCount = 0;
+
+    Scene scene((BoundaryDefinition<PendingApplyProbeBoundaryProps, PendingApplyProbeBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    scene.requestInvalidate(NODE_DIRTY_PROPS);
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(scene.flushInvalidation());
+    assert(g_pendingApplyCallCount == 1);
+    assert(g_pendingApplyWhileApplyingCount == 1);
+    const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
+    assert(plan.paintKind == PlatformApplyPlan::PAINT_LOCAL);
+    assert(plan.layoutRoot == rootBoundary);
+    assert(plan.paintRoot == rootBoundary);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
 
     scene.unmount();

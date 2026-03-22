@@ -10,6 +10,7 @@
 #include "../ComponentContext.hpp"
 #include "../NodeCompositionSnapshot.hpp"
 #include "../NodeCompositionTransaction.hpp"
+#include "../PlatformApplyPlan.hpp"
 #include "BoundaryStateTypes.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/StateTracker.hpp"
@@ -291,7 +292,7 @@ namespace loka
           (void)flags;
           return true;
         }
-        virtual void applyPendingUpdate() {}
+        virtual void applyPendingUpdate(const PlatformApplyPlan &) {}
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
         bool isFrozen() const { return this->frozen_; }

@@ -172,12 +172,13 @@ namespace loka
           {
             flags = NODE_DIRTY_PROPS;
           }
-          compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | flags);
-          if ((flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
+          BoundaryNode *rootBoundary = rootNode_ ? rootNode_->asBoundary() : 0;
+          if (rootBoundary)
           {
-            compositionDiff_.fullRebuild = true;
+            rootBoundary->addPendingDirtyFlags(flags);
+            director_.registerBoundaryUpdate(rootBoundary, flags);
           }
-          nextTickTracker_.request();
+          queueInvalidate(flags);
         }
 
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately)
@@ -224,6 +225,16 @@ namespace loka
         friend class ::loka::dsl::testing::SceneTestAccess;
 
       private:
+        void queueInvalidate(NodeDirtyFlags flags)
+        {
+          compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | flags);
+          if ((flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
+          {
+            compositionDiff_.fullRebuild = true;
+          }
+          nextTickTracker_.request();
+        }
+
         static bool RefreshThunk(void *userData)
         {
           Scene *scene = static_cast<Scene *>(userData);
@@ -382,7 +393,7 @@ namespace loka
             flags = NODE_DIRTY_PROPS;
           }
           lastApplyPlan_ = buildPlatformApplyPlan(rootNode_, director_, compositionDiff_);
-          applyPendingBoundaryUpdates(director_);
+          applyPendingBoundaryUpdates(rootNode_, director_, lastApplyPlan_);
           platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
           compositionDiff_.clear();
           director_.clearPendingBoundaryRequest();
@@ -466,13 +477,19 @@ namespace loka
           return plan;
         }
 
-        static void applyPendingBoundaryUpdates(const SceneDirector &director)
+        static void applyPendingBoundaryUpdates(Node *rootNode,
+                                               const SceneDirector &director,
+                                               const PlatformApplyPlan &plan)
         {
           BoundaryNode *root = director.firstPendingUpdateRoot();
+          if (!root)
+          {
+            root = rootNode ? rootNode->asBoundary() : 0;
+          }
           while (root)
           {
             root->beginPlatformApply();
-            root->applyPendingUpdate();
+            root->applyPendingUpdate(plan);
             root->endPlatformApply();
             root = director.nextPendingUpdateRoot(root);
           }
@@ -529,15 +546,29 @@ namespace loka
         {
           flags = NODE_DIRTY_PROPS;
         }
+        registerBoundaryUpdate(boundary, flags);
+        if (flushImmediately)
+        {
+          scene_->queueInvalidate(flags);
+          scene_->flushInvalidation();
+          return;
+        }
+        scene_->queueInvalidate(flags);
+      }
+
+      inline void SceneDirector::registerBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags)
+      {
+        if (!scene_)
+        {
+          return;
+        }
+        if (flags == NODE_DIRTY_NONE)
+        {
+          flags = NODE_DIRTY_PROPS;
+        }
         lastRequestedBoundary_ = boundary;
         pendingBoundaryFlags_ = static_cast<NodeDirtyFlags>(pendingBoundaryFlags_ | flags);
         enqueueBoundary(boundary);
-        if (flushImmediately)
-        {
-          scene_->invalidate(flags);
-          return;
-        }
-        scene_->requestInvalidate(flags);
       }
 
       inline BoundaryNode *SceneDirector::lastRequestedBoundary() const
