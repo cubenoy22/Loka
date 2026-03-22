@@ -21,12 +21,7 @@ namespace loka
         {
           return;
         }
-        if (this->flushViewDirtyImmediately(flags))
-        {
-          scene->invalidate(flags);
-          return;
-        }
-        scene->requestInvalidate(flags);
+        scene->requestBoundaryUpdate(this, flags, this->flushViewDirtyImmediately(flags));
       }
 
       void BoundaryNode::InvalidateSceneThunk(void *userData)

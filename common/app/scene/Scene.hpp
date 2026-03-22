@@ -10,6 +10,7 @@
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/ComponentContext.hpp"
 #include "app/scene/NodeComposition.hpp"
+#include "app/scene/SceneDirector.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/dsl/NextTickTracker.hpp"
@@ -62,24 +63,28 @@ namespace loka
         // Accept Boundary definitions only (compile-time check via IsBoundaryDefinition).
         template <class DefT>
         explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_()
         {
           assert(def && "Scene requires a root definition");
+          director_.attach(this);
         }
         // Construct from NodeDefinitionBase and auto-wrap non-boundary roots.
         explicit Scene(NodeDefinitionBase *def)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_()
         {
           assert(def && "Scene requires a root definition");
+          director_.attach(this);
         }
         // Clone and take ownership of the root definition.
         template <class DefT>
         explicit Scene(const DefT &def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false)
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_()
         {
+          director_.attach(this);
         }
         virtual ~Scene()
         {
+          director_.detach();
           updateLifecycle(ON_DESTROY);
           unmount();
           if (rootDefinition_)
@@ -93,6 +98,8 @@ namespace loka
         Window *getWindow() const { return window_; }
         void setWindow(Window *window) { window_ = window; }
         const SceneCompositionDiff &compositionDiff() const { return compositionDiff_; }
+        SceneDirector &director() { return director_; }
+        const SceneDirector &director() const { return director_; }
         size_t liveNodeCount() const
         {
           return countLiveNodes(rootNode_);
@@ -172,6 +179,11 @@ namespace loka
           nextTickTracker_.request();
         }
 
+        void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately)
+        {
+          director_.requestBoundaryUpdate(boundary, flags, flushImmediately);
+        }
+
         bool flushInvalidation()
         {
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
@@ -202,9 +214,11 @@ namespace loka
         bool composed_;
         loka::dsl::NextTickTracker nextTickTracker_;
         SceneCompositionDiff compositionDiff_;
+        SceneDirector director_;
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class SceneManager;
+        friend class SceneDirector;
         friend class ::loka::dsl::testing::SceneTestAccess;
 
       private:
@@ -354,6 +368,7 @@ namespace loka
           }
           platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
           compositionDiff_.clear();
+          director_.clearPendingBoundaryRequest();
         }
 
         void teardownComposition()
@@ -407,6 +422,60 @@ namespace loka
         // Default constructor intentionally not implemented to forbid rootless scenes
         Scene();
       };
+
+      inline SceneDirector::SceneDirector()
+          : scene_(0), lastRequestedBoundary_(0), pendingBoundaryFlags_(NODE_DIRTY_NONE)
+      {
+      }
+
+      inline void SceneDirector::attach(Scene *scene)
+      {
+        scene_ = scene;
+        clearPendingBoundaryRequest();
+      }
+
+      inline void SceneDirector::detach()
+      {
+        scene_ = 0;
+        clearPendingBoundaryRequest();
+      }
+
+      inline void SceneDirector::requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately)
+      {
+        if (!scene_)
+        {
+          return;
+        }
+        if (flags == NODE_DIRTY_NONE)
+        {
+          flags = NODE_DIRTY_PROPS;
+        }
+        lastRequestedBoundary_ = boundary;
+        pendingBoundaryFlags_ = static_cast<NodeDirtyFlags>(pendingBoundaryFlags_ | flags);
+        if (flushImmediately)
+        {
+          scene_->invalidate(flags);
+          clearPendingBoundaryRequest();
+          return;
+        }
+        scene_->requestInvalidate(flags);
+      }
+
+      inline BoundaryNode *SceneDirector::lastRequestedBoundary() const
+      {
+        return lastRequestedBoundary_;
+      }
+
+      inline NodeDirtyFlags SceneDirector::pendingBoundaryFlags() const
+      {
+        return pendingBoundaryFlags_;
+      }
+
+      inline void SceneDirector::clearPendingBoundaryRequest()
+      {
+        lastRequestedBoundary_ = 0;
+        pendingBoundaryFlags_ = NODE_DIRTY_NONE;
+      }
 
     } // namespace scene
   } // namespace app
