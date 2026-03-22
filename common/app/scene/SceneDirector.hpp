@@ -24,12 +24,22 @@ namespace loka
 
         BoundaryNode *lastRequestedBoundary() const;
         NodeDirtyFlags pendingBoundaryFlags() const;
+        BoundaryNode *pendingBoundariesHead() const;
+        NodeDirtyFlags aggregatePendingBoundaryFlags() const;
+        BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
+        bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
+        BoundaryNode *firstPendingUpdateRoot() const;
+        BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
         void clearPendingBoundaryRequest();
 
       private:
+        void enqueueBoundary(BoundaryNode *boundary);
+
         Scene *scene_;
         BoundaryNode *lastRequestedBoundary_;
         NodeDirtyFlags pendingBoundaryFlags_;
+        BoundaryNode *pendingBoundariesHead_;
+        BoundaryNode *pendingBoundariesTail_;
       };
     } // namespace scene
   } // namespace app

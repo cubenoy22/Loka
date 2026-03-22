@@ -30,6 +30,16 @@ namespace loka
           return scene.rootNode_ ? scene.rootNode_->asBoundary() : 0;
         }
 
+        static ::loka::app::scene::SceneDirector &director(::loka::app::scene::Scene &scene)
+        {
+          return scene.director_;
+        }
+
+        static const ::loka::app::scene::SceneDirector &director(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_;
+        }
+
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
         {
           return scene.flushInvalidation();

@@ -340,6 +340,11 @@ namespace loka
             compositionDiff_.clear();
             return false;
           }
+          NodeDirtyFlags boundaryFlags = director_.aggregatePendingBoundaryFlags();
+          if (boundaryFlags != NODE_DIRTY_NONE)
+          {
+            compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | boundaryFlags);
+          }
           compositionDiff_.valid = true;
           compositionDiff_.fullRebuild = (compositionDiff_.flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0;
           if (compositionDiff_.flags == NODE_DIRTY_NONE)
@@ -424,7 +429,7 @@ namespace loka
       };
 
       inline SceneDirector::SceneDirector()
-          : scene_(0), lastRequestedBoundary_(0), pendingBoundaryFlags_(NODE_DIRTY_NONE)
+          : scene_(0), lastRequestedBoundary_(0), pendingBoundaryFlags_(NODE_DIRTY_NONE), pendingBoundariesHead_(0), pendingBoundariesTail_(0)
       {
       }
 
@@ -452,10 +457,10 @@ namespace loka
         }
         lastRequestedBoundary_ = boundary;
         pendingBoundaryFlags_ = static_cast<NodeDirtyFlags>(pendingBoundaryFlags_ | flags);
+        enqueueBoundary(boundary);
         if (flushImmediately)
         {
           scene_->invalidate(flags);
-          clearPendingBoundaryRequest();
           return;
         }
         scene_->requestInvalidate(flags);
@@ -471,10 +476,128 @@ namespace loka
         return pendingBoundaryFlags_;
       }
 
+      inline BoundaryNode *SceneDirector::pendingBoundariesHead() const
+      {
+        return pendingBoundariesHead_;
+      }
+
+      inline NodeDirtyFlags SceneDirector::aggregatePendingBoundaryFlags() const
+      {
+        NodeDirtyFlags flags = NODE_DIRTY_NONE;
+        BoundaryNode *boundary = pendingBoundariesHead_;
+        while (boundary)
+        {
+          flags = static_cast<NodeDirtyFlags>(flags | boundary->pendingDirtyFlags());
+          boundary = boundary->nextPendingBoundary();
+        }
+        return flags;
+      }
+
+      inline BoundaryNode *SceneDirector::topMostRequestedBoundary(BoundaryNode *boundary) const
+      {
+        if (!boundary)
+        {
+          return 0;
+        }
+        BoundaryNode *top = boundary;
+        BoundaryNode *parent = boundary->parentBoundary();
+        while (parent)
+        {
+          if (!parent->isUpdateRequested())
+          {
+            break;
+          }
+          top = parent;
+          parent = parent->parentBoundary();
+        }
+        return top;
+      }
+
+      inline bool SceneDirector::isBoundaryUpdateRoot(BoundaryNode *boundary) const
+      {
+        if (!boundary || !boundary->isUpdateRequested())
+        {
+          return false;
+        }
+        return topMostRequestedBoundary(boundary) == boundary;
+      }
+
+      inline BoundaryNode *SceneDirector::firstPendingUpdateRoot() const
+      {
+        return nextPendingUpdateRoot(0);
+      }
+
+      inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const
+      {
+        bool startSearching = (afterRoot == 0);
+        BoundaryNode *boundary = pendingBoundariesHead_;
+        while (boundary)
+        {
+          BoundaryNode *root = topMostRequestedBoundary(boundary);
+          if (root)
+          {
+            if (!startSearching)
+            {
+              if (root == afterRoot)
+              {
+                startSearching = true;
+              }
+              boundary = boundary->nextPendingBoundary();
+              continue;
+            }
+
+            bool seenEarlier = false;
+            BoundaryNode *previous = pendingBoundariesHead_;
+            while (previous && previous != boundary)
+            {
+              if (topMostRequestedBoundary(previous) == root)
+              {
+                seenEarlier = true;
+                break;
+              }
+              previous = previous->nextPendingBoundary();
+            }
+            if (!seenEarlier)
+            {
+              return root;
+            }
+          }
+          boundary = boundary->nextPendingBoundary();
+        }
+        return 0;
+      }
+
       inline void SceneDirector::clearPendingBoundaryRequest()
       {
+        BoundaryNode *boundary = pendingBoundariesHead_;
+        while (boundary)
+        {
+          BoundaryNode *next = boundary->nextPendingBoundary();
+          boundary->clearPendingUpdateState();
+          boundary = next;
+        }
         lastRequestedBoundary_ = 0;
         pendingBoundaryFlags_ = NODE_DIRTY_NONE;
+        pendingBoundariesHead_ = 0;
+        pendingBoundariesTail_ = 0;
+      }
+
+      inline void SceneDirector::enqueueBoundary(BoundaryNode *boundary)
+      {
+        if (!boundary || boundary->isUpdateRequested())
+        {
+          return;
+        }
+        boundary->setUpdateRequested(true);
+        boundary->setNextPendingBoundary(0);
+        if (!pendingBoundariesHead_)
+        {
+          pendingBoundariesHead_ = boundary;
+          pendingBoundariesTail_ = boundary;
+          return;
+        }
+        pendingBoundariesTail_->setNextPendingBoundary(boundary);
+        pendingBoundariesTail_ = boundary;
       }
 
     } // namespace scene

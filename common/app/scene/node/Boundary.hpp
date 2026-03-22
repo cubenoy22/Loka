@@ -266,8 +266,21 @@ namespace loka
             entries.clear();
           }
         };
+        struct PendingUpdateState
+        {
+          PendingUpdateState() : dirtyFlags(NODE_DIRTY_NONE), requested(false), nextBoundary(0) {}
+          void clear()
+          {
+            dirtyFlags = NODE_DIRTY_NONE;
+            requested = false;
+            nextBoundary = 0;
+          }
+          NodeDirtyFlags dirtyFlags;
+          bool requested;
+          BoundaryNode *nextBoundary;
+        };
 
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), frozen_(false), observedStateEntries_(), observedGeneration_(0)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), frozen_(false), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -318,6 +331,20 @@ namespace loka
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
         void clearObservedDirtyFlags() { observedDirtyFlags_ = NODE_DIRTY_NONE; }
+        void addPendingDirtyFlags(NodeDirtyFlags flags)
+        {
+          if (flags == NODE_DIRTY_NONE)
+          {
+            return;
+          }
+          pendingUpdate_.dirtyFlags = static_cast<NodeDirtyFlags>(pendingUpdate_.dirtyFlags | flags);
+        }
+        NodeDirtyFlags pendingDirtyFlags() const { return pendingUpdate_.dirtyFlags; }
+        void clearPendingUpdateState() { pendingUpdate_.clear(); }
+        bool isUpdateRequested() const { return pendingUpdate_.requested; }
+        void setUpdateRequested(bool value) { pendingUpdate_.requested = value; }
+        BoundaryNode *nextPendingBoundary() const { return pendingUpdate_.nextBoundary; }
+        void setNextPendingBoundary(BoundaryNode *next) { pendingUpdate_.nextBoundary = next; }
         void beginObservedStatePass()
         {
           ++observedGeneration_;
@@ -924,6 +951,7 @@ namespace loka
         BoundaryNode *parentBoundary_;
         LayoutBounds layoutBounds_;
         NodeDirtyFlags observedDirtyFlags_;
+        PendingUpdateState pendingUpdate_;
         bool frozen_;
         std::vector<ObservedStateEntry> observedStateEntries_;
         unsigned long observedGeneration_;

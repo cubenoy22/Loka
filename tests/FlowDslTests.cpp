@@ -10,6 +10,7 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/node/DynamicComposition.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
@@ -27,6 +28,36 @@ namespace {
     int kind;
     int code;
     int calls;
+  };
+
+  class PendingChildBoundaryNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<PendingChildBoundaryNode> PendingChildBoundaryProps;
+
+  class PendingChildBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<PendingChildBoundaryNode>
+  {
+  public:
+    PendingChildBoundaryNode(const PendingChildBoundaryProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<PendingChildBoundaryNode>(PendingChildBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::Text("Child").testId("PendingChildText"));
+    }
+  };
+
+  class PendingRootBoundaryNode;
+  typedef loka::app::scene::DynamicCompositionPropsFor<PendingRootBoundaryNode> PendingRootBoundaryProps;
+
+  class PendingRootBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<PendingRootBoundaryNode>
+  {
+  public:
+    PendingRootBoundaryNode(const PendingRootBoundaryProps &p)
+        : loka::app::scene::DynamicCompositionNodeFor<PendingRootBoundaryNode>(PendingRootBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::scene::DynamicCompositionBoundary<PendingChildBoundaryNode>());
+    }
   };
 
   struct FlowTestMarker {
@@ -1555,6 +1586,39 @@ void testLokaFlowDslV1Core() {
     long platformCalls = 0;
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    Scene scene((BoundaryDefinition<PendingRootBoundaryProps, PendingRootBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    BoundaryNode *childBoundary = rootBoundary->childrenHead() ? rootBoundary->childrenHead()->asBoundary() : 0;
+    assert(childBoundary != 0);
+
+    childBoundary->markViewDirty(NODE_DIRTY_PROPS);
+    rootBoundary->markViewDirty(NODE_DIRTY_PROPS);
+
+    SceneDirector &director = SceneTestAccess::director(scene);
+    assert(director.pendingBoundariesHead() == childBoundary);
+    assert(director.firstPendingUpdateRoot() == rootBoundary);
+    assert(director.nextPendingUpdateRoot(rootBoundary) == 0);
+    assert(rootBoundary->pendingDirtyFlags() != NODE_DIRTY_NONE);
+    assert(childBoundary->pendingDirtyFlags() != NODE_DIRTY_NONE);
+
+    SceneTestAccess::flushInvalidation(scene);
+    assert(director.pendingBoundariesHead() == 0);
+    assert(rootBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
+    assert(childBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
 
     scene.unmount();
   }
