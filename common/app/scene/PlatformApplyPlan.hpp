@@ -77,6 +77,11 @@ namespace loka
           return paintKind != PAINT_NONE;
         }
 
+        bool hasAnyWork() const
+        {
+          return hasStructureWork() || hasLayoutWork() || hasPaintWork();
+        }
+
         bool requiresCompositedPaint() const
         {
           return paintKind == PAINT_COMPOSITED;
@@ -95,6 +100,11 @@ namespace loka
         bool hasLocalPaintWork(const BoundaryNode *boundary) const
         {
           return paintKind != PAINT_NONE && paintRoot == boundary;
+        }
+
+        bool hasAnyLocalWork(const BoundaryNode *boundary) const
+        {
+          return hasLocalStructureWork(boundary) || hasLocalLayoutWork(boundary) || hasLocalPaintWork(boundary);
         }
 
         bool structureChanged;

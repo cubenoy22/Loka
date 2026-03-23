@@ -248,6 +248,7 @@ namespace loka
                 hasLayoutWork(false),
                 paintKind(LOCAL_APPLY_PAINT_NONE),
                 bounds(0),
+                usesPaintBoundsHint(false),
                 hasPaintSpecificBoundsHint(false),
                 hasOpaqueCoverageHint(false),
                 paintIsOpaque(false)
@@ -261,6 +262,7 @@ namespace loka
           bool hasLayoutWork;
           LocalApplyPaintKind paintKind;
           const LayoutBounds *bounds;
+          bool usesPaintBoundsHint;
           bool hasPaintSpecificBoundsHint;
           bool hasOpaqueCoverageHint;
           bool paintIsOpaque;
@@ -353,15 +355,15 @@ namespace loka
         }
         bool hasLocalApplyStructureWork(const PlatformApplyPlan &plan) const
         {
-          return plan.hasLocalStructureWork(this);
+          return this->localApplyInfo(plan).hasStructureWork;
         }
         bool hasLocalApplyLayoutWork(const PlatformApplyPlan &plan) const
         {
-          return plan.hasLocalLayoutWork(this);
+          return this->localApplyInfo(plan).hasLayoutWork;
         }
         bool hasLocalApplyPaintWork(const PlatformApplyPlan &plan) const
         {
-          return plan.hasLocalPaintWork(this);
+          return this->localApplyInfo(plan).hasPaintWork();
         }
         LocalApplyInfo localApplyInfo(const PlatformApplyPlan &plan) const
         {
@@ -371,71 +373,69 @@ namespace loka
           info.isLocalPaintRoot = plan.hasLocalPaintWork(this);
           info.hasStructureWork = info.isLocalStructureRoot;
           info.hasLayoutWork = info.isLocalLayoutRoot;
-          info.paintKind = this->localApplyPaintKind(plan);
-          info.bounds = this->localApplyBoundsHint(plan);
-          info.hasPaintSpecificBoundsHint = info.isLocalPaintRoot && this->updateState_.hasPaintBoundsHint();
-          info.hasOpaqueCoverageHint = this->hasLocalOpaquePaintHint(plan);
-          info.paintIsOpaque = this->localApplyPaintIsOpaque(plan);
+          info.hasOpaqueCoverageHint = info.isLocalPaintRoot && this->updateState_.hasOpaqueCoverageHint();
+          const bool opaqueByHint = info.hasOpaqueCoverageHint && this->updateState_.opaqueCoverageHintValue();
+          if (!info.isLocalPaintRoot)
+          {
+            info.paintKind = LOCAL_APPLY_PAINT_NONE;
+          }
+          else if (plan.requiresCompositedPaint())
+          {
+            info.paintKind = LOCAL_APPLY_PAINT_COMPOSITED;
+          }
+          else if (plan.isOpaqueLocalPaint() || opaqueByHint)
+          {
+            info.paintKind = LOCAL_APPLY_PAINT_OPAQUE;
+          }
+          else
+          {
+            info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
+          }
+          info.paintIsOpaque = info.paintKind == LOCAL_APPLY_PAINT_OPAQUE || info.paintKind == LOCAL_APPLY_PAINT_COMPOSITED;
+          info.hasPaintSpecificBoundsHint = info.hasPaintWork() && this->updateState_.hasPaintBoundsHint();
+          info.usesPaintBoundsHint = info.hasPaintWork() && info.hasPaintSpecificBoundsHint;
+          if (info.usesPaintBoundsHint)
+          {
+            info.bounds = this->updateState_.paintBoundsHint();
+          }
+          else if (info.hasLayoutWork)
+          {
+            info.bounds = this->updateState_.boundsHint();
+          }
+          else if (info.hasPaintWork())
+          {
+            info.bounds = this->updateState_.boundsHint();
+          }
+          assert(info.hasAnyWork() == plan.hasAnyLocalWork(this));
           return info;
         }
         LocalApplyPaintKind localApplyPaintKind(const PlatformApplyPlan &plan) const
         {
-          if (!plan.hasLocalPaintWork(this))
-          {
-            return LOCAL_APPLY_PAINT_NONE;
-          }
-          if (plan.requiresCompositedPaint())
-          {
-            return LOCAL_APPLY_PAINT_COMPOSITED;
-          }
-          const bool hasOpaqueHint = this->updateState_.hasOpaqueCoverageHint();
-          const bool opaqueByHint = hasOpaqueHint && this->updateState_.opaqueCoverageHintValue();
-          if (plan.isOpaqueLocalPaint() || opaqueByHint)
-          {
-            return LOCAL_APPLY_PAINT_OPAQUE;
-          }
-          return LOCAL_APPLY_PAINT_GENERIC;
+          return this->localApplyInfo(plan).paintKind;
         }
         bool requiresLocalCompositedPaint(const PlatformApplyPlan &plan) const
         {
-          return this->localApplyPaintKind(plan) == LOCAL_APPLY_PAINT_COMPOSITED;
+          return this->localApplyInfo(plan).hasCompositedPaintWork();
         }
         bool hasLocalOpaquePaintWork(const PlatformApplyPlan &plan) const
         {
-          return this->localApplyPaintKind(plan) == LOCAL_APPLY_PAINT_OPAQUE;
+          return this->localApplyInfo(plan).hasOpaquePaintWork();
         }
         bool hasLocalOpaquePaintHint(const PlatformApplyPlan &plan) const
         {
-          return this->hasLocalApplyPaintWork(plan) && this->updateState_.hasOpaqueCoverageHint();
+          return this->localApplyInfo(plan).hasOpaqueCoverageHint;
         }
         bool localApplyPaintIsOpaque(const PlatformApplyPlan &plan) const
         {
-          const LocalApplyPaintKind kind = this->localApplyPaintKind(plan);
-          return kind == LOCAL_APPLY_PAINT_OPAQUE || kind == LOCAL_APPLY_PAINT_COMPOSITED;
+          return this->localApplyInfo(plan).paintIsOpaque;
         }
         bool hasLocalApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
-          if (this->hasLocalApplyLayoutWork(plan))
-          {
-            return this->updateState_.hasBoundsHint();
-          }
-          if (this->hasLocalApplyPaintWork(plan))
-          {
-            return this->updateState_.hasPaintBoundsHint() || this->updateState_.hasBoundsHint();
-          }
-          return false;
+          return this->localApplyInfo(plan).hasBoundsHint();
         }
         const LayoutBounds *localApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
-          if (!this->hasLocalApplyBoundsHint(plan))
-          {
-            return 0;
-          }
-          if (this->hasLocalApplyPaintWork(plan) && this->updateState_.hasPaintBoundsHint())
-          {
-            return this->updateState_.paintBoundsHint();
-          }
-          return this->updateState_.boundsHint();
+          return this->localApplyInfo(plan).bounds;
         }
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->runtimeState_.setFrozen(frozen); }

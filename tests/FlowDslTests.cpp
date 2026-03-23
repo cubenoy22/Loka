@@ -131,6 +131,7 @@ namespace {
       ++g_pendingApplyCallCount;
       assert(info.hasAnyWork());
       assert(info.hasRootedWork());
+      assert(plan.hasAnyLocalWork(this));
       if (this->isApplyingPlatform())
       {
         ++g_pendingApplyWhileApplyingCount;
@@ -198,6 +199,7 @@ namespace {
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
+      assert(info.usesPaintBoundsHint);
       assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_GENERIC);
       assert(!plan.isOpaqueLocalPaint());
       ++g_defaultApplyLocalPaintCalls;
@@ -208,6 +210,7 @@ namespace {
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
+      assert(info.usesPaintBoundsHint);
       assert(info.hasOpaqueCoverageHint);
       assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE ||
              info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
