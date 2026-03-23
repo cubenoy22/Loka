@@ -507,9 +507,8 @@ namespace loka
           }
           while (root)
           {
-            root->beginPlatformApply();
+            BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
             root->applyPendingUpdate(plan);
-            root->endPlatformApply();
             root = director.nextPendingUpdateRoot(root);
           }
         }

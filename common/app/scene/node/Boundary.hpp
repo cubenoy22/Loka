@@ -298,6 +298,8 @@ namespace loka
         bool isFrozen() const { return this->frozen_; }
         bool isApplyingPlatform() const { return this->phaseState_.isApplying(); }
         bool isComposingPhase() const { return this->phaseState_.isComposing(); }
+        BoundaryComposePhaseScope beginComposePhaseScope() { return BoundaryComposePhaseScope(&this->phaseState_); }
+        BoundaryApplyPhaseScope beginApplyPhaseScope() { return BoundaryApplyPhaseScope(&this->phaseState_); }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -370,7 +372,6 @@ namespace loka
         const BoundaryUpdateResult &updateResult() const { return updateResult_; }
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
         {
-          phaseState_.beginCompose();
           composeResult_.event = event;
           composeResult_.dirtyFlagsSeen = dirtyFlags;
           composeResult_.composed = false;
@@ -380,7 +381,6 @@ namespace loka
         {
           composeResult_.composed = true;
           composeResult_.preservedNativeContexts = preservedNativeContexts;
-          phaseState_.endCompose();
         }
         void clearPhaseResults()
         {
@@ -813,9 +813,15 @@ namespace loka
             }
             boundary->clearObservedDirtyFlags();
             boundary->clearPhaseResults();
-            boundary->beginComposeResult(event, parentContext.dirtyFlags());
             boundary->beginObservedStatePass();
             nextBoundary = boundary;
+          }
+          BoundaryComposePhaseScope composeScope = boundary
+                                                       ? boundary->beginComposePhaseScope()
+                                                       : BoundaryComposePhaseScope(0);
+          if (boundary)
+          {
+            boundary->beginComposeResult(event, parentContext.dirtyFlags());
           }
           if (nextBoundary)
           {

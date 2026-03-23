@@ -66,6 +66,90 @@ namespace loka
         BoundaryPhase current;
       };
 
+      class BoundaryComposePhaseScope
+      {
+      public:
+        explicit BoundaryComposePhaseScope(BoundaryPhaseState *state)
+            : state_(state), active_(state != 0)
+        {
+          if (state_)
+          {
+            state_->beginCompose();
+          }
+        }
+
+        BoundaryComposePhaseScope(const BoundaryComposePhaseScope &other)
+            : state_(other.state_), active_(other.active_)
+        {
+          const_cast<BoundaryComposePhaseScope &>(other).active_ = false;
+        }
+
+        ~BoundaryComposePhaseScope()
+        {
+          if (active_)
+          {
+            state_->endCompose();
+          }
+        }
+
+        void release()
+        {
+          if (active_)
+          {
+            state_->endCompose();
+            active_ = false;
+          }
+        }
+
+      private:
+        BoundaryComposePhaseScope &operator=(const BoundaryComposePhaseScope &);
+
+        BoundaryPhaseState *state_;
+        mutable bool active_;
+      };
+
+      class BoundaryApplyPhaseScope
+      {
+      public:
+        explicit BoundaryApplyPhaseScope(BoundaryPhaseState *state)
+            : state_(state), active_(state != 0)
+        {
+          if (state_)
+          {
+            state_->beginApply();
+          }
+        }
+
+        BoundaryApplyPhaseScope(const BoundaryApplyPhaseScope &other)
+            : state_(other.state_), active_(other.active_)
+        {
+          const_cast<BoundaryApplyPhaseScope &>(other).active_ = false;
+        }
+
+        ~BoundaryApplyPhaseScope()
+        {
+          if (active_)
+          {
+            state_->endApply();
+          }
+        }
+
+        void release()
+        {
+          if (active_)
+          {
+            state_->endApply();
+            active_ = false;
+          }
+        }
+
+      private:
+        BoundaryApplyPhaseScope &operator=(const BoundaryApplyPhaseScope &);
+
+        BoundaryPhaseState *state_;
+        mutable bool active_;
+      };
+
       struct PendingUpdateState
       {
         PendingUpdateState() : dirtyFlags(NODE_DIRTY_NONE), requested(false), nextBoundary(0) {}
