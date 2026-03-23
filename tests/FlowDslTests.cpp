@@ -73,6 +73,9 @@ namespace {
   static int g_pendingApplyWhileApplyingCount = 0;
   static loka::app::scene::BoundaryNode *g_pendingApplyLastLayoutRoot = 0;
   static loka::app::scene::BoundaryNode *g_pendingApplyLastPaintRoot = 0;
+  static int g_defaultApplyLocalPaintCalls = 0;
+  static int g_defaultApplyCompositedPaintCalls = 0;
+  static int g_defaultApplyLayoutCalls = 0;
   class PendingCompositedProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingCompositedProbeBoundaryNode> PendingCompositedProbeBoundaryProps;
   class PendingApplySiblingABoundaryNode;
@@ -141,6 +144,43 @@ namespace {
     {
       this->noteCompositedPaint();
       c.declare(loka::app::Text("Composited").testId("PendingCompositedText"));
+    }
+  };
+
+  class PendingDefaultApplyProbeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PendingDefaultApplyProbeBoundaryNode> PendingDefaultApplyProbeBoundaryProps;
+
+  class PendingDefaultApplyProbeBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingDefaultApplyProbeBoundaryNode>
+  {
+  public:
+    PendingDefaultApplyProbeBoundaryNode(const PendingDefaultApplyProbeBoundaryProps &p)
+        : loka::app::scene::BoundaryNodeFor<PendingDefaultApplyProbeBoundaryNode>(PendingDefaultApplyProbeBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      this->setLayoutBounds(0, 0, 40, 12);
+      this->noteCompositedPaint();
+      c.declare(loka::app::Text("DefaultApply").testId("PendingDefaultApplyText"));
+    }
+
+  protected:
+    virtual void applyPendingLayout(const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      assert(this->hasLocalApplyLayoutWork(plan));
+      ++g_defaultApplyLayoutCalls;
+    }
+
+    virtual void applyPendingLocalPaint(const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      assert(this->hasLocalApplyPaintWork(plan));
+      ++g_defaultApplyLocalPaintCalls;
+    }
+
+    virtual void applyPendingCompositedPaint(const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      assert(this->requiresLocalCompositedPaint(plan));
+      ++g_defaultApplyCompositedPaintCalls;
+      this->applyPendingLocalPaint(plan);
     }
   };
 
@@ -1830,6 +1870,33 @@ void testLokaFlowDslV1Core() {
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
     assert(plan.paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
     assert(plan.paintRoot == rootBoundary);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    g_defaultApplyLocalPaintCalls = 0;
+    g_defaultApplyCompositedPaintCalls = 0;
+    g_defaultApplyLayoutCalls = 0;
+
+    Scene scene((BoundaryDefinition<PendingDefaultApplyProbeBoundaryProps, PendingDefaultApplyProbeBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    scene.requestInvalidate(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(scene.flushInvalidation());
+    assert(g_defaultApplyLayoutCalls == 1);
+    assert(g_defaultApplyCompositedPaintCalls == 1);
+    assert(g_defaultApplyLocalPaintCalls == 1);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
 
     scene.unmount();

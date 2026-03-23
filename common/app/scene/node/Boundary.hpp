@@ -262,7 +262,24 @@ namespace loka
           (void)flags;
           return true;
         }
-        virtual void applyPendingUpdate(const PlatformApplyPlan &) {}
+        virtual void applyPendingUpdate(const PlatformApplyPlan &plan)
+        {
+          if (this->hasLocalApplyLayoutWork(plan))
+          {
+            this->applyPendingLayout(plan);
+          }
+          if (this->hasLocalApplyPaintWork(plan))
+          {
+            if (this->requiresLocalCompositedPaint(plan))
+            {
+              this->applyPendingCompositedPaint(plan);
+            }
+            else
+            {
+              this->applyPendingLocalPaint(plan);
+            }
+          }
+        }
         bool hasLocalApplyStructureWork(const PlatformApplyPlan &plan) const
         {
           return plan.hasStructureWork();
@@ -511,6 +528,19 @@ namespace loka
         const NodeCompositionSnapshot &currentCompositionSnapshot() const { return compositionState_.currentSnapshot; }
 
       protected:
+        virtual void applyPendingLayout(const PlatformApplyPlan &)
+        {
+        }
+
+        virtual void applyPendingLocalPaint(const PlatformApplyPlan &)
+        {
+        }
+
+        virtual void applyPendingCompositedPaint(const PlatformApplyPlan &plan)
+        {
+          this->applyPendingLocalPaint(plan);
+        }
+
         bool buildLocalRebuildPlan(ComponentContext &context,
                                    const INestableDefinition &currentRoot,
                                    BoundaryLocalRebuildPlan &plan)
