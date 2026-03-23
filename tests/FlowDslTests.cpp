@@ -129,6 +129,8 @@ namespace {
     {
       const LocalApplyInfo info = this->localApplyInfo(plan);
       ++g_pendingApplyCallCount;
+      assert(info.hasAnyWork());
+      assert(info.hasRootedWork());
       if (this->isApplyingPlatform())
       {
         ++g_pendingApplyWhileApplyingCount;
@@ -136,8 +138,7 @@ namespace {
       g_pendingApplyLastLayoutRoot = plan.layoutRoot;
       g_pendingApplyLastPaintRoot = plan.paintRoot;
       assert(info.hasPaintWork());
-      assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_GENERIC ||
-             info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE);
+      assert(info.hasGenericPaintWork() || info.hasOpaquePaintWork());
       assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL ||
              plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
     }
@@ -217,7 +218,8 @@ namespace {
 
     virtual void applyPendingCompositedPaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
-      assert(this->requiresLocalCompositedPaint(plan));
+      (void)plan;
+      assert(info.hasCompositedPaintWork());
       assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
       ++g_defaultApplyCompositedPaintCalls;
       this->applyPendingOpaquePaintInfo(info, plan);

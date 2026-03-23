@@ -270,6 +270,11 @@ namespace loka
             return paintKind != LOCAL_APPLY_PAINT_NONE;
           }
 
+          bool hasAnyWork() const
+          {
+            return hasStructureWork || hasLayoutWork || hasPaintWork();
+          }
+
           bool hasBoundsHint() const
           {
             return bounds != 0;
@@ -280,9 +285,19 @@ namespace loka
             return paintKind == LOCAL_APPLY_PAINT_OPAQUE;
           }
 
+          bool hasGenericPaintWork() const
+          {
+            return paintKind == LOCAL_APPLY_PAINT_GENERIC;
+          }
+
           bool hasCompositedPaintWork() const
           {
             return paintKind == LOCAL_APPLY_PAINT_COMPOSITED;
+          }
+
+          bool hasRootedWork() const
+          {
+            return isLocalStructureRoot || isLocalLayoutRoot || isLocalPaintRoot;
           }
         };
         BoundaryNode() : ComposableNode(), tracker_(), runtimeState_(), updateState_(), compositionState_(), observedState_()
@@ -365,15 +380,17 @@ namespace loka
         }
         LocalApplyPaintKind localApplyPaintKind(const PlatformApplyPlan &plan) const
         {
-          if (!this->hasLocalApplyPaintWork(plan))
+          if (!plan.hasLocalPaintWork(this))
           {
             return LOCAL_APPLY_PAINT_NONE;
           }
-          if (this->requiresLocalCompositedPaint(plan))
+          if (plan.requiresCompositedPaint())
           {
             return LOCAL_APPLY_PAINT_COMPOSITED;
           }
-          if (this->hasLocalOpaquePaintWork(plan))
+          const bool hasOpaqueHint = this->updateState_.hasOpaqueCoverageHint();
+          const bool opaqueByHint = hasOpaqueHint && this->updateState_.opaqueCoverageHintValue();
+          if (plan.isOpaqueLocalPaint() || opaqueByHint)
           {
             return LOCAL_APPLY_PAINT_OPAQUE;
           }
@@ -381,11 +398,11 @@ namespace loka
         }
         bool requiresLocalCompositedPaint(const PlatformApplyPlan &plan) const
         {
-          return plan.hasLocalPaintWork(this) && plan.requiresCompositedPaint();
+          return this->localApplyPaintKind(plan) == LOCAL_APPLY_PAINT_COMPOSITED;
         }
         bool hasLocalOpaquePaintWork(const PlatformApplyPlan &plan) const
         {
-          return this->hasLocalApplyPaintWork(plan) && !this->requiresLocalCompositedPaint(plan) && this->localApplyPaintIsOpaque(plan);
+          return this->localApplyPaintKind(plan) == LOCAL_APPLY_PAINT_OPAQUE;
         }
         bool hasLocalOpaquePaintHint(const PlatformApplyPlan &plan) const
         {
@@ -393,7 +410,8 @@ namespace loka
         }
         bool localApplyPaintIsOpaque(const PlatformApplyPlan &plan) const
         {
-          return plan.isOpaqueLocalPaint() || (this->hasLocalOpaquePaintHint(plan) && this->updateState_.opaqueCoverageHintValue());
+          const LocalApplyPaintKind kind = this->localApplyPaintKind(plan);
+          return kind == LOCAL_APPLY_PAINT_OPAQUE || kind == LOCAL_APPLY_PAINT_COMPOSITED;
         }
         bool hasLocalApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
