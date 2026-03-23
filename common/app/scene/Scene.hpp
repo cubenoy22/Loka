@@ -474,6 +474,30 @@ namespace loka
           return false;
         }
 
+        static bool pendingUpdateRootsHaveOpaqueLocalPaint(const SceneDirector &director)
+        {
+          BoundaryNode *root = director.firstPendingUpdateRoot();
+          bool sawPaint = false;
+          while (root)
+          {
+            const BoundaryUpdateResult &result = root->updateResult();
+            if (result.paint.requiresCompositedPaint)
+            {
+              return false;
+            }
+            if (result.paint.hasPaintWork)
+            {
+              sawPaint = true;
+              if (!result.paint.hasOpaqueCoverageHint || !result.paint.opaqueCoverageHint)
+              {
+                return false;
+              }
+            }
+            root = director.nextPendingUpdateRoot(root);
+          }
+          return sawPaint;
+        }
+
         static PlatformApplyPlan buildPlatformApplyPlan(Node *rootNode,
                                                         const SceneDirector &director,
                                                         const SceneCompositionDiff &diff)
@@ -484,6 +508,10 @@ namespace loka
           if (diff.flags != NODE_DIRTY_NONE)
           {
             plan.paintKind = PlatformApplyPlan::PAINT_LOCAL;
+          }
+          if (pendingUpdateRootsHaveOpaqueLocalPaint(director))
+          {
+            plan.paintKind = PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
           }
           if (pendingUpdateRootsRequireCompositedPaint(director))
           {

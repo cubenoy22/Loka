@@ -302,7 +302,7 @@ namespace loka
         }
         bool localApplyPaintIsOpaque(const PlatformApplyPlan &plan) const
         {
-          return this->hasLocalOpaquePaintHint(plan) && this->updateState_.result.paint.opaqueCoverageHint;
+          return plan.isOpaqueLocalPaint() || (this->hasLocalOpaquePaintHint(plan) && this->updateState_.result.paint.opaqueCoverageHint);
         }
         bool hasLocalApplyBoundsHint(const PlatformApplyPlan &plan) const
         {

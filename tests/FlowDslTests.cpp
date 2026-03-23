@@ -1917,6 +1917,7 @@ void testLokaFlowDslV1Core() {
     assert(g_defaultApplyBoundsWidth == 40);
     assert(g_defaultApplyBoundsHeight == 12);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+    assert(SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
 
     scene.unmount();
   }
@@ -1990,6 +1991,26 @@ void testLokaFlowDslV1Core() {
     assert(plan.layoutRoot == rootBoundary);
     assert(plan.paintRoot == rootBoundary);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    Scene scene((BoundaryDefinition<PendingApplyProbeBoundaryProps, PendingApplyProbeBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    rootBoundary->noteOpaquePaintCoverage(true);
+    scene.requestInvalidate(NODE_DIRTY_PROPS);
+    assert(scene.flushInvalidation());
+    assert(SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
 
     scene.unmount();
   }

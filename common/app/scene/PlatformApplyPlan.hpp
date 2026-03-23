@@ -15,7 +15,8 @@ namespace loka
         {
           PAINT_NONE = 0,
           PAINT_LOCAL = 1,
-          PAINT_COMPOSITED = 2
+          PAINT_LOCAL_OPAQUE = 2,
+          PAINT_COMPOSITED = 3
         };
 
         PlatformApplyPlan()
@@ -68,6 +69,11 @@ namespace loka
         bool requiresCompositedPaint() const
         {
           return paintKind == PAINT_COMPOSITED;
+        }
+
+        bool isOpaqueLocalPaint() const
+        {
+          return paintKind == PAINT_LOCAL_OPAQUE;
         }
 
         bool hasLocalLayoutWork(const BoundaryNode *boundary) const
