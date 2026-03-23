@@ -328,11 +328,7 @@ namespace loka
           layoutBounds_.valid = true;
           if (changed)
           {
-            updateState_.result.actualBoundsChanged = true;
-            if (parentBoundary_)
-            {
-              updateState_.result.affectsAncestorLayout = true;
-            }
+            updateState_.noteActualBoundsChanged(parentBoundary_ != 0);
           }
         }
         void clearLayoutBounds()
@@ -340,11 +336,7 @@ namespace loka
           if (layoutBounds_.valid)
           {
             layoutBounds_ = LayoutBounds();
-            updateState_.result.actualBoundsChanged = true;
-            if (parentBoundary_)
-            {
-              updateState_.result.affectsAncestorLayout = true;
-            }
+            updateState_.noteActualBoundsChanged(parentBoundary_ != 0);
             return;
           }
           layoutBounds_ = LayoutBounds();
@@ -386,13 +378,12 @@ namespace loka
         void noteLocalPaintWork()
         {
           assert(!updateState_.phase.isApplying());
-          updateState_.result.paint.hasPaintWork = true;
+          updateState_.noteLocalPaintWork();
         }
         void noteCompositedPaint()
         {
           assert(!updateState_.phase.isApplying());
-          updateState_.result.paint.hasPaintWork = true;
-          updateState_.result.paint.requiresCompositedPaint = true;
+          updateState_.noteCompositedPaint();
         }
         void beginPlatformApply() { updateState_.phase.beginApply(); }
         void endPlatformApply() { updateState_.phase.endApply(); }

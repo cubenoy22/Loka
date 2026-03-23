@@ -212,6 +212,26 @@ namespace loka
         bool actualBoundsChanged;
         bool affectsAncestorLayout;
         PaintMetadata paint;
+
+        void noteLocalPaintWork()
+        {
+          paint.hasPaintWork = true;
+        }
+
+        void noteCompositedPaint()
+        {
+          paint.hasPaintWork = true;
+          paint.requiresCompositedPaint = true;
+        }
+
+        void noteActualBoundsChanged(bool affectsAncestor)
+        {
+          actualBoundsChanged = true;
+          if (affectsAncestor)
+          {
+            affectsAncestorLayout = true;
+          }
+        }
       };
 
       struct BoundaryUpdateState
@@ -238,6 +258,21 @@ namespace loka
           pending.clear();
           result.clear();
           phase.clear();
+        }
+
+        void noteLocalPaintWork()
+        {
+          result.noteLocalPaintWork();
+        }
+
+        void noteCompositedPaint()
+        {
+          result.noteCompositedPaint();
+        }
+
+        void noteActualBoundsChanged(bool affectsAncestor)
+        {
+          result.noteActualBoundsChanged(affectsAncestor);
         }
 
         PendingUpdateState pending;
