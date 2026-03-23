@@ -50,6 +50,36 @@ namespace loka
           return localized;
         }
 
+        bool hasStructureWork() const
+        {
+          return structureChanged;
+        }
+
+        bool hasLayoutWork() const
+        {
+          return layoutChanged;
+        }
+
+        bool hasPaintWork() const
+        {
+          return paintKind != PAINT_NONE;
+        }
+
+        bool requiresCompositedPaint() const
+        {
+          return paintKind == PAINT_COMPOSITED;
+        }
+
+        bool hasLocalLayoutWork(const BoundaryNode *boundary) const
+        {
+          return layoutChanged && layoutRoot == boundary;
+        }
+
+        bool hasLocalPaintWork(const BoundaryNode *boundary) const
+        {
+          return paintKind != PAINT_NONE && paintRoot == boundary;
+        }
+
         bool structureChanged;
         bool layoutChanged;
         PaintKind paintKind;

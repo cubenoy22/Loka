@@ -75,7 +75,6 @@ namespace {
   static loka::app::scene::BoundaryNode *g_pendingApplyLastPaintRoot = 0;
   class PendingCompositedProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingCompositedProbeBoundaryNode> PendingCompositedProbeBoundaryProps;
-  static loka::core::MutableState<bool> g_pendingApplyMultiState(false);
   class PendingApplySiblingABoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingApplySiblingABoundaryNode> PendingApplySiblingABoundaryProps;
   class PendingApplySiblingBBoundaryNode;
@@ -127,6 +126,8 @@ namespace {
       }
       g_pendingApplyLastLayoutRoot = plan.layoutRoot;
       g_pendingApplyLastPaintRoot = plan.paintRoot;
+      assert(plan.hasPaintWork());
+      assert(plan.hasLocalPaintWork(this));
       assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL);
     }
   };
@@ -155,16 +156,15 @@ namespace {
       c.declare(loka::app::Text("SiblingA").testId("PendingSiblingAText"));
     }
 
-    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
-    {
-      registrar.observe(&g_pendingApplyMultiState, loka::app::scene::NODE_DIRTY_PROPS);
-    }
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const { return false; }
 
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
       ++g_pendingApplySiblingACalls;
       g_pendingApplySiblingALayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingAPaintRoot = plan.paintRoot;
+      assert(plan.hasLocalLayoutWork(this) || !plan.hasLayoutWork());
+      assert(plan.hasLocalPaintWork(this));
       assert(plan.layoutRoot == this);
       assert(plan.paintRoot == this);
     }
@@ -181,16 +181,15 @@ namespace {
       c.declare(loka::app::Text("SiblingB").testId("PendingSiblingBText"));
     }
 
-    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
-    {
-      registrar.observe(&g_pendingApplyMultiState, loka::app::scene::NODE_DIRTY_PROPS);
-    }
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const { return false; }
 
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
       ++g_pendingApplySiblingBCalls;
       g_pendingApplySiblingBLayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingBPaintRoot = plan.paintRoot;
+      assert(plan.hasLocalLayoutWork(this) || !plan.hasLayoutWork());
+      assert(plan.hasLocalPaintWork(this));
       assert(plan.layoutRoot == this);
       assert(plan.paintRoot == this);
     }
@@ -204,8 +203,9 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::scene::BoundaryDefinition<PendingApplySiblingABoundaryProps, PendingApplySiblingABoundaryNode>().tag(101));
-      c.declare(loka::app::scene::BoundaryDefinition<PendingApplySiblingBBoundaryProps, PendingApplySiblingBBoundaryNode>().tag(102));
+      c.declare(loka::app::VStack()
+                << loka::app::scene::BoundaryDefinition<PendingApplySiblingABoundaryProps, PendingApplySiblingABoundaryNode>().tag(101)
+                << loka::app::scene::BoundaryDefinition<PendingApplySiblingBBoundaryProps, PendingApplySiblingBBoundaryNode>().tag(102));
     }
   };
 
@@ -1914,7 +1914,6 @@ void testLokaFlowDslV1Core() {
     using namespace loka::app::scene;
     using loka::dsl::testing::SceneTestAccess;
 
-    g_pendingApplyMultiState.set(false);
     g_pendingApplySiblingACalls = 0;
     g_pendingApplySiblingBCalls = 0;
     g_pendingApplySiblingALayoutRoot = 0;
@@ -1927,30 +1926,28 @@ void testLokaFlowDslV1Core() {
     scene.mount(&platform);
     scene.updateAttached(true);
 
-    Scene *scenePtr = &scene;
-    loka::dsl::SnapRecord captured;
-    FlowErrorCapture failCapture = {0, 0, 0};
-    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&g_pendingApplyMultiState, true))
-              .input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::CheckText("PendingSiblingAText", "SiblingA"))
-        | loka::dsl::Step(3, loka::dsl::testing::CheckText("PendingSiblingBText", "SiblingB"))
-        | loka::dsl::Step(4, FlowTestPlatformDirtyMaskAdapter("pending-apply-multi-root", &platform, 24))
-              .onSuccess(&captured);
-    okChain.onFailure(&FlowTestMarker::captureFailure, &failCapture);
-    const bool ok = okChain.run();
-    if (!ok)
-    {
-      std::printf("[pending-apply-multi-root] fail kind=%d code=%d calls=%d full=%d flags=%ld\n",
-                  failCapture.kind,
-                  failCapture.code,
-                  failCapture.calls,
-                  platform.lastFullRebuild_ ? 1 : 0,
-                  static_cast<long>(platform.lastFlags_));
-      std::fflush(stdout);
-    }
-    assert(ok);
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    INestable *rootNestable = rootBoundary->asNestable();
+    assert(rootNestable != 0);
+    Node *stackNode = rootNestable->childrenHead();
+    assert(stackNode != 0);
+    INestable *stackNestable = stackNode->asNestable();
+    assert(stackNestable != 0);
+    loka::dsl::CompositionCursor<Node> it(stackNestable->childrenHead(), stackNestable->childrenCount());
+    Node *siblingANode = it.next();
+    Node *siblingBNode = it.next();
+    BoundaryNode *siblingA = siblingANode ? siblingANode->asBoundary() : 0;
+    BoundaryNode *siblingB = siblingBNode ? siblingBNode->asBoundary() : 0;
+    assert(siblingA != 0);
+    assert(siblingB != 0);
+
+    siblingA->markViewDirty(NODE_DIRTY_PROPS);
+    siblingB->markViewDirty(NODE_DIRTY_PROPS);
+
+    const SceneDirector &director = SceneTestAccess::director(scene);
+    assert(director.pendingBoundariesHead() != 0);
+    assert(scene.flushInvalidation());
     assert(g_pendingApplySiblingACalls == 1);
     assert(g_pendingApplySiblingBCalls == 1);
     assert(g_pendingApplySiblingALayoutRoot != 0);
