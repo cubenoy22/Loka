@@ -538,6 +538,12 @@ namespace loka
           {
             BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
             PlatformApplyPlan localPlan = plan.forBoundary(root);
+            const BoundaryNode::LocalApplyInfo localInfo = root->localApplyInfo(localPlan);
+            assert(localPlan.isLocalizedFor(root));
+            if (localPlan.hasBoundaryApplyWork(root) && root->scene() && root->scene()->platformController_)
+            {
+              root->scene()->platformController_->onBoundaryApply(rootNode, root, localInfo, localPlan);
+            }
             root->applyPendingUpdate(localPlan);
             root = director.nextPendingUpdateRoot(root);
           }

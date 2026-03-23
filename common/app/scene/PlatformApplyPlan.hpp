@@ -107,6 +107,32 @@ namespace loka
           return hasLocalStructureWork(boundary) || hasLocalLayoutWork(boundary) || hasLocalPaintWork(boundary);
         }
 
+        bool isLocalizedFor(const BoundaryNode *boundary) const
+        {
+          if (!boundary)
+          {
+            return false;
+          }
+          if (structureChanged && structureRoot != boundary)
+          {
+            return false;
+          }
+          if (layoutChanged && layoutRoot != boundary)
+          {
+            return false;
+          }
+          if (paintKind != PAINT_NONE && paintRoot != boundary)
+          {
+            return false;
+          }
+          return true;
+        }
+
+        bool hasBoundaryApplyWork(const BoundaryNode *boundary) const
+        {
+          return boundary && isLocalizedFor(boundary) && hasAnyLocalWork(boundary);
+        }
+
         bool structureChanged;
         BoundaryNode *structureRoot;
         bool layoutChanged;

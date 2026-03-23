@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_IPLATFORMCONTROLLER_HPP
 
 #include "app/scene/Node.hpp"
+#include "app/scene/node/BoundaryApplyInfo.hpp"
 
 namespace loka
 {
@@ -11,7 +12,9 @@ namespace loka
     {
 
       class Node;
+      class BoundaryNode;
       enum NodeDirtyFlags;
+      struct PlatformApplyPlan;
 
       // プラットフォーム固有コントローラーの抽象インターフェース
       // UIの同期 (Synchronization) を担当する
@@ -22,6 +25,9 @@ namespace loka
 
         // Nodeツリーを受け取り、UIに反映する（flagsは将来の差分用）
         virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild) = 0;
+
+        // Optional boundary-local apply seam. Default is no-op to preserve existing controllers.
+        virtual void onBoundaryApply(Node *, BoundaryNode *, const BoundaryLocalApplyInfo &, const PlatformApplyPlan &) {}
 
         // 変更があったNodeをUIに同期する
         virtual void synchronize() = 0;

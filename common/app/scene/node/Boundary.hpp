@@ -9,6 +9,7 @@
 #include "../BoundState.hpp"
 #include "../ComponentContext.hpp"
 #include "../PlatformApplyPlan.hpp"
+#include "BoundaryApplyInfo.hpp"
 #include "BoundaryCompositionState.hpp"
 #include "BoundaryObservedState.hpp"
 #include "BoundaryRuntimeState.hpp"
@@ -231,77 +232,12 @@ namespace loka
       {
       public:
         typedef BoundaryUpdateResult::BoundsHint LayoutBounds;
-        enum LocalApplyPaintKind
-        {
-          LOCAL_APPLY_PAINT_NONE = 0,
-          LOCAL_APPLY_PAINT_GENERIC = 1,
-          LOCAL_APPLY_PAINT_OPAQUE = 2,
-          LOCAL_APPLY_PAINT_COMPOSITED = 3
-        };
-        struct LocalApplyInfo
-        {
-          LocalApplyInfo()
-              : isLocalStructureRoot(false),
-                isLocalLayoutRoot(false),
-                isLocalPaintRoot(false),
-                hasStructureWork(false),
-                hasLayoutWork(false),
-                paintKind(LOCAL_APPLY_PAINT_NONE),
-                bounds(0),
-                usesPaintBoundsHint(false),
-                hasPaintSpecificBoundsHint(false),
-                hasOpaqueCoverageHint(false),
-                paintIsOpaque(false)
-          {
-          }
-
-          bool isLocalStructureRoot;
-          bool isLocalLayoutRoot;
-          bool isLocalPaintRoot;
-          bool hasStructureWork;
-          bool hasLayoutWork;
-          LocalApplyPaintKind paintKind;
-          const LayoutBounds *bounds;
-          bool usesPaintBoundsHint;
-          bool hasPaintSpecificBoundsHint;
-          bool hasOpaqueCoverageHint;
-          bool paintIsOpaque;
-
-          bool hasPaintWork() const
-          {
-            return paintKind != LOCAL_APPLY_PAINT_NONE;
-          }
-
-          bool hasAnyWork() const
-          {
-            return hasStructureWork || hasLayoutWork || hasPaintWork();
-          }
-
-          bool hasBoundsHint() const
-          {
-            return bounds != 0;
-          }
-
-          bool hasOpaquePaintWork() const
-          {
-            return paintKind == LOCAL_APPLY_PAINT_OPAQUE;
-          }
-
-          bool hasGenericPaintWork() const
-          {
-            return paintKind == LOCAL_APPLY_PAINT_GENERIC;
-          }
-
-          bool hasCompositedPaintWork() const
-          {
-            return paintKind == LOCAL_APPLY_PAINT_COMPOSITED;
-          }
-
-          bool hasRootedWork() const
-          {
-            return isLocalStructureRoot || isLocalLayoutRoot || isLocalPaintRoot;
-          }
-        };
+        typedef BoundaryLocalApplyPaintKind LocalApplyPaintKind;
+        typedef BoundaryLocalApplyInfo LocalApplyInfo;
+        static const LocalApplyPaintKind LOCAL_APPLY_PAINT_NONE = scene::LOCAL_APPLY_PAINT_NONE;
+        static const LocalApplyPaintKind LOCAL_APPLY_PAINT_GENERIC = scene::LOCAL_APPLY_PAINT_GENERIC;
+        static const LocalApplyPaintKind LOCAL_APPLY_PAINT_OPAQUE = scene::LOCAL_APPLY_PAINT_OPAQUE;
+        static const LocalApplyPaintKind LOCAL_APPLY_PAINT_COMPOSITED = scene::LOCAL_APPLY_PAINT_COMPOSITED;
         BoundaryNode() : ComposableNode(), tracker_(), runtimeState_(), updateState_(), compositionState_(), observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
@@ -399,6 +335,14 @@ namespace loka
                                                         info.bounds,
                                                         info.usesPaintBoundsHint,
                                                         info.hasPaintSpecificBoundsHint);
+          if (info.usesPaintBoundsHint)
+          {
+            info.boundsKind = scene::LOCAL_APPLY_BOUNDS_PAINT;
+          }
+          else if (info.bounds)
+          {
+            info.boundsKind = scene::LOCAL_APPLY_BOUNDS_LAYOUT;
+          }
           assert(info.hasAnyWork() == plan.hasAnyLocalWork(this));
           return info;
         }

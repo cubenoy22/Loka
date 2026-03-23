@@ -189,6 +189,7 @@ namespace {
       (void)plan;
       assert(info.hasLayoutWork);
       assert(info.hasBoundsHint());
+      assert(info.hasLayoutBoundsHint());
       g_defaultApplyBoundsWidth = info.bounds->width;
       g_defaultApplyBoundsHeight = info.bounds->height;
       ++g_defaultApplyLayoutCalls;
@@ -200,6 +201,7 @@ namespace {
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
       assert(info.usesPaintBoundsHint);
+      assert(info.hasPaintBoundsHint());
       assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_GENERIC);
       assert(!plan.isOpaqueLocalPaint());
       ++g_defaultApplyLocalPaintCalls;
@@ -211,6 +213,7 @@ namespace {
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
       assert(info.usesPaintBoundsHint);
+      assert(info.hasPaintBoundsHint());
       assert(info.hasOpaqueCoverageHint);
       assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE ||
              info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
@@ -683,6 +686,11 @@ namespace {
         : lastMaterialized_(0),
           lastFlags_(loka::app::scene::NODE_DIRTY_NONE),
           lastFullRebuild_(false),
+          lastBoundaryApplyRoot_(0),
+          lastBoundaryApplyBoundary_(0),
+          lastBoundaryApplyInfo_(),
+          lastBoundaryApplyPlan_(),
+          boundaryApplyCalls_(0),
           calls_(0),
           destroyed_(false) {
     }
@@ -692,6 +700,19 @@ namespace {
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
       ++calls_;
+    }
+
+    virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
+                                 loka::app::scene::BoundaryNode *boundary,
+                                 const loka::app::scene::BoundaryLocalApplyInfo &info,
+                                 const loka::app::scene::PlatformApplyPlan &plan) {
+      assert(plan.isLocalizedFor(boundary));
+      assert(plan.hasBoundaryApplyWork(boundary));
+      lastBoundaryApplyRoot_ = rootNode;
+      lastBoundaryApplyBoundary_ = boundary;
+      lastBoundaryApplyInfo_ = info;
+      lastBoundaryApplyPlan_ = plan;
+      ++boundaryApplyCalls_;
     }
 
     virtual void synchronize() {
@@ -708,6 +729,11 @@ namespace {
     loka::app::scene::Node *lastMaterialized_;
     loka::app::scene::NodeDirtyFlags lastFlags_;
     bool lastFullRebuild_;
+    loka::app::scene::Node *lastBoundaryApplyRoot_;
+    loka::app::scene::BoundaryNode *lastBoundaryApplyBoundary_;
+    loka::app::scene::BoundaryLocalApplyInfo lastBoundaryApplyInfo_;
+    loka::app::scene::PlatformApplyPlan lastBoundaryApplyPlan_;
+    int boundaryApplyCalls_;
     int calls_;
     bool destroyed_;
   };
@@ -2037,10 +2063,18 @@ void testLokaFlowDslV1Core() {
     assert(scene.flushInvalidation());
     assert(g_pendingApplyCallCount == 1);
     assert(g_pendingApplyWhileApplyingCount == 1);
+    assert(platform.boundaryApplyCalls_ == 1);
+    assert(platform.lastBoundaryApplyRoot_ == SceneTestAccess::rootNode(scene));
+    assert(platform.lastBoundaryApplyBoundary_ == rootBoundary);
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
     assert(plan.paintKind == PlatformApplyPlan::PAINT_LOCAL);
     assert(plan.layoutRoot == rootBoundary);
     assert(plan.paintRoot == rootBoundary);
+    assert(platform.lastBoundaryApplyInfo_.hasAnyWork());
+    assert(platform.lastBoundaryApplyInfo_.isLocalPaintRoot);
+    assert(platform.lastBoundaryApplyPlan_.paintRoot == rootBoundary);
+    assert(platform.lastBoundaryApplyPlan_.isLocalizedFor(rootBoundary));
+    assert(platform.lastBoundaryApplyPlan_.hasBoundaryApplyWork(rootBoundary));
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
 
     scene.unmount();
@@ -2107,10 +2141,12 @@ void testLokaFlowDslV1Core() {
     assert(scene.flushInvalidation());
     assert(g_pendingApplySiblingACalls == 1);
     assert(g_pendingApplySiblingBCalls == 1);
+    assert(platform.boundaryApplyCalls_ == 2);
     assert(g_pendingApplySiblingALayoutRoot != 0);
     assert(g_pendingApplySiblingAPaintRoot != 0);
     assert(g_pendingApplySiblingBLayoutRoot != 0);
     assert(g_pendingApplySiblingBPaintRoot != 0);
+    assert(platform.lastBoundaryApplyBoundary_ == siblingB || platform.lastBoundaryApplyBoundary_ == siblingA);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
 
     scene.unmount();
