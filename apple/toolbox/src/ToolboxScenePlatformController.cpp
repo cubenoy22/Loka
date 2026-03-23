@@ -815,6 +815,38 @@ void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, 
   requestInvalidateForChange(rootNode, flags, fullRebuild);
 }
 
+void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNode,
+                                                     loka::app::scene::BoundaryNode *boundary,
+                                                     const loka::app::scene::BoundaryLocalApplyInfo &info,
+                                                     const loka::app::scene::PlatformApplyPlan &plan)
+{
+  if (rootNode)
+  {
+    rootNode_ = rootNode;
+  }
+  if (!window_ || !window_->window() || !rootNode_ || !boundary || !plan.hasBoundaryApplyWork(boundary))
+  {
+    return;
+  }
+  if (info.hasStructureWork || info.hasLayoutWork || !info.hasPaintWork())
+  {
+    return;
+  }
+
+  if (!info.hasBoundsHint())
+  {
+    window_->requestInvalidate();
+    return;
+  }
+
+  Rect rect;
+  rect.left = static_cast<short>(info.bounds->x);
+  rect.top = static_cast<short>(info.bounds->y);
+  rect.right = static_cast<short>(info.bounds->x + info.bounds->width);
+  rect.bottom = static_cast<short>(info.bounds->y + info.bounds->height);
+  window_->requestInvalidateRect(rect);
+}
+
 void ToolboxScenePlatformController::synchronize()
 {
   // Toolbox doesn't have a retained scene graph; rely on Update events.

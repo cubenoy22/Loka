@@ -32,6 +32,10 @@ public:
   virtual ~MacScenePlatformController();
 
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
+  virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
+                               loka::app::scene::BoundaryNode *boundary,
+                               const loka::app::scene::BoundaryLocalApplyInfo &info,
+                               const loka::app::scene::PlatformApplyPlan &plan);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();

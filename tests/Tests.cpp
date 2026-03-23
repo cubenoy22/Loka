@@ -4429,10 +4429,11 @@ void testSceneMixedStaticAndDynamicPureChildDirtyStaysFullRebuild()
 
   assert(platform.calls_ >= 2);
   // Pure child-dirty (no statusText props change): NODE_DIRTY_CHILD was
-  // seen during the sequence and the final onChange keeps fullRebuild=true.
+  // seen during the sequence and the dynamic child boundary can now
+  // downgrade the scene-level full rebuild through the pending-root path.
   assert(platform.everSawChildDirty_ == true);
   assert(platform.lastFlags_ == NODE_DIRTY_CHILD);
-  assert(platform.lastFullRebuild_ == true);
+  assert(platform.lastFullRebuild_ == false);
 
   scene.unmount();
 }

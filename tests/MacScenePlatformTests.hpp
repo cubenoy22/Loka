@@ -12,5 +12,6 @@ void testMacScenePlatformForeignObservedChildRebuildSwapsContexts();
 void testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts();
 void testMacScenePlatformForeignObservedChildReorderPreservesSiblingContexts();
 void testMacScenePlatformHelloWorldCapturesTextAndButtons();
+void testMacScenePlatformBoundaryLocalPaintMarksViewDirty();
 
 #endif // LOKA_MAC_SCENE_PLATFORM_TESTS_HPP

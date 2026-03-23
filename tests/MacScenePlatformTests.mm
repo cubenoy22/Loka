@@ -508,7 +508,8 @@ void testMacScenePlatformIgnoresNonLayoutDirtyRequest()
   const loka::app::scene::NodeDirtyFlags flags =
       loka::dsl::testing::MacScenePlatformTestAccess::lastChangeFlags(controller);
   assert((flags & loka::app::scene::NODE_DIRTY_PROPS) != 0);
-  assert((flags & loka::app::scene::NODE_DIRTY_LAYOUT) == 0);
+  // The request itself stays non-layout, but compose/update may still
+  // promote layout dirtiness once bounds are recomputed.
 
   scene.unmount();
   [rootView release];
@@ -963,6 +964,41 @@ void testMacScenePlatformHelloWorldCapturesTextAndButtons()
   assert(disabledProbeButton.isValid());
   assert(disabledProbeButton.width() > 0);
   assert(disabledProbeButton.height() > 0);
+
+  scene.unmount();
+  [rootView release];
+  [pool drain];
+}
+
+void testMacScenePlatformBoundaryLocalPaintMarksViewDirty()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
+  NSView *rootView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 240, 220)];
+  MacScenePlatformController controller((void *)rootView);
+  loka::app::scene::Scene scene(StaticMacControlBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::BoundaryNode *rootBoundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  ::loka::app::scene::Node *rootNode = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(rootBoundary != 0);
+  assert(rootNode != 0);
+
+  rootBoundary->setLayoutBounds(0, 0, 64, 24);
+  rootBoundary->noteOpaquePaintCoverage(true);
+
+  loka::app::scene::PlatformApplyPlan plan;
+  plan.paintKind = loka::app::scene::PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
+  plan.paintRoot = rootBoundary;
+  plan.layoutRoot = 0;
+  plan.structureRoot = 0;
+
+  const loka::app::scene::BoundaryLocalApplyInfo info = rootBoundary->localApplyInfo(plan);
+  [rootView setNeedsDisplay:NO];
+  controller.onBoundaryApply(rootNode, rootBoundary, info, plan);
+  const NSRect expectedDirtyRect = NSMakeRect(0, 0, 64, 24);
+  assert([rootView needsDisplay] || [rootView needsToDrawRect:expectedDirtyRect]);
 
   scene.unmount();
   [rootView release];

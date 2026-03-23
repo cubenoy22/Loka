@@ -156,6 +156,38 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka
   performLayout(clientWidth_, clientHeight_, fullRebuild);
 }
 
+void MacScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNode,
+                                                 loka::app::scene::BoundaryNode *boundary,
+                                                 const loka::app::scene::BoundaryLocalApplyInfo &info,
+                                                 const loka::app::scene::PlatformApplyPlan &plan)
+{
+  if (rootNode)
+  {
+    rootNode_ = rootNode;
+  }
+  if (!rootView_ || !rootNode_ || !boundary || !plan.hasBoundaryApplyWork(boundary))
+  {
+    return;
+  }
+  if (info.hasStructureWork || info.hasLayoutWork || !info.hasPaintWork())
+  {
+    return;
+  }
+
+  NSView *view = (NSView *)rootView_;
+  if (!info.hasBoundsHint() || info.hasCompositedPaintWork())
+  {
+    [view setNeedsDisplay:YES];
+    return;
+  }
+
+  NSRect dirtyRect = NSMakeRect(static_cast<CGFloat>(info.bounds->x),
+                                static_cast<CGFloat>(info.bounds->y),
+                                static_cast<CGFloat>(info.bounds->width),
+                                static_cast<CGFloat>(info.bounds->height));
+  [view setNeedsDisplayInRect:dirtyRect];
+}
+
 void MacScenePlatformController::synchronize()
 {
   // Solid-mode（固定ツリー）では即時反映済みのため、現状何もしない。

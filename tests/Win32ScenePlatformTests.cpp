@@ -828,4 +828,39 @@ void testWin32ScenePlatformForeignObservedChildReorderPreservesSiblingContexts()
   g_foreignReorderState = 0;
 }
 
+void testWin32ScenePlatformBoundaryLocalPaintQueuesDirtyRect()
+{
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  loka::app::scene::Scene scene(StaticWin32ControlBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::BoundaryNode *rootBoundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  ::loka::app::scene::Node *rootNode = loka::dsl::testing::SceneTestAccess::rootNode(scene);
+  assert(rootBoundary != 0);
+  assert(rootNode != 0);
+
+  rootBoundary->setLayoutBounds(0, 0, 64, 24);
+  rootBoundary->noteOpaquePaintCoverage(true);
+
+  loka::app::scene::PlatformApplyPlan plan;
+  plan.paintKind = loka::app::scene::PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
+  plan.paintRoot = rootBoundary;
+  plan.layoutRoot = 0;
+  plan.structureRoot = 0;
+
+  const loka::app::scene::BoundaryLocalApplyInfo info = rootBoundary->localApplyInfo(plan);
+  controller.onBoundaryApply(rootNode, rootBoundary, info, plan);
+  assert(controller.hasPendingSync());
+  controller.synchronize();
+  assert(!controller.hasPendingSync());
+
+  scene.unmount();
+  DestroyWindow(rootHwnd);
+}
+
 #endif

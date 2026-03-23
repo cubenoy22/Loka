@@ -98,6 +98,7 @@ int main()
   testWin32ScenePlatformForeignObservedChildRebuildSwapsContexts();
   testWin32ScenePlatformForeignObservedChildRebuildPreservesSiblingContexts();
   testWin32ScenePlatformForeignObservedChildReorderPreservesSiblingContexts();
+  testWin32ScenePlatformBoundaryLocalPaintQueuesDirtyRect();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();
@@ -111,6 +112,7 @@ int main()
   testMacScenePlatformForeignObservedChildRebuildPreservesSiblingContexts();
   testMacScenePlatformForeignObservedChildReorderPreservesSiblingContexts();
   testMacScenePlatformHelloWorldCapturesTextAndButtons();
+  testMacScenePlatformBoundaryLocalPaintMarksViewDirty();
 #endif
   testStateBatchOverflow();
   testStartupRedrawCount_Before();

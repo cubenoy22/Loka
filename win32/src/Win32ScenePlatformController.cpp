@@ -188,6 +188,40 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, lo
   performLayout(clientWidth_, clientHeight_, fullRebuild);
 }
 
+void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootNode,
+                                                   loka::app::scene::BoundaryNode *boundary,
+                                                   const loka::app::scene::BoundaryLocalApplyInfo &info,
+                                                   const loka::app::scene::PlatformApplyPlan &plan)
+{
+  if (rootNode)
+  {
+    rootNode_ = rootNode;
+  }
+  if (!rootHwnd_ || !rootNode_ || !boundary || !plan.hasBoundaryApplyWork(boundary))
+  {
+    return;
+  }
+  if (info.hasStructureWork || info.hasLayoutWork || !info.hasPaintWork())
+  {
+    return;
+  }
+
+  const bool eraseBackground = !info.paintIsOpaque;
+  const bool includeChildren = info.hasCompositedPaintWork();
+  if (!info.hasBoundsHint())
+  {
+    queueDirtyRect(rootHwnd_, 0, eraseBackground ? TRUE : FALSE, includeChildren);
+    return;
+  }
+
+  RECT rect;
+  rect.left = info.bounds->x;
+  rect.top = info.bounds->y;
+  rect.right = info.bounds->x + info.bounds->width;
+  rect.bottom = info.bounds->y + info.bounds->height;
+  queueDirtyRect(rootHwnd_, &rect, eraseBackground ? TRUE : FALSE, includeChildren);
+}
+
 void Win32ScenePlatformController::synchronize()
 {
   for (size_t i = 0; i < pendingInvalidations_.size(); ++i)
