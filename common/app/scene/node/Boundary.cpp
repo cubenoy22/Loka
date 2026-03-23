@@ -53,7 +53,7 @@ namespace loka
 
       void BoundaryNode::ObservedStateChangedThunk(void *userData)
       {
-        BoundaryNode::ObservedStateBinding *binding = static_cast<BoundaryNode::ObservedStateBinding *>(userData);
+        BoundaryObservedStateBinding *binding = static_cast<BoundaryObservedStateBinding *>(userData);
         if (!binding || !binding->boundary)
         {
           return;
@@ -82,7 +82,7 @@ namespace loka
 
       void BoundaryNode::ObservedStateDeferredInvalidateThunk(void *userData)
       {
-        BoundaryNode::ObservedStateBinding *binding = static_cast<BoundaryNode::ObservedStateBinding *>(userData);
+        BoundaryObservedStateBinding *binding = static_cast<BoundaryObservedStateBinding *>(userData);
         if (!binding || !binding->boundary)
         {
           return;
