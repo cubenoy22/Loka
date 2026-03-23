@@ -230,11 +230,12 @@ namespace {
 
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
+      const LocalApplyInfo info = this->localApplyInfo(plan);
       ++g_pendingApplySiblingACalls;
       g_pendingApplySiblingALayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingAPaintRoot = plan.paintRoot;
-      assert(this->hasLocalApplyLayoutWork(plan) || !plan.hasLayoutWork());
-      assert(this->hasLocalApplyPaintWork(plan));
+      assert(info.isLocalLayoutRoot || !plan.hasLayoutWork());
+      assert(info.isLocalPaintRoot);
       assert(plan.layoutRoot == this);
       assert(plan.paintRoot == this);
     }
@@ -255,11 +256,12 @@ namespace {
 
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
+      const LocalApplyInfo info = this->localApplyInfo(plan);
       ++g_pendingApplySiblingBCalls;
       g_pendingApplySiblingBLayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingBPaintRoot = plan.paintRoot;
-      assert(this->hasLocalApplyLayoutWork(plan) || !plan.hasLayoutWork());
-      assert(this->hasLocalApplyPaintWork(plan));
+      assert(info.isLocalLayoutRoot || !plan.hasLayoutWork());
+      assert(info.isLocalPaintRoot);
       assert(plan.layoutRoot == this);
       assert(plan.paintRoot == this);
     }

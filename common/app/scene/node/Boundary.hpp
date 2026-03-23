@@ -241,7 +241,10 @@ namespace loka
         struct LocalApplyInfo
         {
           LocalApplyInfo()
-              : hasStructureWork(false),
+              : isLocalStructureRoot(false),
+                isLocalLayoutRoot(false),
+                isLocalPaintRoot(false),
+                hasStructureWork(false),
                 hasLayoutWork(false),
                 paintKind(LOCAL_APPLY_PAINT_NONE),
                 bounds(0),
@@ -251,6 +254,9 @@ namespace loka
           {
           }
 
+          bool isLocalStructureRoot;
+          bool isLocalLayoutRoot;
+          bool isLocalPaintRoot;
           bool hasStructureWork;
           bool hasLayoutWork;
           LocalApplyPaintKind paintKind;
@@ -341,11 +347,14 @@ namespace loka
         LocalApplyInfo localApplyInfo(const PlatformApplyPlan &plan) const
         {
           LocalApplyInfo info;
-          info.hasStructureWork = this->hasLocalApplyStructureWork(plan);
-          info.hasLayoutWork = this->hasLocalApplyLayoutWork(plan);
+          info.isLocalStructureRoot = plan.hasStructureWork();
+          info.isLocalLayoutRoot = plan.hasLocalLayoutWork(this);
+          info.isLocalPaintRoot = plan.hasLocalPaintWork(this);
+          info.hasStructureWork = info.isLocalStructureRoot;
+          info.hasLayoutWork = info.isLocalLayoutRoot;
           info.paintKind = this->localApplyPaintKind(plan);
           info.bounds = this->localApplyBoundsHint(plan);
-          info.hasPaintSpecificBoundsHint = this->hasLocalApplyPaintWork(plan) && this->updateState_.hasPaintBoundsHint();
+          info.hasPaintSpecificBoundsHint = info.isLocalPaintRoot && this->updateState_.hasPaintBoundsHint();
           info.hasOpaqueCoverageHint = this->hasLocalOpaquePaintHint(plan);
           info.paintIsOpaque = this->localApplyPaintIsOpaque(plan);
           return info;
