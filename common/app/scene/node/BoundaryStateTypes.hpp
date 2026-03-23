@@ -188,16 +188,20 @@ namespace loka
       {
         struct PaintMetadata
         {
-          PaintMetadata() : hasPaintWork(false), requiresCompositedPaint(false) {}
+          PaintMetadata() : hasPaintWork(false), requiresCompositedPaint(false), hasOpaqueCoverageHint(false), opaqueCoverageHint(false) {}
 
           void clear()
           {
             hasPaintWork = false;
             requiresCompositedPaint = false;
+            hasOpaqueCoverageHint = false;
+            opaqueCoverageHint = false;
           }
 
           bool hasPaintWork;
           bool requiresCompositedPaint;
+          bool hasOpaqueCoverageHint;
+          bool opaqueCoverageHint;
         };
 
         BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false), paint() {}
@@ -222,6 +226,13 @@ namespace loka
         {
           paint.hasPaintWork = true;
           paint.requiresCompositedPaint = true;
+        }
+
+        void noteOpaquePaintCoverage(bool opaque)
+        {
+          paint.hasPaintWork = true;
+          paint.hasOpaqueCoverageHint = true;
+          paint.opaqueCoverageHint = opaque;
         }
 
         void noteActualBoundsChanged(bool affectsAncestor)
@@ -268,6 +279,11 @@ namespace loka
         void noteCompositedPaint()
         {
           result.noteCompositedPaint();
+        }
+
+        void noteOpaquePaintCoverage(bool opaque)
+        {
+          result.noteOpaquePaintCoverage(opaque);
         }
 
         void noteActualBoundsChanged(bool affectsAncestor)

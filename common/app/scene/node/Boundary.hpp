@@ -296,6 +296,14 @@ namespace loka
         {
           return plan.hasLocalPaintWork(this) && plan.requiresCompositedPaint();
         }
+        bool hasLocalOpaquePaintHint(const PlatformApplyPlan &plan) const
+        {
+          return this->hasLocalApplyPaintWork(plan) && this->updateState_.result.paint.hasOpaqueCoverageHint;
+        }
+        bool localApplyPaintIsOpaque(const PlatformApplyPlan &plan) const
+        {
+          return this->hasLocalOpaquePaintHint(plan) && this->updateState_.result.paint.opaqueCoverageHint;
+        }
         bool hasLocalApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
           return (this->hasLocalApplyLayoutWork(plan) || this->hasLocalApplyPaintWork(plan)) && this->hasLayoutBounds();
@@ -399,6 +407,11 @@ namespace loka
         {
           assert(!updateState_.phase.isApplying());
           updateState_.noteCompositedPaint();
+        }
+        void noteOpaquePaintCoverage(bool opaque)
+        {
+          assert(!updateState_.phase.isApplying());
+          updateState_.noteOpaquePaintCoverage(opaque);
         }
         void beginPlatformApply() { updateState_.phase.beginApply(); }
         void endPlatformApply() { updateState_.phase.endApply(); }

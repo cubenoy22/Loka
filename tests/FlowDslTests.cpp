@@ -78,6 +78,7 @@ namespace {
   static int g_defaultApplyLayoutCalls = 0;
   static int g_defaultApplyBoundsWidth = 0;
   static int g_defaultApplyBoundsHeight = 0;
+  static int g_defaultApplyOpaqueHintSeen = 0;
   class PendingCompositedProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingCompositedProbeBoundaryNode> PendingCompositedProbeBoundaryProps;
   class PendingApplySiblingABoundaryNode;
@@ -162,6 +163,7 @@ namespace {
     {
       this->setLayoutBounds(0, 0, 40, 12);
       this->noteCompositedPaint();
+      this->noteOpaquePaintCoverage(true);
       c.declare(loka::app::Text("DefaultApply").testId("PendingDefaultApplyText"));
     }
 
@@ -181,6 +183,9 @@ namespace {
       const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
       assert(this->hasLocalApplyPaintWork(plan));
       assert(bounds != 0);
+      assert(this->hasLocalOpaquePaintHint(plan));
+      assert(this->localApplyPaintIsOpaque(plan));
+      ++g_defaultApplyOpaqueHintSeen;
       ++g_defaultApplyLocalPaintCalls;
     }
 
@@ -1893,6 +1898,7 @@ void testLokaFlowDslV1Core() {
     g_defaultApplyLayoutCalls = 0;
     g_defaultApplyBoundsWidth = 0;
     g_defaultApplyBoundsHeight = 0;
+    g_defaultApplyOpaqueHintSeen = 0;
 
     Scene scene((BoundaryDefinition<PendingDefaultApplyProbeBoundaryProps, PendingDefaultApplyProbeBoundaryNode>()));
     FlowScenePlatformController platform;
@@ -1907,6 +1913,7 @@ void testLokaFlowDslV1Core() {
     assert(g_defaultApplyLayoutCalls == 1);
     assert(g_defaultApplyCompositedPaintCalls == 1);
     assert(g_defaultApplyLocalPaintCalls == 1);
+    assert(g_defaultApplyOpaqueHintSeen == 1);
     assert(g_defaultApplyBoundsWidth == 40);
     assert(g_defaultApplyBoundsHeight == 12);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
