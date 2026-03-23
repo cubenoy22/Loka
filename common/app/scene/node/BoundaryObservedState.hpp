@@ -35,6 +35,16 @@ namespace loka
       {
         BoundaryObservedState() : dirtyFlags(NODE_DIRTY_NONE), generation(0), entries() {}
 
+        void clearDirtyFlags()
+        {
+          dirtyFlags = NODE_DIRTY_NONE;
+        }
+
+        NodeDirtyFlags currentDirtyFlags() const
+        {
+          return dirtyFlags;
+        }
+
         void clearEntries()
         {
           for (size_t i = 0; i < entries.size(); ++i)

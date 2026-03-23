@@ -365,7 +365,7 @@ namespace loka
         }
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }
-        void clearObservedDirtyFlags() { observedState_.dirtyFlags = NODE_DIRTY_NONE; }
+        void clearObservedDirtyFlags() { observedState_.clearDirtyFlags(); }
         void addPendingDirtyFlags(NodeDirtyFlags flags)
         {
           updateState_.addPendingDirtyFlags(flags);
@@ -376,8 +376,8 @@ namespace loka
         void setUpdateRequested(bool value) { updateState_.setRequested(value); }
         BoundaryNode *nextPendingBoundary() const { return updateState_.nextPendingBoundary(); }
         void setNextPendingBoundary(BoundaryNode *next) { updateState_.setNextPendingBoundary(next); }
-        BoundaryComposeResult &composeResult() { return compositionState_.result; }
-        const BoundaryComposeResult &composeResult() const { return compositionState_.result; }
+        BoundaryComposeResult &composeResult() { return compositionState_.composeResult(); }
+        const BoundaryComposeResult &composeResult() const { return compositionState_.composeResult(); }
         BoundaryUpdateResult &updateResult() { return updateState_.result; }
         const BoundaryUpdateResult &updateResult() const { return updateState_.result; }
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
@@ -420,7 +420,7 @@ namespace loka
         {
           observedState_.registerState(this, state, flags, &BoundaryNode::ObservedStateChangedThunk);
         }
-        NodeDirtyFlags observedDirtyFlags() const { return observedState_.dirtyFlags; }
+        NodeDirtyFlags observedDirtyFlags() const { return observedState_.currentDirtyFlags(); }
         NodeDirtyFlags observedDirtyFlagsForCommittedStates() const
         {
           const loka::core::PushStateTracker *pushTracker = this->tracker_.asPushTracker();
@@ -469,11 +469,11 @@ namespace loka
           return useManagedStateWithValue(initial);
         }
 
-        NodeCompositionTransaction &compositionTransaction() { return compositionState_.transaction; }
-        const NodeCompositionTransaction &compositionTransaction() const { return compositionState_.transaction; }
+        NodeCompositionTransaction &compositionTransaction() { return compositionState_.compositionTransaction(); }
+        const NodeCompositionTransaction &compositionTransaction() const { return compositionState_.compositionTransaction(); }
         const NodeCompositionDiff *localCompositionDiff() const
         {
-          return compositionState_.transaction.diff().valid ? &compositionState_.transaction.diff() : 0;
+          return compositionState_.localCompositionDiff();
         }
         Node *compositionRootNode() const
         {
@@ -518,8 +518,8 @@ namespace loka
         bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context, std::vector<Node *> &retainedChildren)
         {
           INestable *root = compositionRootNestable();
-          INestableDefinition *currentRoot = compositionState_.currentSnapshot.root()
-                                                 ? compositionState_.currentSnapshot.root()->asNestableDefinition()
+          INestableDefinition *currentRoot = compositionState_.currentCompositionSnapshot().root()
+                                                 ? compositionState_.currentCompositionSnapshot().root()->asNestableDefinition()
                                                  : 0;
           if (!root || !currentRoot)
           {
@@ -542,10 +542,10 @@ namespace loka
           const NodeCompositionDiff *diff = localCompositionDiff();
           return diff != 0 && !diff->fullRebuild && !diff->empty() && !diff->hasIncompatibleRetain();
         }
-        NodeCompositionSnapshot &previousCompositionSnapshot() { return compositionState_.previousSnapshot; }
-        const NodeCompositionSnapshot &previousCompositionSnapshot() const { return compositionState_.previousSnapshot; }
-        NodeCompositionSnapshot &currentCompositionSnapshot() { return compositionState_.currentSnapshot; }
-        const NodeCompositionSnapshot &currentCompositionSnapshot() const { return compositionState_.currentSnapshot; }
+        NodeCompositionSnapshot &previousCompositionSnapshot() { return compositionState_.previousCompositionSnapshot(); }
+        const NodeCompositionSnapshot &previousCompositionSnapshot() const { return compositionState_.previousCompositionSnapshot(); }
+        NodeCompositionSnapshot &currentCompositionSnapshot() { return compositionState_.currentCompositionSnapshot(); }
+        const NodeCompositionSnapshot &currentCompositionSnapshot() const { return compositionState_.currentCompositionSnapshot(); }
 
       protected:
         virtual void applyPendingLayout(const PlatformApplyPlan &)

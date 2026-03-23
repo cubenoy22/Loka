@@ -81,6 +81,16 @@ namespace loka
           result.preservedNativeContexts = preservedNativeContexts;
         }
 
+        BoundaryComposeResult &composeResult()
+        {
+          return result;
+        }
+
+        const BoundaryComposeResult &composeResult() const
+        {
+          return result;
+        }
+
         void captureCurrentSnapshot(const NodeComposition &composition)
         {
           currentSnapshot.capture(composition);
@@ -120,6 +130,41 @@ namespace loka
             child = child->nextInComposition;
           }
           return 0;
+        }
+
+        NodeCompositionTransaction &compositionTransaction()
+        {
+          return transaction;
+        }
+
+        const NodeCompositionTransaction &compositionTransaction() const
+        {
+          return transaction;
+        }
+
+        const NodeCompositionDiff *localCompositionDiff() const
+        {
+          return transaction.diff().valid ? &transaction.diff() : 0;
+        }
+
+        NodeCompositionSnapshot &previousCompositionSnapshot()
+        {
+          return previousSnapshot;
+        }
+
+        const NodeCompositionSnapshot &previousCompositionSnapshot() const
+        {
+          return previousSnapshot;
+        }
+
+        NodeCompositionSnapshot &currentCompositionSnapshot()
+        {
+          return currentSnapshot;
+        }
+
+        const NodeCompositionSnapshot &currentCompositionSnapshot() const
+        {
+          return currentSnapshot;
         }
 
         BoundaryComposeResult result;
