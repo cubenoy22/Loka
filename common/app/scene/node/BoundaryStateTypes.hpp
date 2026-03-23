@@ -346,6 +346,40 @@ namespace loka
           phase.clear();
         }
 
+        void addPendingDirtyFlags(NodeDirtyFlags flags)
+        {
+          if (flags == NODE_DIRTY_NONE)
+          {
+            return;
+          }
+          pending.dirtyFlags = static_cast<NodeDirtyFlags>(pending.dirtyFlags | flags);
+        }
+
+        NodeDirtyFlags pendingDirtyFlags() const
+        {
+          return pending.dirtyFlags;
+        }
+
+        bool isRequested() const
+        {
+          return pending.requested;
+        }
+
+        void setRequested(bool value)
+        {
+          pending.requested = value;
+        }
+
+        BoundaryNode *nextPendingBoundary() const
+        {
+          return pending.nextBoundary;
+        }
+
+        void setNextPendingBoundary(BoundaryNode *next)
+        {
+          pending.nextBoundary = next;
+        }
+
         void noteLocalPaintWork()
         {
           result.noteLocalPaintWork();
@@ -404,6 +438,26 @@ namespace loka
         bool opaqueCoverageHintValue() const
         {
           return result.opaqueCoverageHintValue();
+        }
+
+        bool isApplying() const
+        {
+          return phase.isApplying();
+        }
+
+        bool isComposing() const
+        {
+          return phase.isComposing();
+        }
+
+        BoundaryComposePhaseScope beginComposeScope()
+        {
+          return BoundaryComposePhaseScope(&phase);
+        }
+
+        BoundaryApplyPhaseScope beginApplyScope()
+        {
+          return BoundaryApplyPhaseScope(&phase);
         }
 
         PendingUpdateState pending;

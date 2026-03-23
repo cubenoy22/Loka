@@ -315,10 +315,10 @@ namespace loka
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
         bool isFrozen() const { return this->frozen_; }
-        bool isApplyingPlatform() const { return this->updateState_.phase.isApplying(); }
-        bool isComposingPhase() const { return this->updateState_.phase.isComposing(); }
-        BoundaryComposePhaseScope beginComposePhaseScope() { return BoundaryComposePhaseScope(&this->updateState_.phase); }
-        BoundaryApplyPhaseScope beginApplyPhaseScope() { return BoundaryApplyPhaseScope(&this->updateState_.phase); }
+        bool isApplyingPlatform() const { return this->updateState_.isApplying(); }
+        bool isComposingPhase() const { return this->updateState_.isComposing(); }
+        BoundaryComposePhaseScope beginComposePhaseScope() { return this->updateState_.beginComposeScope(); }
+        BoundaryApplyPhaseScope beginApplyPhaseScope() { return this->updateState_.beginApplyScope(); }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -368,18 +368,14 @@ namespace loka
         void clearObservedDirtyFlags() { observedState_.dirtyFlags = NODE_DIRTY_NONE; }
         void addPendingDirtyFlags(NodeDirtyFlags flags)
         {
-          if (flags == NODE_DIRTY_NONE)
-          {
-            return;
-          }
-          updateState_.pending.dirtyFlags = static_cast<NodeDirtyFlags>(updateState_.pending.dirtyFlags | flags);
+          updateState_.addPendingDirtyFlags(flags);
         }
-        NodeDirtyFlags pendingDirtyFlags() const { return updateState_.pending.dirtyFlags; }
+        NodeDirtyFlags pendingDirtyFlags() const { return updateState_.pendingDirtyFlags(); }
         void clearPendingUpdateState() { updateState_.clearPending(); }
-        bool isUpdateRequested() const { return updateState_.pending.requested; }
-        void setUpdateRequested(bool value) { updateState_.pending.requested = value; }
-        BoundaryNode *nextPendingBoundary() const { return updateState_.pending.nextBoundary; }
-        void setNextPendingBoundary(BoundaryNode *next) { updateState_.pending.nextBoundary = next; }
+        bool isUpdateRequested() const { return updateState_.isRequested(); }
+        void setUpdateRequested(bool value) { updateState_.setRequested(value); }
+        BoundaryNode *nextPendingBoundary() const { return updateState_.nextPendingBoundary(); }
+        void setNextPendingBoundary(BoundaryNode *next) { updateState_.setNextPendingBoundary(next); }
         BoundaryComposeResult &composeResult() { return compositionState_.result; }
         const BoundaryComposeResult &composeResult() const { return compositionState_.result; }
         BoundaryUpdateResult &updateResult() { return updateState_.result; }
@@ -399,17 +395,17 @@ namespace loka
         }
         void noteLocalPaintWork()
         {
-          assert(!updateState_.phase.isApplying());
+          assert(!updateState_.isApplying());
           updateState_.noteLocalPaintWork();
         }
         void noteCompositedPaint()
         {
-          assert(!updateState_.phase.isApplying());
+          assert(!updateState_.isApplying());
           updateState_.noteCompositedPaint();
         }
         void noteOpaquePaintCoverage(bool opaque)
         {
-          assert(!updateState_.phase.isApplying());
+          assert(!updateState_.isApplying());
           updateState_.noteOpaquePaintCoverage(opaque);
         }
         void beginPlatformApply() { updateState_.phase.beginApply(); }
