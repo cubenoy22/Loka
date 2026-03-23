@@ -186,6 +186,35 @@ namespace loka
 
       struct BoundaryUpdateResult
       {
+        struct BoundsHint
+        {
+          BoundsHint() : x(0), y(0), width(0), height(0), valid(false) {}
+
+          void clear()
+          {
+            x = 0;
+            y = 0;
+            width = 0;
+            height = 0;
+            valid = false;
+          }
+
+          void set(int nextX, int nextY, int nextWidth, int nextHeight)
+          {
+            x = nextX;
+            y = nextY;
+            width = nextWidth;
+            height = nextHeight;
+            valid = true;
+          }
+
+          int x;
+          int y;
+          int width;
+          int height;
+          bool valid;
+        };
+
         struct PaintMetadata
         {
           PaintMetadata() : hasPaintWork(false), requiresCompositedPaint(false), hasOpaqueCoverageHint(false), opaqueCoverageHint(false) {}
@@ -204,17 +233,19 @@ namespace loka
           bool opaqueCoverageHint;
         };
 
-        BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false), paint() {}
+        BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false), bounds(), paint() {}
 
         void clear()
         {
           actualBoundsChanged = false;
           affectsAncestorLayout = false;
+          bounds.clear();
           paint.clear();
         }
 
         bool actualBoundsChanged;
         bool affectsAncestorLayout;
+        BoundsHint bounds;
         PaintMetadata paint;
 
         void noteLocalPaintWork()
@@ -235,6 +266,26 @@ namespace loka
           paint.opaqueCoverageHint = opaque;
         }
 
+        bool hasPaintWork() const
+        {
+          return paint.hasPaintWork;
+        }
+
+        bool requiresCompositedPaint() const
+        {
+          return paint.requiresCompositedPaint;
+        }
+
+        bool hasOpaqueCoverageHint() const
+        {
+          return paint.hasOpaqueCoverageHint;
+        }
+
+        bool opaqueCoverageHintValue() const
+        {
+          return paint.opaqueCoverageHint;
+        }
+
         void noteActualBoundsChanged(bool affectsAncestor)
         {
           actualBoundsChanged = true;
@@ -242,6 +293,30 @@ namespace loka
           {
             affectsAncestorLayout = true;
           }
+        }
+
+        void noteBoundsHint(int x, int y, int width, int height)
+        {
+          bounds.set(x, y, width, height);
+        }
+
+        void clearBoundsHint()
+        {
+          bounds.clear();
+        }
+
+        bool hasBoundsHint() const
+        {
+          return bounds.valid;
+        }
+
+        const BoundsHint *boundsHint() const
+        {
+          if (!bounds.valid)
+          {
+            return 0;
+          }
+          return &bounds;
         }
       };
 
@@ -289,6 +364,46 @@ namespace loka
         void noteActualBoundsChanged(bool affectsAncestor)
         {
           result.noteActualBoundsChanged(affectsAncestor);
+        }
+
+        void noteBoundsHint(int x, int y, int width, int height)
+        {
+          result.noteBoundsHint(x, y, width, height);
+        }
+
+        void clearBoundsHint()
+        {
+          result.clearBoundsHint();
+        }
+
+        bool hasBoundsHint() const
+        {
+          return result.hasBoundsHint();
+        }
+
+        const BoundaryUpdateResult::BoundsHint *boundsHint() const
+        {
+          return result.boundsHint();
+        }
+
+        bool hasPaintWork() const
+        {
+          return result.hasPaintWork();
+        }
+
+        bool requiresCompositedPaint() const
+        {
+          return result.requiresCompositedPaint();
+        }
+
+        bool hasOpaqueCoverageHint() const
+        {
+          return result.hasOpaqueCoverageHint();
+        }
+
+        bool opaqueCoverageHintValue() const
+        {
+          return result.opaqueCoverageHintValue();
         }
 
         PendingUpdateState pending;

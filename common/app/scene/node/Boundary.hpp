@@ -229,15 +229,7 @@ namespace loka
       class BoundaryNode : public ComposableNode, public IStateOwner
       {
       public:
-        struct LayoutBounds
-        {
-          int x;
-          int y;
-          int width;
-          int height;
-          bool valid;
-          LayoutBounds() : x(0), y(0), width(0), height(0), valid(false) {}
-        };
+        typedef BoundaryUpdateResult::BoundsHint LayoutBounds;
         BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), updateState_(), compositionState_(), frozen_(false), observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
@@ -302,15 +294,15 @@ namespace loka
         }
         bool hasLocalOpaquePaintHint(const PlatformApplyPlan &plan) const
         {
-          return this->hasLocalApplyPaintWork(plan) && this->updateState_.result.paint.hasOpaqueCoverageHint;
+          return this->hasLocalApplyPaintWork(plan) && this->updateState_.hasOpaqueCoverageHint();
         }
         bool localApplyPaintIsOpaque(const PlatformApplyPlan &plan) const
         {
-          return plan.isOpaqueLocalPaint() || (this->hasLocalOpaquePaintHint(plan) && this->updateState_.result.paint.opaqueCoverageHint);
+          return plan.isOpaqueLocalPaint() || (this->hasLocalOpaquePaintHint(plan) && this->updateState_.opaqueCoverageHintValue());
         }
         bool hasLocalApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
-          return (this->hasLocalApplyLayoutWork(plan) || this->hasLocalApplyPaintWork(plan)) && this->hasLayoutBounds();
+          return (this->hasLocalApplyLayoutWork(plan) || this->hasLocalApplyPaintWork(plan)) && this->updateState_.hasBoundsHint();
         }
         const LayoutBounds *localApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
@@ -318,7 +310,7 @@ namespace loka
           {
             return 0;
           }
-          return &this->layoutBounds_;
+          return this->updateState_.boundsHint();
         }
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
@@ -353,6 +345,7 @@ namespace loka
           layoutBounds_.width = normalizedWidth;
           layoutBounds_.height = normalizedHeight;
           layoutBounds_.valid = true;
+          updateState_.noteBoundsHint(x, y, normalizedWidth, normalizedHeight);
           if (changed)
           {
             updateState_.noteActualBoundsChanged(parentBoundary_ != 0);
@@ -363,10 +356,12 @@ namespace loka
           if (layoutBounds_.valid)
           {
             layoutBounds_ = LayoutBounds();
+            updateState_.clearBoundsHint();
             updateState_.noteActualBoundsChanged(parentBoundary_ != 0);
             return;
           }
           layoutBounds_ = LayoutBounds();
+          updateState_.clearBoundsHint();
         }
         const LayoutBounds &layoutBounds() const { return layoutBounds_; }
         bool hasLayoutBounds() const { return layoutBounds_.valid; }

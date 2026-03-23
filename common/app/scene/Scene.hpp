@@ -465,7 +465,7 @@ namespace loka
           while (root)
           {
             const BoundaryUpdateResult &result = root->updateResult();
-            if (result.paint.requiresCompositedPaint)
+            if (result.requiresCompositedPaint())
             {
               return true;
             }
@@ -481,14 +481,14 @@ namespace loka
           while (root)
           {
             const BoundaryUpdateResult &result = root->updateResult();
-            if (result.paint.requiresCompositedPaint)
+            if (result.requiresCompositedPaint())
             {
               return false;
             }
-            if (result.paint.hasPaintWork)
+            if (result.hasPaintWork())
             {
               sawPaint = true;
-              if (!result.paint.hasOpaqueCoverageHint || !result.paint.opaqueCoverageHint)
+              if (!result.hasOpaqueCoverageHint() || !result.opaqueCoverageHintValue())
               {
                 return false;
               }
