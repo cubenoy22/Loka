@@ -431,6 +431,12 @@ namespace loka
           result.noteBoundsHint(x, y, width, height);
         }
 
+        void noteLayoutAndPaintBoundsHint(int x, int y, int width, int height)
+        {
+          result.noteBoundsHint(x, y, width, height);
+          result.notePaintBoundsHint(x, y, width, height);
+        }
+
         void clearBoundsHint()
         {
           result.clearBoundsHint();
@@ -453,6 +459,12 @@ namespace loka
 
         void clearPaintBoundsHint()
         {
+          result.clearPaintBoundsHint();
+        }
+
+        void clearAllBoundsHints()
+        {
+          result.clearBoundsHint();
           result.clearPaintBoundsHint();
         }
 

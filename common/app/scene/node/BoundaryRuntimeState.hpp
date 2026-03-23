@@ -52,6 +52,11 @@ namespace loka
           return parentBoundary;
         }
 
+        bool hasParentBoundary() const
+        {
+          return parentBoundary != 0;
+        }
+
         bool setLayoutBounds(int x, int y, int width, int height)
         {
           const int normalizedWidth = width < 0 ? 0 : width;

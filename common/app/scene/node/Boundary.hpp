@@ -461,24 +461,21 @@ namespace loka
           const int normalizedWidth = width < 0 ? 0 : width;
           const int normalizedHeight = height < 0 ? 0 : height;
           const bool changed = this->runtimeState_.setLayoutBounds(x, y, normalizedWidth, normalizedHeight);
-          updateState_.noteBoundsHint(x, y, normalizedWidth, normalizedHeight);
-          updateState_.notePaintBoundsHint(x, y, normalizedWidth, normalizedHeight);
+          updateState_.noteLayoutAndPaintBoundsHint(x, y, normalizedWidth, normalizedHeight);
           if (changed)
           {
-            updateState_.noteActualBoundsChanged(this->runtimeState_.currentParentBoundary() != 0);
+            updateState_.noteActualBoundsChanged(this->runtimeState_.hasParentBoundary());
           }
         }
         void clearLayoutBounds()
         {
           if (this->runtimeState_.clearLayoutBounds())
           {
-            updateState_.clearBoundsHint();
-            updateState_.clearPaintBoundsHint();
-            updateState_.noteActualBoundsChanged(this->runtimeState_.currentParentBoundary() != 0);
+            updateState_.clearAllBoundsHints();
+            updateState_.noteActualBoundsChanged(this->runtimeState_.hasParentBoundary());
             return;
           }
-          updateState_.clearBoundsHint();
-          updateState_.clearPaintBoundsHint();
+          updateState_.clearAllBoundsHints();
         }
         const LayoutBounds &layoutBounds() const { return this->runtimeState_.currentLayoutBounds(); }
         bool hasLayoutBounds() const { return this->runtimeState_.hasLayoutBounds(); }
