@@ -268,7 +268,7 @@ namespace loka
             entries.clear();
           }
         };
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), composeResult_(), updateResult_(), frozen_(false), applyingPlatform_(false), observedStateEntries_(), observedGeneration_(0)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), composeResult_(), updateResult_(), frozen_(false), phaseState_(), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -296,7 +296,8 @@ namespace loka
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
         bool isFrozen() const { return this->frozen_; }
-        bool isApplyingPlatform() const { return this->applyingPlatform_; }
+        bool isApplyingPlatform() const { return this->phaseState_.isApplying(); }
+        bool isComposingPhase() const { return this->phaseState_.isComposing(); }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -369,6 +370,7 @@ namespace loka
         const BoundaryUpdateResult &updateResult() const { return updateResult_; }
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
         {
+          phaseState_.beginCompose();
           composeResult_.event = event;
           composeResult_.dirtyFlagsSeen = dirtyFlags;
           composeResult_.composed = false;
@@ -378,14 +380,26 @@ namespace loka
         {
           composeResult_.composed = true;
           composeResult_.preservedNativeContexts = preservedNativeContexts;
+          phaseState_.endCompose();
         }
         void clearPhaseResults()
         {
           composeResult_.clear();
           updateResult_.clear();
         }
-        void beginPlatformApply() { applyingPlatform_ = true; }
-        void endPlatformApply() { applyingPlatform_ = false; }
+        void noteLocalPaintWork()
+        {
+          assert(!phaseState_.isApplying());
+          updateResult_.paint.hasPaintWork = true;
+        }
+        void noteCompositedPaint()
+        {
+          assert(!phaseState_.isApplying());
+          updateResult_.paint.hasPaintWork = true;
+          updateResult_.paint.requiresCompositedPaint = true;
+        }
+        void beginPlatformApply() { phaseState_.beginApply(); }
+        void endPlatformApply() { phaseState_.endApply(); }
         void beginObservedStatePass()
         {
           ++observedGeneration_;
@@ -805,6 +819,7 @@ namespace loka
           }
           if (nextBoundary)
           {
+            nextBoundary->noteLocalPaintWork();
             class LocalObservedStateRegistrar : public ObservedStateRegistrar
             {
             public:
@@ -1002,7 +1017,7 @@ namespace loka
         BoundaryComposeResult composeResult_;
         BoundaryUpdateResult updateResult_;
         bool frozen_;
-        bool applyingPlatform_;
+        BoundaryPhaseState phaseState_;
         std::vector<ObservedStateEntry> observedStateEntries_;
         unsigned long observedGeneration_;
         NodeArena nodeArena_;

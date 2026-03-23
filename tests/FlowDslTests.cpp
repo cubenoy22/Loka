@@ -71,6 +71,8 @@ namespace {
   typedef loka::app::scene::BoundaryPropsFor<PendingApplyProbeBoundaryNode> PendingApplyProbeBoundaryProps;
   static int g_pendingApplyCallCount = 0;
   static int g_pendingApplyWhileApplyingCount = 0;
+  class PendingCompositedProbeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PendingCompositedProbeBoundaryNode> PendingCompositedProbeBoundaryProps;
 
   class PendingLayoutBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>
   {
@@ -109,6 +111,19 @@ namespace {
         ++g_pendingApplyWhileApplyingCount;
       }
       assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL);
+    }
+  };
+
+  class PendingCompositedProbeBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingCompositedProbeBoundaryNode>
+  {
+  public:
+    PendingCompositedProbeBoundaryNode(const PendingCompositedProbeBoundaryProps &p)
+        : loka::app::scene::BoundaryNodeFor<PendingCompositedProbeBoundaryNode>(PendingCompositedProbeBoundaryProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      this->noteCompositedPaint();
+      c.declare(loka::app::Text("Composited").testId("PendingCompositedText"));
     }
   };
 
@@ -1711,6 +1726,30 @@ void testLokaFlowDslV1Core() {
     assert(director.pendingBoundariesHead() == 0);
     assert(rootBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
     assert(childBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    scene.requestInvalidate(NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(scene.flushInvalidation());
+    assert(rootBoundary->updateResult().paint.requiresCompositedPaint);
+    const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
+    assert(plan.paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
+    assert(plan.paintRoot == rootBoundary);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
 
     scene.unmount();
   }
