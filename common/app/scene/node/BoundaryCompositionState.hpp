@@ -150,6 +150,17 @@ namespace loka
           return transaction.diff().valid ? &transaction.diff() : 0;
         }
 
+        bool hasLocalCompositionDiff() const
+        {
+          return localCompositionDiff() != 0;
+        }
+
+        bool canApplyLocalCompositionDiff() const
+        {
+          const NodeCompositionDiff *diff = localCompositionDiff();
+          return diff != 0 && !diff->fullRebuild && !diff->empty() && !diff->hasIncompatibleRetain();
+        }
+
         NodeCompositionSnapshot &previousCompositionSnapshot()
         {
           return previousSnapshot;

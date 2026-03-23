@@ -42,6 +42,11 @@ namespace loka
           return scene;
         }
 
+        bool hasScene() const
+        {
+          return scene != 0;
+        }
+
         void setParentBoundary(BoundaryNode *value)
         {
           parentBoundary = value;

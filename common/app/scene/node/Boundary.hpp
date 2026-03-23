@@ -438,7 +438,7 @@ namespace loka
         Scene *scene() const { return this->runtimeState_.currentScene(); }
         Scene *getScene() const
         {
-          if (this->runtimeState_.currentScene())
+          if (this->runtimeState_.hasScene())
           {
             return this->runtimeState_.currentScene();
           }
@@ -634,12 +634,11 @@ namespace loka
         }
         bool hasLocalCompositionDiff() const
         {
-          return localCompositionDiff() != 0;
+          return compositionState_.hasLocalCompositionDiff();
         }
         bool canApplyLocalCompositionDiff() const
         {
-          const NodeCompositionDiff *diff = localCompositionDiff();
-          return diff != 0 && !diff->fullRebuild && !diff->empty() && !diff->hasIncompatibleRetain();
+          return compositionState_.canApplyLocalCompositionDiff();
         }
         NodeCompositionSnapshot &previousCompositionSnapshot() { return compositionState_.previousCompositionSnapshot(); }
         const NodeCompositionSnapshot &previousCompositionSnapshot() const { return compositionState_.previousCompositionSnapshot(); }
