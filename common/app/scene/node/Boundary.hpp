@@ -373,8 +373,10 @@ namespace loka
           info.isLocalPaintRoot = plan.hasLocalPaintWork(this);
           info.hasStructureWork = info.isLocalStructureRoot;
           info.hasLayoutWork = info.isLocalLayoutRoot;
-          info.hasOpaqueCoverageHint = info.isLocalPaintRoot && this->updateState_.hasOpaqueCoverageHint();
-          const bool opaqueByHint = info.hasOpaqueCoverageHint && this->updateState_.opaqueCoverageHintValue();
+          bool opaqueByHint = false;
+          this->updateState_.selectLocalOpaqueCoverageHint(info.isLocalPaintRoot,
+                                                           info.hasOpaqueCoverageHint,
+                                                           opaqueByHint);
           if (!info.isLocalPaintRoot)
           {
             info.paintKind = LOCAL_APPLY_PAINT_NONE;
@@ -496,17 +498,17 @@ namespace loka
         }
         void noteLocalPaintWork()
         {
-          assert(!updateState_.isApplying());
+          assert(updateState_.canMutateLocalPaintMetadata());
           updateState_.noteLocalPaintWork();
         }
         void noteCompositedPaint()
         {
-          assert(!updateState_.isApplying());
+          assert(updateState_.canMutateLocalPaintMetadata());
           updateState_.noteCompositedPaint();
         }
         void noteOpaquePaintCoverage(bool opaque)
         {
-          assert(!updateState_.isApplying());
+          assert(updateState_.canMutateLocalPaintMetadata());
           updateState_.noteOpaquePaintCoverage(opaque);
         }
         void beginPlatformApply() { updateState_.beginApply(); }

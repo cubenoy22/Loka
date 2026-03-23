@@ -551,6 +551,14 @@ namespace loka
           return result.opaqueCoverageHintValue();
         }
 
+        void selectLocalOpaqueCoverageHint(bool isLocalPaintRoot,
+                                           bool &hasOpaqueCoverageHintOut,
+                                           bool &opaqueCoverageHintValueOut) const
+        {
+          hasOpaqueCoverageHintOut = isLocalPaintRoot && result.hasOpaqueCoverageHint();
+          opaqueCoverageHintValueOut = hasOpaqueCoverageHintOut && result.opaqueCoverageHintValue();
+        }
+
         bool isApplying() const
         {
           return phase.isApplying();
@@ -579,6 +587,11 @@ namespace loka
         BoundaryApplyPhaseScope beginApplyScope()
         {
           return BoundaryApplyPhaseScope(&phase);
+        }
+
+        bool canMutateLocalPaintMetadata() const
+        {
+          return !phase.isApplying();
         }
 
         PendingUpdateState pending;
