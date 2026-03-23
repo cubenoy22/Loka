@@ -8,9 +8,8 @@
 #include "ComposableNode.hpp"
 #include "../BoundState.hpp"
 #include "../ComponentContext.hpp"
-#include "../NodeCompositionSnapshot.hpp"
-#include "../NodeCompositionTransaction.hpp"
 #include "../PlatformApplyPlan.hpp"
+#include "BoundaryCompositionState.hpp"
 #include "BoundaryStateTypes.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/StateTracker.hpp"
@@ -268,7 +267,7 @@ namespace loka
             entries.clear();
           }
         };
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), updateState_(), composeResult_(), frozen_(false), observedStateEntries_(), observedGeneration_(0)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), updateState_(), compositionState_(), frozen_(false), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -366,25 +365,21 @@ namespace loka
         void setUpdateRequested(bool value) { updateState_.pending.requested = value; }
         BoundaryNode *nextPendingBoundary() const { return updateState_.pending.nextBoundary; }
         void setNextPendingBoundary(BoundaryNode *next) { updateState_.pending.nextBoundary = next; }
-        BoundaryComposeResult &composeResult() { return composeResult_; }
-        const BoundaryComposeResult &composeResult() const { return composeResult_; }
+        BoundaryComposeResult &composeResult() { return compositionState_.result; }
+        const BoundaryComposeResult &composeResult() const { return compositionState_.result; }
         BoundaryUpdateResult &updateResult() { return updateState_.result; }
         const BoundaryUpdateResult &updateResult() const { return updateState_.result; }
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
         {
-          composeResult_.event = event;
-          composeResult_.dirtyFlagsSeen = dirtyFlags;
-          composeResult_.composed = false;
-          composeResult_.preservedNativeContexts = false;
+          compositionState_.beginCompose(event, dirtyFlags);
         }
         void completeComposeResult(bool preservedNativeContexts)
         {
-          composeResult_.composed = true;
-          composeResult_.preservedNativeContexts = preservedNativeContexts;
+          compositionState_.completeCompose(preservedNativeContexts);
         }
         void clearPhaseResults()
         {
-          composeResult_.clear();
+          compositionState_.clearResult();
           updateState_.clearResult();
         }
         void noteLocalPaintWork()
@@ -542,11 +537,11 @@ namespace loka
           return useManagedStateWithValue(initial);
         }
 
-        NodeCompositionTransaction &compositionTransaction() { return compositionTransaction_; }
-        const NodeCompositionTransaction &compositionTransaction() const { return compositionTransaction_; }
+        NodeCompositionTransaction &compositionTransaction() { return compositionState_.transaction; }
+        const NodeCompositionTransaction &compositionTransaction() const { return compositionState_.transaction; }
         const NodeCompositionDiff *localCompositionDiff() const
         {
-          return compositionTransaction_.diff().valid ? &compositionTransaction_.diff() : 0;
+          return compositionState_.transaction.diff().valid ? &compositionState_.transaction.diff() : 0;
         }
         Node *compositionRootNode() const
         {
@@ -576,23 +571,7 @@ namespace loka
         }
         NodeDefinitionBase *findCurrentCompositionDefinitionByTag(NodeTag tag) const
         {
-          const INestableDefinition *root = currentCompositionSnapshot_.root()
-                                                ? currentCompositionSnapshot_.root()->asNestableDefinition()
-                                                : 0;
-          if (!root)
-          {
-            return 0;
-          }
-          NodeDefinitionBase *child = root->childrenHead();
-          while (child)
-          {
-            if (child->nodeTag() == tag)
-            {
-              return child;
-            }
-            child = child->nextInComposition;
-          }
-          return 0;
+          return compositionState_.findCurrentDefinitionByTag(tag);
         }
         bool applyCurrentDefinitionPropsToLiveChild(NodeTag tag)
         {
@@ -607,8 +586,8 @@ namespace loka
         bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context, std::vector<Node *> &retainedChildren)
         {
           INestable *root = compositionRootNestable();
-          INestableDefinition *currentRoot = currentCompositionSnapshot_.root()
-                                                 ? currentCompositionSnapshot_.root()->asNestableDefinition()
+          INestableDefinition *currentRoot = compositionState_.currentSnapshot.root()
+                                                 ? compositionState_.currentSnapshot.root()->asNestableDefinition()
                                                  : 0;
           if (!root || !currentRoot)
           {
@@ -631,10 +610,10 @@ namespace loka
           const NodeCompositionDiff *diff = localCompositionDiff();
           return diff != 0 && !diff->fullRebuild && !diff->empty() && !diff->hasIncompatibleRetain();
         }
-        NodeCompositionSnapshot &previousCompositionSnapshot() { return previousCompositionSnapshot_; }
-        const NodeCompositionSnapshot &previousCompositionSnapshot() const { return previousCompositionSnapshot_; }
-        NodeCompositionSnapshot &currentCompositionSnapshot() { return currentCompositionSnapshot_; }
-        const NodeCompositionSnapshot &currentCompositionSnapshot() const { return currentCompositionSnapshot_; }
+        NodeCompositionSnapshot &previousCompositionSnapshot() { return compositionState_.previousSnapshot; }
+        const NodeCompositionSnapshot &previousCompositionSnapshot() const { return compositionState_.previousSnapshot; }
+        NodeCompositionSnapshot &currentCompositionSnapshot() { return compositionState_.currentSnapshot; }
+        const NodeCompositionSnapshot &currentCompositionSnapshot() const { return compositionState_.currentSnapshot; }
 
       protected:
         bool buildLocalRebuildPlan(ComponentContext &context,
@@ -917,22 +896,17 @@ namespace loka
 
         void captureCurrentCompositionSnapshot()
         {
-          currentCompositionSnapshot_.capture(this->composition());
+          compositionState_.captureCurrentSnapshot(this->composition());
         }
 
         void rebuildCompositionTransactionFromSnapshots()
         {
-          compositionTransaction_.beginSnapshots(&previousCompositionSnapshot_, &currentCompositionSnapshot_);
-          if (!compositionTransaction_.buildDiffByTag())
-          {
-            compositionTransaction_.diff().clear();
-          }
+          compositionState_.rebuildTransaction();
         }
 
         void promoteCurrentCompositionSnapshot()
         {
-          previousCompositionSnapshot_ = currentCompositionSnapshot_;
-          currentCompositionSnapshot_.clear();
+          compositionState_.promoteCurrentSnapshot();
         }
 
       private:
@@ -1020,15 +994,12 @@ namespace loka
         LayoutBounds layoutBounds_;
         NodeDirtyFlags observedDirtyFlags_;
         BoundaryUpdateState updateState_;
-        BoundaryComposeResult composeResult_;
+        BoundaryCompositionState compositionState_;
         bool frozen_;
         std::vector<ObservedStateEntry> observedStateEntries_;
         unsigned long observedGeneration_;
         NodeArena nodeArena_;
         StateArena stateArena_;
-        NodeCompositionSnapshot previousCompositionSnapshot_;
-        NodeCompositionSnapshot currentCompositionSnapshot_;
-        NodeCompositionTransaction compositionTransaction_;
       };
 
       template <class PropsT, class NodeT>
