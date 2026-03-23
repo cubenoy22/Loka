@@ -74,6 +74,7 @@ namespace {
   static loka::app::scene::BoundaryNode *g_pendingApplyLastLayoutRoot = 0;
   static loka::app::scene::BoundaryNode *g_pendingApplyLastPaintRoot = 0;
   static int g_defaultApplyLocalPaintCalls = 0;
+  static int g_defaultApplyOpaquePaintCalls = 0;
   static int g_defaultApplyCompositedPaintCalls = 0;
   static int g_defaultApplyLayoutCalls = 0;
   static int g_defaultApplyBoundsWidth = 0;
@@ -133,7 +134,8 @@ namespace {
       g_pendingApplyLastLayoutRoot = plan.layoutRoot;
       g_pendingApplyLastPaintRoot = plan.paintRoot;
       assert(this->hasLocalApplyPaintWork(plan));
-      assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL);
+      assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL ||
+             plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
     }
   };
 
@@ -183,17 +185,26 @@ namespace {
       const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
       assert(this->hasLocalApplyPaintWork(plan));
       assert(bounds != 0);
+      assert(!plan.isOpaqueLocalPaint());
+      ++g_defaultApplyLocalPaintCalls;
+    }
+
+    virtual void applyPendingOpaquePaint(const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
+      assert(this->hasLocalApplyPaintWork(plan));
+      assert(bounds != 0);
       assert(this->hasLocalOpaquePaintHint(plan));
       assert(this->localApplyPaintIsOpaque(plan));
       ++g_defaultApplyOpaqueHintSeen;
-      ++g_defaultApplyLocalPaintCalls;
+      ++g_defaultApplyOpaquePaintCalls;
     }
 
     virtual void applyPendingCompositedPaint(const loka::app::scene::PlatformApplyPlan &plan)
     {
       assert(this->requiresLocalCompositedPaint(plan));
       ++g_defaultApplyCompositedPaintCalls;
-      this->applyPendingLocalPaint(plan);
+      this->applyPendingOpaquePaint(plan);
     }
   };
 
@@ -1894,6 +1905,7 @@ void testLokaFlowDslV1Core() {
     using loka::dsl::testing::SceneTestAccess;
 
     g_defaultApplyLocalPaintCalls = 0;
+    g_defaultApplyOpaquePaintCalls = 0;
     g_defaultApplyCompositedPaintCalls = 0;
     g_defaultApplyLayoutCalls = 0;
     g_defaultApplyBoundsWidth = 0;
@@ -1912,7 +1924,8 @@ void testLokaFlowDslV1Core() {
     assert(scene.flushInvalidation());
     assert(g_defaultApplyLayoutCalls == 1);
     assert(g_defaultApplyCompositedPaintCalls == 1);
-    assert(g_defaultApplyLocalPaintCalls == 1);
+    assert(g_defaultApplyLocalPaintCalls == 0);
+    assert(g_defaultApplyOpaquePaintCalls == 1);
     assert(g_defaultApplyOpaqueHintSeen == 1);
     assert(g_defaultApplyBoundsWidth == 40);
     assert(g_defaultApplyBoundsHeight == 12);

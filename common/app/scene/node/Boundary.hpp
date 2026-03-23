@@ -274,6 +274,10 @@ namespace loka
             {
               this->applyPendingCompositedPaint(plan);
             }
+            else if (this->localApplyPaintIsOpaque(plan))
+            {
+              this->applyPendingOpaquePaint(plan);
+            }
             else
             {
               this->applyPendingLocalPaint(plan);
@@ -559,6 +563,11 @@ namespace loka
 
         virtual void applyPendingLocalPaint(const PlatformApplyPlan &)
         {
+        }
+
+        virtual void applyPendingOpaquePaint(const PlatformApplyPlan &plan)
+        {
+          this->applyPendingLocalPaint(plan);
         }
 
         virtual void applyPendingCompositedPaint(const PlatformApplyPlan &plan)
