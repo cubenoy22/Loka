@@ -101,14 +101,7 @@ void Win32OpenFileDialogContext::presentDialog()
 
 void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
-  if (resultState_)
-  {
-    resultState_->set(result, true);
-  }
-  if (onResult_)
-  {
-    onResult_->emit();
-  }
+  this->queueDeferredResult(result);
 }
 
 void Win32OpenFileDialogContext::VisibleChangedThunk(void *userData)
@@ -118,4 +111,58 @@ void Win32OpenFileDialogContext::VisibleChangedThunk(void *userData)
   {
     self->applyVisible();
   }
+}
+
+void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChooserResult &result)
+{
+  DeferredResultDelivery *delivery = new DeferredResultDelivery();
+  delivery->resultState = resultState_;
+  delivery->onResult = onResult_;
+  delivery->result = result;
+
+  loka::core::PushStateTracker *tracker = 0;
+  if (delivery->resultState && delivery->resultState->trackerOwner())
+  {
+    tracker = delivery->resultState->trackerOwner()->asPushTracker();
+  }
+  if (!tracker && delivery->onResult && delivery->onResult->trackerOwner())
+  {
+    tracker = delivery->onResult->trackerOwner()->asPushTracker();
+  }
+
+  if (!tracker)
+  {
+    DeliverDeferredResultThunk(delivery);
+    return;
+  }
+
+  if (tracker->phase() == loka::core::TRACKER_IDLE)
+  {
+    tracker->begin();
+    tracker->defer(&Win32OpenFileDialogContext::DeliverDeferredResultThunk, delivery);
+    tracker->end();
+    return;
+  }
+
+  tracker->defer(&Win32OpenFileDialogContext::DeliverDeferredResultThunk, delivery);
+}
+
+void Win32OpenFileDialogContext::DeliverDeferredResultThunk(void *userData)
+{
+  DeferredResultDelivery *delivery = static_cast<DeferredResultDelivery *>(userData);
+  if (!delivery)
+  {
+    return;
+  }
+
+  if (delivery->resultState)
+  {
+    delivery->resultState->set(delivery->result, true);
+  }
+  if (delivery->onResult)
+  {
+    delivery->onResult->emit();
+  }
+
+  delete delivery;
 }

@@ -12,13 +12,22 @@ public:
   virtual ~Win32OpenFileDialogContext();
 
 private:
+  struct DeferredResultDelivery
+  {
+    loka::core::MutableState<loka::app::FileChooserResult> *resultState;
+    loka::core::EmitterState *onResult;
+    loka::app::FileChooserResult result;
+  };
+
   void bindVisible();
   void unbindVisible();
   void applyVisible();
   void presentDialog();
   void setResult(const loka::app::FileChooserResult &result);
+  void queueDeferredResult(const loka::app::FileChooserResult &result);
 
   static void VisibleChangedThunk(void *userData);
+  static void DeliverDeferredResultThunk(void *userData);
 
   HWND parent_;
   loka::app::OpenFileDialogNode *node_;
