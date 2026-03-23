@@ -11,6 +11,7 @@
 #include "../PlatformApplyPlan.hpp"
 #include "BoundaryCompositionState.hpp"
 #include "BoundaryObservedState.hpp"
+#include "BoundaryRuntimeState.hpp"
 #include "BoundaryStateTypes.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/StateTracker.hpp"
@@ -230,7 +231,7 @@ namespace loka
       {
       public:
         typedef BoundaryUpdateResult::BoundsHint LayoutBounds;
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), updateState_(), compositionState_(), frozen_(false), observedState_()
+        BoundaryNode() : ComposableNode(), tracker_(), runtimeState_(), updateState_(), compositionState_(), observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -313,58 +314,47 @@ namespace loka
           return this->updateState_.boundsHint();
         }
         void markViewDirty(NodeDirtyFlags flags);
-        void setFrozen(bool frozen) { this->frozen_ = frozen; }
-        bool isFrozen() const { return this->frozen_; }
+        void setFrozen(bool frozen) { this->runtimeState_.setFrozen(frozen); }
+        bool isFrozen() const { return this->runtimeState_.isFrozen(); }
         bool isApplyingPlatform() const { return this->updateState_.isApplying(); }
         bool isComposingPhase() const { return this->updateState_.isComposing(); }
         BoundaryComposePhaseScope beginComposePhaseScope() { return this->updateState_.beginComposeScope(); }
         BoundaryApplyPhaseScope beginApplyPhaseScope() { return this->updateState_.beginApplyScope(); }
-        Scene *scene() const { return scene_; }
+        Scene *scene() const { return this->runtimeState_.currentScene(); }
         Scene *getScene() const
         {
-          if (scene_)
+          if (this->runtimeState_.currentScene())
           {
-            return scene_;
+            return this->runtimeState_.currentScene();
           }
-          return parentBoundary_ ? parentBoundary_->getScene() : 0;
+          return this->runtimeState_.currentParentBoundary() ? this->runtimeState_.currentParentBoundary()->getScene() : 0;
         }
-        void setScene(Scene *scene) { scene_ = scene; }
-        BoundaryNode *parentBoundary() const { return parentBoundary_; }
-        void setParentBoundary(BoundaryNode *parent) { parentBoundary_ = parent; }
+        void setScene(Scene *scene) { this->runtimeState_.setScene(scene); }
+        BoundaryNode *parentBoundary() const { return this->runtimeState_.currentParentBoundary(); }
+        void setParentBoundary(BoundaryNode *parent) { this->runtimeState_.setParentBoundary(parent); }
         void setLayoutBounds(int x, int y, int width, int height)
         {
           const int normalizedWidth = width < 0 ? 0 : width;
           const int normalizedHeight = height < 0 ? 0 : height;
-          const bool changed = !layoutBounds_.valid ||
-                               layoutBounds_.x != x ||
-                               layoutBounds_.y != y ||
-                               layoutBounds_.width != normalizedWidth ||
-                               layoutBounds_.height != normalizedHeight;
-          layoutBounds_.x = x;
-          layoutBounds_.y = y;
-          layoutBounds_.width = normalizedWidth;
-          layoutBounds_.height = normalizedHeight;
-          layoutBounds_.valid = true;
+          const bool changed = this->runtimeState_.setLayoutBounds(x, y, normalizedWidth, normalizedHeight);
           updateState_.noteBoundsHint(x, y, normalizedWidth, normalizedHeight);
           if (changed)
           {
-            updateState_.noteActualBoundsChanged(parentBoundary_ != 0);
+            updateState_.noteActualBoundsChanged(this->runtimeState_.currentParentBoundary() != 0);
           }
         }
         void clearLayoutBounds()
         {
-          if (layoutBounds_.valid)
+          if (this->runtimeState_.clearLayoutBounds())
           {
-            layoutBounds_ = LayoutBounds();
             updateState_.clearBoundsHint();
-            updateState_.noteActualBoundsChanged(parentBoundary_ != 0);
+            updateState_.noteActualBoundsChanged(this->runtimeState_.currentParentBoundary() != 0);
             return;
           }
-          layoutBounds_ = LayoutBounds();
           updateState_.clearBoundsHint();
         }
-        const LayoutBounds &layoutBounds() const { return layoutBounds_; }
-        bool hasLayoutBounds() const { return layoutBounds_.valid; }
+        const LayoutBounds &layoutBounds() const { return this->runtimeState_.currentLayoutBounds(); }
+        bool hasLayoutBounds() const { return this->runtimeState_.hasLayoutBounds(); }
         void clearObservedDirtyFlags() { observedState_.clearDirtyFlags(); }
         void addPendingDirtyFlags(NodeDirtyFlags flags)
         {
@@ -922,12 +912,9 @@ namespace loka
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
-        Scene *scene_;
-        BoundaryNode *parentBoundary_;
-        LayoutBounds layoutBounds_;
+        BoundaryRuntimeState runtimeState_;
         BoundaryUpdateState updateState_;
         BoundaryCompositionState compositionState_;
-        bool frozen_;
         BoundaryObservedState observedState_;
         NodeArena nodeArena_;
         StateArena stateArena_;
