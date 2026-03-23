@@ -126,6 +126,7 @@ namespace {
 
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
+      const LocalApplyInfo info = this->localApplyInfo(plan);
       ++g_pendingApplyCallCount;
       if (this->isApplyingPlatform())
       {
@@ -133,7 +134,9 @@ namespace {
       }
       g_pendingApplyLastLayoutRoot = plan.layoutRoot;
       g_pendingApplyLastPaintRoot = plan.paintRoot;
-      assert(this->hasLocalApplyPaintWork(plan));
+      assert(info.hasPaintWork());
+      assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_GENERIC ||
+             info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE);
       assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL ||
              plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
     }
@@ -172,29 +175,32 @@ namespace {
   protected:
     virtual void applyPendingLayout(const loka::app::scene::PlatformApplyPlan &plan)
     {
-      const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
-      assert(this->hasLocalApplyLayoutWork(plan));
-      assert(bounds != 0);
-      g_defaultApplyBoundsWidth = bounds->width;
-      g_defaultApplyBoundsHeight = bounds->height;
+      const LocalApplyInfo info = this->localApplyInfo(plan);
+      assert(info.hasLayoutWork);
+      assert(info.hasBoundsHint());
+      g_defaultApplyBoundsWidth = info.bounds->width;
+      g_defaultApplyBoundsHeight = info.bounds->height;
       ++g_defaultApplyLayoutCalls;
     }
 
     virtual void applyPendingLocalPaint(const loka::app::scene::PlatformApplyPlan &plan)
     {
-      const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
-      assert(this->hasLocalApplyPaintWork(plan));
-      assert(bounds != 0);
+      const LocalApplyInfo info = this->localApplyInfo(plan);
+      assert(info.hasPaintWork());
+      assert(info.hasBoundsHint());
+      assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_GENERIC);
       assert(!plan.isOpaqueLocalPaint());
       ++g_defaultApplyLocalPaintCalls;
     }
 
     virtual void applyPendingOpaquePaint(const loka::app::scene::PlatformApplyPlan &plan)
     {
-      const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
-      assert(this->hasLocalApplyPaintWork(plan));
-      assert(bounds != 0);
+      const LocalApplyInfo info = this->localApplyInfo(plan);
+      assert(info.hasPaintWork());
+      assert(info.hasBoundsHint());
       assert(this->hasLocalOpaquePaintHint(plan));
+      assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE ||
+             info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
       assert(this->localApplyPaintIsOpaque(plan));
       ++g_defaultApplyOpaqueHintSeen;
       ++g_defaultApplyOpaquePaintCalls;
@@ -202,7 +208,9 @@ namespace {
 
     virtual void applyPendingCompositedPaint(const loka::app::scene::PlatformApplyPlan &plan)
     {
+      const LocalApplyInfo info = this->localApplyInfo(plan);
       assert(this->requiresLocalCompositedPaint(plan));
+      assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
       ++g_defaultApplyCompositedPaintCalls;
       this->applyPendingOpaquePaint(plan);
     }

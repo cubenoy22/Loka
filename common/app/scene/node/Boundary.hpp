@@ -231,6 +231,48 @@ namespace loka
       {
       public:
         typedef BoundaryUpdateResult::BoundsHint LayoutBounds;
+        enum LocalApplyPaintKind
+        {
+          LOCAL_APPLY_PAINT_NONE = 0,
+          LOCAL_APPLY_PAINT_GENERIC = 1,
+          LOCAL_APPLY_PAINT_OPAQUE = 2,
+          LOCAL_APPLY_PAINT_COMPOSITED = 3
+        };
+        struct LocalApplyInfo
+        {
+          LocalApplyInfo()
+              : hasStructureWork(false),
+                hasLayoutWork(false),
+                paintKind(LOCAL_APPLY_PAINT_NONE),
+                bounds(0)
+          {
+          }
+
+          bool hasStructureWork;
+          bool hasLayoutWork;
+          LocalApplyPaintKind paintKind;
+          const LayoutBounds *bounds;
+
+          bool hasPaintWork() const
+          {
+            return paintKind != LOCAL_APPLY_PAINT_NONE;
+          }
+
+          bool hasBoundsHint() const
+          {
+            return bounds != 0;
+          }
+
+          bool hasOpaquePaintWork() const
+          {
+            return paintKind == LOCAL_APPLY_PAINT_OPAQUE;
+          }
+
+          bool hasCompositedPaintWork() const
+          {
+            return paintKind == LOCAL_APPLY_PAINT_COMPOSITED;
+          }
+        };
         BoundaryNode() : ComposableNode(), tracker_(), runtimeState_(), updateState_(), compositionState_(), observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
@@ -257,24 +299,25 @@ namespace loka
         }
         virtual void applyPendingUpdate(const PlatformApplyPlan &plan)
         {
-          if (this->hasLocalApplyLayoutWork(plan))
+          const LocalApplyInfo info = this->localApplyInfo(plan);
+          if (info.hasLayoutWork)
           {
             this->applyPendingLayout(plan);
           }
-          if (this->hasLocalApplyPaintWork(plan))
+          switch (info.paintKind)
           {
-            if (this->requiresLocalCompositedPaint(plan))
-            {
-              this->applyPendingCompositedPaint(plan);
-            }
-            else if (this->localApplyPaintIsOpaque(plan))
-            {
-              this->applyPendingOpaquePaint(plan);
-            }
-            else
-            {
-              this->applyPendingLocalPaint(plan);
-            }
+          case LOCAL_APPLY_PAINT_COMPOSITED:
+            this->applyPendingCompositedPaint(plan);
+            break;
+          case LOCAL_APPLY_PAINT_OPAQUE:
+            this->applyPendingOpaquePaint(plan);
+            break;
+          case LOCAL_APPLY_PAINT_GENERIC:
+            this->applyPendingLocalPaint(plan);
+            break;
+          case LOCAL_APPLY_PAINT_NONE:
+          default:
+            break;
           }
         }
         bool hasLocalApplyStructureWork(const PlatformApplyPlan &plan) const
@@ -289,9 +332,38 @@ namespace loka
         {
           return plan.hasLocalPaintWork(this);
         }
+        LocalApplyInfo localApplyInfo(const PlatformApplyPlan &plan) const
+        {
+          LocalApplyInfo info;
+          info.hasStructureWork = this->hasLocalApplyStructureWork(plan);
+          info.hasLayoutWork = this->hasLocalApplyLayoutWork(plan);
+          info.paintKind = this->localApplyPaintKind(plan);
+          info.bounds = this->localApplyBoundsHint(plan);
+          return info;
+        }
+        LocalApplyPaintKind localApplyPaintKind(const PlatformApplyPlan &plan) const
+        {
+          if (!this->hasLocalApplyPaintWork(plan))
+          {
+            return LOCAL_APPLY_PAINT_NONE;
+          }
+          if (this->requiresLocalCompositedPaint(plan))
+          {
+            return LOCAL_APPLY_PAINT_COMPOSITED;
+          }
+          if (this->hasLocalOpaquePaintWork(plan))
+          {
+            return LOCAL_APPLY_PAINT_OPAQUE;
+          }
+          return LOCAL_APPLY_PAINT_GENERIC;
+        }
         bool requiresLocalCompositedPaint(const PlatformApplyPlan &plan) const
         {
           return plan.hasLocalPaintWork(this) && plan.requiresCompositedPaint();
+        }
+        bool hasLocalOpaquePaintWork(const PlatformApplyPlan &plan) const
+        {
+          return this->hasLocalApplyPaintWork(plan) && !this->requiresLocalCompositedPaint(plan) && this->localApplyPaintIsOpaque(plan);
         }
         bool hasLocalOpaquePaintHint(const PlatformApplyPlan &plan) const
         {
@@ -398,8 +470,8 @@ namespace loka
           assert(!updateState_.isApplying());
           updateState_.noteOpaquePaintCoverage(opaque);
         }
-        void beginPlatformApply() { updateState_.phase.beginApply(); }
-        void endPlatformApply() { updateState_.phase.endApply(); }
+        void beginPlatformApply() { updateState_.beginApply(); }
+        void endPlatformApply() { updateState_.endApply(); }
         void beginObservedStatePass() { observedState_.beginPass(); }
         void clearObservedStateEntries() { observedState_.clearEntries(); }
         void addObservedDirtyFlags(NodeDirtyFlags flags)
