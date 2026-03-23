@@ -113,9 +113,7 @@ namespace loka
 
         NodeDefinitionBase *findCurrentDefinitionByTag(NodeTag tag) const
         {
-          const INestableDefinition *root = currentSnapshot.root()
-                                                ? currentSnapshot.root()->asNestableDefinition()
-                                                : 0;
+          const INestableDefinition *root = currentRootNestableDefinition();
           if (!root)
           {
             return 0;
@@ -130,6 +128,11 @@ namespace loka
             child = child->nextInComposition;
           }
           return 0;
+        }
+
+        INestableDefinition *currentRootNestableDefinition() const
+        {
+          return currentSnapshot.root() ? currentSnapshot.root()->asNestableDefinition() : 0;
         }
 
         NodeCompositionTransaction &compositionTransaction()

@@ -350,6 +350,16 @@ namespace loka
       {
         BoundaryUpdateState() : pending(), result(), phase() {}
 
+        BoundaryUpdateResult &updateResult()
+        {
+          return result;
+        }
+
+        const BoundaryUpdateResult &updateResult() const
+        {
+          return result;
+        }
+
         void clearPending()
         {
           pending.clear();
@@ -426,6 +436,29 @@ namespace loka
           result.noteActualBoundsChanged(affectsAncestor);
         }
 
+        void noteLayoutBoundsTransition(bool changed,
+                                        bool affectsAncestor,
+                                        int x,
+                                        int y,
+                                        int width,
+                                        int height)
+        {
+          noteLayoutAndPaintBoundsHint(x, y, width, height);
+          if (changed)
+          {
+            result.noteActualBoundsChanged(affectsAncestor);
+          }
+        }
+
+        void noteLayoutBoundsCleared(bool changed, bool affectsAncestor)
+        {
+          clearAllBoundsHints();
+          if (changed)
+          {
+            result.noteActualBoundsChanged(affectsAncestor);
+          }
+        }
+
         void noteBoundsHint(int x, int y, int width, int height)
         {
           result.noteBoundsHint(x, y, width, height);
@@ -476,6 +509,26 @@ namespace loka
         const BoundaryUpdateResult::BoundsHint *paintBoundsHint() const
         {
           return result.paintBoundsHint();
+        }
+
+        void selectLocalApplyBoundsHint(bool hasPaintWork,
+                                        bool hasLayoutWork,
+                                        const BoundaryUpdateResult::BoundsHint *&boundsOut,
+                                        bool &usesPaintBoundsHintOut,
+                                        bool &hasPaintSpecificBoundsHintOut) const
+        {
+          hasPaintSpecificBoundsHintOut = hasPaintWork && result.hasPaintBoundsHint();
+          usesPaintBoundsHintOut = hasPaintWork && hasPaintSpecificBoundsHintOut;
+          boundsOut = 0;
+          if (usesPaintBoundsHintOut)
+          {
+            boundsOut = result.paintBoundsHint();
+            return;
+          }
+          if (hasLayoutWork || hasPaintWork)
+          {
+            boundsOut = result.boundsHint();
+          }
         }
 
         bool hasPaintWork() const

@@ -392,20 +392,11 @@ namespace loka
             info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
           }
           info.paintIsOpaque = info.paintKind == LOCAL_APPLY_PAINT_OPAQUE || info.paintKind == LOCAL_APPLY_PAINT_COMPOSITED;
-          info.hasPaintSpecificBoundsHint = info.hasPaintWork() && this->updateState_.hasPaintBoundsHint();
-          info.usesPaintBoundsHint = info.hasPaintWork() && info.hasPaintSpecificBoundsHint;
-          if (info.usesPaintBoundsHint)
-          {
-            info.bounds = this->updateState_.paintBoundsHint();
-          }
-          else if (info.hasLayoutWork)
-          {
-            info.bounds = this->updateState_.boundsHint();
-          }
-          else if (info.hasPaintWork())
-          {
-            info.bounds = this->updateState_.boundsHint();
-          }
+          this->updateState_.selectLocalApplyBoundsHint(info.hasPaintWork(),
+                                                        info.hasLayoutWork,
+                                                        info.bounds,
+                                                        info.usesPaintBoundsHint,
+                                                        info.hasPaintSpecificBoundsHint);
           assert(info.hasAnyWork() == plan.hasAnyLocalWork(this));
           return info;
         }
@@ -461,21 +452,17 @@ namespace loka
           const int normalizedWidth = width < 0 ? 0 : width;
           const int normalizedHeight = height < 0 ? 0 : height;
           const bool changed = this->runtimeState_.setLayoutBounds(x, y, normalizedWidth, normalizedHeight);
-          updateState_.noteLayoutAndPaintBoundsHint(x, y, normalizedWidth, normalizedHeight);
-          if (changed)
-          {
-            updateState_.noteActualBoundsChanged(this->runtimeState_.hasParentBoundary());
-          }
+          updateState_.noteLayoutBoundsTransition(changed,
+                                                 this->runtimeState_.hasParentBoundary(),
+                                                 x,
+                                                 y,
+                                                 normalizedWidth,
+                                                 normalizedHeight);
         }
         void clearLayoutBounds()
         {
-          if (this->runtimeState_.clearLayoutBounds())
-          {
-            updateState_.clearAllBoundsHints();
-            updateState_.noteActualBoundsChanged(this->runtimeState_.hasParentBoundary());
-            return;
-          }
-          updateState_.clearAllBoundsHints();
+          const bool changed = this->runtimeState_.clearLayoutBounds();
+          updateState_.noteLayoutBoundsCleared(changed, this->runtimeState_.hasParentBoundary());
         }
         const LayoutBounds &layoutBounds() const { return this->runtimeState_.currentLayoutBounds(); }
         bool hasLayoutBounds() const { return this->runtimeState_.hasLayoutBounds(); }
@@ -492,8 +479,8 @@ namespace loka
         void setNextPendingBoundary(BoundaryNode *next) { updateState_.setNextPendingBoundary(next); }
         BoundaryComposeResult &composeResult() { return compositionState_.composeResult(); }
         const BoundaryComposeResult &composeResult() const { return compositionState_.composeResult(); }
-        BoundaryUpdateResult &updateResult() { return updateState_.result; }
-        const BoundaryUpdateResult &updateResult() const { return updateState_.result; }
+        BoundaryUpdateResult &updateResult() { return updateState_.updateResult(); }
+        const BoundaryUpdateResult &updateResult() const { return updateState_.updateResult(); }
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
         {
           compositionState_.beginCompose(event, dirtyFlags);
@@ -632,9 +619,7 @@ namespace loka
         bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context, std::vector<Node *> &retainedChildren)
         {
           INestable *root = compositionRootNestable();
-          INestableDefinition *currentRoot = compositionState_.currentCompositionSnapshot().root()
-                                                 ? compositionState_.currentCompositionSnapshot().root()->asNestableDefinition()
-                                                 : 0;
+          INestableDefinition *currentRoot = compositionState_.currentRootNestableDefinition();
           if (!root || !currentRoot)
           {
             return false;
