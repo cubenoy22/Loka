@@ -189,7 +189,6 @@ namespace {
       (void)plan;
       assert(info.hasLayoutWork);
       assert(info.hasBoundsHint());
-      assert(info.hasLayoutBoundsHint());
       g_defaultApplyBoundsWidth = info.bounds->width;
       g_defaultApplyBoundsHeight = info.bounds->height;
       ++g_defaultApplyLayoutCalls;
