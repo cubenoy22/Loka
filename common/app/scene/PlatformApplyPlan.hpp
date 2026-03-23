@@ -36,6 +36,20 @@ namespace loka
           paintRoot = 0;
         }
 
+        PlatformApplyPlan forBoundary(BoundaryNode *boundary) const
+        {
+          PlatformApplyPlan localized = *this;
+          if (boundary)
+          {
+            localized.layoutRoot = boundary;
+            if (localized.paintKind != PAINT_NONE)
+            {
+              localized.paintRoot = boundary;
+            }
+          }
+          return localized;
+        }
+
         bool structureChanged;
         bool layoutChanged;
         PaintKind paintKind;

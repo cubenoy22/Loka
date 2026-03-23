@@ -508,7 +508,8 @@ namespace loka
           while (root)
           {
             BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
-            root->applyPendingUpdate(plan);
+            PlatformApplyPlan localPlan = plan.forBoundary(root);
+            root->applyPendingUpdate(localPlan);
             root = director.nextPendingUpdateRoot(root);
           }
         }
