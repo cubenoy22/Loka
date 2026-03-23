@@ -263,6 +263,22 @@ namespace loka
           return true;
         }
         virtual void applyPendingUpdate(const PlatformApplyPlan &) {}
+        bool hasLocalApplyStructureWork(const PlatformApplyPlan &plan) const
+        {
+          return plan.hasStructureWork();
+        }
+        bool hasLocalApplyLayoutWork(const PlatformApplyPlan &plan) const
+        {
+          return plan.hasLocalLayoutWork(this);
+        }
+        bool hasLocalApplyPaintWork(const PlatformApplyPlan &plan) const
+        {
+          return plan.hasLocalPaintWork(this);
+        }
+        bool requiresLocalCompositedPaint(const PlatformApplyPlan &plan) const
+        {
+          return plan.hasLocalPaintWork(this) && plan.requiresCompositedPaint();
+        }
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
         bool isFrozen() const { return this->frozen_; }

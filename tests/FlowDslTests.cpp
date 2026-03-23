@@ -126,8 +126,7 @@ namespace {
       }
       g_pendingApplyLastLayoutRoot = plan.layoutRoot;
       g_pendingApplyLastPaintRoot = plan.paintRoot;
-      assert(plan.hasPaintWork());
-      assert(plan.hasLocalPaintWork(this));
+      assert(this->hasLocalApplyPaintWork(plan));
       assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL);
     }
   };
@@ -163,8 +162,8 @@ namespace {
       ++g_pendingApplySiblingACalls;
       g_pendingApplySiblingALayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingAPaintRoot = plan.paintRoot;
-      assert(plan.hasLocalLayoutWork(this) || !plan.hasLayoutWork());
-      assert(plan.hasLocalPaintWork(this));
+      assert(this->hasLocalApplyLayoutWork(plan) || !plan.hasLayoutWork());
+      assert(this->hasLocalApplyPaintWork(plan));
       assert(plan.layoutRoot == this);
       assert(plan.paintRoot == this);
     }
@@ -188,8 +187,8 @@ namespace {
       ++g_pendingApplySiblingBCalls;
       g_pendingApplySiblingBLayoutRoot = plan.layoutRoot;
       g_pendingApplySiblingBPaintRoot = plan.paintRoot;
-      assert(plan.hasLocalLayoutWork(this) || !plan.hasLayoutWork());
-      assert(plan.hasLocalPaintWork(this));
+      assert(this->hasLocalApplyLayoutWork(plan) || !plan.hasLayoutWork());
+      assert(this->hasLocalApplyPaintWork(plan));
       assert(plan.layoutRoot == this);
       assert(plan.paintRoot == this);
     }
