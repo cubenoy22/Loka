@@ -245,6 +245,7 @@ namespace loka
                 hasLayoutWork(false),
                 paintKind(LOCAL_APPLY_PAINT_NONE),
                 bounds(0),
+                hasPaintSpecificBoundsHint(false),
                 hasOpaqueCoverageHint(false),
                 paintIsOpaque(false)
           {
@@ -254,6 +255,7 @@ namespace loka
           bool hasLayoutWork;
           LocalApplyPaintKind paintKind;
           const LayoutBounds *bounds;
+          bool hasPaintSpecificBoundsHint;
           bool hasOpaqueCoverageHint;
           bool paintIsOpaque;
 
@@ -343,6 +345,7 @@ namespace loka
           info.hasLayoutWork = this->hasLocalApplyLayoutWork(plan);
           info.paintKind = this->localApplyPaintKind(plan);
           info.bounds = this->localApplyBoundsHint(plan);
+          info.hasPaintSpecificBoundsHint = this->hasLocalApplyPaintWork(plan) && this->updateState_.hasPaintBoundsHint();
           info.hasOpaqueCoverageHint = this->hasLocalOpaquePaintHint(plan);
           info.paintIsOpaque = this->localApplyPaintIsOpaque(plan);
           return info;
@@ -381,13 +384,25 @@ namespace loka
         }
         bool hasLocalApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
-          return (this->hasLocalApplyLayoutWork(plan) || this->hasLocalApplyPaintWork(plan)) && this->updateState_.hasBoundsHint();
+          if (this->hasLocalApplyLayoutWork(plan))
+          {
+            return this->updateState_.hasBoundsHint();
+          }
+          if (this->hasLocalApplyPaintWork(plan))
+          {
+            return this->updateState_.hasPaintBoundsHint() || this->updateState_.hasBoundsHint();
+          }
+          return false;
         }
         const LayoutBounds *localApplyBoundsHint(const PlatformApplyPlan &plan) const
         {
           if (!this->hasLocalApplyBoundsHint(plan))
           {
             return 0;
+          }
+          if (this->hasLocalApplyPaintWork(plan) && this->updateState_.hasPaintBoundsHint())
+          {
+            return this->updateState_.paintBoundsHint();
           }
           return this->updateState_.boundsHint();
         }
@@ -416,6 +431,7 @@ namespace loka
           const int normalizedHeight = height < 0 ? 0 : height;
           const bool changed = this->runtimeState_.setLayoutBounds(x, y, normalizedWidth, normalizedHeight);
           updateState_.noteBoundsHint(x, y, normalizedWidth, normalizedHeight);
+          updateState_.notePaintBoundsHint(x, y, normalizedWidth, normalizedHeight);
           if (changed)
           {
             updateState_.noteActualBoundsChanged(this->runtimeState_.currentParentBoundary() != 0);
@@ -426,10 +442,12 @@ namespace loka
           if (this->runtimeState_.clearLayoutBounds())
           {
             updateState_.clearBoundsHint();
+            updateState_.clearPaintBoundsHint();
             updateState_.noteActualBoundsChanged(this->runtimeState_.currentParentBoundary() != 0);
             return;
           }
           updateState_.clearBoundsHint();
+          updateState_.clearPaintBoundsHint();
         }
         const LayoutBounds &layoutBounds() const { return this->runtimeState_.currentLayoutBounds(); }
         bool hasLayoutBounds() const { return this->runtimeState_.hasLayoutBounds(); }

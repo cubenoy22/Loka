@@ -233,19 +233,21 @@ namespace loka
           bool opaqueCoverageHint;
         };
 
-        BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false), bounds(), paint() {}
+        BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false), bounds(), paintBounds(), paint() {}
 
         void clear()
         {
           actualBoundsChanged = false;
           affectsAncestorLayout = false;
           bounds.clear();
+          paintBounds.clear();
           paint.clear();
         }
 
         bool actualBoundsChanged;
         bool affectsAncestorLayout;
         BoundsHint bounds;
+        BoundsHint paintBounds;
         PaintMetadata paint;
 
         void noteLocalPaintWork()
@@ -317,6 +319,30 @@ namespace loka
             return 0;
           }
           return &bounds;
+        }
+
+        void notePaintBoundsHint(int x, int y, int width, int height)
+        {
+          paintBounds.set(x, y, width, height);
+        }
+
+        void clearPaintBoundsHint()
+        {
+          paintBounds.clear();
+        }
+
+        bool hasPaintBoundsHint() const
+        {
+          return paintBounds.valid;
+        }
+
+        const BoundsHint *paintBoundsHint() const
+        {
+          if (!paintBounds.valid)
+          {
+            return 0;
+          }
+          return &paintBounds;
         }
       };
 
@@ -418,6 +444,26 @@ namespace loka
         const BoundaryUpdateResult::BoundsHint *boundsHint() const
         {
           return result.boundsHint();
+        }
+
+        void notePaintBoundsHint(int x, int y, int width, int height)
+        {
+          result.notePaintBoundsHint(x, y, width, height);
+        }
+
+        void clearPaintBoundsHint()
+        {
+          result.clearPaintBoundsHint();
+        }
+
+        bool hasPaintBoundsHint() const
+        {
+          return result.hasPaintBoundsHint();
+        }
+
+        const BoundaryUpdateResult::BoundsHint *paintBoundsHint() const
+        {
+          return result.paintBoundsHint();
         }
 
         bool hasPaintWork() const
