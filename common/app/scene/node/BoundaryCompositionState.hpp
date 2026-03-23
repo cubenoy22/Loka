@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_NODE_BOUNDARYCOMPOSITIONSTATE_HPP
 #define LOKA_CORE2_SCENE_NODE_BOUNDARYCOMPOSITIONSTATE_HPP
 
+#include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/NodeCompositionSnapshot.hpp"
 #include "app/scene/NodeCompositionTransaction.hpp"
@@ -12,6 +13,45 @@ namespace loka
   {
     namespace scene
     {
+      struct BoundaryLocalRebuildPlanEntry
+      {
+        enum Action
+        {
+          ACTION_RETAIN = 0,
+          ACTION_ATTACH = 1,
+          ACTION_REPLACE = 2,
+          ACTION_RETIRE = 3
+        };
+
+        BoundaryLocalRebuildPlanEntry()
+            : node(0),
+              previousNode(0),
+              action(ACTION_RETAIN),
+              tag(NODE_TAG_NONE)
+        {
+        }
+
+        Node *node;
+        Node *previousNode;
+        Action action;
+        NodeTag tag;
+      };
+
+      struct BoundaryLocalRebuildPlan
+      {
+        void reserve(size_t count)
+        {
+          entries.reserve(count);
+        }
+
+        void clear()
+        {
+          entries.clear();
+        }
+
+        std::vector<BoundaryLocalRebuildPlanEntry> entries;
+      };
+
       struct BoundaryCompositionState
       {
         BoundaryCompositionState()

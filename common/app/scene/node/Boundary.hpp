@@ -238,36 +238,6 @@ namespace loka
           bool valid;
           LayoutBounds() : x(0), y(0), width(0), height(0), valid(false) {}
         };
-        struct LocalRebuildPlanEntry
-        {
-          enum Action
-          {
-            ACTION_RETAIN = 0,
-            ACTION_ATTACH = 1,
-            ACTION_REPLACE = 2,
-            ACTION_RETIRE = 3
-          };
-          LocalRebuildPlanEntry() : node(0), previousNode(0), action(ACTION_RETAIN), tag(NODE_TAG_NONE) {}
-          Node *node;
-          Node *previousNode;
-          Action action;
-          NodeTag tag;
-        };
-        struct LocalRebuildPlan
-        {
-          // Temporary apply plan derived from the current snapshot and live
-          // children. NodeCompositionDiff remains the comparison summary;
-          // LocalRebuildPlan is the boundary-local execution form.
-          std::vector<LocalRebuildPlanEntry> entries;
-          void reserve(size_t count)
-          {
-            entries.reserve(count);
-          }
-          void clear()
-          {
-            entries.clear();
-          }
-        };
         BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), updateState_(), compositionState_(), frozen_(false), observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
@@ -503,7 +473,7 @@ namespace loka
             return false;
           }
 
-          LocalRebuildPlan plan;
+          BoundaryLocalRebuildPlan plan;
           if (!buildLocalRebuildPlan(context, *currentRoot, plan))
           {
             return false;
@@ -527,7 +497,7 @@ namespace loka
       protected:
         bool buildLocalRebuildPlan(ComponentContext &context,
                                    const INestableDefinition &currentRoot,
-                                   LocalRebuildPlan &plan)
+                                   BoundaryLocalRebuildPlan &plan)
         {
           // This translates the current desired child set into a concrete
           // boundary-local apply plan. It intentionally stays one level above
@@ -542,9 +512,9 @@ namespace loka
             Node *existing = findCompositionChildByTag(definition->nodeTag());
             if (existing && definition->isCompatibleWithNode(existing))
             {
-              LocalRebuildPlanEntry entry;
+              BoundaryLocalRebuildPlanEntry entry;
               entry.node = existing;
-              entry.action = LocalRebuildPlanEntry::ACTION_RETAIN;
+              entry.action = BoundaryLocalRebuildPlanEntry::ACTION_RETAIN;
               entry.tag = definition->nodeTag();
               plan.entries.push_back(entry);
             }
@@ -556,10 +526,10 @@ namespace loka
               {
                 return false;
               }
-              LocalRebuildPlanEntry entry;
+              BoundaryLocalRebuildPlanEntry entry;
               entry.node = created;
               entry.previousNode = existing;
-              entry.action = existing ? LocalRebuildPlanEntry::ACTION_REPLACE : LocalRebuildPlanEntry::ACTION_ATTACH;
+              entry.action = existing ? BoundaryLocalRebuildPlanEntry::ACTION_REPLACE : BoundaryLocalRebuildPlanEntry::ACTION_ATTACH;
               entry.tag = definition->nodeTag();
               plan.entries.push_back(entry);
             }
@@ -576,9 +546,9 @@ namespace loka
           {
             if (findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
             {
-              LocalRebuildPlanEntry entry;
+              BoundaryLocalRebuildPlanEntry entry;
               entry.node = liveChild;
-              entry.action = LocalRebuildPlanEntry::ACTION_RETIRE;
+              entry.action = BoundaryLocalRebuildPlanEntry::ACTION_RETIRE;
               entry.tag = liveChild->nodeTag();
               plan.entries.push_back(entry);
             }
@@ -587,18 +557,18 @@ namespace loka
         }
         bool applyLocalRebuildPlan(ComponentContext &context,
                                    INestable &root,
-                                   LocalRebuildPlan &plan,
+                                   BoundaryLocalRebuildPlan &plan,
                                    std::vector<Node *> &retainedChildren)
         {
           std::vector<Node *> detachedChildren;
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            if (plan.entries[i].action == LocalRebuildPlanEntry::ACTION_RETIRE)
+            if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETIRE)
             {
               continue;
             }
-            if (plan.entries[i].action == LocalRebuildPlanEntry::ACTION_RETAIN)
+            if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN)
             {
               NodeDefinitionBase *retainedDefinition = findCurrentCompositionDefinitionByTag(plan.entries[i].tag);
               if (retainedDefinition && !retainedDefinition->applyPropsToNode(plan.entries[i].node))
@@ -612,17 +582,17 @@ namespace loka
 
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            LocalRebuildPlanEntry &entry = plan.entries[i];
-            if (entry.action == LocalRebuildPlanEntry::ACTION_ATTACH ||
-                entry.action == LocalRebuildPlanEntry::ACTION_REPLACE)
+            BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_ATTACH ||
+                entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE)
             {
               this->composeTree(entry.node, context, COMPOSE_EVENT_ATTACH, this);
             }
           }
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            LocalRebuildPlanEntry &entry = plan.entries[i];
-            if (entry.action == LocalRebuildPlanEntry::ACTION_REPLACE && entry.previousNode)
+            BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE && entry.previousNode)
             {
               this->composeTree(entry.previousNode, context, COMPOSE_EVENT_DETACH, this);
               if (context.platformController())
@@ -634,7 +604,7 @@ namespace loka
                 delete entry.previousNode;
               }
             }
-            else if (entry.action == LocalRebuildPlanEntry::ACTION_RETIRE && entry.node)
+            else if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_RETIRE && entry.node)
             {
               this->composeTree(entry.node, context, COMPOSE_EVENT_DETACH, this);
               if (context.platformController())
