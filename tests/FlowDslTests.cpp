@@ -173,9 +173,9 @@ namespace {
     }
 
   protected:
-    virtual void applyPendingLayout(const loka::app::scene::PlatformApplyPlan &plan)
+    virtual void applyPendingLayoutInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
-      const LocalApplyInfo info = this->localApplyInfo(plan);
+      (void)plan;
       assert(info.hasLayoutWork);
       assert(info.hasBoundsHint());
       g_defaultApplyBoundsWidth = info.bounds->width;
@@ -183,9 +183,8 @@ namespace {
       ++g_defaultApplyLayoutCalls;
     }
 
-    virtual void applyPendingLocalPaint(const loka::app::scene::PlatformApplyPlan &plan)
+    virtual void applyPendingLocalPaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
-      const LocalApplyInfo info = this->localApplyInfo(plan);
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
@@ -194,9 +193,8 @@ namespace {
       ++g_defaultApplyLocalPaintCalls;
     }
 
-    virtual void applyPendingOpaquePaint(const loka::app::scene::PlatformApplyPlan &plan)
+    virtual void applyPendingOpaquePaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
-      const LocalApplyInfo info = this->localApplyInfo(plan);
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
@@ -208,13 +206,12 @@ namespace {
       ++g_defaultApplyOpaquePaintCalls;
     }
 
-    virtual void applyPendingCompositedPaint(const loka::app::scene::PlatformApplyPlan &plan)
+    virtual void applyPendingCompositedPaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
-      const LocalApplyInfo info = this->localApplyInfo(plan);
       assert(this->requiresLocalCompositedPaint(plan));
       assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
       ++g_defaultApplyCompositedPaintCalls;
-      this->applyPendingOpaquePaint(plan);
+      this->applyPendingOpaquePaintInfo(info, plan);
     }
   };
 

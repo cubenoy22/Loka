@@ -308,18 +308,18 @@ namespace loka
           const LocalApplyInfo info = this->localApplyInfo(plan);
           if (info.hasLayoutWork)
           {
-            this->applyPendingLayout(plan);
+            this->applyPendingLayoutInfo(info, plan);
           }
           switch (info.paintKind)
           {
           case LOCAL_APPLY_PAINT_COMPOSITED:
-            this->applyPendingCompositedPaint(plan);
+            this->applyPendingCompositedPaintInfo(info, plan);
             break;
           case LOCAL_APPLY_PAINT_OPAQUE:
-            this->applyPendingOpaquePaint(plan);
+            this->applyPendingOpaquePaintInfo(info, plan);
             break;
           case LOCAL_APPLY_PAINT_GENERIC:
-            this->applyPendingLocalPaint(plan);
+            this->applyPendingLocalPaintInfo(info, plan);
             break;
           case LOCAL_APPLY_PAINT_NONE:
           default:
@@ -634,6 +634,26 @@ namespace loka
         const NodeCompositionSnapshot &currentCompositionSnapshot() const { return compositionState_.currentCompositionSnapshot(); }
 
       protected:
+        virtual void applyPendingLayoutInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
+        {
+          this->applyPendingLayout(plan);
+        }
+
+        virtual void applyPendingLocalPaintInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
+        {
+          this->applyPendingLocalPaint(plan);
+        }
+
+        virtual void applyPendingOpaquePaintInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
+        {
+          this->applyPendingOpaquePaint(plan);
+        }
+
+        virtual void applyPendingCompositedPaintInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
+        {
+          this->applyPendingCompositedPaint(plan);
+        }
+
         virtual void applyPendingLayout(const PlatformApplyPlan &)
         {
         }
