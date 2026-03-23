@@ -213,6 +213,37 @@ namespace loka
         bool affectsAncestorLayout;
         PaintMetadata paint;
       };
+
+      struct BoundaryUpdateState
+      {
+        BoundaryUpdateState() : pending(), result(), phase() {}
+
+        void clearPending()
+        {
+          pending.clear();
+        }
+
+        void clearResult()
+        {
+          result.clear();
+        }
+
+        void clearPhase()
+        {
+          phase.clear();
+        }
+
+        void clearAll()
+        {
+          pending.clear();
+          result.clear();
+          phase.clear();
+        }
+
+        PendingUpdateState pending;
+        BoundaryUpdateResult result;
+        BoundaryPhaseState phase;
+      };
     }
   }
 }

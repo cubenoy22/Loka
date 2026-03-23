@@ -268,7 +268,7 @@ namespace loka
             entries.clear();
           }
         };
-        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), pendingUpdate_(), composeResult_(), updateResult_(), frozen_(false), phaseState_(), observedStateEntries_(), observedGeneration_(0)
+        BoundaryNode() : ComposableNode(), tracker_(), scene_(0), parentBoundary_(0), layoutBounds_(), observedDirtyFlags_(NODE_DIRTY_NONE), updateState_(), composeResult_(), frozen_(false), observedStateEntries_(), observedGeneration_(0)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -296,10 +296,10 @@ namespace loka
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
         bool isFrozen() const { return this->frozen_; }
-        bool isApplyingPlatform() const { return this->phaseState_.isApplying(); }
-        bool isComposingPhase() const { return this->phaseState_.isComposing(); }
-        BoundaryComposePhaseScope beginComposePhaseScope() { return BoundaryComposePhaseScope(&this->phaseState_); }
-        BoundaryApplyPhaseScope beginApplyPhaseScope() { return BoundaryApplyPhaseScope(&this->phaseState_); }
+        bool isApplyingPlatform() const { return this->updateState_.phase.isApplying(); }
+        bool isComposingPhase() const { return this->updateState_.phase.isComposing(); }
+        BoundaryComposePhaseScope beginComposePhaseScope() { return BoundaryComposePhaseScope(&this->updateState_.phase); }
+        BoundaryApplyPhaseScope beginApplyPhaseScope() { return BoundaryApplyPhaseScope(&this->updateState_.phase); }
         Scene *scene() const { return scene_; }
         Scene *getScene() const
         {
@@ -328,10 +328,10 @@ namespace loka
           layoutBounds_.valid = true;
           if (changed)
           {
-            updateResult_.actualBoundsChanged = true;
+            updateState_.result.actualBoundsChanged = true;
             if (parentBoundary_)
             {
-              updateResult_.affectsAncestorLayout = true;
+              updateState_.result.affectsAncestorLayout = true;
             }
           }
         }
@@ -340,10 +340,10 @@ namespace loka
           if (layoutBounds_.valid)
           {
             layoutBounds_ = LayoutBounds();
-            updateResult_.actualBoundsChanged = true;
+            updateState_.result.actualBoundsChanged = true;
             if (parentBoundary_)
             {
-              updateResult_.affectsAncestorLayout = true;
+              updateState_.result.affectsAncestorLayout = true;
             }
             return;
           }
@@ -358,18 +358,18 @@ namespace loka
           {
             return;
           }
-          pendingUpdate_.dirtyFlags = static_cast<NodeDirtyFlags>(pendingUpdate_.dirtyFlags | flags);
+          updateState_.pending.dirtyFlags = static_cast<NodeDirtyFlags>(updateState_.pending.dirtyFlags | flags);
         }
-        NodeDirtyFlags pendingDirtyFlags() const { return pendingUpdate_.dirtyFlags; }
-        void clearPendingUpdateState() { pendingUpdate_.clear(); }
-        bool isUpdateRequested() const { return pendingUpdate_.requested; }
-        void setUpdateRequested(bool value) { pendingUpdate_.requested = value; }
-        BoundaryNode *nextPendingBoundary() const { return pendingUpdate_.nextBoundary; }
-        void setNextPendingBoundary(BoundaryNode *next) { pendingUpdate_.nextBoundary = next; }
+        NodeDirtyFlags pendingDirtyFlags() const { return updateState_.pending.dirtyFlags; }
+        void clearPendingUpdateState() { updateState_.clearPending(); }
+        bool isUpdateRequested() const { return updateState_.pending.requested; }
+        void setUpdateRequested(bool value) { updateState_.pending.requested = value; }
+        BoundaryNode *nextPendingBoundary() const { return updateState_.pending.nextBoundary; }
+        void setNextPendingBoundary(BoundaryNode *next) { updateState_.pending.nextBoundary = next; }
         BoundaryComposeResult &composeResult() { return composeResult_; }
         const BoundaryComposeResult &composeResult() const { return composeResult_; }
-        BoundaryUpdateResult &updateResult() { return updateResult_; }
-        const BoundaryUpdateResult &updateResult() const { return updateResult_; }
+        BoundaryUpdateResult &updateResult() { return updateState_.result; }
+        const BoundaryUpdateResult &updateResult() const { return updateState_.result; }
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
         {
           composeResult_.event = event;
@@ -385,21 +385,21 @@ namespace loka
         void clearPhaseResults()
         {
           composeResult_.clear();
-          updateResult_.clear();
+          updateState_.clearResult();
         }
         void noteLocalPaintWork()
         {
-          assert(!phaseState_.isApplying());
-          updateResult_.paint.hasPaintWork = true;
+          assert(!updateState_.phase.isApplying());
+          updateState_.result.paint.hasPaintWork = true;
         }
         void noteCompositedPaint()
         {
-          assert(!phaseState_.isApplying());
-          updateResult_.paint.hasPaintWork = true;
-          updateResult_.paint.requiresCompositedPaint = true;
+          assert(!updateState_.phase.isApplying());
+          updateState_.result.paint.hasPaintWork = true;
+          updateState_.result.paint.requiresCompositedPaint = true;
         }
-        void beginPlatformApply() { phaseState_.beginApply(); }
-        void endPlatformApply() { phaseState_.endApply(); }
+        void beginPlatformApply() { updateState_.phase.beginApply(); }
+        void endPlatformApply() { updateState_.phase.endApply(); }
         void beginObservedStatePass()
         {
           ++observedGeneration_;
@@ -1019,11 +1019,9 @@ namespace loka
         BoundaryNode *parentBoundary_;
         LayoutBounds layoutBounds_;
         NodeDirtyFlags observedDirtyFlags_;
-        PendingUpdateState pendingUpdate_;
+        BoundaryUpdateState updateState_;
         BoundaryComposeResult composeResult_;
-        BoundaryUpdateResult updateResult_;
         bool frozen_;
-        BoundaryPhaseState phaseState_;
         std::vector<ObservedStateEntry> observedStateEntries_;
         unsigned long observedGeneration_;
         NodeArena nodeArena_;
