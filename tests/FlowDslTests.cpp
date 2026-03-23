@@ -76,6 +76,8 @@ namespace {
   static int g_defaultApplyLocalPaintCalls = 0;
   static int g_defaultApplyCompositedPaintCalls = 0;
   static int g_defaultApplyLayoutCalls = 0;
+  static int g_defaultApplyBoundsWidth = 0;
+  static int g_defaultApplyBoundsHeight = 0;
   class PendingCompositedProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingCompositedProbeBoundaryNode> PendingCompositedProbeBoundaryProps;
   class PendingApplySiblingABoundaryNode;
@@ -166,13 +168,19 @@ namespace {
   protected:
     virtual void applyPendingLayout(const loka::app::scene::PlatformApplyPlan &plan)
     {
+      const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
       assert(this->hasLocalApplyLayoutWork(plan));
+      assert(bounds != 0);
+      g_defaultApplyBoundsWidth = bounds->width;
+      g_defaultApplyBoundsHeight = bounds->height;
       ++g_defaultApplyLayoutCalls;
     }
 
     virtual void applyPendingLocalPaint(const loka::app::scene::PlatformApplyPlan &plan)
     {
+      const LayoutBounds *bounds = this->localApplyBoundsHint(plan);
       assert(this->hasLocalApplyPaintWork(plan));
+      assert(bounds != 0);
       ++g_defaultApplyLocalPaintCalls;
     }
 
@@ -1883,6 +1891,8 @@ void testLokaFlowDslV1Core() {
     g_defaultApplyLocalPaintCalls = 0;
     g_defaultApplyCompositedPaintCalls = 0;
     g_defaultApplyLayoutCalls = 0;
+    g_defaultApplyBoundsWidth = 0;
+    g_defaultApplyBoundsHeight = 0;
 
     Scene scene((BoundaryDefinition<PendingDefaultApplyProbeBoundaryProps, PendingDefaultApplyProbeBoundaryNode>()));
     FlowScenePlatformController platform;
@@ -1897,6 +1907,8 @@ void testLokaFlowDslV1Core() {
     assert(g_defaultApplyLayoutCalls == 1);
     assert(g_defaultApplyCompositedPaintCalls == 1);
     assert(g_defaultApplyLocalPaintCalls == 1);
+    assert(g_defaultApplyBoundsWidth == 40);
+    assert(g_defaultApplyBoundsHeight == 12);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
 
     scene.unmount();

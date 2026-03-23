@@ -296,6 +296,18 @@ namespace loka
         {
           return plan.hasLocalPaintWork(this) && plan.requiresCompositedPaint();
         }
+        bool hasLocalApplyBoundsHint(const PlatformApplyPlan &plan) const
+        {
+          return (this->hasLocalApplyLayoutWork(plan) || this->hasLocalApplyPaintWork(plan)) && this->hasLayoutBounds();
+        }
+        const LayoutBounds *localApplyBoundsHint(const PlatformApplyPlan &plan) const
+        {
+          if (!this->hasLocalApplyBoundsHint(plan))
+          {
+            return 0;
+          }
+          return &this->layoutBounds_;
+        }
         void markViewDirty(NodeDirtyFlags flags);
         void setFrozen(bool frozen) { this->frozen_ = frozen; }
         bool isFrozen() const { return this->frozen_; }
