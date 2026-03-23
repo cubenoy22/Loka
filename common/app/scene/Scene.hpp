@@ -519,6 +519,7 @@ namespace loka
           }
           BoundaryNode *rootBoundary = rootNode ? rootNode->asBoundary() : 0;
           BoundaryNode *firstPendingRoot = director.firstPendingUpdateRoot();
+          plan.structureRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
           plan.layoutRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
           plan.paintRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
           return plan;

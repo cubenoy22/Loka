@@ -312,6 +312,10 @@ namespace loka
         virtual void applyPendingUpdate(const PlatformApplyPlan &plan)
         {
           const LocalApplyInfo info = this->localApplyInfo(plan);
+          if (info.hasStructureWork)
+          {
+            this->applyPendingStructureInfo(info, plan);
+          }
           if (info.hasLayoutWork)
           {
             this->applyPendingLayoutInfo(info, plan);
@@ -334,7 +338,7 @@ namespace loka
         }
         bool hasLocalApplyStructureWork(const PlatformApplyPlan &plan) const
         {
-          return plan.hasStructureWork();
+          return plan.hasLocalStructureWork(this);
         }
         bool hasLocalApplyLayoutWork(const PlatformApplyPlan &plan) const
         {
@@ -347,7 +351,7 @@ namespace loka
         LocalApplyInfo localApplyInfo(const PlatformApplyPlan &plan) const
         {
           LocalApplyInfo info;
-          info.isLocalStructureRoot = plan.hasStructureWork();
+          info.isLocalStructureRoot = plan.hasLocalStructureWork(this);
           info.isLocalLayoutRoot = plan.hasLocalLayoutWork(this);
           info.isLocalPaintRoot = plan.hasLocalPaintWork(this);
           info.hasStructureWork = info.isLocalStructureRoot;
@@ -643,6 +647,11 @@ namespace loka
         const NodeCompositionSnapshot &currentCompositionSnapshot() const { return compositionState_.currentCompositionSnapshot(); }
 
       protected:
+        virtual void applyPendingStructureInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
+        {
+          this->applyPendingStructure(plan);
+        }
+
         virtual void applyPendingLayoutInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
         {
           this->applyPendingLayout(plan);
@@ -661,6 +670,10 @@ namespace loka
         virtual void applyPendingCompositedPaintInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
         {
           this->applyPendingCompositedPaint(plan);
+        }
+
+        virtual void applyPendingStructure(const PlatformApplyPlan &)
+        {
         }
 
         virtual void applyPendingLayout(const PlatformApplyPlan &)

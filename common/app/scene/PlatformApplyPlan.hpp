@@ -21,6 +21,7 @@ namespace loka
 
         PlatformApplyPlan()
             : structureChanged(false),
+              structureRoot(0),
               layoutChanged(false),
               paintKind(PAINT_NONE),
               layoutRoot(0),
@@ -31,6 +32,7 @@ namespace loka
         void clear()
         {
           structureChanged = false;
+          structureRoot = 0;
           layoutChanged = false;
           paintKind = PAINT_NONE;
           layoutRoot = 0;
@@ -42,6 +44,10 @@ namespace loka
           PlatformApplyPlan localized = *this;
           if (boundary)
           {
+            if (localized.structureChanged)
+            {
+              localized.structureRoot = boundary;
+            }
             localized.layoutRoot = boundary;
             if (localized.paintKind != PAINT_NONE)
             {
@@ -54,6 +60,11 @@ namespace loka
         bool hasStructureWork() const
         {
           return structureChanged;
+        }
+
+        bool hasLocalStructureWork(const BoundaryNode *boundary) const
+        {
+          return structureChanged && structureRoot == boundary;
         }
 
         bool hasLayoutWork() const
@@ -87,6 +98,7 @@ namespace loka
         }
 
         bool structureChanged;
+        BoundaryNode *structureRoot;
         bool layoutChanged;
         PaintKind paintKind;
         BoundaryNode *layoutRoot;

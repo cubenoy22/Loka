@@ -77,6 +77,7 @@ namespace {
   static int g_defaultApplyOpaquePaintCalls = 0;
   static int g_defaultApplyCompositedPaintCalls = 0;
   static int g_defaultApplyLayoutCalls = 0;
+  static int g_defaultApplyStructureCalls = 0;
   static int g_defaultApplyBoundsWidth = 0;
   static int g_defaultApplyBoundsHeight = 0;
   static int g_defaultApplyOpaqueHintSeen = 0;
@@ -173,6 +174,14 @@ namespace {
     }
 
   protected:
+    virtual void applyPendingStructureInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      (void)plan;
+      assert(info.hasStructureWork);
+      assert(info.isLocalStructureRoot);
+      ++g_defaultApplyStructureCalls;
+    }
+
     virtual void applyPendingLayoutInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
       (void)plan;
@@ -1917,6 +1926,7 @@ void testLokaFlowDslV1Core() {
     g_defaultApplyOpaquePaintCalls = 0;
     g_defaultApplyCompositedPaintCalls = 0;
     g_defaultApplyLayoutCalls = 0;
+    g_defaultApplyStructureCalls = 0;
     g_defaultApplyBoundsWidth = 0;
     g_defaultApplyBoundsHeight = 0;
     g_defaultApplyOpaqueHintSeen = 0;
@@ -1940,6 +1950,20 @@ void testLokaFlowDslV1Core() {
     assert(g_defaultApplyBoundsHeight == 12);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
     assert(SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
+    assert(SceneTestAccess::lastApplyPlan(scene).structureRoot == rootBoundary);
+
+    g_defaultApplyLocalPaintCalls = 0;
+    g_defaultApplyOpaquePaintCalls = 0;
+    g_defaultApplyCompositedPaintCalls = 0;
+    g_defaultApplyLayoutCalls = 0;
+    g_defaultApplyStructureCalls = 0;
+
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(scene.flushInvalidation());
+    assert(g_defaultApplyStructureCalls == 1);
+    assert(SceneTestAccess::lastApplyPlan(scene).structureChanged);
+    assert(SceneTestAccess::lastApplyPlan(scene).structureRoot == rootBoundary);
 
     scene.unmount();
   }
