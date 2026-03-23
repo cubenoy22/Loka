@@ -450,6 +450,16 @@ namespace loka
           return phase.isComposing();
         }
 
+        void beginApply()
+        {
+          phase.beginApply();
+        }
+
+        void endApply()
+        {
+          phase.endApply();
+        }
+
         BoundaryComposePhaseScope beginComposeScope()
         {
           return BoundaryComposePhaseScope(&phase);

@@ -198,10 +198,10 @@ namespace {
       const LocalApplyInfo info = this->localApplyInfo(plan);
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
-      assert(this->hasLocalOpaquePaintHint(plan));
+      assert(info.hasOpaqueCoverageHint);
       assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE ||
              info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
-      assert(this->localApplyPaintIsOpaque(plan));
+      assert(info.paintIsOpaque);
       ++g_defaultApplyOpaqueHintSeen;
       ++g_defaultApplyOpaquePaintCalls;
     }

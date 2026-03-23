@@ -244,7 +244,9 @@ namespace loka
               : hasStructureWork(false),
                 hasLayoutWork(false),
                 paintKind(LOCAL_APPLY_PAINT_NONE),
-                bounds(0)
+                bounds(0),
+                hasOpaqueCoverageHint(false),
+                paintIsOpaque(false)
           {
           }
 
@@ -252,6 +254,8 @@ namespace loka
           bool hasLayoutWork;
           LocalApplyPaintKind paintKind;
           const LayoutBounds *bounds;
+          bool hasOpaqueCoverageHint;
+          bool paintIsOpaque;
 
           bool hasPaintWork() const
           {
@@ -339,6 +343,8 @@ namespace loka
           info.hasLayoutWork = this->hasLocalApplyLayoutWork(plan);
           info.paintKind = this->localApplyPaintKind(plan);
           info.bounds = this->localApplyBoundsHint(plan);
+          info.hasOpaqueCoverageHint = this->hasLocalOpaquePaintHint(plan);
+          info.paintIsOpaque = this->localApplyPaintIsOpaque(plan);
           return info;
         }
         LocalApplyPaintKind localApplyPaintKind(const PlatformApplyPlan &plan) const
