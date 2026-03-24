@@ -6,6 +6,8 @@
 #include "app/scene/Scene.hpp"
 #include <algorithm>
 
+App *App::currentApp_ = 0;
+
 App::App(AppConfigurable *config)
     : group_(0),
       quitWhenLastWindowClosed_(true),
@@ -14,10 +16,15 @@ App::App(AppConfigurable *config)
       activeWindow_(0),
       menuRefresh_()
 {
+  currentApp_ = this;
 }
 
 App::~App()
 {
+  if (currentApp_ == this)
+  {
+    currentApp_ = 0;
+  }
   // グループの解放（ウィンドウ含む）
   delete group_;
   delete menuBar_;

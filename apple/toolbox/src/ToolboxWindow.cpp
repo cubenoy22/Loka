@@ -379,7 +379,6 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   Rect bounds = window_->portRect;
   ClipRect(&bounds);
   SetPort(oldPort);
-  TitleChangedThunk(this);
 }
 
 void ToolboxWindow::invalidateWindow()
@@ -408,7 +407,6 @@ void ToolboxWindow::draw()
   }
 
   SetPort(oldPort);
-  TitleChangedThunk(this);
 }
 
 void ToolboxWindow::synchronizeScenePlatform()

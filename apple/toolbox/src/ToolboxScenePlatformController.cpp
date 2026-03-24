@@ -456,6 +456,7 @@ namespace
       short rowStartX = state.x;
       short maxHeight = 0;
       short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+      const size_t childCount = row->childrenCount();
       if (row->props.hasVerticalAlignment_)
       {
         rowHeight = 0;
@@ -474,10 +475,25 @@ namespace
         }
       }
       loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      size_t childIndex = 0;
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next(), ++childIndex)
       {
         loka::app::scene::LayoutState rowState = state;
         rowState.x = rowStartX;
+        if (state.width > 0)
+        {
+          const short usedWidth = static_cast<short>(rowStartX - state.x);
+          short remainingWidth = static_cast<short>(state.width - usedWidth);
+          if (remainingWidth < 0)
+          {
+            remainingWidth = 0;
+          }
+          const size_t remainingChildren = (childCount > childIndex) ? (childCount - childIndex) : 1;
+          if (remainingChildren > 0)
+          {
+            rowState.width = static_cast<short>(remainingWidth / static_cast<short>(remainingChildren));
+          }
+        }
         if (row->props.hasVerticalAlignment_)
         {
           short childHeight = PreferredChildHeightForRow(child, rowHeight);
@@ -835,7 +851,14 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
 
   if (!info.hasBoundsHint())
   {
-    window_->requestInvalidate();
+    if (boundary->hasLayoutBounds())
+    {
+      window_->requestInvalidateRect(BoundaryToRect(boundary, window_->window()->portRect));
+    }
+    else
+    {
+      window_->requestInvalidate();
+    }
     return;
   }
 
@@ -1503,7 +1526,6 @@ void ToolboxScenePlatformController::endBatchUpdate()
     const bool handledLocalText = !pendingTextStates_.empty();
     const bool skipFollowupInvalidate =
         !pendingFullInvalidate_ &&
-        (pendingInvalidateFlags_ == loka::app::scene::NODE_DIRTY_PROPS) &&
         (handledLocalDirty || handledLocalText);
     // Draw pending dirty rects without forcing full render
     // The textHits_ from previous render should still be valid for positions
@@ -1629,7 +1651,7 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   {
     return;
   }
-  if (fullRebuild || !rootNodeForChange || (flags & loka::app::scene::NODE_DIRTY_CHILD))
+  if (fullRebuild || !rootNodeForChange)
   {
     ++debugStats_.fullInvalidateRequests;
     ++debugStats_.totalFullInvalidateRequests;
