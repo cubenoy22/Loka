@@ -1,6 +1,7 @@
 #include "loka/platform/DebugLog.hpp"
 #include <cstdio>
 
+#if !defined(_WIN32)
 namespace loka
 {
   namespace platform
@@ -36,6 +37,42 @@ namespace loka
                    flags,
                    boundaryFlags,
                    fullRebuild);
+      std::fflush(stderr);
+    }
+
+    void DebugLogSceneDecision(void *scene,
+                               int requiresStructure,
+                               int requiresLayout,
+                               int canApplyLocalDiff)
+    {
+      std::fprintf(stderr,
+                   "[scene-decision] scene=%p structure=%d layout=%d localDiff=%d\n",
+                   scene,
+                   requiresStructure,
+                   requiresLayout,
+                   canApplyLocalDiff);
+      std::fflush(stderr);
+    }
+
+    void DebugLogSceneStructureRoot(void *scene,
+                                    void *boundary,
+                                    unsigned int pendingDirtyFlags,
+                                    int composed,
+                                    int hasDiff,
+                                    int emptyDiff,
+                                    int compatibleRetainOnly,
+                                    int requiresStructure)
+    {
+      std::fprintf(stderr,
+                   "[scene-structure-root] scene=%p boundary=%p pendingFlags=0x%X composed=%d hasDiff=%d empty=%d compatibleRetain=%d requires=%d\n",
+                   scene,
+                   boundary,
+                   pendingDirtyFlags,
+                   composed,
+                   hasDiff,
+                   emptyDiff,
+                   compatibleRetainOnly,
+                   requiresStructure);
       std::fflush(stderr);
     }
 
@@ -114,3 +151,4 @@ namespace loka
     }
   } // namespace platform
 } // namespace loka
+#endif

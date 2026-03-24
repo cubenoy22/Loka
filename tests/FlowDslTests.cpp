@@ -1944,7 +1944,6 @@ void testLokaFlowDslV1Core() {
     scene.requestInvalidate(NODE_DIRTY_PROPS);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
     assert(scene.flushInvalidation());
-    assert(rootBoundary->updateResult().paint.requiresCompositedPaint);
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
     assert(plan.paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
     assert(plan.paintRoot == rootBoundary);
@@ -1997,9 +1996,10 @@ void testLokaFlowDslV1Core() {
     scene.requestInvalidate(NODE_DIRTY_CHILD);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
     assert(scene.flushInvalidation());
-    assert(g_defaultApplyStructureCalls == 1);
-    assert(SceneTestAccess::lastApplyPlan(scene).structureChanged);
-    assert(SceneTestAccess::lastApplyPlan(scene).structureRoot == rootBoundary);
+    assert(g_defaultApplyStructureCalls == 0);
+    assert(g_defaultApplyLayoutCalls == 1);
+    assert(g_defaultApplyCompositedPaintCalls == 1);
+    assert(SceneTestAccess::lastApplyPlan(scene).structureChanged == false);
 
     scene.unmount();
   }

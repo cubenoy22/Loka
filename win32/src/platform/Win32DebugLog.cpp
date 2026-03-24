@@ -20,6 +20,13 @@ namespace loka
       OutputDebugStringA(buffer);
     }
 
+    void DebugLogRecomposeMerged(void *scene)
+    {
+      char buffer[112];
+      ::snprintf(buffer, sizeof(buffer), "[recompose] merged into pending update task (scene=%p)\n", scene);
+      OutputDebugStringA(buffer);
+    }
+
     void DebugLogSceneFlags(void *scene,
                            const char *stage,
                            unsigned int flags,
@@ -35,6 +42,46 @@ namespace loka
                  flags,
                  boundaryFlags,
                  fullRebuild);
+      OutputDebugStringA(buffer);
+    }
+
+    void DebugLogSceneDecision(void *scene,
+                               int requiresStructure,
+                               int requiresLayout,
+                               int canApplyLocalDiff)
+    {
+      char buffer[160];
+      ::snprintf(buffer,
+                 sizeof(buffer),
+                 "[scene-decision] scene=%p structure=%d layout=%d localDiff=%d\n",
+                 scene,
+                 requiresStructure,
+                 requiresLayout,
+                 canApplyLocalDiff);
+      OutputDebugStringA(buffer);
+    }
+
+    void DebugLogSceneStructureRoot(void *scene,
+                                    void *boundary,
+                                    unsigned int pendingDirtyFlags,
+                                    int composed,
+                                    int hasDiff,
+                                    int emptyDiff,
+                                    int compatibleRetainOnly,
+                                    int requiresStructure)
+    {
+      char buffer[224];
+      ::snprintf(buffer,
+                 sizeof(buffer),
+                 "[scene-structure-root] scene=%p boundary=%p pendingFlags=0x%X composed=%d hasDiff=%d empty=%d compatibleRetain=%d requires=%d\n",
+                 scene,
+                 boundary,
+                 pendingDirtyFlags,
+                 composed,
+                 hasDiff,
+                 emptyDiff,
+                 compatibleRetainOnly,
+                 requiresStructure);
       OutputDebugStringA(buffer);
     }
 

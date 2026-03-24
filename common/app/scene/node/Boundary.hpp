@@ -489,6 +489,11 @@ namespace loka
           }
         }
 
+        static void composeSubtree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
+        {
+          composeTree(node, parentContext, event, currentBoundary);
+        }
+
         static void InvalidateSceneThunk(void *userData);
         static void ObservedStateChangedThunk(void *userData);
         static void ObservedStateDeferredInvalidateThunk(void *userData);
@@ -652,7 +657,27 @@ namespace loka
         }
         bool canPreserveNativeContexts() const
         {
-          return compositionState_.canPreserveNativeContexts();
+          if (compositionState_.canPreserveNativeContexts())
+          {
+            return true;
+          }
+          bool sawBoundaryChild = false;
+          loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
+          {
+            BoundaryNode *childBoundary = child->asBoundary();
+            if (!childBoundary)
+            {
+              continue;
+            }
+            sawBoundaryChild = true;
+            const BoundaryComposeResult &childResult = childBoundary->composeResult();
+            if (!childResult.composed || !childResult.preservedNativeContexts)
+            {
+              return false;
+            }
+          }
+          return sawBoundaryChild;
         }
         NodeCompositionSnapshot &previousCompositionSnapshot() { return compositionState_.previousCompositionSnapshot(); }
         const NodeCompositionSnapshot &previousCompositionSnapshot() const { return compositionState_.previousCompositionSnapshot(); }
@@ -897,6 +922,23 @@ namespace loka
                                                             static_cast<unsigned int>(event),
                                                             static_cast<unsigned int>(parentContext.dirtyFlags()),
                                                             boundary == currentBoundary ? 1 : 0);
+            if (boundary->childrenHead() && boundary->childrenCount() == 1)
+            {
+              Node *firstChild = boundary->childrenHead();
+              if (firstChild && firstChild->testId() == "PendingDefaultApplyText")
+              {
+                loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(boundary->scene()),
+                                                         static_cast<void *>(boundary),
+                                                         static_cast<unsigned int>(boundary->kind()),
+                                                         "pending-default-boundary-compose",
+                                                         boundary->previousCompositionSnapshot().root() ? 1 : 0,
+                                                         boundary->currentCompositionSnapshot().root() ? 1 : 0,
+                                                         boundary->compositionTransaction().empty() ? 1 : 0,
+                                                         static_cast<unsigned int>(boundary->childrenCount()),
+                                                         static_cast<unsigned int>(firstChild->kind()),
+                                                         firstChild->testId().c_str());
+              }
+            }
 #endif
           }
           if (nextBoundary)

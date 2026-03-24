@@ -13,6 +13,18 @@ namespace loka
                            unsigned int flags,
                            unsigned int boundaryFlags,
                            int fullRebuild);
+    void DebugLogSceneDecision(void *scene,
+                               int requiresStructure,
+                               int requiresLayout,
+                               int canApplyLocalDiff);
+    void DebugLogSceneStructureRoot(void *scene,
+                                    void *boundary,
+                                    unsigned int pendingDirtyFlags,
+                                    int composed,
+                                    int hasDiff,
+                                    int emptyDiff,
+                                    int compatibleRetainOnly,
+                                    int requiresStructure);
     void DebugLogSceneRootDiffDecision(void *scene,
                                       void *boundary,
                                       unsigned int dirtyFlagsSeen,

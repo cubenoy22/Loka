@@ -228,7 +228,7 @@ namespace loka
         void queueInvalidate(NodeDirtyFlags flags)
         {
           compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | flags);
-          if ((flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
+          if ((flags & NODE_DIRTY_INITIAL) != 0)
           {
             compositionDiff_.fullRebuild = true;
           }
@@ -253,33 +253,134 @@ namespace loka
         class RootBoundaryWrapper : public BoundaryNode
         {
         public:
-          explicit RootBoundaryWrapper(NodeDefinitionBase *def) : def_(def) {}
+          explicit RootBoundaryWrapper(NodeDefinitionBase *def) : def_(def), composed_(false) {}
           virtual ~RootBoundaryWrapper() {}
 
         protected:
+          void detachExistingChildren(ComponentContext &context)
+          {
+            loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+            for (Node *child = it.next(); child; child = it.next())
+            {
+              this->composeTree(child, context, COMPOSE_EVENT_DETACH, this);
+            }
+          }
+
           virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
           {
-            if (event != COMPOSE_EVENT_ATTACH)
+            if (event == COMPOSE_EVENT_DETACH)
+            {
+              this->detachExistingChildren(context);
+              NodeComposition &composition = this->beginComposition(context);
+              this->detachNode(composition);
+              this->composed_ = false;
+              return;
+            }
+            if (event != COMPOSE_EVENT_ATTACH && event != COMPOSE_EVENT_UPDATE)
             {
               return;
             }
-            this->clearChildren();
+            if (event == COMPOSE_EVENT_UPDATE && this->isFrozen())
+            {
+              return;
+            }
             if (!def_)
             {
               return;
             }
+            if (event == COMPOSE_EVENT_UPDATE && !this->composed_)
+            {
+              return;
+            }
+            if (event == COMPOSE_EVENT_UPDATE)
+            {
+              NodeDirtyFlags flags = context.dirtyFlags();
+              if (!(flags & NODE_DIRTY_CHILD))
+              {
+                loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+                for (Node *child = it.next(); child; child = it.next())
+                {
+                  this->composeTree(child, context, event, this);
+                }
+                return;
+              }
+            }
             NodeComposition &composition = this->beginComposition(context);
-            composition.declare(*def_);
+            if (event == COMPOSE_EVENT_ATTACH)
+            {
+              this->clearChildren();
+              this->nodeArena()->clear();
+              this->attachNode(composition);
+            }
+            {
+              NodeComposition::CompositionScope scope(composition);
+              composition.declare(*def_);
+            }
+            this->captureCurrentCompositionSnapshot();
+            this->rebuildCompositionTransactionFromSnapshots();
+            if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() &&
+                this->localCompositionDiff()->isCompatibleRetainOnly())
+            {
+              if (!this->localCompositionDiff()->isStableRetainOnly())
+              {
+                if (!this->applyCurrentRootDefinitionPropsToLiveRoot())
+                {
+                  for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry;
+                       entry = entry->nextInComposition)
+                  {
+                    if (!entry->equivalentProps)
+                    {
+                      this->applyCurrentDefinitionPropsToLiveChild(entry->tag);
+                    }
+                  }
+                }
+              }
+              this->promoteCurrentCompositionSnapshot();
+              loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+              for (Node *child = it.next(); child; child = it.next())
+              {
+                this->composeTree(child, context, event, this);
+              }
+              return;
+            }
+            if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff())
+            {
+              std::vector<Node *> retainedChildren;
+              if (this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren) ||
+                  this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
+              {
+                this->promoteCurrentCompositionSnapshot();
+                for (size_t i = 0; i < retainedChildren.size(); ++i)
+                {
+                  if (retainedChildren[i])
+                  {
+                    this->composeTree(retainedChildren[i], context, event, this);
+                  }
+                }
+                return;
+              }
+            }
+            this->promoteCurrentCompositionSnapshot();
+            if (event == COMPOSE_EVENT_UPDATE)
+            {
+              this->detachExistingChildren(context);
+              this->clearChildren();
+              this->nodeArena()->clear();
+            }
+            context.setComposition(&composition);
             Node *child = composition.createNodeTree();
             if (child)
             {
               this->addChild(child);
               this->composeTree(child, context, event, this);
             }
+            context.setComposition(0);
+            this->composed_ = true;
           }
 
         private:
           NodeDefinitionBase *def_;
+          bool composed_;
         };
 
         void ensureRootNode()
@@ -321,7 +422,16 @@ namespace loka
           rootContext.setPlatformController(platformController_);
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
-          boundary->compose(rootContext, event);
+          if (rootDefinition_ && !rootDefinition_->isBoundary())
+          {
+            BoundaryNode::composeSubtree(rootNode_, rootContext, event, 0);
+          }
+          else
+          {
+            prepareRootBoundaryCompose(boundary, rootContext, event);
+            boundary->compose(rootContext, event);
+            completeRootBoundaryCompose(boundary);
+          }
           platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
           composed_ = true;
         }
@@ -343,7 +453,43 @@ namespace loka
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
           rootContext.setDirtyFlags(compositionDiff_.flags);
-          boundary->compose(rootContext, event);
+          if (rootDefinition_ && !rootDefinition_->isBoundary())
+          {
+            BoundaryNode::composeSubtree(rootNode_, rootContext, event, 0);
+          }
+          else
+          {
+            prepareRootBoundaryCompose(boundary, rootContext, event);
+            boundary->compose(rootContext, event);
+            completeRootBoundaryCompose(boundary);
+          }
+        }
+
+        static void prepareRootBoundaryCompose(BoundaryNode *boundary,
+                                               ComponentContext &rootContext,
+                                               ComposeEvent event)
+        {
+          if (!boundary)
+          {
+            return;
+          }
+          boundary->setParentBoundary(0);
+          boundary->clearObservedDirtyFlags();
+          if (event != COMPOSE_EVENT_UPDATE)
+          {
+            boundary->clearPhaseResults();
+          }
+          boundary->beginObservedStatePass();
+          boundary->beginComposeResult(event, rootContext.dirtyFlags());
+        }
+
+        static void completeRootBoundaryCompose(BoundaryNode *boundary)
+        {
+          if (!boundary)
+          {
+            return;
+          }
+          boundary->completeComposeResult(boundary->canPreserveNativeContexts());
         }
 
         bool refreshComposition()
@@ -366,11 +512,26 @@ namespace loka
             compositionDiff_.fullRebuild = false;
           }
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
-          if (pendingUpdateRootsRequireLayout(director_))
+          const bool requiresLayout = pendingUpdateRootsRequireLayout(director_);
+          if (requiresLayout)
           {
             compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | NODE_DIRTY_LAYOUT);
           }
-          if (compositionDiff_.fullRebuild && pendingUpdateRootsCanApplyLocalCompositionDiff(director_))
+          const bool requiresStructure = pendingUpdateRootsRequireStructure(director_, this);
+          const bool canApplyLocalDiff = pendingUpdateRootsCanApplyLocalCompositionDiff(director_);
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+          loka::platform::DebugLogSceneDecision(static_cast<void *>(this),
+                                                requiresStructure ? 1 : 0,
+                                                requiresLayout ? 1 : 0,
+                                                canApplyLocalDiff ? 1 : 0);
+#endif
+          if (compositionDiff_.fullRebuild && canApplyLocalDiff)
+          {
+            compositionDiff_.fullRebuild = false;
+          }
+          else if (compositionDiff_.fullRebuild &&
+                   (compositionDiff_.flags & NODE_DIRTY_CHILD) != 0 &&
+                   !requiresStructure)
           {
             compositionDiff_.fullRebuild = false;
           }
@@ -526,21 +687,79 @@ namespace loka
           return false;
         }
 
-        static bool pendingUpdateRootsRequireStructure(const SceneDirector &director)
+        static bool pendingUpdateRootsRequireStructure(const SceneDirector &director,
+                                                       const Scene *scene = 0)
         {
           BoundaryNode *root = director.firstPendingUpdateRoot();
           while (root)
           {
             const BoundaryComposeResult &result = root->composeResult();
             const NodeCompositionDiff *diff = root->localCompositionDiff();
+            const NodeDirtyFlags effectiveDirtyFlags =
+                static_cast<NodeDirtyFlags>(root->pendingDirtyFlags() | result.dirtyFlagsSeen);
             if (!result.composed)
             {
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+              loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                         static_cast<void *>(root),
+                                                         static_cast<unsigned int>(effectiveDirtyFlags),
+                                                         0,
+                                                         diff ? 1 : 0,
+                                                         (diff && diff->empty()) ? 1 : 0,
+                                                         (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
+                                                         ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
+#endif
+              if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0)
+              {
+                root = director.nextPendingUpdateRoot(root);
+                continue;
+              }
               return true;
             }
             if (!diff)
             {
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+              loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                         static_cast<void *>(root),
+                                                         static_cast<unsigned int>(effectiveDirtyFlags),
+                                                         1,
+                                                         0,
+                                                         0,
+                                                         0,
+                                                         ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
+#endif
+              if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0)
+              {
+                root = director.nextPendingUpdateRoot(root);
+                continue;
+              }
               return true;
             }
+            if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 && diff->empty())
+            {
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+              loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                         static_cast<void *>(root),
+                                                         static_cast<unsigned int>(effectiveDirtyFlags),
+                                                         1,
+                                                         1,
+                                                         1,
+                                                         diff->isCompatibleRetainOnly() ? 1 : 0,
+                                                         0);
+#endif
+              root = director.nextPendingUpdateRoot(root);
+              continue;
+            }
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                       static_cast<void *>(root),
+                                                       static_cast<unsigned int>(effectiveDirtyFlags),
+                                                       1,
+                                                       1,
+                                                       diff->empty() ? 1 : 0,
+                                                       diff->isCompatibleRetainOnly() ? 1 : 0,
+                                                       diff->isCompatibleRetainOnly() ? 0 : 1);
+#endif
             if (!diff->isCompatibleRetainOnly())
             {
               return true;
@@ -744,7 +963,13 @@ namespace loka
           {
             break;
           }
+          if (parent->pendingDirtyFlags() == NODE_DIRTY_CHILD &&
+              boundary->pendingDirtyFlags() != NODE_DIRTY_NONE)
+          {
+            break;
+          }
           top = parent;
+          boundary = parent;
           parent = parent->parentBoundary();
         }
         return top;
@@ -762,6 +987,43 @@ namespace loka
       inline BoundaryNode *SceneDirector::firstPendingUpdateRoot() const
       {
         return nextPendingUpdateRoot(0);
+      }
+
+      inline static bool IsBoundaryDescendantOf(const BoundaryNode *boundary, const BoundaryNode *ancestor)
+      {
+        const BoundaryNode *current = boundary ? boundary->parentBoundary() : 0;
+        while (current)
+        {
+          if (current == ancestor)
+          {
+            return true;
+          }
+          current = current->parentBoundary();
+        }
+        return false;
+      }
+
+      inline static bool HasEquivalentDescendantPendingRoot(const SceneDirector *director, BoundaryNode *root)
+      {
+        if (!director || !root)
+        {
+          return false;
+        }
+        BoundaryNode *boundary = director->pendingBoundariesHead();
+        while (boundary)
+        {
+          if (boundary != root && boundary->isUpdateRequested() && IsBoundaryDescendantOf(boundary, root) &&
+              boundary->pendingDirtyFlags() == root->pendingDirtyFlags())
+          {
+            const BoundaryComposeResult &candidateResult = boundary->composeResult();
+            if (candidateResult.composed && candidateResult.preservedNativeContexts)
+            {
+              return true;
+            }
+          }
+          boundary = boundary->nextPendingBoundary();
+        }
+        return false;
       }
 
       inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const
@@ -796,6 +1058,12 @@ namespace loka
             }
             if (!seenEarlier)
             {
+              if ((root->pendingDirtyFlags() & NODE_DIRTY_CHILD) != 0 &&
+                  HasEquivalentDescendantPendingRoot(this, root))
+              {
+                boundary = boundary->nextPendingBoundary();
+                continue;
+              }
               return root;
             }
           }
