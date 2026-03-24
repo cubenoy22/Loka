@@ -74,6 +74,7 @@ namespace loka
         loka::core::StateTracker *ownerTracker = binding->state ? binding->state->trackerOwner() : 0;
         if (ownerTracker && ownerTracker->phase() != loka::core::TRACKER_IDLE)
         {
+          binding->retain();
           ownerTracker->defer(&BoundaryNode::ObservedStateDeferredInvalidateThunk, binding);
           return;
         }
@@ -83,16 +84,32 @@ namespace loka
       void BoundaryNode::ObservedStateDeferredInvalidateThunk(void *userData)
       {
         BoundaryObservedStateBinding *binding = static_cast<BoundaryObservedStateBinding *>(userData);
-        if (!binding || !binding->boundary)
+        if (!binding)
         {
+          return;
+        }
+        if (!binding->boundary)
+        {
+          if (binding->release())
+          {
+            delete binding;
+          }
           return;
         }
         NodeDirtyFlags flags = binding->flags;
         if (flags == NODE_DIRTY_NONE)
         {
+          if (binding->release())
+          {
+            delete binding;
+          }
           return;
         }
         binding->boundary->markViewDirty(flags);
+        if (binding->release())
+        {
+          delete binding;
+        }
       }
     } // namespace scene
   } // namespace app

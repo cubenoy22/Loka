@@ -16,10 +16,23 @@ namespace loka
 
       struct BoundaryObservedStateBinding
       {
-        BoundaryObservedStateBinding() : boundary(0), state(0), flags(NODE_DIRTY_NONE) {}
+        BoundaryObservedStateBinding() : boundary(0), state(0), flags(NODE_DIRTY_NONE), refs(1) {}
+
+        void retain()
+        {
+          ++refs;
+        }
+
+        bool release()
+        {
+          --refs;
+          return refs == 0;
+        }
+
         BoundaryNode *boundary;
         loka::core::StateBase *state;
         NodeDirtyFlags flags;
+        int refs;
       };
 
       struct BoundaryObservedStateEntry
@@ -45,16 +58,21 @@ namespace loka
           return dirtyFlags;
         }
 
-        void clearEntries()
+        void clearEntries(void (*changedThunk)(void *))
         {
           for (size_t i = 0; i < entries.size(); ++i)
           {
             BoundaryObservedStateEntry &entry = entries[i];
             if (entry.state && entry.binding)
             {
+              entry.state->unbind(changedThunk, entry.binding);
               entry.binding->boundary = 0;
               entry.binding->state = 0;
               entry.binding->flags = NODE_DIRTY_NONE;
+              if (entry.binding->release())
+              {
+                delete entry.binding;
+              }
               entry.binding = 0;
             }
           }

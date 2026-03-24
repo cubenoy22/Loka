@@ -458,7 +458,7 @@ namespace loka
         void beginPlatformApply() { updateState_.beginApply(); }
         void endPlatformApply() { updateState_.endApply(); }
         void beginObservedStatePass() { observedState_.beginPass(); }
-        void clearObservedStateEntries() { observedState_.clearEntries(); }
+        void clearObservedStateEntries() { observedState_.clearEntries(&BoundaryNode::ObservedStateChangedThunk); }
         void addObservedDirtyFlags(NodeDirtyFlags flags)
         {
           observedState_.addDirtyFlags(flags);
