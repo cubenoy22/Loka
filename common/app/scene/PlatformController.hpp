@@ -29,6 +29,10 @@ namespace loka
         // Optional boundary-local apply seam. Default is no-op to preserve existing controllers.
         virtual void onBoundaryApply(Node *, BoundaryNode *, const BoundaryLocalApplyInfo &, const PlatformApplyPlan &) {}
 
+        // Platforms that can fully consume pure paint-only updates through onBoundaryApply()
+        // may opt into skipping the legacy global onChange() callback for those cycles.
+        virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return false; }
+
         // 変更があったNodeをUIに同期する
         virtual void synchronize() = 0;
         virtual bool hasPendingSync() const = 0;

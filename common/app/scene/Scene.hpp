@@ -394,7 +394,10 @@ namespace loka
           }
           lastApplyPlan_ = buildPlatformApplyPlan(rootNode_, director_, compositionDiff_);
           applyPendingBoundaryUpdates(rootNode_, director_, lastApplyPlan_);
-          platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
+          if (!shouldSkipGlobalChangeForApplyPlan(platformController_, lastApplyPlan_))
+          {
+            platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
+          }
           compositionDiff_.clear();
           director_.clearPendingBoundaryRequest();
         }
@@ -442,6 +445,14 @@ namespace loka
             root = director.nextPendingUpdateRoot(root);
           }
           return sawRoot;
+        }
+
+        static bool shouldSkipGlobalChangeForApplyPlan(IPlatformController *platformController,
+                                                       const PlatformApplyPlan &plan)
+        {
+          return platformController &&
+                 platformController->canSkipGlobalChangeForBoundaryLocalPaint() &&
+                 plan.isPaintOnlyWork();
         }
 
         static bool pendingUpdateRootsRequireLayout(const SceneDirector &director)

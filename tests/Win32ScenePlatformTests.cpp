@@ -20,6 +20,7 @@
 #include "loka/core/State.hpp"
 #include "loka/dsl/testing/SceneTestFlow.hpp"
 #include "Win32ScenePlatformController.hpp"
+#include "testing/Win32ScenePlatformTestAccess.hpp"
 
 namespace
 {
@@ -861,6 +862,45 @@ void testWin32ScenePlatformBoundaryLocalPaintQueuesDirtyRect()
 
   scene.unmount();
   DestroyWindow(rootHwnd);
+}
+
+void testWin32ScenePlatformPaintOnlyStateChangeUsesLocalApplyPath()
+{
+  loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Short"));
+  loka::core::MutableState<bool> enabledState(false);
+  g_textState = &textState;
+  g_enabledState = &enabledState;
+
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  loka::app::scene::Scene scene(DynamicWin32TestBoundary());
+  scene.mount(&controller);
+  scene.updateAttached(true);
+
+  ::loka::app::scene::BoundaryNode *boundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+  assert(boundary != 0);
+
+  loka::dsl::testing::Win32ScenePlatformTestAccess::resetRedrawStats(controller);
+
+  {
+    loka::core::StateTrackerGuard guard(boundary->tracker());
+    enabledState.set(true);
+  }
+  scene.flushInvalidation();
+
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::onChangeCalls(controller) == 1);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::onBoundaryApplyCalls(controller) == 1);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedFullWindowInvalidates(controller) == 0);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedRectInvalidates(controller) == 1);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedPaintInvalidates(controller) == 1);
+
+  scene.unmount();
+  DestroyWindow(rootHwnd);
+  g_textState = 0;
+  g_enabledState = 0;
 }
 
 #endif

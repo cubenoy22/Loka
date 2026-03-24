@@ -82,6 +82,11 @@ namespace loka
           return hasStructureWork() || hasLayoutWork() || hasPaintWork();
         }
 
+        bool isPaintOnlyWork() const
+        {
+          return !hasStructureWork() && !hasLayoutWork() && hasPaintWork();
+        }
+
         bool requiresCompositedPaint() const
         {
           return paintKind == PAINT_COMPOSITED;

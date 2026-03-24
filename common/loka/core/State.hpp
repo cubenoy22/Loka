@@ -201,6 +201,15 @@ namespace loka
       void setArenaAllocated(bool v) { arenaAllocated_ = v; }
       bool isArenaAllocated() const { return arenaAllocated_; }
       StateTracker *trackerOwner() const { return currentTracker; }
+      void *retainExternalLifetimeToken() const { return retainNotifyToken(); }
+      static void releaseExternalLifetimeToken(void *token)
+      {
+        releaseNotifyToken(static_cast<LifetimeToken *>(token));
+      }
+      static bool isExternalLifetimeTokenAlive(const void *token)
+      {
+        return isNotifyTokenAlive(static_cast<const LifetimeToken *>(token));
+      }
     };
 
     // State<T>: Inherits StateBase, implements value holding and subscribe API

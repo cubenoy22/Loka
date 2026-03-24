@@ -165,6 +165,7 @@ void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const 
 
 void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
 {
+  ++this->redrawStats_.onChangeCalls;
   rootNode_ = rootNode;
   if (!rootHwnd_ || !rootNode_)
   {
@@ -193,6 +194,7 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
                                                    const loka::app::scene::BoundaryLocalApplyInfo &info,
                                                    const loka::app::scene::PlatformApplyPlan &plan)
 {
+  ++this->redrawStats_.onBoundaryApplyCalls;
   if (rootNode)
   {
     rootNode_ = rootNode;
@@ -208,12 +210,26 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
 
   const bool eraseBackground = !info.paintIsOpaque;
   const bool includeChildren = info.hasCompositedPaintWork();
+  if (info.hasCompositedPaintWork())
+  {
+    ++this->redrawStats_.queuedCompositedInvalidates;
+  }
+  else if (info.hasOpaquePaintWork())
+  {
+    ++this->redrawStats_.queuedOpaquePaintInvalidates;
+  }
+  else if (info.hasPaintWork())
+  {
+    ++this->redrawStats_.queuedGenericPaintInvalidates;
+  }
   if (!info.hasBoundsHint())
   {
+    ++this->redrawStats_.queuedFullWindowInvalidates;
     queueDirtyRect(rootHwnd_, 0, eraseBackground ? TRUE : FALSE, includeChildren);
     return;
   }
 
+  ++this->redrawStats_.queuedRectInvalidates;
   RECT rect;
   rect.left = info.bounds->x;
   rect.top = info.bounds->y;

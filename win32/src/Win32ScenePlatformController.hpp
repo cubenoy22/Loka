@@ -27,6 +27,14 @@ namespace loka
     class TextNode;
     class EditTextNode;
   }
+
+  namespace dsl
+  {
+    namespace testing
+    {
+      class Win32ScenePlatformTestAccess;
+    }
+  }
 }
 
 class Win32ScenePlatformController : public loka::app::scene::IPlatformController
@@ -44,6 +52,7 @@ public:
                                loka::app::scene::BoundaryNode *boundary,
                                const loka::app::scene::BoundaryLocalApplyInfo &info,
                                const loka::app::scene::PlatformApplyPlan &plan);
+  virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return true; }
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
@@ -53,6 +62,41 @@ public:
   void relayout(int clientWidth, int clientHeight);
 
 private:
+  friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
+
+  struct RedrawStats
+  {
+    RedrawStats()
+        : onChangeCalls(0),
+          onBoundaryApplyCalls(0),
+          queuedFullWindowInvalidates(0),
+          queuedRectInvalidates(0),
+          queuedCompositedInvalidates(0),
+          queuedOpaquePaintInvalidates(0),
+          queuedGenericPaintInvalidates(0)
+    {
+    }
+
+    void reset()
+    {
+      onChangeCalls = 0;
+      onBoundaryApplyCalls = 0;
+      queuedFullWindowInvalidates = 0;
+      queuedRectInvalidates = 0;
+      queuedCompositedInvalidates = 0;
+      queuedOpaquePaintInvalidates = 0;
+      queuedGenericPaintInvalidates = 0;
+    }
+
+    int onChangeCalls;
+    int onBoundaryApplyCalls;
+    int queuedFullWindowInvalidates;
+    int queuedRectInvalidates;
+    int queuedCompositedInvalidates;
+    int queuedOpaquePaintInvalidates;
+    int queuedGenericPaintInvalidates;
+  };
+
   struct PendingInvalidate
   {
     PendingInvalidate() : hwnd(0), eraseBackground(TRUE), fullWindow(false), includeChildren(false)
@@ -89,6 +133,7 @@ private:
   std::map<HWND, Win32EditTextContext *> editMap_;
   std::map<HWND, Win32PopupMenuContext *> popupMap_;
   std::vector<PendingInvalidate> pendingInvalidations_;
+  RedrawStats redrawStats_;
 };
 
 #endif // LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP

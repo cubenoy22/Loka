@@ -16,7 +16,17 @@ namespace loka
 
       struct BoundaryObservedStateBinding
       {
-        BoundaryObservedStateBinding() : boundary(0), state(0), flags(NODE_DIRTY_NONE), refs(1) {}
+        BoundaryObservedStateBinding()
+            : boundary(0), state(0), flags(NODE_DIRTY_NONE), refs(1), stateLifetimeToken(0) {}
+
+        ~BoundaryObservedStateBinding()
+        {
+          if (stateLifetimeToken)
+          {
+            loka::core::StateBase::releaseExternalLifetimeToken(stateLifetimeToken);
+            stateLifetimeToken = 0;
+          }
+        }
 
         void retain()
         {
@@ -33,6 +43,7 @@ namespace loka
         loka::core::StateBase *state;
         NodeDirtyFlags flags;
         int refs;
+        void *stateLifetimeToken;
       };
 
       struct BoundaryObservedStateEntry
@@ -65,7 +76,11 @@ namespace loka
             BoundaryObservedStateEntry &entry = entries[i];
             if (entry.state && entry.binding)
             {
-              entry.state->unbind(changedThunk, entry.binding);
+              if (entry.binding->stateLifetimeToken &&
+                  loka::core::StateBase::isExternalLifetimeTokenAlive(entry.binding->stateLifetimeToken))
+              {
+                entry.state->unbind(changedThunk, entry.binding);
+              }
               entry.binding->boundary = 0;
               entry.binding->state = 0;
               entry.binding->flags = NODE_DIRTY_NONE;
@@ -138,6 +153,7 @@ namespace loka
           entry.binding->boundary = boundary;
           entry.binding->state = state;
           entry.binding->flags = flagsToAdd;
+          entry.binding->stateLifetimeToken = state->retainExternalLifetimeToken();
           state->bind(changedThunk, entry.binding, false, false, 0);
           entries.push_back(entry);
         }
