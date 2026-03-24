@@ -900,4 +900,19 @@ void testWin32ScenePlatformPaintOnlyStateChangeUsesLocalApplyPath()
   g_enabledState = 0;
 }
 
+void testWin32ScenePlatformPropsOnlyOnChangeSkipsLayout()
+{
+  HWND rootHwnd = CreateWindowExA(0, "STATIC", "LokaWin32TestRoot", WS_OVERLAPPEDWINDOW,
+                                  0, 0, 400, 320, NULL, NULL, GetModuleHandle(NULL), NULL);
+  assert(rootHwnd != NULL);
+
+  Win32ScenePlatformController controller(rootHwnd);
+  controller.onChange(0, ::loka::app::scene::NODE_DIRTY_PROPS, false);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::onChangeCalls(controller) == 1);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::clientWidth(controller) == 0);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::clientHeight(controller) == 0);
+
+  DestroyWindow(rootHwnd);
+}
+
 #endif

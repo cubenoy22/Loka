@@ -11,5 +11,6 @@ void testWin32ScenePlatformForeignObservedChildRebuildPreservesSiblingContexts()
 void testWin32ScenePlatformForeignObservedChildReorderPreservesSiblingContexts();
 void testWin32ScenePlatformBoundaryLocalPaintQueuesDirtyRect();
 void testWin32ScenePlatformPaintOnlyStateChangeUsesLocalApplyPath();
+void testWin32ScenePlatformPropsOnlyOnChangeSkipsLayout();
 
 #endif // LOKA_WIN32_SCENE_PLATFORM_TESTS_HPP

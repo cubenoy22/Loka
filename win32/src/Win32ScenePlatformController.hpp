@@ -124,6 +124,7 @@ private:
   void clearNodeContexts(loka::app::scene::Node *node);
   int measureClientWidth(int requestedWidth) const;
   void queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren);
+  void dumpRedrawStatsIfNeeded();
 
   HWND rootHwnd_;
   loka::app::scene::Node *rootNode_;

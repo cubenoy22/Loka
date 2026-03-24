@@ -100,6 +100,7 @@ int main()
   testWin32ScenePlatformForeignObservedChildReorderPreservesSiblingContexts();
   testWin32ScenePlatformBoundaryLocalPaintQueuesDirtyRect();
   testWin32ScenePlatformPaintOnlyStateChangeUsesLocalApplyPath();
+  testWin32ScenePlatformPropsOnlyOnChangeSkipsLayout();
 #endif
 #ifdef __APPLE__
   testMacScenePlatformRelayoutRequest();

@@ -58,6 +58,16 @@ namespace loka
                  queuedOpaquePaintInvalidates(controller) +
                  queuedGenericPaintInvalidates(controller);
         }
+
+        static int clientWidth(const ::Win32ScenePlatformController &controller)
+        {
+          return controller.clientWidth_;
+        }
+
+        static int clientHeight(const ::Win32ScenePlatformController &controller)
+        {
+          return controller.clientHeight_;
+        }
       };
     } // namespace testing
   } // namespace dsl

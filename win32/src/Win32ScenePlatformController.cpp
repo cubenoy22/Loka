@@ -240,6 +240,7 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
 
 void Win32ScenePlatformController::synchronize()
 {
+  dumpRedrawStatsIfNeeded();
   for (size_t i = 0; i < pendingInvalidations_.size(); ++i)
   {
     PendingInvalidate &entry = pendingInvalidations_[i];
@@ -259,6 +260,7 @@ void Win32ScenePlatformController::synchronize()
     RedrawWindow(entry.hwnd, entry.fullWindow ? NULL : &entry.rect, NULL, flags);
   }
   pendingInvalidations_.clear();
+  redrawStats_.reset();
 }
 
 bool Win32ScenePlatformController::hasPendingSync() const
@@ -336,6 +338,32 @@ void Win32ScenePlatformController::queueDirtyRect(HWND targetHwnd, const RECT *r
     entry.rect = *rect;
   }
   pendingInvalidations_.push_back(entry);
+}
+
+void Win32ScenePlatformController::dumpRedrawStatsIfNeeded()
+{
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+  if (redrawStats_.onChangeCalls == 0 &&
+      redrawStats_.onBoundaryApplyCalls == 0 &&
+      redrawStats_.queuedFullWindowInvalidates == 0 &&
+      redrawStats_.queuedRectInvalidates == 0)
+  {
+    return;
+  }
+
+  char buffer[256];
+  ::snprintf(buffer,
+             sizeof(buffer),
+             "[win32-redraw] onChange=%d localApply=%d full=%d rect=%d comp=%d opaque=%d generic=%d\n",
+             redrawStats_.onChangeCalls,
+             redrawStats_.onBoundaryApplyCalls,
+             redrawStats_.queuedFullWindowInvalidates,
+             redrawStats_.queuedRectInvalidates,
+             redrawStats_.queuedCompositedInvalidates,
+             redrawStats_.queuedOpaquePaintInvalidates,
+             redrawStats_.queuedGenericPaintInvalidates);
+  OutputDebugStringA(buffer);
+#endif
 }
 
 bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)

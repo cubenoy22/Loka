@@ -691,6 +691,7 @@ namespace {
           lastBoundaryApplyPlan_(),
           boundaryApplyCalls_(0),
           calls_(0),
+          skipGlobalChangeForBoundaryLocalPaint_(false),
           destroyed_(false) {
     }
 
@@ -714,6 +715,10 @@ namespace {
       ++boundaryApplyCalls_;
     }
 
+    virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const {
+      return skipGlobalChangeForBoundaryLocalPaint_;
+    }
+
     virtual void synchronize() {
     }
 
@@ -734,6 +739,7 @@ namespace {
     loka::app::scene::PlatformApplyPlan lastBoundaryApplyPlan_;
     int boundaryApplyCalls_;
     int calls_;
+    bool skipGlobalChangeForBoundaryLocalPaint_;
     bool destroyed_;
   };
 
@@ -2052,8 +2058,12 @@ void testLokaFlowDslV1Core() {
 
     Scene scene((BoundaryDefinition<PendingApplyProbeBoundaryProps, PendingApplyProbeBoundaryNode>()));
     FlowScenePlatformController platform;
+    platform.skipGlobalChangeForBoundaryLocalPaint_ = true;
     scene.mount(&platform);
     scene.updateAttached(true);
+    platform.calls_ = 0;
+    platform.boundaryApplyCalls_ = 0;
+    platform.lastFlags_ = loka::app::scene::NODE_DIRTY_NONE;
 
     scene.requestInvalidate(NODE_DIRTY_PROPS);
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
