@@ -38,7 +38,7 @@ if(WIN32)
   target_link_libraries(LokaPerfArenaWin32 PRIVATE LokaWin32Core)
   target_compile_definitions(LokaPerfArenaWin32 PRIVATE
     LOKA_PROFILE_FUNC_TICKS=1
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 
   if(MSVC)
@@ -66,6 +66,6 @@ if(APPLE)
   endif()
   target_compile_definitions(LokaPerfArenaMacOS PRIVATE
     LOKA_PROFILE_FUNC_TICKS=1
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 endif()

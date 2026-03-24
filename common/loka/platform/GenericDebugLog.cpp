@@ -1,7 +1,7 @@
 #include "loka/platform/DebugLog.hpp"
 #include <cstdio>
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && defined(LOKA_DEBUG_RECOMPOSE)
 namespace loka
 {
   namespace platform

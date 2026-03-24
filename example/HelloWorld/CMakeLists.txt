@@ -40,7 +40,7 @@ if(WIN32)
 
   target_link_libraries(LokaHelloWin32 PRIVATE LokaWin32Core)
   target_compile_definitions(LokaHelloWin32 PRIVATE
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 
   # Use UTF-8 source/execution charset on MSVC to avoid codepage warnings
@@ -75,7 +75,7 @@ if(WIN32)
   target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32Core)
   target_compile_definitions(LokaTestsWin32 PRIVATE
     TEST_BUILD
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 
   if(MSVC)
@@ -105,7 +105,7 @@ if(APPLE)
     target_compile_options(LokaHelloMacOS PRIVATE "-fno-objc-arc")
   endif()
   target_compile_definitions(LokaHelloMacOS PRIVATE
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 endif()
 

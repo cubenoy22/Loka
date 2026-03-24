@@ -67,7 +67,7 @@ target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 
 # Loka core is ObjC1/non-ARC by design; do not force ARC flags here.
 target_compile_definitions(LokaMacOSCore PRIVATE
-  $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+  $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
 )
 
 set(LOKA_ENABLE_MACOS_TESTS ${LOKA_BUILD_MACOS_TESTS})
@@ -105,6 +105,6 @@ if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
   target_link_libraries(LokaTestsMacOS PRIVATE LokaMacOSCore)
   target_compile_definitions(LokaTestsMacOS PRIVATE
     TEST_BUILD
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 endif()

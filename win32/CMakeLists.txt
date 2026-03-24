@@ -34,7 +34,7 @@ target_include_directories(LokaWin32Core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../tests
 )
 target_compile_definitions(LokaWin32Core PRIVATE
-  $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+  $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
 )
 
 target_link_libraries(LokaWin32Core PRIVATE windowscodecs ole32)

@@ -1,3 +1,4 @@
+#if defined(LOKA_DEBUG_RECOMPOSE)
 #import <Foundation/Foundation.h>
 #include "loka/platform/DebugLog.hpp"
 
@@ -16,3 +17,4 @@ namespace loka
     }
   } // namespace platform
 } // namespace loka
+#endif

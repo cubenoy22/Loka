@@ -1,3 +1,4 @@
+#if defined(LOKA_DEBUG_RECOMPOSE)
 #include <windows.h>
 #include <cstdio>
 #include "loka/platform/DebugLog.hpp"
@@ -168,3 +169,4 @@ namespace loka
     }
   } // namespace platform
 } // namespace loka
+#endif

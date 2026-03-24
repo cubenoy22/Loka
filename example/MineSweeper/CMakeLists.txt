@@ -36,7 +36,7 @@ if(WIN32)
 
   target_link_libraries(LokaMineWin32 PRIVATE LokaWin32Core)
   target_compile_definitions(LokaMineWin32 PRIVATE
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 
   if(MSVC)
@@ -63,7 +63,7 @@ if(APPLE)
     target_compile_options(LokaMineMacOS PRIVATE "-fno-objc-arc")
   endif()
   target_compile_definitions(LokaMineMacOS PRIVATE
-    $<$<CONFIG:Debug>:LOKA_DEBUG_RECOMPOSE=1>
+    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
   )
 endif()
 

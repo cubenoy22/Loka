@@ -5,6 +5,7 @@ namespace loka
 {
   namespace platform
   {
+#if defined(LOKA_DEBUG_RECOMPOSE)
     void DebugLogRecomposeTracked(void *boundary, void *scene);
     void DebugLogRecomposeQueued(void *scene);
     void DebugLogRecomposeMerged(void *scene);
@@ -50,6 +51,27 @@ namespace loka
                                         unsigned int eventValue,
                                         unsigned int dirtyFlags,
                                         int isRootBoundary);
+#else
+    inline void DebugLogRecomposeTracked(void *, void *) {}
+    inline void DebugLogRecomposeQueued(void *) {}
+    inline void DebugLogRecomposeMerged(void *) {}
+    inline void DebugLogSceneFlags(void *, const char *, unsigned int, unsigned int, int) {}
+    inline void DebugLogSceneDecision(void *, int, int, int) {}
+    inline void DebugLogSceneStructureRoot(void *, void *, unsigned int, int, int, int, int, int) {}
+    inline void DebugLogSceneRootDiffDecision(void *, void *, unsigned int, int, int) {}
+    inline void DebugLogSceneRootDiffShape(void *, void *, int, int, int, int) {}
+    inline void DebugLogSceneRootIdentity(void *,
+                                          void *,
+                                          unsigned int,
+                                          const char *,
+                                          int,
+                                          int,
+                                          int,
+                                          unsigned int,
+                                          unsigned int,
+                                          const char *) {}
+    inline void DebugLogBoundaryComposeDispatch(void *, unsigned int, unsigned int, int) {}
+#endif
   } // namespace platform
 } // namespace loka
 

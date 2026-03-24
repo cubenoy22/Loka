@@ -68,9 +68,11 @@ private:
       const unsigned int seed = randomSeedState_ ? randomSeedState_->get() : 0u;
       buildRandomMenu(randomMenu, seed);
       c.declare(randomMenu);
+#if defined(LOKA_DEBUG_RECOMPOSE)
       c.declare(Menu("Debug")
                     << MenuItem("Dump Debug Stats").onClick(&dumpStatsEvent_)
                     << MenuItem("Reset Debug Stats").onClick(&resetStatsEvent_));
+#endif
     }
 
   private:
