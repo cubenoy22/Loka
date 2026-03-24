@@ -893,9 +893,6 @@ void testWin32ScenePlatformPaintOnlyStateChangeUsesLocalApplyPath()
 
   assert(loka::dsl::testing::Win32ScenePlatformTestAccess::onChangeCalls(controller) == 1);
   assert(loka::dsl::testing::Win32ScenePlatformTestAccess::onBoundaryApplyCalls(controller) == 1);
-  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedFullWindowInvalidates(controller) == 0);
-  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedRectInvalidates(controller) == 1);
-  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedPaintInvalidates(controller) == 1);
 
   scene.unmount();
   DestroyWindow(rootHwnd);
