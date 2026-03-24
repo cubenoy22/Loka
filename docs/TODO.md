@@ -8,7 +8,6 @@ These items address recurring bug patterns and structural risks identified durin
 - **Platform Controller layout共通化**: `layoutNode()` is near-identical across Mac/Win32/Toolbox (~2000 lines each). Extract platform-independent layout traversal and size calculation to shared code; platform-specific parts (NSView/HWND/QuickDraw context creation) become overrides. Priority: bug fixes (like removing `clearContexts()`) currently need manual porting to 3 implementations.
 - **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
 - **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH/RETAIN/REPLACE transitions in `DynamicCompositionBoundaryNodeBase::composeWithContext()` and `applyLocalRebuildPlan()`. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
-- **Scene fullRebuild accuracy**: Scene determines `fullRebuild` from root boundary only (Scene.hpp line 337). When a static root contains dynamic children that successfully apply local diffs, the platform still receives `fullRebuild=true`. Consider aggregating child boundary diff results so the platform gets a more accurate signal.
 
 ## Open
 
@@ -30,7 +29,6 @@ These items address recurring bug patterns and structural risks identified durin
 - Smart redraw scheduler at Window/Scene scope: collect dirty rects per tick and flush once via platform invalidate APIs.
 - Win32 redraw policy follow-up: keep `Text`/`Cell` immediate for correctness for now, but revisit a clearer control-type policy once transparent text/custom child repaint contracts are documented.
 - Toolbox/68k redraw policy: replace direct `drawDirty` calls with `markDirty` accumulation, then flush once in `updateEvt` (`BeginUpdate/EndUpdate`) using `InvalRect`/`InvalRgn`.
-- Toolbox/68k profiling: count redraw triggers and merged dirty regions per interaction to remove duplicate invalidation paths before deeper redraw refactors.
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).
 - requestDiscard protocol for save/confirm flows via EmitterState.
 - Menu rebuild contract: `MENU_ACTION_REBUILD_MENU` and menu-local state changes do not yet produce reliable reactive rebuild/apply across platforms, especially on macOS menu tracking. Add dedicated contract tests before expanding reactive menu samples.
@@ -80,6 +78,16 @@ These items address recurring bug patterns and structural risks identified durin
 
 ## Completed (recent)
 
+- Update/apply optimization pass (2026-03): archived in [docs/archives/update_pipeline_optimization_2026-03.md](archives/update_pipeline_optimization_2026-03.md).
+  Highlights:
+  - scene-level `fullRebuild` accuracy improved for child-dirty and mixed dirty paths
+  - localized platform apply routing (`PlatformApplyPlan` / `BoundaryLocalApplyInfo`) is now the main redraw contract
+  - Win32 interaction flicker and Toolbox follow-up redraw behavior were reduced by platform-local fixes
+- Debug logging/build gating:
+  - `LOKA_ENABLE_DEBUG_LOGS` now gates debug logging support
+  - Release builds keep debug logs off
+  - HelloWorld `Debug` menu is hidden in Release builds
+- Toolbox redraw profiling support: HelloWorld can dump/reset Toolbox debug stats to timestamped files for local interaction analysis.
 - Support matrix in README: split compatibility claims into `build-verified` and `runtime-verified`.
 - Menu bar support implemented across macOS/Win32/Toolbox app layers.
 - MenuItemAttr `visible` is evaluated during menu build. Runtime visibility toggles currently require menu invalidation/rebuild to reapply.
@@ -89,3 +97,4 @@ These items address recurring bug patterns and structural risks identified durin
 - `VStack/HStack` alignment props are wired into platform layout engines (Win32/macOS/Toolbox), including remaining-height handling for `VStack + ImageView(FILL_PARENT)`.
 - `TextAttr` overflow (`wrap`/`truncation`) is wired into native text contexts (Win32/macOS/Toolbox with low-memory-safe clip fallback).
 - Scene local diff first pass: retained native contexts now survive local replace/reorder paths across generic/macOS/Win32 tests, retired subtree cleanup has a platform seam, and boundary-local rebuild planning is separated from apply.
+- Scene `fullRebuild` accuracy is no longer root-only in the old sense; child-dirty and mixed dirty cycles now use boundary/root diff results to downgrade more aggressively when structure work is not required.
