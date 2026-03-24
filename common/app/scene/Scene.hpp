@@ -526,6 +526,30 @@ namespace loka
           return false;
         }
 
+        static bool pendingUpdateRootsRequireStructure(const SceneDirector &director)
+        {
+          BoundaryNode *root = director.firstPendingUpdateRoot();
+          while (root)
+          {
+            const BoundaryComposeResult &result = root->composeResult();
+            const NodeCompositionDiff *diff = root->localCompositionDiff();
+            if (!result.composed)
+            {
+              return true;
+            }
+            if (!diff)
+            {
+              return true;
+            }
+            if (!diff->isCompatibleRetainOnly())
+            {
+              return true;
+            }
+            root = director.nextPendingUpdateRoot(root);
+          }
+          return false;
+        }
+
         static bool pendingUpdateRootsHaveOpaqueLocalPaint(const SceneDirector &director)
         {
           BoundaryNode *root = director.firstPendingUpdateRoot();
@@ -555,7 +579,9 @@ namespace loka
                                                         const SceneCompositionDiff &diff)
         {
           PlatformApplyPlan plan;
-          plan.structureChanged = (diff.flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0;
+          plan.structureChanged = (diff.flags & NODE_DIRTY_INITIAL) != 0 ||
+                                  ((diff.flags & NODE_DIRTY_CHILD) != 0 &&
+                                   (diff.fullRebuild || pendingUpdateRootsRequireStructure(director)));
           plan.layoutChanged = (diff.flags & NODE_DIRTY_LAYOUT) != 0 || pendingUpdateRootsRequireLayout(director);
           if (diff.flags != NODE_DIRTY_NONE)
           {
@@ -714,7 +740,7 @@ namespace loka
         BoundaryNode *parent = boundary->parentBoundary();
         while (parent)
         {
-          if (!parent->isUpdateRequested())
+          if (!parent->isUpdateRequested() || parent->pendingDirtyFlags() == NODE_DIRTY_NONE)
           {
             break;
           }

@@ -715,6 +715,36 @@ void testBuildNodeCompositionDiffByTagSupportsSingleRootReplace()
   assert(entry->currentIndex == 0);
 }
 
+void testBuildNodeCompositionDiffByTagSupportsSingleAnonymousChildRetain()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  NodeComposition previous;
+  previous.declare(VStack()
+                   << Button("Previous"));
+
+  NodeComposition current;
+  current.declare(VStack()
+                  << Button("Current"));
+
+  NodeCompositionDiff diff;
+  bool built = buildNodeCompositionDiffByTag(previous, current, diff);
+  assert(built);
+  assert(diff.valid);
+  assert(!diff.fullRebuild);
+  assert(diff.entryCount() == 1);
+
+  NodeCompositionDiff::Entry *entry = diff.entriesHead();
+  assert(entry != 0);
+  assert(entry->tag == NODE_TAG_NONE);
+  assert(entry->action == NodeCompositionDiff::ACTION_RETAIN);
+  assert(entry->compatibleType);
+  assert(!entry->equivalentProps);
+  assert(entry->previousIndex == 0);
+  assert(entry->currentIndex == 0);
+}
+
 void testNodeDefinitionsReportCompatibleLiveNodeKinds()
 {
   using namespace loka::app;

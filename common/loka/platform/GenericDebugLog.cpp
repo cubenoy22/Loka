@@ -98,5 +98,19 @@ namespace loka
                    firstChildTestId ? firstChildTestId : "");
       std::fflush(stderr);
     }
+
+    void DebugLogBoundaryComposeDispatch(void *boundary,
+                                        unsigned int eventValue,
+                                        unsigned int dirtyFlags,
+                                        int isRootBoundary)
+    {
+      std::fprintf(stderr,
+                   "[boundary-compose] boundary=%p event=%u dirtyFlags=0x%X root=%d\n",
+                   boundary,
+                   eventValue,
+                   dirtyFlags,
+                   isRootBoundary);
+      std::fflush(stderr);
+    }
   } // namespace platform
 } // namespace loka

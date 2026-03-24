@@ -34,6 +34,10 @@ namespace loka
                                   unsigned int childCount,
                                   unsigned int firstChildKind,
                                   const char *firstChildTestId);
+    void DebugLogBoundaryComposeDispatch(void *boundary,
+                                        unsigned int eventValue,
+                                        unsigned int dirtyFlags,
+                                        int isRootBoundary);
   } // namespace platform
 } // namespace loka
 

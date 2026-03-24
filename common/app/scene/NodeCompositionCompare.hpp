@@ -14,6 +14,46 @@ namespace loka
     {
       namespace detail
       {
+        inline bool buildSingleAnonymousChildDiff(INestableDefinition *previousParent,
+                                                  INestableDefinition *currentParent,
+                                                  NodeCompositionDiff &out)
+        {
+          if (!previousParent || !currentParent)
+          {
+            return false;
+          }
+          if (previousParent->childrenCount() != 1 || currentParent->childrenCount() != 1)
+          {
+            return false;
+          }
+          NodeDefinitionBase *previousChild = previousParent->childrenHead();
+          NodeDefinitionBase *currentChild = currentParent->childrenHead();
+          if (!previousChild || !currentChild)
+          {
+            return false;
+          }
+          if (previousChild->nodeTag() != NODE_TAG_NONE || currentChild->nodeTag() != NODE_TAG_NONE)
+          {
+            return false;
+          }
+
+          const scene::PropsBase *previousProps = previousChild->propsBase();
+          const scene::PropsBase *currentProps = currentChild->propsBase();
+          const bool compatibleType = previousProps && currentProps &&
+                                      previousProps->propsTypeId() == currentProps->propsTypeId();
+          const bool equivalentProps = compatibleType && previousChild->hasEquivalentProps(*currentChild);
+          out.addEntry(NODE_TAG_NONE,
+                       0,
+                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
+                       compatibleType,
+                       equivalentProps,
+                       0,
+                       0);
+          out.valid = true;
+          out.fullRebuild = false;
+          return true;
+        }
+
         inline bool collectTaggedChildren(INestableDefinition *parent, std::vector<NodeDefinitionBase *> &out)
         {
           out.clear();
@@ -106,11 +146,11 @@ namespace loka
         std::vector<NodeDefinitionBase *> currentChildren;
         if (!detail::collectTaggedChildren(previousNestable, previousChildren))
         {
-          return false;
+          return detail::buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
         }
         if (!detail::collectTaggedChildren(currentNestable, currentChildren))
         {
-          return false;
+          return detail::buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
         }
 
         for (size_t i = 0; i < currentChildren.size(); ++i)

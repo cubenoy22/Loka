@@ -34,6 +34,7 @@ int main()
   testNodeCompositionTransactionTracksWorkingSet();
   testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
   testBuildNodeCompositionDiffByTagSupportsSingleRootReplace();
+  testBuildNodeCompositionDiffByTagSupportsSingleAnonymousChildRetain();
   testNodeDefinitionsReportCompatibleLiveNodeKinds();
   testCompositionListReplacePreservesOrder();
   testNodeCompositionSnapshotOwnsClonedRoot();

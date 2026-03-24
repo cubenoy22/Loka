@@ -18,6 +18,7 @@
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/util/StateUtil.hpp"
 #include "loka/core/Profiler.hpp"
+#include "loka/platform/DebugLog.hpp"
 
 namespace loka
 {
@@ -891,6 +892,12 @@ namespace loka
           if (boundary)
           {
             boundary->beginComposeResult(event, parentContext.dirtyFlags());
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+            loka::platform::DebugLogBoundaryComposeDispatch(static_cast<void *>(boundary),
+                                                            static_cast<unsigned int>(event),
+                                                            static_cast<unsigned int>(parentContext.dirtyFlags()),
+                                                            boundary == currentBoundary ? 1 : 0);
+#endif
           }
           if (nextBoundary)
           {

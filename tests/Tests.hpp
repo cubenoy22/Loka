@@ -18,6 +18,7 @@ void testNodeCompositionDiffTracksEntries();
 void testNodeCompositionTransactionTracksWorkingSet();
 void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
 void testBuildNodeCompositionDiffByTagSupportsSingleRootReplace();
+void testBuildNodeCompositionDiffByTagSupportsSingleAnonymousChildRetain();
 void testNodeDefinitionsReportCompatibleLiveNodeKinds();
 void testCompositionListReplacePreservesOrder();
 void testNodeCompositionSnapshotOwnsClonedRoot();
