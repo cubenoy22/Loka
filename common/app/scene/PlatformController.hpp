@@ -33,6 +33,9 @@ namespace loka
         // may opt into skipping the legacy global onChange() callback for those cycles.
         virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return false; }
 
+        // Optional hook to start a new scene apply/update measurement cycle.
+        virtual void beginApplyCycle() {}
+
         // 変更があったNodeをUIに同期する
         virtual void synchronize() = 0;
         virtual bool hasPendingSync() const = 0;

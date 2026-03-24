@@ -552,6 +552,10 @@ namespace loka
         {
           return compositionState_.findCurrentDefinitionByTag(tag);
         }
+        NodeDefinitionBase *currentCompositionRootDefinition() const
+        {
+          return compositionState_.currentCompositionSnapshot().root();
+        }
         bool applyCurrentDefinitionPropsToLiveChild(NodeTag tag)
         {
           Node *liveChild = findCompositionChildByTag(tag);
@@ -561,6 +565,20 @@ namespace loka
             return false;
           }
           return definition->applyPropsToNode(liveChild);
+        }
+        bool applyCurrentRootDefinitionPropsToLiveRoot()
+        {
+          Node *liveRoot = compositionRootNode();
+          NodeDefinitionBase *definition = currentCompositionRootDefinition();
+          if (!liveRoot || !definition)
+          {
+            return false;
+          }
+          if (compositionRootNestable() || definition->asNestableDefinition())
+          {
+            return false;
+          }
+          return definition->applyPropsToNode(liveRoot);
         }
         bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context, std::vector<Node *> &retainedChildren)
         {
@@ -578,6 +596,51 @@ namespace loka
           }
           return applyLocalRebuildPlan(context, *root, plan, retainedChildren);
         }
+        bool rebuildCompositionRootFromCurrentSnapshot(ComponentContext &context, std::vector<Node *> &retainedChildren)
+        {
+          Node *liveRoot = compositionRootNode();
+          NodeDefinitionBase *currentRoot = currentCompositionRootDefinition();
+          if (!liveRoot || !currentRoot)
+          {
+            return false;
+          }
+          if (compositionRootNestable() || currentRoot->asNestableDefinition())
+          {
+            return false;
+          }
+          if (currentRoot->isCompatibleWithNode(liveRoot))
+          {
+            if (!currentRoot->applyPropsToNode(liveRoot))
+            {
+              return false;
+            }
+            retainedChildren.push_back(liveRoot);
+            return true;
+          }
+
+          NodeComposition composition;
+          Node *created = composition.createNodeFromDefinition(currentRoot);
+          if (!created)
+          {
+            return false;
+          }
+          if (!this->replaceChild(liveRoot, created))
+          {
+            delete created;
+            return false;
+          }
+          this->composeTree(created, context, COMPOSE_EVENT_ATTACH, this);
+          this->composeTree(liveRoot, context, COMPOSE_EVENT_DETACH, this);
+          if (context.platformController())
+          {
+            context.platformController()->releaseNodeContexts(liveRoot);
+          }
+          if (!liveRoot->isArenaAllocated())
+          {
+            delete liveRoot;
+          }
+          return true;
+        }
         bool hasLocalCompositionDiff() const
         {
           return compositionState_.hasLocalCompositionDiff();
@@ -585,6 +648,10 @@ namespace loka
         bool canApplyLocalCompositionDiff() const
         {
           return compositionState_.canApplyLocalCompositionDiff();
+        }
+        bool canPreserveNativeContexts() const
+        {
+          return compositionState_.canPreserveNativeContexts();
         }
         NodeCompositionSnapshot &previousCompositionSnapshot() { return compositionState_.previousCompositionSnapshot(); }
         const NodeCompositionSnapshot &previousCompositionSnapshot() const { return compositionState_.previousCompositionSnapshot(); }
@@ -878,7 +945,7 @@ namespace loka
             }
             if (boundary)
             {
-              boundary->completeComposeResult(boundary->canApplyLocalCompositionDiff());
+              boundary->completeComposeResult(boundary->canPreserveNativeContexts());
             }
             contextForChildren = &nodeContext;
           }

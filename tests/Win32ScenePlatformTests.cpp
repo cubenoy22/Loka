@@ -855,8 +855,14 @@ void testWin32ScenePlatformBoundaryLocalPaintQueuesDirtyRect()
   plan.structureRoot = 0;
 
   const loka::app::scene::BoundaryLocalApplyInfo info = rootBoundary->localApplyInfo(plan);
+  assert(info.hasPaintBoundsHint());
+  assert(!info.hasLayoutBoundsHint());
   controller.onBoundaryApply(rootNode, rootBoundary, info, plan);
   assert(controller.hasPendingSync());
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedRectInvalidates(controller) == 1);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedPaintBoundsInvalidates(controller) == 1);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedLayoutBoundsInvalidates(controller) == 0);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::queuedMissingBoundsInvalidates(controller) == 0);
   controller.synchronize();
   assert(!controller.hasPendingSync());
 
@@ -909,6 +915,9 @@ void testWin32ScenePlatformPropsOnlyOnChangeSkipsLayout()
   Win32ScenePlatformController controller(rootHwnd);
   controller.onChange(0, ::loka::app::scene::NODE_DIRTY_PROPS, false);
   assert(loka::dsl::testing::Win32ScenePlatformTestAccess::onChangeCalls(controller) == 1);
+  assert(loka::dsl::testing::Win32ScenePlatformTestAccess::lastOnChangeFlags(controller) == ::loka::app::scene::NODE_DIRTY_PROPS);
+  assert(!loka::dsl::testing::Win32ScenePlatformTestAccess::lastOnChangeRequiredLayout(controller));
+  assert(!loka::dsl::testing::Win32ScenePlatformTestAccess::lastOnChangeFullRebuild(controller));
   assert(loka::dsl::testing::Win32ScenePlatformTestAccess::clientWidth(controller) == 0);
   assert(loka::dsl::testing::Win32ScenePlatformTestAccess::clientHeight(controller) == 0);
 

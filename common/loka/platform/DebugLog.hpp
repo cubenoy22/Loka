@@ -8,6 +8,32 @@ namespace loka
     void DebugLogRecomposeTracked(void *boundary, void *scene);
     void DebugLogRecomposeQueued(void *scene);
     void DebugLogRecomposeMerged(void *scene);
+    void DebugLogSceneFlags(void *scene,
+                           const char *stage,
+                           unsigned int flags,
+                           unsigned int boundaryFlags,
+                           int fullRebuild);
+    void DebugLogSceneRootDiffDecision(void *scene,
+                                      void *boundary,
+                                      unsigned int dirtyFlagsSeen,
+                                      int composed,
+                                      int preservedNativeContexts);
+    void DebugLogSceneRootDiffShape(void *scene,
+                                   void *boundary,
+                                   int entryCount,
+                                   int hasIncompatibleRetain,
+                                   int compatibleRetainOnly,
+                                   int stableRetainOnly);
+    void DebugLogSceneRootIdentity(void *scene,
+                                  void *boundary,
+                                  unsigned int kind,
+                                  const char *testId,
+                                  int hasPreviousSnapshotRoot,
+                                  int hasCurrentSnapshotRoot,
+                                  int transactionEmpty,
+                                  unsigned int childCount,
+                                  unsigned int firstChildKind,
+                                  const char *firstChildTestId);
   } // namespace platform
 } // namespace loka
 

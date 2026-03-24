@@ -161,6 +161,12 @@ namespace loka
           return diff != 0 && !diff->fullRebuild && !diff->empty() && !diff->hasIncompatibleRetain();
         }
 
+        bool canPreserveNativeContexts() const
+        {
+          const NodeCompositionDiff *diff = localCompositionDiff();
+          return diff != 0 && !diff->fullRebuild && !diff->hasIncompatibleRetain();
+        }
+
         NodeCompositionSnapshot &previousCompositionSnapshot()
         {
           return previousSnapshot;

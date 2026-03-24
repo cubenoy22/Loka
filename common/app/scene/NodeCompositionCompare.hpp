@@ -74,6 +74,29 @@ namespace loka
 
         INestableDefinition *previousNestable = previousRoot->asNestableDefinition();
         INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
+        if (!previousNestable && !currentNestable)
+        {
+          const scene::PropsBase *previousProps = previousRoot->propsBase();
+          const scene::PropsBase *currentProps = currentRoot->propsBase();
+          const bool compatibleType = previousProps && currentProps &&
+                                      previousProps->propsTypeId() == currentProps->propsTypeId();
+          const bool equivalentProps = compatibleType && previousRoot->hasEquivalentProps(*currentRoot);
+          NodeTag rootTag = currentRoot->nodeTag();
+          if (rootTag == NODE_TAG_NONE)
+          {
+            rootTag = previousRoot->nodeTag();
+          }
+          out.addEntry(rootTag,
+                       0,
+                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
+                       compatibleType,
+                       equivalentProps,
+                       0,
+                       0);
+          out.valid = true;
+          out.fullRebuild = false;
+          return true;
+        }
         if (!previousNestable || !currentNestable)
         {
           return false;

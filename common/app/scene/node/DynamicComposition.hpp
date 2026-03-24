@@ -131,11 +131,14 @@ namespace loka
           {
             if (!this->localCompositionDiff()->isStableRetainOnly())
             {
-              for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry; entry = entry->nextInComposition)
+              if (!this->applyCurrentRootDefinitionPropsToLiveRoot())
               {
-                if (!entry->equivalentProps)
+                for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry; entry = entry->nextInComposition)
                 {
-                  this->applyCurrentDefinitionPropsToLiveChild(entry->tag);
+                  if (!entry->equivalentProps)
+                  {
+                    this->applyCurrentDefinitionPropsToLiveChild(entry->tag);
+                  }
                 }
               }
             }
@@ -150,7 +153,8 @@ namespace loka
           if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff())
           {
             std::vector<Node *> retainedChildren;
-            if (this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren))
+            if (this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren) ||
+                this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
             {
               this->promoteCurrentCompositionSnapshot();
               for (size_t i = 0; i < retainedChildren.size(); ++i)

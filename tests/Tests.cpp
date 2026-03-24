@@ -688,6 +688,33 @@ void testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire()
   assert(entry->currentIndex == -1);
 }
 
+void testBuildNodeCompositionDiffByTagSupportsSingleRootReplace()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  NodeComposition previous;
+  previous.declare(Button("Previous"));
+
+  NodeComposition current;
+  current.declare(EditText(loka::core::StaticState<loka::core::String>(loka::core::String::Literal("Current"))));
+
+  NodeCompositionDiff diff;
+  bool built = buildNodeCompositionDiffByTag(previous, current, diff);
+  assert(built);
+  assert(diff.valid);
+  assert(!diff.fullRebuild);
+  assert(diff.entryCount() == 1);
+
+  NodeCompositionDiff::Entry *entry = diff.entriesHead();
+  assert(entry != 0);
+  assert(entry->action == NodeCompositionDiff::ACTION_REPLACE);
+  assert(!entry->compatibleType);
+  assert(!entry->equivalentProps);
+  assert(entry->previousIndex == 0);
+  assert(entry->currentIndex == 0);
+}
+
 void testNodeDefinitionsReportCompatibleLiveNodeKinds()
 {
   using namespace loka::app;
@@ -3454,7 +3481,7 @@ void testDynamicBoundaryPreservesChildIdentityUntilChildDirty()
   }
   scene.flushInvalidation();
   assert(rootBoundary->childrenHead() != 0);
-  assert(platform.lastFullRebuild_ == true);
+  assert(platform.lastFullRebuild_ == false);
   assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
 
   scene.unmount();
@@ -3681,7 +3708,7 @@ void testDynamicBoundaryObservedParentOwnedStateTriggersChildRecompose()
   scene.flushInvalidation();
   assert(g_foreignDynamicObservedComposeCount >= 2);
   assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
-  assert(platform.lastFullRebuild_ == true);
+  assert(platform.lastFullRebuild_ == false);
 
   scene.unmount();
   g_foreignBoundaryObservedState = 0;

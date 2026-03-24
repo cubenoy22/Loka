@@ -378,6 +378,13 @@ namespace loka
           {
             compositionDiff_.fullRebuild = false;
           }
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+          loka::platform::DebugLogSceneFlags(static_cast<void *>(this),
+                                            "refresh",
+                                            static_cast<unsigned int>(compositionDiff_.flags),
+                                            static_cast<unsigned int>(boundaryFlags),
+                                            compositionDiff_.fullRebuild ? 1 : 0);
+#endif
           return true;
         }
 
@@ -387,11 +394,19 @@ namespace loka
           {
             return;
           }
+          platformController_->beginApplyCycle();
           NodeDirtyFlags flags = compositionDiff_.flags;
           if (flags == NODE_DIRTY_NONE)
           {
             flags = NODE_DIRTY_PROPS;
           }
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+          loka::platform::DebugLogSceneFlags(static_cast<void *>(this),
+                                            "apply",
+                                            static_cast<unsigned int>(flags),
+                                            static_cast<unsigned int>(director_.aggregatePendingBoundaryFlags()),
+                                            compositionDiff_.fullRebuild ? 1 : 0);
+#endif
           lastApplyPlan_ = buildPlatformApplyPlan(rootNode_, director_, compositionDiff_);
           applyPendingBoundaryUpdates(rootNode_, director_, lastApplyPlan_);
           if (!shouldSkipGlobalChangeForApplyPlan(platformController_, lastApplyPlan_))
@@ -437,6 +452,32 @@ namespace loka
           while (root)
           {
             const BoundaryComposeResult &result = root->composeResult();
+            const NodeCompositionDiff *diff = root->localCompositionDiff();
+            const INestable *rootNestable = root->asNestable();
+            const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
+#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+            loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(root->scene()),
+                                                     static_cast<void *>(root),
+                                                     static_cast<unsigned int>(root->kind()),
+                                                     root->testId().c_str(),
+                                                     root->previousCompositionSnapshot().root() ? 1 : 0,
+                                                     root->currentCompositionSnapshot().root() ? 1 : 0,
+                                                     root->compositionTransaction().empty() ? 1 : 0,
+                                                     rootNestable ? static_cast<unsigned int>(rootNestable->childrenCount()) : 0U,
+                                                     firstChild ? static_cast<unsigned int>(firstChild->kind()) : 0U,
+                                                     firstChild ? firstChild->testId().c_str() : "");
+            loka::platform::DebugLogSceneRootDiffDecision(static_cast<void *>(root->scene()),
+                                                         static_cast<void *>(root),
+                                                         static_cast<unsigned int>(result.dirtyFlagsSeen),
+                                                         result.composed ? 1 : 0,
+                                                         result.preservedNativeContexts ? 1 : 0);
+            loka::platform::DebugLogSceneRootDiffShape(static_cast<void *>(root->scene()),
+                                                      static_cast<void *>(root),
+                                                      diff ? static_cast<int>(diff->entryCount()) : 0,
+                                                      (diff && diff->hasIncompatibleRetain()) ? 1 : 0,
+                                                      (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
+                                                      (diff && diff->isStableRetainOnly()) ? 1 : 0);
+#endif
             if (!result.composed || !result.preservedNativeContexts)
             {
               return false;

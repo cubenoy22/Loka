@@ -33,6 +33,7 @@ int main()
   testNodeCompositionDiffTracksEntries();
   testNodeCompositionTransactionTracksWorkingSet();
   testBuildNodeCompositionDiffByTagTracksRetainReplaceRetire();
+  testBuildNodeCompositionDiffByTagSupportsSingleRootReplace();
   testNodeDefinitionsReportCompatibleLiveNodeKinds();
   testCompositionListReplacePreservesOrder();
   testNodeCompositionSnapshotOwnsClonedRoot();

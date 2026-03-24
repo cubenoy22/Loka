@@ -166,15 +166,19 @@ void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const 
 void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
 {
   ++this->redrawStats_.onChangeCalls;
+  this->redrawStats_.lastOnChangeFlags = flags;
+  this->redrawStats_.lastOnChangeFullRebuild = fullRebuild;
   rootNode_ = rootNode;
   if (!rootHwnd_ || !rootNode_)
   {
+    this->redrawStats_.lastOnChangeRequiredLayout = false;
     return;
   }
 
   const bool requiresLayout = (flags & loka::app::scene::NODE_DIRTY_INITIAL) != 0 ||
                               (flags & loka::app::scene::NODE_DIRTY_LAYOUT) != 0 ||
                               (flags & loka::app::scene::NODE_DIRTY_CHILD) != 0;
+  this->redrawStats_.lastOnChangeRequiredLayout = requiresLayout;
   if (!requiresLayout)
   {
     return;
@@ -225,17 +229,31 @@ void Win32ScenePlatformController::onBoundaryApply(loka::app::scene::Node *rootN
   if (!info.hasBoundsHint())
   {
     ++this->redrawStats_.queuedFullWindowInvalidates;
+    ++this->redrawStats_.queuedMissingBoundsInvalidates;
     queueDirtyRect(rootHwnd_, 0, eraseBackground ? TRUE : FALSE, includeChildren);
     return;
   }
 
   ++this->redrawStats_.queuedRectInvalidates;
+  if (info.hasPaintBoundsHint())
+  {
+    ++this->redrawStats_.queuedPaintBoundsInvalidates;
+  }
+  else if (info.hasLayoutBoundsHint())
+  {
+    ++this->redrawStats_.queuedLayoutBoundsInvalidates;
+  }
   RECT rect;
   rect.left = info.bounds->x;
   rect.top = info.bounds->y;
   rect.right = info.bounds->x + info.bounds->width;
   rect.bottom = info.bounds->y + info.bounds->height;
   queueDirtyRect(rootHwnd_, &rect, eraseBackground ? TRUE : FALSE, includeChildren);
+}
+
+void Win32ScenePlatformController::beginApplyCycle()
+{
+  this->redrawStats_.reset();
 }
 
 void Win32ScenePlatformController::synchronize()
@@ -354,11 +372,17 @@ void Win32ScenePlatformController::dumpRedrawStatsIfNeeded()
   char buffer[256];
   ::snprintf(buffer,
              sizeof(buffer),
-             "[win32-redraw] onChange=%d localApply=%d full=%d rect=%d comp=%d opaque=%d generic=%d\n",
+             "[win32-redraw] onChange=%d localApply=%d changeFlags=0x%X changeNeedsLayout=%d changeFullRebuild=%d full=%d rect=%d layoutBounds=%d paintBounds=%d noBounds=%d comp=%d opaque=%d generic=%d\n",
              redrawStats_.onChangeCalls,
              redrawStats_.onBoundaryApplyCalls,
+             static_cast<unsigned int>(redrawStats_.lastOnChangeFlags),
+             redrawStats_.lastOnChangeRequiredLayout ? 1 : 0,
+             redrawStats_.lastOnChangeFullRebuild ? 1 : 0,
              redrawStats_.queuedFullWindowInvalidates,
              redrawStats_.queuedRectInvalidates,
+             redrawStats_.queuedLayoutBoundsInvalidates,
+             redrawStats_.queuedPaintBoundsInvalidates,
+             redrawStats_.queuedMissingBoundsInvalidates,
              redrawStats_.queuedCompositedInvalidates,
              redrawStats_.queuedOpaquePaintInvalidates,
              redrawStats_.queuedGenericPaintInvalidates);

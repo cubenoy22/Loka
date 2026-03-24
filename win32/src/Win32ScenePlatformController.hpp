@@ -53,6 +53,7 @@ public:
                                const loka::app::scene::BoundaryLocalApplyInfo &info,
                                const loka::app::scene::PlatformApplyPlan &plan);
   virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return true; }
+  virtual void beginApplyCycle();
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
@@ -69,8 +70,14 @@ private:
     RedrawStats()
         : onChangeCalls(0),
           onBoundaryApplyCalls(0),
+          lastOnChangeFlags(loka::app::scene::NODE_DIRTY_NONE),
+          lastOnChangeRequiredLayout(false),
+          lastOnChangeFullRebuild(false),
           queuedFullWindowInvalidates(0),
           queuedRectInvalidates(0),
+          queuedLayoutBoundsInvalidates(0),
+          queuedPaintBoundsInvalidates(0),
+          queuedMissingBoundsInvalidates(0),
           queuedCompositedInvalidates(0),
           queuedOpaquePaintInvalidates(0),
           queuedGenericPaintInvalidates(0)
@@ -81,8 +88,14 @@ private:
     {
       onChangeCalls = 0;
       onBoundaryApplyCalls = 0;
+      lastOnChangeFlags = loka::app::scene::NODE_DIRTY_NONE;
+      lastOnChangeRequiredLayout = false;
+      lastOnChangeFullRebuild = false;
       queuedFullWindowInvalidates = 0;
       queuedRectInvalidates = 0;
+      queuedLayoutBoundsInvalidates = 0;
+      queuedPaintBoundsInvalidates = 0;
+      queuedMissingBoundsInvalidates = 0;
       queuedCompositedInvalidates = 0;
       queuedOpaquePaintInvalidates = 0;
       queuedGenericPaintInvalidates = 0;
@@ -90,8 +103,14 @@ private:
 
     int onChangeCalls;
     int onBoundaryApplyCalls;
+    loka::app::scene::NodeDirtyFlags lastOnChangeFlags;
+    bool lastOnChangeRequiredLayout;
+    bool lastOnChangeFullRebuild;
     int queuedFullWindowInvalidates;
     int queuedRectInvalidates;
+    int queuedLayoutBoundsInvalidates;
+    int queuedPaintBoundsInvalidates;
+    int queuedMissingBoundsInvalidates;
     int queuedCompositedInvalidates;
     int queuedOpaquePaintInvalidates;
     int queuedGenericPaintInvalidates;
