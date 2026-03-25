@@ -12,28 +12,31 @@ namespace loka_floppy_bird
     GAME_DEAD = 2
   };
 
-  static const int kBoardRows = 16;
-  static const int kBoardCols = 22;
-  static const int kPipeGapRows = 4;
-  static const int kPipeWidthCols = 2;
+  static const int kWindowWidth = 320;
+  static const int kWindowHeight = 240;
+  static const int kBirdX = 72;
+  static const int kBirdWidth = 18;
+  static const int kBirdHeight = 14;
+  static const int kPipeWidth = 24;
+  static const int kPipeGapHeight = 72;
   static const int kMaxPipes = 6;
-  static const int kBirdColumn = 5;
 
-  static const double kGravity = 18.0;
-  static const double kJumpVelocity = -6.0;
-  static const double kPipeSpeed = 6.0;
-  static const double kPipeInterval = 1.55;
-  static const double kFixedStepSeconds = 1.0 / 30.0;
+  static const double kGravity = 760.0;
+  static const double kJumpVelocity = -250.0;
+  static const double kPipeSpeed = 128.0;
+  static const double kPipeInterval = 1.35;
+  static const double kFirstPipeDelay = 0.70;
+  static const double kFixedStepSeconds = 1.0 / 60.0;
   static const double kMaxFrameSeconds = 0.25;
   static const int kMaxStepsPerFrame = 8;
 
   struct Pipe
   {
     double x;
-    int gapTopRow;
+    int gapCenterY;
     bool counted;
 
-    Pipe() : x(0.0), gapTopRow(0), counted(false) {}
+    Pipe() : x(0.0), gapCenterY(kWindowHeight / 2), counted(false) {}
   };
 
   class GameLogic
@@ -41,12 +44,12 @@ namespace loka_floppy_bird
   public:
     GameLogic()
         : state_(GAME_WAITING),
-          birdRow_(initialBirdRow()),
+          birdY_(initialBirdY()),
           birdVelocity_(0.0),
           score_(0),
           pipeCount_(0),
           waitPhase_(0.0),
-          nextPipeSeconds_(kPipeInterval),
+          nextPipeSeconds_(kFirstPipeDelay),
           randomState_(1UL),
           accumulatorSeconds_(0.0)
     {
@@ -103,39 +106,29 @@ namespace loka_floppy_bird
     int pipeCount() const { return this->pipeCount_; }
     const Pipe &pipeAt(int index) const { return this->pipes_[index]; }
 
-    int birdDisplayRow() const
+    double birdY() const
     {
-      double value = this->birdRow_;
       if (this->state_ == GAME_WAITING)
       {
-        value = initialBirdRow() + sin(this->waitPhase_ * 6.28318530717958647692) * 0.45;
+        return initialBirdY() + sin(this->waitPhase_ * 6.28318530717958647692) * 7.0;
       }
-      int row = static_cast<int>(value + 0.5);
-      if (row < 0)
-      {
-        row = 0;
-      }
-      if (row >= kBoardRows)
-      {
-        row = kBoardRows - 1;
-      }
-      return row;
+      return this->birdY_;
     }
 
   private:
-    static double initialBirdRow()
+    static double initialBirdY()
     {
-      return (kBoardRows - 1) * 0.5;
+      return (kWindowHeight - kBirdHeight) * 0.5;
     }
 
     void resetForNewRun()
     {
-      this->birdRow_ = initialBirdRow();
+      this->birdY_ = initialBirdY();
       this->birdVelocity_ = 0.0;
       this->score_ = 0;
       this->pipeCount_ = 0;
       this->waitPhase_ = 0.0;
-      this->nextPipeSeconds_ = kPipeInterval;
+      this->nextPipeSeconds_ = kFirstPipeDelay;
       this->accumulatorSeconds_ = 0.0;
     }
 
@@ -157,7 +150,7 @@ namespace loka_floppy_bird
       }
 
       this->birdVelocity_ += kGravity * dt;
-      this->birdRow_ += this->birdVelocity_ * dt;
+      this->birdY_ += this->birdVelocity_ * dt;
 
       this->nextPipeSeconds_ -= dt;
       while (this->nextPipeSeconds_ <= 0.0)
@@ -172,37 +165,40 @@ namespace loka_floppy_bird
         pipe.x -= kPipeSpeed * dt;
 
         if (!pipe.counted &&
-            pipe.x + kPipeWidthCols <= static_cast<double>(kBirdColumn))
+            pipe.x + kPipeWidth <= static_cast<double>(kBirdX))
         {
           pipe.counted = true;
           ++this->score_;
         }
 
-        if (pipe.x + kPipeWidthCols < 0.0)
+        if (pipe.x + kPipeWidth < 0.0)
         {
           this->removePipe(i);
         }
       }
 
-      if (this->birdRow_ < 0.0 ||
-          this->birdRow_ > static_cast<double>(kBoardRows - 1))
+      if (this->birdY_ < 0.0 ||
+          this->birdY_ + kBirdHeight > static_cast<double>(kWindowHeight))
       {
         this->state_ = GAME_DEAD;
         return;
       }
 
-      const int birdRow = this->birdDisplayRow();
+      const int birdTop = static_cast<int>(this->birdY_);
+      const int birdBottom = birdTop + kBirdHeight;
+      const int birdRight = kBirdX + kBirdWidth;
       for (int i = 0; i < this->pipeCount_; ++i)
       {
         const Pipe &pipe = this->pipes_[i];
         const int pipeLeft = static_cast<int>(pipe.x);
-        const int pipeRight = pipeLeft + kPipeWidthCols - 1;
-        if (kBirdColumn < pipeLeft || kBirdColumn > pipeRight)
+        const int pipeRight = pipeLeft + kPipeWidth;
+        if (birdRight <= pipeLeft || kBirdX >= pipeRight)
         {
           continue;
         }
-        if (birdRow < pipe.gapTopRow ||
-            birdRow >= pipe.gapTopRow + kPipeGapRows)
+        const int gapTop = pipe.gapCenterY - kPipeGapHeight / 2;
+        const int gapBottom = pipe.gapCenterY + kPipeGapHeight / 2;
+        if (birdTop < gapTop || birdBottom > gapBottom)
         {
           this->state_ = GAME_DEAD;
           return;
@@ -217,17 +213,17 @@ namespace loka_floppy_bird
         return;
       }
 
-      const int minGapTop = 2;
-      const int maxGapTop = kBoardRows - kPipeGapRows - 2;
-      int range = maxGapTop - minGapTop + 1;
+      const int minGapCenter = kPipeGapHeight / 2 + 16;
+      const int maxGapCenter = kWindowHeight - (kPipeGapHeight / 2) - 16;
+      int range = maxGapCenter - minGapCenter + 1;
       if (range < 1)
       {
         range = 1;
       }
 
       Pipe &pipe = this->pipes_[this->pipeCount_];
-      pipe.x = static_cast<double>(kBoardCols);
-      pipe.gapTopRow = minGapTop + nextRandomInt(range);
+      pipe.x = static_cast<double>(kWindowWidth);
+      pipe.gapCenterY = minGapCenter + nextRandomInt(range);
       pipe.counted = false;
       ++this->pipeCount_;
     }
@@ -248,7 +244,7 @@ namespace loka_floppy_bird
     }
 
     GameState state_;
-    double birdRow_;
+    double birdY_;
     double birdVelocity_;
     int score_;
     Pipe pipes_[kMaxPipes];

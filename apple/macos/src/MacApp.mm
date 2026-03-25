@@ -48,6 +48,8 @@
 
 namespace
 {
+  static const double kFlushTimerIntervalSeconds = 1.0 / 60.0;
+
   static NSString *MenuTitleFromString(const loka::core::String &title, const char *fallback)
   {
     std::string utf8;
@@ -167,7 +169,7 @@ void MacApp::startInvalidationFlushTimer()
   }
   LokaFlushTarget *target = [[LokaFlushTarget alloc] init];
   [target setOwner:this];
-  NSTimer *timer = [NSTimer timerWithTimeInterval:0.0
+  NSTimer *timer = [NSTimer timerWithTimeInterval:kFlushTimerIntervalSeconds
                                            target:target
                                          selector:@selector(handleFlush:)
                                          userInfo:nil

@@ -52,6 +52,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/context/MacTextContext.mm
   src/context/MacPopupMenuContext.mm
   src/context/MacImageViewContext.mm
+  src/context/MacRectSurfaceContext.mm
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 

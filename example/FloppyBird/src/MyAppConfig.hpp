@@ -16,17 +16,12 @@ public:
       : AppConfigurable(ctx),
         shared_(),
         game_(),
-        tracker_(),
-        renderedCells_()
+        tracker_()
   {
     this->tracker_.addState(&this->shared_.titleText_);
     this->tracker_.addState(&this->shared_.statusText_);
     this->tracker_.addState(&this->shared_.scoreText_);
-    for (int i = 0; i < loka_floppy_bird::kBoardRows * loka_floppy_bird::kBoardCols; ++i)
-    {
-      this->tracker_.addState(&this->shared_.cells_[i]);
-      this->renderedCells_[i] = '.';
-    }
+    this->tracker_.addState(&this->shared_.surfaceModel_);
     this->game_.seed(1UL);
     this->renderScene();
   }
@@ -34,7 +29,7 @@ public:
   virtual void compose(AppComposition &c)
   {
     c << WindowDef(WindowProps()
-                       .frame(50, 50, 440, 420)
+                       .frame(50, 50, 380, 340)
                        .scene(loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode>(
                            floppybird::MainProps(&this->shared_)))
                        .title("LokaFloppyBird")
@@ -92,63 +87,47 @@ private:
       this->shared_.statusText_.set(loka::core::String::Literal("Game Over - Press Space To Retry"), true);
     }
 
-    char nextCells[loka_floppy_bird::kBoardRows * loka_floppy_bird::kBoardCols];
-    for (int i = 0; i < loka_floppy_bird::kBoardRows * loka_floppy_bird::kBoardCols; ++i)
-    {
-      nextCells[i] = '.';
-    }
-
+    loka::app::RectSurfaceModel model;
     for (int i = 0; i < this->game_.pipeCount(); ++i)
     {
       const loka_floppy_bird::Pipe &pipe = this->game_.pipeAt(i);
-      const int left = static_cast<int>(pipe.x + 0.5);
-      for (int dx = 0; dx < loka_floppy_bird::kPipeWidthCols; ++dx)
+      const short pipeLeft = static_cast<short>(pipe.x + 0.5);
+      const short gapTop = static_cast<short>(pipe.gapCenterY - loka_floppy_bird::kPipeGapHeight / 2);
+      const short gapBottom = static_cast<short>(pipe.gapCenterY + loka_floppy_bird::kPipeGapHeight / 2);
+
+      if (model.rectCount < loka::app::RectSurfaceModel::kMaxRects)
       {
-        const int col = left + dx;
-        if (col < 0 || col >= loka_floppy_bird::kBoardCols)
-        {
-          continue;
-        }
-        for (int row = 0; row < loka_floppy_bird::kBoardRows; ++row)
-        {
-          if (row >= pipe.gapTopRow &&
-              row < pipe.gapTopRow + loka_floppy_bird::kPipeGapRows)
-          {
-            continue;
-          }
-          nextCells[row * loka_floppy_bird::kBoardCols + col] = '#';
-        }
+        model.rects[model.rectCount++] =
+            loka::app::RectSprite(pipeLeft,
+                                  0,
+                                  static_cast<short>(loka_floppy_bird::kPipeWidth),
+                                  gapTop);
+      }
+      if (model.rectCount < loka::app::RectSurfaceModel::kMaxRects)
+      {
+        model.rects[model.rectCount++] =
+            loka::app::RectSprite(pipeLeft,
+                                  gapBottom,
+                                  static_cast<short>(loka_floppy_bird::kPipeWidth),
+                                  static_cast<short>(loka_floppy_bird::kWindowHeight - gapBottom));
       }
     }
 
-    nextCells[this->game_.birdDisplayRow() * loka_floppy_bird::kBoardCols +
-              loka_floppy_bird::kBirdColumn] = '@';
-
-    for (int i = 0; i < loka_floppy_bird::kBoardRows * loka_floppy_bird::kBoardCols; ++i)
+    if (model.rectCount < loka::app::RectSurfaceModel::kMaxRects)
     {
-      if (this->renderedCells_[i] == nextCells[i])
-      {
-        continue;
-      }
-      this->renderedCells_[i] = nextCells[i];
-      if (nextCells[i] == '.')
-      {
-        this->shared_.cells_[i].set(loka::core::String::Literal(""), true);
-      }
-      else
-      {
-        char text[2];
-        text[0] = nextCells[i];
-        text[1] = 0;
-        this->shared_.cells_[i].set(loka::core::String::Literal(text), true);
-      }
+      model.rects[model.rectCount++] =
+          loka::app::RectSprite(static_cast<short>(loka_floppy_bird::kBirdX),
+                                static_cast<short>(this->game_.birdY() + 0.5),
+                                static_cast<short>(loka_floppy_bird::kBirdWidth),
+                                static_cast<short>(loka_floppy_bird::kBirdHeight));
     }
+
+    this->shared_.surfaceModel_.set(model, true);
   }
 
   floppybird::SharedModel shared_;
   loka_floppy_bird::GameLogic game_;
   loka::core::PushStateTracker tracker_;
-  char renderedCells_[loka_floppy_bird::kBoardRows * loka_floppy_bird::kBoardCols];
 };
 
 #endif

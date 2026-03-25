@@ -1,8 +1,7 @@
 #ifndef LOKA_FLOPPY_BIRD_MAIN_NODE_HPP
 #define LOKA_FLOPPY_BIRD_MAIN_NODE_HPP
 
-#include "app/Cell.hpp"
-#include "app/Grid.hpp"
+#include "app/RectSurface.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/node/StaticComposition.hpp"
@@ -22,15 +21,14 @@ namespace floppybird
         : titleText_(loka::core::String::Literal("LokaFloppyBird")),
           statusText_(loka::core::String::Literal("Press Space To Start")),
           scoreText_(loka::core::String::Literal("Score: 0")),
-          cells_()
+          surfaceModel_()
     {
     }
 
     loka::core::MutableState<loka::core::String> titleText_;
     loka::core::MutableState<loka::core::String> statusText_;
     loka::core::MutableState<loka::core::String> scoreText_;
-    loka::core::MutableState<loka::core::String>
-        cells_[loka_floppy_bird::kBoardRows * loka_floppy_bird::kBoardCols];
+    loka::core::MutableState<loka::app::RectSurfaceModel> surfaceModel_;
   };
 
   struct MainProps : public loka::app::scene::NodePropsBase<MainProps>
@@ -81,20 +79,9 @@ namespace floppybird
                 << Text(&this->props.shared_->titleText_)
                 << Text(&this->props.shared_->statusText_)
                 << Text(&this->props.shared_->scoreText_)
-                << buildBoard());
-    }
-
-  private:
-    loka::app::GridDefinition buildBoard()
-    {
-      loka::app::GridDefinition grid = loka::app::Grid()
-                                           .rows(loka_floppy_bird::kBoardRows)
-                                           .cols(loka_floppy_bird::kBoardCols);
-      for (int i = 0; i < loka_floppy_bird::kBoardRows * loka_floppy_bird::kBoardCols; ++i)
-      {
-        grid << loka::app::Cell(&this->props.shared_->cells_[i]);
-      }
-      return grid;
+                << RectSurface(&this->props.shared_->surfaceModel_)
+                       .size(loka_floppy_bird::kWindowWidth,
+                             loka_floppy_bird::kWindowHeight));
     }
   };
 }

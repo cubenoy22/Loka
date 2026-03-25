@@ -21,6 +21,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/ImageView.hpp"
+#include "app/RectSurface.hpp"
 #include "app/Box.hpp"
 #include "app/Grid.hpp"
 #include "app/ZStack.hpp"
@@ -33,6 +34,7 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "context/ToolboxImageViewContext.hpp"
+#include "context/ToolboxRectSurfaceContext.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/node/Boundary.hpp"
@@ -224,6 +226,30 @@ namespace
       }
     }
     return maxId;
+  }
+
+  bool HasRectSurfaceNode(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    if (node->kind() == loka::app::scene::NODE_KIND_RECT_SURFACE)
+    {
+      return true;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        if (HasRectSurfaceNode(child))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   short LayoutChildren(loka::app::scene::INestable *nestable,
@@ -656,6 +682,25 @@ namespace
       }
       return width;
     }
+    case loka::app::scene::NODE_KIND_RECT_SURFACE:
+    {
+      loka::app::RectSurfaceNode *surface = static_cast<loka::app::RectSurfaceNode *>(node);
+      if (controller && controller->contextMapper())
+      {
+        controller->contextMapper()->ensureRectSurfaceContext(surface);
+      }
+      if (surface->getContext())
+      {
+        ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
+        ctx->setBoundary(activeBoundary);
+      }
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
     default:
       break;
     }
@@ -702,6 +747,7 @@ namespace
     case loka::app::scene::NODE_KIND_EDIT_TEXT:
     case loka::app::scene::NODE_KIND_POPUP_MENU:
     case loka::app::scene::NODE_KIND_IMAGE_VIEW:
+    case loka::app::scene::NODE_KIND_RECT_SURFACE:
       node->render(controller);
       return;
     case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
@@ -1008,6 +1054,11 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   if (forceFullRedraw_)
   {
     forceFullRedraw_ = false;
+    render();
+    return;
+  }
+  if (HasRectSurfaceNode(rootNode_))
+  {
     render();
     return;
   }

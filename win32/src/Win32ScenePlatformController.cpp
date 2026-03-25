@@ -13,12 +13,14 @@
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
 #include "app/ImageView.hpp"
+#include "app/RectSurface.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include "context/Win32CellContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
+#include "context/Win32RectSurfaceContext.hpp"
 
 namespace
 {
@@ -900,6 +902,29 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
     LayoutState nextState = state;
     nextState.y = state.y + imageHeight + kVerticalSpacing;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+  }
+
+  if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+  {
+    Win32RectSurfaceContext *ctx = static_cast<Win32RectSurfaceContext *>(surface->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, surface->props.width_, surface->props.height_);
+    }
+    else
+    {
+      ctx = new Win32RectSurfaceContext(rootHwnd_,
+                                        state.x,
+                                        state.y,
+                                        surface->props.width_,
+                                        surface->props.height_,
+                                        surface);
+      surface->setContext(ctx);
+    }
+
+    LayoutState nextState = state;
+    nextState.y = state.y + surface->props.height_ + kVerticalSpacing;
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 

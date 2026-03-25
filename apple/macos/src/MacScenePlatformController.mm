@@ -13,6 +13,7 @@
 #include "app/ZStack.hpp"
 #include "app/Text.hpp"
 #include "app/ImageView.hpp"
+#include "app/RectSurface.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
@@ -22,6 +23,7 @@
 #include "context/MacTextContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
 #include "context/MacImageViewContext.hpp"
+#include "context/MacRectSurfaceContext.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include <map>
@@ -712,6 +714,29 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + imageHeight + kVerticalSpacing;
+    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+  }
+
+  if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+  {
+    MacRectSurfaceContext *ctx = static_cast<MacRectSurfaceContext *>(surface->getContext());
+    if (ctx)
+    {
+      ctx->relayout(state.x, state.y, surface->props.width_, surface->props.height_);
+    }
+    else
+    {
+      ctx = new MacRectSurfaceContext(rootView_,
+                                      state.x,
+                                      state.y,
+                                      surface->props.width_,
+                                      surface->props.height_,
+                                      surface);
+      surface->setContext(ctx);
+    }
+
+    LayoutState nextState = state;
+    nextState.y = state.y + surface->props.height_ + kVerticalSpacing;
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
   }
 
