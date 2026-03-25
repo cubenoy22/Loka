@@ -78,7 +78,7 @@ void MacRectSurfaceContext::draw(void *viewBounds)
   NSRect bounds = *(NSRect *)viewBounds;
   if (node_ && node_->props.clearBackground_)
   {
-    [[NSColor whiteColor] setFill];
+    [[NSColor colorWithCalibratedRed:0.85 green:0.93 blue:1.0 alpha:1.0] setFill];
     NSRectFill(bounds);
   }
   if (!node_ || !node_->props.model_)

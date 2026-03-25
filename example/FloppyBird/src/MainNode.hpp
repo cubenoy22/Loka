@@ -143,6 +143,7 @@ namespace floppybird
     {
       using namespace loka::app;
       c.declare(RectSurface(&this->props.shared_->surfaceModel_)
+                    .useRegionClip(false)
                     .size(loka_floppy_bird::kWindowWidth,
                           loka_floppy_bird::kWindowHeight));
     }

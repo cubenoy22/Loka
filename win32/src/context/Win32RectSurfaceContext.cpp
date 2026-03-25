@@ -116,7 +116,12 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
 {
   if (node_ && node_->props.clearBackground_)
   {
-    FillRect(hdc, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+    HBRUSH backgroundBrush = CreateSolidBrush(RGB(217, 237, 255));
+    if (backgroundBrush)
+    {
+      FillRect(hdc, &rect, backgroundBrush);
+      DeleteObject(backgroundBrush);
+    }
   }
   if (!node_ || !node_->props.model_)
   {

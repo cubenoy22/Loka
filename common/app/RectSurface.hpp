@@ -41,41 +41,63 @@ namespace loka
     {
       enum
       {
-        kMaxRects = 16
+        kMaxRects = 16,
+        kMaxDirtyRects = 16
+      };
+
+      struct DirtyRect
+      {
+        short x;
+        short y;
+        short width;
+        short height;
+
+        DirtyRect() : x(0), y(0), width(0), height(0) {}
+        DirtyRect(short left, short top, short rectWidth, short rectHeight)
+            : x(left), y(top), width(rectWidth), height(rectHeight) {}
+
+        bool operator==(const DirtyRect &other) const
+        {
+          return x == other.x &&
+                 y == other.y &&
+                 width == other.width &&
+                 height == other.height;
+        }
+
+        bool operator!=(const DirtyRect &other) const
+        {
+          return !(*this == other);
+        }
       };
 
       short rectCount;
-      bool hasDirtyRect;
-      short dirtyX;
-      short dirtyY;
-      short dirtyWidth;
-      short dirtyHeight;
+      short dirtyRectCount;
       RectSprite rects[kMaxRects];
+      DirtyRect dirtyRects[kMaxDirtyRects];
 
       RectSurfaceModel()
           : rectCount(0),
-            hasDirtyRect(false),
-            dirtyX(0),
-            dirtyY(0),
-            dirtyWidth(0),
-            dirtyHeight(0)
+            dirtyRectCount(0)
       {
       }
 
       bool operator==(const RectSurfaceModel &other) const
       {
         if (rectCount != other.rectCount ||
-            hasDirtyRect != other.hasDirtyRect ||
-            dirtyX != other.dirtyX ||
-            dirtyY != other.dirtyY ||
-            dirtyWidth != other.dirtyWidth ||
-            dirtyHeight != other.dirtyHeight)
+            dirtyRectCount != other.dirtyRectCount)
         {
           return false;
         }
         for (short i = 0; i < rectCount; ++i)
         {
           if (!(rects[i] == other.rects[i]))
+          {
+            return false;
+          }
+        }
+        for (short i = 0; i < dirtyRectCount; ++i)
+        {
+          if (!(dirtyRects[i] == other.dirtyRects[i]))
           {
             return false;
           }
@@ -90,20 +112,21 @@ namespace loka
 
       void setDirtyRect(short x, short y, short width, short height)
       {
+        dirtyRectCount = 0;
+        addDirtyRect(x, y, width, height);
+      }
+
+      void addDirtyRect(short x, short y, short width, short height)
+      {
         if (width <= 0 || height <= 0)
         {
-          hasDirtyRect = false;
-          dirtyX = 0;
-          dirtyY = 0;
-          dirtyWidth = 0;
-          dirtyHeight = 0;
           return;
         }
-        hasDirtyRect = true;
-        dirtyX = x;
-        dirtyY = y;
-        dirtyWidth = width;
-        dirtyHeight = height;
+        if (dirtyRectCount >= kMaxDirtyRects)
+        {
+          return;
+        }
+        dirtyRects[dirtyRectCount++] = DirtyRect(x, y, width, height);
       }
     };
 
@@ -118,12 +141,14 @@ namespace loka
       short width_;
       short height_;
       bool clearBackground_;
+      bool useRegionClip_;
 
       RectSurfaceProps()
           : model_(0),
             width_(0),
             height_(0),
-            clearBackground_(true)
+            clearBackground_(true),
+            useRegionClip_(false)
       {
       }
 
@@ -146,6 +171,12 @@ namespace loka
         return *this;
       }
 
+      RectSurfaceProps &useRegionClip(bool value)
+      {
+        this->useRegionClip_ = value;
+        return *this;
+      }
+
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
@@ -165,7 +196,11 @@ namespace loka
         {
           return height_ < other.height_;
         }
-        return clearBackground_ < other.clearBackground_;
+        if (clearBackground_ != other.clearBackground_)
+        {
+          return clearBackground_ < other.clearBackground_;
+        }
+        return useRegionClip_ < other.useRegionClip_;
       }
     };
 
@@ -221,6 +256,12 @@ namespace loka
       RectSurfaceDefinition &clearBackground(bool value)
       {
         this->props.clearBackground(value);
+        return *this;
+      }
+
+      RectSurfaceDefinition &useRegionClip(bool value)
+      {
+        this->props.useRegionClip(value);
         return *this;
       }
     };

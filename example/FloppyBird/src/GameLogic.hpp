@@ -43,7 +43,7 @@ namespace loka_floppy_bird
   {
   public:
     GameLogic()
-        : state_(GAME_WAITING),
+        : state_(GAME_PLAYING),
           birdY_(initialBirdY()),
           birdVelocity_(0.0),
           score_(0),
@@ -180,8 +180,15 @@ namespace loka_floppy_bird
       if (this->birdY_ < 0.0 ||
           this->birdY_ + kBirdHeight > static_cast<double>(kWindowHeight))
       {
-        this->state_ = GAME_DEAD;
-        return;
+        if (this->birdY_ < 0.0)
+        {
+          this->birdY_ = 0.0;
+        }
+        else
+        {
+          this->birdY_ = static_cast<double>(kWindowHeight - kBirdHeight);
+        }
+        this->birdVelocity_ = 0.0;
       }
 
       const int birdTop = static_cast<int>(this->birdY_);
@@ -200,8 +207,7 @@ namespace loka_floppy_bird
         const int gapBottom = pipe.gapCenterY + kPipeGapHeight / 2;
         if (birdTop < gapTop || birdBottom > gapBottom)
         {
-          this->state_ = GAME_DEAD;
-          return;
+          continue;
         }
       }
     }
