@@ -146,6 +146,24 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         return 0;
       }
       break;
+    case WM_KEYDOWN:
+      if (self->app_)
+      {
+        char key = 0;
+        if (wParam == VK_SPACE)
+        {
+          key = ' ';
+        }
+        else if (wParam >= 0x20 && wParam <= 0x7E)
+        {
+          key = static_cast<char>(wParam);
+        }
+        if (key != 0 && self->app_->handleKeyPress(key))
+        {
+          return 0;
+        }
+      }
+      break;
     case WM_ACTIVATE:
       if (self->app_ && LOWORD(wParam) != WA_INACTIVE)
       {

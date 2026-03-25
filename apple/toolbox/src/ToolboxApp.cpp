@@ -252,13 +252,17 @@ void ToolboxApp::run()
     else if (event.what == keyDown || event.what == autoKey)
     {
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
+      char key = static_cast<char>(event.message & charCodeMask);
       if (active)
       {
-        char key = static_cast<char>(event.message & charCodeMask);
         if (active->handleKeyDown(key))
         {
           continue;
         }
+      }
+      if (this->handleKeyPress(key))
+      {
+        continue;
       }
       long choice = MenuKey(static_cast<char>(event.message & charCodeMask));
       if (choice != 0)
@@ -268,6 +272,18 @@ void ToolboxApp::run()
         handleMenuCommand(menuId, item);
         HiliteMenu(0);
       }
+    }
+    if (this->wantsIdleUpdates())
+    {
+      static unsigned long lastTick = TickCount();
+      unsigned long now = TickCount();
+      double elapsedSeconds = 0.0;
+      if (now >= lastTick)
+      {
+        elapsedSeconds = static_cast<double>(now - lastTick) / 60.0;
+      }
+      lastTick = now;
+      this->handleIdle(elapsedSeconds);
     }
     flushPendingWindowClosures();
   }

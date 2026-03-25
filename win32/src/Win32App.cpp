@@ -4,6 +4,7 @@
 #include <commdlg.h>
 #include "app/App.hpp"
 #include "loka/platform/StringUTF8.hpp"
+#include "platform/Win32Profiler.hpp"
 
 Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
     : App(config),
@@ -47,7 +48,6 @@ void Win32App::windowClosed(Window *window)
 
 void Win32App::run()
 {
-  // 基底クラスの実行
   App::run();
 
   // 各ウィンドウにこのアプリインスタンスへの参照を設定する
@@ -65,21 +65,67 @@ void Win32App::run()
     }
   }
 
-  // Win32メッセージループ
-  MSG msg;
-  while (GetMessage(&msg, NULL, 0, 0))
+  if (!this->wantsIdleUpdates())
   {
-    HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
-    if (root && IsDialogMessage(root, &msg))
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0))
     {
-      continue;
+      HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
+      if (root && IsDialogMessage(root, &msg))
+      {
+        continue;
+      }
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+      this->flushWindowInvalidations();
     }
-    TranslateMessage(&msg);
-    DispatchMessage(&msg);
-    this->flushWindowInvalidations();
+    return;
   }
-  // GetMessageが0を返したら (PostQuitMessageが呼ばれたら) ループを抜ける
-  // run()メソッドが終了し、WinMainに戻る
+
+  LARGE_INTEGER frequency;
+  LARGE_INTEGER lastTick;
+  QueryPerformanceFrequency(&frequency);
+  QueryPerformanceCounter(&lastTick);
+
+  bool running = true;
+  while (running)
+  {
+    MSG msg;
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+    {
+      if (msg.message == WM_QUIT)
+      {
+        running = false;
+        break;
+      }
+      HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
+      if (root && IsDialogMessage(root, &msg))
+      {
+        continue;
+      }
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
+    if (!running)
+    {
+      break;
+    }
+
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    double elapsedSeconds = 0.0;
+    if (frequency.QuadPart > 0)
+    {
+      elapsedSeconds = static_cast<double>(now.QuadPart - lastTick.QuadPart) /
+                       static_cast<double>(frequency.QuadPart);
+    }
+    lastTick = now;
+
+    this->handleIdle(elapsedSeconds);
+    this->flushMenuInvalidation();
+    this->flushWindowInvalidations();
+    Sleep(1);
+  }
 }
 
 bool Win32App::handleMenuCommand(int commandId, Window *window)

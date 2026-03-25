@@ -2,6 +2,7 @@
 #define LOKA_MAC_APP_HPP
 
 #include "app/App.hpp"
+#include <mach/mach_time.h>
 #include <vector>
 
 class MacWindow;
@@ -44,6 +45,8 @@ private:
   void *menuTarget_;
   void *flushTarget_;
   void *flushTimer_;
+  unsigned long long lastIdleTick_;
+  mach_timebase_info_data_t idleTimebase_;
 };
 
 #endif // LOKA_MAC_APP_HPP

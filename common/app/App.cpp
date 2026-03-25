@@ -66,6 +66,24 @@ void App::run()
   reflectInitialVisibilityChunks();
 }
 
+bool App::wantsIdleUpdates() const
+{
+  return config_ ? config_->wantsIdleUpdates() : false;
+}
+
+void App::handleIdle(double elapsedSeconds)
+{
+  if (config_)
+  {
+    config_->onIdle(elapsedSeconds);
+  }
+}
+
+bool App::handleKeyPress(char key)
+{
+  return config_ ? config_->handleKeyPress(key) : false;
+}
+
 // --- visibility chunk反映をprivate関数に分離 ---
 void App::reflectInitialVisibilityChunks()
 {

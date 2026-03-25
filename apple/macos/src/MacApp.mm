@@ -4,6 +4,7 @@
 #include "MacObjCCompat.hpp"
 #include <AppKit/AppKit.h>
 #include <ApplicationServices/ApplicationServices.h>
+#include <mach/mach_time.h>
 #include "app/AppComponent.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -73,8 +74,10 @@ namespace
 }
 
 MacApp::MacApp(AppConfigurable *config)
-    : App(config), nextCommandId_(1), commands_(), bindings_(), menuTarget_(0), flushTarget_(0), flushTimer_(0)
+    : App(config), nextCommandId_(1), commands_(), bindings_(), menuTarget_(0), flushTarget_(0), flushTimer_(0), lastIdleTick_(0), idleTimebase_()
 {
+  idleTimebase_.numer = 0;
+  idleTimebase_.denom = 0;
 }
 
 MacApp::~MacApp()
@@ -101,6 +104,8 @@ void MacApp::run()
   }
 
   App::run();
+  mach_timebase_info(&idleTimebase_);
+  lastIdleTick_ = mach_absolute_time();
 
   if (group_)
   {
@@ -130,6 +135,22 @@ void MacApp::quit()
 
 void MacApp::flushInvalidationsTick()
 {
+  if (this->wantsIdleUpdates())
+  {
+    const unsigned long long now = mach_absolute_time();
+    double elapsedSeconds = 0.0;
+    if (lastIdleTick_ != 0 && idleTimebase_.denom != 0)
+    {
+      const unsigned long long elapsed = now - lastIdleTick_;
+      const double nanos =
+          static_cast<double>(elapsed) *
+          static_cast<double>(idleTimebase_.numer) /
+          static_cast<double>(idleTimebase_.denom);
+      elapsedSeconds = nanos * 1.0e-9;
+    }
+    lastIdleTick_ = now;
+    this->handleIdle(elapsedSeconds);
+  }
   if (!IsEventTrackingRunLoopMode())
   {
     this->flushMenuInvalidation();

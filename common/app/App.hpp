@@ -22,6 +22,9 @@ public:
   virtual void quit() = 0;
   virtual void windowClosed(Window *window);
   virtual bool handleMenuCommand(int commandId, Window *window);
+  bool wantsIdleUpdates() const;
+  void handleIdle(double elapsedSeconds);
+  bool handleKeyPress(char key);
   void requestMenuInvalidation();
   bool flushMenuInvalidation();
   void invalidateMenu();
