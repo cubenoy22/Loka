@@ -9,6 +9,18 @@
 
 namespace
 {
+  static void SetUsesSingleLineModeCompat(NSTextField *label, BOOL value)
+  {
+    if (!label)
+    {
+      return;
+    }
+    if ([label respondsToSelector:@selector(setUsesSingleLineMode:)])
+    {
+      [label setUsesSingleLineMode:value];
+    }
+  }
+
   static void ReleaseCapturedBitmap(void *handle, void *)
   {
     NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
@@ -67,14 +79,14 @@ MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int he
     const bool wrapChar = attr.hasWrapValue_ && attr.wrapValue_ == loka::app::TEXT_WRAP_CHAR;
     if (wrapWord || wrapChar)
     {
-      [label setUsesSingleLineMode:NO];
+      SetUsesSingleLineModeCompat(label, NO);
       [cell setWraps:YES];
       [cell setScrollable:NO];
       [cell setLineBreakMode:wrapChar ? NSLineBreakByCharWrapping : NSLineBreakByWordWrapping];
     }
     else
     {
-      [label setUsesSingleLineMode:YES];
+      SetUsesSingleLineModeCompat(label, YES);
       [cell setWraps:NO];
       [cell setScrollable:YES];
       NSLineBreakMode mode = NSLineBreakByClipping;

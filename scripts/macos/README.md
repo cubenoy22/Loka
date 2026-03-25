@@ -18,7 +18,7 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Leopard multi-arch path excluding `ppc64`.
   - Defaults: `DEPLOYMENT_TARGET=10.5`, `ARCHS=ppc;i386;x86_64`, `MAC_OS_10_4=0`
   - Uses `OSX_SYSROOT=/Developer/SDKs/MacOSX10.5.sdk` by default.
-  - By default builds app targets only (`LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`) and creates merged outputs in `build/macos-10.5-ub1/universal`.
+  - By default builds app targets only (`LokaHelloMacOS`, `LokaMineMacOS`, `LokaPerfArenaMacOS`, `LokaSimpleViewerMacOS`) and creates merged outputs in `build/macos-10.5-ub1/universal`.
 
 - `scripts/macos/build-10_7.sh`
   - Standard build path for Lion and newer.
@@ -27,7 +27,7 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
 - `scripts/macos/build-ub2.sh`
   - Universal Binary 2 path for modern macOS.
   - Defaults: `DEPLOYMENT_TARGET=11.0`, `ARCHS=arm64;x86_64`, `MAC_OS_10_4=0`
-  - By default builds app targets only (`LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`).
+  - By default builds app targets only (`LokaHelloMacOS`, `LokaMineMacOS`, `LokaPerfArenaMacOS`, `LokaSimpleViewerMacOS`).
 
 - `scripts/macos/build.sh`
   - Shared implementation used by the two wrapper scripts.

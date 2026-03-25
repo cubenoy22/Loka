@@ -4,6 +4,7 @@ set -euo pipefail
 loka_known_targets() {
   echo "LokaHelloMacOS"
   echo "LokaMineMacOS"
+  echo "LokaPerfArenaMacOS"
   echo "LokaSimpleViewerMacOS"
 }
 
@@ -11,6 +12,7 @@ loka_target_rel_path() {
   case "$1" in
     LokaHelloMacOS) echo "example/HelloWorld/LokaHelloMacOS" ;;
     LokaMineMacOS) echo "example/MineSweeper/LokaMineMacOS" ;;
+    LokaPerfArenaMacOS) echo "example/PerfArena/LokaPerfArenaMacOS" ;;
     LokaSimpleViewerMacOS) echo "example/SimpleViewer/LokaSimpleViewerMacOS" ;;
     *) return 1 ;;
   esac
@@ -22,6 +24,7 @@ loka_cleanup_stale_output_dirs() {
   for rel_path in \
     "example/HelloWorld/LokaHelloMacOS" \
     "example/MineSweeper/LokaMineMacOS" \
+    "example/PerfArena/LokaPerfArenaMacOS" \
     "example/SimpleViewer/LokaSimpleViewerMacOS"; do
     if [[ -d "${build_dir}/${rel_path}" ]]; then
       rm -rf "${build_dir:?}/${rel_path}"
