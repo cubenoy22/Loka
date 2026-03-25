@@ -183,15 +183,8 @@ namespace loka_floppy_bird
       if (this->birdY_ < 0.0 ||
           this->birdY_ + kBirdHeight > static_cast<double>(kWindowHeight))
       {
-        if (this->birdY_ < 0.0)
-        {
-          this->birdY_ = 0.0;
-        }
-        else
-        {
-          this->birdY_ = static_cast<double>(kWindowHeight - kBirdHeight);
-        }
-        this->birdVelocity_ = 0.0;
+        this->state_ = GAME_DEAD;
+        return;
       }
 
       const int birdTop = static_cast<int>(this->birdY_);
@@ -210,7 +203,8 @@ namespace loka_floppy_bird
         const int gapBottom = pipe.gapCenterY + kPipeGapHeight / 2;
         if (birdTop < gapTop || birdBottom > gapBottom)
         {
-          continue;
+          this->state_ = GAME_DEAD;
+          return;
         }
       }
     }

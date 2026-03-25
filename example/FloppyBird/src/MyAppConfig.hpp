@@ -64,9 +64,11 @@ public:
         tracker_(),
         lastSnapshot_(),
         hasLastSnapshot_(false),
-        cachedModel_()
+        cachedModel_(),
+        lastScore_(-1)
   {
     this->tracker_.addState(&this->shared_.surfaceModel_);
+    this->tracker_.addState(&this->shared_.scoreText_);
     this->game_.seed(1UL);
     this->renderScene();
   }
@@ -75,10 +77,8 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(50, 50, 380, 340)
-                       .scene(loka::app::RectSurface(&this->shared_.surfaceModel_)
-                                  .useRegionClip(false)
-                                  .size(loka_floppy_bird::kWindowWidth,
-                                        loka_floppy_bird::kWindowHeight))
+                       .scene(loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode>(
+                           floppybird::MainProps(&this->shared_)))
                        .title("LokaFloppyBird")
                        .visible(true));
   }
@@ -142,6 +142,13 @@ private:
   void renderScene()
   {
     RenderSnapshot snapshot;
+    const int score = this->game_.score();
+    if (score != this->lastScore_)
+    {
+      this->shared_.scoreText_.set(loka::core::String::Literal("Score: ")
+                                       + loka::core::String::FromInt(score));
+      this->lastScore_ = score;
+    }
     if (!this->buildSnapshot(snapshot))
     {
       return;
@@ -186,6 +193,7 @@ private:
   RenderSnapshot lastSnapshot_;
   bool hasLastSnapshot_;
   loka::app::RectSurfaceModel cachedModel_;
+  int lastScore_;
 };
 
 #endif

@@ -2,6 +2,8 @@
 #define LOKA_FLOPPY_BIRD_MAIN_NODE_HPP
 
 #include "app/RectSurface.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "GameLogic.hpp"
 
@@ -16,10 +18,12 @@ namespace floppybird
   struct SharedModel
   {
     SharedModel()
-        : surfaceModel_()
+        : scoreText_(loka::core::String::Literal("Score: 0")),
+          surfaceModel_()
     {
     }
 
+    loka::core::MutableState<loka::core::String> scoreText_;
     loka::core::MutableState<loka::app::RectSurfaceModel> surfaceModel_;
   };
 
@@ -67,10 +71,12 @@ namespace floppybird
     {
       using namespace loka::app;
       this->props.assertInitialized();
-      c.declare(RectSurface(&this->props.shared_->surfaceModel_)
-                    .useRegionClip(false)
-                    .size(loka_floppy_bird::kWindowWidth,
-                          loka_floppy_bird::kWindowHeight));
+      c.declare(VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
+                    << Text(&this->props.shared_->scoreText_)
+                    << RectSurface(&this->props.shared_->surfaceModel_)
+                           .useRegionClip(false)
+                           .size(loka_floppy_bird::kWindowWidth,
+                                 loka_floppy_bird::kWindowHeight));
     }
   };
 }
