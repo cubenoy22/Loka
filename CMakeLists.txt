@@ -27,9 +27,6 @@ add_subdirectory(example/HelloWorld)
 add_subdirectory(example/MineSweeper)
 add_subdirectory(example/PerfArena)
 add_subdirectory(example/SimpleViewer)
-endif()
-
-if(WIN32 OR (APPLE AND LOKA_ENABLE_APPLE) OR (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
 add_subdirectory(example/FloppyBird)
 endif()
 

@@ -79,6 +79,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS FloppyBird",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaFloppyBirdMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Tests",
       "type": "shell",
       "command": "cmake",
@@ -146,23 +163,6 @@
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "Build: macOS FloppyBird",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "macos-debug",
-        "--target",
-        "LokaFloppyBirdMacOS"
-      ],
-      "dependsOn": [
-        "Configure: macOS Native"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
     },
     {
       "label": "Build: Win32 FloppyBird",
