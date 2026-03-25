@@ -374,7 +374,6 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   SetPort(window_);
   Rect clip = rect;
   ClipRect(&clip);
-  EraseRect(&rect);
   scenePlatformController_->renderDirty(rect);
   Rect bounds = window_->portRect;
   ClipRect(&bounds);

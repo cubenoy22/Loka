@@ -45,13 +45,31 @@ namespace loka
       };
 
       short rectCount;
+      bool hasDirtyRect;
+      short dirtyX;
+      short dirtyY;
+      short dirtyWidth;
+      short dirtyHeight;
       RectSprite rects[kMaxRects];
 
-      RectSurfaceModel() : rectCount(0) {}
+      RectSurfaceModel()
+          : rectCount(0),
+            hasDirtyRect(false),
+            dirtyX(0),
+            dirtyY(0),
+            dirtyWidth(0),
+            dirtyHeight(0)
+      {
+      }
 
       bool operator==(const RectSurfaceModel &other) const
       {
-        if (rectCount != other.rectCount)
+        if (rectCount != other.rectCount ||
+            hasDirtyRect != other.hasDirtyRect ||
+            dirtyX != other.dirtyX ||
+            dirtyY != other.dirtyY ||
+            dirtyWidth != other.dirtyWidth ||
+            dirtyHeight != other.dirtyHeight)
         {
           return false;
         }
@@ -69,6 +87,24 @@ namespace loka
       {
         return !(*this == other);
       }
+
+      void setDirtyRect(short x, short y, short width, short height)
+      {
+        if (width <= 0 || height <= 0)
+        {
+          hasDirtyRect = false;
+          dirtyX = 0;
+          dirtyY = 0;
+          dirtyWidth = 0;
+          dirtyHeight = 0;
+          return;
+        }
+        hasDirtyRect = true;
+        dirtyX = x;
+        dirtyY = y;
+        dirtyWidth = width;
+        dirtyHeight = height;
+      }
     };
 
     class RectSurfaceNode;
@@ -81,11 +117,13 @@ namespace loka
       loka::core::State<RectSurfaceModel> *model_;
       short width_;
       short height_;
+      bool clearBackground_;
 
       RectSurfaceProps()
           : model_(0),
             width_(0),
-            height_(0)
+            height_(0),
+            clearBackground_(true)
       {
       }
 
@@ -99,6 +137,12 @@ namespace loka
       {
         this->width_ = width;
         this->height_ = height;
+        return *this;
+      }
+
+      RectSurfaceProps &clearBackground(bool value)
+      {
+        this->clearBackground_ = value;
         return *this;
       }
 
@@ -117,7 +161,11 @@ namespace loka
         {
           return width_ < other.width_;
         }
-        return height_ < other.height_;
+        if (height_ != other.height_)
+        {
+          return height_ < other.height_;
+        }
+        return clearBackground_ < other.clearBackground_;
       }
     };
 
@@ -167,6 +215,12 @@ namespace loka
       RectSurfaceDefinition &size(short width, short height)
       {
         this->props.size(width, height);
+        return *this;
+      }
+
+      RectSurfaceDefinition &clearBackground(bool value)
+      {
+        this->props.clearBackground(value);
         return *this;
       }
     };

@@ -76,8 +76,11 @@ void MacRectSurfaceContext::relayout(int x, int y, int width, int height)
 void MacRectSurfaceContext::draw(void *viewBounds)
 {
   NSRect bounds = *(NSRect *)viewBounds;
-  [[NSColor whiteColor] setFill];
-  NSRectFill(bounds);
+  if (node_ && node_->props.clearBackground_)
+  {
+    [[NSColor whiteColor] setFill];
+    NSRectFill(bounds);
+  }
   if (!node_ || !node_->props.model_)
   {
     return;

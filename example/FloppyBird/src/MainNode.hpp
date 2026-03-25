@@ -13,7 +13,17 @@ namespace floppybird
   {
   };
 
+  class UiTypeTag
+  {
+  };
+
+  class GameTypeTag
+  {
+  };
+
   class MainNode;
+  class UiNode;
+  class GameNode;
 
   struct SharedModel
   {
@@ -29,6 +39,48 @@ namespace floppybird
     loka::core::MutableState<loka::core::String> statusText_;
     loka::core::MutableState<loka::core::String> scoreText_;
     loka::core::MutableState<loka::app::RectSurfaceModel> surfaceModel_;
+  };
+
+  struct UiProps : public loka::app::scene::NodePropsBase<UiProps>
+  {
+    typedef UiNode NodeType;
+    typedef UiTypeTag TypeTag;
+
+    SharedModel *shared_;
+
+    UiProps() : shared_(0) {}
+    explicit UiProps(SharedModel *shared) : shared_(shared) {}
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != propsTypeId())
+      {
+        return false;
+      }
+      const UiProps &other = static_cast<const UiProps &>(rhs);
+      return this->shared_ < other.shared_;
+    }
+  };
+
+  struct GameProps : public loka::app::scene::NodePropsBase<GameProps>
+  {
+    typedef GameNode NodeType;
+    typedef GameTypeTag TypeTag;
+
+    SharedModel *shared_;
+
+    GameProps() : shared_(0) {}
+    explicit GameProps(SharedModel *shared) : shared_(shared) {}
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != propsTypeId())
+      {
+        return false;
+      }
+      const GameProps &other = static_cast<const GameProps &>(rhs);
+      return this->shared_ < other.shared_;
+    }
   };
 
   struct MainProps : public loka::app::scene::NodePropsBase<MainProps>
@@ -63,6 +115,39 @@ namespace floppybird
     }
   };
 
+  class UiNode : public loka::app::scene::StaticCompositionBoundaryNodeBase<UiProps>
+  {
+  public:
+    UiNode(const UiProps &props)
+        : loka::app::scene::StaticCompositionBoundaryNodeBase<UiProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      (void)c;
+      // Temporarily disable text composition while we focus on sprite redraw costs.
+    }
+  };
+
+  class GameNode : public loka::app::scene::StaticCompositionBoundaryNodeBase<GameProps>
+  {
+  public:
+    GameNode(const GameProps &props)
+        : loka::app::scene::StaticCompositionBoundaryNodeBase<GameProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      c.declare(RectSurface(&this->props.shared_->surfaceModel_)
+                    .size(loka_floppy_bird::kWindowWidth,
+                          loka_floppy_bird::kWindowHeight));
+    }
+  };
+
   class MainNode : public loka::app::scene::StaticCompositionBoundaryNodeBase<MainProps>
   {
   public:
@@ -75,13 +160,7 @@ namespace floppybird
     {
       using namespace loka::app;
       this->props.assertInitialized();
-      c.declare(VStack()
-                << Text(&this->props.shared_->titleText_)
-                << Text(&this->props.shared_->statusText_)
-                << Text(&this->props.shared_->scoreText_)
-                << RectSurface(&this->props.shared_->surfaceModel_)
-                       .size(loka_floppy_bird::kWindowWidth,
-                             loka_floppy_bird::kWindowHeight));
+      c.declare(loka::app::scene::BoundaryDefinition<GameProps, GameNode>(GameProps(this->props.shared_)));
     }
   };
 }

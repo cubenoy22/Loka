@@ -252,6 +252,93 @@ namespace
     return false;
   }
 
+  void RenderDirtyRectSurfaces(loka::app::scene::Node *node,
+                               ToolboxScenePlatformController *controller,
+                               const Rect &dirtyRect)
+  {
+    if (!node)
+    {
+      return;
+    }
+    if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+    {
+      ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
+      if (ctx)
+      {
+        ctx->renderDirty(dirtyRect);
+      }
+      return;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        RenderDirtyRectSurfaces(child, controller, dirtyRect);
+      }
+    }
+    (void)controller;
+  }
+
+  bool CollectRectSurfaceDirtyRect(loka::app::scene::Node *node, Rect &outRect)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    bool hasRect = false;
+    if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+    {
+      ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
+      if (ctx)
+      {
+        Rect rect;
+        if (ctx->dirtyRect(rect))
+        {
+          outRect = rect;
+          return true;
+        }
+      }
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        Rect childRect;
+        if (!CollectRectSurfaceDirtyRect(child, childRect))
+        {
+          continue;
+        }
+        if (!hasRect)
+        {
+          outRect = childRect;
+          hasRect = true;
+        }
+        else
+        {
+          if (childRect.left < outRect.left)
+          {
+            outRect.left = childRect.left;
+          }
+          if (childRect.top < outRect.top)
+          {
+            outRect.top = childRect.top;
+          }
+          if (childRect.right > outRect.right)
+          {
+            outRect.right = childRect.right;
+          }
+          if (childRect.bottom > outRect.bottom)
+          {
+            outRect.bottom = childRect.bottom;
+          }
+        }
+      }
+    }
+    return hasRect;
+  }
+
   short LayoutChildren(loka::app::scene::INestable *nestable,
                        loka::app::scene::LayoutState &state,
                        ToolboxScenePlatformController *controller,
@@ -897,6 +984,12 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
 
   if (!info.hasBoundsHint())
   {
+    Rect surfaceDirtyRect;
+    if (CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+    {
+      window_->requestInvalidateRect(surfaceDirtyRect);
+      return;
+    }
     loka::app::scene::Node *firstChild = 0;
     if (loka::app::scene::INestable *nestable = boundary->asNestable())
     {
@@ -926,6 +1019,26 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   rect.top = static_cast<short>(info.bounds->y);
   rect.right = static_cast<short>(info.bounds->x + info.bounds->width);
   rect.bottom = static_cast<short>(info.bounds->y + info.bounds->height);
+  Rect surfaceDirtyRect;
+  if (CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+  {
+    if (surfaceDirtyRect.left < rect.left)
+    {
+      rect.left = surfaceDirtyRect.left;
+    }
+    if (surfaceDirtyRect.top < rect.top)
+    {
+      rect.top = surfaceDirtyRect.top;
+    }
+    if (surfaceDirtyRect.right > rect.right)
+    {
+      rect.right = surfaceDirtyRect.right;
+    }
+    if (surfaceDirtyRect.bottom > rect.bottom)
+    {
+      rect.bottom = surfaceDirtyRect.bottom;
+    }
+  }
   window_->requestInvalidateRect(rect);
 }
 
@@ -1057,15 +1170,21 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  if (HasRectSurfaceNode(rootNode_))
-  {
-    render();
-    return;
-  }
   if (textHits_.empty() && popupHits_.empty() && buttonControls_.empty() && editControls_.empty())
   {
-    render();
+    if (HasRectSurfaceNode(rootNode_))
+    {
+      RenderDirtyRectSurfaces(rootNode_, this, rect);
+    }
+    else
+    {
+      render();
+    }
     return;
+  }
+  if (HasRectSurfaceNode(rootNode_))
+  {
+    RenderDirtyRectSurfaces(rootNode_, this, rect);
   }
   for (size_t i = 0; i < popupHits_.size(); ++i)
   {

@@ -16,7 +16,9 @@ public:
       : AppConfigurable(ctx),
         shared_(),
         game_(),
-        tracker_()
+        tracker_(),
+        previousSurfaceModel_(),
+        hasPreviousSurfaceModel_(false)
   {
     this->tracker_.addState(&this->shared_.titleText_);
     this->tracker_.addState(&this->shared_.statusText_);
@@ -69,6 +71,115 @@ public:
   }
 
 private:
+  static bool collectModelBounds(const loka::app::RectSurfaceModel &model,
+                                 short &left,
+                                 short &top,
+                                 short &right,
+                                 short &bottom)
+  {
+    if (model.rectCount <= 0)
+    {
+      left = top = right = bottom = 0;
+      return false;
+    }
+    left = model.rects[0].x;
+    top = model.rects[0].y;
+    right = static_cast<short>(model.rects[0].x + model.rects[0].width);
+    bottom = static_cast<short>(model.rects[0].y + model.rects[0].height);
+    for (short i = 1; i < model.rectCount; ++i)
+    {
+      const loka::app::RectSprite &sprite = model.rects[i];
+      if (sprite.x < left)
+      {
+        left = sprite.x;
+      }
+      if (sprite.y < top)
+      {
+        top = sprite.y;
+      }
+      if (sprite.x + sprite.width > right)
+      {
+        right = static_cast<short>(sprite.x + sprite.width);
+      }
+      if (sprite.y + sprite.height > bottom)
+      {
+        bottom = static_cast<short>(sprite.y + sprite.height);
+      }
+    }
+    return true;
+  }
+
+  static void applyDirtyHint(loka::app::RectSurfaceModel &model,
+                             const loka::app::RectSurfaceModel *previousModel,
+                             short maxWidth,
+                             short maxHeight)
+  {
+    short left = 0;
+    short top = 0;
+    short right = 0;
+    short bottom = 0;
+    bool hasBounds = collectModelBounds(model, left, top, right, bottom);
+    if (previousModel)
+    {
+      short prevLeft = 0;
+      short prevTop = 0;
+      short prevRight = 0;
+      short prevBottom = 0;
+      if (collectModelBounds(*previousModel, prevLeft, prevTop, prevRight, prevBottom))
+      {
+        if (!hasBounds)
+        {
+          left = prevLeft;
+          top = prevTop;
+          right = prevRight;
+          bottom = prevBottom;
+          hasBounds = true;
+        }
+        else
+        {
+          if (prevLeft < left)
+          {
+            left = prevLeft;
+          }
+          if (prevTop < top)
+          {
+            top = prevTop;
+          }
+          if (prevRight > right)
+          {
+            right = prevRight;
+          }
+          if (prevBottom > bottom)
+          {
+            bottom = prevBottom;
+          }
+        }
+      }
+    }
+    if (!hasBounds)
+    {
+      model.setDirtyRect(0, 0, 0, 0);
+      return;
+    }
+    if (left < 0)
+    {
+      left = 0;
+    }
+    if (top < 0)
+    {
+      top = 0;
+    }
+    if (right > maxWidth)
+    {
+      right = maxWidth;
+    }
+    if (bottom > maxHeight)
+    {
+      bottom = maxHeight;
+    }
+    model.setDirtyRect(left, top, static_cast<short>(right - left), static_cast<short>(bottom - top));
+  }
+
   void renderScene()
   {
     this->shared_.scoreText_.set(loka::core::String::Literal("Score: ")
@@ -122,12 +233,21 @@ private:
                                 static_cast<short>(loka_floppy_bird::kBirdHeight));
     }
 
+    applyDirtyHint(model,
+                   this->hasPreviousSurfaceModel_ ? &this->previousSurfaceModel_ : 0,
+                   static_cast<short>(loka_floppy_bird::kWindowWidth),
+                   static_cast<short>(loka_floppy_bird::kWindowHeight));
+
     this->shared_.surfaceModel_.set(model, true);
+    this->previousSurfaceModel_ = model;
+    this->hasPreviousSurfaceModel_ = true;
   }
 
   floppybird::SharedModel shared_;
   loka_floppy_bird::GameLogic game_;
   loka::core::PushStateTracker tracker_;
+  loka::app::RectSurfaceModel previousSurfaceModel_;
+  bool hasPreviousSurfaceModel_;
 };
 
 #endif

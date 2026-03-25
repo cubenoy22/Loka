@@ -114,7 +114,10 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
 
 void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
 {
-  FillRect(hdc, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+  if (node_ && node_->props.clearBackground_)
+  {
+    FillRect(hdc, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)));
+  }
   if (!node_ || !node_->props.model_)
   {
     return;

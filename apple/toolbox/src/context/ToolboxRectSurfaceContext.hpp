@@ -12,6 +12,8 @@ public:
 
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);
   virtual void render(loka::app::scene::IPlatformController *);
+  void renderDirty(const Rect &dirtyRect);
+  bool dirtyRect(Rect &outRect) const;
 
   void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
 
