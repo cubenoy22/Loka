@@ -22,7 +22,13 @@ public:
   void draw(void *viewBounds);
 
 private:
+  static void ModelChangedThunk(void *userData);
+  void bindModel();
+  void unbindModel();
+  void applyModel();
+
   loka::app::RectSurfaceNode *node_;
+  loka::core::State<loka::app::RectSurfaceModel> *modelState_;
   void *view_;
 };
 

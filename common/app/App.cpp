@@ -14,7 +14,8 @@ App::App(AppConfigurable *config)
       config_(config),
       menuBar_(0),
       activeWindow_(0),
-      menuRefresh_()
+      menuRefresh_(),
+      idleAccumulatedSeconds_(0.0)
 {
   currentApp_ = this;
 }
@@ -66,9 +67,33 @@ void App::run()
   reflectInitialVisibilityChunks();
 }
 
-bool App::wantsIdleUpdates() const
+loka::app::IdlePolicy App::idlePolicy() const
 {
-  return config_ ? config_->wantsIdleUpdates() : false;
+  return config_ ? config_->idlePolicy() : loka::app::IdlePolicy::none();
+}
+
+bool App::consumeIdle(double elapsedSeconds, double &dispatchElapsedSeconds)
+{
+  const loka::app::IdlePolicy policy = this->idlePolicy();
+  if (policy.mode == loka::app::IDLE_MODE_NONE)
+  {
+    idleAccumulatedSeconds_ = 0.0;
+    return false;
+  }
+  if (policy.mode == loka::app::IDLE_MODE_EVERY_TICK)
+  {
+    idleAccumulatedSeconds_ = 0.0;
+    dispatchElapsedSeconds = elapsedSeconds;
+    return true;
+  }
+  idleAccumulatedSeconds_ += elapsedSeconds;
+  if (policy.intervalSeconds <= 0.0 || idleAccumulatedSeconds_ >= policy.intervalSeconds)
+  {
+    dispatchElapsedSeconds = idleAccumulatedSeconds_;
+    idleAccumulatedSeconds_ = 0.0;
+    return true;
+  }
+  return false;
 }
 
 void App::handleIdle(double elapsedSeconds)

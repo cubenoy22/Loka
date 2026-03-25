@@ -91,9 +91,9 @@ public:
                         << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
   }
 
-  virtual bool wantsIdleUpdates() const
+  virtual loka::app::IdlePolicy idlePolicy() const
   {
-    return true;
+    return loka::app::IdlePolicy::interval(loka_floppy_bird::kFixedStepSeconds);
   }
 
   virtual void onIdle(double elapsedSeconds)

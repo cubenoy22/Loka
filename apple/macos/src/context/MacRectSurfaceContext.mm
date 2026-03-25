@@ -38,6 +38,7 @@ MacRectSurfaceContext::MacRectSurfaceContext(void *parentView,
                                              int height,
                                              loka::app::RectSurfaceNode *node)
     : node_(node),
+      modelState_(0),
       view_(0)
 {
   NSView *parent = (NSView *)parentView;
@@ -49,10 +50,12 @@ MacRectSurfaceContext::MacRectSurfaceContext(void *parentView,
     [parent addSubview:view];
   }
   view_ = view;
+  bindModel();
 }
 
 MacRectSurfaceContext::~MacRectSurfaceContext()
 {
+  unbindModel();
   LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
   if (view)
   {
@@ -70,6 +73,48 @@ void MacRectSurfaceContext::relayout(int x, int y, int width, int height)
     return;
   }
   [view setFrame:NSMakeRect(x, y, width, height)];
+  [view setNeedsDisplay:YES];
+}
+
+void MacRectSurfaceContext::ModelChangedThunk(void *userData)
+{
+  MacRectSurfaceContext *self = static_cast<MacRectSurfaceContext *>(userData);
+  if (self)
+  {
+    self->applyModel();
+  }
+}
+
+void MacRectSurfaceContext::bindModel()
+{
+  if (!node_)
+  {
+    return;
+  }
+  modelState_ = node_->props.model_;
+  if (modelState_)
+  {
+    modelState_->deferBind(&MacRectSurfaceContext::ModelChangedThunk, this);
+    applyModel();
+  }
+}
+
+void MacRectSurfaceContext::unbindModel()
+{
+  if (modelState_)
+  {
+    modelState_->deferUnbind(&MacRectSurfaceContext::ModelChangedThunk, this);
+    modelState_ = 0;
+  }
+}
+
+void MacRectSurfaceContext::applyModel()
+{
+  LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
+  if (!view)
+  {
+    return;
+  }
   [view setNeedsDisplay:YES];
 }
 

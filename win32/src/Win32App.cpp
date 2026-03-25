@@ -65,7 +65,7 @@ void Win32App::run()
     }
   }
 
-  if (!this->wantsIdleUpdates())
+  if (this->idlePolicy().mode == loka::app::IDLE_MODE_NONE)
   {
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0))
@@ -121,7 +121,11 @@ void Win32App::run()
     }
     lastTick = now;
 
-    this->handleIdle(elapsedSeconds);
+    double dispatchElapsedSeconds = 0.0;
+    if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
+    {
+      this->handleIdle(dispatchElapsedSeconds);
+    }
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
     Sleep(1);

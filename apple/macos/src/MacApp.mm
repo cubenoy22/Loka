@@ -137,21 +137,22 @@ void MacApp::quit()
 
 void MacApp::flushInvalidationsTick()
 {
-  if (this->wantsIdleUpdates())
+  const unsigned long long now = mach_absolute_time();
+  double elapsedSeconds = 0.0;
+  if (lastIdleTick_ != 0 && idleTimebase_.denom != 0)
   {
-    const unsigned long long now = mach_absolute_time();
-    double elapsedSeconds = 0.0;
-    if (lastIdleTick_ != 0 && idleTimebase_.denom != 0)
-    {
-      const unsigned long long elapsed = now - lastIdleTick_;
-      const double nanos =
-          static_cast<double>(elapsed) *
-          static_cast<double>(idleTimebase_.numer) /
-          static_cast<double>(idleTimebase_.denom);
-      elapsedSeconds = nanos * 1.0e-9;
-    }
-    lastIdleTick_ = now;
-    this->handleIdle(elapsedSeconds);
+    const unsigned long long elapsed = now - lastIdleTick_;
+    const double nanos =
+        static_cast<double>(elapsed) *
+        static_cast<double>(idleTimebase_.numer) /
+        static_cast<double>(idleTimebase_.denom);
+    elapsedSeconds = nanos * 1.0e-9;
+  }
+  lastIdleTick_ = now;
+  double dispatchElapsedSeconds = 0.0;
+  if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
+  {
+    this->handleIdle(dispatchElapsedSeconds);
   }
   if (!IsEventTrackingRunLoopMode())
   {

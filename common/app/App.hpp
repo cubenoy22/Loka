@@ -22,7 +22,8 @@ public:
   virtual void quit() = 0;
   virtual void windowClosed(Window *window);
   virtual bool handleMenuCommand(int commandId, Window *window);
-  bool wantsIdleUpdates() const;
+  loka::app::IdlePolicy idlePolicy() const;
+  bool consumeIdle(double elapsedSeconds, double &dispatchElapsedSeconds);
   void handleIdle(double elapsedSeconds);
   bool handleKeyPress(char key);
   void requestMenuInvalidation();
@@ -41,6 +42,7 @@ protected:
   Window *activeWindow_;
   loka::dsl::NextTickTracker menuRefresh_;
   loka::app::MenuCompositionDiff menuDiff_;
+  double idleAccumulatedSeconds_;
 
   const loka::app::MenuBarDefinition *resolveMenuBar(Window *window);
   virtual void applyMenuBar(Window *activeWindow);

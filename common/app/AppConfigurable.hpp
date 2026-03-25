@@ -10,6 +10,45 @@ namespace loka
   namespace app
   {
     class MenuComposition;
+
+    enum IdleMode
+    {
+      IDLE_MODE_NONE = 0,
+      IDLE_MODE_EVERY_TICK = 1,
+      IDLE_MODE_INTERVAL = 2
+    };
+
+    struct IdlePolicy
+    {
+      IdleMode mode;
+      double intervalSeconds;
+
+      IdlePolicy()
+          : mode(IDLE_MODE_NONE),
+            intervalSeconds(0.0)
+      {
+      }
+
+      static IdlePolicy none()
+      {
+        return IdlePolicy();
+      }
+
+      static IdlePolicy everyTick()
+      {
+        IdlePolicy policy;
+        policy.mode = IDLE_MODE_EVERY_TICK;
+        return policy;
+      }
+
+      static IdlePolicy interval(double seconds)
+      {
+        IdlePolicy policy;
+        policy.mode = IDLE_MODE_INTERVAL;
+        policy.intervalSeconds = seconds;
+        return policy;
+      }
+    };
   }
 }
 
@@ -22,7 +61,7 @@ public:
   AppConfigurable(PlatformContext *ctx) : ctx_(ctx) {}
   virtual void compose(AppComposition &c) = 0;
   virtual void composeMenu(loka::app::MenuComposition &c) {}
-  virtual bool wantsIdleUpdates() const { return false; }
+  virtual loka::app::IdlePolicy idlePolicy() const { return loka::app::IdlePolicy::none(); }
   virtual void onIdle(double elapsedSeconds) { (void)elapsedSeconds; }
   virtual bool handleKeyPress(char key)
   {

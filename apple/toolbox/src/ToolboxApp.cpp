@@ -273,17 +273,18 @@ void ToolboxApp::run()
         HiliteMenu(0);
       }
     }
-    if (this->wantsIdleUpdates())
+    static unsigned long lastTick = TickCount();
+    unsigned long now = TickCount();
+    double elapsedSeconds = 0.0;
+    if (now >= lastTick)
     {
-      static unsigned long lastTick = TickCount();
-      unsigned long now = TickCount();
-      double elapsedSeconds = 0.0;
-      if (now >= lastTick)
-      {
-        elapsedSeconds = static_cast<double>(now - lastTick) / 60.0;
-      }
-      lastTick = now;
-      this->handleIdle(elapsedSeconds);
+      elapsedSeconds = static_cast<double>(now - lastTick) / 60.0;
+    }
+    lastTick = now;
+    double dispatchElapsedSeconds = 0.0;
+    if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
+    {
+      this->handleIdle(dispatchElapsedSeconds);
     }
     flushPendingWindowClosures();
   }
