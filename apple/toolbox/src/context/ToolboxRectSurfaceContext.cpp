@@ -1,5 +1,4 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
-#include "loka/core/Profiler.hpp"
 
 ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
     : node_(node),
@@ -9,13 +8,9 @@ ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode 
       hasPreviousModel_(false),
       dirtyRgn_(NewRgn()),
       tempRgn_(NewRgn()),
-      savedClipRgn_(NewRgn()),
-      loggedFrames_(0),
-      regionClipFrameCount_(0),
-      dumpedProfileLog_(false)
+      savedClipRgn_(NewRgn())
 {
   SetRect(&rect_, 0, 0, 0, 0);
-  loka::core::ResetFuncProfile();
 }
 
 ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
@@ -54,30 +49,25 @@ short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *,
 
 void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
 {
-  PROFILE_FUNC();
   if (!node_ || !node_->props.model_)
   {
     return;
   }
   if (node_->props.clearBackground_)
   {
-    PROFILE_SECTION_ID("rect.fullErase", 1);
     EraseRect(&rect_);
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
-  PROFILE_SECTION_ID("rect.fullPaint", 2);
   for (short i = 0; i < model.rectCount; ++i)
   {
     Rect spriteRect = rectForSprite(model.rects[i]);
     PaintRect(&spriteRect);
   }
   rememberCurrentModel();
-  noteFrame(false);
 }
 
 void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
 {
-  PROFILE_FUNC();
   if (!node_ || !node_->props.model_)
   {
     return;
@@ -90,22 +80,17 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
 
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   bool useRegionClip = false;
-  {
-    PROFILE_SECTION_ID("rect.dirtyRegion", 3);
-    useRegionClip = node_->props.useRegionClip_ &&
-                    buildDirtyRegion(dirtyRect, model) &&
-                    dirtyRgn_ != 0 &&
-                    savedClipRgn_ != 0;
-  }
+  useRegionClip = node_->props.useRegionClip_ &&
+                  buildDirtyRegion(dirtyRect, model) &&
+                  dirtyRgn_ != 0 &&
+                  savedClipRgn_ != 0;
   if (useRegionClip)
   {
-    PROFILE_SECTION_ID("rect.setClip", 4);
     GetClip(savedClipRgn_);
     SetClip(dirtyRgn_);
   }
   if (node_->props.clearBackground_)
   {
-    PROFILE_SECTION_ID("rect.erase", 5);
     if (hasPreviousModel_)
     {
       for (short i = 0; i < previousModel_.rectCount; ++i)
@@ -140,7 +125,6 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
     }
   }
 
-  PROFILE_SECTION_ID("rect.paint", 6);
   for (short i = 0; i < model.rectCount; ++i)
   {
     Rect spriteRect = rectForSprite(model.rects[i]);
@@ -176,11 +160,9 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   }
   if (useRegionClip)
   {
-    PROFILE_SECTION_ID("rect.restoreClip", 7);
     SetClip(savedClipRgn_);
   }
   rememberCurrentModel();
-  noteFrame(useRegionClip);
 }
 
 bool ToolboxRectSurfaceContext::dirtyRect(Rect &outRect) const
@@ -474,54 +456,6 @@ bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
   return false;
 }
 
-void ToolboxRectSurfaceContext::noteFrame(bool usedRegionClip)
-{
-  if (dumpedProfileLog_)
-  {
-    return;
-  }
-  ++loggedFrames_;
-  if (usedRegionClip)
-  {
-    ++regionClipFrameCount_;
-  }
-  if (loggedFrames_ >= 30UL)
-  {
-    if (!dumpedProfileLog_)
-    {
-      dumpProfileLog();
-    }
-  }
-}
-
-void ToolboxRectSurfaceContext::dumpProfileLog()
-{
-  struct FileStream : public loka::core::ProfileOutputStream
-  {
-    explicit FileStream(FILE *file) : file_(file) {}
-    virtual void write(const char *data, int len)
-    {
-      if (!file_ || len <= 0)
-      {
-        return;
-      }
-      std::fwrite(data, 1, static_cast<size_t>(len), file_);
-    }
-    FILE *file_;
-  };
-
-  FILE *fp = std::fopen("FBPROF.TXT", "wb");
-  if (!fp)
-  {
-    dumpedProfileLog_ = true;
-    return;
-  }
-  std::fprintf(fp, "frames=%lu\r", loggedFrames_);
-  FileStream out(fp);
-  loka::core::DumpFuncProfileToStream(out);
-  std::fclose(fp);
-  dumpedProfileLog_ = true;
-}
 
 bool ToolboxRectSurfaceContext::buildDirtyRegion(const Rect &dirtyRect,
                                                  const loka::app::RectSurfaceModel &model)

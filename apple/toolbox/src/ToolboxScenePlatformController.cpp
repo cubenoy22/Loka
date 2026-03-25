@@ -1072,7 +1072,6 @@ void ToolboxScenePlatformController::render()
     return;
   }
   {
-    PROFILE_SECTION_ID("tb.controlPrep", 1);
     short maxExplicit = MaxExplicitControlId(rootNode_);
     if (maxExplicit < kAutoControlBaseId - 1)
     {
@@ -1081,7 +1080,6 @@ void ToolboxScenePlatformController::render()
     nextControlId_ = static_cast<short>(maxExplicit + 1);
   }
   {
-    PROFILE_SECTION_ID("tb.resetFrame", 2);
     buttonHits_.clear();
     cellHits_.clear();
     for (size_t i = 0; i < buttonControls_.size(); ++i)
@@ -1119,9 +1117,8 @@ void ToolboxScenePlatformController::render()
     state.width = width;
     state.height = height;
   }
-  PROFILE_SECTION_ID("tb.layoutNodeTree", 3);
+  PROFILE_SECTION("layout");
   LayoutNode(rootNode_, state, this, 0);
-  PROFILE_SECTION_ID("tb.renderNodeTree", 4);
   RenderNode(rootNode_, this);
   debugStats_.refreshHitCounts(static_cast<int>(buttonHits_.size()),
                                static_cast<int>(cellHits_.size()),
@@ -1129,7 +1126,6 @@ void ToolboxScenePlatformController::render()
                                static_cast<int>(textHits_.size()),
                                static_cast<int>(popupHits_.size()));
   {
-    PROFILE_SECTION_ID("tb.cleanupFrame", 5);
     for (size_t i = 0; i < buttonControls_.size(); ++i)
     {
       if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)

@@ -28,8 +28,6 @@ private:
   void erasePreviousMinusCurrent(const Rect &previousRect, const Rect &currentRect, const Rect &dirtyRect);
   void eraseRectIfVisible(const Rect &rect, const Rect &dirtyRect);
   bool currentModelContainsRect(const Rect &rect, const loka::app::RectSurfaceModel &model) const;
-  void noteFrame(bool usedRegionClip);
-  void dumpProfileLog();
   bool buildDirtyRegion(const Rect &dirtyRect, const loka::app::RectSurfaceModel &model);
   void unionSpriteRectsIntoRegion(const loka::app::RectSurfaceModel &model, const Rect &dirtyRect);
   void rememberCurrentModel();
@@ -42,9 +40,6 @@ private:
   RgnHandle dirtyRgn_;
   RgnHandle tempRgn_;
   RgnHandle savedClipRgn_;
-  unsigned long loggedFrames_;
-  long regionClipFrameCount_;
-  bool dumpedProfileLog_;
 };
 
 #endif

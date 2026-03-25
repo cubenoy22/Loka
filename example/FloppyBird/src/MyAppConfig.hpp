@@ -6,7 +6,6 @@
 #include "app/Menu.hpp"
 #include "app/RectSurface.hpp"
 #include "app/WindowDefinition.hpp"
-#include "loka/core/Profiler.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "MainNode.hpp"
@@ -142,15 +141,12 @@ private:
 
   void renderScene()
   {
-    PROFILE_FUNC();
-    PROFILE_SECTION_ID("fb.buildSnapshot", 1);
     RenderSnapshot snapshot;
     if (!this->buildSnapshot(snapshot))
     {
       return;
     }
 
-    PROFILE_SECTION_ID("fb.buildModel", 2);
     this->cachedModel_.rectCount = 0;
     for (short i = 0; i < snapshot.pipeCount; ++i)
     {
@@ -181,7 +177,6 @@ private:
                                 static_cast<short>(loka_floppy_bird::kBirdHeight));
     }
 
-    PROFILE_SECTION_ID("fb.setModel", 3);
     this->shared_.surfaceModel_.set(this->cachedModel_);
   }
 
