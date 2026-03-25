@@ -74,7 +74,7 @@ namespace loka_floppy_bird
       this->birdVelocity_ = kJumpVelocity;
     }
 
-    void advanceFrame(double frameSeconds)
+    bool advanceFrame(double frameSeconds)
     {
       if (frameSeconds < 0.0)
       {
@@ -86,6 +86,7 @@ namespace loka_floppy_bird
       }
 
       this->accumulatorSeconds_ += frameSeconds;
+      bool advanced = false;
       int steps = 0;
       while (this->accumulatorSeconds_ >= kFixedStepSeconds &&
              steps < kMaxStepsPerFrame)
@@ -93,12 +94,14 @@ namespace loka_floppy_bird
         this->step(kFixedStepSeconds);
         this->accumulatorSeconds_ -= kFixedStepSeconds;
         ++steps;
+        advanced = true;
       }
       if (steps == kMaxStepsPerFrame &&
           this->accumulatorSeconds_ >= kFixedStepSeconds)
       {
         this->accumulatorSeconds_ = 0.0;
       }
+      return advanced;
     }
 
     GameState state() const { return this->state_; }

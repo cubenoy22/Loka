@@ -1,5 +1,5 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
-#include <stdio.h>
+#include "loka/core/Profiler.hpp"
 
 ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
     : node_(node),
@@ -11,14 +11,11 @@ ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode 
       tempRgn_(NewRgn()),
       savedClipRgn_(NewRgn()),
       loggedFrames_(0),
-      eraseRectCount_(0),
-      paintRectCount_(0),
-      eraseArea_(0),
-      paintArea_(0),
       regionClipFrameCount_(0),
-      dumpedFrameLog_(false)
+      dumpedProfileLog_(false)
 {
   SetRect(&rect_, 0, 0, 0, 0);
+  loka::core::ResetFuncProfile();
 }
 
 ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
@@ -57,25 +54,22 @@ short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *,
 
 void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
 {
+  PROFILE_FUNC();
   if (!node_ || !node_->props.model_)
   {
     return;
   }
   if (node_->props.clearBackground_)
   {
+    PROFILE_SECTION_ID("rect.fullErase", 1);
     EraseRect(&rect_);
-    noteEraseRect(rect_);
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
+  PROFILE_SECTION_ID("rect.fullPaint", 2);
   for (short i = 0; i < model.rectCount; ++i)
   {
-    Rect spriteRect;
-    spriteRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    spriteRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    spriteRect.right = static_cast<short>(spriteRect.left + model.rects[i].width);
-    spriteRect.bottom = static_cast<short>(spriteRect.top + model.rects[i].height);
+    Rect spriteRect = rectForSprite(model.rects[i]);
     PaintRect(&spriteRect);
-    notePaintRect(spriteRect);
   }
   rememberCurrentModel();
   noteFrame(false);
@@ -83,6 +77,7 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
 
 void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
 {
+  PROFILE_FUNC();
   if (!node_ || !node_->props.model_)
   {
     return;
@@ -94,17 +89,23 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   }
 
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
-  const bool useRegionClip = node_->props.useRegionClip_ &&
-                             buildDirtyRegion(dirtyRect, model) &&
-                             dirtyRgn_ != 0 &&
-                             savedClipRgn_ != 0;
+  bool useRegionClip = false;
+  {
+    PROFILE_SECTION_ID("rect.dirtyRegion", 3);
+    useRegionClip = node_->props.useRegionClip_ &&
+                    buildDirtyRegion(dirtyRect, model) &&
+                    dirtyRgn_ != 0 &&
+                    savedClipRgn_ != 0;
+  }
   if (useRegionClip)
   {
+    PROFILE_SECTION_ID("rect.setClip", 4);
     GetClip(savedClipRgn_);
     SetClip(dirtyRgn_);
   }
   if (node_->props.clearBackground_)
   {
+    PROFILE_SECTION_ID("rect.erase", 5);
     if (hasPreviousModel_)
     {
       for (short i = 0; i < previousModel_.rectCount; ++i)
@@ -135,28 +136,47 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
       if (SectRect(&clearRect, &dirtyRect, &clearRect))
       {
         EraseRect(&clearRect);
-        noteEraseRect(clearRect);
       }
     }
   }
 
+  PROFILE_SECTION_ID("rect.paint", 6);
   for (short i = 0; i < model.rectCount; ++i)
   {
-    Rect spriteRect;
-    spriteRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    spriteRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    spriteRect.right = static_cast<short>(spriteRect.left + model.rects[i].width);
-    spriteRect.bottom = static_cast<short>(spriteRect.top + model.rects[i].height);
+    Rect spriteRect = rectForSprite(model.rects[i]);
     Rect clippedRect = spriteRect;
     if (!SectRect(&clippedRect, &dirtyRect, &clippedRect))
     {
       continue;
     }
-    PaintRect(&spriteRect);
-    notePaintRect(spriteRect);
+    Rect previousSpriteRect;
+    if (previousRectForIndex(i, previousSpriteRect))
+    {
+      if (previousSpriteRect.left == spriteRect.left &&
+          previousSpriteRect.top == spriteRect.top &&
+          previousSpriteRect.right == spriteRect.right &&
+          previousSpriteRect.bottom == spriteRect.bottom)
+      {
+        continue;
+      }
+      if ((previousSpriteRect.right - previousSpriteRect.left) ==
+              (spriteRect.right - spriteRect.left) &&
+          (previousSpriteRect.bottom - previousSpriteRect.top) ==
+              (spriteRect.bottom - spriteRect.top))
+      {
+        paintCurrentMinusPrevious(spriteRect, previousSpriteRect, dirtyRect);
+        continue;
+      }
+    }
+    else if (hasPreviousModel_ && currentModelContainsRect(spriteRect, previousModel_))
+    {
+      continue;
+    }
+    paintRectIfVisible(spriteRect, dirtyRect);
   }
   if (useRegionClip)
   {
+    PROFILE_SECTION_ID("rect.restoreClip", 7);
     SetClip(savedClipRgn_);
   }
   rememberCurrentModel();
@@ -282,24 +302,95 @@ void ToolboxRectSurfaceContext::rememberCurrentModel()
   hasPreviousModel_ = true;
 }
 
+Rect ToolboxRectSurfaceContext::rectForSprite(const loka::app::RectSprite &sprite) const
+{
+  Rect rect;
+  rect.left = static_cast<short>(rect_.left + sprite.x);
+  rect.top = static_cast<short>(rect_.top + sprite.y);
+  rect.right = static_cast<short>(rect.left + sprite.width);
+  rect.bottom = static_cast<short>(rect.top + sprite.height);
+  return rect;
+}
+
+bool ToolboxRectSurfaceContext::previousRectForIndex(short index, Rect &previousRect) const
+{
+  if (!hasPreviousModel_ || index < 0 || index >= previousModel_.rectCount)
+  {
+    return false;
+  }
+  previousRect = rectForSprite(previousModel_.rects[index]);
+  return true;
+}
+
 bool ToolboxRectSurfaceContext::findMatchingCurrentRect(const Rect &previousRect,
                                                         const loka::app::RectSurfaceModel &model,
                                                         Rect &currentRect) const
 {
+  bool foundAnyMatch = false;
+  bool foundSizeMatch = false;
+  Rect sizeMatchedRect;
   for (short i = 0; i < model.rectCount; ++i)
   {
-    currentRect.left = static_cast<short>(rect_.left + model.rects[i].x);
-    currentRect.top = static_cast<short>(rect_.top + model.rects[i].y);
-    currentRect.right = static_cast<short>(currentRect.left + model.rects[i].width);
-    currentRect.bottom = static_cast<short>(currentRect.top + model.rects[i].height);
+    Rect candidateRect;
+    candidateRect.left = static_cast<short>(rect_.left + model.rects[i].x);
+    candidateRect.top = static_cast<short>(rect_.top + model.rects[i].y);
+    candidateRect.right = static_cast<short>(candidateRect.left + model.rects[i].width);
+    candidateRect.bottom = static_cast<short>(candidateRect.top + model.rects[i].height);
     Rect overlap = previousRect;
-    if (!SectRect(&overlap, &currentRect, &overlap))
+    if (!SectRect(&overlap, &candidateRect, &overlap))
     {
       continue;
     }
+    if ((candidateRect.right - candidateRect.left) ==
+            (previousRect.right - previousRect.left) &&
+        (candidateRect.bottom - candidateRect.top) ==
+            (previousRect.bottom - previousRect.top))
+    {
+      sizeMatchedRect = candidateRect;
+      foundSizeMatch = true;
+      break;
+    }
+    currentRect = candidateRect;
+    foundAnyMatch = true;
+  }
+  if (foundSizeMatch)
+  {
+    currentRect = sizeMatchedRect;
     return true;
   }
-  return false;
+  return foundAnyMatch;
+}
+
+void ToolboxRectSurfaceContext::paintCurrentMinusPrevious(const Rect &currentRect,
+                                                          const Rect &previousRect,
+                                                          const Rect &dirtyRect)
+{
+  Rect overlap = currentRect;
+  if (!SectRect(&overlap, &previousRect, &overlap))
+  {
+    paintRectIfVisible(currentRect, dirtyRect);
+    return;
+  }
+
+  Rect topRect = currentRect;
+  topRect.bottom = overlap.top;
+  paintRectIfVisible(topRect, dirtyRect);
+
+  Rect bottomRect = currentRect;
+  bottomRect.top = overlap.bottom;
+  paintRectIfVisible(bottomRect, dirtyRect);
+
+  Rect leftRect = currentRect;
+  leftRect.top = overlap.top;
+  leftRect.bottom = overlap.bottom;
+  leftRect.right = overlap.left;
+  paintRectIfVisible(leftRect, dirtyRect);
+
+  Rect rightRect = currentRect;
+  rightRect.top = overlap.top;
+  rightRect.bottom = overlap.bottom;
+  rightRect.left = overlap.right;
+  paintRectIfVisible(rightRect, dirtyRect);
 }
 
 void ToolboxRectSurfaceContext::erasePreviousMinusCurrent(const Rect &previousRect,
@@ -346,7 +437,20 @@ void ToolboxRectSurfaceContext::eraseRectIfVisible(const Rect &rect, const Rect 
     return;
   }
   EraseRect(&eraseRect);
-  noteEraseRect(eraseRect);
+}
+
+void ToolboxRectSurfaceContext::paintRectIfVisible(const Rect &rect, const Rect &dirtyRect)
+{
+  Rect paintRect = rect;
+  if (!SectRect(&paintRect, &dirtyRect, &paintRect))
+  {
+    return;
+  }
+  if (paintRect.left >= paintRect.right || paintRect.top >= paintRect.bottom)
+  {
+    return;
+  }
+  PaintRect(&paintRect);
 }
 
 bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
@@ -370,33 +474,9 @@ bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
   return false;
 }
 
-void ToolboxRectSurfaceContext::noteEraseRect(const Rect &rect)
-{
-  const long width = static_cast<long>(rect.right) - static_cast<long>(rect.left);
-  const long height = static_cast<long>(rect.bottom) - static_cast<long>(rect.top);
-  if (width <= 0 || height <= 0)
-  {
-    return;
-  }
-  ++eraseRectCount_;
-  eraseArea_ += static_cast<unsigned long>(width * height);
-}
-
-void ToolboxRectSurfaceContext::notePaintRect(const Rect &rect)
-{
-  const long width = static_cast<long>(rect.right) - static_cast<long>(rect.left);
-  const long height = static_cast<long>(rect.bottom) - static_cast<long>(rect.top);
-  if (width <= 0 || height <= 0)
-  {
-    return;
-  }
-  ++paintRectCount_;
-  paintArea_ += static_cast<unsigned long>(width * height);
-}
-
 void ToolboxRectSurfaceContext::noteFrame(bool usedRegionClip)
 {
-  if (dumpedFrameLog_)
+  if (dumpedProfileLog_)
   {
     return;
   }
@@ -407,33 +487,40 @@ void ToolboxRectSurfaceContext::noteFrame(bool usedRegionClip)
   }
   if (loggedFrames_ >= 30UL)
   {
-    dumpFrameLog();
+    if (!dumpedProfileLog_)
+    {
+      dumpProfileLog();
+    }
   }
 }
 
-void ToolboxRectSurfaceContext::dumpFrameLog()
+void ToolboxRectSurfaceContext::dumpProfileLog()
 {
-  FILE *fp = std::fopen("FBDRAW.TXT", "wb");
+  struct FileStream : public loka::core::ProfileOutputStream
+  {
+    explicit FileStream(FILE *file) : file_(file) {}
+    virtual void write(const char *data, int len)
+    {
+      if (!file_ || len <= 0)
+      {
+        return;
+      }
+      std::fwrite(data, 1, static_cast<size_t>(len), file_);
+    }
+    FILE *file_;
+  };
+
+  FILE *fp = std::fopen("FBPROF.TXT", "wb");
   if (!fp)
   {
-    dumpedFrameLog_ = true;
+    dumpedProfileLog_ = true;
     return;
   }
-  std::fprintf(fp, "frames=%lu\n", loggedFrames_);
-  std::fprintf(fp, "erase_rect_count=%ld\n", eraseRectCount_);
-  std::fprintf(fp, "paint_rect_count=%ld\n", paintRectCount_);
-  std::fprintf(fp, "erase_area=%lu\n", eraseArea_);
-  std::fprintf(fp, "paint_area=%lu\n", paintArea_);
-  std::fprintf(fp, "region_clip_frames=%ld\n", regionClipFrameCount_);
-  if (loggedFrames_ > 0UL)
-  {
-    std::fprintf(fp, "avg_erase_rects=%.2f\n", static_cast<double>(eraseRectCount_) / static_cast<double>(loggedFrames_));
-    std::fprintf(fp, "avg_paint_rects=%.2f\n", static_cast<double>(paintRectCount_) / static_cast<double>(loggedFrames_));
-    std::fprintf(fp, "avg_erase_area=%.2f\n", static_cast<double>(eraseArea_) / static_cast<double>(loggedFrames_));
-    std::fprintf(fp, "avg_paint_area=%.2f\n", static_cast<double>(paintArea_) / static_cast<double>(loggedFrames_));
-  }
+  std::fprintf(fp, "frames=%lu\r", loggedFrames_);
+  FileStream out(fp);
+  loka::core::DumpFuncProfileToStream(out);
   std::fclose(fp);
-  dumpedFrameLog_ = true;
+  dumpedProfileLog_ = true;
 }
 
 bool ToolboxRectSurfaceContext::buildDirtyRegion(const Rect &dirtyRect,

@@ -1072,6 +1072,7 @@ void ToolboxScenePlatformController::render()
     return;
   }
   {
+    PROFILE_SECTION_ID("tb.controlPrep", 1);
     short maxExplicit = MaxExplicitControlId(rootNode_);
     if (maxExplicit < kAutoControlBaseId - 1)
     {
@@ -1079,22 +1080,25 @@ void ToolboxScenePlatformController::render()
     }
     nextControlId_ = static_cast<short>(maxExplicit + 1);
   }
-  buttonHits_.clear();
-  cellHits_.clear();
-  for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
-    buttonControls_[i].usedThisFrame = false;
+    PROFILE_SECTION_ID("tb.resetFrame", 2);
+    buttonHits_.clear();
+    cellHits_.clear();
+    for (size_t i = 0; i < buttonControls_.size(); ++i)
+    {
+      buttonControls_[i].usedThisFrame = false;
+    }
+    editHits_.clear();
+    for (size_t i = 0; i < editControls_.size(); ++i)
+    {
+      editControls_[i].usedThisFrame = false;
+    }
+    textHits_.clear();
+    popupHits_.clear();
+    clearEnabledBindings();
+    pendingTextStates_.clear();
+    pendingDirtyRects_.clear();
   }
-  editHits_.clear();
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    editControls_[i].usedThisFrame = false;
-  }
-  textHits_.clear();
-  popupHits_.clear();
-  clearEnabledBindings();
-  pendingTextStates_.clear();
-  pendingDirtyRects_.clear();
   loka::app::scene::LayoutState state;
   state.x = 12;
   state.y = 24;
@@ -1115,43 +1119,47 @@ void ToolboxScenePlatformController::render()
     state.width = width;
     state.height = height;
   }
-  PROFILE_SECTION("layout");
+  PROFILE_SECTION_ID("tb.layoutNodeTree", 3);
   LayoutNode(rootNode_, state, this, 0);
+  PROFILE_SECTION_ID("tb.renderNodeTree", 4);
   RenderNode(rootNode_, this);
   debugStats_.refreshHitCounts(static_cast<int>(buttonHits_.size()),
                                static_cast<int>(cellHits_.size()),
                                static_cast<int>(editHits_.size()),
                                static_cast<int>(textHits_.size()),
                                static_cast<int>(popupHits_.size()));
-  for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
-    if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
+    PROFILE_SECTION_ID("tb.cleanupFrame", 5);
+    for (size_t i = 0; i < buttonControls_.size(); ++i)
     {
-      HideControl(buttonControls_[i].control);
-    }
-  }
-  for (size_t i = 0; i < editControls_.size();)
-  {
-    if (!editControls_[i].usedThisFrame)
-    {
-      if (&editControls_[i] == focusedEdit_)
+      if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
       {
-        if (focusedEdit_->te)
+        HideControl(buttonControls_[i].control);
+      }
+    }
+    for (size_t i = 0; i < editControls_.size();)
+    {
+      if (!editControls_[i].usedThisFrame)
+      {
+        if (&editControls_[i] == focusedEdit_)
         {
-          TEDeactivate(focusedEdit_->te);
+          if (focusedEdit_->te)
+          {
+            TEDeactivate(focusedEdit_->te);
+          }
+          focusedEdit_ = 0;
         }
-        focusedEdit_ = 0;
+        if (editControls_[i].te)
+        {
+          TEDeactivate(editControls_[i].te);
+          queueRetiredTextEdit(editControls_[i].te);
+        }
+        editControls_[i].te = 0;
+        editControls_.erase(editControls_.begin() + i);
+        continue;
       }
-      if (editControls_[i].te)
-      {
-        TEDeactivate(editControls_[i].te);
-        queueRetiredTextEdit(editControls_[i].te);
-      }
-      editControls_[i].te = 0;
-      editControls_.erase(editControls_.begin() + i);
-      continue;
+      ++i;
     }
-    ++i;
   }
 
 }

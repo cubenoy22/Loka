@@ -4,7 +4,9 @@
 #include "app/AppComposition.hpp"
 #include "app/AppConfigurable.hpp"
 #include "app/Menu.hpp"
+#include "app/RectSurface.hpp"
 #include "app/WindowDefinition.hpp"
+#include "loka/core/Profiler.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "MainNode.hpp"
@@ -12,15 +14,59 @@
 class MyAppConfig : public AppConfigurable
 {
 public:
+  struct RenderSnapshot
+  {
+    short birdY;
+    short pipeCount;
+    short pipeLeft[loka_floppy_bird::kMaxPipes];
+    short pipeGapTop[loka_floppy_bird::kMaxPipes];
+    short pipeGapBottom[loka_floppy_bird::kMaxPipes];
+
+    RenderSnapshot()
+        : birdY(0),
+          pipeCount(0)
+    {
+      for (int i = 0; i < loka_floppy_bird::kMaxPipes; ++i)
+      {
+        pipeLeft[i] = 0;
+        pipeGapTop[i] = 0;
+        pipeGapBottom[i] = 0;
+      }
+    }
+
+    bool operator==(const RenderSnapshot &other) const
+    {
+      if (birdY != other.birdY || pipeCount != other.pipeCount)
+      {
+        return false;
+      }
+      for (short i = 0; i < pipeCount; ++i)
+      {
+        if (pipeLeft[i] != other.pipeLeft[i] ||
+            pipeGapTop[i] != other.pipeGapTop[i] ||
+            pipeGapBottom[i] != other.pipeGapBottom[i])
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    bool operator!=(const RenderSnapshot &other) const
+    {
+      return !(*this == other);
+    }
+  };
+
   explicit MyAppConfig(PlatformContext *ctx)
       : AppConfigurable(ctx),
         shared_(),
         game_(),
-        tracker_()
+        tracker_(),
+        lastSnapshot_(),
+        hasLastSnapshot_(false),
+        cachedModel_()
   {
-    this->tracker_.addState(&this->shared_.titleText_);
-    this->tracker_.addState(&this->shared_.statusText_);
-    this->tracker_.addState(&this->shared_.scoreText_);
     this->tracker_.addState(&this->shared_.surfaceModel_);
     this->game_.seed(1UL);
     this->renderScene();
@@ -30,8 +76,10 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(50, 50, 380, 340)
-                       .scene(loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode>(
-                           floppybird::MainProps(&this->shared_)))
+                       .scene(loka::app::RectSurface(&this->shared_.surfaceModel_)
+                                  .useRegionClip(false)
+                                  .size(loka_floppy_bird::kWindowWidth,
+                                        loka_floppy_bird::kWindowHeight))
                        .title("LokaFloppyBird")
                        .visible(true));
   }
@@ -52,7 +100,10 @@ public:
   virtual void onIdle(double elapsedSeconds)
   {
     loka::core::StateTrackerGuard guard(&this->tracker_);
-    this->game_.advanceFrame(elapsedSeconds);
+    if (!this->game_.advanceFrame(elapsedSeconds))
+    {
+      return;
+    }
     this->renderScene();
   }
 
@@ -69,65 +120,77 @@ public:
   }
 
 private:
-  void renderScene()
+  bool buildSnapshot(RenderSnapshot &snapshot)
   {
-    this->shared_.scoreText_.set(loka::core::String::Literal("Score: ")
-                                     + loka::core::String::FromInt(this->game_.score()),
-                                 true);
-    if (this->game_.state() == loka_floppy_bird::GAME_WAITING)
-    {
-      this->shared_.statusText_.set(loka::core::String::Literal("Press Space To Start"), true);
-    }
-    else if (this->game_.state() == loka_floppy_bird::GAME_PLAYING)
-    {
-      this->shared_.statusText_.set(loka::core::String::Literal("Space = Flap"), true);
-    }
-    else
-    {
-      this->shared_.statusText_.set(loka::core::String::Literal("Game Over - Press Space To Retry"), true);
-    }
-
-    loka::app::RectSurfaceModel model;
-    for (int i = 0; i < this->game_.pipeCount(); ++i)
+    snapshot.pipeCount = static_cast<short>(this->game_.pipeCount());
+    snapshot.birdY = static_cast<short>(this->game_.birdY() + 0.5);
+    for (short i = 0; i < snapshot.pipeCount; ++i)
     {
       const loka_floppy_bird::Pipe &pipe = this->game_.pipeAt(i);
-      const short pipeLeft = static_cast<short>(pipe.x + 0.5);
-      const short gapTop = static_cast<short>(pipe.gapCenterY - loka_floppy_bird::kPipeGapHeight / 2);
-      const short gapBottom = static_cast<short>(pipe.gapCenterY + loka_floppy_bird::kPipeGapHeight / 2);
+      snapshot.pipeLeft[i] = static_cast<short>(pipe.x + 0.5);
+      snapshot.pipeGapTop[i] = static_cast<short>(pipe.gapCenterY - loka_floppy_bird::kPipeGapHeight / 2);
+      snapshot.pipeGapBottom[i] = static_cast<short>(pipe.gapCenterY + loka_floppy_bird::kPipeGapHeight / 2);
+    }
+    if (!hasLastSnapshot_ || snapshot != this->lastSnapshot_)
+    {
+      this->lastSnapshot_ = snapshot;
+      this->hasLastSnapshot_ = true;
+      return true;
+    }
+    return false;
+  }
 
-      if (model.rectCount < loka::app::RectSurfaceModel::kMaxRects)
+  void renderScene()
+  {
+    PROFILE_FUNC();
+    PROFILE_SECTION_ID("fb.buildSnapshot", 1);
+    RenderSnapshot snapshot;
+    if (!this->buildSnapshot(snapshot))
+    {
+      return;
+    }
+
+    PROFILE_SECTION_ID("fb.buildModel", 2);
+    this->cachedModel_.rectCount = 0;
+    for (short i = 0; i < snapshot.pipeCount; ++i)
+    {
+      if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
       {
-        model.rects[model.rectCount++] =
-            loka::app::RectSprite(pipeLeft,
+        this->cachedModel_.rects[this->cachedModel_.rectCount++] =
+            loka::app::RectSprite(snapshot.pipeLeft[i],
                                   0,
                                   static_cast<short>(loka_floppy_bird::kPipeWidth),
-                                  gapTop);
+                                  snapshot.pipeGapTop[i]);
       }
-      if (model.rectCount < loka::app::RectSurfaceModel::kMaxRects)
+      if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
       {
-        model.rects[model.rectCount++] =
-            loka::app::RectSprite(pipeLeft,
-                                  gapBottom,
+        this->cachedModel_.rects[this->cachedModel_.rectCount++] =
+            loka::app::RectSprite(snapshot.pipeLeft[i],
+                                  snapshot.pipeGapBottom[i],
                                   static_cast<short>(loka_floppy_bird::kPipeWidth),
-                                  static_cast<short>(loka_floppy_bird::kWindowHeight - gapBottom));
+                                  static_cast<short>(loka_floppy_bird::kWindowHeight - snapshot.pipeGapBottom[i]));
       }
     }
 
-    if (model.rectCount < loka::app::RectSurfaceModel::kMaxRects)
+    if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
     {
-      model.rects[model.rectCount++] =
+      this->cachedModel_.rects[this->cachedModel_.rectCount++] =
           loka::app::RectSprite(static_cast<short>(loka_floppy_bird::kBirdX),
-                                static_cast<short>(this->game_.birdY() + 0.5),
+                                snapshot.birdY,
                                 static_cast<short>(loka_floppy_bird::kBirdWidth),
                                 static_cast<short>(loka_floppy_bird::kBirdHeight));
     }
 
-    this->shared_.surfaceModel_.set(model, true);
+    PROFILE_SECTION_ID("fb.setModel", 3);
+    this->shared_.surfaceModel_.set(this->cachedModel_);
   }
 
   floppybird::SharedModel shared_;
   loka_floppy_bird::GameLogic game_;
   loka::core::PushStateTracker tracker_;
+  RenderSnapshot lastSnapshot_;
+  bool hasLastSnapshot_;
+  loka::app::RectSurfaceModel cachedModel_;
 };
 
 #endif

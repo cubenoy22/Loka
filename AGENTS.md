@@ -36,6 +36,10 @@
 - Performance triage steps: 1) reproduce on modern OS with profiling on, 2) capture tick breakdown, 3) isolate by commenting out components or toggling features, 4) optimize top hotspots first, 5) re-measure, 6) record findings in docs/TODO.md.
 - Redraw/performance triage: first identify whether cost comes from scene/update routing, boundary-local apply, or platform-specific fallback invalidation. Prefer measuring real redraw triggers before attempting dirty-rect shrinking.
 - Classic/68k redraw policy: when broad repaint remains, prioritize suppressing redundant follow-up redraw triggers before fine-grained dirty-rect tuning.
+- Classic/68k optimization order: first remove redundant state updates and compose passes (`forceUpdate`, unused state writes, extra Boundaries), then reduce redraw area, and only then add platform-specific dirty-region tricks.
+- For animated Classic UIs, prefer quantized output gating before expensive updates: if integer-position/rendered output is unchanged, skip rebuilding props/models and avoid `MutableState::set()`.
+- On Toolbox hot paths, prefer simple `NodeContext`-local previous-state caching over pushing detailed dirty metadata through shared DSL/app models when the optimization is platform-specific.
+- For moving-rect redraw on Classic, `erase old minus new` is a safer first optimization than `paint new minus old`; only add more aggressive paint diffing after measurement proves it helps.
 - If a crash occurs, first confirm whether it reproduces on a modern OS build; use breakpoints, LLDB commands, and targeted logging to identify the cause quickly.
 - For runtime behavior regressions in compose/dirty routing, prefer path verification before speculative edits: place breakpoints on the user action handler, observed-state thunk(s), `Scene`/`PlatformController` apply path, and the target node's `composeWithContext`/`composeNode`, then confirm where the flow stops.
 - If a request is ambiguous, stop and ask before implementing.

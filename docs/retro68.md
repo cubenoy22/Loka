@@ -175,6 +175,85 @@ Do not guess for long on Classic teardown bugs.
 
 That hybrid workflow is faster than trying to solve all Classic issues from Linux/macOS alone.
 
+## Classic animation / redraw notes
+
+These notes came from profiling and tightening the `FloppyBird` sample on
+Toolbox/68k.
+
+### 1. Measure update routing before dirty-region tricks
+
+For animated UI on Classic, broad repaint is not always the main cost.
+In `FloppyBird`, the first large wins came from reducing:
+
+- redundant `MutableState::set(..., true)` usage
+- unused state writes
+- extra `Boundary` / compose layers
+- idle ticks that did not produce a visible output change
+
+Only after those were removed did redraw cost become the top hotspot.
+
+Practical rule:
+
+- profile first
+- remove redundant state/compose work before adding redraw complexity
+
+### 2. Quantized-output gating is effective
+
+When output is rendered at integer coordinates, game logic can advance without
+producing a visible change every tick.
+
+In `FloppyBird`, a cheap "render snapshot" of quantized sprite positions was
+enough to skip model rebuild / `set()` / compose work for frames where the
+visible output had not changed yet.
+
+Practical rule:
+
+- if a Classic animation ultimately snaps to integer positions, compare the
+  quantized output first
+- if nothing visible changed, skip rebuilding props/models and avoid notifying
+  state
+
+### 3. Keep surface-level optimizations in `NodeContext`
+
+The stable path was:
+
+- keep `RectSurfaceNode` as a normal Node
+- keep shared app/model data simple
+- store previous rendered state inside the Toolbox `NodeContext`
+- perform Classic-specific erase/paint decisions there
+
+This kept platform-specific optimization out of the shared DSL/app layer and
+made future backends (for example CALayer-backed macOS paths) easier to reason
+about.
+
+### 4. Prefer `erase old minus new` before aggressive paint diffing
+
+For moving rectangles, the most reliable first optimization was:
+
+- erase only the old pixels no longer covered by the new rect
+- then paint the current rect normally
+
+This removed flicker and reduced erase area without the instability of more
+aggressive "paint new minus old" matching.
+
+Practical rule:
+
+- first try `erase old minus new`
+- only add paint-side diffing after profiling proves it helps
+
+### 5. `Rgn`/region clipping can lose to simpler paths
+
+`Rgn`-based clipping improved visual synchronization in some experiments, but
+once redundant update/compose work was removed, it became slower than a simpler
+rect-based path for this workload.
+
+Practical rule:
+
+- do not assume `Rgn` is faster
+- measure it after higher-level update work has already been reduced
+- keep it as a backend-local policy, not a general DSL feature, unless repeated
+  measurements justify exposing it
+
 ## Classic investigation notes
 
 These notes come from stabilizing repeated `PopupMenu` crashes in the
