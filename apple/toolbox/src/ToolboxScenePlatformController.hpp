@@ -135,6 +135,12 @@ private:
     ToolboxScenePlatformController *controller;
   };
 
+  struct EnabledBinding
+  {
+    loka::core::State<bool> *state;
+    ToolboxScenePlatformController *controller;
+  };
+
   struct ButtonControlBinding
   {
     short resourceId;
@@ -172,6 +178,8 @@ private:
   std::vector<TextHit> textHits_;
   std::vector<loka::core::State<loka::core::String> *> boundTextStates_;
   std::vector<TextBinding *> textBindings_;
+  std::vector<loka::core::State<bool> *> boundEnabledStates_;
+  std::vector<EnabledBinding *> enabledBindings_;
   bool inBatchUpdate_;
   bool pendingFullInvalidate_;
   loka::app::scene::NodeDirtyFlags pendingInvalidateFlags_;
@@ -187,7 +195,9 @@ private:
 
   bool handleTextKey(char key);
   void bindTextState(loka::core::State<loka::core::String> *text);
+  void bindEnabledState(loka::core::State<bool> *enabled);
   void handleTextChanged(loka::core::State<loka::core::String> *text);
+  void handleEnabledChanged(loka::core::State<bool> *enabled);
   void beginBatchUpdate();
   void endBatchUpdate();
   void addPendingDirty(const Rect &rect);
@@ -200,12 +210,14 @@ private:
   void redrawPopupHit(const PopupHit &hit);
   void redrawTextFor(loka::core::State<loka::core::String> *text);
   void clearTextBindings();
+  void clearEnabledBindings();
   void clearControls();
   void queueRetiredControl(ControlRef control);
   void queueRetiredTextEdit(TEHandle te);
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
   static void TextStateChangedThunk(void *userData);
+  static void EnabledStateChangedThunk(void *userData);
 public:
   void flushRetiredNativeHandles();
   std::string debugStatsSummary() const;

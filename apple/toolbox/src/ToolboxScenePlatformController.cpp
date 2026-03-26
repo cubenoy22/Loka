@@ -898,6 +898,7 @@ void ToolboxScenePlatformController::destroy()
   rootNode_ = 0;
   popupHits_.clear();
   clearTextBindings();
+  clearEnabledBindings();
   clearControls();
   flushRetiredNativeHandles();
 }
@@ -932,6 +933,7 @@ void ToolboxScenePlatformController::render()
   }
   textHits_.clear();
   popupHits_.clear();
+  clearEnabledBindings();
   pendingTextStates_.clear();
   pendingDirtyRects_.clear();
   loka::app::scene::LayoutState state;
@@ -1234,6 +1236,7 @@ void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
   hit.enabled = enabled;
   hit.boundary = boundary;
   buttonHits_.push_back(hit);
+  bindEnabledState(enabled);
 }
 
 void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
@@ -1311,6 +1314,7 @@ void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
   hit.boundary = boundary;
   hit.menuId = menuId;
   popupHits_.push_back(hit);
+  bindEnabledState(enabled);
 }
 
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
@@ -1397,6 +1401,27 @@ void ToolboxScenePlatformController::bindTextState(loka::core::State<loka::core:
   text->bind(&ToolboxScenePlatformController::TextStateChangedThunk, binding, false, false, 0);
 }
 
+void ToolboxScenePlatformController::bindEnabledState(loka::core::State<bool> *enabled)
+{
+  if (!enabled)
+  {
+    return;
+  }
+  for (size_t i = 0; i < boundEnabledStates_.size(); ++i)
+  {
+    if (boundEnabledStates_[i] == enabled)
+    {
+      return;
+    }
+  }
+  boundEnabledStates_.push_back(enabled);
+  EnabledBinding *binding = new EnabledBinding();
+  binding->state = enabled;
+  binding->controller = this;
+  enabledBindings_.push_back(binding);
+  enabled->bind(&ToolboxScenePlatformController::EnabledStateChangedThunk, binding, false, false, 0);
+}
+
 void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::core::String> *text)
 {
   if (!window_)
@@ -1454,7 +1479,6 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
         }
         return;
       }
-      // Just redraw the text rect (no width checking for now)
       if (inBatchUpdate_)
       {
         addPendingDirty(hit.rect);
@@ -1513,6 +1537,65 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
   {
     // State not found, but scene invalidation will handle it
     // through normal recompose cycle. No need for full redraw.
+  }
+}
+
+void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool> *enabled)
+{
+  if (!window_ || !enabled)
+  {
+    return;
+  }
+  for (size_t i = 0; i < popupHits_.size(); ++i)
+  {
+    PopupHit &hit = popupHits_[i];
+    if (hit.enabled == enabled)
+    {
+      if (inBatchUpdate_)
+      {
+        addPendingDirty(hit.rect);
+      }
+      else
+      {
+        window_->drawDirty(hit.rect);
+      }
+      return;
+    }
+  }
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    ButtonControlBinding &binding = buttonControls_[i];
+    if (binding.enabled == enabled)
+    {
+      if (binding.control)
+      {
+        if (enabled->get())
+        {
+          HiliteControl(binding.control, 0);
+        }
+        else
+        {
+          HiliteControl(binding.control, 255);
+        }
+      }
+      return;
+    }
+  }
+  for (size_t i = 0; i < buttonHits_.size(); ++i)
+  {
+    ButtonHit &hit = buttonHits_[i];
+    if (hit.enabled == enabled)
+    {
+      if (inBatchUpdate_)
+      {
+        addPendingDirty(hit.rect);
+      }
+      else
+      {
+        window_->drawDirty(hit.rect);
+      }
+      return;
+    }
   }
 }
 
@@ -1725,7 +1808,19 @@ void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
   GetPort(&oldPort);
   SetPort(window_->window());
   EraseRect(&hit.rect);
-  DrawStringAt(hit.x, hit.y, hit.text->get());
+  RgnHandle oldClip = NewRgn();
+  if (oldClip != 0)
+  {
+    GetClip(oldClip);
+    ClipRect(&hit.rect);
+    DrawStringAt(hit.x, hit.y, hit.text->get());
+    SetClip(oldClip);
+    DisposeRgn(oldClip);
+  }
+  else
+  {
+    DrawStringAt(hit.x, hit.y, hit.text->get());
+  }
   SetPort(oldPort);
 }
 
@@ -1738,6 +1833,7 @@ void ToolboxScenePlatformController::redrawPopupHit(const PopupHit &hit)
   GrafPtr oldPort;
   GetPort(&oldPort);
   SetPort(window_->window());
+  EraseRect(&hit.rect);
   loka::core::String label = loka::core::String::Literal("Select");
   int selectedIndex = 0;
   if (hit.selectedIndex)
@@ -1807,6 +1903,21 @@ void ToolboxScenePlatformController::clearTextBindings()
   textBindings_.clear();
   boundTextStates_.clear();
   textHits_.clear();
+}
+
+void ToolboxScenePlatformController::clearEnabledBindings()
+{
+  for (size_t i = 0; i < enabledBindings_.size(); ++i)
+  {
+    EnabledBinding *binding = enabledBindings_[i];
+    if (binding)
+    {
+      binding->state = 0;
+      binding->controller = 0;
+    }
+  }
+  enabledBindings_.clear();
+  boundEnabledStates_.clear();
 }
 
 void ToolboxScenePlatformController::clearControls()
@@ -1941,6 +2052,7 @@ bool ToolboxScenePlatformController::ensureButtonControl(
   }
   binding->emitter = emitter;
   binding->enabled = enabled;
+  bindEnabledState(enabled);
   binding->usedThisFrame = true;
   if (created ||
       binding->rect.left != rect.left || binding->rect.top != rect.top ||
@@ -2203,4 +2315,14 @@ void ToolboxScenePlatformController::TextStateChangedThunk(void *userData)
     return;
   }
   binding->controller->handleTextChanged(binding->state);
+}
+
+void ToolboxScenePlatformController::EnabledStateChangedThunk(void *userData)
+{
+  EnabledBinding *binding = static_cast<EnabledBinding *>(userData);
+  if (!binding || !binding->controller || !binding->state)
+  {
+    return;
+  }
+  binding->controller->handleEnabledChanged(binding->state);
 }

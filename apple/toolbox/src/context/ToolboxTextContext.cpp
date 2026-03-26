@@ -290,10 +290,7 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
                                                      state.lineHeight > 0 ? state.lineHeight : 12,
                                                      wrapChar);
     }
-    if (width > maxWidth_)
-    {
-      width = maxWidth_;
-    }
+    width = maxWidth_;
   }
   else
   {
