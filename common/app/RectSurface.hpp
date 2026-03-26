@@ -1,6 +1,7 @@
 #ifndef LOKA_APP_RECT_SURFACE_HPP
 #define LOKA_APP_RECT_SURFACE_HPP
 
+#include <assert.h>
 #include "app/scene/Node.hpp"
 #include "loka/core/State.hpp"
 
@@ -81,21 +82,53 @@ namespace loka
       {
       }
 
+      static short clampRectCount(short count)
+      {
+        if (count < 0)
+        {
+          return 0;
+        }
+        if (count > kMaxRects)
+        {
+          return kMaxRects;
+        }
+        return count;
+      }
+
+      static short clampDirtyRectCount(short count)
+      {
+        if (count < 0)
+        {
+          return 0;
+        }
+        if (count > kMaxDirtyRects)
+        {
+          return kMaxDirtyRects;
+        }
+        return count;
+      }
+
       bool operator==(const RectSurfaceModel &other) const
       {
+        assert(rectCount >= 0 && rectCount <= kMaxRects);
+        assert(dirtyRectCount >= 0 && dirtyRectCount <= kMaxDirtyRects);
+        assert(other.rectCount >= 0 && other.rectCount <= kMaxRects);
+        assert(other.dirtyRectCount >= 0 && other.dirtyRectCount <= kMaxDirtyRects);
         if (rectCount != other.rectCount ||
             dirtyRectCount != other.dirtyRectCount)
         {
           return false;
         }
-        for (short i = 0; i < rectCount; ++i)
+        const short safeRectCount = clampRectCount(rectCount);
+        const short safeDirtyRectCount = clampDirtyRectCount(dirtyRectCount);
+        for (short i = 0; i < safeRectCount; ++i)
         {
           if (!(rects[i] == other.rects[i]))
           {
             return false;
           }
         }
-        for (short i = 0; i < dirtyRectCount; ++i)
+        for (short i = 0; i < safeDirtyRectCount; ++i)
         {
           if (!(dirtyRects[i] == other.dirtyRects[i]))
           {

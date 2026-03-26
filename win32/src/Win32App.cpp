@@ -4,7 +4,6 @@
 #include <commdlg.h>
 #include "app/App.hpp"
 #include "loka/platform/StringUTF8.hpp"
-#include "platform/Win32Profiler.hpp"
 
 Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
     : App(config),
@@ -65,23 +64,6 @@ void Win32App::run()
     }
   }
 
-  if (this->idlePolicy().mode == loka::app::IDLE_MODE_NONE)
-  {
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
-      HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
-      if (root && IsDialogMessage(root, &msg))
-      {
-        continue;
-      }
-      TranslateMessage(&msg);
-      DispatchMessage(&msg);
-      this->flushWindowInvalidations();
-    }
-    return;
-  }
-
   LARGE_INTEGER frequency;
   LARGE_INTEGER lastTick;
   QueryPerformanceFrequency(&frequency);
@@ -91,8 +73,10 @@ void Win32App::run()
   while (running)
   {
     MSG msg;
+    bool handledMessage = false;
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     {
+      handledMessage = true;
       if (msg.message == WM_QUIT)
       {
         running = false;
@@ -111,6 +95,8 @@ void Win32App::run()
       break;
     }
 
+    const loka::app::IdlePolicy policy = this->idlePolicy();
+
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
     double elapsedSeconds = 0.0;
@@ -120,6 +106,17 @@ void Win32App::run()
                        static_cast<double>(frequency.QuadPart);
     }
     lastTick = now;
+
+    if (policy.mode == loka::app::IDLE_MODE_NONE)
+    {
+      this->flushMenuInvalidation();
+      this->flushWindowInvalidations();
+      if (!handledMessage)
+      {
+        WaitMessage();
+      }
+      continue;
+    }
 
     double dispatchElapsedSeconds = 0.0;
     if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
