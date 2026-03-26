@@ -36,6 +36,9 @@ namespace helloworld
 
     MainNode *owner_;
     bool initialized_;
+    bool actionSummaryCacheValid_;
+    bool lastActionSummaryEnabled_;
+    int lastActionSummaryCount_;
     loka::app::scene::BoundState<loka::core::String> message_;
     loka::core::EmitterState toggleEvent_;
     loka::app::scene::BoundState<bool> actionEnabled_;

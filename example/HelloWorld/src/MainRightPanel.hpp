@@ -39,6 +39,7 @@ namespace helloworld
 
     MainNode *owner_;
     bool initialized_;
+    int lastFruitMessageIndex_;
     loka::app::scene::BoundState<int> fruitIndex_;
     loka::app::scene::BoundState<loka::core::String> fruitMessage_;
     loka::Vector<loka::core::String> fruits_;

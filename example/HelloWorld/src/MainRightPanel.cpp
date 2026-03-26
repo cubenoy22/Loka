@@ -17,6 +17,7 @@ namespace helloworld
   MainRightPanelComponent::MainRightPanelComponent(MainNode *owner)
       : owner_(owner),
         initialized_(false),
+        lastFruitMessageIndex_(-1),
         fruitIndex_(),
         fruitMessage_(),
         fruits_(),
@@ -69,6 +70,11 @@ namespace helloworld
     {
       index = 0;
     }
+    if (this->lastFruitMessageIndex_ == index)
+    {
+      return;
+    }
+    this->lastFruitMessageIndex_ = index;
     loka::core::String next = loka::core::String::Literal("You chose ") + fruits_[static_cast<std::size_t>(index)] + ".";
     fruitMessage_.set(next);
   }

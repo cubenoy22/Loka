@@ -9,6 +9,9 @@ namespace helloworld {
   MainLeftPanelComponent::MainLeftPanelComponent(MainNode *owner)
       : owner_(owner), initialized_(false), message_(), toggleEvent_(), actionEnabled_(), actionProbeCount_(),
         actionSummary_(), toggleActionEnabledEvent_(), actionProbeEvent_(), bmiCalculator_() {
+    this->actionSummaryCacheValid_ = false;
+    this->lastActionSummaryEnabled_ = false;
+    this->lastActionSummaryCount_ = 0;
   }
 
   void MainLeftPanelComponent::attachNode(loka::app::scene::NodeComposition &c) {
@@ -90,9 +93,18 @@ namespace helloworld {
     if (!actionEnabled_.isValid() || !actionProbeCount_.isValid() || !actionSummary_.isValid()) {
       return;
     }
+    const bool enabled = actionEnabled_.get();
+    const int count = actionProbeCount_.get();
+    if (this->actionSummaryCacheValid_ && this->lastActionSummaryEnabled_ == enabled
+        && this->lastActionSummaryCount_ == count) {
+      return;
+    }
+    this->actionSummaryCacheValid_ = true;
+    this->lastActionSummaryEnabled_ = enabled;
+    this->lastActionSummaryCount_ = count;
     const loka::core::String enabledText =
-        actionEnabled_.get() ? loka::core::String::Literal("yes") : loka::core::String::Literal("no");
-    const loka::core::String countText = loka::core::String::FromInt(actionProbeCount_.get());
+        enabled ? loka::core::String::Literal("yes") : loka::core::String::Literal("no");
+    const loka::core::String countText = loka::core::String::FromInt(count);
     actionSummary_.set(loka::core::String::Literal("Button enabled: ") + enabledText
                            + loka::core::String::Literal(" / clicks: ") + countText);
   }
