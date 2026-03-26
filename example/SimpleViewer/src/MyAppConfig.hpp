@@ -81,9 +81,8 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->image_.set(loka::core::resource::Image::Empty());
-      const loka::core::String body = buildErrorMessage(error);
-      self->chooserMessage_.set(body);
+      self->setEmptyImageIfNeeded();
+      self->setChooserMessageIfChanged(buildErrorMessage(error));
     }
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
@@ -97,7 +96,7 @@ private:
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (!self) return loka::dsl::FLOW_ERROR_HANDLED;
-    self->image_.set(loka::core::resource::Image::Empty());
+    self->setEmptyImageIfNeeded();
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
 
@@ -105,9 +104,8 @@ private:
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (!self) return loka::dsl::FLOW_ERROR_HANDLED;
-    self->image_.set(loka::core::resource::Image::Empty());
-    const loka::core::String body = buildErrorMessage(error);
-    self->chooserMessage_.set(body);
+    self->setEmptyImageIfNeeded();
+    self->setChooserMessageIfChanged(buildErrorMessage(error));
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
 
@@ -189,6 +187,25 @@ private:
     chain.bindTrigger(&self->chooserResult_);
     chain.withTracker(&self->tracker_);
     return chain;
+  }
+
+  void setEmptyImageIfNeeded()
+  {
+    const loka::core::resource::Image empty = loka::core::resource::Image::Empty();
+    if (this->image_.get() == empty)
+    {
+      return;
+    }
+    this->image_.set(empty);
+  }
+
+  void setChooserMessageIfChanged(const loka::core::String &message)
+  {
+    if (this->chooserMessage_.get().equals(message))
+    {
+      return;
+    }
+    this->chooserMessage_.set(message);
   }
 
   loka::core::MutableState<bool> isDialogShown_;
