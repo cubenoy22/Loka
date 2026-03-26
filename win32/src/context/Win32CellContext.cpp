@@ -83,9 +83,11 @@ LRESULT CALLBACK Win32CellContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, L
   switch (msg)
   {
   case WM_ERASEBKGND:
+    Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_CELL, true);
     return 1;
   case WM_PAINT:
   {
+    Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_CELL, false);
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     if (self)
