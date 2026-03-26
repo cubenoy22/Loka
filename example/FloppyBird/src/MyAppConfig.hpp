@@ -77,6 +77,8 @@ public:
   {
     c << WindowDef(WindowProps()
                        .frame(50, 50, 380, 340)
+                       .idlePolicy(loka::app::IdlePolicy::interval(loka_floppy_bird::kFixedStepSeconds))
+                       .onIdle(&MyAppConfig::WindowIdleThunk, this)
                        .scene(loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode>(
                            floppybird::MainProps(&this->shared_)))
                        .title("LokaFloppyBird")
@@ -91,13 +93,9 @@ public:
                         << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
   }
 
-  virtual loka::app::IdlePolicy idlePolicy() const
+  void handleWindowIdle(Window *window, double elapsedSeconds)
   {
-    return loka::app::IdlePolicy::interval(loka_floppy_bird::kFixedStepSeconds);
-  }
-
-  virtual void onIdle(double elapsedSeconds)
-  {
+    (void)window;
     loka::core::StateTrackerGuard guard(&this->tracker_);
     if (!this->game_.advanceFrame(elapsedSeconds))
     {
@@ -119,6 +117,15 @@ public:
   }
 
 private:
+  static void WindowIdleThunk(Window *window, double elapsedSeconds, void *userData)
+  {
+    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    if (self)
+    {
+      self->handleWindowIdle(window, elapsedSeconds);
+    }
+  }
+
   bool buildSnapshot(RenderSnapshot &snapshot)
   {
     snapshot.pipeCount = static_cast<short>(this->game_.pipeCount());

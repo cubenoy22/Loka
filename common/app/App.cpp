@@ -69,6 +69,10 @@ void App::run()
 
 loka::app::IdlePolicy App::idlePolicy() const
 {
+  if (activeWindow_)
+  {
+    return activeWindow_->idlePolicy();
+  }
   return config_ ? config_->idlePolicy() : loka::app::IdlePolicy::none();
 }
 
@@ -98,6 +102,10 @@ bool App::consumeIdle(double elapsedSeconds, double &dispatchElapsedSeconds)
 
 void App::handleIdle(double elapsedSeconds)
 {
+  if (activeWindow_ && activeWindow_->handleIdle(elapsedSeconds))
+  {
+    return;
+  }
   if (config_)
   {
     config_->onIdle(elapsedSeconds);
