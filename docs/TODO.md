@@ -18,6 +18,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Audit remaining `std::string` usage and keep only intentional interop edges (UTF-8/platform bridge paths).
 - Declarative OpenGL game foundation (mainline): scene/update/render flow, resource model, and platform bridge boundaries.
 - Sprite path (Toolbox/Win32) as lightweight compatibility backend, not the primary game direction.
+- Pseudo-view sprite path: for lightweight game/decorative nodes, prefer one retained root native view plus scene-managed pseudo-views/sprites instead of one native subview per sprite. Keep `RectSurfaceNode`/similar nodes as normal scene nodes and push backend-specific diff/draw optimization into `NodeContext`.
 - Event loop + tick design for game-style rendering (separate from UI updates), aligned with the declarative game path.
 - Window close request: delegate to Scene/Root.
 - loka::core::Managed<T> circular reference patterns (Group/Weak or one-way ref policy).
