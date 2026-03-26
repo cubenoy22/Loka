@@ -100,24 +100,24 @@ namespace helloworld
       double weightKg = parseDouble(this->weightInput_.get());
       if (heightCm <= 0.0 || weightKg <= 0.0)
       {
-        this->bmiResult_.set(loka::core::String::Literal("BMI: --"), true);
+        this->bmiResult_.set(loka::core::String::Literal("BMI: --"));
         return;
       }
       double heightM = heightCm / 100.0;
       if (heightM <= 0.0)
       {
-        this->bmiResult_.set(loka::core::String::Literal("BMI: --"), true);
+        this->bmiResult_.set(loka::core::String::Literal("BMI: --"));
         return;
       }
       double bmi = weightKg / (heightM * heightM);
       if (bmi <= 0.0)
       {
-        this->bmiResult_.set(loka::core::String::Literal("BMI: --"), true);
+        this->bmiResult_.set(loka::core::String::Literal("BMI: --"));
         return;
       }
       char buf[64];
       std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
-      this->bmiResult_.set(loka::core::String(std::string(buf)), true);
+      this->bmiResult_.set(loka::core::String(std::string(buf)));
     }
 
     bool initialized_;

@@ -81,9 +81,9 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (self)
     {
-      self->image_.set(loka::core::resource::Image::Empty(), true);
+      self->image_.set(loka::core::resource::Image::Empty());
       const loka::core::String body = buildErrorMessage(error);
-      self->chooserMessage_.set(body, true);
+      self->chooserMessage_.set(body);
     }
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
@@ -97,7 +97,7 @@ private:
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (!self) return loka::dsl::FLOW_ERROR_HANDLED;
-    self->image_.set(loka::core::resource::Image::Empty(), true);
+    self->image_.set(loka::core::resource::Image::Empty());
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
 
@@ -105,9 +105,9 @@ private:
   {
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (!self) return loka::dsl::FLOW_ERROR_HANDLED;
-    self->image_.set(loka::core::resource::Image::Empty(), true);
+    self->image_.set(loka::core::resource::Image::Empty());
     const loka::core::String body = buildErrorMessage(error);
-    self->chooserMessage_.set(body, true);
+    self->chooserMessage_.set(body);
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
 

@@ -70,6 +70,6 @@ namespace helloworld
       index = 0;
     }
     loka::core::String next = loka::core::String::Literal("You chose ") + fruits_[static_cast<std::size_t>(index)] + ".";
-    fruitMessage_.set(next, true);
+    fruitMessage_.set(next);
   }
 } // namespace helloworld

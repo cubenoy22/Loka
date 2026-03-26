@@ -53,7 +53,7 @@ namespace helloworld {
     }
     ::Window *window = owner_->windowOrNull();
     loka::core::String next = message_.get() + " +Loka";
-    message_.set(next, true);
+    message_.set(next);
 
     if (!window) {
       return;
@@ -74,7 +74,7 @@ namespace helloworld {
     if (!actionEnabled_.isValid()) {
       return;
     }
-    actionEnabled_.set(!actionEnabled_.get(), true);
+    actionEnabled_.set(!actionEnabled_.get());
     refreshActionSummary();
   }
 
@@ -82,7 +82,7 @@ namespace helloworld {
     if (!actionProbeCount_.isValid()) {
       return;
     }
-    actionProbeCount_.set(actionProbeCount_.get() + 1, true);
+    actionProbeCount_.set(actionProbeCount_.get() + 1);
     refreshActionSummary();
   }
 
@@ -94,7 +94,6 @@ namespace helloworld {
         actionEnabled_.get() ? loka::core::String::Literal("yes") : loka::core::String::Literal("no");
     const loka::core::String countText = loka::core::String::FromInt(actionProbeCount_.get());
     actionSummary_.set(loka::core::String::Literal("Button enabled: ") + enabledText
-                           + loka::core::String::Literal(" / clicks: ") + countText,
-                       true);
+                           + loka::core::String::Literal(" / clicks: ") + countText);
   }
 } // namespace helloworld
