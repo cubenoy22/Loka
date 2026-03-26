@@ -68,7 +68,9 @@ public:
         lastScore_(-1)
   {
     this->tracker_.addState(&this->shared_.surfaceModel_);
+#if !defined(LOKA_RETRO68)
     this->tracker_.addState(&this->shared_.scoreText_);
+#endif
     this->game_.seed(1UL);
     this->renderScene();
   }
@@ -157,6 +159,7 @@ private:
   void renderScene()
   {
     RenderSnapshot snapshot;
+#if !defined(LOKA_RETRO68)
     const int score = this->game_.score();
     if (score != this->lastScore_)
     {
@@ -164,6 +167,7 @@ private:
                                        + loka::core::String::FromInt(score));
       this->lastScore_ = score;
     }
+#endif
     if (!this->buildSnapshot(snapshot))
     {
       return;

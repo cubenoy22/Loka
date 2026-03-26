@@ -1480,7 +1480,8 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
                                                    short y,
                                                    loka::core::State<loka::core::String> *text,
                                                    loka::app::scene::BoundaryNode *boundary,
-                                                   bool needsRelayoutOnChange)
+                                                   bool needsRelayoutOnChange,
+                                                   short visibleWidth)
 {
   if (!text)
   {
@@ -1492,7 +1493,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   hit.y = y;
   hit.text = text;
   hit.boundary = boundary;
-  hit.lastMeasuredWidth = static_cast<short>(rect.right - rect.left);
+  hit.lastMeasuredWidth = visibleWidth;
   hit.needsRelayoutOnChange = needsRelayoutOnChange;
   textHits_.push_back(hit);
   bindTextState(text);
@@ -1682,14 +1683,31 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
         }
         return;
       }
+      short measuredWidth = ToolboxMeasureTextWidth(text->get());
+      const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
+      if (maxWidth > 0 && measuredWidth > maxWidth)
+      {
+        measuredWidth = maxWidth;
+      }
+      Rect dirtyRect = hit.rect;
+      short redrawWidth = hit.lastMeasuredWidth;
+      if (measuredWidth > redrawWidth)
+      {
+        redrawWidth = measuredWidth;
+      }
+      if (maxWidth > 0 && redrawWidth > maxWidth)
+      {
+        redrawWidth = maxWidth;
+      }
+      dirtyRect.right = static_cast<short>(dirtyRect.left + redrawWidth);
       if (inBatchUpdate_)
       {
-        addPendingDirty(hit.rect);
+        addPendingDirty(dirtyRect);
       }
       else
       {
         ++debugStats_.textChangedImmediateInvalidateCount;
-        window_->drawDirty(hit.rect);
+        window_->drawDirty(dirtyRect);
       }
       return;
     }
@@ -2001,21 +2019,38 @@ bool ToolboxScenePlatformController::dumpDebugStatsToTimestampedFile() const
   return debugStats_.dumpToTimestampedFile();
 }
 
-void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
+void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
 {
   if (!window_ || !window_->window() || !hit.text)
   {
     return;
   }
+  short measuredWidth = ToolboxMeasureTextWidth(hit.text->get());
+  const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
+  if (maxWidth > 0 && measuredWidth > maxWidth)
+  {
+    measuredWidth = maxWidth;
+  }
+  Rect dirtyRect = hit.rect;
+  short redrawWidth = hit.lastMeasuredWidth;
+  if (measuredWidth > redrawWidth)
+  {
+    redrawWidth = measuredWidth;
+  }
+  if (maxWidth > 0 && redrawWidth > maxWidth)
+  {
+    redrawWidth = maxWidth;
+  }
+  dirtyRect.right = static_cast<short>(dirtyRect.left + redrawWidth);
   GrafPtr oldPort;
   GetPort(&oldPort);
   SetPort(window_->window());
-  EraseRect(&hit.rect);
+  EraseRect(&dirtyRect);
   RgnHandle oldClip = NewRgn();
   if (oldClip != 0)
   {
     GetClip(oldClip);
-    ClipRect(&hit.rect);
+    ClipRect(&dirtyRect);
     DrawStringAt(hit.x, hit.y, hit.text->get());
     SetClip(oldClip);
     DisposeRgn(oldClip);
@@ -2024,6 +2059,7 @@ void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
   {
     DrawStringAt(hit.x, hit.y, hit.text->get());
   }
+  hit.lastMeasuredWidth = measuredWidth;
   SetPort(oldPort);
 }
 

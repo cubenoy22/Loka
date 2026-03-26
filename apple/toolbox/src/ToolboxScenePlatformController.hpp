@@ -52,7 +52,8 @@ public:
                      short y,
                      loka::core::State<loka::core::String> *text,
                      loka::app::scene::BoundaryNode *boundary,
-                     bool needsRelayoutOnChange);
+                     bool needsRelayoutOnChange,
+                     short visibleWidth);
   void recordPopupHit(const Rect &rect,
                       short lineHeight,
                       const loka::Vector<loka::core::String> *items,
@@ -206,7 +207,7 @@ private:
   void requestInvalidateForChange(loka::app::scene::Node *rootNodeForChange,
                                   loka::app::scene::NodeDirtyFlags flags,
                                   bool fullRebuild);
-  void redrawTextHit(const TextHit &hit);
+  void redrawTextHit(TextHit &hit);
   void redrawPopupHit(const PopupHit &hit);
   void redrawTextFor(loka::core::State<loka::core::String> *text);
   void clearTextBindings();
