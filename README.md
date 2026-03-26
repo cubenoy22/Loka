@@ -2,12 +2,18 @@
 
 > A declarative UI & application framework that runs from **Classic Mac OS (68k, System 7)** to **modern macOS, Windows, Linux**, and beyond.
 
+Loka is a declarative UI framework that spans from classic Macintosh systems in the 68000 @ 8 MHz class, through Windows XP, to modern macOS, Windows, and ARM devices, with the same state model and composition system.
+Even on 68000-class Macintosh systems, Loka can start and run basic applications, although full real-hardware verification is still pending.
+
 Loka is an experimental but *real* declarative framework written in **strict C++98**, designed to prove a bold idea:
 
 > **One reactive UI model can scale from a 68000 @ 8 MHz Macintosh to modern multi‑core systems.**
 
 This is not a toy, not a transpiler, and not a JS runtime.
 Loka produces **native applications**, with direct access to each platform’s windowing and graphics APIs.
+
+Loka is designed as a declarative system for building logical UI structures without depending on any specific platform implementation, then projecting them onto each OS's native environment.
+In the future, this model is intended to extend beyond UI into declarative game development and video creation workflows.
 
 > **Loka enables declarative UI applications to be written in a single C++98-based syntax across platforms ranging from Classic Macintosh systems to modern operating systems, including PDA-class devices.**
 
@@ -69,11 +75,15 @@ Compatibility claims are labeled as:
 
 **Minimum RAM (Classic Mac OS examples):** ~300 KB or above
 
+**Practical RAM guideline (current samples):** around **512 KB** is generally enough to run the current sample applications with headroom, although viewers such as **SimpleViewer** still depend on the size and format of the image being opened.
+
 **Disk size (Classic Mac OS examples):** fits on a **2DD floppy disk (800 KB)** or larger media
 
 > Current example binaries are up to **~271 KB** in size.
 > Figures reflect the current set of example applications targeting System 7.
 > Actual requirements depend on UI complexity and platform.
+
+**Typical binary size guideline:** current sample applications are generally under **1 MB per binary** when built as single-target binaries rather than multi-architecture bundles.
 
 > If it runs on System 7, it can probably run on your device.
 

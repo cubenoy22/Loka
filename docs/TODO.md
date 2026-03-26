@@ -43,6 +43,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Docs/tests: document C++98 constraints and add checks for accidental C++11 usage.
 - Cleanup staged work from earlier C++98 retrofit (split/rebase if needed).
 - DSL shorthand ideas: direct props overloads (Text("...")), direct State props (EditText(State*)), optional prepare/compose merge, namespace alias, Fragment helper.
+- C++98 chain-entry helper idea: add a thin wrapper/helper for DSL/Stream/Flow entry points so callers can keep chaining without spelling long intermediate types when `auto` is unavailable. Keep it narrow and purposeful rather than a broad "wrap anything" abstraction.
 - Decentralize node-type dispatch: replace the single `NODE_KIND` + `asXxxNode()` + `PlatformController` switch concentration with a registration-based context factory model. The long-term goal is to remove enum/switch dispatch and most `asXxxNode()` paths outside 68k-sensitive builds while preserving user-defined component extensibility.
 - Introduce `loka::multimedia` layer for codec/media responsibilities (ImageDecoder/Audio/Video), keeping `app` layer UI-only. Platform contexts should call multimedia abstractions instead of embedding QuickTime/AVFoundation/Win32 decode logic directly.
 - ImageView rendering policy: keep platform contexts on custom drawing paths (NSView/GDI/Toolbox) and avoid tying behavior to NSImageView-specific features for cross-platform parity.
