@@ -14,7 +14,8 @@ App::App(AppConfigurable *config)
       config_(config),
       menuBar_(0),
       activeWindow_(0),
-      menuRefresh_()
+      menuRefresh_(),
+      idleAccumulatedSeconds_(0.0)
 {
   currentApp_ = this;
 }
@@ -64,6 +65,60 @@ void App::run()
     group_ = new ComponentGroup<AppComponent>(composition.build());
   }
   reflectInitialVisibilityChunks();
+}
+
+loka::app::IdlePolicy App::idlePolicy() const
+{
+  if (activeWindow_)
+  {
+    return activeWindow_->idlePolicy();
+  }
+  return config_ ? config_->idlePolicy() : loka::app::IdlePolicy::none();
+}
+
+bool App::consumeIdle(double elapsedSeconds, double &dispatchElapsedSeconds)
+{
+  const loka::app::IdlePolicy policy = this->idlePolicy();
+  if (policy.mode == loka::app::IDLE_MODE_NONE)
+  {
+    idleAccumulatedSeconds_ = 0.0;
+    return false;
+  }
+  if (policy.mode == loka::app::IDLE_MODE_EVERY_TICK)
+  {
+    idleAccumulatedSeconds_ = 0.0;
+    dispatchElapsedSeconds = elapsedSeconds;
+    return true;
+  }
+  idleAccumulatedSeconds_ += elapsedSeconds;
+  if (policy.intervalSeconds <= 0.0 || idleAccumulatedSeconds_ >= policy.intervalSeconds)
+  {
+    dispatchElapsedSeconds = idleAccumulatedSeconds_;
+    idleAccumulatedSeconds_ = 0.0;
+    return true;
+  }
+  return false;
+}
+
+void App::handleIdle(double elapsedSeconds)
+{
+  if (activeWindow_ && activeWindow_->handleIdle(elapsedSeconds))
+  {
+    return;
+  }
+  if (config_)
+  {
+    config_->onIdle(elapsedSeconds);
+  }
+}
+
+bool App::handleKeyPress(char key)
+{
+  if (activeWindow_ && activeWindow_->handleKeyPress(key))
+  {
+    return true;
+  }
+  return config_ ? config_->handleKeyPress(key) : false;
 }
 
 // --- visibility chunk反映をprivate関数に分離 ---

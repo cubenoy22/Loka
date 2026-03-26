@@ -71,7 +71,8 @@ namespace loka
         NODE_KIND_EDIT_TEXT,
         NODE_KIND_POPUP_MENU,
         NODE_KIND_OPEN_FILE_DIALOG,
-        NODE_KIND_IMAGE_VIEW
+        NODE_KIND_IMAGE_VIEW,
+        NODE_KIND_RECT_SURFACE
       };
 
       typedef unsigned short NodeTag;
@@ -105,6 +106,7 @@ namespace loka
     class PopupMenuNode;
     class OpenFileDialogNode;
     class ImageViewNode;
+    class RectSurfaceNode;
   } // namespace app
 
   namespace app
@@ -200,6 +202,7 @@ namespace loka
         virtual ::loka::app::PopupMenuNode *asPopupMenuNode() { return 0; }
         virtual ::loka::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
         virtual ::loka::app::ImageViewNode *asImageViewNode() { return 0; }
+        virtual ::loka::app::RectSurfaceNode *asRectSurfaceNode() { return 0; }
         virtual void declareObservedStates(ObservedStateRegistrar &) {}
         // Generic interface query (for findBoundary without RTTI)
         virtual void *queryInterface(const char *name) { (void)name; return 0; }

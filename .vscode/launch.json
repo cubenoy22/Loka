@@ -34,6 +34,14 @@
       "preLaunchTask": "Build: macOS SimpleViewer"
     },
     {
+      "name": "Run (macOS FloppyBird)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/FloppyBird/LokaFloppyBirdMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS FloppyBird"
+    },
+    {
       "name": "Test (macOS)",
       "type": "lldb-dap",
       "request": "launch",
@@ -76,6 +84,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 SimpleViewer"
+    },
+    {
+      "name": "Run (Windows FloppyBird)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/FloppyBird/LokaFloppyBirdWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 FloppyBird"
     },
     {
       "name": "Test (Windows)",

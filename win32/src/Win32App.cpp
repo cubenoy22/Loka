@@ -47,7 +47,6 @@ void Win32App::windowClosed(Window *window)
 
 void Win32App::run()
 {
-  // 基底クラスの実行
   App::run();
 
   // 各ウィンドウにこのアプリインスタンスへの参照を設定する
@@ -65,21 +64,69 @@ void Win32App::run()
     }
   }
 
-  // Win32メッセージループ
-  MSG msg;
-  while (GetMessage(&msg, NULL, 0, 0))
+  LARGE_INTEGER frequency;
+  LARGE_INTEGER lastTick;
+  QueryPerformanceFrequency(&frequency);
+  QueryPerformanceCounter(&lastTick);
+
+  bool running = true;
+  while (running)
   {
-    HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
-    if (root && IsDialogMessage(root, &msg))
+    MSG msg;
+    bool handledMessage = false;
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
     {
+      handledMessage = true;
+      if (msg.message == WM_QUIT)
+      {
+        running = false;
+        break;
+      }
+      HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
+      if (root && IsDialogMessage(root, &msg))
+      {
+        continue;
+      }
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
+    if (!running)
+    {
+      break;
+    }
+
+    const loka::app::IdlePolicy policy = this->idlePolicy();
+
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    double elapsedSeconds = 0.0;
+    if (frequency.QuadPart > 0)
+    {
+      elapsedSeconds = static_cast<double>(now.QuadPart - lastTick.QuadPart) /
+                       static_cast<double>(frequency.QuadPart);
+    }
+    lastTick = now;
+
+    if (policy.mode == loka::app::IDLE_MODE_NONE)
+    {
+      this->flushMenuInvalidation();
+      this->flushWindowInvalidations();
+      if (!handledMessage)
+      {
+        WaitMessage();
+      }
       continue;
     }
-    TranslateMessage(&msg);
-    DispatchMessage(&msg);
+
+    double dispatchElapsedSeconds = 0.0;
+    if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
+    {
+      this->handleIdle(dispatchElapsedSeconds);
+    }
+    this->flushMenuInvalidation();
     this->flushWindowInvalidations();
+    Sleep(1);
   }
-  // GetMessageが0を返したら (PostQuitMessageが呼ばれたら) ループを抜ける
-  // run()メソッドが終了し、WinMainに戻る
 }
 
 bool Win32App::handleMenuCommand(int commandId, Window *window)

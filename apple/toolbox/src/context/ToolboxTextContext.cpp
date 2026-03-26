@@ -205,6 +205,21 @@ void ToolboxTextContext::updateRect(const Rect &rect, short textX, short textY)
   textY_ = textY;
 }
 
+short ToolboxTextContext::visibleWidth() const
+{
+  if (!text_)
+  {
+    return 0;
+  }
+  short width = ToolboxMeasureTextWidth(text_->get());
+  const short maxWidth = static_cast<short>(rect_.right - rect_.left);
+  if (maxWidth > 0 && width > maxWidth)
+  {
+    width = maxWidth;
+  }
+  return width;
+}
+
 void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 {
   if (!text_)
@@ -250,7 +265,8 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
                               textY_,
                               text_,
                               boundary_,
-                              wrapMode_ != loka::app::TEXT_WRAP_NONE);
+                              wrapMode_ != loka::app::TEXT_WRAP_NONE,
+                              visibleWidth());
   }
 }
 

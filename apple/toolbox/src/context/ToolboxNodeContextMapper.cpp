@@ -6,6 +6,7 @@
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "context/ToolboxImageViewContext.hpp"
+#include "context/ToolboxRectSurfaceContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 
 void ToolboxNodeContextMapper::ensureTextContext(loka::app::TextNode *node)
@@ -102,6 +103,20 @@ void ToolboxNodeContextMapper::ensureImageViewContext(loka::app::ImageViewNode *
   if (!ctx)
   {
     ctx = new ToolboxImageViewContext(node);
+    node->setContext(ctx);
+  }
+}
+
+void ToolboxNodeContextMapper::ensureRectSurfaceContext(loka::app::RectSurfaceNode *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(node->getContext());
+  if (!ctx)
+  {
+    ctx = new ToolboxRectSurfaceContext(node);
     node->setContext(ctx);
   }
 }

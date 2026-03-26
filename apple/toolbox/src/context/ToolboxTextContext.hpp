@@ -37,6 +37,7 @@ public:
   void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
+  short visibleWidth() const;
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller,

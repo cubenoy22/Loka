@@ -34,6 +34,7 @@ public:
   void handleWindowWillClose();
   void handleWindowDidResize();
   void handleWindowDidBecomeKey();
+  bool handleKeyPress(char key);
 
 protected:
   virtual void onCreate();

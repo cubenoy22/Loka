@@ -21,6 +21,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/ImageView.hpp"
+#include "app/RectSurface.hpp"
 #include "app/Box.hpp"
 #include "app/Grid.hpp"
 #include "app/ZStack.hpp"
@@ -33,6 +34,7 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "context/ToolboxImageViewContext.hpp"
+#include "context/ToolboxRectSurfaceContext.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/node/Boundary.hpp"
@@ -224,6 +226,145 @@ namespace
       }
     }
     return maxId;
+  }
+
+  bool HasRectSurfaceNode(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    if (node->kind() == loka::app::scene::NODE_KIND_RECT_SURFACE)
+    {
+      return true;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        if (HasRectSurfaceNode(child))
+        {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void RenderDirtyRectSurfaces(loka::app::scene::Node *node,
+                               ToolboxScenePlatformController *controller,
+                               const Rect &dirtyRect)
+  {
+    if (!node)
+    {
+      return;
+    }
+    if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+    {
+      ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
+      if (ctx)
+      {
+        ctx->renderDirty(dirtyRect);
+      }
+      return;
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        RenderDirtyRectSurfaces(child, controller, dirtyRect);
+      }
+    }
+    (void)controller;
+  }
+
+  bool CollectRectSurfaceDirtyRect(loka::app::scene::Node *node, Rect &outRect)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    bool hasRect = false;
+    if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
+    {
+      ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
+      if (ctx)
+      {
+        Rect rect;
+        if (ctx->dirtyRect(rect))
+        {
+          outRect = rect;
+          return true;
+        }
+      }
+    }
+    if (loka::app::scene::INestable *nestable = node->asNestable())
+    {
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        Rect childRect;
+        if (!CollectRectSurfaceDirtyRect(child, childRect))
+        {
+          continue;
+        }
+        if (!hasRect)
+        {
+          outRect = childRect;
+          hasRect = true;
+        }
+        else
+        {
+          if (childRect.left < outRect.left)
+          {
+            outRect.left = childRect.left;
+          }
+          if (childRect.top < outRect.top)
+          {
+            outRect.top = childRect.top;
+          }
+          if (childRect.right > outRect.right)
+          {
+            outRect.right = childRect.right;
+          }
+          if (childRect.bottom > outRect.bottom)
+          {
+            outRect.bottom = childRect.bottom;
+          }
+        }
+      }
+    }
+    return hasRect;
+  }
+
+  bool ContainsOnlyRectSurfacePainting(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    if (node->asRectSurfaceNode())
+    {
+      return true;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return false;
+    }
+    bool hasChild = false;
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      hasChild = true;
+      if (!ContainsOnlyRectSurfacePainting(child))
+      {
+        return false;
+      }
+    }
+    return hasChild;
   }
 
   short LayoutChildren(loka::app::scene::INestable *nestable,
@@ -656,6 +797,25 @@ namespace
       }
       return width;
     }
+    case loka::app::scene::NODE_KIND_RECT_SURFACE:
+    {
+      loka::app::RectSurfaceNode *surface = static_cast<loka::app::RectSurfaceNode *>(node);
+      if (controller && controller->contextMapper())
+      {
+        controller->contextMapper()->ensureRectSurfaceContext(surface);
+      }
+      if (surface->getContext())
+      {
+        ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(surface->getContext());
+        ctx->setBoundary(activeBoundary);
+      }
+      short width = node->layout(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
     default:
       break;
     }
@@ -702,6 +862,7 @@ namespace
     case loka::app::scene::NODE_KIND_EDIT_TEXT:
     case loka::app::scene::NODE_KIND_POPUP_MENU:
     case loka::app::scene::NODE_KIND_IMAGE_VIEW:
+    case loka::app::scene::NODE_KIND_RECT_SURFACE:
       node->render(controller);
       return;
     case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
@@ -851,6 +1012,13 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
 
   if (!info.hasBoundsHint())
   {
+    Rect surfaceDirtyRect;
+    if (ContainsOnlyRectSurfacePainting(boundary) &&
+        CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+    {
+      window_->requestInvalidateRect(surfaceDirtyRect);
+      return;
+    }
     loka::app::scene::Node *firstChild = 0;
     if (loka::app::scene::INestable *nestable = boundary->asNestable())
     {
@@ -880,6 +1048,26 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   rect.top = static_cast<short>(info.bounds->y);
   rect.right = static_cast<short>(info.bounds->x + info.bounds->width);
   rect.bottom = static_cast<short>(info.bounds->y + info.bounds->height);
+  Rect surfaceDirtyRect;
+  if (CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+  {
+    if (surfaceDirtyRect.left < rect.left)
+    {
+      rect.left = surfaceDirtyRect.left;
+    }
+    if (surfaceDirtyRect.top < rect.top)
+    {
+      rect.top = surfaceDirtyRect.top;
+    }
+    if (surfaceDirtyRect.right > rect.right)
+    {
+      rect.right = surfaceDirtyRect.right;
+    }
+    if (surfaceDirtyRect.bottom > rect.bottom)
+    {
+      rect.bottom = surfaceDirtyRect.bottom;
+    }
+  }
   window_->requestInvalidateRect(rect);
 }
 
@@ -920,22 +1108,24 @@ void ToolboxScenePlatformController::render()
     }
     nextControlId_ = static_cast<short>(maxExplicit + 1);
   }
-  buttonHits_.clear();
-  cellHits_.clear();
-  for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
-    buttonControls_[i].usedThisFrame = false;
+    buttonHits_.clear();
+    cellHits_.clear();
+    for (size_t i = 0; i < buttonControls_.size(); ++i)
+    {
+      buttonControls_[i].usedThisFrame = false;
+    }
+    editHits_.clear();
+    for (size_t i = 0; i < editControls_.size(); ++i)
+    {
+      editControls_[i].usedThisFrame = false;
+    }
+    textHits_.clear();
+    popupHits_.clear();
+    clearEnabledBindings();
+    pendingTextStates_.clear();
+    pendingDirtyRects_.clear();
   }
-  editHits_.clear();
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    editControls_[i].usedThisFrame = false;
-  }
-  textHits_.clear();
-  popupHits_.clear();
-  clearEnabledBindings();
-  pendingTextStates_.clear();
-  pendingDirtyRects_.clear();
   loka::app::scene::LayoutState state;
   state.x = 12;
   state.y = 24;
@@ -964,35 +1154,37 @@ void ToolboxScenePlatformController::render()
                                static_cast<int>(editHits_.size()),
                                static_cast<int>(textHits_.size()),
                                static_cast<int>(popupHits_.size()));
-  for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
-    if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
+    for (size_t i = 0; i < buttonControls_.size(); ++i)
     {
-      HideControl(buttonControls_[i].control);
-    }
-  }
-  for (size_t i = 0; i < editControls_.size();)
-  {
-    if (!editControls_[i].usedThisFrame)
-    {
-      if (&editControls_[i] == focusedEdit_)
+      if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
       {
-        if (focusedEdit_->te)
+        HideControl(buttonControls_[i].control);
+      }
+    }
+    for (size_t i = 0; i < editControls_.size();)
+    {
+      if (!editControls_[i].usedThisFrame)
+      {
+        if (&editControls_[i] == focusedEdit_)
         {
-          TEDeactivate(focusedEdit_->te);
+          if (focusedEdit_->te)
+          {
+            TEDeactivate(focusedEdit_->te);
+          }
+          focusedEdit_ = 0;
         }
-        focusedEdit_ = 0;
+        if (editControls_[i].te)
+        {
+          TEDeactivate(editControls_[i].te);
+          queueRetiredTextEdit(editControls_[i].te);
+        }
+        editControls_[i].te = 0;
+        editControls_.erase(editControls_.begin() + i);
+        continue;
       }
-      if (editControls_[i].te)
-      {
-        TEDeactivate(editControls_[i].te);
-        queueRetiredTextEdit(editControls_[i].te);
-      }
-      editControls_[i].te = 0;
-      editControls_.erase(editControls_.begin() + i);
-      continue;
+      ++i;
     }
-    ++i;
   }
 
 }
@@ -1013,8 +1205,19 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
   }
   if (textHits_.empty() && popupHits_.empty() && buttonControls_.empty() && editControls_.empty())
   {
-    render();
+    if (HasRectSurfaceNode(rootNode_))
+    {
+      RenderDirtyRectSurfaces(rootNode_, this, rect);
+    }
+    else
+    {
+      render();
+    }
     return;
+  }
+  if (HasRectSurfaceNode(rootNode_))
+  {
+    RenderDirtyRectSurfaces(rootNode_, this, rect);
   }
   for (size_t i = 0; i < popupHits_.size(); ++i)
   {
@@ -1277,7 +1480,8 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
                                                    short y,
                                                    loka::core::State<loka::core::String> *text,
                                                    loka::app::scene::BoundaryNode *boundary,
-                                                   bool needsRelayoutOnChange)
+                                                   bool needsRelayoutOnChange,
+                                                   short visibleWidth)
 {
   if (!text)
   {
@@ -1289,7 +1493,7 @@ void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
   hit.y = y;
   hit.text = text;
   hit.boundary = boundary;
-  hit.lastMeasuredWidth = static_cast<short>(rect.right - rect.left);
+  hit.lastMeasuredWidth = visibleWidth;
   hit.needsRelayoutOnChange = needsRelayoutOnChange;
   textHits_.push_back(hit);
   bindTextState(text);
@@ -1479,14 +1683,31 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
         }
         return;
       }
+      short measuredWidth = ToolboxMeasureTextWidth(text->get());
+      const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
+      if (maxWidth > 0 && measuredWidth > maxWidth)
+      {
+        measuredWidth = maxWidth;
+      }
+      Rect dirtyRect = hit.rect;
+      short redrawWidth = hit.lastMeasuredWidth;
+      if (measuredWidth > redrawWidth)
+      {
+        redrawWidth = measuredWidth;
+      }
+      if (maxWidth > 0 && redrawWidth > maxWidth)
+      {
+        redrawWidth = maxWidth;
+      }
+      dirtyRect.right = static_cast<short>(dirtyRect.left + redrawWidth);
       if (inBatchUpdate_)
       {
-        addPendingDirty(hit.rect);
+        addPendingDirty(dirtyRect);
       }
       else
       {
         ++debugStats_.textChangedImmediateInvalidateCount;
-        window_->drawDirty(hit.rect);
+        window_->drawDirty(dirtyRect);
       }
       return;
     }
@@ -1798,21 +2019,38 @@ bool ToolboxScenePlatformController::dumpDebugStatsToTimestampedFile() const
   return debugStats_.dumpToTimestampedFile();
 }
 
-void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
+void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
 {
   if (!window_ || !window_->window() || !hit.text)
   {
     return;
   }
+  short measuredWidth = ToolboxMeasureTextWidth(hit.text->get());
+  const short maxWidth = static_cast<short>(hit.rect.right - hit.rect.left);
+  if (maxWidth > 0 && measuredWidth > maxWidth)
+  {
+    measuredWidth = maxWidth;
+  }
+  Rect dirtyRect = hit.rect;
+  short redrawWidth = hit.lastMeasuredWidth;
+  if (measuredWidth > redrawWidth)
+  {
+    redrawWidth = measuredWidth;
+  }
+  if (maxWidth > 0 && redrawWidth > maxWidth)
+  {
+    redrawWidth = maxWidth;
+  }
+  dirtyRect.right = static_cast<short>(dirtyRect.left + redrawWidth);
   GrafPtr oldPort;
   GetPort(&oldPort);
   SetPort(window_->window());
-  EraseRect(&hit.rect);
+  EraseRect(&dirtyRect);
   RgnHandle oldClip = NewRgn();
   if (oldClip != 0)
   {
     GetClip(oldClip);
-    ClipRect(&hit.rect);
+    ClipRect(&dirtyRect);
     DrawStringAt(hit.x, hit.y, hit.text->get());
     SetClip(oldClip);
     DisposeRgn(oldClip);
@@ -1821,6 +2059,7 @@ void ToolboxScenePlatformController::redrawTextHit(const TextHit &hit)
   {
     DrawStringAt(hit.x, hit.y, hit.text->get());
   }
+  hit.lastMeasuredWidth = measuredWidth;
   SetPort(oldPort);
 }
 

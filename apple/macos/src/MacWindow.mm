@@ -8,12 +8,43 @@
 #include "loka/platform/StringUTF8.hpp"
 
 @interface LokaFlippedView : NSView
+{
+  MacWindow *owner_;
+}
+- (void)setOwner:(MacWindow *)owner;
 @end
 
 @implementation LokaFlippedView
 - (BOOL)isFlipped
 {
   return YES;
+}
+
+- (BOOL)acceptsFirstResponder
+{
+  return YES;
+}
+
+- (void)setOwner:(MacWindow *)owner
+{
+  owner_ = owner;
+}
+
+- (void)keyDown:(NSEvent *)event
+{
+  if (owner_)
+  {
+    NSString *characters = [event charactersIgnoringModifiers];
+    if (characters && [characters length] > 0)
+    {
+      const unichar value = [characters characterAtIndex:0];
+      if (value <= 0x7f && owner_->handleKeyPress(static_cast<char>(value)))
+      {
+        return;
+      }
+    }
+  }
+  [super keyDown:event];
 }
 @end
 
@@ -252,6 +283,8 @@ void MacWindow::createNativeWindow()
 
   LokaFlippedView *contentView = [[LokaFlippedView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
   [window setContentView:contentView];
+  [contentView setOwner:this];
+  [window makeFirstResponder:contentView];
 
   LokaWindowDelegate *delegate = [[LokaWindowDelegate alloc] init];
   delegate.owner = this;
@@ -264,6 +297,11 @@ void MacWindow::createNativeWindow()
   [window makeKeyAndOrderFront:nil];
   this->onCreate();
   this->mountScene();
+}
+
+bool MacWindow::handleKeyPress(char key)
+{
+  return app_ ? app_->handleKeyPress(key) : false;
 }
 
 void MacWindow::destroyNativeWindow()

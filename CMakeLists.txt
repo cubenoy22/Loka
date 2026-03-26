@@ -27,6 +27,7 @@ add_subdirectory(example/HelloWorld)
 add_subdirectory(example/MineSweeper)
 add_subdirectory(example/PerfArena)
 add_subdirectory(example/SimpleViewer)
+add_subdirectory(example/FloppyBird)
 endif()
 
 # Linux/WSL headless tests (Flow DSL focused).
