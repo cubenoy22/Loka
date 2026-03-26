@@ -40,6 +40,7 @@ struct WindowProps
 {
   typedef WindowTypeTag TypeTag;
   typedef void (*OnIdleFn)(Window *window, double elapsedSeconds, void *userData);
+  typedef bool (*OnKeyPressFn)(Window *window, char key, void *userData);
   loka::core::MutableState<loka::core::String> *titleStatePtr;
   loka::core::MutableState<bool> *visibilityStatePtr;
   loka::core::MutableState<loka::core::Frame> *frameStatePtr;
@@ -54,6 +55,8 @@ struct WindowProps
   loka::app::IdlePolicy idlePolicyValue;
   OnIdleFn onIdleFn;
   void *onIdleUserData;
+  OnKeyPressFn onKeyPressFn;
+  void *onKeyPressUserData;
   loka::app::scene::Scene *initialScene;
   loka::app::scene::NodeDefinitionBase *rootDefinition;
   loka::app::MenuBarDefinition *menuBarDefinition;
@@ -73,6 +76,8 @@ struct WindowProps
         idlePolicyValue(loka::app::IdlePolicy::none()),
         onIdleFn(0),
         onIdleUserData(0),
+        onKeyPressFn(0),
+        onKeyPressUserData(0),
         initialScene(0),
         rootDefinition(0),
         menuBarDefinition(0)
@@ -94,6 +99,8 @@ struct WindowProps
         idlePolicyValue(rhs.idlePolicyValue),
         onIdleFn(rhs.onIdleFn),
         onIdleUserData(rhs.onIdleUserData),
+        onKeyPressFn(rhs.onKeyPressFn),
+        onKeyPressUserData(rhs.onKeyPressUserData),
         initialScene(rhs.initialScene),
         rootDefinition(0),
         menuBarDefinition(0)
@@ -142,6 +149,8 @@ struct WindowProps
     idlePolicyValue = rhs.idlePolicyValue;
     onIdleFn = rhs.onIdleFn;
     onIdleUserData = rhs.onIdleUserData;
+    onKeyPressFn = rhs.onKeyPressFn;
+    onKeyPressUserData = rhs.onKeyPressUserData;
     initialScene = rhs.initialScene;
     if (rootDefinition)
     {
@@ -217,6 +226,13 @@ struct WindowProps
     return *this;
   }
 
+  WindowProps &onKeyPress(OnKeyPressFn fn, void *userData)
+  {
+    onKeyPressFn = fn;
+    onKeyPressUserData = userData;
+    return *this;
+  }
+
   WindowProps &titleState(loka::core::MutableState<loka::core::String> *state)
   {
     titleStatePtr = state;
@@ -289,6 +305,8 @@ public:
         idlePolicy_(props.idlePolicyValue),
         onIdleFn_(props.onIdleFn),
         onIdleUserData_(props.onIdleUserData),
+        onKeyPressFn_(props.onKeyPressFn),
+        onKeyPressUserData_(props.onKeyPressUserData),
         initialScene_(props.initialScene),
         menuBarDefinition_(0)
   {
@@ -404,6 +422,14 @@ public:
     onIdleFn_(this, elapsedSeconds, onIdleUserData_);
     return true;
   }
+  bool handleKeyPress(char key)
+  {
+    if (!onKeyPressFn_)
+    {
+      return false;
+    }
+    return onKeyPressFn_(this, key, onKeyPressUserData_);
+  }
 
 private:
 protected:
@@ -423,6 +449,8 @@ protected:
   loka::app::IdlePolicy idlePolicy_;
   WindowProps::OnIdleFn onIdleFn_;
   void *onIdleUserData_;
+  WindowProps::OnKeyPressFn onKeyPressFn_;
+  void *onKeyPressUserData_;
   loka::app::scene::Scene *initialScene_;
   loka::app::MenuBarDefinition *menuBarDefinition_;
 };

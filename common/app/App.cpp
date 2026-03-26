@@ -114,6 +114,10 @@ void App::handleIdle(double elapsedSeconds)
 
 bool App::handleKeyPress(char key)
 {
+  if (activeWindow_ && activeWindow_->handleKeyPress(key))
+  {
+    return true;
+  }
   return config_ ? config_->handleKeyPress(key) : false;
 }
 

@@ -79,6 +79,7 @@ public:
                        .frame(50, 50, 380, 340)
                        .idlePolicy(loka::app::IdlePolicy::interval(loka_floppy_bird::kFixedStepSeconds))
                        .onIdle(&MyAppConfig::WindowIdleThunk, this)
+                       .onKeyPress(&MyAppConfig::WindowKeyPressThunk, this)
                        .scene(loka::app::scene::NodeDefinition<floppybird::MainProps, floppybird::MainNode>(
                            floppybird::MainProps(&this->shared_)))
                        .title("LokaFloppyBird")
@@ -104,8 +105,9 @@ public:
     this->renderScene();
   }
 
-  virtual bool handleKeyPress(char key)
+  bool handleWindowKeyPress(Window *window, char key)
   {
+    (void)window;
     if (key != ' ')
     {
       return false;
@@ -124,6 +126,12 @@ private:
     {
       self->handleWindowIdle(window, elapsedSeconds);
     }
+  }
+
+  static bool WindowKeyPressThunk(Window *window, char key, void *userData)
+  {
+    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    return self ? self->handleWindowKeyPress(window, key) : false;
   }
 
   bool buildSnapshot(RenderSnapshot &snapshot)

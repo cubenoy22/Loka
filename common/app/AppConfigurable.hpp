@@ -1,7 +1,6 @@
 #ifndef LOKA_APPCONFIGURABLE_HPP
 #define LOKA_APPCONFIGURABLE_HPP
 
-// 前方宣言のみに変更して循環参照を解消
 class AppComposition;
 class PlatformContext;
 
