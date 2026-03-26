@@ -43,7 +43,7 @@ namespace loka_floppy_bird
   {
   public:
     GameLogic()
-        : state_(GAME_PLAYING),
+        : state_(GAME_WAITING),
           birdY_(initialBirdY()),
           birdVelocity_(0.0),
           score_(0),

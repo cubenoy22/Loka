@@ -24,10 +24,15 @@ public:
 private:
   static void EnsureClassRegistered();
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+  static void ModelChangedThunk(void *userData);
+  void bindModel();
+  void unbindModel();
+  void applyModel();
   void draw(HDC hdc, const RECT &rect);
 
   loka::app::RectSurfaceNode *node_;
   HWND hwnd_;
+  loka::core::State<loka::app::RectSurfaceModel> *modelState_;
 };
 
 #endif

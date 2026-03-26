@@ -339,6 +339,34 @@ namespace
     return hasRect;
   }
 
+  bool ContainsOnlyRectSurfacePainting(loka::app::scene::Node *node)
+  {
+    if (!node)
+    {
+      return false;
+    }
+    if (node->asRectSurfaceNode())
+    {
+      return true;
+    }
+    loka::app::scene::INestable *nestable = node->asNestable();
+    if (!nestable)
+    {
+      return false;
+    }
+    bool hasChild = false;
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+    {
+      hasChild = true;
+      if (!ContainsOnlyRectSurfacePainting(child))
+      {
+        return false;
+      }
+    }
+    return hasChild;
+  }
+
   short LayoutChildren(loka::app::scene::INestable *nestable,
                        loka::app::scene::LayoutState &state,
                        ToolboxScenePlatformController *controller,
@@ -985,7 +1013,8 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   if (!info.hasBoundsHint())
   {
     Rect surfaceDirtyRect;
-    if (CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+    if (ContainsOnlyRectSurfacePainting(boundary) &&
+        CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
     {
       window_->requestInvalidateRect(surfaceDirtyRect);
       return;

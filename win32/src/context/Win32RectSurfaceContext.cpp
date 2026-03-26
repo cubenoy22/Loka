@@ -14,7 +14,8 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(HWND parent,
                                                  int height,
                                                  loka::app::RectSurfaceNode *node)
     : node_(node),
-      hwnd_(0)
+      hwnd_(0),
+      modelState_(0)
 {
   EnsureClassRegistered();
   hwnd_ = CreateWindowExA(0,
@@ -29,10 +30,12 @@ Win32RectSurfaceContext::Win32RectSurfaceContext(HWND parent,
                           0,
                           GetModuleHandle(NULL),
                           this);
+  bindModel();
 }
 
 Win32RectSurfaceContext::~Win32RectSurfaceContext()
 {
+  unbindModel();
   if (hwnd_)
   {
     DestroyWindow(hwnd_);
@@ -112,6 +115,47 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
   return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+void Win32RectSurfaceContext::bindModel()
+{
+  if (!node_)
+  {
+    return;
+  }
+  modelState_ = node_->props.model_;
+  if (modelState_)
+  {
+    modelState_->bind(&Win32RectSurfaceContext::ModelChangedThunk, this, true);
+    applyModel();
+  }
+}
+
+void Win32RectSurfaceContext::unbindModel()
+{
+  if (modelState_)
+  {
+    modelState_->unbind(&Win32RectSurfaceContext::ModelChangedThunk, this);
+    modelState_ = 0;
+  }
+}
+
+void Win32RectSurfaceContext::applyModel()
+{
+  if (!hwnd_)
+  {
+    return;
+  }
+  Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
+}
+
+void Win32RectSurfaceContext::ModelChangedThunk(void *userData)
+{
+  Win32RectSurfaceContext *self = static_cast<Win32RectSurfaceContext *>(userData);
+  if (self)
+  {
+    self->applyModel();
+  }
+}
+
 void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
 {
   if (node_ && node_->props.clearBackground_)
@@ -123,11 +167,11 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
       DeleteObject(backgroundBrush);
     }
   }
-  if (!node_ || !node_->props.model_)
+  if (!node_ || !modelState_)
   {
     return;
   }
-  const loka::app::RectSurfaceModel model = node_->props.model_->get();
+  const loka::app::RectSurfaceModel model = modelState_->get();
   HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
   for (short i = 0; i < model.rectCount; ++i)
   {

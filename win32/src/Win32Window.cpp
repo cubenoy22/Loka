@@ -147,20 +147,23 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       }
       break;
     case WM_KEYDOWN:
-      if (self->app_)
+      if (self->app_ && wParam == VK_SPACE)
       {
-        char key = 0;
-        if (wParam == VK_SPACE)
-        {
-          key = ' ';
-        }
-        else if (wParam >= 0x20 && wParam <= 0x7E)
-        {
-          key = static_cast<char>(wParam);
-        }
-        if (key != 0 && self->app_->handleKeyPress(key))
+        if (self->app_->handleKeyPress(' '))
         {
           return 0;
+        }
+      }
+      break;
+    case WM_CHAR:
+      if (self->app_)
+      {
+        if (wParam >= 0x20 && wParam <= 0x7E && wParam != ' ')
+        {
+          if (self->app_->handleKeyPress(static_cast<char>(wParam)))
+          {
+            return 0;
+          }
         }
       }
       break;
