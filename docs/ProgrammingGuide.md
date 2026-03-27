@@ -1230,6 +1230,26 @@ React よりも、実行モデルを近くで触る感覚があります。
 また React が DOM 更新や副作用管理の文脈で理解されやすいのに対し、
 Loka は論理 UI を構築し、その結果を各 OS のネイティブ環境へ投影するシステムとして捉えます。
 
+### React Native との違い
+
+React Native と Loka は、
+どちらも論理的な UI をネイティブ環境へ投影するという点では近い発想を持っています。
+
+ただし React Native は JavaScript runtime や bridge、
+そして mobile-first な開発体験と強く結びついています。
+一方 Loka は、より小さな runtime 前提で、
+State、ownership、更新経路を明示的に扱いながら、
+Classic Mac OS から modern desktop までを含む広い範囲へ
+同じ composition model を投影しようとしています。
+
+React Native が mobile-first だとすれば、
+Loka は retro-first, modern-ready です。
+
+Loka は現代的なモバイル runtime を基準にした設計ではなく、
+68000 系 Macintosh の Toolbox のような制約環境を基準点にしています。
+そのうえで、同じ state model と composition system を
+modern macOS、Windows、ARM デバイスへ前方展開することを目指しています。
+
 ### Solid.js との違い
 
 Solid.js と似ているのは、
