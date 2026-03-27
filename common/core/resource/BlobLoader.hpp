@@ -7,7 +7,6 @@
 
 #include "loka/core/State.hpp"
 #include "core/resource/Blob.hpp"
-#include "core/runtime/ErrorSink.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -110,22 +109,16 @@ namespace loka
         BlobLoader()
             : requestState_(0),
               outputState_(0),
-              errorSink_(0),
-              bound_(false),
-              localSink_()
+              bound_(false)
         {
-          localSink_.addTag(String::Literal("blob-loader"));
         }
 
-        BlobLoader(State<BlobLoaderRequest> *request, MutableState<Blob> *output, runtime::ErrorSink *sink)
+        BlobLoader(State<BlobLoaderRequest> *request, MutableState<Blob> *output)
             : requestState_(0),
               outputState_(0),
-              errorSink_(0),
-              bound_(false),
-              localSink_()
+              bound_(false)
         {
-          localSink_.addTag(String::Literal("blob-loader"));
-          attach(request, output, sink);
+          attach(request, output);
         }
 
         ~BlobLoader()
@@ -133,13 +126,11 @@ namespace loka
           detach();
         }
 
-        void attach(State<BlobLoaderRequest> *request, MutableState<Blob> *output, runtime::ErrorSink *sink)
+        void attach(State<BlobLoaderRequest> *request, MutableState<Blob> *output)
         {
           detach();
           requestState_ = request;
           outputState_ = output;
-          errorSink_ = sink;
-          localSink_.setParent(errorSink_);
           if (requestState_)
           {
             requestState_->bind(&BlobLoader::RequestChangedThunk, this, true);
@@ -156,8 +147,6 @@ namespace loka
           bound_ = false;
           requestState_ = 0;
           outputState_ = 0;
-          errorSink_ = 0;
-          localSink_.setParent(0);
         }
 
       private:
@@ -183,7 +172,6 @@ namespace loka
           {
             request.tag = request.filePath;
           }
-          localSink_.setTaskLabel(request.tag);
 
           if (request.source == BLOB_SOURCE_NONE)
           {
@@ -230,7 +218,6 @@ namespace loka
           if (!ok)
           {
             blob.setCompleted(false);
-            emitError(request, String::Literal("Failed to load blob"));
             outputState_->set(Blob::Empty());
             return;
           }
@@ -333,27 +320,9 @@ namespace loka
           return true;
         }
 
-        void emitError(const BlobLoaderRequest &request, const String &message)
-        {
-          runtime::ErrorSink *sink = errorSink_;
-          if (!sink)
-            sink = &localSink_;
-          runtime::ErrorEvent evt;
-          evt.domain = runtime::ERROR_DOMAIN_BLOB;
-          evt.code = 1;
-          evt.message = message;
-          evt.context = request.filePath;
-          evt.tags.push_back(String::Literal("blob-loader"));
-          if (!request.tag.empty())
-            evt.tags.push_back(request.tag);
-          sink->push(evt);
-        }
-
         State<BlobLoaderRequest> *requestState_;
         MutableState<Blob> *outputState_;
-        runtime::ErrorSink *errorSink_;
         bool bound_;
-        runtime::ErrorSink localSink_;
       };
 
     } // namespace resource

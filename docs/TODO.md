@@ -22,7 +22,6 @@ These items address recurring bug patterns and structural risks identified durin
 - Event loop + tick design for game-style rendering (separate from UI updates), aligned with the declarative game path.
 - Window close request: delegate to Scene/Root.
 - loka::core::Managed<T> circular reference patterns (Group/Weak or one-way ref policy).
-- Re-evaluate ErrorSink requirement for Headless/Loader after ImageViewer integration; keep it optional unless concrete error-flow pain appears.
 - MutableState notification timing: micro-tick end vs immediate; document or change.
 - DerivedState::EvalFn ownership/cleanup and dependency registration policy.
 - StateBatch: add useLargeStates path for large initializers (heap-backed initial copies).

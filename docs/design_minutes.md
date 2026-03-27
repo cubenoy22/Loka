@@ -1,7 +1,7 @@
 # Loka Design Minutes (Solid-mode)
 
 Short design notes to keep the "why" and current direction in one place.
-Detailed usage lives in `docs/DSL.md` and `docs/Reactive.md`.
+Detailed usage lives in `docs/DSL.md` and `docs/ProgrammingGuide.md`.
 
 ## Summary
 
@@ -30,6 +30,5 @@ Detailed usage lives in `docs/DSL.md` and `docs/Reactive.md`.
 
 - `Node.dirty` diff-based redraw plumbing
 - Scene lifecycle update semantics
-- Loader error flow (ErrorSink)
 
 Last updated: 2026-01
