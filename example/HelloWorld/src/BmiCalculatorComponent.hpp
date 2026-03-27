@@ -20,6 +20,9 @@ namespace helloworld
   public:
     BmiCalculatorComponent()
         : initialized_(false),
+          bmiCacheValid_(false),
+          lastBmiWasValid_(false),
+          lastBmiHundredths_(0),
           heightInput_(),
           weightInput_(),
           bmiResult_()
@@ -100,27 +103,56 @@ namespace helloworld
       double weightKg = parseDouble(this->weightInput_.get());
       if (heightCm <= 0.0 || weightKg <= 0.0)
       {
-        this->bmiResult_.set(loka::core::String::Literal("BMI: --"), true);
+        if (this->bmiCacheValid_ && !this->lastBmiWasValid_)
+        {
+          return;
+        }
+        this->bmiCacheValid_ = true;
+        this->lastBmiWasValid_ = false;
+        this->bmiResult_.set(loka::core::String::Literal("BMI: --"));
         return;
       }
       double heightM = heightCm / 100.0;
       if (heightM <= 0.0)
       {
-        this->bmiResult_.set(loka::core::String::Literal("BMI: --"), true);
+        if (this->bmiCacheValid_ && !this->lastBmiWasValid_)
+        {
+          return;
+        }
+        this->bmiCacheValid_ = true;
+        this->lastBmiWasValid_ = false;
+        this->bmiResult_.set(loka::core::String::Literal("BMI: --"));
         return;
       }
       double bmi = weightKg / (heightM * heightM);
       if (bmi <= 0.0)
       {
-        this->bmiResult_.set(loka::core::String::Literal("BMI: --"), true);
+        if (this->bmiCacheValid_ && !this->lastBmiWasValid_)
+        {
+          return;
+        }
+        this->bmiCacheValid_ = true;
+        this->lastBmiWasValid_ = false;
+        this->bmiResult_.set(loka::core::String::Literal("BMI: --"));
         return;
       }
+      int bmiHundredths = static_cast<int>(bmi * 100.0 + 0.5);
+      if (this->bmiCacheValid_ && this->lastBmiWasValid_ && this->lastBmiHundredths_ == bmiHundredths)
+      {
+        return;
+      }
+      this->bmiCacheValid_ = true;
+      this->lastBmiWasValid_ = true;
+      this->lastBmiHundredths_ = bmiHundredths;
       char buf[64];
       std::snprintf(buf, sizeof(buf), "BMI: %.2f", bmi);
-      this->bmiResult_.set(loka::core::String(std::string(buf)), true);
+      this->bmiResult_.set(loka::core::String(std::string(buf)));
     }
 
     bool initialized_;
+    bool bmiCacheValid_;
+    bool lastBmiWasValid_;
+    int lastBmiHundredths_;
     loka::app::scene::BoundState<loka::core::String> heightInput_;
     loka::app::scene::BoundState<loka::core::String> weightInput_;
     loka::app::scene::BoundState<loka::core::String> bmiResult_;

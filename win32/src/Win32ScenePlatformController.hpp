@@ -40,12 +40,21 @@ namespace loka
 class Win32ScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  enum NativePaintKind
+  {
+    NATIVE_PAINT_ROOT = 0,
+    NATIVE_PAINT_CELL = 1,
+    NATIVE_PAINT_IMAGE = 2,
+    NATIVE_PAINT_RECT_SURFACE = 3
+  };
+
   explicit Win32ScenePlatformController(HWND rootHwnd);
   virtual ~Win32ScenePlatformController();
 
   static void requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
   static void requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
   static void redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
+  static void noteNativePaint(HWND targetHwnd, NativePaintKind kind, bool eraseBackground);
 
   virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
   virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
@@ -80,7 +89,15 @@ private:
           queuedMissingBoundsInvalidates(0),
           queuedCompositedInvalidates(0),
           queuedOpaquePaintInvalidates(0),
-          queuedGenericPaintInvalidates(0)
+          queuedGenericPaintInvalidates(0),
+          rootEraseCount(0),
+          rootPaintCount(0),
+          cellEraseCount(0),
+          cellPaintCount(0),
+          imageEraseCount(0),
+          imagePaintCount(0),
+          rectSurfaceEraseCount(0),
+          rectSurfacePaintCount(0)
     {
     }
 
@@ -99,6 +116,14 @@ private:
       queuedCompositedInvalidates = 0;
       queuedOpaquePaintInvalidates = 0;
       queuedGenericPaintInvalidates = 0;
+      rootEraseCount = 0;
+      rootPaintCount = 0;
+      cellEraseCount = 0;
+      cellPaintCount = 0;
+      imageEraseCount = 0;
+      imagePaintCount = 0;
+      rectSurfaceEraseCount = 0;
+      rectSurfacePaintCount = 0;
     }
 
     int onChangeCalls;
@@ -114,6 +139,14 @@ private:
     int queuedCompositedInvalidates;
     int queuedOpaquePaintInvalidates;
     int queuedGenericPaintInvalidates;
+    int rootEraseCount;
+    int rootPaintCount;
+    int cellEraseCount;
+    int cellPaintCount;
+    int imageEraseCount;
+    int imagePaintCount;
+    int rectSurfaceEraseCount;
+    int rectSurfacePaintCount;
   };
 
   struct PendingInvalidate

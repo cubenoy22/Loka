@@ -165,6 +165,70 @@ void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const 
   RedrawWindow(targetHwnd, rect, NULL, flags);
 }
 
+void Win32ScenePlatformController::noteNativePaint(HWND targetHwnd, NativePaintKind kind, bool eraseBackground)
+{
+  if (!targetHwnd)
+  {
+    return;
+  }
+  HWND root = GetAncestor(targetHwnd, GA_ROOT);
+  if (!root)
+  {
+    root = targetHwnd;
+  }
+  Win32ControllerMap::iterator it = gControllersByRootHwnd.find(root);
+  if (it == gControllersByRootHwnd.end() || !it->second)
+  {
+    return;
+  }
+  RedrawStats &stats = it->second->redrawStats_;
+  switch (kind)
+  {
+  case NATIVE_PAINT_ROOT:
+    if (eraseBackground)
+    {
+      ++stats.rootEraseCount;
+    }
+    else
+    {
+      ++stats.rootPaintCount;
+    }
+    break;
+  case NATIVE_PAINT_CELL:
+    if (eraseBackground)
+    {
+      ++stats.cellEraseCount;
+    }
+    else
+    {
+      ++stats.cellPaintCount;
+    }
+    break;
+  case NATIVE_PAINT_IMAGE:
+    if (eraseBackground)
+    {
+      ++stats.imageEraseCount;
+    }
+    else
+    {
+      ++stats.imagePaintCount;
+    }
+    break;
+  case NATIVE_PAINT_RECT_SURFACE:
+    if (eraseBackground)
+    {
+      ++stats.rectSurfaceEraseCount;
+    }
+    else
+    {
+      ++stats.rectSurfacePaintCount;
+    }
+    break;
+  default:
+    break;
+  }
+}
+
 void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
 {
   ++this->redrawStats_.onChangeCalls;
@@ -366,15 +430,23 @@ void Win32ScenePlatformController::dumpRedrawStatsIfNeeded()
   if (redrawStats_.onChangeCalls == 0 &&
       redrawStats_.onBoundaryApplyCalls == 0 &&
       redrawStats_.queuedFullWindowInvalidates == 0 &&
-      redrawStats_.queuedRectInvalidates == 0)
+      redrawStats_.queuedRectInvalidates == 0 &&
+      redrawStats_.rootEraseCount == 0 &&
+      redrawStats_.rootPaintCount == 0 &&
+      redrawStats_.cellEraseCount == 0 &&
+      redrawStats_.cellPaintCount == 0 &&
+      redrawStats_.imageEraseCount == 0 &&
+      redrawStats_.imagePaintCount == 0 &&
+      redrawStats_.rectSurfaceEraseCount == 0 &&
+      redrawStats_.rectSurfacePaintCount == 0)
   {
     return;
   }
 
-  char buffer[256];
+  char buffer[512];
   ::snprintf(buffer,
              sizeof(buffer),
-             "[win32-redraw] onChange=%d localApply=%d changeFlags=0x%X changeNeedsLayout=%d changeFullRebuild=%d full=%d rect=%d layoutBounds=%d paintBounds=%d noBounds=%d comp=%d opaque=%d generic=%d\n",
+             "[win32-redraw] onChange=%d localApply=%d changeFlags=0x%X changeNeedsLayout=%d changeFullRebuild=%d full=%d rect=%d layoutBounds=%d paintBounds=%d noBounds=%d comp=%d opaque=%d generic=%d root(e=%d p=%d) cell(e=%d p=%d) image(e=%d p=%d) rect(e=%d p=%d)\n",
              redrawStats_.onChangeCalls,
              redrawStats_.onBoundaryApplyCalls,
              static_cast<unsigned int>(redrawStats_.lastOnChangeFlags),
@@ -387,7 +459,15 @@ void Win32ScenePlatformController::dumpRedrawStatsIfNeeded()
              redrawStats_.queuedMissingBoundsInvalidates,
              redrawStats_.queuedCompositedInvalidates,
              redrawStats_.queuedOpaquePaintInvalidates,
-             redrawStats_.queuedGenericPaintInvalidates);
+             redrawStats_.queuedGenericPaintInvalidates,
+             redrawStats_.rootEraseCount,
+             redrawStats_.rootPaintCount,
+             redrawStats_.cellEraseCount,
+             redrawStats_.cellPaintCount,
+             redrawStats_.imageEraseCount,
+             redrawStats_.imagePaintCount,
+             redrawStats_.rectSurfaceEraseCount,
+             redrawStats_.rectSurfacePaintCount);
   OutputDebugStringA(buffer);
 #endif
 }

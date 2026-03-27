@@ -95,9 +95,11 @@ LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wP
   switch (msg)
   {
   case WM_ERASEBKGND:
+    Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_RECT_SURFACE, true);
     return 1;
   case WM_PAINT:
   {
+    Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_RECT_SURFACE, false);
     PAINTSTRUCT paint;
     HDC hdc = BeginPaint(hwnd, &paint);
     if (self)

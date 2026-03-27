@@ -159,9 +159,11 @@ LRESULT CALLBACK Win32ImageViewContext::WndProc(HWND hwnd, UINT msg, WPARAM wPar
   switch (msg)
   {
   case WM_ERASEBKGND:
+    Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_IMAGE, true);
     return 1;
   case WM_PAINT:
   {
+    Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_IMAGE, false);
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hwnd, &ps);
     if (self)

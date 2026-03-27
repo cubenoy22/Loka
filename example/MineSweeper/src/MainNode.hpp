@@ -150,16 +150,16 @@ namespace minesweeper
       this->revealed_[index] = true;
       if (this->mines_[index])
       {
-        this->cellText_[index].set(loka::core::String::Literal("X"), true);
+        this->cellText_[index].set(loka::core::String::Literal("X"));
         return;
       }
       int count = countAdjacent(index);
       if (count == 0)
       {
-        this->cellText_[index].set(loka::core::String::Literal(" "), true);
+        this->cellText_[index].set(loka::core::String::Literal(" "));
         return;
       }
-      this->cellText_[index].set(loka::core::String::FromInt(count), true);
+      this->cellText_[index].set(loka::core::String::FromInt(count));
     }
   };
 } // namespace minesweeper

@@ -182,6 +182,9 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       }
       return reinterpret_cast<LRESULT>(GetStockObject(NULL_BRUSH));
     }
+    case WM_ERASEBKGND:
+      Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_ROOT, true);
+      return DefWindowProc(hwnd, msg, wParam, lParam);
     case WM_SIZE:
       if (self->scenePlatformController_)
       {
@@ -201,6 +204,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       return 0;
     case WM_PAINT:
     {
+      Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_ROOT, false);
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
       // 背景を白で塗りつぶす

@@ -127,25 +127,25 @@ namespace loka
         void setLoading(bool value)
         {
           ensureHandle();
-          handle_->loadingState.set(value, true);
+          handle_->loadingState.set(value);
         }
 
         void setMutable(bool flag)
         {
           ensureHandle();
-          handle_->mutableState.set(flag, true);
+          handle_->mutableState.set(flag);
         }
 
         void setCompleted(bool flag)
         {
           ensureHandle();
-          handle_->completedState.set(flag, true);
+          handle_->completedState.set(flag);
         }
 
         void setProgress(float value)
         {
           ensureHandle();
-          handle_->progressState.set(value, true);
+          handle_->progressState.set(value);
         }
 
         static float UnknownProgress()
