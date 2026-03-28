@@ -7,8 +7,84 @@
 #include "app/Menu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "loka/core/State.hpp"
+
+namespace
+{
+  class AttrDslCustomExternalNode : public loka::app::scene::Node
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomExternalNode>();
+    }
+  };
+
+  class AttrDslCustomExternalHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    AttrDslCustomExternalHandler() : ensureCalls_(0) {}
+
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomExternalNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      ++ensureCalls_;
+      assert(node != 0);
+      assert(node->nodeTypeKey() == this->nodeTypeKey());
+      lastState_ = state;
+      if (!node->getContext())
+      {
+        node->setContext(new loka::app::scene::NodeContext(node));
+      }
+      return node->getContext();
+    }
+
+    int ensureCalls_;
+    loka::app::scene::LayoutState lastState_;
+  };
+
+  class AttrDslDummyRegistrationPlatformController : public loka::app::scene::IPlatformController
+  {
+  public:
+    AttrDslDummyRegistrationPlatformController() : lastRoot_(0) {}
+
+    virtual void onChange(loka::app::scene::Node *rootNode,
+                          loka::app::scene::NodeDirtyFlags flags,
+                          bool fullRebuild)
+    {
+      (void)flags;
+      (void)fullRebuild;
+      this->lastRoot_ = rootNode;
+    }
+
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
+    {
+      return this->registry_.registerHandler(handler);
+    }
+
+    loka::app::scene::IPlatformNodeHandler *findHandler(const loka::app::scene::Node *node) const
+    {
+      return this->registry_.find(node);
+    }
+
+    loka::app::scene::PlatformNodeHandlerRegistry registry_;
+    loka::app::scene::Node *lastRoot_;
+  };
+}
 
 void testLokaAttrDslV1Core()
 {
@@ -149,4 +225,42 @@ void testLokaAttrDslV1Core()
   }
 
   printf("==== [testLokaAttrDslV1Core] end ====\n");
+}
+
+void testPlatformNodeHandlerRegistration()
+{
+  printf("\n==== [testPlatformNodeHandlerRegistration] start ====\n");
+
+  AttrDslCustomExternalNode node;
+  AttrDslCustomExternalHandler handler;
+
+  {
+    loka::app::scene::PlatformNodeHandlerRegistry registry;
+    assert(registry.find(&node) == 0);
+    assert(registry.registerHandler(&handler));
+    assert(registry.find(&node) == &handler);
+  }
+
+  AttrDslDummyRegistrationPlatformController controller;
+  loka::app::scene::IPlatformController &platform = controller;
+  assert(platform.registerNodeHandler(&handler));
+  assert(controller.findHandler(&node) == &handler);
+
+  loka::app::scene::LayoutState state;
+  state.x = 4;
+  state.y = 8;
+  state.width = 16;
+  state.height = 32;
+  loka::app::scene::IPlatformNodeHandler *resolved = controller.findHandler(&node);
+  assert(resolved != 0);
+  loka::app::scene::NodeContext *context = resolved->ensureContext(&node, &platform, state);
+  assert(context != 0);
+  assert(node.getContext() == context);
+  assert(handler.ensureCalls_ == 1);
+  assert(handler.lastState_.x == 4);
+  assert(handler.lastState_.y == 8);
+  assert(handler.lastState_.width == 16);
+  assert(handler.lastState_.height == 32);
+
+  printf("==== [testPlatformNodeHandlerRegistration] end ====\n");
 }
