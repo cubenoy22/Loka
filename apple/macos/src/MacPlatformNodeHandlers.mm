@@ -2,6 +2,8 @@
 #include "MacScenePlatformController.hpp"
 #include "app/ImageView.hpp"
 #include "app/Text.hpp"
+#include "context/MacImageViewContext.hpp"
+#include "context/MacTextContext.hpp"
 
 namespace
 {

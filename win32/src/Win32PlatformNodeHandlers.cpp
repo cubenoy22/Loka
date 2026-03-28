@@ -2,6 +2,8 @@
 #include "Win32ScenePlatformController.hpp"
 #include "app/ImageView.hpp"
 #include "app/Text.hpp"
+#include "context/Win32ImageViewContext.hpp"
+#include "context/Win32TextContext.hpp"
 
 namespace
 {
