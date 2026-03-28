@@ -114,12 +114,41 @@ namespace
   };
 
   Win32TextNodeHandler gWin32TextNodeHandler;
+
+  class Win32ImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!image || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureImageViewContext(image,
+                                                            state.x,
+                                                            state.y,
+                                                            state.width,
+                                                            state.height);
+    }
+  };
+
+  Win32ImageViewNodeHandler gWin32ImageViewNodeHandler;
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
   this->nodeHandlerRegistry_.registerHandler(&gWin32TextNodeHandler);
+  this->nodeHandlerRegistry_.registerHandler(&gWin32ImageViewNodeHandler);
   if (rootHwnd_)
   {
     gControllersByRootHwnd[rootHwnd_] = this;
@@ -998,15 +1027,20 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
       imageHeight = 160;
     }
 
-    Win32ImageViewContext *ctx = static_cast<Win32ImageViewContext *>(image->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(imageWidth);
+    handlerState.height = static_cast<short>(imageHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(image);
+    Win32ImageViewContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, imageWidth, imageHeight);
+      ctx = static_cast<Win32ImageViewContext *>(handler->ensureContext(image, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new Win32ImageViewContext(rootHwnd_, state.x, state.y, imageWidth, imageHeight, image);
-      image->setContext(ctx);
+      ctx = this->contextMapper_.ensureImageViewContext(image, state.x, state.y, imageWidth, imageHeight);
     }
 
     LayoutState nextState = state;

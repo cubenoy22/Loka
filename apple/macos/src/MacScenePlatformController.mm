@@ -114,6 +114,34 @@ namespace
   };
 
   MacTextNodeHandler gMacTextNodeHandler;
+
+  class MacImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!image || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureImageViewContext(image,
+                                                          state.x,
+                                                          state.y,
+                                                          state.width,
+                                                          state.height);
+    }
+  };
+
+  MacImageViewNodeHandler gMacImageViewNodeHandler;
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
@@ -130,6 +158,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
       relayoutPending_(false)
 {
   this->nodeHandlerRegistry_.registerHandler(&gMacTextNodeHandler);
+  this->nodeHandlerRegistry_.registerHandler(&gMacImageViewNodeHandler);
   if (rootView_)
   {
     gControllerByRootView[rootView_] = this;
@@ -731,15 +760,20 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
       imageHeight = 160;
     }
 
-    MacImageViewContext *ctx = static_cast<MacImageViewContext *>(image->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(imageWidth);
+    handlerState.height = static_cast<short>(imageHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(image);
+    MacImageViewContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, imageWidth, imageHeight);
+      ctx = static_cast<MacImageViewContext *>(handler->ensureContext(image, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new MacImageViewContext(rootView_, state.x, state.y, imageWidth, imageHeight, image);
-      image->setContext(ctx);
+      ctx = this->contextMapper_.ensureImageViewContext(image, state.x, state.y, imageWidth, imageHeight);
     }
 
     LayoutState nextState = state;

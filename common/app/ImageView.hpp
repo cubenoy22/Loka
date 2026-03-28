@@ -147,6 +147,7 @@ namespace loka
       ImageViewProps props;
       ImageViewNode(const ImageViewProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_IMAGE_VIEW; }
+      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<ImageViewNode>(); }
       virtual ImageViewNode *asImageViewNode() { return this; }
       virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
       {
