@@ -273,6 +273,7 @@ namespace loka
       TextProps props;
       TextNode(const TextProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_TEXT; }
+      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<TextNode>(); }
       virtual TextNode *asTextNode() { return this; }
       virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
       {

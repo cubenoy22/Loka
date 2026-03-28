@@ -86,6 +86,34 @@ namespace
     }
     return defaultHeight;
   }
+
+  class MacTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::TextNode *text = node ? node->asTextNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!text || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureTextContext(text,
+                                                     state.x,
+                                                     state.y,
+                                                     state.width,
+                                                     state.height);
+    }
+  };
+
+  MacTextNodeHandler gMacTextNodeHandler;
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
@@ -101,6 +129,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
       focusedEditTextControlTag_(0),
       relayoutPending_(false)
 {
+  this->nodeHandlerRegistry_.registerHandler(&gMacTextNodeHandler);
   if (rootView_)
   {
     gControllerByRootView[rootView_] = this;
@@ -631,15 +660,20 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   if (loka::app::TextNode *text = node->asTextNode())
   {
     const int textHeight = MeasureTextHeightForWidth(text, state.width, kTextHeight);
-    MacTextContext *ctx = static_cast<MacTextContext *>(text->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(state.width);
+    handlerState.height = static_cast<short>(textHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(text);
+    MacTextContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, state.width, textHeight);
+      ctx = static_cast<MacTextContext *>(handler->ensureContext(text, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new MacTextContext(rootView_, state.x, state.y, state.width, textHeight, text);
-      text->setContext(ctx);
+      ctx = this->contextMapper_.ensureTextContext(text, state.x, state.y, state.width, textHeight);
     }
 
     LayoutState nextState = state;

@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "context/MacNodeContextMapper.hpp"
 
 namespace loka
@@ -48,6 +49,7 @@ public:
   bool hasPendingRelayout() const { return relayoutPending_; }
   static MacScenePlatformController *findForRootView(void *rootView);
   static void flushPendingRelayouts();
+  MacNodeContextMapper *contextMapper() { return &contextMapper_; }
 
 private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
@@ -74,6 +76,7 @@ private:
 
   void *rootView_;
   MacNodeContextMapper contextMapper_;
+  loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::NodeDirtyFlags lastChangeFlags_;
   int clientWidth_;

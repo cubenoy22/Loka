@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <map>
 #include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "context/Win32EditTextContext.hpp"
@@ -71,6 +72,7 @@ public:
 
   bool handleCommand(WPARAM wParam, LPARAM lParam);
   void relayout(int clientWidth, int clientHeight);
+  Win32NodeContextMapper *contextMapper() { return &contextMapper_; }
 
 private:
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
@@ -181,6 +183,7 @@ private:
 
   HWND rootHwnd_;
   Win32NodeContextMapper contextMapper_;
+  loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;

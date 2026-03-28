@@ -86,11 +86,40 @@ namespace
     }
     return defaultHeight;
   }
+
+  class Win32TextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::TextNode *text = node ? node->asTextNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!text || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureTextContext(text,
+                                                       state.x,
+                                                       state.y,
+                                                       state.width,
+                                                       state.height);
+    }
+  };
+
+  Win32TextNodeHandler gWin32TextNodeHandler;
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
+  this->nodeHandlerRegistry_.registerHandler(&gWin32TextNodeHandler);
   if (rootHwnd_)
   {
     gControllersByRootHwnd[rootHwnd_] = this;
@@ -898,15 +927,20 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   if (loka::app::TextNode *text = node->asTextNode())
   {
     const int textHeight = MeasureTextHeightForWidth(rootHwnd_, text, state.width, kTextHeight);
-    Win32TextContext *ctx = static_cast<Win32TextContext *>(text->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(state.width);
+    handlerState.height = static_cast<short>(textHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(text);
+    Win32TextContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, state.width, textHeight);
+      ctx = static_cast<Win32TextContext *>(handler->ensureContext(text, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new Win32TextContext(rootHwnd_, state.x, state.y, state.width, textHeight, text);
-      text->setContext(ctx);
+      ctx = this->contextMapper_.ensureTextContext(text, state.x, state.y, state.width, textHeight);
     }
 
     LayoutState nextState = state;
