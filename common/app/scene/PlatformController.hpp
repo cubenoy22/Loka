@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_IPLATFORMCONTROLLER_HPP
 
 #include "app/scene/Node.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "app/scene/node/BoundaryApplyInfo.hpp"
 
 namespace loka
@@ -45,6 +46,9 @@ namespace loka
 
         // Retired subtree cleanup without forcing a full scene rebuild.
         virtual void releaseNodeContexts(Node *) {}
+
+        // Optional external extension seam for platform-specific/custom node handlers.
+        virtual bool registerNodeHandler(IPlatformNodeHandler *) { return false; }
       };
 
     }

@@ -132,6 +132,11 @@ void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT 
   it->second->queueDirtyRect(targetHwnd, rect, eraseBackground, false);
 }
 
+bool Win32ScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
+{
+  return this->nodeHandlerRegistry_.registerHandler(handler);
+}
+
 void Win32ScenePlatformController::requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
 {
   if (!targetHwnd)

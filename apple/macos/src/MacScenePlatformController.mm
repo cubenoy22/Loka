@@ -122,6 +122,11 @@ MacScenePlatformController::~MacScenePlatformController()
   clearContexts();
 }
 
+bool MacScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
+{
+  return this->nodeHandlerRegistry_.registerHandler(handler);
+}
+
 MacScenePlatformController *MacScenePlatformController::findForRootView(void *rootView)
 {
   if (!rootView)
