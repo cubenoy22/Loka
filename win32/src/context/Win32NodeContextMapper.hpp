@@ -8,12 +8,14 @@ namespace loka
   namespace app
   {
     class ButtonNode;
+    class EditTextNode;
     class ImageViewNode;
     class TextNode;
   }
 }
 
 class Win32ButtonContext;
+class Win32EditTextContext;
 class Win32ImageViewContext;
 class Win32TextContext;
 
@@ -28,6 +30,11 @@ public:
                                           int y,
                                           int width,
                                           int height) const;
+  Win32EditTextContext *ensureEditTextContext(loka::app::EditTextNode *node,
+                                              int x,
+                                              int y,
+                                              int width,
+                                              int height) const;
   Win32TextContext *ensureTextContext(loka::app::TextNode *node,
                                       int x,
                                       int y,

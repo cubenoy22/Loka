@@ -1,8 +1,10 @@
 #include "context/Win32NodeContextMapper.hpp"
 #include "context/Win32ButtonContext.hpp"
+#include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "app/Button.hpp"
+#include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/Text.hpp"
 
@@ -23,6 +25,27 @@ Win32ButtonContext *Win32NodeContextMapper::ensureButtonContext(loka::app::Butto
     return ctx;
   }
   ctx = new Win32ButtonContext(this->rootHwnd_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+Win32EditTextContext *Win32NodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node,
+                                                                    int x,
+                                                                    int y,
+                                                                    int width,
+                                                                    int height) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  Win32EditTextContext *ctx = static_cast<Win32EditTextContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->relayout(x, y, width, height);
+    return ctx;
+  }
+  ctx = new Win32EditTextContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
   return ctx;
 }

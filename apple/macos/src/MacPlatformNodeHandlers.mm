@@ -1,7 +1,9 @@
 #include "MacPlatformNodeHandlers.hpp"
 #include "MacScenePlatformController.hpp"
+#include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/Text.hpp"
+#include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
 #include "context/MacTextContext.hpp"
 
@@ -59,12 +61,40 @@ namespace
     }
   };
 
+  class MacEditTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::EditTextNode *edit = node ? node->asEditTextNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!edit || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureEditTextContext(edit,
+                                                         state.x,
+                                                         state.y,
+                                                         state.width,
+                                                         state.height);
+    }
+  };
+
   MacTextNodeHandler gMacTextNodeHandler;
   MacImageViewNodeHandler gMacImageViewNodeHandler;
+  MacEditTextNodeHandler gMacEditTextNodeHandler;
 }
 
 void RegisterMacPlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   registry.registerHandler(&gMacTextNodeHandler);
   registry.registerHandler(&gMacImageViewNodeHandler);
+  registry.registerHandler(&gMacEditTextNodeHandler);
 }

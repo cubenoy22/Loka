@@ -581,15 +581,20 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
   {
-    MacEditTextContext *ctx = static_cast<MacEditTextContext *>(edit->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(state.width);
+    handlerState.height = static_cast<short>(kEditTextHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(edit);
+    MacEditTextContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, state.width, kEditTextHeight);
+      ctx = static_cast<MacEditTextContext *>(handler->ensureContext(edit, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new MacEditTextContext(rootView_, state.x, state.y, state.width, kEditTextHeight, edit);
-      edit->setContext(ctx);
+      ctx = this->contextMapper_.ensureEditTextContext(edit, state.x, state.y, state.width, kEditTextHeight);
     }
     registerEditField(ctx->nativeField());
 

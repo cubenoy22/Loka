@@ -6,12 +6,14 @@ namespace loka
   namespace app
   {
     class ButtonNode;
+    class EditTextNode;
     class ImageViewNode;
     class TextNode;
   }
 }
 
 class MacButtonContext;
+class MacEditTextContext;
 class MacImageViewContext;
 class MacTextContext;
 
@@ -26,6 +28,11 @@ public:
                                         int y,
                                         int width,
                                         int height) const;
+  MacEditTextContext *ensureEditTextContext(loka::app::EditTextNode *node,
+                                            int x,
+                                            int y,
+                                            int width,
+                                            int height) const;
   MacTextContext *ensureTextContext(loka::app::TextNode *node,
                                     int x,
                                     int y,

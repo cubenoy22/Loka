@@ -1,7 +1,9 @@
 #include "Win32PlatformNodeHandlers.hpp"
 #include "Win32ScenePlatformController.hpp"
+#include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/Text.hpp"
+#include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
 #include "context/Win32TextContext.hpp"
 
@@ -59,12 +61,40 @@ namespace
     }
   };
 
+  class Win32EditTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::EditTextNode *edit = node ? node->asEditTextNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!edit || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureEditTextContext(edit,
+                                                           state.x,
+                                                           state.y,
+                                                           state.width,
+                                                           state.height);
+    }
+  };
+
   Win32TextNodeHandler gWin32TextNodeHandler;
   Win32ImageViewNodeHandler gWin32ImageViewNodeHandler;
+  Win32EditTextNodeHandler gWin32EditTextNodeHandler;
 }
 
 void RegisterWin32PlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   registry.registerHandler(&gWin32TextNodeHandler);
   registry.registerHandler(&gWin32ImageViewNodeHandler);
+  registry.registerHandler(&gWin32EditTextNodeHandler);
 }

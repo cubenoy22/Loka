@@ -1,8 +1,10 @@
 #include "context/MacNodeContextMapper.hpp"
 #include "context/MacButtonContext.hpp"
+#include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "app/Button.hpp"
+#include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/Text.hpp"
 
@@ -23,6 +25,27 @@ MacButtonContext *MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNod
     return ctx;
   }
   ctx = new MacButtonContext(this->rootView_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+MacEditTextContext *MacNodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node,
+                                                                int x,
+                                                                int y,
+                                                                int width,
+                                                                int height) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  MacEditTextContext *ctx = static_cast<MacEditTextContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->relayout(x, y, width, height);
+    return ctx;
+  }
+  ctx = new MacEditTextContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
   return ctx;
 }

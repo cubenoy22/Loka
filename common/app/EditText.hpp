@@ -60,6 +60,7 @@ namespace loka
       EditTextProps props;
       EditTextNode(const EditTextProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_EDIT_TEXT; }
+      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<EditTextNode>(); }
       virtual EditTextNode *asEditTextNode() { return this; }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {

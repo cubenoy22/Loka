@@ -843,15 +843,20 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
   {
-    Win32EditTextContext *ctx = static_cast<Win32EditTextContext *>(edit->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(state.width);
+    handlerState.height = static_cast<short>(kEditTextHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(edit);
+    Win32EditTextContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, state.width, kEditTextHeight);
+      ctx = static_cast<Win32EditTextContext *>(handler->ensureContext(edit, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new Win32EditTextContext(rootHwnd_, state.x, state.y, state.width, kEditTextHeight, edit);
-      edit->setContext(ctx);
+      ctx = this->contextMapper_.ensureEditTextContext(edit, state.x, state.y, state.width, kEditTextHeight);
     }
     editMap_[ctx->hwnd()] = ctx;
 
