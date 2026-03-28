@@ -1,4 +1,5 @@
 #include "MacScenePlatformController.hpp"
+#include "MacPlatformNodeHandlers.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <AppKit/AppKit.h>
 #include <vector>
@@ -86,62 +87,6 @@ namespace
     }
     return defaultHeight;
   }
-
-  class MacTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
-  {
-  public:
-    virtual const void *nodeTypeKey() const
-    {
-      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
-    }
-
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
-    {
-      loka::app::TextNode *text = node ? node->asTextNode() : 0;
-      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!text || !mac)
-      {
-        return 0;
-      }
-      return mac->contextMapper()->ensureTextContext(text,
-                                                     state.x,
-                                                     state.y,
-                                                     state.width,
-                                                     state.height);
-    }
-  };
-
-  MacTextNodeHandler gMacTextNodeHandler;
-
-  class MacImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
-  {
-  public:
-    virtual const void *nodeTypeKey() const
-    {
-      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
-    }
-
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
-    {
-      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
-      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!image || !mac)
-      {
-        return 0;
-      }
-      return mac->contextMapper()->ensureImageViewContext(image,
-                                                          state.x,
-                                                          state.y,
-                                                          state.width,
-                                                          state.height);
-    }
-  };
-
-  MacImageViewNodeHandler gMacImageViewNodeHandler;
 }
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
@@ -157,8 +102,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
       focusedEditTextControlTag_(0),
       relayoutPending_(false)
 {
-  this->nodeHandlerRegistry_.registerHandler(&gMacTextNodeHandler);
-  this->nodeHandlerRegistry_.registerHandler(&gMacImageViewNodeHandler);
+  RegisterMacPlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootView_)
   {
     gControllerByRootView[rootView_] = this;

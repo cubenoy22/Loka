@@ -1,4 +1,5 @@
 #include "Win32ScenePlatformController.hpp"
+#include "Win32PlatformNodeHandlers.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <windows.h>
 #include <vector>
@@ -86,69 +87,12 @@ namespace
     }
     return defaultHeight;
   }
-
-  class Win32TextNodeHandler : public loka::app::scene::IPlatformNodeHandler
-  {
-  public:
-    virtual const void *nodeTypeKey() const
-    {
-      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
-    }
-
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
-    {
-      loka::app::TextNode *text = node ? node->asTextNode() : 0;
-      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!text || !win32)
-      {
-        return 0;
-      }
-      return win32->contextMapper()->ensureTextContext(text,
-                                                       state.x,
-                                                       state.y,
-                                                       state.width,
-                                                       state.height);
-    }
-  };
-
-  Win32TextNodeHandler gWin32TextNodeHandler;
-
-  class Win32ImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
-  {
-  public:
-    virtual const void *nodeTypeKey() const
-    {
-      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
-    }
-
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
-    {
-      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
-      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!image || !win32)
-      {
-        return 0;
-      }
-      return win32->contextMapper()->ensureImageViewContext(image,
-                                                            state.x,
-                                                            state.y,
-                                                            state.width,
-                                                            state.height);
-    }
-  };
-
-  Win32ImageViewNodeHandler gWin32ImageViewNodeHandler;
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
-  this->nodeHandlerRegistry_.registerHandler(&gWin32TextNodeHandler);
-  this->nodeHandlerRegistry_.registerHandler(&gWin32ImageViewNodeHandler);
+  RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootHwnd_)
   {
     gControllersByRootHwnd[rootHwnd_] = this;

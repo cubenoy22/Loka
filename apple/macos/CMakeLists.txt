@@ -43,6 +43,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/DebugLog.mm
   src/MacPlatformContext.mm
   src/MacProfiler.cpp
+  src/MacPlatformNodeHandlers.mm
   src/MacScenePlatformController.mm
   src/MacWindow.mm
   src/context/MacButtonContext.mm
