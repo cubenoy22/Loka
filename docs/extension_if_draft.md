@@ -250,6 +250,63 @@ This keeps compatibility explicit rather than implicit.
 
 ---
 
+## 7.5 Custom Node Registration Direction
+
+The current custom-node seam is intentionally small:
+
+1. a custom `Node` overrides `nodeTypeKey()`
+2. external code provides an `IPlatformNodeHandler`
+3. the active platform controller accepts it through `registerNodeHandler(...)`
+
+Minimal shape:
+
+```cpp
+class MyCustomNode : public loka::app::scene::Node
+{
+public:
+  virtual const void *nodeTypeKey() const
+  {
+    return loka::app::scene::NodeTypeToken<MyCustomNode>();
+  }
+};
+
+class MyCustomHandler : public loka::app::scene::IPlatformNodeHandler
+{
+public:
+  virtual const void *nodeTypeKey() const
+  {
+    return loka::app::scene::NodeTypeToken<MyCustomNode>();
+  }
+
+  virtual loka::app::scene::NodeContext *ensureContext(
+      loka::app::scene::Node *node,
+      loka::app::scene::IPlatformController *controller,
+      const loka::app::scene::LayoutState &state)
+  {
+    (void)controller;
+    (void)state;
+    if (!node->getContext())
+    {
+      node->setContext(new loka::app::scene::NodeContext(node));
+    }
+    return node->getContext();
+  }
+};
+```
+
+Then the application side registers it on the active controller:
+
+```cpp
+MyCustomHandler handler;
+platformController->registerNodeHandler(&handler);
+```
+
+This is not the final external-extension story yet.
+What it gives now is a concrete, test-covered path away from `NODE_KIND` /
+`asXxxNode()` hardwiring toward registered per-node platform behavior.
+
+---
+
 ## 8. Recommended First Step
 
 The smallest useful starting point is:
