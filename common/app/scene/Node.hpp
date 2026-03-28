@@ -88,6 +88,12 @@ namespace loka
       class BoundaryNode;
       class IStateOwner;
       struct ObservedStateRegistrar;
+
+      template <typename NodeT>
+      const void *NodeTypeToken()
+      {
+        return reinterpret_cast<const void *>(&NodeTypeToken<NodeT>);
+      }
     } // namespace scene
   } // namespace app
 
@@ -189,6 +195,7 @@ namespace loka
         virtual ComposableNode *asComposable() { return 0; }
         virtual BoundaryNode *asBoundary() { return 0; }
         virtual IStateOwner *asStateOwner() { return 0; }
+        virtual const void *nodeTypeKey() const { return 0; }
         // App node type casts (avoid dynamic_cast for 68k performance)
         virtual ::loka::app::RowNode *asRowNode() { return 0; }
         virtual ::loka::app::ColumnNode *asColumnNode() { return 0; }
