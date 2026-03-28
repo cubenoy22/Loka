@@ -89,7 +89,7 @@ namespace
 }
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
-    : rootHwnd_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
+    : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
   if (rootHwnd_)
   {
@@ -822,16 +822,11 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::ButtonNode *button = node->asButtonNode())
   {
-    Win32ButtonContext *ctx = static_cast<Win32ButtonContext *>(button->getContext());
-    if (ctx)
-    {
-      ctx->relayout(state.x, state.y, state.width, kButtonHeight);
-    }
-    else
-    {
-      ctx = new Win32ButtonContext(rootHwnd_, state.x, state.y, state.width, kButtonHeight, button);
-      button->setContext(ctx);
-    }
+    Win32ButtonContext *ctx = this->contextMapper_.ensureButtonContext(button,
+                                                                       state.x,
+                                                                       state.y,
+                                                                       state.width,
+                                                                       kButtonHeight);
     buttonMap_[ctx->hwnd()] = ctx;
 
     LayoutState nextState = state;

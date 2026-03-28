@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/scene/PlatformController.hpp"
+#include "context/MacNodeContextMapper.hpp"
 
 namespace loka
 {
@@ -72,6 +73,7 @@ private:
   void *findFieldForFocusedEdit(loka::app::scene::Node *node) const;
 
   void *rootView_;
+  MacNodeContextMapper contextMapper_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::NodeDirtyFlags lastChangeFlags_;
   int clientWidth_;

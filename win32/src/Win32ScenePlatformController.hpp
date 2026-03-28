@@ -7,6 +7,7 @@
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "context/Win32EditTextContext.hpp"
+#include "context/Win32NodeContextMapper.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 
@@ -179,6 +180,7 @@ private:
   void dumpRedrawStatsIfNeeded();
 
   HWND rootHwnd_;
+  Win32NodeContextMapper contextMapper_;
   loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;

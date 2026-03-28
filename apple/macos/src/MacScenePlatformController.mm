@@ -90,6 +90,7 @@ namespace
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
+      contextMapper_(rootView),
       rootNode_(0),
       lastChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
       clientWidth_(0),
@@ -560,16 +561,11 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::ButtonNode *button = node->asButtonNode())
   {
-    MacButtonContext *ctx = static_cast<MacButtonContext *>(button->getContext());
-    if (ctx)
-    {
-      ctx->relayout(state.x, state.y, state.width, kButtonHeight);
-    }
-    else
-    {
-      ctx = new MacButtonContext(rootView_, state.x, state.y, state.width, kButtonHeight, button);
-      button->setContext(ctx);
-    }
+    MacButtonContext *ctx = this->contextMapper_.ensureButtonContext(button,
+                                                                     state.x,
+                                                                     state.y,
+                                                                     state.width,
+                                                                     kButtonHeight);
 
     LayoutState nextState = state;
     nextState.y = state.y + kButtonHeight + kVerticalSpacing;
