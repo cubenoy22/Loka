@@ -48,6 +48,23 @@ namespace loka
 class MacScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  struct LayoutState
+  {
+    int x;
+    int y;
+    int width;
+    int height;
+  };
+
+  struct LayoutNodeResult
+  {
+    LayoutNodeResult() : boundaryWidth(0), resultY(0) {}
+    LayoutNodeResult(int width, int y) : boundaryWidth(width), resultY(y) {}
+
+    int boundaryWidth;
+    int resultY;
+  };
+
   explicit MacScenePlatformController(void *rootView);
   virtual ~MacScenePlatformController();
 
@@ -75,23 +92,6 @@ private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
   friend class ::loka::app::scene::MacPlatformLayoutTraversal;
   friend void RegisterMacBuiltInSupport(MacScenePlatformController &controller);
-
-  struct LayoutState
-  {
-    int x;
-    int y;
-    int width;
-    int height;
-  };
-
-  struct LayoutNodeResult
-  {
-    LayoutNodeResult() : boundaryWidth(0), resultY(0) {}
-    LayoutNodeResult(int width, int y) : boundaryWidth(width), resultY(y) {}
-
-    int boundaryWidth;
-    int resultY;
-  };
 
   typedef LayoutNodeResult (*LeafLayoutHandlerFn)(MacScenePlatformController *,
                                                   loka::app::scene::Node *,

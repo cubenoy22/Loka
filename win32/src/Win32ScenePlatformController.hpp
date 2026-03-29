@@ -63,6 +63,23 @@ public:
     NATIVE_PAINT_RECT_SURFACE = 3
   };
 
+  struct LayoutState
+  {
+    int x;
+    int y;
+    int width;
+    int height;
+  };
+
+  struct LayoutNodeResult
+  {
+    LayoutNodeResult() : boundaryWidth(0), resultY(0) {}
+    LayoutNodeResult(int width, int y) : boundaryWidth(width), resultY(y) {}
+
+    int boundaryWidth;
+    int resultY;
+  };
+
   explicit Win32ScenePlatformController(HWND rootHwnd);
   virtual ~Win32ScenePlatformController();
 
@@ -180,23 +197,6 @@ private:
     BOOL eraseBackground;
     bool fullWindow;
     bool includeChildren;
-  };
-
-  struct LayoutState
-  {
-    int x;
-    int y;
-    int width;
-    int height;
-  };
-
-  struct LayoutNodeResult
-  {
-    LayoutNodeResult() : boundaryWidth(0), resultY(0) {}
-    LayoutNodeResult(int width, int y) : boundaryWidth(width), resultY(y) {}
-
-    int boundaryWidth;
-    int resultY;
   };
 
   typedef LayoutNodeResult (*LeafLayoutHandlerFn)(Win32ScenePlatformController *,
