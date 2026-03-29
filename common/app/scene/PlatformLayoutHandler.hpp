@@ -37,6 +37,7 @@ namespace loka
           while (entry)
           {
             HandlerEntry *next = entry->next_;
+            delete entry->handler_;
             delete entry;
             entry = next;
           }
@@ -55,6 +56,10 @@ namespace loka
           {
             if (existing->nodeTypeKey_ == handler->nodeTypeKey())
             {
+              if (existing->handler_ != handler)
+              {
+                delete existing->handler_;
+              }
               existing->handler_ = handler;
               return true;
             }
@@ -64,6 +69,7 @@ namespace loka
           HandlerEntry *entry = new HandlerEntry(handler->nodeTypeKey(), handler);
           if (!entry)
           {
+            delete handler;
             return false;
           }
           entry->next_ = this->head_;

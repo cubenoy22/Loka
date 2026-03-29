@@ -356,15 +356,16 @@ void testPlatformLayoutHandlerRegistration()
   AttrDslCustomLayoutLeafNode *child = new AttrDslCustomLayoutLeafNode();
   node.addChild(child);
 
-  AttrDslCustomLayoutHandler handler;
   AttrDslDummyLayoutTraversal traversal;
   traversal.nextResult_ = 73;
 
   {
     loka::app::scene::PlatformLayoutHandlerRegistry registry;
+    AttrDslCustomLayoutHandler *handler = new AttrDslCustomLayoutHandler();
+    assert(handler != 0);
     assert(registry.find(&node) == 0);
-    assert(registry.registerHandler(&handler));
-    assert(registry.find(&node) == &handler);
+    assert(registry.registerHandler(handler));
+    assert(registry.find(&node) == handler);
 
     loka::app::scene::LayoutState state;
     state.x = 10;
@@ -376,9 +377,9 @@ void testPlatformLayoutHandlerRegistration()
     assert(resolved != 0);
     const int resultY = resolved->layoutNode(&node, state, &traversal);
     assert(resultY == 73);
-    assert(handler.layoutCalls_ == 1);
-    assert(handler.lastState_.x == 10);
-    assert(handler.lastState_.y == 20);
+    assert(handler->layoutCalls_ == 1);
+    assert(handler->lastState_.x == 10);
+    assert(handler->lastState_.y == 20);
     assert(traversal.calls_ == 1);
     assert(traversal.lastChild_ == child);
     assert(traversal.lastState_.x == 13);
