@@ -537,11 +537,16 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   if (code == CBN_SELCHANGE)
   {
     std::map<HWND, Win32PopupMenuContext *>::iterator itPopup = popupMap_.find(target);
-    if (itPopup == popupMap_.end())
+    if (itPopup != popupMap_.end())
+    {
+      return itPopup->second->handleCommand(wParam, lParam);
+    }
+    Win32PopupMenuContext *popup = reinterpret_cast<Win32PopupMenuContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
+    if (!popup)
     {
       return false;
     }
-    return itPopup->second->handleCommand(wParam, lParam);
+    return popup->handleCommand(wParam, lParam);
   }
   return false;
 }

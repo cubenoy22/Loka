@@ -10,6 +10,7 @@ class Win32PopupMenuContext : public loka::app::scene::NativeNodeContext
 public:
   Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
   virtual ~Win32PopupMenuContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   HWND hwnd() const { return hwnd_; }
   void relayout(int x, int y, int width, int height);

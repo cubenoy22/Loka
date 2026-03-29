@@ -4,6 +4,12 @@
 #include <AppKit/AppKit.h>
 #include "loka/platform/StringUTF8.hpp"
 
+namespace
+{
+  const int kPopupMenuHeight = 26;
+  const int kVerticalSpacing = 12;
+}
+
 @interface LokaPopupMenuTarget : NSObject
 {
   MacPopupMenuContext *owner_;
@@ -70,6 +76,13 @@ MacPopupMenuContext::~MacPopupMenuContext()
     [(id)popup_ release];
   }
   popup_ = 0;
+}
+
+short MacPopupMenuContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kPopupMenuHeight);
+  state.height = static_cast<short>(kPopupMenuHeight);
+  return static_cast<short>(state.y + kPopupMenuHeight + kVerticalSpacing);
 }
 
 void MacPopupMenuContext::handleSelectionChange()
