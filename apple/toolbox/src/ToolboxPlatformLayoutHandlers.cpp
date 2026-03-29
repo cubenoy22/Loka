@@ -1,11 +1,43 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
 
 #include "app/Box.hpp"
+#include "app/ImageView.hpp"
+#include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
+#include "app/layout/LayoutHeuristics.hpp"
 #include "loka/dsl/CompositionList.hpp"
 
 namespace
 {
+  inline short ClampToAvailable(short value, short available)
+  {
+    if (value < 0)
+    {
+      return 0;
+    }
+    if (available >= 0 && value > available)
+    {
+      return available;
+    }
+    return value;
+  }
+
+  inline short PreferredChildWidthForColumn(loka::app::scene::Node *child, short availableWidth)
+  {
+    if (!child)
+    {
+      return ClampToAvailable(availableWidth, availableWidth);
+    }
+    if (loka::app::ImageViewNode *image = child->asImageViewNode())
+    {
+      if (image->props.width_ > 0)
+      {
+        return ClampToAvailable(static_cast<short>(image->props.width_), availableWidth);
+      }
+    }
+    return ClampToAvailable(availableWidth, availableWidth);
+  }
+
   inline int DispatchTraversalLayoutChild(void *context,
                                           loka::app::scene::Node *child,
                                           const loka::app::scene::LayoutState &state)
@@ -116,10 +148,72 @@ namespace
       return maxWidth;
     }
   };
+
+  class ToolboxColumnLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ColumnNode>();
+    }
+
+    virtual int layoutNode(loka::app::scene::Node *node,
+                           const loka::app::scene::LayoutState &state,
+                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+    {
+      loka::app::ColumnNode *column = node ? node->asColumnNode() : 0;
+      if (!column || !traversal)
+      {
+        return 0;
+      }
+
+      short width = 0;
+      short currentY = state.y;
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      {
+        loka::app::scene::LayoutState childState = state;
+        childState.y = currentY;
+        if (state.height > 0)
+        {
+          childState.height = static_cast<short>(
+              loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+        }
+        short childWidth = state.width;
+        short childOffset = 0;
+        if (column->props.hasHorizontalAlignment_)
+        {
+          childWidth = PreferredChildWidthForColumn(child, state.width);
+          short remain = static_cast<short>(state.width - childWidth);
+          if (remain > 0)
+          {
+            if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+            {
+              childOffset = static_cast<short>(remain / 2);
+            }
+            else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
+            {
+              childOffset = remain;
+            }
+          }
+        }
+        childState.x = static_cast<short>(state.x + childOffset);
+        childState.width = childWidth;
+        const int childWidthUsed = DispatchTraversalLayoutChild(traversal, child, childState);
+        if (childWidthUsed > width)
+        {
+          width = static_cast<short>(childWidthUsed);
+        }
+        currentY = childState.y;
+      }
+      return width;
+    }
+  };
 }
 
 void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
 {
   registry.registerHandler(new ToolboxBoxLayoutHandler());
   registry.registerHandler(new ToolboxZStackLayoutHandler());
+  registry.registerHandler(new ToolboxColumnLayoutHandler());
 }

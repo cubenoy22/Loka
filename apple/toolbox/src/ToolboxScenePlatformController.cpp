@@ -437,45 +437,60 @@ namespace
     {
       loka::app::ColumnNode *column = static_cast<loka::app::ColumnNode *>(node);
       short width = 0;
-      short currentY = state.y;
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      bool usedHandler = false;
+      if (controller && controller->layoutHandlerRegistry())
       {
-        loka::app::scene::LayoutState childState = state;
-        childState.y = currentY;
-        if (state.height > 0)
+        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(column);
+        if (handler)
         {
-          childState.height = static_cast<short>(
-              loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+          ToolboxLayoutTraversal traversal(controller, activeBoundary);
+          width = static_cast<short>(handler->layoutNode(column, state, &traversal));
+          state.y = traversal.lastY();
+          usedHandler = true;
         }
-        short childWidth = state.width;
-        short childOffset = 0;
-        if (column->props.hasHorizontalAlignment_)
+      }
+      if (!usedHandler)
+      {
+        short currentY = state.y;
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
+        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
         {
-          childWidth = PreferredChildWidthForColumn(child, state.width);
-          short remain = static_cast<short>(state.width - childWidth);
-          if (remain > 0)
+          loka::app::scene::LayoutState childState = state;
+          childState.y = currentY;
+          if (state.height > 0)
           {
-            if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+            childState.height = static_cast<short>(
+                loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+          }
+          short childWidth = state.width;
+          short childOffset = 0;
+          if (column->props.hasHorizontalAlignment_)
+          {
+            childWidth = PreferredChildWidthForColumn(child, state.width);
+            short remain = static_cast<short>(state.width - childWidth);
+            if (remain > 0)
             {
-              childOffset = static_cast<short>(remain / 2);
-            }
-            else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
-            {
-              childOffset = remain;
+              if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+              {
+                childOffset = static_cast<short>(remain / 2);
+              }
+              else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
+              {
+                childOffset = remain;
+              }
             }
           }
+          childState.x = static_cast<short>(state.x + childOffset);
+          childState.width = childWidth;
+          short childUsedWidth = LayoutNode(child, childState, controller, activeBoundary);
+          if (childUsedWidth > width)
+          {
+            width = childUsedWidth;
+          }
+          currentY = childState.y;
         }
-        childState.x = static_cast<short>(state.x + childOffset);
-        childState.width = childWidth;
-        short childUsedWidth = LayoutNode(child, childState, controller, activeBoundary);
-        if (childUsedWidth > width)
-        {
-          width = childUsedWidth;
-        }
-        currentY = childState.y;
+        state.y = currentY;
       }
-      state.y = currentY;
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
