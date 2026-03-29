@@ -590,43 +590,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
-    if (column->childrenHead() == 0 || column->childrenCount() == 0)
-    {
-      return state.y;
-    }
-    LayoutState childState = state;
-    int currentY = state.y;
-    loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
-    for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-    {
-      childState = state;
-      childState.y = currentY;
-      if (state.height > 0)
-      {
-        childState.height = loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY);
-      }
-      int childWidth = state.width;
-      int childOffset = 0;
-      if (column->props.hasHorizontalAlignment_)
-      {
-        childWidth = loka::app::layout::preferredChildWidthForColumn(child, state.width);
-        const int remain = state.width - childWidth;
-        if (remain > 0)
-        {
-          if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
-          {
-            childOffset = remain / 2;
-          }
-          else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
-          {
-            childOffset = remain;
-          }
-        }
-      }
-      childState.x = state.x + childOffset;
-      childState.width = childWidth;
-      currentY = layoutNode(child, childState);
-    }
+    const int currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &Win32ScenePlatformController::layoutContainerChild);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, currentY);
   }
 
