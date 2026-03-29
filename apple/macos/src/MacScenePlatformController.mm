@@ -22,9 +22,13 @@ namespace
 {
   static std::map<void *, MacScenePlatformController *> gControllerByRootView;
 
+  const int kButtonHeight = 32;
+  const int kEditTextHeight = 24;
+  const int kPopupMenuHeight = 26;
   const int kTextHeight = 20;
   const int kVerticalSpacing = 12;
   const int kHorizontalSpacing = 12;
+  const int kImageFallbackHeightModern = 160;
 
 }
 
