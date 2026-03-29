@@ -3,5 +3,6 @@
 
 void testLokaAttrDslV1Core();
 void testPlatformNodeHandlerRegistration();
+void testPlatformLayoutHandlerRegistration();
 
 #endif // LOKA_ATTR_DSL_TESTS_HPP

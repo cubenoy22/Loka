@@ -8,6 +8,7 @@
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformLayoutHandler.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "loka/core/State.hpp"
@@ -83,6 +84,88 @@ namespace
 
     loka::app::scene::PlatformNodeHandlerRegistry registry_;
     loka::app::scene::Node *lastRoot_;
+  };
+
+  class AttrDslCustomLayoutLeafNode : public loka::app::scene::Node
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomLayoutLeafNode>();
+    }
+  };
+
+  class AttrDslCustomLayoutNode : public loka::app::scene::NestableNode
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomLayoutNode>();
+    }
+  };
+
+  class AttrDslDummyLayoutTraversal : public loka::app::scene::IPlatformLayoutTraversal
+  {
+  public:
+    AttrDslDummyLayoutTraversal()
+        : calls_(0), nextResult_(0), lastChild_(0)
+    {
+    }
+
+    virtual int layoutChild(loka::app::scene::Node *child, const loka::app::scene::LayoutState &state)
+    {
+      ++calls_;
+      lastChild_ = child;
+      lastState_ = state;
+      return nextResult_;
+    }
+
+    int calls_;
+    int nextResult_;
+    loka::app::scene::Node *lastChild_;
+    loka::app::scene::LayoutState lastState_;
+  };
+
+  class AttrDslCustomLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+  {
+  public:
+    AttrDslCustomLayoutHandler() : layoutCalls_(0), fallbackResult_(0) {}
+
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomLayoutNode>();
+    }
+
+    virtual int layoutNode(loka::app::scene::Node *node,
+                           const loka::app::scene::LayoutState &state,
+                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+    {
+      ++layoutCalls_;
+      lastState_ = state;
+      assert(node != 0);
+      assert(node->nodeTypeKey() == this->nodeTypeKey());
+      assert(traversal != 0);
+
+      loka::app::scene::INestable *nestable = node->asNestable();
+      if (!nestable || !nestable->childrenHead())
+      {
+        return fallbackResult_;
+      }
+
+      loka::app::scene::LayoutState childState = state;
+      childState.x += 3;
+      childState.y += 5;
+      childState.width -= 6;
+      if (childState.width < 0)
+      {
+        childState.width = 0;
+      }
+      return traversal->layoutChild(nestable->childrenHead(), childState);
+    }
+
+    int layoutCalls_;
+    int fallbackResult_;
+    loka::app::scene::LayoutState lastState_;
   };
 }
 
@@ -263,4 +346,46 @@ void testPlatformNodeHandlerRegistration()
   assert(handler.lastState_.height == 32);
 
   printf("==== [testPlatformNodeHandlerRegistration] end ====\n");
+}
+
+void testPlatformLayoutHandlerRegistration()
+{
+  printf("\n==== [testPlatformLayoutHandlerRegistration] start ====\n");
+
+  AttrDslCustomLayoutNode node;
+  AttrDslCustomLayoutLeafNode *child = new AttrDslCustomLayoutLeafNode();
+  node.addChild(child);
+
+  AttrDslCustomLayoutHandler handler;
+  AttrDslDummyLayoutTraversal traversal;
+  traversal.nextResult_ = 73;
+
+  {
+    loka::app::scene::PlatformLayoutHandlerRegistry registry;
+    assert(registry.find(&node) == 0);
+    assert(registry.registerHandler(&handler));
+    assert(registry.find(&node) == &handler);
+
+    loka::app::scene::LayoutState state;
+    state.x = 10;
+    state.y = 20;
+    state.width = 40;
+    state.height = 50;
+
+    loka::app::scene::IPlatformLayoutHandler *resolved = registry.find(&node);
+    assert(resolved != 0);
+    const int resultY = resolved->layoutNode(&node, state, &traversal);
+    assert(resultY == 73);
+    assert(handler.layoutCalls_ == 1);
+    assert(handler.lastState_.x == 10);
+    assert(handler.lastState_.y == 20);
+    assert(traversal.calls_ == 1);
+    assert(traversal.lastChild_ == child);
+    assert(traversal.lastState_.x == 13);
+    assert(traversal.lastState_.y == 25);
+    assert(traversal.lastState_.width == 34);
+    assert(traversal.lastState_.height == 50);
+  }
+
+  printf("==== [testPlatformLayoutHandlerRegistration] end ====\n");
 }
