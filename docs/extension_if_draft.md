@@ -239,6 +239,143 @@ A possible future rule:
 - optional system tags/capability tags refine what kind of extension is allowed
 - older tags may be accepted only through explicit trait-based compatibility
 
+---
+
+## 7.5 Custom Node Registration Direction
+
+The first practical extension seam in the current refactor line is custom node
+registration.
+
+The internal direction is:
+
+- custom `Node` types identify themselves by `nodeTypeKey()`
+- platform-specific node handlers are registered against that key
+- built-in nodes use the same handler/registry path as external nodes
+
+Minimal shape:
+
+```cpp
+class CustomNode : public loka::app::scene::Node
+{
+public:
+  virtual const void *nodeTypeKey() const
+  {
+    return loka::app::scene::NodeTypeToken<CustomNode>();
+  }
+};
+
+class CustomHandler : public loka::app::scene::IPlatformNodeHandler
+{
+public:
+  virtual const void *nodeTypeKey() const
+  {
+    return loka::app::scene::NodeTypeToken<CustomNode>();
+  }
+
+  virtual loka::app::scene::NodeContext *ensureContext(
+      loka::app::scene::Node *node,
+      loka::app::scene::IPlatformController *controller,
+      const loka::app::scene::LayoutState &state);
+};
+```
+
+Registration direction:
+
+```cpp
+controller->registerNodeHandler(new CustomHandler());
+```
+
+This keeps the first seam narrow:
+
+- no plugin loader is implied
+- no ABI-stable binary contract is implied
+- external code can still add node/control behavior without editing Loka core
+
+The important architectural rule is:
+
+- node selection stays in the registry/factory layer
+- common node behavior may live in shared `NodeContext`/native-context helpers
+- `PlatformController` should trend toward traversal/ownership only
+
+---
+
+## 7.6 Custom Layout Direction
+
+The current container-layout refactor is intentionally internal-first.
+
+Shared helpers now cover built-in retained containers such as:
+
+- `Box`
+- `ZStack`
+- `Column`
+- `Row`
+- `Grid`
+
+These helpers are not yet a public extension API. They exist to stabilize the
+shape of layout inputs/outputs before committing to a public seam.
+
+The intended progression is:
+
+1. extract platform-independent container layout kernels into shared helpers
+2. keep `PlatformController` responsible only for recursion callbacks,
+   boundary-bounds application, and platform ownership hooks
+3. identify the stable layout contract used by both built-in and custom nodes
+4. expose registration only after that contract is demonstrated by built-in use
+
+The likely long-term split is:
+
+- leaf layout extension
+  - intrinsic size / single-node placement
+- container layout extension
+  - child traversal / child-state distribution / aggregate result bounds
+
+This distinction matters because container layout is not just another node
+handler. It owns recursive child placement policy.
+
+So the direction should not be:
+
+- force container layout into the exact same seam as context creation
+
+but rather:
+
+- keep node-handler registration for context/native behavior
+- add a separate layout registration seam once the shared container helper shape
+  is stable
+
+Possible future shape:
+
+```cpp
+class INodeLayoutHandler
+{
+public:
+  virtual ~INodeLayoutHandler() {}
+  virtual const void *nodeTypeKey() const = 0;
+  virtual int layoutNode(
+      loka::app::scene::Node *node,
+      const LayoutState &state,
+      ILayoutTraversal *traversal) = 0;
+};
+```
+
+Where `ILayoutTraversal` would be a narrow callback/facade used to:
+
+- lay out a child recursively
+- query boundary application hooks if needed
+
+The important restriction is:
+
+- do not expose `PlatformController` itself as the public layout contract
+
+The public seam should stay smaller and more stable than the full controller.
+
+For now, the practical rule is:
+
+- keep layout extension work internal until at least one more built-in
+  container/layout family proves the contract
+
+That is enough direction to guide current refactors without prematurely locking
+the public API.
+
 Example direction:
 
 - `V1 + StateSystem` may be accepted by a future `V2` state host if the
