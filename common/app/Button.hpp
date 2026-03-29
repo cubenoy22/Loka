@@ -143,6 +143,7 @@ namespace loka
       ButtonProps props;
       ButtonNode(const ButtonProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_BUTTON; }
+      virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<ButtonNode>(); }
       virtual ButtonNode *asButtonNode() { return this; }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
