@@ -54,71 +54,62 @@ namespace
         state.width,
         projected->layoutProjected(controller, projectedState));
   }
-}
 
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchTextLayout(
-    Win32ScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchImageViewLayout(
-    Win32ScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchButtonLayout(
-    Win32ScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchEditTextLayout(
-    Win32ScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchPopupMenuLayout(
-    Win32ScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchCellLayout(
-    Win32ScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchOpenFileDialogLayout(
-    Win32ScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
+  Win32ScenePlatformController::LayoutNodeResult DispatchTextLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
   {
-    return LayoutNodeResult(state.width, state.y);
+    return DispatchProjectedLayout(controller, node, state);
   }
-  loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
-  if (!dialog)
+
+  Win32ScenePlatformController::LayoutNodeResult DispatchImageViewLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
   {
-    return LayoutNodeResult(state.width, state.y);
+    return DispatchProjectedLayout(controller, node, state);
   }
-  return controller->layoutOpenFileDialogNode(dialog, state);
+
+  Win32ScenePlatformController::LayoutNodeResult DispatchButtonLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  Win32ScenePlatformController::LayoutNodeResult DispatchEditTextLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  Win32ScenePlatformController::LayoutNodeResult DispatchPopupMenuLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  Win32ScenePlatformController::LayoutNodeResult DispatchCellLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  Win32ScenePlatformController::LayoutNodeResult DispatchOpenFileDialogLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
 }
 
 void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
@@ -137,25 +128,25 @@ void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(controller.layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
-      &Win32ScenePlatformController::dispatchButtonLayout);
+      &DispatchButtonLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
-      &Win32ScenePlatformController::dispatchEditTextLayout);
+      &DispatchEditTextLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
-      &Win32ScenePlatformController::dispatchPopupMenuLayout);
+      &DispatchPopupMenuLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
-      &Win32ScenePlatformController::dispatchCellLayout);
+      &DispatchCellLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
-      &Win32ScenePlatformController::dispatchTextLayout);
+      &DispatchTextLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
-      &Win32ScenePlatformController::dispatchImageViewLayout);
+      &DispatchImageViewLayout);
   controller.hostActionHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(),
-      &Win32ScenePlatformController::dispatchOpenFileDialogLayout);
+      &DispatchOpenFileDialogLayout);
   RegisterWin32ButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32TextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32ImageViewNodeHandler(controller.nodeHandlerRegistry_);

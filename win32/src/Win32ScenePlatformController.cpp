@@ -599,29 +599,6 @@ int Win32ScenePlatformController::applyBoundaryLayoutResult(loka::app::scene::Bo
   return result.resultY;
 }
 
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutOpenFileDialogNode(
-    loka::app::OpenFileDialogNode *dialog,
-    const LayoutState &state)
-{
-  loka::app::scene::LayoutState handlerState;
-  handlerState.x = 0;
-  handlerState.y = 0;
-  handlerState.width = 0;
-  handlerState.height = 0;
-  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(dialog);
-  Win32OpenFileDialogContext *ctx = 0;
-  if (handler)
-  {
-    ctx = static_cast<Win32OpenFileDialogContext *>(handler->ensureContext(dialog, this, handlerState));
-  }
-  if (!ctx)
-  {
-    ctx = this->contextMapper_.ensureOpenFileDialogContext(dialog);
-  }
-  return LayoutNodeResult(state.width, state.y);
-}
-
-
 Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutRectSurfaceNode(
     loka::app::RectSurfaceNode *surface,
     const LayoutState &state)

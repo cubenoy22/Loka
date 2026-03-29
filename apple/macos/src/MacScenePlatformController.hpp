@@ -182,27 +182,6 @@ private:
   };
 
   static int layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state);
-  static LayoutNodeResult dispatchTextLayout(MacScenePlatformController *controller,
-                                             loka::app::scene::Node *node,
-                                             const LayoutState &state);
-  static LayoutNodeResult dispatchImageViewLayout(MacScenePlatformController *controller,
-                                                  loka::app::scene::Node *node,
-                                                  const LayoutState &state);
-  static LayoutNodeResult dispatchButtonLayout(MacScenePlatformController *controller,
-                                               loka::app::scene::Node *node,
-                                               const LayoutState &state);
-  static LayoutNodeResult dispatchEditTextLayout(MacScenePlatformController *controller,
-                                                 loka::app::scene::Node *node,
-                                                 const LayoutState &state);
-  static LayoutNodeResult dispatchPopupMenuLayout(MacScenePlatformController *controller,
-                                                  loka::app::scene::Node *node,
-                                                  const LayoutState &state);
-  static LayoutNodeResult dispatchCellLayout(MacScenePlatformController *controller,
-                                             loka::app::scene::Node *node,
-                                             const LayoutState &state);
-  static LayoutNodeResult dispatchOpenFileDialogLayout(MacScenePlatformController *controller,
-                                                       loka::app::scene::Node *node,
-                                                       const LayoutState &state);
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
@@ -210,7 +189,6 @@ private:
                                 int x,
                                 int y,
                                 const LayoutNodeResult &result);
-  LayoutNodeResult layoutOpenFileDialogNode(loka::app::OpenFileDialogNode *dialog, const LayoutState &state);
   LayoutNodeResult layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();

@@ -50,71 +50,62 @@ namespace
         state.width,
         projected->layoutProjected(controller, projectedState));
   }
-}
 
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchTextLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchImageViewLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchButtonLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchEditTextLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchPopupMenuLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchCellLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  return DispatchProjectedLayout(controller, node, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchOpenFileDialogLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
+  MacScenePlatformController::LayoutNodeResult DispatchTextLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
   {
-    return LayoutNodeResult(state.width, state.y);
+    return DispatchProjectedLayout(controller, node, state);
   }
-  loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
-  if (!dialog)
+
+  MacScenePlatformController::LayoutNodeResult DispatchImageViewLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
   {
-    return LayoutNodeResult(state.width, state.y);
+    return DispatchProjectedLayout(controller, node, state);
   }
-  return controller->layoutOpenFileDialogNode(dialog, state);
+
+  MacScenePlatformController::LayoutNodeResult DispatchButtonLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  MacScenePlatformController::LayoutNodeResult DispatchEditTextLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  MacScenePlatformController::LayoutNodeResult DispatchPopupMenuLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  MacScenePlatformController::LayoutNodeResult DispatchCellLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
+
+  MacScenePlatformController::LayoutNodeResult DispatchOpenFileDialogLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
+  {
+    return DispatchProjectedLayout(controller, node, state);
+  }
 }
 
 void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
@@ -133,25 +124,25 @@ void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(controller.layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
-      &MacScenePlatformController::dispatchButtonLayout);
+      &DispatchButtonLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
-      &MacScenePlatformController::dispatchEditTextLayout);
+      &DispatchEditTextLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
-      &MacScenePlatformController::dispatchPopupMenuLayout);
+      &DispatchPopupMenuLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
-      &MacScenePlatformController::dispatchCellLayout);
+      &DispatchCellLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
-      &MacScenePlatformController::dispatchTextLayout);
+      &DispatchTextLayout);
   controller.leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
-      &MacScenePlatformController::dispatchImageViewLayout);
+      &DispatchImageViewLayout);
   controller.hostActionHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(),
-      &MacScenePlatformController::dispatchOpenFileDialogLayout);
+      &DispatchOpenFileDialogLayout);
   RegisterMacButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacImageViewNodeHandler(controller.nodeHandlerRegistry_);
