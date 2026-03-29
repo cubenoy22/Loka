@@ -1,5 +1,6 @@
 #include "Win32ScenePlatformController.hpp"
 #include "Win32PlatformNodeHandlers.hpp"
+#include "Win32PlatformLeafLayoutHandlers.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <windows.h>
 #include <vector>
@@ -239,24 +240,7 @@ Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
   gridMetrics.gapX = 0;
   gridMetrics.gapY = 0;
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
-      &Win32ScenePlatformController::dispatchButtonLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
-      &Win32ScenePlatformController::dispatchEditTextLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
-      &Win32ScenePlatformController::dispatchPopupMenuLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
-      &Win32ScenePlatformController::dispatchCellLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
-      &Win32ScenePlatformController::dispatchTextLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
-      &Win32ScenePlatformController::dispatchImageViewLayout);
+  RegisterWin32PlatformLeafLayoutHandlers(*this);
   RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootHwnd_)
   {

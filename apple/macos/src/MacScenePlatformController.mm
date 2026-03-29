@@ -1,5 +1,6 @@
 #include "MacScenePlatformController.hpp"
 #include "MacPlatformNodeHandlers.hpp"
+#include "MacPlatformLeafLayoutHandlers.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <AppKit/AppKit.h>
 #include <vector>
@@ -248,24 +249,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
   gridMetrics.gapX = 0;
   gridMetrics.gapY = 0;
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
-      &MacScenePlatformController::dispatchButtonLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
-      &MacScenePlatformController::dispatchEditTextLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
-      &MacScenePlatformController::dispatchPopupMenuLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
-      &MacScenePlatformController::dispatchCellLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
-      &MacScenePlatformController::dispatchTextLayout);
-  this->leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
-      &MacScenePlatformController::dispatchImageViewLayout);
+  RegisterMacPlatformLeafLayoutHandlers(*this);
   RegisterMacPlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootView_)
   {

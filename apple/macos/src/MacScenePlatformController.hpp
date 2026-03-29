@@ -73,6 +73,7 @@ public:
 private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
   friend class ::loka::app::scene::MacPlatformLayoutTraversal;
+  friend void RegisterMacPlatformLeafLayoutHandlers(MacScenePlatformController &controller);
 
   struct LayoutState
   {

@@ -1,0 +1,8 @@
+#ifndef LOKA_MAC_PLATFORM_LEAF_LAYOUT_HANDLERS_HPP
+#define LOKA_MAC_PLATFORM_LEAF_LAYOUT_HANDLERS_HPP
+
+class MacScenePlatformController;
+
+void RegisterMacPlatformLeafLayoutHandlers(MacScenePlatformController &controller);
+
+#endif // LOKA_MAC_PLATFORM_LEAF_LAYOUT_HANDLERS_HPP

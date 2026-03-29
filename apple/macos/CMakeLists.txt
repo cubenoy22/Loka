@@ -44,6 +44,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/MacPlatformContext.mm
   src/MacProfiler.cpp
   src/MacPlatformNodeHandlers.mm
+  src/MacPlatformLeafLayoutHandlers.mm
   src/MacScenePlatformController.mm
   src/MacWindow.mm
   src/context/MacButtonContext.mm
