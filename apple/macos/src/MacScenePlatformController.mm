@@ -17,6 +17,7 @@
 #include "app/RectSurface.hpp"
 #include "app/layout/ContainerLayout.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
+#include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
 #include "app/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
 #include "context/MacCellContext.hpp"
@@ -90,6 +91,36 @@ namespace
   }
 }
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class MacPlatformLayoutTraversal : public IPlatformLayoutTraversal
+      {
+      public:
+        explicit MacPlatformLayoutTraversal(MacScenePlatformController *controller)
+            : controller_(controller)
+        {
+        }
+
+        virtual int layoutChild(Node *child, const LayoutState &state)
+        {
+          if (!this->controller_)
+          {
+            return state.y;
+          }
+          return this->controller_->layoutNodeFromSceneState(child, state);
+        }
+
+      private:
+        MacScenePlatformController *controller_;
+      };
+    }
+  }
+}
+
 MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
       contextMapper_(rootView),
@@ -103,6 +134,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
       focusedEditTextControlTag_(0),
       relayoutPending_(false)
 {
+  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_);
   RegisterMacPlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootView_)
   {
@@ -126,6 +158,17 @@ MacScenePlatformController::~MacScenePlatformController()
 bool MacScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
   return this->nodeHandlerRegistry_.registerHandler(handler);
+}
+
+int MacScenePlatformController::layoutNodeFromSceneState(loka::app::scene::Node *node,
+                                                         const loka::app::scene::LayoutState &state)
+{
+  LayoutState localState;
+  localState.x = state.x;
+  localState.y = state.y;
+  localState.width = state.width;
+  localState.height = state.height;
+  return this->layoutNode(node, localState);
 }
 
 MacScenePlatformController *MacScenePlatformController::findForRootView(void *rootView)
@@ -358,7 +401,22 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::BoxNode *box = node->asBoxNode())
   {
-    const int resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &MacScenePlatformController::layoutContainerChild);
+    int resultY = state.y;
+    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(box);
+    if (handler)
+    {
+      loka::app::scene::LayoutState handlerState;
+      handlerState.x = static_cast<short>(state.x);
+      handlerState.y = static_cast<short>(state.y);
+      handlerState.width = static_cast<short>(state.width);
+      handlerState.height = static_cast<short>(state.height);
+      loka::app::scene::MacPlatformLayoutTraversal traversal(this);
+      resultY = handler->layoutNode(box, handlerState, &traversal);
+    }
+    else
+    {
+      resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &MacScenePlatformController::layoutContainerChild);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
   }
 

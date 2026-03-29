@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <map>
 #include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformLayoutHandler.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32TextContext.hpp"
@@ -35,6 +36,14 @@ namespace loka
     namespace testing
     {
       class Win32ScenePlatformTestAccess;
+    }
+  }
+
+  namespace app
+  {
+    namespace scene
+    {
+      class Win32PlatformLayoutTraversal;
     }
   }
 }
@@ -77,6 +86,7 @@ public:
 
 private:
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
+  friend class ::loka::app::scene::Win32PlatformLayoutTraversal;
 
   struct RedrawStats
   {
@@ -175,6 +185,7 @@ private:
   };
 
   static int layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state);
+  int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();
@@ -185,6 +196,7 @@ private:
 
   HWND rootHwnd_;
   Win32NodeContextMapper contextMapper_;
+  loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
   int clientWidth_;

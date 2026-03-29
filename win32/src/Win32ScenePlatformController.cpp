@@ -17,6 +17,7 @@
 #include "app/RectSurface.hpp"
 #include "app/layout/ContainerLayout.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
+#include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -90,9 +91,40 @@ namespace
   }
 }
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class Win32PlatformLayoutTraversal : public IPlatformLayoutTraversal
+      {
+      public:
+        explicit Win32PlatformLayoutTraversal(Win32ScenePlatformController *controller)
+            : controller_(controller)
+        {
+        }
+
+        virtual int layoutChild(Node *child, const LayoutState &state)
+        {
+          if (!this->controller_)
+          {
+            return state.y;
+          }
+          return this->controller_->layoutNodeFromSceneState(child, state);
+        }
+
+      private:
+        Win32ScenePlatformController *controller_;
+      };
+    }
+  }
+}
+
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
+  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_);
   RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootHwnd_)
   {
@@ -136,6 +168,17 @@ void Win32ScenePlatformController::requestDirtyRect(HWND targetHwnd, const RECT 
 bool Win32ScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
   return this->nodeHandlerRegistry_.registerHandler(handler);
+}
+
+int Win32ScenePlatformController::layoutNodeFromSceneState(loka::app::scene::Node *node,
+                                                           const loka::app::scene::LayoutState &state)
+{
+  LayoutState localState;
+  localState.x = state.x;
+  localState.y = state.y;
+  localState.width = state.width;
+  localState.height = state.height;
+  return this->layoutNode(node, localState);
 }
 
 void Win32ScenePlatformController::requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
@@ -619,7 +662,22 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::BoxNode *box = node->asBoxNode())
   {
-    const int resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &Win32ScenePlatformController::layoutContainerChild);
+    int resultY = state.y;
+    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(box);
+    if (handler)
+    {
+      loka::app::scene::LayoutState handlerState;
+      handlerState.x = static_cast<short>(state.x);
+      handlerState.y = static_cast<short>(state.y);
+      handlerState.width = static_cast<short>(state.width);
+      handlerState.height = static_cast<short>(state.height);
+      loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
+      resultY = handler->layoutNode(box, handlerState, &traversal);
+    }
+    else
+    {
+      resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &Win32ScenePlatformController::layoutContainerChild);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
   }
 

@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformLayoutHandler.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "context/MacNodeContextMapper.hpp"
 
@@ -23,6 +24,14 @@ namespace loka
     namespace scene
     {
       class Node;
+    }
+  }
+
+  namespace app
+  {
+    namespace scene
+    {
+      class MacPlatformLayoutTraversal;
     }
   }
 }
@@ -54,6 +63,7 @@ public:
 
 private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
+  friend class ::loka::app::scene::MacPlatformLayoutTraversal;
 
   struct LayoutState
   {
@@ -64,6 +74,7 @@ private:
   };
 
   static int layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state);
+  int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();
@@ -78,6 +89,7 @@ private:
 
   void *rootView_;
   MacNodeContextMapper contextMapper_;
+  loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::NodeDirtyFlags lastChangeFlags_;
