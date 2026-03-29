@@ -46,7 +46,7 @@ namespace loka
       {
       public:
         explicit Win32PlatformLayoutTraversal(Win32ScenePlatformController *controller)
-            : controller_(controller)
+            : controller_(controller), layoutResultY_(0)
         {
         }
 
@@ -56,11 +56,18 @@ namespace loka
           {
             return state.y;
           }
-          return this->controller_->layoutNodeFromSceneState(child, state);
+          const int result = this->controller_->layoutNodeFromSceneState(child, state);
+          this->layoutResultY_ = state.y;
+          return result;
         }
+
+        virtual void setLayoutResultY(short y) { this->layoutResultY_ = y; }
+
+        virtual short layoutResultY() const { return this->layoutResultY_; }
 
       private:
         Win32ScenePlatformController *controller_;
+        short layoutResultY_;
       };
     }
   }

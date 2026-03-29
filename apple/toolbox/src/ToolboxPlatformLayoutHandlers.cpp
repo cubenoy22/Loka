@@ -9,6 +9,8 @@
 
 namespace
 {
+  static const short kToolboxLayoutImageFallbackHeight = 80;
+
   inline short ClampToAvailable(short value, short available)
   {
     if (value < 0)
@@ -36,6 +38,27 @@ namespace
       }
     }
     return ClampToAvailable(availableWidth, availableWidth);
+  }
+
+  inline short PreferredChildHeightForRow(loka::app::scene::Node *child, short fallbackHeight)
+  {
+    if (!child)
+    {
+      return fallbackHeight;
+    }
+    if (loka::app::ImageViewNode *image = child->asImageViewNode())
+    {
+      if (image->props.height_ > 0)
+      {
+        return static_cast<short>(image->props.height_);
+      }
+      if (fallbackHeight > 0)
+      {
+        return fallbackHeight;
+      }
+      return kToolboxLayoutImageFallbackHeight;
+    }
+    return fallbackHeight;
   }
 
   inline int DispatchTraversalLayoutChild(void *context,
@@ -209,6 +232,98 @@ namespace
       return width;
     }
   };
+
+  class ToolboxRowLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::RowNode>();
+    }
+
+    virtual int layoutNode(loka::app::scene::Node *node,
+                           const loka::app::scene::LayoutState &state,
+                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+    {
+      loka::app::RowNode *row = node ? node->asRowNode() : 0;
+      if (!row || !traversal)
+      {
+        return 0;
+      }
+
+      short rowStartX = state.x;
+      short maxHeight = 0;
+      short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+      const size_t childCount = row->childrenCount();
+      if (row->props.hasVerticalAlignment_)
+      {
+        rowHeight = 0;
+        loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
+        for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
+        {
+          short height = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
+          if (height > rowHeight)
+          {
+            rowHeight = height;
+          }
+        }
+        if (rowHeight <= 0)
+        {
+          rowHeight = 12;
+        }
+      }
+
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());
+      size_t childIndex = 0;
+      for (loka::app::scene::Node *child = it.next(); child; child = it.next(), ++childIndex)
+      {
+        loka::app::scene::LayoutState rowState = state;
+        rowState.x = rowStartX;
+        if (state.width > 0)
+        {
+          const short usedWidth = static_cast<short>(rowStartX - state.x);
+          short remainingWidth = static_cast<short>(state.width - usedWidth);
+          if (remainingWidth < 0)
+          {
+            remainingWidth = 0;
+          }
+          const size_t remainingChildren = (childCount > childIndex) ? (childCount - childIndex) : 1;
+          if (remainingChildren > 0)
+          {
+            rowState.width = static_cast<short>(remainingWidth / static_cast<short>(remainingChildren));
+          }
+        }
+        if (row->props.hasVerticalAlignment_)
+        {
+          short childHeight = PreferredChildHeightForRow(child, rowHeight);
+          short remain = static_cast<short>(rowHeight - childHeight);
+          short offset = 0;
+          if (remain > 0)
+          {
+            if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_CENTER)
+            {
+              offset = static_cast<short>(remain / 2);
+            }
+            else if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM)
+            {
+              offset = remain;
+            }
+          }
+          rowState.y = static_cast<short>(state.y + offset);
+          rowState.height = childHeight;
+        }
+        const int width = DispatchTraversalLayoutChild(traversal, child, rowState);
+        rowStartX = static_cast<short>(rowStartX + width + state.spacing);
+        if (rowState.y > state.y &&
+            static_cast<short>(rowState.y - state.y) > maxHeight)
+        {
+          maxHeight = static_cast<short>(rowState.y - state.y);
+        }
+      }
+      traversal->setLayoutResultY(static_cast<short>(state.y + maxHeight + state.spacing));
+      return static_cast<short>(rowStartX - state.x);
+    }
+  };
 }
 
 void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
@@ -216,4 +331,5 @@ void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandl
   registry.registerHandler(new ToolboxBoxLayoutHandler());
   registry.registerHandler(new ToolboxZStackLayoutHandler());
   registry.registerHandler(new ToolboxColumnLayoutHandler());
+  registry.registerHandler(new ToolboxRowLayoutHandler());
 }

@@ -108,7 +108,7 @@ namespace
   {
   public:
     AttrDslDummyLayoutTraversal()
-        : calls_(0), nextResult_(0), lastChild_(0)
+        : calls_(0), nextResult_(0), lastChild_(0), layoutResultY_(0)
     {
     }
 
@@ -120,10 +120,15 @@ namespace
       return nextResult_;
     }
 
+    virtual void setLayoutResultY(short y) { layoutResultY_ = y; }
+
+    virtual short layoutResultY() const { return layoutResultY_; }
+
     int calls_;
     int nextResult_;
     loka::app::scene::Node *lastChild_;
     loka::app::scene::LayoutState lastState_;
+    short layoutResultY_;
   };
 
   class AttrDslCustomLayoutHandler : public loka::app::scene::IPlatformLayoutHandler

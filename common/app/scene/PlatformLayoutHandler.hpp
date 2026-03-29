@@ -14,6 +14,8 @@ namespace loka
       public:
         virtual ~IPlatformLayoutTraversal() {}
         virtual int layoutChild(Node *child, const LayoutState &state) = 0;
+        virtual void setLayoutResultY(short y) = 0;
+        virtual short layoutResultY() const = 0;
       };
 
       class IPlatformLayoutHandler
