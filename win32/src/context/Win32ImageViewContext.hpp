@@ -11,6 +11,7 @@ class Win32ImageViewContext : public loka::app::scene::NodeContext
 public:
   Win32ImageViewContext(HWND parent, int x, int y, int width, int height, loka::app::ImageViewNode *node);
   virtual ~Win32ImageViewContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   static void EnsureClassRegistered();
   void relayout(int x, int y, int width, int height);

@@ -141,27 +141,17 @@ bool Win32ScenePlatformController::prepareProjectedLayout(loka::app::scene::Node
   {
     return false;
   }
-  loka::app::TextNode *text = node->asTextNode();
-  if (!text)
-  {
-    return false;
-  }
-
   loka::app::scene::LayoutState handlerState = state;
   if (handlerState.height <= 0)
   {
     handlerState.height = static_cast<short>(kTextHeight);
   }
-  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(text);
-  if (handler)
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
+  if (!handler)
   {
-    return handler->ensureContext(text, this, handlerState) != 0;
+    return false;
   }
-  return this->contextMapper_.ensureTextContext(text,
-                                                handlerState.x,
-                                                handlerState.y,
-                                                handlerState.width,
-                                                handlerState.height) != 0;
+  return handler->ensureContext(node, this, handlerState) != 0;
 }
 
 int Win32ScenePlatformController::layoutNodeFromSceneState(loka::app::scene::Node *node,

@@ -140,15 +140,29 @@ namespace loka
       }
     };
 
-    class ImageViewNode : public scene::Node
+    class ImageViewNode : public scene::Node,
+                          public scene::IProjectedLayoutNode
     {
     public:
       typedef ImageViewTypeTag TypeTag;
       ImageViewProps props;
       ImageViewNode(const ImageViewProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_IMAGE_VIEW; }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
       virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<ImageViewNode>(); }
       virtual ImageViewNode *asImageViewNode() { return this; }
+      virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
+      {
+        if (!controller)
+        {
+          return state.y;
+        }
+        if (!scene::PrepareProjectedLayout(controller, this, state))
+        {
+          return state.y;
+        }
+        return scene::Node::layout(controller, state);
+      }
       virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
       {
         if (this->props.image_)
