@@ -20,6 +20,10 @@ namespace loka
   namespace app
   {
     class CellNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -45,5 +49,7 @@ private:
   loka::core::State<loka::core::String> *textState_;
   std::string text_;
 };
+
+void RegisterWin32CellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_CELL_CONTEXT_HPP

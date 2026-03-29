@@ -5,6 +5,17 @@
 #include "app/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class Win32PopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -38,5 +49,7 @@ private:
   int baseHeight_;
   int baseWidth_;
 };
+
+void RegisterWin32PopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_POPUP_MENU_CONTEXT_HPP

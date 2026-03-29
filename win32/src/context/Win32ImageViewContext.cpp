@@ -1,10 +1,39 @@
 #include "Win32ImageViewContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 
 namespace
 {
   const char *kImageViewClassName = "LOKA_IMAGE_VIEW";
   const int kVerticalSpacing = 12;
+
+  class Win32ImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!image || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureImageViewContext(image,
+                                                            state.x,
+                                                            state.y,
+                                                            state.width,
+                                                            state.height);
+    }
+  };
+
+  Win32ImageViewNodeHandler gWin32ImageViewNodeHandler;
 
   struct BlitRect
   {
@@ -365,4 +394,9 @@ void Win32ImageViewContext::ImageChangedThunk(void *userData)
   {
     self->applyImage();
   }
+}
+
+void RegisterWin32ImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32ImageViewNodeHandler);
 }

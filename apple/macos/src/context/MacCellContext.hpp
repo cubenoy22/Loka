@@ -10,6 +10,10 @@ namespace loka
   namespace app
   {
     class CellNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -32,5 +36,7 @@ private:
   void *view_;
   loka::core::State<loka::core::String> *textState_;
 };
+
+void RegisterMacCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_CELL_CONTEXT_HPP

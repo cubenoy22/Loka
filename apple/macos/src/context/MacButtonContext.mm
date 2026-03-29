@@ -1,4 +1,6 @@
 #include "MacButtonContext.hpp"
+#include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Button.hpp"
@@ -50,6 +52,34 @@ namespace
     }
     return true;
   }
+
+  class MacButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!button || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureButtonContext(button,
+                                                       state.x,
+                                                       state.y,
+                                                       state.width,
+                                                       state.height);
+    }
+  };
+
+  MacButtonNodeHandler gMacButtonNodeHandler;
 }
 
 
@@ -216,6 +246,11 @@ void MacButtonContext::applyText()
   {
     [button setTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
+}
+
+void RegisterMacButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacButtonNodeHandler);
 }
 
 void MacButtonContext::applyEnabled()

@@ -1,5 +1,6 @@
 #include "Win32CellContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "app/Cell.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -9,6 +10,34 @@ namespace
   const char *kCellClassName = "LOKA_CELL";
   const int kDefaultCellHeight = 20;
   const int kVerticalSpacing = 12;
+
+  class Win32CellNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::CellNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::CellNode *cell = node ? node->asCellNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!cell || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureCellContext(cell,
+                                                       state.x,
+                                                       state.y,
+                                                       state.width,
+                                                       state.height);
+    }
+  };
+
+  Win32CellNodeHandler gWin32CellNodeHandler;
 }
 
 Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node)
@@ -192,4 +221,9 @@ void Win32CellContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterWin32CellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32CellNodeHandler);
 }

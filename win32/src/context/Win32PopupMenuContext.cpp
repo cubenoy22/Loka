@@ -1,4 +1,6 @@
 #include "Win32PopupMenuContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include <string>
 #include <tchar.h>
@@ -7,6 +9,34 @@ namespace
 {
   const int kPopupMenuHeight = 26;
   const int kVerticalSpacing = 12;
+
+  class Win32PopupMenuNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::PopupMenuNode *popup = node ? node->asPopupMenuNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!popup || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensurePopupMenuContext(popup,
+                                                            state.x,
+                                                            state.y,
+                                                            state.width,
+                                                            state.height);
+    }
+  };
+
+  Win32PopupMenuNodeHandler gWin32PopupMenuNodeHandler;
 }
 
 Win32PopupMenuContext::Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
@@ -229,4 +259,9 @@ void Win32PopupMenuContext::EnabledChangedThunk(void *userData)
   {
     self->applyEnabled();
   }
+}
+
+void RegisterWin32PopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32PopupMenuNodeHandler);
 }

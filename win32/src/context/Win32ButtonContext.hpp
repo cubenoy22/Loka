@@ -20,6 +20,10 @@ namespace loka
   namespace app
   {
     class ButtonNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -53,5 +57,7 @@ private:
   loka::core::State<loka::core::String> *textState_;
   loka::core::State<bool> *enabledState_;
 };
+
+void RegisterWin32ButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_BUTTON_CONTEXT_HPP

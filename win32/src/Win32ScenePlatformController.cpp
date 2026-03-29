@@ -842,6 +842,70 @@ int Win32ScenePlatformController::layoutContainerChild(void *context, loka::app:
   return controller->layoutNode(child, state);
 }
 
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchTextLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode();
+  if (!projected)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::scene::LayoutState projectedState;
+  projectedState.x = static_cast<short>(state.x);
+  projectedState.y = static_cast<short>(state.y);
+  projectedState.width = static_cast<short>(state.width);
+  projectedState.height = static_cast<short>(state.height);
+  projectedState.lineHeight = 0;
+  projectedState.spacing = 0;
+  return LayoutNodeResult(state.width, projected->layoutProjected(controller, projectedState));
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchImageViewLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return dispatchTextLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchButtonLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return dispatchTextLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchEditTextLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return dispatchTextLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchPopupMenuLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return dispatchTextLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchCellLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return dispatchTextLayout(controller, node, state);
+}
+
 
 Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchOpenFileDialogLayout(
     Win32ScenePlatformController *controller,

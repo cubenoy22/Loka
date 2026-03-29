@@ -4,6 +4,17 @@
 #include "app/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class MacPopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -35,5 +46,7 @@ private:
   bool applyingFromState_;
   bool updatingFromControl_;
 };
+
+void RegisterMacPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_POPUP_MENU_CONTEXT_HPP

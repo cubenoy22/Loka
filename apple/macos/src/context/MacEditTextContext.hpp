@@ -10,6 +10,10 @@ namespace loka
   namespace app
   {
     class EditTextNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -38,5 +42,7 @@ private:
   bool applyingFromState_;
   bool updatingFromControl_;
 };
+
+void RegisterMacEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_EDIT_TEXT_CONTEXT_HPP

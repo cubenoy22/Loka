@@ -1,5 +1,7 @@
 #include "MacEditTextContext.hpp"
+#include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/EditText.hpp"
@@ -10,6 +12,34 @@ namespace
 {
   const int kEditTextHeight = 24;
   const int kVerticalSpacing = 12;
+
+  class MacEditTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::EditTextNode *edit = node ? node->asEditTextNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!edit || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureEditTextContext(edit,
+                                                         state.x,
+                                                         state.y,
+                                                         state.width,
+                                                         state.height);
+    }
+  };
+
+  MacEditTextNodeHandler gMacEditTextNodeHandler;
 }
 
 @interface LokaTextFieldDelegate : NSObject
@@ -184,4 +214,9 @@ void MacEditTextContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterMacEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacEditTextNodeHandler);
 }

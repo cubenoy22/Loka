@@ -1,5 +1,7 @@
 #include "MacPopupMenuContext.hpp"
+#include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "loka/platform/StringUTF8.hpp"
@@ -8,6 +10,34 @@ namespace
 {
   const int kPopupMenuHeight = 26;
   const int kVerticalSpacing = 12;
+
+  class MacPopupMenuNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::PopupMenuNode *popup = node ? node->asPopupMenuNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!popup || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensurePopupMenuContext(popup,
+                                                          state.x,
+                                                          state.y,
+                                                          state.width,
+                                                          state.height);
+    }
+  };
+
+  MacPopupMenuNodeHandler gMacPopupMenuNodeHandler;
 }
 
 @interface LokaPopupMenuTarget : NSObject
@@ -246,4 +276,9 @@ void MacPopupMenuContext::EnabledChangedThunk(void *userData)
   {
     self->applyEnabled();
   }
+}
+
+void RegisterMacPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacPopupMenuNodeHandler);
 }

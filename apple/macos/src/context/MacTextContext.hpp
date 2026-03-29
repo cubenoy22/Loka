@@ -10,6 +10,10 @@ namespace loka
   namespace app
   {
     class TextNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -38,5 +42,7 @@ private:
   loka::core::State<loka::core::String> *textState_;
   bool didInitialApply_;
 };
+
+void RegisterMacTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_TEXT_CONTEXT_HPP

@@ -6,6 +6,17 @@
 #include "loka/core/State.hpp"
 #include "core/resource/Image.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class Win32ImageViewContext : public loka::app::scene::NodeContext
 {
 public:
@@ -30,5 +41,7 @@ private:
   loka::core::State<loka::core::resource::Image> *imageState_;
   loka::core::resource::Image image_;
 };
+
+void RegisterWin32ImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_IMAGE_VIEW_CONTEXT_HPP

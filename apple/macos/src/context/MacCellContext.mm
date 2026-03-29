@@ -1,4 +1,6 @@
 #include "MacCellContext.hpp"
+#include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Cell.hpp"
@@ -11,6 +13,34 @@ namespace
 {
   const int kDefaultCellHeight = 20;
   const int kVerticalSpacing = 12;
+
+  class MacCellNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::CellNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::CellNode *cell = node ? node->asCellNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!cell || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureCellContext(cell,
+                                                     state.x,
+                                                     state.y,
+                                                     state.width,
+                                                     state.height);
+    }
+  };
+
+  MacCellNodeHandler gMacCellNodeHandler;
 }
 
 @interface LokaCellView : NSView
@@ -205,4 +235,9 @@ void MacCellContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterMacCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacCellNodeHandler);
 }

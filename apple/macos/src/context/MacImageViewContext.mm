@@ -1,4 +1,6 @@
 #include "MacImageViewContext.hpp"
+#include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include <AppKit/AppKit.h>
 
 @interface LokaImageView : NSView
@@ -91,6 +93,34 @@ namespace
     }
     return 160;
   }
+
+  class MacImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!image || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureImageViewContext(image,
+                                                          state.x,
+                                                          state.y,
+                                                          state.width,
+                                                          state.height);
+    }
+  };
+
+  MacImageViewNodeHandler gMacImageViewNodeHandler;
 }
 
 @implementation LokaImageView
@@ -309,4 +339,9 @@ void MacImageViewContext::ImageChangedThunk(void *userData)
   {
     self->applyImage();
   }
+}
+
+void RegisterMacImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacImageViewNodeHandler);
 }

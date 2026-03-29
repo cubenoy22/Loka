@@ -19,6 +19,10 @@ namespace loka
   namespace app
   {
     class TextNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -46,5 +50,7 @@ private:
   loka::core::State<loka::core::String> *textState_;
   bool didInitialApply_;
 };
+
+void RegisterWin32TextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_TEXT_CONTEXT_HPP

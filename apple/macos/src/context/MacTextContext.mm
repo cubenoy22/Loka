@@ -1,5 +1,6 @@
 #include "MacTextContext.hpp"
 #include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Text.hpp"
@@ -110,6 +111,34 @@ namespace
     }
     return true;
   }
+
+  class MacTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::TextNode *text = node ? node->asTextNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!text || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureTextContext(text,
+                                                     state.x,
+                                                     state.y,
+                                                     state.width,
+                                                     state.height);
+    }
+  };
+
+  MacTextNodeHandler gMacTextNodeHandler;
 }
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
@@ -276,4 +305,9 @@ void MacTextContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterMacTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacTextNodeHandler);
 }

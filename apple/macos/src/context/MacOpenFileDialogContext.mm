@@ -1,7 +1,37 @@
 #include "MacOpenFileDialogContext.hpp"
+#include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #import <AppKit/AppKit.h>
+
+namespace
+{
+  class MacOpenFileDialogNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      loka::app::OpenFileDialogNode *dialog = node ? node->asOpenFileDialogNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!dialog || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureOpenFileDialogContext(dialog);
+    }
+  };
+
+  MacOpenFileDialogNodeHandler gMacOpenFileDialogNodeHandler;
+}
 
 MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node)
     : parentView_(parentView),
@@ -122,4 +152,9 @@ void MacOpenFileDialogContext::VisibleChangedThunk(void *userData)
   {
     self->applyVisible();
   }
+}
+
+void RegisterMacOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacOpenFileDialogNodeHandler);
 }

@@ -1,5 +1,6 @@
 #include "Win32TextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "app/Text.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
@@ -9,6 +10,34 @@ namespace
 {
   const int kDefaultTextHeight = 20;
   const int kVerticalSpacing = 12;
+
+  class Win32TextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::TextNode *text = node ? node->asTextNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!text || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureTextContext(text,
+                                                       state.x,
+                                                       state.y,
+                                                       state.width,
+                                                       state.height);
+    }
+  };
+
+  Win32TextNodeHandler gWin32TextNodeHandler;
 
   int MeasureTextHeightForWidth(HWND hwnd,
                                 const loka::app::TextNode *text,
@@ -310,4 +339,9 @@ void Win32TextContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterWin32TextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32TextNodeHandler);
 }
