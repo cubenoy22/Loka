@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformLayoutHandler.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
@@ -83,6 +84,7 @@ public:
   void beginClip(const Rect &rect);
   void endClip();
   ToolboxNodeContextMapper *contextMapper() const;
+  loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry() { return &layoutHandlerRegistry_; }
 
 private:
   struct ButtonHit
@@ -193,6 +195,7 @@ private:
   bool hasClip_;
   short nextControlId_;
   ToolboxSceneDebugStats debugStats_;
+  loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
 
   bool handleTextKey(char key);
   void bindTextState(loka::core::State<loka::core::String> *text);
