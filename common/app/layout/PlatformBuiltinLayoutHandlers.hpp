@@ -10,6 +10,19 @@ namespace loka
   {
     namespace layout
     {
+      inline int DispatchTraversalLayoutChild(void *context,
+                                             loka::app::scene::Node *child,
+                                             const loka::app::scene::LayoutState &state)
+      {
+        loka::app::scene::IPlatformLayoutTraversal *traversal =
+            static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
+        if (!traversal)
+        {
+          return state.y;
+        }
+        return traversal->layoutChild(child, state);
+      }
+
       class BoxPlatformLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
       {
       public:
@@ -27,21 +40,7 @@ namespace loka
           {
             return state.y;
           }
-          return loka::app::layout::computeBoxLayoutResultY(box, state, traversal, &BoxPlatformLayoutHandler::layoutChild);
-        }
-
-      private:
-        static int layoutChild(void *context,
-                               loka::app::scene::Node *child,
-                               const loka::app::scene::LayoutState &state)
-        {
-          loka::app::scene::IPlatformLayoutTraversal *traversal =
-              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
-          if (!traversal)
-          {
-            return state.y;
-          }
-          return traversal->layoutChild(child, state);
+          return loka::app::layout::computeBoxLayoutResultY(box, state, traversal, &DispatchTraversalLayoutChild);
         }
       };
 
@@ -62,21 +61,7 @@ namespace loka
           {
             return state.y;
           }
-          return loka::app::layout::computeZStackLayoutResultY(stack, state, traversal, &ZStackPlatformLayoutHandler::layoutChild);
-        }
-
-      private:
-        static int layoutChild(void *context,
-                               loka::app::scene::Node *child,
-                               const loka::app::scene::LayoutState &state)
-        {
-          loka::app::scene::IPlatformLayoutTraversal *traversal =
-              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
-          if (!traversal)
-          {
-            return state.y;
-          }
-          return traversal->layoutChild(child, state);
+          return loka::app::layout::computeZStackLayoutResultY(stack, state, traversal, &DispatchTraversalLayoutChild);
         }
       };
 
@@ -97,21 +82,7 @@ namespace loka
           {
             return state.y;
           }
-          return loka::app::layout::computeColumnLayoutResultY(column, state, traversal, &ColumnPlatformLayoutHandler::layoutChild);
-        }
-
-      private:
-        static int layoutChild(void *context,
-                               loka::app::scene::Node *child,
-                               const loka::app::scene::LayoutState &state)
-        {
-          loka::app::scene::IPlatformLayoutTraversal *traversal =
-              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
-          if (!traversal)
-          {
-            return state.y;
-          }
-          return traversal->layoutChild(child, state);
+          return loka::app::layout::computeColumnLayoutResultY(column, state, traversal, &DispatchTraversalLayoutChild);
         }
       };
 
@@ -137,23 +108,10 @@ namespace loka
           {
             return state.y;
           }
-          return loka::app::layout::computeRowLayoutResultY(row, state, this->metrics_, traversal, &RowPlatformLayoutHandler::layoutChild);
+          return loka::app::layout::computeRowLayoutResultY(row, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
         }
 
       private:
-        static int layoutChild(void *context,
-                               loka::app::scene::Node *child,
-                               const loka::app::scene::LayoutState &state)
-        {
-          loka::app::scene::IPlatformLayoutTraversal *traversal =
-              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
-          if (!traversal)
-          {
-            return state.y;
-          }
-          return traversal->layoutChild(child, state);
-        }
-
         RowLayoutMetrics metrics_;
       };
 
@@ -179,23 +137,10 @@ namespace loka
           {
             return state.y;
           }
-          return loka::app::layout::computeGridLayoutResultY(grid, state, this->metrics_, traversal, &GridPlatformLayoutHandler::layoutChild);
+          return loka::app::layout::computeGridLayoutResultY(grid, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
         }
 
       private:
-        static int layoutChild(void *context,
-                               loka::app::scene::Node *child,
-                               const loka::app::scene::LayoutState &state)
-        {
-          loka::app::scene::IPlatformLayoutTraversal *traversal =
-              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
-          if (!traversal)
-          {
-            return state.y;
-          }
-          return traversal->layoutChild(child, state);
-        }
-
         GridLayoutMetrics metrics_;
       };
 
