@@ -1,9 +1,20 @@
 #include "MacBuiltInSupport.hpp"
-#include "MacPlatformNodeHandlers.hpp"
-#include "MacPlatformLeafLayoutHandlers.hpp"
-#include "MacPlatformHostActionLayoutHandlers.hpp"
 #include "MacScenePlatformController.hpp"
+#include "app/Button.hpp"
+#include "app/Cell.hpp"
+#include "app/EditText.hpp"
+#include "app/ImageView.hpp"
+#include "app/OpenFileDialog.hpp"
+#include "app/PopupMenu.hpp"
+#include "app/Text.hpp"
 #include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
+#include "context/MacButtonContext.hpp"
+#include "context/MacCellContext.hpp"
+#include "context/MacEditTextContext.hpp"
+#include "context/MacImageViewContext.hpp"
+#include "context/MacOpenFileDialogContext.hpp"
+#include "context/MacPopupMenuContext.hpp"
+#include "context/MacTextContext.hpp"
 
 namespace
 {
@@ -29,7 +40,32 @@ void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
   gridMetrics.gapX = 0;
   gridMetrics.gapY = 0;
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(controller.layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
-  RegisterMacPlatformLeafLayoutHandlers(controller);
-  RegisterMacPlatformHostActionLayoutHandlers(controller);
-  RegisterMacPlatformNodeHandlers(controller.nodeHandlerRegistry_);
+  controller.leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
+      &MacScenePlatformController::dispatchButtonLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
+      &MacScenePlatformController::dispatchEditTextLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
+      &MacScenePlatformController::dispatchPopupMenuLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
+      &MacScenePlatformController::dispatchCellLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
+      &MacScenePlatformController::dispatchTextLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
+      &MacScenePlatformController::dispatchImageViewLayout);
+  controller.hostActionHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(),
+      &MacScenePlatformController::dispatchOpenFileDialogLayout);
+  RegisterMacButtonNodeHandler(controller.nodeHandlerRegistry_);
+  RegisterMacTextNodeHandler(controller.nodeHandlerRegistry_);
+  RegisterMacImageViewNodeHandler(controller.nodeHandlerRegistry_);
+  RegisterMacEditTextNodeHandler(controller.nodeHandlerRegistry_);
+  RegisterMacPopupMenuNodeHandler(controller.nodeHandlerRegistry_);
+  RegisterMacCellNodeHandler(controller.nodeHandlerRegistry_);
+  RegisterMacOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_);
 }

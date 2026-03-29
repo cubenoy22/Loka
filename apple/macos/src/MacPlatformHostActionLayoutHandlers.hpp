@@ -1,8 +1,0 @@
-#ifndef LOKA_MAC_PLATFORM_HOST_ACTION_LAYOUT_HANDLERS_HPP
-#define LOKA_MAC_PLATFORM_HOST_ACTION_LAYOUT_HANDLERS_HPP
-
-class MacScenePlatformController;
-
-void RegisterMacPlatformHostActionLayoutHandlers(MacScenePlatformController &controller);
-
-#endif // LOKA_MAC_PLATFORM_HOST_ACTION_LAYOUT_HANDLERS_HPP

@@ -1,8 +1,0 @@
-#ifndef LOKA_WIN32_PLATFORM_LEAF_LAYOUT_HANDLERS_HPP
-#define LOKA_WIN32_PLATFORM_LEAF_LAYOUT_HANDLERS_HPP
-
-class Win32ScenePlatformController;
-
-void RegisterWin32PlatformLeafLayoutHandlers(Win32ScenePlatformController &controller);
-
-#endif // LOKA_WIN32_PLATFORM_LEAF_LAYOUT_HANDLERS_HPP
