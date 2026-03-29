@@ -54,15 +54,6 @@ namespace loka
         virtual bool registerNodeHandler(IPlatformNodeHandler *) { return false; }
       };
 
-      inline bool PrepareProjectedLayout(IPlatformController *controller, Node *node, LayoutState &state)
-      {
-        if (!controller)
-        {
-          return false;
-        }
-        return controller->prepareProjectedLayout(node, state);
-      }
-
     }
   }
 }
