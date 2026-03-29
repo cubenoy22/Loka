@@ -3,11 +3,13 @@
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include "context/Win32CellContext.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
+#include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32TextContext.hpp"
 
@@ -143,11 +145,35 @@ namespace
     }
   };
 
+  class Win32OpenFileDialogNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      loka::app::OpenFileDialogNode *dialog = node ? node->asOpenFileDialogNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!dialog || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureOpenFileDialogContext(dialog);
+    }
+  };
+
   Win32TextNodeHandler gWin32TextNodeHandler;
   Win32ImageViewNodeHandler gWin32ImageViewNodeHandler;
   Win32EditTextNodeHandler gWin32EditTextNodeHandler;
   Win32PopupMenuNodeHandler gWin32PopupMenuNodeHandler;
   Win32CellNodeHandler gWin32CellNodeHandler;
+  Win32OpenFileDialogNodeHandler gWin32OpenFileDialogNodeHandler;
 }
 
 void RegisterWin32PlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
@@ -157,4 +183,5 @@ void RegisterWin32PlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegi
   registry.registerHandler(&gWin32EditTextNodeHandler);
   registry.registerHandler(&gWin32PopupMenuNodeHandler);
   registry.registerHandler(&gWin32CellNodeHandler);
+  registry.registerHandler(&gWin32OpenFileDialogNodeHandler);
 }

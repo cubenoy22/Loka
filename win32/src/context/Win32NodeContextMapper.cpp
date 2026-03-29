@@ -3,12 +3,14 @@
 #include "context/Win32CellContext.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
+#include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 
@@ -113,6 +115,22 @@ Win32ImageViewContext *Win32NodeContextMapper::ensureImageViewContext(loka::app:
     return ctx;
   }
   ctx = new Win32ImageViewContext(this->rootHwnd_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+Win32OpenFileDialogContext *Win32NodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  Win32OpenFileDialogContext *ctx = static_cast<Win32OpenFileDialogContext *>(node->getContext());
+  if (ctx)
+  {
+    return ctx;
+  }
+  ctx = new Win32OpenFileDialogContext(this->rootHwnd_, node);
   node->setContext(ctx);
   return ctx;
 }

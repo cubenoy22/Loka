@@ -822,8 +822,21 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
   {
-    Win32OpenFileDialogContext *ctx = new Win32OpenFileDialogContext(rootHwnd_, dialog);
-    dialog->setContext(ctx);
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = 0;
+    handlerState.y = 0;
+    handlerState.width = 0;
+    handlerState.height = 0;
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(dialog);
+    Win32OpenFileDialogContext *ctx = 0;
+    if (handler)
+    {
+      ctx = static_cast<Win32OpenFileDialogContext *>(handler->ensureContext(dialog, this, handlerState));
+    }
+    if (!ctx)
+    {
+      ctx = this->contextMapper_.ensureOpenFileDialogContext(dialog);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
   }
 

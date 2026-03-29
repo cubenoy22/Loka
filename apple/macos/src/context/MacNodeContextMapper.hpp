@@ -9,6 +9,7 @@ namespace loka
     class CellNode;
     class EditTextNode;
     class ImageViewNode;
+    class OpenFileDialogNode;
     class PopupMenuNode;
     class TextNode;
   }
@@ -18,6 +19,7 @@ class MacButtonContext;
 class MacCellContext;
 class MacEditTextContext;
 class MacImageViewContext;
+class MacOpenFileDialogContext;
 class MacPopupMenuContext;
 class MacTextContext;
 
@@ -52,6 +54,7 @@ public:
                                               int y,
                                               int width,
                                               int height) const;
+  MacOpenFileDialogContext *ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node) const;
   MacPopupMenuContext *ensurePopupMenuContext(loka::app::PopupMenuNode *node,
                                               int x,
                                               int y,

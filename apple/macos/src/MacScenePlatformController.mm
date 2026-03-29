@@ -561,8 +561,21 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
   {
-    MacOpenFileDialogContext *ctx = new MacOpenFileDialogContext(rootView_, dialog);
-    dialog->setContext(ctx);
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = 0;
+    handlerState.y = 0;
+    handlerState.width = 0;
+    handlerState.height = 0;
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(dialog);
+    MacOpenFileDialogContext *ctx = 0;
+    if (handler)
+    {
+      ctx = static_cast<MacOpenFileDialogContext *>(handler->ensureContext(dialog, this, handlerState));
+    }
+    if (!ctx)
+    {
+      ctx = this->contextMapper_.ensureOpenFileDialogContext(dialog);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
   }
 

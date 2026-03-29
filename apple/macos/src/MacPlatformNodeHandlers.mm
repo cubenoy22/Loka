@@ -3,11 +3,13 @@
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include "context/MacCellContext.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
+#include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
 #include "context/MacTextContext.hpp"
 
@@ -143,11 +145,35 @@ namespace
     }
   };
 
+  class MacOpenFileDialogNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      loka::app::OpenFileDialogNode *dialog = node ? node->asOpenFileDialogNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!dialog || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureOpenFileDialogContext(dialog);
+    }
+  };
+
   MacTextNodeHandler gMacTextNodeHandler;
   MacImageViewNodeHandler gMacImageViewNodeHandler;
   MacEditTextNodeHandler gMacEditTextNodeHandler;
   MacPopupMenuNodeHandler gMacPopupMenuNodeHandler;
   MacCellNodeHandler gMacCellNodeHandler;
+  MacOpenFileDialogNodeHandler gMacOpenFileDialogNodeHandler;
 }
 
 void RegisterMacPlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
@@ -157,4 +183,5 @@ void RegisterMacPlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegist
   registry.registerHandler(&gMacEditTextNodeHandler);
   registry.registerHandler(&gMacPopupMenuNodeHandler);
   registry.registerHandler(&gMacCellNodeHandler);
+  registry.registerHandler(&gMacOpenFileDialogNodeHandler);
 }

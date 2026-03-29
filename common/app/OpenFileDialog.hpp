@@ -142,6 +142,7 @@ namespace loka
       OpenFileDialogProps props;
       OpenFileDialogNode(const OpenFileDialogProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG; }
+      virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<OpenFileDialogNode>(); }
       virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {

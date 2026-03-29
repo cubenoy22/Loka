@@ -3,12 +3,14 @@
 #include "context/MacCellContext.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
+#include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 
@@ -113,6 +115,22 @@ MacImageViewContext *MacNodeContextMapper::ensureImageViewContext(loka::app::Ima
     return ctx;
   }
   ctx = new MacImageViewContext(this->rootView_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+MacOpenFileDialogContext *MacNodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  MacOpenFileDialogContext *ctx = static_cast<MacOpenFileDialogContext *>(node->getContext());
+  if (ctx)
+  {
+    return ctx;
+  }
+  ctx = new MacOpenFileDialogContext(this->rootView_, node);
   node->setContext(ctx);
   return ctx;
 }
