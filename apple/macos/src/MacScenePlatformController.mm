@@ -45,154 +45,6 @@ namespace
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
 
-  int MeasureTextHeightForWidth(const loka::app::TextNode *text,
-                                int width,
-                                int defaultHeight)
-  {
-    if (!text || !text->props.text_)
-    {
-      return defaultHeight;
-    }
-    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
-        text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
-    {
-      return defaultHeight;
-    }
-    if (width <= 0)
-    {
-      return defaultHeight;
-    }
-
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(text->props.text_->get(), utf8))
-    {
-      return defaultHeight;
-    }
-    if (utf8.empty())
-    {
-      return defaultHeight;
-    }
-
-    NSString *string = [NSString stringWithUTF8String:utf8.c_str()];
-    if (!string)
-    {
-      return defaultHeight;
-    }
-    NSDictionary *attrs = [NSDictionary dictionaryWithObject:[NSFont systemFontOfSize:[NSFont systemFontSize]]
-                                                      forKey:NSFontAttributeName];
-    NSRect rect = [string boundingRectWithSize:NSMakeSize(static_cast<CGFloat>(width), CGFLOAT_MAX)
-                                       options:(NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading)
-                                    attributes:attrs];
-    const int measured = static_cast<int>(rect.size.height + 0.5f);
-    const int measuredWithPadding = measured + 2;
-    if (measuredWithPadding > defaultHeight)
-    {
-      return measuredWithPadding;
-    }
-    return defaultHeight;
-  }
-
-  int EnsureMacTextLayoutResult(MacScenePlatformController *controller,
-                                MacNodeContextMapper &mapper,
-                                loka::app::scene::PlatformNodeHandlerRegistry &registry,
-                                loka::app::TextNode *text,
-                                int x,
-                                int y,
-                                int width)
-  {
-    const int textHeight = MeasureTextHeightForWidth(text, width, kTextHeight);
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = static_cast<short>(x);
-    handlerState.y = static_cast<short>(y);
-    handlerState.width = static_cast<short>(width);
-    handlerState.height = static_cast<short>(textHeight);
-    loka::app::scene::IPlatformNodeHandler *handler = registry.find(text);
-    MacTextContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<MacTextContext *>(handler->ensureContext(text, controller, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = mapper.ensureTextContext(text, x, y, width, textHeight);
-    }
-    return y + textHeight + kVerticalSpacing;
-  }
-
-  int EnsureMacImageViewLayoutResult(MacScenePlatformController *controller,
-                                     MacNodeContextMapper &mapper,
-                                     loka::app::scene::PlatformNodeHandlerRegistry &registry,
-                                     loka::app::ImageViewNode *image,
-                                     int x,
-                                     int y,
-                                     int width,
-                                     int height)
-  {
-    int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
-    if (image->props.hasAttr_ && image->props.attr_.hasSizePolicyValue_)
-    {
-      sizePolicy = static_cast<int>(image->props.attr_.sizePolicyValue_);
-    }
-
-    const bool hasExplicitWidth = image->props.width_ > 0;
-    const bool hasExplicitHeight = image->props.height_ > 0;
-    int imageWidth = hasExplicitWidth ? image->props.width_ : width;
-    int imageHeight = image->props.height_;
-    int srcWidth = 0;
-    int srcHeight = 0;
-    if (image->props.image_)
-    {
-      const loka::core::resource::Image current = image->props.image_->get();
-      srcWidth = current.width();
-      srcHeight = current.height();
-    }
-
-    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && !hasExplicitWidth && srcWidth > 0)
-    {
-      imageWidth = srcWidth;
-    }
-    else if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && !hasExplicitWidth)
-    {
-      imageWidth = width;
-    }
-
-    if (!hasExplicitHeight)
-    {
-      if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && height > 0)
-      {
-        imageHeight = height;
-      }
-      else if (srcWidth > 0 && srcHeight > 0 && imageWidth > 0)
-      {
-        imageHeight = (imageWidth * srcHeight) / srcWidth;
-      }
-      else if (srcHeight > 0)
-      {
-        imageHeight = srcHeight;
-      }
-    }
-    if (imageHeight <= 0)
-    {
-      imageHeight = 160;
-    }
-
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = static_cast<short>(x);
-    handlerState.y = static_cast<short>(y);
-    handlerState.width = static_cast<short>(imageWidth);
-    handlerState.height = static_cast<short>(imageHeight);
-    loka::app::scene::IPlatformNodeHandler *handler = registry.find(image);
-    MacImageViewContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<MacImageViewContext *>(handler->ensureContext(image, controller, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = mapper.ensureImageViewContext(image, x, y, imageWidth, imageHeight);
-    }
-    return y + imageHeight + kVerticalSpacing;
-  }
 }
 
 namespace loka
@@ -275,6 +127,36 @@ MacScenePlatformController::~MacScenePlatformController()
 bool MacScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
   return this->nodeHandlerRegistry_.registerHandler(handler);
+}
+
+bool MacScenePlatformController::prepareProjectedLayout(loka::app::scene::Node *node,
+                                                        loka::app::scene::LayoutState &state)
+{
+  if (!node)
+  {
+    return false;
+  }
+  loka::app::TextNode *text = node->asTextNode();
+  if (!text)
+  {
+    return false;
+  }
+
+  loka::app::scene::LayoutState handlerState = state;
+  if (handlerState.height <= 0)
+  {
+    handlerState.height = static_cast<short>(kTextHeight);
+  }
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(text);
+  if (handler)
+  {
+    return handler->ensureContext(text, this, handlerState) != 0;
+  }
+  return this->contextMapper_.ensureTextContext(text,
+                                                handlerState.x,
+                                                handlerState.y,
+                                                handlerState.width,
+                                                handlerState.height) != 0;
 }
 
 int MacScenePlatformController::layoutNodeFromSceneState(loka::app::scene::Node *node,
@@ -498,111 +380,6 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutO
   return LayoutNodeResult(state.width, state.y);
 }
 
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutButtonNode(
-    loka::app::ButtonNode *button,
-    const LayoutState &state)
-{
-  MacButtonContext *ctx = this->contextMapper_.ensureButtonContext(button,
-                                                                   state.x,
-                                                                   state.y,
-                                                                   state.width,
-                                                                   kButtonHeight);
-  return LayoutNodeResult(state.width, state.y + kButtonHeight + kVerticalSpacing);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutEditTextNode(
-    loka::app::EditTextNode *edit,
-    const LayoutState &state)
-{
-  loka::app::scene::LayoutState handlerState;
-  handlerState.x = static_cast<short>(state.x);
-  handlerState.y = static_cast<short>(state.y);
-  handlerState.width = static_cast<short>(state.width);
-  handlerState.height = static_cast<short>(kEditTextHeight);
-  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(edit);
-  MacEditTextContext *ctx = 0;
-  if (handler)
-  {
-    ctx = static_cast<MacEditTextContext *>(handler->ensureContext(edit, this, handlerState));
-  }
-  if (!ctx)
-  {
-    ctx = this->contextMapper_.ensureEditTextContext(edit, state.x, state.y, state.width, kEditTextHeight);
-  }
-  this->registerEditField(ctx->nativeField());
-  return LayoutNodeResult(state.width, state.y + kEditTextHeight + kVerticalSpacing);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutPopupMenuNode(
-    loka::app::PopupMenuNode *popup,
-    const LayoutState &state)
-{
-  loka::app::scene::LayoutState handlerState;
-  handlerState.x = static_cast<short>(state.x);
-  handlerState.y = static_cast<short>(state.y);
-  handlerState.width = static_cast<short>(state.width);
-  handlerState.height = static_cast<short>(kPopupMenuHeight);
-  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(popup);
-  MacPopupMenuContext *ctx = 0;
-  if (handler)
-  {
-    ctx = static_cast<MacPopupMenuContext *>(handler->ensureContext(popup, this, handlerState));
-  }
-  if (!ctx)
-  {
-    ctx = this->contextMapper_.ensurePopupMenuContext(popup, state.x, state.y, state.width, kPopupMenuHeight);
-  }
-  return LayoutNodeResult(state.width, state.y + kPopupMenuHeight + kVerticalSpacing);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutCellNode(
-    loka::app::CellNode *cell,
-    const LayoutState &state)
-{
-  const int cellHeight = state.height > 0 ? state.height : kTextHeight;
-  loka::app::scene::LayoutState handlerState;
-  handlerState.x = static_cast<short>(state.x);
-  handlerState.y = static_cast<short>(state.y);
-  handlerState.width = static_cast<short>(state.width);
-  handlerState.height = static_cast<short>(cellHeight);
-  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(cell);
-  MacCellContext *ctx = 0;
-  if (handler)
-  {
-    ctx = static_cast<MacCellContext *>(handler->ensureContext(cell, this, handlerState));
-  }
-  if (!ctx)
-  {
-    ctx = this->contextMapper_.ensureCellContext(cell, state.x, state.y, state.width, cellHeight);
-  }
-  return LayoutNodeResult(state.width, state.y + cellHeight);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutTextNode(
-    loka::app::TextNode *text,
-    const LayoutState &state)
-{
-  return LayoutNodeResult(
-      state.width,
-      EnsureMacTextLayoutResult(this, this->contextMapper_, this->nodeHandlerRegistry_, text, state.x, state.y, state.width));
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutImageViewNode(
-    loka::app::ImageViewNode *image,
-    const LayoutState &state)
-{
-  return LayoutNodeResult(
-      state.width,
-      EnsureMacImageViewLayoutResult(
-          this,
-          this->contextMapper_,
-          this->nodeHandlerRegistry_,
-          image,
-          state.x,
-          state.y,
-          state.width,
-          state.height));
-}
 
 MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutRectSurfaceNode(
     loka::app::RectSurfaceNode *surface,
@@ -766,6 +543,18 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
     return LayoutNodeResult(state.width, childState.y);
   }
 
+  if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
+  {
+    loka::app::scene::LayoutState projectedState;
+    projectedState.x = static_cast<short>(state.x);
+    projectedState.y = static_cast<short>(state.y);
+    projectedState.width = static_cast<short>(state.width);
+    projectedState.height = static_cast<short>(state.height);
+    projectedState.lineHeight = 0;
+    projectedState.spacing = 0;
+    return LayoutNodeResult(state.width, projected->layoutProjected(this, projectedState));
+  }
+
   LeafLayoutHandlerFn leafLayoutHandler = this->leafLayoutHandlerRegistry_.find(node);
   if (leafLayoutHandler)
   {
@@ -796,107 +585,6 @@ int MacScenePlatformController::layoutContainerChild(void *context, loka::app::s
   return controller->layoutNode(child, state);
 }
 
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchTextLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  loka::app::TextNode *text = node->asTextNode();
-  if (!text)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  return controller->layoutTextNode(text, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchImageViewLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  loka::app::ImageViewNode *image = node->asImageViewNode();
-  if (!image)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  return controller->layoutImageViewNode(image, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchButtonLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  loka::app::ButtonNode *button = node->asButtonNode();
-  if (!button)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  return controller->layoutButtonNode(button, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchEditTextLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  loka::app::EditTextNode *edit = node->asEditTextNode();
-  if (!edit)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  return controller->layoutEditTextNode(edit, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchPopupMenuLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  loka::app::PopupMenuNode *popup = node->asPopupMenuNode();
-  if (!popup)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  return controller->layoutPopupMenuNode(popup, state);
-}
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchCellLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  loka::app::CellNode *cell = node->asCellNode();
-  if (!cell)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  return controller->layoutCellNode(cell, state);
-}
 
 MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchOpenFileDialogLayout(
     MacScenePlatformController *controller,

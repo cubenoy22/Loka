@@ -7,6 +7,61 @@
 
 namespace
 {
+  const int kDefaultTextHeight = 20;
+  const int kVerticalSpacing = 12;
+
+  int MeasureTextHeightForWidth(HWND hwnd,
+                                const loka::app::TextNode *text,
+                                int width,
+                                int defaultHeight)
+  {
+    if (!hwnd || !text || !text->props.text_)
+    {
+      return defaultHeight;
+    }
+    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
+        text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+    {
+      return defaultHeight;
+    }
+    if (width <= 0)
+    {
+      return defaultHeight;
+    }
+
+    std::string utf8;
+    if (!loka::platform::CollectUtf8(text->props.text_->get(), utf8))
+    {
+      return defaultHeight;
+    }
+    if (utf8.empty())
+    {
+      return defaultHeight;
+    }
+
+    HDC hdc = GetDC(hwnd);
+    if (!hdc)
+    {
+      return defaultHeight;
+    }
+    RECT rc;
+    rc.left = 0;
+    rc.top = 0;
+    rc.right = width;
+    rc.bottom = 0;
+    UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
+    DrawTextA(hdc, utf8.c_str(), -1, &rc, flags);
+    ReleaseDC(hwnd, hdc);
+
+    const int measured = rc.bottom - rc.top;
+    const int measuredWithPadding = measured + 8;
+    if (measuredWithPadding > defaultHeight)
+    {
+      return measuredWithPadding;
+    }
+    return defaultHeight;
+  }
+
   void ReleaseCapturedBitmap(void *handle, void *)
   {
     if (handle)
@@ -139,6 +194,14 @@ Win32TextContext::~Win32TextContext()
 bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureWindowBitmap(this->hwnd_, out);
+}
+
+short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  const int textHeight = MeasureTextHeightForWidth(this->hwnd_, this->node_, state.width, kDefaultTextHeight);
+  this->relayout(state.x, state.y, state.width, textHeight);
+  state.height = static_cast<short>(textHeight);
+  return static_cast<short>(state.y + textHeight + kVerticalSpacing);
 }
 
 void Win32TextContext::relayout(int x, int y, int width, int height)

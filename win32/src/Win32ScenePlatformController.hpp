@@ -83,6 +83,7 @@ public:
   virtual bool hasPendingSync() const;
   virtual void destroy();
   virtual void releaseNodeContexts(loka::app::scene::Node *node);
+  virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
 
   bool handleCommand(WPARAM wParam, LPARAM lParam);

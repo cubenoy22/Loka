@@ -47,9 +47,21 @@ namespace loka
         // Retired subtree cleanup without forcing a full scene rebuild.
         virtual void releaseNodeContexts(Node *) {}
 
+        // Generic hook for nodes that can begin their own platform projection.
+        virtual bool prepareProjectedLayout(Node *, LayoutState &) { return false; }
+
         // Optional external extension seam for platform-specific/custom node handlers.
         virtual bool registerNodeHandler(IPlatformNodeHandler *) { return false; }
       };
+
+      inline bool PrepareProjectedLayout(IPlatformController *controller, Node *node, LayoutState &state)
+      {
+        if (!controller)
+        {
+          return false;
+        }
+        return controller->prepareProjectedLayout(node, state);
+      }
 
     }
   }

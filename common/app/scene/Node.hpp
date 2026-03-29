@@ -84,6 +84,7 @@ namespace loka
       struct INestable;
       class IPlatformController;
       class Node; // forward declaration for NodeContext owner
+      struct IProjectedLayoutNode;
       class ComposableNode;
       class BoundaryNode;
       class IStateOwner;
@@ -131,6 +132,14 @@ namespace loka
 
         LayoutState() : x(0), y(0), width(0), height(0), lineHeight(0), spacing(0) {}
       };
+
+      struct IProjectedLayoutNode
+      {
+        virtual ~IProjectedLayoutNode() {}
+        virtual short layoutProjected(IPlatformController *controller, LayoutState &state) = 0;
+      };
+
+      bool PrepareProjectedLayout(IPlatformController *controller, Node *node, LayoutState &state);
 
       // Minimal NodeContext implementation
       struct NodeContext
@@ -195,6 +204,7 @@ namespace loka
         virtual ComposableNode *asComposable() { return 0; }
         virtual BoundaryNode *asBoundary() { return 0; }
         virtual IStateOwner *asStateOwner() { return 0; }
+        virtual IProjectedLayoutNode *asProjectedLayoutNode() { return 0; }
         virtual const void *nodeTypeKey() const { return 0; }
         // App node type casts (avoid dynamic_cast for 68k performance)
         virtual ::loka::app::RowNode *asRowNode() { return 0; }
