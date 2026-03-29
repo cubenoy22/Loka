@@ -542,24 +542,6 @@ int MacScenePlatformController::layoutContainerChild(void *context, loka::app::s
   return controller->layoutNode(child, state);
 }
 
-
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchOpenFileDialogLayout(
-    MacScenePlatformController *controller,
-    loka::app::scene::Node *node,
-    const LayoutState &state)
-{
-  if (!controller || !node)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
-  if (!dialog)
-  {
-    return LayoutNodeResult(state.width, state.y);
-  }
-  return controller->layoutOpenFileDialogNode(dialog, state);
-}
-
 void MacScenePlatformController::registerEditField(void *field)
 {
   if (!field)

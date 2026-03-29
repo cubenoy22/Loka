@@ -317,12 +317,6 @@ private:
                                 int y,
                                 const LayoutNodeResult &result);
   LayoutNodeResult layoutOpenFileDialogNode(loka::app::OpenFileDialogNode *dialog, const LayoutState &state);
-  LayoutNodeResult layoutButtonNode(loka::app::ButtonNode *button, const LayoutState &state);
-  LayoutNodeResult layoutEditTextNode(loka::app::EditTextNode *edit, const LayoutState &state);
-  LayoutNodeResult layoutPopupMenuNode(loka::app::PopupMenuNode *popup, const LayoutState &state);
-  LayoutNodeResult layoutCellNode(loka::app::CellNode *cell, const LayoutState &state);
-  LayoutNodeResult layoutTextNode(loka::app::TextNode *text, const LayoutState &state);
-  LayoutNodeResult layoutImageViewNode(loka::app::ImageViewNode *image, const LayoutState &state);
   LayoutNodeResult layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();

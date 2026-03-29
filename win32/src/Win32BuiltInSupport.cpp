@@ -28,6 +28,97 @@ namespace
   const int kTextHeight = 20;
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
+
+  Win32ScenePlatformController::LayoutNodeResult DispatchProjectedLayout(
+      Win32ScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const Win32ScenePlatformController::LayoutState &state)
+  {
+    if (!controller || !node)
+    {
+      return Win32ScenePlatformController::LayoutNodeResult(state.width, state.y);
+    }
+    loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode();
+    if (!projected)
+    {
+      return Win32ScenePlatformController::LayoutNodeResult(state.width, state.y);
+    }
+    loka::app::scene::LayoutState projectedState;
+    projectedState.x = static_cast<short>(state.x);
+    projectedState.y = static_cast<short>(state.y);
+    projectedState.width = static_cast<short>(state.width);
+    projectedState.height = static_cast<short>(state.height);
+    projectedState.lineHeight = 0;
+    projectedState.spacing = 0;
+    return Win32ScenePlatformController::LayoutNodeResult(
+        state.width,
+        projected->layoutProjected(controller, projectedState));
+  }
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchTextLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchImageViewLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchButtonLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchEditTextLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchPopupMenuLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchCellLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchOpenFileDialogLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
+  if (!dialog)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutOpenFileDialogNode(dialog, state);
 }
 
 void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)

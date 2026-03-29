@@ -24,6 +24,97 @@ namespace
   const int kTextHeight = 20;
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
+
+  MacScenePlatformController::LayoutNodeResult DispatchProjectedLayout(
+      MacScenePlatformController *controller,
+      loka::app::scene::Node *node,
+      const MacScenePlatformController::LayoutState &state)
+  {
+    if (!controller || !node)
+    {
+      return MacScenePlatformController::LayoutNodeResult(state.width, state.y);
+    }
+    loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode();
+    if (!projected)
+    {
+      return MacScenePlatformController::LayoutNodeResult(state.width, state.y);
+    }
+    loka::app::scene::LayoutState projectedState;
+    projectedState.x = static_cast<short>(state.x);
+    projectedState.y = static_cast<short>(state.y);
+    projectedState.width = static_cast<short>(state.width);
+    projectedState.height = static_cast<short>(state.height);
+    projectedState.lineHeight = 0;
+    projectedState.spacing = 0;
+    return MacScenePlatformController::LayoutNodeResult(
+        state.width,
+        projected->layoutProjected(controller, projectedState));
+  }
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchTextLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchImageViewLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchButtonLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchEditTextLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchPopupMenuLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchCellLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  return DispatchProjectedLayout(controller, node, state);
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchOpenFileDialogLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
+  if (!dialog)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutOpenFileDialogNode(dialog, state);
 }
 
 void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
