@@ -124,7 +124,15 @@ namespace loka
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
-  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_);
+  loka::app::layout::RowLayoutMetrics rowMetrics;
+  rowMetrics.gap = kHorizontalSpacing;
+  rowMetrics.fallbackHeight = kTextHeight;
+  rowMetrics.buttonHeight = kButtonHeight;
+  rowMetrics.editTextHeight = kEditTextHeight;
+  rowMetrics.popupMenuHeight = kPopupMenuHeight;
+  rowMetrics.textHeight = kTextHeight;
+  rowMetrics.imageFallbackHeight = kImageFallbackHeightModern;
+  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics);
   RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootHwnd_)
   {
@@ -654,15 +662,30 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::RowNode *row = node->asRowNode())
   {
-    loka::app::layout::RowLayoutMetrics metrics;
-    metrics.gap = kHorizontalSpacing;
-    metrics.fallbackHeight = kTextHeight;
-    metrics.buttonHeight = kButtonHeight;
-    metrics.editTextHeight = kEditTextHeight;
-    metrics.popupMenuHeight = kPopupMenuHeight;
-    metrics.textHeight = kTextHeight;
-    metrics.imageFallbackHeight = kImageFallbackHeightModern;
-    const int maxY = loka::app::layout::computeRowLayoutResultY(row, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+    int maxY = state.y;
+    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(row);
+    if (handler)
+    {
+      loka::app::scene::LayoutState handlerState;
+      handlerState.x = static_cast<short>(state.x);
+      handlerState.y = static_cast<short>(state.y);
+      handlerState.width = static_cast<short>(state.width);
+      handlerState.height = static_cast<short>(state.height);
+      loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
+      maxY = handler->layoutNode(row, handlerState, &traversal);
+    }
+    else
+    {
+      loka::app::layout::RowLayoutMetrics metrics;
+      metrics.gap = kHorizontalSpacing;
+      metrics.fallbackHeight = kTextHeight;
+      metrics.buttonHeight = kButtonHeight;
+      metrics.editTextHeight = kEditTextHeight;
+      metrics.popupMenuHeight = kPopupMenuHeight;
+      metrics.textHeight = kTextHeight;
+      metrics.imageFallbackHeight = kImageFallbackHeightModern;
+      maxY = loka::app::layout::computeRowLayoutResultY(row, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 

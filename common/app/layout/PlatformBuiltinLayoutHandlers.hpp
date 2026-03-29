@@ -115,11 +115,58 @@ namespace loka
         }
       };
 
-      inline void RegisterBuiltinPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
+      class RowPlatformLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+      {
+      public:
+        explicit RowPlatformLayoutHandler(const RowLayoutMetrics &metrics)
+            : metrics_(metrics)
+        {
+        }
+
+        virtual const void *nodeTypeKey() const
+        {
+          return loka::app::scene::NodeTypeToken<loka::app::RowNode>();
+        }
+
+        virtual int layoutNode(loka::app::scene::Node *node,
+                               const loka::app::scene::LayoutState &state,
+                               loka::app::scene::IPlatformLayoutTraversal *traversal)
+        {
+          loka::app::RowNode *row = node ? node->asRowNode() : 0;
+          if (!row || !traversal)
+          {
+            return state.y;
+          }
+          return loka::app::layout::computeRowLayoutResultY(row, state, this->metrics_, traversal, &RowPlatformLayoutHandler::layoutChild);
+        }
+
+      private:
+        static int layoutChild(void *context,
+                               loka::app::scene::Node *child,
+                               const loka::app::scene::LayoutState &state)
+        {
+          loka::app::scene::IPlatformLayoutTraversal *traversal =
+              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
+          if (!traversal)
+          {
+            return state.y;
+          }
+          return traversal->layoutChild(child, state);
+        }
+
+        RowLayoutMetrics metrics_;
+      };
+
+      inline void RegisterBuiltinPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry,
+                                                        const RowLayoutMetrics *rowMetrics)
       {
         registry.registerHandler(new BoxPlatformLayoutHandler());
         registry.registerHandler(new ZStackPlatformLayoutHandler());
         registry.registerHandler(new ColumnPlatformLayoutHandler());
+        if (rowMetrics)
+        {
+          registry.registerHandler(new RowPlatformLayoutHandler(*rowMetrics));
+        }
       }
     }
   }
