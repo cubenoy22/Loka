@@ -66,6 +66,26 @@ Focus:
 * Stabilize the `loka::core` API
 * Enable long-lived applications without frequent breakage
 * Establish Loka as a reusable foundation rather than a moving target
+* Finish the first "structural completeness" pass before broad platform/control expansion
+
+### Design gate for v0.1.0
+
+Before pushing hard on new controls or new platforms such as iOS/Linux, the
+project should aim to make the current architectural seams feel complete enough
+that feature work can mostly become additive.
+
+In practice, that means `v0.1.0` should ideally reach the point where:
+
+* New node/control behavior does not require `PlatformController` growth by default.
+* New retained layout/container behavior can follow shared layout helpers and internal layout handler seams rather than ad-hoc platform branches.
+* `Boundary` responsibilities are understood well enough that future Menu/Window DSL work can reuse the same kernel ideas instead of inventing separate update/apply models.
+* The current Win32/macOS internal seams are documented and tested well enough that Toolbox can follow later without changing the public controller contract.
+* Contribution paths are visible: examples, docs, and tests should show where custom nodes, handlers, and future layout extensions belong.
+
+The intent is:
+
+* `0.0.x` through `0.1.0`: finish structural cleanup and seam definition
+* after `0.1.0`: bias toward additive work, contribution friendliness, and API/documentation hardening up to `1.0.0`
 
 ### Planned
 
