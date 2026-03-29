@@ -372,7 +372,22 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
-    const int currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &MacScenePlatformController::layoutContainerChild);
+    int currentY = state.y;
+    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(column);
+    if (handler)
+    {
+      loka::app::scene::LayoutState handlerState;
+      handlerState.x = static_cast<short>(state.x);
+      handlerState.y = static_cast<short>(state.y);
+      handlerState.width = static_cast<short>(state.width);
+      handlerState.height = static_cast<short>(state.height);
+      loka::app::scene::MacPlatformLayoutTraversal traversal(this);
+      currentY = handler->layoutNode(column, handlerState, &traversal);
+    }
+    else
+    {
+      currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &MacScenePlatformController::layoutContainerChild);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, currentY);
   }
 

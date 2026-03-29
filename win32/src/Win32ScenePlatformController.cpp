@@ -633,7 +633,22 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
-    const int currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &Win32ScenePlatformController::layoutContainerChild);
+    int currentY = state.y;
+    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(column);
+    if (handler)
+    {
+      loka::app::scene::LayoutState handlerState;
+      handlerState.x = static_cast<short>(state.x);
+      handlerState.y = static_cast<short>(state.y);
+      handlerState.width = static_cast<short>(state.width);
+      handlerState.height = static_cast<short>(state.height);
+      loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
+      currentY = handler->layoutNode(column, handlerState, &traversal);
+    }
+    else
+    {
+      currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &Win32ScenePlatformController::layoutContainerChild);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, currentY);
   }
 
