@@ -2,6 +2,7 @@
 #define LOKA_APP_LAYOUT_CONTAINER_LAYOUT_HPP
 
 #include "app/Box.hpp"
+#include "app/Grid.hpp"
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
