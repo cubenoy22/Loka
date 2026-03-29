@@ -157,8 +157,51 @@ namespace loka
         RowLayoutMetrics metrics_;
       };
 
+      class GridPlatformLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+      {
+      public:
+        explicit GridPlatformLayoutHandler(const GridLayoutMetrics &metrics)
+            : metrics_(metrics)
+        {
+        }
+
+        virtual const void *nodeTypeKey() const
+        {
+          return loka::app::scene::NodeTypeToken<loka::app::GridNode>();
+        }
+
+        virtual int layoutNode(loka::app::scene::Node *node,
+                               const loka::app::scene::LayoutState &state,
+                               loka::app::scene::IPlatformLayoutTraversal *traversal)
+        {
+          loka::app::GridNode *grid = node ? node->asGridNode() : 0;
+          if (!grid || !traversal)
+          {
+            return state.y;
+          }
+          return loka::app::layout::computeGridLayoutResultY(grid, state, this->metrics_, traversal, &GridPlatformLayoutHandler::layoutChild);
+        }
+
+      private:
+        static int layoutChild(void *context,
+                               loka::app::scene::Node *child,
+                               const loka::app::scene::LayoutState &state)
+        {
+          loka::app::scene::IPlatformLayoutTraversal *traversal =
+              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
+          if (!traversal)
+          {
+            return state.y;
+          }
+          return traversal->layoutChild(child, state);
+        }
+
+        GridLayoutMetrics metrics_;
+      };
+
       inline void RegisterBuiltinPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry,
-                                                        const RowLayoutMetrics *rowMetrics)
+                                                        const RowLayoutMetrics *rowMetrics,
+                                                        const GridLayoutMetrics *gridMetrics)
       {
         registry.registerHandler(new BoxPlatformLayoutHandler());
         registry.registerHandler(new ZStackPlatformLayoutHandler());
@@ -166,6 +209,10 @@ namespace loka
         if (rowMetrics)
         {
           registry.registerHandler(new RowPlatformLayoutHandler(*rowMetrics));
+        }
+        if (gridMetrics)
+        {
+          registry.registerHandler(new GridPlatformLayoutHandler(*gridMetrics));
         }
       }
     }

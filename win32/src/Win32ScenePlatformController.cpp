@@ -132,7 +132,10 @@ Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
   rowMetrics.popupMenuHeight = kPopupMenuHeight;
   rowMetrics.textHeight = kTextHeight;
   rowMetrics.imageFallbackHeight = kImageFallbackHeightModern;
-  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics);
+  loka::app::layout::GridLayoutMetrics gridMetrics;
+  gridMetrics.gapX = 0;
+  gridMetrics.gapY = 0;
+  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
   RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootHwnd_)
   {
@@ -691,10 +694,25 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::GridNode *grid = node->asGridNode())
   {
-    loka::app::layout::GridLayoutMetrics metrics;
-    metrics.gapX = 0;
-    metrics.gapY = 0;
-    const int maxY = loka::app::layout::computeGridLayoutResultY(grid, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+    int maxY = state.y;
+    loka::app::scene::IPlatformLayoutHandler *handler = this->layoutHandlerRegistry_.find(grid);
+    if (handler)
+    {
+      loka::app::scene::LayoutState handlerState;
+      handlerState.x = static_cast<short>(state.x);
+      handlerState.y = static_cast<short>(state.y);
+      handlerState.width = static_cast<short>(state.width);
+      handlerState.height = static_cast<short>(state.height);
+      loka::app::scene::Win32PlatformLayoutTraversal traversal(this);
+      maxY = handler->layoutNode(grid, handlerState, &traversal);
+    }
+    else
+    {
+      loka::app::layout::GridLayoutMetrics metrics;
+      metrics.gapX = 0;
+      metrics.gapY = 0;
+      maxY = loka::app::layout::computeGridLayoutResultY(grid, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+    }
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
