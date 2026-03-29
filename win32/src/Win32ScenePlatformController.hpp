@@ -92,6 +92,7 @@ public:
 private:
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
   friend class ::loka::app::scene::Win32PlatformLayoutTraversal;
+  friend void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller);
   friend void RegisterWin32PlatformLeafLayoutHandlers(Win32ScenePlatformController &controller);
   friend void RegisterWin32PlatformHostActionLayoutHandlers(Win32ScenePlatformController &controller);
 

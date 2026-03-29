@@ -1,7 +1,5 @@
 #include "Win32ScenePlatformController.hpp"
-#include "Win32PlatformNodeHandlers.hpp"
-#include "Win32PlatformLeafLayoutHandlers.hpp"
-#include "Win32PlatformHostActionLayoutHandlers.hpp"
+#include "Win32BuiltInSupport.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <windows.h>
 #include <vector>
@@ -71,21 +69,7 @@ namespace loka
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
 {
-  loka::app::layout::RowLayoutMetrics rowMetrics;
-  rowMetrics.gap = kHorizontalSpacing;
-  rowMetrics.fallbackHeight = kTextHeight;
-  rowMetrics.buttonHeight = kButtonHeight;
-  rowMetrics.editTextHeight = kEditTextHeight;
-  rowMetrics.popupMenuHeight = kPopupMenuHeight;
-  rowMetrics.textHeight = kTextHeight;
-  rowMetrics.imageFallbackHeight = kImageFallbackHeightModern;
-  loka::app::layout::GridLayoutMetrics gridMetrics;
-  gridMetrics.gapX = 0;
-  gridMetrics.gapY = 0;
-  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
-  RegisterWin32PlatformLeafLayoutHandlers(*this);
-  RegisterWin32PlatformHostActionLayoutHandlers(*this);
-  RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
+  RegisterWin32BuiltInSupport(*this);
   if (rootHwnd_)
   {
     gControllersByRootHwnd[rootHwnd_] = this;
