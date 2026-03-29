@@ -52,6 +52,7 @@ These items address recurring bug patterns and structural risks identified durin
   `RectSurface` is not on the same track anymore: treat it as a candidate for a dedicated `RealTimeComposition`-style family rather than another generic retained-control leaf.
   Stage 3: extract shared container traversal/layout (`Column`/`Row`/`Grid`/`Box`/`ZStack`) into common code, keeping boundary bounds updates and platform-local ownership hooks intact.
   Stage 3.5: once shared container helpers stabilize, define a separate layout-extension seam for external/custom layout providers rather than forcing container traversal into the node-context handler API.
+  Note: Win32/macOS now also have an internal `PlatformLayoutHandlerRegistry` seam and built-in layout handlers for `Box`/`ZStack`/`Column`/`Row`/`Grid`; Toolbox can follow later without changing the public controller contract.
   Stage 4: make registry/factory lookup the primary path and keep `NODE_KIND`/`asXxxNode()` fallback only where 68k-sensitive builds still need the cheaper/static dispatch path.
   Long-term goal: remove enum/switch dispatch and most `asXxxNode()` paths outside 68k-sensitive builds while preserving user-defined component extensibility.
 - Introduce `loka::multimedia` layer for codec/media responsibilities (ImageDecoder/Audio/Video), keeping `app` layer UI-only. Platform contexts should call multimedia abstractions instead of embedding QuickTime/AVFoundation/Win32 decode logic directly.

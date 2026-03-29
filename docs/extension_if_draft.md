@@ -314,6 +314,19 @@ Shared helpers now cover built-in retained containers such as:
 These helpers are not yet a public extension API. They exist to stabilize the
 shape of layout inputs/outputs before committing to a public seam.
 
+Current internal proof points:
+
+- `PlatformLayoutHandlerRegistry`
+- `IPlatformLayoutHandler`
+- `IPlatformLayoutTraversal`
+- built-in Win32/macOS routing for `Box`, `ZStack`, `Column`, `Row`, and `Grid`
+
+That means the current branch has already demonstrated the intended layering:
+
+- shared container layout kernels in common code
+- controller-owned traversal/boundary application
+- registry-selected built-in layout handlers as an intermediate seam
+
 The intended progression is:
 
 1. extract platform-independent container layout kernels into shared helpers
