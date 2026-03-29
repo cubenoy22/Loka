@@ -349,37 +349,10 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::GridNode *grid = node->asGridNode())
   {
-    const int rows = grid->props.rows > 0 ? grid->props.rows : 1;
-    const int cols = grid->props.cols > 0 ? grid->props.cols : 1;
-    const int gapX = 0;
-    const int gapY = 0;
-    const int availableWidth = state.width - gapX * (cols - 1);
-    const int availableHeight = state.height - gapY * (rows - 1);
-    const int cellWidth = availableWidth > 0 ? availableWidth / cols : 0;
-    const int cellHeight = availableHeight > 0 ? availableHeight / rows : 0;
-    int maxY = state.y;
-    if (loka::app::scene::INestable *nestable = grid->asNestable())
-    {
-      const size_t childCount = nestable->childrenCount();
-      const size_t maxCount = static_cast<size_t>(rows * cols);
-      size_t index = 0;
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
-      for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
-      {
-        const int row = static_cast<int>(index / cols);
-        const int col = static_cast<int>(index % cols);
-        LayoutState childState = state;
-        childState.x = state.x + col * (cellWidth + gapX);
-        childState.y = state.y + row * (cellHeight + gapY);
-        childState.width = cellWidth;
-        childState.height = cellHeight;
-        int childY = layoutNode(child, childState);
-        if (childY > maxY)
-        {
-          maxY = childY;
-        }
-      }
-    }
+    loka::app::layout::GridLayoutMetrics metrics;
+    metrics.gapX = 0;
+    metrics.gapY = 0;
+    const int maxY = loka::app::layout::computeGridLayoutResultY(grid, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
