@@ -528,11 +528,16 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   if (code == EN_CHANGE)
   {
     std::map<HWND, Win32EditTextContext *>::iterator itEdit = editMap_.find(target);
-    if (itEdit == editMap_.end())
+    if (itEdit != editMap_.end())
+    {
+      return itEdit->second->handleCommand(wParam, lParam);
+    }
+    Win32EditTextContext *edit = reinterpret_cast<Win32EditTextContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
+    if (!edit)
     {
       return false;
     }
-    return itEdit->second->handleCommand(wParam, lParam);
+    return edit->handleCommand(wParam, lParam);
   }
   if (code == CBN_SELCHANGE)
   {

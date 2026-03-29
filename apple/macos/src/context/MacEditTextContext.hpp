@@ -18,6 +18,7 @@ class MacEditTextContext : public loka::app::scene::NativeNodeContext
 public:
   MacEditTextContext(void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node);
   virtual ~MacEditTextContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   void handleTextDidChange();
   void *nativeField() const;

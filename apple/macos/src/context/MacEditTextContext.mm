@@ -6,6 +6,12 @@
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
+namespace
+{
+  const int kEditTextHeight = 24;
+  const int kVerticalSpacing = 12;
+}
+
 @interface LokaTextFieldDelegate : NSObject
 {
   MacEditTextContext *owner_;
@@ -72,6 +78,13 @@ MacEditTextContext::~MacEditTextContext()
     [(id)field_ release];
   }
   field_ = 0;
+}
+
+short MacEditTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kEditTextHeight);
+  state.height = static_cast<short>(kEditTextHeight);
+  return static_cast<short>(state.y + kEditTextHeight + kVerticalSpacing);
 }
 
 void MacEditTextContext::handleTextDidChange()

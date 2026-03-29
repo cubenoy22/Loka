@@ -4,6 +4,12 @@
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
+namespace
+{
+  const int kEditTextHeight = 24;
+  const int kVerticalSpacing = 12;
+}
+
 Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node)
     : node_(node), hwnd_(NULL), textState_(0), applyingFromState_(false), updatingFromControl_(false)
 {
@@ -21,6 +27,10 @@ Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width,
       NULL,
       GetModuleHandle(NULL),
       NULL);
+  if (hwnd_)
+  {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+  }
   bindText();
 }
 
@@ -46,6 +56,13 @@ bool Win32EditTextContext::handleCommand(WPARAM wParam, LPARAM)
     return true;
   }
   return false;
+}
+
+short Win32EditTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kEditTextHeight);
+  state.height = static_cast<short>(kEditTextHeight);
+  return static_cast<short>(state.y + kEditTextHeight + kVerticalSpacing);
 }
 
 void Win32EditTextContext::relayout(int x, int y, int width, int height)

@@ -29,6 +29,7 @@ class Win32EditTextContext : public loka::app::scene::NativeNodeContext
 public:
   Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node);
   virtual ~Win32EditTextContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   HWND hwnd() const { return hwnd_; }
   void relayout(int x, int y, int width, int height);

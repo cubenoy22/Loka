@@ -53,15 +53,29 @@ namespace loka
       }
     };
 
-    class EditTextNode : public scene::Node
+    class EditTextNode : public scene::Node,
+                         public scene::IProjectedLayoutNode
     {
     public:
       typedef EditTextTypeTag TypeTag;
       EditTextProps props;
       EditTextNode(const EditTextProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_EDIT_TEXT; }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
       virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<EditTextNode>(); }
       virtual EditTextNode *asEditTextNode() { return this; }
+      virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
+      {
+        if (!controller)
+        {
+          return state.y;
+        }
+        if (!scene::PrepareProjectedLayout(controller, this, state))
+        {
+          return state.y;
+        }
+        return scene::Node::layout(controller, state);
+      }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
         if (this->props.text_)
