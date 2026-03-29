@@ -45,6 +45,7 @@ public:
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller,
                        loka::app::scene::LayoutState &state);
+  bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:
   loka::app::ButtonNode *node_;

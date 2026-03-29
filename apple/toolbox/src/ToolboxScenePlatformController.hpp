@@ -13,6 +13,7 @@
 #include <TextEdit.h>
 
 class ToolboxWindow;
+class ToolboxButtonContext;
 class ToolboxPopupMenuContext;
 class ToolboxNodeContextMapper;
 class ToolboxCellContext;
@@ -37,10 +38,12 @@ public:
   void render();
   void renderDirty(const Rect &rect);
   bool handleMouseDown(const Point &point);
+  void emitHitEmitter(loka::core::EmitterState *emitter);
   void recordButtonHit(const Rect &rect,
                        loka::core::EmitterState *emitter,
                        loka::core::State<bool> *enabled,
-                       loka::app::scene::BoundaryNode *boundary);
+                       loka::app::scene::BoundaryNode *boundary,
+                       ToolboxButtonContext *context);
   void recordCellHit(const Rect &rect,
                      loka::core::EmitterState *emitter,
                      loka::app::scene::BoundaryNode *boundary,
@@ -63,7 +66,8 @@ public:
                       loka::core::EmitterState *onChange,
                       loka::core::State<bool> *enabled,
                       loka::app::scene::BoundaryNode *boundary,
-                      short menuId);
+                      short menuId,
+                      ToolboxPopupMenuContext *context);
   void applyPopupSelectionChange(const Rect &rect,
                                  loka::app::scene::BoundaryNode *boundary,
                                  loka::core::State<int> *selectedIndex,
@@ -94,6 +98,7 @@ private:
     loka::core::EmitterState *emitter;
     loka::core::State<bool> *enabled;
     loka::app::scene::BoundaryNode *boundary;
+    ToolboxButtonContext *context;
   };
 
   struct CellHit
@@ -132,6 +137,7 @@ private:
     loka::core::State<bool> *enabled;
     loka::app::scene::BoundaryNode *boundary;
     short menuId;
+    ToolboxPopupMenuContext *context;
   };
   struct TextBinding
   {

@@ -1379,103 +1379,39 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   for (size_t i = 0; i < popupHits_.size(); ++i)
   {
     PopupHit &hit = popupHits_[i];
-    if (hit.enabled && !hit.enabled->get())
-    {
-      continue;
-    }
-    if (!hit.items || hit.items->size() == 0 || !hit.selectedIndex)
-    {
-      continue;
-    }
-    if (!PtInRect(point, &hit.rect))
-    {
-      continue;
-    }
-    MenuHandle menu = NewMenu(hit.menuId, "\p");
-    if (!menu)
+    if (hit.context && hit.context->handleMouseDown(point, this))
     {
       return false;
     }
-    for (std::size_t j = 0; j < hit.items->size(); ++j)
-    {
-      Str255 text;
-      std::string utf8;
-      if (!loka::platform::CollectUtf8((*hit.items)[j], utf8))
-      {
-        text[0] = 0;
-      }
-      else
-      {
-        std::size_t length = utf8.size();
-        if (length > 255)
-        {
-          length = 255;
-        }
-        text[0] = static_cast<unsigned char>(length);
-        if (length > 0)
-        {
-          std::memcpy(text + 1, utf8.data(), length);
-        }
-      }
-      AppendMenu(menu, text);
-    }
-    InsertMenu(menu, -1);
-    short currentIndex = 0;
-    if (hit.selectedIndex->get() > 0)
-    {
-      currentIndex = static_cast<short>(hit.selectedIndex->get());
-    }
-    if (static_cast<std::size_t>(currentIndex) >= hit.items->size())
-    {
-      currentIndex = static_cast<short>(hit.items->size() - 1);
-    }
-    Point globalPoint = point;
-    LocalToGlobal(&globalPoint);
-    long choice = PopUpMenuSelect(menu, globalPoint.v, globalPoint.h, static_cast<short>(currentIndex + 1));
-    short item = static_cast<short>(choice & 0xFFFF);
-    if (item > 0)
-    {
-      applyPopupSelectionChange(hit.rect, hit.boundary, hit.selectedIndex, hit.onChange, static_cast<int>(item - 1));
-    }
-    DeleteMenu(hit.menuId);
-    DisposeMenu(menu);
-    return false;
   }
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
     CellHit &hit = cellHits_[i];
-    if (!hit.emitter)
+    if (hit.context && hit.context->handleMouseDown(point, this))
     {
-      continue;
-    }
-    if (PtInRect(point, &hit.rect))
-    {
-      beginBatchUpdate();
-      hit.emitter->emit();
-      endBatchUpdate();
       return false;
     }
   }
   for (size_t i = 0; i < buttonHits_.size(); ++i)
   {
     ButtonHit &hit = buttonHits_[i];
-    if (!hit.emitter)
+    if (hit.context && hit.context->handleMouseDown(point, this))
     {
-      continue;
-    }
-    if (hit.enabled && !hit.enabled->get())
-    {
-      continue;
-    }
-    if (PtInRect(point, &hit.rect))
-    {
-      beginBatchUpdate();
-      hit.emitter->emit();
-      endBatchUpdate();
       return false;
     }
   }
   return false;
+}
+
+void ToolboxScenePlatformController::emitHitEmitter(loka::core::EmitterState *emitter)
+{
+  if (!emitter)
+  {
+    return;
+  }
+  beginBatchUpdate();
+  emitter->emit();
+  endBatchUpdate();
 }
 
 bool ToolboxScenePlatformController::handleKeyDown(char key)
@@ -1501,7 +1437,8 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
 void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
                                                      loka::core::EmitterState *emitter,
                                                      loka::core::State<bool> *enabled,
-                                                     loka::app::scene::BoundaryNode *boundary)
+                                                     loka::app::scene::BoundaryNode *boundary,
+                                                     ToolboxButtonContext *context)
 {
   if (!emitter)
   {
@@ -1512,6 +1449,7 @@ void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
   hit.emitter = emitter;
   hit.enabled = enabled;
   hit.boundary = boundary;
+  hit.context = context;
   buttonHits_.push_back(hit);
   bindEnabledState(enabled);
 }
@@ -1580,7 +1518,8 @@ void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
                                                     loka::core::EmitterState *onChange,
                                                     loka::core::State<bool> *enabled,
                                                     loka::app::scene::BoundaryNode *boundary,
-                                                    short menuId)
+                                                    short menuId,
+                                                    ToolboxPopupMenuContext *context)
 {
   PopupHit hit;
   hit.rect = rect;
@@ -1591,6 +1530,7 @@ void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
   hit.enabled = enabled;
   hit.boundary = boundary;
   hit.menuId = menuId;
+  hit.context = context;
   popupHits_.push_back(hit);
   bindEnabledState(enabled);
 }
