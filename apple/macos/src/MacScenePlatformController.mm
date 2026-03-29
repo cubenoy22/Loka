@@ -356,17 +356,25 @@ void MacScenePlatformController::performLayout(int clientWidth, int clientHeight
 
 namespace
 {
-  int ApplyBoundaryBounds(loka::app::scene::BoundaryNode *boundary,
-                          int x,
-                          int y,
-                          int width,
-                          int resultY)
+  struct LayoutNodeResult
+  {
+    LayoutNodeResult() : boundaryWidth(0), resultY(0) {}
+    LayoutNodeResult(int width, int y) : boundaryWidth(width), resultY(y) {}
+
+    int boundaryWidth;
+    int resultY;
+  };
+
+  int ApplyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary,
+                                int x,
+                                int y,
+                                const LayoutNodeResult &result)
   {
     if (boundary)
     {
-      boundary->setLayoutBounds(x, y, width, resultY - y);
+      boundary->setLayoutBounds(x, y, result.boundaryWidth, result.resultY - y);
     }
-    return resultY;
+    return result.resultY;
   }
 }
 
@@ -399,7 +407,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
     {
       currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &MacScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, currentY);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, currentY));
   }
 
   if (loka::app::RowNode *row = node->asRowNode())
@@ -428,7 +436,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
       metrics.imageFallbackHeight = kImageFallbackHeightModern;
       maxY = loka::app::layout::computeRowLayoutResultY(row, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
   }
 
   if (loka::app::GridNode *grid = node->asGridNode())
@@ -452,7 +460,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
       metrics.gapY = 0;
       maxY = loka::app::layout::computeGridLayoutResultY(grid, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
   }
 
   if (loka::app::BoxNode *box = node->asBoxNode())
@@ -473,7 +481,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
     {
       resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &MacScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, resultY));
   }
 
   if (loka::app::ZStackNode *stack = node->asZStackNode())
@@ -494,7 +502,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
     {
       maxY = loka::app::layout::computeZStackLayoutResultY(stack, state, this, &MacScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
   }
 
   if (loka::app::scene::INestable *nestable = node->asNestable())
@@ -505,7 +513,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
     {
       childState.y = layoutNode(child, childState);
     }
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, childState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, childState.y));
   }
 
   if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
@@ -525,7 +533,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
     {
       ctx = this->contextMapper_.ensureOpenFileDialogContext(dialog);
     }
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, state.y));
   }
 
   if (loka::app::ButtonNode *button = node->asButtonNode())
@@ -538,7 +546,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + kButtonHeight + kVerticalSpacing;
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
   }
 
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
@@ -562,7 +570,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + kEditTextHeight + kVerticalSpacing;
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
   }
 
   if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
@@ -585,7 +593,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
   }
 
   if (loka::app::CellNode *cell = node->asCellNode())
@@ -609,7 +617,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + cellHeight;
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
   }
 
   if (loka::app::TextNode *text = node->asTextNode())
@@ -633,7 +641,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + textHeight + kVerticalSpacing;
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
   }
 
   if (loka::app::ImageViewNode *image = node->asImageViewNode())
@@ -704,7 +712,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + imageHeight + kVerticalSpacing;
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
   }
 
   if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
@@ -727,10 +735,10 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
     LayoutState nextState = state;
     nextState.y = state.y + surface->props.height_ + kVerticalSpacing;
-    return ApplyBoundaryBounds(boundary, startX, startY, startWidth, nextState.y);
+    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
   }
 
-  return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
+  return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, state.y));
 }
 
 int MacScenePlatformController::layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
