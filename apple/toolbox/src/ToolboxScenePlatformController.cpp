@@ -438,6 +438,15 @@ namespace
     const short startX = state.x;
     const short startY = state.y;
     const short startTop = static_cast<short>(startY - state.lineHeight + 2);
+    if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
+    {
+      short width = projected->layoutProjected(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
     switch (node->kind())
     {
     case loka::app::scene::NODE_KIND_COLUMN:
@@ -782,133 +791,6 @@ namespace
       }
       return width;
     }
-    case loka::app::scene::NODE_KIND_TEXT:
-    {
-      loka::app::TextNode *text = static_cast<loka::app::TextNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureTextContext(text);
-      }
-      if (text->getContext())
-      {
-        ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_CELL:
-    {
-      loka::app::CellNode *cell = static_cast<loka::app::CellNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureCellContext(cell);
-      }
-      if (cell->getContext())
-      {
-        ToolboxCellContext *ctx = static_cast<ToolboxCellContext *>(cell->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_BUTTON:
-    {
-      loka::app::ButtonNode *button = static_cast<loka::app::ButtonNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureButtonContext(button);
-      }
-      if (button->getContext())
-      {
-        ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_EDIT_TEXT:
-    {
-      loka::app::EditTextNode *edit = static_cast<loka::app::EditTextNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureEditTextContext(edit);
-      }
-      if (edit->getContext())
-      {
-        ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_POPUP_MENU:
-    {
-      loka::app::PopupMenuNode *popup = static_cast<loka::app::PopupMenuNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensurePopupMenuContext(popup);
-      }
-      if (popup->getContext())
-      {
-        ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
-    {
-      loka::app::OpenFileDialogNode *dialog = static_cast<loka::app::OpenFileDialogNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureOpenFileDialogContext(dialog);
-      }
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, 0, static_cast<short>(state.y - startTop));
-      }
-      return 0;
-    }
-    case loka::app::scene::NODE_KIND_IMAGE_VIEW:
-    {
-      loka::app::ImageViewNode *image = static_cast<loka::app::ImageViewNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureImageViewContext(image);
-      }
-      if (image->getContext())
-      {
-        ToolboxImageViewContext *ctx = static_cast<ToolboxImageViewContext *>(image->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
     case loka::app::scene::NODE_KIND_RECT_SURFACE:
     {
       loka::app::RectSurfaceNode *surface = static_cast<loka::app::RectSurfaceNode *>(node);
@@ -960,6 +842,11 @@ namespace
     {
       return;
     }
+    if (node->asProjectedLayoutNode())
+    {
+      node->render(controller);
+      return;
+    }
     switch (node->kind())
     {
     case loka::app::scene::NODE_KIND_COLUMN:
@@ -968,16 +855,8 @@ namespace
     case loka::app::scene::NODE_KIND_ROW:
       RenderChildren(node->asNestable(), controller);
       return;
-    case loka::app::scene::NODE_KIND_TEXT:
-    case loka::app::scene::NODE_KIND_CELL:
-    case loka::app::scene::NODE_KIND_BUTTON:
-    case loka::app::scene::NODE_KIND_EDIT_TEXT:
-    case loka::app::scene::NODE_KIND_POPUP_MENU:
-    case loka::app::scene::NODE_KIND_IMAGE_VIEW:
     case loka::app::scene::NODE_KIND_RECT_SURFACE:
       node->render(controller);
-      return;
-    case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
       return;
     default:
       break;
@@ -1041,6 +920,88 @@ ToolboxNodeContextMapper *ToolboxScenePlatformController::contextMapper() const
     return 0;
   }
   return window_->context()->contextMapper();
+}
+
+bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::Node *node,
+                                                            loka::app::scene::LayoutState &state)
+{
+  (void)state;
+  if (!node)
+  {
+    return false;
+  }
+  ToolboxNodeContextMapper *mapper = this->contextMapper();
+  if (!mapper)
+  {
+    return false;
+  }
+  loka::app::scene::BoundaryNode *boundary = node->asBoundary();
+  if (loka::app::TextNode *text = node->asTextNode())
+  {
+    mapper->ensureTextContext(text);
+    if (text->getContext())
+    {
+      static_cast<ToolboxTextContext *>(text->getContext())->setBoundary(boundary);
+      return true;
+    }
+    return false;
+  }
+  if (loka::app::CellNode *cell = node->asCellNode())
+  {
+    mapper->ensureCellContext(cell);
+    if (cell->getContext())
+    {
+      static_cast<ToolboxCellContext *>(cell->getContext())->setBoundary(boundary);
+      return true;
+    }
+    return false;
+  }
+  if (loka::app::ButtonNode *button = node->asButtonNode())
+  {
+    mapper->ensureButtonContext(button);
+    if (button->getContext())
+    {
+      static_cast<ToolboxButtonContext *>(button->getContext())->setBoundary(boundary);
+      return true;
+    }
+    return false;
+  }
+  if (loka::app::EditTextNode *edit = node->asEditTextNode())
+  {
+    mapper->ensureEditTextContext(edit);
+    if (edit->getContext())
+    {
+      static_cast<ToolboxEditTextContext *>(edit->getContext())->setBoundary(boundary);
+      return true;
+    }
+    return false;
+  }
+  if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
+  {
+    mapper->ensurePopupMenuContext(popup);
+    if (popup->getContext())
+    {
+      static_cast<ToolboxPopupMenuContext *>(popup->getContext())->setBoundary(boundary);
+      return true;
+    }
+    return false;
+  }
+  if (loka::app::ImageViewNode *image = node->asImageViewNode())
+  {
+    mapper->ensureImageViewContext(image);
+    if (image->getContext())
+    {
+      static_cast<ToolboxImageViewContext *>(image->getContext())->setBoundary(boundary);
+      return true;
+    }
+    return false;
+  }
+  if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
+  {
+    mapper->ensureOpenFileDialogContext(dialog);
+    return dialog->getContext() != 0;
+  }
+  return false;
 }
 
 short ToolboxScenePlatformController::allocateControlId()

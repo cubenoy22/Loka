@@ -29,6 +29,7 @@ public:
                                const loka::app::scene::BoundaryLocalApplyInfo &info,
                                const loka::app::scene::PlatformApplyPlan &plan);
   virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return true; }
+  virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
