@@ -82,15 +82,29 @@ namespace loka
       }
     };
 
-    class CellNode : public scene::Node
+    class CellNode : public scene::Node,
+                     public scene::IProjectedLayoutNode
     {
     public:
       typedef CellTypeTag TypeTag;
       CellProps props;
       CellNode(const CellProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_CELL; }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
       virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<CellNode>(); }
       virtual CellNode *asCellNode() { return this; }
+      virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
+      {
+        if (!controller)
+        {
+          return state.y;
+        }
+        if (!scene::PrepareProjectedLayout(controller, this, state))
+        {
+          return state.y;
+        }
+        return scene::Node::layout(controller, state);
+      }
       virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
       {
         if (this->props.text_)

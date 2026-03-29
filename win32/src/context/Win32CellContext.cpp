@@ -7,6 +7,8 @@
 namespace
 {
   const char *kCellClassName = "LOKA_CELL";
+  const int kDefaultCellHeight = 20;
+  const int kVerticalSpacing = 12;
 }
 
 Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node)
@@ -40,6 +42,20 @@ Win32CellContext::~Win32CellContext()
     DestroyWindow(hwnd_);
     hwnd_ = 0;
   }
+}
+
+short Win32CellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  const short requestedHeight = state.height;
+  const int cellHeight = requestedHeight > 0 ? requestedHeight : kDefaultCellHeight;
+  this->relayout(state.x, state.y, state.width, cellHeight);
+  state.height = static_cast<short>(cellHeight);
+  short result = static_cast<short>(state.y + cellHeight);
+  if (requestedHeight <= 0)
+  {
+    result = static_cast<short>(result + kVerticalSpacing);
+  }
+  return result;
 }
 
 void Win32CellContext::relayout(int x, int y, int width, int height)

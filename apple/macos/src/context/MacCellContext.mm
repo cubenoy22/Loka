@@ -7,6 +7,12 @@
 
 class MacCellContext;
 
+namespace
+{
+  const int kDefaultCellHeight = 20;
+  const int kVerticalSpacing = 12;
+}
+
 @interface LokaCellView : NSView
 {
   NSString *text_;
@@ -118,6 +124,20 @@ MacCellContext::~MacCellContext()
     [(id)view_ release];
   }
   view_ = 0;
+}
+
+short MacCellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  const short requestedHeight = state.height;
+  const int cellHeight = requestedHeight > 0 ? requestedHeight : kDefaultCellHeight;
+  this->relayout(state.x, state.y, state.width, cellHeight);
+  state.height = static_cast<short>(cellHeight);
+  short result = static_cast<short>(state.y + cellHeight);
+  if (requestedHeight <= 0)
+  {
+    result = static_cast<short>(result + kVerticalSpacing);
+  }
+  return result;
 }
 
 void MacCellContext::relayout(int x, int y, int width, int height)
