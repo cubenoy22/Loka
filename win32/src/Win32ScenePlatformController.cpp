@@ -239,6 +239,12 @@ Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
   gridMetrics.gapX = 0;
   gridMetrics.gapY = 0;
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
+  this->leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
+      &Win32ScenePlatformController::dispatchTextLayout);
+  this->leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
+      &Win32ScenePlatformController::dispatchImageViewLayout);
   RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootHwnd_)
   {
@@ -1031,6 +1037,12 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
     return LayoutNodeResult(state.width, childState.y);
   }
 
+  LeafLayoutHandlerFn leafLayoutHandler = this->leafLayoutHandlerRegistry_.find(node);
+  if (leafLayoutHandler)
+  {
+    return leafLayoutHandler(this, node, state);
+  }
+
   if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
   {
     return this->layoutOpenFileDialogNode(dialog, state);
@@ -1056,16 +1068,6 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
     return this->layoutCellNode(cell, state);
   }
 
-  if (loka::app::TextNode *text = node->asTextNode())
-  {
-    return this->layoutTextNode(text, state);
-  }
-
-  if (loka::app::ImageViewNode *image = node->asImageViewNode())
-  {
-    return this->layoutImageViewNode(image, state);
-  }
-
   if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
   {
     return this->layoutRectSurfaceNode(surface, state);
@@ -1082,6 +1084,40 @@ int Win32ScenePlatformController::layoutContainerChild(void *context, loka::app:
     return state.y;
   }
   return controller->layoutNode(child, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchTextLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::TextNode *text = node->asTextNode();
+  if (!text)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutTextNode(text, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchImageViewLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::ImageViewNode *image = node->asImageViewNode();
+  if (!image)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutImageViewNode(image, state);
 }
 
 void Win32ScenePlatformController::clearContexts()
