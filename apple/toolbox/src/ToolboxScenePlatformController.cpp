@@ -604,67 +604,83 @@ namespace
     case loka::app::scene::NODE_KIND_GRID:
     {
       loka::app::GridNode *grid = static_cast<loka::app::GridNode *>(node);
-      const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
-      const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
-      const short gap = 0;
-      short availableWidth = state.width;
-      if (availableWidth > 0)
+      short maxWidth = 0;
+      bool usedHandler = false;
+      if (controller && controller->layoutHandlerRegistry())
       {
-        availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
-        if (availableWidth < 0)
+        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(grid);
+        if (handler)
         {
-          availableWidth = 0;
+          ToolboxLayoutTraversal traversal(controller, activeBoundary);
+          maxWidth = static_cast<short>(handler->layoutNode(grid, state, &traversal));
+          state.y = traversal.layoutResultY();
+          usedHandler = true;
         }
       }
-      short availableHeight = state.height;
-      if (availableHeight > 0)
+      if (!usedHandler)
       {
-        availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
-        if (availableHeight < 0)
+        const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
+        const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
+        const short gap = 0;
+        short availableWidth = state.width;
+        if (availableWidth > 0)
         {
-          availableHeight = 0;
-        }
-      }
-      const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
-      const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
-      short maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
-      short maxY = state.y;
-      if (loka::app::scene::INestable *nestable = grid->asNestable())
-      {
-        const size_t childCount = nestable->childrenCount();
-        const size_t maxCount = static_cast<size_t>(rows * cols);
-        size_t index = 0;
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
-        for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
-        {
-          const short row = static_cast<short>(index / cols);
-          const short col = static_cast<short>(index % cols);
-          loka::app::scene::LayoutState cellState = state;
-          cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
-          cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
-          cellState.width = cellWidth;
-          cellState.height = cellHeight;
-          short width = LayoutNode(child, cellState, controller, activeBoundary);
-          if (width > maxWidth)
+          availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
+          if (availableWidth < 0)
           {
-            maxWidth = width;
-          }
-          if (cellState.y > maxY)
-          {
-            maxY = cellState.y;
+            availableWidth = 0;
           }
         }
-      }
-      if (cellHeight > 0)
-      {
-        short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
-        short bottom = static_cast<short>(state.y + totalHeight);
-        if (bottom > maxY)
+        short availableHeight = state.height;
+        if (availableHeight > 0)
         {
-          maxY = bottom;
+          availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
+          if (availableHeight < 0)
+          {
+            availableHeight = 0;
+          }
         }
+        const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
+        const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
+        maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
+        short maxY = state.y;
+        if (loka::app::scene::INestable *nestable = grid->asNestable())
+        {
+          const size_t childCount = nestable->childrenCount();
+          const size_t maxCount = static_cast<size_t>(rows * cols);
+          size_t index = 0;
+          loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
+          for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+          {
+            const short row = static_cast<short>(index / cols);
+            const short col = static_cast<short>(index % cols);
+            loka::app::scene::LayoutState cellState = state;
+            cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
+            cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
+            cellState.width = cellWidth;
+            cellState.height = cellHeight;
+            short width = LayoutNode(child, cellState, controller, activeBoundary);
+            if (width > maxWidth)
+            {
+              maxWidth = width;
+            }
+            if (cellState.y > maxY)
+            {
+              maxY = cellState.y;
+            }
+          }
+        }
+        if (cellHeight > 0)
+        {
+          short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
+          short bottom = static_cast<short>(state.y + totalHeight);
+          if (bottom > maxY)
+          {
+            maxY = bottom;
+          }
+        }
+        state.y = maxY;
       }
-      state.y = maxY;
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));

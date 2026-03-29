@@ -1,6 +1,7 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
 
 #include "app/Box.hpp"
+#include "app/Grid.hpp"
 #include "app/ImageView.hpp"
 #include "app/RowColumn.hpp"
 #include "app/ZStack.hpp"
@@ -324,6 +325,89 @@ namespace
       return static_cast<short>(rowStartX - state.x);
     }
   };
+
+  class ToolboxGridLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::GridNode>();
+    }
+
+    virtual int layoutNode(loka::app::scene::Node *node,
+                           const loka::app::scene::LayoutState &state,
+                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+    {
+      loka::app::GridNode *grid = node ? node->asGridNode() : 0;
+      if (!grid || !traversal)
+      {
+        return 0;
+      }
+
+      const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
+      const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
+      const short gap = 0;
+      short availableWidth = state.width;
+      if (availableWidth > 0)
+      {
+        availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
+        if (availableWidth < 0)
+        {
+          availableWidth = 0;
+        }
+      }
+      short availableHeight = state.height;
+      if (availableHeight > 0)
+      {
+        availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
+        if (availableHeight < 0)
+        {
+          availableHeight = 0;
+        }
+      }
+      const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
+      const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
+      short maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
+      short maxY = state.y;
+      if (loka::app::scene::INestable *nestable = grid->asNestable())
+      {
+        const size_t childCount = nestable->childrenCount();
+        const size_t maxCount = static_cast<size_t>(rows * cols);
+        size_t index = 0;
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
+        for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+        {
+          const short row = static_cast<short>(index / cols);
+          const short col = static_cast<short>(index % cols);
+          loka::app::scene::LayoutState cellState = state;
+          cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
+          cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
+          cellState.width = cellWidth;
+          cellState.height = cellHeight;
+          const int width = DispatchTraversalLayoutChild(traversal, child, cellState);
+          if (width > maxWidth)
+          {
+            maxWidth = static_cast<short>(width);
+          }
+          if (cellState.y > maxY)
+          {
+            maxY = cellState.y;
+          }
+        }
+      }
+      if (cellHeight > 0)
+      {
+        short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
+        short bottom = static_cast<short>(state.y + totalHeight);
+        if (bottom > maxY)
+        {
+          maxY = bottom;
+        }
+      }
+      traversal->setLayoutResultY(maxY);
+      return maxWidth;
+    }
+  };
 }
 
 void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
@@ -332,4 +416,5 @@ void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandl
   registry.registerHandler(new ToolboxZStackLayoutHandler());
   registry.registerHandler(new ToolboxColumnLayoutHandler());
   registry.registerHandler(new ToolboxRowLayoutHandler());
+  registry.registerHandler(new ToolboxGridLayoutHandler());
 }
