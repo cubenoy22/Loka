@@ -25,13 +25,6 @@ namespace loka
   namespace app
   {
     class BoxNode;
-    class ButtonNode;
-    class CellNode;
-    class TextNode;
-    class EditTextNode;
-    class ImageViewNode;
-    class OpenFileDialogNode;
-    class PopupMenuNode;
     class RectSurfaceNode;
   }
 

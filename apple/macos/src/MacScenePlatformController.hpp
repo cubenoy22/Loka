@@ -29,14 +29,7 @@ namespace loka
 
   namespace app
   {
-    class ButtonNode;
-    class CellNode;
-    class EditTextNode;
-    class ImageViewNode;
-    class OpenFileDialogNode;
-    class PopupMenuNode;
     class RectSurfaceNode;
-    class TextNode;
 
     namespace scene
     {
