@@ -617,26 +617,242 @@ void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeig
 
 namespace
 {
-  struct LayoutNodeResult
-  {
-    LayoutNodeResult() : boundaryWidth(0), resultY(0) {}
-    LayoutNodeResult(int width, int y) : boundaryWidth(width), resultY(y) {}
+}
 
-    int boundaryWidth;
-    int resultY;
-  };
-
-  int ApplyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary,
-                                int x,
-                                int y,
-                                const LayoutNodeResult &result)
+int Win32ScenePlatformController::applyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary,
+                                                            int x,
+                                                            int y,
+                                                            const LayoutNodeResult &result)
+{
+  if (boundary)
   {
-    if (boundary)
-    {
-      boundary->setLayoutBounds(x, y, result.boundaryWidth, result.resultY - y);
-    }
-    return result.resultY;
+    boundary->setLayoutBounds(x, y, result.boundaryWidth, result.resultY - y);
   }
+  return result.resultY;
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutOpenFileDialogNode(
+    loka::app::OpenFileDialogNode *dialog,
+    const LayoutState &state)
+{
+  loka::app::scene::LayoutState handlerState;
+  handlerState.x = 0;
+  handlerState.y = 0;
+  handlerState.width = 0;
+  handlerState.height = 0;
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(dialog);
+  Win32OpenFileDialogContext *ctx = 0;
+  if (handler)
+  {
+    ctx = static_cast<Win32OpenFileDialogContext *>(handler->ensureContext(dialog, this, handlerState));
+  }
+  if (!ctx)
+  {
+    ctx = this->contextMapper_.ensureOpenFileDialogContext(dialog);
+  }
+  return LayoutNodeResult(state.width, state.y);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutButtonNode(
+    loka::app::ButtonNode *button,
+    const LayoutState &state)
+{
+  Win32ButtonContext *ctx = this->contextMapper_.ensureButtonContext(button,
+                                                                     state.x,
+                                                                     state.y,
+                                                                     state.width,
+                                                                     kButtonHeight);
+  this->buttonMap_[ctx->hwnd()] = ctx;
+  return LayoutNodeResult(state.width, state.y + kButtonHeight + kVerticalSpacing);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutEditTextNode(
+    loka::app::EditTextNode *edit,
+    const LayoutState &state)
+{
+  loka::app::scene::LayoutState handlerState;
+  handlerState.x = static_cast<short>(state.x);
+  handlerState.y = static_cast<short>(state.y);
+  handlerState.width = static_cast<short>(state.width);
+  handlerState.height = static_cast<short>(kEditTextHeight);
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(edit);
+  Win32EditTextContext *ctx = 0;
+  if (handler)
+  {
+    ctx = static_cast<Win32EditTextContext *>(handler->ensureContext(edit, this, handlerState));
+  }
+  if (!ctx)
+  {
+    ctx = this->contextMapper_.ensureEditTextContext(edit, state.x, state.y, state.width, kEditTextHeight);
+  }
+  this->editMap_[ctx->hwnd()] = ctx;
+  return LayoutNodeResult(state.width, state.y + kEditTextHeight + kVerticalSpacing);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutPopupMenuNode(
+    loka::app::PopupMenuNode *popup,
+    const LayoutState &state)
+{
+  loka::app::scene::LayoutState handlerState;
+  handlerState.x = static_cast<short>(state.x);
+  handlerState.y = static_cast<short>(state.y);
+  handlerState.width = static_cast<short>(state.width);
+  handlerState.height = static_cast<short>(kPopupMenuHeight);
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(popup);
+  Win32PopupMenuContext *ctx = 0;
+  if (handler)
+  {
+    ctx = static_cast<Win32PopupMenuContext *>(handler->ensureContext(popup, this, handlerState));
+  }
+  if (!ctx)
+  {
+    ctx = this->contextMapper_.ensurePopupMenuContext(popup, state.x, state.y, state.width, kPopupMenuHeight);
+  }
+  this->popupMap_[ctx->hwnd()] = ctx;
+  return LayoutNodeResult(state.width, state.y + kPopupMenuHeight + kVerticalSpacing);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutCellNode(
+    loka::app::CellNode *cell,
+    const LayoutState &state)
+{
+  const int cellHeight = state.height > 0 ? state.height : kTextHeight;
+  loka::app::scene::LayoutState handlerState;
+  handlerState.x = static_cast<short>(state.x);
+  handlerState.y = static_cast<short>(state.y);
+  handlerState.width = static_cast<short>(state.width);
+  handlerState.height = static_cast<short>(cellHeight);
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(cell);
+  Win32CellContext *ctx = 0;
+  if (handler)
+  {
+    ctx = static_cast<Win32CellContext *>(handler->ensureContext(cell, this, handlerState));
+  }
+  if (!ctx)
+  {
+    ctx = this->contextMapper_.ensureCellContext(cell, state.x, state.y, state.width, cellHeight);
+  }
+  int resultY = state.y + cellHeight;
+  if (state.height <= 0)
+  {
+    resultY += kVerticalSpacing;
+  }
+  return LayoutNodeResult(state.width, resultY);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutTextNode(
+    loka::app::TextNode *text,
+    const LayoutState &state)
+{
+  const int textHeight = MeasureTextHeightForWidth(rootHwnd_, text, state.width, kTextHeight);
+  loka::app::scene::LayoutState handlerState;
+  handlerState.x = static_cast<short>(state.x);
+  handlerState.y = static_cast<short>(state.y);
+  handlerState.width = static_cast<short>(state.width);
+  handlerState.height = static_cast<short>(textHeight);
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(text);
+  Win32TextContext *ctx = 0;
+  if (handler)
+  {
+    ctx = static_cast<Win32TextContext *>(handler->ensureContext(text, this, handlerState));
+  }
+  if (!ctx)
+  {
+    ctx = this->contextMapper_.ensureTextContext(text, state.x, state.y, state.width, textHeight);
+  }
+  return LayoutNodeResult(state.width, state.y + textHeight + kVerticalSpacing);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutImageViewNode(
+    loka::app::ImageViewNode *image,
+    const LayoutState &state)
+{
+  int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
+  if (image->props.hasAttr_ && image->props.attr_.hasSizePolicyValue_)
+  {
+    sizePolicy = static_cast<int>(image->props.attr_.sizePolicyValue_);
+  }
+
+  const bool hasExplicitWidth = image->props.width_ > 0;
+  const bool hasExplicitHeight = image->props.height_ > 0;
+  int imageWidth = hasExplicitWidth ? image->props.width_ : state.width;
+  int imageHeight = image->props.height_;
+  int srcWidth = 0;
+  int srcHeight = 0;
+  if (image->props.image_)
+  {
+    const loka::core::resource::Image current = image->props.image_->get();
+    srcWidth = current.width();
+    srcHeight = current.height();
+  }
+
+  if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && !hasExplicitWidth && srcWidth > 0)
+  {
+    imageWidth = srcWidth;
+  }
+  else if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && !hasExplicitWidth)
+  {
+    imageWidth = state.width;
+  }
+
+  if (!hasExplicitHeight)
+  {
+    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && state.height > 0)
+    {
+      imageHeight = state.height;
+    }
+    else if (srcWidth > 0 && srcHeight > 0 && imageWidth > 0)
+    {
+      imageHeight = (imageWidth * srcHeight) / srcWidth;
+    }
+    else if (srcHeight > 0)
+    {
+      imageHeight = srcHeight;
+    }
+  }
+  if (imageHeight <= 0)
+  {
+    imageHeight = 160;
+  }
+
+  loka::app::scene::LayoutState handlerState;
+  handlerState.x = static_cast<short>(state.x);
+  handlerState.y = static_cast<short>(state.y);
+  handlerState.width = static_cast<short>(imageWidth);
+  handlerState.height = static_cast<short>(imageHeight);
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(image);
+  Win32ImageViewContext *ctx = 0;
+  if (handler)
+  {
+    ctx = static_cast<Win32ImageViewContext *>(handler->ensureContext(image, this, handlerState));
+  }
+  if (!ctx)
+  {
+    ctx = this->contextMapper_.ensureImageViewContext(image, state.x, state.y, imageWidth, imageHeight);
+  }
+  return LayoutNodeResult(state.width, state.y + imageHeight + kVerticalSpacing);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutRectSurfaceNode(
+    loka::app::RectSurfaceNode *surface,
+    const LayoutState &state)
+{
+  Win32RectSurfaceContext *ctx = static_cast<Win32RectSurfaceContext *>(surface->getContext());
+  if (ctx)
+  {
+    ctx->relayout(state.x, state.y, surface->props.width_, surface->props.height_);
+  }
+  else
+  {
+    ctx = new Win32RectSurfaceContext(rootHwnd_,
+                                      state.x,
+                                      state.y,
+                                      surface->props.width_,
+                                      surface->props.height_,
+                                      surface);
+    surface->setContext(ctx);
+  }
+  return LayoutNodeResult(state.width, state.y + surface->props.height_ + kVerticalSpacing);
 }
 
 int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const LayoutState &state)
@@ -668,7 +884,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     {
       currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &Win32ScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, currentY));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, currentY));
   }
 
   if (loka::app::RowNode *row = node->asRowNode())
@@ -697,7 +913,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
       metrics.imageFallbackHeight = kImageFallbackHeightModern;
       maxY = loka::app::layout::computeRowLayoutResultY(row, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
   }
 
   if (loka::app::GridNode *grid = node->asGridNode())
@@ -721,7 +937,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
       metrics.gapY = 0;
       maxY = loka::app::layout::computeGridLayoutResultY(grid, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
   }
 
   if (loka::app::BoxNode *box = node->asBoxNode())
@@ -742,7 +958,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     {
       resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &Win32ScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, resultY));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, resultY));
   }
 
   if (loka::app::ZStackNode *stack = node->asZStackNode())
@@ -763,7 +979,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     {
       maxY = loka::app::layout::computeZStackLayoutResultY(stack, state, this, &Win32ScenePlatformController::layoutContainerChild);
     }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, maxY));
   }
 
   if (loka::app::scene::INestable *nestable = node->asNestable())
@@ -774,238 +990,50 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
     {
       childState.y = layoutNode(child, childState);
     }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, childState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, childState.y));
   }
 
   if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
   {
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = 0;
-    handlerState.y = 0;
-    handlerState.width = 0;
-    handlerState.height = 0;
-    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(dialog);
-    Win32OpenFileDialogContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<Win32OpenFileDialogContext *>(handler->ensureContext(dialog, this, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = this->contextMapper_.ensureOpenFileDialogContext(dialog);
-    }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, state.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutOpenFileDialogNode(dialog, state));
   }
 
   if (loka::app::ButtonNode *button = node->asButtonNode())
   {
-    Win32ButtonContext *ctx = this->contextMapper_.ensureButtonContext(button,
-                                                                       state.x,
-                                                                       state.y,
-                                                                       state.width,
-                                                                       kButtonHeight);
-    buttonMap_[ctx->hwnd()] = ctx;
-
-    LayoutState nextState = state;
-    nextState.y = state.y + kButtonHeight + kVerticalSpacing;
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutButtonNode(button, state));
   }
 
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
   {
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = static_cast<short>(state.x);
-    handlerState.y = static_cast<short>(state.y);
-    handlerState.width = static_cast<short>(state.width);
-    handlerState.height = static_cast<short>(kEditTextHeight);
-    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(edit);
-    Win32EditTextContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<Win32EditTextContext *>(handler->ensureContext(edit, this, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = this->contextMapper_.ensureEditTextContext(edit, state.x, state.y, state.width, kEditTextHeight);
-    }
-    editMap_[ctx->hwnd()] = ctx;
-
-    LayoutState nextState = state;
-    nextState.y = state.y + kEditTextHeight + kVerticalSpacing;
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutEditTextNode(edit, state));
   }
 
   if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
   {
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = static_cast<short>(state.x);
-    handlerState.y = static_cast<short>(state.y);
-    handlerState.width = static_cast<short>(state.width);
-    handlerState.height = static_cast<short>(kPopupMenuHeight);
-    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(popup);
-    Win32PopupMenuContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<Win32PopupMenuContext *>(handler->ensureContext(popup, this, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = this->contextMapper_.ensurePopupMenuContext(popup, state.x, state.y, state.width, kPopupMenuHeight);
-    }
-    popupMap_[ctx->hwnd()] = ctx;
-
-    LayoutState nextState = state;
-    nextState.y = state.y + kPopupMenuHeight + kVerticalSpacing;
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutPopupMenuNode(popup, state));
   }
 
   if (loka::app::CellNode *cell = node->asCellNode())
   {
-    const int cellHeight = state.height > 0 ? state.height : kTextHeight;
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = static_cast<short>(state.x);
-    handlerState.y = static_cast<short>(state.y);
-    handlerState.width = static_cast<short>(state.width);
-    handlerState.height = static_cast<short>(cellHeight);
-    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(cell);
-    Win32CellContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<Win32CellContext *>(handler->ensureContext(cell, this, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = this->contextMapper_.ensureCellContext(cell, state.x, state.y, state.width, cellHeight);
-    }
-
-    LayoutState nextState = state;
-    nextState.y = state.y + cellHeight;
-    if (state.height <= 0)
-    {
-      nextState.y += kVerticalSpacing;
-    }
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutCellNode(cell, state));
   }
 
   if (loka::app::TextNode *text = node->asTextNode())
   {
-    const int textHeight = MeasureTextHeightForWidth(rootHwnd_, text, state.width, kTextHeight);
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = static_cast<short>(state.x);
-    handlerState.y = static_cast<short>(state.y);
-    handlerState.width = static_cast<short>(state.width);
-    handlerState.height = static_cast<short>(textHeight);
-    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(text);
-    Win32TextContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<Win32TextContext *>(handler->ensureContext(text, this, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = this->contextMapper_.ensureTextContext(text, state.x, state.y, state.width, textHeight);
-    }
-
-    LayoutState nextState = state;
-    nextState.y = state.y + textHeight + kVerticalSpacing;
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutTextNode(text, state));
   }
 
   if (loka::app::ImageViewNode *image = node->asImageViewNode())
   {
-    int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
-    if (image->props.hasAttr_ && image->props.attr_.hasSizePolicyValue_)
-    {
-      sizePolicy = static_cast<int>(image->props.attr_.sizePolicyValue_);
-    }
-
-    const bool hasExplicitWidth = image->props.width_ > 0;
-    const bool hasExplicitHeight = image->props.height_ > 0;
-    int imageWidth = hasExplicitWidth ? image->props.width_ : state.width;
-    int imageHeight = image->props.height_;
-    int srcWidth = 0;
-    int srcHeight = 0;
-    if (image->props.image_)
-    {
-      const loka::core::resource::Image current = image->props.image_->get();
-      srcWidth = current.width();
-      srcHeight = current.height();
-    }
-
-    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && !hasExplicitWidth && srcWidth > 0)
-    {
-      imageWidth = srcWidth;
-    }
-    else if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && !hasExplicitWidth)
-    {
-      imageWidth = state.width;
-    }
-
-    if (!hasExplicitHeight)
-    {
-      if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && state.height > 0)
-      {
-        imageHeight = state.height;
-      }
-      else if (srcWidth > 0 && srcHeight > 0 && imageWidth > 0)
-      {
-        imageHeight = (imageWidth * srcHeight) / srcWidth;
-      }
-      else if (srcHeight > 0)
-      {
-        imageHeight = srcHeight;
-      }
-    }
-    if (imageHeight <= 0)
-    {
-      imageHeight = 160;
-    }
-
-    loka::app::scene::LayoutState handlerState;
-    handlerState.x = static_cast<short>(state.x);
-    handlerState.y = static_cast<short>(state.y);
-    handlerState.width = static_cast<short>(imageWidth);
-    handlerState.height = static_cast<short>(imageHeight);
-    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(image);
-    Win32ImageViewContext *ctx = 0;
-    if (handler)
-    {
-      ctx = static_cast<Win32ImageViewContext *>(handler->ensureContext(image, this, handlerState));
-    }
-    if (!ctx)
-    {
-      ctx = this->contextMapper_.ensureImageViewContext(image, state.x, state.y, imageWidth, imageHeight);
-    }
-
-    LayoutState nextState = state;
-    nextState.y = state.y + imageHeight + kVerticalSpacing;
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutImageViewNode(image, state));
   }
 
   if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
   {
-    Win32RectSurfaceContext *ctx = static_cast<Win32RectSurfaceContext *>(surface->getContext());
-    if (ctx)
-    {
-      ctx->relayout(state.x, state.y, surface->props.width_, surface->props.height_);
-    }
-    else
-    {
-      ctx = new Win32RectSurfaceContext(rootHwnd_,
-                                        state.x,
-                                        state.y,
-                                        surface->props.width_,
-                                        surface->props.height_,
-                                        surface);
-      surface->setContext(ctx);
-    }
-
-    LayoutState nextState = state;
-    nextState.y = state.y + surface->props.height_ + kVerticalSpacing;
-    return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, nextState.y));
+    return this->applyBoundaryLayoutResult(boundary, startX, startY, this->layoutRectSurfaceNode(surface, state));
   }
 
-  return ApplyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, state.y));
+  return this->applyBoundaryLayoutResult(boundary, startX, startY, LayoutNodeResult(startWidth, state.y));
 }
 
 int Win32ScenePlatformController::layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
