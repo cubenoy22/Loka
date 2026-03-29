@@ -1,5 +1,35 @@
 #include "Win32OpenFileDialogContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include <commdlg.h>
+
+namespace
+{
+  class Win32OpenFileDialogNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      loka::app::OpenFileDialogNode *dialog = node ? node->asOpenFileDialogNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!dialog || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureOpenFileDialogContext(dialog);
+    }
+  };
+
+  Win32OpenFileDialogNodeHandler gWin32OpenFileDialogNodeHandler;
+}
 
 Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node)
     : parent_(parent),
@@ -165,4 +195,9 @@ void Win32OpenFileDialogContext::DeliverDeferredResultThunk(void *userData)
   }
 
   delete delivery;
+}
+
+void RegisterWin32OpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32OpenFileDialogNodeHandler);
 }

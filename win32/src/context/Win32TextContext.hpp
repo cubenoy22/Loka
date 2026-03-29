@@ -19,6 +19,10 @@ namespace loka
   namespace app
   {
     class TextNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -31,6 +35,7 @@ public:
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return this; }
   virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return this; }
   virtual bool captureBitmap(loka::core::resource::Image &out) const;
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   void relayout(int x, int y, int width, int height);
 
 private:
@@ -45,5 +50,7 @@ private:
   loka::core::State<loka::core::String> *textState_;
   bool didInitialApply_;
 };
+
+void RegisterWin32TextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_TEXT_CONTEXT_HPP

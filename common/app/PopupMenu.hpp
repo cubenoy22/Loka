@@ -217,14 +217,29 @@ namespace loka
       }
     };
 
-    class PopupMenuNode : public loka::app::scene::Node
+    class PopupMenuNode : public loka::app::scene::Node,
+                          public loka::app::scene::IProjectedLayoutNode
     {
     public:
       typedef PopupMenuTypeTag TypeTag;
       PopupMenuProps props;
       PopupMenuNode(const PopupMenuProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_POPUP_MENU; }
+      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+      virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<PopupMenuNode>(); }
       virtual PopupMenuNode *asPopupMenuNode() { return this; }
+      virtual short layoutProjected(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
+      {
+        if (!controller)
+        {
+          return state.y;
+        }
+        if (!loka::app::scene::PrepareProjectedLayout(controller, this, state))
+        {
+          return state.y;
+        }
+        return loka::app::scene::Node::layout(controller, state);
+      }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
         if (this->props.selectedIndex_)

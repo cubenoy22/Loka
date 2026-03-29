@@ -1,4 +1,6 @@
 #include "MacImageViewContext.hpp"
+#include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include <AppKit/AppKit.h>
 
 @interface LokaImageView : NSView
@@ -9,6 +11,117 @@
 - (void)setImage:(NSImage *)image;
 - (void)setFitMode:(int)fitMode;
 @end
+
+namespace
+{
+  const int kVerticalSpacing = 12;
+
+  int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node, int fallbackWidth)
+  {
+    if (!node)
+    {
+      return fallbackWidth;
+    }
+    int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
+    if (node->props.hasAttr_ && node->props.attr_.hasSizePolicyValue_)
+    {
+      sizePolicy = static_cast<int>(node->props.attr_.sizePolicyValue_);
+    }
+    const bool hasExplicitWidth = node->props.width_ > 0;
+    int srcWidth = 0;
+    if (node->props.image_)
+    {
+      const loka::core::resource::Image current = node->props.image_->get();
+      srcWidth = current.width();
+    }
+    if (hasExplicitWidth)
+    {
+      return node->props.width_;
+    }
+    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_INTRINSIC && srcWidth > 0)
+    {
+      return srcWidth;
+    }
+    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT)
+    {
+      return fallbackWidth;
+    }
+    return fallbackWidth;
+  }
+
+  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node,
+                               int resolvedWidth,
+                               int fallbackHeight)
+  {
+    if (!node)
+    {
+      return fallbackHeight > 0 ? fallbackHeight : 160;
+    }
+    int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
+    if (node->props.hasAttr_ && node->props.attr_.hasSizePolicyValue_)
+    {
+      sizePolicy = static_cast<int>(node->props.attr_.sizePolicyValue_);
+    }
+    const bool hasExplicitHeight = node->props.height_ > 0;
+    int srcWidth = 0;
+    int srcHeight = 0;
+    if (node->props.image_)
+    {
+      const loka::core::resource::Image current = node->props.image_->get();
+      srcWidth = current.width();
+      srcHeight = current.height();
+    }
+    if (hasExplicitHeight)
+    {
+      return node->props.height_;
+    }
+    if (sizePolicy == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT && fallbackHeight > 0)
+    {
+      return fallbackHeight;
+    }
+    if (srcWidth > 0 && srcHeight > 0 && resolvedWidth > 0)
+    {
+      return (resolvedWidth * srcHeight) / srcWidth;
+    }
+    if (srcHeight > 0)
+    {
+      return srcHeight;
+    }
+    if (fallbackHeight > 0)
+    {
+      return fallbackHeight;
+    }
+    return 160;
+  }
+
+  class MacImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!image || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureImageViewContext(image,
+                                                          state.x,
+                                                          state.y,
+                                                          state.width,
+                                                          state.height);
+    }
+  };
+
+  MacImageViewNodeHandler gMacImageViewNodeHandler;
+}
 
 @implementation LokaImageView
 - (id)initWithFrame:(NSRect)frame
@@ -157,6 +270,16 @@ MacImageViewContext::~MacImageViewContext()
   imageView_ = 0;
 }
 
+short MacImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  const int imageWidth = ResolveImageLayoutWidth(this->node_, state.width);
+  const int imageHeight = ResolveImageLayoutHeight(this->node_, imageWidth, state.height);
+  this->relayout(state.x, state.y, imageWidth, imageHeight);
+  state.width = static_cast<short>(imageWidth);
+  state.height = static_cast<short>(imageHeight);
+  return static_cast<short>(state.y + imageHeight + kVerticalSpacing);
+}
+
 void MacImageViewContext::relayout(int x, int y, int width, int height)
 {
   LokaImageView *view = (LokaImageView *)imageView_;
@@ -216,4 +339,9 @@ void MacImageViewContext::ImageChangedThunk(void *userData)
   {
     self->applyImage();
   }
+}
+
+void RegisterMacImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacImageViewNodeHandler);
 }

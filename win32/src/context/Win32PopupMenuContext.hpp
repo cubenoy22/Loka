@@ -5,11 +5,23 @@
 #include "app/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class Win32PopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
   Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
   virtual ~Win32PopupMenuContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   HWND hwnd() const { return hwnd_; }
   void relayout(int x, int y, int width, int height);
@@ -37,5 +49,7 @@ private:
   int baseHeight_;
   int baseWidth_;
 };
+
+void RegisterWin32PopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_POPUP_MENU_CONTEXT_HPP

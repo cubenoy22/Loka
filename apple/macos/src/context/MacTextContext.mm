@@ -1,5 +1,6 @@
 #include "MacTextContext.hpp"
 #include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Text.hpp"
@@ -9,6 +10,56 @@
 
 namespace
 {
+  const int kDefaultTextHeight = 20;
+  const int kVerticalSpacing = 12;
+
+  int MeasureTextHeightForWidth(const loka::app::TextNode *text,
+                                int width,
+                                int defaultHeight)
+  {
+    if (!text || !text->props.text_)
+    {
+      return defaultHeight;
+    }
+    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
+        text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+    {
+      return defaultHeight;
+    }
+    if (width <= 0)
+    {
+      return defaultHeight;
+    }
+
+    std::string utf8;
+    if (!loka::platform::CollectUtf8(text->props.text_->get(), utf8))
+    {
+      return defaultHeight;
+    }
+    if (utf8.empty())
+    {
+      return defaultHeight;
+    }
+
+    NSString *string = [NSString stringWithUTF8String:utf8.c_str()];
+    if (!string)
+    {
+      return defaultHeight;
+    }
+    NSDictionary *attrs = [NSDictionary dictionaryWithObject:[NSFont systemFontOfSize:[NSFont systemFontSize]]
+                                                      forKey:NSFontAttributeName];
+    NSRect rect = [string boundingRectWithSize:NSMakeSize(static_cast<CGFloat>(width), CGFLOAT_MAX)
+                                       options:(NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading)
+                                    attributes:attrs];
+    const int measured = static_cast<int>(rect.size.height + 0.5f);
+    const int measuredWithPadding = measured + 2;
+    if (measuredWithPadding > defaultHeight)
+    {
+      return measuredWithPadding;
+    }
+    return defaultHeight;
+  }
+
   static void SetUsesSingleLineModeCompat(NSTextField *label, BOOL value)
   {
     if (!label)
@@ -60,6 +111,34 @@ namespace
     }
     return true;
   }
+
+  class MacTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::TextNode *text = node ? node->asTextNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!text || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureTextContext(text,
+                                                     state.x,
+                                                     state.y,
+                                                     state.width,
+                                                     state.height);
+    }
+  };
+
+  MacTextNodeHandler gMacTextNodeHandler;
 }
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
@@ -132,6 +211,14 @@ MacTextContext::~MacTextContext()
 bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureViewBitmap((NSView *)label_, out);
+}
+
+short MacTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  const int textHeight = MeasureTextHeightForWidth(this->node_, state.width, kDefaultTextHeight);
+  this->relayout(state.x, state.y, state.width, textHeight);
+  state.height = static_cast<short>(textHeight);
+  return static_cast<short>(state.y + textHeight + kVerticalSpacing);
 }
 
 void MacTextContext::relayout(int x, int y, int width, int height)
@@ -218,4 +305,9 @@ void MacTextContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterMacTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacTextNodeHandler);
 }

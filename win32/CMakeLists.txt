@@ -11,6 +11,7 @@ list(APPEND COMMON_SOURCES ../common/loka/core/Profiler.cpp)
 list(REMOVE_DUPLICATES COMMON_SOURCES)
 set(SOURCES
   src/Win32App.cpp
+  src/Win32BuiltInSupport.cpp
   src/Win32Window.cpp
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
@@ -23,6 +24,7 @@ set(SOURCES
   src/context/Win32PopupMenuContext.cpp
   src/context/Win32ImageViewContext.cpp
   src/context/Win32RectSurfaceContext.cpp
+  src/context/Win32NodeContextMapper.cpp
   src/platform/Win32DebugLog.cpp
   src/platform/Win32Profiler.cpp
   src/platform/Win32String.cpp

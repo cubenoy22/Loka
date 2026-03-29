@@ -1,4 +1,6 @@
 #include "MacButtonContext.hpp"
+#include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Button.hpp"
@@ -8,6 +10,9 @@
 
 namespace
 {
+  const int kButtonHeight = 32;
+  const int kVerticalSpacing = 12;
+
   static void ReleaseCapturedButtonBitmap(void *handle, void *)
   {
     NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
@@ -47,6 +52,34 @@ namespace
     }
     return true;
   }
+
+  class MacButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!button || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureButtonContext(button,
+                                                       state.x,
+                                                       state.y,
+                                                       state.width,
+                                                       state.height);
+    }
+  };
+
+  MacButtonNodeHandler gMacButtonNodeHandler;
 }
 
 
@@ -130,6 +163,13 @@ bool MacButtonContext::captureBitmap(loka::core::resource::Image &out) const
   return CaptureButtonBitmap((NSView *)button_, out);
 }
 
+short MacButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kButtonHeight);
+  state.height = static_cast<short>(kButtonHeight);
+  return static_cast<short>(state.y + kButtonHeight + kVerticalSpacing);
+}
+
 void MacButtonContext::handlePress()
 {
   if (node_ && node_->props.onClick_)
@@ -206,6 +246,11 @@ void MacButtonContext::applyText()
   {
     [button setTitle:loka::macos::CreateNSStringFromUtf8(utf8)];
   }
+}
+
+void RegisterMacButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacButtonNodeHandler);
 }
 
 void MacButtonContext::applyEnabled()

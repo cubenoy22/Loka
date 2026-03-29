@@ -5,11 +5,23 @@
 #include "loka/core/State.hpp"
 #include "core/resource/Image.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class MacImageViewContext : public loka::app::scene::NodeContext
 {
 public:
   MacImageViewContext(void *parentView, int x, int y, int width, int height, loka::app::ImageViewNode *node);
   virtual ~MacImageViewContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   void relayout(int x, int y, int width, int height);
 
 private:
@@ -24,5 +36,7 @@ private:
   loka::core::State<loka::core::resource::Image> *imageState_;
   loka::core::resource::Image image_;
 };
+
+void RegisterMacImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_IMAGE_VIEW_CONTEXT_HPP

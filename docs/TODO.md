@@ -19,6 +19,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Declarative OpenGL game foundation (mainline): scene/update/render flow, resource model, and platform bridge boundaries.
 - Sprite path (Toolbox/Win32) as lightweight compatibility backend, not the primary game direction.
 - Pseudo-view sprite path: for lightweight game/decorative nodes, prefer one retained root native view plus scene-managed pseudo-views/sprites instead of one native subview per sprite. Keep `RectSurfaceNode`/similar nodes as normal scene nodes and push backend-specific diff/draw optimization into `NodeContext`.
+- `RectSurface` direction: do not force it through the same generic handler-migration path as `Button`/`Text`/`Cell`. Revisit it as a possible `RealTimeComposition` / continuously-updated surface family with its own redraw, diff, and scheduling contract.
 - Event loop + tick design for game-style rendering (separate from UI updates), aligned with the declarative game path.
 - Window close request: delegate to Scene/Root.
 - loka::core::Managed<T> circular reference patterns (Group/Weak or one-way ref policy).
@@ -45,7 +46,15 @@ These items address recurring bug patterns and structural risks identified durin
 - Cleanup staged work from earlier C++98 retrofit (split/rebase if needed).
 - DSL shorthand ideas: direct props overloads (Text("...")), direct State props (EditText(State*)), optional prepare/compose merge, namespace alias, Fragment helper.
 - C++98 chain-entry helper idea: add a thin wrapper/helper for DSL/Stream/Flow entry points so callers can keep chaining without spelling long intermediate types when `auto` is unavailable. Keep it narrow and purposeful rather than a broad "wrap anything" abstraction.
-- Decentralize node-type dispatch: replace the single `NODE_KIND` + `asXxxNode()` + `PlatformController` switch concentration with a registration-based context factory model. The long-term goal is to remove enum/switch dispatch and most `asXxxNode()` paths outside 68k-sensitive builds while preserving user-defined component extensibility.
+- Decentralize node-type dispatch: replace the single `NODE_KIND` + `asXxxNode()` + `PlatformController` switch concentration with a registration-based context factory model.
+  Stage 1: split context creation from `PlatformController::layoutNode()` by introducing per-platform node-context mappers/factories (Toolbox-style) for Win32/macOS.
+  Stage 2: migrate leaf nodes first (`Button`, `Text`, `ImageView`, then `EditText`/`PopupMenu`/`Cell`/`OpenFileDialog`) so context ensure/reuse and leaf-specific sizing move out of the controller without changing behavior.
+  `RectSurface` is not on the same track anymore: treat it as a candidate for a dedicated `RealTimeComposition`-style family rather than another generic retained-control leaf.
+  Stage 3: extract shared container traversal/layout (`Column`/`Row`/`Grid`/`Box`/`ZStack`) into common code, keeping boundary bounds updates and platform-local ownership hooks intact.
+  Stage 3.5: once shared container helpers stabilize, define a separate layout-extension seam for external/custom layout providers rather than forcing container traversal into the node-context handler API.
+  Note: Win32/macOS now also have an internal `PlatformLayoutHandlerRegistry` seam and built-in layout handlers for `Box`/`ZStack`/`Column`/`Row`/`Grid`; Toolbox can follow later without changing the public controller contract.
+  Stage 4: make registry/factory lookup the primary path and keep `NODE_KIND`/`asXxxNode()` fallback only where 68k-sensitive builds still need the cheaper/static dispatch path.
+  Long-term goal: remove enum/switch dispatch and most `asXxxNode()` paths outside 68k-sensitive builds while preserving user-defined component extensibility.
 - Introduce `loka::multimedia` layer for codec/media responsibilities (ImageDecoder/Audio/Video), keeping `app` layer UI-only. Platform contexts should call multimedia abstractions instead of embedding QuickTime/AVFoundation/Win32 decode logic directly.
 - ImageView rendering policy: keep platform contexts on custom drawing paths (NSView/GDI/Toolbox) and avoid tying behavior to NSImageView-specific features for cross-platform parity.
 - ImageView scaling contract: `fit` mode handling aligned on Win32/macOS (`NONE/CONTAIN/COVER/STRETCH`); Toolbox now has ImageView render path (frame + loaded-state overlay), but native image blit from `Image::nativeHandle` is still pending.

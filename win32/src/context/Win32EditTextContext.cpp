@@ -1,8 +1,44 @@
 #include "Win32EditTextContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include <vector>
 #include "app/EditText.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
+
+namespace
+{
+  const int kEditTextHeight = 24;
+  const int kVerticalSpacing = 12;
+
+  class Win32EditTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::EditTextNode *edit = node ? node->asEditTextNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!edit || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureEditTextContext(edit,
+                                                           state.x,
+                                                           state.y,
+                                                           state.width,
+                                                           state.height);
+    }
+  };
+
+  Win32EditTextNodeHandler gWin32EditTextNodeHandler;
+}
 
 Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node)
     : node_(node), hwnd_(NULL), textState_(0), applyingFromState_(false), updatingFromControl_(false)
@@ -21,6 +57,10 @@ Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width,
       NULL,
       GetModuleHandle(NULL),
       NULL);
+  if (hwnd_)
+  {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+  }
   bindText();
 }
 
@@ -46,6 +86,13 @@ bool Win32EditTextContext::handleCommand(WPARAM wParam, LPARAM)
     return true;
   }
   return false;
+}
+
+short Win32EditTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kEditTextHeight);
+  state.height = static_cast<short>(kEditTextHeight);
+  return static_cast<short>(state.y + kEditTextHeight + kVerticalSpacing);
 }
 
 void Win32EditTextContext::relayout(int x, int y, int width, int height)
@@ -148,4 +195,9 @@ void Win32EditTextContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterWin32EditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32EditTextNodeHandler);
 }

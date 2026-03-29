@@ -1,7 +1,43 @@
 #include "Win32PopupMenuContext.hpp"
+#include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include <string>
 #include <tchar.h>
+
+namespace
+{
+  const int kPopupMenuHeight = 26;
+  const int kVerticalSpacing = 12;
+
+  class Win32PopupMenuNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::PopupMenuNode *popup = node ? node->asPopupMenuNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!popup || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensurePopupMenuContext(popup,
+                                                            state.x,
+                                                            state.y,
+                                                            state.width,
+                                                            state.height);
+    }
+  };
+
+  Win32PopupMenuNodeHandler gWin32PopupMenuNodeHandler;
+}
 
 Win32PopupMenuContext::Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
     : node_(node),
@@ -26,6 +62,10 @@ Win32PopupMenuContext::Win32PopupMenuContext(HWND parent, int x, int y, int widt
       0,
       GetModuleHandle(NULL),
       NULL);
+  if (hwnd_)
+  {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+  }
 
   applyItems();
   bindSelection();
@@ -50,6 +90,13 @@ bool Win32PopupMenuContext::handleCommand(WPARAM, LPARAM)
     syncStateFromControl();
   }
   return true;
+}
+
+short Win32PopupMenuContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kPopupMenuHeight);
+  state.height = static_cast<short>(kPopupMenuHeight);
+  return static_cast<short>(state.y + kPopupMenuHeight + kVerticalSpacing);
 }
 
 void Win32PopupMenuContext::relayout(int x, int y, int width, int height)
@@ -212,4 +259,9 @@ void Win32PopupMenuContext::EnabledChangedThunk(void *userData)
   {
     self->applyEnabled();
   }
+}
+
+void RegisterWin32PopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32PopupMenuNodeHandler);
 }

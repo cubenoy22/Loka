@@ -20,6 +20,10 @@ namespace loka
   namespace app
   {
     class CellNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -28,6 +32,7 @@ class Win32CellContext : public loka::app::scene::NativeNodeContext
 public:
   Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node);
   virtual ~Win32CellContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   void relayout(int x, int y, int width, int height);
 
 private:
@@ -44,5 +49,7 @@ private:
   loka::core::State<loka::core::String> *textState_;
   std::string text_;
 };
+
+void RegisterWin32CellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_CELL_CONTEXT_HPP

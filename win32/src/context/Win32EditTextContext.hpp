@@ -21,6 +21,10 @@ namespace loka
   namespace app
   {
     class EditTextNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -29,6 +33,7 @@ class Win32EditTextContext : public loka::app::scene::NativeNodeContext
 public:
   Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node);
   virtual ~Win32EditTextContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   HWND hwnd() const { return hwnd_; }
   void relayout(int x, int y, int width, int height);
@@ -47,5 +52,7 @@ private:
   bool applyingFromState_;
   bool updatingFromControl_;
 };
+
+void RegisterWin32EditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_EDIT_TEXT_CONTEXT_HPP

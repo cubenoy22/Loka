@@ -1,5 +1,6 @@
 #include "Win32ButtonContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "app/Button.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
@@ -7,6 +8,37 @@
 
 namespace
 {
+  const int kButtonHeight = 32;
+  const int kVerticalSpacing = 12;
+
+  class Win32ButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!button || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureButtonContext(button,
+                                                         state.x,
+                                                         state.y,
+                                                         state.width,
+                                                         state.height);
+    }
+  };
+
+  Win32ButtonNodeHandler gWin32ButtonNodeHandler;
+
   void ReleaseCapturedButtonBitmap(void *handle, void *)
   {
     if (handle)
@@ -96,6 +128,10 @@ Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
       GetModuleHandle(NULL),
       NULL);
+  if (hwnd_)
+  {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+  }
   bindText();
   bindEnabled();
 }
@@ -114,6 +150,13 @@ Win32ButtonContext::~Win32ButtonContext()
 bool Win32ButtonContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureButtonBitmap(this->hwnd_, out);
+}
+
+short Win32ButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kButtonHeight);
+  state.height = static_cast<short>(kButtonHeight);
+  return static_cast<short>(state.y + kButtonHeight + kVerticalSpacing);
 }
 
 bool Win32ButtonContext::handleCommand(WPARAM, LPARAM)
@@ -215,4 +258,9 @@ void Win32ButtonContext::EnabledChangedThunk(void *userData)
   {
     self->applyEnabled();
   }
+}
+
+void RegisterWin32ButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gWin32ButtonNodeHandler);
 }

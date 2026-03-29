@@ -266,14 +266,29 @@ namespace loka
       }
     };
 
-    class TextNode : public scene::Node
+    class TextNode : public scene::Node,
+                     public scene::IProjectedLayoutNode
     {
     public:
       typedef TextTypeTag TypeTag;
       TextProps props;
       TextNode(const TextProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_TEXT; }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<TextNode>(); }
       virtual TextNode *asTextNode() { return this; }
+      virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
+      {
+        if (!controller)
+        {
+          return state.y;
+        }
+        if (!scene::PrepareProjectedLayout(controller, this, state))
+        {
+          return state.y;
+        }
+        return scene::Node::layout(controller, state);
+      }
       virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
       {
         if (this->props.text_)

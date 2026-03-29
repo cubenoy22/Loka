@@ -40,6 +40,7 @@ file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
 
 set(LOKA_MACOS_CORE_SOURCES
   src/MacApp.mm
+  src/MacBuiltInSupport.mm
   src/DebugLog.mm
   src/MacPlatformContext.mm
   src/MacProfiler.cpp
@@ -53,6 +54,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/context/MacPopupMenuContext.mm
   src/context/MacImageViewContext.mm
   src/context/MacRectSurfaceContext.mm
+  src/context/MacNodeContextMapper.mm
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 

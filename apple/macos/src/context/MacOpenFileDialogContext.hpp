@@ -5,6 +5,17 @@
 #include "app/OpenFileDialog.hpp"
 #include "loka/core/String.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class MacOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -27,5 +38,7 @@ private:
   loka::core::EmitterState *onResult_;
   bool presenting_;
 };
+
+void RegisterMacOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_OPEN_FILE_DIALOG_CONTEXT_HPP

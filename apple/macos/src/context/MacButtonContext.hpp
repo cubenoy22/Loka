@@ -10,6 +10,10 @@ namespace loka
   namespace app
   {
     class ButtonNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -22,6 +26,7 @@ public:
   virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return this; }
   virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return this; }
   virtual bool captureBitmap(loka::core::resource::Image &out) const;
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   void handlePress();
   void relayout(int x, int y, int width, int height);
@@ -42,5 +47,7 @@ private:
   loka::core::State<loka::core::String> *textState_;
   loka::core::State<bool> *enabledState_;
 };
+
+void RegisterMacButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_BUTTON_CONTEXT_HPP

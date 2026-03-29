@@ -5,6 +5,17 @@
 #include "app/scene/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -36,5 +47,7 @@ private:
   loka::core::EmitterState *onResult_;
   bool presenting_;
 };
+
+void RegisterWin32OpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_WIN32_OPEN_FILE_DIALOG_CONTEXT_HPP

@@ -10,6 +10,8 @@ int main() {
   testSnapFlowWriteAdapter();
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
+  testPlatformNodeHandlerRegistration();
+  testPlatformLayoutHandlerRegistration();
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
   testToolboxChildDirtyInvalidationPrefersFullRedraw();

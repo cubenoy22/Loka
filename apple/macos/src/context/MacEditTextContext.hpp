@@ -10,6 +10,10 @@ namespace loka
   namespace app
   {
     class EditTextNode;
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
   }
 }
 
@@ -18,6 +22,7 @@ class MacEditTextContext : public loka::app::scene::NativeNodeContext
 public:
   MacEditTextContext(void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node);
   virtual ~MacEditTextContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   void handleTextDidChange();
   void *nativeField() const;
@@ -37,5 +42,7 @@ private:
   bool applyingFromState_;
   bool updatingFromControl_;
 };
+
+void RegisterMacEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_EDIT_TEXT_CONTEXT_HPP

@@ -4,11 +4,23 @@
 #include "app/scene/NativeNodeContext.hpp"
 #include "app/PopupMenu.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  }
+}
+
 class MacPopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
   MacPopupMenuContext(void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
   virtual ~MacPopupMenuContext();
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   void handleSelectionChange();
   void relayout(int x, int y, int width, int height);
@@ -34,5 +46,7 @@ private:
   bool applyingFromState_;
   bool updatingFromControl_;
 };
+
+void RegisterMacPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_MAC_POPUP_MENU_CONTEXT_HPP

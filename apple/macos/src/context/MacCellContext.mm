@@ -1,4 +1,6 @@
 #include "MacCellContext.hpp"
+#include "../MacScenePlatformController.hpp"
+#include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/Cell.hpp"
@@ -6,6 +8,40 @@
 #include "loka/platform/StringUTF8.hpp"
 
 class MacCellContext;
+
+namespace
+{
+  const int kDefaultCellHeight = 20;
+  const int kVerticalSpacing = 12;
+
+  class MacCellNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::CellNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::CellNode *cell = node ? node->asCellNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!cell || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureCellContext(cell,
+                                                     state.x,
+                                                     state.y,
+                                                     state.width,
+                                                     state.height);
+    }
+  };
+
+  MacCellNodeHandler gMacCellNodeHandler;
+}
 
 @interface LokaCellView : NSView
 {
@@ -120,6 +156,20 @@ MacCellContext::~MacCellContext()
   view_ = 0;
 }
 
+short MacCellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  const short requestedHeight = state.height;
+  const int cellHeight = requestedHeight > 0 ? requestedHeight : kDefaultCellHeight;
+  this->relayout(state.x, state.y, state.width, cellHeight);
+  state.height = static_cast<short>(cellHeight);
+  short result = static_cast<short>(state.y + cellHeight);
+  if (requestedHeight <= 0)
+  {
+    result = static_cast<short>(result + kVerticalSpacing);
+  }
+  return result;
+}
+
 void MacCellContext::relayout(int x, int y, int width, int height)
 {
   LokaCellView *view = (LokaCellView *)view_;
@@ -185,4 +235,9 @@ void MacCellContext::TextChangedThunk(void *userData)
   {
     self->applyText();
   }
+}
+
+void RegisterMacCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gMacCellNodeHandler);
 }
