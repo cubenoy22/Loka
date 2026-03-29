@@ -135,15 +135,29 @@ namespace loka
       }
     };
 
-    class OpenFileDialogNode : public loka::app::scene::Node
+    class OpenFileDialogNode : public loka::app::scene::Node,
+                               public loka::app::scene::IProjectedLayoutNode
     {
     public:
       typedef OpenFileDialogTypeTag TypeTag;
       OpenFileDialogProps props;
       OpenFileDialogNode(const OpenFileDialogProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG; }
+      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
       virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<OpenFileDialogNode>(); }
       virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
+      virtual short layoutProjected(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
+      {
+        if (!controller)
+        {
+          return state.y;
+        }
+        if (!loka::app::scene::PrepareProjectedLayout(controller, this, state))
+        {
+          return state.y;
+        }
+        return state.y;
+      }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
         (void)registrar;
