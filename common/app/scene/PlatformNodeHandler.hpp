@@ -38,6 +38,10 @@ namespace loka
           this->head_ = 0;
         }
 
+        // Non-owning registry: built-in handlers are commonly static objects and
+        // external callers may register stack/static handlers through
+        // IPlatformController::registerNodeHandler(...). The registry owns only
+        // its entry list, not the handler instances themselves.
         bool registerHandler(IPlatformNodeHandler *handler)
         {
           if (!handler || !handler->nodeTypeKey())
@@ -50,6 +54,8 @@ namespace loka
           {
             if (existing->nodeTypeKey_ == handler->nodeTypeKey())
             {
+              // Replacement is pointer-only on purpose; lifecycle remains with
+              // the caller/handler owner.
               existing->handler_ = handler;
               return true;
             }
