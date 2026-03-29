@@ -2,9 +2,11 @@
 #include "Win32ScenePlatformController.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
+#include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32TextContext.hpp"
 
 namespace
@@ -87,9 +89,36 @@ namespace
     }
   };
 
+  class Win32PopupMenuNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::PopupMenuNode *popup = node ? node->asPopupMenuNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!popup || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensurePopupMenuContext(popup,
+                                                            state.x,
+                                                            state.y,
+                                                            state.width,
+                                                            state.height);
+    }
+  };
+
   Win32TextNodeHandler gWin32TextNodeHandler;
   Win32ImageViewNodeHandler gWin32ImageViewNodeHandler;
   Win32EditTextNodeHandler gWin32EditTextNodeHandler;
+  Win32PopupMenuNodeHandler gWin32PopupMenuNodeHandler;
 }
 
 void RegisterWin32PlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
@@ -97,4 +126,5 @@ void RegisterWin32PlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegi
   registry.registerHandler(&gWin32TextNodeHandler);
   registry.registerHandler(&gWin32ImageViewNodeHandler);
   registry.registerHandler(&gWin32EditTextNodeHandler);
+  registry.registerHandler(&gWin32PopupMenuNodeHandler);
 }

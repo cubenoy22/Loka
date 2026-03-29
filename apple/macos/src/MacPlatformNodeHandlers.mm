@@ -2,9 +2,11 @@
 #include "MacScenePlatformController.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
+#include "context/MacPopupMenuContext.hpp"
 #include "context/MacTextContext.hpp"
 
 namespace
@@ -87,9 +89,36 @@ namespace
     }
   };
 
+  class MacPopupMenuNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::PopupMenuNode *popup = node ? node->asPopupMenuNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!popup || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensurePopupMenuContext(popup,
+                                                          state.x,
+                                                          state.y,
+                                                          state.width,
+                                                          state.height);
+    }
+  };
+
   MacTextNodeHandler gMacTextNodeHandler;
   MacImageViewNodeHandler gMacImageViewNodeHandler;
   MacEditTextNodeHandler gMacEditTextNodeHandler;
+  MacPopupMenuNodeHandler gMacPopupMenuNodeHandler;
 }
 
 void RegisterMacPlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
@@ -97,4 +126,5 @@ void RegisterMacPlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegist
   registry.registerHandler(&gMacTextNodeHandler);
   registry.registerHandler(&gMacImageViewNodeHandler);
   registry.registerHandler(&gMacEditTextNodeHandler);
+  registry.registerHandler(&gMacPopupMenuNodeHandler);
 }

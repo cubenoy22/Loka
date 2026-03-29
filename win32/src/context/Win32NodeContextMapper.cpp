@@ -2,10 +2,12 @@
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
+#include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "app/Button.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 
 Win32ButtonContext *Win32NodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,
@@ -88,6 +90,27 @@ Win32ImageViewContext *Win32NodeContextMapper::ensureImageViewContext(loka::app:
     return ctx;
   }
   ctx = new Win32ImageViewContext(this->rootHwnd_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+Win32PopupMenuContext *Win32NodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *node,
+                                                                      int x,
+                                                                      int y,
+                                                                      int width,
+                                                                      int height) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  Win32PopupMenuContext *ctx = static_cast<Win32PopupMenuContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->relayout(x, y, width, height);
+    return ctx;
+  }
+  ctx = new Win32PopupMenuContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
   return ctx;
 }

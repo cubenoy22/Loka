@@ -2,10 +2,12 @@
 #include "context/MacButtonContext.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
+#include "context/MacPopupMenuContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "app/Button.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
+#include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
 
 MacButtonContext *MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,
@@ -88,6 +90,27 @@ MacImageViewContext *MacNodeContextMapper::ensureImageViewContext(loka::app::Ima
     return ctx;
   }
   ctx = new MacImageViewContext(this->rootView_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+MacPopupMenuContext *MacNodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *node,
+                                                                  int x,
+                                                                  int y,
+                                                                  int width,
+                                                                  int height) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  MacPopupMenuContext *ctx = static_cast<MacPopupMenuContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->relayout(x, y, width, height);
+    return ctx;
+  }
+  ctx = new MacPopupMenuContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
   return ctx;
 }

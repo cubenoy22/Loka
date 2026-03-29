@@ -867,15 +867,20 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
   {
-    Win32PopupMenuContext *ctx = static_cast<Win32PopupMenuContext *>(popup->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(state.width);
+    handlerState.height = static_cast<short>(kPopupMenuHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(popup);
+    Win32PopupMenuContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, state.width, kPopupMenuHeight);
+      ctx = static_cast<Win32PopupMenuContext *>(handler->ensureContext(popup, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new Win32PopupMenuContext(rootHwnd_, state.x, state.y, state.width, kPopupMenuHeight, popup);
-      popup->setContext(ctx);
+      ctx = this->contextMapper_.ensurePopupMenuContext(popup, state.x, state.y, state.width, kPopupMenuHeight);
     }
     popupMap_[ctx->hwnd()] = ctx;
 

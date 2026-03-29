@@ -10,6 +10,7 @@ namespace loka
     class ButtonNode;
     class EditTextNode;
     class ImageViewNode;
+    class PopupMenuNode;
     class TextNode;
   }
 }
@@ -17,6 +18,7 @@ namespace loka
 class Win32ButtonContext;
 class Win32EditTextContext;
 class Win32ImageViewContext;
+class Win32PopupMenuContext;
 class Win32TextContext;
 
 class Win32NodeContextMapper
@@ -41,6 +43,11 @@ public:
                                       int width,
                                       int height) const;
   Win32ImageViewContext *ensureImageViewContext(loka::app::ImageViewNode *node,
+                                                int x,
+                                                int y,
+                                                int width,
+                                                int height) const;
+  Win32PopupMenuContext *ensurePopupMenuContext(loka::app::PopupMenuNode *node,
                                                 int x,
                                                 int y,
                                                 int width,

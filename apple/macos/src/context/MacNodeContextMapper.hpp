@@ -8,6 +8,7 @@ namespace loka
     class ButtonNode;
     class EditTextNode;
     class ImageViewNode;
+    class PopupMenuNode;
     class TextNode;
   }
 }
@@ -15,6 +16,7 @@ namespace loka
 class MacButtonContext;
 class MacEditTextContext;
 class MacImageViewContext;
+class MacPopupMenuContext;
 class MacTextContext;
 
 class MacNodeContextMapper
@@ -39,6 +41,11 @@ public:
                                     int width,
                                     int height) const;
   MacImageViewContext *ensureImageViewContext(loka::app::ImageViewNode *node,
+                                              int x,
+                                              int y,
+                                              int width,
+                                              int height) const;
+  MacPopupMenuContext *ensurePopupMenuContext(loka::app::PopupMenuNode *node,
                                               int x,
                                               int y,
                                               int width,

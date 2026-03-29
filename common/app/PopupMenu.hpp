@@ -224,6 +224,7 @@ namespace loka
       PopupMenuProps props;
       PopupMenuNode(const PopupMenuProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_POPUP_MENU; }
+      virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<PopupMenuNode>(); }
       virtual PopupMenuNode *asPopupMenuNode() { return this; }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
