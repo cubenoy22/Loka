@@ -67,6 +67,7 @@ Focus:
 * Enable long-lived applications without frequent breakage
 * Establish Loka as a reusable foundation rather than a moving target
 * Finish the first "structural completeness" pass before broad platform/control expansion
+* Remain explicitly Proof of Concept through `v0.1.x`
 
 ### Design gate for v0.1.0
 
@@ -86,6 +87,11 @@ The intent is:
 
 * `0.0.x` through `0.1.0`: finish structural cleanup and seam definition
 * after `0.1.0`: bias toward additive work, contribution friendliness, and API/documentation hardening up to `1.0.0`
+
+Practical interpretation:
+
+* until `v0.1.x`, Loka should prioritize proving that its core architectural model is coherent across current targets over maximizing platform count or control count
+* new work before `v0.1.0` should primarily strengthen the model, seams, and examples rather than widen the surface area prematurely
 
 ### Planned
 
