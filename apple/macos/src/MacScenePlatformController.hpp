@@ -74,6 +74,7 @@ private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
   friend class ::loka::app::scene::MacPlatformLayoutTraversal;
   friend void RegisterMacPlatformLeafLayoutHandlers(MacScenePlatformController &controller);
+  friend void RegisterMacPlatformHostActionLayoutHandlers(MacScenePlatformController &controller);
 
   struct LayoutState
   {
@@ -199,6 +200,9 @@ private:
   static LayoutNodeResult dispatchCellLayout(MacScenePlatformController *controller,
                                              loka::app::scene::Node *node,
                                              const LayoutState &state);
+  static LayoutNodeResult dispatchOpenFileDialogLayout(MacScenePlatformController *controller,
+                                                       loka::app::scene::Node *node,
+                                                       const LayoutState &state);
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
@@ -230,6 +234,7 @@ private:
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;
+  LeafLayoutHandlerRegistry hostActionHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
   loka::app::scene::NodeDirtyFlags lastChangeFlags_;
   int clientWidth_;

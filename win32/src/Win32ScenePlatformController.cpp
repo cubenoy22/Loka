@@ -1,6 +1,7 @@
 #include "Win32ScenePlatformController.hpp"
 #include "Win32PlatformNodeHandlers.hpp"
 #include "Win32PlatformLeafLayoutHandlers.hpp"
+#include "Win32PlatformHostActionLayoutHandlers.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <windows.h>
 #include <vector>
@@ -241,6 +242,7 @@ Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
   gridMetrics.gapY = 0;
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
   RegisterWin32PlatformLeafLayoutHandlers(*this);
+  RegisterWin32PlatformHostActionLayoutHandlers(*this);
   RegisterWin32PlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootHwnd_)
   {
@@ -1039,9 +1041,10 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
     return leafLayoutHandler(this, node, state);
   }
 
-  if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
+  LeafLayoutHandlerFn hostActionHandler = this->hostActionHandlerRegistry_.find(node);
+  if (hostActionHandler)
   {
-    return this->layoutOpenFileDialogNode(dialog, state);
+    return hostActionHandler(this, node, state);
   }
 
   if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
@@ -1162,6 +1165,23 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dis
     return LayoutNodeResult(state.width, state.y);
   }
   return controller->layoutCellNode(cell, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchOpenFileDialogLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
+  if (!dialog)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutOpenFileDialogNode(dialog, state);
 }
 
 void Win32ScenePlatformController::clearContexts()

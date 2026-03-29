@@ -93,6 +93,7 @@ private:
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
   friend class ::loka::app::scene::Win32PlatformLayoutTraversal;
   friend void RegisterWin32PlatformLeafLayoutHandlers(Win32ScenePlatformController &controller);
+  friend void RegisterWin32PlatformHostActionLayoutHandlers(Win32ScenePlatformController &controller);
 
   struct RedrawStats
   {
@@ -306,6 +307,9 @@ private:
   static LayoutNodeResult dispatchCellLayout(Win32ScenePlatformController *controller,
                                              loka::app::scene::Node *node,
                                              const LayoutState &state);
+  static LayoutNodeResult dispatchOpenFileDialogLayout(Win32ScenePlatformController *controller,
+                                                       loka::app::scene::Node *node,
+                                                       const LayoutState &state);
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
@@ -333,6 +337,7 @@ private:
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;
+  LeafLayoutHandlerRegistry hostActionHandlerRegistry_;
   loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;

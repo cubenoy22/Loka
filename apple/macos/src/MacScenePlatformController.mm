@@ -1,6 +1,7 @@
 #include "MacScenePlatformController.hpp"
 #include "MacPlatformNodeHandlers.hpp"
 #include "MacPlatformLeafLayoutHandlers.hpp"
+#include "MacPlatformHostActionLayoutHandlers.hpp"
 #include "app/scene/node/Boundary.hpp"
 #include <AppKit/AppKit.h>
 #include <vector>
@@ -250,6 +251,7 @@ MacScenePlatformController::MacScenePlatformController(void *rootView)
   gridMetrics.gapY = 0;
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
   RegisterMacPlatformLeafLayoutHandlers(*this);
+  RegisterMacPlatformHostActionLayoutHandlers(*this);
   RegisterMacPlatformNodeHandlers(this->nodeHandlerRegistry_);
   if (rootView_)
   {
@@ -770,9 +772,10 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
     return leafLayoutHandler(this, node, state);
   }
 
-  if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
+  LeafLayoutHandlerFn hostActionHandler = this->hostActionHandlerRegistry_.find(node);
+  if (hostActionHandler)
   {
-    return this->layoutOpenFileDialogNode(dialog, state);
+    return hostActionHandler(this, node, state);
   }
 
   if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
@@ -893,6 +896,23 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatc
     return LayoutNodeResult(state.width, state.y);
   }
   return controller->layoutCellNode(cell, state);
+}
+
+MacScenePlatformController::LayoutNodeResult MacScenePlatformController::dispatchOpenFileDialogLayout(
+    MacScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
+  if (!dialog)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutOpenFileDialogNode(dialog, state);
 }
 
 void MacScenePlatformController::registerEditField(void *field)
