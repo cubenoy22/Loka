@@ -232,12 +232,21 @@ namespace
 #else
     NSCompositingOperation op = NSCompositeSourceOver;
 #endif
-    [image_ drawInRect:dstRect
-              fromRect:srcRect
-             operation:op
-              fraction:1.0
-        respectFlipped:YES
-                 hints:nil];
+    if ([image_ respondsToSelector:@selector(drawInRect:fromRect:operation:fraction:respectFlipped:hints:)])
+    {
+      [image_ drawInRect:dstRect
+                fromRect:srcRect
+               operation:op
+                fraction:1.0
+          respectFlipped:YES
+                   hints:nil];
+    }
+    else
+    {
+      // drawInRect:fromRect:operation:fraction:respectFlipped:hints: is 10.6+.
+      // Fall back to the 10.0-compatible variant.
+      [image_ drawInRect:dstRect fromRect:srcRect operation:op fraction:1.0];
+    }
   }
 }
 @end
