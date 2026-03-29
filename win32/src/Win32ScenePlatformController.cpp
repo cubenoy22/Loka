@@ -514,11 +514,16 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   if (code == BN_CLICKED)
   {
     std::map<HWND, Win32ButtonContext *>::iterator it = buttonMap_.find(target);
-    if (it == buttonMap_.end())
+    if (it != buttonMap_.end())
+    {
+      return it->second->handleCommand(wParam, lParam);
+    }
+    Win32ButtonContext *button = reinterpret_cast<Win32ButtonContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
+    if (!button)
     {
       return false;
     }
-    return it->second->handleCommand(wParam, lParam);
+    return button->handleCommand(wParam, lParam);
   }
   if (code == EN_CHANGE)
   {

@@ -1,11 +1,13 @@
 #include "Win32PlatformNodeHandlers.hpp"
 #include "Win32ScenePlatformController.hpp"
+#include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
+#include "context/Win32ButtonContext.hpp"
 #include "context/Win32CellContext.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
@@ -15,6 +17,32 @@
 
 namespace
 {
+  class Win32ButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
+      Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
+      if (!button || !win32)
+      {
+        return 0;
+      }
+      return win32->contextMapper()->ensureButtonContext(button,
+                                                         state.x,
+                                                         state.y,
+                                                         state.width,
+                                                         state.height);
+    }
+  };
+
   class Win32TextNodeHandler : public loka::app::scene::IPlatformNodeHandler
   {
   public:
@@ -168,6 +196,7 @@ namespace
     }
   };
 
+  Win32ButtonNodeHandler gWin32ButtonNodeHandler;
   Win32TextNodeHandler gWin32TextNodeHandler;
   Win32ImageViewNodeHandler gWin32ImageViewNodeHandler;
   Win32EditTextNodeHandler gWin32EditTextNodeHandler;
@@ -178,6 +207,7 @@ namespace
 
 void RegisterWin32PlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
+  registry.registerHandler(&gWin32ButtonNodeHandler);
   registry.registerHandler(&gWin32TextNodeHandler);
   registry.registerHandler(&gWin32ImageViewNodeHandler);
   registry.registerHandler(&gWin32EditTextNodeHandler);

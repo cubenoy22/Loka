@@ -7,6 +7,9 @@
 
 namespace
 {
+  const int kButtonHeight = 32;
+  const int kVerticalSpacing = 12;
+
   void ReleaseCapturedButtonBitmap(void *handle, void *)
   {
     if (handle)
@@ -96,6 +99,10 @@ Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int
       reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
       GetModuleHandle(NULL),
       NULL);
+  if (hwnd_)
+  {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+  }
   bindText();
   bindEnabled();
 }
@@ -114,6 +121,13 @@ Win32ButtonContext::~Win32ButtonContext()
 bool Win32ButtonContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureButtonBitmap(this->hwnd_, out);
+}
+
+short Win32ButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kButtonHeight);
+  state.height = static_cast<short>(kButtonHeight);
+  return static_cast<short>(state.y + kButtonHeight + kVerticalSpacing);
 }
 
 bool Win32ButtonContext::handleCommand(WPARAM, LPARAM)

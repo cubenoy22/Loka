@@ -8,6 +8,9 @@
 
 namespace
 {
+  const int kButtonHeight = 32;
+  const int kVerticalSpacing = 12;
+
   static void ReleaseCapturedButtonBitmap(void *handle, void *)
   {
     NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
@@ -128,6 +131,13 @@ MacButtonContext::~MacButtonContext()
 bool MacButtonContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureButtonBitmap((NSView *)button_, out);
+}
+
+short MacButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
+{
+  this->relayout(state.x, state.y, state.width, kButtonHeight);
+  state.height = static_cast<short>(kButtonHeight);
+  return static_cast<short>(state.y + kButtonHeight + kVerticalSpacing);
 }
 
 void MacButtonContext::handlePress()

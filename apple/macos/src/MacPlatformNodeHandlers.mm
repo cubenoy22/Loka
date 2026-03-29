@@ -1,11 +1,13 @@
 #include "MacPlatformNodeHandlers.hpp"
 #include "MacScenePlatformController.hpp"
+#include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/PopupMenu.hpp"
 #include "app/Text.hpp"
+#include "context/MacButtonContext.hpp"
 #include "context/MacCellContext.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
@@ -15,6 +17,32 @@
 
 namespace
 {
+  class MacButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
+      MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
+      if (!button || !mac)
+      {
+        return 0;
+      }
+      return mac->contextMapper()->ensureButtonContext(button,
+                                                       state.x,
+                                                       state.y,
+                                                       state.width,
+                                                       state.height);
+    }
+  };
+
   class MacTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
   {
   public:
@@ -168,6 +196,7 @@ namespace
     }
   };
 
+  MacButtonNodeHandler gMacButtonNodeHandler;
   MacTextNodeHandler gMacTextNodeHandler;
   MacImageViewNodeHandler gMacImageViewNodeHandler;
   MacEditTextNodeHandler gMacEditTextNodeHandler;
@@ -178,6 +207,7 @@ namespace
 
 void RegisterMacPlatformNodeHandlers(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
+  registry.registerHandler(&gMacButtonNodeHandler);
   registry.registerHandler(&gMacTextNodeHandler);
   registry.registerHandler(&gMacImageViewNodeHandler);
   registry.registerHandler(&gMacEditTextNodeHandler);

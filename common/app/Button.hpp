@@ -136,15 +136,29 @@ namespace loka
       }
     };
 
-    class ButtonNode : public loka::app::scene::Node
+    class ButtonNode : public loka::app::scene::Node,
+                       public loka::app::scene::IProjectedLayoutNode
     {
     public:
       typedef ButtonTypeTag TypeTag;
       ButtonProps props;
       ButtonNode(const ButtonProps &p) : props(p) {}
       virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_BUTTON; }
+      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
       virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<ButtonNode>(); }
       virtual ButtonNode *asButtonNode() { return this; }
+      virtual short layoutProjected(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
+      {
+        if (!controller)
+        {
+          return state.y;
+        }
+        if (!loka::app::scene::PrepareProjectedLayout(controller, this, state))
+        {
+          return state.y;
+        }
+        return loka::app::scene::Node::layout(controller, state);
+      }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
         if (this->props.text_)
