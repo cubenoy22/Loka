@@ -15,6 +15,7 @@
 #include "app/Text.hpp"
 #include "app/ImageView.hpp"
 #include "app/RectSurface.hpp"
+#include "app/layout/ContainerLayout.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/scene/Node.hpp"
 #include "context/MacButtonContext.hpp"
@@ -497,34 +498,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::BoxNode *box = node->asBoxNode())
   {
-    int padding = box->props.padding;
-    LayoutState childState = state;
-    childState.x = state.x + padding;
-    childState.y = state.y + padding;
-    childState.width = state.width - padding * 2;
-    if (childState.width < 0)
-    {
-      childState.width = 0;
-    }
-    childState.height = state.height - padding * 2;
-    if (childState.height < 0)
-    {
-      childState.height = 0;
-    }
-    int resultY = childState.y;
-    if (loka::app::scene::INestable *nestable = box->asNestable())
-    {
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-      {
-        childState.y = layoutNode(child, childState);
-      }
-      resultY = childState.y + padding;
-    }
-    else
-    {
-      resultY = state.y + padding * 2;
-    }
+    const int resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &MacScenePlatformController::layoutBoxChild);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
   }
 
@@ -782,6 +756,16 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   }
 
   return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
+}
+
+int MacScenePlatformController::layoutBoxChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
+{
+  MacScenePlatformController *controller = static_cast<MacScenePlatformController *>(context);
+  if (!controller)
+  {
+    return state.y;
+  }
+  return controller->layoutNode(child, state);
 }
 
 void MacScenePlatformController::registerEditField(void *field)
