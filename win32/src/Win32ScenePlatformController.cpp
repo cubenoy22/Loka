@@ -240,6 +240,18 @@ Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
   gridMetrics.gapY = 0;
   loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(this->layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
   this->leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
+      &Win32ScenePlatformController::dispatchButtonLayout);
+  this->leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
+      &Win32ScenePlatformController::dispatchEditTextLayout);
+  this->leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
+      &Win32ScenePlatformController::dispatchPopupMenuLayout);
+  this->leafLayoutHandlerRegistry_.registerHandler(
+      loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
+      &Win32ScenePlatformController::dispatchCellLayout);
+  this->leafLayoutHandlerRegistry_.registerHandler(
       loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
       &Win32ScenePlatformController::dispatchTextLayout);
   this->leafLayoutHandlerRegistry_.registerHandler(
@@ -1048,26 +1060,6 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
     return this->layoutOpenFileDialogNode(dialog, state);
   }
 
-  if (loka::app::ButtonNode *button = node->asButtonNode())
-  {
-    return this->layoutButtonNode(button, state);
-  }
-
-  if (loka::app::EditTextNode *edit = node->asEditTextNode())
-  {
-    return this->layoutEditTextNode(edit, state);
-  }
-
-  if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
-  {
-    return this->layoutPopupMenuNode(popup, state);
-  }
-
-  if (loka::app::CellNode *cell = node->asCellNode())
-  {
-    return this->layoutCellNode(cell, state);
-  }
-
   if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
   {
     return this->layoutRectSurfaceNode(surface, state);
@@ -1118,6 +1110,74 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dis
     return LayoutNodeResult(state.width, state.y);
   }
   return controller->layoutImageViewNode(image, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchButtonLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::ButtonNode *button = node->asButtonNode();
+  if (!button)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutButtonNode(button, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchEditTextLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::EditTextNode *edit = node->asEditTextNode();
+  if (!edit)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutEditTextNode(edit, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchPopupMenuLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::PopupMenuNode *popup = node->asPopupMenuNode();
+  if (!popup)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutPopupMenuNode(popup, state);
+}
+
+Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::dispatchCellLayout(
+    Win32ScenePlatformController *controller,
+    loka::app::scene::Node *node,
+    const LayoutState &state)
+{
+  if (!controller || !node)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  loka::app::CellNode *cell = node->asCellNode();
+  if (!cell)
+  {
+    return LayoutNodeResult(state.width, state.y);
+  }
+  return controller->layoutCellNode(cell, state);
 }
 
 void Win32ScenePlatformController::clearContexts()

@@ -293,6 +293,18 @@ private:
   static LayoutNodeResult dispatchImageViewLayout(Win32ScenePlatformController *controller,
                                                   loka::app::scene::Node *node,
                                                   const LayoutState &state);
+  static LayoutNodeResult dispatchButtonLayout(Win32ScenePlatformController *controller,
+                                               loka::app::scene::Node *node,
+                                               const LayoutState &state);
+  static LayoutNodeResult dispatchEditTextLayout(Win32ScenePlatformController *controller,
+                                                 loka::app::scene::Node *node,
+                                                 const LayoutState &state);
+  static LayoutNodeResult dispatchPopupMenuLayout(Win32ScenePlatformController *controller,
+                                                  loka::app::scene::Node *node,
+                                                  const LayoutState &state);
+  static LayoutNodeResult dispatchCellLayout(Win32ScenePlatformController *controller,
+                                             loka::app::scene::Node *node,
+                                             const LayoutState &state);
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);

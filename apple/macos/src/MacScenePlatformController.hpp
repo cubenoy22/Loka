@@ -186,6 +186,18 @@ private:
   static LayoutNodeResult dispatchImageViewLayout(MacScenePlatformController *controller,
                                                   loka::app::scene::Node *node,
                                                   const LayoutState &state);
+  static LayoutNodeResult dispatchButtonLayout(MacScenePlatformController *controller,
+                                               loka::app::scene::Node *node,
+                                               const LayoutState &state);
+  static LayoutNodeResult dispatchEditTextLayout(MacScenePlatformController *controller,
+                                                 loka::app::scene::Node *node,
+                                                 const LayoutState &state);
+  static LayoutNodeResult dispatchPopupMenuLayout(MacScenePlatformController *controller,
+                                                  loka::app::scene::Node *node,
+                                                  const LayoutState &state);
+  static LayoutNodeResult dispatchCellLayout(MacScenePlatformController *controller,
+                                             loka::app::scene::Node *node,
+                                             const LayoutState &state);
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
