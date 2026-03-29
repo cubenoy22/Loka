@@ -45,9 +45,45 @@ namespace loka
         }
       };
 
+      class ZStackPlatformLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+      {
+      public:
+        virtual const void *nodeTypeKey() const
+        {
+          return loka::app::scene::NodeTypeToken<loka::app::ZStackNode>();
+        }
+
+        virtual int layoutNode(loka::app::scene::Node *node,
+                               const loka::app::scene::LayoutState &state,
+                               loka::app::scene::IPlatformLayoutTraversal *traversal)
+        {
+          loka::app::ZStackNode *stack = node ? node->asZStackNode() : 0;
+          if (!stack || !traversal)
+          {
+            return state.y;
+          }
+          return loka::app::layout::computeZStackLayoutResultY(stack, state, traversal, &ZStackPlatformLayoutHandler::layoutChild);
+        }
+
+      private:
+        static int layoutChild(void *context,
+                               loka::app::scene::Node *child,
+                               const loka::app::scene::LayoutState &state)
+        {
+          loka::app::scene::IPlatformLayoutTraversal *traversal =
+              static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
+          if (!traversal)
+          {
+            return state.y;
+          }
+          return traversal->layoutChild(child, state);
+        }
+      };
+
       inline void RegisterBuiltinPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
       {
         registry.registerHandler(new BoxPlatformLayoutHandler());
+        registry.registerHandler(new ZStackPlatformLayoutHandler());
       }
     }
   }
