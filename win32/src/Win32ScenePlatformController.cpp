@@ -759,27 +759,13 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
 
   if (loka::app::BoxNode *box = node->asBoxNode())
   {
-    const int resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &Win32ScenePlatformController::layoutBoxChild);
+    const int resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &Win32ScenePlatformController::layoutContainerChild);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
   }
 
   if (loka::app::ZStackNode *stack = node->asZStackNode())
   {
-    LayoutState childState = state;
-    int maxY = state.y;
-    if (loka::app::scene::INestable *nestable = stack->asNestable())
-    {
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-      {
-        childState = state;
-        int childY = layoutNode(child, childState);
-        if (childY > maxY)
-        {
-          maxY = childY;
-        }
-      }
-    }
+    const int maxY = loka::app::layout::computeZStackLayoutResultY(stack, state, this, &Win32ScenePlatformController::layoutContainerChild);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
@@ -1025,7 +1011,7 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
 }
 
-int Win32ScenePlatformController::layoutBoxChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
+int Win32ScenePlatformController::layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
 {
   Win32ScenePlatformController *controller = static_cast<Win32ScenePlatformController *>(context);
   if (!controller)

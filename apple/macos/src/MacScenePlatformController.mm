@@ -498,27 +498,13 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
 
   if (loka::app::BoxNode *box = node->asBoxNode())
   {
-    const int resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &MacScenePlatformController::layoutBoxChild);
+    const int resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &MacScenePlatformController::layoutContainerChild);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, resultY);
   }
 
   if (loka::app::ZStackNode *stack = node->asZStackNode())
   {
-    LayoutState childState = state;
-    int maxY = state.y;
-    if (loka::app::scene::INestable *nestable = stack->asNestable())
-    {
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-      {
-        childState = state;
-        int childY = layoutNode(child, childState);
-        if (childY > maxY)
-        {
-          maxY = childY;
-        }
-      }
-    }
+    const int maxY = loka::app::layout::computeZStackLayoutResultY(stack, state, this, &MacScenePlatformController::layoutContainerChild);
     return ApplyBoundaryBounds(boundary, startX, startY, startWidth, maxY);
   }
 
@@ -758,7 +744,7 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   return ApplyBoundaryBounds(boundary, startX, startY, startWidth, state.y);
 }
 
-int MacScenePlatformController::layoutBoxChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
+int MacScenePlatformController::layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
 {
   MacScenePlatformController *controller = static_cast<MacScenePlatformController *>(context);
   if (!controller)

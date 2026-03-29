@@ -174,7 +174,7 @@ private:
     int height;
   };
 
-  static int layoutBoxChild(void *context, loka::app::scene::Node *child, const LayoutState &state);
+  static int layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();
