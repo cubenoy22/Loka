@@ -89,6 +89,7 @@ namespace loka
       CellProps props;
       CellNode(const CellProps &p) : props(p) {}
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_CELL; }
+      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<CellNode>(); }
       virtual CellNode *asCellNode() { return this; }
       virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
       {

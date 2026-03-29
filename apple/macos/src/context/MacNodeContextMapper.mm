@@ -1,10 +1,12 @@
 #include "context/MacNodeContextMapper.hpp"
 #include "context/MacButtonContext.hpp"
+#include "context/MacCellContext.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacImageViewContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
 #include "context/MacTextContext.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/PopupMenu.hpp"
@@ -27,6 +29,27 @@ MacButtonContext *MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNod
     return ctx;
   }
   ctx = new MacButtonContext(this->rootView_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+MacCellContext *MacNodeContextMapper::ensureCellContext(loka::app::CellNode *node,
+                                                        int x,
+                                                        int y,
+                                                        int width,
+                                                        int height) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  MacCellContext *ctx = static_cast<MacCellContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->relayout(x, y, width, height);
+    return ctx;
+  }
+  ctx = new MacCellContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
   return ctx;
 }

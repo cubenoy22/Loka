@@ -629,15 +629,20 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   if (loka::app::CellNode *cell = node->asCellNode())
   {
     const int cellHeight = state.height > 0 ? state.height : kTextHeight;
-    MacCellContext *ctx = static_cast<MacCellContext *>(cell->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(state.width);
+    handlerState.height = static_cast<short>(cellHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(cell);
+    MacCellContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, state.width, cellHeight);
+      ctx = static_cast<MacCellContext *>(handler->ensureContext(cell, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new MacCellContext(rootView_, state.x, state.y, state.width, cellHeight, cell);
-      cell->setContext(ctx);
+      ctx = this->contextMapper_.ensureCellContext(cell, state.x, state.y, state.width, cellHeight);
     }
 
     LayoutState nextState = state;

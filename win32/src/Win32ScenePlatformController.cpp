@@ -892,15 +892,20 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   if (loka::app::CellNode *cell = node->asCellNode())
   {
     const int cellHeight = state.height > 0 ? state.height : kTextHeight;
-    Win32CellContext *ctx = static_cast<Win32CellContext *>(cell->getContext());
-    if (ctx)
+    loka::app::scene::LayoutState handlerState;
+    handlerState.x = static_cast<short>(state.x);
+    handlerState.y = static_cast<short>(state.y);
+    handlerState.width = static_cast<short>(state.width);
+    handlerState.height = static_cast<short>(cellHeight);
+    loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(cell);
+    Win32CellContext *ctx = 0;
+    if (handler)
     {
-      ctx->relayout(state.x, state.y, state.width, cellHeight);
+      ctx = static_cast<Win32CellContext *>(handler->ensureContext(cell, this, handlerState));
     }
-    else
+    if (!ctx)
     {
-      ctx = new Win32CellContext(rootHwnd_, state.x, state.y, state.width, cellHeight, cell);
-      cell->setContext(ctx);
+      ctx = this->contextMapper_.ensureCellContext(cell, state.x, state.y, state.width, cellHeight);
     }
 
     LayoutState nextState = state;

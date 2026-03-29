@@ -6,6 +6,7 @@ namespace loka
   namespace app
   {
     class ButtonNode;
+    class CellNode;
     class EditTextNode;
     class ImageViewNode;
     class PopupMenuNode;
@@ -14,6 +15,7 @@ namespace loka
 }
 
 class MacButtonContext;
+class MacCellContext;
 class MacEditTextContext;
 class MacImageViewContext;
 class MacPopupMenuContext;
@@ -30,6 +32,11 @@ public:
                                         int y,
                                         int width,
                                         int height) const;
+  MacCellContext *ensureCellContext(loka::app::CellNode *node,
+                                    int x,
+                                    int y,
+                                    int width,
+                                    int height) const;
   MacEditTextContext *ensureEditTextContext(loka::app::EditTextNode *node,
                                             int x,
                                             int y,

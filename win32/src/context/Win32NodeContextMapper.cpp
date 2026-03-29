@@ -1,10 +1,12 @@
 #include "context/Win32NodeContextMapper.hpp"
 #include "context/Win32ButtonContext.hpp"
+#include "context/Win32CellContext.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32TextContext.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/PopupMenu.hpp"
@@ -27,6 +29,27 @@ Win32ButtonContext *Win32NodeContextMapper::ensureButtonContext(loka::app::Butto
     return ctx;
   }
   ctx = new Win32ButtonContext(this->rootHwnd_, x, y, width, height, node);
+  node->setContext(ctx);
+  return ctx;
+}
+
+Win32CellContext *Win32NodeContextMapper::ensureCellContext(loka::app::CellNode *node,
+                                                            int x,
+                                                            int y,
+                                                            int width,
+                                                            int height) const
+{
+  if (!node)
+  {
+    return 0;
+  }
+  Win32CellContext *ctx = static_cast<Win32CellContext *>(node->getContext());
+  if (ctx)
+  {
+    ctx->relayout(x, y, width, height);
+    return ctx;
+  }
+  ctx = new Win32CellContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
   return ctx;
 }
