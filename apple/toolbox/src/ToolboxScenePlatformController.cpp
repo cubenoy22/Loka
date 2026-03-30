@@ -424,6 +424,33 @@ namespace
     short layoutResultY_;
   };
 
+  class ActiveLayoutBoundaryScope
+  {
+  public:
+    ActiveLayoutBoundaryScope(ToolboxScenePlatformController *controller,
+                              loka::app::scene::BoundaryNode *boundary)
+        : controller_(controller),
+          previous_(controller ? controller->activeLayoutBoundary() : 0)
+    {
+      if (controller_)
+      {
+        controller_->setActiveLayoutBoundary(boundary);
+      }
+    }
+
+    ~ActiveLayoutBoundaryScope()
+    {
+      if (controller_)
+      {
+        controller_->setActiveLayoutBoundary(previous_);
+      }
+    }
+
+  private:
+    ToolboxScenePlatformController *controller_;
+    loka::app::scene::BoundaryNode *previous_;
+  };
+
   short LayoutNode(loka::app::scene::Node *node,
                    loka::app::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller,
@@ -440,6 +467,7 @@ namespace
     const short startTop = static_cast<short>(startY - state.lineHeight + 2);
     if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
     {
+      ActiveLayoutBoundaryScope boundaryScope(controller, activeBoundary);
       short width = projected->layoutProjected(controller, state);
       if (boundary)
       {
@@ -896,7 +924,8 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       clipRgn_(NewRgn()),
       hasClip_(false),
       nextControlId_(kAutoControlBaseId),
-      debugStats_()
+      debugStats_(),
+      activeLayoutBoundary_(0)
 {
   RegisterToolboxPlatformLayoutHandlers(this->layoutHandlerRegistry_);
 }
@@ -935,7 +964,7 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
   {
     return false;
   }
-  loka::app::scene::BoundaryNode *boundary = node->asBoundary();
+  loka::app::scene::BoundaryNode *boundary = this->activeLayoutBoundary();
   return mapper->ensureProjectedContext(node, boundary);
 }
 

@@ -90,6 +90,8 @@ public:
   void endClip();
   ToolboxNodeContextMapper *contextMapper() const;
   loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry() { return &layoutHandlerRegistry_; }
+  void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *boundary) { activeLayoutBoundary_ = boundary; }
+  loka::app::scene::BoundaryNode *activeLayoutBoundary() const { return activeLayoutBoundary_; }
 
 private:
   struct ButtonHit
@@ -203,6 +205,7 @@ private:
   short nextControlId_;
   ToolboxSceneDebugStats debugStats_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
+  loka::app::scene::BoundaryNode *activeLayoutBoundary_;
 
   bool handleTextKey(char key);
   void bindTextState(loka::core::State<loka::core::String> *text);
