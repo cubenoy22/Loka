@@ -228,7 +228,7 @@ namespace
         {
           width = static_cast<short>(childWidthUsed);
         }
-        currentY = childState.y;
+        currentY = traversal->layoutResultY();
       }
       return width;
     }
@@ -315,10 +315,11 @@ namespace
         }
         const int width = DispatchTraversalLayoutChild(traversal, child, rowState);
         rowStartX = static_cast<short>(rowStartX + width + state.spacing);
-        if (rowState.y > state.y &&
-            static_cast<short>(rowState.y - state.y) > maxHeight)
+        const short childResultY = traversal->layoutResultY();
+        if (childResultY > state.y &&
+            static_cast<short>(childResultY - state.y) > maxHeight)
         {
-          maxHeight = static_cast<short>(rowState.y - state.y);
+          maxHeight = static_cast<short>(childResultY - state.y);
         }
       }
       traversal->setLayoutResultY(static_cast<short>(state.y + maxHeight + state.spacing));
