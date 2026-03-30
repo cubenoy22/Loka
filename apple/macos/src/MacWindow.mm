@@ -356,31 +356,46 @@ void MacWindow::handleWindowWillClose()
     return;
   }
   closing_ = true;
+  App *app = app_;
   NSWindow *window = (NSWindow *)window_;
+  id contentView = (id)contentView_;
+  id delegate = (id)delegate_;
   if (window)
   {
     [window setDelegate:nil];
   }
+  if (delegate)
+  {
+    [(LokaWindowDelegate *)delegate setOwner:0];
+  }
+  if (contentView)
+  {
+    [(LokaFlippedView *)contentView setOwner:0];
+  }
   teardownScene();
   this->onDestroy();
-  if (delegate_)
+  window_ = 0;
+  contentView_ = 0;
+  delegate_ = 0;
+  app_ = 0;
+  // AppKit may still touch these objects while unwinding windowWillClose:.
+  // Move our final releases to the surrounding autorelease pool instead of
+  // dropping them synchronously inside the close callback.
+  if (delegate)
   {
-    [(id)delegate_ release];
-    delegate_ = 0;
+    [delegate autorelease];
   }
-  if (contentView_)
+  if (contentView)
   {
-    [(id)contentView_ release];
-    contentView_ = 0;
+    [contentView autorelease];
   }
-  if (window_)
+  if (window)
   {
-    [(id)window_ release];
-    window_ = 0;
+    [window autorelease];
   }
-  if (app_)
+  if (app)
   {
-    app_->windowClosed(static_cast<Window *>(this));
+    app->windowClosed(static_cast<Window *>(this));
   }
 }
 
