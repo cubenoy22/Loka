@@ -117,6 +117,7 @@ namespace
       ++calls_;
       lastChild_ = child;
       lastState_ = state;
+      layoutResultY_ = static_cast<short>(nextResult_);
       return nextResult_;
     }
 
@@ -171,6 +172,60 @@ namespace
     int layoutCalls_;
     int fallbackResult_;
     loka::app::scene::LayoutState lastState_;
+  };
+
+  class AttrDslTraversalResultYLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomLayoutNode>();
+    }
+
+    virtual int layoutNode(loka::app::scene::Node *node,
+                           const loka::app::scene::LayoutState &state,
+                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+    {
+      assert(node != 0);
+      assert(traversal != 0);
+
+      loka::app::scene::INestable *nestable = node->asNestable();
+      assert(nestable != 0);
+      assert(nestable->childrenHead() != 0);
+
+      loka::app::scene::LayoutState childState = state;
+      childState.y += 4;
+      (void)traversal->layoutChild(nestable->childrenHead(), childState);
+
+      const short childResultY = traversal->layoutResultY();
+      traversal->setLayoutResultY(static_cast<short>(childResultY + 6));
+      return traversal->layoutResultY();
+    }
+  };
+
+  class AttrDslSecondLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
+  {
+  public:
+    AttrDslSecondLayoutHandler() : calls_(0), result_(0) {}
+
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomLayoutNode>();
+    }
+
+    virtual int layoutNode(loka::app::scene::Node *node,
+                           const loka::app::scene::LayoutState &state,
+                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+    {
+      (void)node;
+      (void)state;
+      (void)traversal;
+      ++calls_;
+      return result_;
+    }
+
+    int calls_;
+    int result_;
   };
 }
 
@@ -394,4 +449,72 @@ void testPlatformLayoutHandlerRegistration()
   }
 
   printf("==== [testPlatformLayoutHandlerRegistration] end ====\n");
+}
+
+void testPlatformLayoutTraversalResultY()
+{
+  printf("\n==== [testPlatformLayoutTraversalResultY] start ====\n");
+
+  AttrDslCustomLayoutNode node;
+  AttrDslCustomLayoutLeafNode *child = new AttrDslCustomLayoutLeafNode();
+  node.addChild(child);
+
+  AttrDslDummyLayoutTraversal traversal;
+  traversal.nextResult_ = 31;
+  traversal.setLayoutResultY(0);
+
+  loka::app::scene::PlatformLayoutHandlerRegistry registry;
+  AttrDslTraversalResultYLayoutHandler *handler = new AttrDslTraversalResultYLayoutHandler();
+  assert(handler != 0);
+  assert(registry.registerHandler(handler));
+
+  loka::app::scene::LayoutState state;
+  state.x = 1;
+  state.y = 2;
+  state.width = 30;
+  state.height = 40;
+
+  loka::app::scene::IPlatformLayoutHandler *resolved = registry.find(&node);
+  assert(resolved != 0);
+  const int resultY = resolved->layoutNode(&node, state, &traversal);
+  assert(traversal.calls_ == 1);
+  assert(traversal.lastChild_ == child);
+  assert(traversal.lastState_.y == 6);
+  assert(traversal.layoutResultY() == 37);
+  assert(resultY == 37);
+
+  printf("==== [testPlatformLayoutTraversalResultY] end ====\n");
+}
+
+void testPlatformLayoutHandlerReplacement()
+{
+  printf("\n==== [testPlatformLayoutHandlerReplacement] start ====\n");
+
+  AttrDslCustomLayoutNode node;
+
+  loka::app::scene::PlatformLayoutHandlerRegistry registry;
+  AttrDslCustomLayoutHandler *first = new AttrDslCustomLayoutHandler();
+  AttrDslSecondLayoutHandler *second = new AttrDslSecondLayoutHandler();
+  assert(first != 0);
+  assert(second != 0);
+  second->result_ = 91;
+
+  assert(registry.registerHandler(first));
+  assert(registry.find(&node) == first);
+  assert(registry.registerHandler(second));
+  assert(registry.find(&node) == second);
+
+  AttrDslDummyLayoutTraversal traversal;
+  loka::app::scene::LayoutState state;
+  state.x = 5;
+  state.y = 7;
+  state.width = 9;
+  state.height = 11;
+
+  loka::app::scene::IPlatformLayoutHandler *resolved = registry.find(&node);
+  assert(resolved != 0);
+  assert(resolved->layoutNode(&node, state, &traversal) == 91);
+  assert(second->calls_ == 1);
+
+  printf("==== [testPlatformLayoutHandlerReplacement] end ====\n");
 }

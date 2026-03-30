@@ -12,6 +12,8 @@ int main() {
   testLokaAttrDslV1Core();
   testPlatformNodeHandlerRegistration();
   testPlatformLayoutHandlerRegistration();
+  testPlatformLayoutTraversalResultY();
+  testPlatformLayoutHandlerReplacement();
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
   testToolboxChildDirtyInvalidationPrefersFullRedraw();

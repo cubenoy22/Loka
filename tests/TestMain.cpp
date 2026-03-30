@@ -93,6 +93,8 @@ int main()
   testLokaAttrDslV1Core();
   testPlatformNodeHandlerRegistration();
   testPlatformLayoutHandlerRegistration();
+  testPlatformLayoutTraversalResultY();
+  testPlatformLayoutHandlerReplacement();
 #if defined(_WIN32) || defined(WIN32)
   testWin32ScenePlatformRelayoutReusesControlContexts();
   testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
