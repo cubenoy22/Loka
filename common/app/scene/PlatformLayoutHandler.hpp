@@ -46,10 +46,19 @@ namespace loka
           this->head_ = 0;
         }
 
+        // Owning registry: built-in layout handlers are registered as heap
+        // objects, and the registry takes responsibility for deleting them on
+        // destruction or replacement. Callers must not register stack/static
+        // handlers here.
         bool registerHandler(IPlatformLayoutHandler *handler)
         {
-          if (!handler || !handler->nodeTypeKey())
+          if (!handler)
           {
+            return false;
+          }
+          if (!handler->nodeTypeKey())
+          {
+            delete handler;
             return false;
           }
 
