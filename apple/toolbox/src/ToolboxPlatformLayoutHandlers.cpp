@@ -115,18 +115,22 @@ namespace
       }
 
       short childWidth = 0;
+      short currentY = childState.y;
       if (loka::app::scene::INestable *nestable = box->asNestable())
       {
         loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
         for (loka::app::scene::Node *child = it.next(); child; child = it.next())
         {
+          childState.y = currentY;
           const int width = DispatchTraversalLayoutChild(traversal, child, childState);
           if (width > childWidth)
           {
             childWidth = static_cast<short>(width);
           }
+          currentY = traversal->layoutResultY();
         }
       }
+      traversal->setLayoutResultY(currentY);
 
       short width = static_cast<short>(childWidth + padding * 2);
       if (childWidth == 0 && box->childrenCount() == 0)
