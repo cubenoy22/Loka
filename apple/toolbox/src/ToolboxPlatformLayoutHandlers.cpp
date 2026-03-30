@@ -394,9 +394,10 @@ namespace
           {
             maxWidth = static_cast<short>(width);
           }
-          if (cellState.y > maxY)
+          const short childResultY = traversal->layoutResultY();
+          if (childResultY > maxY)
           {
-            maxY = cellState.y;
+            maxY = childResultY;
           }
         }
       }
