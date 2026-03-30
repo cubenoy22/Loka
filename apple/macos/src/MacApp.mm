@@ -200,8 +200,9 @@ void MacApp::startInvalidationFlushTimer()
     [target release];
     return;
   }
-  [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSDefaultRunLoopMode];
-  [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+  NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
+  [runLoop addTimer:timer forMode:NSDefaultRunLoopMode];
+  [runLoop addTimer:timer forMode:NSRunLoopCommonModes];
   flushTarget_ = target;
   flushTimer_ = timer;
 }
