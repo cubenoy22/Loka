@@ -29,6 +29,8 @@ public:
   int capabilities() const { return capabilities_; }
   bool hasCapability(Capability cap) const { return (capabilities_ & cap) != 0; }
 
+  bool ensureProjectedContext(loka::app::scene::Node *node,
+                              loka::app::scene::BoundaryNode *boundary);
   void ensureTextContext(loka::app::TextNode *node);
   void ensureCellContext(loka::app::CellNode *node);
   void ensureButtonContext(loka::app::ButtonNode *node);

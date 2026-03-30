@@ -936,72 +936,7 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
     return false;
   }
   loka::app::scene::BoundaryNode *boundary = node->asBoundary();
-  if (loka::app::TextNode *text = node->asTextNode())
-  {
-    mapper->ensureTextContext(text);
-    if (text->getContext())
-    {
-      static_cast<ToolboxTextContext *>(text->getContext())->setBoundary(boundary);
-      return true;
-    }
-    return false;
-  }
-  if (loka::app::CellNode *cell = node->asCellNode())
-  {
-    mapper->ensureCellContext(cell);
-    if (cell->getContext())
-    {
-      static_cast<ToolboxCellContext *>(cell->getContext())->setBoundary(boundary);
-      return true;
-    }
-    return false;
-  }
-  if (loka::app::ButtonNode *button = node->asButtonNode())
-  {
-    mapper->ensureButtonContext(button);
-    if (button->getContext())
-    {
-      static_cast<ToolboxButtonContext *>(button->getContext())->setBoundary(boundary);
-      return true;
-    }
-    return false;
-  }
-  if (loka::app::EditTextNode *edit = node->asEditTextNode())
-  {
-    mapper->ensureEditTextContext(edit);
-    if (edit->getContext())
-    {
-      static_cast<ToolboxEditTextContext *>(edit->getContext())->setBoundary(boundary);
-      return true;
-    }
-    return false;
-  }
-  if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
-  {
-    mapper->ensurePopupMenuContext(popup);
-    if (popup->getContext())
-    {
-      static_cast<ToolboxPopupMenuContext *>(popup->getContext())->setBoundary(boundary);
-      return true;
-    }
-    return false;
-  }
-  if (loka::app::ImageViewNode *image = node->asImageViewNode())
-  {
-    mapper->ensureImageViewContext(image);
-    if (image->getContext())
-    {
-      static_cast<ToolboxImageViewContext *>(image->getContext())->setBoundary(boundary);
-      return true;
-    }
-    return false;
-  }
-  if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
-  {
-    mapper->ensureOpenFileDialogContext(dialog);
-    return dialog->getContext() != 0;
-  }
-  return false;
+  return mapper->ensureProjectedContext(node, boundary);
 }
 
 short ToolboxScenePlatformController::allocateControlId()
