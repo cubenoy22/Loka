@@ -2,6 +2,7 @@
 set -euo pipefail
 
 loka_known_targets() {
+  echo "LokaFloppyBirdMacOS"
   echo "LokaHelloMacOS"
   echo "LokaMineMacOS"
   echo "LokaPerfArenaMacOS"
@@ -10,6 +11,7 @@ loka_known_targets() {
 
 loka_target_rel_path() {
   case "$1" in
+    LokaFloppyBirdMacOS) echo "example/FloppyBird/LokaFloppyBirdMacOS" ;;
     LokaHelloMacOS) echo "example/HelloWorld/LokaHelloMacOS" ;;
     LokaMineMacOS) echo "example/MineSweeper/LokaMineMacOS" ;;
     LokaPerfArenaMacOS) echo "example/PerfArena/LokaPerfArenaMacOS" ;;
@@ -22,6 +24,7 @@ loka_cleanup_stale_output_dirs() {
   local build_dir="$1"
   local rel_path
   for rel_path in \
+    "example/FloppyBird/LokaFloppyBirdMacOS" \
     "example/HelloWorld/LokaHelloMacOS" \
     "example/MineSweeper/LokaMineMacOS" \
     "example/PerfArena/LokaPerfArenaMacOS" \
