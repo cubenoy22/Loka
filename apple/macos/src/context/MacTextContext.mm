@@ -1,5 +1,6 @@
 #include "MacTextContext.hpp"
 #include "../MacScenePlatformController.hpp"
+#include "../MacObjCCompat.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
@@ -46,12 +47,20 @@ namespace
     {
       return defaultHeight;
     }
-    NSDictionary *attrs = [NSDictionary dictionaryWithObject:[NSFont systemFontOfSize:[NSFont systemFontSize]]
-                                                      forKey:NSFontAttributeName];
-    NSRect rect = [string boundingRectWithSize:NSMakeSize(static_cast<CGFloat>(width), CGFLOAT_MAX)
-                                       options:(NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading)
-                                    attributes:attrs];
-    const int measured = static_cast<int>(rect.size.height + 0.5f);
+    NSFont *font = [NSFont systemFontOfSize:[NSFont systemFontSize]];
+    int measured = defaultHeight;
+    NSTextFieldCell *cell = [[[NSTextFieldCell alloc] initTextCell:string] autorelease];
+    if (cell)
+    {
+      [cell setFont:font];
+      [cell setWraps:YES];
+      [cell setScrollable:NO];
+      [cell setLineBreakMode:NSLineBreakByWordWrapping];
+      NSSize size = [cell cellSizeForBounds:NSMakeRect(0.0f, 0.0f,
+                                                       static_cast<CGFloat>(width),
+                                                       CGFLOAT_MAX)];
+      measured = static_cast<int>(size.height + 0.5f);
+    }
     const int measuredWithPadding = measured + 2;
     if (measuredWithPadding > defaultHeight)
     {

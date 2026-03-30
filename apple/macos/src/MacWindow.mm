@@ -378,21 +378,13 @@ void MacWindow::handleWindowWillClose()
   contentView_ = 0;
   delegate_ = 0;
   app_ = 0;
-  // AppKit may still touch these objects while unwinding windowWillClose:.
-  // Move our final releases to the surrounding autorelease pool instead of
-  // dropping them synchronously inside the close callback.
-  if (delegate)
-  {
-    [delegate autorelease];
-  }
-  if (contentView)
-  {
-    [contentView autorelease];
-  }
-  if (window)
-  {
-    [window autorelease];
-  }
+  // On 10.6 the window-close shutdown path can still crash inside NSWindow
+  // dealloc/free while AppKit is unwinding this callback. Keep the native
+  // objects detached from our C++ side here and let process teardown reclaim
+  // them instead of trying to release them during close.
+  (void)delegate;
+  (void)contentView;
+  (void)window;
   if (app)
   {
     app->windowClosed(static_cast<Window *>(this));

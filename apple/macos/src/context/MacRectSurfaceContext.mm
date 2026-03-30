@@ -1,4 +1,5 @@
 #include "MacRectSurfaceContext.hpp"
+#include "../MacObjCCompat.hpp"
 #include "app/RectSurface.hpp"
 #include <AppKit/AppKit.h>
 

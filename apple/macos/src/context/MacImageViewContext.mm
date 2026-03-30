@@ -1,5 +1,6 @@
 #include "MacImageViewContext.hpp"
 #include "../MacScenePlatformController.hpp"
+#include "../MacObjCCompat.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
 #include <AppKit/AppKit.h>
 
@@ -232,21 +233,10 @@ namespace
 #else
     NSCompositingOperation op = NSCompositeSourceOver;
 #endif
-    if ([image_ respondsToSelector:@selector(drawInRect:fromRect:operation:fraction:respectFlipped:hints:)])
-    {
-      [image_ drawInRect:dstRect
-                fromRect:srcRect
-               operation:op
-                fraction:1.0
-          respectFlipped:YES
-                   hints:nil];
-    }
-    else
-    {
-      // drawInRect:fromRect:operation:fraction:respectFlipped:hints: is 10.6+.
-      // Fall back to the 10.0-compatible variant.
-      [image_ drawInRect:dstRect fromRect:srcRect operation:op fraction:1.0];
-    }
+    // The newer respectFlipped/hints variant crashes with some PDF-backed
+    // images on older runtimes/compatibility builds. Keep the classic draw
+    // path for broadest compatibility.
+    [image_ drawInRect:dstRect fromRect:srcRect operation:op fraction:1.0];
   }
 }
 @end
