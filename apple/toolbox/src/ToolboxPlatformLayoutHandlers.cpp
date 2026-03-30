@@ -160,6 +160,7 @@ namespace
       }
 
       short maxWidth = 0;
+      short maxY = state.y;
       if (loka::app::scene::INestable *nestable = stack->asNestable())
       {
         loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
@@ -171,8 +172,14 @@ namespace
           {
             maxWidth = static_cast<short>(width);
           }
+          const short childResultY = traversal->layoutResultY();
+          if (childResultY > maxY)
+          {
+            maxY = childResultY;
+          }
         }
       }
+      traversal->setLayoutResultY(maxY);
       return maxWidth;
     }
   };
