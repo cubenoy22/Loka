@@ -171,7 +171,8 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
                             node_->props.onChange_,
                             node_->props.enabled_,
                             boundary_,
-                            menuId());
+                            menuId(),
+                            this);
   }
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;

@@ -9,6 +9,87 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 
+bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *node,
+                                                      loka::app::scene::BoundaryNode *boundary)
+{
+  if (!node)
+  {
+    return false;
+  }
+  if (loka::app::TextNode *text = node->asTextNode())
+  {
+    ensureTextContext(text);
+    ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
+    if (!ctx)
+    {
+      return false;
+    }
+    ctx->setBoundary(boundary);
+    return true;
+  }
+  if (loka::app::CellNode *cell = node->asCellNode())
+  {
+    ensureCellContext(cell);
+    ToolboxCellContext *ctx = static_cast<ToolboxCellContext *>(cell->getContext());
+    if (!ctx)
+    {
+      return false;
+    }
+    ctx->setBoundary(boundary);
+    return true;
+  }
+  if (loka::app::ButtonNode *button = node->asButtonNode())
+  {
+    ensureButtonContext(button);
+    ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
+    if (!ctx)
+    {
+      return false;
+    }
+    ctx->setBoundary(boundary);
+    return true;
+  }
+  if (loka::app::EditTextNode *edit = node->asEditTextNode())
+  {
+    ensureEditTextContext(edit);
+    ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
+    if (!ctx)
+    {
+      return false;
+    }
+    ctx->setBoundary(boundary);
+    return true;
+  }
+  if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
+  {
+    ensurePopupMenuContext(popup);
+    ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
+    if (!ctx)
+    {
+      return false;
+    }
+    ctx->setBoundary(boundary);
+    return true;
+  }
+  if (loka::app::ImageViewNode *image = node->asImageViewNode())
+  {
+    ensureImageViewContext(image);
+    ToolboxImageViewContext *ctx = static_cast<ToolboxImageViewContext *>(image->getContext());
+    if (!ctx)
+    {
+      return false;
+    }
+    ctx->setBoundary(boundary);
+    return true;
+  }
+  if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())
+  {
+    ensureOpenFileDialogContext(dialog);
+    return dialog->getContext() != 0;
+  }
+  return false;
+}
+
 void ToolboxNodeContextMapper::ensureTextContext(loka::app::TextNode *node)
 {
   if (!node)

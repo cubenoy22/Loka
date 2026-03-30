@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/scene/PlatformController.hpp"
+#include "app/scene/PlatformLayoutHandler.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
@@ -12,6 +13,7 @@
 #include <TextEdit.h>
 
 class ToolboxWindow;
+class ToolboxButtonContext;
 class ToolboxPopupMenuContext;
 class ToolboxNodeContextMapper;
 class ToolboxCellContext;
@@ -28,6 +30,7 @@ public:
                                const loka::app::scene::BoundaryLocalApplyInfo &info,
                                const loka::app::scene::PlatformApplyPlan &plan);
   virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return true; }
+  virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
@@ -35,10 +38,12 @@ public:
   void render();
   void renderDirty(const Rect &rect);
   bool handleMouseDown(const Point &point);
+  void emitHitEmitter(loka::core::EmitterState *emitter);
   void recordButtonHit(const Rect &rect,
                        loka::core::EmitterState *emitter,
                        loka::core::State<bool> *enabled,
-                       loka::app::scene::BoundaryNode *boundary);
+                       loka::app::scene::BoundaryNode *boundary,
+                       ToolboxButtonContext *context);
   void recordCellHit(const Rect &rect,
                      loka::core::EmitterState *emitter,
                      loka::app::scene::BoundaryNode *boundary,
@@ -61,7 +66,8 @@ public:
                       loka::core::EmitterState *onChange,
                       loka::core::State<bool> *enabled,
                       loka::app::scene::BoundaryNode *boundary,
-                      short menuId);
+                      short menuId,
+                      ToolboxPopupMenuContext *context);
   void applyPopupSelectionChange(const Rect &rect,
                                  loka::app::scene::BoundaryNode *boundary,
                                  loka::core::State<int> *selectedIndex,
@@ -83,6 +89,9 @@ public:
   void beginClip(const Rect &rect);
   void endClip();
   ToolboxNodeContextMapper *contextMapper() const;
+  loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry() { return &layoutHandlerRegistry_; }
+  void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *boundary) { activeLayoutBoundary_ = boundary; }
+  loka::app::scene::BoundaryNode *activeLayoutBoundary() const { return activeLayoutBoundary_; }
 
 private:
   struct ButtonHit
@@ -91,6 +100,7 @@ private:
     loka::core::EmitterState *emitter;
     loka::core::State<bool> *enabled;
     loka::app::scene::BoundaryNode *boundary;
+    ToolboxButtonContext *context;
   };
 
   struct CellHit
@@ -129,6 +139,7 @@ private:
     loka::core::State<bool> *enabled;
     loka::app::scene::BoundaryNode *boundary;
     short menuId;
+    ToolboxPopupMenuContext *context;
   };
   struct TextBinding
   {
@@ -193,6 +204,8 @@ private:
   bool hasClip_;
   short nextControlId_;
   ToolboxSceneDebugStats debugStats_;
+  loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
+  loka::app::scene::BoundaryNode *activeLayoutBoundary_;
 
   bool handleTextKey(char key);
   void bindTextState(loka::core::State<loka::core::String> *text);

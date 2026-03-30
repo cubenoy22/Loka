@@ -11,7 +11,17 @@ int main() {
   testLokaFlowDslV1Core();
   testLokaAttrDslV1Core();
   testPlatformNodeHandlerRegistration();
+  testPlatformNodeHandlerReplacement();
+  testPlatformNodeHandlerRejectsInvalidTypeKey();
   testPlatformLayoutHandlerRegistration();
+  testPlatformLayoutTraversalResultY();
+  testPlatformLayoutHandlerReplacement();
+  testPlatformLayoutHandlerRejectsInvalidTypeKey();
+  testPlatformLayoutHandlerSamePointerReregister();
+  testPrepareProjectedLayoutDelegation();
+  testProjectedLayoutUsesActiveBoundaryModel();
+  testPrepareProjectedLayoutRejectsNullController();
+  testContainerLayoutHelpersAdvanceResultY();
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
   testToolboxChildDirtyInvalidationPrefersFullRedraw();

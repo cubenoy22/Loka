@@ -86,7 +86,7 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
                label_);
   if (controller)
   {
-    controller->recordButtonHit(rect_, emitter_, enabled_, boundary_);
+    controller->recordButtonHit(rect_, emitter_, enabled_, boundary_, this);
   }
 }
 
@@ -118,4 +118,25 @@ void ToolboxButtonContext::render(loka::app::scene::IPlatformController *control
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);
+}
+
+bool ToolboxButtonContext::handleMouseDown(const Point &point, ToolboxScenePlatformController *controller)
+{
+  if (!emitter_)
+  {
+    return false;
+  }
+  if (enabled_ && !enabled_->get())
+  {
+    return false;
+  }
+  if (!PtInRect(point, &rect_))
+  {
+    return false;
+  }
+  if (controller)
+  {
+    controller->emitHitEmitter(emitter_);
+  }
+  return true;
 }

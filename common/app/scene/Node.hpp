@@ -91,9 +91,18 @@ namespace loka
       struct ObservedStateRegistrar;
 
       template <typename NodeT>
+      struct NodeTypeTokenStorage
+      {
+        static const char value_;
+      };
+
+      template <typename NodeT>
+      const char NodeTypeTokenStorage<NodeT>::value_ = 0;
+
+      template <typename NodeT>
       const void *NodeTypeToken()
       {
-        return reinterpret_cast<const void *>(&NodeTypeToken<NodeT>);
+        return &NodeTypeTokenStorage<NodeT>::value_;
       }
     } // namespace scene
   } // namespace app

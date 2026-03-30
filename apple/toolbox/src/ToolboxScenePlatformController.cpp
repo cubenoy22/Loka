@@ -1,4 +1,5 @@
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxPlatformLayoutHandlers.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxWindowContext.hpp"
 #include "loka/core/Profiler.hpp"
@@ -389,6 +390,67 @@ namespace
     return maxWidth;
   }
 
+  class ToolboxLayoutTraversal : public loka::app::scene::IPlatformLayoutTraversal
+  {
+  public:
+    ToolboxLayoutTraversal(ToolboxScenePlatformController *controller,
+                           loka::app::scene::BoundaryNode *currentBoundary)
+        : controller_(controller),
+          currentBoundary_(currentBoundary),
+          lastY_(0),
+          layoutResultY_(0)
+    {
+    }
+
+    virtual int layoutChild(loka::app::scene::Node *child, const loka::app::scene::LayoutState &state)
+    {
+      loka::app::scene::LayoutState childState = state;
+      const short width = LayoutNode(child, childState, controller_, currentBoundary_);
+      lastY_ = childState.y;
+      layoutResultY_ = childState.y;
+      return width;
+    }
+
+    virtual void setLayoutResultY(short y) { layoutResultY_ = y; }
+
+    virtual short layoutResultY() const { return layoutResultY_; }
+
+    short lastY() const { return lastY_; }
+
+  private:
+    ToolboxScenePlatformController *controller_;
+    loka::app::scene::BoundaryNode *currentBoundary_;
+    short lastY_;
+    short layoutResultY_;
+  };
+
+  class ActiveLayoutBoundaryScope
+  {
+  public:
+    ActiveLayoutBoundaryScope(ToolboxScenePlatformController *controller,
+                              loka::app::scene::BoundaryNode *boundary)
+        : controller_(controller),
+          previous_(controller ? controller->activeLayoutBoundary() : 0)
+    {
+      if (controller_)
+      {
+        controller_->setActiveLayoutBoundary(boundary);
+      }
+    }
+
+    ~ActiveLayoutBoundaryScope()
+    {
+      if (controller_)
+      {
+        controller_->setActiveLayoutBoundary(previous_);
+      }
+    }
+
+  private:
+    ToolboxScenePlatformController *controller_;
+    loka::app::scene::BoundaryNode *previous_;
+  };
+
   short LayoutNode(loka::app::scene::Node *node,
                    loka::app::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller,
@@ -403,51 +465,76 @@ namespace
     const short startX = state.x;
     const short startY = state.y;
     const short startTop = static_cast<short>(startY - state.lineHeight + 2);
+    if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
+    {
+      ActiveLayoutBoundaryScope boundaryScope(controller, activeBoundary);
+      short width = projected->layoutProjected(controller, state);
+      if (boundary)
+      {
+        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
+      }
+      return width;
+    }
     switch (node->kind())
     {
     case loka::app::scene::NODE_KIND_COLUMN:
     {
       loka::app::ColumnNode *column = static_cast<loka::app::ColumnNode *>(node);
       short width = 0;
-      short currentY = state.y;
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+      bool usedHandler = false;
+      if (controller && controller->layoutHandlerRegistry())
       {
-        loka::app::scene::LayoutState childState = state;
-        childState.y = currentY;
-        if (state.height > 0)
+        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(column);
+        if (handler)
         {
-          childState.height = static_cast<short>(
-              loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+          ToolboxLayoutTraversal traversal(controller, activeBoundary);
+          width = static_cast<short>(handler->layoutNode(column, state, &traversal));
+          state.y = traversal.lastY();
+          usedHandler = true;
         }
-        short childWidth = state.width;
-        short childOffset = 0;
-        if (column->props.hasHorizontalAlignment_)
+      }
+      if (!usedHandler)
+      {
+        short currentY = state.y;
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
+        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
         {
-          childWidth = PreferredChildWidthForColumn(child, state.width);
-          short remain = static_cast<short>(state.width - childWidth);
-          if (remain > 0)
+          loka::app::scene::LayoutState childState = state;
+          childState.y = currentY;
+          if (state.height > 0)
           {
-            if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+            childState.height = static_cast<short>(
+                loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+          }
+          short childWidth = state.width;
+          short childOffset = 0;
+          if (column->props.hasHorizontalAlignment_)
+          {
+            childWidth = PreferredChildWidthForColumn(child, state.width);
+            short remain = static_cast<short>(state.width - childWidth);
+            if (remain > 0)
             {
-              childOffset = static_cast<short>(remain / 2);
-            }
-            else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
-            {
-              childOffset = remain;
+              if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+              {
+                childOffset = static_cast<short>(remain / 2);
+              }
+              else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
+              {
+                childOffset = remain;
+              }
             }
           }
+          childState.x = static_cast<short>(state.x + childOffset);
+          childState.width = childWidth;
+          short childUsedWidth = LayoutNode(child, childState, controller, activeBoundary);
+          if (childUsedWidth > width)
+          {
+            width = childUsedWidth;
+          }
+          currentY = childState.y;
         }
-        childState.x = static_cast<short>(state.x + childOffset);
-        childState.width = childWidth;
-        short childUsedWidth = LayoutNode(child, childState, controller, activeBoundary);
-        if (childUsedWidth > width)
-        {
-          width = childUsedWidth;
-        }
-        currentY = childState.y;
+        state.y = currentY;
       }
-      state.y = currentY;
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
@@ -457,34 +544,49 @@ namespace
     case loka::app::scene::NODE_KIND_BOX:
     {
       loka::app::BoxNode *box = static_cast<loka::app::BoxNode *>(node);
-      short padding = static_cast<short>(box->props.padding);
-      loka::app::scene::LayoutState childState = state;
-      childState.x = static_cast<short>(state.x + padding);
-      childState.y = static_cast<short>(state.y + padding);
-      if (childState.width > 0)
+      short width = 0;
+      bool usedHandler = false;
+      if (controller && controller->layoutHandlerRegistry() && box->childrenCount() > 0)
       {
-        childState.width = static_cast<short>(childState.width - padding * 2);
-        if (childState.width < 0)
+        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(box);
+        if (handler)
         {
-          childState.width = 0;
+          ToolboxLayoutTraversal traversal(controller, activeBoundary);
+          width = static_cast<short>(handler->layoutNode(box, state, &traversal));
+          state.y = static_cast<short>(traversal.lastY() + box->props.padding);
+          usedHandler = true;
         }
       }
-      if (childState.height > 0)
+      if (!usedHandler)
       {
-        childState.height = static_cast<short>(childState.height - padding * 2);
-        if (childState.height < 0)
+        short padding = static_cast<short>(box->props.padding);
+        loka::app::scene::LayoutState childState = state;
+        childState.x = static_cast<short>(state.x + padding);
+        childState.y = static_cast<short>(state.y + padding);
+        if (childState.width > 0)
         {
-          childState.height = 0;
+          childState.width = static_cast<short>(childState.width - padding * 2);
+          if (childState.width < 0)
+          {
+            childState.width = 0;
+          }
         }
+        if (childState.height > 0)
+        {
+          childState.height = static_cast<short>(childState.height - padding * 2);
+          if (childState.height < 0)
+          {
+            childState.height = 0;
+          }
+        }
+        short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
+        width = static_cast<short>(childWidth + padding * 2);
+        if (childWidth == 0 && box->childrenCount() == 0)
+        {
+          width = static_cast<short>(padding * 2);
+        }
+        state.y = static_cast<short>(childState.y + padding);
       }
-      short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
-      short width = static_cast<short>(childWidth + padding * 2);
-      if (childWidth == 0 && box->childrenCount() == 0)
-      {
-        width = static_cast<short>(padding * 2);
-      }
-      short resultY = static_cast<short>(childState.y + padding);
-      state.y = resultY;
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
@@ -494,23 +596,38 @@ namespace
     case loka::app::scene::NODE_KIND_ZSTACK:
     {
       loka::app::ZStackNode *stack = static_cast<loka::app::ZStackNode *>(node);
-      loka::app::scene::LayoutState childState = state;
       short maxWidth = 0;
       short maxY = state.y;
-      if (loka::app::scene::INestable *nestable = stack->asNestable())
+      bool usedHandler = false;
+      if (controller && controller->layoutHandlerRegistry())
       {
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(stack);
+        if (handler)
         {
-          childState = state;
-          short width = LayoutNode(child, childState, controller, activeBoundary);
-          if (width > maxWidth)
+          ToolboxLayoutTraversal traversal(controller, activeBoundary);
+          maxWidth = static_cast<short>(handler->layoutNode(stack, state, &traversal));
+          maxY = traversal.lastY();
+          usedHandler = true;
+        }
+      }
+      if (!usedHandler)
+      {
+        loka::app::scene::LayoutState childState = state;
+        if (loka::app::scene::INestable *nestable = stack->asNestable())
+        {
+          loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+          for (loka::app::scene::Node *child = it.next(); child; child = it.next())
           {
-            maxWidth = width;
-          }
-          if (childState.y > maxY)
-          {
-            maxY = childState.y;
+            childState = state;
+            short width = LayoutNode(child, childState, controller, activeBoundary);
+            if (width > maxWidth)
+            {
+              maxWidth = width;
+            }
+            if (childState.y > maxY)
+            {
+              maxY = childState.y;
+            }
           }
         }
       }
@@ -524,67 +641,83 @@ namespace
     case loka::app::scene::NODE_KIND_GRID:
     {
       loka::app::GridNode *grid = static_cast<loka::app::GridNode *>(node);
-      const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
-      const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
-      const short gap = 0;
-      short availableWidth = state.width;
-      if (availableWidth > 0)
+      short maxWidth = 0;
+      bool usedHandler = false;
+      if (controller && controller->layoutHandlerRegistry())
       {
-        availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
-        if (availableWidth < 0)
+        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(grid);
+        if (handler)
         {
-          availableWidth = 0;
+          ToolboxLayoutTraversal traversal(controller, activeBoundary);
+          maxWidth = static_cast<short>(handler->layoutNode(grid, state, &traversal));
+          state.y = traversal.layoutResultY();
+          usedHandler = true;
         }
       }
-      short availableHeight = state.height;
-      if (availableHeight > 0)
+      if (!usedHandler)
       {
-        availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
-        if (availableHeight < 0)
+        const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
+        const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
+        const short gap = 0;
+        short availableWidth = state.width;
+        if (availableWidth > 0)
         {
-          availableHeight = 0;
-        }
-      }
-      const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
-      const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
-      short maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
-      short maxY = state.y;
-      if (loka::app::scene::INestable *nestable = grid->asNestable())
-      {
-        const size_t childCount = nestable->childrenCount();
-        const size_t maxCount = static_cast<size_t>(rows * cols);
-        size_t index = 0;
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
-        for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
-        {
-          const short row = static_cast<short>(index / cols);
-          const short col = static_cast<short>(index % cols);
-          loka::app::scene::LayoutState cellState = state;
-          cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
-          cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
-          cellState.width = cellWidth;
-          cellState.height = cellHeight;
-          short width = LayoutNode(child, cellState, controller, activeBoundary);
-          if (width > maxWidth)
+          availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
+          if (availableWidth < 0)
           {
-            maxWidth = width;
-          }
-          if (cellState.y > maxY)
-          {
-            maxY = cellState.y;
+            availableWidth = 0;
           }
         }
-      }
-      if (cellHeight > 0)
-      {
-        short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
-        short bottom = static_cast<short>(state.y + totalHeight);
-        if (bottom > maxY)
+        short availableHeight = state.height;
+        if (availableHeight > 0)
         {
-          maxY = bottom;
+          availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
+          if (availableHeight < 0)
+          {
+            availableHeight = 0;
+          }
         }
+        const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
+        const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
+        maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
+        short maxY = state.y;
+        if (loka::app::scene::INestable *nestable = grid->asNestable())
+        {
+          const size_t childCount = nestable->childrenCount();
+          const size_t maxCount = static_cast<size_t>(rows * cols);
+          size_t index = 0;
+          loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
+          for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+          {
+            const short row = static_cast<short>(index / cols);
+            const short col = static_cast<short>(index % cols);
+            loka::app::scene::LayoutState cellState = state;
+            cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
+            cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
+            cellState.width = cellWidth;
+            cellState.height = cellHeight;
+            short width = LayoutNode(child, cellState, controller, activeBoundary);
+            if (width > maxWidth)
+            {
+              maxWidth = width;
+            }
+            if (cellState.y > maxY)
+            {
+              maxY = cellState.y;
+            }
+          }
+        }
+        if (cellHeight > 0)
+        {
+          short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
+          short bottom = static_cast<short>(state.y + totalHeight);
+          if (bottom > maxY)
+          {
+            maxY = bottom;
+          }
+        }
+        state.y = maxY;
       }
-      state.y = maxY;
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, maxWidth, static_cast<short>(state.y - startTop));
@@ -594,203 +727,92 @@ namespace
     case loka::app::scene::NODE_KIND_ROW:
     {
       loka::app::RowNode *row = static_cast<loka::app::RowNode *>(node);
-      short rowStartX = state.x;
-      short maxHeight = 0;
-      short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
-      const size_t childCount = row->childrenCount();
-      if (row->props.hasVerticalAlignment_)
+      short width = 0;
+      bool usedHandler = false;
+      if (controller && controller->layoutHandlerRegistry())
       {
-        rowHeight = 0;
-        loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
-        for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
+        loka::app::scene::IPlatformLayoutHandler *handler = controller->layoutHandlerRegistry()->find(row);
+        if (handler)
         {
-          short h = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
-          if (h > rowHeight)
-          {
-            rowHeight = h;
-          }
-        }
-        if (rowHeight <= 0)
-        {
-          rowHeight = 12;
+          ToolboxLayoutTraversal traversal(controller, activeBoundary);
+          width = static_cast<short>(handler->layoutNode(row, state, &traversal));
+          state.y = traversal.layoutResultY();
+          usedHandler = true;
         }
       }
-      loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());
-      size_t childIndex = 0;
-      for (loka::app::scene::Node *child = it.next(); child; child = it.next(), ++childIndex)
+      if (!usedHandler)
       {
-        loka::app::scene::LayoutState rowState = state;
-        rowState.x = rowStartX;
-        if (state.width > 0)
-        {
-          const short usedWidth = static_cast<short>(rowStartX - state.x);
-          short remainingWidth = static_cast<short>(state.width - usedWidth);
-          if (remainingWidth < 0)
-          {
-            remainingWidth = 0;
-          }
-          const size_t remainingChildren = (childCount > childIndex) ? (childCount - childIndex) : 1;
-          if (remainingChildren > 0)
-          {
-            rowState.width = static_cast<short>(remainingWidth / static_cast<short>(remainingChildren));
-          }
-        }
+        short rowStartX = state.x;
+        short maxHeight = 0;
+        short rowHeight = state.lineHeight > 0 ? state.lineHeight : 12;
+        const size_t childCount = row->childrenCount();
         if (row->props.hasVerticalAlignment_)
         {
-          short childHeight = PreferredChildHeightForRow(child, rowHeight);
-          short remain = static_cast<short>(rowHeight - childHeight);
-          short offset = 0;
-          if (remain > 0)
+          rowHeight = 0;
+          loka::dsl::CompositionCursor<loka::app::scene::Node> measure(row->childrenHead(), row->childrenCount());
+          for (loka::app::scene::Node *child = measure.next(); child; child = measure.next())
           {
-            if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_CENTER)
+            short h = PreferredChildHeightForRow(child, state.lineHeight > 0 ? state.lineHeight : 12);
+            if (h > rowHeight)
             {
-              offset = static_cast<short>(remain / 2);
-            }
-            else if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM)
-            {
-              offset = remain;
+              rowHeight = h;
             }
           }
-          rowState.y = static_cast<short>(state.y + offset);
-          rowState.height = childHeight;
+          if (rowHeight <= 0)
+          {
+            rowHeight = 12;
+          }
         }
-        short width = LayoutNode(child, rowState, controller, activeBoundary);
-        rowStartX = static_cast<short>(rowStartX + width + state.spacing);
-        if (rowState.y > state.y &&
-            static_cast<short>(rowState.y - state.y) > maxHeight)
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(row->childrenHead(), row->childrenCount());
+        size_t childIndex = 0;
+        for (loka::app::scene::Node *child = it.next(); child; child = it.next(), ++childIndex)
         {
-          maxHeight = static_cast<short>(rowState.y - state.y);
+          loka::app::scene::LayoutState rowState = state;
+          rowState.x = rowStartX;
+          if (state.width > 0)
+          {
+            const short usedWidth = static_cast<short>(rowStartX - state.x);
+            short remainingWidth = static_cast<short>(state.width - usedWidth);
+            if (remainingWidth < 0)
+            {
+              remainingWidth = 0;
+            }
+            const size_t remainingChildren = (childCount > childIndex) ? (childCount - childIndex) : 1;
+            if (remainingChildren > 0)
+            {
+              rowState.width = static_cast<short>(remainingWidth / static_cast<short>(remainingChildren));
+            }
+          }
+          if (row->props.hasVerticalAlignment_)
+          {
+            short childHeight = PreferredChildHeightForRow(child, rowHeight);
+            short remain = static_cast<short>(rowHeight - childHeight);
+            short offset = 0;
+            if (remain > 0)
+            {
+              if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_CENTER)
+              {
+                offset = static_cast<short>(remain / 2);
+              }
+              else if (row->props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM)
+              {
+                offset = remain;
+              }
+            }
+            rowState.y = static_cast<short>(state.y + offset);
+            rowState.height = childHeight;
+          }
+          short childWidth = LayoutNode(child, rowState, controller, activeBoundary);
+          rowStartX = static_cast<short>(rowStartX + childWidth + state.spacing);
+          if (rowState.y > state.y &&
+              static_cast<short>(rowState.y - state.y) > maxHeight)
+          {
+            maxHeight = static_cast<short>(rowState.y - state.y);
+          }
         }
+        state.y = static_cast<short>(state.y + maxHeight + state.spacing);
+        width = static_cast<short>(rowStartX - state.x);
       }
-      state.y = static_cast<short>(state.y + maxHeight + state.spacing);
-      short width = static_cast<short>(rowStartX - state.x);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_TEXT:
-    {
-      loka::app::TextNode *text = static_cast<loka::app::TextNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureTextContext(text);
-      }
-      if (text->getContext())
-      {
-        ToolboxTextContext *ctx = static_cast<ToolboxTextContext *>(text->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_CELL:
-    {
-      loka::app::CellNode *cell = static_cast<loka::app::CellNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureCellContext(cell);
-      }
-      if (cell->getContext())
-      {
-        ToolboxCellContext *ctx = static_cast<ToolboxCellContext *>(cell->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_BUTTON:
-    {
-      loka::app::ButtonNode *button = static_cast<loka::app::ButtonNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureButtonContext(button);
-      }
-      if (button->getContext())
-      {
-        ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_EDIT_TEXT:
-    {
-      loka::app::EditTextNode *edit = static_cast<loka::app::EditTextNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureEditTextContext(edit);
-      }
-      if (edit->getContext())
-      {
-        ToolboxEditTextContext *ctx = static_cast<ToolboxEditTextContext *>(edit->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_POPUP_MENU:
-    {
-      loka::app::PopupMenuNode *popup = static_cast<loka::app::PopupMenuNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensurePopupMenuContext(popup);
-      }
-      if (popup->getContext())
-      {
-        ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
-      }
-      return width;
-    }
-    case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
-    {
-      loka::app::OpenFileDialogNode *dialog = static_cast<loka::app::OpenFileDialogNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureOpenFileDialogContext(dialog);
-      }
-      if (boundary)
-      {
-        boundary->setLayoutBounds(startX, startTop, 0, static_cast<short>(state.y - startTop));
-      }
-      return 0;
-    }
-    case loka::app::scene::NODE_KIND_IMAGE_VIEW:
-    {
-      loka::app::ImageViewNode *image = static_cast<loka::app::ImageViewNode *>(node);
-      if (controller && controller->contextMapper())
-      {
-        controller->contextMapper()->ensureImageViewContext(image);
-      }
-      if (image->getContext())
-      {
-        ToolboxImageViewContext *ctx = static_cast<ToolboxImageViewContext *>(image->getContext());
-        ctx->setBoundary(activeBoundary);
-      }
-      short width = node->layout(controller, state);
       if (boundary)
       {
         boundary->setLayoutBounds(startX, startTop, width, static_cast<short>(state.y - startTop));
@@ -848,6 +870,11 @@ namespace
     {
       return;
     }
+    if (node->asProjectedLayoutNode())
+    {
+      node->render(controller);
+      return;
+    }
     switch (node->kind())
     {
     case loka::app::scene::NODE_KIND_COLUMN:
@@ -856,16 +883,8 @@ namespace
     case loka::app::scene::NODE_KIND_ROW:
       RenderChildren(node->asNestable(), controller);
       return;
-    case loka::app::scene::NODE_KIND_TEXT:
-    case loka::app::scene::NODE_KIND_CELL:
-    case loka::app::scene::NODE_KIND_BUTTON:
-    case loka::app::scene::NODE_KIND_EDIT_TEXT:
-    case loka::app::scene::NODE_KIND_POPUP_MENU:
-    case loka::app::scene::NODE_KIND_IMAGE_VIEW:
     case loka::app::scene::NODE_KIND_RECT_SURFACE:
       node->render(controller);
-      return;
-    case loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG:
       return;
     default:
       break;
@@ -905,8 +924,10 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       clipRgn_(NewRgn()),
       hasClip_(false),
       nextControlId_(kAutoControlBaseId),
-      debugStats_()
+      debugStats_(),
+      activeLayoutBoundary_(0)
 {
+  RegisterToolboxPlatformLayoutHandlers(this->layoutHandlerRegistry_);
 }
 
 ToolboxScenePlatformController::~ToolboxScenePlatformController()
@@ -928,6 +949,23 @@ ToolboxNodeContextMapper *ToolboxScenePlatformController::contextMapper() const
     return 0;
   }
   return window_->context()->contextMapper();
+}
+
+bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::Node *node,
+                                                            loka::app::scene::LayoutState &state)
+{
+  (void)state;
+  if (!node)
+  {
+    return false;
+  }
+  ToolboxNodeContextMapper *mapper = this->contextMapper();
+  if (!mapper)
+  {
+    return false;
+  }
+  loka::app::scene::BoundaryNode *boundary = this->activeLayoutBoundary();
+  return mapper->ensureProjectedContext(node, boundary);
 }
 
 short ToolboxScenePlatformController::allocateControlId()
@@ -1305,103 +1343,39 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   for (size_t i = 0; i < popupHits_.size(); ++i)
   {
     PopupHit &hit = popupHits_[i];
-    if (hit.enabled && !hit.enabled->get())
-    {
-      continue;
-    }
-    if (!hit.items || hit.items->size() == 0 || !hit.selectedIndex)
-    {
-      continue;
-    }
-    if (!PtInRect(point, &hit.rect))
-    {
-      continue;
-    }
-    MenuHandle menu = NewMenu(hit.menuId, "\p");
-    if (!menu)
+    if (hit.context && hit.context->handleMouseDown(point, this))
     {
       return false;
     }
-    for (std::size_t j = 0; j < hit.items->size(); ++j)
-    {
-      Str255 text;
-      std::string utf8;
-      if (!loka::platform::CollectUtf8((*hit.items)[j], utf8))
-      {
-        text[0] = 0;
-      }
-      else
-      {
-        std::size_t length = utf8.size();
-        if (length > 255)
-        {
-          length = 255;
-        }
-        text[0] = static_cast<unsigned char>(length);
-        if (length > 0)
-        {
-          std::memcpy(text + 1, utf8.data(), length);
-        }
-      }
-      AppendMenu(menu, text);
-    }
-    InsertMenu(menu, -1);
-    short currentIndex = 0;
-    if (hit.selectedIndex->get() > 0)
-    {
-      currentIndex = static_cast<short>(hit.selectedIndex->get());
-    }
-    if (static_cast<std::size_t>(currentIndex) >= hit.items->size())
-    {
-      currentIndex = static_cast<short>(hit.items->size() - 1);
-    }
-    Point globalPoint = point;
-    LocalToGlobal(&globalPoint);
-    long choice = PopUpMenuSelect(menu, globalPoint.v, globalPoint.h, static_cast<short>(currentIndex + 1));
-    short item = static_cast<short>(choice & 0xFFFF);
-    if (item > 0)
-    {
-      applyPopupSelectionChange(hit.rect, hit.boundary, hit.selectedIndex, hit.onChange, static_cast<int>(item - 1));
-    }
-    DeleteMenu(hit.menuId);
-    DisposeMenu(menu);
-    return false;
   }
   for (size_t i = 0; i < cellHits_.size(); ++i)
   {
     CellHit &hit = cellHits_[i];
-    if (!hit.emitter)
+    if (hit.context && hit.context->handleMouseDown(point, this))
     {
-      continue;
-    }
-    if (PtInRect(point, &hit.rect))
-    {
-      beginBatchUpdate();
-      hit.emitter->emit();
-      endBatchUpdate();
       return false;
     }
   }
   for (size_t i = 0; i < buttonHits_.size(); ++i)
   {
     ButtonHit &hit = buttonHits_[i];
-    if (!hit.emitter)
+    if (hit.context && hit.context->handleMouseDown(point, this))
     {
-      continue;
-    }
-    if (hit.enabled && !hit.enabled->get())
-    {
-      continue;
-    }
-    if (PtInRect(point, &hit.rect))
-    {
-      beginBatchUpdate();
-      hit.emitter->emit();
-      endBatchUpdate();
       return false;
     }
   }
   return false;
+}
+
+void ToolboxScenePlatformController::emitHitEmitter(loka::core::EmitterState *emitter)
+{
+  if (!emitter)
+  {
+    return;
+  }
+  beginBatchUpdate();
+  emitter->emit();
+  endBatchUpdate();
 }
 
 bool ToolboxScenePlatformController::handleKeyDown(char key)
@@ -1427,7 +1401,8 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
 void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
                                                      loka::core::EmitterState *emitter,
                                                      loka::core::State<bool> *enabled,
-                                                     loka::app::scene::BoundaryNode *boundary)
+                                                     loka::app::scene::BoundaryNode *boundary,
+                                                     ToolboxButtonContext *context)
 {
   if (!emitter)
   {
@@ -1438,6 +1413,7 @@ void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
   hit.emitter = emitter;
   hit.enabled = enabled;
   hit.boundary = boundary;
+  hit.context = context;
   buttonHits_.push_back(hit);
   bindEnabledState(enabled);
 }
@@ -1506,7 +1482,8 @@ void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
                                                     loka::core::EmitterState *onChange,
                                                     loka::core::State<bool> *enabled,
                                                     loka::app::scene::BoundaryNode *boundary,
-                                                    short menuId)
+                                                    short menuId,
+                                                    ToolboxPopupMenuContext *context)
 {
   PopupHit hit;
   hit.rect = rect;
@@ -1517,6 +1494,7 @@ void ToolboxScenePlatformController::recordPopupHit(const Rect &rect,
   hit.enabled = enabled;
   hit.boundary = boundary;
   hit.menuId = menuId;
+  hit.context = context;
   popupHits_.push_back(hit);
   bindEnabledState(enabled);
 }

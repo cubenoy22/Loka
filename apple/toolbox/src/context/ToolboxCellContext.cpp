@@ -116,3 +116,20 @@ void ToolboxCellContext::render(loka::app::scene::IPlatformController *controlle
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);
 }
+
+bool ToolboxCellContext::handleMouseDown(const Point &point, ToolboxScenePlatformController *controller)
+{
+  if (!node_ || !node_->props.onClick_)
+  {
+    return false;
+  }
+  if (!PtInRect(point, &rect_))
+  {
+    return false;
+  }
+  if (controller)
+  {
+    controller->emitHitEmitter(node_->props.onClick_);
+  }
+  return true;
+}

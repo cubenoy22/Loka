@@ -14,6 +14,8 @@ namespace loka
       public:
         virtual ~IPlatformLayoutTraversal() {}
         virtual int layoutChild(Node *child, const LayoutState &state) = 0;
+        virtual void setLayoutResultY(short y) = 0;
+        virtual short layoutResultY() const = 0;
       };
 
       class IPlatformLayoutHandler
@@ -37,16 +39,26 @@ namespace loka
           while (entry)
           {
             HandlerEntry *next = entry->next_;
+            delete entry->handler_;
             delete entry;
             entry = next;
           }
           this->head_ = 0;
         }
 
+        // Owning registry: built-in layout handlers are registered as heap
+        // objects, and the registry takes responsibility for deleting them on
+        // destruction or replacement. Callers must not register stack/static
+        // handlers here.
         bool registerHandler(IPlatformLayoutHandler *handler)
         {
-          if (!handler || !handler->nodeTypeKey())
+          if (!handler)
           {
+            return false;
+          }
+          if (!handler->nodeTypeKey())
+          {
+            delete handler;
             return false;
           }
 
@@ -55,6 +67,10 @@ namespace loka
           {
             if (existing->nodeTypeKey_ == handler->nodeTypeKey())
             {
+              if (existing->handler_ != handler)
+              {
+                delete existing->handler_;
+              }
               existing->handler_ = handler;
               return true;
             }
@@ -64,6 +80,7 @@ namespace loka
           HandlerEntry *entry = new HandlerEntry(handler->nodeTypeKey(), handler);
           if (!entry)
           {
+            delete handler;
             return false;
           }
           entry->next_ = this->head_;
