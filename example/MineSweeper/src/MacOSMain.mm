@@ -8,8 +8,10 @@ int main(int argc, char **argv)
   (void)argv;
 
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-  loka::platform::RunApp<MyAppConfig>();
-  [pool release];
-
-  return 0;
+  int result = loka::platform::RunApp<MyAppConfig>();
+  // Leopard/PPC may crash while popping the outermost process-lifetime pool
+  // during shutdown. The process is exiting here anyway, so let the OS reclaim
+  // it instead of releasing the pool explicitly.
+  (void)pool;
+  return result;
 }

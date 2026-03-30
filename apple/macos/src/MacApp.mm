@@ -132,13 +132,27 @@ void MacApp::run()
 void MacApp::quit()
 {
   stopInvalidationFlushTimer();
-  // Do not call [NSApp terminate:nil] directly here.
-  // On Mac OS X 10.4-10.5, terminate: drains all autorelease pools
-  // synchronously. If quit() is invoked via a key equivalent, NSCarbonMenuImpl
-  // is still on the stack and holds autoreleased objects; draining the pools
-  // while it is active corrupts those objects and crashes in objc_msgSend.
-  // Deferring via afterDelay:0 lets the menu tracking stack unwind first.
-  [NSApp performSelector:@selector(terminate:) withObject:nil afterDelay:0.0];
+  // Avoid terminate: here. On Leopard/PPC and earlier AppKit shutdown paths,
+  // terminate: may synchronously drain autorelease pools inside AppKit while
+  // menu/window-close stacks are still unwinding, which crashes in objc_msgSend
+  // or releaseAllPools. Stopping the run loop lets App::run() return and keeps
+  // cleanup in our normal C++ object lifetime instead.
+  [NSApp stop:nil];
+#if defined(NSApplicationDefined)
+  NSEvent *event = [NSEvent otherEventWithType:NSApplicationDefined
+                                      location:NSMakePoint(0.0, 0.0)
+                                 modifierFlags:0
+                                     timestamp:0.0
+                                  windowNumber:0
+                                       context:nil
+                                       subtype:0
+                                         data1:0
+                                         data2:0];
+  if (event)
+  {
+    [NSApp postEvent:event atStart:NO];
+  }
+#endif
 }
 
 void MacApp::flushInvalidationsTick()
