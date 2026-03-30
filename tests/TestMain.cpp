@@ -93,10 +93,16 @@ int main()
   testLokaAttrDslV1Core();
   testPlatformNodeHandlerRegistration();
   testPlatformNodeHandlerReplacement();
+  testPlatformNodeHandlerRejectsInvalidTypeKey();
   testPlatformLayoutHandlerRegistration();
   testPlatformLayoutTraversalResultY();
   testPlatformLayoutHandlerReplacement();
+  testPlatformLayoutHandlerRejectsInvalidTypeKey();
+  testPlatformLayoutHandlerSamePointerReregister();
   testPrepareProjectedLayoutDelegation();
+  testProjectedLayoutUsesActiveBoundaryModel();
+  testPrepareProjectedLayoutRejectsNullController();
+  testContainerLayoutHelpersAdvanceResultY();
 #if defined(_WIN32) || defined(WIN32)
   testWin32ScenePlatformRelayoutReusesControlContexts();
   testWin32ScenePlatformRelayoutReusesCellAndTextContexts();
