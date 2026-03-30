@@ -57,7 +57,10 @@ namespace
   class AttrDslDummyRegistrationPlatformController : public loka::app::scene::IPlatformController
   {
   public:
-    AttrDslDummyRegistrationPlatformController() : lastRoot_(0) {}
+    AttrDslDummyRegistrationPlatformController()
+        : lastRoot_(0), prepareProjectedCalls_(0), prepareProjectedResult_(false)
+    {
+    }
 
     virtual void onChange(loka::app::scene::Node *rootNode,
                           loka::app::scene::NodeDirtyFlags flags,
@@ -77,6 +80,15 @@ namespace
       return this->registry_.registerHandler(handler);
     }
 
+    virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
+                                        loka::app::scene::LayoutState &state)
+    {
+      ++prepareProjectedCalls_;
+      lastPreparedNode_ = node;
+      lastPreparedState_ = state;
+      return prepareProjectedResult_;
+    }
+
     loka::app::scene::IPlatformNodeHandler *findHandler(const loka::app::scene::Node *node) const
     {
       return this->registry_.find(node);
@@ -84,6 +96,56 @@ namespace
 
     loka::app::scene::PlatformNodeHandlerRegistry registry_;
     loka::app::scene::Node *lastRoot_;
+    int prepareProjectedCalls_;
+    bool prepareProjectedResult_;
+    loka::app::scene::Node *lastPreparedNode_;
+    loka::app::scene::LayoutState lastPreparedState_;
+  };
+
+  class AttrDslSecondExternalHandler : public loka::app::scene::IPlatformNodeHandler
+  {
+  public:
+    AttrDslSecondExternalHandler() : ensureCalls_(0) {}
+
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<AttrDslCustomExternalNode>();
+    }
+
+    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
+                                                         loka::app::scene::IPlatformController *controller,
+                                                         const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      ++ensureCalls_;
+      lastState_ = state;
+      if (!node->getContext())
+      {
+        node->setContext(new loka::app::scene::NodeContext(node));
+      }
+      return node->getContext();
+    }
+
+    int ensureCalls_;
+    loka::app::scene::LayoutState lastState_;
+  };
+
+  class AttrDslProjectedExternalNode : public loka::app::scene::Node, public loka::app::scene::IProjectedLayoutNode
+  {
+  public:
+    AttrDslProjectedExternalNode() : projectedCalls_(0) {}
+
+    virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
+                                  loka::app::scene::LayoutState &state)
+    {
+      ++projectedCalls_;
+      const bool prepared = loka::app::scene::PrepareProjectedLayout(controller, this, state);
+      return static_cast<short>(prepared ? state.y + 9 : state.y);
+    }
+
+    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+
+    int projectedCalls_;
   };
 
   class AttrDslCustomLayoutLeafNode : public loka::app::scene::Node
@@ -408,6 +470,23 @@ void testPlatformNodeHandlerRegistration()
   printf("==== [testPlatformNodeHandlerRegistration] end ====\n");
 }
 
+void testPlatformNodeHandlerReplacement()
+{
+  printf("\n==== [testPlatformNodeHandlerReplacement] start ====\n");
+
+  AttrDslCustomExternalNode node;
+  AttrDslCustomExternalHandler first;
+  AttrDslSecondExternalHandler second;
+
+  loka::app::scene::PlatformNodeHandlerRegistry registry;
+  assert(registry.registerHandler(&first));
+  assert(registry.find(&node) == &first);
+  assert(registry.registerHandler(&second));
+  assert(registry.find(&node) == &second);
+
+  printf("==== [testPlatformNodeHandlerReplacement] end ====\n");
+}
+
 void testPlatformLayoutHandlerRegistration()
 {
   printf("\n==== [testPlatformLayoutHandlerRegistration] start ====\n");
@@ -517,4 +596,35 @@ void testPlatformLayoutHandlerReplacement()
   assert(second->calls_ == 1);
 
   printf("==== [testPlatformLayoutHandlerReplacement] end ====\n");
+}
+
+void testPrepareProjectedLayoutDelegation()
+{
+  printf("\n==== [testPrepareProjectedLayoutDelegation] start ====\n");
+
+  AttrDslDummyRegistrationPlatformController controller;
+  AttrDslProjectedExternalNode node;
+  controller.prepareProjectedResult_ = true;
+
+  loka::app::scene::LayoutState state;
+  state.x = 3;
+  state.y = 12;
+  state.width = 20;
+  state.height = 24;
+
+  const short resultY = node.layoutProjected(&controller, state);
+  assert(resultY == 21);
+  assert(node.projectedCalls_ == 1);
+  assert(controller.prepareProjectedCalls_ == 1);
+  assert(controller.lastPreparedNode_ == &node);
+  assert(controller.lastPreparedState_.x == 3);
+  assert(controller.lastPreparedState_.y == 12);
+  assert(controller.lastPreparedState_.width == 20);
+  assert(controller.lastPreparedState_.height == 24);
+
+  controller.prepareProjectedResult_ = false;
+  assert(loka::app::scene::PrepareProjectedLayout(&controller, &node, state) == false);
+  assert(controller.prepareProjectedCalls_ == 2);
+
+  printf("==== [testPrepareProjectedLayoutDelegation] end ====\n");
 }
