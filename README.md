@@ -1,5 +1,7 @@
 # Loka
 
+![Loka cover artwork](assets/Hero.svg)
+
 > A declarative UI & application framework that runs from **Classic Mac OS (68k, System 7)** to **modern macOS, Windows, Linux**, and beyond.
 
 Loka is a declarative UI framework that spans from classic Macintosh systems in the 68000 @ 8 MHz class, through Windows XP, to modern macOS, Windows, and ARM devices, with the same state model and composition system.
