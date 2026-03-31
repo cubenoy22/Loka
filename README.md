@@ -1,6 +1,10 @@
 # Loka
 
-![Loka cover artwork](assets/Hero.svg)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/Hero-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/Hero.svg">
+  <img alt="Loka cover artwork" src="assets/Hero.svg">
+</picture>
 
 > A declarative UI & application framework that runs from **Classic Mac OS (68k, System 7)** to **modern macOS, Windows, Linux**, and beyond.
 
