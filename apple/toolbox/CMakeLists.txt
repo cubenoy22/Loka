@@ -33,7 +33,7 @@ target_link_libraries(LokaAppleToolbox INTERFACE
   LokaAppleCommonCarbon
 )
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   target_compile_options(LokaAppleToolboxCore PRIVATE
     -Os
     -ffunction-sections

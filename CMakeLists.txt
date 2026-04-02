@@ -5,6 +5,18 @@ option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(TEST_BUILD "Enable test build mode" OFF)
 option(LOKA_ENABLE_DEBUG_LOGS "Enable debug log output such as LOKA_DEBUG_RECOMPOSE traces" ON)
 
+set(LOKA_CLASSIC_MAC OFF)
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
+  set(LOKA_CLASSIC_MAC ON)
+endif()
+
+set(LOKA_CLASSIC_TARGET_SUFFIX "")
+if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+  set(LOKA_CLASSIC_TARGET_SUFFIX "68K")
+elseif(CMAKE_SYSTEM_NAME MATCHES "^Retro(PPC|Carbon)$")
+  set(LOKA_CLASSIC_TARGET_SUFFIX "PPC")
+endif()
+
 if(TEST_BUILD)
   add_definitions(-DTEST_BUILD)
 endif()
@@ -17,12 +29,12 @@ if(APPLE AND LOKA_ENABLE_APPLE)
   add_subdirectory(apple)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+if(LOKA_CLASSIC_MAC)
   add_subdirectory(apple/common/carbon)
   add_subdirectory(apple/toolbox)
 endif()
 
-if(WIN32 OR (APPLE AND LOKA_ENABLE_APPLE) OR (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
+if(WIN32 OR (APPLE AND LOKA_ENABLE_APPLE) OR LOKA_CLASSIC_MAC)
 add_subdirectory(example/HelloWorld)
 add_subdirectory(example/MineSweeper)
 add_subdirectory(example/PerfArena)
@@ -31,7 +43,7 @@ add_subdirectory(example/FloppyBird)
 endif()
 
 # Linux/WSL headless tests (Flow DSL focused).
-if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
+if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   file(GLOB_RECURSE LOKA_COMMON_SOURCES
     ${PROJECT_SOURCE_DIR}/common/*.cpp
   )

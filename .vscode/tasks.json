@@ -213,6 +213,58 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Configure: Retro68 68K",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "retro68-68k-release"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Configure: Retro68 PPC",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "retro68-ppc-release"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 PPC",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-ppc-release"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 PPC"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Configure HelloWorld (Native-Debug-Console)",
       "type": "shell",
       "command": "cmake",

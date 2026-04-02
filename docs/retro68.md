@@ -9,12 +9,18 @@ This project supports building Classic Mac OS targets with Retro68.
 
 ## Configuration
 
-This repo includes shared Retro68 presets in `CMakePresets.json`:
+This repo includes shared Retro68 Release presets in `CMakePresets.json`:
 
-- `retro68-default-release`
+- `retro68-68k-release`
+- `retro68-ppc-release`
 
 These presets use `cmake/toolchains/Retro68.cmake`, which resolves the toolchain
 from environment variables or common default paths.
+
+For Retro68, use the Release presets directly. Dedicated `Debug` or
+`MinSizeRel` presets are not maintained here because the practical workflow is
+already Release-oriented and the Release flags are the ones we want to keep
+consistent across Classic targets.
 
 ### Option A: Use shared presets directly
 
@@ -26,8 +32,8 @@ Set one of the following so the toolchain can be found:
 Then run:
 
 ```sh
-cmake --preset retro68-default-release
-cmake --build --preset retro68-default-release
+cmake --preset retro68-68k-release
+cmake --build --preset retro68-68k-release
 ```
 
 ### Option B: Add local `CMakeUserPresets.json`
@@ -40,33 +46,13 @@ If you want machine-specific overrides (for example custom `PATH`), create
   "version": 3,
   "configurePresets": [
     {
-      "name": "retro68-debug",
-      "displayName": "Retro68 (Debug)",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/retro68/Debug",
+      "name": "retro68-68k-local",
+      "inherits": "retro68-68k-release",
       "environment": {
         "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
         "RETRO68_BUILD_DIR": "/path/to/Retro68-build"
-      }
-    },
-    {
-      "name": "retro68-release",
-      "displayName": "Retro68 (Release)",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/retro68/Release",
-      "environment": {
-        "PATH": "/path/to/Retro68-build/toolchain/bin:$penv{PATH}"
-      },
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
-        "RETRO68_BUILD_DIR": "/path/to/Retro68-build",
-        "CMAKE_CXX_FLAGS_RELEASE": "-Os -ffunction-sections -fdata-sections -fno-exceptions",
-        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-Wl,--gc-sections"
       }
     }
   ]
@@ -78,14 +64,17 @@ Replace `/path/to/Retro68-build` with your actual Retro68 build directory.
 ## Building
 
 ```sh
-cmake --preset retro68-default-release
-cmake --build --preset retro68-default-release --target LokaHelloClassic
+cmake --preset retro68-68k-release
+cmake --build --preset retro68-68k-release --target LokaHello68K
 ```
 
 Output files:
-- Shared preset default:
-  - `build/retro68/Release/example/HelloWorld/LokaHelloClassic.dsk`
-  - `build/retro68/Release/example/HelloWorld/LokaHelloClassic.bin`
+- `retro68-68k-release`:
+  - `build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk`
+  - `build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin`
+- `retro68-ppc-release`:
+  - `build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.dsk`
+  - `build/retro68/ppc/Release/example/HelloWorld/LokaHelloPPC.bin`
 - If you use custom `CMakeUserPresets.json`, paths follow your `binaryDir`.
 
 ## Environment variables (alternative)
@@ -96,6 +85,11 @@ If you prefer environment variables over CMakeUserPresets.json:
 - `RETRO68_TOOLCHAIN_DIR`: path to the Retro68 toolchain CMake directory.
 - `RETRO68_CPU`: target CPU (`m68k` or `ppc`). Defaults to `m68k`.
 - `RETRO68_PPC_FLAVOR`: `retroppc` or `retrocarbon` (when `RETRO68_CPU=ppc`).
+
+Preset mapping used in this repo:
+
+- `retro68-68k-release`: `RETRO68_CPU=m68k`
+- `retro68-ppc-release`: `RETRO68_CPU=ppc`, `RETRO68_PPC_FLAVOR=retroppc`
 
 ## Notes
 

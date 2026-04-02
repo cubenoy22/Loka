@@ -492,11 +492,15 @@ static void BuildMenuItems(MenuHandle menu,
       }
       InsertMenu(subMenu, kInsertHierarchicalMenu);
       SetItemCmd(menu, itemIndex, hMenuCmd);
+#if defined(TARGET_API_MAC_CARBON) && TARGET_API_MAC_CARBON
       OSErr hierErr = SetMenuItemHierarchicalID(menu, itemIndex, subMenuId);
       if (hierErr != noErr)
       {
         SetItemMark(menu, itemIndex, static_cast<CharParameter>(subMenuId & 0xFF));
       }
+#else
+      SetItemMark(menu, itemIndex, static_cast<CharParameter>(subMenuId & 0xFF));
+#endif
       hierarchicalMenus.push_back(subMenu);
       itemDef = itemDef->nextInComposition;
       continue;

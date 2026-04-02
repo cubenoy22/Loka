@@ -5,7 +5,7 @@ if(APPLE)
   enable_language(OBJCXX)
 endif()
 
-if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
+if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
   add_custom_target(LokaStaticVsDynamic ALL
     COMMAND ${CMAKE_COMMAND} -E echo "LokaStaticVsDynamic has no supported platform target here."
   )
@@ -68,38 +68,39 @@ if(APPLE)
   )
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
+  set(LOKA_STATIC_DYNAMIC_CLASSIC_TARGET "LokaStaticVsDynamic${LOKA_CLASSIC_TARGET_SUFFIX}")
   set(RETRO_SOURCES
     src/main.cpp
   )
 
-  add_application(LokaStaticVsDynamicClassic ${RETRO_SOURCES})
+  add_application(${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} ${RETRO_SOURCES})
 
-  target_include_directories(LokaStaticVsDynamicClassic PRIVATE
+  target_include_directories(${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
-  target_link_libraries(LokaStaticVsDynamicClassic PRIVATE LokaAppleToolboxCore)
+  target_link_libraries(${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
 
-  target_compile_definitions(LokaStaticVsDynamicClassic PRIVATE
+  target_compile_definitions(${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} PRIVATE
     LOKA_RETRO68=1
     LOKA_PROFILE_FUNC_TICKS=0
   )
 
-  set_target_properties(LokaStaticVsDynamicClassic PROPERTIES
+  set_target_properties(${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
 
-  target_compile_options(LokaStaticVsDynamicClassic PRIVATE
+  target_compile_options(${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} PRIVATE
     -Os
     -ffunction-sections
     -fdata-sections
     -fno-exceptions
   )
-  target_link_options(LokaStaticVsDynamicClassic PRIVATE
+  target_link_options(${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} PRIVATE
     -Wl,--gc-sections
   )
 
@@ -113,10 +114,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
         "${RETRO68_TOOLCHAIN_DIR}/../bin"
     )
     if(RETRO68_STRIP)
-      add_custom_command(TARGET LokaStaticVsDynamicClassic POST_BUILD
+      add_custom_command(TARGET ${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET} POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
           -DSTRIP_TOOL="${RETRO68_STRIP}"
-          -DSTRIP_INPUT="$<TARGET_FILE:LokaStaticVsDynamicClassic>.gdb"
+          -DSTRIP_INPUT="$<TARGET_FILE:${LOKA_STATIC_DYNAMIC_CLASSIC_TARGET}>.gdb"
           -P "${CMAKE_SOURCE_DIR}/cmake/strip_classic.cmake"
         COMMENT "Stripping Classic debug binary"
       )

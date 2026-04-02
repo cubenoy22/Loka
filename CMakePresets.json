@@ -72,15 +72,33 @@
       }
     },
     {
-      "name": "retro68-default-release",
-      "displayName": "Retro68 Release (Ninja, shared preset)",
+      "name": "retro68-release-base",
+      "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "build/retro68/Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
         "CMAKE_CXX_FLAGS_RELEASE": "-Os -ffunction-sections -fdata-sections -fno-exceptions",
         "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-Wl,--gc-sections"
+      }
+    },
+    {
+      "name": "retro68-68k-release",
+      "displayName": "Retro68 68K Release (Ninja)",
+      "inherits": "retro68-release-base",
+      "binaryDir": "build/retro68/68k/Release",
+      "cacheVariables": {
+        "RETRO68_CPU": "m68k"
+      }
+    },
+    {
+      "name": "retro68-ppc-release",
+      "displayName": "Retro68 PPC Release (Ninja)",
+      "inherits": "retro68-release-base",
+      "binaryDir": "build/retro68/ppc/Release",
+      "cacheVariables": {
+        "RETRO68_CPU": "ppc",
+        "RETRO68_PPC_FLAVOR": "retroppc"
       }
     }
   ],
@@ -120,8 +138,12 @@
       "configuration": "Release"
     },
     {
-      "name": "retro68-default-release",
-      "configurePreset": "retro68-default-release"
+      "name": "retro68-68k-release",
+      "configurePreset": "retro68-68k-release"
+    },
+    {
+      "name": "retro68-ppc-release",
+      "configurePreset": "retro68-ppc-release"
     }
   ]
 }

@@ -5,7 +5,7 @@ if(APPLE)
   enable_language(OBJCXX)
 endif()
 
-if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
+if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
   add_custom_target(LokaMineSweeper ALL
     COMMAND ${CMAKE_COMMAND} -E echo "LokaMineSweeper has no supported platform target here."
   )
@@ -67,34 +67,35 @@ if(APPLE)
   )
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
+  set(LOKA_MINE_CLASSIC_TARGET "LokaMine${LOKA_CLASSIC_TARGET_SUFFIX}")
   set(RETRO_SOURCES
     src/main.cpp
   )
 
-  add_application(LokaMineClassic ${RETRO_SOURCES})
+  add_application(${LOKA_MINE_CLASSIC_TARGET} ${RETRO_SOURCES})
 
-  target_include_directories(LokaMineClassic PRIVATE
+  target_include_directories(${LOKA_MINE_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
-  target_link_libraries(LokaMineClassic PRIVATE LokaAppleToolboxCore)
+  target_link_libraries(${LOKA_MINE_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
 
-  target_compile_definitions(LokaMineClassic PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
+  target_compile_definitions(${LOKA_MINE_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
 
-  set_target_properties(LokaMineClassic PROPERTIES
+  set_target_properties(${LOKA_MINE_CLASSIC_TARGET} PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
 
-  target_compile_options(LokaMineClassic PRIVATE
+  target_compile_options(${LOKA_MINE_CLASSIC_TARGET} PRIVATE
     -Os
     -ffunction-sections
     -fdata-sections
     -fno-exceptions
   )
-  target_link_options(LokaMineClassic PRIVATE
+  target_link_options(${LOKA_MINE_CLASSIC_TARGET} PRIVATE
     -Wl,--gc-sections
   )
 
@@ -108,10 +109,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
         "${RETRO68_TOOLCHAIN_DIR}/../bin"
     )
     if(RETRO68_STRIP)
-      add_custom_command(TARGET LokaMineClassic POST_BUILD
+      add_custom_command(TARGET ${LOKA_MINE_CLASSIC_TARGET} POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
           -DSTRIP_TOOL="${RETRO68_STRIP}"
-          -DSTRIP_INPUT="$<TARGET_FILE:LokaMineClassic>.gdb"
+          -DSTRIP_INPUT="$<TARGET_FILE:${LOKA_MINE_CLASSIC_TARGET}>.gdb"
           -P "${CMAKE_SOURCE_DIR}/cmake/strip_classic.cmake"
         COMMENT "Stripping Classic debug binary"
       )

@@ -5,7 +5,7 @@ if(APPLE)
   enable_language(OBJCXX)
 endif()
 
-if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
+if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
   add_custom_target(LokaHelloWorld ALL
     COMMAND ${CMAKE_COMMAND} -E echo "LokaHelloWorld has no supported platform target here."
   )
@@ -109,36 +109,37 @@ if(APPLE)
   )
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
+  set(LOKA_HELLO_CLASSIC_TARGET "LokaHello${LOKA_CLASSIC_TARGET_SUFFIX}")
   set(RETRO_SOURCES
     src/main.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
   )
 
-  add_application(LokaHelloClassic ${RETRO_SOURCES})
+  add_application(${LOKA_HELLO_CLASSIC_TARGET} ${RETRO_SOURCES})
 
-  target_include_directories(LokaHelloClassic PRIVATE
+  target_include_directories(${LOKA_HELLO_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
-  target_link_libraries(LokaHelloClassic PRIVATE LokaAppleToolboxCore)
+  target_link_libraries(${LOKA_HELLO_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
 
-  target_compile_definitions(LokaHelloClassic PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
+  target_compile_definitions(${LOKA_HELLO_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
 
-  set_target_properties(LokaHelloClassic PROPERTIES
+  set_target_properties(${LOKA_HELLO_CLASSIC_TARGET} PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
 
-  target_compile_options(LokaHelloClassic PRIVATE
+  target_compile_options(${LOKA_HELLO_CLASSIC_TARGET} PRIVATE
     -Os
     -ffunction-sections
     -fdata-sections
     -fno-exceptions
   )
-  target_link_options(LokaHelloClassic PRIVATE
+  target_link_options(${LOKA_HELLO_CLASSIC_TARGET} PRIVATE
     -Wl,--gc-sections
   )
 
@@ -152,10 +153,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
         "${RETRO68_TOOLCHAIN_DIR}/../bin"
     )
     if(RETRO68_STRIP)
-      add_custom_command(TARGET LokaHelloClassic POST_BUILD
+      add_custom_command(TARGET ${LOKA_HELLO_CLASSIC_TARGET} POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
           -DSTRIP_TOOL="${RETRO68_STRIP}"
-          -DSTRIP_INPUT="$<TARGET_FILE:LokaHelloClassic>.gdb"
+          -DSTRIP_INPUT="$<TARGET_FILE:${LOKA_HELLO_CLASSIC_TARGET}>.gdb"
           -P "${CMAKE_SOURCE_DIR}/cmake/strip_classic.cmake"
         COMMENT "Stripping Classic debug binary"
       )

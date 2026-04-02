@@ -6,7 +6,7 @@ if(APPLE)
 endif()
 
 if(NOT WIN32 AND NOT APPLE)
-  if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Retro68"))
+  if(NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
     add_custom_target(LokaFloppyBird ALL
       COMMAND ${CMAKE_COMMAND} -E echo "LokaFloppyBird has no supported platform target here."
     )
@@ -65,33 +65,35 @@ if(APPLE)
   endif()
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
-  add_application(LokaFloppyBirdClassic
+if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
+  set(LOKA_FLOPPYBIRD_CLASSIC_TARGET "LokaFloppyBird${LOKA_CLASSIC_TARGET_SUFFIX}")
+
+  add_application(${LOKA_FLOPPYBIRD_CLASSIC_TARGET}
     src/main.cpp
   )
 
-  target_include_directories(LokaFloppyBirdClassic PRIVATE
+  target_include_directories(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
 
-  target_link_libraries(LokaFloppyBirdClassic PRIVATE LokaAppleToolboxCore)
+  target_link_libraries(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
 
-  target_compile_definitions(LokaFloppyBirdClassic PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
+  target_compile_definitions(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
 
-  set_target_properties(LokaFloppyBirdClassic PROPERTIES
+  set_target_properties(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
 
-  target_compile_options(LokaFloppyBirdClassic PRIVATE
+  target_compile_options(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE
     -Os
     -ffunction-sections
     -fdata-sections
     -fno-exceptions
   )
-  target_link_options(LokaFloppyBirdClassic PRIVATE
+  target_link_options(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE
     -Wl,--gc-sections
   )
 endif()
