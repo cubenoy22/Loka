@@ -28,9 +28,9 @@ public:
 };
 ```
 
-## Boundary + Static/Dynamic Composition
+## Boundary + Static Composition
 
-Boundaries own composition/state. Prefer one-shot Static composition unless updates are required.
+Boundaries own composition/state. Prefer static composition and keep conditional/repeated structure in the same model.
 
 ```cpp
 #include "app/scene/node/StaticComposition.hpp"
@@ -52,28 +52,6 @@ public:
 };
 ```
 
-Dynamic composition uses a `Boundary` node so it can recompose when state changes.
-
-```cpp
-#include "app/scene/node/DynamicComposition.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Text.hpp"
-
-class DynamicPanel : public loka::app::scene::DynamicCompositionNodeFor<DynamicPanel>
-{
-public:
-  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicPanel> PropsType;
-  DynamicPanel(const PropsType &p)
-      : loka::app::scene::DynamicCompositionNodeFor<DynamicPanel>(p) {}
-
-  virtual void composeNode(loka::app::scene::NodeComposition &c)
-  {
-    using namespace loka::app;
-    c.declare(VStack() << Text("Dynamic content"));
-  }
-};
-```
-
 Use `Boundary()` (alias) when you need a nested owner for state or recomposition.
 
 ```cpp
@@ -81,8 +59,7 @@ using namespace loka::app::scene;
 using namespace loka::app;
 
 c.declare(VStack()
-          << Boundary<StaticPanel>()
-          << Boundary<DynamicPanel>());
+          << Boundary<StaticPanel>());
 ```
 
 Notes:
