@@ -96,6 +96,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS Tutorial",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaTutorialMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Tests",
       "type": "shell",
       "command": "cmake",
@@ -174,6 +191,20 @@
         "win32-debug",
         "--target",
         "LokaFloppyBirdWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 Tutorial",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaTutorialWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"

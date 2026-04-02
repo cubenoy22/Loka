@@ -42,6 +42,14 @@
       "preLaunchTask": "Build: macOS FloppyBird"
     },
     {
+      "name": "Run (macOS Tutorial)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/Tutorial/LokaTutorialMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS Tutorial"
+    },
+    {
       "name": "Test (macOS)",
       "type": "lldb-dap",
       "request": "launch",
@@ -93,6 +101,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 FloppyBird"
+    },
+    {
+      "name": "Run (Windows Tutorial)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/Tutorial/LokaTutorialWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 Tutorial"
     },
     {
       "name": "Test (Windows)",

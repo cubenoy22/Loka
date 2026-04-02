@@ -84,6 +84,7 @@ int main()
   testStaticButtonAndCellTextAreOwnedPerDefinition();
   testMenuItemEnabledBoolDoesNotUseSharedStaticState();
   testConditionalNodeTeardownAfterOwnedStateIsSafe();
+  testConditionalNodeOwnedStateToggleViaUiCallbackIsSafe();
   testLokaCoreString();
   testLokaCoreCollections();
   testLokaDslStream();

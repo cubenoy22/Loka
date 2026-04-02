@@ -40,6 +40,7 @@ add_subdirectory(example/MineSweeper)
 add_subdirectory(example/PerfArena)
 add_subdirectory(example/SimpleViewer)
 add_subdirectory(example/FloppyBird)
+add_subdirectory(example/Tutorial)
 endif()
 
 # Linux/WSL headless tests (Flow DSL focused).

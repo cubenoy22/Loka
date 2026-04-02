@@ -5835,6 +5835,109 @@ void testConditionalNodeTeardownAfterOwnedStateIsSafe()
   delete scene;
 }
 
+namespace
+{
+  loka::core::EmitterState *g_conditionalToggleEvent = 0;
+  loka::app::scene::BoundState<bool> *g_conditionalShowDetails = 0;
+  loka::app::scene::BoundState<loka::core::String> *g_conditionalToggleLabel = 0;
+}
+
+void testConditionalNodeOwnedStateToggleViaUiCallbackIsSafe()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  g_conditionalToggleEvent = 0;
+  g_conditionalShowDetails = 0;
+  g_conditionalToggleLabel = 0;
+
+  class ConditionalToggleRootNode;
+  typedef BoundaryPropsFor<ConditionalToggleRootNode> ConditionalToggleRootProps;
+
+  class ConditionalToggleRootNode : public BoundaryNodeFor<ConditionalToggleRootNode>
+  {
+  public:
+    ConditionalToggleRootNode(const ConditionalToggleRootProps &p)
+        : BoundaryNodeFor<ConditionalToggleRootNode>(ConditionalToggleRootProps(p)),
+          showDetails_(),
+          toggleLabel_(),
+          toggleEvent_(),
+          details_(Text("Detail"))
+    {
+    }
+
+    virtual void attachNode(NodeComposition &c)
+    {
+      c.declareStates()
+          .state(showDetails_, false)
+          .state(toggleLabel_, loka::core::String::Literal("Show details"));
+      this->bindForUi(toggleEvent_, this, &ConditionalToggleRootNode::toggleDetails);
+      g_conditionalToggleEvent = &toggleEvent_;
+      g_conditionalShowDetails = &showDetails_;
+      g_conditionalToggleLabel = &toggleLabel_;
+    }
+
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(VStack()
+                << Button(toggleLabel_, &toggleEvent_)
+                << c.showIf(*showDetails_.state(), details_));
+    }
+
+  private:
+    void toggleDetails()
+    {
+      const bool next = !showDetails_.get();
+      showDetails_.set(next);
+      toggleLabel_.set(next ? loka::core::String::Literal("Hide details")
+                            : loka::core::String::Literal("Show details"));
+    }
+
+    BoundState<bool> showDetails_;
+    BoundState<loka::core::String> toggleLabel_;
+    loka::core::EmitterState toggleEvent_;
+    TextDefinition details_;
+  };
+
+  class DummyPlatformController : public IPlatformController
+  {
+  public:
+    DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
+    virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild)
+    {
+      (void)flags;
+      (void)fullRebuild;
+      lastMaterialized_ = rootNode;
+    }
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() { destroyed_ = true; }
+
+    Node *lastMaterialized_;
+    bool destroyed_;
+  };
+
+  Scene scene((BoundaryDefinition<ConditionalToggleRootProps, ConditionalToggleRootNode>()));
+  DummyPlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  assert(g_conditionalToggleEvent != 0);
+  assert(g_conditionalShowDetails != 0);
+  assert(g_conditionalToggleLabel != 0);
+
+  for (int i = 0; i < 8; ++i)
+  {
+    g_conditionalToggleEvent->emit();
+    assert(g_conditionalShowDetails->isValid());
+    assert(g_conditionalToggleLabel->isValid());
+  }
+
+  g_conditionalToggleEvent = 0;
+  g_conditionalShowDetails = 0;
+  g_conditionalToggleLabel = 0;
+}
+
 void testStaticRootMountProducesExactlyOneFullRebuildOnChange()
 {
   printf("\n==== [testStaticRootMountProducesExactlyOneFullRebuildOnChange] start ====\n");

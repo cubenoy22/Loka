@@ -68,6 +68,7 @@ void testDebugStatsControlDeferredDumpCompletionCanChainAnotherDump();
 void testStaticButtonAndCellTextAreOwnedPerDefinition();
 void testMenuItemEnabledBoolDoesNotUseSharedStaticState();
 void testConditionalNodeTeardownAfterOwnedStateIsSafe();
+void testConditionalNodeOwnedStateToggleViaUiCallbackIsSafe();
 void testLokaCoreString();
 void testLokaCoreCollections();
 void testLokaDslStream();
