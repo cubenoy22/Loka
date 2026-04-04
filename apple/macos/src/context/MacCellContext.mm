@@ -199,7 +199,10 @@ void MacCellContext::bindText()
   textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
-    textState_->deferBind(&MacCellContext::TextChangedThunk, this);
+    if (!node_->props.ownsText_)
+    {
+      textState_->deferBind(&MacCellContext::TextChangedThunk, this);
+    }
     applyText();
   }
 }
@@ -208,7 +211,10 @@ void MacCellContext::unbindText()
 {
   if (textState_)
   {
-    textState_->deferUnbind(&MacCellContext::TextChangedThunk, this);
+    if (!node_ || !node_->props.ownsText_)
+    {
+      textState_->deferUnbind(&MacCellContext::TextChangedThunk, this);
+    }
     textState_ = 0;
   }
 }

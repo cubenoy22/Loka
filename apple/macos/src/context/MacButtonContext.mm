@@ -197,7 +197,10 @@ void MacButtonContext::bindText()
   textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
   if (textState_)
   {
-    textState_->deferBind(&MacButtonContext::TextChangedThunk, this);
+    if (!node_->props.ownsText_)
+    {
+      textState_->deferBind(&MacButtonContext::TextChangedThunk, this);
+    }
     applyText();
   }
 }
@@ -206,7 +209,10 @@ void MacButtonContext::unbindText()
 {
   if (textState_)
   {
-    textState_->deferUnbind(&MacButtonContext::TextChangedThunk, this);
+    if (!node_ || !node_->props.ownsText_)
+    {
+      textState_->deferUnbind(&MacButtonContext::TextChangedThunk, this);
+    }
     textState_ = 0;
   }
 }
