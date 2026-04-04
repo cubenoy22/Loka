@@ -19,6 +19,8 @@
 - Prefer `deferBind` for UI reflection or lazy updates; use `bind` only when immediate recompute is required.
 - Classic stability: avoid transient data in DSL props (e.g., pass stable pointers/references); if props own data, ensure copy/clone rebinds internal pointers safely.
 - UI props constant-value policy: do not route DSL constant props through `StaticState<T>` in production UI code. For values such as button/cell text or menu enabled flags, props/definitions should own the constant value directly and only use `State<T>*` when live updates are actually required.
+- Ownership/binding policy: distinguish borrowed live state from props-owned constant values explicitly. Props-owned constant values may reuse internal storage helpers, but they must not be registered as observed state or bound/unbound through NativeContext live-state paths.
+- Native binding policy: `PlatformController`/`NativeContext` code should bind only states that the logical node layer has classified as live. Avoid re-deciding liveness in platform code except for defensive guards.
 - NativeContext should guard against null/empty state before drawing or binding.
 - RTTI (`dynamic_cast`) is prohibited in DSL/scene code due to severe performance impact on 68k. Use virtual methods (`asXxx()`) or `NodeKind` checks instead. Add new `asXxx()` methods to Node when type-specific access is needed.
 - Prefer intrusive linked lists over `std::vector` when elements are heap-allocated anyway; adding a `next_` pointer avoids separate allocations and reallocation costs. On 68k, this primitive approach often outperforms "smart" containers.

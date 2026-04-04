@@ -6,6 +6,7 @@
 
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
 #include "app/Text.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
@@ -32,6 +33,21 @@ namespace {
   class PendingLayoutBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingLayoutBoundaryNode> PendingLayoutBoundaryProps;
   static loka::core::MutableState<int> g_pendingLayoutWidthState(32);
+  struct RecordingObservedStateRegistrar : public loka::app::scene::ObservedStateRegistrar
+  {
+    RecordingObservedStateRegistrar() : calls(0), lastState(0), lastFlags(loka::app::scene::NODE_DIRTY_NONE) {}
+
+    virtual void observe(loka::core::StateBase *state, loka::app::scene::NodeDirtyFlags flags)
+    {
+      ++calls;
+      lastState = state;
+      lastFlags = flags;
+    }
+
+    int calls;
+    loka::core::StateBase *lastState;
+    loka::app::scene::NodeDirtyFlags lastFlags;
+  };
   class PendingApplyProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingApplyProbeBoundaryNode> PendingApplyProbeBoundaryProps;
   static int g_pendingApplyCallCount = 0;
@@ -729,6 +745,56 @@ namespace {
 
 void testLokaFlowDslV1Core() {
   printf("\n==== [testLokaFlowDslV1Core] start ====\n");
+
+  {
+    RecordingObservedStateRegistrar registrar;
+    loka::app::TextNode constantTextNode(loka::app::TextProps("Constant text"));
+    constantTextNode.declareObservedStates(registrar);
+    assert(registrar.calls == 0);
+
+    loka::core::MutableState<loka::core::String> liveText(loka::core::String::Literal("Live text"));
+    loka::app::TextNode liveTextNode((loka::app::TextProps(&liveText)));
+    liveTextNode.declareObservedStates(registrar);
+    assert(registrar.calls == 1);
+    assert(registrar.lastState == &liveText);
+    assert(registrar.lastFlags == loka::app::scene::NODE_DIRTY_PROPS);
+  }
+
+  {
+    RecordingObservedStateRegistrar registrar;
+    loka::app::ButtonProps constantButtonProps;
+    constantButtonProps.text("Constant button");
+    loka::app::ButtonNode constantButtonNode(constantButtonProps);
+    constantButtonNode.declareObservedStates(registrar);
+    assert(registrar.calls == 0);
+
+    loka::core::MutableState<loka::core::String> liveButtonText(loka::core::String::Literal("Live button"));
+    loka::app::ButtonProps liveButtonProps;
+    liveButtonProps.text(&liveButtonText);
+    loka::app::ButtonNode liveButtonNode(liveButtonProps);
+    liveButtonNode.declareObservedStates(registrar);
+    assert(registrar.calls == 1);
+    assert(registrar.lastState == &liveButtonText);
+    assert(registrar.lastFlags == loka::app::scene::NODE_DIRTY_PROPS);
+  }
+
+  {
+    RecordingObservedStateRegistrar registrar;
+    loka::app::CellProps constantCellProps;
+    constantCellProps.text("Constant cell");
+    loka::app::CellNode constantCellNode(constantCellProps);
+    constantCellNode.declareObservedStates(registrar);
+    assert(registrar.calls == 0);
+
+    loka::core::MutableState<loka::core::String> liveCellText(loka::core::String::Literal("Live cell"));
+    loka::app::CellProps liveCellProps;
+    liveCellProps.text(&liveCellText);
+    loka::app::CellNode liveCellNode(liveCellProps);
+    liveCellNode.declareObservedStates(registrar);
+    assert(registrar.calls == 1);
+    assert(registrar.lastState == &liveCellText);
+    assert(registrar.lastFlags == loka::app::scene::NODE_DIRTY_PROPS);
+  }
 
   {
     int input = 3;
