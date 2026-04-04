@@ -5,8 +5,8 @@ loka_known_targets() {
   echo "LokaFloppyBirdMacOS"
   echo "LokaHelloMacOS"
   echo "LokaMineMacOS"
-  echo "LokaPerfArenaMacOS"
   echo "LokaSimpleViewerMacOS"
+  echo "LokaTutorialMacOS"
 }
 
 loka_target_rel_path() {
@@ -14,8 +14,8 @@ loka_target_rel_path() {
     LokaFloppyBirdMacOS) echo "example/FloppyBird/LokaFloppyBirdMacOS" ;;
     LokaHelloMacOS) echo "example/HelloWorld/LokaHelloMacOS" ;;
     LokaMineMacOS) echo "example/MineSweeper/LokaMineMacOS" ;;
-    LokaPerfArenaMacOS) echo "example/PerfArena/LokaPerfArenaMacOS" ;;
     LokaSimpleViewerMacOS) echo "example/SimpleViewer/LokaSimpleViewerMacOS" ;;
+    LokaTutorialMacOS) echo "example/Tutorial/LokaTutorialMacOS" ;;
     *) return 1 ;;
   esac
 }
@@ -27,8 +27,8 @@ loka_cleanup_stale_output_dirs() {
     "example/FloppyBird/LokaFloppyBirdMacOS" \
     "example/HelloWorld/LokaHelloMacOS" \
     "example/MineSweeper/LokaMineMacOS" \
-    "example/PerfArena/LokaPerfArenaMacOS" \
-    "example/SimpleViewer/LokaSimpleViewerMacOS"; do
+    "example/SimpleViewer/LokaSimpleViewerMacOS" \
+    "example/Tutorial/LokaTutorialMacOS"; do
     if [[ -d "${build_dir}/${rel_path}" ]]; then
       rm -rf "${build_dir:?}/${rel_path}"
     fi
