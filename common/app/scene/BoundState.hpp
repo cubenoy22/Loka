@@ -32,11 +32,11 @@ namespace loka
             : state_(state), tracker_(tracker), owner_(owner) {}
 
         bool isValid() const { return state_ != 0; }
-        loka::core::MutableState<T> *mutableState() const { return state_; }
         loka::core::State<T> *state() const { return state_; }
         operator loka::core::State<T> *() const { return state_; }
         loka::core::StateTracker *tracker() const { return tracker_; }
         IStateOwner *owner() const { return owner_; }
+        loka::core::MutableState<T> *dangerouslyMutableState() const { return state_; }
 
         T get() const
         {
@@ -73,9 +73,9 @@ namespace loka
           }
         }
 
-        loka::core::MutableState<T> &unwrap() const
+        loka::core::MutableState<T> &dangerouslyUnwrapMutableState() const
         {
-          assert(state_ && "BoundState::unwrap requires a state");
+          assert(state_ && "BoundState::dangerouslyUnwrapMutableState requires a state");
           return *state_;
         }
 
