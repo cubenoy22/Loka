@@ -102,7 +102,9 @@
       "args": [
         "--build",
         "--preset",
-        "macos-tests"
+        "macos-tests",
+        "--target",
+        "LokaTestsMacOS"
       ],
       "dependsOn": [
         "Configure: macOS Native"
@@ -185,7 +187,9 @@
       "args": [
         "--build",
         "--preset",
-        "win32-tests"
+        "win32-tests",
+        "--target",
+        "LokaTestsWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"

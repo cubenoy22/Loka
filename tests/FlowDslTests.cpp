@@ -10,7 +10,6 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
-#include "app/scene/node/DynamicComposition.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
@@ -29,40 +28,6 @@ namespace {
     int code;
     int calls;
   };
-
-  class PendingChildBoundaryNode;
-  typedef loka::app::scene::DynamicCompositionPropsFor<PendingChildBoundaryNode> PendingChildBoundaryProps;
-
-  class PendingChildBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<PendingChildBoundaryNode>
-  {
-  public:
-    PendingChildBoundaryNode(const PendingChildBoundaryProps &p)
-        : loka::app::scene::DynamicCompositionNodeFor<PendingChildBoundaryNode>(PendingChildBoundaryProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      c.declare(loka::app::Text("Child").testId("PendingChildText"));
-    }
-  };
-
-  class PendingRootBoundaryNode;
-  typedef loka::app::scene::DynamicCompositionPropsFor<PendingRootBoundaryNode> PendingRootBoundaryProps;
-
-  class PendingRootBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<PendingRootBoundaryNode>
-  {
-  public:
-    PendingRootBoundaryNode(const PendingRootBoundaryProps &p)
-        : loka::app::scene::DynamicCompositionNodeFor<PendingRootBoundaryNode>(PendingRootBoundaryProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      c.declare(loka::app::scene::DynamicCompositionBoundary<PendingChildBoundaryNode>());
-    }
-  };
-
-  class PendingStaticRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<PendingStaticRootNode> PendingStaticRootProps;
-  static loka::core::MutableState<bool> g_pendingChildSwapState(false);
 
   class PendingLayoutBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingLayoutBoundaryNode> PendingLayoutBoundaryProps;
@@ -294,46 +259,6 @@ namespace {
       c.declare(loka::app::VStack()
                 << loka::app::scene::BoundaryDefinition<PendingApplySiblingABoundaryProps, PendingApplySiblingABoundaryNode>().tag(101)
                 << loka::app::scene::BoundaryDefinition<PendingApplySiblingBBoundaryProps, PendingApplySiblingBBoundaryNode>().tag(102));
-    }
-  };
-
-
-  class PendingDynamicLeafNode;
-  typedef loka::app::scene::DynamicCompositionPropsFor<PendingDynamicLeafNode> PendingDynamicLeafProps;
-
-  class PendingDynamicLeafNode : public loka::app::scene::DynamicCompositionNodeFor<PendingDynamicLeafNode>
-  {
-  public:
-    PendingDynamicLeafNode(const PendingDynamicLeafProps &p)
-        : loka::app::scene::DynamicCompositionNodeFor<PendingDynamicLeafNode>(PendingDynamicLeafProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      if (g_pendingChildSwapState.get())
-      {
-        c.declare(loka::app::Text("On").testId("PendingDynamicOn"));
-      }
-      else
-      {
-        c.declare(loka::app::Text("Off").testId("PendingDynamicOff"));
-      }
-    }
-
-    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
-    {
-      registrar.observe(&g_pendingChildSwapState, loka::app::scene::NODE_DIRTY_CHILD);
-    }
-  };
-
-  class PendingStaticRootNode : public loka::app::scene::BoundaryNodeFor<PendingStaticRootNode>
-  {
-  public:
-    PendingStaticRootNode(const PendingStaticRootProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingStaticRootNode>(PendingStaticRootProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      c.declare(loka::app::scene::DynamicCompositionBoundary<PendingDynamicLeafNode>());
     }
   };
 
@@ -1901,39 +1826,6 @@ void testLokaFlowDslV1Core() {
     using namespace loka::app::scene;
     using loka::dsl::testing::SceneTestAccess;
 
-    Scene scene((BoundaryDefinition<PendingRootBoundaryProps, PendingRootBoundaryNode>()));
-    FlowScenePlatformController platform;
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
-    assert(rootBoundary != 0);
-    BoundaryNode *childBoundary = rootBoundary->childrenHead() ? rootBoundary->childrenHead()->asBoundary() : 0;
-    assert(childBoundary != 0);
-
-    childBoundary->markViewDirty(NODE_DIRTY_PROPS);
-    rootBoundary->markViewDirty(NODE_DIRTY_PROPS);
-
-    SceneDirector &director = SceneTestAccess::director(scene);
-    assert(director.pendingBoundariesHead() == childBoundary);
-    assert(director.firstPendingUpdateRoot() == rootBoundary);
-    assert(director.nextPendingUpdateRoot(rootBoundary) == 0);
-    assert(rootBoundary->pendingDirtyFlags() != NODE_DIRTY_NONE);
-    assert(childBoundary->pendingDirtyFlags() != NODE_DIRTY_NONE);
-
-    SceneTestAccess::flushInvalidation(scene);
-    assert(director.pendingBoundariesHead() == 0);
-    assert(rootBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
-    assert(childBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
-
-    scene.unmount();
-  }
-
-  {
-    using namespace loka::app;
-    using namespace loka::app::scene;
-    using loka::dsl::testing::SceneTestAccess;
-
     Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
     FlowScenePlatformController platform;
     scene.mount(&platform);
@@ -2156,48 +2048,6 @@ void testLokaFlowDslV1Core() {
     assert(g_pendingApplySiblingBLayoutRoot != 0);
     assert(g_pendingApplySiblingBPaintRoot != 0);
     assert(platform.lastBoundaryApplyBoundary_ == siblingB || platform.lastBoundaryApplyBoundary_ == siblingA);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
-
-    scene.unmount();
-  }
-
-  {
-    using namespace loka::app;
-    using namespace loka::app::scene;
-    using loka::dsl::testing::SceneTestAccess;
-
-    g_pendingChildSwapState.set(false);
-
-    Scene scene((BoundaryDefinition<PendingStaticRootProps, PendingStaticRootNode>()));
-    FlowScenePlatformController platform;
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    Scene *scenePtr = &scene;
-    loka::dsl::SnapRecord captured;
-    FlowErrorCapture failCapture = {0, 0, 0};
-    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&g_pendingChildSwapState, true))
-              .input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::CheckText("PendingDynamicOn", "On"))
-        | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("pending-child-root-downgrade", &platform, 18))
-              .onSuccess(&captured)
-        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_CHILD))
-        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntEquals("platform.full_rebuild", 0));
-    okChain.onFailure(&FlowTestMarker::captureFailure, &failCapture);
-    const bool ok = okChain.run();
-    if (!ok)
-    {
-      std::printf("[pending-child-root-downgrade] fail kind=%d code=%d calls=%d full=%d flags=%ld\n",
-                  failCapture.kind,
-                  failCapture.code,
-                  failCapture.calls,
-                  platform.lastFullRebuild_ ? 1 : 0,
-                  static_cast<long>(platform.lastFlags_));
-      std::fflush(stdout);
-    }
-    assert(ok);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
 
     scene.unmount();

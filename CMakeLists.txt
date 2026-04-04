@@ -3,8 +3,6 @@ project(Loka LANGUAGES CXX)
 
 option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(TEST_BUILD "Enable test build mode" OFF)
-option(LOKA_ENABLE_DEBUG_LOGS "Enable debug log output such as LOKA_DEBUG_RECOMPOSE traces" ON)
-
 set(LOKA_CLASSIC_MAC OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_CLASSIC_MAC ON)

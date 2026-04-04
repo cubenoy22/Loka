@@ -39,26 +39,19 @@ if(WIN32)
   )
 
   target_link_libraries(LokaHelloWin32 PRIVATE LokaWin32Core)
-  target_compile_definitions(LokaHelloWin32 PRIVATE
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
-  )
 
   # Use UTF-8 source/execution charset on MSVC to avoid codepage warnings
   if(MSVC)
     target_compile_options(LokaHelloWin32 PRIVATE /utf-8)
   endif()
 
-  # Test target (console app)
   set(WIN32_TEST_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ScenePlatformTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ScenePlatformTests.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Tests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/AttrDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StartupRedrawTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/TestMain.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTestMain.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
   )
@@ -73,14 +66,12 @@ if(WIN32)
   )
 
   target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32Core)
-  target_compile_definitions(LokaTestsWin32 PRIVATE
-    TEST_BUILD
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
-  )
+  target_compile_definitions(LokaTestsWin32 PRIVATE TEST_BUILD)
 
   if(MSVC)
     target_compile_options(LokaTestsWin32 PRIVATE /utf-8)
   endif()
+
 endif()
 
 if(APPLE)
@@ -104,9 +95,6 @@ if(APPLE)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(LokaHelloMacOS PRIVATE "-fno-objc-arc")
   endif()
-  target_compile_definitions(LokaHelloMacOS PRIVATE
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
-  )
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")

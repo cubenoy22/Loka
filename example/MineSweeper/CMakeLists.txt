@@ -35,9 +35,6 @@ if(WIN32)
   )
 
   target_link_libraries(LokaMineWin32 PRIVATE LokaWin32Core)
-  target_compile_definitions(LokaMineWin32 PRIVATE
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
-  )
 
   if(MSVC)
     target_compile_options(LokaMineWin32 PRIVATE /utf-8)
@@ -62,9 +59,6 @@ if(APPLE)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(LokaMineMacOS PRIVATE "-fno-objc-arc")
   endif()
-  target_compile_definitions(LokaMineMacOS PRIVATE
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
-  )
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
