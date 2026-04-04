@@ -1580,7 +1580,7 @@ Loka を読み書きするときは、常に次の順で考えると整理しや
 
 - `declareStates()` と `BoundState<T>` の実践
 - `Boundary` の attach / compose の流れ
-- `StaticComposition` と `DynamicComposition` の使い分け
+- `StaticComposition` と `Boundary` の使い分け
 - `ObservedStateRegistrar` による観測
 - `StateTrackerGuard` と更新規約
 - `Props` と `Definition` の設計方針

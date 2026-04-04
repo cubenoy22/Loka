@@ -172,7 +172,7 @@ This makes `c.declare(...)` and `c.group(...)` safe for temporary DSL objects.
 
 ## Conditional
 
-Use `NodeComposition::conditional` to switch between definitions.
+Use `NodeComposition::showIf` to include optional content inside static composition.
 
 ```cpp
 using namespace loka::app;
@@ -182,10 +182,11 @@ BoundState<bool> flag;
 c.declareStates().state(flag, false);
 
 c.declare(VStack()
-          << c.conditional(flag.unwrap(), Text("On")));
+          << c.showIf(*flag.state(), Text("On")));
 ```
 
-If no `false` definition is provided, `Empty` is used.
+This keeps the branch in the same static composition model. If the condition is
+false, `Empty` is used.
 
 ## Stream Helpers
 

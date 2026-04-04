@@ -7,7 +7,7 @@ These items address recurring bug patterns and structural risks identified durin
 - **Definition ownership clarity**: `clone()` returns raw `new`-ed pointers across 19+ call sites with implicit ownership. Introduce a lightweight `OwnedDef<T>` wrapper (C++98-compatible) so ownership intent is visible in code. Priority: prevents the same class of bug as the ConditionalDefinition fix.
 - **Platform Controller layout共通化**: `layoutNode()` is near-identical across Mac/Win32/Toolbox (~2000 lines each). Extract platform-independent layout traversal and size calculation to shared code; platform-specific parts (NSView/HWND/QuickDraw context creation) become overrides. Priority: bug fixes (like removing `clearContexts()`) currently need manual porting to 3 implementations.
 - **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
-- **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH/RETAIN/REPLACE transitions in `DynamicCompositionBoundaryNodeBase::composeWithContext()` and `applyLocalRebuildPlan()`. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
+- **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH transitions in the static boundary/scene compose path. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
 
 ## Open
 
@@ -95,10 +95,6 @@ These items address recurring bug patterns and structural risks identified durin
   - scene-level `fullRebuild` accuracy improved for child-dirty and mixed dirty paths
   - localized platform apply routing (`PlatformApplyPlan` / `BoundaryLocalApplyInfo`) is now the main redraw contract
   - Win32 interaction flicker and Toolbox follow-up redraw behavior were reduced by platform-local fixes
-- Debug logging/build gating:
-  - `LOKA_ENABLE_DEBUG_LOGS` now gates debug logging support
-  - Release builds keep debug logs off
-  - HelloWorld `Debug` menu is hidden in Release builds
 - Toolbox redraw profiling support: HelloWorld can dump/reset Toolbox debug stats to timestamped files for local interaction analysis.
 - Support matrix in README: split compatibility claims into `build-verified` and `runtime-verified`.
 - Menu bar support implemented across macOS/Win32/Toolbox app layers.
