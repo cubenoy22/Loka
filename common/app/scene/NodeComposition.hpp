@@ -46,6 +46,24 @@ namespace loka
           const T *facade_;
         };
 
+        class CurrentBoundary
+        {
+        public:
+          CurrentBoundary() : boundary_(0) {}
+          explicit CurrentBoundary(BoundaryNode *boundary) : boundary_(boundary) {}
+
+          bool isValid() const { return boundary_ != 0; }
+          BoundaryNode *boundaryOrNull() const { return boundary_; }
+          BoundaryNode &boundary() const
+          {
+            assert(boundary_ && "CurrentBoundary::boundary requires a boundary");
+            return *boundary_;
+          }
+
+        private:
+          BoundaryNode *boundary_;
+        };
+
         struct CompositionScope
         {
           explicit CompositionScope(NodeComposition &composition);
@@ -374,6 +392,10 @@ namespace loka
         }
         bool hasContext() const { return context_ != 0; }
         BoundaryNode *boundary() const;
+        CurrentBoundary currentBoundary() const
+        {
+          return CurrentBoundary(this->boundary());
+        }
         Scene *scene() const;
         ::Window *window() const;
         static NodeComposition *current();
