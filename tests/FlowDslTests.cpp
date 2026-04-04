@@ -844,9 +844,10 @@ void testLokaFlowDslV1Core() {
     childContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3000));
     composition.setContext(&childContext);
 
-    BoundaryLookupTestApi *foundParent = composition.findBoundary<BoundaryLookupTestApi>();
-    assert(foundParent);
-    assert(foundParent->id() == 2);
+    loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundParent =
+        composition.findBoundary<BoundaryLookupTestApi>();
+    assert(foundParent.isValid());
+    assert(foundParent.facade().id() == 2);
   }
 
   {
@@ -870,8 +871,9 @@ void testLokaFlowDslV1Core() {
     childContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x5000));
     composition.setContext(&childContext);
 
-    BoundaryLookupTestApi *foundGrandparent = composition.findBoundary<BoundaryLookupTestApi>();
-    assert(!foundGrandparent);
+    loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundGrandparent =
+        composition.findBoundary<BoundaryLookupTestApi>();
+    assert(!foundGrandparent.isValid());
   }
 
   {

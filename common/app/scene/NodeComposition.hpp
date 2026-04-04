@@ -27,6 +27,25 @@ namespace loka
       struct NodeComposition
       {
       public:
+        template <typename T>
+        class FoundBoundary
+        {
+        public:
+          FoundBoundary() : facade_(0) {}
+          explicit FoundBoundary(T *facade) : facade_(facade) {}
+
+          bool isValid() const { return facade_ != 0; }
+          T *facadeOrNull() const { return facade_; }
+          T &facade() const
+          {
+            assert(facade_ && "FoundBoundary::facade requires a boundary");
+            return *facade_;
+          }
+
+        private:
+          T *facade_;
+        };
+
         struct CompositionScope
         {
           explicit CompositionScope(NodeComposition &composition);
@@ -475,11 +494,11 @@ namespace loka
 
         // findBoundary: T must implement static T* fromNode(Node*)
         template <typename T>
-        T *findBoundary() const
+        FoundBoundary<T> findBoundary() const
         {
           if (!context_)
           {
-            return 0;
+            return FoundBoundary<T>();
           }
           BoundaryNode *currentBoundary = context_->boundary();
           ComponentContext *ctx = context_->parent();
@@ -488,11 +507,11 @@ namespace loka
             if (ctx->boundary() != currentBoundary)
             {
               Node *owner = ctx->owner();
-              return owner ? T::fromNode(owner) : 0;
+              return FoundBoundary<T>(owner ? T::fromNode(owner) : 0);
             }
             ctx = ctx->parent();
           }
-          return 0;
+          return FoundBoundary<T>();
         }
 
       private:
