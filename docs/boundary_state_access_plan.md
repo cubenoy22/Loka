@@ -5,6 +5,14 @@ Status: active design note
 This note captures the next ownership/access tightening after the constant-prop
 state binding bug fixed in `93a3279`.
 
+Current implementation status:
+
+- `findBoundary()` is now direct-parent-only
+- borrowed boundary lookup now returns `FoundBoundary<T>`
+- borrowed lookup is read-only (`const` facade access)
+- `currentBoundary()` now exists as the owner-side counterpart
+- `BoundState` mutable escape hatches are marked `dangerously*`
+
 The goal is not to maximize flexibility. The goal is to keep the app-facing
 state model small, explicit, and difficult to misuse.
 
@@ -81,12 +89,12 @@ not arbitrary boundary graph traversal.
 
 ## API Sketch
 
-This is still a sketch, but the intended shape is:
+This is still a sketch, but it is now close to the current code direction:
 
 ```cpp
 virtual void composeNode(loka::app::scene::NodeComposition &c)
 {
-  c.currentBoundary().state(this->count_).set(this->count_.get() + 1);
+  c.currentBoundary();
 
   c.declare(
       loka::app::Text(c.findBoundary<ParentBoundary>().facade().titleState()));
@@ -100,8 +108,8 @@ More concretely:
 - borrowed lookup should expose only approved surface
 - normal borrowed access should not return writable foreign `BoundState`
 
-The final API does not need to match this exact spelling, but it should preserve
-those semantics.
+The final API does not need to expose direct mutable helpers on
+`currentBoundary()` immediately, but it should preserve those semantics.
 
 ## Parent Facade Sketch
 
@@ -156,6 +164,13 @@ Several implementation options are possible. The simplest good direction is:
 3. `FoundBoundary<T>` does not expose another `findBoundary`.
 4. owner-only mutable access stays on the `currentBoundary` path.
 
+Items 1-4 are now partially implemented:
+
+- `FoundBoundary<T>` exists
+- `FoundBoundary<T>` is read-only
+- `findBoundary()` is direct-parent-only
+- `currentBoundary()` exists, but still needs a more opinionated owner-side API
+
 This gives:
 
 - near-zero runtime cost
@@ -174,6 +189,15 @@ To keep the change reviewable, the likely order is:
 5. tighten `declareStates()` ownership expectations
 6. add regression tests for forbidden access patterns
 
+Progress so far:
+
+- done: 1
+- done: 2
+- mostly done: 3
+- started: 4
+- pending: 5
+- pending: 6
+
 ## Open Questions
 
 Questions still worth deciding before implementation:
@@ -185,6 +209,8 @@ Questions still worth deciding before implementation:
 - how much of the facade should be handwritten vs generated/templated
 - how strongly component code should be prevented from storing owner-side
   mutable handles beyond compose-time use
+- whether `declareStates()` should eventually return a more owner-scoped handle
+  than raw `BoundState<T>` storage in components
 
 ## Mutability Rules
 
