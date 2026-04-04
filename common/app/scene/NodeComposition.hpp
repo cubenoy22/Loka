@@ -481,17 +481,14 @@ namespace loka
           {
             return 0;
           }
-          ComponentContext *ctx = context_;
+          BoundaryNode *currentBoundary = context_->boundary();
+          ComponentContext *ctx = context_->parent();
           while (ctx)
           {
-            Node *owner = ctx->owner();
-            if (owner)
+            if (ctx->boundary() != currentBoundary)
             {
-              T *typed = T::fromNode(owner);
-              if (typed)
-              {
-                return typed;
-              }
+              Node *owner = ctx->owner();
+              return owner ? T::fromNode(owner) : 0;
             }
             ctx = ctx->parent();
           }
