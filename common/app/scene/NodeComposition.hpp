@@ -32,18 +32,18 @@ namespace loka
         {
         public:
           FoundBoundary() : facade_(0) {}
-          explicit FoundBoundary(T *facade) : facade_(facade) {}
+          explicit FoundBoundary(const T *facade) : facade_(facade) {}
 
           bool isValid() const { return facade_ != 0; }
-          T *facadeOrNull() const { return facade_; }
-          T &facade() const
+          const T *facadeOrNull() const { return facade_; }
+          const T &facade() const
           {
             assert(facade_ && "FoundBoundary::facade requires a boundary");
             return *facade_;
           }
 
         private:
-          T *facade_;
+          const T *facade_;
         };
 
         struct CompositionScope
