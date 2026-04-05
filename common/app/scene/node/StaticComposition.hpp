@@ -116,6 +116,20 @@ namespace loka
           AssertBoundaryPropValueAllowed<T>();
         }
 
+        template <typename T>
+        static BorrowedState<T> borrowed(loka::core::State<T> *state)
+        {
+          AssertBoundaryPropValueAllowed<loka::core::State<T> *>();
+          return BorrowedState<T>(state);
+        }
+
+        template <typename T>
+        static loka::core::Managed<T> shared(const loka::core::Managed<T> &value)
+        {
+          AssertBoundaryPropValueAllowed<loka::core::Managed<T> >();
+          return value;
+        }
+
         bool operator<(const PropsBase &rhs) const
         {
           if (rhs.propsTypeId() != this->propsTypeId())
