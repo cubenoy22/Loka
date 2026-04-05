@@ -12,6 +12,7 @@ Current implementation status:
 - borrowed lookup is read-only (`const` facade access)
 - `currentBoundary()` now exists as the owner-side counterpart
 - `BoundState` mutable escape hatches are marked `dangerously*`
+- `NodeComposition::useState()` is now `dangerouslyUseState()`
 
 The goal is not to maximize flexibility. The goal is to keep the app-facing
 state model small, explicit, and difficult to misuse.
@@ -217,6 +218,7 @@ Questions still worth deciding before implementation:
 Planned direction:
 
 - `declareStates()` is the canonical owner-side declaration path
+- `NodeComposition::dangerouslyUseState()` exists only as an escape hatch
 - owner-side mutable updates should happen through boundary-owned state only
 - components should not keep long-lived mutable owner handles by default
 - children should signal intent upward instead of mutating parent state directly
@@ -226,6 +228,13 @@ In practice this means:
 - owner path: writable
 - borrowed path: read-only
 - dangerous escape hatch: explicit and noisy
+
+Current intended interpretation:
+
+- ordinary component/boundary local state should prefer `declareStates()`
+- direct ad hoc state creation during compose should be treated as exceptional
+- if a call site reaches for `dangerouslyUseState()`, that should trigger design
+  review rather than be treated as a normal pattern
 
 ## Facade Direction
 
@@ -251,6 +260,7 @@ Desired guard rails:
 - make owner access and borrowed access different API paths
 - avoid returning raw mutable boundary state from non-owner APIs
 - make `findBoundary` return a restricted facade-like type, not a raw boundary
+- keep `declareStates()` as the normal owner-side allocation path
 - make dangerous escape hatches obvious, similar in spirit to
   `dangerouslySetInnerHTML`
 - add debug assertions for owner-only mutation when practical
