@@ -173,6 +173,8 @@ Items 1-4 are now partially implemented:
 - `currentBoundary()` now has an owner-matched state wrapper, but broader
   owner-side policy still needs tightening
 - `currentBoundary()` no longer exposes the raw boundary pointer directly
+- `currentBoundary().state(...)` now exposes only owner-matched `get()/set()`
+  rather than a raw state pointer
 
 This gives:
 

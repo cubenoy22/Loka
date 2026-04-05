@@ -56,11 +56,6 @@ namespace loka
             CurrentState(BoundState<T> *state, bool owned) : state_(state), owned_(owned) {}
 
             bool isValid() const { return state_ && owned_ && state_->isValid(); }
-            loka::core::State<T> *state() const
-            {
-              assert(this->isValid() && "CurrentState::state requires owner-matched BoundState");
-              return state_->state();
-            }
             T get() const
             {
               assert(this->isValid() && "CurrentState::get requires owner-matched BoundState");
