@@ -108,6 +108,8 @@ More concretely:
 - `c.findBoundary<ParentBoundary>()` is the direct-parent borrowed path
 - borrowed lookup should expose only approved surface
 - normal borrowed access should not return writable foreign `BoundState`
+- borrowed facades may expose read-only `State<T>*` when live reflection is
+  needed, but mutation still stays on the owner path
 
 The final API does not need to expose direct mutable helpers on
 `currentBoundary()` immediately, but it should preserve those semantics.

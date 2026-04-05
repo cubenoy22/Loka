@@ -80,6 +80,41 @@ namespace {
     int value_;
   };
 
+  class BoundaryLookupStateApi
+  {
+  public:
+    static const char *kInterfaceName() { return "BoundaryLookupStateApi"; }
+    static BoundaryLookupStateApi *fromNode(loka::app::scene::Node *node)
+    {
+      if (!node)
+      {
+        return 0;
+      }
+      return static_cast<BoundaryLookupStateApi *>(node->queryInterface(kInterfaceName()));
+    }
+    virtual ~BoundaryLookupStateApi() {}
+    virtual loka::core::State<int> *countState() const = 0;
+  };
+
+  class BoundaryLookupStateNode : public loka::app::scene::Node, public BoundaryLookupStateApi
+  {
+  public:
+    explicit BoundaryLookupStateNode(int value) : count_(value) {}
+
+    virtual void *queryInterface(const char *name)
+    {
+      return name && std::strcmp(name, kInterfaceName()) == 0 ? static_cast<BoundaryLookupStateApi *>(this) : 0;
+    }
+
+    virtual loka::core::State<int> *countState() const
+    {
+      return const_cast<loka::core::MutableState<int> *>(&count_);
+    }
+
+  private:
+    loka::core::MutableState<int> count_;
+  };
+
   class DummyStateOwner : public loka::app::scene::IStateOwner
   {
   public:
@@ -865,6 +900,30 @@ void testLokaFlowDslV1Core() {
         composition.findBoundary<BoundaryLookupTestApi>();
     assert(foundParent.isValid());
     assert(foundParent.facade().id() == 2);
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext parentBoundaryContext;
+    loka::app::scene::ComponentContext currentBoundaryContext(&parentBoundaryContext);
+    loka::app::scene::ComponentContext childContext(&currentBoundaryContext);
+    BoundaryLookupStateNode parentBoundaryNode(9);
+    loka::app::scene::Node currentBoundaryNode;
+    loka::app::scene::Node childNode;
+
+    parentBoundaryContext.setOwner(&parentBoundaryNode);
+    parentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x2100));
+    currentBoundaryContext.setOwner(&currentBoundaryNode);
+    currentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3100));
+    childContext.setOwner(&childNode);
+    childContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3100));
+    composition.setContext(&childContext);
+
+    const loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupStateApi> foundParent =
+        composition.findBoundary<BoundaryLookupStateApi>();
+    assert(foundParent.isValid());
+    assert(foundParent.facade().countState() != 0);
+    assert(foundParent.facade().countState()->get() == 9);
   }
 
   {

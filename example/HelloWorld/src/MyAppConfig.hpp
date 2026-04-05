@@ -46,7 +46,7 @@ private:
       c.declare(Menu("Special") << (MenuItem("Item") << MenuItem("Sub Item")) << MenuItem("Item 2"));
       if (!randomSeedState_)
       {
-        randomSeedState_ = &c.useState<unsigned int>(0x1234);
+        randomSeedState_ = &c.dangerouslyUseState<unsigned int>(0x1234);
       }
       if (!rebuildBound_)
       {
