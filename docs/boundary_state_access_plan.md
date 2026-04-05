@@ -11,8 +11,14 @@ Current implementation status:
 - borrowed boundary lookup now returns `FoundBoundary<T>`
 - borrowed lookup is read-only (`const` facade access)
 - `currentBoundary()` now exists as the owner-side counterpart
+- `currentBoundary()` is now owner-access-only and no longer exposes the raw
+  boundary pointer
+- `currentBoundary().state(...)` now exposes only owner-matched `get()/set()`
 - `BoundState` mutable escape hatches are marked `dangerously*`
+- `BoundState` no longer implicitly converts to `State<T>*`
+- `BoundState` owner/tracker access now lives behind `dangerously*` naming
 - `NodeComposition::useState()` is now `dangerouslyUseState()`
+- boundary/menu ad hoc state creation helpers are also marked `dangerously*`
 
 The goal is not to maximize flexibility. The goal is to keep the app-facing
 state model small, explicit, and difficult to misuse.
@@ -172,11 +178,8 @@ Items 1-4 are now partially implemented:
 - `FoundBoundary<T>` exists
 - `FoundBoundary<T>` is read-only
 - `findBoundary()` is direct-parent-only
-- `currentBoundary()` now has an owner-matched state wrapper, but broader
-  owner-side policy still needs tightening
-- `currentBoundary()` no longer exposes the raw boundary pointer directly
-- `currentBoundary().state(...)` now exposes only owner-matched `get()/set()`
-  rather than a raw state pointer
+- `currentBoundary()` now exposes only owner-oriented access
+- `currentBoundary().state(...)` exposes owner-matched `get()/set()` only
 
 This gives:
 
@@ -200,17 +203,15 @@ Progress so far:
 
 - done: 1
 - done: 2
-- mostly done: 3
-- mostly done: 4
-- pending: 5
-- pending: 6
+- done: 3
+- done: 4
+- mostly done: 5
+- started: 6
 
 ## Open Questions
 
 Questions still worth deciding before implementation:
 
-- whether `currentBoundary()` should expose direct mutable access or a narrower
-  owner-only writer helper
 - whether borrowed access should return raw `State<T>*` or a lightweight
   borrowed wrapper
 - how much of the facade should be handwritten vs generated/templated
