@@ -222,6 +222,8 @@ Planned direction:
 - `NodeComposition::dangerouslyUseState()` exists only as an escape hatch
 - `BoundaryNode::dangerouslyUseState()` and `dangerouslyUseManagedState()` are
   also escape hatches, not the default composition path
+- menu composition state creation also uses `dangerouslyUseState()` naming for
+  the same reason
 - owner-side mutable updates should happen through boundary-owned state only
 - components should not keep long-lived mutable owner handles by default
 - children should signal intent upward instead of mutating parent state directly
