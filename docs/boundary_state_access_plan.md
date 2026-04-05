@@ -10,6 +10,8 @@ Current implementation status:
 - `findBoundary()` is now direct-parent-only
 - borrowed boundary lookup now returns `FoundBoundary<T>`
 - borrowed lookup is read-only (`const` facade access)
+- `BorrowedState<T>` now exists as a lightweight borrowed-state wrapper for
+  facade/props surfaces
 - `currentBoundary()` now exists as the owner-side counterpart
 - `currentBoundary()` is now owner-access-only and no longer exposes the raw
   boundary pointer
@@ -19,6 +21,9 @@ Current implementation status:
 - `BoundState` owner/tracker access now lives behind `dangerously*` naming
 - `NodeComposition::useState()` is now `dangerouslyUseState()`
 - boundary/menu ad hoc state creation helpers are also marked `dangerously*`
+- `BoundaryPropsFor<T>` now has `BoundaryPropValueRules`, `borrowed(...)`, and
+  `shared(...)` helpers to steer custom boundary props toward borrowed/shared
+  inputs instead of owned mutable state
 
 The goal is not to maximize flexibility. The goal is to keep the app-facing
 state model small, explicit, and difficult to misuse.
@@ -70,6 +75,8 @@ Treat state-like values as three different classes:
    - owned elsewhere
    - readable and observable
    - not writable through child/local convenience APIs
+   - may be surfaced as `BorrowedState<T>` when a facade or `BoundaryProps`
+     wants a read-only state-shaped input without exposing mutable ownership
 
 3. Boundary-owned mutable state
    - declared by the owning boundary
@@ -128,7 +135,7 @@ The preferred cross-boundary pattern is:
 class ParentBoundaryFacade
 {
 public:
-  loka::core::State<loka::core::String> *titleState() const;
+  loka::app::scene::BorrowedState<loka::core::String> titleState() const;
   bool canShowDetails() const;
 };
 ```
@@ -180,6 +187,9 @@ Items 1-4 are now partially implemented:
 - `findBoundary()` is direct-parent-only
 - `currentBoundary()` now exposes only owner-oriented access
 - `currentBoundary().state(...)` exposes owner-matched `get()/set()` only
+- `BorrowedState<T>` and `BoundaryPropsFor<T>::borrowed/shared` now exist as
+  the first small compile-time/mechanical steer toward safe cross-boundary
+  props
 
 This gives:
 
@@ -212,8 +222,8 @@ Progress so far:
 
 Questions still worth deciding before implementation:
 
-- whether borrowed access should return raw `State<T>*` or a lightweight
-  borrowed wrapper
+- whether raw `State<T>*` should remain acceptable on public borrowed surfaces,
+  or whether `BorrowedState<T>` should become the preferred/required wrapper
 - how much of the facade should be handwritten vs generated/templated
 - how strongly component code should be prevented from storing owner-side
   mutable handles beyond compose-time use
@@ -266,6 +276,48 @@ That facade should:
 
 `Managed<T>` remains explicit shared access from a larger scope to a smaller
 scope. It should not imply lifecycle inversion or ownership transfer.
+
+## BoundaryProps Direction
+
+`BoundaryProps` is the normal parent-to-child input path.
+
+That means the main restriction target is not boundary existence itself, but
+what kinds of values are allowed to cross a boundary through props.
+
+Current intended direction:
+
+- allow plain values
+- allow read-only `State<T>*`
+- allow `BorrowedState<T>`
+- allow `Managed<T>` as explicit shared access
+- allow narrow facades
+- disallow `BoundState<T>`
+- disallow raw `MutableState<T>*`
+- disallow owner-specific mutable handles
+
+The current `BoundaryPropValueRules` helper is only a first compile-time hook.
+The long-term goal is to make correct `BoundaryProps` setters easy to write and
+incorrect ones noisy enough to catch in review or at build time.
+
+## Boundary Lifetime Note
+
+Current default model:
+
+- boundary lifetime follows scene/tree structure
+- boundary lifetime does not automatically follow native view visibility
+- hiding a projection is not the same thing as detaching a boundary
+
+This is intentional. It keeps ownership aligned with the logical scene
+structure and avoids tying app state to backend-specific view churn.
+
+Possible future extension:
+
+- opt-in boundary lifecycle policies such as scene-owned vs view-scoped
+
+That is intentionally deferred. For now, if a subtree should preserve or clear
+editing state differently from its view lifetime, prefer solving it through
+state placement (for example a headless owner or parent-owned model) rather
+than automatic boundary destruction tied to visibility.
 
 ## Guard Rails
 
