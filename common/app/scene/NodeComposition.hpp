@@ -477,11 +477,11 @@ namespace loka
         }
 
         template <typename T>
-        BoundState<T> useState(const T &initial)
+        BoundState<T> dangerouslyUseState(const T &initial)
         {
-          assert(context_ && "NodeComposition::useState requires ComponentContext");
+          assert(context_ && "NodeComposition::dangerouslyUseState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
-          assert(stateOwner && "NodeComposition::useState requires Boundary owner");
+          assert(stateOwner && "NodeComposition::dangerouslyUseState requires Boundary owner");
           loka::core::MutableState<T> *state = 0;
           size_t align = AlignOf<loka::core::MutableState<T> >::value;
           void *mem = stateOwner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align);
@@ -509,9 +509,9 @@ namespace loka
         }
 
         template <typename T>
-        BoundState<T> useState()
+        BoundState<T> dangerouslyUseState()
         {
-          return useState(T());
+          return dangerouslyUseState(T());
         }
 
         // findBoundary: T must implement static T* fromNode(Node*)
