@@ -77,15 +77,10 @@ namespace loka
             bool owned_;
           };
 
-          CurrentBoundary() : boundary_(0), owner_(0) {}
-          CurrentBoundary(BoundaryNode *boundary, IStateOwner *owner) : boundary_(boundary), owner_(owner) {}
+          CurrentBoundary() : owner_(0) {}
+          explicit CurrentBoundary(IStateOwner *owner) : owner_(owner) {}
 
-          bool isValid() const { return boundary_ != 0; }
-          BoundaryNode &boundary() const
-          {
-            assert(boundary_ && "CurrentBoundary::boundary requires a boundary");
-            return *boundary_;
-          }
+          bool isValid() const { return owner_ != 0; }
           template <typename T>
           CurrentState<T> state(BoundState<T> &boundState) const
           {
@@ -93,7 +88,6 @@ namespace loka
           }
 
         private:
-          BoundaryNode *boundary_;
           IStateOwner *owner_;
         };
 
@@ -427,7 +421,7 @@ namespace loka
         BoundaryNode *boundary() const;
         CurrentBoundary currentBoundary() const
         {
-          return CurrentBoundary(this->boundary(), context_ ? context_->stateOwner() : 0);
+          return CurrentBoundary(context_ ? context_->stateOwner() : 0);
         }
         Scene *scene() const;
         ::Window *window() const;

@@ -172,6 +172,7 @@ Items 1-4 are now partially implemented:
 - `findBoundary()` is direct-parent-only
 - `currentBoundary()` now has an owner-matched state wrapper, but broader
   owner-side policy still needs tightening
+- `currentBoundary()` no longer exposes the raw boundary pointer directly
 
 This gives:
 
