@@ -1,6 +1,7 @@
 #include "FlowDslTests.hpp"
 
 #include <cassert>
+#include <cstring>
 #include <cstdio>
 #include <vector>
 
