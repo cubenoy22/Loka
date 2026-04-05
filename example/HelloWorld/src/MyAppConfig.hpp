@@ -33,7 +33,7 @@ private:
   {
   public:
     MainMenu()
-        : randomSeedState_(0), rebuildBound_(false), rebuildEvent_() {}
+        : randomSeed_(0x1234u), rebuildBound_(false), rebuildEvent_() {}
 
     virtual void composeMenu(loka::app::MenuComposition &c)
     {
@@ -44,18 +44,13 @@ private:
       c.declare(Menu("View") << MenuItem("Color Picker").actionType(MENU_ACTION_SHOW_COLOR_PICKER));
       c.declare(Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
       c.declare(Menu("Special") << (MenuItem("Item") << MenuItem("Sub Item")) << MenuItem("Item 2"));
-      if (!randomSeedState_)
-      {
-        randomSeedState_ = &c.dangerouslyUseState<unsigned int>(0x1234);
-      }
       if (!rebuildBound_)
       {
         rebuildEvent_.bind(&MainMenu::RebuildThunk, this, false);
         rebuildBound_ = true;
       }
       MenuDefinition randomMenu("Random");
-      const unsigned int seed = randomSeedState_ ? randomSeedState_->get() : 0u;
-      buildRandomMenu(randomMenu, seed);
+      buildRandomMenu(randomMenu, randomSeed_);
       c.declare(randomMenu);
     }
 
@@ -89,12 +84,7 @@ private:
 
     void handleRebuild()
     {
-      if (randomSeedState_)
-      {
-        unsigned int seed = randomSeedState_->get();
-        seed = seed * 1103515245u + 12345u;
-        randomSeedState_->set(seed);
-      }
+      randomSeed_ = randomSeed_ * 1103515245u + 12345u;
     }
 
     static void RebuildThunk(void *userData)
@@ -106,7 +96,7 @@ private:
       }
     }
 
-    loka::core::MutableState<unsigned int> *randomSeedState_;
+    unsigned int randomSeed_;
     bool rebuildBound_;
     loka::core::EmitterState rebuildEvent_;
   };
