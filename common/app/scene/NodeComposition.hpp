@@ -35,7 +35,6 @@ namespace loka
           explicit FoundBoundary(const T *facade) : facade_(facade) {}
 
           bool isValid() const { return facade_ != 0; }
-          const T *facadeOrNull() const { return facade_; }
           const T &facade() const
           {
             assert(facade_ && "FoundBoundary::facade requires a boundary");
@@ -82,7 +81,6 @@ namespace loka
           CurrentBoundary(BoundaryNode *boundary, IStateOwner *owner) : boundary_(boundary), owner_(owner) {}
 
           bool isValid() const { return boundary_ != 0; }
-          BoundaryNode *boundaryOrNull() const { return boundary_; }
           BoundaryNode &boundary() const
           {
             assert(boundary_ && "CurrentBoundary::boundary requires a boundary");
