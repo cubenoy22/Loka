@@ -170,7 +170,8 @@ Items 1-4 are now partially implemented:
 - `FoundBoundary<T>` exists
 - `FoundBoundary<T>` is read-only
 - `findBoundary()` is direct-parent-only
-- `currentBoundary()` exists, but still needs a more opinionated owner-side API
+- `currentBoundary()` now has an owner-matched state wrapper, but broader
+  owner-side policy still needs tightening
 
 This gives:
 
@@ -195,7 +196,7 @@ Progress so far:
 - done: 1
 - done: 2
 - mostly done: 3
-- started: 4
+- mostly done: 4
 - pending: 5
 - pending: 6
 

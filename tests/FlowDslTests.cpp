@@ -79,6 +79,23 @@ namespace {
   private:
     int value_;
   };
+
+  class DummyStateOwner : public loka::app::scene::IStateOwner
+  {
+  public:
+    DummyStateOwner() : tracker_(0) {}
+
+    virtual void adoptState(loka::core::StateBase *) {}
+    virtual void adoptStateUnchecked(loka::core::StateBase *) {}
+    virtual void reserveStates(size_t) {}
+    virtual void reserveStateArena(size_t) {}
+    virtual void *allocateStateMemory(size_t, size_t) { return 0; }
+    virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
+    virtual loka::core::StateTracker *tracker() { return tracker_; }
+
+  private:
+    loka::core::StateTracker *tracker_;
+  };
   class PendingApplyProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingApplyProbeBoundaryNode> PendingApplyProbeBoundaryProps;
   static int g_pendingApplyCallCount = 0;
@@ -874,6 +891,43 @@ void testLokaFlowDslV1Core() {
     loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundGrandparent =
         composition.findBoundary<BoundaryLookupTestApi>();
     assert(!foundGrandparent.isValid());
+  }
+
+  {
+    DummyStateOwner owner;
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+    loka::core::MutableState<int> ownedValue(3);
+    loka::app::scene::BoundState<int> boundState(&ownedValue, 0, &owner);
+
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x6000));
+    context.setStateOwner(&owner);
+    composition.setContext(&context);
+
+    loka::app::scene::NodeComposition::CurrentBoundary current = composition.currentBoundary();
+    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundState = current.state(boundState);
+    assert(current.isValid());
+    assert(foundState.isValid());
+    assert(foundState.get() == 3);
+    foundState.set(7);
+    assert(ownedValue.get() == 7);
+  }
+
+  {
+    DummyStateOwner currentOwner;
+    DummyStateOwner foreignOwner;
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+    loka::core::MutableState<int> foreignValue(11);
+    loka::app::scene::BoundState<int> foreignBoundState(&foreignValue, 0, &foreignOwner);
+
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x7000));
+    context.setStateOwner(&currentOwner);
+    composition.setContext(&context);
+
+    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundForeignState =
+        composition.currentBoundary().state(foreignBoundState);
+    assert(!foundForeignState.isValid());
   }
 
   {

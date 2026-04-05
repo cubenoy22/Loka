@@ -49,8 +49,37 @@ namespace loka
         class CurrentBoundary
         {
         public:
-          CurrentBoundary() : boundary_(0) {}
-          explicit CurrentBoundary(BoundaryNode *boundary) : boundary_(boundary) {}
+          template <typename T>
+          class CurrentState
+          {
+          public:
+            CurrentState() : state_(0), owned_(false) {}
+            CurrentState(BoundState<T> *state, bool owned) : state_(state), owned_(owned) {}
+
+            bool isValid() const { return state_ && owned_ && state_->isValid(); }
+            loka::core::State<T> *state() const
+            {
+              assert(this->isValid() && "CurrentState::state requires owner-matched BoundState");
+              return state_->state();
+            }
+            T get() const
+            {
+              assert(this->isValid() && "CurrentState::get requires owner-matched BoundState");
+              return state_->get();
+            }
+            void set(const T &value, bool forceUpdate = false) const
+            {
+              assert(this->isValid() && "CurrentState::set requires owner-matched BoundState");
+              state_->set(value, forceUpdate);
+            }
+
+          private:
+            BoundState<T> *state_;
+            bool owned_;
+          };
+
+          CurrentBoundary() : boundary_(0), owner_(0) {}
+          CurrentBoundary(BoundaryNode *boundary, IStateOwner *owner) : boundary_(boundary), owner_(owner) {}
 
           bool isValid() const { return boundary_ != 0; }
           BoundaryNode *boundaryOrNull() const { return boundary_; }
@@ -59,9 +88,15 @@ namespace loka
             assert(boundary_ && "CurrentBoundary::boundary requires a boundary");
             return *boundary_;
           }
+          template <typename T>
+          CurrentState<T> state(BoundState<T> &boundState) const
+          {
+            return CurrentState<T>(&boundState, owner_ && boundState.owner() == owner_);
+          }
 
         private:
           BoundaryNode *boundary_;
+          IStateOwner *owner_;
         };
 
         struct CompositionScope
@@ -394,7 +429,7 @@ namespace loka
         BoundaryNode *boundary() const;
         CurrentBoundary currentBoundary() const
         {
-          return CurrentBoundary(this->boundary());
+          return CurrentBoundary(this->boundary(), context_ ? context_->stateOwner() : 0);
         }
         Scene *scene() const;
         ::Window *window() const;
