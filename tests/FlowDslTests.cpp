@@ -901,6 +901,22 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    loka::app::scene::BorrowedState<int> emptyBorrowed;
+    assert(!emptyBorrowed.isValid());
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x6100));
+    composition.setContext(&context);
+
+    const loka::app::scene::NodeComposition::CurrentBoundary current = composition.currentBoundary();
+    assert(!current.isValid());
+  }
+
+  {
     loka::app::scene::NodeComposition composition;
     loka::app::scene::ComponentContext parentBoundaryContext;
     loka::app::scene::ComponentContext currentBoundaryContext(&parentBoundaryContext);
@@ -921,6 +937,20 @@ void testLokaFlowDslV1Core() {
         composition.findBoundary<BoundaryLookupTestApi>();
     assert(foundParent.isValid());
     assert(foundParent.facade().id() == 2);
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+    BoundaryLookupTestNode currentBoundaryNode(4);
+
+    context.setOwner(&currentBoundaryNode);
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x2050));
+    composition.setContext(&context);
+
+    const loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundParent =
+        composition.findBoundary<BoundaryLookupTestApi>();
+    assert(!foundParent.isValid());
   }
 
   {
