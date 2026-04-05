@@ -334,6 +334,21 @@ public:
 
 このように、borrowed path は基本的に read-only です。
 
+現時点では、borrowed surface を表す型として
+`BorrowedState<T>` を使うのが分かりやすい方針です。
+
+```cpp
+class ParentFacade
+{
+public:
+  loka::app::scene::BorrowedState<loka::core::String> titleState() const;
+};
+```
+
+これは「read-only の borrowed input である」ことを API 上で見えやすくします。
+ただし既存コードや一部 API では raw `State<T>*` が残ることもあります。
+今の段階では、`BorrowedState<T>` を推奨寄りの表現と考えてください。
+
 ### 親から子へは `BoundaryProps`
 
 親から子へ値や依存を渡す正規ルートは `BoundaryProps` です。
@@ -355,6 +370,20 @@ Loka では、Boundary をまたぐ値はできるだけ次に寄せます。
 
 なぜなら、それらを props 経由で運ぶと、
 ownership と lifecycle の境界が曖昧になりやすいからです。
+
+特に大事なのは、`BoundState<T>` は cross-boundary transport 用の型ではない、
+という点です。
+
+`BoundState<T>` を member として保持してよいのは、
+その component / boundary 自身が `declareStates()` で作った
+owner-side local state に限る、と考えるのが基本です。
+
+つまり、
+
+- 自分の `declareStates()` 由来の `BoundState<T>` を member に持つ: よい
+- 親や別 boundary 由来の `BoundState<T>` を props/member で運ぶ: 避ける
+
+という線引きです。
 
 ### `Managed<T>` は explicit shared access
 
