@@ -499,27 +499,27 @@ namespace loka
         static void ObservedStateDeferredInvalidateThunk(void *userData);
 
         template <class T>
-        BoundState<T> useState()
+        BoundState<T> dangerouslyUseState()
         {
-          return useStateWithValue(T());
+          return dangerouslyUseStateWithValue(T());
         }
 
         template <class T>
-        BoundState<T> useState(const T &initial)
+        BoundState<T> dangerouslyUseState(const T &initial)
         {
-          return useStateWithValue(initial);
+          return dangerouslyUseStateWithValue(initial);
         }
 
         template <class T>
-        loka::core::Managed<loka::core::MutableState<T> > useManagedState()
+        loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedState()
         {
-          return useManagedStateWithValue(T());
+          return dangerouslyUseManagedStateWithValue(T());
         }
 
         template <class T>
-        loka::core::Managed<loka::core::MutableState<T> > useManagedState(const T &initial)
+        loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedState(const T &initial)
         {
-          return useManagedStateWithValue(initial);
+          return dangerouslyUseManagedStateWithValue(initial);
         }
 
         NodeCompositionTransaction &compositionTransaction() { return compositionState_.compositionTransaction(); }
@@ -1064,7 +1064,7 @@ namespace loka
         };
 
         template <class T>
-        BoundState<T> useStateWithValue(const T &initial)
+        BoundState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
           adoptState(state);
@@ -1072,7 +1072,7 @@ namespace loka
         }
 
         template <class T>
-        loka::core::Managed<loka::core::MutableState<T> > useManagedStateWithValue(const T &initial)
+        loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedStateWithValue(const T &initial)
         {
           loka::core::Managed<loka::core::MutableState<T> > handle = loka::core::Managed<loka::core::MutableState<T> >::Wrap(new loka::core::MutableState<T>(initial));
           StateHandleBase *entry = new StateHandle<T>(handle);

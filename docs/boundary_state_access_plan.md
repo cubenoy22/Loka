@@ -220,6 +220,8 @@ Planned direction:
 
 - `declareStates()` is the canonical owner-side declaration path
 - `NodeComposition::dangerouslyUseState()` exists only as an escape hatch
+- `BoundaryNode::dangerouslyUseState()` and `dangerouslyUseManagedState()` are
+  also escape hatches, not the default composition path
 - owner-side mutable updates should happen through boundary-owned state only
 - components should not keep long-lived mutable owner handles by default
 - children should signal intent upward instead of mutating parent state directly
