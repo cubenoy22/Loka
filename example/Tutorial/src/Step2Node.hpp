@@ -38,7 +38,7 @@ namespace tutorial {
       using namespace loka::app;
       c.declare(
           VStack() << TutorialTitle("Step 2")
-                   << Text(this->countText_)
+                   << Text(this->countText_.state())
                    << Button("Increment", &this->incrementEvent_)
                    << TutorialHint("A button can update state and reflected text."));
     }

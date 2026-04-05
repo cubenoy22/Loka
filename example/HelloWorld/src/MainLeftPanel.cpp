@@ -39,9 +39,9 @@ namespace helloworld {
     }
     c.declare(VStack().TEST_ID("HelloWorld.LeftPanel")
                        << Text("Loka Sample").TEST_ID("HelloWorld.LeftPanel.Title")
-                       << Text(message_).TEST_ID("HelloWorld.LeftPanel.Message")
+                       << Text(message_.state()).TEST_ID("HelloWorld.LeftPanel.Message")
                        << Button("Add +", &toggleEvent_).TEST_ID("HelloWorld.LeftPanel.AddButton")
-                       << Text(actionSummary_).TEST_ID("HelloWorld.LeftPanel.ActionSummary")
+                       << Text(actionSummary_.state()).TEST_ID("HelloWorld.LeftPanel.ActionSummary")
                        << Button("Probe Button", &actionProbeEvent_).enabled(actionEnabled_.state()).TEST_ID("HelloWorld.LeftPanel.ProbeButton")
                        << Button("Toggle Button Enabled", &toggleActionEnabledEvent_).TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton")
                        << loka::app::scene::LC(bmiCalculator_));

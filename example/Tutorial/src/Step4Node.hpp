@@ -54,7 +54,7 @@ namespace tutorial
       c.declare(VStack()
                 << TutorialTitle("Step 4")
                 << Button("Add item", &this->addItemEvent_)
-                << Text(this->itemSummary_)
+                << Text(this->itemSummary_.state())
                 << c.showIf(*this->showItem1_.state(), this->item1_)
                 << c.showIf(*this->showItem2_.state(), this->item2_)
                 << c.showIf(*this->showItem3_.state(), this->item3_)

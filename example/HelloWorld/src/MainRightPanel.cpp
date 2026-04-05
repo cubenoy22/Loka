@@ -53,10 +53,10 @@ namespace helloworld
         VStack().TEST_ID("HelloWorld.RightPanel")
         << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")
         << PopupMenu(fruits_.map<loka::core::String>(FruitPopupLabel()))
-               .selectedIndex(fruitIndex_)
+               .selectedIndex(fruitIndex_.state())
                .onChange(&fruitChangedEvent_)
                .TEST_ID("HelloWorld.RightPanel.FruitPopup")
-        << Text(fruitMessage_).TEST_ID("HelloWorld.RightPanel.FruitMessage"));
+        << Text(fruitMessage_.state()).TEST_ID("HelloWorld.RightPanel.FruitMessage"));
   }
 
   void MainRightPanelComponent::handleFruitChanged()

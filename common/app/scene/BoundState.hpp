@@ -33,7 +33,6 @@ namespace loka
 
         bool isValid() const { return state_ != 0; }
         loka::core::State<T> *state() const { return state_; }
-        operator loka::core::State<T> *() const { return state_; }
         loka::core::StateTracker *tracker() const { return tracker_; }
         IStateOwner *owner() const { return owner_; }
         loka::core::MutableState<T> *dangerouslyMutableState() const { return state_; }
