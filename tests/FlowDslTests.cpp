@@ -93,7 +93,7 @@ namespace {
       return static_cast<BoundaryLookupStateApi *>(node->queryInterface(kInterfaceName()));
     }
     virtual ~BoundaryLookupStateApi() {}
-    virtual loka::core::State<int> *countState() const = 0;
+    virtual loka::app::scene::BorrowedState<int> countState() const = 0;
   };
 
   class BoundaryLookupStateNode : public loka::app::scene::Node, public BoundaryLookupStateApi
@@ -106,9 +106,9 @@ namespace {
       return name && std::strcmp(name, kInterfaceName()) == 0 ? static_cast<BoundaryLookupStateApi *>(this) : 0;
     }
 
-    virtual loka::core::State<int> *countState() const
+    virtual loka::app::scene::BorrowedState<int> countState() const
     {
-      return const_cast<loka::core::MutableState<int> *>(&count_);
+      return loka::app::scene::BorrowedState<int>(const_cast<loka::core::MutableState<int> *>(&count_));
     }
 
   private:
@@ -880,6 +880,14 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    assert((loka::app::scene::BoundaryPropValueRules<int>::kAllowed));
+    assert((loka::app::scene::BoundaryPropValueRules<loka::core::State<int> *>::kAllowed));
+    assert((loka::app::scene::BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<int> > >::kAllowed));
+    assert(!(loka::app::scene::BoundaryPropValueRules<loka::app::scene::BoundState<int> >::kAllowed));
+    assert(!(loka::app::scene::BoundaryPropValueRules<loka::core::MutableState<int> *>::kAllowed));
+  }
+
+  {
     loka::app::scene::NodeComposition composition;
     loka::app::scene::ComponentContext parentBoundaryContext;
     loka::app::scene::ComponentContext currentBoundaryContext(&parentBoundaryContext);
@@ -922,8 +930,8 @@ void testLokaFlowDslV1Core() {
     const loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupStateApi> foundParent =
         composition.findBoundary<BoundaryLookupStateApi>();
     assert(foundParent.isValid());
-    assert(foundParent.facade().countState() != 0);
-    assert(foundParent.facade().countState()->get() == 9);
+    assert(foundParent.facade().countState().isValid());
+    assert(foundParent.facade().countState().get() == 9);
   }
 
   {

@@ -22,6 +22,41 @@ namespace loka
     namespace scene
     {
       template <typename T>
+      class BorrowedState
+      {
+      public:
+        BorrowedState() : state_(0) {}
+        explicit BorrowedState(loka::core::State<T> *state) : state_(state) {}
+
+        bool isValid() const { return state_ != 0; }
+
+        T get() const
+        {
+          assert(state_ && "BorrowedState::get requires a state");
+          return state_->get();
+        }
+
+        void bind(typename loka::core::State<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) const
+        {
+          if (state_)
+          {
+            state_->bind(cb, userData, callImmediately, callOnce, priority);
+          }
+        }
+
+        void unbind(typename loka::core::State<T>::OnChangeFn cb, void *userData) const
+        {
+          if (state_)
+          {
+            state_->unbind(cb, userData);
+          }
+        }
+
+      private:
+        loka::core::State<T> *state_;
+      };
+
+      template <typename T>
       class BoundState
       {
       public:

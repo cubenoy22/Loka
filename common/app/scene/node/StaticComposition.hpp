@@ -29,6 +29,48 @@ namespace loka
       {
       };
 
+      template <typename T>
+      struct BoundaryPropValueRules
+      {
+        enum
+        {
+          kAllowed = 1
+        };
+      };
+
+      template <typename T>
+      struct BoundaryPropValueRules<BoundState<T> >
+      {
+        enum
+        {
+          kAllowed = 0
+        };
+      };
+
+      template <typename T>
+      struct BoundaryPropValueRules<loka::core::MutableState<T> *>
+      {
+        enum
+        {
+          kAllowed = 0
+        };
+      };
+
+      template <typename T>
+      struct BoundaryPropValueRules<const loka::core::MutableState<T> *>
+      {
+        enum
+        {
+          kAllowed = 0
+        };
+      };
+
+      template <typename T>
+      inline void AssertBoundaryPropValueAllowed()
+      {
+        LOKA_STATIC_ASSERT(BoundaryPropValueRules<T>::kAllowed, boundary_props_must_not_hold_owned_or_raw_mutable_state);
+      }
+
       struct StaticCompositionProps : public NodePropsBase<StaticCompositionProps>
       {
         StaticCompositionProps() {}
@@ -67,6 +109,13 @@ namespace loka
       {
         typedef BoundaryPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
+
+        template <typename T>
+        static void assertAllowedValueType()
+        {
+          AssertBoundaryPropValueAllowed<T>();
+        }
+
         bool operator<(const PropsBase &rhs) const
         {
           if (rhs.propsTypeId() != this->propsTypeId())
