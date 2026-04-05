@@ -243,6 +243,9 @@ Current intended interpretation:
   review rather than be treated as a normal pattern
 - normal `common/` and `example/` DSL code should ideally have zero
   `dangerously*` state creation callsites
+- keeping `BoundState<T>` as a component member is acceptable only for that
+  component's own boundary-owned state declared through `declareStates()`
+- `BoundState<T>` should not be used as a cross-boundary transport type
 
 ## Facade Direction
 
