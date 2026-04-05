@@ -79,7 +79,7 @@ namespace loka
           template <typename T>
           CurrentState<T> state(BoundState<T> &boundState) const
           {
-            return CurrentState<T>(&boundState, owner_ && boundState.owner() == owner_);
+            return CurrentState<T>(&boundState, owner_ && boundState.dangerouslyOwner() == owner_);
           }
 
         private:
