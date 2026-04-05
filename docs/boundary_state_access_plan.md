@@ -240,6 +240,8 @@ Current intended interpretation:
 - direct ad hoc state creation during compose should be treated as exceptional
 - if a call site reaches for `dangerouslyUseState()`, that should trigger design
   review rather than be treated as a normal pattern
+- normal `common/` and `example/` DSL code should ideally have zero
+  `dangerously*` state creation callsites
 
 ## Facade Direction
 
