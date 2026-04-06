@@ -54,6 +54,41 @@ namespace
     }
   };
 
+  struct ToolboxFollowupRedrawSimulator
+  {
+    bool skipNextUpdateDraw_;
+    int drawCount_;
+
+    ToolboxFollowupRedrawSimulator()
+        : skipNextUpdateDraw_(false), drawCount_(0) {}
+
+    void draw()
+    {
+      ++drawCount_;
+    }
+
+    void flushInvalidateWithLegacySkip()
+    {
+      skipNextUpdateDraw_ = true;
+      draw();
+    }
+
+    void flushInvalidateWithoutSkip()
+    {
+      draw();
+    }
+
+    void handleUpdateEvt()
+    {
+      if (skipNextUpdateDraw_)
+      {
+        skipNextUpdateDraw_ = false;
+        return;
+      }
+      draw();
+    }
+  };
+
   struct ToolboxChildDirtyInvalidationSimulator
   {
     enum InvalidateMode
@@ -159,4 +194,23 @@ void testToolboxChildDirtyInvalidationPrefersFullRedraw()
   assert(propsOnlyMode == ToolboxChildDirtyInvalidationSimulator::INVALIDATE_RECT);
 
   printf("==== [testToolboxChildDirtyInvalidationPrefersFullRedraw] PASSED ====\n");
+}
+
+void testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw()
+{
+  printf("\n==== [testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw] start ====\n");
+
+  ToolboxFollowupRedrawSimulator legacy;
+  legacy.flushInvalidateWithLegacySkip();
+  legacy.handleUpdateEvt();
+  printf("  legacy drawCount = %d (expected 1)\n", legacy.drawCount_);
+  assert(legacy.drawCount_ == 1);
+
+  ToolboxFollowupRedrawSimulator fixed;
+  fixed.flushInvalidateWithoutSkip();
+  fixed.handleUpdateEvt();
+  printf("  fixed drawCount = %d (expected 2)\n", fixed.drawCount_);
+  assert(fixed.drawCount_ == 2);
+
+  printf("==== [testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw] PASSED ====\n");
 }

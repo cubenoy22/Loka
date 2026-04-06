@@ -202,7 +202,6 @@ void ToolboxWindow::flushInvalidate()
       scenePlatformController_->noteWindowFlushFull();
     }
     needsInvalidate_ = false;
-    skipNextUpdateDraw_ = true;
     pendingInvalidateRects_.clear();
     this->draw();
     return;
@@ -216,7 +215,6 @@ void ToolboxWindow::flushInvalidate()
     {
       scenePlatformController_->noteWindowFlushDirty();
     }
-    skipNextUpdateDraw_ = true;
     this->drawDirty(rects[i]);
   }
 }

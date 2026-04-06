@@ -297,6 +297,58 @@ namespace {
     }
   };
 
+  class SameBoundaryConditionalProbeNode;
+  typedef loka::app::scene::BoundaryPropsFor<SameBoundaryConditionalProbeNode> SameBoundaryConditionalProbeProps;
+  static SameBoundaryConditionalProbeNode *g_sameBoundaryConditionalProbe = 0;
+
+  class SameBoundaryConditionalProbeNode : public loka::app::scene::BoundaryNodeFor<SameBoundaryConditionalProbeNode>
+  {
+  public:
+    SameBoundaryConditionalProbeNode(const SameBoundaryConditionalProbeProps &p)
+        : loka::app::scene::BoundaryNodeFor<SameBoundaryConditionalProbeNode>(SameBoundaryConditionalProbeProps(p)),
+          show_(),
+          toggle_(),
+          initialized_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      c.declareStates().state(this->show_, false);
+      this->bindForUi(this->toggle_, this, &SameBoundaryConditionalProbeNode::toggle);
+      g_sameBoundaryConditionalProbe = this;
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      TextDefinition falseText = Text("Off").testId("SameBoundaryOffText");
+      TextDefinition trueText = Text("On").testId("SameBoundaryOnText");
+      c.declare(Box().testId("SameBoundaryRoot")
+                << c.showIf(*this->show_.state(), trueText, falseText));
+    }
+
+    void emitToggle()
+    {
+      this->toggle_.emit();
+    }
+
+  private:
+    void toggle()
+    {
+      this->show_.set(!this->show_.get(), true);
+    }
+
+    loka::app::scene::BoundState<bool> show_;
+    loka::core::EmitterState toggle_;
+    bool initialized_;
+  };
+
   class PendingApplySiblingABoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingApplySiblingABoundaryNode>
   {
   public:
@@ -2059,6 +2111,41 @@ void testLokaFlowDslV1Core() {
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) == 0);
 
     scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    g_sameBoundaryConditionalProbe = 0;
+
+    Scene scene(BoundaryDefinition<SameBoundaryConditionalProbeProps, SameBoundaryConditionalProbeNode>().clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOffText", "Off"))
+              .input(&scenePtr);
+
+    assert(chain.run());
+    assert(g_sameBoundaryConditionalProbe != 0);
+
+    g_sameBoundaryConditionalProbe->emitToggle();
+
+    loka::dsl::FlowChain<Scene *, Scene *> postToggleChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOnText", "On"))
+              .input(&scenePtr);
+
+    assert(postToggleChain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+    scene.unmount();
+    g_sameBoundaryConditionalProbe = 0;
   }
 
   {
