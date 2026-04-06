@@ -43,7 +43,7 @@ namespace tutorial
       using namespace loka::app;
       c.declare(VStack()
                 << TutorialTitle("Step 3")
-                << Button("Toggle details", &this->toggleDetailsEvent_)
+                << loka::app::Button("Toggle details", &this->toggleDetailsEvent_)
                 << c.showIf(*this->showDetails_.state(), this->details_)
                 << TutorialHint("showIf keeps conditional UI readable in the DSL."));
     }
