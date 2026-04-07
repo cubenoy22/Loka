@@ -30,20 +30,29 @@ namespace helloworld
       loka::core::String operator()(const loka::core::String &value) const { return value; }
     };
 
+    struct FruitMessageMapper
+    {
+      typedef loka::core::String Result;
+
+      explicit FruitMessageMapper(const loka::Vector<loka::core::String> *fruits)
+          : fruits_(fruits) {}
+
+      loka::core::String operator()(int index) const;
+
+    private:
+      const loka::Vector<loka::core::String> *fruits_;
+    };
+
     explicit MainRightPanelComponent(MainNode *owner);
     void attachNode(loka::app::scene::NodeComposition &c);
     void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
-    void handleFruitChanged();
-
     MainNode *owner_;
     bool initialized_;
-    int lastFruitMessageIndex_;
     loka::app::scene::BoundState<int> fruitIndex_;
     loka::app::scene::BoundState<loka::core::String> fruitMessage_;
     loka::Vector<loka::core::String> fruits_;
-    loka::core::EmitterState fruitChangedEvent_;
   };
 
 } // namespace helloworld
