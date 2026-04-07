@@ -10,6 +10,7 @@
 #include "app/scene/node/StaticComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
+#include "loka/dsl/StateStream.hpp"
 
 namespace tutorial
 {
@@ -45,6 +46,7 @@ namespace tutorial
           .state(this->showItem1_, false)
           .state(this->showItem2_, false)
           .state(this->showItem3_, false);
+      this->itemCount_.stream().map(ItemSummaryMapper()).set(this->itemSummary_);
       this->bindForUi(this->addItemEvent_, this, &Step4Node::addItem);
       this->initialized_ = true;
     }
@@ -59,10 +61,20 @@ namespace tutorial
                 << (Show(*this->showItem1_.state()) << this->item1_)
                 << (Show(*this->showItem2_.state()) << this->item2_)
                 << (Show(*this->showItem3_.state()) << this->item3_)
-                << TutorialHint("Static composition can still reveal predeclared children."));
+                << TutorialHint("Static composition can still reveal predeclared children, and stream().map() can derive display text."));
     }
 
   private:
+    struct ItemSummaryMapper
+    {
+      typedef loka::core::String Result;
+
+      loka::core::String operator()(int count) const
+      {
+        return loka::core::String::Literal("Items: ") + loka::core::String::FromInt(count);
+      }
+    };
+
     void addItem()
     {
       int next = this->itemCount_.get();
@@ -71,7 +83,6 @@ namespace tutorial
         ++next;
       }
       this->itemCount_.set(next);
-      this->itemSummary_.set(loka::core::String::Literal("Items: ") + loka::core::String::FromInt(next));
       this->showItem1_.set(next >= 1);
       this->showItem2_.set(next >= 2);
       this->showItem3_.set(next >= 3);
