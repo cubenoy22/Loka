@@ -182,7 +182,7 @@ BoundState<bool> flag;
 c.declareStates().state(flag, false);
 
 c.declare(VStack()
-          << c.showIf(*flag.state(), Text("On")));
+          << (Show(*flag.state()) << Text("On")));
 ```
 
 This keeps the branch in the same static composition model. If the condition is

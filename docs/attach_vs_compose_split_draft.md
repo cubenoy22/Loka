@@ -82,7 +82,7 @@ declarative 操作だけに絞った型へ分離することです。
 この型が持つもの:
 
 - `declare()`
-- `showIf()`
+- `Show(...)`
 - `conditional()`
 - `group()`
 - declarative tree 構築に必要な最小限の helper

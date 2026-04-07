@@ -462,18 +462,6 @@ namespace loka
           return this->conditional(condition, x, emptyDef);
         }
 
-        template <typename TTrue, typename TFalse>
-        ConditionalDefinition showIf(const loka::core::State<bool> &condition, TTrue &trueDef, TFalse &falseDef)
-        {
-          return this->conditional(condition, trueDef, falseDef);
-        }
-
-        template <typename T>
-        ConditionalDefinition showIf(const loka::core::State<bool> &condition, T &trueDef)
-        {
-          return this->conditional(condition, trueDef);
-        }
-
         template <typename T>
         StreamView<typename std::vector<T>::const_iterator> stream(const std::vector<T> &v)
         {

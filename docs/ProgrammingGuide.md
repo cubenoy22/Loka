@@ -622,7 +622,7 @@ public:
   {
     c.declare(loka::app::VStack()
               << loka::app::Button("Toggle Details", &this->toggle_)
-              << c.showIf(this->detailsVisible_.get(), this->detailsDefinition_));
+              << (loka::app::Show(this->detailsVisible_.get()) << this->detailsDefinition_));
   }
 
 private:

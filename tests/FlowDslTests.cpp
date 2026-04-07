@@ -331,7 +331,7 @@ namespace {
       TextDefinition falseText = Text("Off").testId("SameBoundaryOffText");
       TextDefinition trueText = Text("On").testId("SameBoundaryOnText");
       c.declare(Box().testId("SameBoundaryRoot")
-                << c.showIf(*this->show_.state(), trueText, falseText));
+                << c.conditional(*this->show_.state(), trueText, falseText));
     }
 
     void emitToggle()
@@ -2160,7 +2160,7 @@ void testLokaFlowDslV1Core() {
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     TextDefinition falseText = Text("Off").testId("OffText");
     TextDefinition trueText = Text("On").testId("OnText");
-    root << composition.showIf(showState, trueText, falseText);
+    root << composition.conditional(showState, trueText, falseText);
     root << Button("Run").enabled(&enabledState).testId("MainButton");
 
     Scene scene(composition.root()->clone());
@@ -2530,7 +2530,7 @@ void testLokaFlowDslV1Core() {
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     TextDefinition falseText = Text("Off").testId("OffText");
     TextDefinition trueText = Text("On").testId("OnText");
-    root << composition.showIf(showState, trueText, falseText);
+    root << composition.conditional(showState, trueText, falseText);
 
     Scene scene(composition.root()->clone());
     FlowScenePlatformController platform;
@@ -2562,7 +2562,7 @@ void testLokaFlowDslV1Core() {
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     TextDefinition falseText = Text("Off").testId("OffText");
     TextDefinition trueText = Text("On").testId("OnText");
-    root << composition.showIf(showState, trueText, falseText);
+    root << composition.conditional(showState, trueText, falseText);
 
     Scene scene(composition.root()->clone());
     FlowScenePlatformController platform;
