@@ -10,6 +10,7 @@
 #include "app/scene/node/StaticComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
+#include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
 
 namespace tutorial
@@ -23,10 +24,12 @@ namespace tutorial
         : loka::app::scene::BoundaryNodeFor<Step4Node>(p),
           itemCount_(),
           itemSummary_(),
+          showSummary_(),
           showItem1_(),
           showItem2_(),
           showItem3_(),
           addItemEvent_(),
+          toggleSummaryEvent_(),
           initialized_(false),
           item1_(loka::app::Text("Item 1")),
           item2_(loka::app::Text("Item 2")),
@@ -43,11 +46,17 @@ namespace tutorial
       c.declareStates()
           .state(this->itemCount_, 0)
           .state(this->itemSummary_, loka::core::String::Literal("Items: 0"))
+          .state(this->showSummary_, true)
           .state(this->showItem1_, false)
           .state(this->showItem2_, false)
           .state(this->showItem3_, false);
-      this->itemCount_.stream().map(ItemSummaryMapper()).set(this->itemSummary_);
+      {
+        loka::dsl::StateStream<int> s = this->itemCount_.stream();
+        s.map(loka::dsl::Const("Items: ") + s.slot.value())
+        .set(this->itemSummary_);
+      }
       this->bindForUi(this->addItemEvent_, this, &Step4Node::addItem);
+      this->bindForUi(this->toggleSummaryEvent_, this, &Step4Node::toggleSummary);
       this->initialized_ = true;
     }
 
@@ -57,24 +66,15 @@ namespace tutorial
       c.declare(VStack()
                 << TutorialTitle("Step 4")
                 << loka::app::Button("Add item", &this->addItemEvent_)
-                << Text(this->itemSummary_.state())
+                << loka::app::Button("Show/Hide map", &this->toggleSummaryEvent_)
+                << (Show(*this->showSummary_.state()) << Text(this->itemSummary_.state())
                 << (Show(*this->showItem1_.state()) << this->item1_)
                 << (Show(*this->showItem2_.state()) << this->item2_)
-                << (Show(*this->showItem3_.state()) << this->item3_)
+                << (Show(*this->showItem3_.state()) << this->item3_))
                 << TutorialHint("Static composition can still reveal predeclared children, and stream().map() can derive display text."));
     }
 
   private:
-    struct ItemSummaryMapper
-    {
-      typedef loka::core::String Result;
-
-      loka::core::String operator()(int count) const
-      {
-        return loka::core::String::Literal("Items: ") + loka::core::String::FromInt(count);
-      }
-    };
-
     void addItem()
     {
       int next = this->itemCount_.get();
@@ -88,12 +88,19 @@ namespace tutorial
       this->showItem3_.set(next >= 3);
     }
 
+    void toggleSummary()
+    {
+      this->showSummary_.set(!this->showSummary_.get(), true);
+    }
+
     loka::app::scene::BoundState<int> itemCount_;
     loka::app::scene::BoundState<loka::core::String> itemSummary_;
+    loka::app::scene::BoundState<bool> showSummary_;
     loka::app::scene::BoundState<bool> showItem1_;
     loka::app::scene::BoundState<bool> showItem2_;
     loka::app::scene::BoundState<bool> showItem3_;
     loka::core::EmitterState addItemEvent_;
+    loka::core::EmitterState toggleSummaryEvent_;
     bool initialized_;
     loka::app::TextDefinition item1_;
     loka::app::TextDefinition item2_;

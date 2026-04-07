@@ -8,6 +8,8 @@
 #include "loka/core/State.hpp"
 #include "app/scene/BoundState.hpp"
 #include "app/scene/StateOwner.hpp"
+#include "loka/dsl/Expr.hpp"
+#include "loka/dsl/Slot.hpp"
 
 namespace loka
 {
@@ -17,11 +19,11 @@ namespace loka
     class StateStream
     {
     public:
-      StateStream() : state_(0), tracker_(0), owner_(0) {}
+      StateStream() : state_(0), tracker_(0), owner_(0), slot(1) {}
       StateStream(::loka::core::State<T> *state,
                   ::loka::core::StateTracker *tracker,
                   ::loka::app::scene::IStateOwner *owner)
-          : state_(state), tracker_(tracker), owner_(owner) {}
+          : state_(state), tracker_(tracker), owner_(owner), slot(1) {}
 
       template <typename Mapper>
       StateStream<typename Mapper::Result> map(const Mapper &mapper) const
@@ -41,6 +43,23 @@ namespace loka
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         return StateStream<typename Mapper::Result>(derived, this->tracker_, this->owner_);
+      }
+
+      template <typename R, typename ExprT>
+      StateStream<R> map(const Expr<R, ExprT> &expr) const
+      {
+        PROFILE_SECTION_ID("sMapExpr", 11);
+        if (!this->state_)
+        {
+          return StateStream<R>(0, this->tracker_, this->owner_);
+        }
+        assert(this->owner_ && "StateStream::map(expr) requires IStateOwner");
+        MapSlotExprEval<T, R, ExprT> *eval = new MapSlotExprEval<T, R, ExprT>(this->state_, expr);
+        ::loka::core::DerivedState<R> *derived =
+            new ::loka::core::DerivedState<R>(this->state_, eval);
+        this->adoptDerived(derived);
+        this->bindRecompute(this->state_, derived);
+        return StateStream<R>(derived, this->tracker_, this->owner_);
       }
 
       template <typename U, typename Combiner>
@@ -93,6 +112,24 @@ namespace loka
 
         ::loka::core::State<SrcT> *state_;
         Mapper mapper_;
+      };
+
+      template <typename SrcT, typename R, typename ExprT>
+      struct MapSlotExprEval : public ::loka::core::DerivedState<R>::EvalFn
+      {
+        MapSlotExprEval(::loka::core::State<SrcT> *state, const Expr<R, ExprT> &expr)
+            : state_(state), expr_(expr) {}
+
+        R operator()()
+        {
+          SrcT value = state_->get();
+          EvalContext ctx;
+          ctx.slots[1] = &value;
+          return expr_.eval(ctx);
+        }
+
+        ::loka::core::State<SrcT> *state_;
+        Expr<R, ExprT> expr_;
       };
 
       template <typename A, typename B, typename R, typename Combiner>
@@ -190,6 +227,8 @@ namespace loka
       ::loka::core::State<T> *state_;
       ::loka::core::StateTracker *tracker_;
       ::loka::app::scene::IStateOwner *owner_;
+    public:
+      ValueSlot<T> slot;
     };
   } // namespace dsl
 } // namespace loka

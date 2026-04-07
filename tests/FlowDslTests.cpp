@@ -35,14 +35,6 @@ namespace {
   class PendingLayoutBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingLayoutBoundaryNode> PendingLayoutBoundaryProps;
   static loka::core::MutableState<int> g_pendingLayoutWidthState(32);
-  struct IntLabelMapper
-  {
-    typedef loka::core::String Result;
-    loka::core::String operator()(int value) const
-    {
-      return loka::core::String::Literal("Count: ") + loka::core::String::FromInt(value);
-    }
-  };
   struct RecordingObservedStateRegistrar : public loka::app::scene::ObservedStateRegistrar
   {
     RecordingObservedStateRegistrar() : calls(0), lastState(0), lastFlags(loka::app::scene::NODE_DIRTY_NONE) {}
@@ -1709,9 +1701,10 @@ void testLokaFlowDslV1Core() {
     loka::core::PushStateTracker tracker;
     DummyStateOwner owner;
     BoundState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
+    loka::dsl::StateStream<int> countStream(&countState, &tracker, &owner);
 
     tracker.begin();
-    loka::dsl::StateStream<int>(&countState, &tracker, &owner).map(IntLabelMapper()).set(label, true);
+    countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value()).set(label, true);
     tracker.end();
 
     assert(label.isValid());

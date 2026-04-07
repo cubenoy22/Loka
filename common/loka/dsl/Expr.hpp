@@ -33,6 +33,7 @@ namespace loka
     template <typename T, typename NodeT>
     struct Expr
     {
+      typedef T Result;
       NodeT node;
 
       Expr() : node() {}
@@ -101,6 +102,26 @@ namespace loka
     inline Expr<M, MemberExpr<T, M, Ptr> > Member(int slotIndex)
     {
       return Expr<M, MemberExpr<T, M, Ptr> >(MemberExpr<T, M, Ptr>(slotIndex));
+    }
+
+    template <typename T>
+    struct ValueExpr
+    {
+      int slotIndex;
+      ValueExpr() : slotIndex(0) {}
+      explicit ValueExpr(int index) : slotIndex(index) {}
+
+      T eval(const EvalContext &ctx) const
+      {
+        T *value = static_cast<T *>(ctx.slots[slotIndex]);
+        return value ? *value : T();
+      }
+    };
+
+    template <typename T>
+    inline Expr<T, ValueExpr<T> > Value(int slotIndex)
+    {
+      return Expr<T, ValueExpr<T> >(ValueExpr<T>(slotIndex));
     }
 
     template <typename Op, typename LExpr, typename RExpr>
