@@ -4,6 +4,7 @@
 #include "TutorialShared.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
+#include "app/Show.hpp"
 #include "app/Text.hpp"
 #include "app/scene/BoundState.hpp"
 #include "app/scene/node/StaticComposition.hpp"
@@ -44,8 +45,8 @@ namespace tutorial
       c.declare(VStack()
                 << TutorialTitle("Step 3")
                 << loka::app::Button("Toggle details", &this->toggleDetailsEvent_)
-                << c.showIf(*this->showDetails_.state(), this->details_)
-                << TutorialHint("showIf keeps conditional UI readable in the DSL."));
+                << (Show(*this->showDetails_.state()) << this->details_)
+                << TutorialHint("Show(condition) keeps conditional UI readable in the DSL."));
     }
 
   private:

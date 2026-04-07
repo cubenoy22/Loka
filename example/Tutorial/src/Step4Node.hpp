@@ -4,6 +4,7 @@
 #include "TutorialShared.hpp"
 #include "app/Button.hpp"
 #include "app/RowColumn.hpp"
+#include "app/Show.hpp"
 #include "app/Text.hpp"
 #include "app/scene/BoundState.hpp"
 #include "app/scene/node/StaticComposition.hpp"
@@ -55,9 +56,9 @@ namespace tutorial
                 << TutorialTitle("Step 4")
                 << loka::app::Button("Add item", &this->addItemEvent_)
                 << Text(this->itemSummary_.state())
-                << c.showIf(*this->showItem1_.state(), this->item1_)
-                << c.showIf(*this->showItem2_.state(), this->item2_)
-                << c.showIf(*this->showItem3_.state(), this->item3_)
+                << (Show(*this->showItem1_.state()) << this->item1_)
+                << (Show(*this->showItem2_.state()) << this->item2_)
+                << (Show(*this->showItem3_.state()) << this->item3_)
                 << TutorialHint("Static composition can still reveal predeclared children."));
     }
 

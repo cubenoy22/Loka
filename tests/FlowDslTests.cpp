@@ -8,6 +8,7 @@
 #include "app/Box.hpp"
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
+#include "app/Show.hpp"
 #include "app/Text.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
@@ -1689,6 +1690,36 @@ void testLokaFlowDslV1Core() {
     assert(capturedText == "MainText");
     assert(capture.get("text.value", capturedText));
     assert(capturedText == "Hello Flow");
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<bool> showState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    TextDefinition trueText = Text("On").testId("ShowOnText");
+    root << (Show(showState) << trueText);
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckText("ShowOnText", "On"));
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
 
     scene.unmount();
   }

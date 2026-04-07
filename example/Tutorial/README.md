@@ -11,7 +11,7 @@ When you want to check an answer, switch the active typedef to one of:
 
 - `Step1Node`: a minimal `Hello, Loka`
 - `Step2Node`: increment button and counter state
-- `Step3Node`: conditional content with `showIf`
+- `Step3Node`: conditional content with `Show(condition) << ...`
 - `Step4Node`: predeclared repeated children revealed one by one
 
 ## Suggested walkthrough

@@ -28,7 +28,7 @@ namespace tutorial
                 << Text("Suggested order:")
                 << Text("1. Show Hello, Loka")
                 << Text("2. Add an Increment button")
-                << Text("3. Add showIf details")
+                << Text("3. Add Show(condition) details")
                 << Text("4. Add a loop-built item list"));
     }
   };
