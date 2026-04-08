@@ -4,6 +4,7 @@
 #include <cstddef>
 
 #include "loka/core/String.hpp"
+#include "loka/core/Vector.hpp"
 
 namespace loka
 {
@@ -122,6 +123,38 @@ namespace loka
     inline Expr<T, ValueExpr<T> > Value(int slotIndex)
     {
       return Expr<T, ValueExpr<T> >(ValueExpr<T>(slotIndex));
+    }
+
+    template <typename T, typename IndexExprT>
+    struct VectorAtExpr
+    {
+      const loka::Vector<T> *values;
+      Expr<int, IndexExprT> index;
+
+      VectorAtExpr() : values(0), index() {}
+      VectorAtExpr(const loka::Vector<T> &source, const Expr<int, IndexExprT> &indexExpr)
+          : values(&source), index(indexExpr) {}
+
+      T eval(const EvalContext &ctx) const
+      {
+        if (!values || values->empty())
+        {
+          return T();
+        }
+        int i = index.eval(ctx);
+        if (i < 0 || static_cast<std::size_t>(i) >= values->size())
+        {
+          i = 0;
+        }
+        return (*values)[static_cast<std::size_t>(i)];
+      }
+    };
+
+    template <typename T, typename IndexExprT>
+    inline Expr<T, VectorAtExpr<T, IndexExprT> > At(const loka::Vector<T> &values,
+                                                    const Expr<int, IndexExprT> &index)
+    {
+      return Expr<T, VectorAtExpr<T, IndexExprT> >(VectorAtExpr<T, IndexExprT>(values, index));
     }
 
     template <typename Op, typename LExpr, typename RExpr>

@@ -2,6 +2,7 @@
 #include "app/PopupMenu.hpp"
 #include "app/RowColumn.hpp"
 #include "app/Text.hpp"
+#include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
 
 namespace helloworld
@@ -25,19 +26,6 @@ namespace helloworld
     fruits_.assign(kFruitItems, kFruitItemCount);
   }
 
-  loka::core::String MainRightPanelComponent::FruitMessageMapper::operator()(int index) const
-  {
-    if (!fruits_ || fruits_->empty())
-    {
-      return loka::core::String::Literal("You chose nothing.");
-    }
-    if (index < 0 || static_cast<std::size_t>(index) >= fruits_->size())
-    {
-      index = 0;
-    }
-    return loka::core::String::Literal("You chose ") + (*fruits_)[static_cast<std::size_t>(index)] + ".";
-  }
-
   void MainRightPanelComponent::attachNode(loka::app::scene::NodeComposition &c)
   {
     if (initialized_)
@@ -47,7 +35,11 @@ namespace helloworld
     c.declareStates()
         .state(fruitIndex_, 0)
         .state(fruitMessage_, loka::core::String::Literal("You chose Apple."));
-    fruitIndex_.stream().map(FruitMessageMapper(&fruits_)).set(fruitMessage_);
+    loka::dsl::StateStream<int> fruitIndexStream = fruitIndex_.stream();
+    fruitIndexStream.map(loka::dsl::Const("You chose ")
+                         + loka::dsl::At(fruits_, fruitIndexStream.slot.value())
+                         + loka::dsl::Const("."))
+        .set(fruitMessage_);
     initialized_ = true;
   }
 
