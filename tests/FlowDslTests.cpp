@@ -13,6 +13,8 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
+#include "loka/dsl/Expr.hpp"
+#include "loka/dsl/StateStream.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
@@ -162,6 +164,14 @@ namespace {
   static loka::app::scene::BoundaryNode *g_pendingApplySiblingAPaintRoot = 0;
   static loka::app::scene::BoundaryNode *g_pendingApplySiblingBLayoutRoot = 0;
   static loka::app::scene::BoundaryNode *g_pendingApplySiblingBPaintRoot = 0;
+  class HeadlessScopeProbeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeadlessScopeProbeBoundaryNode> HeadlessScopeProbeProps;
+  class HeadlessScopeHostBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeadlessScopeHostBoundaryNode> HeadlessScopeHostProps;
+  static HeadlessScopeProbeBoundaryNode *g_headlessScopeProbe = 0;
+  static HeadlessScopeHostBoundaryNode *g_headlessScopeHost = 0;
+  static int g_headlessScopeAttachCount = 0;
+  static int g_headlessScopeDetachCount = 0;
 
   class PendingLayoutBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>
   {
@@ -339,6 +349,11 @@ namespace {
       this->toggle_.emit();
     }
 
+    void setShown(bool value)
+    {
+      this->show_.set(value, true);
+    }
+
   private:
     void toggle()
     {
@@ -374,6 +389,113 @@ namespace {
       assert(plan.layoutRoot == this);
       assert(plan.paintRoot == this);
     }
+  };
+
+  class HeadlessScopeProbeBoundaryNode : public loka::app::scene::BoundaryNodeFor<HeadlessScopeProbeBoundaryNode>
+  {
+  public:
+    HeadlessScopeProbeBoundaryNode(const HeadlessScopeProbeProps &p)
+        : loka::app::scene::BoundaryNodeFor<HeadlessScopeProbeBoundaryNode>(HeadlessScopeProbeProps(p)),
+          count_(),
+          summary_(),
+          initialized_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      c.declareStates()
+          .state(this->count_, 0)
+          .state(this->summary_, loka::core::String::Literal("Headless 0"));
+      {
+        loka::dsl::StateStream<int> countStream = this->count_.stream();
+        countStream.map(loka::dsl::Const("Headless ") + countStream.slot.value())
+            .set(this->summary_);
+      }
+      ++g_headlessScopeAttachCount;
+      g_headlessScopeProbe = this;
+      this->initialized_ = true;
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      ++g_headlessScopeDetachCount;
+      if (g_headlessScopeProbe == this)
+      {
+        g_headlessScopeProbe = 0;
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::Text(this->summary_.state()).testId("HeadlessSummaryText"));
+    }
+
+    void increment()
+    {
+      this->count_.set(this->count_.get() + 1);
+    }
+
+  private:
+    loka::app::scene::BoundState<int> count_;
+    loka::app::scene::BoundState<loka::core::String> summary_;
+    bool initialized_;
+  };
+
+  class HeadlessScopeHostBoundaryNode : public loka::app::scene::BoundaryNodeFor<HeadlessScopeHostBoundaryNode>
+  {
+  public:
+    HeadlessScopeHostBoundaryNode(const HeadlessScopeHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<HeadlessScopeHostBoundaryNode>(HeadlessScopeHostProps(p)),
+          show_(),
+          toggle_(),
+          initialized_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      c.declareStates().state(this->show_, true);
+      this->bindForUi(this->toggle_, this, &HeadlessScopeHostBoundaryNode::toggle);
+      g_headlessScopeHost = this;
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      c.declare(Box().testId("HeadlessScopeHostRoot")
+                << (Show(*this->show_.state()) << loka::app::scene::Boundary<HeadlessScopeProbeBoundaryNode>()));
+    }
+
+    void emitToggle()
+    {
+      this->toggle_.emit();
+    }
+
+    void setShown(bool value)
+    {
+      this->show_.set(value, true);
+    }
+
+  private:
+    void toggle()
+    {
+      this->show_.set(!this->show_.get(), true);
+    }
+
+    loka::app::scene::BoundState<bool> show_;
+    loka::core::EmitterState toggle_;
+    bool initialized_;
   };
 
   class PendingApplySiblingBBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingApplySiblingBBoundaryNode>
@@ -2238,6 +2360,64 @@ void testLokaFlowDslV1Core() {
 
     scene.unmount();
     g_sameBoundaryConditionalProbe = 0;
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using namespace loka::dsl::testing;
+
+    g_headlessScopeProbe = 0;
+    g_headlessScopeHost = 0;
+    g_headlessScopeAttachCount = 0;
+    g_headlessScopeDetachCount = 0;
+
+    Scene scene(BoundaryDefinition<HeadlessScopeHostProps, HeadlessScopeHostBoundaryNode>().clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> initialChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 0"))
+              .input(&scenePtr);
+
+    assert(initialChain.run());
+    assert(g_headlessScopeProbe != 0);
+    assert(g_headlessScopeHost != 0);
+    assert(g_headlessScopeAttachCount == 1);
+    assert(g_headlessScopeDetachCount == 0);
+    HeadlessScopeProbeBoundaryNode *firstProbe = g_headlessScopeProbe;
+
+    g_headlessScopeProbe->increment();
+
+    loka::dsl::FlowChain<Scene *, Scene *> incrementedChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 1"))
+              .input(&scenePtr);
+
+    assert(incrementedChain.run());
+
+    g_headlessScopeHost->setShown(false);
+    (void)SceneTestAccess::flushInvalidation(scene);
+
+    loka::dsl::FlowError hiddenLookupError;
+    hiddenLookupError.kind = 0;
+    hiddenLookupError.code = 0;
+    loka::app::TextNode *hiddenNode = 0;
+    assert(LookupNodeById<loka::app::TextNode>(&scene, "HeadlessSummaryText", hiddenNode, hiddenLookupError) == loka::dsl::FLOW_STEP_FAILED);
+    assert(hiddenLookupError.kind == FLOW_ERROR_KIND_SCENE_SCENARIO);
+    assert(hiddenLookupError.code == FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
+    assert(g_headlessScopeAttachCount == 1);
+    assert(g_headlessScopeDetachCount == 0);
+
+    assert(g_headlessScopeProbe == firstProbe);
+
+    scene.unmount();
+    g_headlessScopeProbe = 0;
+    g_headlessScopeHost = 0;
   }
 
   {
