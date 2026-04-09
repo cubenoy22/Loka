@@ -203,6 +203,12 @@ Current comparison result:
 That is useful: it gives a concrete baseline that demonstrates why a dedicated
 headless/subtree-owned scope would still be valuable.
 
+Current prototype status:
+
+- a dedicated headless owner can be attached as a subtree-local resource owner
+- hiding the subtree destroys that owned state with the subtree
+- re-show hydration is not solved yet and remains an open implementation issue
+
 ## Open Questions
 
 - Should headless resources be exposed through a tiny dedicated API, or through
