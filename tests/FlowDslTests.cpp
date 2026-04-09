@@ -2565,6 +2565,14 @@ void testLokaFlowDslV1Core() {
     assert(g_headlessOwnedProbe == 0);
     assert(firstOwnedProbe != 0);
 
+    g_headlessOwnedHost->setShown(true);
+    (void)SceneTestAccess::flushInvalidation(scene);
+    assert(g_headlessOwnedProbe != 0);
+    assert(g_headlessOwnedProbe != firstOwnedProbe);
+    assert(g_headlessOwnedAttachCount == 2);
+    assert(g_headlessOwnedDestroyCount >= 1);
+    assert(g_headlessOwnedProbe->summaryText().equals(loka::core::String::Literal("Owned 0")));
+
     scene.unmount();
     g_headlessOwnedProbe = 0;
     g_headlessOwnedHost = 0;

@@ -179,10 +179,11 @@ namespace loka
         loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
         bool arenaAllocated_;
+        bool pendingAttach_;
         std::string testId_;
         NodeTag nodeTag_;
 
-        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), testId_(), nodeTag_(NODE_TAG_NONE) {}
+        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), pendingAttach_(false), testId_(), nodeTag_(NODE_TAG_NONE) {}
 
         virtual ~Node()
         {
@@ -195,6 +196,13 @@ namespace loka
 
         void setArenaAllocated(bool v) { arenaAllocated_ = v; }
         bool isArenaAllocated() const { return arenaAllocated_; }
+        void setPendingAttach(bool value) { pendingAttach_ = value; }
+        bool consumePendingAttach()
+        {
+          bool value = pendingAttach_;
+          pendingAttach_ = false;
+          return value;
+        }
 
         // Custom operator delete - skip deallocation for arena nodes
         static void operator delete(void *ptr)

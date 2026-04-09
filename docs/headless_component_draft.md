@@ -209,6 +209,16 @@ Current prototype status:
 - hiding the subtree destroys that owned state with the subtree
 - re-show hydration is not solved yet and remains an open implementation issue
 
+Current implementation note:
+
+- `ConditionalNode` can replace branch children live
+- plain/static children are fine because they do not need an attach compose step
+- a non-boundary composable headless owner does need attach compose
+- on re-show, that attach path is not currently re-entered for the new branch child
+
+So the remaining issue is not headless ownership by itself. It is the missing
+"new composable child attach" path for live conditional branch replacement.
+
 ## Open Questions
 
 - Should headless resources be exposed through a tiny dedicated API, or through
