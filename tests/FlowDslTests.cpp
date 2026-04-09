@@ -196,6 +196,13 @@ namespace {
   static int g_headlessOwnedMultiAttachCountB = 0;
   static int g_headlessOwnedMultiDestroyCountA = 0;
   static int g_headlessOwnedMultiDestroyCountB = 0;
+  class HeadlessOwnedPersistentProbeNode;
+  typedef loka::app::scene::HeadlessPropsFor<HeadlessOwnedPersistentProbeNode> HeadlessOwnedPersistentProbeProps;
+  class HeadlessOwnedMixedHostBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeadlessOwnedMixedHostBoundaryNode> HeadlessOwnedMixedHostProps;
+  static HeadlessOwnedPersistentProbeNode *g_headlessOwnedPersistentProbe = 0;
+  static int g_headlessOwnedPersistentAttachCount = 0;
+  static int g_headlessOwnedPersistentDestroyCount = 0;
 
   class PendingLayoutBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>
   {
@@ -771,6 +778,88 @@ namespace {
       using namespace loka::app;
       c.declare(Box().testId("HeadlessOwnedMultiHostRoot")
                 << (Show(*this->show_.state()) << HeadlessOwnedMultiProbeA() << HeadlessOwnedMultiProbeB()));
+    }
+
+    void setShown(bool value)
+    {
+      this->show_.set(value, true);
+    }
+
+  private:
+    loka::app::scene::BoundState<bool> show_;
+    bool initialized_;
+  };
+
+  class HeadlessOwnedPersistentProbeNode : public loka::app::scene::HeadlessNodeBase<HeadlessOwnedPersistentProbeProps>
+  {
+  public:
+    HeadlessOwnedPersistentProbeNode(const HeadlessOwnedPersistentProbeProps &p)
+        : loka::app::scene::HeadlessNodeBase<HeadlessOwnedPersistentProbeProps>(p),
+          initialized_(false)
+    {
+    }
+
+    virtual ~HeadlessOwnedPersistentProbeNode()
+    {
+      if (g_headlessOwnedPersistentProbe == this)
+      {
+        g_headlessOwnedPersistentProbe = 0;
+      }
+      ++g_headlessOwnedPersistentDestroyCount;
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      if (this->initialized_)
+      {
+        return;
+      }
+      ++g_headlessOwnedPersistentAttachCount;
+      g_headlessOwnedPersistentProbe = this;
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::Empty().testId("HeadlessOwnedPersistentSentinel"));
+    }
+
+  private:
+    bool initialized_;
+  };
+
+  inline loka::app::scene::NodeDefinition<HeadlessOwnedPersistentProbeProps, HeadlessOwnedPersistentProbeNode> HeadlessOwnedPersistentProbe()
+  {
+    return loka::app::scene::Headless<HeadlessOwnedPersistentProbeNode>();
+  }
+
+  class HeadlessOwnedMixedHostBoundaryNode : public loka::app::scene::BoundaryNodeFor<HeadlessOwnedMixedHostBoundaryNode>
+  {
+  public:
+    HeadlessOwnedMixedHostBoundaryNode(const HeadlessOwnedMixedHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<HeadlessOwnedMixedHostBoundaryNode>(HeadlessOwnedMixedHostProps(p)),
+          show_(),
+          initialized_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      c.declareStates().state(this->show_, true);
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      c.declare(Box().testId("HeadlessOwnedMixedHostRoot")
+                << HeadlessOwnedPersistentProbe()
+                << (Show(*this->show_.state()) << HeadlessOwnedProbe()));
     }
 
     void setShown(bool value)
@@ -2806,6 +2895,54 @@ void testLokaFlowDslV1Core() {
     g_headlessOwnedMultiProbeA = 0;
     g_headlessOwnedMultiProbeB = 0;
     g_headlessOwnedMultiHost = 0;
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    g_headlessOwnedProbe = 0;
+    g_headlessOwnedAttachCount = 0;
+    g_headlessOwnedDestroyCount = 0;
+    g_headlessOwnedPersistentProbe = 0;
+    g_headlessOwnedPersistentAttachCount = 0;
+    g_headlessOwnedPersistentDestroyCount = 0;
+
+    Scene scene(BoundaryDefinition<HeadlessOwnedMixedHostProps, HeadlessOwnedMixedHostBoundaryNode>().clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_headlessOwnedPersistentProbe != 0);
+    assert(g_headlessOwnedProbe != 0);
+    assert(g_headlessOwnedPersistentAttachCount == 1);
+    assert(g_headlessOwnedPersistentDestroyCount == 0);
+    assert(g_headlessOwnedAttachCount == 1);
+    assert(g_headlessOwnedDestroyCount == 0);
+
+    HeadlessOwnedPersistentProbeNode *persistentProbe = g_headlessOwnedPersistentProbe;
+
+    static_cast<HeadlessOwnedMixedHostBoundaryNode *>(SceneTestAccess::rootBoundary(scene))->setShown(false);
+    (void)SceneTestAccess::flushInvalidation(scene);
+    assert(g_headlessOwnedPersistentProbe == persistentProbe);
+    assert(g_headlessOwnedPersistentAttachCount == 1);
+    assert(g_headlessOwnedPersistentDestroyCount == 0);
+    assert(g_headlessOwnedProbe == 0);
+    assert(g_headlessOwnedDestroyCount == 1);
+
+    static_cast<HeadlessOwnedMixedHostBoundaryNode *>(SceneTestAccess::rootBoundary(scene))->setShown(true);
+    (void)SceneTestAccess::flushInvalidation(scene);
+    assert(g_headlessOwnedPersistentProbe == persistentProbe);
+    assert(g_headlessOwnedPersistentAttachCount == 1);
+    assert(g_headlessOwnedPersistentDestroyCount == 0);
+    assert(g_headlessOwnedProbe != 0);
+    assert(g_headlessOwnedAttachCount == 2);
+    assert(g_headlessOwnedDestroyCount >= 1);
+
+    scene.unmount();
+    g_headlessOwnedProbe = 0;
+    g_headlessOwnedPersistentProbe = 0;
   }
 
   {
