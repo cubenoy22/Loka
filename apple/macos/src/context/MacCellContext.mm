@@ -122,7 +122,7 @@ namespace
 @end
 
 MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node)
-    : node_(node), view_(0), textState_(0)
+    : node_(node), view_(0), textState_(0), textStateBound_(false)
 {
   NSView *parent = (NSView *)parentView;
   LokaCellView *view = [[LokaCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -197,11 +197,13 @@ void MacCellContext::bindText()
     return;
   }
   textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
+  textStateBound_ = false;
   if (textState_)
   {
     if (!node_->props.ownsText_)
     {
       textState_->deferBind(&MacCellContext::TextChangedThunk, this);
+      textStateBound_ = true;
     }
     applyText();
   }
@@ -211,11 +213,12 @@ void MacCellContext::unbindText()
 {
   if (textState_)
   {
-    if (!node_ || !node_->props.ownsText_)
+    if (textStateBound_)
     {
       textState_->deferUnbind(&MacCellContext::TextChangedThunk, this);
     }
     textState_ = 0;
+    textStateBound_ = false;
   }
 }
 

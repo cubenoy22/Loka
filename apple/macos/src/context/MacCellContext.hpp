@@ -35,6 +35,7 @@ private:
   loka::app::CellNode *node_;
   void *view_;
   loka::core::State<loka::core::String> *textState_;
+  bool textStateBound_;
 };
 
 void RegisterMacCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
