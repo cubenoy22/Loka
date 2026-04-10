@@ -142,11 +142,6 @@ void ToolboxApp::run()
           ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
-            if (toolboxWindow->shouldSkipNextUpdateDraw())
-            {
-              toolboxWindow->clearSkipNextUpdateDraw();
-              break;
-            }
             if (toolboxWindow->scenePlatformController())
             {
               toolboxWindow->scenePlatformController()->noteWindowUpdateEvtDraw();

@@ -40,7 +40,7 @@ namespace
 
 ToolboxWindow::ToolboxWindow(PlatformContext *context,
                              const WindowProps &props)
-    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), skipNextUpdateDraw_(false), pendingDebugDump_(false), pendingDebugDumpCompletion_(0), pendingDebugDumpUserData_(0), pendingDeferredDebugDumpCompletion_(0), pendingDeferredDebugDumpUserData_(0), pendingDeferredDebugDumpCompletionDelay_(0), pendingInvalidateRects_(), titleBarHeight_(0)
+    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), pendingDebugDump_(false), pendingDebugDumpCompletion_(0), pendingDebugDumpUserData_(0), pendingDeferredDebugDumpCompletion_(0), pendingDeferredDebugDumpUserData_(0), pendingDeferredDebugDumpCompletionDelay_(0), pendingInvalidateRects_(), titleBarHeight_(0)
 {
   window_ = 0;
   context_ = new ToolboxWindowContext(
