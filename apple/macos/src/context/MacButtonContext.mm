@@ -104,7 +104,7 @@ namespace
 @end
 
 MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node)
-    : node_(node), button_(0), target_(0), textState_(0), enabledState_(0)
+    : node_(node), button_(0), target_(0), textState_(0), textStateBound_(false), enabledState_(0)
 {
   NSView *parent = (NSView *)parentView;
   NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -195,11 +195,13 @@ void MacButtonContext::bindText()
     return;
   }
   textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
+  textStateBound_ = false;
   if (textState_)
   {
     if (!node_->props.ownsText_)
     {
       textState_->deferBind(&MacButtonContext::TextChangedThunk, this);
+      textStateBound_ = true;
     }
     applyText();
   }
@@ -209,11 +211,12 @@ void MacButtonContext::unbindText()
 {
   if (textState_)
   {
-    if (!node_ || !node_->props.ownsText_)
+    if (textStateBound_)
     {
       textState_->deferUnbind(&MacButtonContext::TextChangedThunk, this);
     }
     textState_ = 0;
+    textStateBound_ = false;
   }
 }
 

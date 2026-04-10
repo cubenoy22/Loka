@@ -45,6 +45,7 @@ private:
   void *button_;
   void *target_;
   loka::core::State<loka::core::String> *textState_;
+  bool textStateBound_;
   loka::core::State<bool> *enabledState_;
 };
 
