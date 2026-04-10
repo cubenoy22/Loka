@@ -14,7 +14,6 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
-#include "app/scene/node/Group.hpp"
 #include "app/scene/node/Headless.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
@@ -2832,6 +2831,37 @@ void testLokaFlowDslV1Core() {
     assert(g_headlessOwnedAttachCount == 2);
     assert(g_headlessOwnedDestroyCount >= 1);
     assert(g_headlessOwnedProbe->summaryText().equals(loka::core::String::Literal("Owned 0")));
+
+    scene.unmount();
+    g_headlessOwnedProbe = 0;
+    g_headlessOwnedHost = 0;
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    g_headlessOwnedProbe = 0;
+    g_headlessOwnedHost = 0;
+    g_headlessOwnedAttachCount = 0;
+    g_headlessOwnedDestroyCount = 0;
+
+    Scene scene(BoundaryDefinition<HeadlessOwnedHostProps, HeadlessOwnedHostBoundaryNode>().clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    HeadlessOwnedProbeNode *firstOwnedProbe = g_headlessOwnedProbe;
+    assert(firstOwnedProbe != 0);
+    assert(g_headlessOwnedAttachCount == 1);
+    assert(g_headlessOwnedDestroyCount == 0);
+
+    (void)SceneTestAccess::flushInvalidation(scene);
+
+    assert(g_headlessOwnedProbe == firstOwnedProbe);
+    assert(g_headlessOwnedAttachCount == 1);
+    assert(g_headlessOwnedDestroyCount == 0);
 
     scene.unmount();
     g_headlessOwnedProbe = 0;

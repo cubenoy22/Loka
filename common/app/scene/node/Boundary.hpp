@@ -1006,9 +1006,12 @@ namespace loka
           for (Node *child = it.next(); child; child = it.next())
           {
             ComposeEvent childEvent = event;
-            if (event == COMPOSE_EVENT_UPDATE && child->consumePendingAttach())
+            if ((event == COMPOSE_EVENT_UPDATE || event == COMPOSE_EVENT_ATTACH) && child->consumePendingAttach())
             {
-              childEvent = COMPOSE_EVENT_ATTACH;
+              if (event == COMPOSE_EVENT_UPDATE)
+              {
+                childEvent = COMPOSE_EVENT_ATTACH;
+              }
             }
             composeTree(child, *contextForChildren, childEvent, nextBoundary);
           }
