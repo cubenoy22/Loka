@@ -207,7 +207,8 @@ Current prototype status:
 
 - a dedicated headless owner can be attached as a subtree-local resource owner
 - hiding the subtree destroys that owned state with the subtree
-- re-show hydration is not solved yet and remains an open implementation issue
+- re-show hydration now works after restoring attach semantics for newly created
+  composable branch children
 
 Current implementation note:
 
@@ -216,8 +217,31 @@ Current implementation note:
 - a non-boundary composable headless owner does need attach compose
 - on re-show, that attach path is not currently re-entered for the new branch child
 
-So the remaining issue is not headless ownership by itself. It is the missing
-"new composable child attach" path for live conditional branch replacement.
+That missing path is now fixed in the prototype, and the regression is covered
+by headless/conditional tests.
+
+## Current Evaluation
+
+The prototype works, but the current C++98 surface is still too heavy for
+routine tutorial/example use.
+
+The main downside is boilerplate:
+
+- custom props type
+- custom headless node type
+- constructor / attach / compose scaffolding
+- helper factory
+
+So the current recommendation is:
+
+- keep the prototype, tests, and draft
+- do not force this surface into `Tutorial` or `HelloWorld` yet
+- revisit public API design only if a thinner composition-facing shape emerges
+
+In other words:
+
+- the lifecycle model looks valid
+- the current authoring experience does not yet justify broad adoption
 
 ## Open Questions
 
@@ -227,3 +251,5 @@ So the remaining issue is not headless ownership by itself. It is the missing
 - How much of the implementation should reuse `Managed<T>` internally?
 - Should the public API emphasize `component/headless` naming or
   `subtree/lifecycle` naming?
+- Can composition-facing sugar reduce the current boilerplate enough to justify
+  real example/tutorial usage?
