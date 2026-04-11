@@ -695,6 +695,8 @@ namespace loka
           {
             const BoundaryComposeResult &result = root->composeResult();
             const NodeCompositionDiff *diff = root->localCompositionDiff();
+            const bool diffEmpty = diff && diff->empty();
+            const bool diffCompatibleRetainOnly = diff && diff->isCompatibleRetainOnly();
             const NodeDirtyFlags effectiveDirtyFlags =
                 static_cast<NodeDirtyFlags>(root->pendingDirtyFlags() | result.dirtyFlagsSeen);
             if (!result.composed)
@@ -705,8 +707,8 @@ namespace loka
                                                          static_cast<unsigned int>(effectiveDirtyFlags),
                                                          0,
                                                          diff ? 1 : 0,
-                                                         (diff && diff->empty()) ? 1 : 0,
-                                                         (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
+                                                         diffEmpty ? 1 : 0,
+                                                         diffCompatibleRetainOnly ? 1 : 0,
                                                          ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
 #endif
               if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0)
@@ -735,7 +737,7 @@ namespace loka
               }
               return true;
             }
-            if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 && diff->empty())
+            if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 && diffEmpty)
             {
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
               loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
@@ -744,7 +746,7 @@ namespace loka
                                                          1,
                                                          1,
                                                          1,
-                                                         diff->isCompatibleRetainOnly() ? 1 : 0,
+                                                         diffCompatibleRetainOnly ? 1 : 0,
                                                          0);
 #endif
               root = director.nextPendingUpdateRoot(root);
@@ -756,11 +758,11 @@ namespace loka
                                                        static_cast<unsigned int>(effectiveDirtyFlags),
                                                        1,
                                                        1,
-                                                       diff->empty() ? 1 : 0,
-                                                       diff->isCompatibleRetainOnly() ? 1 : 0,
-                                                       diff->isCompatibleRetainOnly() ? 0 : 1);
+                                                       diffEmpty ? 1 : 0,
+                                                       diffCompatibleRetainOnly ? 1 : 0,
+                                                       diffCompatibleRetainOnly ? 0 : 1);
 #endif
-            if (!diff->isCompatibleRetainOnly())
+            if (!diffCompatibleRetainOnly)
             {
               return true;
             }
