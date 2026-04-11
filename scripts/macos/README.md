@@ -36,8 +36,12 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
 
 - `scripts/macos/gen-xcodeproj.sh`
   - Generates an Xcode project (`-G Xcode`) for debugging.
-  - Arch and deployment target are controlled by env vars (default `ARCHS=x86_64`).
-  - Note: not available with Xcode 3.2.6 (use `Unix Makefiles`/`Ninja` builds there).
+  - Arch and deployment target are controlled by env vars (default `ARCHS=x86_64`, `DEPLOYMENT_TARGET=10.8`).
+  - The default is intentionally conservative so the generated project stays easier to reuse across older Apple IDEs.
+  - Requires a full `Xcode.app` installation; Command Line Tools alone are not enough.
+  - Intended for OS X Mountain Lion (10.8) and later.
+  - Projects generated on 10.8+ are generally Xcode 3.2-compatible enough to be opened on Snow Leopard with Xcode 3.2.6.
+  - Some newer flags may still need manual cleanup for Xcode 3.2.6, for example removing unsupported options such as `-fno-objc-arc`.
   - Legacy `MAC_OS_10_4*` flags are intentionally not used here.
 
 ## Examples

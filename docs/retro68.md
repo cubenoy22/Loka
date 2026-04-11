@@ -97,6 +97,9 @@ Preset mapping used in this repo:
 - Release builds use `-Os` and section garbage collection for smaller binaries.
 - The `LOKA_RETRO68` preprocessor define is set for Classic Mac builds.
 - If a `.dsk` is mounted, unmount it before rebuilding. Mounted images can leave stale artifacts or misleading runtime results.
+- 68k support remains important for compatibility and experimentation, and simple samples can still boot on 68000-class environments.
+- In practical terms, startup cost and responsiveness become much more constrained on 68k as applications grow in size and complexity.
+- For modern-style application development on Classic Mac OS, PPC601 / 603e-class PowerPC systems and later should be treated as the practical mainstream baseline.
 
 ## Debug Workflow
 

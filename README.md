@@ -6,184 +6,50 @@
   <img alt="Loka cover artwork" src="assets/Hero.svg">
 </picture>
 
-> A declarative UI & application framework that runs from **Classic Mac OS (68k, System 7)** to **modern macOS, Windows, Linux**, and beyond.
+> [!IMPORTANT]
+> This framework is still in the proof-of-concept stage. The core is already usable, but broader component coverage, platform support, and some refactoring work are still in progress. Please also see [ROADMAP.md](ROADMAP.md).
 
-Loka is a declarative UI framework that spans from classic Macintosh systems in the 68000 @ 8 MHz class, through Windows XP, to modern macOS, Windows, and ARM devices, with the same state model and composition system.
-Even on 68000-class Macintosh systems, Loka can start and run basic applications, although full real-hardware verification is still pending.
+## Why Loka?
 
-Loka is an experimental but *real* declarative framework written in **strict C++98**, designed to prove a bold idea:
+Loka aims to bring new content and creative tools to retro platforms without treating them as novelty targets.
 
-> **One reactive UI model can scale from a 68000 @ 8 MHz Macintosh to modern multi‑core systems.**
+It is not just for GUI applications. Loka is also intended to grow toward animation, video, and game production on G3-class systems and later, where timelines, sprites, models, and characters can be treated as nodes in the same declarative system.
 
-This is not a toy, not a transpiler, and not a JS runtime.
-Loka produces **native applications**, with direct access to each platform’s windowing and graphics APIs.
+## How does it work?
 
-Loka is designed as a declarative system for building logical UI structures without depending on any specific platform implementation, then projecting them onto each OS's native environment.
-In the future, this model is intended to extend beyond UI into declarative game development and video creation workflows.
+Loka uses a modern statically typed DSL built in C++98 to declaratively define UI and application structure, then projects it onto each target OS.
 
-> **Loka enables declarative UI applications to be written in a single C++98-based syntax across platforms ranging from Classic Macintosh systems to modern operating systems, including PDA-class devices.**
-
----
-
-## Why Loka exists
-
-Modern declarative UI frameworks (React, SwiftUI, Compose, etc.) assume:
-
-* abundant memory
-* fast CPUs
-* garbage collection or heavy runtimes
-* short software lifetimes
-
-Loka assumes the opposite.
-
-It is designed around constraints that *cannot* be ignored:
-
-* Motorola 68000 @ 8 MHz
-* hundreds of kilobytes, not gigabytes
-* deterministic execution
-* explicit ownership and lifetimes
-
-If it works there, it works anywhere.
+- One declarative model is shared across platforms.
+- Application logic stays in portable C++98 code.
+- The core depends on only a small subset of the STL, helping it stay highly portable across old and new toolchains.
+- Each target maps that structure onto native windowing and drawing APIs.
+- The core stays neutral while platform layers stay thin.
 
 ---
 
-## Key properties
+## Bridging Modern Development and Retro Environments
 
-* **Declarative UI** (React / Solid‑like mental model)
-* **Fully reactive** state propagation
-* **Single‑source‑of‑truth (MISO‑oriented)** design
-* **No garbage collector**
-* **No exceptions**
-* **C++98 only** (by design)
-* **Native backends** (Toolbox, Win32, Cocoa, etc.)
+Strong static typing, no exceptions, no RTTI, and only a small STL surface.
 
-Loka favors *locality*, *predictability*, and *auditability* over convenience.
+### Challenges
 
----
+- CPU limits on 68k-era systems
+- small memory budgets
+- older compiler and toolchain constraints such as GCC 4.0-era environments
+- explicit error handling and manual memory management
+- a minimal dependency surface
 
-## Support matrix (current snapshot)
+### Approach
 
-Compatibility claims are labeled as:
+- a modern statically typed DSL built in C++98
+- strong compile-time type safety despite a C++98 core
+- no exceptions and no RTTI in core DSL paths
+- declarative UI and application structure
+- logical UI design separated from OS-specific projection
+- portable application logic with thin platform layers
+- reliance on only a small subset of the STL
 
-- `build-verified`: confirmed compile/link for the target
-- `runtime-verified`: confirmed launch/test on the target OS/hardware
-
-| Platform / OS range | build-verified | runtime-verified | Notes |
-| --- | --- | --- | --- |
-| Classic Mac OS (System 7 to Mac OS 9.2.2, 68k/PPC) | ✅ | 🟡 | Runtime validation is currently emulator-first; 68k real-hardware validation is still needed. |
-| Mac OS X Tiger to Snow Leopard (PPC/Intel) | ✅ | ✅ | Runtime-verified on both PPC and Intel. Known issue: menu title can appear as generic "App" in some configurations. |
-| Modern macOS (Big Sur and newer, app layer) | ✅ | ✅ | Native Cocoa backend is active for current examples. |
-| Windows XP (Win32) | ✅ | ✅ | Verified with VS 2017-based toolchain. |
-| Windows (Vista and newer, Win32) | ✅ | ✅ | Current Win32 backend runs on modern Windows versions. |
-| Linux | 🟡 | 🟡 | Community-driven / future path. |
-| iOS / iPadOS | 🟡 | 🟡 | Expected to be possible, not yet verified. |
-| Windows Mobile / PocketPC | 🟡 | 🟡 | Community-driven / future path. |
-
-**Minimum RAM (Classic Mac OS examples):** ~300 KB or above
-
-**Practical RAM guideline (current samples):** around **512 KB** is generally enough to run the current sample applications with headroom, although viewers such as **SimpleViewer** still depend on the size and format of the image being opened.
-
-**Disk size (Classic Mac OS examples):** fits on a **2DD floppy disk (800 KB)** or larger media
-
-> Current example binaries are up to **~271 KB** in size.
-> Figures reflect the current set of example applications targeting System 7.
-> Actual requirements depend on UI complexity and platform.
-
-**Typical binary size guideline:** current sample applications are generally under **1 MB per binary** when built as single-target binaries rather than multi-architecture bundles.
-
-> If it runs on System 7, it can probably run on your device.
-
----
-
-## Packages
-
-Loka is structured as a small set of clearly separated packages.
-This keeps applications explicit about what they depend on, and allows the framework to scale from tiny System 7 examples to more complex applications.
-
-### `loka::core`
-
-The **mandatory core package**.
-
-* Required for *all* Loka-based applications
-* Provides the declarative UI model, reactive state system, and core abstractions
-* Platform-agnostic and freestanding
-
-If you are building an app with Loka, you always start here.
-
----
-
-### `loka::app`
-
-The **application-layer package**.
-
-* Required for OS-level applications
-* Provides windowing, event loops, and platform integration
-* Contains per-OS implementations (Classic Mac OS, Win32, macOS, etc.)
-
-Most end-user applications depend on `loka::core` + `loka::app`.
-
----
-
-### `loka::game` (planned)
-
-A **high-level declarative game framework** built on top of Loka.
-
-* Game loop abstractions (GLUT-like foundations)
-* Declarative scene and entity construction
-* Designed for *high-level* game creation, not low-level engine work
-* Planned support for **3D rendering pipelines oriented toward video capture and offline rendering**
-
-The goal is to make it possible to write portable, declarative games using the same mental model as Loka UI, while remaining lightweight enough for constrained systems.
-
----
-
-## Philosophy
-
-Loka is built on a few strong beliefs:
-
-* **State should be explicit.**
-* **Updates should be traceable.**
-* **UI trees should be cheap to rebuild.**
-* **APIs should fail at compile time when possible.**
-* **A framework should not outgrow its applications.**
-
-This project intentionally avoids trends that conflict with long‑term maintainability.
-
----
-
-## Status
-
-This repository is:
-
-* **usable**
-* **highly experimental**
-* **incomplete**
-* **actively evolving**
-
-Some areas are intentionally rough.
-Some APIs *will* change.
-
-While Loka can already build real applications, it is **not yet optimized for large-scale production app development**.
-At the moment, app projects may require **significant boilerplate** (platform glue, build wiring, and hand-written integration code).
-
-The goal of this release is **demonstration and exploration**, not stability guarantees.
-
----
-
-## Contributing
-
-Contribution guidelines are documented in `CONTRIBUTING.md`.
-
----
-
-## Who this is for
-
-* engineers interested in **declarative UI internals**
-* retro‑computing enthusiasts
-* people curious about extreme portability
-* anyone who feels modern frameworks are too opaque
-
-This is *not* aimed at beginners, and it is **not a drop-in production framework** (yet).
+For deeper design notes, see [docs/ProgrammingGuide.md](docs/ProgrammingGuide.md) and [docs/environments.md](docs/environments.md).
 
 ---
 
@@ -191,120 +57,14 @@ This is *not* aimed at beginners, and it is **not a drop-in production framework
 
 Loka uses a **CMake + Ninja** based build system.
 
-### Native development (macOS / Windows)
+Development, build, and target environment notes are documented in [docs/environments.md](docs/environments.md).
 
-On modern macOS or Windows, you can develop and build Loka natively by installing:
+Classic Mac OS and Retro68-specific notes are documented in [docs/retro68.md](docs/retro68.md).
 
-* VS Code
-* CMake (**latest 3.x or 4.x**)
-* Ninja (**latest**)
-* macOS toolchain:
-
-  * **Xcode 3.2.6** (legacy UB1 / 10.4-10.6 oriented workflows)
-  * or **Xcode Command Line Tools** on **OS X Lion (10.7) or newer** (modern workflows)
-* **Visual Studio Build Tools** (Windows)
-
-  * **VS 2017** for Windows XP targets (legacy runtime/static-link constraints)
-  * **VS 2022 / VS 2026** for Vista and newer targets
-* a C++98-capable compiler (Clang or MSVC)
-
-This setup allows fully native development.
-
-> **Note (Windows / MSVC):**
-> When developing on Windows, VS Code should be launched from a **Visual Studio Developer Command Prompt** (or equivalent MSVC-initialized shell) so that the MSVC environment variables are correctly set.
->
-> **Ninja + MSVC uses the current shell environment.**
-> The selected architecture (x86/x64) is determined by the Developer Prompt you used to launch VS Code.
-> If you need a deterministic arch, prefer a CMake preset that uses a Visual Studio generator with `-A Win32` / `-A x64`.
->
-> **Windows XP builds require extra care:**
->
-> * Install **Visual Studio 2017**
-> * Use **x64_x86 Cross Tools Command Prompt for VS 2017**
-> * Launch VS Code from that prompt using `code .`
->
-> For Vista+ targets, use newer MSVC toolchains (VS 2022 / VS 2026).
->
-> On **Windows on ARM**, builds currently target **ARM only**.
-> On macOS, **Parallels Desktop** can be used to host a Windows environment, enabling a *single-machine* workflow for both platforms.
-
-> **Note (macOS targets):**
-> Until UB1 support is available, the minimum macOS deployment target may vary depending on the Xcode + CMake environment.
-> In practice, targets may range from **OS X Lion (Objective-C 2.0 with ARC)** up to **macOS 11 Big Sur or later**.
->
-> Script entry points for macOS target selection are documented in `scripts/macos/README.md`.
-
-### Win32 quick notes (VSCode)
-
-- Use the CMake presets (`win32-debug`, `win32-release`, `win32-xp-*`) and matching `launch.json` entries.
-- Prefer "Config & Build" tasks when switching GUI/Console subsystem.
-- If you change subsystem mode, re-run configure to refresh CMake cache.
-
-### Classic Mac OS (68k / PPC via Retro68)
-
-For Classic Mac OS targets, Loka is built using **Retro68**.
-
-Retro68 builds require:
-
-* CMake (required by Retro68)
-* Ninja (installed in the build environment)
-
-Recommended environments:
-
-* Linux
-* WSL (Windows Subsystem for Linux)
-* macOS with Linux containers (e.g. colima)
-
-Author-verified environments:
-
-* WSL2
-* macOS + colima
-
-The typical workflow is:
-
-1. Build the application using Retro68 in a Linux environment
-2. Copy the resulting binary to:
-
-   * Mini vMac, or
-   * a real Classic Mac OS system (System 7–Mac OS 9)
-3. Verify behavior on real or emulated hardware (currently observed primarily on Mini vMac at 1× speed)
-
-This separation keeps the modern toolchain clean while preserving accurate classic‑environment testing.
-
-### Toolchains & binary formats
-
-* **Universal Binary 2 (UB2)**: ✅ ready
-* **Universal Binary 1 (UB1)**: 🟡 planned (Xcode 3.2.6)
-* **Classic builds**: 🟡 planned (CodeWarrior Pro R5)
-* **Windows XP**: ✅ verified (requires **Visual Studio 2017** toolchain)
-* **Windows legacy toolchains**: 🟡 planned (Visual Studio 2005)
-
-> Note: Newer MSVC toolchains may link against modern VC++ runtimes that cannot be statically built for Windows XP.
-
-These targets reflect the author’s long-term goal of keeping Loka buildable with historically accurate toolchains where possible.
-
-> Build instructions will continue to evolve as the project stabilizes.
+macOS script entry points are documented in [scripts/macos/README.md](scripts/macos/README.md).
 
 ---
 
 ## License
 
 This repository is released under the **MIT License**.
-
----
-
-## Name
-
-"Loka" is the project name.
-
-The name "Declara!" referred to an earlier internal concept and is no longer used in the public API or branding.
-
----
-
-## Disclaimer
-
-This project exists because the author *wanted to know if this was possible*.
-
-Turns out: it is.
-
-Whether it is *useful* is up to you.
