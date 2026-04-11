@@ -13,34 +13,19 @@
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
 
-namespace tutorial
-{
-  class Step4Node : public loka::app::scene::BoundaryNodeFor<Step4Node>
-  {
+namespace tutorial {
+  class Step4Node : public loka::app::scene::BoundaryNodeFor<Step4Node> {
   public:
     typedef loka::app::scene::BoundaryPropsFor<Step4Node> PropsType;
 
     Step4Node(const PropsType &p)
-        : loka::app::scene::BoundaryNodeFor<Step4Node>(p),
-          itemCount_(),
-          itemSummary_(),
-          showSummary_(),
-          showItem1_(),
-          showItem2_(),
-          showItem3_(),
-          addItemEvent_(),
-          toggleSummaryEvent_(),
-          initialized_(false),
-          item1_(loka::app::Text("Item 1")),
-          item2_(loka::app::Text("Item 2")),
-          item3_(loka::app::Text("Item 3"))
-    {
+        : loka::app::scene::BoundaryNodeFor<Step4Node>(p), itemCount_(), itemSummary_(), showSummary_(), showItem1_(),
+          showItem2_(), showItem3_(), addItemEvent_(), toggleSummaryEvent_(), initialized_(false),
+          item1_(loka::app::Text("Item 1")), item2_(loka::app::Text("Item 2")), item3_(loka::app::Text("Item 3")) {
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
-    {
-      if (this->initialized_)
-      {
+    virtual void attachNode(loka::app::scene::NodeComposition &c) {
+      if (this->initialized_) {
         return;
       }
       c.declareStates()
@@ -52,34 +37,32 @@ namespace tutorial
           .state(this->showItem3_, false);
       {
         loka::dsl::StateStream<int> s = this->itemCount_.stream();
-        s.map(loka::dsl::Const("Items: ") + s.slot.value())
-        .set(this->itemSummary_);
+        s.map(loka::dsl::Const("Items: ") + s.slot.value()).set(this->itemSummary_);
       }
       this->bindForUi(this->addItemEvent_, this, &Step4Node::addItem);
       this->bindForUi(this->toggleSummaryEvent_, this, &Step4Node::toggleSummary);
       this->initialized_ = true;
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
+    virtual void composeNode(loka::app::scene::NodeComposition &c) {
       using namespace loka::app;
-      c.declare(VStack()
-                << TutorialTitle("Step 4")
-                << loka::app::Button("Add item", &this->addItemEvent_)
-                << loka::app::Button("Show/Hide map", &this->toggleSummaryEvent_)
-                << (Show(*this->showSummary_.state()) << Text(this->itemSummary_.state())
-                << (Show(*this->showItem1_.state()) << this->item1_)
-                << (Show(*this->showItem2_.state()) << this->item2_)
-                << (Show(*this->showItem3_.state()) << this->item3_))
-                << TutorialHint("Static composition can still reveal predeclared children, and stream().map() can derive display text."));
+      c.declare(VStack()                                    //
+                << TutorialTitle("Step 4")                  //
+                << Button("Add item", &this->addItemEvent_) //
+                << Button("Show/Hide map", &this->toggleSummaryEvent_)
+                << (Show(*this->showSummary_.state())   //
+                    << Text(this->itemSummary_.state()) //
+                    << (Show(*this->showItem1_.state()) << this->item1_)
+                    << (Show(*this->showItem2_.state()) << this->item2_)
+                    << (Show(*this->showItem3_.state()) << this->item3_))
+                << TutorialHint("Static composition can still reveal predeclared children, and stream().map() "
+                                "can derive display text."));
     }
 
   private:
-    void addItem()
-    {
+    void addItem() {
       int next = this->itemCount_.get();
-      if (next < 3)
-      {
+      if (next < 3) {
         ++next;
       }
       this->itemCount_.set(next);
@@ -88,8 +71,7 @@ namespace tutorial
       this->showItem3_.set(next >= 3);
     }
 
-    void toggleSummary()
-    {
+    void toggleSummary() {
       this->showSummary_.set(!this->showSummary_.get(), true);
     }
 
