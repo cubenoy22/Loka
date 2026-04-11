@@ -248,18 +248,18 @@ namespace helloworld
     ZStack &root = c.declare(ZStack().TEST_ID("HelloWorld.Root"));
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
     c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
-              << MainLeftPanel(MainLeftPanelProps(this->message_.state(),
-                                                  &this->toggleEvent_,
-                                                  this->actionSummary_.state(),
-                                                  &this->actionProbeEvent_,
-                                                  this->actionEnabled_.state(),
-                                                  &this->toggleActionEnabledEvent_,
-                                                  this->heightInput_.state(),
-                                                  this->weightInput_.state(),
-                                                  this->bmiResult_.state()))
-              << MainRightPanel(MainRightPanelProps(&this->fruits_,
-                                                    this->fruitIndex_.state(),
-                                                    this->fruitMessage_.state())));
+              << MainLeftPanel(this->message_.state(),
+                               &this->toggleEvent_,
+                               this->actionSummary_.state(),
+                               &this->actionProbeEvent_,
+                               this->actionEnabled_.state(),
+                               &this->toggleActionEnabledEvent_,
+                               this->heightInput_.state(),
+                               this->weightInput_.state(),
+                               this->bmiResult_.state())
+              << MainRightPanel(&this->fruits_,
+                                this->fruitIndex_.state(),
+                                this->fruitMessage_.state()));
     c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
   }
 } // namespace helloworld

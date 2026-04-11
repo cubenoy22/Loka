@@ -10,35 +10,23 @@
 
 namespace helloworld
 {
-  struct MainRightPanelProps
+  struct FruitPopupLabel
   {
-    struct FruitPopupLabel
-    {
-      typedef loka::core::String Result;
-      loka::core::String operator()(const loka::core::String &value) const { return value; }
-    };
-
-    MainRightPanelProps(const loka::Vector<loka::core::String> *fruitValues,
-                        loka::core::State<int> *fruitIndexValue,
-                        loka::core::State<loka::core::String> *fruitMessageValue)
-        : fruits(fruitValues),
-          fruitIndex(fruitIndexValue),
-          fruitMessage(fruitMessageValue) {}
-
-    const loka::Vector<loka::core::String> *fruits;
-    loka::core::State<int> *fruitIndex;
-    loka::core::State<loka::core::String> *fruitMessage;
+    typedef loka::core::String Result;
+    loka::core::String operator()(const loka::core::String &value) const { return value; }
   };
 
-  inline loka::app::VStack MainRightPanel(const MainRightPanelProps &props)
+  inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,
+                                          loka::core::State<int> *fruitIndex,
+                                          loka::core::State<loka::core::String> *fruitMessage)
   {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.RightPanel")
            << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")
-           << PopupMenu(props.fruits->map<loka::core::String>(MainRightPanelProps::FruitPopupLabel()))
-                  .selectedIndex(props.fruitIndex)
+           << PopupMenu(fruits->map<loka::core::String>(FruitPopupLabel()))
+                  .selectedIndex(fruitIndex)
                   .TEST_ID("HelloWorld.RightPanel.FruitPopup")
-           << Text(props.fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage");
+           << Text(fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage");
   }
 
 } // namespace helloworld

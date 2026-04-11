@@ -10,49 +10,25 @@
 
 namespace helloworld
 {
-  struct MainLeftPanelProps
-  {
-    MainLeftPanelProps(loka::core::State<loka::core::String> *messageValue,
-                       loka::core::EmitterState *toggleValue,
-                       loka::core::State<loka::core::String> *actionSummaryValue,
-                       loka::core::EmitterState *actionProbeValue,
-                       loka::core::State<bool> *actionEnabledValue,
-                       loka::core::EmitterState *toggleActionEnabledValue,
-                       loka::core::State<loka::core::String> *heightValue,
-                       loka::core::State<loka::core::String> *weightValue,
-                       loka::core::State<loka::core::String> *bmiResultValue)
-        : message(messageValue),
-          toggleEvent(toggleValue),
-          actionSummary(actionSummaryValue),
-          actionProbeEvent(actionProbeValue),
-          actionEnabled(actionEnabledValue),
-          toggleActionEnabledEvent(toggleActionEnabledValue),
-          heightInput(heightValue),
-          weightInput(weightValue),
-          bmiResult(bmiResultValue) {}
-
-    loka::core::State<loka::core::String> *message;
-    loka::core::EmitterState *toggleEvent;
-    loka::core::State<loka::core::String> *actionSummary;
-    loka::core::EmitterState *actionProbeEvent;
-    loka::core::State<bool> *actionEnabled;
-    loka::core::EmitterState *toggleActionEnabledEvent;
-    loka::core::State<loka::core::String> *heightInput;
-    loka::core::State<loka::core::String> *weightInput;
-    loka::core::State<loka::core::String> *bmiResult;
-  };
-
-  inline loka::app::VStack MainLeftPanel(const MainLeftPanelProps &props)
+  inline loka::app::VStack MainLeftPanel(loka::core::State<loka::core::String> *message,
+                                         loka::core::EmitterState *toggleEvent,
+                                         loka::core::State<loka::core::String> *actionSummary,
+                                         loka::core::EmitterState *actionProbeEvent,
+                                         loka::core::State<bool> *actionEnabled,
+                                         loka::core::EmitterState *toggleActionEnabledEvent,
+                                         loka::core::State<loka::core::String> *heightInput,
+                                         loka::core::State<loka::core::String> *weightInput,
+                                         loka::core::State<loka::core::String> *bmiResult)
   {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.LeftPanel")
            << Text("Loka Sample").TEST_ID("HelloWorld.LeftPanel.Title")
-           << Text(props.message).TEST_ID("HelloWorld.LeftPanel.Message")
-           << Button("Add +", props.toggleEvent).TEST_ID("HelloWorld.LeftPanel.AddButton")
-           << Text(props.actionSummary).TEST_ID("HelloWorld.LeftPanel.ActionSummary")
-           << Button("Probe Button", props.actionProbeEvent).enabled(props.actionEnabled).TEST_ID("HelloWorld.LeftPanel.ProbeButton")
-           << Button("Toggle Button Enabled", props.toggleActionEnabledEvent).TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton")
-           << BmiCalculator(BmiCalculatorProps(props.heightInput, props.weightInput, props.bmiResult));
+           << Text(message).TEST_ID("HelloWorld.LeftPanel.Message")
+           << Button("Add +", toggleEvent).TEST_ID("HelloWorld.LeftPanel.AddButton")
+           << Text(actionSummary).TEST_ID("HelloWorld.LeftPanel.ActionSummary")
+           << Button("Probe Button", actionProbeEvent).enabled(actionEnabled).TEST_ID("HelloWorld.LeftPanel.ProbeButton")
+           << Button("Toggle Button Enabled", toggleActionEnabledEvent).TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton")
+           << BmiCalculator(heightInput, weightInput, bmiResult);
   }
 
 } // namespace helloworld

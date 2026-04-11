@@ -9,30 +9,18 @@
 
 namespace helloworld
 {
-  struct BmiCalculatorProps
-  {
-    BmiCalculatorProps(loka::core::State<loka::core::String> *heightValue,
-                       loka::core::State<loka::core::String> *weightValue,
-                       loka::core::State<loka::core::String> *resultValue)
-        : heightInput(heightValue),
-          weightInput(weightValue),
-          bmiResult(resultValue) {}
-
-    loka::core::State<loka::core::String> *heightInput;
-    loka::core::State<loka::core::String> *weightInput;
-    loka::core::State<loka::core::String> *bmiResult;
-  };
-
-  inline loka::app::VStack BmiCalculator(const BmiCalculatorProps &props)
+  inline loka::app::VStack BmiCalculator(loka::core::State<loka::core::String> *heightInput,
+                                         loka::core::State<loka::core::String> *weightInput,
+                                         loka::core::State<loka::core::String> *bmiResult)
   {
     using namespace loka::app;
     return VStack()
            << Text("BMI Calculator")
            << Text("Height (cm)")
-           << EditText(props.heightInput)
+           << EditText(heightInput)
            << Text("Weight (kg)")
-           << EditText(props.weightInput)
-           << Text(props.bmiResult);
+           << EditText(weightInput)
+           << Text(bmiResult);
   }
 
 } // namespace helloworld
