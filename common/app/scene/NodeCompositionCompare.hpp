@@ -13,6 +13,38 @@ namespace loka
     {
       namespace detail
       {
+        inline bool haveCompatibleProps(NodeDefinitionBase *previousNode, NodeDefinitionBase *currentNode)
+        {
+          if (!previousNode || !currentNode)
+          {
+            return false;
+          }
+          const scene::PropsBase *previousProps = previousNode->propsBase();
+          const scene::PropsBase *currentProps = currentNode->propsBase();
+          return previousProps && currentProps &&
+                 previousProps->propsTypeId() == currentProps->propsTypeId();
+        }
+
+        inline void addDiffEntry(NodeCompositionDiff &out,
+                                 NodeTag tag,
+                                 int slot,
+                                 NodeDefinitionBase *previousNode,
+                                 NodeDefinitionBase *currentNode,
+                                 int previousIndex,
+                                 int currentIndex)
+        {
+          const bool compatibleType = haveCompatibleProps(previousNode, currentNode);
+          const bool equivalentProps = compatibleType && previousNode && currentNode &&
+                                       previousNode->hasEquivalentProps(*currentNode);
+          out.addEntry(tag,
+                       slot,
+                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
+                       compatibleType,
+                       equivalentProps,
+                       previousIndex,
+                       currentIndex);
+        }
+
         inline bool buildSingleAnonymousChildDiff(INestableDefinition *previousParent,
                                                   INestableDefinition *currentParent,
                                                   NodeCompositionDiff &out)
@@ -36,18 +68,7 @@ namespace loka
             return false;
           }
 
-          const scene::PropsBase *previousProps = previousChild->propsBase();
-          const scene::PropsBase *currentProps = currentChild->propsBase();
-          const bool compatibleType = previousProps && currentProps &&
-                                      previousProps->propsTypeId() == currentProps->propsTypeId();
-          const bool equivalentProps = compatibleType && previousChild->hasEquivalentProps(*currentChild);
-          out.addEntry(NODE_TAG_NONE,
-                       0,
-                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
-                       compatibleType,
-                       equivalentProps,
-                       0,
-                       0);
+          addDiffEntry(out, NODE_TAG_NONE, 0, previousChild, currentChild, 0, 0);
           out.valid = true;
           out.fullRebuild = false;
           return true;
@@ -115,23 +136,12 @@ namespace loka
         INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
         if (!previousNestable && !currentNestable)
         {
-          const scene::PropsBase *previousProps = previousRoot->propsBase();
-          const scene::PropsBase *currentProps = currentRoot->propsBase();
-          const bool compatibleType = previousProps && currentProps &&
-                                      previousProps->propsTypeId() == currentProps->propsTypeId();
-          const bool equivalentProps = compatibleType && previousRoot->hasEquivalentProps(*currentRoot);
           NodeTag rootTag = currentRoot->nodeTag();
           if (rootTag == NODE_TAG_NONE)
           {
             rootTag = previousRoot->nodeTag();
           }
-          out.addEntry(rootTag,
-                       0,
-                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
-                       compatibleType,
-                       equivalentProps,
-                       0,
-                       0);
+          detail::addDiffEntry(out, rootTag, 0, previousRoot, currentRoot, 0, 0);
           out.valid = true;
           out.fullRebuild = false;
           return true;
@@ -159,18 +169,13 @@ namespace loka
           if (previousIndex >= 0)
           {
             NodeDefinitionBase *previousChild = previousChildren[previousIndex];
-            const scene::PropsBase *previousProps = previousChild ? previousChild->propsBase() : 0;
-            const scene::PropsBase *currentProps = currentChild ? currentChild->propsBase() : 0;
-            bool compatibleType = previousProps && currentProps &&
-                                  previousProps->propsTypeId() == currentProps->propsTypeId();
-            bool equivalentProps = compatibleType && previousChild->hasEquivalentProps(*currentChild);
-            out.addEntry(currentChild->nodeTag(),
-                         static_cast<int>(i),
-                         compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
-                         compatibleType,
-                         equivalentProps,
-                         previousIndex,
-                         static_cast<int>(i));
+            detail::addDiffEntry(out,
+                                 currentChild->nodeTag(),
+                                 static_cast<int>(i),
+                                 previousChild,
+                                 currentChild,
+                                 previousIndex,
+                                 static_cast<int>(i));
           }
           else
           {
