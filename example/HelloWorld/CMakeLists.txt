@@ -15,6 +15,7 @@ endif()
 if(WIN32)
   set(HELLOWORLD_SOURCES
     src/main.cpp
+    src/MainNode.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
   )
@@ -52,6 +53,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/AttrDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StartupRedrawTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTestMain.cpp
+    src/MainNode.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
   )
@@ -77,6 +79,7 @@ endif()
 if(APPLE)
   set(MACOS_SOURCES
     src/MacOSMain.mm
+    src/MainNode.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
   )
@@ -101,6 +104,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_HELLO_CLASSIC_TARGET "LokaHello${LOKA_CLASSIC_TARGET_SUFFIX}")
   set(RETRO_SOURCES
     src/main.cpp
+    src/MainNode.cpp
     src/MainLeftPanel.cpp
     src/MainRightPanel.cpp
   )
