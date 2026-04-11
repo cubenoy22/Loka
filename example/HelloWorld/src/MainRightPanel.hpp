@@ -1,11 +1,12 @@
 #ifndef LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 #define LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 
+#include "app/PopupMenu.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
-#include "app/RowColumn.hpp"
-#include "app/PopupMenu.hpp"
 
 namespace helloworld
 {
@@ -34,7 +35,16 @@ namespace helloworld
     loka::core::State<loka::core::String> *fruitMessage;
   };
 
-  loka::app::VStack MainRightPanel(const MainRightPanelProps &props);
+  inline loka::app::VStack MainRightPanel(const MainRightPanelProps &props)
+  {
+    using namespace loka::app;
+    return VStack().TEST_ID("HelloWorld.RightPanel")
+           << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")
+           << PopupMenu(props.fruits->map<loka::core::String>(MainRightPanelProps::FruitPopupLabel()))
+                  .selectedIndex(props.fruitIndex)
+                  .TEST_ID("HelloWorld.RightPanel.FruitPopup")
+           << Text(props.fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage");
+  }
 
 } // namespace helloworld
 

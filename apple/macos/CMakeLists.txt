@@ -77,8 +77,6 @@ set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
   ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
-  ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainLeftPanel.cpp
-  ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainRightPanel.cpp
 )
 
 if(NOT LOKA_MAC_OS_10_4)

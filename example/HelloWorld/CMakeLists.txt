@@ -16,8 +16,6 @@ if(WIN32)
   set(HELLOWORLD_SOURCES
     src/main.cpp
     src/MainNode.cpp
-    src/MainLeftPanel.cpp
-    src/MainRightPanel.cpp
   )
 
   if(NOT TARGET LokaWin32Core)
@@ -54,8 +52,6 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StartupRedrawTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTestMain.cpp
     src/MainNode.cpp
-    src/MainLeftPanel.cpp
-    src/MainRightPanel.cpp
   )
 
   add_executable(LokaTestsWin32 ${WIN32_TEST_SOURCES})
@@ -80,8 +76,6 @@ if(APPLE)
   set(MACOS_SOURCES
     src/MacOSMain.mm
     src/MainNode.cpp
-    src/MainLeftPanel.cpp
-    src/MainRightPanel.cpp
   )
 
   add_executable(LokaHelloMacOS ${MACOS_SOURCES})
@@ -105,8 +99,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(RETRO_SOURCES
     src/main.cpp
     src/MainNode.cpp
-    src/MainLeftPanel.cpp
-    src/MainRightPanel.cpp
   )
 
   add_application(${LOKA_HELLO_CLASSIC_TARGET} ${RETRO_SOURCES})

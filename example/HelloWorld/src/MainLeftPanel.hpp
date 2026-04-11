@@ -1,10 +1,12 @@
 #ifndef LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 #define LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 
-#include "loka/core/String.hpp"
-#include "BmiCalculatorComponent.hpp"
-#include "loka/core/State.hpp"
+#include "app/Button.hpp"
 #include "app/RowColumn.hpp"
+#include "app/Text.hpp"
+#include "loka/core/String.hpp"
+#include "loka/core/State.hpp"
+#include "BmiCalculatorComponent.hpp"
 
 namespace helloworld
 {
@@ -51,7 +53,18 @@ namespace helloworld
     loka::core::State<loka::core::String> *bmiResult;
   };
 
-  loka::app::VStack MainLeftPanel(const MainLeftPanelProps &props);
+  inline loka::app::VStack MainLeftPanel(const MainLeftPanelProps &props)
+  {
+    using namespace loka::app;
+    return VStack().TEST_ID("HelloWorld.LeftPanel")
+           << Text("Loka Sample").TEST_ID("HelloWorld.LeftPanel.Title")
+           << Text(props.message).TEST_ID("HelloWorld.LeftPanel.Message")
+           << Button("Add +", props.toggleEvent).TEST_ID("HelloWorld.LeftPanel.AddButton")
+           << Text(props.actionSummary).TEST_ID("HelloWorld.LeftPanel.ActionSummary")
+           << Button("Probe Button", props.actionProbeEvent).enabled(props.actionEnabled).TEST_ID("HelloWorld.LeftPanel.ProbeButton")
+           << Button("Toggle Button Enabled", props.toggleActionEnabledEvent).TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton")
+           << BmiCalculator(BmiCalculatorProps(props.heightInput, props.weightInput, props.bmiResult));
+  }
 
 } // namespace helloworld
 
