@@ -2,45 +2,39 @@
 #define LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 
 #include "loka/core/State.hpp"
-#include "app/scene/BoundState.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
-
-namespace loka
-{
-  namespace core
-  {
-    namespace scene
-    {
-      struct NodeComposition;
-    }
-  }
-}
+#include "app/RowColumn.hpp"
+#include "app/PopupMenu.hpp"
 
 namespace helloworld
 {
-  class MainNode;
-
-  class MainRightPanelComponent
+  struct MainRightPanelProps
   {
-  public:
     struct FruitPopupLabel
     {
       typedef loka::core::String Result;
       loka::core::String operator()(const loka::core::String &value) const { return value; }
     };
 
-    explicit MainRightPanelComponent(MainNode *owner);
-    void attachNode(loka::app::scene::NodeComposition &c);
-    void composeNode(loka::app::scene::NodeComposition &c);
+    MainRightPanelProps()
+        : fruits(0),
+          fruitIndex(0),
+          fruitMessage(0) {}
 
-  private:
-    MainNode *owner_;
-    bool initialized_;
-    loka::app::scene::BoundState<int> fruitIndex_;
-    loka::app::scene::BoundState<loka::core::String> fruitMessage_;
-    loka::Vector<loka::core::String> fruits_;
+    MainRightPanelProps(const loka::Vector<loka::core::String> *fruitValues,
+                        loka::core::State<int> *fruitIndexValue,
+                        loka::core::State<loka::core::String> *fruitMessageValue)
+        : fruits(fruitValues),
+          fruitIndex(fruitIndexValue),
+          fruitMessage(fruitMessageValue) {}
+
+    const loka::Vector<loka::core::String> *fruits;
+    loka::core::State<int> *fruitIndex;
+    loka::core::State<loka::core::String> *fruitMessage;
   };
+
+  loka::app::VStack MainRightPanel(const MainRightPanelProps &props);
 
 } // namespace helloworld
 

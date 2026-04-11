@@ -1,61 +1,57 @@
 #ifndef LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 #define LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 
-#include "loka/core/State.hpp"
-#include "app/scene/BoundState.hpp"
 #include "loka/core/String.hpp"
 #include "BmiCalculatorComponent.hpp"
-
-namespace loka
-{
-  namespace core
-  {
-    namespace scene
-    {
-      struct NodeComposition;
-    }
-  }
-}
+#include "loka/core/State.hpp"
+#include "app/RowColumn.hpp"
 
 namespace helloworld
 {
-  class MainNode;
-
-  class MainLeftPanelComponent
+  struct MainLeftPanelProps
   {
-  public:
-    explicit MainLeftPanelComponent(MainNode *owner);
-    void attachNode(loka::app::scene::NodeComposition &c);
-    void composeNode(loka::app::scene::NodeComposition &c);
+    MainLeftPanelProps()
+        : message(0),
+          toggleEvent(0),
+          actionSummary(0),
+          actionProbeEvent(0),
+          actionEnabled(0),
+          toggleActionEnabledEvent(0),
+          heightInput(0),
+          weightInput(0),
+          bmiResult(0) {}
 
-  private:
-    static void BmiChangedThunk(void *userData);
-    double parseBmiValue(const loka::core::String &value) const;
-    void refreshBmiResult();
-    void toggleMessage();
-    void toggleActionEnabled();
-    void handleActionProbe();
-    void refreshActionSummary();
+    MainLeftPanelProps(loka::core::State<loka::core::String> *messageValue,
+                       loka::core::EmitterState *toggleValue,
+                       loka::core::State<loka::core::String> *actionSummaryValue,
+                       loka::core::EmitterState *actionProbeValue,
+                       loka::core::State<bool> *actionEnabledValue,
+                       loka::core::EmitterState *toggleActionEnabledValue,
+                       loka::core::State<loka::core::String> *heightValue,
+                       loka::core::State<loka::core::String> *weightValue,
+                       loka::core::State<loka::core::String> *bmiResultValue)
+        : message(messageValue),
+          toggleEvent(toggleValue),
+          actionSummary(actionSummaryValue),
+          actionProbeEvent(actionProbeValue),
+          actionEnabled(actionEnabledValue),
+          toggleActionEnabledEvent(toggleActionEnabledValue),
+          heightInput(heightValue),
+          weightInput(weightValue),
+          bmiResult(bmiResultValue) {}
 
-    MainNode *owner_;
-    bool initialized_;
-    bool actionSummaryCacheValid_;
-    bool lastActionSummaryEnabled_;
-    int lastActionSummaryCount_;
-    loka::app::scene::BoundState<loka::core::String> message_;
-    loka::core::EmitterState toggleEvent_;
-    loka::app::scene::BoundState<bool> actionEnabled_;
-    loka::app::scene::BoundState<int> actionProbeCount_;
-    loka::app::scene::BoundState<loka::core::String> actionSummary_;
-    bool bmiCacheValid_;
-    bool lastBmiWasValid_;
-    int lastBmiHundredths_;
-    loka::app::scene::BoundState<loka::core::String> heightInput_;
-    loka::app::scene::BoundState<loka::core::String> weightInput_;
-    loka::app::scene::BoundState<loka::core::String> bmiResult_;
-    loka::core::EmitterState toggleActionEnabledEvent_;
-    loka::core::EmitterState actionProbeEvent_;
+    loka::core::State<loka::core::String> *message;
+    loka::core::EmitterState *toggleEvent;
+    loka::core::State<loka::core::String> *actionSummary;
+    loka::core::EmitterState *actionProbeEvent;
+    loka::core::State<bool> *actionEnabled;
+    loka::core::EmitterState *toggleActionEnabledEvent;
+    loka::core::State<loka::core::String> *heightInput;
+    loka::core::State<loka::core::String> *weightInput;
+    loka::core::State<loka::core::String> *bmiResult;
   };
+
+  loka::app::VStack MainLeftPanel(const MainLeftPanelProps &props);
 
 } // namespace helloworld
 

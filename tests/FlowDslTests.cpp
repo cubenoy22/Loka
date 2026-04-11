@@ -15,7 +15,6 @@
 #include "app/Show.hpp"
 #include "app/Text.hpp"
 #include "app/ZStack.hpp"
-#include "app/scene/Component.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
@@ -71,21 +70,11 @@ namespace {
            << loka::app::Text("Front");
   }
 
-  class TypedDslLightComponent
+  static loka::app::Fragment buildTypedInlineFragment()
   {
-  public:
-    TypedDslLightComponent() {}
-
-    void attachNode(loka::app::scene::NodeComposition &c)
-    {
-      (void)c;
-    }
-
-    void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      c.declare(loka::app::Text("Light child").testId("TypedDslLightChild"));
-    }
-  };
+    return loka::app::Fragment()
+           << loka::app::Text("Light child").testId("TypedDslLightChild");
+  }
 
   class TypedDslLightHostNode;
   typedef loka::app::scene::BoundaryPropsFor<TypedDslLightHostNode> TypedDslLightHostProps;
@@ -94,16 +83,13 @@ namespace {
   {
   public:
     TypedDslLightHostNode(const TypedDslLightHostProps &p)
-        : loka::app::scene::BoundaryNodeFor<TypedDslLightHostNode>(TypedDslLightHostProps(p)), light_() {}
+        : loka::app::scene::BoundaryNodeFor<TypedDslLightHostNode>(TypedDslLightHostProps(p)) {}
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       c.declare(loka::app::HStack().testId("TypedDslLightRow")
-                << loka::app::scene::LightComponent(this->light_));
+                << buildTypedInlineFragment());
     }
-
-  private:
-    TypedDslLightComponent light_;
   };
 
   struct FlowTestMarkerContext {
