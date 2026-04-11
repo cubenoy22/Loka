@@ -317,7 +317,7 @@ namespace loka
               composition.declare(*def_);
             }
             this->captureCurrentCompositionSnapshot();
-            this->rebuildCompositionTransactionFromSnapshots();
+            this->rebuildCurrentCompositionDiff();
             if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() &&
                 this->localCompositionDiff()->isCompatibleRetainOnly())
             {

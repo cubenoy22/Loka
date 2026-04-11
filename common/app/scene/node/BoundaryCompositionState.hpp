@@ -211,11 +211,6 @@ namespace loka
                  !this->diff.empty();
         }
 
-        bool hasLocalCompositionDiff() const
-        {
-          return localCompositionDiff() != 0;
-        }
-
         bool canApplyLocalCompositionDiff() const
         {
           const NodeCompositionDiff *diff = localCompositionDiff();

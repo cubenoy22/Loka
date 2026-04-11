@@ -650,10 +650,6 @@ namespace loka
           }
           return true;
         }
-        bool hasLocalCompositionDiff() const
-        {
-          return compositionState_.hasLocalCompositionDiff();
-        }
         bool canApplyLocalCompositionDiff() const
         {
           return compositionState_.canApplyLocalCompositionDiff();
@@ -1025,7 +1021,7 @@ namespace loka
           compositionState_.captureCurrentSnapshot(this->composition());
         }
 
-        void rebuildCompositionTransactionFromSnapshots()
+        void rebuildCurrentCompositionDiff()
         {
           compositionState_.rebuildLocalCompositionDiff();
         }
