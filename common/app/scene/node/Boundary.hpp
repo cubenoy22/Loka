@@ -522,7 +522,7 @@ namespace loka
           return dangerouslyUseManagedStateWithValue(initial);
         }
 
-        bool hasCompositionDiffTransaction() const { return compositionState_.hasCompositionDiffTransaction(); }
+        bool hasCompositionDiffState() const { return compositionState_.hasCompositionDiffState(); }
         const NodeCompositionDiff *localCompositionDiff() const
         {
           return compositionState_.localCompositionDiff();
@@ -932,7 +932,7 @@ namespace loka
                                                          "pending-default-boundary-compose",
                                                          boundary->previousCompositionSnapshot().root() ? 1 : 0,
                                                          boundary->currentCompositionSnapshot().root() ? 1 : 0,
-                                                         boundary->hasCompositionDiffTransaction() ? 0 : 1,
+                                                         boundary->hasCompositionDiffState() ? 0 : 1,
                                                          static_cast<unsigned int>(boundary->childrenCount()),
                                                          static_cast<unsigned int>(firstChild->kind()),
                                                          firstChild->testId().c_str());
@@ -1047,7 +1047,7 @@ namespace loka
 
         void rebuildCompositionTransactionFromSnapshots()
         {
-          compositionState_.rebuildTransaction();
+          compositionState_.rebuildLocalCompositionDiff();
         }
 
         void promoteCurrentCompositionSnapshot()

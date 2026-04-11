@@ -97,7 +97,7 @@ namespace loka
           currentSnapshot.capture(composition);
         }
 
-        void rebuildTransaction()
+        void rebuildLocalCompositionDiff()
         {
           this->diff.clear();
           if (!buildNodeCompositionSnapshotDiffByTag(this->previousSnapshot, this->currentSnapshot, this->diff))
@@ -141,7 +141,7 @@ namespace loka
           return this->diff.valid ? &this->diff : 0;
         }
 
-        bool hasCompositionDiffTransaction() const
+        bool hasCompositionDiffState() const
         {
           return !this->previousSnapshot.empty() ||
                  !this->currentSnapshot.empty() ||
