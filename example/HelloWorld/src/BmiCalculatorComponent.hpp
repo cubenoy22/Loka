@@ -11,11 +11,6 @@ namespace helloworld
 {
   struct BmiCalculatorProps
   {
-    BmiCalculatorProps()
-        : heightInput(0),
-          weightInput(0),
-          bmiResult(0) {}
-
     BmiCalculatorProps(loka::core::State<loka::core::String> *heightValue,
                        loka::core::State<loka::core::String> *weightValue,
                        loka::core::State<loka::core::String> *resultValue)

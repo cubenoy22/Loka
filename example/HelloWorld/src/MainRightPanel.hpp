@@ -18,11 +18,6 @@ namespace helloworld
       loka::core::String operator()(const loka::core::String &value) const { return value; }
     };
 
-    MainRightPanelProps()
-        : fruits(0),
-          fruitIndex(0),
-          fruitMessage(0) {}
-
     MainRightPanelProps(const loka::Vector<loka::core::String> *fruitValues,
                         loka::core::State<int> *fruitIndexValue,
                         loka::core::State<loka::core::String> *fruitMessageValue)

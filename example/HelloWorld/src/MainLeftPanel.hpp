@@ -12,17 +12,6 @@ namespace helloworld
 {
   struct MainLeftPanelProps
   {
-    MainLeftPanelProps()
-        : message(0),
-          toggleEvent(0),
-          actionSummary(0),
-          actionProbeEvent(0),
-          actionEnabled(0),
-          toggleActionEnabledEvent(0),
-          heightInput(0),
-          weightInput(0),
-          bmiResult(0) {}
-
     MainLeftPanelProps(loka::core::State<loka::core::String> *messageValue,
                        loka::core::EmitterState *toggleValue,
                        loka::core::State<loka::core::String> *actionSummaryValue,
