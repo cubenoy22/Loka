@@ -623,7 +623,7 @@ namespace loka
                                                      root->testId().c_str(),
                                                      root->previousCompositionSnapshot().root() ? 1 : 0,
                                                      root->currentCompositionSnapshot().root() ? 1 : 0,
-                                                     root->compositionTransaction().empty() ? 1 : 0,
+                                                     root->hasCompositionDiffTransaction() ? 0 : 1,
                                                      rootNestable ? static_cast<unsigned int>(rootNestable->childrenCount()) : 0U,
                                                      firstChild ? static_cast<unsigned int>(firstChild->kind()) : 0U,
                                                      firstChild ? firstChild->testId().c_str() : "");

@@ -3,8 +3,9 @@
 
 #include <vector>
 #include "app/scene/Node.hpp"
+#include "app/scene/NodeCompositionCompare.hpp"
+#include "app/scene/NodeCompositionDiff.hpp"
 #include "app/scene/NodeCompositionSnapshot.hpp"
-#include "app/scene/NodeCompositionTransaction.hpp"
 #include "app/scene/node/BoundaryStateTypes.hpp"
 
 namespace loka
@@ -58,7 +59,7 @@ namespace loka
             : result(),
               previousSnapshot(),
               currentSnapshot(),
-              transaction()
+              diff()
         {
         }
 
@@ -98,10 +99,10 @@ namespace loka
 
         void rebuildTransaction()
         {
-          transaction.beginSnapshots(&previousSnapshot, &currentSnapshot);
-          if (!transaction.buildDiffByTag())
+          this->diff.clear();
+          if (!buildNodeCompositionDiffByTag(this->previousSnapshot, this->currentSnapshot, this->diff))
           {
-            transaction.diff().clear();
+            this->diff.clear();
           }
         }
 
@@ -135,19 +136,16 @@ namespace loka
           return currentSnapshot.root() ? currentSnapshot.root()->asNestableDefinition() : 0;
         }
 
-        NodeCompositionTransaction &compositionTransaction()
-        {
-          return transaction;
-        }
-
-        const NodeCompositionTransaction &compositionTransaction() const
-        {
-          return transaction;
-        }
-
         const NodeCompositionDiff *localCompositionDiff() const
         {
-          return transaction.diff().valid ? &transaction.diff() : 0;
+          return this->diff.valid ? &this->diff : 0;
+        }
+
+        bool hasCompositionDiffTransaction() const
+        {
+          return !this->previousSnapshot.empty() ||
+                 !this->currentSnapshot.empty() ||
+                 !this->diff.empty();
         }
 
         bool hasLocalCompositionDiff() const
@@ -190,7 +188,7 @@ namespace loka
         BoundaryComposeResult result;
         NodeCompositionSnapshot previousSnapshot;
         NodeCompositionSnapshot currentSnapshot;
-        NodeCompositionTransaction transaction;
+        NodeCompositionDiff diff;
       };
     }
   }
