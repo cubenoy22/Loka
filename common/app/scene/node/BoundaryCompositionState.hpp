@@ -68,6 +68,29 @@ namespace loka
           return entry;
         }
 
+        bool keepsLiveNode() const
+        {
+          return this->action != ACTION_RETIRE;
+        }
+
+        bool requiresAttachCompose() const
+        {
+          return this->action == ACTION_ATTACH || this->action == ACTION_REPLACE;
+        }
+
+        Node *detachedNode() const
+        {
+          if (this->action == ACTION_REPLACE)
+          {
+            return this->previousNode;
+          }
+          if (this->action == ACTION_RETIRE)
+          {
+            return this->node;
+          }
+          return 0;
+        }
+
         Node *node;
         Node *previousNode;
         Action action;

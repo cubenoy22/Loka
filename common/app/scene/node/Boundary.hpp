@@ -792,7 +792,7 @@ namespace loka
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETIRE)
+            if (!plan.entries[i].keepsLiveNode())
             {
               continue;
             }
@@ -811,8 +811,7 @@ namespace loka
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
-            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_ATTACH ||
-                entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE)
+            if (entry.requiresAttachCompose())
             {
               this->composeTree(entry.node, context, COMPOSE_EVENT_ATTACH, this);
             }
@@ -820,28 +819,17 @@ namespace loka
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
-            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE && entry.previousNode)
+            Node *detachedNode = entry.detachedNode();
+            if (detachedNode)
             {
-              this->composeTree(entry.previousNode, context, COMPOSE_EVENT_DETACH, this);
+              this->composeTree(detachedNode, context, COMPOSE_EVENT_DETACH, this);
               if (context.platformController())
               {
-                context.platformController()->releaseNodeContexts(entry.previousNode);
+                context.platformController()->releaseNodeContexts(detachedNode);
               }
-              if (!entry.previousNode->isArenaAllocated())
+              if (!detachedNode->isArenaAllocated())
               {
-                delete entry.previousNode;
-              }
-            }
-            else if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_RETIRE && entry.node)
-            {
-              this->composeTree(entry.node, context, COMPOSE_EVENT_DETACH, this);
-              if (context.platformController())
-              {
-                context.platformController()->releaseNodeContexts(entry.node);
-              }
-              if (!entry.node->isArenaAllocated())
-              {
-                delete entry.node;
+                delete detachedNode;
               }
             }
           }
