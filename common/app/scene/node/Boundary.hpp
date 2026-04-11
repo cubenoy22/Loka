@@ -538,6 +538,10 @@ namespace loka
         }
         Node *findCompositionChildByTag(NodeTag tag) const
         {
+          if (tag == NODE_TAG_NONE)
+          {
+            return 0;
+          }
           INestable *nestable = compositionRootNestable();
           if (!nestable)
           {

@@ -114,6 +114,10 @@ namespace loka
 
         NodeDefinitionBase *findCurrentDefinitionByTag(NodeTag tag) const
         {
+          if (tag == NODE_TAG_NONE)
+          {
+            return 0;
+          }
           const INestableDefinition *root = currentRootNestableDefinition();
           if (!root)
           {
