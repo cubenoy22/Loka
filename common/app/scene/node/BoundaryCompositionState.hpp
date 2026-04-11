@@ -100,7 +100,7 @@ namespace loka
         void rebuildTransaction()
         {
           this->diff.clear();
-          if (!buildNodeCompositionDiffByTag(this->previousSnapshot, this->currentSnapshot, this->diff))
+          if (!buildNodeCompositionSnapshotDiffByTag(this->previousSnapshot, this->currentSnapshot, this->diff))
           {
             this->diff.clear();
           }

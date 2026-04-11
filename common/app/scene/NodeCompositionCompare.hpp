@@ -2,7 +2,6 @@
 #define LOKA_CORE2_SCENE_NODECOMPOSITIONCOMPARE_HPP
 
 #include <vector>
-#include "app/scene/NodeComposition.hpp"
 #include "app/scene/NodeCompositionDiff.hpp"
 #include "app/scene/NodeCompositionSnapshot.hpp"
 
@@ -95,9 +94,9 @@ namespace loka
         }
       } // namespace detail
 
-      inline bool buildNodeDefinitionDiffByTag(NodeDefinitionBase *previousRoot,
-                                               NodeDefinitionBase *currentRoot,
-                                               NodeCompositionDiff &out)
+      inline bool buildNodeCompositionSnapshotRootDiffByTag(NodeDefinitionBase *previousRoot,
+                                                            NodeDefinitionBase *currentRoot,
+                                                            NodeCompositionDiff &out)
       {
         out.clear();
 
@@ -206,18 +205,11 @@ namespace loka
         return true;
       }
 
-      inline bool buildNodeCompositionDiffByTag(NodeComposition &previous,
-                                                NodeComposition &current,
-                                                NodeCompositionDiff &out)
+      inline bool buildNodeCompositionSnapshotDiffByTag(const NodeCompositionSnapshot &previous,
+                                                        const NodeCompositionSnapshot &current,
+                                                        NodeCompositionDiff &out)
       {
-        return buildNodeDefinitionDiffByTag(previous.root(), current.root(), out);
-      }
-
-      inline bool buildNodeCompositionDiffByTag(NodeCompositionSnapshot &previous,
-                                                NodeCompositionSnapshot &current,
-                                                NodeCompositionDiff &out)
-      {
-        return buildNodeDefinitionDiffByTag(previous.root(), current.root(), out);
+        return buildNodeCompositionSnapshotRootDiffByTag(previous.root(), current.root(), out);
       }
     }
   }
