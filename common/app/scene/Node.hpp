@@ -616,6 +616,66 @@ namespace loka
         // For future extensibility
       };
 
+      template <class DerivedT>
+      struct NestableDslMixin
+      {
+        DerivedT &operator<<(NodeDefinitionBase &child)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << child;
+          return *self;
+        }
+
+        DerivedT &operator<<(const NodeDefinitionBase &child)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << child;
+          return *self;
+        }
+
+        DerivedT &operator<<(NodeDefinitionBase *ownedChild)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << ownedChild;
+          return *self;
+        }
+
+        DerivedT &operator<<(const std::vector<NodeDefinitionBase *> &container)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << container;
+          return *self;
+        }
+
+        DerivedT &operator<<(ComponentDefinitionBase &component)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << component;
+          return *self;
+        }
+
+        DerivedT &operator<<(const ComponentDefinitionBase &component)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << component;
+          return *self;
+        }
+
+        DerivedT &operator<<(LightComponentDefinitionBase &component)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << component;
+          return *self;
+        }
+
+        DerivedT &operator<<(const LightComponentDefinitionBase &component)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << component;
+          return *self;
+        }
+      };
+
       // --- Helper base class for nestable definitions owning children ---
       class NestableDefinitionBase : public INestableDefinition
       {

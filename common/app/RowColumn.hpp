@@ -63,9 +63,10 @@ namespace loka
       virtual ColumnNode *asColumnNode() { return this; }
     };
 
-    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<ColumnDefinition>
+    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<ColumnDefinition>, public scene::TestIdDslMixin<ColumnDefinition>
     {
       typedef scene::NodeDefinition<ColumnProps, ColumnNode> BaseType;
+      using scene::NestableDslMixin<ColumnDefinition>::operator<<;
       ColumnDefinition() : BaseType(), scene::NestableDefinitionBase() {}
       ColumnDefinition(const ColumnProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
       ColumnDefinition(const ColumnDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
@@ -133,9 +134,10 @@ namespace loka
       virtual RowNode *asRowNode() { return this; }
     };
 
-    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<RowDefinition>
+    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<RowDefinition>, public scene::TestIdDslMixin<RowDefinition>
     {
       typedef scene::NodeDefinition<RowProps, RowNode> BaseType;
+      using scene::NestableDslMixin<RowDefinition>::operator<<;
       RowDefinition() : BaseType(), scene::NestableDefinitionBase() {}
       RowDefinition(const RowProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
       RowDefinition(const RowDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
