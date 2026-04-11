@@ -115,6 +115,37 @@ namespace loka
         bool empty() const { return entries.count() == 0; }
         size_t entryCount() const { return entries.count(); }
         Entry *entriesHead() const { return entries.head(); }
+
+      private:
+        bool hasRetainOnlyEntries(bool requireEquivalentProps) const
+        {
+          if (empty())
+          {
+            return false;
+          }
+          for (Entry *entry = entries.head(); entry; entry = entry->nextInComposition)
+          {
+            if (entry->action != ACTION_RETAIN)
+            {
+              return false;
+            }
+            if (!entry->compatibleType)
+            {
+              return false;
+            }
+            if (requireEquivalentProps && !entry->equivalentProps)
+            {
+              return false;
+            }
+            if (entry->previousIndex != entry->currentIndex)
+            {
+              return false;
+            }
+          }
+          return true;
+        }
+
+      public:
         bool hasIncompatibleRetain() const
         {
           // A retained slot/tag is only safe for local apply when the retained
@@ -131,49 +162,11 @@ namespace loka
         }
         bool isStableRetainOnly() const
         {
-          if (empty())
-          {
-            return false;
-          }
-          for (Entry *entry = entries.head(); entry; entry = entry->nextInComposition)
-          {
-            if (entry->action != ACTION_RETAIN)
-            {
-              return false;
-            }
-            if (!entry->compatibleType || !entry->equivalentProps)
-            {
-              return false;
-            }
-            if (entry->previousIndex != entry->currentIndex)
-            {
-              return false;
-            }
-          }
-          return true;
+          return hasRetainOnlyEntries(true);
         }
         bool isCompatibleRetainOnly() const
         {
-          if (empty())
-          {
-            return false;
-          }
-          for (Entry *entry = entries.head(); entry; entry = entry->nextInComposition)
-          {
-            if (entry->action != ACTION_RETAIN)
-            {
-              return false;
-            }
-            if (!entry->compatibleType)
-            {
-              return false;
-            }
-            if (entry->previousIndex != entry->currentIndex)
-            {
-              return false;
-            }
-          }
-          return true;
+          return hasRetainOnlyEntries(false);
         }
 
         loka::dsl::CompositionList<Entry> entries;
