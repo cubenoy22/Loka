@@ -1,6 +1,7 @@
 #ifndef LOKA_HELLOWORLD_MAIN_NODE_HPP
 #define LOKA_HELLOWORLD_MAIN_NODE_HPP
 
+#include "app/scene/Component.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
@@ -49,8 +50,8 @@ namespace helloworld
     ZStack &root = c.declare(ZStack().TEST_ID("HelloWorld.Root"));
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
     c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
-              << loka::app::scene::LC(left_)
-              << loka::app::scene::LC(right_));
+              << loka::app::scene::LightComponent(left_)
+              << loka::app::scene::LightComponent(right_));
     c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
   }
 

@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_COMPONENT_HPP
 
 #include <cassert>
+#include "app/Fragment.hpp"
 #include "app/scene/NodeComposition.hpp"
 
 namespace loka
@@ -52,68 +53,23 @@ namespace loka
         return (*this) << mutableComponent;
       }
 
-      struct LightComponentDefinitionBase
-      {
-        virtual ~LightComponentDefinitionBase() {}
-        virtual void attachInto(NodeComposition &composition) = 0;
-        virtual void composeInto(NodeComposition &composition, INestableDefinition &parent) = 0;
-      };
-
       template <class ComponentT>
-      struct LightComponentDefinition : public LightComponentDefinitionBase
+      inline ::loka::app::FragmentDefinition LightComponent(ComponentT *component)
       {
-        explicit LightComponentDefinition(ComponentT *component) : component_(component) {}
-        virtual void attachInto(NodeComposition &composition)
-        {
-          assert(component_ && "LightComponentDefinition requires component instance");
-          component_->attachNode(composition);
-        }
-        virtual void composeInto(NodeComposition &composition, INestableDefinition &parent)
-        {
-          assert(component_ && "LightComponentDefinition requires component instance");
-          NodeComposition::ChildComposition child(composition, parent);
-          component_->composeNode(child);
-        }
-        ComponentT *component_;
-      };
-
-      template <class ComponentT>
-      inline LightComponentDefinition<ComponentT> LightComponent(ComponentT *component)
-      {
-        return LightComponentDefinition<ComponentT>(component);
-      }
-
-      template <class ComponentT>
-      inline LightComponentDefinition<ComponentT> LightComponent(ComponentT &component)
-      {
-        return LightComponentDefinition<ComponentT>(&component);
-      }
-
-      template <class ComponentT>
-      inline LightComponentDefinition<ComponentT> LC(ComponentT *component)
-      {
-        return LightComponent(component);
-      }
-
-      template <class ComponentT>
-      inline LightComponentDefinition<ComponentT> LC(ComponentT &component)
-      {
-        return LightComponent(component);
-      }
-
-      inline INestableDefinition &INestableDefinition::operator<<(LightComponentDefinitionBase &component)
-      {
+        assert(component && "LightComponent requires component instance");
         NodeComposition *composition = NodeComposition::current();
-        assert(composition && "LightComponentDefinition requires active NodeComposition");
-        component.attachInto(*composition);
-        component.composeInto(*composition, *this);
-        return *this;
+        assert(composition && "LightComponent requires active NodeComposition");
+        component->attachNode(*composition);
+        ::loka::app::FragmentDefinition fragment;
+        NodeComposition::ChildComposition child(*composition, fragment);
+        component->composeNode(child);
+        return fragment;
       }
 
-      inline INestableDefinition &INestableDefinition::operator<<(const LightComponentDefinitionBase &component)
+      template <class ComponentT>
+      inline ::loka::app::FragmentDefinition LightComponent(ComponentT &component)
       {
-        LightComponentDefinitionBase &mutableComponent = const_cast<LightComponentDefinitionBase &>(component);
-        return (*this) << mutableComponent;
+        return LightComponent(&component);
       }
     } // namespace scene
   } // namespace app

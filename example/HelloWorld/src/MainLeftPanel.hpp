@@ -29,6 +29,9 @@ namespace helloworld
     void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
+    static void BmiChangedThunk(void *userData);
+    double parseBmiValue(const loka::core::String &value) const;
+    void refreshBmiResult();
     void toggleMessage();
     void toggleActionEnabled();
     void handleActionProbe();
@@ -44,9 +47,14 @@ namespace helloworld
     loka::app::scene::BoundState<bool> actionEnabled_;
     loka::app::scene::BoundState<int> actionProbeCount_;
     loka::app::scene::BoundState<loka::core::String> actionSummary_;
+    bool bmiCacheValid_;
+    bool lastBmiWasValid_;
+    int lastBmiHundredths_;
+    loka::app::scene::BoundState<loka::core::String> heightInput_;
+    loka::app::scene::BoundState<loka::core::String> weightInput_;
+    loka::app::scene::BoundState<loka::core::String> bmiResult_;
     loka::core::EmitterState toggleActionEnabledEvent_;
     loka::core::EmitterState actionProbeEvent_;
-    BmiCalculatorComponent bmiCalculator_;
   };
 
 } // namespace helloworld

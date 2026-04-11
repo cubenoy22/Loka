@@ -15,6 +15,7 @@
 #include "app/Show.hpp"
 #include "app/Text.hpp"
 #include "app/ZStack.hpp"
+#include "app/scene/Component.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
@@ -98,7 +99,7 @@ namespace {
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       c.declare(loka::app::HStack().testId("TypedDslLightRow")
-                << loka::app::scene::LC(this->light_));
+                << loka::app::scene::LightComponent(this->light_));
     }
 
   private:

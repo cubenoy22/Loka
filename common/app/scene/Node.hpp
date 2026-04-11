@@ -325,7 +325,6 @@ namespace loka
       // Forward declaration
       struct INestableDefinition;
       struct ComponentDefinitionBase;
-      struct LightComponentDefinitionBase;
 
       template <typename NodeT, typename PropsT>
       struct NodePropsApplier
@@ -610,8 +609,6 @@ namespace loka
         INestableDefinition &operator<<(const std::vector<NodeDefinitionBase *> &container);
         INestableDefinition &operator<<(ComponentDefinitionBase &component);
         INestableDefinition &operator<<(const ComponentDefinitionBase &component);
-        INestableDefinition &operator<<(LightComponentDefinitionBase &component);
-        INestableDefinition &operator<<(const LightComponentDefinitionBase &component);
 
         // For future extensibility
       };
@@ -655,20 +652,6 @@ namespace loka
         }
 
         DerivedT &operator<<(const ComponentDefinitionBase &component)
-        {
-          DerivedT *self = static_cast<DerivedT *>(this);
-          static_cast<INestableDefinition &>(*self) << component;
-          return *self;
-        }
-
-        DerivedT &operator<<(LightComponentDefinitionBase &component)
-        {
-          DerivedT *self = static_cast<DerivedT *>(this);
-          static_cast<INestableDefinition &>(*self) << component;
-          return *self;
-        }
-
-        DerivedT &operator<<(const LightComponentDefinitionBase &component)
         {
           DerivedT *self = static_cast<DerivedT *>(this);
           static_cast<INestableDefinition &>(*self) << component;
