@@ -1005,7 +1005,15 @@ namespace loka
           loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
           for (Node *child = it.next(); child; child = it.next())
           {
-            composeTree(child, *contextForChildren, event, nextBoundary);
+            ComposeEvent childEvent = event;
+            if ((event == COMPOSE_EVENT_UPDATE || event == COMPOSE_EVENT_ATTACH) && child->consumePendingAttach())
+            {
+              if (event == COMPOSE_EVENT_UPDATE)
+              {
+                childEvent = COMPOSE_EVENT_ATTACH;
+              }
+            }
+            composeTree(child, *contextForChildren, childEvent, nextBoundary);
           }
         }
 

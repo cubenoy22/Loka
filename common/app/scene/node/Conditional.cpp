@@ -105,6 +105,7 @@ namespace loka
         activeNode = nextNode;
         if (activeNode)
         {
+          activeNode->setPendingAttach(true);
           addChild(activeNode);
         }
       }
