@@ -752,11 +752,7 @@ namespace loka
             Node *existing = findCompositionChildByTag(definition->nodeTag());
             if (existing && definition->isCompatibleWithNode(existing))
             {
-              BoundaryLocalRebuildPlanEntry entry;
-              entry.node = existing;
-              entry.action = BoundaryLocalRebuildPlanEntry::ACTION_RETAIN;
-              entry.tag = definition->nodeTag();
-              plan.entries.push_back(entry);
+              plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retain(existing, definition->nodeTag()));
             }
             else
             {
@@ -766,12 +762,9 @@ namespace loka
               {
                 return false;
               }
-              BoundaryLocalRebuildPlanEntry entry;
-              entry.node = created;
-              entry.previousNode = existing;
-              entry.action = existing ? BoundaryLocalRebuildPlanEntry::ACTION_REPLACE : BoundaryLocalRebuildPlanEntry::ACTION_ATTACH;
-              entry.tag = definition->nodeTag();
-              plan.entries.push_back(entry);
+              plan.entries.push_back(existing
+                                         ? BoundaryLocalRebuildPlanEntry::replace(created, existing, definition->nodeTag())
+                                         : BoundaryLocalRebuildPlanEntry::attach(created, definition->nodeTag()));
             }
             definition = definition->nextInComposition;
           }
@@ -786,11 +779,7 @@ namespace loka
           {
             if (findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
             {
-              BoundaryLocalRebuildPlanEntry entry;
-              entry.node = liveChild;
-              entry.action = BoundaryLocalRebuildPlanEntry::ACTION_RETIRE;
-              entry.tag = liveChild->nodeTag();
-              plan.entries.push_back(entry);
+              plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retire(liveChild, liveChild->nodeTag()));
             }
           }
           return true;

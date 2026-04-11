@@ -32,6 +32,42 @@ namespace loka
         {
         }
 
+        static BoundaryLocalRebuildPlanEntry retain(Node *nodeValue, NodeTag tagValue)
+        {
+          BoundaryLocalRebuildPlanEntry entry;
+          entry.node = nodeValue;
+          entry.tag = tagValue;
+          return entry;
+        }
+
+        static BoundaryLocalRebuildPlanEntry attach(Node *nodeValue, NodeTag tagValue)
+        {
+          BoundaryLocalRebuildPlanEntry entry;
+          entry.node = nodeValue;
+          entry.action = ACTION_ATTACH;
+          entry.tag = tagValue;
+          return entry;
+        }
+
+        static BoundaryLocalRebuildPlanEntry replace(Node *nodeValue, Node *previousNodeValue, NodeTag tagValue)
+        {
+          BoundaryLocalRebuildPlanEntry entry;
+          entry.node = nodeValue;
+          entry.previousNode = previousNodeValue;
+          entry.action = ACTION_REPLACE;
+          entry.tag = tagValue;
+          return entry;
+        }
+
+        static BoundaryLocalRebuildPlanEntry retire(Node *nodeValue, NodeTag tagValue)
+        {
+          BoundaryLocalRebuildPlanEntry entry;
+          entry.node = nodeValue;
+          entry.action = ACTION_RETIRE;
+          entry.tag = tagValue;
+          return entry;
+        }
+
         Node *node;
         Node *previousNode;
         Action action;
