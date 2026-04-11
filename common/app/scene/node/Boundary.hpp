@@ -599,7 +599,7 @@ namespace loka
           }
 
           BoundaryLocalRebuildPlan plan;
-          if (!buildLocalRebuildPlan(context, *currentRoot, plan))
+          if (!buildLocalRebuildPlan(*currentRoot, plan))
           {
             return false;
           }
@@ -735,8 +735,7 @@ namespace loka
           this->applyPendingLocalPaint(plan);
         }
 
-        bool buildLocalRebuildPlan(ComponentContext &context,
-                                   const INestableDefinition &currentRoot,
+        bool buildLocalRebuildPlan(const INestableDefinition &currentRoot,
                                    BoundaryLocalRebuildPlan &plan)
         {
           // This translates the current desired child set into a concrete
