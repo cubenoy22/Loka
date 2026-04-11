@@ -3,8 +3,6 @@ project(Loka LANGUAGES CXX)
 
 option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(TEST_BUILD "Enable test build mode" OFF)
-option(LOKA_ENABLE_DEBUG_LOGS "Enable debug log output such as LOKA_DEBUG_RECOMPOSE traces" ON)
-
 set(LOKA_CLASSIC_MAC OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_CLASSIC_MAC ON)
@@ -37,9 +35,9 @@ endif()
 if(WIN32 OR (APPLE AND LOKA_ENABLE_APPLE) OR LOKA_CLASSIC_MAC)
 add_subdirectory(example/HelloWorld)
 add_subdirectory(example/MineSweeper)
-add_subdirectory(example/PerfArena)
 add_subdirectory(example/SimpleViewer)
 add_subdirectory(example/FloppyBird)
+add_subdirectory(example/Tutorial)
 endif()
 
 # Linux/WSL headless tests (Flow DSL focused).

@@ -53,10 +53,10 @@ namespace helloworld
           VStack()
           << Text("BMI Calculator")
           << Text("Height (cm)")
-          << EditText(this->heightInput_)
+          << EditText(this->heightInput_.state())
           << Text("Weight (kg)")
-          << EditText(this->weightInput_)
-          << Text(this->bmiResult_));
+          << EditText(this->weightInput_.state())
+          << Text(this->bmiResult_.state()));
     }
 
     void composeInto(loka::app::scene::NodeComposition &c,

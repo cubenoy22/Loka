@@ -51,7 +51,7 @@ namespace minesweeper
       grid.rows(kRows).cols(kCols);
       for (int i = 0; i < kCellCount; ++i)
       {
-        grid << Cell(this->cellText_[i]).onClick(&this->cellClick_[i]);
+        grid << Cell(this->cellText_[i].state()).onClick(&this->cellClick_[i]);
       }
       c.declare(grid);
     }

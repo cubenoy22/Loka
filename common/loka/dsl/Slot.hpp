@@ -20,6 +20,24 @@ namespace loka
         return Member<T, M, Ptr>(slotIndex);
       }
     };
+
+    template <typename T>
+    struct ValueSlot
+    {
+      int slotIndex;
+
+      explicit ValueSlot(int index = 1) : slotIndex(index) {}
+
+      Expr<T, ValueExpr<T> > value() const
+      {
+        return Value<T>(slotIndex);
+      }
+
+      operator Expr<T, ValueExpr<T> >() const
+      {
+        return value();
+      }
+    };
   } // namespace dsl
 } // namespace loka
 

@@ -4,6 +4,7 @@
 #include <cstddef>
 
 #include "loka/core/String.hpp"
+#include "loka/core/Vector.hpp"
 
 namespace loka
 {
@@ -33,6 +34,7 @@ namespace loka
     template <typename T, typename NodeT>
     struct Expr
     {
+      typedef T Result;
       NodeT node;
 
       Expr() : node() {}
@@ -101,6 +103,58 @@ namespace loka
     inline Expr<M, MemberExpr<T, M, Ptr> > Member(int slotIndex)
     {
       return Expr<M, MemberExpr<T, M, Ptr> >(MemberExpr<T, M, Ptr>(slotIndex));
+    }
+
+    template <typename T>
+    struct ValueExpr
+    {
+      int slotIndex;
+      ValueExpr() : slotIndex(0) {}
+      explicit ValueExpr(int index) : slotIndex(index) {}
+
+      T eval(const EvalContext &ctx) const
+      {
+        T *value = static_cast<T *>(ctx.slots[slotIndex]);
+        return value ? *value : T();
+      }
+    };
+
+    template <typename T>
+    inline Expr<T, ValueExpr<T> > Value(int slotIndex)
+    {
+      return Expr<T, ValueExpr<T> >(ValueExpr<T>(slotIndex));
+    }
+
+    template <typename T, typename IndexExprT>
+    struct VectorAtExpr
+    {
+      const loka::Vector<T> *values;
+      Expr<int, IndexExprT> index;
+
+      VectorAtExpr() : values(0), index() {}
+      VectorAtExpr(const loka::Vector<T> &source, const Expr<int, IndexExprT> &indexExpr)
+          : values(&source), index(indexExpr) {}
+
+      T eval(const EvalContext &ctx) const
+      {
+        if (!values || values->empty())
+        {
+          return T();
+        }
+        int i = index.eval(ctx);
+        if (i < 0 || static_cast<std::size_t>(i) >= values->size())
+        {
+          i = 0;
+        }
+        return (*values)[static_cast<std::size_t>(i)];
+      }
+    };
+
+    template <typename T, typename IndexExprT>
+    inline Expr<T, VectorAtExpr<T, IndexExprT> > At(const loka::Vector<T> &values,
+                                                    const Expr<int, IndexExprT> &index)
+    {
+      return Expr<T, VectorAtExpr<T, IndexExprT> >(VectorAtExpr<T, IndexExprT>(values, index));
     }
 
     template <typename Op, typename LExpr, typename RExpr>

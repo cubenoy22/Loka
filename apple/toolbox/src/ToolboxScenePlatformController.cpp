@@ -1043,7 +1043,7 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   {
     return;
   }
-  if (info.hasStructureWork || info.hasLayoutWork || !info.hasPaintWork())
+  if (!info.hasAnyWork())
   {
     return;
   }
@@ -1051,7 +1051,8 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   if (!info.hasBoundsHint())
   {
     Rect surfaceDirtyRect;
-    if (ContainsOnlyRectSurfacePainting(boundary) &&
+    if (info.hasPaintWork() &&
+        ContainsOnlyRectSurfacePainting(boundary) &&
         CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
     {
       window_->requestInvalidateRect(surfaceDirtyRect);
@@ -1817,10 +1818,17 @@ void ToolboxScenePlatformController::endBatchUpdate()
   inBatchUpdate_ = false;
   if (window_)
   {
+    if (pendingRootNode_)
+    {
+      rootNode_ = pendingRootNode_;
+    }
     const bool handledLocalDirty = !pendingDirtyRects_.empty();
     const bool handledLocalText = !pendingTextStates_.empty();
+    const bool hasChildDirty =
+        (pendingInvalidateFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0;
     const bool skipFollowupInvalidate =
         !pendingFullInvalidate_ &&
+        !hasChildDirty &&
         (handledLocalDirty || handledLocalText);
     // Draw pending dirty rects without forcing full render
     // The textHits_ from previous render should still be valid for positions
@@ -1837,6 +1845,10 @@ void ToolboxScenePlatformController::endBatchUpdate()
       requestInvalidateForChange(pendingRootNode_ ? pendingRootNode_ : rootNode_,
                                  pendingInvalidateFlags_,
                                  pendingFullInvalidate_);
+    }
+    if (window_->hasPendingInvalidate())
+    {
+      window_->flushInvalidate();
     }
   }
   pendingDirtyRects_.clear();
@@ -1944,6 +1956,13 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   }
   if ((flags == loka::app::scene::NODE_DIRTY_NONE) && !fullRebuild)
   {
+    return;
+  }
+  if (flags & loka::app::scene::NODE_DIRTY_CHILD)
+  {
+    ++debugStats_.fullInvalidateRequests;
+    ++debugStats_.totalFullInvalidateRequests;
+    window_->requestInvalidateWithReason("child_dirty");
     return;
   }
   if (fullRebuild || !rootNodeForChange)

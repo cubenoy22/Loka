@@ -45,23 +45,6 @@
       "problemMatcher": "$gcc"
     },
     {
-      "label": "Build: macOS PerfArena",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "macos-debug",
-        "--target",
-        "LokaPerfArenaMacOS"
-      ],
-      "dependsOn": [
-        "Configure: macOS Native"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
       "label": "Build: macOS SimpleViewer",
       "type": "shell",
       "command": "cmake",
@@ -96,13 +79,32 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS Tutorial",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaTutorialMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS Tests",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "--preset",
-        "macos-tests"
+        "macos-tests",
+        "--target",
+        "LokaTestsMacOS"
       ],
       "dependsOn": [
         "Configure: macOS Native"
@@ -137,20 +139,6 @@
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Build: Win32 PerfArena",
-      "type": "shell",
-      "command": "cmake",
-      "args": [
-        "--build",
-        "--preset",
-        "win32-debug",
-        "--target",
-        "LokaPerfArenaWin32"
-      ],
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
       "label": "Build: Win32 SimpleViewer",
       "type": "shell",
       "command": "cmake",
@@ -179,13 +167,29 @@
       "problemMatcher": "$msCompile"
     },
     {
+      "label": "Build: Win32 Tutorial",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaTutorialWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
       "label": "Build: Win32 Tests",
       "type": "shell",
       "command": "cmake",
       "args": [
         "--build",
         "--preset",
-        "win32-tests"
+        "win32-tests",
+        "--target",
+        "LokaTestsWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"

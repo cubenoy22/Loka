@@ -18,14 +18,6 @@
       "preLaunchTask": "Build: macOS MineSweeper"
     },
     {
-      "name": "Run (macOS PerfArena)",
-      "type": "lldb-dap",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/macos/Debug/example/PerfArena/LokaPerfArenaMacOS",
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Build: macOS PerfArena"
-    },
-    {
       "name": "Run (macOS SimpleViewer)",
       "type": "lldb-dap",
       "request": "launch",
@@ -40,6 +32,14 @@
       "program": "${workspaceFolder}/build/macos/Debug/example/FloppyBird/LokaFloppyBirdMacOS",
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "Build: macOS FloppyBird"
+    },
+    {
+      "name": "Run (macOS Tutorial)",
+      "type": "lldb-dap",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/macos/Debug/example/Tutorial/LokaTutorialMacOS",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Build: macOS Tutorial"
     },
     {
       "name": "Test (macOS)",
@@ -68,15 +68,6 @@
       "preLaunchTask": "Build: Win32 MineSweeper"
     },
     {
-      "name": "Run (Windows PerfArena)",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/win32/Debug/example/PerfArena/LokaPerfArenaWin32.exe",
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "preLaunchTask": "Build: Win32 PerfArena"
-    },
-    {
       "name": "Run (Windows SimpleViewer)",
       "type": "cppvsdbg",
       "request": "launch",
@@ -93,6 +84,15 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 FloppyBird"
+    },
+    {
+      "name": "Run (Windows Tutorial)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/win32/Debug/example/Tutorial/LokaTutorialWin32.exe",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false,
+      "preLaunchTask": "Build: Win32 Tutorial"
     },
     {
       "name": "Test (Windows)",

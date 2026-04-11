@@ -65,6 +65,19 @@ void ToolboxApp::run()
     flushPendingWindowClosures();
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
+    if (group_)
+    {
+      const std::vector<AppComponent *> &comps = group_->getComponents();
+      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      {
+        Window *w = (*it)->asWindow();
+        ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
+        if (toolboxWindow && toolboxWindow->hasPendingInvalidate())
+        {
+          toolboxWindow->flushInvalidate();
+        }
+      }
+    }
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
     if (event.what == nullEvent && group_)
@@ -129,11 +142,6 @@ void ToolboxApp::run()
           ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
-            if (toolboxWindow->shouldSkipNextUpdateDraw())
-            {
-              toolboxWindow->clearSkipNextUpdateDraw();
-              break;
-            }
             if (toolboxWindow->scenePlatformController())
             {
               toolboxWindow->scenePlatformController()->noteWindowUpdateEvtDraw();
@@ -211,6 +219,11 @@ void ToolboxApp::run()
             continue;
           }
           bool inEdit = clicked->handleMouseDown(event.where);
+          this->flushWindowInvalidations();
+          if (clicked->hasPendingInvalidate())
+          {
+            clicked->flushInvalidate();
+          }
           if (inEdit)
           {
             CursHandle ibeam = GetCursor(iBeamCursor);

@@ -161,7 +161,7 @@ namespace loka
       }
       virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
       {
-        if (this->props.text_)
+        if (this->props.text_ && !this->props.ownsText_)
         {
           registrar.observe(this->props.text_, loka::app::scene::NODE_DIRTY_PROPS);
         }

@@ -19,6 +19,8 @@
 - Prefer `deferBind` for UI reflection or lazy updates; use `bind` only when immediate recompute is required.
 - Classic stability: avoid transient data in DSL props (e.g., pass stable pointers/references); if props own data, ensure copy/clone rebinds internal pointers safely.
 - UI props constant-value policy: do not route DSL constant props through `StaticState<T>` in production UI code. For values such as button/cell text or menu enabled flags, props/definitions should own the constant value directly and only use `State<T>*` when live updates are actually required.
+- Ownership/binding policy: distinguish borrowed live state from props-owned constant values explicitly. Props-owned constant values may reuse internal storage helpers, but they must not be registered as observed state or bound/unbound through NativeContext live-state paths.
+- Native binding policy: `PlatformController`/`NativeContext` code should bind only states that the logical node layer has classified as live. Avoid re-deciding liveness in platform code except for defensive guards.
 - NativeContext should guard against null/empty state before drawing or binding.
 - RTTI (`dynamic_cast`) is prohibited in DSL/scene code due to severe performance impact on 68k. Use virtual methods (`asXxx()`) or `NodeKind` checks instead. Add new `asXxx()` methods to Node when type-specific access is needed.
 - Prefer intrusive linked lists over `std::vector` when elements are heap-allocated anyway; adding a `next_` pointer avoids separate allocations and reallocation costs. On 68k, this primitive approach often outperforms "smart" containers.
@@ -29,6 +31,12 @@
 - When profiling multiple sections inside one function, use `PROFILE_SECTION_ID` to avoid `__LINE__` collisions.
 - DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `LightComponent` to inline into the parent composition when you don't need an independent lifecycle.
 - Ownership policy: follow gravity. Parent owns child-facing state/data by default; cross-boundary sharing must be explicit (`Managed<T>` or equivalent), and broad reuse should prefer global caches for immutable/shared resources. Avoid designs where a child effectively owns or stabilizes its parent.
+- Boundary access policy: `currentBoundary()` is the owner-side path; `findBoundary()` is for direct-parent borrowed access only. Do not rely on multi-hop or sibling boundary traversal from DSL code.
+- State creation policy: prefer `declareStates()` for ordinary boundary-owned mutable state. Treat ad hoc state creation helpers such as `dangerouslyUseState()` / `dangerouslyUseManagedState()` as escape hatches that require explicit review.
+- Dangerous state API policy: keep `dangerously*` state access/creation callsites out of normal `common/` and `example/` DSL code unless there is a documented reason. A new `dangerously*` usage should be treated as a design event, not routine implementation.
+- BoundState storage policy: a component may keep `BoundState<T>` members only for its own boundary-owned state declared through `declareStates()`. Do not expose `BoundState<T>` across boundary lines or use it as a foreign mutation channel.
+- BoundState pass-through policy: when a DSL/API needs read-only live state, pass `boundState.state()` explicitly instead of relying on implicit conversions from `BoundState<T>`.
+- BoundState internal-surface policy: owner/tracker access on `BoundState<T>` is internal and should stay behind `dangerously*` naming; ordinary DSL code should use `get()`, `set()`, and `.state()` only.
 - DSL design: prefer one-shot Static composition for 68k/Classic unless you truly need updates; extra compose passes are expensive.
 - Attr policy (68k): keep default attr structs as small PODs (target roughly <= 16-32 bytes). Avoid embedding heavy owned data in default attrs; route heavier payloads through explicit extended/pro attr types or external state handles.
 - DSL props API policy: `Props` is the canonical/full API surface. `Definition` setters are optional shorthand only for frequently used fields in DSL call sites.

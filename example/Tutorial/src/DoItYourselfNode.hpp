@@ -1,0 +1,37 @@
+#ifndef LOKA_TUTORIAL_DO_IT_YOURSELF_NODE_HPP
+#define LOKA_TUTORIAL_DO_IT_YOURSELF_NODE_HPP
+
+#include "TutorialShared.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
+#include "app/scene/node/StaticComposition.hpp"
+
+namespace tutorial
+{
+  class DoItYourselfNode : public loka::app::scene::BoundaryNodeFor<DoItYourselfNode>
+  {
+  public:
+    typedef loka::app::scene::BoundaryPropsFor<DoItYourselfNode> PropsType;
+
+    DoItYourselfNode(const PropsType &p)
+        : loka::app::scene::BoundaryNodeFor<DoItYourselfNode>(p)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      c.declare(VStack()
+                << TutorialTitle("Loka Tutorial")
+                << Text("Edit DoItYourselfNode.hpp and build the scene yourself.")
+                << TutorialHint("Then switch TutorialNode in MyAppConfig.hpp to Step1Node ... Step4Node for answers.")
+                << Text("Suggested order:")
+                << Text("1. Show Hello, Loka")
+                << Text("2. Add an Increment button")
+                << Text("3. Add Show(condition) details")
+                << Text("4. Add a revealed item list and derive summary text with stream().map()"));
+    }
+  };
+} // namespace tutorial
+
+#endif // LOKA_TUTORIAL_DO_IT_YOURSELF_NODE_HPP

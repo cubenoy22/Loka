@@ -35,15 +35,11 @@ namespace helloworld
     void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
-    void handleFruitChanged();
-
     MainNode *owner_;
     bool initialized_;
-    int lastFruitMessageIndex_;
     loka::app::scene::BoundState<int> fruitIndex_;
     loka::app::scene::BoundState<loka::core::String> fruitMessage_;
     loka::Vector<loka::core::String> fruits_;
-    loka::core::EmitterState fruitChangedEvent_;
   };
 
 } // namespace helloworld

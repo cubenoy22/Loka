@@ -1,19 +1,19 @@
 cmake_minimum_required(VERSION 3.15)
-project(LokaMineSweeper LANGUAGES CXX)
+project(LokaTutorial LANGUAGES CXX)
 
 if(APPLE)
   enable_language(OBJCXX)
 endif()
 
 if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
-  add_custom_target(LokaMineSweeper ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "LokaMineSweeper has no supported platform target here."
+  add_custom_target(LokaTutorial ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "LokaTutorial has no supported platform target here."
   )
   return()
 endif()
 
 if(WIN32)
-  set(MINESWEEPER_SOURCES
+  set(TUTORIAL_SOURCES
     src/main.cpp
   )
 
@@ -24,20 +24,21 @@ if(WIN32)
   option(USE_CONSOLE_SUBSYSTEM "Use console subsystem for debugging" OFF)
 
   if(USE_CONSOLE_SUBSYSTEM)
-    add_executable(LokaMineWin32 ${MINESWEEPER_SOURCES})
+    add_executable(LokaTutorialWin32 ${TUTORIAL_SOURCES})
   else()
-    add_executable(LokaMineWin32 WIN32 ${MINESWEEPER_SOURCES})
+    add_executable(LokaTutorialWin32 WIN32 ${TUTORIAL_SOURCES})
   endif()
 
-  target_include_directories(LokaMineWin32 PRIVATE
+  target_include_directories(LokaTutorialWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
 
-  target_link_libraries(LokaMineWin32 PRIVATE LokaWin32Core)
+  target_link_libraries(LokaTutorialWin32 PRIVATE LokaWin32Core)
 
   if(MSVC)
-    target_compile_options(LokaMineWin32 PRIVATE /utf-8)
+    target_compile_options(LokaTutorialWin32 PRIVATE /utf-8)
   endif()
 endif()
 
@@ -46,50 +47,51 @@ if(APPLE)
     src/MacOSMain.mm
   )
 
-  add_executable(LokaMineMacOS ${MACOS_SOURCES})
+  add_executable(LokaTutorialMacOS ${MACOS_SOURCES})
 
-  target_include_directories(LokaMineMacOS PRIVATE
+  target_include_directories(LokaTutorialMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src/context
   )
 
-  target_link_libraries(LokaMineMacOS PRIVATE LokaMacOSCore)
+  target_link_libraries(LokaTutorialMacOS PRIVATE LokaMacOSCore)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(LokaMineMacOS PRIVATE "-fno-objc-arc")
+    target_compile_options(LokaTutorialMacOS PRIVATE "-fno-objc-arc")
   endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
-  set(LOKA_MINE_CLASSIC_TARGET "LokaMine${LOKA_CLASSIC_TARGET_SUFFIX}")
+  set(LOKA_TUTORIAL_CLASSIC_TARGET "LokaTutorial${LOKA_CLASSIC_TARGET_SUFFIX}")
   set(RETRO_SOURCES
     src/main.cpp
   )
 
-  add_application(${LOKA_MINE_CLASSIC_TARGET} ${RETRO_SOURCES})
+  add_application(${LOKA_TUTORIAL_CLASSIC_TARGET} ${RETRO_SOURCES})
 
-  target_include_directories(${LOKA_MINE_CLASSIC_TARGET} PRIVATE
+  target_include_directories(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
-  target_link_libraries(${LOKA_MINE_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
+  target_link_libraries(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
 
-  target_compile_definitions(${LOKA_MINE_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
+  target_compile_definitions(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
 
-  set_target_properties(${LOKA_MINE_CLASSIC_TARGET} PROPERTIES
+  set_target_properties(${LOKA_TUTORIAL_CLASSIC_TARGET} PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
 
-  target_compile_options(${LOKA_MINE_CLASSIC_TARGET} PRIVATE
+  target_compile_options(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE
     -Os
     -ffunction-sections
     -fdata-sections
     -fno-exceptions
   )
-  target_link_options(${LOKA_MINE_CLASSIC_TARGET} PRIVATE
+  target_link_options(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE
     -Wl,--gc-sections
   )
 
@@ -103,10 +105,10 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
         "${RETRO68_TOOLCHAIN_DIR}/../bin"
     )
     if(RETRO68_STRIP)
-      add_custom_command(TARGET ${LOKA_MINE_CLASSIC_TARGET} POST_BUILD
+      add_custom_command(TARGET ${LOKA_TUTORIAL_CLASSIC_TARGET} POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
           -DSTRIP_TOOL="${RETRO68_STRIP}"
-          -DSTRIP_INPUT="$<TARGET_FILE:${LOKA_MINE_CLASSIC_TARGET}>.gdb"
+          -DSTRIP_INPUT="$<TARGET_FILE:${LOKA_TUTORIAL_CLASSIC_TARGET}>.gdb"
           -P "${CMAKE_SOURCE_DIR}/cmake/strip_classic.cmake"
         COMMENT "Stripping Classic debug binary"
       )

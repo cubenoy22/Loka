@@ -32,6 +32,26 @@ namespace loka
       typedef FragmentTypeTag TypeTag;
       FragmentProps props;
       FragmentNode(const FragmentProps &p) : props(p) {}
+      virtual void render(scene::IPlatformController *controller)
+      {
+        scene::Node *child = this->childrenHead();
+        while (child)
+        {
+          child->render(controller);
+          child = child->nextInComposition;
+        }
+      }
+      virtual short layout(scene::IPlatformController *controller, scene::LayoutState &state)
+      {
+        short result = 0;
+        scene::Node *child = this->childrenHead();
+        while (child)
+        {
+          result = child->layout(controller, state);
+          child = child->nextInComposition;
+        }
+        return result;
+      }
     };
 
     struct FragmentDefinition : public scene::NodeDefinition<FragmentProps, FragmentNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<FragmentDefinition>

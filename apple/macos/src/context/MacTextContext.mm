@@ -151,7 +151,12 @@ namespace
 }
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
-    : node_(node), parentView_(parentView), label_(0), textState_(0), didInitialApply_(false)
+    : node_(node),
+      parentView_(parentView),
+      label_(0),
+      textState_(0),
+      textStateBound_(false),
+      didInitialApply_(false)
 {
   NSView *parent = (NSView *)parentView;
   NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -248,9 +253,14 @@ void MacTextContext::bindText()
     return;
   }
   textState_ = static_cast<loka::core::State<loka::core::String> *>(node_->props.text_);
+  textStateBound_ = false;
   if (textState_)
   {
-    textState_->deferBind(&MacTextContext::TextChangedThunk, this);
+    if (!node_->props.ownsText)
+    {
+      textState_->deferBind(&MacTextContext::TextChangedThunk, this);
+      textStateBound_ = true;
+    }
     applyText();
   }
 }
@@ -259,8 +269,12 @@ void MacTextContext::unbindText()
 {
   if (textState_)
   {
-    textState_->deferUnbind(&MacTextContext::TextChangedThunk, this);
+    if (textStateBound_)
+    {
+      textState_->deferUnbind(&MacTextContext::TextChangedThunk, this);
+    }
     textState_ = 0;
+    textStateBound_ = false;
   }
 }
 

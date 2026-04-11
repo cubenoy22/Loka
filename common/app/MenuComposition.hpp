@@ -31,7 +31,7 @@ namespace loka
       loka::core::StateTracker *tracker() { return &tracker_; }
 
       template <typename T>
-      loka::core::MutableState<T> &useState(const T &initial)
+      loka::core::MutableState<T> &dangerouslyUseState(const T &initial)
       {
         loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
         ownedStates_.push_back(state);
@@ -130,10 +130,10 @@ namespace loka
       }
 
       template <typename T>
-      loka::core::MutableState<T> &useState(const T &initial)
+      loka::core::MutableState<T> &dangerouslyUseState(const T &initial)
       {
-        assert(activeBoundary_ && "MenuComposition::useState requires MenuBoundary");
-        return activeBoundary_->useState(initial);
+        assert(activeBoundary_ && "MenuComposition::dangerouslyUseState requires MenuBoundary");
+        return activeBoundary_->dangerouslyUseState(initial);
       }
 
     private:

@@ -291,7 +291,7 @@ namespace loka
       }
       virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
       {
-        if (this->props.text_)
+        if (this->props.text_ && !this->props.ownsText)
         {
           scene::NodeDirtyFlags textFlags = scene::NODE_DIRTY_PROPS;
           if (this->props.hasAttr_ &&

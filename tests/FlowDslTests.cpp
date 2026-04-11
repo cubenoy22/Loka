@@ -1,16 +1,18 @@
 #include "FlowDslTests.hpp"
 
 #include <cassert>
+#include <cstring>
 #include <cstdio>
 #include <vector>
 
 #include "app/Box.hpp"
 #include "app/Button.hpp"
+#include "app/Cell.hpp"
+#include "app/Show.hpp"
 #include "app/Text.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
-#include "app/scene/node/DynamicComposition.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
@@ -30,43 +32,108 @@ namespace {
     int calls;
   };
 
-  class PendingChildBoundaryNode;
-  typedef loka::app::scene::DynamicCompositionPropsFor<PendingChildBoundaryNode> PendingChildBoundaryProps;
-
-  class PendingChildBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<PendingChildBoundaryNode>
-  {
-  public:
-    PendingChildBoundaryNode(const PendingChildBoundaryProps &p)
-        : loka::app::scene::DynamicCompositionNodeFor<PendingChildBoundaryNode>(PendingChildBoundaryProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      c.declare(loka::app::Text("Child").testId("PendingChildText"));
-    }
-  };
-
-  class PendingRootBoundaryNode;
-  typedef loka::app::scene::DynamicCompositionPropsFor<PendingRootBoundaryNode> PendingRootBoundaryProps;
-
-  class PendingRootBoundaryNode : public loka::app::scene::DynamicCompositionNodeFor<PendingRootBoundaryNode>
-  {
-  public:
-    PendingRootBoundaryNode(const PendingRootBoundaryProps &p)
-        : loka::app::scene::DynamicCompositionNodeFor<PendingRootBoundaryNode>(PendingRootBoundaryProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      c.declare(loka::app::scene::DynamicCompositionBoundary<PendingChildBoundaryNode>());
-    }
-  };
-
-  class PendingStaticRootNode;
-  typedef loka::app::scene::BoundaryPropsFor<PendingStaticRootNode> PendingStaticRootProps;
-  static loka::core::MutableState<bool> g_pendingChildSwapState(false);
-
   class PendingLayoutBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingLayoutBoundaryNode> PendingLayoutBoundaryProps;
   static loka::core::MutableState<int> g_pendingLayoutWidthState(32);
+  struct RecordingObservedStateRegistrar : public loka::app::scene::ObservedStateRegistrar
+  {
+    RecordingObservedStateRegistrar() : calls(0), lastState(0), lastFlags(loka::app::scene::NODE_DIRTY_NONE) {}
+
+    virtual void observe(loka::core::StateBase *state, loka::app::scene::NodeDirtyFlags flags)
+    {
+      ++calls;
+      lastState = state;
+      lastFlags = flags;
+    }
+
+    int calls;
+    loka::core::StateBase *lastState;
+    loka::app::scene::NodeDirtyFlags lastFlags;
+  };
+  class BoundaryLookupTestApi
+  {
+  public:
+    static const char *kInterfaceName() { return "BoundaryLookupTestApi"; }
+    static BoundaryLookupTestApi *fromNode(loka::app::scene::Node *node)
+    {
+      if (!node)
+      {
+        return 0;
+      }
+      return static_cast<BoundaryLookupTestApi *>(node->queryInterface(kInterfaceName()));
+    }
+    virtual ~BoundaryLookupTestApi() {}
+    virtual int id() const = 0;
+  };
+
+  class BoundaryLookupTestNode : public loka::app::scene::Node, public BoundaryLookupTestApi
+  {
+  public:
+    explicit BoundaryLookupTestNode(int value) : value_(value) {}
+
+    virtual void *queryInterface(const char *name)
+    {
+      return name && std::strcmp(name, kInterfaceName()) == 0 ? static_cast<BoundaryLookupTestApi *>(this) : 0;
+    }
+
+    virtual int id() const { return value_; }
+
+  private:
+    int value_;
+  };
+
+  class BoundaryLookupStateApi
+  {
+  public:
+    static const char *kInterfaceName() { return "BoundaryLookupStateApi"; }
+    static BoundaryLookupStateApi *fromNode(loka::app::scene::Node *node)
+    {
+      if (!node)
+      {
+        return 0;
+      }
+      return static_cast<BoundaryLookupStateApi *>(node->queryInterface(kInterfaceName()));
+    }
+    virtual ~BoundaryLookupStateApi() {}
+    virtual loka::app::scene::BorrowedState<int> countState() const = 0;
+  };
+
+  class BoundaryLookupStateNode : public loka::app::scene::Node, public BoundaryLookupStateApi
+  {
+  public:
+    explicit BoundaryLookupStateNode(int value) : count_(value) {}
+
+    virtual void *queryInterface(const char *name)
+    {
+      return name && std::strcmp(name, kInterfaceName()) == 0 ? static_cast<BoundaryLookupStateApi *>(this) : 0;
+    }
+
+    virtual loka::app::scene::BorrowedState<int> countState() const
+    {
+      return loka::app::scene::BorrowedState<int>(const_cast<loka::core::MutableState<int> *>(&count_));
+    }
+
+  private:
+    loka::core::MutableState<int> count_;
+  };
+
+  class DummyStateOwner : public loka::app::scene::IStateOwner
+  {
+  public:
+    DummyStateOwner() : tracker_(0) {}
+
+    virtual void adoptState(loka::core::StateBase *) {}
+    virtual void adoptStateUnchecked(loka::core::StateBase *) {}
+    virtual void reserveStates(size_t) {}
+    virtual void reserveStateArena(size_t) {}
+    virtual void *allocateStateMemory(size_t, size_t) { return 0; }
+    virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
+    virtual loka::core::StateTracker *tracker() { return tracker_; }
+
+  private:
+    loka::core::StateTracker *tracker_;
+  };
+
   class PendingApplyProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingApplyProbeBoundaryNode> PendingApplyProbeBoundaryProps;
   static int g_pendingApplyCallCount = 0;
@@ -231,6 +298,58 @@ namespace {
     }
   };
 
+  class SameBoundaryConditionalProbeNode;
+  typedef loka::app::scene::BoundaryPropsFor<SameBoundaryConditionalProbeNode> SameBoundaryConditionalProbeProps;
+  static SameBoundaryConditionalProbeNode *g_sameBoundaryConditionalProbe = 0;
+
+  class SameBoundaryConditionalProbeNode : public loka::app::scene::BoundaryNodeFor<SameBoundaryConditionalProbeNode>
+  {
+  public:
+    SameBoundaryConditionalProbeNode(const SameBoundaryConditionalProbeProps &p)
+        : loka::app::scene::BoundaryNodeFor<SameBoundaryConditionalProbeNode>(SameBoundaryConditionalProbeProps(p)),
+          show_(),
+          toggle_(),
+          initialized_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      c.declareStates().state(this->show_, false);
+      this->bindForUi(this->toggle_, this, &SameBoundaryConditionalProbeNode::toggle);
+      g_sameBoundaryConditionalProbe = this;
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      TextDefinition falseText = Text("Off").testId("SameBoundaryOffText");
+      TextDefinition trueText = Text("On").testId("SameBoundaryOnText");
+      c.declare(Box().testId("SameBoundaryRoot")
+                << c.conditional(*this->show_.state(), trueText, falseText));
+    }
+
+    void emitToggle()
+    {
+      this->toggle_.emit();
+    }
+
+  private:
+    void toggle()
+    {
+      this->show_.set(!this->show_.get(), true);
+    }
+
+    loka::app::scene::BoundState<bool> show_;
+    loka::core::EmitterState toggle_;
+    bool initialized_;
+  };
+
   class PendingApplySiblingABoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingApplySiblingABoundaryNode>
   {
   public:
@@ -294,46 +413,6 @@ namespace {
       c.declare(loka::app::VStack()
                 << loka::app::scene::BoundaryDefinition<PendingApplySiblingABoundaryProps, PendingApplySiblingABoundaryNode>().tag(101)
                 << loka::app::scene::BoundaryDefinition<PendingApplySiblingBBoundaryProps, PendingApplySiblingBBoundaryNode>().tag(102));
-    }
-  };
-
-
-  class PendingDynamicLeafNode;
-  typedef loka::app::scene::DynamicCompositionPropsFor<PendingDynamicLeafNode> PendingDynamicLeafProps;
-
-  class PendingDynamicLeafNode : public loka::app::scene::DynamicCompositionNodeFor<PendingDynamicLeafNode>
-  {
-  public:
-    PendingDynamicLeafNode(const PendingDynamicLeafProps &p)
-        : loka::app::scene::DynamicCompositionNodeFor<PendingDynamicLeafNode>(PendingDynamicLeafProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      if (g_pendingChildSwapState.get())
-      {
-        c.declare(loka::app::Text("On").testId("PendingDynamicOn"));
-      }
-      else
-      {
-        c.declare(loka::app::Text("Off").testId("PendingDynamicOff"));
-      }
-    }
-
-    virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
-    {
-      registrar.observe(&g_pendingChildSwapState, loka::app::scene::NODE_DIRTY_CHILD);
-    }
-  };
-
-  class PendingStaticRootNode : public loka::app::scene::BoundaryNodeFor<PendingStaticRootNode>
-  {
-  public:
-    PendingStaticRootNode(const PendingStaticRootProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingStaticRootNode>(PendingStaticRootProps(p)) {}
-
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
-      c.declare(loka::app::scene::DynamicCompositionBoundary<PendingDynamicLeafNode>());
     }
   };
 
@@ -804,6 +883,216 @@ namespace {
 
 void testLokaFlowDslV1Core() {
   printf("\n==== [testLokaFlowDslV1Core] start ====\n");
+
+  {
+    RecordingObservedStateRegistrar registrar;
+    loka::app::TextNode constantTextNode(loka::app::TextProps("Constant text"));
+    constantTextNode.declareObservedStates(registrar);
+    assert(registrar.calls == 0);
+
+    loka::core::MutableState<loka::core::String> liveText(loka::core::String::Literal("Live text"));
+    loka::app::TextNode liveTextNode((loka::app::TextProps(&liveText)));
+    liveTextNode.declareObservedStates(registrar);
+    assert(registrar.calls == 1);
+    assert(registrar.lastState == &liveText);
+    assert(registrar.lastFlags == loka::app::scene::NODE_DIRTY_PROPS);
+  }
+
+  {
+    RecordingObservedStateRegistrar registrar;
+    loka::app::ButtonProps constantButtonProps;
+    constantButtonProps.text("Constant button");
+    loka::app::ButtonNode constantButtonNode(constantButtonProps);
+    constantButtonNode.declareObservedStates(registrar);
+    assert(registrar.calls == 0);
+
+    loka::core::MutableState<loka::core::String> liveButtonText(loka::core::String::Literal("Live button"));
+    loka::app::ButtonProps liveButtonProps;
+    liveButtonProps.text(&liveButtonText);
+    loka::app::ButtonNode liveButtonNode(liveButtonProps);
+    liveButtonNode.declareObservedStates(registrar);
+    assert(registrar.calls == 1);
+    assert(registrar.lastState == &liveButtonText);
+    assert(registrar.lastFlags == loka::app::scene::NODE_DIRTY_PROPS);
+  }
+
+  {
+    RecordingObservedStateRegistrar registrar;
+    loka::app::CellProps constantCellProps;
+    constantCellProps.text("Constant cell");
+    loka::app::CellNode constantCellNode(constantCellProps);
+    constantCellNode.declareObservedStates(registrar);
+    assert(registrar.calls == 0);
+
+    loka::core::MutableState<loka::core::String> liveCellText(loka::core::String::Literal("Live cell"));
+    loka::app::CellProps liveCellProps;
+    liveCellProps.text(&liveCellText);
+    loka::app::CellNode liveCellNode(liveCellProps);
+    liveCellNode.declareObservedStates(registrar);
+    assert(registrar.calls == 1);
+    assert(registrar.lastState == &liveCellText);
+    assert(registrar.lastFlags == loka::app::scene::NODE_DIRTY_PROPS);
+  }
+
+  {
+    PendingLayoutBoundaryProps::assertAllowedValueType<int>();
+    PendingLayoutBoundaryProps::assertAllowedValueType<loka::core::State<int> *>();
+    PendingLayoutBoundaryProps::assertAllowedValueType<loka::core::Managed<loka::core::MutableState<int> > >();
+
+    assert((loka::app::scene::BoundaryPropValueRules<int>::kAllowed));
+    assert((loka::app::scene::BoundaryPropValueRules<loka::core::State<int> *>::kAllowed));
+    assert((loka::app::scene::BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<int> > >::kAllowed));
+    assert(!(loka::app::scene::BoundaryPropValueRules<loka::app::scene::BoundState<int> >::kAllowed));
+    assert(!(loka::app::scene::BoundaryPropValueRules<loka::core::MutableState<int> *>::kAllowed));
+    loka::core::MutableState<int> countState(21);
+    loka::app::scene::BorrowedState<int> borrowedCount = PendingLayoutBoundaryProps::borrowed<int>(&countState);
+    loka::core::Managed<loka::core::MutableState<int> > sharedCount =
+        PendingLayoutBoundaryProps::shared(loka::core::Managed<loka::core::MutableState<int> >::Wrap(new loka::core::MutableState<int>(34)));
+    assert(borrowedCount.isValid());
+    assert(borrowedCount.get() == 21);
+    assert(sharedCount.get() != 0);
+    assert(sharedCount.get()->get() == 34);
+  }
+
+  {
+    loka::app::scene::BorrowedState<int> emptyBorrowed;
+    assert(!emptyBorrowed.isValid());
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x6100));
+    composition.setContext(&context);
+
+    const loka::app::scene::NodeComposition::CurrentBoundary current = composition.currentBoundary();
+    assert(!current.isValid());
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext parentBoundaryContext;
+    loka::app::scene::ComponentContext currentBoundaryContext(&parentBoundaryContext);
+    loka::app::scene::ComponentContext childContext(&currentBoundaryContext);
+    BoundaryLookupTestNode parentBoundaryNode(2);
+    loka::app::scene::Node currentBoundaryNode;
+    loka::app::scene::Node childNode;
+
+    parentBoundaryContext.setOwner(&parentBoundaryNode);
+    parentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x2000));
+    currentBoundaryContext.setOwner(&currentBoundaryNode);
+    currentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3000));
+    childContext.setOwner(&childNode);
+    childContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3000));
+    composition.setContext(&childContext);
+
+    loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundParent =
+        composition.findBoundary<BoundaryLookupTestApi>();
+    assert(foundParent.isValid());
+    assert(foundParent.facade().id() == 2);
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+    BoundaryLookupTestNode currentBoundaryNode(4);
+
+    context.setOwner(&currentBoundaryNode);
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x2050));
+    composition.setContext(&context);
+
+    const loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundParent =
+        composition.findBoundary<BoundaryLookupTestApi>();
+    assert(!foundParent.isValid());
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext parentBoundaryContext;
+    loka::app::scene::ComponentContext currentBoundaryContext(&parentBoundaryContext);
+    loka::app::scene::ComponentContext childContext(&currentBoundaryContext);
+    BoundaryLookupStateNode parentBoundaryNode(9);
+    loka::app::scene::Node currentBoundaryNode;
+    loka::app::scene::Node childNode;
+
+    parentBoundaryContext.setOwner(&parentBoundaryNode);
+    parentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x2100));
+    currentBoundaryContext.setOwner(&currentBoundaryNode);
+    currentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3100));
+    childContext.setOwner(&childNode);
+    childContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3100));
+    composition.setContext(&childContext);
+
+    const loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupStateApi> foundParent =
+        composition.findBoundary<BoundaryLookupStateApi>();
+    assert(foundParent.isValid());
+    assert(foundParent.facade().countState().isValid());
+    assert(foundParent.facade().countState().get() == 9);
+  }
+
+  {
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext grandparentContext;
+    loka::app::scene::ComponentContext parentBoundaryContext(&grandparentContext);
+    loka::app::scene::ComponentContext currentBoundaryContext(&parentBoundaryContext);
+    loka::app::scene::ComponentContext childContext(&currentBoundaryContext);
+    BoundaryLookupTestNode grandparentNode(3);
+    loka::app::scene::Node parentBoundaryNode;
+    loka::app::scene::Node currentBoundaryNode;
+    loka::app::scene::Node childNode;
+
+    grandparentContext.setOwner(&grandparentNode);
+    grandparentContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x3000));
+    parentBoundaryContext.setOwner(&parentBoundaryNode);
+    parentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x4000));
+    currentBoundaryContext.setOwner(&currentBoundaryNode);
+    currentBoundaryContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x5000));
+    childContext.setOwner(&childNode);
+    childContext.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x5000));
+    composition.setContext(&childContext);
+
+    loka::app::scene::NodeComposition::FoundBoundary<BoundaryLookupTestApi> foundGrandparent =
+        composition.findBoundary<BoundaryLookupTestApi>();
+    assert(!foundGrandparent.isValid());
+  }
+
+  {
+    DummyStateOwner owner;
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+    loka::core::MutableState<int> ownedValue(3);
+    loka::app::scene::BoundState<int> boundState(&ownedValue, 0, &owner);
+
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x6000));
+    context.setStateOwner(&owner);
+    composition.setContext(&context);
+
+    loka::app::scene::NodeComposition::CurrentBoundary current = composition.currentBoundary();
+    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundState = current.state(boundState);
+    assert(current.isValid());
+    assert(foundState.isValid());
+    assert(foundState.get() == 3);
+    foundState.set(7);
+    assert(ownedValue.get() == 7);
+  }
+
+  {
+    DummyStateOwner currentOwner;
+    DummyStateOwner foreignOwner;
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::ComponentContext context;
+    loka::core::MutableState<int> foreignValue(11);
+    loka::app::scene::BoundState<int> foreignBoundState(&foreignValue, 0, &foreignOwner);
+
+    context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x7000));
+    context.setStateOwner(&currentOwner);
+    composition.setContext(&context);
+
+    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundForeignState =
+        composition.currentBoundary().state(foreignBoundState);
+    assert(!foundForeignState.isValid());
+  }
 
   {
     int input = 3;
@@ -1406,6 +1695,97 @@ void testLokaFlowDslV1Core() {
   }
 
   {
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<int> countState(2);
+    loka::core::PushStateTracker tracker;
+    DummyStateOwner owner;
+    BoundState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
+    loka::dsl::StateStream<int> countStream(&countState, &tracker, &owner);
+
+    tracker.begin();
+    countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value()).set(label, true);
+    tracker.end();
+
+    assert(label.isValid());
+    assert(label.get().equals(loka::core::String::Literal("Count: 2")));
+
+    tracker.begin();
+    countState.set(5, true);
+    tracker.end();
+
+    assert(label.get().equals(loka::core::String::Literal("Count: 5")));
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<bool> showState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    TextDefinition trueText = Text("On").testId("ShowOnText");
+    ShowDefinition showDef = Show(showState);
+    showDef << trueText;
+    assert(showDef.childrenCount() == 1);
+    root << showDef;
+    assert(root.childrenCount() == 1);
+    assert(root.childrenHead() != 0);
+    assert(root.childrenHead()->asNestableDefinition() == 0);
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckText("ShowOnText", "On"));
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<bool> showState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
+    root << (Show(showState)
+             << Text("First").testId("ShowFirstText")
+             << Text("Second").testId("ShowSecondText"));
+
+    Scene scene(composition.root()->clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
+              .input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CheckText("ShowFirstText", "First"))
+        | loka::dsl::Step(3, loka::dsl::testing::CheckText("ShowSecondText", "Second"));
+
+    assert(chain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+    scene.unmount();
+  }
+
+  {
     using namespace loka::app;
     using namespace loka::app::scene;
 
@@ -1803,7 +2183,7 @@ void testLokaFlowDslV1Core() {
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     TextDefinition falseText = Text("Off").testId("OffText");
     TextDefinition trueText = Text("On").testId("OnText");
-    root << composition.showIf(showState, trueText, falseText);
+    root << composition.conditional(showState, trueText, falseText);
     root << Button("Run").enabled(&enabledState).testId("MainButton");
 
     Scene scene(composition.root()->clone());
@@ -1823,6 +2203,41 @@ void testLokaFlowDslV1Core() {
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) == 0);
 
     scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    g_sameBoundaryConditionalProbe = 0;
+
+    Scene scene(BoundaryDefinition<SameBoundaryConditionalProbeProps, SameBoundaryConditionalProbeNode>().clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Scene *scenePtr = &scene;
+
+    loka::dsl::FlowChain<Scene *, Scene *> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOffText", "Off"))
+              .input(&scenePtr);
+
+    assert(chain.run());
+    assert(g_sameBoundaryConditionalProbe != 0);
+
+    g_sameBoundaryConditionalProbe->emitToggle();
+
+    loka::dsl::FlowChain<Scene *, Scene *> postToggleChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOnText", "On"))
+              .input(&scenePtr);
+
+    assert(postToggleChain.run());
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+
+    scene.unmount();
+    g_sameBoundaryConditionalProbe = 0;
   }
 
   {
@@ -1892,39 +2307,6 @@ void testLokaFlowDslV1Core() {
     long platformCalls = 0;
     assert(captured.getInt("platform.calls", platformCalls));
     assert(platformCalls >= 1);
-
-    scene.unmount();
-  }
-
-  {
-    using namespace loka::app;
-    using namespace loka::app::scene;
-    using loka::dsl::testing::SceneTestAccess;
-
-    Scene scene((BoundaryDefinition<PendingRootBoundaryProps, PendingRootBoundaryNode>()));
-    FlowScenePlatformController platform;
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
-    assert(rootBoundary != 0);
-    BoundaryNode *childBoundary = rootBoundary->childrenHead() ? rootBoundary->childrenHead()->asBoundary() : 0;
-    assert(childBoundary != 0);
-
-    childBoundary->markViewDirty(NODE_DIRTY_PROPS);
-    rootBoundary->markViewDirty(NODE_DIRTY_PROPS);
-
-    SceneDirector &director = SceneTestAccess::director(scene);
-    assert(director.pendingBoundariesHead() == childBoundary);
-    assert(director.firstPendingUpdateRoot() == rootBoundary);
-    assert(director.nextPendingUpdateRoot(rootBoundary) == 0);
-    assert(rootBoundary->pendingDirtyFlags() != NODE_DIRTY_NONE);
-    assert(childBoundary->pendingDirtyFlags() != NODE_DIRTY_NONE);
-
-    SceneTestAccess::flushInvalidation(scene);
-    assert(director.pendingBoundariesHead() == 0);
-    assert(rootBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
-    assert(childBoundary->pendingDirtyFlags() == NODE_DIRTY_NONE);
 
     scene.unmount();
   }
@@ -2164,48 +2546,6 @@ void testLokaFlowDslV1Core() {
   {
     using namespace loka::app;
     using namespace loka::app::scene;
-    using loka::dsl::testing::SceneTestAccess;
-
-    g_pendingChildSwapState.set(false);
-
-    Scene scene((BoundaryDefinition<PendingStaticRootProps, PendingStaticRootNode>()));
-    FlowScenePlatformController platform;
-    scene.mount(&platform);
-    scene.updateAttached(true);
-
-    Scene *scenePtr = &scene;
-    loka::dsl::SnapRecord captured;
-    FlowErrorCapture failCapture = {0, 0, 0};
-    loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&g_pendingChildSwapState, true))
-              .input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::CheckText("PendingDynamicOn", "On"))
-        | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("pending-child-root-downgrade", &platform, 18))
-              .onSuccess(&captured)
-        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_CHILD))
-        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntEquals("platform.full_rebuild", 0));
-    okChain.onFailure(&FlowTestMarker::captureFailure, &failCapture);
-    const bool ok = okChain.run();
-    if (!ok)
-    {
-      std::printf("[pending-child-root-downgrade] fail kind=%d code=%d calls=%d full=%d flags=%ld\n",
-                  failCapture.kind,
-                  failCapture.code,
-                  failCapture.calls,
-                  platform.lastFullRebuild_ ? 1 : 0,
-                  static_cast<long>(platform.lastFlags_));
-      std::fflush(stdout);
-    }
-    assert(ok);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
-
-    scene.unmount();
-  }
-
-  {
-    using namespace loka::app;
-    using namespace loka::app::scene;
 
     loka::core::MutableState<bool> showState(false);
 
@@ -2213,7 +2553,7 @@ void testLokaFlowDslV1Core() {
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     TextDefinition falseText = Text("Off").testId("OffText");
     TextDefinition trueText = Text("On").testId("OnText");
-    root << composition.showIf(showState, trueText, falseText);
+    root << composition.conditional(showState, trueText, falseText);
 
     Scene scene(composition.root()->clone());
     FlowScenePlatformController platform;
@@ -2245,7 +2585,7 @@ void testLokaFlowDslV1Core() {
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     TextDefinition falseText = Text("Off").testId("OffText");
     TextDefinition trueText = Text("On").testId("OnText");
-    root << composition.showIf(showState, trueText, falseText);
+    root << composition.conditional(showState, trueText, falseText);
 
     Scene scene(composition.root()->clone());
     FlowScenePlatformController platform;

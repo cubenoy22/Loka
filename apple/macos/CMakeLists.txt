@@ -7,7 +7,6 @@ set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 
 option(TEST_BUILD "Include unit test sources in app target" OFF)
 option(LOKA_MAC_OS_10_4 "Enable macOS 10.4u SDK mode" OFF)
-option(LOKA_BUILD_MACOS_TESTS "Build macOS unit test target (LokaTestsMacOS)" ON)
 set(LOKA_MAC_OS_10_4_SYSROOT "/Developer/SDKs/MacOSX10.4u.sdk" CACHE PATH
   "Path to macOS 10.4u SDK used when LOKA_MAC_OS_10_4=ON")
 
@@ -69,33 +68,19 @@ target_include_directories(LokaMacOSCore PUBLIC
 target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 
 # Loka core is ObjC1/non-ARC by design; do not force ARC flags here.
-target_compile_definitions(LokaMacOSCore PRIVATE
-  $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
-)
-
-set(LOKA_ENABLE_MACOS_TESTS ${LOKA_BUILD_MACOS_TESTS})
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.6")
-    set(LOKA_ENABLE_MACOS_TESTS OFF)
-    message(STATUS "Disabling LokaTestsMacOS for GNU C++ < 4.6 due to template limitations in tests.")
-  endif()
-endif()
 
 set(LOKA_MACOS_TEST_SOURCES
-  ${PROJECT_SOURCE_DIR}/tests/MacScenePlatformTests.mm
-  ${PROJECT_SOURCE_DIR}/tests/MacScenePlatformTests.hpp
   ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/Tests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/TestMain.cpp
+  ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
   ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainLeftPanel.cpp
   ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainRightPanel.cpp
 )
 
-if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
+if(NOT LOKA_MAC_OS_10_4)
   add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES})
 
   target_include_directories(LokaTestsMacOS PRIVATE
@@ -106,8 +91,5 @@ if(NOT LOKA_MAC_OS_10_4 AND LOKA_ENABLE_MACOS_TESTS)
   )
 
   target_link_libraries(LokaTestsMacOS PRIVATE LokaMacOSCore)
-  target_compile_definitions(LokaTestsMacOS PRIVATE
-    TEST_BUILD
-    $<$<AND:$<CONFIG:Debug>,$<BOOL:${LOKA_ENABLE_DEBUG_LOGS}>>:LOKA_DEBUG_RECOMPOSE=1>
-  )
+  target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
 endif()

@@ -25,5 +25,6 @@ int main() {
   testStartupRedrawCount_Before();
   testStartupRedrawCount_After();
   testToolboxChildDirtyInvalidationPrefersFullRedraw();
+  testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw();
   return 0;
 }

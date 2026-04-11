@@ -40,6 +40,7 @@ private:
   void *parentView_;
   void *label_;
   loka::core::State<loka::core::String> *textState_;
+  bool textStateBound_;
   bool didInitialApply_;
 };
 

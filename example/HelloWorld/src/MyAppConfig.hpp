@@ -33,8 +33,7 @@ private:
   {
   public:
     MainMenu()
-        : randomSeedState_(0), rebuildBound_(false), rebuildEvent_(), dumpStatsBound_(false), dumpStatsEvent_(),
-          resetStatsBound_(false), resetStatsEvent_() {}
+        : randomSeed_(0x1234u), rebuildBound_(false), rebuildEvent_() {}
 
     virtual void composeMenu(loka::app::MenuComposition &c)
     {
@@ -45,34 +44,14 @@ private:
       c.declare(Menu("View") << MenuItem("Color Picker").actionType(MENU_ACTION_SHOW_COLOR_PICKER));
       c.declare(Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
       c.declare(Menu("Special") << (MenuItem("Item") << MenuItem("Sub Item")) << MenuItem("Item 2"));
-      if (!randomSeedState_)
-      {
-        randomSeedState_ = &c.useState<unsigned int>(0x1234);
-      }
       if (!rebuildBound_)
       {
         rebuildEvent_.bind(&MainMenu::RebuildThunk, this, false);
         rebuildBound_ = true;
       }
-      if (!dumpStatsBound_)
-      {
-        dumpStatsEvent_.bind(&MainMenu::DumpStatsThunk, this, false);
-        dumpStatsBound_ = true;
-      }
-      if (!resetStatsBound_)
-      {
-        resetStatsEvent_.bind(&MainMenu::ResetStatsThunk, this, false);
-        resetStatsBound_ = true;
-      }
       MenuDefinition randomMenu("Random");
-      const unsigned int seed = randomSeedState_ ? randomSeedState_->get() : 0u;
-      buildRandomMenu(randomMenu, seed);
+      buildRandomMenu(randomMenu, randomSeed_);
       c.declare(randomMenu);
-#if defined(LOKA_DEBUG_RECOMPOSE)
-      c.declare(Menu("Debug")
-                    << MenuItem("Dump Debug Stats").onClick(&dumpStatsEvent_)
-                    << MenuItem("Reset Debug Stats").onClick(&resetStatsEvent_));
-#endif
     }
 
   private:
@@ -105,42 +84,7 @@ private:
 
     void handleRebuild()
     {
-      if (randomSeedState_)
-      {
-        unsigned int seed = randomSeedState_->get();
-        seed = seed * 1103515245u + 12345u;
-        randomSeedState_->set(seed);
-      }
-    }
-
-    void handleDumpStats()
-    {
-      App *app = App::current();
-      if (!app)
-      {
-        return;
-      }
-      Window *window = app->activeWindow();
-      if (!window || !window->asDebugStatsControl())
-      {
-        return;
-      }
-      window->asDebugStatsControl()->requestDeferredDebugDump();
-    }
-
-    void handleResetStats()
-    {
-      App *app = App::current();
-      if (!app)
-      {
-        return;
-      }
-      Window *window = app->activeWindow();
-      if (!window || !window->asDebugStatsControl())
-      {
-        return;
-      }
-      window->asDebugStatsControl()->resetDebugStats();
+      randomSeed_ = randomSeed_ * 1103515245u + 12345u;
     }
 
     static void RebuildThunk(void *userData)
@@ -152,31 +96,9 @@ private:
       }
     }
 
-    static void DumpStatsThunk(void *userData)
-    {
-      MainMenu *self = static_cast<MainMenu *>(userData);
-      if (self)
-      {
-        self->handleDumpStats();
-      }
-    }
-
-    static void ResetStatsThunk(void *userData)
-    {
-      MainMenu *self = static_cast<MainMenu *>(userData);
-      if (self)
-      {
-        self->handleResetStats();
-      }
-    }
-
-    loka::core::MutableState<unsigned int> *randomSeedState_;
+    unsigned int randomSeed_;
     bool rebuildBound_;
     loka::core::EmitterState rebuildEvent_;
-    bool dumpStatsBound_;
-    loka::core::EmitterState dumpStatsEvent_;
-    bool resetStatsBound_;
-    loka::core::EmitterState resetStatsEvent_;
   };
 
   MainMenu menu_;

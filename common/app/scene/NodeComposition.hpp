@@ -27,6 +27,65 @@ namespace loka
       struct NodeComposition
       {
       public:
+        template <typename T>
+        class FoundBoundary
+        {
+        public:
+          FoundBoundary() : facade_(0) {}
+          explicit FoundBoundary(const T *facade) : facade_(facade) {}
+
+          bool isValid() const { return facade_ != 0; }
+          const T &facade() const
+          {
+            assert(facade_ && "FoundBoundary::facade requires a boundary");
+            return *facade_;
+          }
+
+        private:
+          const T *facade_;
+        };
+
+        class CurrentBoundary
+        {
+        public:
+          template <typename T>
+          class CurrentState
+          {
+          public:
+            CurrentState() : state_(0), owned_(false) {}
+            CurrentState(BoundState<T> *state, bool owned) : state_(state), owned_(owned) {}
+
+            bool isValid() const { return state_ && owned_ && state_->isValid(); }
+            T get() const
+            {
+              assert(this->isValid() && "CurrentState::get requires owner-matched BoundState");
+              return state_->get();
+            }
+            void set(const T &value, bool forceUpdate = false) const
+            {
+              assert(this->isValid() && "CurrentState::set requires owner-matched BoundState");
+              state_->set(value, forceUpdate);
+            }
+
+          private:
+            BoundState<T> *state_;
+            bool owned_;
+          };
+
+          CurrentBoundary() : owner_(0) {}
+          explicit CurrentBoundary(IStateOwner *owner) : owner_(owner) {}
+
+          bool isValid() const { return owner_ != 0; }
+          template <typename T>
+          CurrentState<T> state(BoundState<T> &boundState) const
+          {
+            return CurrentState<T>(&boundState, owner_ && boundState.dangerouslyOwner() == owner_);
+          }
+
+        private:
+          IStateOwner *owner_;
+        };
+
         struct CompositionScope
         {
           explicit CompositionScope(NodeComposition &composition);
@@ -355,6 +414,10 @@ namespace loka
         }
         bool hasContext() const { return context_ != 0; }
         BoundaryNode *boundary() const;
+        CurrentBoundary currentBoundary() const
+        {
+          return CurrentBoundary(context_ ? context_->stateOwner() : 0);
+        }
         Scene *scene() const;
         ::Window *window() const;
         static NodeComposition *current();
@@ -399,18 +462,6 @@ namespace loka
           return this->conditional(condition, x, emptyDef);
         }
 
-        template <typename TTrue, typename TFalse>
-        ConditionalDefinition showIf(const loka::core::State<bool> &condition, TTrue &trueDef, TFalse &falseDef)
-        {
-          return this->conditional(condition, trueDef, falseDef);
-        }
-
-        template <typename T>
-        ConditionalDefinition showIf(const loka::core::State<bool> &condition, T &trueDef)
-        {
-          return this->conditional(condition, trueDef);
-        }
-
         template <typename T>
         StreamView<typename std::vector<T>::const_iterator> stream(const std::vector<T> &v)
         {
@@ -436,11 +487,11 @@ namespace loka
         }
 
         template <typename T>
-        BoundState<T> useState(const T &initial)
+        BoundState<T> dangerouslyUseState(const T &initial)
         {
-          assert(context_ && "NodeComposition::useState requires ComponentContext");
+          assert(context_ && "NodeComposition::dangerouslyUseState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
-          assert(stateOwner && "NodeComposition::useState requires Boundary owner");
+          assert(stateOwner && "NodeComposition::dangerouslyUseState requires Boundary owner");
           loka::core::MutableState<T> *state = 0;
           size_t align = AlignOf<loka::core::MutableState<T> >::value;
           void *mem = stateOwner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align);
@@ -468,34 +519,31 @@ namespace loka
         }
 
         template <typename T>
-        BoundState<T> useState()
+        BoundState<T> dangerouslyUseState()
         {
-          return useState(T());
+          return dangerouslyUseState(T());
         }
 
         // findBoundary: T must implement static T* fromNode(Node*)
         template <typename T>
-        T *findBoundary() const
+        FoundBoundary<T> findBoundary() const
         {
           if (!context_)
           {
-            return 0;
+            return FoundBoundary<T>();
           }
-          ComponentContext *ctx = context_;
+          BoundaryNode *currentBoundary = context_->boundary();
+          ComponentContext *ctx = context_->parent();
           while (ctx)
           {
-            Node *owner = ctx->owner();
-            if (owner)
+            if (ctx->boundary() != currentBoundary)
             {
-              T *typed = T::fromNode(owner);
-              if (typed)
-              {
-                return typed;
-              }
+              Node *owner = ctx->owner();
+              return FoundBoundary<T>(owner ? T::fromNode(owner) : 0);
             }
             ctx = ctx->parent();
           }
-          return 0;
+          return FoundBoundary<T>();
         }
 
       private:

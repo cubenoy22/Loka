@@ -28,9 +28,9 @@ public:
 };
 ```
 
-## Boundary + Static/Dynamic Composition
+## Boundary + Static Composition
 
-Boundaries own composition/state. Prefer one-shot Static composition unless updates are required.
+Boundaries own composition/state. Prefer static composition and keep conditional/repeated structure in the same model.
 
 ```cpp
 #include "app/scene/node/StaticComposition.hpp"
@@ -52,28 +52,6 @@ public:
 };
 ```
 
-Dynamic composition uses a `Boundary` node so it can recompose when state changes.
-
-```cpp
-#include "app/scene/node/DynamicComposition.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Text.hpp"
-
-class DynamicPanel : public loka::app::scene::DynamicCompositionNodeFor<DynamicPanel>
-{
-public:
-  typedef loka::app::scene::DynamicCompositionPropsFor<DynamicPanel> PropsType;
-  DynamicPanel(const PropsType &p)
-      : loka::app::scene::DynamicCompositionNodeFor<DynamicPanel>(p) {}
-
-  virtual void composeNode(loka::app::scene::NodeComposition &c)
-  {
-    using namespace loka::app;
-    c.declare(VStack() << Text("Dynamic content"));
-  }
-};
-```
-
 Use `Boundary()` (alias) when you need a nested owner for state or recomposition.
 
 ```cpp
@@ -81,8 +59,7 @@ using namespace loka::app::scene;
 using namespace loka::app;
 
 c.declare(VStack()
-          << Boundary<StaticPanel>()
-          << Boundary<DynamicPanel>());
+          << Boundary<StaticPanel>());
 ```
 
 Notes:
@@ -195,7 +172,7 @@ This makes `c.declare(...)` and `c.group(...)` safe for temporary DSL objects.
 
 ## Conditional
 
-Use `NodeComposition::conditional` to switch between definitions.
+Use `NodeComposition::showIf` to include optional content inside static composition.
 
 ```cpp
 using namespace loka::app;
@@ -205,10 +182,11 @@ BoundState<bool> flag;
 c.declareStates().state(flag, false);
 
 c.declare(VStack()
-          << c.conditional(flag.unwrap(), Text("On")));
+          << (Show(*flag.state()) << Text("On")));
 ```
 
-If no `false` definition is provided, `Empty` is used.
+This keeps the branch in the same static composition model. If the condition is
+false, `Empty` is used.
 
 ## Stream Helpers
 

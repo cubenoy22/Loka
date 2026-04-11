@@ -7,7 +7,7 @@ These items address recurring bug patterns and structural risks identified durin
 - **Definition ownership clarity**: `clone()` returns raw `new`-ed pointers across 19+ call sites with implicit ownership. Introduce a lightweight `OwnedDef<T>` wrapper (C++98-compatible) so ownership intent is visible in code. Priority: prevents the same class of bug as the ConditionalDefinition fix.
 - **Platform Controller layout共通化**: `layoutNode()` is near-identical across Mac/Win32/Toolbox (~2000 lines each). Extract platform-independent layout traversal and size calculation to shared code; platform-specific parts (NSView/HWND/QuickDraw context creation) become overrides. Priority: bug fixes (like removing `clearContexts()`) currently need manual porting to 3 implementations.
 - **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
-- **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH/RETAIN/REPLACE transitions in `DynamicCompositionBoundaryNodeBase::composeWithContext()` and `applyLocalRebuildPlan()`. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
+- **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH transitions in the static boundary/scene compose path. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
 
 ## Open
 
@@ -25,6 +25,7 @@ These items address recurring bug patterns and structural risks identified durin
 - loka::core::Managed<T> circular reference patterns (Group/Weak or one-way ref policy).
 - MutableState notification timing: micro-tick end vs immediate; document or change.
 - DerivedState::EvalFn ownership/cleanup and dependency registration policy.
+- Boundary lifecycle policy follow-up: current default is scene/tree-owned rather than native-view-owned. If a future opt-in `view-scoped` boundary lifecycle is needed, define it explicitly as a separate policy instead of overloading `detach`/visibility semantics.
 - StateBatch: add useLargeStates path for large initializers (heap-backed initial copies).
 - Wire Node.dirty with IPlatformController::synchronize (diff-based redraw path).
 - Smart redraw scheduler at Window/Scene scope: collect dirty rects per tick and flush once via platform invalidate APIs.
@@ -95,10 +96,6 @@ These items address recurring bug patterns and structural risks identified durin
   - scene-level `fullRebuild` accuracy improved for child-dirty and mixed dirty paths
   - localized platform apply routing (`PlatformApplyPlan` / `BoundaryLocalApplyInfo`) is now the main redraw contract
   - Win32 interaction flicker and Toolbox follow-up redraw behavior were reduced by platform-local fixes
-- Debug logging/build gating:
-  - `LOKA_ENABLE_DEBUG_LOGS` now gates debug logging support
-  - Release builds keep debug logs off
-  - HelloWorld `Debug` menu is hidden in Release builds
 - Toolbox redraw profiling support: HelloWorld can dump/reset Toolbox debug stats to timestamped files for local interaction analysis.
 - Support matrix in README: split compatibility claims into `build-verified` and `runtime-verified`.
 - Menu bar support implemented across macOS/Win32/Toolbox app layers.
@@ -108,5 +105,6 @@ These items address recurring bug patterns and structural risks identified durin
 - BoundaryNode owns StateTracker; useState auto-registers; Context API removed; RootBoundaryWrapper in Scene; DSL naming cleanup.
 - `VStack/HStack` alignment props are wired into platform layout engines (Win32/macOS/Toolbox), including remaining-height handling for `VStack + ImageView(FILL_PARENT)`.
 - `TextAttr` overflow (`wrap`/`truncation`) is wired into native text contexts (Win32/macOS/Toolbox with low-memory-safe clip fallback).
+- ProgrammingGuide boundary/state pass: the guide now explains the boundary-first model explicitly, including `declareStates()` as the normal owner path, `currentBoundary()` for owner-side access, `findBoundary()` for direct-parent borrowed access, `BoundaryProps` as parent-to-child input, and `Managed<T>` as explicit shared access.
 - Scene local diff first pass: retained native contexts now survive local replace/reorder paths across generic/macOS/Win32 tests, retired subtree cleanup has a platform seam, and boundary-local rebuild planning is separated from apply.
 - Scene `fullRebuild` accuracy is no longer root-only in the old sense; child-dirty and mixed dirty cycles now use boundary/root diff results to downgrade more aggressively when structure work is not required.
