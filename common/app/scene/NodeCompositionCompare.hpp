@@ -74,7 +74,7 @@ namespace loka
           return true;
         }
 
-        inline bool collectTaggedChildren(INestableDefinition *parent, std::vector<NodeDefinitionBase *> &out)
+        inline bool collectUniqueTaggedChildren(INestableDefinition *parent, std::vector<NodeDefinitionBase *> &out)
         {
           out.clear();
           if (!parent)
@@ -100,6 +100,15 @@ namespace loka
             child = child->nextInComposition;
           }
           return true;
+        }
+
+        inline bool collectComparableChildren(INestableDefinition *previousParent,
+                                              INestableDefinition *currentParent,
+                                              std::vector<NodeDefinitionBase *> &previousChildren,
+                                              std::vector<NodeDefinitionBase *> &currentChildren)
+        {
+          return collectUniqueTaggedChildren(previousParent, previousChildren) &&
+                 collectUniqueTaggedChildren(currentParent, currentChildren);
         }
 
         inline int indexOfTag(const std::vector<NodeDefinitionBase *> &children, NodeTag tag)
@@ -153,11 +162,7 @@ namespace loka
 
         std::vector<NodeDefinitionBase *> previousChildren;
         std::vector<NodeDefinitionBase *> currentChildren;
-        if (!detail::collectTaggedChildren(previousNestable, previousChildren))
-        {
-          return detail::buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
-        }
-        if (!detail::collectTaggedChildren(currentNestable, currentChildren))
+        if (!detail::collectComparableChildren(previousNestable, currentNestable, previousChildren, currentChildren))
         {
           return detail::buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
         }
