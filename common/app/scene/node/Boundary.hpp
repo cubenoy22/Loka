@@ -522,8 +522,7 @@ namespace loka
           return dangerouslyUseManagedStateWithValue(initial);
         }
 
-        NodeCompositionTransaction &compositionTransaction() { return compositionState_.compositionTransaction(); }
-        const NodeCompositionTransaction &compositionTransaction() const { return compositionState_.compositionTransaction(); }
+        bool hasCompositionDiffState() const { return compositionState_.hasCompositionDiffState(); }
         const NodeCompositionDiff *localCompositionDiff() const
         {
           return compositionState_.localCompositionDiff();
@@ -539,6 +538,10 @@ namespace loka
         }
         Node *findCompositionChildByTag(NodeTag tag) const
         {
+          if (tag == NODE_TAG_NONE)
+          {
+            return 0;
+          }
           INestable *nestable = compositionRootNestable();
           if (!nestable)
           {
@@ -596,7 +599,7 @@ namespace loka
           }
 
           BoundaryLocalRebuildPlan plan;
-          if (!buildLocalRebuildPlan(context, *currentRoot, plan))
+          if (!buildLocalRebuildPlan(*currentRoot, plan))
           {
             return false;
           }
@@ -646,10 +649,6 @@ namespace loka
             delete liveRoot;
           }
           return true;
-        }
-        bool hasLocalCompositionDiff() const
-        {
-          return compositionState_.hasLocalCompositionDiff();
         }
         bool canApplyLocalCompositionDiff() const
         {
@@ -732,8 +731,7 @@ namespace loka
           this->applyPendingLocalPaint(plan);
         }
 
-        bool buildLocalRebuildPlan(ComponentContext &context,
-                                   const INestableDefinition &currentRoot,
+        bool buildLocalRebuildPlan(const INestableDefinition &currentRoot,
                                    BoundaryLocalRebuildPlan &plan)
         {
           // This translates the current desired child set into a concrete
@@ -749,11 +747,7 @@ namespace loka
             Node *existing = findCompositionChildByTag(definition->nodeTag());
             if (existing && definition->isCompatibleWithNode(existing))
             {
-              BoundaryLocalRebuildPlanEntry entry;
-              entry.node = existing;
-              entry.action = BoundaryLocalRebuildPlanEntry::ACTION_RETAIN;
-              entry.tag = definition->nodeTag();
-              plan.entries.push_back(entry);
+              plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retain(existing, definition->nodeTag()));
             }
             else
             {
@@ -763,12 +757,9 @@ namespace loka
               {
                 return false;
               }
-              BoundaryLocalRebuildPlanEntry entry;
-              entry.node = created;
-              entry.previousNode = existing;
-              entry.action = existing ? BoundaryLocalRebuildPlanEntry::ACTION_REPLACE : BoundaryLocalRebuildPlanEntry::ACTION_ATTACH;
-              entry.tag = definition->nodeTag();
-              plan.entries.push_back(entry);
+              plan.entries.push_back(existing
+                                         ? BoundaryLocalRebuildPlanEntry::replace(created, existing, definition->nodeTag())
+                                         : BoundaryLocalRebuildPlanEntry::attach(created, definition->nodeTag()));
             }
             definition = definition->nextInComposition;
           }
@@ -783,11 +774,7 @@ namespace loka
           {
             if (findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
             {
-              BoundaryLocalRebuildPlanEntry entry;
-              entry.node = liveChild;
-              entry.action = BoundaryLocalRebuildPlanEntry::ACTION_RETIRE;
-              entry.tag = liveChild->nodeTag();
-              plan.entries.push_back(entry);
+              plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retire(liveChild, liveChild->nodeTag()));
             }
           }
           return true;
@@ -801,7 +788,7 @@ namespace loka
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
-            if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETIRE)
+            if (!plan.entries[i].keepsLiveNode())
             {
               continue;
             }
@@ -820,8 +807,7 @@ namespace loka
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
-            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_ATTACH ||
-                entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE)
+            if (entry.requiresAttachCompose())
             {
               this->composeTree(entry.node, context, COMPOSE_EVENT_ATTACH, this);
             }
@@ -829,28 +815,17 @@ namespace loka
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
-            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE && entry.previousNode)
+            Node *detachedNode = entry.detachedNode();
+            if (detachedNode)
             {
-              this->composeTree(entry.previousNode, context, COMPOSE_EVENT_DETACH, this);
+              this->composeTree(detachedNode, context, COMPOSE_EVENT_DETACH, this);
               if (context.platformController())
               {
-                context.platformController()->releaseNodeContexts(entry.previousNode);
+                context.platformController()->releaseNodeContexts(detachedNode);
               }
-              if (!entry.previousNode->isArenaAllocated())
+              if (!detachedNode->isArenaAllocated())
               {
-                delete entry.previousNode;
-              }
-            }
-            else if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_RETIRE && entry.node)
-            {
-              this->composeTree(entry.node, context, COMPOSE_EVENT_DETACH, this);
-              if (context.platformController())
-              {
-                context.platformController()->releaseNodeContexts(entry.node);
-              }
-              if (!entry.node->isArenaAllocated())
-              {
-                delete entry.node;
+                delete detachedNode;
               }
             }
           }
@@ -933,7 +908,7 @@ namespace loka
                                                          "pending-default-boundary-compose",
                                                          boundary->previousCompositionSnapshot().root() ? 1 : 0,
                                                          boundary->currentCompositionSnapshot().root() ? 1 : 0,
-                                                         boundary->compositionTransaction().empty() ? 1 : 0,
+                                                         boundary->hasCompositionDiffState() ? 0 : 1,
                                                          static_cast<unsigned int>(boundary->childrenCount()),
                                                          static_cast<unsigned int>(firstChild->kind()),
                                                          firstChild->testId().c_str());
@@ -1046,9 +1021,9 @@ namespace loka
           compositionState_.captureCurrentSnapshot(this->composition());
         }
 
-        void rebuildCompositionTransactionFromSnapshots()
+        void rebuildCurrentCompositionDiff()
         {
-          compositionState_.rebuildTransaction();
+          compositionState_.rebuildLocalCompositionDiff();
         }
 
         void promoteCurrentCompositionSnapshot()

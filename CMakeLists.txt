@@ -53,8 +53,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
-    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainLeftPanel.cpp
-    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainRightPanel.cpp
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
 
   add_executable(LokaFlowDslTests

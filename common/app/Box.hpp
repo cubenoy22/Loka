@@ -51,9 +51,10 @@ namespace loka
       virtual BoxNode *asBoxNode() { return this; }
     };
 
-    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<BoxDefinition>
+    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<BoxDefinition>, public scene::TestIdDslMixin<BoxDefinition>
     {
       typedef scene::NodeDefinition<BoxProps, BoxNode> BaseType;
+      using scene::NestableDslMixin<BoxDefinition>::operator<<;
 
       BoxDefinition() : BaseType(), NestableDefinitionBase() {}
       BoxDefinition(const BoxProps &p) : BaseType(p), NestableDefinitionBase() {}

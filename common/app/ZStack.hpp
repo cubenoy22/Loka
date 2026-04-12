@@ -36,9 +36,10 @@ namespace loka
       virtual ZStackNode *asZStackNode() { return this; }
     };
 
-    struct ZStackDefinition : public scene::NodeDefinition<ZStackProps, ZStackNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<ZStackDefinition>
+    struct ZStackDefinition : public scene::NodeDefinition<ZStackProps, ZStackNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<ZStackDefinition>, public scene::TestIdDslMixin<ZStackDefinition>
     {
       typedef scene::NodeDefinition<ZStackProps, ZStackNode> BaseType;
+      using scene::NestableDslMixin<ZStackDefinition>::operator<<;
       ZStackDefinition() : BaseType(), scene::NestableDefinitionBase() {}
       ZStackDefinition(const ZStackProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
       ZStackDefinition(const ZStackDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}

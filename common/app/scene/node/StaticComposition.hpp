@@ -199,7 +199,7 @@ namespace loka
             this->composeNode(composition);
           }
           this->captureCurrentCompositionSnapshot();
-          this->rebuildCompositionTransactionFromSnapshots();
+          this->rebuildCurrentCompositionDiff();
           this->promoteCurrentCompositionSnapshot();
           // Pass composition to children via context
           context.setComposition(&composition);

@@ -1,13 +1,13 @@
 #ifndef LOKA_HELLOWORLD_MAIN_NODE_HPP
 #define LOKA_HELLOWORLD_MAIN_NODE_HPP
 
-#include "app/scene/node/StaticComposition.hpp"
 #include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
-#include "app/ZStack.hpp"
-#include "app/Text.hpp"
-
-class Window;
+#include "app/scene/BoundState.hpp"
+#include "app/scene/node/StaticComposition.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/String.hpp"
+#include "loka/core/Vector.hpp"
 
 namespace helloworld
 {
@@ -17,42 +17,41 @@ namespace helloworld
   class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>
   {
   public:
-    MainNode(const MainProps &p)
-        : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
-          left_(this),
-          right_(this)
-    {
-    }
-
-    template <class NodeT>
-    void bindForUiComponent(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
-    {
-      this->bindForUi(emitter, node, method);
-    }
-
-    ::Window *windowOrNull() const
-    {
-      const AttachedContext *ctx = this->attachedContext();
-      return ctx ? ctx->window() : 0;
-    }
-
+    MainNode(const MainProps &p);
+    virtual void attachNode(loka::app::scene::NodeComposition &c);
     virtual void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
-    MainLeftPanelComponent left_;
-    MainRightPanelComponent right_;
-  };
+    static void BmiChangedThunk(void *userData);
+    ::Window *windowOrNull() const;
+    double parseBmiValue(const loka::core::String &value) const;
+    void refreshBmiResult();
+    void toggleMessage();
+    void toggleActionEnabled();
+    void handleActionProbe();
+    void refreshActionSummary();
 
-  inline void MainNode::composeNode(loka::app::scene::NodeComposition &c)
-  {
-    using namespace loka::app;
-    ZStack &root = c.declare(ZStack().TEST_ID("HelloWorld.Root"));
-    loka::app::scene::NodeComposition::ParentScope scope(c, root);
-    c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
-              << loka::app::scene::LC(left_)
-              << loka::app::scene::LC(right_));
-    c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
-  }
+    bool initialized_;
+    bool actionSummaryCacheValid_;
+    bool lastActionSummaryEnabled_;
+    int lastActionSummaryCount_;
+    bool bmiCacheValid_;
+    bool lastBmiWasValid_;
+    int lastBmiHundredths_;
+    loka::app::scene::BoundState<loka::core::String> message_;
+    loka::core::EmitterState toggleEvent_;
+    loka::app::scene::BoundState<bool> actionEnabled_;
+    loka::app::scene::BoundState<int> actionProbeCount_;
+    loka::app::scene::BoundState<loka::core::String> actionSummary_;
+    loka::app::scene::BoundState<loka::core::String> heightInput_;
+    loka::app::scene::BoundState<loka::core::String> weightInput_;
+    loka::app::scene::BoundState<loka::core::String> bmiResult_;
+    loka::core::EmitterState toggleActionEnabledEvent_;
+    loka::core::EmitterState actionProbeEvent_;
+    loka::app::scene::BoundState<int> fruitIndex_;
+    loka::app::scene::BoundState<loka::core::String> fruitMessage_;
+    loka::Vector<loka::core::String> fruits_;
+  };
 
 } // namespace helloworld
 

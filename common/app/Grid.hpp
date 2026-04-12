@@ -44,9 +44,10 @@ namespace loka
       virtual GridNode *asGridNode() { return this; }
     };
 
-    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>, public scene::NestableDefinitionBase, public scene::TestIdDslMixin<GridDefinition>
+    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<GridDefinition>, public scene::TestIdDslMixin<GridDefinition>
     {
       typedef scene::NodeDefinition<GridProps, GridNode> BaseType;
+      using scene::NestableDslMixin<GridDefinition>::operator<<;
       GridDefinition() : BaseType(), NestableDefinitionBase() {}
       GridDefinition(const GridProps &p) : BaseType(p), NestableDefinitionBase() {}
       GridDefinition(const GridDefinition &other) : BaseType(other), NestableDefinitionBase(other) {}

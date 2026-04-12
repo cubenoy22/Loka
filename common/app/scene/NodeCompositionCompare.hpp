@@ -2,7 +2,6 @@
 #define LOKA_CORE2_SCENE_NODECOMPOSITIONCOMPARE_HPP
 
 #include <vector>
-#include "app/scene/NodeComposition.hpp"
 #include "app/scene/NodeCompositionDiff.hpp"
 #include "app/scene/NodeCompositionSnapshot.hpp"
 
@@ -14,6 +13,38 @@ namespace loka
     {
       namespace detail
       {
+        inline bool haveCompatibleProps(NodeDefinitionBase *previousNode, NodeDefinitionBase *currentNode)
+        {
+          if (!previousNode || !currentNode)
+          {
+            return false;
+          }
+          const scene::PropsBase *previousProps = previousNode->propsBase();
+          const scene::PropsBase *currentProps = currentNode->propsBase();
+          return previousProps && currentProps &&
+                 previousProps->propsTypeId() == currentProps->propsTypeId();
+        }
+
+        inline void addDiffEntry(NodeCompositionDiff &out,
+                                 NodeTag tag,
+                                 int slot,
+                                 NodeDefinitionBase *previousNode,
+                                 NodeDefinitionBase *currentNode,
+                                 int previousIndex,
+                                 int currentIndex)
+        {
+          const bool compatibleType = haveCompatibleProps(previousNode, currentNode);
+          const bool equivalentProps = compatibleType && previousNode && currentNode &&
+                                       previousNode->hasEquivalentProps(*currentNode);
+          out.addEntry(tag,
+                       slot,
+                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
+                       compatibleType,
+                       equivalentProps,
+                       previousIndex,
+                       currentIndex);
+        }
+
         inline bool buildSingleAnonymousChildDiff(INestableDefinition *previousParent,
                                                   INestableDefinition *currentParent,
                                                   NodeCompositionDiff &out)
@@ -37,24 +68,13 @@ namespace loka
             return false;
           }
 
-          const scene::PropsBase *previousProps = previousChild->propsBase();
-          const scene::PropsBase *currentProps = currentChild->propsBase();
-          const bool compatibleType = previousProps && currentProps &&
-                                      previousProps->propsTypeId() == currentProps->propsTypeId();
-          const bool equivalentProps = compatibleType && previousChild->hasEquivalentProps(*currentChild);
-          out.addEntry(NODE_TAG_NONE,
-                       0,
-                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
-                       compatibleType,
-                       equivalentProps,
-                       0,
-                       0);
+          addDiffEntry(out, NODE_TAG_NONE, 0, previousChild, currentChild, 0, 0);
           out.valid = true;
           out.fullRebuild = false;
           return true;
         }
 
-        inline bool collectTaggedChildren(INestableDefinition *parent, std::vector<NodeDefinitionBase *> &out)
+        inline bool collectUniqueTaggedChildren(INestableDefinition *parent, std::vector<NodeDefinitionBase *> &out)
         {
           out.clear();
           if (!parent)
@@ -82,6 +102,15 @@ namespace loka
           return true;
         }
 
+        inline bool collectComparableChildren(INestableDefinition *previousParent,
+                                              INestableDefinition *currentParent,
+                                              std::vector<NodeDefinitionBase *> &previousChildren,
+                                              std::vector<NodeDefinitionBase *> &currentChildren)
+        {
+          return collectUniqueTaggedChildren(previousParent, previousChildren) &&
+                 collectUniqueTaggedChildren(currentParent, currentChildren);
+        }
+
         inline int indexOfTag(const std::vector<NodeDefinitionBase *> &children, NodeTag tag)
         {
           for (size_t i = 0; i < children.size(); ++i)
@@ -93,131 +122,115 @@ namespace loka
           }
           return -1;
         }
+
+        inline NodeDefinitionBase *findChildByTag(const std::vector<NodeDefinitionBase *> &children,
+                                                  NodeTag tag,
+                                                  int &index)
+        {
+          index = indexOfTag(children, tag);
+          return index >= 0 ? children[static_cast<size_t>(index)] : 0;
+        }
       } // namespace detail
 
-      inline bool buildNodeDefinitionDiffByTag(NodeDefinitionBase *previousRoot,
-                                               NodeDefinitionBase *currentRoot,
-                                               NodeCompositionDiff &out)
+      namespace detail
       {
-        out.clear();
-
-        if (!previousRoot && !currentRoot)
+        inline bool buildRootDiffByTag(NodeDefinitionBase *previousRoot,
+                                       NodeDefinitionBase *currentRoot,
+                                       NodeCompositionDiff &out)
         {
+          out.clear();
+
+          if (!previousRoot && !currentRoot)
+          {
+            out.valid = true;
+            out.fullRebuild = false;
+            return true;
+          }
+          if (!previousRoot || !currentRoot)
+          {
+            return false;
+          }
+
+          INestableDefinition *previousNestable = previousRoot->asNestableDefinition();
+          INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
+          if (!previousNestable && !currentNestable)
+          {
+            NodeTag rootTag = currentRoot->nodeTag();
+            if (rootTag == NODE_TAG_NONE)
+            {
+              rootTag = previousRoot->nodeTag();
+            }
+            addDiffEntry(out, rootTag, 0, previousRoot, currentRoot, 0, 0);
+            out.valid = true;
+            out.fullRebuild = false;
+            return true;
+          }
+          if (!previousNestable || !currentNestable)
+          {
+            return false;
+          }
+
+          std::vector<NodeDefinitionBase *> previousChildren;
+          std::vector<NodeDefinitionBase *> currentChildren;
+          if (!collectComparableChildren(previousNestable, currentNestable, previousChildren, currentChildren))
+          {
+            return buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
+          }
+
+          for (size_t i = 0; i < currentChildren.size(); ++i)
+          {
+            NodeDefinitionBase *currentChild = currentChildren[i];
+            int previousIndex = -1;
+            NodeDefinitionBase *previousChild = findChildByTag(previousChildren, currentChild->nodeTag(), previousIndex);
+            if (previousChild)
+            {
+              addDiffEntry(out,
+                           currentChild->nodeTag(),
+                           static_cast<int>(i),
+                           previousChild,
+                           currentChild,
+                           previousIndex,
+                           static_cast<int>(i));
+            }
+            else
+            {
+              out.addEntry(currentChild->nodeTag(),
+                           static_cast<int>(i),
+                           NodeCompositionDiff::ACTION_REPLACE,
+                           false,
+                           false,
+                           -1,
+                           static_cast<int>(i));
+            }
+          }
+
+          for (size_t i = 0; i < previousChildren.size(); ++i)
+          {
+            NodeDefinitionBase *previousChild = previousChildren[i];
+            int currentIndex = -1;
+            if (!findChildByTag(currentChildren, previousChild->nodeTag(), currentIndex))
+            {
+              out.addEntry(previousChild->nodeTag(),
+                           static_cast<int>(i),
+                           NodeCompositionDiff::ACTION_RETIRE,
+                           false,
+                           false,
+                           static_cast<int>(i),
+                           -1);
+            }
+          }
+
           out.valid = true;
           out.fullRebuild = false;
           return true;
         }
-        if (!previousRoot || !currentRoot)
-        {
-          return false;
-        }
+      } // namespace detail
 
-        INestableDefinition *previousNestable = previousRoot->asNestableDefinition();
-        INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
-        if (!previousNestable && !currentNestable)
-        {
-          const scene::PropsBase *previousProps = previousRoot->propsBase();
-          const scene::PropsBase *currentProps = currentRoot->propsBase();
-          const bool compatibleType = previousProps && currentProps &&
-                                      previousProps->propsTypeId() == currentProps->propsTypeId();
-          const bool equivalentProps = compatibleType && previousRoot->hasEquivalentProps(*currentRoot);
-          NodeTag rootTag = currentRoot->nodeTag();
-          if (rootTag == NODE_TAG_NONE)
-          {
-            rootTag = previousRoot->nodeTag();
-          }
-          out.addEntry(rootTag,
-                       0,
-                       compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
-                       compatibleType,
-                       equivalentProps,
-                       0,
-                       0);
-          out.valid = true;
-          out.fullRebuild = false;
-          return true;
-        }
-        if (!previousNestable || !currentNestable)
-        {
-          return false;
-        }
-
-        std::vector<NodeDefinitionBase *> previousChildren;
-        std::vector<NodeDefinitionBase *> currentChildren;
-        if (!detail::collectTaggedChildren(previousNestable, previousChildren))
-        {
-          return detail::buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
-        }
-        if (!detail::collectTaggedChildren(currentNestable, currentChildren))
-        {
-          return detail::buildSingleAnonymousChildDiff(previousNestable, currentNestable, out);
-        }
-
-        for (size_t i = 0; i < currentChildren.size(); ++i)
-        {
-          NodeDefinitionBase *currentChild = currentChildren[i];
-          int previousIndex = detail::indexOfTag(previousChildren, currentChild->nodeTag());
-          if (previousIndex >= 0)
-          {
-            NodeDefinitionBase *previousChild = previousChildren[previousIndex];
-            const scene::PropsBase *previousProps = previousChild ? previousChild->propsBase() : 0;
-            const scene::PropsBase *currentProps = currentChild ? currentChild->propsBase() : 0;
-            bool compatibleType = previousProps && currentProps &&
-                                  previousProps->propsTypeId() == currentProps->propsTypeId();
-            bool equivalentProps = compatibleType && previousChild->hasEquivalentProps(*currentChild);
-            out.addEntry(currentChild->nodeTag(),
-                         static_cast<int>(i),
-                         compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
-                         compatibleType,
-                         equivalentProps,
-                         previousIndex,
-                         static_cast<int>(i));
-          }
-          else
-          {
-            out.addEntry(currentChild->nodeTag(),
-                         static_cast<int>(i),
-                         NodeCompositionDiff::ACTION_REPLACE,
-                         false,
-                         false,
-                         -1,
-                         static_cast<int>(i));
-          }
-        }
-
-        for (size_t i = 0; i < previousChildren.size(); ++i)
-        {
-          NodeDefinitionBase *previousChild = previousChildren[i];
-          int currentIndex = detail::indexOfTag(currentChildren, previousChild->nodeTag());
-          if (currentIndex < 0)
-          {
-            out.addEntry(previousChild->nodeTag(),
-                         static_cast<int>(i),
-                         NodeCompositionDiff::ACTION_RETIRE,
-                         false,
-                         false,
-                         static_cast<int>(i),
-                         -1);
-          }
-        }
-
-        out.valid = true;
-        out.fullRebuild = false;
-        return true;
-      }
-
-      inline bool buildNodeCompositionDiffByTag(NodeComposition &previous,
-                                                NodeComposition &current,
-                                                NodeCompositionDiff &out)
+      inline bool buildNodeCompositionSnapshotDiffByTag(const NodeCompositionSnapshot &previous,
+                                                        const NodeCompositionSnapshot &current,
+                                                        NodeCompositionDiff &out)
       {
-        return buildNodeDefinitionDiffByTag(previous.root(), current.root(), out);
-      }
-
-      inline bool buildNodeCompositionDiffByTag(NodeCompositionSnapshot &previous,
-                                                NodeCompositionSnapshot &current,
-                                                NodeCompositionDiff &out)
-      {
-        return buildNodeDefinitionDiffByTag(previous.root(), current.root(), out);
+        return detail::buildRootDiffByTag(previous.root(), current.root(), out);
       }
     }
   }

@@ -324,8 +324,6 @@ namespace loka
 
       // Forward declaration
       struct INestableDefinition;
-      struct ComponentDefinitionBase;
-      struct LightComponentDefinitionBase;
 
       template <typename NodeT, typename PropsT>
       struct NodePropsApplier
@@ -608,12 +606,40 @@ namespace loka
 
         // vector<NodeDefinitionBase*> explicit overload (C++98)
         INestableDefinition &operator<<(const std::vector<NodeDefinitionBase *> &container);
-        INestableDefinition &operator<<(ComponentDefinitionBase &component);
-        INestableDefinition &operator<<(const ComponentDefinitionBase &component);
-        INestableDefinition &operator<<(LightComponentDefinitionBase &component);
-        INestableDefinition &operator<<(const LightComponentDefinitionBase &component);
 
         // For future extensibility
+      };
+
+      template <class DerivedT>
+      struct NestableDslMixin
+      {
+        DerivedT &operator<<(NodeDefinitionBase &child)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << child;
+          return *self;
+        }
+
+        DerivedT &operator<<(const NodeDefinitionBase &child)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << child;
+          return *self;
+        }
+
+        DerivedT &operator<<(NodeDefinitionBase *ownedChild)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << ownedChild;
+          return *self;
+        }
+
+        DerivedT &operator<<(const std::vector<NodeDefinitionBase *> &container)
+        {
+          DerivedT *self = static_cast<DerivedT *>(this);
+          static_cast<INestableDefinition &>(*self) << container;
+          return *self;
+        }
       };
 
       // --- Helper base class for nestable definitions owning children ---

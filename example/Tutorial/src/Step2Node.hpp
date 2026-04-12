@@ -16,10 +16,7 @@ namespace tutorial {
     typedef loka::app::scene::BoundaryPropsFor<Step2Node> PropsType;
 
     Step2Node(const PropsType &p)
-        : loka::app::scene::BoundaryNodeFor<Step2Node>(p),
-          count_(),
-          countText_(),
-          incrementEvent_(),
+        : loka::app::scene::BoundaryNodeFor<Step2Node>(p), count_(), countText_(), incrementEvent_(),
           initialized_(false) {
     }
 
@@ -27,8 +24,8 @@ namespace tutorial {
       if (this->initialized_) {
         return;
       }
-      c.declareStates()
-          .state(this->count_, 0)
+      c.declareStates()           //
+          .state(this->count_, 0) //
           .state(this->countText_, loka::core::String::Literal("Count: 0"));
       this->bindForUi(this->incrementEvent_, this, &Step2Node::increment);
       this->initialized_ = true;
@@ -36,18 +33,19 @@ namespace tutorial {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c) {
       using namespace loka::app;
-      c.declare(
-          VStack() << TutorialTitle("Step 2")
-                   << Text(this->countText_.state())
-                   << Button("Increment", &this->incrementEvent_)
-                   << TutorialHint("A button can update state and reflected text."));
+      c.declare(VStack()                          //
+                << TutorialTitle("Step 2")        //
+                << Text(this->countText_.state()) //
+                << Button("Increment", &this->incrementEvent_)
+                << TutorialHint("A button can update state and reflected text."));
     }
 
   private:
     void increment() {
       const int next = this->count_.get() + 1;
       this->count_.set(next);
-      this->countText_.set(loka::core::String::Literal("Count: ") + loka::core::String::FromInt(next));
+      using loka::core::String;
+      this->countText_.set(String::Literal("Count: ") + String::FromInt(next));
     }
 
     loka::app::scene::BoundState<int> count_;

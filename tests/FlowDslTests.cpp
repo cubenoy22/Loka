@@ -9,8 +9,12 @@
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/Empty.hpp"
+#include "app/Fragment.hpp"
+#include "app/Grid.hpp"
+#include "app/RowColumn.hpp"
 #include "app/Show.hpp"
 #include "app/Text.hpp"
+#include "app/ZStack.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
@@ -25,6 +29,69 @@
 #include "loka/dsl/dsl.hpp"
 
 namespace {
+  static loka::app::HStack buildTypedHStack()
+  {
+    return loka::app::HStack().alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM)
+           << loka::app::Text("Left")
+           << loka::app::Text("Right");
+  }
+
+  static loka::app::VStack buildTypedVStack()
+  {
+    return loka::app::VStack().alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+           << loka::app::Text("Top")
+           << loka::app::Text("Bottom");
+  }
+
+  static loka::app::Box buildTypedBox()
+  {
+    return loka::app::Box().padding(8).testId("TypedBox")
+           << loka::app::Text("Box child");
+  }
+
+  static loka::app::Fragment buildTypedFragment()
+  {
+    return loka::app::Fragment()
+           << loka::app::Text("Fragment A")
+           << loka::app::Text("Fragment B");
+  }
+
+  static loka::app::Grid buildTypedGrid()
+  {
+    return loka::app::Grid().rows(1).cols(2)
+           << loka::app::Text("Grid A")
+           << loka::app::Text("Grid B");
+  }
+
+  static loka::app::ZStack buildTypedZStack()
+  {
+    return loka::app::ZStack().testId("TypedZStack")
+           << loka::app::Text("Back")
+           << loka::app::Text("Front");
+  }
+
+  static loka::app::Fragment buildTypedInlineFragment()
+  {
+    return loka::app::Fragment()
+           << loka::app::Text("Light child").testId("TypedDslLightChild");
+  }
+
+  class TypedDslLightHostNode;
+  typedef loka::app::scene::BoundaryPropsFor<TypedDslLightHostNode> TypedDslLightHostProps;
+
+  class TypedDslLightHostNode : public loka::app::scene::BoundaryNodeFor<TypedDslLightHostNode>
+  {
+  public:
+    TypedDslLightHostNode(const TypedDslLightHostProps &p)
+        : loka::app::scene::BoundaryNodeFor<TypedDslLightHostNode>(TypedDslLightHostProps(p)) {}
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::HStack().testId("TypedDslLightRow")
+                << buildTypedInlineFragment());
+    }
+  };
+
   struct FlowTestMarkerContext {
     std::vector<int> *order;
     int marker;
@@ -1378,6 +1445,63 @@ namespace {
 
 void testLokaFlowDslV1Core() {
   printf("\n==== [testLokaFlowDslV1Core] start ====\n");
+
+  {
+    loka::app::HStack buttons = buildTypedHStack();
+    assert(buttons.childrenCount() == 2);
+    assert(buttons.props.hasVerticalAlignment_);
+    assert(buttons.props.verticalAlignment_ == loka::app::VERTICAL_ALIGNMENT_BOTTOM);
+  }
+
+  {
+    loka::app::VStack column = buildTypedVStack();
+    assert(column.childrenCount() == 2);
+    assert(column.props.hasHorizontalAlignment_);
+    assert(column.props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER);
+  }
+
+  {
+    loka::app::Box box = buildTypedBox();
+    assert(box.childrenCount() == 1);
+    assert(box.props.padding == 8);
+    assert(box.hasTestId());
+    assert(box.testIdValue() == "TypedBox");
+  }
+
+  {
+    loka::app::Fragment fragment = buildTypedFragment();
+    assert(fragment.childrenCount() == 2);
+  }
+
+  {
+    loka::app::Grid grid = buildTypedGrid();
+    assert(grid.childrenCount() == 2);
+    assert(grid.props.rows == 1);
+    assert(grid.props.cols == 2);
+  }
+
+  {
+    loka::app::ZStack stack = buildTypedZStack();
+    assert(stack.childrenCount() == 2);
+    assert(stack.hasTestId());
+    assert(stack.testIdValue() == "TypedZStack");
+  }
+
+  {
+    using namespace loka::app::scene;
+
+    Scene scene(BoundaryDefinition<TypedDslLightHostProps, TypedDslLightHostNode>().clone());
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    loka::app::TextNode *lightChild = 0;
+    loka::dsl::FlowError lookupError;
+    assert(loka::dsl::testing::LookupNodeById<loka::app::TextNode>(&scene, "TypedDslLightChild", lightChild, lookupError) != loka::dsl::FLOW_STEP_FAILED);
+    assert(lightChild != 0);
+
+    scene.unmount();
+  }
 
   {
     RecordingObservedStateRegistrar registrar;

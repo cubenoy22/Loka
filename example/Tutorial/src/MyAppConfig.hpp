@@ -24,17 +24,22 @@ public:
     // typedef tutorial::Step3Node TutorialNode;
     // typedef tutorial::Step4Node TutorialNode;
 
-    c << WindowDef(WindowProps()
-                       .frame(60, 60, 360, 280)
-                       .scene(loka::app::scene::Boundary<TutorialNode>())
-                       .title("LokaTutorial")
-                       .visible(true));
+    c << WindowDef( //
+        WindowProps()
+            .frame(60, 60, 360, 280)
+            .scene(loka::app::scene::Boundary<TutorialNode>())
+            .title("LokaTutorial")
+            .visible(true));
   }
 
   virtual void composeMenu(loka::app::MenuComposition &c) {
     using namespace loka::app;
-    c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) << MenuSeparator()
-                        << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
+    c.declare(AppMenu()                                 //
+              << MenuItem("About")                      //
+                     .actionType(MENU_ACTION_ABOUT_APP) //
+              << MenuSeparator()                        //
+              << MenuItem("Quit")                       //
+                     .actionType(MENU_ACTION_QUIT_APP));
   }
 };
 

@@ -1,46 +1,33 @@
 #ifndef LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 #define LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 
+#include "app/PopupMenu.hpp"
+#include "app/RowColumn.hpp"
+#include "app/Text.hpp"
 #include "loka/core/State.hpp"
-#include "app/scene/BoundState.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 
-namespace loka
-{
-  namespace core
-  {
-    namespace scene
-    {
-      struct NodeComposition;
-    }
-  }
-}
-
 namespace helloworld
 {
-  class MainNode;
-
-  class MainRightPanelComponent
+  struct FruitPopupLabel
   {
-  public:
-    struct FruitPopupLabel
-    {
-      typedef loka::core::String Result;
-      loka::core::String operator()(const loka::core::String &value) const { return value; }
-    };
-
-    explicit MainRightPanelComponent(MainNode *owner);
-    void attachNode(loka::app::scene::NodeComposition &c);
-    void composeNode(loka::app::scene::NodeComposition &c);
-
-  private:
-    MainNode *owner_;
-    bool initialized_;
-    loka::app::scene::BoundState<int> fruitIndex_;
-    loka::app::scene::BoundState<loka::core::String> fruitMessage_;
-    loka::Vector<loka::core::String> fruits_;
+    typedef loka::core::String Result;
+    loka::core::String operator()(const loka::core::String &value) const { return value; }
   };
+
+  inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,
+                                          loka::core::State<int> *fruitIndex,
+                                          loka::core::State<loka::core::String> *fruitMessage)
+  {
+    using namespace loka::app;
+    return VStack().TEST_ID("HelloWorld.RightPanel")
+           << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")
+           << PopupMenu(fruits->map<loka::core::String>(FruitPopupLabel()))
+                  .selectedIndex(fruitIndex)
+                  .TEST_ID("HelloWorld.RightPanel.FruitPopup")
+           << Text(fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage");
+  }
 
 } // namespace helloworld
 
