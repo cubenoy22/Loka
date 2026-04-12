@@ -3,7 +3,7 @@
 
 #include "TutorialShared.hpp"
 #include "app/Button.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Show.hpp"
 #include "app/Text.hpp"
 #include "app/scene/BoundState.hpp"

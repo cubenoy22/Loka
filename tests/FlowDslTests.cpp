@@ -5,16 +5,16 @@
 #include <cstdio>
 #include <vector>
 
-#include "app/Box.hpp"
+#include "app/nodes/nestable/Box.hpp"
 #include "app/Button.hpp"
 #include "app/Cell.hpp"
 #include "app/Empty.hpp"
 #include "app/Fragment.hpp"
-#include "app/Grid.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/Grid.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Show.hpp"
 #include "app/Text.hpp"
-#include "app/ZStack.hpp"
+#include "app/nodes/nestable/ZStack.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"

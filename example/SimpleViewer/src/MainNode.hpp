@@ -4,7 +4,7 @@
 #include "app/scene/node/StaticComposition.hpp"
 #include "app/Empty.hpp"
 #include "app/OpenFileDialog.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/ImageView.hpp"
 #include <cassert>

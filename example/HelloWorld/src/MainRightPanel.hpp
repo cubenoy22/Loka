@@ -2,7 +2,7 @@
 #define LOKA_HELLOWORLD_MAIN_RIGHT_PANEL_HPP
 
 #include "app/PopupMenu.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"

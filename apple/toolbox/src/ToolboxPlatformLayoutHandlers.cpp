@@ -1,10 +1,10 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
 
-#include "app/Box.hpp"
-#include "app/Grid.hpp"
+#include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/Grid.hpp"
 #include "app/ImageView.hpp"
-#include "app/RowColumn.hpp"
-#include "app/ZStack.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ZStack.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "loka/dsl/CompositionList.hpp"
 

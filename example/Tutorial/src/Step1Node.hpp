@@ -2,7 +2,7 @@
 #define LOKA_TUTORIAL_STEP1_NODE_HPP
 
 #include "TutorialShared.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 

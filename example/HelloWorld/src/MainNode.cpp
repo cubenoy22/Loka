@@ -2,7 +2,7 @@
 
 #include "app/Text.hpp"
 #include "app/Window.hpp"
-#include "app/ZStack.hpp"
+#include "app/nodes/nestable/ZStack.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"

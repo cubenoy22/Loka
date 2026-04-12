@@ -2,7 +2,7 @@
 #define LOKA_FLOPPY_BIRD_MAIN_NODE_HPP
 
 #include "app/RectSurface.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "GameLogic.hpp"

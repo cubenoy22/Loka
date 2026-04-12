@@ -4,7 +4,7 @@
 #include "loka/core/String.hpp"
 #include "app/EditText.hpp"
 #include "app/Text.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "loka/core/State.hpp"
 
 namespace helloworld

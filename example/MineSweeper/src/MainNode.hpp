@@ -3,7 +3,7 @@
 
 #include "app/scene/node/StaticComposition.hpp"
 #include "app/Cell.hpp"
-#include "app/Grid.hpp"
+#include "app/nodes/nestable/Grid.hpp"
 #include <cstdlib>
 #include <ctime>
 
