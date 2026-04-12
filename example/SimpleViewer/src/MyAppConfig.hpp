@@ -5,7 +5,7 @@
 #include "app/core/AppConfigurable.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
-#include "app/WindowDefinition.hpp"
+#include "app/core/WindowDefinition.hpp"
 #include "app/Menu.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "core/resource/Image.hpp"

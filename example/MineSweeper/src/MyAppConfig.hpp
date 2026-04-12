@@ -3,7 +3,7 @@
 
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "app/WindowDefinition.hpp"
+#include "app/core/WindowDefinition.hpp"
 #include "MainNode.hpp"
 
 class MyAppConfig : public AppConfigurable

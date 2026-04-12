@@ -4,7 +4,7 @@
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/Menu.hpp"
-#include "app/WindowDefinition.hpp"
+#include "app/core/WindowDefinition.hpp"
 #include "app/scene/node/StaticComposition.hpp"
 #include "DoItYourselfNode.hpp"
 #include "Step1Node.hpp"

@@ -1,5 +1,5 @@
 #include "app/core/App.hpp"
-#include "app/Window.hpp"
+#include "app/core/Window.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/AppComposition.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"

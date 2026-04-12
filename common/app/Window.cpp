@@ -1,4 +1,4 @@
-#include "Window.hpp"
+#include "app/core/Window.hpp"
 #include "app/scene/Scene.hpp"
 
 bool Window::flushSceneInvalidation()

@@ -2,7 +2,7 @@
 #define LOKA_WINDOW_DEFINITION_HPP
 
 #include <cassert>
-#include "app/Window.hpp"
+#include "app/core/Window.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/scene/Scene.hpp"
 

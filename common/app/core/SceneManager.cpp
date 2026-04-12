@@ -1,4 +1,4 @@
-#include "SceneManager.hpp"
+#include "app/core/SceneManager.hpp"
 #include <cassert>
 #include "app/scene/Scene.hpp"
 #include "loka/core/util/StateUtil.hpp"

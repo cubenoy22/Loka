@@ -4,7 +4,7 @@
 #include "app/core/AppComposition.hpp"
 #include "app/core/App.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "app/WindowDefinition.hpp"
+#include "app/core/WindowDefinition.hpp"
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 

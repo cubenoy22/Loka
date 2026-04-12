@@ -4,7 +4,7 @@
 #include <vector>
 #include <cassert>
 #include "app/core/AppComponent.hpp"
-#include "app/WindowDefinition.hpp"
+#include "app/core/WindowDefinition.hpp"
 #include "loka/dsl/CompositionList.hpp"
 
 class AppComposition
