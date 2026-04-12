@@ -9,14 +9,12 @@ class App;
 class ToolboxScenePlatformController;
 class ToolboxWindowContext;
 
-class ToolboxWindow : public Window, public loka::app::IDebugStatsControl
+class ToolboxWindow : public Window
 {
 public:
   ToolboxWindow(PlatformContext *context, const WindowProps &props);
   virtual ~ToolboxWindow();
   virtual ToolboxWindow *asToolboxWindow() { return this; }
-  virtual loka::app::IDebugStatsControl *asDebugStatsControl() { return this; }
-  virtual const loka::app::IDebugStatsControl *asDebugStatsControl() const { return this; }
 
   void setApp(App *app);
   void ensureSceneMounted();
