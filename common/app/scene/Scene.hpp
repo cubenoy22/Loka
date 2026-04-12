@@ -3,7 +3,7 @@
 
 #include "loka/core/State.hpp"
 #include <cassert>
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
 #include "loka/platform/DebugLog.hpp"
 #endif
 #include "app/scene/Node.hpp" // Required for NodeDefinitionBase.
@@ -157,15 +157,15 @@ namespace loka
 
         void requestInvalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
         {
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           const bool alreadyPending = nextTickTracker_.hasPendingRequest();
           if (alreadyPending)
           {
-            loka::platform::DebugLogRecomposeMerged(static_cast<void *>(this));
+            loka::platform::DebugLogSceneUpdateMerged(static_cast<void *>(this));
           }
           else
           {
-            loka::platform::DebugLogRecomposeQueued(static_cast<void *>(this));
+            loka::platform::DebugLogSceneUpdateQueued(static_cast<void *>(this));
           }
 #endif
           if (flags == NODE_DIRTY_NONE)
@@ -519,7 +519,7 @@ namespace loka
           }
           const bool requiresStructure = pendingUpdateRootsRequireStructure(director_, this);
           const bool canApplyLocalDiff = pendingUpdateRootsCanApplyLocalCompositionDiff(director_);
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneDecision(static_cast<void *>(this),
                                                 requiresStructure ? 1 : 0,
                                                 requiresLayout ? 1 : 0,
@@ -539,7 +539,7 @@ namespace loka
           {
             compositionDiff_.fullRebuild = false;
           }
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneFlags(static_cast<void *>(this),
                                             "refresh",
                                             static_cast<unsigned int>(compositionDiff_.flags),
@@ -561,7 +561,7 @@ namespace loka
           {
             flags = NODE_DIRTY_PROPS;
           }
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneFlags(static_cast<void *>(this),
                                             "apply",
                                             static_cast<unsigned int>(flags),
@@ -616,7 +616,7 @@ namespace loka
             const NodeCompositionDiff *diff = root->localCompositionDiff();
             const INestable *rootNestable = root->asNestable();
             const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
             loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(root->scene()),
                                                      static_cast<void *>(root),
                                                      static_cast<unsigned int>(root->kind()),
@@ -701,7 +701,7 @@ namespace loka
                 static_cast<NodeDirtyFlags>(root->pendingDirtyFlags() | result.dirtyFlagsSeen);
             if (!result.composed)
             {
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
               loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
                                                          static_cast<void *>(root),
                                                          static_cast<unsigned int>(effectiveDirtyFlags),
@@ -720,7 +720,7 @@ namespace loka
             }
             if (!diff)
             {
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
               loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
                                                          static_cast<void *>(root),
                                                          static_cast<unsigned int>(effectiveDirtyFlags),
@@ -739,7 +739,7 @@ namespace loka
             }
             if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 && diffEmpty)
             {
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
               loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
                                                          static_cast<void *>(root),
                                                          static_cast<unsigned int>(effectiveDirtyFlags),
@@ -752,7 +752,7 @@ namespace loka
               root = director.nextPendingUpdateRoot(root);
               continue;
             }
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
             loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
                                                        static_cast<void *>(root),
                                                        static_cast<unsigned int>(effectiveDirtyFlags),

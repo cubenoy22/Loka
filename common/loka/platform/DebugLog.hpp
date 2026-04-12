@@ -5,10 +5,10 @@ namespace loka
 {
   namespace platform
   {
-#if defined(LOKA_DEBUG_RECOMPOSE)
-    void DebugLogRecomposeTracked(void *boundary, void *scene);
-    void DebugLogRecomposeQueued(void *scene);
-    void DebugLogRecomposeMerged(void *scene);
+#if defined(LOKA_DEBUG_SCENE_UPDATE)
+    void DebugLogSceneUpdateTracked(void *boundary, void *scene);
+    void DebugLogSceneUpdateQueued(void *scene);
+    void DebugLogSceneUpdateMerged(void *scene);
     void DebugLogSceneFlags(void *scene,
                            const char *stage,
                            unsigned int flags,
@@ -43,7 +43,7 @@ namespace loka
                                   const char *testId,
                                   int hasPreviousSnapshotRoot,
                                   int hasCurrentSnapshotRoot,
-                                  int transactionEmpty,
+                                  int compositionDiffStateEmpty,
                                   unsigned int childCount,
                                   unsigned int firstChildKind,
                                   const char *firstChildTestId);
@@ -52,9 +52,9 @@ namespace loka
                                         unsigned int dirtyFlags,
                                         int isRootBoundary);
 #else
-    inline void DebugLogRecomposeTracked(void *, void *) {}
-    inline void DebugLogRecomposeQueued(void *) {}
-    inline void DebugLogRecomposeMerged(void *) {}
+    inline void DebugLogSceneUpdateTracked(void *, void *) {}
+    inline void DebugLogSceneUpdateQueued(void *) {}
+    inline void DebugLogSceneUpdateMerged(void *) {}
     inline void DebugLogSceneFlags(void *, const char *, unsigned int, unsigned int, int) {}
     inline void DebugLogSceneDecision(void *, int, int, int) {}
     inline void DebugLogSceneStructureRoot(void *, void *, unsigned int, int, int, int, int, int) {}

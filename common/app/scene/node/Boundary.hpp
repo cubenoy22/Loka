@@ -892,7 +892,7 @@ namespace loka
           if (boundary)
           {
             boundary->beginComposeResult(event, parentContext.dirtyFlags());
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
             loka::platform::DebugLogBoundaryComposeDispatch(static_cast<void *>(boundary),
                                                             static_cast<unsigned int>(event),
                                                             static_cast<unsigned int>(parentContext.dirtyFlags()),

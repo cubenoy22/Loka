@@ -40,7 +40,6 @@ file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
 set(LOKA_MACOS_CORE_SOURCES
   src/MacApp.mm
   src/MacBuiltInSupport.mm
-  src/DebugLog.mm
   src/MacPlatformContext.mm
   src/MacProfiler.cpp
   src/MacScenePlatformController.mm
