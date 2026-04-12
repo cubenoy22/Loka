@@ -1,9 +1,7 @@
 #ifndef LOKA_APP2_NODES_NESTABLE_BOX_HPP
 #define LOKA_APP2_NODES_NESTABLE_BOX_HPP
 
-#include <string>
 #include "app/scene/Node.hpp"
-#include <vector>
 
 namespace loka
 {

@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_LAYOUT_ZSTACK_LAYOUT_HPP
 #define LOKA_APP_LAYOUT_ZSTACK_LAYOUT_HPP
 
-#include "app/ZStack.hpp"
+#include "app/nodes/nestable/ZStack.hpp"
 #include "loka/dsl/CompositionList.hpp"
 
 namespace loka

@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_LAYOUT_COLUMN_LAYOUT_HPP
 #define LOKA_APP_LAYOUT_COLUMN_LAYOUT_HPP
 
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "loka/dsl/CompositionList.hpp"
 

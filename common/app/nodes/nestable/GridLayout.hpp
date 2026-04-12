@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_LAYOUT_GRID_LAYOUT_HPP
 #define LOKA_APP_LAYOUT_GRID_LAYOUT_HPP
 
-#include "app/Grid.hpp"
+#include "app/nodes/nestable/Grid.hpp"
 #include "loka/dsl/CompositionList.hpp"
 
 namespace loka
