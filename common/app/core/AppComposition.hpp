@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <cassert>
-#include "app/AppComponent.hpp"
+#include "app/core/AppComponent.hpp"
 #include "app/WindowDefinition.hpp"
 #include "loka/dsl/CompositionList.hpp"
 

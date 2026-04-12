@@ -2,7 +2,7 @@
 #define LOKA_PLATFORM_MAIN_HPP
 
 #include <cassert>
-#include "app/App.hpp"
+#include "app/core/App.hpp"
 #include "app/PlatformContext.hpp"
 #include "loka/core/util/ScopedPtr.hpp"
 

@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_APP_HPP
 #define LOKA_TOOLBOX_APP_HPP
 
-#include "app/App.hpp"
+#include "app/core/App.hpp"
 #include <vector>
 #include <Menus.h>
 

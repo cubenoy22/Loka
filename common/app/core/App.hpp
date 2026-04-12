@@ -2,8 +2,8 @@
 #define LOKA_APP_HPP
 
 #include "app/ComponentGroup.hpp"
-#include "app/AppComponent.hpp"
-#include "app/AppConfigurable.hpp"
+#include "app/core/AppComponent.hpp"
+#include "app/core/AppConfigurable.hpp"
 #include "app/Menu.hpp"
 #include "loka/dsl/NextTickTracker.hpp"
 #include <cassert>

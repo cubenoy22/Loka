@@ -1,8 +1,8 @@
 #ifndef LOKA_SIMPLE_VIEWER_APP_CONFIG_HPP
 #define LOKA_SIMPLE_VIEWER_APP_CONFIG_HPP
 
-#include "app/AppComposition.hpp"
-#include "app/AppConfigurable.hpp"
+#include "app/core/AppComposition.hpp"
+#include "app/core/AppConfigurable.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
 #include "app/WindowDefinition.hpp"

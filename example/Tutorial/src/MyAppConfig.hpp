@@ -1,8 +1,8 @@
 #ifndef LOKA_TUTORIAL_APP_CONFIG_HPP
 #define LOKA_TUTORIAL_APP_CONFIG_HPP
 
-#include "app/AppComposition.hpp"
-#include "app/AppConfigurable.hpp"
+#include "app/core/AppComposition.hpp"
+#include "app/core/AppConfigurable.hpp"
 #include "app/Menu.hpp"
 #include "app/WindowDefinition.hpp"
 #include "app/scene/node/StaticComposition.hpp"

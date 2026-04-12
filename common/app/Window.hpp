@@ -3,8 +3,8 @@
 
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
-#include "app/AppConfigurable.hpp"
-#include "app/AppComponent.hpp"
+#include "app/core/AppConfigurable.hpp"
+#include "app/core/AppComponent.hpp"
 #include "app/SceneManager.hpp"
 #include "loka/core/util/StateUtil.hpp"
 #include "app/scene/Node.hpp"
