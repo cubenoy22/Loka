@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_IMAGE_VIEW_CONTEXT_HPP
 #define LOKA_MAC_IMAGE_VIEW_CONTEXT_HPP
 
-#include "app/ImageView.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "loka/core/State.hpp"
 #include "core/resource/Image.hpp"
 

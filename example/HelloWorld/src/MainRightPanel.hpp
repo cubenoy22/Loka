@@ -3,7 +3,7 @@
 
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"

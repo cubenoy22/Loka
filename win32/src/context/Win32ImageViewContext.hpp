@@ -2,7 +2,7 @@
 #define LOKA_WIN32_IMAGE_VIEW_CONTEXT_HPP
 
 #include <windows.h>
-#include "app/ImageView.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "loka/core/State.hpp"
 #include "core/resource/Image.hpp"
 

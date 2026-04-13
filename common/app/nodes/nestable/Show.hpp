@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_SHOW_HPP
 #define LOKA_APP_SHOW_HPP
 
-#include "app/Fragment.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/node/Conditional.hpp"
 
 namespace loka

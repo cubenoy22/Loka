@@ -4,7 +4,7 @@
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include "core/resource/Image.hpp"

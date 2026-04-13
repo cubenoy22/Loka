@@ -2,11 +2,11 @@
 #define LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 
 #include "app/scene/nodes/boundary/StdComposition.hpp"
-#include "app/Fragment.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/Text.hpp"
-#include "app/ImageView.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/ImageView.hpp"
 #include <cassert>
 
 namespace simpleviewer

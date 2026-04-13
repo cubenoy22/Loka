@@ -1,6 +1,6 @@
 #include "MainNode.hpp"
 
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"

@@ -7,7 +7,7 @@
 #include "app/scene/Node.hpp"
 #include "app/scene/StreamView.hpp"
 #include "app/scene/node/Conditional.hpp"
-#include "app/Fragment.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/BoundState.hpp"
 #include "app/scene/ComponentContext.hpp"
 #include "app/scene/StateOwner.hpp"

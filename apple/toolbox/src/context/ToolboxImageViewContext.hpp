@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_IMAGE_VIEW_CONTEXT_HPP
 #define LOKA_TOOLBOX_IMAGE_VIEW_CONTEXT_HPP
 
-#include "app/ImageView.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
 #include <Quickdraw.h>

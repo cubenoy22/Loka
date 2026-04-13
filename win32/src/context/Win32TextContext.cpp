@@ -1,7 +1,7 @@
 #include "Win32TextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"

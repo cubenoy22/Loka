@@ -4,7 +4,7 @@
 #include "TutorialShared.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "app/scene/BoundState.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"

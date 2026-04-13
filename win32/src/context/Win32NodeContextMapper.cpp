@@ -9,10 +9,10 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/EditText.hpp"
-#include "app/ImageView.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 Win32ButtonContext *Win32NodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,
                                                                 int x,

@@ -9,7 +9,7 @@ Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style cha
 ```cpp
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
 
 class DemoNode : public loka::app::scene::StdCompositionNodeFor<DemoNode>
@@ -48,7 +48,7 @@ reuse behavior, and redraw strategy much simpler and cheaper.
 ```cpp
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 class StaticPanel : public loka::app::scene::StdCompositionNodeFor<StaticPanel>
 {
@@ -86,7 +86,7 @@ App-level composition declares windows and scenes.
 ```cpp
 #include "app/AppComposition.hpp"
 #include "app/WindowDefinition.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 class MyAppConfig : public AppConfigurable
 {
@@ -109,9 +109,9 @@ public:
 `Fragment` (`F()`) is a lightweight, nestable container when you just want to group children without a visual node.
 
 ```cpp
-#include "app/Fragment.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 using namespace loka::app;
 
@@ -135,7 +135,7 @@ without owning state.
 
 ```cpp
 #include "app/scene/node/Group.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 using namespace loka::app::scene;
 using namespace loka::app;
