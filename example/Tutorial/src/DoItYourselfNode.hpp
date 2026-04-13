@@ -4,7 +4,7 @@
 #include "TutorialShared.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 
 namespace tutorial
 {

@@ -12,7 +12,7 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformApplyPlan.hpp"
 #include "app/scene/SceneDirector.hpp"
-#include "app/scene/node/Boundary.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/dsl/NextTickTracker.hpp"
 #include "loka/dsl/CompositionDiff.hpp"

@@ -6,7 +6,7 @@
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
-#include "app/scene/node/Boundary.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
 #include "debug/ToolboxSceneDebugStats.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>

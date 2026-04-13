@@ -4,7 +4,7 @@
 #include "app/RectSurface.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "GameLogic.hpp"
 
 namespace floppybird
@@ -59,11 +59,11 @@ namespace floppybird
     }
   };
 
-  class MainNode : public loka::app::scene::StaticCompositionBoundaryNodeBase<MainProps>
+  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
   public:
     MainNode(const MainProps &props)
-        : loka::app::scene::StaticCompositionBoundaryNodeBase<MainProps>(props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(props)
     {
     }
 

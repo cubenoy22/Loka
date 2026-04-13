@@ -1,7 +1,7 @@
 #include "MacScenePlatformController.hpp"
 #include "MacBuiltInSupport.hpp"
 #include "MacObjCCompat.hpp"
-#include "app/scene/node/Boundary.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
 #include <AppKit/AppKit.h>
 #include <vector>
 #include "app/nodes/nestable/Box.hpp"

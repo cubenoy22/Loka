@@ -1,14 +1,14 @@
-#ifndef LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP
-#define LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP
+#ifndef LOKA_CORE2_SCENE_NODES_BOUNDARY_BOUNDARY_HPP
+#define LOKA_CORE2_SCENE_NODES_BOUNDARY_BOUNDARY_HPP
 
 #include <cstdarg>
 #include <vector>
-#include "../Node.hpp"
-#include "../PlatformController.hpp"
-#include "ComposableNode.hpp"
-#include "../BoundState.hpp"
-#include "../ComponentContext.hpp"
-#include "../PlatformApplyPlan.hpp"
+#include "../../Node.hpp"
+#include "../../PlatformController.hpp"
+#include "../../node/ComposableNode.hpp"
+#include "../../BoundState.hpp"
+#include "../../ComponentContext.hpp"
+#include "../../PlatformApplyPlan.hpp"
 #include "BoundaryApplyInfo.hpp"
 #include "BoundaryCompositionState.hpp"
 #include "BoundaryObservedState.hpp"

@@ -1,12 +1,12 @@
 #include "Win32ScenePlatformController.hpp"
 #include "Win32BuiltInSupport.hpp"
-#include "app/scene/node/Boundary.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
 #include <windows.h>
 #include <vector>
-#include "app/Box.hpp"
-#include "app/Grid.hpp"
-#include "app/RowColumn.hpp"
-#include "app/ZStack.hpp"
+#include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/Grid.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/ZStack.hpp"
 #include "app/RectSurface.hpp"
 #include "app/layout/ContainerLayout.hpp"
 #include "app/layout/LayoutHeuristics.hpp"

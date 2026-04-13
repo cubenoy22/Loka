@@ -4,7 +4,7 @@
 #include <vector>
 #include "../BoundState.hpp"
 #include "../StateOwner.hpp"
-#include "Boundary.hpp"
+#include "../nodes/boundary/Boundary.hpp"
 #include "ComposableNode.hpp"
 #include "loka/core/StateTracker.hpp"
 

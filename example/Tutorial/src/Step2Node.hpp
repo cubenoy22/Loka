@@ -6,7 +6,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/BoundState.hpp"
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 

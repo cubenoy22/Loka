@@ -38,7 +38,7 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/Node.hpp"
-#include "app/scene/node/Boundary.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
 
 namespace
 {

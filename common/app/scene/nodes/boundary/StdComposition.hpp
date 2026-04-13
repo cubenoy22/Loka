@@ -1,7 +1,7 @@
-#ifndef LOKA_CORE2_SCENE_NODE_STATICCOMPOSITION_HPP
-#define LOKA_CORE2_SCENE_NODE_STATICCOMPOSITION_HPP
+#ifndef LOKA_CORE2_SCENE_NODES_BOUNDARY_STDCOMPOSITION_HPP
+#define LOKA_CORE2_SCENE_NODES_BOUNDARY_STDCOMPOSITION_HPP
 
-#include "../NodeComposition.hpp"
+#include "../../NodeComposition.hpp"
 #include "Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 
@@ -13,14 +13,14 @@ namespace loka
     {
       // Forward declaration so props can alias NodeType
       template <class PropsT>
-      class StaticCompositionBoundaryNodeBase;
+      class StdCompositionBoundaryNodeBase;
 
-      struct StaticCompositionTypeTag
+      struct StdCompositionTypeTag
       {
       };
 
       template <class NodeT>
-      struct StaticCompositionPropsForTypeTag
+      struct StdCompositionPropsForTypeTag
       {
       };
 
@@ -71,11 +71,11 @@ namespace loka
         LOKA_STATIC_ASSERT(BoundaryPropValueRules<T>::kAllowed, boundary_props_must_not_hold_owned_or_raw_mutable_state);
       }
 
-      struct StaticCompositionProps : public NodePropsBase<StaticCompositionProps>
+      struct StdCompositionProps : public NodePropsBase<StdCompositionProps>
       {
-        StaticCompositionProps() {}
-        typedef StaticCompositionTypeTag TypeTag;
-        typedef StaticCompositionBoundaryNodeBase<StaticCompositionProps> NodeType;
+        StdCompositionProps() {}
+        typedef StdCompositionTypeTag TypeTag;
+        typedef StdCompositionBoundaryNodeBase<StdCompositionProps> NodeType;
         bool operator<(const PropsBase &rhs) const
         {
           if (rhs.propsTypeId() != propsTypeId())
@@ -84,14 +84,14 @@ namespace loka
         }
       };
 
-      typedef StaticCompositionBoundaryNodeBase<StaticCompositionProps> StaticCompositionBoundaryNode;
-      typedef StaticCompositionBoundaryNode StaticCompositionNode;
+      typedef StdCompositionBoundaryNodeBase<StdCompositionProps> StdCompositionBoundaryNode;
+      typedef StdCompositionBoundaryNode StdCompositionNode;
 
-      // Helper props for static composition boundary nodes with no custom fields.
+      // Helper props for standard composition boundary nodes with no custom fields.
       template <class NodeT>
-      struct StaticCompositionPropsFor : public NodePropsBase<StaticCompositionPropsFor<NodeT> >
+      struct StdCompositionPropsFor : public NodePropsBase<StdCompositionPropsFor<NodeT> >
       {
-        typedef StaticCompositionPropsForTypeTag<NodeT> TypeTag;
+        typedef StdCompositionPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
         bool operator<(const PropsBase &rhs) const
         {
@@ -101,7 +101,7 @@ namespace loka
         }
       };
 
-      // Alias to avoid exposing "Static" in user code.
+      // Alias to avoid exposing composition strategy in common user code.
       // Note: Must inherit from NodePropsBase<BoundaryPropsFor<NodeT>> directly
       // so that createNode() receives the correct Props type for node constructors.
       template <class NodeT>
@@ -139,17 +139,17 @@ namespace loka
       };
 
       template <class PropsT>
-      class StaticCompositionBoundaryNodeBase : public BoundaryNode
+      class StdCompositionBoundaryNodeBase : public BoundaryNode
       {
       public:
         typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
-        StaticCompositionBoundaryNodeBase(const PropsT &p)
+        StdCompositionBoundaryNodeBase(const PropsT &p)
             : BoundaryNode(), props(p), composed_(false) {}
-        virtual ~StaticCompositionBoundaryNodeBase() {}
+        virtual ~StdCompositionBoundaryNodeBase() {}
 
         // Build node definitions into composition container (default: no children)
-        // Making this non-pure allows instantiation via NodeDefinition<StaticCompositionProps, StaticCompositionNode>
+        // Making this non-pure allows instantiation via NodeDefinition<StdCompositionProps, StdCompositionNode>
         virtual void composeNode(NodeComposition &c) {}
 
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
@@ -220,41 +220,41 @@ namespace loka
         bool composed_;
       };
 
-      struct StaticCompositionDefinition : public NodeDefinition<StaticCompositionProps, StaticCompositionNode>
+      struct StdCompositionDefinition : public NodeDefinition<StdCompositionProps, StdCompositionNode>
       {
-        StaticCompositionDefinition() : NodeDefinition<StaticCompositionProps, StaticCompositionNode>() {}
-        StaticCompositionDefinition(const StaticCompositionProps &p) : NodeDefinition<StaticCompositionProps, StaticCompositionNode>(p) {}
+        StdCompositionDefinition() : NodeDefinition<StdCompositionProps, StdCompositionNode>() {}
+        StdCompositionDefinition(const StdCompositionProps &p) : NodeDefinition<StdCompositionProps, StdCompositionNode>(p) {}
       };
 
-      struct StaticCompositionBoundaryDefinition : public BoundaryDefinition<StaticCompositionProps, StaticCompositionBoundaryNode>
+      struct StdCompositionBoundaryDefinition : public BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>
       {
-        StaticCompositionBoundaryDefinition() : BoundaryDefinition<StaticCompositionProps, StaticCompositionBoundaryNode>() {}
-        StaticCompositionBoundaryDefinition(const StaticCompositionProps &p) : BoundaryDefinition<StaticCompositionProps, StaticCompositionBoundaryNode>(p) {}
+        StdCompositionBoundaryDefinition() : BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>() {}
+        StdCompositionBoundaryDefinition(const StdCompositionProps &p) : BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>(p) {}
       };
 
-      inline StaticCompositionDefinition StaticComposition(const StaticCompositionProps &p)
+      inline StdCompositionDefinition StdComposition(const StdCompositionProps &p)
       {
-        return StaticCompositionDefinition(p);
+        return StdCompositionDefinition(p);
       }
 
-      inline StaticCompositionBoundaryDefinition StaticCompositionBoundary(const StaticCompositionProps &p)
+      inline StdCompositionBoundaryDefinition StdCompositionBoundary(const StdCompositionProps &p)
       {
-        return StaticCompositionBoundaryDefinition(p);
+        return StdCompositionBoundaryDefinition(p);
       }
 
       template <class NodeT>
-      inline BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT> StaticCompositionBoundary()
+      inline BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT> StdCompositionBoundary()
       {
-        return BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT>();
+        return BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT>();
       }
 
       template <class NodeT>
-      inline BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT> StaticCompositionBoundary(const StaticCompositionPropsFor<NodeT> &p)
+      inline BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT> StdCompositionBoundary(const StdCompositionPropsFor<NodeT> &p)
       {
-        return BoundaryDefinition<StaticCompositionPropsFor<NodeT>, NodeT>(p);
+        return BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT>(p);
       }
 
-      // Alias to avoid exposing "Static" in user code.
+      // Alias to avoid exposing composition strategy in common user code.
       template <class NodeT>
       inline BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT> Boundary()
       {
@@ -267,26 +267,26 @@ namespace loka
         return BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT>(p);
       }
 
-      // Helper base class for nodes using StaticCompositionPropsFor<NodeT>.
+      // Helper base class for nodes using StdCompositionPropsFor<NodeT>.
       template <class NodeT>
-      class StaticCompositionNodeFor : public StaticCompositionBoundaryNodeBase<StaticCompositionPropsFor<NodeT> >
+      class StdCompositionNodeFor : public StdCompositionBoundaryNodeBase<StdCompositionPropsFor<NodeT> >
       {
       public:
-        typedef StaticCompositionPropsFor<NodeT> PropsType;
-        StaticCompositionNodeFor(const PropsType &p)
-            : StaticCompositionBoundaryNodeBase<StaticCompositionPropsFor<NodeT> >(p) {}
-        virtual ~StaticCompositionNodeFor() {}
+        typedef StdCompositionPropsFor<NodeT> PropsType;
+        StdCompositionNodeFor(const PropsType &p)
+            : StdCompositionBoundaryNodeBase<StdCompositionPropsFor<NodeT> >(p) {}
+        virtual ~StdCompositionNodeFor() {}
       };
 
-      // Alias for boundary nodes without exposing "Static" in user code.
+      // Alias for boundary nodes without exposing composition strategy in user code.
       // Uses BoundaryPropsFor<NodeT> to match user constructor expectations.
       template <class NodeT>
-      class BoundaryNodeFor : public StaticCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >
+      class BoundaryNodeFor : public StdCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >
       {
       public:
         typedef BoundaryPropsFor<NodeT> PropsType;
         BoundaryNodeFor(const PropsType &p)
-            : StaticCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >(p) {}
+            : StdCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >(p) {}
         virtual ~BoundaryNodeFor() {}
       };
 
@@ -294,4 +294,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_CORE2_SCENE_NODE_STATICCOMPOSITION_HPP
+#endif // LOKA_CORE2_SCENE_NODES_BOUNDARY_STDCOMPOSITION_HPP

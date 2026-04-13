@@ -1,5 +1,5 @@
 #include "Boundary.hpp"
-#include "../Scene.hpp"
+#include "../../Scene.hpp"
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
 #include "loka/platform/DebugLog.hpp"
 #endif

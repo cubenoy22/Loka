@@ -26,7 +26,7 @@ namespace helloworld
   }
 
   MainNode::MainNode(const MainProps &p)
-      : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
+      : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
         initialized_(false),
         actionSummaryCacheValid_(false),
         lastActionSummaryEnabled_(false),

@@ -19,7 +19,7 @@
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/PlatformLayoutHandler.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
-#include "app/scene/node/Boundary.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "loka/core/State.hpp"
 

@@ -1,7 +1,7 @@
 #ifndef LOKA_MINESWEEPER_MAIN_NODE_HPP
 #define LOKA_MINESWEEPER_MAIN_NODE_HPP
 
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "app/Cell.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include <cstdlib>
@@ -10,13 +10,13 @@
 namespace minesweeper
 {
   class MainNode;
-  typedef loka::app::scene::StaticCompositionPropsFor<MainNode> MainProps;
+  typedef loka::app::scene::StdCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>
+  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p)
-        : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
+        : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false)
     {
     }

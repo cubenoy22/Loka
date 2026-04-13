@@ -1,7 +1,7 @@
 #ifndef LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 #define LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "app/Empty.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
@@ -76,12 +76,12 @@ namespace simpleviewer
     }
   };
 
-  class MainNode : public loka::app::scene::StaticCompositionBoundaryNodeBase<MainProps>
+  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
   public:
     typedef MainTypeTag TypeTag;
     MainNode(const MainProps &p)
-        : loka::app::scene::StaticCompositionBoundaryNodeBase<MainProps>(p) {}
+        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p) {}
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {

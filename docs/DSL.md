@@ -7,16 +7,16 @@ This is a short, memory-jogging intro to the Loka composition DSL and string usa
 Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style chaining and avoid local temporaries.
 
 ```cpp
-#include "app/scene/node/StaticComposition.hpp"
-#include "app/RowColumn.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/Button.hpp"
 
-class DemoNode : public loka::app::scene::StaticCompositionNodeFor<DemoNode>
+class DemoNode : public loka::app::scene::StdCompositionNodeFor<DemoNode>
 {
 public:
-  typedef loka::app::scene::StaticCompositionPropsFor<DemoNode> PropsType;
-  DemoNode(const PropsType &p) : loka::app::scene::StaticCompositionNodeFor<DemoNode>(p) {}
+  typedef loka::app::scene::StdCompositionPropsFor<DemoNode> PropsType;
+  DemoNode(const PropsType &p) : loka::app::scene::StdCompositionNodeFor<DemoNode>(p) {}
 
   virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
@@ -33,16 +33,16 @@ public:
 Boundaries own composition/state. Prefer static composition and keep conditional/repeated structure in the same model.
 
 ```cpp
-#include "app/scene/node/StaticComposition.hpp"
-#include "app/RowColumn.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 
-class StaticPanel : public loka::app::scene::StaticCompositionNodeFor<StaticPanel>
+class StaticPanel : public loka::app::scene::StdCompositionNodeFor<StaticPanel>
 {
 public:
-  typedef loka::app::scene::StaticCompositionPropsFor<StaticPanel> PropsType;
+  typedef loka::app::scene::StdCompositionPropsFor<StaticPanel> PropsType;
   StaticPanel(const PropsType &p)
-      : loka::app::scene::StaticCompositionNodeFor<StaticPanel>(p) {}
+      : loka::app::scene::StdCompositionNodeFor<StaticPanel>(p) {}
 
   virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
@@ -97,7 +97,7 @@ public:
 
 ```cpp
 #include "app/Fragment.hpp"
-#include "app/RowColumn.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 
 using namespace loka::app;

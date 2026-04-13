@@ -1,7 +1,7 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/Scene.hpp"
-#include "app/scene/node/Boundary.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
 #include "app/core/Window.hpp"
 #include <cstdio>
 #include <new>
