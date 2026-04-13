@@ -2,7 +2,7 @@
 #define LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 
 #include "app/scene/nodes/boundary/StdComposition.hpp"
-#include "app/Empty.hpp"
+#include "app/Fragment.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
@@ -89,7 +89,7 @@ namespace simpleviewer
       this->props.assertInitialized();
       c.declare(
           VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-          << Empty()
+          << F()
           << Text("Loka file:")
           << Text(this->props.message_).attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
           << ImageView()

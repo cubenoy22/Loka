@@ -8,6 +8,7 @@
 class App;
 class ToolboxScenePlatformController;
 class ToolboxWindowContext;
+typedef void (*DeferredDumpCompletion)(void *userData);
 
 class ToolboxWindow : public Window
 {

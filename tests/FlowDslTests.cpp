@@ -8,7 +8,7 @@
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
-#include "app/Empty.hpp"
+#include "app/Fragment.hpp"
 #include "app/Fragment.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
@@ -636,7 +636,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedSentinel"));
+      c.declare(loka::app::F().testId("HeadlessOwnedSentinel"));
     }
 
     void increment()
@@ -739,7 +739,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedMultiSentinelA"));
+      c.declare(loka::app::F().testId("HeadlessOwnedMultiSentinelA"));
     }
 
     loka::core::String summaryText() const
@@ -794,7 +794,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedMultiSentinelB"));
+      c.declare(loka::app::F().testId("HeadlessOwnedMultiSentinelB"));
     }
 
     loka::core::String summaryText() const
@@ -888,7 +888,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedPersistentSentinel"));
+      c.declare(loka::app::F().testId("HeadlessOwnedPersistentSentinel"));
     }
 
   private:
