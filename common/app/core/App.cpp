@@ -62,7 +62,7 @@ void App::run()
     AppComposition composition(config_->getPlatformContext());
     config_->compose(composition);
     refreshDefaultMenuBar();
-    group_ = new ComponentGroup<AppComponent>(composition.build());
+    group_ = new AppComponentGroup(composition.build());
   }
   reflectInitialVisibilityChunks();
 }
