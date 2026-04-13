@@ -4,7 +4,7 @@
 #include <cstdio>
 
 #include "app/nodes/nestable/Box.hpp"
-#include "app/Button.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/ImageView.hpp"
 #include "app/Menu.hpp"

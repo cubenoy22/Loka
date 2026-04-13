@@ -6,12 +6,12 @@
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32PopupMenuContext.hpp"
 #include "context/Win32TextContext.hpp"
-#include "app/Button.hpp"
-#include "app/Cell.hpp"
-#include "app/EditText.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
-#include "app/PopupMenu.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
 #include "app/Text.hpp"
 
 Win32ButtonContext *Win32NodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,

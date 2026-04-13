@@ -2,7 +2,7 @@
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
 #include <vector>
-#include "app/EditText.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 

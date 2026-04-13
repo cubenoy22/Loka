@@ -1,7 +1,7 @@
 #ifndef LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 #define LOKA_HELLOWORLD_MAIN_LEFT_PANEL_HPP
 
-#include "app/Button.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "loka/core/String.hpp"

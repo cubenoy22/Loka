@@ -2,7 +2,7 @@
 #define LOKA_TUTORIAL_STEP2_NODE_HPP
 
 #include "TutorialShared.hpp"
-#include "app/Button.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
 #include "app/scene/BoundState.hpp"

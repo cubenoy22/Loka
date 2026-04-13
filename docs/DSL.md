@@ -10,7 +10,7 @@ Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style cha
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/Text.hpp"
-#include "app/Button.hpp"
+#include "app/nodes/controls/Button.hpp"
 
 class DemoNode : public loka::app::scene::StdCompositionNodeFor<DemoNode>
 {

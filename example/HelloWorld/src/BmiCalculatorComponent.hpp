@@ -2,7 +2,7 @@
 #define LOKA_HELLOWORLD_BMI_CALCULATOR_COMPONENT_HPP
 
 #include "loka/core/String.hpp"
-#include "app/EditText.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/Text.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "loka/core/State.hpp"

@@ -3,7 +3,7 @@
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
-#include "app/Cell.hpp"
+#include "app/nodes/controls/Cell.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 

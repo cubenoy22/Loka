@@ -16,7 +16,7 @@
 #include "app/nodes/nestable/ZStackLayout.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
-#include "app/EditText.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/scene/Node.hpp"
 #include "context/MacEditTextContext.hpp"
 #include "context/MacOpenFileDialogContext.hpp"

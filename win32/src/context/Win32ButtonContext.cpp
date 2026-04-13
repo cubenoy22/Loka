@@ -1,7 +1,7 @@
 #include "Win32ButtonContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
-#include "app/Button.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"

@@ -2,7 +2,7 @@
 #define LOKA_TOOLBOX_CELL_CONTEXT_HPP
 
 #include "app/scene/NativeNodeContext.hpp"
-#include "app/Cell.hpp"
+#include "app/nodes/controls/Cell.hpp"
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;

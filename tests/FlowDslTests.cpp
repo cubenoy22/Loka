@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "app/nodes/nestable/Box.hpp"
-#include "app/Button.hpp"
-#include "app/Cell.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
 #include "app/Empty.hpp"
 #include "app/Fragment.hpp"
 #include "app/nodes/nestable/Grid.hpp"
