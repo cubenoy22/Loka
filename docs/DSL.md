@@ -28,9 +28,22 @@ public:
 };
 ```
 
-## Boundary + Static Composition
+## Boundary + StdComposition
 
-Boundaries own composition/state. Prefer static composition and keep conditional/repeated structure in the same model.
+Boundaries own composition/state. Prefer `StdComposition` and keep conditional/repeated structure in the same model.
+
+Loka is declarative in syntax, but it is not tightly coupled to a single composition strategy.
+Each `Boundary` can own its own composition/reuse/redraw policy, and boundaries can be nested, so different parts
+of a UI may use different strategies.
+
+The currently provided `StdComposition` is a fine-grained reactive composition model: it builds the node structure
+once, binds to state during compose, and then reflects updates through those bindings without rebuilding the
+composition tree.
+
+Recompose-capable composition is not impossible in Loka. It can be introduced as another concrete composition
+strategy attached to a `Boundary`, making the subtree below that boundary recompose-capable. Loka currently ships
+only `StdComposition` because it already provides enough expressive power, while keeping the implementation,
+reuse behavior, and redraw strategy much simpler and cheaper.
 
 ```cpp
 #include "app/scene/nodes/boundary/StdComposition.hpp"
@@ -172,7 +185,7 @@ This makes `c.declare(...)` and `c.group(...)` safe for temporary DSL objects.
 
 ## Conditional
 
-Use `NodeComposition::showIf` to include optional content inside static composition.
+Use `NodeComposition::showIf` to include optional content inside `StdComposition`.
 
 ```cpp
 using namespace loka::app;
@@ -185,7 +198,7 @@ c.declare(VStack()
           << (Show(*flag.state()) << Text("On")));
 ```
 
-This keeps the branch in the same static composition model. If the condition is
+This keeps the branch in the same `StdComposition` model. If the condition is
 false, `Empty` is used.
 
 ## Stream Helpers

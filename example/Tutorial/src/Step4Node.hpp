@@ -55,7 +55,7 @@ namespace tutorial {
                     << (Show(*this->showItem1_.state()) << this->item1_)
                     << (Show(*this->showItem2_.state()) << this->item2_)
                     << (Show(*this->showItem3_.state()) << this->item3_))
-                << TutorialHint("Static composition can still reveal predeclared children, and stream().map() "
+                << TutorialHint("StdComposition can still reveal predeclared children, and stream().map() "
                                 "can derive display text."));
     }
 
