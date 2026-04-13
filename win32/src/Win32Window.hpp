@@ -1,7 +1,7 @@
 #ifndef LOKA_WIN32WINDOW_HPP
 #define LOKA_WIN32WINDOW_HPP
 
-#include "app/Window.hpp"
+#include "app/core/Window.hpp"
 #include <windows.h>
 #include <string>
 
