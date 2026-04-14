@@ -90,17 +90,10 @@ namespace loka
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
-      loka::core::MutableState<bool> *isVisible_;
       loka::core::MutableState<FileChooserResult> *result_;
       loka::core::EmitterState *onResult_;
       void *windowToAttach_;
-      OpenFileDialogProps() : isVisible_(0), result_(0), onResult_(0), windowToAttach_(0) {}
-
-      OpenFileDialogProps &isVisible(loka::core::MutableState<bool> *state)
-      {
-        this->isVisible_ = state;
-        return *this;
-      }
+      OpenFileDialogProps() : result_(0), onResult_(0), windowToAttach_(0) {}
 
       OpenFileDialogProps &result(loka::core::MutableState<FileChooserResult> *state)
       {
@@ -125,8 +118,6 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const OpenFileDialogProps &other = static_cast<const OpenFileDialogProps &>(rhs);
-        if (isVisible_ != other.isVisible_)
-          return isVisible_ < other.isVisible_;
         if (result_ != other.result_)
           return result_ < other.result_;
         if (onResult_ != other.onResult_)
@@ -168,12 +159,6 @@ namespace loka
     {
       OpenFileDialogDefinition() : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>() {}
       OpenFileDialogDefinition(const OpenFileDialogProps &p) : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>(p) {}
-
-      OpenFileDialogDefinition &isVisible(loka::core::MutableState<bool> *state)
-      {
-        this->props.isVisible_ = state;
-        return *this;
-      }
 
       OpenFileDialogDefinition &attachToWindow(void *window)
       {

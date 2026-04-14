@@ -7,7 +7,6 @@
 #include "loka/core/StateTracker.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/Menu.hpp"
-#include "app/OpenFileDialog.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/dsl/dsl.hpp"
 #include "SimpleViewerFlowAdapters.hpp"
@@ -32,6 +31,7 @@ public:
     this->tracker_.addState(&this->chooserMessage_);
     this->tracker_.addState(&this->image_);
     this->openDialogEvent_.deferBind(&MyAppConfig::OnOpenDialogEvent, this);
+    this->chooserResult_.deferBind(&MyAppConfig::OnChooserResultChanged, this);
   }
 
   virtual void compose(AppComposition &c)
@@ -41,6 +41,7 @@ public:
                        .scene(loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
                            simpleviewer::MainProps()
                                .isDialogShown(&this->isDialogShown_)
+                               .openDialogEvent(&this->openDialogEvent_)
                                .message(&this->chooserMessage_)
                                .result(&this->chooserResult_)
                                .image(&this->image_)))
@@ -74,6 +75,16 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (!self) return;
     self->isDialogShown_.set(true, true);
+  }
+
+  static void OnChooserResultChanged(void *userData)
+  {
+    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
+    if (!self) return;
+    if (self->isDialogShown_.get())
+    {
+      self->isDialogShown_.set(false, true);
+    }
   }
 
   static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData)

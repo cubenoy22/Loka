@@ -125,13 +125,22 @@ MacOpenFileDialogContext *MacNodeContextMapper::ensureOpenFileDialogContext(loka
   {
     return 0;
   }
+  const bool pendingAttach = node->consumePendingAttach();
   MacOpenFileDialogContext *ctx = static_cast<MacOpenFileDialogContext *>(node->getContext());
   if (ctx)
   {
+    if (pendingAttach)
+    {
+      ctx->presentIfNeeded();
+    }
     return ctx;
   }
   ctx = new MacOpenFileDialogContext(this->rootView_, node);
   node->setContext(ctx);
+  // Boundary compose may already consume pendingAttach to convert the child
+  // compose event to ATTACH, so a freshly created dialog context should
+  // present immediately even when pendingAttach is no longer visible here.
+  ctx->presentIfNeeded();
   return ctx;
 }
 

@@ -35,7 +35,7 @@ namespace loka
         {
           if (this->props.condition)
           {
-            registrar.observe(this->props.condition, NODE_DIRTY_CHILD);
+            registrar.observe(this->props.condition, static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
           }
         }
         static void onConditionChanged(void *userData);

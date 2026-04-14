@@ -18,56 +18,27 @@ static loka::core::String displayPathFromSpec(const FSSpec &spec)
 
 ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node)
     : node_(node),
-      visibleState_(0),
       resultState_(0),
       onResult_(0),
-      presenting_(false)
+      presenting_(false),
+      presented_(false)
 {
-  visibleState_ = node_ ? node_->props.isVisible_ : 0;
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
-  if (visibleState_)
-  {
-    bindVisible();
-  }
 }
 
 ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
 {
-  unbindVisible();
 }
 
-void ToolboxOpenFileDialogContext::bindVisible()
+void ToolboxOpenFileDialogContext::presentIfNeeded()
 {
-  if (!visibleState_)
+  if (presented_)
   {
     return;
   }
-  visibleState_->deferBind(&ToolboxOpenFileDialogContext::VisibleChangedThunk, this);
-}
-
-void ToolboxOpenFileDialogContext::unbindVisible()
-{
-  if (!visibleState_)
-  {
-    return;
-  }
-  visibleState_ = 0;
-}
-
-void ToolboxOpenFileDialogContext::applyVisible()
-{
-  if (!visibleState_)
-  {
-    return;
-  }
-  if (visibleState_->get())
-  {
-    // Consume the visible trigger first so duplicate listeners in the same
-    // notification cycle do not re-open the dialog.
-    visibleState_->set(false);
-    presentDialog();
-  }
+  presented_ = true;
+  presentDialog();
 }
 
 void ToolboxOpenFileDialogContext::presentDialog()
@@ -108,14 +79,5 @@ void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult 
   if (onResult_)
   {
     onResult_->emit();
-  }
-}
-
-void ToolboxOpenFileDialogContext::VisibleChangedThunk(void *userData)
-{
-  ToolboxOpenFileDialogContext *self = static_cast<ToolboxOpenFileDialogContext *>(userData);
-  if (self && self->visibleState_)
-  {
-    self->applyVisible();
   }
 }

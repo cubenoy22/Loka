@@ -247,6 +247,8 @@ void MacApp::handleMenuCommand(int commandId)
     if (commands_[i].emitter)
     {
       commands_[i].emitter->emit();
+      this->flushWindowInvalidations();
+      MacScenePlatformController::flushPendingRelayouts();
     }
     if (commands_[i].action == loka::app::MENU_ACTION_REBUILD_MENU)
     {
