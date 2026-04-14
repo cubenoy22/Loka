@@ -1,14 +1,12 @@
 # Project rules
 
-- C++98 only; avoid newer syntax unless explicitly justified for design discussion.
+- Loka repository code should remain compatible with the project's target platform constraints; treat C++98 as the baseline unless a narrower file- or platform-specific rule explicitly allows otherwise.
 - Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.
 - Use TypeTag static checks in debug builds; allow overriding with `USE_LOKA_STATIC_ASSERT`. Prefer `static_assert` when C++11+ is available; in C++98 builds, keep them behind `LOKA_*_CHECK_TYPETAG`.
 - C++ exceptions are disabled; do not add `try`/`catch` or rely on throwing.
 - Loka applications are single-threaded at the application layer; all UI and DSL logic must execute on the Main Thread. Multi-threading and concurrency are deferred to OS/platform-specific implementations, which must dispatch results back to the Main Thread.
 - Prefer explicit error handling and nothrow/nullable patterns in Classic builds.
 - Use `assert` for contract violations (e.g., null PlatformContext); do not throw.
-- Rename mission: user-visible/app-layer strings and titles should move to "Loka";
-  core namespaces/types should also move to "Loka" as part of the rename effort.
 - UI layers should follow platform-native naming and conventions; core stays neutral.
 - Classic Mac UI uses Toolbox/Control Manager APIs; avoid Carbon/Cocoa in Classic paths.
 - Toolbox/68k binary size policy: avoid `std::fstream`/iostream-based file I/O in Classic paths because it pulls large libstdc++ locale/stream machinery; prefer C stdio (`fopen`/`fread`) or platform file APIs.
@@ -27,6 +25,7 @@
 - Keep commits scoped; split large refactors into small, reviewable commits with verification between steps.
 - Ask for runtime verification before commits that affect behavior (unless the change is clearly non-runtime, such as docs/comments/refactors that cannot affect execution).
 - When users report performance issues or ask for speedups, first measure or propose a measurement plan; profiling support already exists in the codebase.
+- Performance targeting policy: optimize primarily for PPC601-era hardware and the repository's supported platform baselines; avoid regressions on 68k/68030-class targets, but do not force 68k-first micro-optimizations without evidence.
 - On 68k hot paths, avoid `StateStream` unless justified; manual `bind` + compute can be significantly faster for startup/compose.
 - When profiling multiple sections inside one function, use `PROFILE_SECTION_ID` to avoid `__LINE__` collisions.
 - DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `LightComponent` to inline into the parent composition when you don't need an independent lifecycle.
@@ -37,7 +36,7 @@
 - BoundState storage policy: a component may keep `BoundState<T>` members only for its own boundary-owned state declared through `declareStates()`. Do not expose `BoundState<T>` across boundary lines or use it as a foreign mutation channel.
 - BoundState pass-through policy: when a DSL/API needs read-only live state, pass `boundState.state()` explicitly instead of relying on implicit conversions from `BoundState<T>`.
 - BoundState internal-surface policy: owner/tracker access on `BoundState<T>` is internal and should stay behind `dangerously*` naming; ordinary DSL code should use `get()`, `set()`, and `.state()` only.
-- DSL design: prefer one-shot Static composition for 68k/Classic unless you truly need updates; extra compose passes are expensive.
+- DSL design: prefer one-shot Static composition on Classic paths unless you truly need updates; extra compose passes are expensive.
 - Attr policy (68k): keep default attr structs as small PODs (target roughly <= 16-32 bytes). Avoid embedding heavy owned data in default attrs; route heavier payloads through explicit extended/pro attr types or external state handles.
 - DSL props API policy: `Props` is the canonical/full API surface. `Definition` setters are optional shorthand only for frequently used fields in DSL call sites.
 - DSL shorthand policy: for common cases, prefer concise `Definition` constructors/factories that accept the most-used inputs; for less common fields, construct `Props` explicitly and pass it through rather than duplicating every setter in both `Props` and `Definition`.
@@ -62,6 +61,7 @@
 - When adding a new example target, update `.vscode/launch.json` to include its run config.
 - When adding a new example target, update `.vscode/tasks.json` so the matching build task exists for `preLaunchTask`.
 - macOS support policy: library/core implementation targets Tiger through Snow Leopard compatibility; consumer applications are expected to run on Big Sur and newer and may integrate modern Swift/C++ features at the app layer.
+- Consumer-application boundary: the rule above applies to applications built on top of Loka, not to this repository's library/core/example/platform code unless a repository-specific rule says otherwise.
 - macOS architecture policy: default local debug/test builds in `CMakePresets.json` and `.vscode` should follow the host's native architecture (do not pin `CMAKE_OSX_ARCHITECTURES` for the default debug path). Cross-arch/universal release work should use the dedicated external scripts such as `ub2`, not the default VSCode debug tasks.
 - macOS Objective-C policy: library/core code must stay ObjC1-style manual memory management (non-ARC); `@property`/`@synthesize` are allowed, but direct ivar access (`obj->ivar`) is forbidden and internal state access must go through private getter/setter methods.
 - macOS examples policy: example targets default to non-ARC for consistency with library/core; ARC is allowed only as an explicit per-target opt-in when integration requirements demand it.
