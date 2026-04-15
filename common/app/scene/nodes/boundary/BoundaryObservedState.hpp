@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_NODE_BOUNDARY_OBSERVED_STATE_HPP
 
 #include <vector>
-#include "../Node.hpp"
+#include "../../Node.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
 

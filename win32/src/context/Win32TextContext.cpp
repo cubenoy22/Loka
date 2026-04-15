@@ -1,7 +1,7 @@
 #include "Win32TextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -217,6 +217,22 @@ Win32TextContext::~Win32TextContext()
   {
     DestroyWindow(hwnd_);
     hwnd_ = NULL;
+  }
+}
+
+void Win32TextContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32TextContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
   }
 }
 

@@ -6,13 +6,13 @@
 #include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacPopupMenuContext.hpp"
 #include "context/MacTextContext.hpp"
-#include "app/Button.hpp"
-#include "app/Cell.hpp"
-#include "app/EditText.hpp"
-#include "app/ImageView.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/EditText.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
-#include "app/PopupMenu.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
+#include "app/nodes/Text.hpp"
 
 MacButtonContext *MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,
                                                             int x,
@@ -132,6 +132,10 @@ MacOpenFileDialogContext *MacNodeContextMapper::ensureOpenFileDialogContext(loka
   }
   ctx = new MacOpenFileDialogContext(this->rootView_, node);
   node->setContext(ctx);
+  // Boundary compose may already consume pendingAttach to convert the child
+  // compose event to ATTACH, so a freshly created dialog context should
+  // present immediately even when pendingAttach is no longer visible here.
+  ctx->presentIfNeeded();
   return ctx;
 }
 

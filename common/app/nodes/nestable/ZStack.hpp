@@ -1,5 +1,5 @@
-#ifndef LOKA_APP2_ZSTACK_HPP
-#define LOKA_APP2_ZSTACK_HPP
+#ifndef LOKA_APP2_NODES_NESTABLE_ZSTACK_HPP
+#define LOKA_APP2_NODES_NESTABLE_ZSTACK_HPP
 
 #include "app/scene/Node.hpp"
 
@@ -64,4 +64,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_APP2_ZSTACK_HPP
+#endif // LOKA_APP2_NODES_NESTABLE_ZSTACK_HPP

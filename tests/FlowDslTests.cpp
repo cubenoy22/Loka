@@ -5,16 +5,16 @@
 #include <cstdio>
 #include <vector>
 
-#include "app/Box.hpp"
-#include "app/Button.hpp"
-#include "app/Cell.hpp"
-#include "app/Empty.hpp"
-#include "app/Fragment.hpp"
-#include "app/Grid.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Show.hpp"
-#include "app/Text.hpp"
-#include "app/ZStack.hpp"
+#include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/Grid.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/nestable/ZStack.hpp"
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
@@ -101,6 +101,131 @@ namespace {
     int kind;
     int code;
     int calls;
+  };
+
+  class ConditionalProjectedProbeNode;
+  struct ConditionalProjectedProbeTypeTag {};
+
+  struct ConditionalProjectedProbeProps : public loka::app::scene::NodePropsBase<ConditionalProjectedProbeProps>
+  {
+    typedef ConditionalProjectedProbeTypeTag TypeTag;
+    typedef ConditionalProjectedProbeNode NodeType;
+    ConditionalProjectedProbeProps() {}
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return rhs.propsTypeId() == this->propsTypeId() ? false : this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+
+  static int g_conditionalProjectedProbeLayoutCalls = 0;
+  static int g_conditionalProjectedProbePrepareCalls = 0;
+
+  class ConditionalProjectedProbeNode : public loka::app::scene::Node,
+                                        public loka::app::scene::IProjectedLayoutNode
+  {
+  public:
+    typedef ConditionalProjectedProbeTypeTag TypeTag;
+    ConditionalProjectedProbeProps props;
+    ConditionalProjectedProbeNode(const ConditionalProjectedProbeProps &p) : props(p) {}
+    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+    virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
+                                  loka::app::scene::LayoutState &state)
+    {
+      ++g_conditionalProjectedProbeLayoutCalls;
+      const bool prepared = loka::app::scene::PrepareProjectedLayout(controller, this, state);
+      return static_cast<short>(prepared ? state.y + 1 : state.y);
+    }
+  };
+
+  struct ConditionalProjectedProbeDefinition
+      : public loka::app::scene::NodeDefinition<ConditionalProjectedProbeProps, ConditionalProjectedProbeNode>
+  {
+    ConditionalProjectedProbeDefinition()
+        : loka::app::scene::NodeDefinition<ConditionalProjectedProbeProps, ConditionalProjectedProbeNode>()
+    {
+    }
+    ConditionalProjectedProbeDefinition(const ConditionalProjectedProbeProps &p)
+        : loka::app::scene::NodeDefinition<ConditionalProjectedProbeProps, ConditionalProjectedProbeNode>(p)
+    {
+    }
+  };
+
+  class ConditionalProjectedProbeController : public loka::app::scene::IPlatformController
+  {
+  public:
+    ConditionalProjectedProbeController()
+        : lastRoot_(0),
+          lastFlags_(loka::app::scene::NODE_DIRTY_NONE),
+          lastFullRebuild_(false),
+          changeCalls_(0)
+    {
+    }
+
+    virtual void onChange(loka::app::scene::Node *rootNode,
+                          loka::app::scene::NodeDirtyFlags flags,
+                          bool fullRebuild)
+    {
+      lastRoot_ = rootNode;
+      lastFlags_ = flags;
+      lastFullRebuild_ = fullRebuild;
+      ++changeCalls_;
+      if (!rootNode)
+      {
+        return;
+      }
+      loka::app::scene::LayoutState state;
+      state.x = 0;
+      state.y = 0;
+      state.width = 100;
+      state.height = 100;
+      state.lineHeight = 0;
+      state.spacing = 0;
+      walkTree(this, rootNode, state);
+    }
+
+    virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
+                                        loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      ++g_conditionalProjectedProbePrepareCalls;
+      if (node && !node->getContext())
+      {
+        node->setContext(new loka::app::scene::NodeContext(node));
+      }
+      return true;
+    }
+
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+
+    static void walkTree(loka::app::scene::IPlatformController *controller,
+                         loka::app::scene::Node *node,
+                         const loka::app::scene::LayoutState &state)
+    {
+      if (!node)
+      {
+        return;
+      }
+      if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
+      {
+        loka::app::scene::LayoutState projectedState = state;
+        projected->layoutProjected(controller, projectedState);
+      }
+      if (loka::app::scene::INestable *nestable = node->asNestable())
+      {
+        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+        {
+          walkTree(controller, child, state);
+        }
+      }
+    }
+
+    loka::app::scene::Node *lastRoot_;
+    loka::app::scene::NodeDirtyFlags lastFlags_;
+    bool lastFullRebuild_;
+    int changeCalls_;
   };
 
   class PendingLayoutBoundaryNode;
@@ -636,7 +761,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedSentinel"));
+      c.declare(loka::app::F().testId("HeadlessOwnedSentinel"));
     }
 
     void increment()
@@ -739,7 +864,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedMultiSentinelA"));
+      c.declare(loka::app::F().testId("HeadlessOwnedMultiSentinelA"));
     }
 
     loka::core::String summaryText() const
@@ -794,7 +919,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedMultiSentinelB"));
+      c.declare(loka::app::F().testId("HeadlessOwnedMultiSentinelB"));
     }
 
     loka::core::String summaryText() const
@@ -888,7 +1013,7 @@ namespace {
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::Empty().testId("HeadlessOwnedPersistentSentinel"));
+      c.declare(loka::app::F().testId("HeadlessOwnedPersistentSentinel"));
     }
 
   private:
@@ -2368,6 +2493,44 @@ void testLokaFlowDslV1Core() {
 
     assert(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+
+    g_conditionalProjectedProbeLayoutCalls = 0;
+    g_conditionalProjectedProbePrepareCalls = 0;
+
+    loka::core::MutableState<bool> showState(false);
+
+    NodeComposition composition;
+    BoxDefinition &root = composition.declare(Box().testId("ConditionalProjectedRoot"));
+    root << (Show(showState)
+             << ConditionalProjectedProbeDefinition());
+
+    Scene scene(composition.root()->clone());
+    ConditionalProjectedProbeController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_conditionalProjectedProbeLayoutCalls == 0);
+    assert(g_conditionalProjectedProbePrepareCalls == 0);
+
+    loka::app::scene::BoundaryNode *rootBoundary = loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary);
+    {
+      loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+      showState.set(true);
+    }
+    scene.invalidate(loka::app::scene::NODE_DIRTY_CHILD);
+
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+    assert(g_conditionalProjectedProbeLayoutCalls > 0);
+    assert(g_conditionalProjectedProbePrepareCalls > 0);
 
     scene.unmount();
   }
@@ -2400,6 +2563,7 @@ void testLokaFlowDslV1Core() {
 
     assert(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+    assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
 
     scene.unmount();
   }
@@ -2944,17 +3108,17 @@ void testLokaFlowDslV1Core() {
     HeadlessOwnedProbeNode *firstOwnedProbe = g_headlessOwnedProbe;
     g_headlessOwnedHost->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
-    assert(g_headlessOwnedDestroyCount == 1);
-    assert(g_headlessOwnedProbe == 0);
+    assert(g_headlessOwnedDestroyCount == 0);
+    assert(g_headlessOwnedProbe == firstOwnedProbe);
     assert(firstOwnedProbe != 0);
 
     g_headlessOwnedHost->setShown(true);
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedProbe != 0);
-    assert(g_headlessOwnedProbe != firstOwnedProbe);
-    assert(g_headlessOwnedAttachCount == 2);
-    assert(g_headlessOwnedDestroyCount >= 1);
-    assert(g_headlessOwnedProbe->summaryText().equals(loka::core::String::Literal("Owned 0")));
+    assert(g_headlessOwnedProbe == firstOwnedProbe);
+    assert(g_headlessOwnedAttachCount == 1);
+    assert(g_headlessOwnedDestroyCount == 0);
+    assert(g_headlessOwnedProbe->summaryText().equals(loka::core::String::Literal("Owned 1")));
 
     scene.unmount();
     g_headlessOwnedProbe = 0;
@@ -3025,10 +3189,10 @@ void testLokaFlowDslV1Core() {
 
     g_headlessOwnedMultiHost->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
-    assert(g_headlessOwnedMultiProbeA == 0);
-    assert(g_headlessOwnedMultiProbeB == 0);
-    assert(g_headlessOwnedMultiDestroyCountA == 1);
-    assert(g_headlessOwnedMultiDestroyCountB == 1);
+    assert(g_headlessOwnedMultiProbeA == firstProbeA);
+    assert(g_headlessOwnedMultiProbeB == firstProbeB);
+    assert(g_headlessOwnedMultiDestroyCountA == 0);
+    assert(g_headlessOwnedMultiDestroyCountB == 0);
     assert(firstProbeA != 0);
     assert(firstProbeB != 0);
 
@@ -3036,12 +3200,12 @@ void testLokaFlowDslV1Core() {
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedMultiProbeA != 0);
     assert(g_headlessOwnedMultiProbeB != 0);
-    assert(g_headlessOwnedMultiProbeA != firstProbeA);
-    assert(g_headlessOwnedMultiProbeB != firstProbeB);
-    assert(g_headlessOwnedMultiAttachCountA == 2);
-    assert(g_headlessOwnedMultiAttachCountB == 2);
-    assert(g_headlessOwnedMultiDestroyCountA >= 1);
-    assert(g_headlessOwnedMultiDestroyCountB >= 1);
+    assert(g_headlessOwnedMultiProbeA == firstProbeA);
+    assert(g_headlessOwnedMultiProbeB == firstProbeB);
+    assert(g_headlessOwnedMultiAttachCountA == 1);
+    assert(g_headlessOwnedMultiAttachCountB == 1);
+    assert(g_headlessOwnedMultiDestroyCountA == 0);
+    assert(g_headlessOwnedMultiDestroyCountB == 0);
     assert(g_headlessOwnedMultiProbeA->summaryText().equals(loka::core::String::Literal("OwnedA 0")));
     assert(g_headlessOwnedMultiProbeB->summaryText().equals(loka::core::String::Literal("OwnedB 0")));
 
@@ -3076,23 +3240,24 @@ void testLokaFlowDslV1Core() {
     assert(g_headlessOwnedDestroyCount == 0);
 
     HeadlessOwnedPersistentProbeNode *persistentProbe = g_headlessOwnedPersistentProbe;
+    HeadlessOwnedProbeNode *ownedProbe = g_headlessOwnedProbe;
 
     static_cast<HeadlessOwnedMixedHostBoundaryNode *>(SceneTestAccess::rootBoundary(scene))->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedPersistentProbe == persistentProbe);
     assert(g_headlessOwnedPersistentAttachCount == 1);
     assert(g_headlessOwnedPersistentDestroyCount == 0);
-    assert(g_headlessOwnedProbe == 0);
-    assert(g_headlessOwnedDestroyCount == 1);
+    assert(g_headlessOwnedProbe == ownedProbe);
+    assert(g_headlessOwnedDestroyCount == 0);
 
     static_cast<HeadlessOwnedMixedHostBoundaryNode *>(SceneTestAccess::rootBoundary(scene))->setShown(true);
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedPersistentProbe == persistentProbe);
     assert(g_headlessOwnedPersistentAttachCount == 1);
     assert(g_headlessOwnedPersistentDestroyCount == 0);
-    assert(g_headlessOwnedProbe != 0);
-    assert(g_headlessOwnedAttachCount == 2);
-    assert(g_headlessOwnedDestroyCount >= 1);
+    assert(g_headlessOwnedProbe == ownedProbe);
+    assert(g_headlessOwnedAttachCount == 1);
+    assert(g_headlessOwnedDestroyCount == 0);
 
     scene.unmount();
     g_headlessOwnedProbe = 0;
@@ -3462,13 +3627,17 @@ void testLokaFlowDslV1Core() {
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("OnText", "On"))
         | loka::dsl::Step(4, FlowTestPlatformDirtyMaskAdapter("platform-child-dirty", &platform, 16))
               .onSuccess(&captured)
-        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_CHILD))
+        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask",
+                                                                          static_cast<loka::app::scene::NodeDirtyFlags>(
+                                                                              loka::app::scene::NODE_DIRTY_CHILD |
+                                                                              loka::app::scene::NODE_DIRTY_LAYOUT)))
         | loka::dsl::Step(6, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
 
     assert(okChain.run());
     long dirtyMask = 0;
     assert(captured.getInt("platform.dirty.mask", dirtyMask));
     assert((dirtyMask & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+    assert((dirtyMask & loka::app::scene::NODE_DIRTY_LAYOUT) != 0);
     long fullRebuild = 0;
     assert(captured.getInt("platform.full_rebuild", fullRebuild));
     long platformCalls = 0;

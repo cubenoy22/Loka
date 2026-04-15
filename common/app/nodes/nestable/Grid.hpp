@@ -1,5 +1,5 @@
-#ifndef LOKA_APP2_GRID_HPP
-#define LOKA_APP2_GRID_HPP
+#ifndef LOKA_APP2_NODES_NESTABLE_GRID_HPP
+#define LOKA_APP2_NODES_NESTABLE_GRID_HPP
 
 #include "app/scene/Node.hpp"
 
@@ -79,4 +79,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_APP2_GRID_HPP
+#endif // LOKA_APP2_NODES_NESTABLE_GRID_HPP

@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_WINDOW_HPP
 #define LOKA_MAC_WINDOW_HPP
 
-#include "app/Window.hpp"
+#include "app/core/Window.hpp"
 
 class App;
 class MacScenePlatformController;

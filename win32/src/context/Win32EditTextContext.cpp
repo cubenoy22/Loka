@@ -2,7 +2,7 @@
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
 #include <vector>
-#include "app/EditText.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -71,6 +71,22 @@ Win32EditTextContext::~Win32EditTextContext()
   {
     DestroyWindow(hwnd_);
     hwnd_ = NULL;
+  }
+}
+
+void Win32EditTextContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32EditTextContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
   }
 }
 

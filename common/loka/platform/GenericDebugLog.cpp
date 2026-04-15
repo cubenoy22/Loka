@@ -1,26 +1,26 @@
 #include "loka/platform/DebugLog.hpp"
 #include <cstdio>
 
-#if !defined(_WIN32) && defined(LOKA_DEBUG_RECOMPOSE)
+#if !defined(_WIN32) && defined(LOKA_DEBUG_SCENE_UPDATE)
 namespace loka
 {
   namespace platform
   {
-    void DebugLogRecomposeTracked(void *boundary, void *scene)
+    void DebugLogSceneUpdateTracked(void *boundary, void *scene)
     {
-      std::fprintf(stderr, "[recompose] update tracked, queue scene refresh (boundary=%p scene=%p)\n", boundary, scene);
+      std::fprintf(stderr, "[scene-update] tracked dirty boundary=%p scene=%p\n", boundary, scene);
       std::fflush(stderr);
     }
 
-    void DebugLogRecomposeQueued(void *scene)
+    void DebugLogSceneUpdateQueued(void *scene)
     {
-      std::fprintf(stderr, "[recompose] queued update task (scene=%p)\n", scene);
+      std::fprintf(stderr, "[scene-update] queued update task scene=%p\n", scene);
       std::fflush(stderr);
     }
 
-    void DebugLogRecomposeMerged(void *scene)
+    void DebugLogSceneUpdateMerged(void *scene)
     {
-      std::fprintf(stderr, "[recompose] merged into pending update task (scene=%p)\n", scene);
+      std::fprintf(stderr, "[scene-update] merged into pending update task scene=%p\n", scene);
       std::fflush(stderr);
     }
 
@@ -116,20 +116,20 @@ namespace loka
                                   const char *testId,
                                   int hasPreviousSnapshotRoot,
                                   int hasCurrentSnapshotRoot,
-                                  int transactionEmpty,
+                                  int compositionDiffStateEmpty,
                                   unsigned int childCount,
                                   unsigned int firstChildKind,
                                   const char *firstChildTestId)
     {
       std::fprintf(stderr,
-                   "[scene-root-id] scene=%p boundary=%p kind=%u testId=%s prevSnap=%d currSnap=%d txEmpty=%d childCount=%u firstChildKind=%u firstChildTestId=%s\n",
+                   "[scene-root-id] scene=%p boundary=%p kind=%u testId=%s prevSnap=%d currSnap=%d diffStateEmpty=%d childCount=%u firstChildKind=%u firstChildTestId=%s\n",
                    scene,
                    boundary,
                    kind,
                    testId ? testId : "",
                    hasPreviousSnapshotRoot,
                    hasCurrentSnapshotRoot,
-                   transactionEmpty,
+                   compositionDiffStateEmpty,
                    childCount,
                    firstChildKind,
                    firstChildTestId ? firstChildTestId : "");

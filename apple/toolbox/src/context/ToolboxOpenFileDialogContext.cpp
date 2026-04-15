@@ -3,6 +3,40 @@
 #include <StandardFile.h>
 #include <string>
 
+namespace
+{
+  static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
+                                          loka::core::EmitterState *onResult,
+                                          loka::core::MutableState<bool> *closeState,
+                                          const loka::app::FileChooserResult &result)
+  {
+    void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
+    void *closeStateToken = closeState ? closeState->retainExternalLifetimeToken() : 0;
+    if (resultState)
+    {
+      resultState->set(result, true);
+    }
+    if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
+    {
+      onResult->emit();
+    }
+    if (closeState &&
+        loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) &&
+        closeState->get())
+    {
+      closeState->set(false, true);
+    }
+    if (onResultToken)
+    {
+      loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
+    }
+    if (closeStateToken)
+    {
+      loka::core::StateBase::releaseExternalLifetimeToken(closeStateToken);
+    }
+  }
+}
+
 static loka::core::String displayPathFromSpec(const FSSpec &spec)
 {
   char name[64];
@@ -18,68 +52,52 @@ static loka::core::String displayPathFromSpec(const FSSpec &spec)
 
 ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node)
     : node_(node),
-      visibleState_(0),
       resultState_(0),
       onResult_(0),
-      presenting_(false)
+      closeState_(0),
+      presentation_()
 {
-  visibleState_ = node_ ? node_->props.isVisible_ : 0;
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
-  if (visibleState_)
-  {
-    bindVisible();
-  }
+  closeState_ = node_ ? node_->props.closeState_ : 0;
 }
 
 ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
 {
-  unbindVisible();
 }
 
-void ToolboxOpenFileDialogContext::bindVisible()
+void ToolboxOpenFileDialogContext::onNodeAttached()
 {
-  if (!visibleState_)
+  presentIfNeeded();
+}
+
+void ToolboxOpenFileDialogContext::onNodeDetached()
+{
+  presentation_.markDetached();
+}
+
+void ToolboxOpenFileDialogContext::presentIfNeeded()
+{
+  if (!presentation_.beginPresent())
   {
     return;
   }
-  visibleState_->deferBind(&ToolboxOpenFileDialogContext::VisibleChangedThunk, this);
-}
-
-void ToolboxOpenFileDialogContext::unbindVisible()
-{
-  if (!visibleState_)
-  {
-    return;
-  }
-  visibleState_ = 0;
-}
-
-void ToolboxOpenFileDialogContext::applyVisible()
-{
-  if (!visibleState_)
-  {
-    return;
-  }
-  if (visibleState_->get())
-  {
-    // Consume the visible trigger first so duplicate listeners in the same
-    // notification cycle do not re-open the dialog.
-    visibleState_->set(false);
-    presentDialog();
-  }
+  presentDialog();
 }
 
 void ToolboxOpenFileDialogContext::presentDialog()
 {
-  if (presenting_)
+  if (!presentation_.isPresenting())
   {
     return;
   }
-  presenting_ = true;
+  loka::core::MutableState<loka::app::FileChooserResult> *resultState = resultState_;
+  loka::core::EmitterState *onResult = onResult_;
+  loka::core::MutableState<bool> *closeState = closeState_;
 
   StandardFileReply reply;
   StandardGetFile(0, -1, 0, &reply);
+  loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
 
   if (reply.sfGood)
   {
@@ -89,33 +107,14 @@ void ToolboxOpenFileDialogContext::presentDialog()
 #if defined(LOKA_RETRO68)
     ToolboxPlatformContext::registerChosenFileSpec(displayPath, reply.sfFile);
 #endif
-    setResult(loka::app::FileChooserResult::File(file));
-  }
-  else
-  {
-    setResult(loka::app::FileChooserResult::Canceled());
+    result = loka::app::FileChooserResult::File(file);
   }
 
-  presenting_ = false;
+  presentation_.markPresented();
+  DeliverOpenFileDialogResult(resultState, onResult, closeState, result);
 }
 
 void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
-  if (resultState_)
-  {
-    resultState_->set(result, true);
-  }
-  if (onResult_)
-  {
-    onResult_->emit();
-  }
-}
-
-void ToolboxOpenFileDialogContext::VisibleChangedThunk(void *userData)
-{
-  ToolboxOpenFileDialogContext *self = static_cast<ToolboxOpenFileDialogContext *>(userData);
-  if (self && self->visibleState_)
-  {
-    self->applyVisible();
-  }
+  DeliverOpenFileDialogResult(resultState_, onResult_, closeState_, result);
 }

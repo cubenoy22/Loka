@@ -1,7 +1,7 @@
 #ifndef LOKA_MAC_APP_HPP
 #define LOKA_MAC_APP_HPP
 
-#include "app/App.hpp"
+#include "app/core/App.hpp"
 #include <mach/mach_time.h>
 #include <vector>
 

@@ -29,18 +29,22 @@ namespace loka
       public:
         ConditionalProps props;
         Node *activeNode;
+        Node *trueNode_;
+        Node *falseNode_;
         ConditionalNode(const ConditionalProps &p);
         ~ConditionalNode();
         virtual void declareObservedStates(ObservedStateRegistrar &registrar)
         {
           if (this->props.condition)
           {
-            registrar.observe(this->props.condition, NODE_DIRTY_CHILD);
+            registrar.observe(this->props.condition, static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
           }
         }
         static void onConditionChanged(void *userData);
         void compose();
         void updateActiveNode();
+        Node *ensureBranchNode(bool cond);
+        void removeActiveNodeFromChildren();
         void render(IPlatformController *controller);
         short layout(IPlatformController *controller, LayoutState &state);
       };

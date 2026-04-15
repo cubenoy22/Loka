@@ -84,23 +84,61 @@ namespace loka
     {
     };
 
+    enum OpenFileDialogPresentationState
+    {
+      OPEN_FILE_DIALOG_PRESENTATION_IDLE = 0,
+      OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH = 1,
+      OPEN_FILE_DIALOG_PRESENTATION_PRESENTING = 2,
+      OPEN_FILE_DIALOG_PRESENTATION_PRESENTED = 3
+    };
+
+    struct OpenFileDialogPresentationPhase
+    {
+      OpenFileDialogPresentationPhase()
+          : value(OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH)
+      {
+      }
+
+      bool beginPresent()
+      {
+        if (value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTING ||
+            value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTED)
+        {
+          return false;
+        }
+        value = OPEN_FILE_DIALOG_PRESENTATION_PRESENTING;
+        return true;
+      }
+
+      void markPresented()
+      {
+        value = OPEN_FILE_DIALOG_PRESENTATION_PRESENTED;
+      }
+
+      void markDetached()
+      {
+        value = OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH;
+      }
+
+      bool isPresenting() const
+      {
+        return value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTING;
+      }
+
+      OpenFileDialogPresentationState value;
+    };
+
     class OpenFileDialogNode;
 
     struct OpenFileDialogProps : public loka::app::scene::NodePropsBase<OpenFileDialogProps>
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
-      loka::core::MutableState<bool> *isVisible_;
       loka::core::MutableState<FileChooserResult> *result_;
       loka::core::EmitterState *onResult_;
+      loka::core::MutableState<bool> *closeState_;
       void *windowToAttach_;
-      OpenFileDialogProps() : isVisible_(0), result_(0), onResult_(0), windowToAttach_(0) {}
-
-      OpenFileDialogProps &isVisible(loka::core::MutableState<bool> *state)
-      {
-        this->isVisible_ = state;
-        return *this;
-      }
+      OpenFileDialogProps() : result_(0), onResult_(0), closeState_(0), windowToAttach_(0) {}
 
       OpenFileDialogProps &result(loka::core::MutableState<FileChooserResult> *state)
       {
@@ -111,6 +149,12 @@ namespace loka
       OpenFileDialogProps &onResult(loka::core::EmitterState *emitter)
       {
         this->onResult_ = emitter;
+        return *this;
+      }
+
+      OpenFileDialogProps &closeState(loka::core::MutableState<bool> *state)
+      {
+        this->closeState_ = state;
         return *this;
       }
 
@@ -125,12 +169,12 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const OpenFileDialogProps &other = static_cast<const OpenFileDialogProps &>(rhs);
-        if (isVisible_ != other.isVisible_)
-          return isVisible_ < other.isVisible_;
         if (result_ != other.result_)
           return result_ < other.result_;
         if (onResult_ != other.onResult_)
           return onResult_ < other.onResult_;
+        if (closeState_ != other.closeState_)
+          return closeState_ < other.closeState_;
         return windowToAttach_ < other.windowToAttach_;
       }
     };
@@ -169,12 +213,6 @@ namespace loka
       OpenFileDialogDefinition() : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>() {}
       OpenFileDialogDefinition(const OpenFileDialogProps &p) : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>(p) {}
 
-      OpenFileDialogDefinition &isVisible(loka::core::MutableState<bool> *state)
-      {
-        this->props.isVisible_ = state;
-        return *this;
-      }
-
       OpenFileDialogDefinition &attachToWindow(void *window)
       {
         this->props.windowToAttach_ = window;
@@ -190,6 +228,12 @@ namespace loka
       OpenFileDialogDefinition &onResult(loka::core::EmitterState *emitter)
       {
         this->props.onResult_ = emitter;
+        return *this;
+      }
+
+      OpenFileDialogDefinition &closeState(loka::core::MutableState<bool> *state)
+      {
+        this->props.closeState_ = state;
         return *this;
       }
       using loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;

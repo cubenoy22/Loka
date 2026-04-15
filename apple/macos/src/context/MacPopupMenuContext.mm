@@ -108,6 +108,24 @@ MacPopupMenuContext::~MacPopupMenuContext()
   popup_ = 0;
 }
 
+void MacPopupMenuContext::onNodeAttached()
+{
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
+  if (popup)
+  {
+    [popup setHidden:NO];
+  }
+}
+
+void MacPopupMenuContext::onNodeDetached()
+{
+  NSPopUpButton *popup = (NSPopUpButton *)popup_;
+  if (popup)
+  {
+    [popup setHidden:YES];
+  }
+}
+
 short MacPopupMenuContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   this->relayout(state.x, state.y, state.width, kPopupMenuHeight);

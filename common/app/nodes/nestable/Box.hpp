@@ -1,9 +1,7 @@
-#ifndef LOKA_APP2_BOX_HPP
-#define LOKA_APP2_BOX_HPP
+#ifndef LOKA_APP2_NODES_NESTABLE_BOX_HPP
+#define LOKA_APP2_NODES_NESTABLE_BOX_HPP
 
-#include <string>
 #include "app/scene/Node.hpp"
-#include <vector>
 
 namespace loka
 {
@@ -13,15 +11,10 @@ namespace loka
     {
     };
 
-    // Forward declaration
     class BoxNode;
 
     struct BoxProps : public scene::NodePropsBase<BoxProps>
     {
-      // レイアウト用プロパティ（例: direction, spacing など）
-      // 今回は最小限で空のまま
-      // int direction;
-      // int spacing;
       typedef BoxTypeTag TypeTag;
       typedef BoxNode NodeType;
       int padding;
@@ -80,7 +73,7 @@ namespace loka
         return *this;
       }
     };
-    // DSL向け短縮名
+
     typedef BoxDefinition Box;
 
     inline BoxNode *createNode(const BoxProps &props)
@@ -91,4 +84,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_APP2_BOX_HPP
+#endif // LOKA_APP2_NODES_NESTABLE_BOX_HPP

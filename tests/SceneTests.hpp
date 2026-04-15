@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "app/scene/Scene.hpp"
 #include "app/scene/PlatformController.hpp"
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 
 namespace SceneTests
 {

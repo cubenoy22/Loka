@@ -2,9 +2,9 @@
 #define LOKA_TUTORIAL_DO_IT_YOURSELF_NODE_HPP
 
 #include "TutorialShared.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Text.hpp"
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 
 namespace tutorial
 {

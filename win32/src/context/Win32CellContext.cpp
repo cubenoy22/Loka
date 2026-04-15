@@ -1,7 +1,7 @@
 #include "Win32CellContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
-#include "app/Cell.hpp"
+#include "app/nodes/controls/Cell.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -70,6 +70,22 @@ Win32CellContext::~Win32CellContext()
   {
     DestroyWindow(hwnd_);
     hwnd_ = 0;
+  }
+}
+
+void Win32CellContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32CellContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
   }
 }
 

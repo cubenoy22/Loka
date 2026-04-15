@@ -83,6 +83,22 @@ Win32PopupMenuContext::~Win32PopupMenuContext()
   }
 }
 
+void Win32PopupMenuContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32PopupMenuContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
+  }
+}
+
 bool Win32PopupMenuContext::handleCommand(WPARAM, LPARAM)
 {
   if (!applyingFromState_)

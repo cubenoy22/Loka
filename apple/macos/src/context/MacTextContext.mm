@@ -4,7 +4,7 @@
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include "core/resource/Image.hpp"
@@ -220,6 +220,24 @@ MacTextContext::~MacTextContext()
     [(id)label_ release];
   }
   label_ = 0;
+}
+
+void MacTextContext::onNodeAttached()
+{
+  NSTextField *label = (NSTextField *)label_;
+  if (label)
+  {
+    [label setHidden:NO];
+  }
+}
+
+void MacTextContext::onNodeDetached()
+{
+  NSTextField *label = (NSTextField *)label_;
+  if (label)
+  {
+    [label setHidden:YES];
+  }
 }
 
 bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const

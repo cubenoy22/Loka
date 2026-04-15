@@ -7,16 +7,16 @@ This is a short, memory-jogging intro to the Loka composition DSL and string usa
 Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style chaining and avoid local temporaries.
 
 ```cpp
-#include "app/scene/node/StaticComposition.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Text.hpp"
-#include "app/Button.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/controls/Button.hpp"
 
-class DemoNode : public loka::app::scene::StaticCompositionNodeFor<DemoNode>
+class DemoNode : public loka::app::scene::StdCompositionNodeFor<DemoNode>
 {
 public:
-  typedef loka::app::scene::StaticCompositionPropsFor<DemoNode> PropsType;
-  DemoNode(const PropsType &p) : loka::app::scene::StaticCompositionNodeFor<DemoNode>(p) {}
+  typedef loka::app::scene::StdCompositionPropsFor<DemoNode> PropsType;
+  DemoNode(const PropsType &p) : loka::app::scene::StdCompositionNodeFor<DemoNode>(p) {}
 
   virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
@@ -28,21 +28,34 @@ public:
 };
 ```
 
-## Boundary + Static Composition
+## Boundary + StdComposition
 
-Boundaries own composition/state. Prefer static composition and keep conditional/repeated structure in the same model.
+Boundaries own composition/state. Prefer `StdComposition` and keep conditional/repeated structure in the same model.
+
+Loka is declarative in syntax, but it is not tightly coupled to a single composition strategy.
+Each `Boundary` can own its own composition/reuse/redraw policy, and boundaries can be nested, so different parts
+of a UI may use different strategies.
+
+The currently provided `StdComposition` is a fine-grained reactive composition model: it builds the node structure
+once, binds to state during compose, and then reflects updates through those bindings without rebuilding the
+composition tree.
+
+Recompose-capable composition is not impossible in Loka. It can be introduced as another concrete composition
+strategy attached to a `Boundary`, making the subtree below that boundary recompose-capable. Loka currently ships
+only `StdComposition` because it already provides enough expressive power, while keeping the implementation,
+reuse behavior, and redraw strategy much simpler and cheaper.
 
 ```cpp
-#include "app/scene/node/StaticComposition.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Text.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/Text.hpp"
 
-class StaticPanel : public loka::app::scene::StaticCompositionNodeFor<StaticPanel>
+class StaticPanel : public loka::app::scene::StdCompositionNodeFor<StaticPanel>
 {
 public:
-  typedef loka::app::scene::StaticCompositionPropsFor<StaticPanel> PropsType;
+  typedef loka::app::scene::StdCompositionPropsFor<StaticPanel> PropsType;
   StaticPanel(const PropsType &p)
-      : loka::app::scene::StaticCompositionNodeFor<StaticPanel>(p) {}
+      : loka::app::scene::StdCompositionNodeFor<StaticPanel>(p) {}
 
   virtual void composeNode(loka::app::scene::NodeComposition &c)
   {
@@ -73,7 +86,7 @@ App-level composition declares windows and scenes.
 ```cpp
 #include "app/AppComposition.hpp"
 #include "app/WindowDefinition.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 class MyAppConfig : public AppConfigurable
 {
@@ -96,9 +109,9 @@ public:
 `Fragment` (`F()`) is a lightweight, nestable container when you just want to group children without a visual node.
 
 ```cpp
-#include "app/Fragment.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/Text.hpp"
 
 using namespace loka::app;
 
@@ -122,7 +135,7 @@ without owning state.
 
 ```cpp
 #include "app/scene/node/Group.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 using namespace loka::app::scene;
 using namespace loka::app;
@@ -172,7 +185,7 @@ This makes `c.declare(...)` and `c.group(...)` safe for temporary DSL objects.
 
 ## Conditional
 
-Use `NodeComposition::showIf` to include optional content inside static composition.
+Use `NodeComposition::showIf` to include optional content inside `StdComposition`.
 
 ```cpp
 using namespace loka::app;
@@ -185,7 +198,7 @@ c.declare(VStack()
           << (Show(*flag.state()) << Text("On")));
 ```
 
-This keeps the branch in the same static composition model. If the condition is
+This keeps the branch in the same `StdComposition` model. If the condition is
 false, `Empty` is used.
 
 ## Stream Helpers

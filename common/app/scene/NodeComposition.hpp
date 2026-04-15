@@ -7,7 +7,7 @@
 #include "app/scene/Node.hpp"
 #include "app/scene/StreamView.hpp"
 #include "app/scene/node/Conditional.hpp"
-#include "app/Empty.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/BoundState.hpp"
 #include "app/scene/ComponentContext.hpp"
 #include "app/scene/StateOwner.hpp"
@@ -451,14 +451,14 @@ namespace loka
         template <typename T>
         ConditionalDefinition conditional(const loka::core::State<bool> &condition, T &x)
         {
-          static loka::app::Empty emptyDef;
+          static loka::app::F emptyDef;
           return this->conditional(condition, x, emptyDef);
         }
 
         template <typename T>
         ConditionalDefinition conditional(loka::core::State<bool> &condition, T &x)
         {
-          static loka::app::Empty emptyDef;
+          static loka::app::F emptyDef;
           return this->conditional(condition, x, emptyDef);
         }
 

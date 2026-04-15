@@ -4,7 +4,7 @@
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
-#include "app/EditText.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
@@ -108,6 +108,24 @@ MacEditTextContext::~MacEditTextContext()
     [(id)field_ release];
   }
   field_ = 0;
+}
+
+void MacEditTextContext::onNodeAttached()
+{
+  NSTextField *field = (NSTextField *)field_;
+  if (field)
+  {
+    [field setHidden:NO];
+  }
+}
+
+void MacEditTextContext::onNodeDetached()
+{
+  NSTextField *field = (NSTextField *)field_;
+  if (field)
+  {
+    [field setHidden:YES];
+  }
 }
 
 short MacEditTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)

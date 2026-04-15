@@ -1,8 +1,8 @@
 #include "MainNode.hpp"
 
-#include "app/Text.hpp"
-#include "app/Window.hpp"
-#include "app/ZStack.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/core/Window.hpp"
+#include "app/nodes/nestable/ZStack.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
@@ -26,7 +26,7 @@ namespace helloworld
   }
 
   MainNode::MainNode(const MainProps &p)
-      : loka::app::scene::StaticCompositionNodeFor<MainNode>(MainProps(p)),
+      : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
         initialized_(false),
         actionSummaryCacheValid_(false),
         lastActionSummaryEnabled_(false),

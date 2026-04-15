@@ -2,12 +2,12 @@
 #define LOKA_TUTORIAL_STEP4_NODE_HPP
 
 #include "TutorialShared.hpp"
-#include "app/Button.hpp"
-#include "app/RowColumn.hpp"
-#include "app/Show.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/Text.hpp"
 #include "app/scene/BoundState.hpp"
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/dsl/Expr.hpp"
@@ -55,7 +55,7 @@ namespace tutorial {
                     << (Show(*this->showItem1_.state()) << this->item1_)
                     << (Show(*this->showItem2_.state()) << this->item2_)
                     << (Show(*this->showItem3_.state()) << this->item3_))
-                << TutorialHint("Static composition can still reveal predeclared children, and stream().map() "
+                << TutorialHint("StdComposition can still reveal predeclared children, and stream().map() "
                                 "can derive display text."));
     }
 

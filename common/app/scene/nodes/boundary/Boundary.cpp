@@ -1,6 +1,6 @@
 #include "Boundary.hpp"
-#include "../Scene.hpp"
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#include "../../Scene.hpp"
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
 #include "loka/platform/DebugLog.hpp"
 #endif
 
@@ -35,8 +35,8 @@ namespace loka
         Scene *scene = self->getScene();
         if (scene)
         {
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
-          loka::platform::DebugLogRecomposeTracked(static_cast<void *>(self), static_cast<void *>(scene));
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+          loka::platform::DebugLogSceneUpdateTracked(static_cast<void *>(self), static_cast<void *>(scene));
 #endif
           NodeDirtyFlags flags = self->observedDirtyFlagsForCommittedStates();
           if (flags == NODE_DIRTY_NONE)

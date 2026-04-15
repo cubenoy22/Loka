@@ -157,6 +157,11 @@ void ToolboxNodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDi
   {
     ctx = new ToolboxOpenFileDialogContext(node);
     node->setContext(ctx);
+    // Boundary compose may already consume pendingAttach to turn the child
+    // compose event into ATTACH, so a newly materialized dialog must present
+    // immediately on first context creation.
+    ctx->presentIfNeeded();
+    return;
   }
 }
 

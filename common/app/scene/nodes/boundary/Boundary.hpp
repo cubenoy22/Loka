@@ -1,14 +1,14 @@
-#ifndef LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP
-#define LOKA_CORE2_SCENE_NODE_BOUNDARY_HPP
+#ifndef LOKA_CORE2_SCENE_NODES_BOUNDARY_BOUNDARY_HPP
+#define LOKA_CORE2_SCENE_NODES_BOUNDARY_BOUNDARY_HPP
 
 #include <cstdarg>
 #include <vector>
-#include "../Node.hpp"
-#include "../PlatformController.hpp"
-#include "ComposableNode.hpp"
-#include "../BoundState.hpp"
-#include "../ComponentContext.hpp"
-#include "../PlatformApplyPlan.hpp"
+#include "../../Node.hpp"
+#include "../../PlatformController.hpp"
+#include "../../node/ComposableNode.hpp"
+#include "../../BoundState.hpp"
+#include "../../ComponentContext.hpp"
+#include "../../PlatformApplyPlan.hpp"
 #include "BoundaryApplyInfo.hpp"
 #include "BoundaryCompositionState.hpp"
 #include "BoundaryObservedState.hpp"
@@ -892,7 +892,7 @@ namespace loka
           if (boundary)
           {
             boundary->beginComposeResult(event, parentContext.dirtyFlags());
-#if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
             loka::platform::DebugLogBoundaryComposeDispatch(static_cast<void *>(boundary),
                                                             static_cast<unsigned int>(event),
                                                             static_cast<unsigned int>(parentContext.dirtyFlags()),
@@ -981,7 +981,8 @@ namespace loka
           for (Node *child = it.next(); child; child = it.next())
           {
             ComposeEvent childEvent = event;
-            if ((event == COMPOSE_EVENT_UPDATE || event == COMPOSE_EVENT_ATTACH) && child->consumePendingAttach())
+            if ((event == COMPOSE_EVENT_UPDATE || event == COMPOSE_EVENT_ATTACH) &&
+                child->consumeComposeAttachState() == COMPOSE_ATTACH_STATE_PENDING_ATTACH)
             {
               if (event == COMPOSE_EVENT_UPDATE)
               {

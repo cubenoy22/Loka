@@ -1,7 +1,7 @@
 #include "Win32ButtonContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
-#include "app/Button.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -144,6 +144,22 @@ Win32ButtonContext::~Win32ButtonContext()
   {
     DestroyWindow(hwnd_);
     hwnd_ = NULL;
+  }
+}
+
+void Win32ButtonContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32ButtonContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
   }
 }
 

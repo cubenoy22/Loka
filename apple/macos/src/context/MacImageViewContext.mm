@@ -269,6 +269,24 @@ MacImageViewContext::~MacImageViewContext()
   imageView_ = 0;
 }
 
+void MacImageViewContext::onNodeAttached()
+{
+  NSView *view = (NSView *)imageView_;
+  if (view)
+  {
+    [view setHidden:NO];
+  }
+}
+
+void MacImageViewContext::onNodeDetached()
+{
+  NSView *view = (NSView *)imageView_;
+  if (view)
+  {
+    [view setHidden:YES];
+  }
+}
+
 short MacImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   const int imageWidth = ResolveImageLayoutWidth(this->node_, state.width);

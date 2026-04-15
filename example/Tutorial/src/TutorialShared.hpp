@@ -1,7 +1,7 @@
 #ifndef LOKA_TUTORIAL_SHARED_HPP
 #define LOKA_TUTORIAL_SHARED_HPP
 
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 
 namespace tutorial
 {

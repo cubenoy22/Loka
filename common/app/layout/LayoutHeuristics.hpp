@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_LAYOUT_HEURISTICS_HPP
 #define LOKA_APP_LAYOUT_HEURISTICS_HPP
 
-#include "app/ImageView.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "app/scene/Node.hpp"
 
 namespace loka

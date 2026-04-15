@@ -4,7 +4,7 @@
 #include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
 #include "app/scene/BoundState.hpp"
-#include "app/scene/node/StaticComposition.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
@@ -12,9 +12,9 @@
 namespace helloworld
 {
   class MainNode;
-  typedef loka::app::scene::StaticCompositionPropsFor<MainNode> MainProps;
+  typedef loka::app::scene::StdCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::StaticCompositionNodeFor<MainNode>
+  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode>
   {
   public:
     MainNode(const MainProps &p);

@@ -1,9 +1,9 @@
 #ifndef LOKA_APP_HPP
 #define LOKA_APP_HPP
 
-#include "app/ComponentGroup.hpp"
-#include "app/AppComponent.hpp"
-#include "app/AppConfigurable.hpp"
+#include "app/core/AppComponentGroup.hpp"
+#include "app/core/AppComponent.hpp"
+#include "app/core/AppConfigurable.hpp"
 #include "app/Menu.hpp"
 #include "loka/dsl/NextTickTracker.hpp"
 #include <cassert>
@@ -35,7 +35,7 @@ public:
   Window *activeWindow() const { return activeWindow_; }
 
 protected:
-  ComponentGroup<AppComponent> *group_;
+  AppComponentGroup *group_;
   bool quitWhenLastWindowClosed_;
   AppConfigurable *config_;
   loka::app::MenuBarDefinition *menuBar_;

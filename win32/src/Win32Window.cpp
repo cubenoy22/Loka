@@ -2,13 +2,14 @@
 #include "Win32App.hpp"
 #include <windows.h>
 #include <string>
-#include "app/Window.hpp"
+#include "app/core/Window.hpp"
 #include "loka/core/StateTracker.hpp"
 
 #include "app/scene/Scene.hpp"
 #include "app/scene/Scene.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
+#include "context/Win32OpenFileDialogContext.hpp"
 #include "loka/core/String.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include "platform/Win32String.hpp"
@@ -138,6 +139,10 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 
   if (self)
   {
+    if (Win32OpenFileDialogContext::handlePostedResultMessage(msg, wParam, lParam))
+    {
+      return 0;
+    }
     switch (msg)
     {
     case WM_COMMAND:

@@ -1,8 +1,7 @@
 #ifndef LOKA_APP_SHOW_HPP
 #define LOKA_APP_SHOW_HPP
 
-#include "app/Empty.hpp"
-#include "app/Fragment.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/node/Conditional.hpp"
 
 namespace loka
@@ -86,7 +85,7 @@ namespace loka
 
       scene::ConditionalProps props() const
       {
-        return scene::ConditionalProps(this->condition_, const_cast<FragmentDefinition *>(&this->trueBranch_), const_cast<Empty *>(&this->falseBranch_));
+        return scene::ConditionalProps(this->condition_, const_cast<FragmentDefinition *>(&this->trueBranch_), const_cast<FragmentDefinition *>(&this->falseBranch_));
       }
 
       size_t childrenCount() const
@@ -97,7 +96,7 @@ namespace loka
     private:
       loka::core::State<bool> *condition_;
       FragmentDefinition trueBranch_;
-      Empty falseBranch_;
+      FragmentDefinition falseBranch_;
     };
 
     inline ShowDefinition Show(loka::core::State<bool> &condition)

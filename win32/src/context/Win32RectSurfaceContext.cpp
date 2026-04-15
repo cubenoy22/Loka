@@ -43,6 +43,22 @@ Win32RectSurfaceContext::~Win32RectSurfaceContext()
   }
 }
 
+void Win32RectSurfaceContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32RectSurfaceContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
+  }
+}
+
 void Win32RectSurfaceContext::relayout(int x, int y, int width, int height)
 {
   if (!hwnd_)

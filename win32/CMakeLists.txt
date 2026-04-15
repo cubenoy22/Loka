@@ -1,13 +1,7 @@
-cmake_minimum_required(VERSION 3.15)
-project(Loka LANGUAGES CXX)
-
-# C++98互換
 set(CMAKE_CXX_STANDARD 98)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ソースファイル
 file(GLOB_RECURSE COMMON_SOURCES ../common/*.cpp)
-list(APPEND COMMON_SOURCES ../common/loka/core/Profiler.cpp)
 list(REMOVE_DUPLICATES COMMON_SOURCES)
 set(SOURCES
   src/Win32App.cpp
@@ -34,23 +28,10 @@ add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
 target_include_directories(LokaWin32Core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../common
   ${CMAKE_CURRENT_SOURCE_DIR}/src
-  ${CMAKE_CURRENT_SOURCE_DIR}/../tests
 )
 
 target_link_libraries(LokaWin32Core PRIVATE windowscodecs ole32)
 
-# Windows 固有の警告抑制など（必要なら追加）
 if(MSVC)
     target_compile_options(LokaWin32Core PRIVATE /utf-8)
-endif()
-
-# アーキテクチャ切替例（x86/x64/ARM64）
-# cmake -A Win32|x64|ARM64 で指定可能
-# 例: cmake -G "Visual Studio 17 2022" -A ARM64 ..
-
-# ビルドタイプ（Debug/Release）はCMAKE_BUILD_TYPEまたはIDEで選択
-
-option(TEST_BUILD "Enable test build mode" OFF)
-if(TEST_BUILD)
-  add_definitions(-DTEST_BUILD)
 endif()

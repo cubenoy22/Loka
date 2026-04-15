@@ -23,6 +23,8 @@ public:
   MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node);
   virtual ~MacCellContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
   void handleClick();
   void relayout(int x, int y, int width, int height);
 

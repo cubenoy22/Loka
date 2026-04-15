@@ -3,7 +3,7 @@
 #include "app/scene/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
-#include "app/Button.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "loka/core/State.hpp"
 #include "loka/platform/StringUTF8.hpp"
 #include "core/resource/Image.hpp"
@@ -156,6 +156,24 @@ MacButtonContext::~MacButtonContext()
     [(id)button_ release];
   }
   button_ = 0;
+}
+
+void MacButtonContext::onNodeAttached()
+{
+  NSButton *button = (NSButton *)button_;
+  if (button)
+  {
+    [button setHidden:NO];
+  }
+}
+
+void MacButtonContext::onNodeDetached()
+{
+  NSButton *button = (NSButton *)button_;
+  if (button)
+  {
+    [button setHidden:YES];
+  }
 }
 
 bool MacButtonContext::captureBitmap(loka::core::resource::Image &out) const

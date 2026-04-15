@@ -2,7 +2,7 @@
 #define LOKA_MAC_POPUP_MENU_CONTEXT_HPP
 
 #include "app/scene/NativeNodeContext.hpp"
-#include "app/PopupMenu.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
 
 namespace loka
 {
@@ -21,6 +21,8 @@ public:
   MacPopupMenuContext(void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node);
   virtual ~MacPopupMenuContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
 
   void handleSelectionChange();
   void relayout(int x, int y, int width, int height);

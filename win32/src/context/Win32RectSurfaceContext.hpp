@@ -18,6 +18,8 @@ class Win32RectSurfaceContext : public loka::app::scene::NativeNodeContext
 public:
   Win32RectSurfaceContext(HWND parent, int x, int y, int width, int height, loka::app::RectSurfaceNode *node);
   virtual ~Win32RectSurfaceContext();
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
 
   void relayout(int x, int y, int width, int height);
 

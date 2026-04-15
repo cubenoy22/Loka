@@ -1,13 +1,13 @@
 #ifndef LOKA_TOOLBOX_NODE_CONTEXT_MAPPER_HPP
 #define LOKA_TOOLBOX_NODE_CONTEXT_MAPPER_HPP
 
-#include "app/Button.hpp"
-#include "app/Cell.hpp"
-#include "app/EditText.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/OpenFileDialog.hpp"
-#include "app/PopupMenu.hpp"
-#include "app/Text.hpp"
-#include "app/ImageView.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
+#include "app/nodes/Text.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "app/RectSurface.hpp"
 #include <Quickdraw.h>
 

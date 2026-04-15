@@ -2,7 +2,7 @@
 #define LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP
 
 #include "app/scene/NativeNodeContext.hpp"
-#include "app/EditText.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "loka/core/String.hpp"
 #include <Quickdraw.h>
 

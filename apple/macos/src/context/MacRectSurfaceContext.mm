@@ -66,6 +66,24 @@ MacRectSurfaceContext::~MacRectSurfaceContext()
   view_ = 0;
 }
 
+void MacRectSurfaceContext::onNodeAttached()
+{
+  LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
+  if (view)
+  {
+    [view setHidden:NO];
+  }
+}
+
+void MacRectSurfaceContext::onNodeDetached()
+{
+  LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
+  if (view)
+  {
+    [view setHidden:YES];
+  }
+}
+
 void MacRectSurfaceContext::relayout(int x, int y, int width, int height)
 {
   LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;

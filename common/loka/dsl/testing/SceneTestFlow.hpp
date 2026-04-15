@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <string>
 
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"

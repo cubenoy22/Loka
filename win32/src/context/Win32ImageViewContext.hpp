@@ -2,7 +2,7 @@
 #define LOKA_WIN32_IMAGE_VIEW_CONTEXT_HPP
 
 #include <windows.h>
-#include "app/ImageView.hpp"
+#include "app/nodes/ImageView.hpp"
 #include "loka/core/State.hpp"
 #include "core/resource/Image.hpp"
 
@@ -23,6 +23,8 @@ public:
   Win32ImageViewContext(HWND parent, int x, int y, int width, int height, loka::app::ImageViewNode *node);
   virtual ~Win32ImageViewContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
 
   static void EnsureClassRegistered();
   void relayout(int x, int y, int width, int height);

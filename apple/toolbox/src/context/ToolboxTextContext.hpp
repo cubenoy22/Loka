@@ -2,7 +2,7 @@
 #define LOKA_TOOLBOX_TEXT_CONTEXT_HPP
 
 #include "app/scene/NativeNodeContext.hpp"
-#include "app/Text.hpp"
+#include "app/nodes/Text.hpp"
 #include "loka/core/String.hpp"
 #include <Quickdraw.h>
 

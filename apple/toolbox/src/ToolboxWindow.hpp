@@ -1,22 +1,21 @@
 #ifndef LOKA_TOOLBOX_WINDOW_HPP
 #define LOKA_TOOLBOX_WINDOW_HPP
 
-#include "app/Window.hpp"
+#include "app/core/Window.hpp"
 #include <Windows.h>
 #include <vector>
 
 class App;
 class ToolboxScenePlatformController;
 class ToolboxWindowContext;
+typedef void (*DeferredDumpCompletion)(void *userData);
 
-class ToolboxWindow : public Window, public loka::app::IDebugStatsControl
+class ToolboxWindow : public Window
 {
 public:
   ToolboxWindow(PlatformContext *context, const WindowProps &props);
   virtual ~ToolboxWindow();
   virtual ToolboxWindow *asToolboxWindow() { return this; }
-  virtual loka::app::IDebugStatsControl *asDebugStatsControl() { return this; }
-  virtual const loka::app::IDebugStatsControl *asDebugStatsControl() const { return this; }
 
   void setApp(App *app);
   void ensureSceneMounted();

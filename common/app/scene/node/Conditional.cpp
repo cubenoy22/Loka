@@ -1,6 +1,5 @@
 #include "Conditional.hpp"
 #include "../Node.hpp"
-#include <cstdio>
 #include <new>
 
 namespace loka
@@ -9,6 +8,48 @@ namespace loka
   {
     namespace scene
     {
+      static void notifyNodeContextAttachedRecursive(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        if (node->getContext())
+        {
+          node->getContext()->onNodeAttached();
+        }
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          notifyNodeContextAttachedRecursive(child);
+        }
+      }
+
+      static void notifyNodeContextDetachedRecursive(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        if (node->getContext())
+        {
+          node->getContext()->onNodeDetached();
+        }
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          notifyNodeContextDetachedRecursive(child);
+        }
+      }
+
       static Node *createConditionalNodeRecursiveWithAutoId(NodeDefinitionBase *def, long &autoIdCounter)
       {
         if (!def)
@@ -60,7 +101,7 @@ namespace loka
           : condition(const_cast<loka::core::State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
 
       ConditionalNode::ConditionalNode(const ConditionalProps &p)
-          : NestableNode(), props(p), activeNode(0)
+          : NestableNode(), props(p), activeNode(0), trueNode_(0), falseNode_(0)
       {
         if (props.condition)
         {
@@ -75,6 +116,16 @@ namespace loka
         {
           props.condition->unbind(&ConditionalNode::onConditionChanged, this);
         }
+        if (trueNode_ && trueNode_ != activeNode)
+        {
+          delete trueNode_;
+        }
+        if (falseNode_ && falseNode_ != activeNode)
+        {
+          delete falseNode_;
+        }
+        trueNode_ = 0;
+        falseNode_ = 0;
         activeNode = 0;
       }
 
@@ -92,6 +143,28 @@ namespace loka
         updateActiveNode();
       }
 
+      Node *ConditionalNode::ensureBranchNode(bool cond)
+      {
+        Node **slot = cond ? &trueNode_ : &falseNode_;
+        NodeDefinitionBase *def = cond ? props.trueDef : props.falseDef;
+        if (*slot || !def)
+        {
+          return *slot;
+        }
+        *slot = createConditionalNodeRecursive(def);
+        return *slot;
+      }
+
+      void ConditionalNode::removeActiveNodeFromChildren()
+      {
+        if (!activeNode)
+        {
+          return;
+        }
+        notifyNodeContextDetachedRecursive(activeNode);
+        children_.remove(activeNode);
+      }
+
       void ConditionalNode::updateActiveNode()
       {
         if (!props.condition)
@@ -99,14 +172,18 @@ namespace loka
           return;
         }
         bool cond = props.condition->get();
-        NodeDefinitionBase *def = cond ? props.trueDef : props.falseDef;
-        Node *nextNode = createConditionalNodeRecursive(def);
-        clearChildrenInternal(false);
+        Node *nextNode = ensureBranchNode(cond);
+        if (nextNode == activeNode)
+        {
+          return;
+        }
+        removeActiveNodeFromChildren();
         activeNode = nextNode;
         if (activeNode)
         {
-          activeNode->setPendingAttach(true);
+          activeNode->markPendingAttachForCompose();
           addChild(activeNode);
+          notifyNodeContextAttachedRecursive(activeNode);
         }
       }
 

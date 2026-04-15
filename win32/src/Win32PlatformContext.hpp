@@ -1,7 +1,7 @@
 #ifndef LOKA_WIN32PLATFORMCONTEXT_HPP
 #define LOKA_WIN32PLATFORMCONTEXT_HPP
 #include "app/PlatformContext.hpp"
-#include "app/Window.hpp"
+#include "app/core/Window.hpp"
 #include "Win32App.hpp"
 
 // 前方宣言（Win32Windowは別途定義）

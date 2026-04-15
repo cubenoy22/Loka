@@ -1,7 +1,7 @@
-#include "App.hpp"
-#include "Window.hpp"
-#include "PlatformContext.hpp"
-#include "AppComposition.hpp"
+#include "app/core/App.hpp"
+#include "app/core/Window.hpp"
+#include "app/PlatformContext.hpp"
+#include "app/core/AppComposition.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "app/scene/Scene.hpp"
 #include <algorithm>
@@ -62,7 +62,7 @@ void App::run()
     AppComposition composition(config_->getPlatformContext());
     config_->compose(composition);
     refreshDefaultMenuBar();
-    group_ = new ComponentGroup<AppComponent>(composition.build());
+    group_ = new AppComponentGroup(composition.build());
   }
   reflectInitialVisibilityChunks();
 }

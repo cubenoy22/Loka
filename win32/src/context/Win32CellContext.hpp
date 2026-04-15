@@ -33,6 +33,8 @@ public:
   Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node);
   virtual ~Win32CellContext();
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
   void relayout(int x, int y, int width, int height);
 
 private:
