@@ -31,7 +31,6 @@ public:
     this->tracker_.addState(&this->chooserMessage_);
     this->tracker_.addState(&this->image_);
     this->openDialogEvent_.deferBind(&MyAppConfig::OnOpenDialogEvent, this);
-    this->chooserResult_.deferBind(&MyAppConfig::OnChooserResultChanged, this);
   }
 
   virtual void compose(AppComposition &c)
@@ -75,16 +74,6 @@ private:
     MyAppConfig *self = static_cast<MyAppConfig *>(userData);
     if (!self) return;
     self->isDialogShown_.set(true, true);
-  }
-
-  static void OnChooserResultChanged(void *userData)
-  {
-    MyAppConfig *self = static_cast<MyAppConfig *>(userData);
-    if (!self) return;
-    if (self->isDialogShown_.get())
-    {
-      self->isDialogShown_.set(false, true);
-    }
   }
 
   static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData)

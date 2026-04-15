@@ -32,6 +32,7 @@ private:
   {
     loka::core::MutableState<loka::app::FileChooserResult> *resultState;
     loka::core::EmitterState *onResult;
+    loka::core::MutableState<bool> *closeState;
     loka::app::FileChooserResult result;
   };
 
@@ -45,6 +46,7 @@ private:
   loka::app::OpenFileDialogNode *node_;
   loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
   loka::core::EmitterState *onResult_;
+  loka::core::MutableState<bool> *closeState_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
 };
 

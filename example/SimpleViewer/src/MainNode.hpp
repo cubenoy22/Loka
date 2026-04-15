@@ -109,7 +109,8 @@ namespace simpleviewer
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
           << (Show(*this->props.isDialogShown_)
               << OpenFileDialog()
-                     .result(this->props.result_)));
+                     .result(this->props.result_)
+                     .closeState(this->props.isDialogShown_)));
     }
   };
 } // namespace simpleviewer

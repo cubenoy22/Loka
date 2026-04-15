@@ -34,6 +34,7 @@ private:
   loka::app::OpenFileDialogNode *node_;
   loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
   loka::core::EmitterState *onResult_;
+  loka::core::MutableState<bool> *closeState_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
   void *deferredPresenter_;
 };
