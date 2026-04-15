@@ -220,6 +220,22 @@ Win32TextContext::~Win32TextContext()
   }
 }
 
+void Win32TextContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32TextContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
+  }
+}
+
 bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureWindowBitmap(this->hwnd_, out);

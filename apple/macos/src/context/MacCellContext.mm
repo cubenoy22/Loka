@@ -156,6 +156,24 @@ MacCellContext::~MacCellContext()
   view_ = 0;
 }
 
+void MacCellContext::onNodeAttached()
+{
+  LokaCellView *view = (LokaCellView *)view_;
+  if (view)
+  {
+    [view setHidden:NO];
+  }
+}
+
+void MacCellContext::onNodeDetached()
+{
+  LokaCellView *view = (LokaCellView *)view_;
+  if (view)
+  {
+    [view setHidden:YES];
+  }
+}
+
 short MacCellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   const short requestedHeight = state.height;

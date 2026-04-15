@@ -74,6 +74,22 @@ Win32EditTextContext::~Win32EditTextContext()
   }
 }
 
+void Win32EditTextContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32EditTextContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
+  }
+}
+
 bool Win32EditTextContext::handleCommand(WPARAM wParam, LPARAM)
 {
   WORD code = HIWORD(wParam);

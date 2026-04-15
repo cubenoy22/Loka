@@ -17,6 +17,8 @@ class MacRectSurfaceContext : public loka::app::scene::NativeNodeContext
 public:
   MacRectSurfaceContext(void *parentView, int x, int y, int width, int height, loka::app::RectSurfaceNode *node);
   virtual ~MacRectSurfaceContext();
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
 
   void relayout(int x, int y, int width, int height);
   void draw(void *viewBounds);

@@ -222,6 +222,24 @@ MacTextContext::~MacTextContext()
   label_ = 0;
 }
 
+void MacTextContext::onNodeAttached()
+{
+  NSTextField *label = (NSTextField *)label_;
+  if (label)
+  {
+    [label setHidden:NO];
+  }
+}
+
+void MacTextContext::onNodeDetached()
+{
+  NSTextField *label = (NSTextField *)label_;
+  if (label)
+  {
+    [label setHidden:YES];
+  }
+}
+
 bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureViewBitmap((NSView *)label_, out);

@@ -73,6 +73,22 @@ Win32CellContext::~Win32CellContext()
   }
 }
 
+void Win32CellContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32CellContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
+  }
+}
+
 short Win32CellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   const short requestedHeight = state.height;

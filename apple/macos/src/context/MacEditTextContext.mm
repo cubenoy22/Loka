@@ -110,6 +110,24 @@ MacEditTextContext::~MacEditTextContext()
   field_ = 0;
 }
 
+void MacEditTextContext::onNodeAttached()
+{
+  NSTextField *field = (NSTextField *)field_;
+  if (field)
+  {
+    [field setHidden:NO];
+  }
+}
+
+void MacEditTextContext::onNodeDetached()
+{
+  NSTextField *field = (NSTextField *)field_;
+  if (field)
+  {
+    [field setHidden:YES];
+  }
+}
+
 short MacEditTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   this->relayout(state.x, state.y, state.width, kEditTextHeight);

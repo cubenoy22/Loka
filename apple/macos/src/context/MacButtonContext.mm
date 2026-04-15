@@ -158,6 +158,24 @@ MacButtonContext::~MacButtonContext()
   button_ = 0;
 }
 
+void MacButtonContext::onNodeAttached()
+{
+  NSButton *button = (NSButton *)button_;
+  if (button)
+  {
+    [button setHidden:NO];
+  }
+}
+
+void MacButtonContext::onNodeDetached()
+{
+  NSButton *button = (NSButton *)button_;
+  if (button)
+  {
+    [button setHidden:YES];
+  }
+}
+
 bool MacButtonContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureButtonBitmap((NSView *)button_, out);

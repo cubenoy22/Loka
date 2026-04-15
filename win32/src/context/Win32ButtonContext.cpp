@@ -147,6 +147,22 @@ Win32ButtonContext::~Win32ButtonContext()
   }
 }
 
+void Win32ButtonContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32ButtonContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
+  }
+}
+
 bool Win32ButtonContext::captureBitmap(loka::core::resource::Image &out) const
 {
   return CaptureButtonBitmap(this->hwnd_, out);

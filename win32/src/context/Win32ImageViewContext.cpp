@@ -226,6 +226,22 @@ Win32ImageViewContext::~Win32ImageViewContext()
   }
 }
 
+void Win32ImageViewContext::onNodeAttached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_SHOW);
+  }
+}
+
+void Win32ImageViewContext::onNodeDetached()
+{
+  if (hwnd_)
+  {
+    ShowWindow(hwnd_, SW_HIDE);
+  }
+}
+
 short Win32ImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   const int imageWidth = ResolveImageLayoutWidth(this->node_, state.width);
