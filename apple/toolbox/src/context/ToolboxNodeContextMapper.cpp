@@ -152,7 +152,6 @@ void ToolboxNodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDi
   {
     return;
   }
-  const bool pendingAttach = node->consumePendingAttach();
   ToolboxOpenFileDialogContext *ctx = static_cast<ToolboxOpenFileDialogContext *>(node->getContext());
   if (!ctx)
   {
@@ -163,10 +162,6 @@ void ToolboxNodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDi
     // immediately on first context creation.
     ctx->presentIfNeeded();
     return;
-  }
-  if (ctx && pendingAttach)
-  {
-    ctx->presentIfNeeded();
   }
 }
 

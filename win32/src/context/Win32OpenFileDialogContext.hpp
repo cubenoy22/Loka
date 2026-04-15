@@ -21,6 +21,11 @@ class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext
 public:
   Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node);
   virtual ~Win32OpenFileDialogContext();
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
+  void presentIfNeeded();
+  static UINT deferredResultMessage();
+  static bool handlePostedResultMessage(UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
   struct DeferredResultDelivery
@@ -30,22 +35,17 @@ private:
     loka::app::FileChooserResult result;
   };
 
-  void bindVisible();
-  void unbindVisible();
-  void applyVisible();
   void presentDialog();
   void setResult(const loka::app::FileChooserResult &result);
   void queueDeferredResult(const loka::app::FileChooserResult &result);
 
-  static void VisibleChangedThunk(void *userData);
   static void DeliverDeferredResultThunk(void *userData);
 
   HWND parent_;
   loka::app::OpenFileDialogNode *node_;
-  loka::core::MutableState<bool> *visibleState_;
   loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
   loka::core::EmitterState *onResult_;
-  bool presenting_;
+  loka::app::OpenFileDialogPresentationPhase presentation_;
 };
 
 void RegisterWin32OpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

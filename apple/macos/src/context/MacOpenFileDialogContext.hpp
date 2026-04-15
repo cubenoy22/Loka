@@ -21,6 +21,8 @@ class MacOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 public:
   MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node);
   virtual ~MacOpenFileDialogContext();
+  virtual void onNodeAttached();
+  virtual void onNodeDetached();
   void presentIfNeeded();
   void presentDeferred();
 
@@ -32,8 +34,7 @@ private:
   loka::app::OpenFileDialogNode *node_;
   loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
   loka::core::EmitterState *onResult_;
-  bool presenting_;
-  bool presented_;
+  loka::app::OpenFileDialogPresentationPhase presentation_;
   void *deferredPresenter_;
 };
 

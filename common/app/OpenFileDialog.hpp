@@ -84,6 +84,50 @@ namespace loka
     {
     };
 
+    enum OpenFileDialogPresentationState
+    {
+      OPEN_FILE_DIALOG_PRESENTATION_IDLE = 0,
+      OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH = 1,
+      OPEN_FILE_DIALOG_PRESENTATION_PRESENTING = 2,
+      OPEN_FILE_DIALOG_PRESENTATION_PRESENTED = 3
+    };
+
+    struct OpenFileDialogPresentationPhase
+    {
+      OpenFileDialogPresentationPhase()
+          : value(OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH)
+      {
+      }
+
+      bool beginPresent()
+      {
+        if (value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTING ||
+            value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTED)
+        {
+          return false;
+        }
+        value = OPEN_FILE_DIALOG_PRESENTATION_PRESENTING;
+        return true;
+      }
+
+      void markPresented()
+      {
+        value = OPEN_FILE_DIALOG_PRESENTATION_PRESENTED;
+      }
+
+      void markDetached()
+      {
+        value = OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH;
+      }
+
+      bool isPresenting() const
+      {
+        return value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTING;
+      }
+
+      OpenFileDialogPresentationState value;
+    };
+
     class OpenFileDialogNode;
 
     struct OpenFileDialogProps : public loka::app::scene::NodePropsBase<OpenFileDialogProps>

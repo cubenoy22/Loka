@@ -29,6 +29,8 @@ namespace loka
       public:
         ConditionalProps props;
         Node *activeNode;
+        Node *trueNode_;
+        Node *falseNode_;
         ConditionalNode(const ConditionalProps &p);
         ~ConditionalNode();
         virtual void declareObservedStates(ObservedStateRegistrar &registrar)
@@ -41,6 +43,8 @@ namespace loka
         static void onConditionChanged(void *userData);
         void compose();
         void updateActiveNode();
+        Node *ensureBranchNode(bool cond);
+        void removeActiveNodeFromChildren();
         void render(IPlatformController *controller);
         short layout(IPlatformController *controller, LayoutState &state);
       };

@@ -3108,17 +3108,17 @@ void testLokaFlowDslV1Core() {
     HeadlessOwnedProbeNode *firstOwnedProbe = g_headlessOwnedProbe;
     g_headlessOwnedHost->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
-    assert(g_headlessOwnedDestroyCount == 1);
-    assert(g_headlessOwnedProbe == 0);
+    assert(g_headlessOwnedDestroyCount == 0);
+    assert(g_headlessOwnedProbe == firstOwnedProbe);
     assert(firstOwnedProbe != 0);
 
     g_headlessOwnedHost->setShown(true);
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedProbe != 0);
-    assert(g_headlessOwnedProbe != firstOwnedProbe);
-    assert(g_headlessOwnedAttachCount == 2);
-    assert(g_headlessOwnedDestroyCount >= 1);
-    assert(g_headlessOwnedProbe->summaryText().equals(loka::core::String::Literal("Owned 0")));
+    assert(g_headlessOwnedProbe == firstOwnedProbe);
+    assert(g_headlessOwnedAttachCount == 1);
+    assert(g_headlessOwnedDestroyCount == 0);
+    assert(g_headlessOwnedProbe->summaryText().equals(loka::core::String::Literal("Owned 1")));
 
     scene.unmount();
     g_headlessOwnedProbe = 0;
@@ -3189,10 +3189,10 @@ void testLokaFlowDslV1Core() {
 
     g_headlessOwnedMultiHost->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
-    assert(g_headlessOwnedMultiProbeA == 0);
-    assert(g_headlessOwnedMultiProbeB == 0);
-    assert(g_headlessOwnedMultiDestroyCountA == 1);
-    assert(g_headlessOwnedMultiDestroyCountB == 1);
+    assert(g_headlessOwnedMultiProbeA == firstProbeA);
+    assert(g_headlessOwnedMultiProbeB == firstProbeB);
+    assert(g_headlessOwnedMultiDestroyCountA == 0);
+    assert(g_headlessOwnedMultiDestroyCountB == 0);
     assert(firstProbeA != 0);
     assert(firstProbeB != 0);
 
@@ -3200,12 +3200,12 @@ void testLokaFlowDslV1Core() {
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedMultiProbeA != 0);
     assert(g_headlessOwnedMultiProbeB != 0);
-    assert(g_headlessOwnedMultiProbeA != firstProbeA);
-    assert(g_headlessOwnedMultiProbeB != firstProbeB);
-    assert(g_headlessOwnedMultiAttachCountA == 2);
-    assert(g_headlessOwnedMultiAttachCountB == 2);
-    assert(g_headlessOwnedMultiDestroyCountA >= 1);
-    assert(g_headlessOwnedMultiDestroyCountB >= 1);
+    assert(g_headlessOwnedMultiProbeA == firstProbeA);
+    assert(g_headlessOwnedMultiProbeB == firstProbeB);
+    assert(g_headlessOwnedMultiAttachCountA == 1);
+    assert(g_headlessOwnedMultiAttachCountB == 1);
+    assert(g_headlessOwnedMultiDestroyCountA == 0);
+    assert(g_headlessOwnedMultiDestroyCountB == 0);
     assert(g_headlessOwnedMultiProbeA->summaryText().equals(loka::core::String::Literal("OwnedA 0")));
     assert(g_headlessOwnedMultiProbeB->summaryText().equals(loka::core::String::Literal("OwnedB 0")));
 
@@ -3240,23 +3240,24 @@ void testLokaFlowDslV1Core() {
     assert(g_headlessOwnedDestroyCount == 0);
 
     HeadlessOwnedPersistentProbeNode *persistentProbe = g_headlessOwnedPersistentProbe;
+    HeadlessOwnedProbeNode *ownedProbe = g_headlessOwnedProbe;
 
     static_cast<HeadlessOwnedMixedHostBoundaryNode *>(SceneTestAccess::rootBoundary(scene))->setShown(false);
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedPersistentProbe == persistentProbe);
     assert(g_headlessOwnedPersistentAttachCount == 1);
     assert(g_headlessOwnedPersistentDestroyCount == 0);
-    assert(g_headlessOwnedProbe == 0);
-    assert(g_headlessOwnedDestroyCount == 1);
+    assert(g_headlessOwnedProbe == ownedProbe);
+    assert(g_headlessOwnedDestroyCount == 0);
 
     static_cast<HeadlessOwnedMixedHostBoundaryNode *>(SceneTestAccess::rootBoundary(scene))->setShown(true);
     (void)SceneTestAccess::flushInvalidation(scene);
     assert(g_headlessOwnedPersistentProbe == persistentProbe);
     assert(g_headlessOwnedPersistentAttachCount == 1);
     assert(g_headlessOwnedPersistentDestroyCount == 0);
-    assert(g_headlessOwnedProbe != 0);
-    assert(g_headlessOwnedAttachCount == 2);
-    assert(g_headlessOwnedDestroyCount >= 1);
+    assert(g_headlessOwnedProbe == ownedProbe);
+    assert(g_headlessOwnedAttachCount == 1);
+    assert(g_headlessOwnedDestroyCount == 0);
 
     scene.unmount();
     g_headlessOwnedProbe = 0;

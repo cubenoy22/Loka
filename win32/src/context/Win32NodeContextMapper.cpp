@@ -132,6 +132,10 @@ Win32OpenFileDialogContext *Win32NodeContextMapper::ensureOpenFileDialogContext(
   }
   ctx = new Win32OpenFileDialogContext(this->rootHwnd_, node);
   node->setContext(ctx);
+  // Boundary compose may already consume pendingAttach to convert the child
+  // compose event to ATTACH, so a freshly created dialog context should
+  // present immediately even when pendingAttach is no longer visible here.
+  ctx->presentIfNeeded();
   return ctx;
 }
 

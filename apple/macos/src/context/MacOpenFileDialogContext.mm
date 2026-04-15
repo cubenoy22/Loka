@@ -76,6 +76,25 @@
 
 namespace
 {
+  static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
+                                          loka::core::EmitterState *onResult,
+                                          const loka::app::FileChooserResult &result)
+  {
+    void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
+    if (resultState)
+    {
+      resultState->set(result, true);
+    }
+    if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
+    {
+      onResult->emit();
+    }
+    if (onResultToken)
+    {
+      loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
+    }
+  }
+
   class MacOpenFileDialogNodeHandler : public loka::app::scene::IPlatformNodeHandler
   {
   public:
@@ -107,8 +126,7 @@ MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::
       node_(node),
       resultState_(0),
       onResult_(0),
-      presenting_(false),
-      presented_(false),
+      presentation_(),
       deferredPresenter_(0)
 {
   resultState_ = node_ ? node_->props.result_ : 0;
@@ -126,13 +144,26 @@ MacOpenFileDialogContext::~MacOpenFileDialogContext()
   }
 }
 
+void MacOpenFileDialogContext::onNodeAttached()
+{
+  presentIfNeeded();
+}
+
+void MacOpenFileDialogContext::onNodeDetached()
+{
+  presentation_.markDetached();
+  if (deferredPresenter_)
+  {
+    [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ cancelPresent];
+  }
+}
+
 void MacOpenFileDialogContext::presentIfNeeded()
 {
-  if (presented_)
+  if (!presentation_.beginPresent())
   {
     return;
   }
-  presented_ = true;
   if (deferredPresenter_)
   {
     [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ schedulePresent];
@@ -148,16 +179,17 @@ void MacOpenFileDialogContext::presentDeferred()
 
 void MacOpenFileDialogContext::presentDialog()
 {
-  if (presenting_)
+  if (!presentation_.isPresenting())
   {
     return;
   }
-  presenting_ = true;
+  loka::core::MutableState<loka::app::FileChooserResult> *resultState = resultState_;
+  loka::core::EmitterState *onResult = onResult_;
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   if (!panel)
   {
-    setResult(loka::app::FileChooserResult::Error(1));
-    presenting_ = false;
+    presentation_.markPresented();
+    DeliverOpenFileDialogResult(resultState, onResult, loka::app::FileChooserResult::Error(1));
     return;
   }
 
@@ -165,6 +197,7 @@ void MacOpenFileDialogContext::presentDialog()
   [panel setCanChooseDirectories:NO];
   [panel setCanChooseFiles:YES];
   NSInteger response = [panel runModal];
+  loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
 #if defined(NSModalResponseOK)
   if (response == NSModalResponseOK)
 #else
@@ -177,30 +210,20 @@ void MacOpenFileDialogContext::presentDialog()
       std::string path = loka::macos::Utf8FromNSString([url path]);
       loka::file::File file = loka::file::File::FromPath(loka::core::String(path));
       file.setKind(loka::file::File::KIND_FILE);
-      setResult(loka::app::FileChooserResult::File(file));
+      result = loka::app::FileChooserResult::File(file);
     }
     else
     {
-      setResult(loka::app::FileChooserResult::Error(2));
+      result = loka::app::FileChooserResult::Error(2);
     }
   }
-  else
-  {
-    setResult(loka::app::FileChooserResult::Canceled());
-  }
-  presenting_ = false;
+  presentation_.markPresented();
+  DeliverOpenFileDialogResult(resultState, onResult, result);
 }
 
 void MacOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
-  if (resultState_)
-  {
-    resultState_->set(result, true);
-  }
-  if (onResult_)
-  {
-    onResult_->emit();
-  }
+  DeliverOpenFileDialogResult(resultState_, onResult_, result);
 }
 
 void RegisterMacOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)

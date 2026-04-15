@@ -57,6 +57,12 @@ namespace loka
         COMPOSE_EVENT_DETACH = 2
       };
 
+      enum ComposeAttachState
+      {
+        COMPOSE_ATTACH_STATE_NONE = 0,
+        COMPOSE_ATTACH_STATE_PENDING_ATTACH = 1
+      };
+
       enum NodeKind
       {
         NODE_KIND_UNKNOWN = 0,
@@ -162,6 +168,8 @@ namespace loka
         Node *owner() const { return owner_; }
         virtual ICapturableBitmap *asCapturableBitmap() { return 0; }
         virtual const ICapturableBitmap *asCapturableBitmap() const { return 0; }
+        virtual void onNodeAttached() {}
+        virtual void onNodeDetached() {}
         virtual void render(IPlatformController *) {}
         virtual short layout(IPlatformController *, LayoutState &) { return 0; }
 
@@ -179,11 +187,15 @@ namespace loka
         loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
         bool arenaAllocated_;
-        bool pendingAttach_;
+        // Compose-only signal used to upgrade a child update pass into an
+        // attach pass when a parent swaps in a freshly created child.
+        // Platform/native code should not depend on this compose-local state
+        // for presentation or lifecycle decisions.
+        ComposeAttachState composeAttachState_;
         std::string testId_;
         NodeTag nodeTag_;
 
-        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), pendingAttach_(false), testId_(), nodeTag_(NODE_TAG_NONE) {}
+        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), composeAttachState_(COMPOSE_ATTACH_STATE_NONE), testId_(), nodeTag_(NODE_TAG_NONE) {}
 
         virtual ~Node()
         {
@@ -196,11 +208,14 @@ namespace loka
 
         void setArenaAllocated(bool v) { arenaAllocated_ = v; }
         bool isArenaAllocated() const { return arenaAllocated_; }
-        void setPendingAttach(bool value) { pendingAttach_ = value; }
-        bool consumePendingAttach()
+        void markPendingAttachForCompose()
         {
-          bool value = pendingAttach_;
-          pendingAttach_ = false;
+          composeAttachState_ = COMPOSE_ATTACH_STATE_PENDING_ATTACH;
+        }
+        ComposeAttachState consumeComposeAttachState()
+        {
+          ComposeAttachState value = composeAttachState_;
+          composeAttachState_ = COMPOSE_ATTACH_STATE_NONE;
           return value;
         }
 

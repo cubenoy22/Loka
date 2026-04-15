@@ -3,6 +3,28 @@
 #include <StandardFile.h>
 #include <string>
 
+namespace
+{
+  static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
+                                          loka::core::EmitterState *onResult,
+                                          const loka::app::FileChooserResult &result)
+  {
+    void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
+    if (resultState)
+    {
+      resultState->set(result, true);
+    }
+    if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
+    {
+      onResult->emit();
+    }
+    if (onResultToken)
+    {
+      loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
+    }
+  }
+}
+
 static loka::core::String displayPathFromSpec(const FSSpec &spec)
 {
   char name[64];
@@ -20,8 +42,7 @@ ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDi
     : node_(node),
       resultState_(0),
       onResult_(0),
-      presenting_(false),
-      presented_(false)
+      presentation_()
 {
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
@@ -31,26 +52,37 @@ ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
 {
 }
 
+void ToolboxOpenFileDialogContext::onNodeAttached()
+{
+  presentIfNeeded();
+}
+
+void ToolboxOpenFileDialogContext::onNodeDetached()
+{
+  presentation_.markDetached();
+}
+
 void ToolboxOpenFileDialogContext::presentIfNeeded()
 {
-  if (presented_)
+  if (!presentation_.beginPresent())
   {
     return;
   }
-  presented_ = true;
   presentDialog();
 }
 
 void ToolboxOpenFileDialogContext::presentDialog()
 {
-  if (presenting_)
+  if (!presentation_.isPresenting())
   {
     return;
   }
-  presenting_ = true;
+  loka::core::MutableState<loka::app::FileChooserResult> *resultState = resultState_;
+  loka::core::EmitterState *onResult = onResult_;
 
   StandardFileReply reply;
   StandardGetFile(0, -1, 0, &reply);
+  loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
 
   if (reply.sfGood)
   {
@@ -60,24 +92,14 @@ void ToolboxOpenFileDialogContext::presentDialog()
 #if defined(LOKA_RETRO68)
     ToolboxPlatformContext::registerChosenFileSpec(displayPath, reply.sfFile);
 #endif
-    setResult(loka::app::FileChooserResult::File(file));
-  }
-  else
-  {
-    setResult(loka::app::FileChooserResult::Canceled());
+    result = loka::app::FileChooserResult::File(file);
   }
 
-  presenting_ = false;
+  presentation_.markPresented();
+  DeliverOpenFileDialogResult(resultState, onResult, result);
 }
 
 void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
-  if (resultState_)
-  {
-    resultState_->set(result, true);
-  }
-  if (onResult_)
-  {
-    onResult_->emit();
-  }
+  DeliverOpenFileDialogResult(resultState_, onResult_, result);
 }

@@ -125,14 +125,9 @@ MacOpenFileDialogContext *MacNodeContextMapper::ensureOpenFileDialogContext(loka
   {
     return 0;
   }
-  const bool pendingAttach = node->consumePendingAttach();
   MacOpenFileDialogContext *ctx = static_cast<MacOpenFileDialogContext *>(node->getContext());
   if (ctx)
   {
-    if (pendingAttach)
-    {
-      ctx->presentIfNeeded();
-    }
     return ctx;
   }
   ctx = new MacOpenFileDialogContext(this->rootView_, node);

@@ -981,7 +981,8 @@ namespace loka
           for (Node *child = it.next(); child; child = it.next())
           {
             ComposeEvent childEvent = event;
-            if ((event == COMPOSE_EVENT_UPDATE || event == COMPOSE_EVENT_ATTACH) && child->consumePendingAttach())
+            if ((event == COMPOSE_EVENT_UPDATE || event == COMPOSE_EVENT_ATTACH) &&
+                child->consumeComposeAttachState() == COMPOSE_ATTACH_STATE_PENDING_ATTACH)
             {
               if (event == COMPOSE_EVENT_UPDATE)
               {
