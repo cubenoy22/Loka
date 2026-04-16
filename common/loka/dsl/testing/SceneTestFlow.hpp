@@ -47,13 +47,13 @@ namespace loka
 
         static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
         {
-          return scene.projectionTransaction_;
+          return scene.director_.projectionTransaction();
         }
 
         static long projectionTransactionTargetCount(const ::loka::app::scene::Scene &scene)
         {
           long count = 0;
-          const ::loka::app::scene::SceneProjectionTransaction::TargetEntry *entry = scene.projectionTransaction_.targetsHead();
+          const ::loka::app::scene::SceneProjectionTransaction::TargetEntry *entry = scene.director_.projectionTransaction().targetsHead();
           while (entry)
           {
             ++count;

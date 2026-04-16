@@ -12,7 +12,6 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformApplyPlan.hpp"
 #include "app/scene/SceneDirector.hpp"
-#include "app/scene/SceneProjectionTransaction.hpp"
 #include "app/scene/nodes/boundary/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 #include "loka/dsl/NextTickTracker.hpp"
@@ -65,14 +64,14 @@ namespace loka
         // Accept Boundary definitions only (compile-time check via IsBoundaryDefinition).
         template <class DefT>
         explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_(), projectionTransaction_()
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_()
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
         }
         // Construct from NodeDefinitionBase and auto-wrap non-boundary roots.
         explicit Scene(NodeDefinitionBase *def)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_(), projectionTransaction_()
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_()
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
@@ -80,7 +79,7 @@ namespace loka
         // Clone and take ownership of the root definition.
         template <class DefT>
         explicit Scene(const DefT &def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_(), projectionTransaction_()
+            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), lastApplyPlan_()
         {
           director_.attach(this);
         }
@@ -100,7 +99,7 @@ namespace loka
         Window *getWindow() const { return window_; }
         void setWindow(Window *window) { window_ = window; }
         const SceneCompositionDiff &compositionDiff() const { return compositionDiff_; }
-        const SceneProjectionTransaction &projectionTransaction() const { return projectionTransaction_; }
+        const SceneProjectionTransaction &projectionTransaction() const { return director_.projectionTransaction(); }
         SceneDirector &director() { return director_; }
         const SceneDirector &director() const { return director_; }
         size_t liveNodeCount() const
@@ -220,7 +219,6 @@ namespace loka
         SceneCompositionDiff compositionDiff_;
         SceneDirector director_;
         PlatformApplyPlan lastApplyPlan_;
-        SceneProjectionTransaction projectionTransaction_;
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class SceneManager;
@@ -236,11 +234,6 @@ namespace loka
             compositionDiff_.fullRebuild = true;
           }
           nextTickTracker_.request();
-        }
-
-        void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
-        {
-          projectionTransaction_.enqueue(node, flags);
         }
 
         static bool RefreshThunk(void *userData)
@@ -507,7 +500,7 @@ namespace loka
             compositionDiff_.clear();
             return false;
           }
-          NodeDirtyFlags boundaryFlags = projectionTransaction_.aggregateDirtyFlags();
+          NodeDirtyFlags boundaryFlags = director_.projectionTransaction().aggregateDirtyFlags();
           if (boundaryFlags != NODE_DIRTY_NONE)
           {
             compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | boundaryFlags);
@@ -573,7 +566,7 @@ namespace loka
           loka::platform::DebugLogSceneFlags(static_cast<void *>(this),
                                             "apply",
                                             static_cast<unsigned int>(flags),
-                                            static_cast<unsigned int>(projectionTransaction_.aggregateDirtyFlags()),
+                                            static_cast<unsigned int>(director_.projectionTransaction().aggregateDirtyFlags()),
                                             compositionDiff_.fullRebuild ? 1 : 0);
 #endif
           lastApplyPlan_ = buildPlatformApplyPlan(rootNode_, director_, compositionDiff_);
@@ -583,7 +576,6 @@ namespace loka
             platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
           }
           compositionDiff_.clear();
-          projectionTransaction_.clear();
           director_.clearPendingBoundaryRequest();
         }
 
@@ -882,7 +874,7 @@ namespace loka
       };
 
       inline SceneDirector::SceneDirector()
-          : scene_(0), lastRequestedBoundary_(0), pendingBoundariesHead_(0), pendingBoundariesTail_(0)
+          : scene_(0), lastRequestedBoundary_(0), projectionTransaction_(), pendingBoundariesHead_(0), pendingBoundariesTail_(0)
       {
       }
 
@@ -930,12 +922,17 @@ namespace loka
         }
         lastRequestedBoundary_ = boundary;
         enqueueBoundary(boundary);
-        scene_->enqueueProjectionTarget(boundary, flags);
+        projectionTransaction_.enqueue(boundary, flags);
       }
 
       inline BoundaryNode *SceneDirector::lastRequestedBoundary() const
       {
         return lastRequestedBoundary_;
+      }
+
+      inline const SceneProjectionTransaction &SceneDirector::projectionTransaction() const
+      {
+        return projectionTransaction_;
       }
 
       inline BoundaryNode *SceneDirector::pendingBoundariesHead() const
@@ -1076,6 +1073,7 @@ namespace loka
           boundary = next;
         }
         lastRequestedBoundary_ = 0;
+        projectionTransaction_.clear();
         pendingBoundariesHead_ = 0;
         pendingBoundariesTail_ = 0;
       }

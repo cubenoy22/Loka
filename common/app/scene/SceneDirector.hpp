@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_SCENEDIRECTOR_HPP
 
 #include "app/scene/Node.hpp"
+#include "app/scene/SceneProjectionTransaction.hpp"
 
 namespace loka
 {
@@ -24,6 +25,7 @@ namespace loka
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
         BoundaryNode *lastRequestedBoundary() const;
+        const SceneProjectionTransaction &projectionTransaction() const;
         BoundaryNode *pendingBoundariesHead() const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
@@ -36,6 +38,7 @@ namespace loka
 
         Scene *scene_;
         BoundaryNode *lastRequestedBoundary_;
+        SceneProjectionTransaction projectionTransaction_;
         BoundaryNode *pendingBoundariesHead_;
         BoundaryNode *pendingBoundariesTail_;
       };
