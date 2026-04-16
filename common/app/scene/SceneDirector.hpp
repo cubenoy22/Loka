@@ -24,9 +24,7 @@ namespace loka
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
         BoundaryNode *lastRequestedBoundary() const;
-        NodeDirtyFlags pendingBoundaryFlags() const;
         BoundaryNode *pendingBoundariesHead() const;
-        NodeDirtyFlags aggregatePendingBoundaryFlags() const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
@@ -38,7 +36,6 @@ namespace loka
 
         Scene *scene_;
         BoundaryNode *lastRequestedBoundary_;
-        NodeDirtyFlags pendingBoundaryFlags_;
         BoundaryNode *pendingBoundariesHead_;
         BoundaryNode *pendingBoundariesTail_;
       };

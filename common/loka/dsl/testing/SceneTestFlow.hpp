@@ -45,6 +45,23 @@ namespace loka
           return scene.lastApplyPlan_;
         }
 
+        static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.projectionTransaction_;
+        }
+
+        static long projectionTransactionTargetCount(const ::loka::app::scene::Scene &scene)
+        {
+          long count = 0;
+          const ::loka::app::scene::SceneProjectionTransaction::TargetEntry *entry = scene.projectionTransaction_.targetsHead();
+          while (entry)
+          {
+            ++count;
+            entry = entry->next;
+          }
+          return count;
+        }
+
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
         {
           return scene.flushInvalidation();

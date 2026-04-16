@@ -3347,6 +3347,50 @@ void testLokaFlowDslV1Core() {
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
+
+    scene.requestInvalidate(NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::projectionTransaction(scene).hasPending());
+    assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
+    assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_PROPS);
+    const SceneProjectionTransaction::TargetEntry *entry = SceneTestAccess::projectionTransaction(scene).targetsHead();
+    assert(entry != 0);
+    assert(entry->node == rootBoundary);
+    assert(entry->dirtyFlags == NODE_DIRTY_PROPS);
+    assert(entry->next == 0);
+
+    scene.requestInvalidate(NODE_DIRTY_LAYOUT);
+    assert(SceneTestAccess::projectionTransaction(scene).hasPending());
+    assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
+    assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_PROPS) != 0);
+    assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_LAYOUT) != 0);
+    entry = SceneTestAccess::projectionTransaction(scene).targetsHead();
+    assert(entry != 0);
+    assert(entry->node == rootBoundary);
+    assert((entry->dirtyFlags & NODE_DIRTY_PROPS) != 0);
+    assert((entry->dirtyFlags & NODE_DIRTY_LAYOUT) != 0);
+    assert(entry->next == 0);
+
+    assert(scene.flushInvalidation());
+    assert(!SceneTestAccess::projectionTransaction(scene).hasPending());
+    assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 0);
+    assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_NONE);
+    assert(SceneTestAccess::projectionTransaction(scene).targetsHead() == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
     scene.requestInvalidate(NODE_DIRTY_PROPS);
     assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
     assert(scene.flushInvalidation());
