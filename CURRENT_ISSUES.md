@@ -2,290 +2,601 @@
 
 ## Scope
 
-This note summarizes the current architectural issues and newly clarified direction after stabilizing `OpenFileDialog` across macOS, Toolbox, and Win32.
+This note captures the current architectural direction after stabilizing retained `Show()` / `OpenFileDialog` behavior across macOS, Toolbox, and Win32.
 
-The understanding has shifted from "one bad dialog bug" to a broader distinction between:
+The central shift is no longer "fix the dialog bug".
+It is:
 
-- persistent lifecycle state that belongs to retained nodes/contexts
-- one-pass metadata that belongs only to a single update/compose transaction
+- keep persistent lifecycle facts on retained objects
+- keep one-pass compose/apply facts in boundary-local temporary scope
+
+The immediate target is the `Show()` / `Conditional` path.
+The broader goal is to make the static-first model easier to reason about, easier to debug, and easier to extend toward homogeneous `ForEach<T>` later.
 
 ## What We Confirmed
 
-### 1. `Show()` behaves better as retained attach/detach
+### 1. `Show()` works better as retained attach/detach
 
-For the `0.0.1` scope, `Show()` now makes more sense as:
+For the current `0.0.1` scope, `Show()` behaves better when it:
 
-- keep the child identity
-- detach it while hidden
-- re-attach the same child when shown again
+- retains child identity
+- detaches while hidden
+- re-attaches the same subtree when shown again
 
-This is simpler and more stable than destroy/recreate for common UI cases such as `OpenFileDialog`.
+This is more stable than destroy/recreate for common UI cases such as `OpenFileDialog`.
 
-This also means:
+Practical result:
 
-- repeated open/close is no longer forced to rely on fresh context creation
-- subtree-local state survives hide/show as expected
-- the system can use explicit attach/detach phase transitions instead of reconstructing identity from scratch
+- repeated open/close no longer depends on fresh context creation
+- subtree-local state survives hide/show
+- attach/detach can become an explicit lifecycle instead of an accidental side effect of reconstruction
 
 ### 2. Native dialog delivery had a self-destruction hazard
 
-The original `OpenFileDialog` crashes on macOS and Toolbox were caused by this pattern:
+The original `OpenFileDialog` crashes on macOS and Toolbox came from this pattern:
 
-1. native dialog callback enters context code
-2. context calls `MutableState::set()` and/or `EmitterState::emit()`
-3. Flow / compose immediately runs
-4. the subtree or context may already be detached/destroyed
-5. callback code continues touching `this` or borrowed pointers
+1. native callback enters context code
+2. context writes state and/or emits an event
+3. Flow / compose runs immediately
+4. subtree or context may already be detached/destroyed
+5. callback continues touching `this` or borrowed pointers
 
-This was fixed by making result delivery self-destruction safe:
+This is now mitigated by:
 
-- copy borrowed state/emitter pointers first
-- stop using `this` before notification
-- guard event delivery with lifetime tokens
+- copying borrowed pointers first
+- avoiding use of `this` after notification begins
+- guarding notification with lifetime tokens
 
 ### 3. Retained attach/detach still needs explicit phase
 
-Retaining the subtree did not eliminate lifecycle state.
-It only changed the kind of lifecycle state that matters.
+Retaining the subtree did not remove lifecycle state.
+It only clarified which lifecycle state is real.
 
-Once `OpenFileDialogContext` survives hide/show, it still needs to know:
+Retained dialog/context objects still need to know:
 
-- whether it should present on next attach
-- whether it is currently presenting
-- whether it has already presented during the current attach interval
+- should present on next attach?
+- currently presenting?
+- already presented during this attach interval?
 
-So attach/detach-only `Show()` reduces ownership hazards, but explicit phase handling is still required.
+This is why `OpenFileDialog` now uses a small value-object phase model instead of ad hoc booleans.
 
-This is why `OpenFileDialog` now has a small presentation phase object instead of ad hoc bools.
+### 4. The remaining weakness is not dialog-specific
 
-## Current Direction
+The dialog bug exposed a more general issue:
 
-## A. Persistent lifecycle state stays on retained objects
+- persistent lifecycle state is mostly understandable now
+- one-pass compose/apply facts are still scattered
+
+The most visible current example is `composeAttachState_` / `consumeComposeAttachState()`.
+
+## Core Design Split
+
+### A. Persistent facts belong to retained objects
 
 Examples:
 
-- whether a retained dialog should present on attach
-- whether a dialog is currently presenting
-- whether a retained native context is attached or detached
+- attached vs detached lifecycle
+- dialog presentation phase
+- retained native context ownership
 
-These belong on node/context-local state because they survive across ticks and attach/detach cycles.
+These survive across ticks and hide/show cycles.
+They belong on retained node/context-local objects.
 
 Current example:
 
 - `OpenFileDialogPresentationPhase`
 
-This is a good fit for:
+Good properties:
 
-- small enum-like value object
-- no heap allocation required
-- transition methods such as `beginPresent()`, `markPresented()`, `markDetached()`
+- small value object
+- explicit transition methods
+- no dependency on one-pass traversal timing
 
-### B. One-pass compose/update facts should not live on nodes
+### B. One-pass facts belong to a boundary-local temporary scope
 
 Examples:
 
-- this child was freshly inserted during the current update
-- this child should receive `ATTACH` even though the parent event is `UPDATE`
-- this dispatch hint is valid only during this compose/apply pass
+- this child became active during the current pass
+- this child should compose as `ATTACH` even if the parent pass is `UPDATE`
+- this dispatch hint is valid only during the current compose/apply cycle
 
-These facts are transaction-local, not persistent lifecycle state.
+These do **not** belong on `Node`.
+They are not persistent lifecycle.
+They are temporary interpretation results for one pass.
 
-They should ideally be stored in:
+They should live in:
 
-- a stack-local compose/update transaction object
-- a local dispatch context
-- a local resolver/functor
+- a boundary-local compose/apply working scope
+- a local traversal/disposition context
+- a temporary compare/apply result
 
-and discarded at the end of the pass
+and be discarded after the pass ends.
 
-This becomes more important as deferred work (`NSTimer`, message queue, later async delivery) becomes normal.
-If one-pass metadata is stored on nodes, it can leak across passes and become inconsistent.
+## Why Dynamic Already Feels Closer To Correct
 
-## Why The Earlier Weakness Showed Up
+### Dynamic composition already has local truth ownership
 
-### Dynamic composition had diff-based truth
+Dynamic paths already lean on boundary-local ownership of truth:
 
-Dynamic composition already has a stronger model:
-
-- previous composition
-- current composition
-- comparison/diff result
+- previous snapshot
+- current snapshot
+- diff result
+- local rebuild plan
 
 That means facts such as:
 
-- inserted
-- reused
-- retired
+- retain
+- replace
+- retire
+- attach
 
-can be derived from explicit comparison.
+are derived from explicit boundary-local comparison.
 
-### Std/Show paths did not have equivalent local truth
+This is the important part.
+The strength is not "it has a fancy diff".
+The strength is:
 
-In the simpler `Show()` / `Conditional` path, the system did not carry the same explicit previous/current comparison data.
+- truth is local to the boundary pass
+- truth is derived rather than stored on child nodes
+- apply decisions are made by the owner
 
-So when a parent was in `UPDATE` but a child was actually fresh, the implementation needed an extra signal to say:
+### Static / `Show()` / `Conditional` currently lack an equivalent local phase
 
-- "this child should be treated as `ATTACH`"
+In the simpler `Show()` / `Conditional` path, the framework still needs to answer:
 
-That signal became `pendingAttach`, then `ComposeAttachState`, but the deeper weakness was:
+- is this child fresh for this pass?
+- should this child compose as `ATTACH`?
+- is this a retained subtree re-attach rather than an ordinary update?
 
-- one-pass dispatch truth was being approximated with node-local one-shot state
+Today, that answer is approximated with node-local one-shot state:
+
+- `markPendingAttachForCompose()`
+- `composeAttachState_`
+- `consumeComposeAttachState()`
+
+This is the current mismatch.
 
 In short:
 
-- Dynamic composition could derive truth from diff
-- Std/Show paths were faking that truth with a temporary node flag
+- Dynamic derives pass truth from boundary-local compare/apply state
+- Static `Show()` currently fakes pass truth with a temporary child-node flag
 
 ## Main Remaining Concern
 
-### `consume*()` is still a smell for lifecycle/dispatch metadata
+### `consumeComposeAttachState()` is still the clearest smell
 
-`consumeComposeAttachState()` exists because the original need was:
+The existing API exists because the original need was real:
 
-- `ConditionalNode` knows a fresh child was inserted
-- `Boundary` decides which compose event to send
-- the information was passed as a one-shot signal
+- `ConditionalNode` knows a fresh child became active
+- `Boundary` chooses which compose event to send
+- the information must travel somehow
 
-This background is understandable, but the API shape is still weak.
+But the current shape is still weak.
 
-A `consume` API bundles together:
+A `consume` API combines:
 
-- reading state
-- deciding based on state
-- clearing state
+- read
+- decision
+- clear
 
-That is natural for queue-like event items, but less natural for lifecycle/dispatch metadata.
+That can be fine for queue-like work items.
+It is much less convincing for lifecycle/dispatch truth.
 
-The concern is:
+Concerns:
 
-- who is allowed to consume it
-- whether it gets consumed too early
-- whether the state disappears before a full decision is made
+- who is allowed to consume it?
+- can it be consumed too early?
+- is the decision still visible when another layer needs it?
+- why does a child node own a fact that only matters during its parent boundary pass?
 
-Longer-term, this should move toward:
+This is the most immediate architectural target.
 
-- explicit state objects
-- `shouldXxx()` / `beginXxx()` / `markHandled()` style transitions
-- or, better, pass-local dispatch context instead of node-local one-shot consumption
+## Current Direction
 
-## Node / Context Attach-Detach Hooks
+### 1. Introduce a reduced boundary-local apply phase for static paths
 
-Attaching and detaching retained subtrees required explicit hooks.
+The next likely direction is **not** a heavyweight general transaction framework first.
 
-Current minimal mechanism:
+The next step is a reduced boundary-local compose/apply phase for static paths:
 
-- `NodeContext::onNodeAttached()`
-- `NodeContext::onNodeDetached()`
+- compose builds the current structure
+- the boundary derives temporary child disposition for this pass
+- traversal/apply uses that disposition
+- the disposition is discarded after the pass
 
-This turned out to be important for retained native nodes, because fresh context creation is no longer the only way lifecycle code can run.
+This should be understood as a reduced sibling of dynamic diff/apply:
 
-Also, it was necessary to notify recursively through the retained subtree.
-Notifying only the branch root was insufficient when `OpenFileDialog` sat under `Fragment` or another subtree wrapper.
+- Dynamic: richer compare + apply
+- Static `Show()` / `Conditional`: reduced apply/disposition only
 
-This hook mechanism is useful, but still somewhat draft-like:
+The purpose is to recover local truth ownership without turning static composition into full dynamic diff.
 
-- recursive attach/detach notification currently lives in `Conditional.cpp`
-- the contract is still minimal
-- other retained subtree cases may eventually want a more central traversal helper
+### 2. Keep the first scope very small
 
-## Risks That Are Lower Now
+First-pass target:
 
-These got much better after the recent changes:
+- fresh child attach upgrade
+- retained subtree re-attach interpretation
+- explicit child compose dispatch for `Show()` / `Conditional`
 
-- repeated open/close on all 3 platforms
-- direct dependency on fresh context creation for dialog presentation
-- owner/context dangling after immediate dialog result delivery
-- `Show()` destroying simple subtree-local state by default
+Not in the first scope:
 
-## Risks That Still Matter
+- generic loop/list reconciliation
+- heterogeneous child reuse
+- move/reorder optimization
+- global async transaction redesign
+- heavyweight scene-wide queue framework
 
-### 1. Transaction-local metadata is not fully modeled yet
+### 3. Treat native/UI hosts as delayed mirrors, not as truth
 
-Persistent phase is now modeled better than before.
-Per-pass dispatch metadata is not.
+The logical UI should remain the single source of truth.
+That does **not** mean the host side is always synchronized immediately.
 
-This likely matters later for:
+The intended model is:
 
-- loop/list DSL
-- reuse semantics
-- reorder/move handling
-- more advanced partial diff/apply paths
+- logical UI owns the current truth
+- projection/apply may be delayed and coalesced
+- host/native/UI is an observed mirror of that truth
+- older host results must never overwrite newer logical truth
 
-### 2. `Conditional` and `Show()` are still sharing implementation
+This matters even for local native UI.
+Dialogs, timers, deferred callbacks, and retained controls already behave like a delayed host.
+In other words, the architecture should be friendly not only to local retained UI, but also to future SSR-like / remote-host use cases.
 
-Current retain attach/detach behavior was introduced through `ConditionalNode`.
+The important rule is not "always fully synchronized".
+The important rule is:
 
-That works, but it is not yet clear whether:
+- the logical side stays self-consistent
+- delayed host results are accepted only if they still belong to the current logical request/lifecycle
+- stale results can be discarded safely
 
-- all `Conditional(trueDef, falseDef)` cases should share the same retained behavior
-- or `Show()` should eventually get a more explicit/specialized path
+### 4. `nextTick` already acts as a scheduling queue
 
-For now, the implementation is acceptable for the current scope, but it still feels closer to a validated draft than a final abstraction.
+Current `nextTick` behavior already provides an important part of the delayed model:
 
-### 3. Deferred work and pass boundaries need a clearer model
+- multiple logical updates are coalesced
+- host apply is deferred to a known flush point
+- latest logical truth wins within the tick
 
-The more the framework relies on:
+This means the immediate need is **not** a huge new queue subsystem.
+`nextTick` is already the scheduling layer.
 
-- `NSTimer`
-- posted messages
-- deferred relayout/apply
-- async callbacks
+What is still missing is a clearer representation of the **content** of one update wave:
 
-the more dangerous it becomes to store one-pass metadata on persistent objects.
+- which targets became dirty
+- which boundaries became update roots
+- which structure/layout/paint facts belong to this wave
+- which host request/result still belongs to the current logical generation
 
-This is the strongest argument for a future compose/update transaction object.
+That is the role later concepts such as:
 
-## Practical Design Split
+- `ProjectionTransaction`
+- `ObservationTransaction`
+- request/result generation tokens
 
-This is the current best mental model:
+### 5. Future-friendly direction: logical truth -> projection -> observed host
 
-### Persistent facts
+The direction that now seems most stable is a three-layer model:
 
-Belong to retained nodes/contexts.
+1. Logical truth
+   - tree/state/ownership/lifecycle
+   - authoritative
+2. Projection / observation transaction
+   - one update wave worth of derived facts
+   - coalesced, optimizable, discardable after apply
+3. Observed host
+   - native UI / OS / browser / remote target
+   - delayed mirror, never the source of truth
+
+This framing should make future extensions easier:
+
+- local native UI
+- classic retained host APIs
+- remote or SSR-like host delivery
+- stale callback/result rejection
+
+The key architectural benefit is not "network support".
+It is that delayed or out-of-date host state becomes an expected part of the model instead of a bug-shaped surprise.
+
+### 6. Prefer disposition / plan naming over overloaded "diff"
+
+There are two related but different concepts:
+
+- true previous/current structural comparison
+- one-pass dispatch meaning derived for the current compose/apply pass
+
+So naming should likely stay explicit:
+
+- `compare...` / `build...Diff` for actual previous/current comparison
+- `derive...Disposition` / `build...Plan` for current-pass dispatch/apply interpretation
+
+The old instinct that `NodeComposition - NodeComposition` was the wrong shape was probably correct.
+
+## Temporary Model To Aim For
+
+The practical target model now looks like this:
+
+### Persistent memory
+
+Owned by the boundary or retained objects.
 
 Examples:
 
-- attached/detached phase
-- dialog presentation phase
-- retained native context ownership
+- previous composition snapshot
+- current composition snapshot
+- retained context lifecycle phase
 
-### One-pass facts
+### Temporary result
 
-Belong to the current update/compose transaction only.
+Owned by the boundary-local working scope.
 
 Examples:
 
-- fresh child insertion during this pass
-- attach-upgrade dispatch hints
-- local dispatch decisions derived during traversal
+- attach / retain / retire interpretation for this pass
+- projection targets collected during this update wave
+- structure/layout/paint facts derived for this flush
+- generation/request facts needed to reject stale host results
 
-## Suggested Near-Term Follow-Up
+Examples:
 
-### High priority
+- diff result
+- compose disposition
+- local rebuild/apply plan
+- attach-upgrade hints
 
-- Keep `Show()` simple: retained attach/detach first, no loop semantics in `0.0.1`
-- Continue using small explicit phase objects instead of unrelated bool fields
-- Avoid fresh-create-only assumptions in retained native contexts
+### Node-local one-shot flags
 
-### Medium priority
+Should be reduced or removed.
 
-- Replace remaining `consume`-style lifecycle metadata with clearer transition APIs
-- Explore a stack-local compose/update dispatch context for one-pass metadata
-- Decide whether `Show()` should eventually diverge from generic `Conditional`
+Current suspect:
 
-### Lower priority
+- `composeAttachState_`
 
-- Expand attach/detach hook contract if more retained native nodes need it
-- Add targeted tests for transition/state-object behavior directly
-- Revisit UI callback lifetime pruning via `bindForUi()` once the transaction model is clearer
+## `ForEach<T>` / Loop Direction
 
-## Current `0.0.1` Position
+Loop/repeat support should be considered in the design now, even if implementation comes later.
 
-For `0.0.1`, the intended scope is:
+However, the intended first shape is intentionally constrained:
 
-- `Show()` is not a loop/list reuse primitive
-- `Show()` should behave as retained attach/detach by default
-- loop/list reuse semantics remain future work
-- shared reuse pool / lazy reuse remain future work
+- homogeneous children only
+- effectively `ForEach<T>` rather than a heterogeneous mixed-type repeater
+- no generic shared reuse pool in v1
+- no advanced move/reorder optimization in v1
 
-This keeps the initial model simple while avoiding the most fragile destroy/recreate behavior.
+This means the first useful repeated-child semantics can stay relatively simple:
+
+- attach
+- retain
+- retire
+
+with optional later growth toward:
+
+- replace
+- move
+- richer reuse policy
+
+This matters because it means the same boundary-local apply/disposition model can cover:
+
+- `Show()` as `0/1` child disposition
+- `Conditional` as branch disposition
+- `ForEach<T>` as homogeneous repeated-child disposition
+
+without requiring a full generic reconciler immediately.
+
+## Why This Should Stay Boundary-Local
+
+Another way to view the issue:
+
+- `StateTracker` detects changes
+- dirty is reported
+- compose/apply eventually reaches `PlatformController`
+
+The current weakness is that the "one update pass worth of interpretation" is not explicit enough in the middle.
+
+That is why facts leak into:
+
+- node-local one-shot flags
+- platform comments that compensate for already-consumed attach hints
+
+The likely owner of the missing local unit is still `Boundary`, not `Node`, and not a scene-global object first.
+
+That matches existing dynamic/local-diff direction:
+
+- boundary-local diff/apply work already exists
+- what is missing is cleaner reuse of that idea for static structural cases
+
+## Projection Direction
+
+At this stage, the important thing is **not** to fully design a universal command framework yet.
+The more useful missing word is probably `Projection`.
+
+Current leaning:
+
+- Loka's primary job is to build logical UI
+- OS / native / browser / remote backends should receive a projection of that logical result
+- platform side should receive interpreted results rather than re-reading live node-local one-shot state
+
+This makes a projection layer attractive because it gives:
+
+- a stable pass-local payload
+- better separation between logical interpretation and platform execution
+- easier batching and later optimization
+- much better testability through a virtual OS / test executor
+- a natural place to support remote / SSR-like transport later
+
+### Projection layering
+
+The current direction is starting to look like three levels:
+
+- `BoundaryProjection`
+- `SceneProjection`
+- platform execution payload / command stream
+
+Meaning:
+
+- `Boundary` derives local projection from its own compose/apply result
+- `Scene` gathers and combines multiple boundary-local projections
+- `PlatformController` executes the final scene-level projection
+
+This is important because nested boundaries can still produce updates that affect a wider scope:
+
+- a button inside a child boundary may change state owned by an outer boundary
+- sibling subtrees may need relayout/repaint
+- multiple local projections may need to be combined before platform apply
+
+So projection cannot stay purely boundary-local forever.
+The likely model is:
+
+- local truth stays boundary-local
+- combined projection becomes scene-level
+
+### Relationship to commands
+
+Commands are still a useful likely implementation technique.
+But they now look more like an internal representation of projection rather than the primary architectural word.
+
+Current leaning:
+
+- logical UI computes absolute intended result
+- boundary-local phase derives temporary disposition / projection
+- scene combines local projections into `SceneProjection`
+- optional command/optimizer layer may later package that result for execution
+- platform executes the packaged projection
+
+This keeps delta/diff where it belongs:
+
+- not in logical UI truth itself
+- acceptable later for transport, batching, optimization, delay compensation, or execute-time coalescing
+
+This also fits future possibilities such as:
+
+- virtual platform testing
+- remote/SSR-like transport
+- game/sprite-oriented backends
+
+without forcing logical UI itself to become diff-oriented.
+
+### Why `Scene` becomes more important
+
+This direction also gives `Scene` a clearer role.
+
+Instead of acting mostly as a scheduler/invalidation waypoint, `Scene` starts to look like:
+
+- the owner of cross-boundary projection gathering
+- the owner of scene-level optimization/combination
+- the natural place where local boundary results become a scene-level applyable unit
+
+This may also help absorb previously floating responsibilities around `SceneManager` / scene switching.
+
+A scene switch is also projection-shaped:
+
+- detach/retire old scene
+- attach/initialize new scene
+- rebuild relayout/redraw consequences
+
+So scene switching, redraw aggregation, and cross-boundary update combination may all become easier to reason about under one projection model.
+
+## Immediate Working Goal
+
+The next branch should probably focus on this exact slice:
+
+- remove or reduce node-local `composeAttachState_`
+- replace it with boundary-local temporary compose/apply disposition
+- prove the path first on `Show()` / `Conditional`
+- keep `ForEach<T>` as a design target, not the first implementation payload
+
+If that succeeds, the framework gets:
+
+- clearer ownership of pass-local truth
+- less fragile lifecycle/debug behavior
+- a more natural path toward homogeneous repeat/collection DSL
+
+## Non-Goals For This Step
+
+To keep momentum and avoid premature abstraction, this step should **not** try to solve all of the following at once:
+
+- full dynamic/static unification
+- scene-global transaction framework
+- arbitrary heterogeneous reuse
+- generic keyed tree diff for all node shapes
+- advanced move/reorder animation substrate
+- platform scheduling redesign beyond what is needed for the local compose/apply boundary
+
+## Open Questions
+
+### 1. What is the smallest useful reduced apply-phase type?
+
+The next implementation still needs a concrete local shape.
+
+Open choices:
+
+- a traversal-local context passed explicitly
+- a boundary-owned temporary working object
+- a small disposition table keyed by child identity
+
+### 2. How should `Conditional` / `Show()` register temporary attach truth?
+
+Today the information is placed on the child node.
+The replacement is not chosen yet.
+
+Open choices:
+
+- direct registration into a boundary-local working scope
+- parent-side derivation from structure changes
+- temporary composition-state extension
+
+### 3. How much should the first step know about future `ForEach<T>`?
+
+`ForEach<T>` is intentionally constrained in v1:
+
+- homogeneous children only
+- simple retain/attach/retire semantics first
+
+But it is still open how much of that future shape should influence the first static reduced apply model.
+
+### 4. How should `BoundaryProjection`, `SceneProjection`, and command payload be separated?
+
+There are likely at least three useful layers now:
+
+- boundary-local interpretation / projection
+- scene-level combined projection
+- platform-facing execution payload / command stream
+
+The naming and ownership boundary between them is still open.
+
+### 5. How much live `Node` access should platform apply still allow?
+
+If `NextTickTracker` or later deferred execution reorders apply timing, re-reading live nodes can become semantically unsafe.
+
+Open question:
+
+- should the platform side eventually consume only stable payload/commands for some paths?
+- or is limited live-node access still acceptable for simple immediate cases?
+
+### 6. Where should projection/command optimization live?
+
+The architecture likely benefits from eventual batching/coalescing/skip behavior.
+But that should not pull diff logic up into logical UI.
+
+Open question:
+
+- should optimization sit between `BoundaryProjection` and `SceneProjection`?
+- between `SceneProjection` and platform execution?
+- or stay platform-specific for longer?
+
+### 7. Which commands are latest-wins vs must-execute?
+
+For future command/plan design, not every action has the same semantics.
+
+Examples that may tolerate coalescing:
+
+- visible/text/frame/property updates
+- some redraw/invalidate cases
+
+Examples that are more likely must-execute:
+
+- attach/detach transitions
+- resource acquire/release
+- one-shot dialog/open/close type operations
+
+The exact classification is still open and should not be overdesigned too early.

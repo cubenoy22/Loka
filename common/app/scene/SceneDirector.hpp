@@ -26,11 +26,16 @@ namespace loka
 
         BoundaryNode *lastRequestedBoundary() const;
         const SceneProjectionTransaction &projectionTransaction() const;
+        NodeDirtyFlags aggregateDirtyFlags() const;
         BoundaryNode *pendingBoundariesHead() const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
+        bool requiresLayout() const;
+        bool requiresCompositedPaint() const;
+        bool requiresStructure(const Scene *scene) const;
+        bool hasOpaqueLocalPaint() const;
         void clearPendingBoundaryRequest();
 
       private:
