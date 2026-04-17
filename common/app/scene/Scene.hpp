@@ -519,7 +519,7 @@ namespace loka
             compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | NODE_DIRTY_LAYOUT);
           }
           const bool requiresStructure = director_.requiresStructure(this);
-          const bool canApplyLocalDiff = pendingUpdateRootsCanApplyLocalCompositionDiff(director_);
+          const bool canApplyLocalDiff = director_.canApplyLocalCompositionDiff();
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneDecision(static_cast<void *>(this),
                                                 requiresStructure ? 1 : 0,
@@ -536,9 +536,13 @@ namespace loka
           {
             compositionDiff_.fullRebuild = false;
           }
-          else if (compositionDiff_.fullRebuild && rootBoundaryCanApplyLocalCompositionDiff(rootNode_))
+          else if (compositionDiff_.fullRebuild)
           {
-            compositionDiff_.fullRebuild = false;
+            BoundaryNode *rootBoundary = rootNode_ ? rootNode_->asBoundary() : 0;
+            if (rootBoundary && rootBoundary->canApplyLocalCompositionDiff())
+            {
+              compositionDiff_.fullRebuild = false;
+            }
           }
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneFlags(static_cast<void *>(this),
@@ -569,9 +573,9 @@ namespace loka
                                             static_cast<unsigned int>(director_.aggregateDirtyFlags()),
                                             compositionDiff_.fullRebuild ? 1 : 0);
 #endif
-          lastApplyPlan_ = buildPlatformApplyPlan(rootNode_, director_, compositionDiff_);
-          applyPendingBoundaryUpdates(rootNode_, director_, lastApplyPlan_);
-          if (!shouldSkipGlobalChangeForApplyPlan(platformController_, lastApplyPlan_))
+          lastApplyPlan_ = director_.buildPlatformApplyPlan(rootNode_, compositionDiff_.flags, compositionDiff_.fullRebuild);
+          director_.applyPendingBoundaryUpdates(rootNode_, lastApplyPlan_);
+          if (!director_.shouldSkipGlobalChange(platformController_, lastApplyPlan_))
           {
             platformController_->onChange(rootNode_, flags, compositionDiff_.fullRebuild);
           }
@@ -594,120 +598,6 @@ namespace loka
           {
             delete rootNode_;
             rootNode_ = 0;
-          }
-        }
-
-        static bool rootBoundaryCanApplyLocalCompositionDiff(Node *node)
-        {
-          if (!node)
-          {
-            return false;
-          }
-          BoundaryNode *boundary = node->asBoundary();
-          return boundary && boundary->canApplyLocalCompositionDiff();
-        }
-
-        static bool pendingUpdateRootsCanApplyLocalCompositionDiff(const SceneDirector &director)
-        {
-          bool sawRoot = false;
-          BoundaryNode *root = director.firstPendingUpdateRoot();
-          while (root)
-          {
-            const BoundaryComposeResult &result = root->composeResult();
-            const NodeCompositionDiff *diff = root->localCompositionDiff();
-            const INestable *rootNestable = root->asNestable();
-            const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
-#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-            loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(root->scene()),
-                                                     static_cast<void *>(root),
-                                                     static_cast<unsigned int>(root->kind()),
-                                                     root->testId().c_str(),
-                                                     root->previousCompositionSnapshot().root() ? 1 : 0,
-                                                     root->currentCompositionSnapshot().root() ? 1 : 0,
-                                                     root->hasCompositionDiffState() ? 0 : 1,
-                                                     rootNestable ? static_cast<unsigned int>(rootNestable->childrenCount()) : 0U,
-                                                     firstChild ? static_cast<unsigned int>(firstChild->kind()) : 0U,
-                                                     firstChild ? firstChild->testId().c_str() : "");
-            loka::platform::DebugLogSceneRootDiffDecision(static_cast<void *>(root->scene()),
-                                                         static_cast<void *>(root),
-                                                         static_cast<unsigned int>(result.dirtyFlagsSeen),
-                                                         result.composed ? 1 : 0,
-                                                         result.preservedNativeContexts ? 1 : 0);
-            loka::platform::DebugLogSceneRootDiffShape(static_cast<void *>(root->scene()),
-                                                      static_cast<void *>(root),
-                                                      diff ? static_cast<int>(diff->entryCount()) : 0,
-                                                      (diff && diff->hasIncompatibleRetain()) ? 1 : 0,
-                                                      (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
-                                                      (diff && diff->isStableRetainOnly()) ? 1 : 0);
-#endif
-            if (!result.composed || !result.preservedNativeContexts)
-            {
-              return false;
-            }
-            sawRoot = true;
-            root = director.nextPendingUpdateRoot(root);
-          }
-          return sawRoot;
-        }
-
-        static bool shouldSkipGlobalChangeForApplyPlan(IPlatformController *platformController,
-                                                       const PlatformApplyPlan &plan)
-        {
-          return platformController &&
-                 platformController->canSkipGlobalChangeForBoundaryLocalPaint() &&
-                 plan.isPaintOnlyWork();
-        }
-
-        static PlatformApplyPlan buildPlatformApplyPlan(Node *rootNode,
-                                                        const SceneDirector &director,
-                                                        const SceneCompositionDiff &diff)
-        {
-          PlatformApplyPlan plan;
-          plan.structureChanged = (diff.flags & NODE_DIRTY_INITIAL) != 0 ||
-                                  ((diff.flags & NODE_DIRTY_CHILD) != 0 &&
-                                   (diff.fullRebuild || director.requiresStructure(0)));
-          plan.layoutChanged = (diff.flags & NODE_DIRTY_LAYOUT) != 0 || director.requiresLayout();
-          if (diff.flags != NODE_DIRTY_NONE)
-          {
-            plan.paintKind = PlatformApplyPlan::PAINT_LOCAL;
-          }
-          if (director.hasOpaqueLocalPaint())
-          {
-            plan.paintKind = PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
-          }
-          if (director.requiresCompositedPaint())
-          {
-            plan.paintKind = PlatformApplyPlan::PAINT_COMPOSITED;
-          }
-          BoundaryNode *rootBoundary = rootNode ? rootNode->asBoundary() : 0;
-          BoundaryNode *firstPendingRoot = director.firstPendingUpdateRoot();
-          plan.structureRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
-          plan.layoutRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
-          plan.paintRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
-          return plan;
-        }
-
-        static void applyPendingBoundaryUpdates(Node *rootNode,
-                                               const SceneDirector &director,
-                                               const PlatformApplyPlan &plan)
-        {
-          BoundaryNode *root = director.firstPendingUpdateRoot();
-          if (!root)
-          {
-            root = rootNode ? rootNode->asBoundary() : 0;
-          }
-          while (root)
-          {
-            BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
-            PlatformApplyPlan localPlan = plan.forBoundary(root);
-            const BoundaryNode::LocalApplyInfo localInfo = root->localApplyInfo(localPlan);
-            assert(localPlan.isLocalizedFor(root));
-            if (localPlan.hasBoundaryApplyWork(root) && root->scene() && root->scene()->platformController_)
-            {
-              root->scene()->platformController_->onBoundaryApply(rootNode, root, localInfo, localPlan);
-            }
-            root->applyPendingUpdate(localPlan);
-            root = director.nextPendingUpdateRoot(root);
           }
         }
 
@@ -982,6 +872,109 @@ namespace loka
           root = nextPendingUpdateRoot(root);
         }
         return sawPaint;
+      }
+
+      inline bool SceneDirector::canApplyLocalCompositionDiff() const
+      {
+        bool sawRoot = false;
+        BoundaryNode *root = firstPendingUpdateRoot();
+        while (root)
+        {
+          const BoundaryComposeResult &result = root->composeResult();
+          const NodeCompositionDiff *diff = root->localCompositionDiff();
+          const INestable *rootNestable = root->asNestable();
+          const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+          loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(root->scene()),
+                                                   static_cast<void *>(root),
+                                                   static_cast<unsigned int>(root->kind()),
+                                                   root->testId().c_str(),
+                                                   root->previousCompositionSnapshot().root() ? 1 : 0,
+                                                   root->currentCompositionSnapshot().root() ? 1 : 0,
+                                                   root->hasCompositionDiffState() ? 0 : 1,
+                                                   rootNestable ? static_cast<unsigned int>(rootNestable->childrenCount()) : 0U,
+                                                   firstChild ? static_cast<unsigned int>(firstChild->kind()) : 0U,
+                                                   firstChild ? firstChild->testId().c_str() : "");
+          loka::platform::DebugLogSceneRootDiffDecision(static_cast<void *>(root->scene()),
+                                                       static_cast<void *>(root),
+                                                       static_cast<unsigned int>(result.dirtyFlagsSeen),
+                                                       result.composed ? 1 : 0,
+                                                       result.preservedNativeContexts ? 1 : 0);
+          loka::platform::DebugLogSceneRootDiffShape(static_cast<void *>(root->scene()),
+                                                    static_cast<void *>(root),
+                                                    diff ? static_cast<int>(diff->entryCount()) : 0,
+                                                    (diff && diff->hasIncompatibleRetain()) ? 1 : 0,
+                                                    (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
+                                                    (diff && diff->isStableRetainOnly()) ? 1 : 0);
+#endif
+          if (!result.composed || !result.preservedNativeContexts)
+          {
+            return false;
+          }
+          sawRoot = true;
+          root = nextPendingUpdateRoot(root);
+        }
+        return sawRoot;
+      }
+
+      inline PlatformApplyPlan SceneDirector::buildPlatformApplyPlan(Node *rootNode,
+                                                                     NodeDirtyFlags flags,
+                                                                     bool fullRebuild) const
+      {
+        PlatformApplyPlan plan;
+        plan.structureChanged = (flags & NODE_DIRTY_INITIAL) != 0 ||
+                                ((flags & NODE_DIRTY_CHILD) != 0 &&
+                                 (fullRebuild || requiresStructure(0)));
+        plan.layoutChanged = (flags & NODE_DIRTY_LAYOUT) != 0 || requiresLayout();
+        if (flags != NODE_DIRTY_NONE)
+        {
+          plan.paintKind = PlatformApplyPlan::PAINT_LOCAL;
+        }
+        if (hasOpaqueLocalPaint())
+        {
+          plan.paintKind = PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
+        }
+        if (requiresCompositedPaint())
+        {
+          plan.paintKind = PlatformApplyPlan::PAINT_COMPOSITED;
+        }
+        BoundaryNode *rootBoundary = rootNode ? rootNode->asBoundary() : 0;
+        BoundaryNode *firstPendingRoot = firstPendingUpdateRoot();
+        plan.structureRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
+        plan.layoutRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
+        plan.paintRoot = firstPendingRoot ? firstPendingRoot : rootBoundary;
+        return plan;
+      }
+
+      inline void SceneDirector::applyPendingBoundaryUpdates(Node *rootNode,
+                                                             const PlatformApplyPlan &plan) const
+      {
+        BoundaryNode *root = firstPendingUpdateRoot();
+        if (!root)
+        {
+          root = rootNode ? rootNode->asBoundary() : 0;
+        }
+        while (root)
+        {
+          BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
+          PlatformApplyPlan localPlan = plan.forBoundary(root);
+          const BoundaryNode::LocalApplyInfo localInfo = root->localApplyInfo(localPlan);
+          assert(localPlan.isLocalizedFor(root));
+          if (localPlan.hasBoundaryApplyWork(root) && root->scene() && root->scene()->platformController_)
+          {
+            root->scene()->platformController_->onBoundaryApply(rootNode, root, localInfo, localPlan);
+          }
+          root->applyPendingUpdate(localPlan);
+          root = nextPendingUpdateRoot(root);
+        }
+      }
+
+      inline bool SceneDirector::shouldSkipGlobalChange(IPlatformController *platformController,
+                                                        const PlatformApplyPlan &plan) const
+      {
+        return platformController &&
+               platformController->canSkipGlobalChangeForBoundaryLocalPaint() &&
+               plan.isPaintOnlyWork();
       }
 
       inline static bool IsBoundaryDescendantOf(const BoundaryNode *boundary, const BoundaryNode *ancestor)

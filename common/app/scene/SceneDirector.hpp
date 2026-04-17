@@ -12,6 +12,8 @@ namespace loka
     {
       class Scene;
       class BoundaryNode;
+      class IPlatformController;
+      struct PlatformApplyPlan;
 
       class SceneDirector
       {
@@ -36,6 +38,14 @@ namespace loka
         bool requiresCompositedPaint() const;
         bool requiresStructure(const Scene *scene) const;
         bool hasOpaqueLocalPaint() const;
+        bool canApplyLocalCompositionDiff() const;
+        PlatformApplyPlan buildPlatformApplyPlan(Node *rootNode,
+                                                 NodeDirtyFlags flags,
+                                                 bool fullRebuild) const;
+        void applyPendingBoundaryUpdates(Node *rootNode,
+                                         const PlatformApplyPlan &plan) const;
+        bool shouldSkipGlobalChange(IPlatformController *platformController,
+                                    const PlatformApplyPlan &plan) const;
         void clearPendingBoundaryRequest();
 
       private:
