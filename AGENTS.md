@@ -1,5 +1,8 @@
 # Project rules
 
+- Before adding new variables, especially member fields, consider whether they introduce long-term ownership/lifecycle/cleanup complexity. Prefer reusing an existing owner or encapsulating the state so management does not become more fragmented over time.
+- When state or variables must be introduced, consider whether they should be encapsulated or expressed as a small state machine instead of scattered flags. Prefer lifecycle-aware structures that make ownership, transitions, and cleanup easier to reason about.
+- After completing a task, quickly review the diff for dangerous signs or design smells before considering it done: unclear ownership, duplicated cleanup paths, half-updated state, flag proliferation, or other structure that feels harder to reason about than before.
 - Loka repository code should remain compatible with the project's target platform constraints; treat C++98 as the baseline unless a narrower file- or platform-specific rule explicitly allows otherwise.
 - Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.
 - Use TypeTag static checks in debug builds; allow overriding with `USE_LOKA_STATIC_ASSERT`. Prefer `static_assert` when C++11+ is available; in C++98 builds, keep them behind `LOKA_*_CHECK_TYPETAG`.
