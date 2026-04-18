@@ -45,6 +45,16 @@ namespace loka
           return scene.lastApplyPlan_;
         }
 
+        static const ::loka::app::scene::SceneDirector::SceneUpdateObservation &updateObservation(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.updateObservation_;
+        }
+
+        static const ::loka::app::scene::SceneDirector::SceneUpdateObservation &lastUpdateObservation(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.lastUpdateObservation_;
+        }
+
         static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
         {
           return scene.director_.projectionTransaction();

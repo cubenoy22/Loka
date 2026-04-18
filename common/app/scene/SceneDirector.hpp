@@ -18,6 +18,54 @@ namespace loka
       class SceneDirector
       {
       public:
+        struct SceneUpdateObservation
+        {
+          SceneUpdateObservation()
+              : requestedDirtyFlags(NODE_DIRTY_NONE),
+                transactionDirtyFlags(NODE_DIRTY_NONE),
+                effectiveDirtyFlags(NODE_DIRTY_NONE),
+                requestedFullRebuild(false),
+                effectiveFullRebuild(false),
+                firstPendingRoot(0),
+                rootBoundary(0),
+                requiresLayout(false),
+                requiresStructure(false),
+                requiresCompositedPaint(false),
+                hasOpaqueLocalPaint(false),
+                canApplyLocalCompositionDiff(false)
+          {
+          }
+
+          void clear()
+          {
+            requestedDirtyFlags = NODE_DIRTY_NONE;
+            transactionDirtyFlags = NODE_DIRTY_NONE;
+            effectiveDirtyFlags = NODE_DIRTY_NONE;
+            requestedFullRebuild = false;
+            effectiveFullRebuild = false;
+            firstPendingRoot = 0;
+            rootBoundary = 0;
+            requiresLayout = false;
+            requiresStructure = false;
+            requiresCompositedPaint = false;
+            hasOpaqueLocalPaint = false;
+            canApplyLocalCompositionDiff = false;
+          }
+
+          NodeDirtyFlags requestedDirtyFlags;
+          NodeDirtyFlags transactionDirtyFlags;
+          NodeDirtyFlags effectiveDirtyFlags;
+          bool requestedFullRebuild;
+          bool effectiveFullRebuild;
+          BoundaryNode *firstPendingRoot;
+          BoundaryNode *rootBoundary;
+          bool requiresLayout;
+          bool requiresStructure;
+          bool requiresCompositedPaint;
+          bool hasOpaqueLocalPaint;
+          bool canApplyLocalCompositionDiff;
+        };
+
         SceneDirector();
 
         void attach(Scene *scene);
@@ -39,9 +87,11 @@ namespace loka
         bool requiresStructure(const Scene *scene) const;
         bool hasOpaqueLocalPaint() const;
         bool canApplyLocalCompositionDiff() const;
-        PlatformApplyPlan buildPlatformApplyPlan(Node *rootNode,
-                                                 NodeDirtyFlags flags,
-                                                 bool fullRebuild) const;
+        SceneUpdateObservation buildObservation(Node *rootNode,
+                                                NodeDirtyFlags flags,
+                                                bool fullRebuild,
+                                                const Scene *scene) const;
+        PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateObservation &observation) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
                                          const PlatformApplyPlan &plan) const;
         bool shouldSkipGlobalChange(IPlatformController *platformController,

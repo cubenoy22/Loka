@@ -3349,6 +3349,68 @@ void testLokaFlowDslV1Core() {
     assert(rootBoundary != 0);
 
     scene.requestInvalidate(NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::updateObservation(scene).effectiveDirtyFlags == NODE_DIRTY_NONE);
+    assert(SceneTestAccess::updateObservation(scene).firstPendingRoot == 0);
+    assert(SceneTestAccess::updateObservation(scene).rootBoundary == 0);
+    assert(SceneTestAccess::lastUpdateObservation(scene).effectiveDirtyFlags == NODE_DIRTY_NONE);
+
+    assert(scene.flushInvalidation());
+    const SceneDirector::SceneUpdateObservation &observationAfterFlush = SceneTestAccess::updateObservation(scene);
+    assert(observationAfterFlush.requestedDirtyFlags == NODE_DIRTY_NONE);
+    assert(observationAfterFlush.transactionDirtyFlags == NODE_DIRTY_NONE);
+    assert(observationAfterFlush.effectiveDirtyFlags == NODE_DIRTY_NONE);
+    assert(observationAfterFlush.requestedFullRebuild == false);
+    assert(observationAfterFlush.effectiveFullRebuild == false);
+    assert(observationAfterFlush.firstPendingRoot == 0);
+    assert(observationAfterFlush.rootBoundary == 0);
+    assert(observationAfterFlush.requiresLayout == false);
+    assert(observationAfterFlush.requiresStructure == false);
+    assert(observationAfterFlush.requiresCompositedPaint == false);
+    assert(observationAfterFlush.hasOpaqueLocalPaint == false);
+    assert(observationAfterFlush.canApplyLocalCompositionDiff == false);
+    const SceneDirector::SceneUpdateObservation &lastObservationAfterFlush = SceneTestAccess::lastUpdateObservation(scene);
+    assert((lastObservationAfterFlush.requestedDirtyFlags & NODE_DIRTY_PROPS) != 0);
+    assert((lastObservationAfterFlush.transactionDirtyFlags & NODE_DIRTY_PROPS) != 0);
+    assert((lastObservationAfterFlush.effectiveDirtyFlags & NODE_DIRTY_PROPS) != 0);
+    assert(lastObservationAfterFlush.firstPendingRoot == rootBoundary);
+    assert(lastObservationAfterFlush.rootBoundary == rootBoundary);
+    assert(lastObservationAfterFlush.requestedFullRebuild == false);
+    assert(lastObservationAfterFlush.effectiveFullRebuild == false);
+
+    scene.requestInvalidate(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
+    assert(scene.flushInvalidation());
+    const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
+    assert(plan.layoutRoot == rootBoundary);
+    const SceneDirector::SceneUpdateObservation &lastLayoutObservation = SceneTestAccess::lastUpdateObservation(scene);
+    assert((lastLayoutObservation.requestedDirtyFlags & NODE_DIRTY_LAYOUT) != 0);
+    assert((lastLayoutObservation.effectiveDirtyFlags & NODE_DIRTY_LAYOUT) != 0);
+    assert(lastLayoutObservation.rootBoundary == rootBoundary);
+
+    scene.unmount();
+    const SceneDirector::SceneUpdateObservation &observationAfterUnmount = SceneTestAccess::updateObservation(scene);
+    assert(observationAfterUnmount.effectiveDirtyFlags == NODE_DIRTY_NONE);
+    assert(observationAfterUnmount.firstPendingRoot == 0);
+    assert(observationAfterUnmount.rootBoundary == 0);
+    const SceneDirector::SceneUpdateObservation &lastObservationAfterUnmount = SceneTestAccess::lastUpdateObservation(scene);
+    assert(lastObservationAfterUnmount.effectiveDirtyFlags == NODE_DIRTY_NONE);
+    assert(lastObservationAfterUnmount.firstPendingRoot == 0);
+    assert(lastObservationAfterUnmount.rootBoundary == 0);
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+
+    scene.requestInvalidate(NODE_DIRTY_PROPS);
     assert(SceneTestAccess::projectionTransaction(scene).hasPending());
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
     assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_PROPS);
