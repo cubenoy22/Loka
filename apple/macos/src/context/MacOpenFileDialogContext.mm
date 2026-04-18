@@ -76,6 +76,16 @@
 
 namespace
 {
+  struct MacOpenNativeDialogSession
+  {
+    MacOpenNativeDialogSession()
+        : disposed(false)
+    {
+    }
+
+    bool disposed;
+  };
+
   static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
                                           loka::core::EmitterState *onResult,
                                           loka::core::MutableState<bool> *closeState,
@@ -133,6 +143,10 @@ namespace
   MacOpenFileDialogNodeHandler gMacOpenFileDialogNodeHandler;
 }
 
+struct MacOpenFileDialogContext::NativeDialogSession : public MacOpenNativeDialogSession
+{
+};
+
 MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node)
     : parentView_(parentView),
       node_(node),
@@ -140,7 +154,8 @@ MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::
       onResult_(0),
       closeState_(0),
       presentation_(),
-      deferredPresenter_(0)
+      deferredPresenter_(0),
+      dialog_(0)
 {
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
@@ -156,6 +171,7 @@ MacOpenFileDialogContext::~MacOpenFileDialogContext()
     [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ release];
     deferredPresenter_ = 0;
   }
+  this->disposeDialog();
 }
 
 void MacOpenFileDialogContext::onNodeAttached()
@@ -170,14 +186,16 @@ void MacOpenFileDialogContext::onNodeDetached()
   {
     [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ cancelPresent];
   }
+  this->disposeDialog();
 }
 
 void MacOpenFileDialogContext::presentIfNeeded()
 {
-  if (!presentation_.beginPresent())
+  if (dialog_ || !presentation_.beginPresent())
   {
     return;
   }
+  dialog_ = new NativeDialogSession();
   if (deferredPresenter_)
   {
     [(LokaMacOpenFileDialogDeferredPresenter *)deferredPresenter_ schedulePresent];
@@ -197,14 +215,25 @@ void MacOpenFileDialogContext::presentDialog()
   {
     return;
   }
+  NativeDialogSession *dialog = dialog_;
+  if (!dialog || dialog->disposed)
+  {
+    return;
+  }
   loka::core::MutableState<loka::app::FileChooserResult> *resultState = resultState_;
   loka::core::EmitterState *onResult = onResult_;
   loka::core::MutableState<bool> *closeState = closeState_;
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   if (!panel)
   {
+    dialog = this->detachDialogIfActive(dialog);
+    if (!dialog)
+    {
+      return;
+    }
     presentation_.markPresented();
     DeliverOpenFileDialogResult(resultState, onResult, closeState, loka::app::FileChooserResult::Error(1));
+    delete dialog;
     return;
   }
 
@@ -232,13 +261,41 @@ void MacOpenFileDialogContext::presentDialog()
       result = loka::app::FileChooserResult::Error(2);
     }
   }
+  dialog = this->detachDialogIfActive(dialog);
+  if (!dialog)
+  {
+    return;
+  }
   presentation_.markPresented();
   DeliverOpenFileDialogResult(resultState, onResult, closeState, result);
+  delete dialog;
 }
 
 void MacOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
   DeliverOpenFileDialogResult(resultState_, onResult_, closeState_, result);
+}
+
+void MacOpenFileDialogContext::disposeDialog()
+{
+  if (!dialog_)
+  {
+    return;
+  }
+  dialog_->disposed = true;
+  delete dialog_;
+  dialog_ = 0;
+}
+
+MacOpenFileDialogContext::NativeDialogSession *MacOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
+{
+  if (!dialog || dialog_ != dialog || dialog->disposed)
+  {
+    return 0;
+  }
+  dialog_ = 0;
+  dialog->disposed = true;
+  return dialog;
 }
 
 void RegisterMacOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)

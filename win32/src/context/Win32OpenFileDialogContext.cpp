@@ -7,6 +7,16 @@ namespace
 {
   const UINT kWin32OpenFileDialogDeferredResultMessage = WM_APP + 41;
 
+  struct Win32OpenNativeDialogSession
+  {
+    Win32OpenNativeDialogSession()
+        : disposed(false)
+    {
+    }
+
+    bool disposed;
+  };
+
   static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
                                           loka::core::EmitterState *onResult,
                                           loka::core::MutableState<bool> *closeState,
@@ -64,6 +74,19 @@ namespace
   Win32OpenFileDialogNodeHandler gWin32OpenFileDialogNodeHandler;
 }
 
+struct Win32OpenFileDialogContext::NativeDialogSession : public Win32OpenNativeDialogSession
+{
+};
+
+Win32OpenFileDialogContext::DeferredResultDelivery::~DeferredResultDelivery()
+{
+  if (dialog)
+  {
+    delete dialog;
+    dialog = 0;
+  }
+}
+
 UINT Win32OpenFileDialogContext::deferredResultMessage()
 {
   return kWin32OpenFileDialogDeferredResultMessage;
@@ -85,7 +108,8 @@ Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::O
       resultState_(0),
       onResult_(0),
       closeState_(0),
-      presentation_()
+      presentation_(),
+      dialog_(0)
 {
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
@@ -94,6 +118,7 @@ Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::O
 
 Win32OpenFileDialogContext::~Win32OpenFileDialogContext()
 {
+  this->detachOwnedDialog();
 }
 
 void Win32OpenFileDialogContext::onNodeAttached()
@@ -104,20 +129,26 @@ void Win32OpenFileDialogContext::onNodeAttached()
 void Win32OpenFileDialogContext::onNodeDetached()
 {
   presentation_.markDetached();
+  this->detachOwnedDialog();
 }
 
 void Win32OpenFileDialogContext::presentIfNeeded()
 {
-  if (!presentation_.beginPresent())
+  if (dialog_ || !presentation_.beginPresent())
   {
     return;
   }
+  dialog_ = new NativeDialogSession();
   presentDialog();
 }
 
 void Win32OpenFileDialogContext::presentDialog()
 {
   if (!presentation_.isPresenting())
+  {
+    return;
+  }
+  if (!dialog_ || dialog_->disposed)
   {
     return;
   }
@@ -169,6 +200,8 @@ void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChoose
   delivery->onResult = onResult_;
   delivery->closeState = closeState_;
   delivery->result = result;
+  delivery->owner = this;
+  delivery->dialog = dialog_;
 
   if (parent_ && IsWindow(parent_))
   {
@@ -209,6 +242,16 @@ void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChoose
   tracker->defer(&Win32OpenFileDialogContext::DeliverDeferredResultThunk, delivery);
 }
 
+void Win32OpenFileDialogContext::detachOwnedDialog()
+{
+  if (!dialog_)
+  {
+    return;
+  }
+  dialog_->disposed = true;
+  dialog_ = 0;
+}
+
 void Win32OpenFileDialogContext::DeliverDeferredResultThunk(void *userData)
 {
   DeferredResultDelivery *delivery = static_cast<DeferredResultDelivery *>(userData);
@@ -216,8 +259,17 @@ void Win32OpenFileDialogContext::DeliverDeferredResultThunk(void *userData)
   {
     return;
   }
+  if (!delivery->dialog || delivery->dialog->disposed)
+  {
+    delete delivery;
+    return;
+  }
+  if (delivery->owner && delivery->owner->dialog_ == delivery->dialog)
+  {
+    delivery->owner->dialog_ = 0;
+    delivery->dialog->disposed = true;
+  }
   DeliverOpenFileDialogResult(delivery->resultState, delivery->onResult, delivery->closeState, delivery->result);
-
   delete delivery;
 }
 
