@@ -74,7 +74,7 @@ namespace loka
 
         static unsigned long projectionTransactionGeneration(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.projectionTransaction().generation();
+          return scene.director_.pendingGeneration();
         }
 
         static bool flushInvalidation(::loka::app::scene::Scene &scene)

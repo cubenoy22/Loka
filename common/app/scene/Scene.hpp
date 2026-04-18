@@ -655,6 +655,7 @@ namespace loka
           flags = NODE_DIRTY_PROPS;
         }
         updateTransaction_.lastRequestedBoundary = boundary;
+        updateTransaction_.beginPendingWave();
         enqueueBoundary(boundary);
         updateTransaction_.projection.enqueue(boundary, flags);
       }
@@ -717,6 +718,11 @@ namespace loka
       inline BoundaryNode *SceneDirector::firstPendingUpdateRoot() const
       {
         return nextPendingUpdateRoot(0);
+      }
+
+      inline unsigned long SceneDirector::pendingGeneration() const
+      {
+        return updateTransaction_.pendingGeneration();
       }
 
       inline bool SceneDirector::requiresLayout() const
@@ -906,7 +912,7 @@ namespace loka
       {
         SceneUpdateSnapshot snapshot;
         NodeDirtyFlags transactionFlags = aggregateDirtyFlags();
-        snapshot.generation = updateTransaction_.projection.generation();
+        snapshot.generation = updateTransaction_.pendingGeneration();
         snapshot.request.requestedDirtyFlags = flags;
         snapshot.request.transactionDirtyFlags = transactionFlags;
         snapshot.request.effectiveDirtyFlags = static_cast<NodeDirtyFlags>(flags | transactionFlags);

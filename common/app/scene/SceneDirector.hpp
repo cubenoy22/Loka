@@ -99,24 +99,67 @@ namespace loka
 
         struct SceneUpdateTransaction
         {
+          struct PendingWaveGeneration
+          {
+            PendingWaveGeneration()
+                : active(0), next(1)
+            {
+            }
+
+            void ensureActive()
+            {
+              if (active != 0)
+              {
+                return;
+              }
+              active = next++;
+            }
+
+            unsigned long current() const
+            {
+              return active;
+            }
+
+            void clear()
+            {
+              active = 0;
+            }
+
+            unsigned long active;
+            unsigned long next;
+          };
+
           SceneUpdateTransaction()
               : lastRequestedBoundary(0),
                 projection(),
+                generation(),
                 pendingBoundariesHead(0),
                 pendingBoundariesTail(0)
           {
+          }
+
+          void beginPendingWave()
+          {
+            generation.ensureActive();
+          }
+
+          unsigned long pendingGeneration() const
+          {
+            return generation.current();
           }
 
           void clear()
           {
             lastRequestedBoundary = 0;
             projection.clear();
+            generation.clear();
             pendingBoundariesHead = 0;
             pendingBoundariesTail = 0;
           }
 
           BoundaryNode *lastRequestedBoundary;
           SceneProjectionTransaction projection;
+          PendingWaveGeneration generation;
           BoundaryNode *pendingBoundariesHead;
           BoundaryNode *pendingBoundariesTail;
         };
@@ -137,6 +180,7 @@ namespace loka
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
+        unsigned long pendingGeneration() const;
         bool requiresLayout() const;
         bool requiresCompositedPaint() const;
         bool requiresStructure(const Scene *scene) const;
