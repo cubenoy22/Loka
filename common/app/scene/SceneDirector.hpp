@@ -18,21 +18,16 @@ namespace loka
       class SceneDirector
       {
       public:
-        struct SceneUpdateObservation
+        struct SceneUpdateRequestSnapshot
         {
-          SceneUpdateObservation()
+          SceneUpdateRequestSnapshot()
               : requestedDirtyFlags(NODE_DIRTY_NONE),
                 transactionDirtyFlags(NODE_DIRTY_NONE),
                 effectiveDirtyFlags(NODE_DIRTY_NONE),
                 requestedFullRebuild(false),
                 effectiveFullRebuild(false),
                 firstPendingRoot(0),
-                rootBoundary(0),
-                requiresLayout(false),
-                requiresStructure(false),
-                requiresCompositedPaint(false),
-                hasOpaqueLocalPaint(false),
-                canApplyLocalCompositionDiff(false)
+                rootBoundary(0)
           {
           }
 
@@ -45,11 +40,6 @@ namespace loka
             effectiveFullRebuild = false;
             firstPendingRoot = 0;
             rootBoundary = 0;
-            requiresLayout = false;
-            requiresStructure = false;
-            requiresCompositedPaint = false;
-            hasOpaqueLocalPaint = false;
-            canApplyLocalCompositionDiff = false;
           }
 
           NodeDirtyFlags requestedDirtyFlags;
@@ -59,11 +49,76 @@ namespace loka
           bool effectiveFullRebuild;
           BoundaryNode *firstPendingRoot;
           BoundaryNode *rootBoundary;
+        };
+
+        struct SceneUpdateApplySnapshot
+        {
+          SceneUpdateApplySnapshot()
+              : requiresLayout(false),
+                requiresStructure(false),
+                requiresCompositedPaint(false),
+                hasOpaqueLocalPaint(false),
+                canApplyLocalCompositionDiff(false)
+          {
+          }
+
+          void clear()
+          {
+            requiresLayout = false;
+            requiresStructure = false;
+            requiresCompositedPaint = false;
+            hasOpaqueLocalPaint = false;
+            canApplyLocalCompositionDiff = false;
+          }
+
           bool requiresLayout;
           bool requiresStructure;
           bool requiresCompositedPaint;
           bool hasOpaqueLocalPaint;
           bool canApplyLocalCompositionDiff;
+        };
+
+        struct SceneUpdateSnapshot
+        {
+          SceneUpdateSnapshot()
+              : generation(0), request(), apply()
+          {
+          }
+
+          void clear()
+          {
+            generation = 0;
+            request.clear();
+            apply.clear();
+          }
+
+          unsigned long generation;
+          SceneUpdateRequestSnapshot request;
+          SceneUpdateApplySnapshot apply;
+        };
+
+        struct SceneUpdateTransaction
+        {
+          SceneUpdateTransaction()
+              : lastRequestedBoundary(0),
+                projection(),
+                pendingBoundariesHead(0),
+                pendingBoundariesTail(0)
+          {
+          }
+
+          void clear()
+          {
+            lastRequestedBoundary = 0;
+            projection.clear();
+            pendingBoundariesHead = 0;
+            pendingBoundariesTail = 0;
+          }
+
+          BoundaryNode *lastRequestedBoundary;
+          SceneProjectionTransaction projection;
+          BoundaryNode *pendingBoundariesHead;
+          BoundaryNode *pendingBoundariesTail;
         };
 
         SceneDirector();
@@ -87,11 +142,11 @@ namespace loka
         bool requiresStructure(const Scene *scene) const;
         bool hasOpaqueLocalPaint() const;
         bool canApplyLocalCompositionDiff() const;
-        SceneUpdateObservation buildObservation(Node *rootNode,
+        SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
                                                 NodeDirtyFlags flags,
                                                 bool fullRebuild,
                                                 const Scene *scene) const;
-        PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateObservation &observation) const;
+        PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
                                          const PlatformApplyPlan &plan) const;
         bool shouldSkipGlobalChange(IPlatformController *platformController,
@@ -102,10 +157,7 @@ namespace loka
         void enqueueBoundary(BoundaryNode *boundary);
 
         Scene *scene_;
-        BoundaryNode *lastRequestedBoundary_;
-        SceneProjectionTransaction projectionTransaction_;
-        BoundaryNode *pendingBoundariesHead_;
-        BoundaryNode *pendingBoundariesTail_;
+        SceneUpdateTransaction updateTransaction_;
       };
     } // namespace scene
   } // namespace app

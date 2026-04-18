@@ -45,14 +45,14 @@ namespace loka
           return scene.lastApplyPlan_;
         }
 
-        static const ::loka::app::scene::SceneDirector::SceneUpdateObservation &updateObservation(const ::loka::app::scene::Scene &scene)
+        static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &updateSnapshot(const ::loka::app::scene::Scene &scene)
         {
-          return scene.updateObservation_;
+          return scene.updateSnapshot_;
         }
 
-        static const ::loka::app::scene::SceneDirector::SceneUpdateObservation &lastUpdateObservation(const ::loka::app::scene::Scene &scene)
+        static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &lastUpdateSnapshot(const ::loka::app::scene::Scene &scene)
         {
-          return scene.lastUpdateObservation_;
+          return scene.lastUpdateSnapshot_;
         }
 
         static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
@@ -70,6 +70,11 @@ namespace loka
             entry = entry->next;
           }
           return count;
+        }
+
+        static unsigned long projectionTransactionGeneration(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.projectionTransaction().generation();
         }
 
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
