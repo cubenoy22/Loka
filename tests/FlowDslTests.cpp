@@ -3540,6 +3540,34 @@ void testLokaFlowDslV1Core() {
     using namespace loka::app::scene;
     using loka::dsl::testing::SceneTestAccess;
 
+    Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    assert(platform.calls_ == 0);
+
+    scene.requestBoundaryUpdate(rootBoundary, NODE_DIRTY_NONE, true);
+
+    assert(platform.calls_ >= 1);
+    assert((SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED) ||
+           (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE) ||
+           (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL));
+    assert((SceneTestAccess::lastUpdateSnapshot(scene).request.requestedDirtyFlags & NODE_DIRTY_PROPS) != 0);
+    assert((SceneTestAccess::lastUpdateSnapshot(scene).request.effectiveDirtyFlags & NODE_DIRTY_PROPS) != 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
+    assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
     g_pendingLayoutWidthState.set(32);
 
     Scene scene((BoundaryDefinition<PendingLayoutBoundaryProps, PendingLayoutBoundaryNode>()));
