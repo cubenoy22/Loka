@@ -3356,6 +3356,7 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::lastUpdateSnapshot(scene).request.effectiveDirtyFlags == NODE_DIRTY_NONE);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) != 0);
     const unsigned long firstGeneration = SceneTestAccess::projectionTransactionGeneration(scene);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
 
     assert(scene.flushInvalidation());
     const SceneDirector::SceneUpdateSnapshot &observationAfterFlush = SceneTestAccess::updateSnapshot(scene);
@@ -3381,11 +3382,14 @@ void testLokaFlowDslV1Core() {
     assert(lastObservationAfterFlush.request.rootBoundary == rootBoundary);
     assert(lastObservationAfterFlush.request.requestedFullRebuild == false);
     assert(lastObservationAfterFlush.request.effectiveFullRebuild == false);
+    assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.requestInvalidate(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
     const unsigned long secondGeneration = SceneTestAccess::projectionTransactionGeneration(scene);
     assert(secondGeneration != 0);
     assert(secondGeneration != firstGeneration);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
     assert(scene.flushInvalidation());
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
     assert(plan.layoutRoot == rootBoundary);
@@ -3394,6 +3398,8 @@ void testLokaFlowDslV1Core() {
     assert((lastLayoutObservation.request.requestedDirtyFlags & NODE_DIRTY_LAYOUT) != 0);
     assert((lastLayoutObservation.request.effectiveDirtyFlags & NODE_DIRTY_LAYOUT) != 0);
     assert(lastLayoutObservation.request.rootBoundary == rootBoundary);
+    assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.unmount();
     const SceneDirector::SceneUpdateSnapshot &observationAfterUnmount = SceneTestAccess::updateSnapshot(scene);
@@ -3425,6 +3431,7 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::projectionTransaction(scene).hasPending());
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
     assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::projectionTransactionGeneration(scene) != 0);
     const SceneProjectionTransaction::TargetEntry *entry = SceneTestAccess::projectionTransaction(scene).targetsHead();
     assert(entry != 0);
     assert(entry->node == rootBoundary);
@@ -3447,6 +3454,7 @@ void testLokaFlowDslV1Core() {
     assert(!SceneTestAccess::projectionTransaction(scene).hasPending());
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 0);
     assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_NONE);
+    assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
     assert(SceneTestAccess::projectionTransaction(scene).targetsHead() == 0);
 
     scene.unmount();
