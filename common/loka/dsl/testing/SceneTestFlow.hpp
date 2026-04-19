@@ -77,9 +77,9 @@ namespace loka
           return scene.director_.projectionTransactionGenerationForTesting();
         }
 
-        static ::loka::app::scene::NodeDirtyFlags pendingRequestedDirtyFlags(const ::loka::app::scene::Scene &scene)
+        static ::loka::app::scene::NodeDirtyFlags requestedDirtyFlags(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.pendingRequestedDirtyFlags();
+          return scene.director_.requestedDirtyFlags();
         }
 
         static ::loka::app::scene::NodeDirtyFlags effectiveRequestedDirtyFlags(const ::loka::app::scene::Scene &scene)
@@ -87,14 +87,14 @@ namespace loka
           return scene.director_.effectiveRequestedDirtyFlags();
         }
 
-        static bool hasPendingRequestedInput(const ::loka::app::scene::Scene &scene)
+        static bool hasRequestedInput(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.hasPendingRequestedInput();
+          return scene.director_.hasRequestedInput();
         }
 
-        static bool pendingRequestedFullRebuild(const ::loka::app::scene::Scene &scene)
+        static bool requestedFullRebuild(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.pendingRequestedFullRebuild();
+          return scene.director_.requestedFullRebuild();
         }
 
         static bool flushInvalidation(::loka::app::scene::Scene &scene)

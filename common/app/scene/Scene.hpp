@@ -505,7 +505,7 @@ namespace loka
           }
           compositionDiff_.valid = true;
           compositionDiff_.flags = director_.effectiveRequestedDirtyFlags();
-          compositionDiff_.fullRebuild = director_.pendingRequestedFullRebuild();
+          compositionDiff_.fullRebuild = director_.requestedFullRebuild();
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
           updateSnapshot_ = director_.buildUpdateSnapshot(rootNode_, this);
           compositionDiff_.flags = updateSnapshot_.request.effectiveDirtyFlags;
@@ -673,9 +673,9 @@ namespace loka
         return updateTransaction_.aggregateDirtyFlags();
       }
 
-      inline NodeDirtyFlags SceneDirector::pendingRequestedDirtyFlags() const
+      inline NodeDirtyFlags SceneDirector::requestedDirtyFlags() const
       {
-        return updateTransaction_.pendingRequestedDirtyFlags();
+        return updateTransaction_.requestedDirtyFlags();
       }
 
       inline NodeDirtyFlags SceneDirector::effectiveRequestedDirtyFlags() const
@@ -683,14 +683,14 @@ namespace loka
         return updateTransaction_.effectiveRequestedDirtyFlags();
       }
 
-      inline bool SceneDirector::hasPendingRequestedInput() const
+      inline bool SceneDirector::hasRequestedInput() const
       {
-        return updateTransaction_.hasPendingRequestedInput();
+        return updateTransaction_.hasRequestedInput();
       }
 
-      inline bool SceneDirector::pendingRequestedFullRebuild() const
+      inline bool SceneDirector::requestedFullRebuild() const
       {
-        return updateTransaction_.pendingRequestedFullRebuild();
+        return updateTransaction_.requestedFullRebuild();
       }
 
       inline NodeDirtyFlags SceneDirector::pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const
