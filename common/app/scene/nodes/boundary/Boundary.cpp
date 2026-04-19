@@ -22,7 +22,8 @@ namespace loka
           return;
         }
         this->addPendingDirtyFlags(flags);
-        scene->requestBoundaryUpdate(this, flags, this->flushViewDirtyImmediately(flags));
+        const bool flushImmediately = this->flushViewDirtyImmediately(flags);
+        scene->requestBoundaryUpdate(this, flags, flushImmediately);
       }
 
       void BoundaryNode::InvalidateSceneThunk(void *userData)

@@ -27,8 +27,12 @@ public:
   void presentDeferred();
 
 private:
+  struct NativeDialogSession;
+
   void presentDialog();
   void setResult(const loka::app::FileChooserResult &result);
+  void disposeDialog();
+  NativeDialogSession *detachDialogIfActive(NativeDialogSession *dialog);
 
   void *parentView_;
   loka::app::OpenFileDialogNode *node_;
@@ -37,6 +41,7 @@ private:
   loka::core::MutableState<bool> *closeState_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
   void *deferredPresenter_;
+  NativeDialogSession *dialog_;
 };
 
 void RegisterMacOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

@@ -5,6 +5,16 @@
 
 namespace
 {
+  struct ToolboxOpenNativeDialogSession
+  {
+    ToolboxOpenNativeDialogSession()
+        : disposed(false)
+    {
+    }
+
+    bool disposed;
+  };
+
   static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
                                           loka::core::EmitterState *onResult,
                                           loka::core::MutableState<bool> *closeState,
@@ -37,6 +47,10 @@ namespace
   }
 }
 
+struct ToolboxOpenFileDialogContext::NativeDialogSession : public ToolboxOpenNativeDialogSession
+{
+};
+
 static loka::core::String displayPathFromSpec(const FSSpec &spec)
 {
   char name[64];
@@ -55,7 +69,8 @@ ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDi
       resultState_(0),
       onResult_(0),
       closeState_(0),
-      presentation_()
+      presentation_(),
+      dialog_(0)
 {
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
@@ -64,6 +79,7 @@ ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDi
 
 ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
 {
+  this->disposeDialog();
 }
 
 void ToolboxOpenFileDialogContext::onNodeAttached()
@@ -74,20 +90,27 @@ void ToolboxOpenFileDialogContext::onNodeAttached()
 void ToolboxOpenFileDialogContext::onNodeDetached()
 {
   presentation_.markDetached();
+  this->disposeDialog();
 }
 
 void ToolboxOpenFileDialogContext::presentIfNeeded()
 {
-  if (!presentation_.beginPresent())
+  if (dialog_ || !presentation_.beginPresent())
   {
     return;
   }
+  dialog_ = new NativeDialogSession();
   presentDialog();
 }
 
 void ToolboxOpenFileDialogContext::presentDialog()
 {
   if (!presentation_.isPresenting())
+  {
+    return;
+  }
+  NativeDialogSession *dialog = dialog_;
+  if (!dialog || dialog->disposed)
   {
     return;
   }
@@ -110,11 +133,39 @@ void ToolboxOpenFileDialogContext::presentDialog()
     result = loka::app::FileChooserResult::File(file);
   }
 
+  dialog = this->detachDialogIfActive(dialog);
+  if (!dialog)
+  {
+    return;
+  }
   presentation_.markPresented();
   DeliverOpenFileDialogResult(resultState, onResult, closeState, result);
+  delete dialog;
 }
 
 void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
   DeliverOpenFileDialogResult(resultState_, onResult_, closeState_, result);
+}
+
+void ToolboxOpenFileDialogContext::disposeDialog()
+{
+  if (!dialog_)
+  {
+    return;
+  }
+  dialog_->disposed = true;
+  delete dialog_;
+  dialog_ = 0;
+}
+
+ToolboxOpenFileDialogContext::NativeDialogSession *ToolboxOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
+{
+  if (!dialog || dialog_ != dialog || dialog->disposed)
+  {
+    return 0;
+  }
+  dialog_ = 0;
+  dialog->disposed = true;
+  return dialog;
 }

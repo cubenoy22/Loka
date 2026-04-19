@@ -14,14 +14,19 @@ public:
   void presentIfNeeded();
 
 private:
+  struct NativeDialogSession;
+
   void presentDialog();
   void setResult(const loka::app::FileChooserResult &result);
+  void disposeDialog();
+  NativeDialogSession *detachDialogIfActive(NativeDialogSession *dialog);
 
   loka::app::OpenFileDialogNode *node_;
   loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
   loka::core::EmitterState *onResult_;
   loka::core::MutableState<bool> *closeState_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
+  NativeDialogSession *dialog_;
 };
 
 #endif // LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP

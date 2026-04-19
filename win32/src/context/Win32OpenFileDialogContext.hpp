@@ -28,17 +28,29 @@ public:
   static bool handlePostedResultMessage(UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
+  struct NativeDialogSession;
+
   struct DeferredResultDelivery
   {
+    DeferredResultDelivery()
+        : resultState(0), onResult(0), closeState(0), result(), owner(0), dialog(0)
+    {
+    }
+
+    ~DeferredResultDelivery();
+
     loka::core::MutableState<loka::app::FileChooserResult> *resultState;
     loka::core::EmitterState *onResult;
     loka::core::MutableState<bool> *closeState;
     loka::app::FileChooserResult result;
+    Win32OpenFileDialogContext *owner;
+    NativeDialogSession *dialog;
   };
 
   void presentDialog();
-  void setResult(const loka::app::FileChooserResult &result);
-  void queueDeferredResult(const loka::app::FileChooserResult &result);
+  void setResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession);
+  void queueDeferredResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession);
+  void detachOwnedDialog();
 
   static void DeliverDeferredResultThunk(void *userData);
 
@@ -48,6 +60,7 @@ private:
   loka::core::EmitterState *onResult_;
   loka::core::MutableState<bool> *closeState_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
+  NativeDialogSession *dialog_;
 };
 
 void RegisterWin32OpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
