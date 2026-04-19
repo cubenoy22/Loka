@@ -1049,79 +1049,90 @@ namespace loka
         return false;
       }
 
-      inline static bool HasEquivalentDescendantPendingRoot(const SceneDirector *director, BoundaryNode *root)
+      struct PendingUpdateRootSelector
       {
-        if (!director || !root)
+        PendingUpdateRootSelector(const SceneDirector *director, BoundaryNode *afterRoot)
+            : director(director), afterRoot(afterRoot), started(afterRoot == 0)
         {
-          return false;
         }
-        BoundaryNode *boundary = director->firstPendingBoundary();
-        while (boundary)
-        {
-          if (boundary != root && boundary->isUpdateRequested() && IsBoundaryDescendantOf(boundary, root) &&
-              boundary->pendingDirtyFlags() == root->pendingDirtyFlags())
-          {
-            const BoundaryComposeResult &candidateResult = boundary->composeResult();
-            if (candidateResult.composed && candidateResult.preservedNativeContexts)
-            {
-              return true;
-            }
-          }
-          boundary = boundary->nextPendingBoundary();
-        }
-        return false;
-      }
 
-      inline static bool HasSeenPendingUpdateRootBefore(const SceneDirector *director,
-                                                        BoundaryNode *boundary,
-                                                        BoundaryNode *root)
-      {
-        if (!director || !boundary || !root)
+        bool shouldStart(BoundaryNode *root)
         {
-          return false;
-        }
-        BoundaryNode *previous = director->firstPendingBoundary();
-        while (previous && previous != boundary)
-        {
-          if (director->topMostRequestedBoundary(previous) == root)
+          if (started)
           {
             return true;
           }
-          previous = previous->nextPendingBoundary();
+          if (root == afterRoot)
+          {
+            started = true;
+            return false;
+          }
+          return false;
         }
-        return false;
-      }
 
-      inline static bool ShouldSkipPendingUpdateRoot(const SceneDirector *director,
-                                                     BoundaryNode *boundary,
-                                                     BoundaryNode *root)
-      {
-        if (!director || !boundary || !root)
+        bool hasEquivalentDescendant(BoundaryNode *root) const
         {
-          return true;
+          if (!director || !root)
+          {
+            return false;
+          }
+          BoundaryNode *boundary = director->firstPendingBoundary();
+          while (boundary)
+          {
+            if (boundary != root && boundary->isUpdateRequested() && IsBoundaryDescendantOf(boundary, root) &&
+                boundary->pendingDirtyFlags() == root->pendingDirtyFlags())
+            {
+              const BoundaryComposeResult &candidateResult = boundary->composeResult();
+              if (candidateResult.composed && candidateResult.preservedNativeContexts)
+              {
+                return true;
+              }
+            }
+            boundary = boundary->nextPendingBoundary();
+          }
+          return false;
         }
-        if (HasSeenPendingUpdateRootBefore(director, boundary, root))
-        {
-          return true;
-        }
-        if ((root->pendingDirtyFlags() & NODE_DIRTY_CHILD) != 0 &&
-            HasEquivalentDescendantPendingRoot(director, root))
-        {
-          return true;
-        }
-        return false;
-      }
 
-      inline static bool ShouldStartSearchingPendingRoot(BoundaryNode *afterRoot,
-                                                         BoundaryNode *root,
-                                                         bool startSearching)
-      {
-        if (startSearching)
+        bool hasSeenRootBefore(BoundaryNode *boundary, BoundaryNode *root) const
         {
-          return true;
+          if (!director || !boundary || !root)
+          {
+            return false;
+          }
+          BoundaryNode *previous = director->firstPendingBoundary();
+          while (previous && previous != boundary)
+          {
+            if (director->topMostRequestedBoundary(previous) == root)
+            {
+              return true;
+            }
+            previous = previous->nextPendingBoundary();
+          }
+          return false;
         }
-        return root == afterRoot;
-      }
+
+        bool shouldSkip(BoundaryNode *boundary, BoundaryNode *root) const
+        {
+          if (!director || !boundary || !root)
+          {
+            return true;
+          }
+          if (hasSeenRootBefore(boundary, root))
+          {
+            return true;
+          }
+          if ((root->pendingDirtyFlags() & NODE_DIRTY_CHILD) != 0 &&
+              hasEquivalentDescendant(root))
+          {
+            return true;
+          }
+          return false;
+        }
+
+        const SceneDirector *director;
+        BoundaryNode *afterRoot;
+        bool started;
+      };
 
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
@@ -1147,21 +1158,20 @@ namespace loka
 
       inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const
       {
-        bool startSearching = (afterRoot == 0);
+        PendingUpdateRootSelector selector(this, afterRoot);
         BoundaryNode *boundary = updateTransaction_.firstPendingBoundary();
         while (boundary)
         {
           BoundaryNode *root = topMostRequestedBoundary(boundary);
           if (root)
           {
-            startSearching = ShouldStartSearchingPendingRoot(afterRoot, root, startSearching);
-            if (!startSearching)
+            if (!selector.shouldStart(root))
             {
               boundary = boundary->nextPendingBoundary();
               continue;
             }
 
-            if (!ShouldSkipPendingUpdateRoot(this, boundary, root))
+            if (!selector.shouldSkip(boundary, root))
             {
               return root;
             }
