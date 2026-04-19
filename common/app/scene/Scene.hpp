@@ -1112,6 +1112,17 @@ namespace loka
         return false;
       }
 
+      inline static bool ShouldStartSearchingPendingRoot(BoundaryNode *afterRoot,
+                                                         BoundaryNode *root,
+                                                         bool startSearching)
+      {
+        if (startSearching)
+        {
+          return true;
+        }
+        return root == afterRoot;
+      }
+
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
         return snapshot.request.effectiveFullRebuild && snapshot.apply.canApplyLocalCompositionDiff;
@@ -1143,12 +1154,9 @@ namespace loka
           BoundaryNode *root = topMostRequestedBoundary(boundary);
           if (root)
           {
+            startSearching = ShouldStartSearchingPendingRoot(afterRoot, root, startSearching);
             if (!startSearching)
             {
-              if (root == afterRoot)
-              {
-                startSearching = true;
-              }
               boundary = boundary->nextPendingBoundary();
               continue;
             }
