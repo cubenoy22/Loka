@@ -185,7 +185,7 @@ namespace loka
             request.boundary = rootBoundary;
             director_.registerBoundaryUpdate(request);
           }
-          queueInvalidate(request.flags);
+          queueInvalidate();
         }
 
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately)
@@ -234,13 +234,8 @@ namespace loka
         friend class ::loka::dsl::testing::SceneTestAccess;
 
       private:
-        void queueInvalidate(NodeDirtyFlags flags)
+        void queueInvalidate()
         {
-          compositionDiff_.flags = static_cast<NodeDirtyFlags>(compositionDiff_.flags | flags);
-          if ((flags & NODE_DIRTY_INITIAL) != 0)
-          {
-            compositionDiff_.fullRebuild = true;
-          }
           nextTickTracker_.request();
         }
 
@@ -510,14 +505,10 @@ namespace loka
             return false;
           }
           compositionDiff_.valid = true;
-          compositionDiff_.fullRebuild = (compositionDiff_.flags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0;
-          if (compositionDiff_.flags == NODE_DIRTY_NONE)
-          {
-            compositionDiff_.flags = NODE_DIRTY_PROPS;
-            compositionDiff_.fullRebuild = false;
-          }
+          compositionDiff_.flags = director_.effectiveRequestedDirtyFlags();
+          compositionDiff_.fullRebuild = director_.pendingRequestedFullRebuild();
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
-          updateSnapshot_ = director_.buildUpdateSnapshot(rootNode_, compositionDiff_.flags, compositionDiff_.fullRebuild, this);
+          updateSnapshot_ = director_.buildUpdateSnapshot(rootNode_, this);
           compositionDiff_.flags = updateSnapshot_.request.effectiveDirtyFlags;
           compositionDiff_.fullRebuild = updateSnapshot_.request.effectiveFullRebuild;
           const bool requiresStructure = updateSnapshot_.apply.structureRequired();
@@ -666,7 +657,7 @@ namespace loka
         {
           return;
         }
-        scene_->queueInvalidate(request.flags);
+        scene_->queueInvalidate();
         if (request.flushImmediately)
         {
           scene_->flushInvalidation();
@@ -681,6 +672,31 @@ namespace loka
       inline NodeDirtyFlags SceneDirector::aggregateDirtyFlags() const
       {
         return updateTransaction_.aggregateDirtyFlags();
+      }
+
+      inline NodeDirtyFlags SceneDirector::pendingRequestedDirtyFlags() const
+      {
+        return updateTransaction_.pendingRequestedDirtyFlags();
+      }
+
+      inline NodeDirtyFlags SceneDirector::effectiveRequestedDirtyFlags() const
+      {
+        return updateTransaction_.effectiveRequestedDirtyFlags();
+      }
+
+      inline bool SceneDirector::hasPendingRequestedInput() const
+      {
+        return updateTransaction_.hasPendingRequestedInput();
+      }
+
+      inline bool SceneDirector::pendingRequestedFullRebuild() const
+      {
+        return updateTransaction_.pendingRequestedFullRebuild();
+      }
+
+      inline NodeDirtyFlags SceneDirector::pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const
+      {
+        return updateTransaction_.pendingDirtyFlagsForBoundary(boundary);
       }
 
       inline BoundaryNode *SceneDirector::firstPendingBoundary() const
@@ -698,12 +714,14 @@ namespace loka
         BoundaryNode *parent = boundary->parentBoundary();
         while (parent)
         {
-          if (!parent->isUpdateRequested() || parent->pendingDirtyFlags() == NODE_DIRTY_NONE)
+          const NodeDirtyFlags parentFlags = pendingDirtyFlagsForBoundary(parent);
+          const NodeDirtyFlags boundaryFlags = pendingDirtyFlagsForBoundary(boundary);
+          if (!parent->isUpdateRequested() || parentFlags == NODE_DIRTY_NONE)
           {
             break;
           }
-          if (parent->pendingDirtyFlags() == NODE_DIRTY_CHILD &&
-              boundary->pendingDirtyFlags() != NODE_DIRTY_NONE)
+          if (parentFlags == NODE_DIRTY_CHILD &&
+              boundaryFlags != NODE_DIRTY_NONE)
           {
             break;
           }
@@ -768,7 +786,7 @@ namespace loka
           const bool diffEmpty = diff && diff->empty();
           const bool diffCompatibleRetainOnly = diff && diff->isCompatibleRetainOnly();
           const NodeDirtyFlags effectiveDirtyFlags =
-              static_cast<NodeDirtyFlags>(root->pendingDirtyFlags() | result.dirtyFlagsSeen);
+              static_cast<NodeDirtyFlags>(pendingDirtyFlagsForBoundary(root) | result.dirtyFlagsSeen);
           if (!result.composed)
           {
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
@@ -909,16 +927,12 @@ namespace loka
       }
 
       inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
-                                                                                   NodeDirtyFlags flags,
-                                                                                   bool fullRebuild,
                                                                                    const Scene *scene) const
       {
         SceneUpdateSnapshot snapshot;
         snapshot.setGeneration(updateTransaction_.pendingGeneration());
         snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode,
-                                                                    firstPendingUpdateRoot(),
-                                                                    flags,
-                                                                    fullRebuild));
+                                                                    firstPendingUpdateRoot()));
         if (!snapshot.hasGeneration())
         {
           return snapshot;
@@ -1077,7 +1091,7 @@ namespace loka
           while (boundary)
           {
             if (boundary != root && boundary->isUpdateRequested() && IsBoundaryDescendantOf(boundary, root) &&
-                boundary->pendingDirtyFlags() == root->pendingDirtyFlags())
+                director->pendingDirtyFlagsForBoundary(boundary) == director->pendingDirtyFlagsForBoundary(root))
             {
               const BoundaryComposeResult &candidateResult = boundary->composeResult();
               if (candidateResult.composed && candidateResult.preservedNativeContexts)
@@ -1118,7 +1132,7 @@ namespace loka
           {
             return true;
           }
-          if ((root->pendingDirtyFlags() & NODE_DIRTY_CHILD) != 0 &&
+          if ((director->pendingDirtyFlagsForBoundary(root) & NODE_DIRTY_CHILD) != 0 &&
               hasEquivalentDescendant(root))
           {
             return true;
@@ -1207,6 +1221,7 @@ namespace loka
         {
           return;
         }
+        enqueueSceneRequest(request.flags);
         if (!boundary->isUpdateRequested())
         {
           boundary->setUpdateRequested(true);

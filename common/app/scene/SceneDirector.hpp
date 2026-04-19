@@ -241,6 +241,47 @@ namespace loka
 
         struct SceneUpdateTransaction
         {
+          struct RequestedSceneInput
+          {
+            RequestedSceneInput()
+                : dirtyFlags(NODE_DIRTY_NONE),
+                  fullRebuild(false)
+            {
+            }
+
+            void clear()
+            {
+              dirtyFlags = NODE_DIRTY_NONE;
+              fullRebuild = false;
+            }
+
+            void include(NodeDirtyFlags flags)
+            {
+              if (flags == NODE_DIRTY_NONE)
+              {
+                flags = NODE_DIRTY_PROPS;
+              }
+              dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flags);
+              if ((flags & static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
+              {
+                fullRebuild = true;
+              }
+            }
+
+            NodeDirtyFlags effectiveDirtyFlags() const
+            {
+              return dirtyFlags == NODE_DIRTY_NONE ? NODE_DIRTY_PROPS : dirtyFlags;
+            }
+
+            bool hasPending() const
+            {
+              return dirtyFlags != NODE_DIRTY_NONE;
+            }
+
+            NodeDirtyFlags dirtyFlags;
+            bool fullRebuild;
+          };
+
           struct PendingBoundaryQueue
           {
             PendingBoundaryQueue()
@@ -336,7 +377,8 @@ namespace loka
 
           SceneUpdateTransaction()
               : pendingWave(),
-                pendingBoundaries()
+                pendingBoundaries(),
+                requestedInput()
           {
           }
 
@@ -370,14 +412,55 @@ namespace loka
             return pendingWave.pendingGeneration();
           }
 
+          void enqueueSceneRequest(NodeDirtyFlags flags)
+          {
+            requestedInput.include(flags);
+          }
+
+          NodeDirtyFlags pendingRequestedDirtyFlags() const
+          {
+            return requestedInput.dirtyFlags;
+          }
+
+          NodeDirtyFlags effectiveRequestedDirtyFlags() const
+          {
+            return requestedInput.effectiveDirtyFlags();
+          }
+
+          bool hasPendingRequestedInput() const
+          {
+            return requestedInput.hasPending();
+          }
+
+          bool pendingRequestedFullRebuild() const
+          {
+            return requestedInput.fullRebuild;
+          }
+
+          NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const
+          {
+            if (!boundary)
+            {
+              return NODE_DIRTY_NONE;
+            }
+            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
+            while (entry)
+            {
+              if (static_cast<const void *>(entry->node) == static_cast<const void *>(boundary))
+              {
+                return entry->dirtyFlags;
+              }
+              entry = entry->next;
+            }
+            return NODE_DIRTY_NONE;
+          }
+
           void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
           void enqueuePendingBoundary(BoundaryNode *boundary);
           void clearPendingState();
 
           SceneUpdateRequestSnapshot buildRequestSnapshot(Node *rootNode,
-                                                         BoundaryNode *firstPendingRoot,
-                                                         NodeDirtyFlags requestedDirtyFlags,
-                                                         bool requestedFullRebuild) const
+                                                         BoundaryNode *firstPendingRoot) const
           {
             SceneUpdateRequestSnapshot snapshot;
             if (!hasPendingWave())
@@ -385,7 +468,7 @@ namespace loka
               return snapshot;
             }
             const NodeDirtyFlags transactionDirtyFlags = aggregateDirtyFlags();
-            snapshot.setRequestedInput(requestedDirtyFlags, requestedFullRebuild, rootNode ? rootNode->asBoundary() : 0);
+            snapshot.setRequestedInput(effectiveRequestedDirtyFlags(), pendingRequestedFullRebuild(), rootNode ? rootNode->asBoundary() : 0);
             snapshot.setTransactionDirtyFlags(transactionDirtyFlags);
             snapshot.deriveEffectiveFullRebuild();
             snapshot.setFirstPendingRoot(firstPendingRoot);
@@ -396,10 +479,12 @@ namespace loka
           {
             pendingWave.clear();
             pendingBoundaries.clear();
+            requestedInput.clear();
           }
 
           PendingProjectionWave pendingWave;
           PendingBoundaryQueue pendingBoundaries;
+          RequestedSceneInput requestedInput;
         };
 
         SceneDirector();
@@ -412,6 +497,11 @@ namespace loka
 
         const SceneProjectionTransaction &projectionTransaction() const;
         NodeDirtyFlags aggregateDirtyFlags() const;
+        NodeDirtyFlags pendingRequestedDirtyFlags() const;
+        NodeDirtyFlags effectiveRequestedDirtyFlags() const;
+        bool hasPendingRequestedInput() const;
+        bool pendingRequestedFullRebuild() const;
+        NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *firstPendingBoundary() const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
@@ -423,8 +513,6 @@ namespace loka
         bool hasOpaqueLocalPaint() const;
         bool canApplyLocalCompositionDiff() const;
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
-                                                NodeDirtyFlags flags,
-                                                bool fullRebuild,
                                                 const Scene *scene) const;
         PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
