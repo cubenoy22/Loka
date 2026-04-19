@@ -182,7 +182,7 @@ namespace loka
           if (rootBoundary)
           {
             rootBoundary->addPendingDirtyFlags(flags);
-            director_.registerBoundaryUpdate(rootBoundary, flags);
+            director_.registerBoundaryUpdate(SceneDirector::BoundaryUpdateRequest(rootBoundary, flags, false));
           }
           queueInvalidate(flags);
         }
@@ -633,32 +633,37 @@ namespace loka
         {
           return;
         }
-        if (flags == NODE_DIRTY_NONE)
+        const BoundaryUpdateRequest request = normalizeBoundaryUpdateRequest(boundary, flags, flushImmediately);
+        registerBoundaryUpdate(request);
+        if (request.flushImmediately)
         {
-          flags = NODE_DIRTY_PROPS;
-        }
-        registerBoundaryUpdate(boundary, flags);
-        if (flushImmediately)
-        {
-          scene_->queueInvalidate(flags);
+          scene_->queueInvalidate(request.flags);
           scene_->flushInvalidation();
           return;
         }
-        scene_->queueInvalidate(flags);
+        scene_->queueInvalidate(request.flags);
       }
 
-      inline void SceneDirector::registerBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags)
+      inline SceneDirector::BoundaryUpdateRequest SceneDirector::normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
+                                                                                                NodeDirtyFlags flags,
+                                                                                                bool flushImmediately) const
       {
-        if (!scene_)
+        BoundaryUpdateRequest request(boundary, flags, flushImmediately);
+        if (request.flags == NODE_DIRTY_NONE)
+        {
+          request.flags = NODE_DIRTY_PROPS;
+        }
+        return request;
+      }
+
+      inline void SceneDirector::registerBoundaryUpdate(const BoundaryUpdateRequest &request)
+      {
+        if (!scene_ || !request.boundary)
         {
           return;
         }
-        if (flags == NODE_DIRTY_NONE)
-        {
-          flags = NODE_DIRTY_PROPS;
-        }
-        enqueueBoundary(boundary);
-        updateTransaction_.enqueueProjectionTarget(boundary, flags);
+        enqueueBoundary(request.boundary);
+        updateTransaction_.enqueueProjectionTarget(request.boundary, request.flags);
       }
 
       inline const SceneProjectionTransaction &SceneDirector::projectionTransaction() const

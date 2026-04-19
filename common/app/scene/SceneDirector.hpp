@@ -18,6 +18,23 @@ namespace loka
       class SceneDirector
       {
       public:
+        struct BoundaryUpdateRequest
+        {
+          BoundaryUpdateRequest()
+              : boundary(0), flags(NODE_DIRTY_NONE), flushImmediately(false)
+          {
+          }
+
+          BoundaryUpdateRequest(BoundaryNode *b, NodeDirtyFlags f, bool flushNow)
+              : boundary(b), flags(f), flushImmediately(flushNow)
+          {
+          }
+
+          BoundaryNode *boundary;
+          NodeDirtyFlags flags;
+          bool flushImmediately;
+        };
+
         struct SceneUpdateRequestSnapshot
         {
           SceneUpdateRequestSnapshot()
@@ -284,7 +301,7 @@ namespace loka
         void attach(Scene *scene);
         void detach();
 
-        void registerBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags);
+        void registerBoundaryUpdate(const BoundaryUpdateRequest &request);
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
         const SceneProjectionTransaction &projectionTransaction() const;
@@ -318,6 +335,9 @@ namespace loka
 
       private:
         void enqueueBoundary(BoundaryNode *boundary);
+        BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
+                                                            NodeDirtyFlags flags,
+                                                            bool flushImmediately) const;
 
         Scene *scene_;
         SceneUpdateTransaction updateTransaction_;
