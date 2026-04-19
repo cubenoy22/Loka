@@ -3368,11 +3368,11 @@ void testLokaFlowDslV1Core() {
     assert(observationAfterFlush.request.effectiveFullRebuild == false);
     assert(observationAfterFlush.request.firstPendingRoot == 0);
     assert(observationAfterFlush.request.rootBoundary == 0);
-    assert(observationAfterFlush.apply.requiresLayout == false);
-    assert(observationAfterFlush.apply.requiresStructure == false);
-    assert(observationAfterFlush.apply.requiresCompositedPaint == false);
-    assert(observationAfterFlush.apply.hasOpaqueLocalPaint == false);
-    assert(observationAfterFlush.apply.canApplyLocalCompositionDiff == false);
+    assert(observationAfterFlush.apply.layoutRequired() == false);
+    assert(observationAfterFlush.apply.structureRequired() == false);
+    assert(observationAfterFlush.apply.compositedPaintRequired() == false);
+    assert(observationAfterFlush.apply.opaqueLocalPaintRequired() == false);
+    assert(observationAfterFlush.apply.localCompositionDiffApplicable() == false);
     const SceneDirector::SceneUpdateSnapshot &lastObservationAfterFlush = SceneTestAccess::lastUpdateSnapshot(scene);
     assert(lastObservationAfterFlush.generation == firstGeneration);
     assert((lastObservationAfterFlush.request.requestedDirtyFlags & NODE_DIRTY_PROPS) != 0);

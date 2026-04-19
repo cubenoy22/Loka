@@ -519,12 +519,12 @@ namespace loka
           updateSnapshot_ = director_.buildUpdateSnapshot(rootNode_, compositionDiff_.flags, compositionDiff_.fullRebuild, this);
           compositionDiff_.flags = updateSnapshot_.request.effectiveDirtyFlags;
           compositionDiff_.fullRebuild = updateSnapshot_.request.effectiveFullRebuild;
-          const bool requiresStructure = updateSnapshot_.apply.requiresStructure;
-          const bool canApplyLocalDiff = updateSnapshot_.apply.canApplyLocalCompositionDiff;
+          const bool requiresStructure = updateSnapshot_.apply.structureRequired();
+          const bool canApplyLocalDiff = updateSnapshot_.apply.localCompositionDiffApplicable();
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneDecision(static_cast<void *>(this),
                                                 requiresStructure ? 1 : 0,
-                                                updateSnapshot_.apply.requiresLayout ? 1 : 0,
+                                                updateSnapshot_.apply.layoutRequired() ? 1 : 0,
                                                 canApplyLocalDiff ? 1 : 0);
 #endif
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
@@ -913,24 +913,24 @@ namespace loka
                                                                                    const Scene *scene) const
       {
         SceneUpdateSnapshot snapshot;
-        snapshot.generation = updateTransaction_.pendingGeneration();
-        snapshot.request = updateTransaction_.buildRequestSnapshot(rootNode,
-                                                                   firstPendingUpdateRoot(),
-                                                                   flags,
-                                                                   fullRebuild);
-        if (snapshot.generation == 0)
+        snapshot.setGeneration(updateTransaction_.pendingGeneration());
+        snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode,
+                                                                    firstPendingUpdateRoot(),
+                                                                    flags,
+                                                                    fullRebuild));
+        if (!snapshot.hasGeneration())
         {
           return snapshot;
         }
-        snapshot.apply.requiresLayout = requiresLayout();
-        if (snapshot.apply.requiresLayout)
+        snapshot.apply.setRequirements(requiresLayout(),
+                                       requiresStructure(scene),
+                                       requiresCompositedPaint(),
+                                       hasOpaqueLocalPaint(),
+                                       canApplyLocalCompositionDiff());
+        if (snapshot.apply.layoutRequired())
         {
           snapshot.request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
         }
-        snapshot.apply.requiresStructure = requiresStructure(scene);
-        snapshot.apply.requiresCompositedPaint = requiresCompositedPaint();
-        snapshot.apply.hasOpaqueLocalPaint = hasOpaqueLocalPaint();
-        snapshot.apply.canApplyLocalCompositionDiff = canApplyLocalCompositionDiff();
         if (CanRelaxFullRebuildForLocalDiff(snapshot) ||
             CanRelaxFullRebuildForChildOnlyUpdate(snapshot) ||
             CanRelaxFullRebuildForRootBoundary(snapshot))
@@ -943,25 +943,24 @@ namespace loka
       inline PlatformApplyPlan SceneDirector::buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const
       {
         PlatformApplyPlan plan;
-        plan.structureChanged = (snapshot.request.effectiveDirtyFlags & NODE_DIRTY_INITIAL) != 0 ||
-                                ((snapshot.request.effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 &&
-                                 (snapshot.request.effectiveFullRebuild || snapshot.apply.requiresStructure));
-        plan.layoutChanged = (snapshot.request.effectiveDirtyFlags & NODE_DIRTY_LAYOUT) != 0 || snapshot.apply.requiresLayout;
-        if (snapshot.request.effectiveDirtyFlags != NODE_DIRTY_NONE)
+        plan.structureChanged = snapshot.requiresStructureChange();
+        plan.layoutChanged = snapshot.requiresLayoutChange();
+        if (snapshot.hasAnyPaintChange())
         {
           plan.paintKind = PlatformApplyPlan::PAINT_LOCAL;
         }
-        if (snapshot.apply.hasOpaqueLocalPaint)
+        if (snapshot.requiresOpaqueLocalPaint())
         {
           plan.paintKind = PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
         }
-        if (snapshot.apply.requiresCompositedPaint)
+        if (snapshot.requiresCompositedPaint())
         {
           plan.paintKind = PlatformApplyPlan::PAINT_COMPOSITED;
         }
-        plan.structureRoot = snapshot.request.firstPendingRoot ? snapshot.request.firstPendingRoot : snapshot.request.rootBoundary;
-        plan.layoutRoot = snapshot.request.firstPendingRoot ? snapshot.request.firstPendingRoot : snapshot.request.rootBoundary;
-        plan.paintRoot = snapshot.request.firstPendingRoot ? snapshot.request.firstPendingRoot : snapshot.request.rootBoundary;
+        BoundaryNode *primaryRoot = snapshot.request.primaryRoot();
+        plan.structureRoot = primaryRoot;
+        plan.layoutRoot = primaryRoot;
+        plan.paintRoot = primaryRoot;
         return plan;
       }
 
@@ -1147,14 +1146,14 @@ namespace loka
 
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        return snapshot.request.effectiveFullRebuild && snapshot.apply.canApplyLocalCompositionDiff;
+        return snapshot.request.effectiveFullRebuild && snapshot.apply.localCompositionDiffApplicable();
       }
 
       inline static bool CanRelaxFullRebuildForChildOnlyUpdate(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
         return snapshot.request.effectiveFullRebuild &&
                snapshot.request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
-               !snapshot.apply.requiresStructure;
+               !snapshot.apply.structureRequired();
       }
 
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot)
