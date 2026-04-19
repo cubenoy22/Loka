@@ -3465,12 +3465,12 @@ void testLokaFlowDslV1Core() {
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
     scene.requestInvalidate(NODE_DIRTY_PROPS);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
     assert(scene.flushInvalidation());
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
     assert(plan.paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
     assert(plan.paintRoot == rootBoundary);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.unmount();
   }
@@ -3497,7 +3497,7 @@ void testLokaFlowDslV1Core() {
     scene.requestInvalidate(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
     assert(scene.flushInvalidation());
     assert(g_defaultApplyLayoutCalls == 1);
     assert(g_defaultApplyCompositedPaintCalls == 1);
@@ -3506,7 +3506,7 @@ void testLokaFlowDslV1Core() {
     assert(g_defaultApplyOpaqueHintSeen == 1);
     assert(g_defaultApplyBoundsWidth == 40);
     assert(g_defaultApplyBoundsHeight == 12);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
     assert(SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED);
     assert(SceneTestAccess::lastApplyPlan(scene).structureRoot == rootBoundary);
 
@@ -3517,7 +3517,7 @@ void testLokaFlowDslV1Core() {
     g_defaultApplyStructureCalls = 0;
 
     scene.requestInvalidate(NODE_DIRTY_CHILD);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
     assert(scene.flushInvalidation());
     assert(g_defaultApplyStructureCalls == 0);
     assert(g_defaultApplyLayoutCalls == 1);
@@ -3566,7 +3566,7 @@ void testLokaFlowDslV1Core() {
       std::fflush(stdout);
     }
     assert(ok);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.unmount();
   }
@@ -3591,7 +3591,7 @@ void testLokaFlowDslV1Core() {
     scene.requestInvalidate(NODE_DIRTY_PROPS);
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == rootBoundary);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
     assert(scene.flushInvalidation());
     assert(g_pendingApplyCallCount == 1);
     assert(g_pendingApplyWhileApplyingCount == 1);
@@ -3607,7 +3607,7 @@ void testLokaFlowDslV1Core() {
     assert(platform.lastBoundaryApplyPlan_.paintRoot == rootBoundary);
     assert(platform.lastBoundaryApplyPlan_.isLocalizedFor(rootBoundary));
     assert(platform.lastBoundaryApplyPlan_.hasBoundaryApplyWork(rootBoundary));
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.unmount();
   }
@@ -3669,7 +3669,7 @@ void testLokaFlowDslV1Core() {
     siblingB->markViewDirty(NODE_DIRTY_PROPS);
 
     const SceneDirector &director = SceneTestAccess::director(scene);
-    assert(director.pendingBoundariesHead() != 0);
+    assert(director.firstPendingBoundary() != 0);
     assert(scene.flushInvalidation());
     assert(g_pendingApplySiblingACalls == 1);
     assert(g_pendingApplySiblingBCalls == 1);
@@ -3679,7 +3679,7 @@ void testLokaFlowDslV1Core() {
     assert(g_pendingApplySiblingBLayoutRoot != 0);
     assert(g_pendingApplySiblingBPaintRoot != 0);
     assert(platform.lastBoundaryApplyBoundary_ == siblingB || platform.lastBoundaryApplyBoundary_ == siblingA);
-    assert(SceneTestAccess::director(scene).pendingBoundariesHead() == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.unmount();
   }

@@ -654,30 +654,29 @@ namespace loka
         {
           flags = NODE_DIRTY_PROPS;
         }
-        updateTransaction_.lastRequestedBoundary = boundary;
-        updateTransaction_.beginPendingWave();
+        updateTransaction_.recordRequestedBoundary(boundary);
         enqueueBoundary(boundary);
-        updateTransaction_.projection.enqueue(boundary, flags);
+        updateTransaction_.enqueueProjectionTarget(boundary, flags);
       }
 
       inline BoundaryNode *SceneDirector::lastRequestedBoundary() const
       {
-        return updateTransaction_.lastRequestedBoundary;
+        return updateTransaction_.lastRequested();
       }
 
       inline const SceneProjectionTransaction &SceneDirector::projectionTransaction() const
       {
-        return updateTransaction_.projection;
+        return updateTransaction_.projectionTransaction();
       }
 
       inline NodeDirtyFlags SceneDirector::aggregateDirtyFlags() const
       {
-        return updateTransaction_.projection.aggregateDirtyFlags();
+        return updateTransaction_.aggregateDirtyFlags();
       }
 
-      inline BoundaryNode *SceneDirector::pendingBoundariesHead() const
+      inline BoundaryNode *SceneDirector::firstPendingBoundary() const
       {
-        return updateTransaction_.pendingBoundariesHead;
+        return updateTransaction_.firstPendingBoundary();
       }
 
       inline BoundaryNode *SceneDirector::topMostRequestedBoundary(BoundaryNode *boundary) const
@@ -911,16 +910,15 @@ namespace loka
                                                                                    const Scene *scene) const
       {
         SceneUpdateSnapshot snapshot;
-        NodeDirtyFlags transactionFlags = aggregateDirtyFlags();
         snapshot.generation = updateTransaction_.pendingGeneration();
-        snapshot.request.requestedDirtyFlags = flags;
-        snapshot.request.transactionDirtyFlags = transactionFlags;
-        snapshot.request.effectiveDirtyFlags = static_cast<NodeDirtyFlags>(flags | transactionFlags);
-        snapshot.request.requestedFullRebuild = fullRebuild;
-        snapshot.request.effectiveFullRebuild =
-            fullRebuild || ((snapshot.request.effectiveDirtyFlags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0);
-        snapshot.request.firstPendingRoot = firstPendingUpdateRoot();
-        snapshot.request.rootBoundary = rootNode ? rootNode->asBoundary() : 0;
+        snapshot.request = updateTransaction_.buildRequestSnapshot(rootNode,
+                                                                   firstPendingUpdateRoot(),
+                                                                   flags,
+                                                                   fullRebuild);
+        if (snapshot.generation == 0)
+        {
+          return snapshot;
+        }
         snapshot.apply.requiresLayout = requiresLayout();
         if (snapshot.apply.requiresLayout)
         {
@@ -1007,6 +1005,50 @@ namespace loka
                plan.isPaintOnlyWork();
       }
 
+      inline void SceneDirector::SceneUpdateTransaction::PendingBoundaryQueue::append(BoundaryNode *boundary)
+      {
+        if (!boundary)
+        {
+          return;
+        }
+        if (!head)
+        {
+          head = boundary;
+          tail = boundary;
+          return;
+        }
+        tail->setNextPendingBoundary(boundary);
+        tail = boundary;
+      }
+
+      inline void SceneDirector::SceneUpdateTransaction::PendingBoundaryQueue::clear()
+      {
+        head = 0;
+        tail = 0;
+      }
+
+      inline void SceneDirector::SceneUpdateTransaction::enqueuePendingBoundary(BoundaryNode *boundary)
+      {
+        if (!boundary)
+        {
+          return;
+        }
+        boundary->setNextPendingBoundary(0);
+        pendingBoundaries.append(boundary);
+      }
+
+      inline void SceneDirector::SceneUpdateTransaction::clearPendingBoundaryStates()
+      {
+        BoundaryNode *boundary = firstPendingBoundary();
+        while (boundary)
+        {
+          BoundaryNode *next = boundary->nextPendingBoundary();
+          boundary->clearPendingUpdateState();
+          boundary = next;
+        }
+        clear();
+      }
+
       inline static bool IsBoundaryDescendantOf(const BoundaryNode *boundary, const BoundaryNode *ancestor)
       {
         const BoundaryNode *current = boundary ? boundary->parentBoundary() : 0;
@@ -1027,7 +1069,7 @@ namespace loka
         {
           return false;
         }
-        BoundaryNode *boundary = director->pendingBoundariesHead();
+        BoundaryNode *boundary = director->firstPendingBoundary();
         while (boundary)
         {
           if (boundary != root && boundary->isUpdateRequested() && IsBoundaryDescendantOf(boundary, root) &&
@@ -1044,10 +1086,50 @@ namespace loka
         return false;
       }
 
+      inline static bool HasSeenPendingUpdateRootBefore(const SceneDirector *director,
+                                                        BoundaryNode *boundary,
+                                                        BoundaryNode *root)
+      {
+        if (!director || !boundary || !root)
+        {
+          return false;
+        }
+        BoundaryNode *previous = director->firstPendingBoundary();
+        while (previous && previous != boundary)
+        {
+          if (director->topMostRequestedBoundary(previous) == root)
+          {
+            return true;
+          }
+          previous = previous->nextPendingBoundary();
+        }
+        return false;
+      }
+
+      inline static bool ShouldSkipPendingUpdateRoot(const SceneDirector *director,
+                                                     BoundaryNode *boundary,
+                                                     BoundaryNode *root)
+      {
+        if (!director || !boundary || !root)
+        {
+          return true;
+        }
+        if (HasSeenPendingUpdateRootBefore(director, boundary, root))
+        {
+          return true;
+        }
+        if ((root->pendingDirtyFlags() & NODE_DIRTY_CHILD) != 0 &&
+            HasEquivalentDescendantPendingRoot(director, root))
+        {
+          return true;
+        }
+        return false;
+      }
+
       inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const
       {
         bool startSearching = (afterRoot == 0);
-        BoundaryNode *boundary = updateTransaction_.pendingBoundariesHead;
+        BoundaryNode *boundary = updateTransaction_.firstPendingBoundary();
         while (boundary)
         {
           BoundaryNode *root = topMostRequestedBoundary(boundary);
@@ -1063,25 +1145,8 @@ namespace loka
               continue;
             }
 
-            bool seenEarlier = false;
-            BoundaryNode *previous = updateTransaction_.pendingBoundariesHead;
-            while (previous && previous != boundary)
+            if (!ShouldSkipPendingUpdateRoot(this, boundary, root))
             {
-              if (topMostRequestedBoundary(previous) == root)
-              {
-                seenEarlier = true;
-                break;
-              }
-              previous = previous->nextPendingBoundary();
-            }
-            if (!seenEarlier)
-            {
-              if ((root->pendingDirtyFlags() & NODE_DIRTY_CHILD) != 0 &&
-                  HasEquivalentDescendantPendingRoot(this, root))
-              {
-                boundary = boundary->nextPendingBoundary();
-                continue;
-              }
               return root;
             }
           }
@@ -1092,14 +1157,7 @@ namespace loka
 
       inline void SceneDirector::clearPendingBoundaryRequest()
       {
-        BoundaryNode *boundary = updateTransaction_.pendingBoundariesHead;
-        while (boundary)
-        {
-          BoundaryNode *next = boundary->nextPendingBoundary();
-          boundary->clearPendingUpdateState();
-          boundary = next;
-        }
-        updateTransaction_.clear();
+        updateTransaction_.clearPendingBoundaryStates();
       }
 
       inline void SceneDirector::enqueueBoundary(BoundaryNode *boundary)
@@ -1109,15 +1167,7 @@ namespace loka
           return;
         }
         boundary->setUpdateRequested(true);
-        boundary->setNextPendingBoundary(0);
-        if (!updateTransaction_.pendingBoundariesHead)
-        {
-          updateTransaction_.pendingBoundariesHead = boundary;
-          updateTransaction_.pendingBoundariesTail = boundary;
-          return;
-        }
-        updateTransaction_.pendingBoundariesTail->setNextPendingBoundary(boundary);
-        updateTransaction_.pendingBoundariesTail = boundary;
+        updateTransaction_.enqueuePendingBoundary(boundary);
       }
 
     } // namespace scene

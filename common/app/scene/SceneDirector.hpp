@@ -99,6 +99,25 @@ namespace loka
 
         struct SceneUpdateTransaction
         {
+          struct PendingBoundaryQueue
+          {
+            PendingBoundaryQueue()
+                : head(0), tail(0)
+            {
+            }
+
+            BoundaryNode *first() const
+            {
+              return head;
+            }
+
+            void append(BoundaryNode *boundary);
+            void clear();
+
+            BoundaryNode *head;
+            BoundaryNode *tail;
+          };
+
           struct PendingWaveGeneration
           {
             PendingWaveGeneration()
@@ -133,14 +152,49 @@ namespace loka
               : lastRequestedBoundary(0),
                 projection(),
                 generation(),
-                pendingBoundariesHead(0),
-                pendingBoundariesTail(0)
+                pendingBoundaries()
           {
           }
 
-          void beginPendingWave()
+          void ensurePendingWave()
           {
             generation.ensureActive();
+          }
+
+          void recordRequestedBoundary(BoundaryNode *boundary)
+          {
+            lastRequestedBoundary = boundary;
+          }
+
+          BoundaryNode *lastRequested() const
+          {
+            return lastRequestedBoundary;
+          }
+
+          const SceneProjectionTransaction &projectionTransaction() const
+          {
+            return projection;
+          }
+
+          NodeDirtyFlags aggregateDirtyFlags() const
+          {
+            return projection.aggregateDirtyFlags();
+          }
+
+          void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
+          {
+            ensurePendingWave();
+            projection.enqueue(node, flags);
+          }
+
+          BoundaryNode *firstPendingBoundary() const
+          {
+            return pendingBoundaries.first();
+          }
+
+          bool hasPendingWave() const
+          {
+            return generation.current() != 0 && projection.hasPending();
           }
 
           unsigned long pendingGeneration() const
@@ -148,20 +202,44 @@ namespace loka
             return generation.current();
           }
 
+          void enqueuePendingBoundary(BoundaryNode *boundary);
+          void clearPendingBoundaryStates();
+
+          SceneUpdateRequestSnapshot buildRequestSnapshot(Node *rootNode,
+                                                         BoundaryNode *firstPendingRoot,
+                                                         NodeDirtyFlags requestedDirtyFlags,
+                                                         bool requestedFullRebuild) const
+          {
+            SceneUpdateRequestSnapshot snapshot;
+            if (!hasPendingWave())
+            {
+              return snapshot;
+            }
+            const NodeDirtyFlags transactionDirtyFlags = aggregateDirtyFlags();
+            snapshot.requestedDirtyFlags = requestedDirtyFlags;
+            snapshot.transactionDirtyFlags = transactionDirtyFlags;
+            snapshot.effectiveDirtyFlags =
+                static_cast<NodeDirtyFlags>(requestedDirtyFlags | transactionDirtyFlags);
+            snapshot.requestedFullRebuild = requestedFullRebuild;
+            snapshot.effectiveFullRebuild =
+                requestedFullRebuild || ((snapshot.effectiveDirtyFlags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0);
+            snapshot.firstPendingRoot = firstPendingRoot;
+            snapshot.rootBoundary = rootNode ? rootNode->asBoundary() : 0;
+            return snapshot;
+          }
+
           void clear()
           {
             lastRequestedBoundary = 0;
             projection.clear();
             generation.clear();
-            pendingBoundariesHead = 0;
-            pendingBoundariesTail = 0;
+            pendingBoundaries.clear();
           }
 
           BoundaryNode *lastRequestedBoundary;
           SceneProjectionTransaction projection;
           PendingWaveGeneration generation;
-          BoundaryNode *pendingBoundariesHead;
-          BoundaryNode *pendingBoundariesTail;
+          PendingBoundaryQueue pendingBoundaries;
         };
 
         SceneDirector();
@@ -175,7 +253,7 @@ namespace loka
         BoundaryNode *lastRequestedBoundary() const;
         const SceneProjectionTransaction &projectionTransaction() const;
         NodeDirtyFlags aggregateDirtyFlags() const;
-        BoundaryNode *pendingBoundariesHead() const;
+        BoundaryNode *firstPendingBoundary() const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
