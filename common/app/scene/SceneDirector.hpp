@@ -338,6 +338,7 @@ namespace loka
         BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
                                                             NodeDirtyFlags flags,
                                                             bool flushImmediately) const;
+        void applyBoundaryUpdateRequest(const BoundaryUpdateRequest &request) const;
 
         Scene *scene_;
         SceneUpdateTransaction updateTransaction_;

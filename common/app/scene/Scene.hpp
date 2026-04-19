@@ -635,13 +635,7 @@ namespace loka
         }
         const BoundaryUpdateRequest request = normalizeBoundaryUpdateRequest(boundary, flags, flushImmediately);
         registerBoundaryUpdate(request);
-        if (request.flushImmediately)
-        {
-          scene_->queueInvalidate(request.flags);
-          scene_->flushInvalidation();
-          return;
-        }
-        scene_->queueInvalidate(request.flags);
+        applyBoundaryUpdateRequest(request);
       }
 
       inline SceneDirector::BoundaryUpdateRequest SceneDirector::normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
@@ -664,6 +658,19 @@ namespace loka
         }
         enqueueBoundary(request.boundary);
         updateTransaction_.enqueueProjectionTarget(request.boundary, request.flags);
+      }
+
+      inline void SceneDirector::applyBoundaryUpdateRequest(const BoundaryUpdateRequest &request) const
+      {
+        if (!scene_)
+        {
+          return;
+        }
+        scene_->queueInvalidate(request.flags);
+        if (request.flushImmediately)
+        {
+          scene_->flushInvalidation();
+        }
       }
 
       inline const SceneProjectionTransaction &SceneDirector::projectionTransaction() const
