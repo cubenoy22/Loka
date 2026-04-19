@@ -43,6 +43,9 @@ namespace loka
     {
       // Forward declaration only. Include the concrete type where needed.
       struct NodeComposition;
+      inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot);
+      inline static bool CanRelaxFullRebuildForChildOnlyUpdate(const SceneDirector::SceneUpdateSnapshot &snapshot);
+      inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot);
 
       class Scene
       {
@@ -917,23 +920,11 @@ namespace loka
         snapshot.apply.requiresCompositedPaint = requiresCompositedPaint();
         snapshot.apply.hasOpaqueLocalPaint = hasOpaqueLocalPaint();
         snapshot.apply.canApplyLocalCompositionDiff = canApplyLocalCompositionDiff();
-        if (snapshot.request.effectiveFullRebuild && snapshot.apply.canApplyLocalCompositionDiff)
+        if (CanRelaxFullRebuildForLocalDiff(snapshot) ||
+            CanRelaxFullRebuildForChildOnlyUpdate(snapshot) ||
+            CanRelaxFullRebuildForRootBoundary(snapshot))
         {
           snapshot.request.relaxFullRebuild();
-        }
-        else if (snapshot.request.effectiveFullRebuild &&
-                 snapshot.request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
-                 !snapshot.apply.requiresStructure)
-        {
-          snapshot.request.relaxFullRebuild();
-        }
-        else if (snapshot.request.effectiveFullRebuild)
-        {
-          BoundaryNode *rootBoundary = snapshot.request.rootBoundary;
-          if (rootBoundary && rootBoundary->canApplyLocalCompositionDiff())
-          {
-            snapshot.request.relaxFullRebuild();
-          }
         }
         return snapshot;
       }
@@ -1119,6 +1110,28 @@ namespace loka
           return true;
         }
         return false;
+      }
+
+      inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
+      {
+        return snapshot.request.effectiveFullRebuild && snapshot.apply.canApplyLocalCompositionDiff;
+      }
+
+      inline static bool CanRelaxFullRebuildForChildOnlyUpdate(const SceneDirector::SceneUpdateSnapshot &snapshot)
+      {
+        return snapshot.request.effectiveFullRebuild &&
+               snapshot.request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
+               !snapshot.apply.requiresStructure;
+      }
+
+      inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot)
+      {
+        if (!snapshot.request.effectiveFullRebuild)
+        {
+          return false;
+        }
+        BoundaryNode *rootBoundary = snapshot.request.rootBoundary;
+        return rootBoundary && rootBoundary->canApplyLocalCompositionDiff();
       }
 
       inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const
