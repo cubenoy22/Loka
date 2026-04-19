@@ -112,6 +112,7 @@ namespace loka
             }
 
             void append(BoundaryNode *boundary);
+            void clearPendingStates();
             void clear();
 
             BoundaryNode *head;
@@ -228,7 +229,7 @@ namespace loka
           }
 
           void enqueuePendingBoundary(BoundaryNode *boundary);
-          void clearPendingBoundaryStates();
+          void clearPendingState();
 
           SceneUpdateRequestSnapshot buildRequestSnapshot(Node *rootNode,
                                                          BoundaryNode *firstPendingRoot,

@@ -1016,6 +1016,18 @@ namespace loka
         tail = 0;
       }
 
+      inline void SceneDirector::SceneUpdateTransaction::PendingBoundaryQueue::clearPendingStates()
+      {
+        BoundaryNode *boundary = first();
+        while (boundary)
+        {
+          BoundaryNode *next = boundary->nextPendingBoundary();
+          boundary->clearPendingUpdateState();
+          boundary = next;
+        }
+        clear();
+      }
+
       inline void SceneDirector::SceneUpdateTransaction::enqueuePendingBoundary(BoundaryNode *boundary)
       {
         if (!boundary)
@@ -1026,15 +1038,9 @@ namespace loka
         pendingBoundaries.append(boundary);
       }
 
-      inline void SceneDirector::SceneUpdateTransaction::clearPendingBoundaryStates()
+      inline void SceneDirector::SceneUpdateTransaction::clearPendingState()
       {
-        BoundaryNode *boundary = firstPendingBoundary();
-        while (boundary)
-        {
-          BoundaryNode *next = boundary->nextPendingBoundary();
-          boundary->clearPendingUpdateState();
-          boundary = next;
-        }
+        pendingBoundaries.clearPendingStates();
         clear();
       }
 
@@ -1146,7 +1152,7 @@ namespace loka
 
       inline void SceneDirector::clearPendingBoundaryRequest()
       {
-        updateTransaction_.clearPendingBoundaryStates();
+        updateTransaction_.clearPendingState();
       }
 
       inline void SceneDirector::enqueueBoundary(BoundaryNode *boundary)
