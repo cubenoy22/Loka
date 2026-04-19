@@ -260,6 +260,7 @@ namespace loka
             return pendingWave.pendingGeneration();
           }
 
+          void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
           void enqueuePendingBoundary(BoundaryNode *boundary);
           void clearPendingState();
 
@@ -334,7 +335,6 @@ namespace loka
 #endif
 
       private:
-        void enqueueBoundary(BoundaryNode *boundary);
         BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
                                                             NodeDirtyFlags flags,
                                                             bool flushImmediately) const;

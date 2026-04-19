@@ -656,8 +656,7 @@ namespace loka
         {
           return;
         }
-        enqueueBoundary(request.boundary);
-        updateTransaction_.enqueueProjectionTarget(request.boundary, request.flags);
+        updateTransaction_.enqueueBoundaryUpdate(request);
       }
 
       inline void SceneDirector::applyBoundaryUpdateRequest(const BoundaryUpdateRequest &request) const
@@ -1198,14 +1197,19 @@ namespace loka
         updateTransaction_.clearPendingState();
       }
 
-      inline void SceneDirector::enqueueBoundary(BoundaryNode *boundary)
+      inline void SceneDirector::SceneUpdateTransaction::enqueueBoundaryUpdate(const BoundaryUpdateRequest &request)
       {
-        if (!boundary || boundary->isUpdateRequested())
+        BoundaryNode *boundary = request.boundary;
+        if (!boundary)
         {
           return;
         }
-        boundary->setUpdateRequested(true);
-        updateTransaction_.enqueuePendingBoundary(boundary);
+        if (!boundary->isUpdateRequested())
+        {
+          boundary->setUpdateRequested(true);
+          enqueuePendingBoundary(boundary);
+        }
+        enqueueProjectionTarget(boundary, request.flags);
       }
 
     } // namespace scene
