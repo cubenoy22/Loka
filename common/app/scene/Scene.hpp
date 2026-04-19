@@ -174,17 +174,17 @@ namespace loka
             loka::platform::DebugLogSceneUpdateQueued(static_cast<void *>(this));
           }
 #endif
-          if (flags == NODE_DIRTY_NONE)
-          {
-            flags = NODE_DIRTY_PROPS;
-          }
+          SceneDirector::BoundaryUpdateRequest request;
+          request.flags = flags == NODE_DIRTY_NONE ? NODE_DIRTY_PROPS : flags;
+          request.flushImmediately = false;
           BoundaryNode *rootBoundary = rootNode_ ? rootNode_->asBoundary() : 0;
           if (rootBoundary)
           {
-            rootBoundary->addPendingDirtyFlags(flags);
-            director_.registerBoundaryUpdate(SceneDirector::BoundaryUpdateRequest(rootBoundary, flags, false));
+            rootBoundary->addPendingDirtyFlags(request.flags);
+            request.boundary = rootBoundary;
+            director_.registerBoundaryUpdate(request);
           }
-          queueInvalidate(flags);
+          queueInvalidate(request.flags);
         }
 
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately)
