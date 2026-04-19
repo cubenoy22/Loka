@@ -181,7 +181,6 @@ namespace loka
           BoundaryNode *rootBoundary = rootNode_ ? rootNode_->asBoundary() : 0;
           if (rootBoundary)
           {
-            rootBoundary->addPendingDirtyFlags(request.flags);
             request.boundary = rootBoundary;
             director_.registerBoundaryUpdate(request);
           }
@@ -699,9 +698,19 @@ namespace loka
         return updateTransaction_.pendingDirtyFlagsForBoundary(boundary);
       }
 
+      inline bool SceneDirector::hasPendingBoundary(const BoundaryNode *boundary) const
+      {
+        return updateTransaction_.hasPendingBoundary(boundary);
+      }
+
       inline BoundaryNode *SceneDirector::firstPendingBoundary() const
       {
         return updateTransaction_.firstPendingBoundary();
+      }
+
+      inline BoundaryNode *SceneDirector::nextPendingBoundary(const BoundaryNode *boundary) const
+      {
+        return updateTransaction_.nextPendingBoundary(boundary);
       }
 
       inline BoundaryNode *SceneDirector::topMostRequestedBoundary(BoundaryNode *boundary) const
@@ -716,7 +725,7 @@ namespace loka
         {
           const NodeDirtyFlags parentFlags = pendingDirtyFlagsForBoundary(parent);
           const NodeDirtyFlags boundaryFlags = pendingDirtyFlagsForBoundary(boundary);
-          if (!parent->isUpdateRequested() || parentFlags == NODE_DIRTY_NONE)
+          if (!hasPendingBoundary(parent) || parentFlags == NODE_DIRTY_NONE)
           {
             break;
           }
@@ -734,7 +743,7 @@ namespace loka
 
       inline bool SceneDirector::isBoundaryUpdateRoot(BoundaryNode *boundary) const
       {
-        if (!boundary || !boundary->isUpdateRequested())
+        if (!boundary || !hasPendingBoundary(boundary))
         {
           return false;
         }
@@ -996,53 +1005,8 @@ namespace loka
                plan.isPaintOnlyWork();
       }
 
-      inline void SceneDirector::SceneUpdateTransaction::PendingBoundaryQueue::append(BoundaryNode *boundary)
-      {
-        if (!boundary)
-        {
-          return;
-        }
-        if (!head)
-        {
-          head = boundary;
-          tail = boundary;
-          return;
-        }
-        tail->setNextPendingBoundary(boundary);
-        tail = boundary;
-      }
-
-      inline void SceneDirector::SceneUpdateTransaction::PendingBoundaryQueue::clear()
-      {
-        head = 0;
-        tail = 0;
-      }
-
-      inline void SceneDirector::SceneUpdateTransaction::PendingBoundaryQueue::clearPendingStates()
-      {
-        BoundaryNode *boundary = first();
-        while (boundary)
-        {
-          BoundaryNode *next = boundary->nextPendingBoundary();
-          boundary->clearPendingUpdateState();
-          boundary = next;
-        }
-        clear();
-      }
-
-      inline void SceneDirector::SceneUpdateTransaction::enqueuePendingBoundary(BoundaryNode *boundary)
-      {
-        if (!boundary)
-        {
-          return;
-        }
-        boundary->setNextPendingBoundary(0);
-        pendingBoundaries.append(boundary);
-      }
-
       inline void SceneDirector::SceneUpdateTransaction::clearPendingState()
       {
-        pendingBoundaries.clearPendingStates();
         clear();
       }
 
@@ -1090,7 +1054,7 @@ namespace loka
           BoundaryNode *boundary = director->firstPendingBoundary();
           while (boundary)
           {
-            if (boundary != root && boundary->isUpdateRequested() && IsBoundaryDescendantOf(boundary, root) &&
+            if (boundary != root && director->hasPendingBoundary(boundary) && IsBoundaryDescendantOf(boundary, root) &&
                 director->pendingDirtyFlagsForBoundary(boundary) == director->pendingDirtyFlagsForBoundary(root))
             {
               const BoundaryComposeResult &candidateResult = boundary->composeResult();
@@ -1099,7 +1063,7 @@ namespace loka
                 return true;
               }
             }
-            boundary = boundary->nextPendingBoundary();
+            boundary = director->nextPendingBoundary(boundary);
           }
           return false;
         }
@@ -1117,7 +1081,7 @@ namespace loka
             {
               return true;
             }
-            previous = previous->nextPendingBoundary();
+            previous = director->nextPendingBoundary(previous);
           }
           return false;
         }
@@ -1195,7 +1159,7 @@ namespace loka
           {
             if (!selector.shouldStart(root))
             {
-              boundary = boundary->nextPendingBoundary();
+              boundary = updateTransaction_.nextPendingBoundary(boundary);
               continue;
             }
 
@@ -1204,7 +1168,7 @@ namespace loka
               return root;
             }
           }
-          boundary = boundary->nextPendingBoundary();
+          boundary = updateTransaction_.nextPendingBoundary(boundary);
         }
         return 0;
       }
@@ -1222,11 +1186,6 @@ namespace loka
           return;
         }
         enqueueSceneRequest(request.flags);
-        if (!boundary->isUpdateRequested())
-        {
-          boundary->setUpdateRequested(true);
-          enqueuePendingBoundary(boundary);
-        }
         enqueueProjectionTarget(boundary, request.flags);
       }
 

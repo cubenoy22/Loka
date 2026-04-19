@@ -282,26 +282,6 @@ namespace loka
             bool fullRebuild;
           };
 
-          struct PendingBoundaryQueue
-          {
-            PendingBoundaryQueue()
-                : head(0), tail(0)
-            {
-            }
-
-            BoundaryNode *first() const
-            {
-              return head;
-            }
-
-            void append(BoundaryNode *boundary);
-            void clearPendingStates();
-            void clear();
-
-            BoundaryNode *head;
-            BoundaryNode *tail;
-          };
-
           struct PendingWaveGeneration
           {
             PendingWaveGeneration()
@@ -377,7 +357,6 @@ namespace loka
 
           SceneUpdateTransaction()
               : pendingWave(),
-                pendingBoundaries(),
                 requestedInput()
           {
           }
@@ -399,7 +378,35 @@ namespace loka
 
           BoundaryNode *firstPendingBoundary() const
           {
-            return pendingBoundaries.first();
+            return nextPendingBoundary(0);
+          }
+
+          BoundaryNode *nextPendingBoundary(const BoundaryNode *after) const
+          {
+            bool sawAfter = after == 0;
+            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
+            while (entry)
+            {
+              BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
+              if (boundary)
+              {
+                if (sawAfter)
+                {
+                  return boundary;
+                }
+                if (static_cast<const void *>(boundary) == static_cast<const void *>(after))
+                {
+                  sawAfter = true;
+                }
+              }
+              entry = entry->next;
+            }
+            return 0;
+          }
+
+          bool hasPendingBoundary(const BoundaryNode *boundary) const
+          {
+            return pendingDirtyFlagsForBoundary(boundary) != NODE_DIRTY_NONE;
           }
 
           bool hasPendingWave() const
@@ -456,7 +463,6 @@ namespace loka
           }
 
           void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
-          void enqueuePendingBoundary(BoundaryNode *boundary);
           void clearPendingState();
 
           SceneUpdateRequestSnapshot buildRequestSnapshot(Node *rootNode,
@@ -478,12 +484,10 @@ namespace loka
           void clear()
           {
             pendingWave.clear();
-            pendingBoundaries.clear();
             requestedInput.clear();
           }
 
           PendingProjectionWave pendingWave;
-          PendingBoundaryQueue pendingBoundaries;
           RequestedSceneInput requestedInput;
         };
 
@@ -502,7 +506,9 @@ namespace loka
         bool hasPendingRequestedInput() const;
         bool pendingRequestedFullRebuild() const;
         NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const;
+        bool hasPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *firstPendingBoundary() const;
+        BoundaryNode *nextPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
