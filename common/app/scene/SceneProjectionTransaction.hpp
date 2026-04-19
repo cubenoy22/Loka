@@ -85,7 +85,7 @@ namespace loka
         NodeDirtyFlags aggregateDirtyFlags() const
         {
           NodeDirtyFlags flags = NODE_DIRTY_NONE;
-          TargetEntry *entry = head;
+          const TargetEntry *entry = head;
           while (entry)
           {
             flags = static_cast<NodeDirtyFlags>(flags | entry->dirtyFlags);
@@ -94,12 +94,15 @@ namespace loka
           return flags;
         }
 
-        TargetEntry *targetsHead() const
+        const TargetEntry *targetsHead() const
         {
           return head;
         }
 
       private:
+        SceneProjectionTransaction(const SceneProjectionTransaction &);
+        SceneProjectionTransaction &operator=(const SceneProjectionTransaction &);
+
         TargetEntry *find(Node *node) const
         {
           TargetEntry *entry = head;

@@ -48,8 +48,8 @@ private:
   };
 
   void presentDialog();
-  void setResult(const loka::app::FileChooserResult &result);
-  void queueDeferredResult(const loka::app::FileChooserResult &result);
+  void setResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession);
+  void queueDeferredResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession);
   void detachOwnedDialog();
 
   static void DeliverDeferredResultThunk(void *userData);

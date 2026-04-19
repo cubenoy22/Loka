@@ -152,6 +152,7 @@ void Win32OpenFileDialogContext::presentDialog()
   {
     return;
   }
+  NativeDialogSession *dialogSession = dialog_;
 
   char buffer[MAX_PATH];
   buffer[0] = '\0';
@@ -166,34 +167,38 @@ void Win32OpenFileDialogContext::presentDialog()
   ofn.nFilterIndex = 1;
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
+  loka::app::FileChooserResult result;
   if (GetOpenFileNameA(&ofn))
   {
     loka::file::File file = loka::file::File::FromPath(loka::core::String(buffer));
     file.setKind(loka::file::File::KIND_FILE);
-    setResult(loka::app::FileChooserResult::File(file));
+    result = loka::app::FileChooserResult::File(file);
   }
   else
   {
     DWORD error = CommDlgExtendedError();
     if (error != 0)
     {
-      setResult(loka::app::FileChooserResult::Error(static_cast<int>(error)));
+      result = loka::app::FileChooserResult::Error(static_cast<int>(error));
     }
     else
     {
-      setResult(loka::app::FileChooserResult::Canceled());
+      result = loka::app::FileChooserResult::Canceled();
     }
   }
 
+  // Result delivery may complete synchronously on fallback paths, so finish the
+  // presentation state transition before handing control to delivery.
   presentation_.markPresented();
+  setResult(result, dialogSession);
 }
 
-void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
+void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession)
 {
-  this->queueDeferredResult(result);
+  this->queueDeferredResult(result, dialogSession);
 }
 
-void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChooserResult &result)
+void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession)
 {
   DeferredResultDelivery *delivery = new DeferredResultDelivery();
   delivery->resultState = resultState_;
@@ -201,7 +206,12 @@ void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChoose
   delivery->closeState = closeState_;
   delivery->result = result;
   delivery->owner = this;
-  delivery->dialog = dialog_;
+  delivery->dialog = dialogSession;
+
+  if (dialog_ == dialogSession)
+  {
+    dialog_ = 0;
+  }
 
   if (parent_ && IsWindow(parent_))
   {
