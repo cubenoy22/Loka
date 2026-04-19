@@ -654,14 +654,8 @@ namespace loka
         {
           flags = NODE_DIRTY_PROPS;
         }
-        updateTransaction_.recordRequestedBoundary(boundary);
         enqueueBoundary(boundary);
         updateTransaction_.enqueueProjectionTarget(boundary, flags);
-      }
-
-      inline BoundaryNode *SceneDirector::lastRequestedBoundary() const
-      {
-        return updateTransaction_.lastRequested();
       }
 
       inline const SceneProjectionTransaction &SceneDirector::projectionTransaction() const

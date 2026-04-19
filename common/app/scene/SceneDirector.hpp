@@ -149,8 +149,7 @@ namespace loka
           };
 
           SceneUpdateTransaction()
-              : lastRequestedBoundary(0),
-                projection(),
+              : projection(),
                 generation(),
                 pendingBoundaries()
           {
@@ -159,16 +158,6 @@ namespace loka
           void ensurePendingWave()
           {
             generation.ensureActive();
-          }
-
-          void recordRequestedBoundary(BoundaryNode *boundary)
-          {
-            lastRequestedBoundary = boundary;
-          }
-
-          BoundaryNode *lastRequested() const
-          {
-            return lastRequestedBoundary;
           }
 
           const SceneProjectionTransaction &projectionTransaction() const
@@ -230,13 +219,11 @@ namespace loka
 
           void clear()
           {
-            lastRequestedBoundary = 0;
             projection.clear();
             generation.clear();
             pendingBoundaries.clear();
           }
 
-          BoundaryNode *lastRequestedBoundary;
           SceneProjectionTransaction projection;
           PendingWaveGeneration generation;
           PendingBoundaryQueue pendingBoundaries;
@@ -250,7 +237,6 @@ namespace loka
         void registerBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags);
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
-        BoundaryNode *lastRequestedBoundary() const;
         const SceneProjectionTransaction &projectionTransaction() const;
         NodeDirtyFlags aggregateDirtyFlags() const;
         BoundaryNode *firstPendingBoundary() const;
