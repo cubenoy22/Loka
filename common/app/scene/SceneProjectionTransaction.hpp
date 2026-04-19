@@ -24,7 +24,7 @@ namespace loka
         };
 
         SceneProjectionTransaction()
-            : head(0), tail(0), pending(false)
+            : head(0), tail(0)
         {
         }
 
@@ -47,7 +47,6 @@ namespace loka
           if (entry)
           {
             entry->dirtyFlags = static_cast<NodeDirtyFlags>(entry->dirtyFlags | flags);
-            pending = true;
             return;
           }
           entry = new TargetEntry();
@@ -63,7 +62,6 @@ namespace loka
             tail->next = entry;
             tail = entry;
           }
-          pending = true;
         }
 
         void clear()
@@ -77,12 +75,11 @@ namespace loka
           }
           head = 0;
           tail = 0;
-          pending = false;
         }
 
         bool hasPending() const
         {
-          return pending;
+          return head != 0;
         }
 
         NodeDirtyFlags aggregateDirtyFlags() const
@@ -119,7 +116,6 @@ namespace loka
 
         TargetEntry *head;
         TargetEntry *tail;
-        bool pending;
       };
     } // namespace scene
   } // namespace app
