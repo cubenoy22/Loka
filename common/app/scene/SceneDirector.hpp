@@ -148,32 +148,68 @@ namespace loka
             unsigned long next;
           };
 
+          struct PendingProjectionWave
+          {
+            PendingProjectionWave()
+                : projection(), generation()
+            {
+            }
+
+            const SceneProjectionTransaction &projectionTransaction() const
+            {
+              return projection;
+            }
+
+            NodeDirtyFlags aggregateDirtyFlags() const
+            {
+              return projection.aggregateDirtyFlags();
+            }
+
+            void enqueueTarget(Node *node, NodeDirtyFlags flags)
+            {
+              generation.ensureActive();
+              projection.enqueue(node, flags);
+            }
+
+            bool hasPending() const
+            {
+              return projection.hasPending();
+            }
+
+            unsigned long pendingGeneration() const
+            {
+              return hasPending() ? generation.current() : 0;
+            }
+
+            void clear()
+            {
+              projection.clear();
+              generation.clear();
+            }
+
+            SceneProjectionTransaction projection;
+            PendingWaveGeneration generation;
+          };
+
           SceneUpdateTransaction()
-              : projection(),
-                generation(),
+              : pendingWave(),
                 pendingBoundaries()
           {
           }
 
-          void ensurePendingWave()
-          {
-            generation.ensureActive();
-          }
-
           const SceneProjectionTransaction &projectionTransaction() const
           {
-            return projection;
+            return pendingWave.projectionTransaction();
           }
 
           NodeDirtyFlags aggregateDirtyFlags() const
           {
-            return projection.aggregateDirtyFlags();
+            return pendingWave.aggregateDirtyFlags();
           }
 
           void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
           {
-            ensurePendingWave();
-            projection.enqueue(node, flags);
+            pendingWave.enqueueTarget(node, flags);
           }
 
           BoundaryNode *firstPendingBoundary() const
@@ -183,12 +219,12 @@ namespace loka
 
           bool hasPendingWave() const
           {
-            return projection.hasPending();
+            return pendingWave.hasPending();
           }
 
           unsigned long pendingGeneration() const
           {
-            return hasPendingWave() ? generation.current() : 0;
+            return pendingWave.pendingGeneration();
           }
 
           void enqueuePendingBoundary(BoundaryNode *boundary);
@@ -219,13 +255,11 @@ namespace loka
 
           void clear()
           {
-            projection.clear();
-            generation.clear();
+            pendingWave.clear();
             pendingBoundaries.clear();
           }
 
-          SceneProjectionTransaction projection;
-          PendingWaveGeneration generation;
+          PendingProjectionWave pendingWave;
           PendingBoundaryQueue pendingBoundaries;
         };
 
