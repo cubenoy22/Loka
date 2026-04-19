@@ -194,12 +194,12 @@ namespace loka
 
           bool hasPendingWave() const
           {
-            return generation.current() != 0 && projection.hasPending();
+            return projection.hasPending();
           }
 
           unsigned long pendingGeneration() const
           {
-            return generation.current();
+            return hasPendingWave() ? generation.current() : 0;
           }
 
           void enqueuePendingBoundary(BoundaryNode *boundary);
@@ -258,7 +258,6 @@ namespace loka
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
-        unsigned long pendingGeneration() const;
         bool requiresLayout() const;
         bool requiresCompositedPaint() const;
         bool requiresStructure(const Scene *scene) const;
@@ -274,6 +273,12 @@ namespace loka
         bool shouldSkipGlobalChange(IPlatformController *platformController,
                                     const PlatformApplyPlan &plan) const;
         void clearPendingBoundaryRequest();
+#ifdef TEST_BUILD
+        unsigned long projectionTransactionGenerationForTesting() const
+        {
+          return updateTransaction_.pendingGeneration();
+        }
+#endif
 
       private:
         void enqueueBoundary(BoundaryNode *boundary);

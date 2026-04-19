@@ -719,11 +719,6 @@ namespace loka
         return nextPendingUpdateRoot(0);
       }
 
-      inline unsigned long SceneDirector::pendingGeneration() const
-      {
-        return updateTransaction_.pendingGeneration();
-      }
-
       inline bool SceneDirector::requiresLayout() const
       {
         BoundaryNode *root = firstPendingUpdateRoot();
