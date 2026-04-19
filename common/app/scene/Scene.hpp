@@ -46,6 +46,7 @@ namespace loka
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot);
       inline static bool CanRelaxFullRebuildForChildOnlyUpdate(const SceneDirector::SceneUpdateSnapshot &snapshot);
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot);
+      inline static PlatformApplyPlan::PaintKind ResolvePaintKind(const SceneDirector::SceneUpdateSnapshot &snapshot);
 
       class Scene
       {
@@ -945,22 +946,8 @@ namespace loka
         PlatformApplyPlan plan;
         plan.structureChanged = snapshot.requiresStructureChange();
         plan.layoutChanged = snapshot.requiresLayoutChange();
-        if (snapshot.hasAnyPaintChange())
-        {
-          plan.paintKind = PlatformApplyPlan::PAINT_LOCAL;
-        }
-        if (snapshot.requiresOpaqueLocalPaint())
-        {
-          plan.paintKind = PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
-        }
-        if (snapshot.requiresCompositedPaint())
-        {
-          plan.paintKind = PlatformApplyPlan::PAINT_COMPOSITED;
-        }
-        BoundaryNode *primaryRoot = snapshot.request.primaryRoot();
-        plan.structureRoot = primaryRoot;
-        plan.layoutRoot = primaryRoot;
-        plan.paintRoot = primaryRoot;
+        plan.paintKind = ResolvePaintKind(snapshot);
+        plan.setPrimaryRoot(snapshot.request.primaryRoot());
         return plan;
       }
 
@@ -1164,6 +1151,23 @@ namespace loka
         }
         BoundaryNode *rootBoundary = snapshot.request.rootBoundary;
         return rootBoundary && rootBoundary->canApplyLocalCompositionDiff();
+      }
+
+      inline static PlatformApplyPlan::PaintKind ResolvePaintKind(const SceneDirector::SceneUpdateSnapshot &snapshot)
+      {
+        if (snapshot.requiresCompositedPaint())
+        {
+          return PlatformApplyPlan::PAINT_COMPOSITED;
+        }
+        if (snapshot.requiresOpaqueLocalPaint())
+        {
+          return PlatformApplyPlan::PAINT_LOCAL_OPAQUE;
+        }
+        if (snapshot.hasAnyPaintChange())
+        {
+          return PlatformApplyPlan::PAINT_LOCAL;
+        }
+        return PlatformApplyPlan::PAINT_NONE;
       }
 
       inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const

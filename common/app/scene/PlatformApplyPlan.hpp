@@ -39,6 +39,13 @@ namespace loka
           paintRoot = 0;
         }
 
+        void setPrimaryRoot(BoundaryNode *boundary)
+        {
+          structureRoot = boundary;
+          layoutRoot = boundary;
+          paintRoot = boundary;
+        }
+
         PlatformApplyPlan forBoundary(BoundaryNode *boundary) const
         {
           PlatformApplyPlan localized = *this;
