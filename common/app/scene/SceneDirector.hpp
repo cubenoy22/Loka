@@ -42,6 +42,21 @@ namespace loka
             rootBoundary = 0;
           }
 
+          void includeDirtyFlags(NodeDirtyFlags flags)
+          {
+            effectiveDirtyFlags = static_cast<NodeDirtyFlags>(effectiveDirtyFlags | flags);
+          }
+
+          bool hasEffectiveDirtyFlag(NodeDirtyFlags flags) const
+          {
+            return (effectiveDirtyFlags & flags) != 0;
+          }
+
+          void relaxFullRebuild()
+          {
+            effectiveFullRebuild = false;
+          }
+
           NodeDirtyFlags requestedDirtyFlags;
           NodeDirtyFlags transactionDirtyFlags;
           NodeDirtyFlags effectiveDirtyFlags;
@@ -244,11 +259,11 @@ namespace loka
             const NodeDirtyFlags transactionDirtyFlags = aggregateDirtyFlags();
             snapshot.requestedDirtyFlags = requestedDirtyFlags;
             snapshot.transactionDirtyFlags = transactionDirtyFlags;
-            snapshot.effectiveDirtyFlags =
-                static_cast<NodeDirtyFlags>(requestedDirtyFlags | transactionDirtyFlags);
+            snapshot.includeDirtyFlags(requestedDirtyFlags);
+            snapshot.includeDirtyFlags(transactionDirtyFlags);
             snapshot.requestedFullRebuild = requestedFullRebuild;
             snapshot.effectiveFullRebuild =
-                requestedFullRebuild || ((snapshot.effectiveDirtyFlags & (NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0);
+                requestedFullRebuild || snapshot.hasEffectiveDirtyFlag(static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL));
             snapshot.firstPendingRoot = firstPendingRoot;
             snapshot.rootBoundary = rootNode ? rootNode->asBoundary() : 0;
             return snapshot;

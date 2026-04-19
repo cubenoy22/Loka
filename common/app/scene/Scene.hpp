@@ -911,7 +911,7 @@ namespace loka
         snapshot.apply.requiresLayout = requiresLayout();
         if (snapshot.apply.requiresLayout)
         {
-          snapshot.request.effectiveDirtyFlags = static_cast<NodeDirtyFlags>(snapshot.request.effectiveDirtyFlags | NODE_DIRTY_LAYOUT);
+          snapshot.request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
         }
         snapshot.apply.requiresStructure = requiresStructure(scene);
         snapshot.apply.requiresCompositedPaint = requiresCompositedPaint();
@@ -919,20 +919,20 @@ namespace loka
         snapshot.apply.canApplyLocalCompositionDiff = canApplyLocalCompositionDiff();
         if (snapshot.request.effectiveFullRebuild && snapshot.apply.canApplyLocalCompositionDiff)
         {
-          snapshot.request.effectiveFullRebuild = false;
+          snapshot.request.relaxFullRebuild();
         }
         else if (snapshot.request.effectiveFullRebuild &&
-                 (snapshot.request.effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 &&
+                 snapshot.request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
                  !snapshot.apply.requiresStructure)
         {
-          snapshot.request.effectiveFullRebuild = false;
+          snapshot.request.relaxFullRebuild();
         }
         else if (snapshot.request.effectiveFullRebuild)
         {
           BoundaryNode *rootBoundary = snapshot.request.rootBoundary;
           if (rootBoundary && rootBoundary->canApplyLocalCompositionDiff())
           {
-            snapshot.request.effectiveFullRebuild = false;
+            snapshot.request.relaxFullRebuild();
           }
         }
         return snapshot;
