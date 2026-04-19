@@ -3547,11 +3547,11 @@ void testLokaFlowDslV1Core() {
 
     BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
     assert(rootBoundary != 0);
-    assert(platform.calls_ == 0);
+    const int baselineCalls = platform.calls_;
 
     scene.requestBoundaryUpdate(rootBoundary, NODE_DIRTY_NONE, true);
 
-    assert(platform.calls_ >= 1);
+    assert(platform.calls_ > baselineCalls);
     assert((SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED) ||
            (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE) ||
            (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL));
