@@ -910,10 +910,21 @@ namespace loka
         return nextPendingUpdateRoot(0);
       }
 
+      inline BoundaryNode *SceneDirector::rootBoundaryFor(Node *rootNode) const
+      {
+        return rootNode ? rootNode->asBoundary() : 0;
+      }
+
+      inline BoundaryNode *SceneDirector::primaryUpdateRootFor(Node *rootNode) const
+      {
+        BoundaryNode *root = firstPendingUpdateRoot();
+        return root ? root : rootBoundaryFor(rootNode);
+      }
+
       inline SceneDirector::SceneUpdateRequestSnapshot SceneDirector::buildRefreshRequestSnapshot(Node *rootNode) const
       {
-        return updateTransaction_.buildRequestSnapshot(rootNode ? rootNode->asBoundary() : 0,
-                                                       firstPendingUpdateRoot());
+        return updateTransaction_.buildRequestSnapshot(rootBoundaryFor(rootNode),
+                                                       primaryUpdateRootFor(rootNode));
       }
 
       inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
@@ -1119,11 +1130,7 @@ namespace loka
       inline void SceneDirector::applyPendingBoundaryUpdates(Node *rootNode,
                                                              const PlatformApplyPlan &plan) const
       {
-        BoundaryNode *root = firstPendingUpdateRoot();
-        if (!root)
-        {
-          root = rootNode ? rootNode->asBoundary() : 0;
-        }
+        BoundaryNode *root = primaryUpdateRootFor(rootNode);
         while (root)
         {
           BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
@@ -1166,24 +1173,9 @@ namespace loka
         return false;
       }
 
-      inline SceneDirector::PendingUpdateRootAnalysis::PendingUpdateRootAnalysis(const SceneDirector *director,
-                                                                                 BoundaryNode *afterRoot)
-          : director(director), afterRoot(afterRoot), started(afterRoot == 0)
+      inline SceneDirector::PendingUpdateRootAnalysis::PendingUpdateRootAnalysis(const SceneDirector *director)
+          : director(director)
       {
-      }
-
-      inline bool SceneDirector::PendingUpdateRootAnalysis::shouldStart(BoundaryNode *root)
-      {
-        if (started)
-        {
-          return true;
-        }
-        if (root == afterRoot)
-        {
-          started = true;
-          return false;
-        }
-        return false;
       }
 
       inline bool SceneDirector::PendingUpdateRootAnalysis::hasEquivalentDescendant(BoundaryNode *root) const
@@ -1286,15 +1278,17 @@ namespace loka
 
       inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const
       {
-        PendingUpdateRootAnalysis analysis(this, afterRoot);
+        PendingUpdateRootAnalysis analysis(this);
+        bool started = afterRoot == 0;
         BoundaryNode *boundary = updateTransaction_.firstPendingBoundary();
         while (boundary)
         {
           BoundaryNode *root = topMostRequestedBoundary(boundary);
           if (root)
           {
-            if (!analysis.shouldStart(root))
+            if (!started)
             {
+              started = root == afterRoot;
               boundary = updateTransaction_.nextPendingBoundary(boundary);
               continue;
             }

@@ -541,9 +541,11 @@ namespace loka
         bool hasPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *firstPendingBoundary() const;
         BoundaryNode *nextPendingBoundary(const BoundaryNode *boundary) const;
+        BoundaryNode *rootBoundaryFor(Node *rootNode) const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
+        BoundaryNode *primaryUpdateRootFor(Node *rootNode) const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
         SceneUpdateRequestSnapshot buildRefreshRequestSnapshot(Node *rootNode) const;
         SceneUpdateApplySnapshot buildApplySnapshot(const Scene *scene) const;
@@ -570,17 +572,12 @@ namespace loka
       private:
         struct PendingUpdateRootAnalysis
         {
-          PendingUpdateRootAnalysis(const SceneDirector *director,
-                                    BoundaryNode *afterRoot);
-
-          bool shouldStart(BoundaryNode *root);
+          explicit PendingUpdateRootAnalysis(const SceneDirector *director);
           bool hasEquivalentDescendant(BoundaryNode *root) const;
           bool hasSeenRootBefore(BoundaryNode *boundary, BoundaryNode *root) const;
           bool shouldSkip(BoundaryNode *boundary, BoundaryNode *root) const;
 
           const SceneDirector *director;
-          BoundaryNode *afterRoot;
-          bool started;
         };
 
         BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
