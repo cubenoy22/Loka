@@ -1033,6 +1033,36 @@ namespace loka
           bool sawRoot;
         };
 
+        struct RootStructureDecision
+        {
+          RootStructureDecision(const BoundaryComposeResult &composeResult,
+                                const NodeCompositionDiff *diff,
+                                NodeDirtyFlags effectiveDirtyFlags)
+              : composed(composeResult.composed),
+                hasDiff(diff != 0),
+                diffEmpty(diff && diff->empty()),
+                diffCompatibleRetainOnly(diff && diff->isCompatibleRetainOnly()),
+                childDirty((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0),
+                requiresStructure(false)
+          {
+            if (!composed || !hasDiff)
+            {
+              requiresStructure = !childDirty;
+            }
+            else if (!(childDirty && diffEmpty))
+            {
+              requiresStructure = !diffCompatibleRetainOnly;
+            }
+          }
+
+          bool composed;
+          bool hasDiff;
+          bool diffEmpty;
+          bool diffCompatibleRetainOnly;
+          bool childDirty;
+          bool requiresStructure;
+        };
+
         ApplySnapshotAccumulator accumulator;
         BoundaryNode *root = firstPendingUpdateRoot();
         while (root)
@@ -1043,10 +1073,9 @@ namespace loka
 
           const BoundaryComposeResult &composeResult = root->composeResult();
           const NodeCompositionDiff *diff = root->localCompositionDiff();
-          const bool diffEmpty = diff && diff->empty();
-          const bool diffCompatibleRetainOnly = diff && diff->isCompatibleRetainOnly();
           const NodeDirtyFlags effectiveDirtyFlags =
               static_cast<NodeDirtyFlags>(pendingDirtyFlagsForBoundary(root) | composeResult.dirtyFlagsSeen);
+          const RootStructureDecision structureDecision(composeResult, diff, effectiveDirtyFlags);
           const INestable *rootNestable = root->asNestable();
           const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
@@ -1079,12 +1108,12 @@ namespace loka
                                                        static_cast<void *>(root),
                                                        static_cast<unsigned int>(effectiveDirtyFlags),
                                                        0,
-                                                       diff ? 1 : 0,
-                                                       diffEmpty ? 1 : 0,
-                                                       diffCompatibleRetainOnly ? 1 : 0,
-                                                       ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
+                                                       structureDecision.hasDiff ? 1 : 0,
+                                                       structureDecision.diffEmpty ? 1 : 0,
+                                                       structureDecision.diffCompatibleRetainOnly ? 1 : 0,
+                                                       structureDecision.requiresStructure ? 1 : 0);
 #endif
-            accumulator.observeStructureRequirement((effectiveDirtyFlags & NODE_DIRTY_CHILD) == 0);
+            accumulator.observeStructureRequirement(structureDecision.requiresStructure);
           }
           else if (!diff)
           {
@@ -1096,11 +1125,11 @@ namespace loka
                                                        0,
                                                        0,
                                                        0,
-                                                       ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
+                                                       structureDecision.requiresStructure ? 1 : 0);
 #endif
-            accumulator.observeStructureRequirement((effectiveDirtyFlags & NODE_DIRTY_CHILD) == 0);
+            accumulator.observeStructureRequirement(structureDecision.requiresStructure);
           }
-          else if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 && diffEmpty)
+          else if (structureDecision.childDirty && structureDecision.diffEmpty)
           {
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
             loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
@@ -1109,8 +1138,8 @@ namespace loka
                                                        1,
                                                        1,
                                                        1,
-                                                       diffCompatibleRetainOnly ? 1 : 0,
-                                                       0);
+                                                       structureDecision.diffCompatibleRetainOnly ? 1 : 0,
+                                                       structureDecision.requiresStructure ? 1 : 0);
 #endif
           }
           else
@@ -1121,11 +1150,11 @@ namespace loka
                                                        static_cast<unsigned int>(effectiveDirtyFlags),
                                                        1,
                                                        1,
-                                                       diffEmpty ? 1 : 0,
-                                                       diffCompatibleRetainOnly ? 1 : 0,
-                                                       diffCompatibleRetainOnly ? 0 : 1);
+                                                       structureDecision.diffEmpty ? 1 : 0,
+                                                       structureDecision.diffCompatibleRetainOnly ? 1 : 0,
+                                                       structureDecision.requiresStructure ? 1 : 0);
 #endif
-            accumulator.observeStructureRequirement(!diffCompatibleRetainOnly);
+            accumulator.observeStructureRequirement(structureDecision.requiresStructure);
           }
 
           accumulator.observeComposeResult(composeResult);
