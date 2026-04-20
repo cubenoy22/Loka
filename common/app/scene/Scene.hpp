@@ -755,36 +755,6 @@ namespace loka
         return nextPendingUpdateRoot(0);
       }
 
-      inline bool SceneDirector::requiresLayout() const
-      {
-        BoundaryNode *root = firstPendingUpdateRoot();
-        while (root)
-        {
-          const BoundaryUpdateResult &result = root->updateResult();
-          if (result.actualBoundsChanged || result.affectsAncestorLayout)
-          {
-            return true;
-          }
-          root = nextPendingUpdateRoot(root);
-        }
-        return false;
-      }
-
-      inline bool SceneDirector::requiresCompositedPaint() const
-      {
-        BoundaryNode *root = firstPendingUpdateRoot();
-        while (root)
-        {
-          const BoundaryUpdateResult &result = root->updateResult();
-          if (result.requiresCompositedPaint())
-          {
-            return true;
-          }
-          root = nextPendingUpdateRoot(root);
-        }
-        return false;
-      }
-
       inline bool SceneDirector::requiresStructure(const Scene *scene) const
       {
         BoundaryNode *root = firstPendingUpdateRoot();
@@ -868,37 +838,65 @@ namespace loka
         return false;
       }
 
-      inline bool SceneDirector::hasOpaqueLocalPaint() const
+      inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
+                                                                                   const Scene *scene) const
       {
-        BoundaryNode *root = firstPendingUpdateRoot();
-        bool sawPaint = false;
-        while (root)
+        SceneUpdateSnapshot snapshot;
+        snapshot.setGeneration(updateTransaction_.snapshotGeneration());
+        snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode ? rootNode->asBoundary() : 0,
+                                                                    firstPendingUpdateRoot()));
+        if (!snapshot.hasGeneration())
         {
-          const BoundaryUpdateResult &result = root->updateResult();
-          if (result.requiresCompositedPaint())
-          {
-            return false;
-          }
-          if (result.hasPaintWork())
-          {
-            sawPaint = true;
-            if (!result.hasOpaqueCoverageHint() || !result.opaqueCoverageHintValue())
-            {
-              return false;
-            }
-          }
-          root = nextPendingUpdateRoot(root);
+          return snapshot;
         }
-        return sawPaint;
+        snapshot.setApply(buildApplySnapshot(scene));
+        if (snapshot.apply.layoutRequired())
+        {
+          snapshot.request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
+        }
+        if (CanRelaxFullRebuildForLocalDiff(snapshot) ||
+            CanRelaxFullRebuildForChildOnlyUpdate(snapshot) ||
+            CanRelaxFullRebuildForRootBoundary(snapshot))
+        {
+          snapshot.request.relaxFullRebuild();
+        }
+        return snapshot;
       }
 
-      inline bool SceneDirector::canApplyLocalCompositionDiff() const
+      inline SceneDirector::SceneUpdateApplySnapshot SceneDirector::buildApplySnapshot(const Scene *scene) const
       {
+        SceneUpdateApplySnapshot applySnapshot;
+        const bool structureRequired = requiresStructure(scene);
+        bool layoutRequired = false;
+        bool requiresCompositedPaint = false;
+        bool hasOpaqueLocalPaint = false;
+        bool canApplyLocalCompositionDiff = true;
+        bool sawPaintWork = false;
         bool sawRoot = false;
         BoundaryNode *root = firstPendingUpdateRoot();
         while (root)
         {
-          const BoundaryComposeResult &result = root->composeResult();
+          sawRoot = true;
+          const BoundaryUpdateResult &updateResult = root->updateResult();
+          if (updateResult.actualBoundsChanged || updateResult.affectsAncestorLayout)
+          {
+            layoutRequired = true;
+          }
+          if (updateResult.requiresCompositedPaint())
+          {
+            requiresCompositedPaint = true;
+            hasOpaqueLocalPaint = false;
+          }
+          else if (updateResult.hasPaintWork())
+          {
+            sawPaintWork = true;
+            if (!updateResult.hasOpaqueCoverageHint() || !updateResult.opaqueCoverageHintValue())
+            {
+              hasOpaqueLocalPaint = false;
+            }
+          }
+
+          const BoundaryComposeResult &composeResult = root->composeResult();
           const NodeCompositionDiff *diff = root->localCompositionDiff();
           const INestable *rootNestable = root->asNestable();
           const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
@@ -915,9 +913,9 @@ namespace loka
                                                    firstChild ? firstChild->testId().c_str() : "");
           loka::platform::DebugLogSceneRootDiffDecision(static_cast<void *>(root->scene()),
                                                        static_cast<void *>(root),
-                                                       static_cast<unsigned int>(result.dirtyFlagsSeen),
-                                                       result.composed ? 1 : 0,
-                                                       result.preservedNativeContexts ? 1 : 0);
+                                                       static_cast<unsigned int>(composeResult.dirtyFlagsSeen),
+                                                       composeResult.composed ? 1 : 0,
+                                                       composeResult.preservedNativeContexts ? 1 : 0);
           loka::platform::DebugLogSceneRootDiffShape(static_cast<void *>(root->scene()),
                                                     static_cast<void *>(root),
                                                     diff ? static_cast<int>(diff->entryCount()) : 0,
@@ -925,43 +923,29 @@ namespace loka
                                                     (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
                                                     (diff && diff->isStableRetainOnly()) ? 1 : 0);
 #endif
-          if (!result.composed || !result.preservedNativeContexts)
+          if (!composeResult.composed || !composeResult.preservedNativeContexts)
           {
-            return false;
+            canApplyLocalCompositionDiff = false;
           }
-          sawRoot = true;
+
           root = nextPendingUpdateRoot(root);
         }
-        return sawRoot;
-      }
 
-      inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
-                                                                                   const Scene *scene) const
-      {
-        SceneUpdateSnapshot snapshot;
-        snapshot.setGeneration(updateTransaction_.snapshotGeneration());
-        snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode ? rootNode->asBoundary() : 0,
-                                                                    firstPendingUpdateRoot()));
-        if (!snapshot.hasGeneration())
+        if (requiresCompositedPaint)
         {
-          return snapshot;
+          hasOpaqueLocalPaint = false;
         }
-        snapshot.apply.setRequirements(requiresLayout(),
-                                       requiresStructure(scene),
-                                       requiresCompositedPaint(),
-                                       hasOpaqueLocalPaint(),
-                                       canApplyLocalCompositionDiff());
-        if (snapshot.apply.layoutRequired())
+        else
         {
-          snapshot.request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
+          hasOpaqueLocalPaint = sawPaintWork;
         }
-        if (CanRelaxFullRebuildForLocalDiff(snapshot) ||
-            CanRelaxFullRebuildForChildOnlyUpdate(snapshot) ||
-            CanRelaxFullRebuildForRootBoundary(snapshot))
-        {
-          snapshot.request.relaxFullRebuild();
-        }
-        return snapshot;
+        canApplyLocalCompositionDiff = canApplyLocalCompositionDiff && sawRoot;
+        applySnapshot.setRequirements(layoutRequired,
+                                      structureRequired,
+                                      requiresCompositedPaint,
+                                      hasOpaqueLocalPaint,
+                                      canApplyLocalCompositionDiff);
+        return applySnapshot;
       }
 
       inline PlatformApplyPlan SceneDirector::buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const

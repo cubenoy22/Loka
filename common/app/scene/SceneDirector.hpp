@@ -202,6 +202,11 @@ namespace loka
             request = value;
           }
 
+          void setApply(const SceneUpdateApplySnapshot &value)
+          {
+            apply = value;
+          }
+
           bool hasGeneration() const
           {
             return generation != 0;
@@ -522,7 +527,7 @@ namespace loka
             }
             return 0;
           }
-        public:
+
           TransactionSnapshot transactionSnapshot;
         };
 
@@ -548,13 +553,10 @@ namespace loka
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
-        bool requiresLayout() const;
-        bool requiresCompositedPaint() const;
         bool requiresStructure(const Scene *scene) const;
-        bool hasOpaqueLocalPaint() const;
-        bool canApplyLocalCompositionDiff() const;
+        SceneUpdateApplySnapshot buildApplySnapshot(const Scene *scene) const;
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
-                                                const Scene *scene) const;
+                                               const Scene *scene) const;
         PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
                                          const PlatformApplyPlan &plan) const;
