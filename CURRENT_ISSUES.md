@@ -239,6 +239,84 @@ The intended model is:
 - host/native/UI is an observed mirror of that truth
 - older host results must never overwrite newer logical truth
 
+## Lifetime And Ownership Rules
+
+The refactor work is also clarifying a broader Loka memory/lifetime rule that was only partially implicit before.
+
+### 1. Event-cycle-local data should stay local
+
+If a value exists only to interpret one compose/apply pass, it should remain:
+
+- stack-local
+- boundary-local temporary scope
+- immutable or obviously one-shot mutable helper
+
+Examples:
+
+- local traversal cursors
+- pass-local analysis helpers
+- one-pass derived disposition/projection facts
+
+These should not become long-lived node fields only because they are convenient to access later.
+
+### 2. If it crosses an event cycle, it must have an owner
+
+If state survives beyond the current event cycle, it must be explicitly owned by a retained object.
+
+Expected owners are:
+
+- `Scene`
+- `SceneDirector`
+- `Boundary`
+- retained node/context-local platform objects
+
+This is the practical rule:
+
+- event-cycle-local => local temporary data
+- crosses an event cycle => explicit owner required
+
+Anything heap-allocated or deferred without a clear owner should be treated as suspicious.
+
+### 3. Transactions should be committed at `Scene`
+
+For the future projection/command direction, the current best ownership split is:
+
+- changes originate near `Boundary`
+- pending transactions live under `Scene`
+- commit/flush/cancel happens at `Scene`
+
+Why this is preferable:
+
+- `Boundary` is close to dirty detection and local truth
+- `Scene` already owns flush timing, unmount, scene switch, and window teardown
+- pending work can be cancelled in one place when a `Scene` or `Window` is destroyed
+
+In other words:
+
+- `Boundary` should emit / enqueue
+- `Scene` should commit / flush / cancel
+
+This keeps pending work aligned with the owner that can actually dispose it safely.
+
+### 4. Naming should reflect lifetime
+
+The refactor should keep pushing types toward names that reveal their lifecycle:
+
+- `Snapshot` / `Analysis` / `Plan`
+  should lean immutable / one-shot
+- `Cursor` / `Traversal` / `Builder`
+  may be mutable, but should remain short-lived and local
+- long-lived retained state
+  should live on `Scene` / `Boundary` / retained context objects
+
+This is why mixed helpers such as an "analysis" object with iterator state still feel wrong:
+
+- the name suggests immutable one-shot interpretation
+- the implementation behaves like a mutable traversal cursor
+
+The long-term goal is not just cleaner names.
+It is making data lifetime visible from structure.
+
 This matters even for local native UI.
 Dialogs, timers, deferred callbacks, and retained controls already behave like a delayed host.
 In other words, the architecture should be friendly not only to local retained UI, but also to future SSR-like / remote-host use cases.
