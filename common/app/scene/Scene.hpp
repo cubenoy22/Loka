@@ -90,11 +90,11 @@ namespace loka
             lastAppliedSnapshot.clear();
           }
 
-          void beginRefresh(NodeDirtyFlags flags, bool fullRebuild)
+          void beginRefresh(const SceneDirector::SceneUpdateRequestSnapshot &request)
           {
             compositionDiff.valid = true;
-            compositionDiff.flags = flags;
-            compositionDiff.fullRebuild = fullRebuild;
+            compositionDiff.flags = request.effectiveDirtyFlags;
+            compositionDiff.fullRebuild = request.effectiveFullRebuild;
           }
 
           void recordPendingSnapshot(const SceneDirector::SceneUpdateSnapshot &snapshot)
@@ -116,6 +116,62 @@ namespace loka
             return compositionDiff.flags == NODE_DIRTY_NONE ? NODE_DIRTY_PROPS : compositionDiff.flags;
           }
 
+          NodeDirtyFlags refreshDirtyFlags() const
+          {
+            return compositionDiff.flags;
+          }
+
+          bool refreshFullRebuild() const
+          {
+            return compositionDiff.fullRebuild;
+          }
+
+          NodeDirtyFlags effectivePendingRequestDirtyFlags() const
+          {
+            return pendingSnapshot.request.effectiveDirtyFlags;
+          }
+
+          NodeDirtyFlags aggregateTransactionDirtyFlags() const
+          {
+            return pendingSnapshot.request.transactionDirtyFlags;
+          }
+
+          bool refreshStructureRequired() const
+          {
+            return pendingSnapshot.apply.structureRequired();
+          }
+
+          bool refreshLayoutRequired() const
+          {
+            return pendingSnapshot.apply.layoutRequired();
+          }
+
+          bool refreshLocalCompositionDiffApplicable() const
+          {
+            return pendingSnapshot.apply.localCompositionDiffApplicable();
+          }
+
+          const SceneCompositionDiff &compositionDiffValue() const
+          {
+            return compositionDiff;
+          }
+
+          const PlatformApplyPlan &lastApplyPlanValue() const
+          {
+            return lastApplyPlan;
+          }
+
+          const SceneDirector::SceneUpdateSnapshot &pendingSnapshotValue() const
+          {
+            return pendingSnapshot;
+          }
+
+          const SceneDirector::SceneUpdateSnapshot &lastAppliedSnapshotValue() const
+          {
+            return lastAppliedSnapshot;
+          }
+
+        private:
           SceneCompositionDiff compositionDiff;
           PlatformApplyPlan lastApplyPlan;
           SceneDirector::SceneUpdateSnapshot pendingSnapshot;
@@ -158,7 +214,7 @@ namespace loka
         NodeDefinitionBase *getRootDefinition() const { return rootDefinition_; }
         Window *getWindow() const { return window_; }
         void setWindow(Window *window) { window_ = window; }
-        const SceneCompositionDiff &compositionDiff() const { return updateCycleState_.compositionDiff; }
+        const SceneCompositionDiff &compositionDiff() const { return updateCycleState_.compositionDiffValue(); }
         const SceneProjectionTransaction &projectionTransaction() const { return director_.projectionTransaction(); }
         SceneDirector &director() { return director_; }
         const SceneDirector &director() const { return director_; }
@@ -307,8 +363,7 @@ namespace loka
 
         void beginPendingRefreshCycle()
         {
-          updateCycleState_.beginRefresh(director_.effectiveRequestedDirtyFlags(),
-                                         director_.requestedFullRebuild());
+          updateCycleState_.beginRefresh(director_.buildRefreshRequestSnapshot(rootNode_));
         }
 
         SceneDirector::SceneUpdateSnapshot buildPendingRefreshSnapshot() const
@@ -334,11 +389,10 @@ namespace loka
         void logRefreshDecision() const
         {
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-          const SceneDirector::SceneUpdateSnapshot &snapshot = updateCycleState_.pendingSnapshot;
           loka::platform::DebugLogSceneDecision(sceneIdentity(),
-                                                snapshot.apply.structureRequired() ? 1 : 0,
-                                                snapshot.apply.layoutRequired() ? 1 : 0,
-                                                snapshot.apply.localCompositionDiffApplicable() ? 1 : 0);
+                                                updateCycleState_.refreshStructureRequired() ? 1 : 0,
+                                                updateCycleState_.refreshLayoutRequired() ? 1 : 0,
+                                                updateCycleState_.refreshLocalCompositionDiffApplicable() ? 1 : 0);
 #endif
         }
 
@@ -347,9 +401,9 @@ namespace loka
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneFlags(sceneIdentity(),
                                             "refresh",
-                                            static_cast<unsigned int>(updateCycleState_.compositionDiff.flags),
-                                            static_cast<unsigned int>(updateCycleState_.pendingSnapshot.request.effectiveDirtyFlags),
-                                            updateCycleState_.compositionDiff.fullRebuild ? 1 : 0);
+                                            static_cast<unsigned int>(updateCycleState_.refreshDirtyFlags()),
+                                            static_cast<unsigned int>(updateCycleState_.effectivePendingRequestDirtyFlags()),
+                                            updateCycleState_.refreshFullRebuild() ? 1 : 0);
 #endif
         }
 
@@ -359,8 +413,8 @@ namespace loka
           loka::platform::DebugLogSceneFlags(sceneIdentity(),
                                             "apply",
                                             static_cast<unsigned int>(flags),
-                                            static_cast<unsigned int>(director_.aggregateDirtyFlags()),
-                                            updateCycleState_.compositionDiff.fullRebuild ? 1 : 0);
+                                            static_cast<unsigned int>(updateCycleState_.aggregateTransactionDirtyFlags()),
+                                            updateCycleState_.refreshFullRebuild() ? 1 : 0);
 #endif
         }
 
@@ -373,9 +427,9 @@ namespace loka
         {
           return director_.executeApplyPlan(rootNode_,
                                             platformController_,
-                                            updateCycleState_.pendingSnapshot,
+                                            updateCycleState_.pendingSnapshotValue(),
                                             flags,
-                                            updateCycleState_.compositionDiff.fullRebuild);
+                                            updateCycleState_.refreshFullRebuild());
         }
 
         void clearPendingRefreshCycle()
@@ -592,7 +646,7 @@ namespace loka
           rootContext.setPlatformController(platformController_);
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
-          rootContext.setDirtyFlags(updateCycleState_.compositionDiff.flags);
+          rootContext.setDirtyFlags(updateCycleState_.refreshDirtyFlags());
           if (rootDefinition_ && !rootDefinition_->isBoundary())
           {
             BoundaryNode::composeSubtree(rootNode_, rootContext, event, 0);
@@ -856,13 +910,18 @@ namespace loka
         return nextPendingUpdateRoot(0);
       }
 
+      inline SceneDirector::SceneUpdateRequestSnapshot SceneDirector::buildRefreshRequestSnapshot(Node *rootNode) const
+      {
+        return updateTransaction_.buildRequestSnapshot(rootNode ? rootNode->asBoundary() : 0,
+                                                       firstPendingUpdateRoot());
+      }
+
       inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
                                                                                    const Scene *scene) const
       {
         SceneUpdateSnapshot snapshot;
         snapshot.setGeneration(updateTransaction_.snapshotGeneration());
-        snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode ? rootNode->asBoundary() : 0,
-                                                                    firstPendingUpdateRoot()));
+        snapshot.setRequest(buildRefreshRequestSnapshot(rootNode));
         if (!snapshot.hasGeneration())
         {
           return snapshot;

@@ -6,6 +6,14 @@
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class SceneTestAccess;
+    }
+  }
+
   namespace app
   {
     namespace scene
@@ -529,11 +537,6 @@ namespace loka
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
         const SceneProjectionTransaction &projectionTransaction() const;
-        NodeDirtyFlags aggregateDirtyFlags() const;
-        NodeDirtyFlags requestedDirtyFlags() const;
-        NodeDirtyFlags effectiveRequestedDirtyFlags() const;
-        bool hasRequestedInput() const;
-        bool requestedFullRebuild() const;
         NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const;
         bool hasPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *firstPendingBoundary() const;
@@ -542,6 +545,7 @@ namespace loka
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
+        SceneUpdateRequestSnapshot buildRefreshRequestSnapshot(Node *rootNode) const;
         SceneUpdateApplySnapshot buildApplySnapshot(const Scene *scene) const;
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
                                                const Scene *scene) const;
@@ -583,9 +587,16 @@ namespace loka
                                                             NodeDirtyFlags flags,
                                                             bool flushImmediately) const;
         void applyBoundaryUpdateRequest(const BoundaryUpdateRequest &request) const;
+        NodeDirtyFlags aggregateDirtyFlags() const;
+        NodeDirtyFlags requestedDirtyFlags() const;
+        NodeDirtyFlags effectiveRequestedDirtyFlags() const;
+        bool hasRequestedInput() const;
+        bool requestedFullRebuild() const;
 
         Scene *scene_;
         SceneUpdateTransaction updateTransaction_;
+
+        friend class ::loka::dsl::testing::SceneTestAccess;
       };
     } // namespace scene
   } // namespace app
