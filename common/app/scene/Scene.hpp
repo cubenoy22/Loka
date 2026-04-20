@@ -940,7 +940,7 @@ namespace loka
       {
         SceneUpdateSnapshot snapshot;
         snapshot.setGeneration(updateTransaction_.snapshotGeneration());
-        snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode,
+        snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode ? rootNode->asBoundary() : 0,
                                                                     firstPendingUpdateRoot()));
         if (!snapshot.hasGeneration())
         {

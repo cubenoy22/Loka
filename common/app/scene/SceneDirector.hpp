@@ -381,6 +381,21 @@ namespace loka
               return requestedInput.fullRebuildRequested();
             }
 
+            SceneUpdateRequestSnapshot buildRequestSnapshot(BoundaryNode *rootBoundary,
+                                                            BoundaryNode *firstPendingRoot) const
+            {
+              SceneUpdateRequestSnapshot requestSnapshot;
+              if (!hasProjectionTargets())
+              {
+                return requestSnapshot;
+              }
+              requestSnapshot.setRequestedInput(effectiveRequestedDirtyFlags(), requestedFullRebuild(), rootBoundary);
+              requestSnapshot.setTransactionDirtyFlags(aggregateDirtyFlags());
+              requestSnapshot.deriveEffectiveFullRebuild();
+              requestSnapshot.setFirstPendingRoot(firstPendingRoot);
+              return requestSnapshot;
+            }
+
             void clear()
             {
               projection.clear();
@@ -484,39 +499,17 @@ namespace loka
 
           NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const
           {
-            if (!boundary)
-            {
-              return NODE_DIRTY_NONE;
-            }
-            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
-            while (entry)
-            {
-              if (static_cast<const void *>(entry->node) == static_cast<const void *>(boundary))
-              {
-                return entry->dirtyFlags;
-              }
-              entry = entry->next;
-            }
-            return NODE_DIRTY_NONE;
+            return projectionTransaction().dirtyFlagsForTargetIdentity(
+                SceneProjectionTransaction::TargetIdentity(static_cast<const void *>(boundary)));
           }
 
           void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
           void clearPendingState();
 
-          SceneUpdateRequestSnapshot buildRequestSnapshot(Node *rootNode,
+          SceneUpdateRequestSnapshot buildRequestSnapshot(BoundaryNode *rootBoundary,
                                                          BoundaryNode *firstPendingRoot) const
           {
-            SceneUpdateRequestSnapshot requestSnapshot;
-            if (!hasProjectionTargets())
-            {
-              return requestSnapshot;
-            }
-            const NodeDirtyFlags transactionDirtyFlags = aggregateDirtyFlags();
-            requestSnapshot.setRequestedInput(effectiveRequestedDirtyFlags(), requestedFullRebuild(), rootNode ? rootNode->asBoundary() : 0);
-            requestSnapshot.setTransactionDirtyFlags(transactionDirtyFlags);
-            requestSnapshot.deriveEffectiveFullRebuild();
-            requestSnapshot.setFirstPendingRoot(firstPendingRoot);
-            return requestSnapshot;
+            return transactionSnapshot.buildRequestSnapshot(rootBoundary, firstPendingRoot);
           }
 
           void clear()
