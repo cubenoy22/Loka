@@ -241,47 +241,6 @@ namespace loka
 
         struct SceneUpdateTransaction
         {
-          struct RequestedSceneInput
-          {
-            RequestedSceneInput()
-                : dirtyFlags(NODE_DIRTY_NONE),
-                  fullRebuild(false)
-            {
-            }
-
-            void clear()
-            {
-              dirtyFlags = NODE_DIRTY_NONE;
-              fullRebuild = false;
-            }
-
-            void include(NodeDirtyFlags flags)
-            {
-              if (flags == NODE_DIRTY_NONE)
-              {
-                flags = NODE_DIRTY_PROPS;
-              }
-              dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flags);
-              if ((flags & static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
-              {
-                fullRebuild = true;
-              }
-            }
-
-            NodeDirtyFlags effectiveDirtyFlags() const
-            {
-              return dirtyFlags == NODE_DIRTY_NONE ? NODE_DIRTY_PROPS : dirtyFlags;
-            }
-
-            bool hasPending() const
-            {
-              return dirtyFlags != NODE_DIRTY_NONE;
-            }
-
-            NodeDirtyFlags dirtyFlags;
-            bool fullRebuild;
-          };
-
           struct SnapshotGeneration
           {
             SnapshotGeneration()
@@ -314,6 +273,47 @@ namespace loka
 
           struct TransactionSnapshot
           {
+            struct RequestedInputState
+            {
+              RequestedInputState()
+                  : dirtyFlags(NODE_DIRTY_NONE),
+                    fullRebuild(false)
+              {
+              }
+
+              void clear()
+              {
+                dirtyFlags = NODE_DIRTY_NONE;
+                fullRebuild = false;
+              }
+
+              void include(NodeDirtyFlags flags)
+              {
+                if (flags == NODE_DIRTY_NONE)
+                {
+                  flags = NODE_DIRTY_PROPS;
+                }
+                dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flags);
+                if ((flags & static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
+                {
+                  fullRebuild = true;
+                }
+              }
+
+              NodeDirtyFlags effectiveDirtyFlags() const
+              {
+                return dirtyFlags == NODE_DIRTY_NONE ? NODE_DIRTY_PROPS : dirtyFlags;
+              }
+
+              bool hasRequestedInput() const
+              {
+                return dirtyFlags != NODE_DIRTY_NONE;
+              }
+
+              NodeDirtyFlags dirtyFlags;
+              bool fullRebuild;
+            };
+
             TransactionSnapshot()
                 : projection(), generation(), requestedInput()
             {
@@ -362,7 +362,7 @@ namespace loka
 
             bool hasRequestedInput() const
             {
-              return requestedInput.hasPending();
+              return requestedInput.hasRequestedInput();
             }
 
             bool requestedFullRebuild() const
@@ -379,7 +379,7 @@ namespace loka
 
             SceneProjectionTransaction projection;
             SnapshotGeneration generation;
-            RequestedSceneInput requestedInput;
+            RequestedInputState requestedInput;
           };
 
           SceneUpdateTransaction()
