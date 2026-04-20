@@ -939,7 +939,7 @@ namespace loka
                                                                                    const Scene *scene) const
       {
         SceneUpdateSnapshot snapshot;
-        snapshot.setGeneration(updateTransaction_.pendingGeneration());
+        snapshot.setGeneration(updateTransaction_.snapshotGeneration());
         snapshot.setRequest(updateTransaction_.buildRequestSnapshot(rootNode,
                                                                     firstPendingUpdateRoot()));
         if (!snapshot.hasGeneration())

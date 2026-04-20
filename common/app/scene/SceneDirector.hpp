@@ -345,7 +345,7 @@ namespace loka
               return projection.hasPending();
             }
 
-            unsigned long pendingGeneration() const
+            unsigned long snapshotGeneration() const
             {
               return hasPending() ? generation.current() : 0;
             }
@@ -440,9 +440,9 @@ namespace loka
             return transactionSnapshot.hasPending();
           }
 
-          unsigned long pendingGeneration() const
+          unsigned long snapshotGeneration() const
           {
-            return transactionSnapshot.pendingGeneration();
+            return transactionSnapshot.snapshotGeneration();
           }
 
           void enqueueSceneRequest(NodeDirtyFlags flags)
@@ -553,7 +553,7 @@ namespace loka
 #ifdef TEST_BUILD
         unsigned long projectionTransactionGenerationForTesting() const
         {
-          return updateTransaction_.pendingGeneration();
+          return updateTransaction_.snapshotGeneration();
         }
 #endif
 
