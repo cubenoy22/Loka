@@ -310,6 +310,17 @@ namespace loka
                 return dirtyFlags != NODE_DIRTY_NONE;
               }
 
+              NodeDirtyFlags dirtyFlagsValue() const
+              {
+                return dirtyFlags;
+              }
+
+              bool fullRebuildRequested() const
+              {
+                return fullRebuild;
+              }
+
+            private:
               NodeDirtyFlags dirtyFlags;
               bool fullRebuild;
             };
@@ -340,19 +351,19 @@ namespace loka
               requestedInput.include(flags);
             }
 
-            bool hasPending() const
+            bool hasProjectionTargets() const
             {
               return projection.hasPending();
             }
 
             unsigned long snapshotGeneration() const
             {
-              return hasPending() ? generation.current() : 0;
+              return hasProjectionTargets() ? generation.current() : 0;
             }
 
             NodeDirtyFlags requestedDirtyFlags() const
             {
-              return requestedInput.dirtyFlags;
+              return requestedInput.dirtyFlagsValue();
             }
 
             NodeDirtyFlags effectiveRequestedDirtyFlags() const
@@ -367,7 +378,7 @@ namespace loka
 
             bool requestedFullRebuild() const
             {
-              return requestedInput.fullRebuild;
+              return requestedInput.fullRebuildRequested();
             }
 
             void clear()
@@ -377,6 +388,7 @@ namespace loka
               requestedInput.clear();
             }
 
+          private:
             SceneProjectionTransaction projection;
             SnapshotGeneration generation;
             RequestedInputState requestedInput;
@@ -435,9 +447,9 @@ namespace loka
             return pendingDirtyFlagsForBoundary(boundary) != NODE_DIRTY_NONE;
           }
 
-          bool hasPendingSnapshot() const
+          bool hasProjectionTargets() const
           {
-            return transactionSnapshot.hasPending();
+            return transactionSnapshot.hasProjectionTargets();
           }
 
           unsigned long snapshotGeneration() const
@@ -495,7 +507,7 @@ namespace loka
                                                          BoundaryNode *firstPendingRoot) const
           {
             SceneUpdateRequestSnapshot requestSnapshot;
-            if (!hasPendingSnapshot())
+            if (!hasProjectionTargets())
             {
               return requestSnapshot;
             }
