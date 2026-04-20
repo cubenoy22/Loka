@@ -755,89 +755,6 @@ namespace loka
         return nextPendingUpdateRoot(0);
       }
 
-      inline bool SceneDirector::requiresStructure(const Scene *scene) const
-      {
-        BoundaryNode *root = firstPendingUpdateRoot();
-        while (root)
-        {
-          const BoundaryComposeResult &result = root->composeResult();
-          const NodeCompositionDiff *diff = root->localCompositionDiff();
-          const bool diffEmpty = diff && diff->empty();
-          const bool diffCompatibleRetainOnly = diff && diff->isCompatibleRetainOnly();
-          const NodeDirtyFlags effectiveDirtyFlags =
-              static_cast<NodeDirtyFlags>(pendingDirtyFlagsForBoundary(root) | result.dirtyFlagsSeen);
-          if (!result.composed)
-          {
-#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
-                                                       static_cast<void *>(root),
-                                                       static_cast<unsigned int>(effectiveDirtyFlags),
-                                                       0,
-                                                       diff ? 1 : 0,
-                                                       diffEmpty ? 1 : 0,
-                                                       diffCompatibleRetainOnly ? 1 : 0,
-                                                       ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
-#endif
-            if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0)
-            {
-              root = nextPendingUpdateRoot(root);
-              continue;
-            }
-            return true;
-          }
-          if (!diff)
-          {
-#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
-                                                       static_cast<void *>(root),
-                                                       static_cast<unsigned int>(effectiveDirtyFlags),
-                                                       1,
-                                                       0,
-                                                       0,
-                                                       0,
-                                                       ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
-#endif
-            if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0)
-            {
-              root = nextPendingUpdateRoot(root);
-              continue;
-            }
-            return true;
-          }
-          if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 && diffEmpty)
-          {
-#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
-                                                       static_cast<void *>(root),
-                                                       static_cast<unsigned int>(effectiveDirtyFlags),
-                                                       1,
-                                                       1,
-                                                       1,
-                                                       diffCompatibleRetainOnly ? 1 : 0,
-                                                       0);
-#endif
-            root = nextPendingUpdateRoot(root);
-            continue;
-          }
-#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-          loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
-                                                     static_cast<void *>(root),
-                                                     static_cast<unsigned int>(effectiveDirtyFlags),
-                                                     1,
-                                                     1,
-                                                     diffEmpty ? 1 : 0,
-                                                     diffCompatibleRetainOnly ? 1 : 0,
-                                                     diffCompatibleRetainOnly ? 0 : 1);
-#endif
-          if (!diffCompatibleRetainOnly)
-          {
-            return true;
-          }
-          root = nextPendingUpdateRoot(root);
-        }
-        return false;
-      }
-
       inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
                                                                                    const Scene *scene) const
       {
@@ -850,15 +767,12 @@ namespace loka
           return snapshot;
         }
         snapshot.setApply(buildApplySnapshot(scene));
-        if (snapshot.apply.layoutRequired())
-        {
-          snapshot.request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
-        }
+        snapshot.finalizeAfterApplyAnalysis();
         if (CanRelaxFullRebuildForLocalDiff(snapshot) ||
             CanRelaxFullRebuildForChildOnlyUpdate(snapshot) ||
             CanRelaxFullRebuildForRootBoundary(snapshot))
         {
-          snapshot.request.relaxFullRebuild();
+          snapshot.relaxEffectiveFullRebuild();
         }
         return snapshot;
       }
@@ -866,10 +780,10 @@ namespace loka
       inline SceneDirector::SceneUpdateApplySnapshot SceneDirector::buildApplySnapshot(const Scene *scene) const
       {
         SceneUpdateApplySnapshot applySnapshot;
-        const bool structureRequired = requiresStructure(scene);
+        bool structureRequired = false;
         bool layoutRequired = false;
         bool requiresCompositedPaint = false;
-        bool hasOpaqueLocalPaint = false;
+        bool hasOpaqueLocalPaint = true;
         bool canApplyLocalCompositionDiff = true;
         bool sawPaintWork = false;
         bool sawRoot = false;
@@ -898,6 +812,10 @@ namespace loka
 
           const BoundaryComposeResult &composeResult = root->composeResult();
           const NodeCompositionDiff *diff = root->localCompositionDiff();
+          const bool diffEmpty = diff && diff->empty();
+          const bool diffCompatibleRetainOnly = diff && diff->isCompatibleRetainOnly();
+          const NodeDirtyFlags effectiveDirtyFlags =
+              static_cast<NodeDirtyFlags>(pendingDirtyFlagsForBoundary(root) | composeResult.dirtyFlagsSeen);
           const INestable *rootNestable = root->asNestable();
           const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
@@ -923,6 +841,71 @@ namespace loka
                                                     (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
                                                     (diff && diff->isStableRetainOnly()) ? 1 : 0);
 #endif
+          if (!composeResult.composed)
+          {
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                       static_cast<void *>(root),
+                                                       static_cast<unsigned int>(effectiveDirtyFlags),
+                                                       0,
+                                                       diff ? 1 : 0,
+                                                       diffEmpty ? 1 : 0,
+                                                       diffCompatibleRetainOnly ? 1 : 0,
+                                                       ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
+#endif
+            if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) == 0)
+            {
+              structureRequired = true;
+            }
+          }
+          else if (!diff)
+          {
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                       static_cast<void *>(root),
+                                                       static_cast<unsigned int>(effectiveDirtyFlags),
+                                                       1,
+                                                       0,
+                                                       0,
+                                                       0,
+                                                       ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0) ? 0 : 1);
+#endif
+            if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) == 0)
+            {
+              structureRequired = true;
+            }
+          }
+          else if ((effectiveDirtyFlags & NODE_DIRTY_CHILD) != 0 && diffEmpty)
+          {
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                       static_cast<void *>(root),
+                                                       static_cast<unsigned int>(effectiveDirtyFlags),
+                                                       1,
+                                                       1,
+                                                       1,
+                                                       diffCompatibleRetainOnly ? 1 : 0,
+                                                       0);
+#endif
+          }
+          else
+          {
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+            loka::platform::DebugLogSceneStructureRoot(static_cast<void *>(const_cast<Scene *>(scene)),
+                                                       static_cast<void *>(root),
+                                                       static_cast<unsigned int>(effectiveDirtyFlags),
+                                                       1,
+                                                       1,
+                                                       diffEmpty ? 1 : 0,
+                                                       diffCompatibleRetainOnly ? 1 : 0,
+                                                       diffCompatibleRetainOnly ? 0 : 1);
+#endif
+            if (!diffCompatibleRetainOnly)
+            {
+              structureRequired = true;
+            }
+          }
+
           if (!composeResult.composed || !composeResult.preservedNativeContexts)
           {
             canApplyLocalCompositionDiff = false;
@@ -937,7 +920,7 @@ namespace loka
         }
         else
         {
-          hasOpaqueLocalPaint = sawPaintWork;
+          hasOpaqueLocalPaint = sawPaintWork && hasOpaqueLocalPaint;
         }
         canApplyLocalCompositionDiff = canApplyLocalCompositionDiff && sawRoot;
         applySnapshot.setRequirements(layoutRequired,

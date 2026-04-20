@@ -207,6 +207,19 @@ namespace loka
             apply = value;
           }
 
+          void finalizeAfterApplyAnalysis()
+          {
+            if (apply.layoutRequired())
+            {
+              request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
+            }
+          }
+
+          void relaxEffectiveFullRebuild()
+          {
+            request.relaxFullRebuild();
+          }
+
           bool hasGeneration() const
           {
             return generation != 0;
@@ -553,7 +566,6 @@ namespace loka
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
-        bool requiresStructure(const Scene *scene) const;
         SceneUpdateApplySnapshot buildApplySnapshot(const Scene *scene) const;
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
                                                const Scene *scene) const;
