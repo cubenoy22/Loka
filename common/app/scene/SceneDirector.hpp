@@ -431,30 +431,12 @@ namespace loka
 
           BoundaryNode *firstPendingBoundary() const
           {
-            return nextPendingBoundary(0);
+            return nextPendingBoundaryAfterIdentity(0);
           }
 
           BoundaryNode *nextPendingBoundary(const BoundaryNode *after) const
           {
-            bool sawAfter = after == 0;
-            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
-            while (entry)
-            {
-              BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
-              if (boundary)
-              {
-                if (sawAfter)
-                {
-                  return boundary;
-                }
-                if (static_cast<const void *>(boundary) == static_cast<const void *>(after))
-                {
-                  sawAfter = true;
-                }
-              }
-              entry = entry->next;
-            }
-            return 0;
+            return nextPendingBoundaryAfterIdentity(static_cast<const void *>(after));
           }
 
           bool hasPendingBoundary(const BoundaryNode *boundary) const
@@ -517,6 +499,30 @@ namespace loka
             transactionSnapshot.clear();
           }
 
+        private:
+          BoundaryNode *nextPendingBoundaryAfterIdentity(const void *afterIdentity) const
+          {
+            bool sawAfter = afterIdentity == 0;
+            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
+            while (entry)
+            {
+              BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
+              if (boundary)
+              {
+                if (sawAfter)
+                {
+                  return boundary;
+                }
+                if (static_cast<const void *>(boundary) == afterIdentity)
+                {
+                  sawAfter = true;
+                }
+              }
+              entry = entry->next;
+            }
+            return 0;
+          }
+        public:
           TransactionSnapshot transactionSnapshot;
         };
 
