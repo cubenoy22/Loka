@@ -937,6 +937,13 @@ namespace loka
         {
           return snapshot;
         }
+        finalizeUpdateSnapshot(snapshot, scene);
+        return snapshot;
+      }
+
+      inline void SceneDirector::finalizeUpdateSnapshot(SceneUpdateSnapshot &snapshot,
+                                                        const Scene *scene) const
+      {
         snapshot.setApply(buildApplySnapshot(scene));
         snapshot.finalizeAfterApplyAnalysis();
         if (CanRelaxFullRebuildForLocalDiff(snapshot) ||
@@ -945,7 +952,6 @@ namespace loka
         {
           snapshot.relaxEffectiveFullRebuild();
         }
-        return snapshot;
       }
 
       inline SceneDirector::SceneUpdateApplySnapshot SceneDirector::buildApplySnapshot(const Scene *scene) const

@@ -549,6 +549,8 @@ namespace loka
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
         SceneUpdateRequestSnapshot buildRefreshRequestSnapshot(Node *rootNode) const;
         SceneUpdateApplySnapshot buildApplySnapshot(const Scene *scene) const;
+        void finalizeUpdateSnapshot(SceneUpdateSnapshot &snapshot,
+                                    const Scene *scene) const;
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
                                                const Scene *scene) const;
         PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
