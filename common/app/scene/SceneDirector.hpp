@@ -259,36 +259,6 @@ namespace loka
 
         struct SceneUpdateTransaction
         {
-          struct SnapshotGeneration
-          {
-            SnapshotGeneration()
-                : active(0), next(1)
-            {
-            }
-
-            void ensureActive()
-            {
-              if (active != 0)
-              {
-                return;
-              }
-              active = next++;
-            }
-
-            unsigned long current() const
-            {
-              return active;
-            }
-
-            void clear()
-            {
-              active = 0;
-            }
-
-            unsigned long active;
-            unsigned long next;
-          };
-
           struct TransactionSnapshot
           {
             struct RequestedInputState
@@ -344,7 +314,7 @@ namespace loka
             };
 
             TransactionSnapshot()
-                : projection(), generation(), requestedInput()
+                : projection(), generation(0), requestedInput()
             {
             }
 
@@ -360,7 +330,14 @@ namespace loka
 
             void enqueueTarget(Node *node, NodeDirtyFlags flags)
             {
-              generation.ensureActive();
+              if (!projection.hasPending())
+              {
+                ++generation;
+                if (generation == 0)
+                {
+                  generation = 1;
+                }
+              }
               projection.enqueue(node, flags);
             }
 
@@ -376,7 +353,7 @@ namespace loka
 
             unsigned long snapshotGeneration() const
             {
-              return hasProjectionTargets() ? generation.current() : 0;
+              return hasProjectionTargets() ? generation : 0;
             }
 
             NodeDirtyFlags requestedDirtyFlags() const
@@ -417,13 +394,12 @@ namespace loka
             void clear()
             {
               projection.clear();
-              generation.clear();
               requestedInput.clear();
             }
 
           private:
             SceneProjectionTransaction projection;
-            SnapshotGeneration generation;
+            unsigned long generation;
             RequestedInputState requestedInput;
           };
 
@@ -504,7 +480,7 @@ namespace loka
           }
 
           void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
-          void clearPendingState();
+          void clearTransaction();
 
           SceneUpdateRequestSnapshot buildRequestSnapshot(BoundaryNode *rootBoundary,
                                                          BoundaryNode *firstPendingRoot) const
@@ -570,11 +546,16 @@ namespace loka
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
                                                const Scene *scene) const;
         PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
+        PlatformApplyPlan executeApplyPlan(Node *rootNode,
+                                          IPlatformController *platformController,
+                                          const SceneUpdateSnapshot &snapshot,
+                                          NodeDirtyFlags globalDirtyFlags,
+                                          bool fullRebuild) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
                                          const PlatformApplyPlan &plan) const;
         bool shouldSkipGlobalChange(IPlatformController *platformController,
                                     const PlatformApplyPlan &plan) const;
-        void clearPendingBoundaryRequest();
+        void clearUpdateTransaction();
 #ifdef TEST_BUILD
         unsigned long projectionTransactionGenerationForTesting() const
         {
@@ -583,6 +564,21 @@ namespace loka
 #endif
 
       private:
+        struct PendingUpdateRootAnalysis
+        {
+          PendingUpdateRootAnalysis(const SceneDirector *director,
+                                    BoundaryNode *afterRoot);
+
+          bool shouldStart(BoundaryNode *root);
+          bool hasEquivalentDescendant(BoundaryNode *root) const;
+          bool hasSeenRootBefore(BoundaryNode *boundary, BoundaryNode *root) const;
+          bool shouldSkip(BoundaryNode *boundary, BoundaryNode *root) const;
+
+          const SceneDirector *director;
+          BoundaryNode *afterRoot;
+          bool started;
+        };
+
         BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
                                                             NodeDirtyFlags flags,
                                                             bool flushImmediately) const;

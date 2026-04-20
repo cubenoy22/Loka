@@ -42,17 +42,17 @@ namespace loka
 
         static const ::loka::app::scene::PlatformApplyPlan &lastApplyPlan(const ::loka::app::scene::Scene &scene)
         {
-          return scene.lastApplyPlan_;
+          return scene.updateCycleState_.lastApplyPlan;
         }
 
         static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &updateSnapshot(const ::loka::app::scene::Scene &scene)
         {
-          return scene.updateSnapshot_;
+          return scene.updateCycleState_.pendingSnapshot;
         }
 
         static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &lastUpdateSnapshot(const ::loka::app::scene::Scene &scene)
         {
-          return scene.lastUpdateSnapshot_;
+          return scene.updateCycleState_.lastAppliedSnapshot;
         }
 
         static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
