@@ -68,47 +68,78 @@ namespace loka
 
         struct SceneUpdateCycleState
         {
-          SceneUpdateCycleState()
-              : compositionDiff(), lastApplyPlan(), pendingSnapshot(), lastAppliedSnapshot()
+          struct RetainedApplyState
           {
-          }
+            RetainedApplyState()
+                : lastApplyPlan(), lastAppliedSnapshot()
+            {
+            }
 
-          void clearPending()
+            void clear()
+            {
+              lastAppliedSnapshot.clear();
+            }
+
+            void record(const PlatformApplyPlan &plan,
+                        const SceneDirector::SceneUpdateSnapshot &snapshot)
+            {
+              lastApplyPlan = plan;
+              lastAppliedSnapshot = snapshot;
+            }
+
+            const PlatformApplyPlan &applyPlan() const
+            {
+              return lastApplyPlan;
+            }
+
+            const SceneDirector::SceneUpdateSnapshot &appliedSnapshot() const
+            {
+              return lastAppliedSnapshot;
+            }
+
+          private:
+            PlatformApplyPlan lastApplyPlan;
+            SceneDirector::SceneUpdateSnapshot lastAppliedSnapshot;
+          };
+
+          SceneUpdateCycleState()
+              : compositionDiff(), pendingSnapshot(), retainedApply()
           {
-            compositionDiff.clear();
-            pendingSnapshot.clear();
           }
 
           void discardPending()
           {
-            clearPending();
+            clearPendingState();
           }
 
-          void clearRetainedSnapshots()
+          void discardRetainedState()
           {
             pendingSnapshot.clear();
-            lastAppliedSnapshot.clear();
+            retainedApply.clear();
+          }
+
+          void applyRequestSnapshot(const SceneDirector::SceneUpdateRequestSnapshot &request)
+          {
+            compositionDiff.flags = request.effectiveDirtyFlags;
+            compositionDiff.fullRebuild = request.effectiveFullRebuild;
           }
 
           void beginRefresh(const SceneDirector::SceneUpdateRequestSnapshot &request)
           {
             compositionDiff.valid = true;
-            compositionDiff.flags = request.effectiveDirtyFlags;
-            compositionDiff.fullRebuild = request.effectiveFullRebuild;
+            applyRequestSnapshot(request);
           }
 
           void recordPendingSnapshot(const SceneDirector::SceneUpdateSnapshot &snapshot)
           {
             pendingSnapshot = snapshot;
-            compositionDiff.flags = pendingSnapshot.request.effectiveDirtyFlags;
-            compositionDiff.fullRebuild = pendingSnapshot.request.effectiveFullRebuild;
+            applyRequestSnapshot(pendingSnapshot.request);
           }
 
           void completeApply(const PlatformApplyPlan &plan)
           {
-            lastApplyPlan = plan;
-            lastAppliedSnapshot = pendingSnapshot;
-            clearPending();
+            retainedApply.record(plan, pendingSnapshot);
+            clearPendingState();
           }
 
           NodeDirtyFlags effectiveApplyDirtyFlags() const
@@ -158,7 +189,7 @@ namespace loka
 
           const PlatformApplyPlan &lastApplyPlanValue() const
           {
-            return lastApplyPlan;
+            return retainedApply.applyPlan();
           }
 
           const SceneDirector::SceneUpdateSnapshot &pendingSnapshotValue() const
@@ -168,14 +199,19 @@ namespace loka
 
           const SceneDirector::SceneUpdateSnapshot &lastAppliedSnapshotValue() const
           {
-            return lastAppliedSnapshot;
+            return retainedApply.appliedSnapshot();
           }
 
         private:
+          void clearPendingState()
+          {
+            compositionDiff.clear();
+            pendingSnapshot.clear();
+          }
+
           SceneCompositionDiff compositionDiff;
-          PlatformApplyPlan lastApplyPlan;
           SceneDirector::SceneUpdateSnapshot pendingSnapshot;
-          SceneDirector::SceneUpdateSnapshot lastAppliedSnapshot;
+          RetainedApplyState retainedApply;
         };
         // Accept Boundary definitions only (compile-time check via IsBoundaryDefinition).
         template <class DefT>
@@ -440,7 +476,7 @@ namespace loka
 
         void clearMountedUpdateState()
         {
-          updateCycleState_.clearRetainedSnapshots();
+          updateCycleState_.discardRetainedState();
           director_.clearUpdateTransaction();
         }
 
