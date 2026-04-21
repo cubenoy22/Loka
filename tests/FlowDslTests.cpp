@@ -1572,6 +1572,19 @@ void testLokaFlowDslV1Core() {
   printf("\n==== [testLokaFlowDslV1Core] start ====\n");
 
   {
+    using namespace loka::app::scene;
+
+    Node node;
+    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_UPDATE);
+    node.markPendingAttachForCompose();
+    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_ATTACH);
+    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_UPDATE) == COMPOSE_EVENT_UPDATE);
+    node.markPendingAttachForCompose();
+    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_ATTACH) == COMPOSE_EVENT_ATTACH);
+    assert(node.resolveChildComposeEvent(COMPOSE_EVENT_DETACH) == COMPOSE_EVENT_DETACH);
+  }
+
+  {
     loka::app::HStack buttons = buildTypedHStack();
     assert(buttons.childrenCount() == 2);
     assert(buttons.props.hasVerticalAlignment_);
@@ -3333,6 +3346,40 @@ void testLokaFlowDslV1Core() {
     assert(platformCalls >= 1);
 
     scene.unmount();
+  }
+
+  {
+    using namespace loka::app::scene;
+
+    loka::core::MutableState<int> observedValue(1);
+    loka::core::PushStateTracker tracker;
+    tracker.addState(&observedValue);
+
+    BoundaryObservedState observedState;
+    observedState.beginPass();
+
+    BoundaryObservedStateEntry entry;
+    entry.state = &observedValue;
+    entry.flags = NODE_DIRTY_PROPS;
+    entry.observedGeneration = observedState.pass.generation;
+    observedState.entries.push_back(entry);
+
+    {
+      loka::core::StateTrackerGuard guard(&tracker);
+      observedValue.set(2, true);
+    }
+    assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_PROPS);
+
+    observedState.beginPass();
+    {
+      loka::core::StateTrackerGuard guard(&tracker);
+      observedValue.set(3, true);
+    }
+    assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_NONE);
+
+    observedState.entries[0].flags = NODE_DIRTY_LAYOUT;
+    observedState.entries[0].observedGeneration = observedState.pass.generation;
+    assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_LAYOUT);
   }
 
   {
