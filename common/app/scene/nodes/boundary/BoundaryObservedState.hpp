@@ -8,6 +8,14 @@
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class BoundaryObservedStateTestAccess;
+    }
+  }
+
   namespace app
   {
     namespace scene
@@ -223,9 +231,12 @@ namespace loka
           return flags;
         }
 
+      private:
         ObservedPassState pass;
         ObservedDirtyState dirty;
         std::vector<BoundaryObservedStateEntry> entries;
+
+        friend class ::loka::dsl::testing::BoundaryObservedStateTestAccess;
       };
 
     } // namespace scene

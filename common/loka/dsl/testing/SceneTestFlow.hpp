@@ -1,6 +1,7 @@
 #ifndef LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 #define LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 
+#include <cassert>
 #include <cstdio>
 #include <string>
 
@@ -75,6 +76,12 @@ namespace loka
         static unsigned long projectionTransactionGeneration(const ::loka::app::scene::Scene &scene)
         {
           return scene.director_.projectionTransactionGenerationForTesting();
+        }
+
+        static const ::loka::app::scene::SceneProjectionTransaction::TargetEntry *projectionTransactionFirstTarget(
+            const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.projectionTransaction().targetsHead();
         }
 
         static ::loka::app::scene::NodeDirtyFlags requestedDirtyFlags(const ::loka::app::scene::Scene &scene)
@@ -153,6 +160,29 @@ namespace loka
         static ::loka::app::scene::IPlatformController *platformController(const ::loka::app::scene::Scene &scene)
         {
           return scene.platformController_;
+        }
+      };
+
+      class BoundaryObservedStateTestAccess
+      {
+      public:
+        static void appendObservedEntry(::loka::app::scene::BoundaryObservedState &observedState,
+                                        ::loka::core::StateBase *state,
+                                        ::loka::app::scene::NodeDirtyFlags flags)
+        {
+          ::loka::app::scene::BoundaryObservedStateEntry entry;
+          entry.state = state;
+          entry.flags = flags;
+          entry.observedGeneration = observedState.pass.generation;
+          observedState.entries.push_back(entry);
+        }
+
+        static void updateFirstEntryForCurrentPass(::loka::app::scene::BoundaryObservedState &observedState,
+                                                   ::loka::app::scene::NodeDirtyFlags flags)
+        {
+          assert(!observedState.entries.empty());
+          observedState.entries[0].flags = flags;
+          observedState.entries[0].observedGeneration = observedState.pass.generation;
         }
       };
 

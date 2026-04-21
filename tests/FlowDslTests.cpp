@@ -3350,6 +3350,7 @@ void testLokaFlowDslV1Core() {
 
   {
     using namespace loka::app::scene;
+    using loka::dsl::testing::BoundaryObservedStateTestAccess;
 
     loka::core::MutableState<int> observedValue(1);
     loka::core::PushStateTracker tracker;
@@ -3357,12 +3358,9 @@ void testLokaFlowDslV1Core() {
 
     BoundaryObservedState observedState;
     observedState.beginPass();
-
-    BoundaryObservedStateEntry entry;
-    entry.state = &observedValue;
-    entry.flags = NODE_DIRTY_PROPS;
-    entry.observedGeneration = observedState.pass.generation;
-    observedState.entries.push_back(entry);
+    BoundaryObservedStateTestAccess::appendObservedEntry(observedState,
+                                                         &observedValue,
+                                                         NODE_DIRTY_PROPS);
 
     {
       loka::core::StateTrackerGuard guard(&tracker);
@@ -3377,8 +3375,8 @@ void testLokaFlowDslV1Core() {
     }
     assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_NONE);
 
-    observedState.entries[0].flags = NODE_DIRTY_LAYOUT;
-    observedState.entries[0].observedGeneration = observedState.pass.generation;
+    BoundaryObservedStateTestAccess::updateFirstEntryForCurrentPass(observedState,
+                                                                    NODE_DIRTY_LAYOUT);
     assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_LAYOUT);
   }
 
@@ -3501,7 +3499,7 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
     assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_PROPS);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) != 0);
-    const SceneProjectionTransaction::TargetEntry *entry = SceneTestAccess::projectionTransaction(scene).targetsHead();
+    const SceneProjectionTransaction::TargetEntry *entry = SceneTestAccess::projectionTransactionFirstTarget(scene);
     assert(entry != 0);
     assert(entry->node == rootBoundary);
     assert(entry->dirtyFlags == NODE_DIRTY_PROPS);
@@ -3512,7 +3510,7 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
     assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_PROPS) != 0);
     assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_LAYOUT) != 0);
-    entry = SceneTestAccess::projectionTransaction(scene).targetsHead();
+    entry = SceneTestAccess::projectionTransactionFirstTarget(scene);
     assert(entry != 0);
     assert(entry->node == rootBoundary);
     assert((entry->dirtyFlags & NODE_DIRTY_PROPS) != 0);
@@ -3524,7 +3522,7 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 0);
     assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_NONE);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
-    assert(SceneTestAccess::projectionTransaction(scene).targetsHead() == 0);
+    assert(SceneTestAccess::projectionTransactionFirstTarget(scene) == 0);
 
     scene.unmount();
   }
