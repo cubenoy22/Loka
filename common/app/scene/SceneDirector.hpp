@@ -642,7 +642,6 @@ namespace loka
         void registerBoundaryUpdate(const BoundaryUpdateRequest &request);
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
-        const SceneProjectionTransaction &projectionTransaction() const;
         NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const;
         bool hasPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *firstPendingBoundary() const;

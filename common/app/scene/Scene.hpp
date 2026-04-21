@@ -252,7 +252,6 @@ namespace loka
         Window *getWindow() const { return window_; }
         void setWindow(Window *window) { window_ = window; }
         const SceneCompositionDiff &compositionDiff() const { return updateCycleState_.compositionDiffValue(); }
-        const SceneProjectionTransaction &projectionTransaction() const { return director_.projectionTransaction(); }
         SceneDirector &director() { return director_; }
         const SceneDirector &director() const { return director_; }
         size_t liveNodeCount() const
@@ -853,11 +852,6 @@ namespace loka
         {
           scene_->flushInvalidation();
         }
-      }
-
-      inline const SceneProjectionTransaction &SceneDirector::projectionTransaction() const
-      {
-        return updateTransaction_.projectionTransaction();
       }
 
       inline NodeDirtyFlags SceneDirector::aggregateDirtyFlags() const

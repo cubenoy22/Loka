@@ -58,12 +58,12 @@ namespace loka
 
         static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.projectionTransaction();
+          return scene.director_.updateTransaction_.projectionTransaction();
         }
 
         static long projectionTransactionTargetCount(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.projectionTransaction().targetCount();
+          return projectionTransaction(scene).targetCount();
         }
 
         static unsigned long projectionTransactionGeneration(const ::loka::app::scene::Scene &scene)
@@ -74,13 +74,13 @@ namespace loka
         static ::loka::app::scene::Node *projectionTransactionFirstTargetNode(
             const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.projectionTransaction().targetsBegin().node();
+          return projectionTransaction(scene).targetsBegin().node();
         }
 
         static ::loka::app::scene::NodeDirtyFlags projectionTransactionFirstTargetDirtyFlags(
             const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.projectionTransaction().targetsBegin().dirtyFlags();
+          return projectionTransaction(scene).targetsBegin().dirtyFlags();
         }
 
         static ::loka::app::scene::NodeDirtyFlags requestedDirtyFlags(const ::loka::app::scene::Scene &scene)
