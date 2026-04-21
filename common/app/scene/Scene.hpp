@@ -1274,7 +1274,7 @@ namespace loka
         clearAccumulatedState();
       }
 
-      inline void SceneDirector::SceneUpdateTransaction::TransactionSnapshot::enqueueBoundaryUpdate(
+      inline void SceneDirector::SceneUpdateTransaction::AccumulatedState::enqueueBoundaryUpdate(
           const BoundaryUpdateRequest &request)
       {
         if (!request.boundary)
@@ -1491,7 +1491,7 @@ namespace loka
 
       inline void SceneDirector::SceneUpdateTransaction::enqueueBoundaryUpdate(const BoundaryUpdateRequest &request)
       {
-        transactionSnapshot.enqueueBoundaryUpdate(request);
+        accumulatedState.enqueueBoundaryUpdate(request);
       }
 
     } // namespace scene

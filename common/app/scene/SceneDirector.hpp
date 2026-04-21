@@ -297,7 +297,7 @@ namespace loka
 
         struct SceneUpdateTransaction
         {
-          struct TransactionSnapshot
+          struct AccumulatedState
           {
             struct AccumulatedProjectionState
             {
@@ -406,7 +406,7 @@ namespace loka
               bool fullRebuild;
             };
 
-            TransactionSnapshot()
+            AccumulatedState()
                 : projectionState(), requestedInput()
             {
             }
@@ -492,18 +492,18 @@ namespace loka
           };
 
           SceneUpdateTransaction()
-              : transactionSnapshot()
+              : accumulatedState()
           {
           }
 
           const SceneProjectionTransaction &projectionTransaction() const
           {
-            return transactionSnapshot.projectionTransaction();
+            return accumulatedState.projectionTransaction();
           }
 
           NodeDirtyFlags aggregateDirtyFlags() const
           {
-            return transactionSnapshot.aggregateDirtyFlags();
+            return accumulatedState.aggregateDirtyFlags();
           }
 
           BoundaryNode *firstPendingBoundary() const
@@ -528,32 +528,32 @@ namespace loka
 
           bool hasAccumulatedUpdates() const
           {
-            return transactionSnapshot.hasAccumulatedUpdates();
+            return accumulatedState.hasAccumulatedUpdates();
           }
 
           unsigned long snapshotGeneration() const
           {
-            return transactionSnapshot.snapshotGeneration();
+            return accumulatedState.snapshotGeneration();
           }
 
           NodeDirtyFlags requestedDirtyFlags() const
           {
-            return transactionSnapshot.requestedDirtyFlags();
+            return accumulatedState.requestedDirtyFlags();
           }
 
           NodeDirtyFlags effectiveRequestedDirtyFlags() const
           {
-            return transactionSnapshot.effectiveRequestedDirtyFlags();
+            return accumulatedState.effectiveRequestedDirtyFlags();
           }
 
           bool hasRequestedInput() const
           {
-            return transactionSnapshot.hasRequestedInput();
+            return accumulatedState.hasRequestedInput();
           }
 
           bool requestedFullRebuild() const
           {
-            return transactionSnapshot.requestedFullRebuild();
+            return accumulatedState.requestedFullRebuild();
           }
 
           NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const
@@ -568,16 +568,16 @@ namespace loka
           SceneUpdateRequestSnapshot buildRequestSnapshot(BoundaryNode *rootBoundary,
                                                          BoundaryNode *firstPendingRoot) const
           {
-            return transactionSnapshot.buildRequestSnapshot(rootBoundary, firstPendingRoot);
+            return accumulatedState.buildRequestSnapshot(rootBoundary, firstPendingRoot);
           }
 
           void clearAccumulatedState()
           {
-            transactionSnapshot.clearAccumulatedState();
+            accumulatedState.clearAccumulatedState();
           }
 
         private:
-          TransactionSnapshot transactionSnapshot;
+          AccumulatedState accumulatedState;
         };
 
         SceneDirector();
