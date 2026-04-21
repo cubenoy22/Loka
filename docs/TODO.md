@@ -9,7 +9,7 @@ These items address recurring bug patterns and structural risks identified durin
 - **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
 - **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH transitions in the static boundary/scene compose path. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
 - **Scene storage policy seam**: Introduce a small C++98-friendly list/storage abstraction for retained scene internals that can use `std::vector` on modern builds and intrusive linked lists on 68k-sensitive paths. Keep the interface inline/template-based where practical so the abstraction does not add runtime dispatch to hot paths.
-- **SceneManager transaction follow-up**: Revisit `SceneManager` on a separate branch after the Scene transaction lifecycle work lands. Align scene switching/pending transition ownership with the newer Scene/Projection transaction model instead of broadening the current refactor.
+- **SceneManager transaction follow-up**: Revisit `SceneManager` on a separate branch after the first Scene transaction lifecycle pass lands. Align scene switching/pending transition ownership with the newer Scene/Projection transaction model instead of broadening the current refactor.
 
 ## Open
 
@@ -112,3 +112,4 @@ These items address recurring bug patterns and structural risks identified durin
 - ProgrammingGuide boundary/state pass: the guide now explains the boundary-first model explicitly, including `declareStates()` as the normal owner path, `currentBoundary()` for owner-side access, `findBoundary()` for direct-parent borrowed access, `BoundaryProps` as parent-to-child input, and `Managed<T>` as explicit shared access.
 - Scene local diff first pass: retained native contexts now survive local replace/reorder paths across generic/macOS/Win32 tests, retired subtree cleanup has a platform seam, and boundary-local rebuild planning is separated from apply.
 - Scene `fullRebuild` accuracy is no longer root-only in the old sense; child-dirty and mixed dirty cycles now use boundary/root diff results to downgrade more aggressively when structure work is not required.
+- Scene transaction lifecycle first pass: projection targets are grouped in `SceneProjectionTransaction`, update request/apply facts are captured as snapshots, transaction internals are hidden from normal app-facing APIs, and test-only inspection goes through `SceneTestAccess`.
