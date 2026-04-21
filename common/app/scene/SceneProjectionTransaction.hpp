@@ -80,16 +80,7 @@ namespace loka
             return;
           }
           entry = new TargetEntry(node, flags);
-          if (!head)
-          {
-            head = entry;
-            tail = entry;
-          }
-          else
-          {
-            tail->next = entry;
-            tail = entry;
-          }
+          append(entry);
         }
 
         void clear()
@@ -172,6 +163,24 @@ namespace loka
             entry = entry->next;
           }
           return 0;
+        }
+
+        void append(TargetEntry *entry)
+        {
+          if (!entry)
+          {
+            return;
+          }
+          if (!head)
+          {
+            head = entry;
+            tail = entry;
+          }
+          else
+          {
+            tail->next = entry;
+            tail = entry;
+          }
         }
 
         TargetEntry *head;
