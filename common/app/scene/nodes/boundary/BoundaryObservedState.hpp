@@ -57,16 +57,63 @@ namespace loka
 
       struct BoundaryObservedState
       {
-        BoundaryObservedState() : dirtyFlags(NODE_DIRTY_NONE), generation(0), entries() {}
+        struct ObservedPassState
+        {
+          ObservedPassState() : generation(0) {}
+
+          void begin()
+          {
+            ++generation;
+            if (generation == 0)
+            {
+              generation = 1;
+            }
+          }
+
+          bool ownsEntry(const BoundaryObservedStateEntry &entry) const
+          {
+            return entry.observedGeneration == generation;
+          }
+
+          unsigned long generation;
+        };
+
+        struct ObservedDirtyState
+        {
+          ObservedDirtyState() : dirtyFlags(NODE_DIRTY_NONE) {}
+
+          void clear()
+          {
+            dirtyFlags = NODE_DIRTY_NONE;
+          }
+
+          void include(NodeDirtyFlags flagsToAdd)
+          {
+            if (flagsToAdd == NODE_DIRTY_NONE)
+            {
+              return;
+            }
+            dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flagsToAdd);
+          }
+
+          NodeDirtyFlags value() const
+          {
+            return dirtyFlags;
+          }
+
+          NodeDirtyFlags dirtyFlags;
+        };
+
+        BoundaryObservedState() : pass(), dirty(), entries() {}
 
         void clearDirtyFlags()
         {
-          dirtyFlags = NODE_DIRTY_NONE;
+          dirty.clear();
         }
 
         NodeDirtyFlags currentDirtyFlags() const
         {
-          return dirtyFlags;
+          return dirty.value();
         }
 
         void clearEntries(void (*changedThunk)(void *))
@@ -96,11 +143,7 @@ namespace loka
 
         void beginPass()
         {
-          ++generation;
-          if (generation == 0)
-          {
-            generation = 1;
-          }
+          pass.begin();
           for (size_t i = 0; i < entries.size(); ++i)
           {
             entries[i].flags = NODE_DIRTY_NONE;
@@ -113,11 +156,7 @@ namespace loka
 
         void addDirtyFlags(NodeDirtyFlags flagsToAdd)
         {
-          if (flagsToAdd == NODE_DIRTY_NONE)
-          {
-            return;
-          }
-          dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flagsToAdd);
+          dirty.include(flagsToAdd);
         }
 
         void registerState(BoundaryNode *boundary,
@@ -134,7 +173,7 @@ namespace loka
           {
             if (entries[i].state == state)
             {
-              entries[i].observedGeneration = generation;
+              entries[i].observedGeneration = pass.generation;
               entries[i].flags = static_cast<NodeDirtyFlags>(entries[i].flags | flagsToAdd);
               if (entries[i].binding)
               {
@@ -148,7 +187,7 @@ namespace loka
           BoundaryObservedStateEntry entry;
           entry.state = state;
           entry.flags = flagsToAdd;
-          entry.observedGeneration = generation;
+          entry.observedGeneration = pass.generation;
           entry.binding = new BoundaryObservedStateBinding();
           entry.binding->boundary = boundary;
           entry.binding->state = state;
@@ -173,7 +212,7 @@ namespace loka
             {
               if (entries[entryIndex].state == dirtyState)
               {
-                if (entries[entryIndex].observedGeneration != generation)
+                if (!pass.ownsEntry(entries[entryIndex]))
                 {
                   continue;
                 }
@@ -184,8 +223,8 @@ namespace loka
           return flags;
         }
 
-        NodeDirtyFlags dirtyFlags;
-        unsigned long generation;
+        ObservedPassState pass;
+        ObservedDirtyState dirty;
         std::vector<BoundaryObservedStateEntry> entries;
       };
 
