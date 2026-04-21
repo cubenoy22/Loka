@@ -1271,7 +1271,18 @@ namespace loka
 
       inline void SceneDirector::SceneUpdateTransaction::clearTransaction()
       {
-        clear();
+        clearAccumulatedState();
+      }
+
+      inline void SceneDirector::SceneUpdateTransaction::TransactionSnapshot::enqueueBoundaryUpdate(
+          const BoundaryUpdateRequest &request)
+      {
+        if (!request.boundary)
+        {
+          return;
+        }
+        enqueueRequestedInput(request.flags);
+        enqueueProjectionTarget(request.boundary, request.flags);
       }
 
       inline static bool IsBoundaryDescendantOf(const BoundaryNode *boundary, const BoundaryNode *ancestor)
@@ -1480,13 +1491,7 @@ namespace loka
 
       inline void SceneDirector::SceneUpdateTransaction::enqueueBoundaryUpdate(const BoundaryUpdateRequest &request)
       {
-        BoundaryNode *boundary = request.boundary;
-        if (!boundary)
-        {
-          return;
-        }
-        enqueueSceneRequest(request.flags);
-        enqueueProjectionTarget(boundary, request.flags);
+        transactionSnapshot.enqueueBoundaryUpdate(request);
       }
 
     } // namespace scene

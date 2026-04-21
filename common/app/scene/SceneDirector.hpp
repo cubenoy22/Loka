@@ -86,6 +86,18 @@ namespace loka
             firstPendingRoot = root;
           }
 
+          void applyTransactionInputs(NodeDirtyFlags requestedFlags,
+                                      bool requestedRebuild,
+                                      BoundaryNode *root,
+                                      NodeDirtyFlags transactionFlags,
+                                      BoundaryNode *firstRoot)
+          {
+            setRequestedInput(requestedFlags, requestedRebuild, root);
+            setTransactionDirtyFlags(transactionFlags);
+            deriveEffectiveFullRebuild();
+            setFirstPendingRoot(firstRoot);
+          }
+
           void deriveEffectiveFullRebuild()
           {
             effectiveFullRebuild =
@@ -336,7 +348,7 @@ namespace loka
               return projection.aggregateDirtyFlags();
             }
 
-            void enqueueTarget(Node *node, NodeDirtyFlags flags)
+            void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
             {
               if (!projection.hasPending())
               {
@@ -349,19 +361,21 @@ namespace loka
               projection.enqueue(node, flags);
             }
 
-            void enqueueSceneRequest(NodeDirtyFlags flags)
+            void enqueueRequestedInput(NodeDirtyFlags flags)
             {
               requestedInput.include(flags);
             }
 
-            bool hasProjectionTargets() const
+            void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
+
+            bool hasAccumulatedUpdates() const
             {
               return projection.hasPending();
             }
 
             unsigned long snapshotGeneration() const
             {
-              return hasProjectionTargets() ? generation : 0;
+              return hasAccumulatedUpdates() ? generation : 0;
             }
 
             NodeDirtyFlags requestedDirtyFlags() const
@@ -388,18 +402,19 @@ namespace loka
                                                             BoundaryNode *firstPendingRoot) const
             {
               SceneUpdateRequestSnapshot requestSnapshot;
-              if (!hasProjectionTargets())
+              if (!hasAccumulatedUpdates())
               {
                 return requestSnapshot;
               }
-              requestSnapshot.setRequestedInput(effectiveRequestedDirtyFlags(), requestedFullRebuild(), rootBoundary);
-              requestSnapshot.setTransactionDirtyFlags(aggregateDirtyFlags());
-              requestSnapshot.deriveEffectiveFullRebuild();
-              requestSnapshot.setFirstPendingRoot(firstPendingRoot);
+              requestSnapshot.applyTransactionInputs(effectiveRequestedDirtyFlags(),
+                                                     requestedFullRebuild(),
+                                                     rootBoundary,
+                                                     aggregateDirtyFlags(),
+                                                     firstPendingRoot);
               return requestSnapshot;
             }
 
-            void clear()
+            void clearAccumulatedState()
             {
               projection.clear();
               requestedInput.clear();
@@ -426,11 +441,6 @@ namespace loka
             return transactionSnapshot.aggregateDirtyFlags();
           }
 
-          void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
-          {
-            transactionSnapshot.enqueueTarget(node, flags);
-          }
-
           BoundaryNode *firstPendingBoundary() const
           {
             const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
@@ -451,19 +461,14 @@ namespace loka
             return pendingDirtyFlagsForBoundary(boundary) != NODE_DIRTY_NONE;
           }
 
-          bool hasProjectionTargets() const
+          bool hasAccumulatedUpdates() const
           {
-            return transactionSnapshot.hasProjectionTargets();
+            return transactionSnapshot.hasAccumulatedUpdates();
           }
 
           unsigned long snapshotGeneration() const
           {
             return transactionSnapshot.snapshotGeneration();
-          }
-
-          void enqueueSceneRequest(NodeDirtyFlags flags)
-          {
-            transactionSnapshot.enqueueSceneRequest(flags);
           }
 
           NodeDirtyFlags requestedDirtyFlags() const
@@ -501,9 +506,9 @@ namespace loka
             return transactionSnapshot.buildRequestSnapshot(rootBoundary, firstPendingRoot);
           }
 
-          void clear()
+          void clearAccumulatedState()
           {
-            transactionSnapshot.clear();
+            transactionSnapshot.clearAccumulatedState();
           }
 
         private:
