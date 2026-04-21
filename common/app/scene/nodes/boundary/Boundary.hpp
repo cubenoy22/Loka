@@ -414,16 +414,6 @@ namespace loka
         const LayoutBounds &layoutBounds() const { return this->runtimeState_.currentLayoutBounds(); }
         bool hasLayoutBounds() const { return this->runtimeState_.hasLayoutBounds(); }
         void clearObservedDirtyFlags() { observedState_.clearDirtyFlags(); }
-        void addPendingDirtyFlags(NodeDirtyFlags flags)
-        {
-          updateState_.addPendingDirtyFlags(flags);
-        }
-        NodeDirtyFlags pendingDirtyFlags() const { return updateState_.pendingDirtyFlags(); }
-        void clearPendingUpdateState() { updateState_.clearPending(); }
-        bool isUpdateRequested() const { return updateState_.isRequested(); }
-        void setUpdateRequested(bool value) { updateState_.setRequested(value); }
-        BoundaryNode *nextPendingBoundary() const { return updateState_.nextPendingBoundary(); }
-        void setNextPendingBoundary(BoundaryNode *next) { updateState_.setNextPendingBoundary(next); }
         BoundaryComposeResult &composeResult() { return compositionState_.composeResult(); }
         const BoundaryComposeResult &composeResult() const { return compositionState_.composeResult(); }
         BoundaryUpdateResult &updateResult() { return updateState_.updateResult(); }

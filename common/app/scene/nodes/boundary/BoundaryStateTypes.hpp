@@ -150,22 +150,6 @@ namespace loka
         mutable bool active_;
       };
 
-      struct PendingUpdateState
-      {
-        PendingUpdateState() : dirtyFlags(NODE_DIRTY_NONE), requested(false), nextBoundary(0) {}
-
-        void clear()
-        {
-          dirtyFlags = NODE_DIRTY_NONE;
-          requested = false;
-          nextBoundary = 0;
-        }
-
-        NodeDirtyFlags dirtyFlags;
-        bool requested;
-        BoundaryNode *nextBoundary;
-      };
-
       struct BoundaryComposeResult
       {
         BoundaryComposeResult() : event(COMPOSE_EVENT_ATTACH), dirtyFlagsSeen(NODE_DIRTY_NONE), composed(false), preservedNativeContexts(false) {}
@@ -348,7 +332,7 @@ namespace loka
 
       struct BoundaryUpdateState
       {
-        BoundaryUpdateState() : pending(), result(), phase() {}
+        BoundaryUpdateState() : result(), phase() {}
 
         BoundaryUpdateResult &updateResult()
         {
@@ -358,11 +342,6 @@ namespace loka
         const BoundaryUpdateResult &updateResult() const
         {
           return result;
-        }
-
-        void clearPending()
-        {
-          pending.clear();
         }
 
         void clearResult()
@@ -377,43 +356,8 @@ namespace loka
 
         void clearAll()
         {
-          pending.clear();
           result.clear();
           phase.clear();
-        }
-
-        void addPendingDirtyFlags(NodeDirtyFlags flags)
-        {
-          if (flags == NODE_DIRTY_NONE)
-          {
-            return;
-          }
-          pending.dirtyFlags = static_cast<NodeDirtyFlags>(pending.dirtyFlags | flags);
-        }
-
-        NodeDirtyFlags pendingDirtyFlags() const
-        {
-          return pending.dirtyFlags;
-        }
-
-        bool isRequested() const
-        {
-          return pending.requested;
-        }
-
-        void setRequested(bool value)
-        {
-          pending.requested = value;
-        }
-
-        BoundaryNode *nextPendingBoundary() const
-        {
-          return pending.nextBoundary;
-        }
-
-        void setNextPendingBoundary(BoundaryNode *next)
-        {
-          pending.nextBoundary = next;
         }
 
         void noteLocalPaintWork()
@@ -594,7 +538,6 @@ namespace loka
           return !phase.isApplying();
         }
 
-        PendingUpdateState pending;
         BoundaryUpdateResult result;
         BoundaryPhaseState phase;
       };

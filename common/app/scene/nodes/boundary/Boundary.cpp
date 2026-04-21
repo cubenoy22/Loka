@@ -21,7 +21,6 @@ namespace loka
         {
           return;
         }
-        this->addPendingDirtyFlags(flags);
         const bool flushImmediately = this->flushViewDirtyImmediately(flags);
         scene->requestBoundaryUpdate(this, flags, flushImmediately);
       }

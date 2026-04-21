@@ -6,6 +6,14 @@
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class SceneTestAccess;
+    }
+  }
+
   namespace app
   {
     namespace scene
@@ -202,6 +210,24 @@ namespace loka
             request = value;
           }
 
+          void setApply(const SceneUpdateApplySnapshot &value)
+          {
+            apply = value;
+          }
+
+          void finalizeAfterApplyAnalysis()
+          {
+            if (apply.layoutRequired())
+            {
+              request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
+            }
+          }
+
+          void relaxEffectiveFullRebuild()
+          {
+            request.relaxFullRebuild();
+          }
+
           bool hasGeneration() const
           {
             return generation != 0;
@@ -241,60 +267,62 @@ namespace loka
 
         struct SceneUpdateTransaction
         {
-          struct PendingBoundaryQueue
+          struct TransactionSnapshot
           {
-            PendingBoundaryQueue()
-                : head(0), tail(0)
+            struct RequestedInputState
             {
-            }
-
-            BoundaryNode *first() const
-            {
-              return head;
-            }
-
-            void append(BoundaryNode *boundary);
-            void clearPendingStates();
-            void clear();
-
-            BoundaryNode *head;
-            BoundaryNode *tail;
-          };
-
-          struct PendingWaveGeneration
-          {
-            PendingWaveGeneration()
-                : active(0), next(1)
-            {
-            }
-
-            void ensureActive()
-            {
-              if (active != 0)
+              RequestedInputState()
+                  : dirtyFlags(NODE_DIRTY_NONE),
+                    fullRebuild(false)
               {
-                return;
               }
-              active = next++;
-            }
 
-            unsigned long current() const
-            {
-              return active;
-            }
+              void clear()
+              {
+                dirtyFlags = NODE_DIRTY_NONE;
+                fullRebuild = false;
+              }
 
-            void clear()
-            {
-              active = 0;
-            }
+              void include(NodeDirtyFlags flags)
+              {
+                if (flags == NODE_DIRTY_NONE)
+                {
+                  flags = NODE_DIRTY_PROPS;
+                }
+                dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flags);
+                if ((flags & static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL)) != 0)
+                {
+                  fullRebuild = true;
+                }
+              }
 
-            unsigned long active;
-            unsigned long next;
-          };
+              NodeDirtyFlags effectiveDirtyFlags() const
+              {
+                return dirtyFlags == NODE_DIRTY_NONE ? NODE_DIRTY_PROPS : dirtyFlags;
+              }
 
-          struct PendingProjectionWave
-          {
-            PendingProjectionWave()
-                : projection(), generation()
+              bool hasRequestedInput() const
+              {
+                return dirtyFlags != NODE_DIRTY_NONE;
+              }
+
+              NodeDirtyFlags dirtyFlagsValue() const
+              {
+                return dirtyFlags;
+              }
+
+              bool fullRebuildRequested() const
+              {
+                return fullRebuild;
+              }
+
+            private:
+              NodeDirtyFlags dirtyFlags;
+              bool fullRebuild;
+            };
+
+            TransactionSnapshot()
+                : projection(), generation(0), requestedInput()
             {
             }
 
@@ -310,96 +338,176 @@ namespace loka
 
             void enqueueTarget(Node *node, NodeDirtyFlags flags)
             {
-              generation.ensureActive();
+              if (!projection.hasPending())
+              {
+                ++generation;
+                if (generation == 0)
+                {
+                  generation = 1;
+                }
+              }
               projection.enqueue(node, flags);
             }
 
-            bool hasPending() const
+            void enqueueSceneRequest(NodeDirtyFlags flags)
+            {
+              requestedInput.include(flags);
+            }
+
+            bool hasProjectionTargets() const
             {
               return projection.hasPending();
             }
 
-            unsigned long pendingGeneration() const
+            unsigned long snapshotGeneration() const
             {
-              return hasPending() ? generation.current() : 0;
+              return hasProjectionTargets() ? generation : 0;
+            }
+
+            NodeDirtyFlags requestedDirtyFlags() const
+            {
+              return requestedInput.dirtyFlagsValue();
+            }
+
+            NodeDirtyFlags effectiveRequestedDirtyFlags() const
+            {
+              return requestedInput.effectiveDirtyFlags();
+            }
+
+            bool hasRequestedInput() const
+            {
+              return requestedInput.hasRequestedInput();
+            }
+
+            bool requestedFullRebuild() const
+            {
+              return requestedInput.fullRebuildRequested();
+            }
+
+            SceneUpdateRequestSnapshot buildRequestSnapshot(BoundaryNode *rootBoundary,
+                                                            BoundaryNode *firstPendingRoot) const
+            {
+              SceneUpdateRequestSnapshot requestSnapshot;
+              if (!hasProjectionTargets())
+              {
+                return requestSnapshot;
+              }
+              requestSnapshot.setRequestedInput(effectiveRequestedDirtyFlags(), requestedFullRebuild(), rootBoundary);
+              requestSnapshot.setTransactionDirtyFlags(aggregateDirtyFlags());
+              requestSnapshot.deriveEffectiveFullRebuild();
+              requestSnapshot.setFirstPendingRoot(firstPendingRoot);
+              return requestSnapshot;
             }
 
             void clear()
             {
               projection.clear();
-              generation.clear();
+              requestedInput.clear();
             }
 
+          private:
             SceneProjectionTransaction projection;
-            PendingWaveGeneration generation;
+            unsigned long generation;
+            RequestedInputState requestedInput;
           };
 
           SceneUpdateTransaction()
-              : pendingWave(),
-                pendingBoundaries()
+              : transactionSnapshot()
           {
           }
 
           const SceneProjectionTransaction &projectionTransaction() const
           {
-            return pendingWave.projectionTransaction();
+            return transactionSnapshot.projectionTransaction();
           }
 
           NodeDirtyFlags aggregateDirtyFlags() const
           {
-            return pendingWave.aggregateDirtyFlags();
+            return transactionSnapshot.aggregateDirtyFlags();
           }
 
           void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
           {
-            pendingWave.enqueueTarget(node, flags);
+            transactionSnapshot.enqueueTarget(node, flags);
           }
 
           BoundaryNode *firstPendingBoundary() const
           {
-            return pendingBoundaries.first();
+            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
+            while (entry)
+            {
+              BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
+              if (boundary)
+              {
+                return boundary;
+              }
+              entry = entry->next;
+            }
+            return 0;
           }
 
-          bool hasPendingWave() const
+          bool hasPendingBoundary(const BoundaryNode *boundary) const
           {
-            return pendingWave.hasPending();
+            return pendingDirtyFlagsForBoundary(boundary) != NODE_DIRTY_NONE;
           }
 
-          unsigned long pendingGeneration() const
+          bool hasProjectionTargets() const
           {
-            return pendingWave.pendingGeneration();
+            return transactionSnapshot.hasProjectionTargets();
+          }
+
+          unsigned long snapshotGeneration() const
+          {
+            return transactionSnapshot.snapshotGeneration();
+          }
+
+          void enqueueSceneRequest(NodeDirtyFlags flags)
+          {
+            transactionSnapshot.enqueueSceneRequest(flags);
+          }
+
+          NodeDirtyFlags requestedDirtyFlags() const
+          {
+            return transactionSnapshot.requestedDirtyFlags();
+          }
+
+          NodeDirtyFlags effectiveRequestedDirtyFlags() const
+          {
+            return transactionSnapshot.effectiveRequestedDirtyFlags();
+          }
+
+          bool hasRequestedInput() const
+          {
+            return transactionSnapshot.hasRequestedInput();
+          }
+
+          bool requestedFullRebuild() const
+          {
+            return transactionSnapshot.requestedFullRebuild();
+          }
+
+          NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const
+          {
+            return projectionTransaction().dirtyFlagsForTargetIdentity(
+                SceneProjectionTransaction::TargetIdentity(static_cast<const void *>(boundary)));
           }
 
           void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
-          void enqueuePendingBoundary(BoundaryNode *boundary);
-          void clearPendingState();
+          void clearTransaction();
 
-          SceneUpdateRequestSnapshot buildRequestSnapshot(Node *rootNode,
-                                                         BoundaryNode *firstPendingRoot,
-                                                         NodeDirtyFlags requestedDirtyFlags,
-                                                         bool requestedFullRebuild) const
+          SceneUpdateRequestSnapshot buildRequestSnapshot(BoundaryNode *rootBoundary,
+                                                         BoundaryNode *firstPendingRoot) const
           {
-            SceneUpdateRequestSnapshot snapshot;
-            if (!hasPendingWave())
-            {
-              return snapshot;
-            }
-            const NodeDirtyFlags transactionDirtyFlags = aggregateDirtyFlags();
-            snapshot.setRequestedInput(requestedDirtyFlags, requestedFullRebuild, rootNode ? rootNode->asBoundary() : 0);
-            snapshot.setTransactionDirtyFlags(transactionDirtyFlags);
-            snapshot.deriveEffectiveFullRebuild();
-            snapshot.setFirstPendingRoot(firstPendingRoot);
-            return snapshot;
+            return transactionSnapshot.buildRequestSnapshot(rootBoundary, firstPendingRoot);
           }
 
           void clear()
           {
-            pendingWave.clear();
-            pendingBoundaries.clear();
+            transactionSnapshot.clear();
           }
 
-          PendingProjectionWave pendingWave;
-          PendingBoundaryQueue pendingBoundaries;
+        private:
+          TransactionSnapshot transactionSnapshot;
         };
 
         SceneDirector();
@@ -411,42 +519,98 @@ namespace loka
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
 
         const SceneProjectionTransaction &projectionTransaction() const;
-        NodeDirtyFlags aggregateDirtyFlags() const;
+        NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const;
+        bool hasPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *firstPendingBoundary() const;
+        BoundaryNode *rootBoundaryFor(Node *rootNode) const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
         BoundaryNode *firstPendingUpdateRoot() const;
+        BoundaryNode *primaryUpdateRootFor(Node *rootNode) const;
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
-        bool requiresLayout() const;
-        bool requiresCompositedPaint() const;
-        bool requiresStructure(const Scene *scene) const;
-        bool hasOpaqueLocalPaint() const;
-        bool canApplyLocalCompositionDiff() const;
+        SceneUpdateRequestSnapshot buildRefreshRequestSnapshot(Node *rootNode) const;
+        SceneUpdateApplySnapshot buildApplySnapshot(const Scene *scene) const;
+        void finalizeUpdateSnapshot(SceneUpdateSnapshot &snapshot,
+                                    const Scene *scene) const;
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
-                                                NodeDirtyFlags flags,
-                                                bool fullRebuild,
-                                                const Scene *scene) const;
+                                               const Scene *scene) const;
         PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
+        PlatformApplyPlan executeApplyPlan(Node *rootNode,
+                                          IPlatformController *platformController,
+                                          const SceneUpdateSnapshot &snapshot,
+                                          NodeDirtyFlags globalDirtyFlags,
+                                          bool fullRebuild) const;
+        void applyPlatformApplyPlan(Node *rootNode,
+                                    IPlatformController *platformController,
+                                    const PlatformApplyPlan &plan,
+                                    NodeDirtyFlags globalDirtyFlags,
+                                    bool fullRebuild) const;
+        void applyPendingBoundaryUpdate(Node *rootNode,
+                                        BoundaryNode *root,
+                                        const PlatformApplyPlan &plan) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
                                          const PlatformApplyPlan &plan) const;
-        bool shouldSkipGlobalChange(IPlatformController *platformController,
-                                    const PlatformApplyPlan &plan) const;
-        void clearPendingBoundaryRequest();
+        bool shouldApplyGlobalChange(IPlatformController *platformController,
+                                     const PlatformApplyPlan &plan) const;
+        void clearUpdateTransaction();
 #ifdef TEST_BUILD
         unsigned long projectionTransactionGenerationForTesting() const
         {
-          return updateTransaction_.pendingGeneration();
+          return updateTransaction_.snapshotGeneration();
         }
 #endif
 
       private:
+        struct PendingUpdateRootAnalysis
+        {
+          explicit PendingUpdateRootAnalysis(const SceneDirector *director);
+          ~PendingUpdateRootAnalysis();
+          bool hasEquivalentDescendant(BoundaryNode *root) const;
+          bool hasSeenRoot(BoundaryNode *root) const;
+          void recordSeenRoot(BoundaryNode *root);
+          bool shouldSkip(BoundaryNode *boundary, BoundaryNode *root) const;
+
+          struct SeenRoot
+          {
+            SeenRoot() : root(0), next(0) {}
+
+            BoundaryNode *root;
+            SeenRoot *next;
+          };
+
+          const SceneDirector *director;
+          SeenRoot *seenHead;
+          SeenRoot *seenTail;
+
+        private:
+          PendingUpdateRootAnalysis(const PendingUpdateRootAnalysis &);
+          PendingUpdateRootAnalysis &operator=(const PendingUpdateRootAnalysis &);
+        };
+
+        struct PendingUpdateRootCursor
+        {
+          explicit PendingUpdateRootCursor(const SceneDirector *director);
+          BoundaryNode *next();
+
+          const SceneDirector *director;
+          const SceneProjectionTransaction::TargetEntry *entry;
+          PendingUpdateRootAnalysis analysis;
+        };
+
         BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
                                                             NodeDirtyFlags flags,
                                                             bool flushImmediately) const;
         void applyBoundaryUpdateRequest(const BoundaryUpdateRequest &request) const;
+        NodeDirtyFlags aggregateDirtyFlags() const;
+        NodeDirtyFlags requestedDirtyFlags() const;
+        NodeDirtyFlags effectiveRequestedDirtyFlags() const;
+        bool hasRequestedInput() const;
+        bool requestedFullRebuild() const;
 
         Scene *scene_;
         SceneUpdateTransaction updateTransaction_;
+
+        friend class ::loka::dsl::testing::SceneTestAccess;
       };
     } // namespace scene
   } // namespace app

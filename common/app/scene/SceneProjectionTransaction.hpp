@@ -11,6 +11,26 @@ namespace loka
     {
       struct SceneProjectionTransaction
       {
+        struct TargetIdentity
+        {
+          TargetIdentity()
+              : address(0)
+          {
+          }
+
+          explicit TargetIdentity(const void *value)
+              : address(value)
+          {
+          }
+
+          bool isValid() const
+          {
+            return address != 0;
+          }
+
+          const void *address;
+        };
+
         struct TargetEntry
         {
           TargetEntry()
@@ -94,6 +114,30 @@ namespace loka
           return flags;
         }
 
+        NodeDirtyFlags dirtyFlagsForNode(const Node *node) const
+        {
+          const TargetEntry *entry = find(node);
+          return entry ? entry->dirtyFlags : NODE_DIRTY_NONE;
+        }
+
+        NodeDirtyFlags dirtyFlagsForTargetIdentity(TargetIdentity identity) const
+        {
+          if (!identity.isValid())
+          {
+            return NODE_DIRTY_NONE;
+          }
+          const TargetEntry *entry = head;
+          while (entry)
+          {
+            if (static_cast<const void *>(entry->node) == identity.address)
+            {
+              return entry->dirtyFlags;
+            }
+            entry = entry->next;
+          }
+          return NODE_DIRTY_NONE;
+        }
+
         const TargetEntry *targetsHead() const
         {
           return head;
@@ -105,7 +149,12 @@ namespace loka
 
         TargetEntry *find(Node *node) const
         {
-          TargetEntry *entry = head;
+          return const_cast<TargetEntry *>(find(static_cast<const Node *>(node)));
+        }
+
+        const TargetEntry *find(const Node *node) const
+        {
+          const TargetEntry *entry = head;
           while (entry)
           {
             if (entry->node == node)

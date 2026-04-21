@@ -42,17 +42,17 @@ namespace loka
 
         static const ::loka::app::scene::PlatformApplyPlan &lastApplyPlan(const ::loka::app::scene::Scene &scene)
         {
-          return scene.lastApplyPlan_;
+          return scene.updateCycleState_.lastApplyPlanValue();
         }
 
         static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &updateSnapshot(const ::loka::app::scene::Scene &scene)
         {
-          return scene.updateSnapshot_;
+          return scene.updateCycleState_.pendingSnapshotValue();
         }
 
         static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &lastUpdateSnapshot(const ::loka::app::scene::Scene &scene)
         {
-          return scene.lastUpdateSnapshot_;
+          return scene.updateCycleState_.lastAppliedSnapshotValue();
         }
 
         static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
@@ -75,6 +75,26 @@ namespace loka
         static unsigned long projectionTransactionGeneration(const ::loka::app::scene::Scene &scene)
         {
           return scene.director_.projectionTransactionGenerationForTesting();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags requestedDirtyFlags(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.requestedDirtyFlags();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags effectiveRequestedDirtyFlags(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.effectiveRequestedDirtyFlags();
+        }
+
+        static bool hasRequestedInput(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.hasRequestedInput();
+        }
+
+        static bool requestedFullRebuild(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.requestedFullRebuild();
         }
 
         static bool flushInvalidation(::loka::app::scene::Scene &scene)

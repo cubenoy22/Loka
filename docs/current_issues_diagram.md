@@ -259,6 +259,37 @@ flowchart TD
     F --> G[Host へ apply]
 ```
 
+## 15. 寿命と owner の原則
+
+```mermaid
+flowchart TD
+    A[1 event cycle だけ有効] --> A1[stack local helper]
+    A --> A2[Boundary local temporary scope]
+    A --> A3[one-shot analysis / snapshot]
+
+    B[event cycle を跨ぐ] --> B1[owner 必須]
+    B1 --> B2[Scene]
+    B1 --> B3[SceneDirector]
+    B1 --> B4[Boundary]
+    B1 --> B5[retained platform context]
+
+    C[owner のない deferred / heap object] --> D[疑うべき設計]
+```
+
+## 16. Transaction の起点と commit
+
+```mermaid
+flowchart LR
+    A[State / Event] --> B[Boundary 近傍で dirty 検知]
+    B --> C[Boundary が enqueue / emit]
+    C --> D[Scene-owned pending transaction]
+    D --> E[Scene flush / commit]
+    E --> F[Platform apply]
+
+    G[Scene switch / Window dispose / unmount] --> H[Scene が pending を cancel]
+    H --> D
+```
+
 ## 15. 火星通信メタファ
 
 ```mermaid

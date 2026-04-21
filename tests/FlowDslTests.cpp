@@ -3354,6 +3354,10 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::updateSnapshot(scene).request.rootBoundary == 0);
     assert(SceneTestAccess::updateSnapshot(scene).generation == 0);
     assert(SceneTestAccess::lastUpdateSnapshot(scene).request.effectiveDirtyFlags == NODE_DIRTY_NONE);
+    assert(SceneTestAccess::hasRequestedInput(scene));
+    assert(SceneTestAccess::requestedDirtyFlags(scene) == NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::effectiveRequestedDirtyFlags(scene) == NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::requestedFullRebuild(scene) == false);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) != 0);
     const unsigned long firstGeneration = SceneTestAccess::projectionTransactionGeneration(scene);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
@@ -3384,6 +3388,10 @@ void testLokaFlowDslV1Core() {
     assert(lastObservationAfterFlush.request.primaryRoot() == rootBoundary);
     assert(lastObservationAfterFlush.request.requestedFullRebuild == false);
     assert(lastObservationAfterFlush.request.effectiveFullRebuild == false);
+    assert(SceneTestAccess::hasRequestedInput(scene) == false);
+    assert(SceneTestAccess::requestedDirtyFlags(scene) == NODE_DIRTY_NONE);
+    assert(SceneTestAccess::effectiveRequestedDirtyFlags(scene) == NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::requestedFullRebuild(scene) == false);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
@@ -3391,6 +3399,10 @@ void testLokaFlowDslV1Core() {
     const unsigned long secondGeneration = SceneTestAccess::projectionTransactionGeneration(scene);
     assert(secondGeneration != 0);
     assert(secondGeneration != firstGeneration);
+    assert(SceneTestAccess::hasRequestedInput(scene));
+    assert((SceneTestAccess::requestedDirtyFlags(scene) & NODE_DIRTY_LAYOUT) != 0);
+    assert((SceneTestAccess::effectiveRequestedDirtyFlags(scene) & NODE_DIRTY_LAYOUT) != 0);
+    assert(SceneTestAccess::requestedFullRebuild(scene) == false);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == rootBoundary);
     assert(scene.flushInvalidation());
     const PlatformApplyPlan &plan = SceneTestAccess::lastApplyPlan(scene);
@@ -3402,6 +3414,9 @@ void testLokaFlowDslV1Core() {
     assert((lastLayoutObservation.request.effectiveDirtyFlags & NODE_DIRTY_LAYOUT) != 0);
     assert(lastLayoutObservation.request.rootBoundary == rootBoundary);
     assert(lastLayoutObservation.request.primaryRoot() == rootBoundary);
+    assert(SceneTestAccess::hasRequestedInput(scene) == false);
+    assert(SceneTestAccess::requestedDirtyFlags(scene) == NODE_DIRTY_NONE);
+    assert(SceneTestAccess::effectiveRequestedDirtyFlags(scene) == NODE_DIRTY_PROPS);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
