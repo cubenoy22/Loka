@@ -559,13 +559,18 @@ namespace loka
                                           const SceneUpdateSnapshot &snapshot,
                                           NodeDirtyFlags globalDirtyFlags,
                                           bool fullRebuild) const;
+        void applyPlatformApplyPlan(Node *rootNode,
+                                    IPlatformController *platformController,
+                                    const PlatformApplyPlan &plan,
+                                    NodeDirtyFlags globalDirtyFlags,
+                                    bool fullRebuild) const;
         void applyPendingBoundaryUpdate(Node *rootNode,
                                         BoundaryNode *root,
                                         const PlatformApplyPlan &plan) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
                                          const PlatformApplyPlan &plan) const;
-        bool shouldSkipGlobalChange(IPlatformController *platformController,
-                                    const PlatformApplyPlan &plan) const;
+        bool shouldApplyGlobalChange(IPlatformController *platformController,
+                                     const PlatformApplyPlan &plan) const;
         void clearUpdateTransaction();
 #ifdef TEST_BUILD
         unsigned long projectionTransactionGenerationForTesting() const

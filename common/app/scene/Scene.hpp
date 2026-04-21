@@ -1217,12 +1217,21 @@ namespace loka
                                                                bool fullRebuild) const
       {
         PlatformApplyPlan plan = buildPlatformApplyPlan(snapshot);
+        applyPlatformApplyPlan(rootNode, platformController, plan, globalDirtyFlags, fullRebuild);
+        return plan;
+      }
+
+      inline void SceneDirector::applyPlatformApplyPlan(Node *rootNode,
+                                                        IPlatformController *platformController,
+                                                        const PlatformApplyPlan &plan,
+                                                        NodeDirtyFlags globalDirtyFlags,
+                                                        bool fullRebuild) const
+      {
         applyPendingBoundaryUpdates(rootNode, plan);
-        if (!shouldSkipGlobalChange(platformController, plan) && platformController)
+        if (shouldApplyGlobalChange(platformController, plan) && platformController)
         {
           platformController->onChange(rootNode, globalDirtyFlags, fullRebuild);
         }
-        return plan;
       }
 
       inline void SceneDirector::applyPendingBoundaryUpdate(Node *rootNode,
@@ -1251,12 +1260,12 @@ namespace loka
         }
       }
 
-      inline bool SceneDirector::shouldSkipGlobalChange(IPlatformController *platformController,
-                                                        const PlatformApplyPlan &plan) const
+      inline bool SceneDirector::shouldApplyGlobalChange(IPlatformController *platformController,
+                                                         const PlatformApplyPlan &plan) const
       {
-        return platformController &&
-               platformController->canSkipGlobalChangeForBoundaryLocalPaint() &&
-               plan.isPaintOnlyWork();
+        return !platformController ||
+               !platformController->canSkipGlobalChangeForBoundaryLocalPaint() ||
+               !plan.isPaintOnlyWork();
       }
 
       inline void SceneDirector::SceneUpdateTransaction::clearTransaction()
