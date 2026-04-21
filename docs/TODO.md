@@ -8,6 +8,8 @@ These items address recurring bug patterns and structural risks identified durin
 - **Platform Controller layout共通化**: `layoutNode()` is near-identical across Mac/Win32/Toolbox (~2000 lines each). Extract platform-independent layout traversal and size calculation to shared code; platform-specific parts (NSView/HWND/QuickDraw context creation) become overrides. Priority: bug fixes (like removing `clearContexts()`) currently need manual porting to 3 implementations.
 - **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
 - **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH transitions in the static boundary/scene compose path. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
+- **Scene storage policy seam**: Introduce a small C++98-friendly list/storage abstraction for retained scene internals that can use `std::vector` on modern builds and intrusive linked lists on 68k-sensitive paths. Keep the interface inline/template-based where practical so the abstraction does not add runtime dispatch to hot paths.
+- **SceneManager transaction follow-up**: Revisit `SceneManager` on a separate branch after the Scene transaction lifecycle work lands. Align scene switching/pending transition ownership with the newer Scene/Projection transaction model instead of broadening the current refactor.
 
 ## Open
 
@@ -82,6 +84,7 @@ These items address recurring bug patterns and structural risks identified durin
 - State scheduler idea: add `NextEventTracker` (next-event-cycle flush, setTimeout(..., 0)-like batching) to coalesce rapid `State::set()` bursts on Main Thread.
 - Style follow-up: newer boundary state helper headers (`BoundaryStateTypes.hpp`, `BoundaryRuntimeState.hpp`, etc.) still mix direct member access and `this->`; align them with the repository-wide `this->` preference during future cleanup passes.
 - C++98 RAII follow-up: `BoundaryComposePhaseScope` / `BoundaryApplyPhaseScope` still rely on copy-transfer via `mutable` + `const_cast`; keep usage narrow and revisit if a simpler non-copying scope pattern becomes practical.
+- Testing surface policy follow-up: keep production fields private where possible and expose snapshot/transaction introspection through dedicated testing access helpers instead of widening normal app-facing APIs.
 - Animation scheduler: keep it separate from dirty routing. Use a lightweight frame/timeline scheduler that advances animation state, then let existing `State -> dirty` routing handle `PROPS/LAYOUT/CHILD`. Start with an active-animation list plus `NextTickTracker::request(delayMs)` rather than a generic global queue.
 - Motion architecture note: keep `attr()` static and model time-based behavior in `Flow`/`State` (`TimeController`, timeline/Frame/delay chain). Backends resolve execution quality (GPU interpolation vs CPU step/invert fallback) via capabilities.
   - Sketch:

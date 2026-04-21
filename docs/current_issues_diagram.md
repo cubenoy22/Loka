@@ -18,9 +18,9 @@ flowchart TD
     D --> D3[local rebuild / apply plan]
     D --> D4[temporary diff result]
 
-    E[子 Node] --> F[1 パス限りの dispatch truth はここに置かない]
-    F --> F1[composeAttachState_ を避ける]
-    F --> F2[consume ベースの lifecycle hint を避ける]
+    E[子 Node] --> F[1 パス限りの dispatch truth は裸 field に置かない]
+    F --> F1[ComposeAttachLifecycle のような小さい state machine に閉じる]
+    F --> F2[caller が consume 手順を知らない API にする]
 ```
 
 ## 2. 現状の臭いと目標形
@@ -29,17 +29,17 @@ flowchart TD
 flowchart LR
     subgraph 現状
         C1[Conditional / Show] --> C2[child node に mark]
-        C2 --> C3[Node 上の composeAttachState_]
-        C3 --> C4[Boundary が consume して clear]
-        C4 --> C5[Platform 側コメントで補完]
+        C2 --> C3[Node 上の ComposeAttachLifecycle]
+        C3 --> C4[Boundary が child compose event を解決]
+        C4 --> C5[Platform からは lifecycle hint を見せない]
     end
 
     subgraph 目標
-        T1[Conditional / Show] --> T2[Boundary ローカルへ登録]
+        T1[Conditional / Show] --> T2[明示的な lifecycle state machine]
         T2 --> T3[Compose / Apply 用の working scope]
-        T3 --> T4[Boundary が child disposition を導出]
-        T4 --> T5[Traversal が disposition を参照]
-        T5 --> T6[パス終了時に一時情報を破棄]
+        T3 --> T4[Boundary が child compose event を導出]
+        T4 --> T5[Traversal は解決済み event を使う]
+        T5 --> T6[一時情報の破棄は state machine 内に閉じる]
     end
 ```
 
