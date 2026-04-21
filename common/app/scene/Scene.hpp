@@ -1325,12 +1325,13 @@ namespace loka
           return false;
         }
         const NodeDirtyFlags rootFlags = director->pendingDirtyFlagsForBoundary(root);
-        const SceneProjectionTransaction::TargetEntry *entry = director->projectionTransaction().targetsHead();
-        while (entry)
+        SceneProjectionTransaction::ConstIterator it = director->projectionTransaction().targetsBegin();
+        while (it.isValid())
         {
-          BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
+          Node *node = it.node();
+          BoundaryNode *boundary = node ? node->asBoundary() : 0;
           if (boundary != root && boundary && IsBoundaryDescendantOf(boundary, root) &&
-              entry->dirtyFlags == rootFlags)
+              it.dirtyFlags() == rootFlags)
           {
             const BoundaryComposeResult &candidateResult = boundary->composeResult();
             if (candidateResult.composed && candidateResult.preservedNativeContexts)
@@ -1338,7 +1339,7 @@ namespace loka
               return true;
             }
           }
-          entry = entry->next;
+          it.next();
         }
         return false;
       }
@@ -1401,19 +1402,19 @@ namespace loka
 
       inline SceneDirector::PendingUpdateRootCursor::PendingUpdateRootCursor(const SceneDirector *director)
           : director(director),
-            entry(director ? director->projectionTransaction().targetsHead() : 0),
+            iterator(director ? director->projectionTransaction().targetsBegin() : SceneProjectionTransaction::ConstIterator()),
             analysis(director)
       {
       }
 
       inline BoundaryNode *SceneDirector::PendingUpdateRootCursor::next()
       {
-        while (entry)
+        while (iterator.isValid())
         {
-          const SceneProjectionTransaction::TargetEntry *current = entry;
-          entry = entry->next;
+          Node *node = iterator.node();
+          iterator.next();
 
-          BoundaryNode *boundary = current->node ? current->node->asBoundary() : 0;
+          BoundaryNode *boundary = node ? node->asBoundary() : 0;
           if (!boundary)
           {
             continue;

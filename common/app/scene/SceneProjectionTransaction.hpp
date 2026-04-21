@@ -31,6 +31,7 @@ namespace loka
           const void *address;
         };
 
+      private:
         struct TargetEntry
         {
           TargetEntry()
@@ -51,6 +52,49 @@ namespace loka
           Node *node;
           NodeDirtyFlags dirtyFlags;
           TargetEntry *next;
+        };
+
+      public:
+        class ConstIterator
+        {
+        public:
+          ConstIterator()
+              : entry_(0)
+          {
+          }
+
+          bool isValid() const
+          {
+            return entry_ != 0;
+          }
+
+          void next()
+          {
+            if (entry_)
+            {
+              entry_ = entry_->next;
+            }
+          }
+
+          Node *node() const
+          {
+            return entry_ ? entry_->node : 0;
+          }
+
+          NodeDirtyFlags dirtyFlags() const
+          {
+            return entry_ ? entry_->dirtyFlags : NODE_DIRTY_NONE;
+          }
+
+        private:
+          friend struct SceneProjectionTransaction;
+
+          explicit ConstIterator(const TargetEntry *entry)
+              : entry_(entry)
+          {
+          }
+
+          const TargetEntry *entry_;
         };
 
         SceneProjectionTransaction()
@@ -137,9 +181,21 @@ namespace loka
           return NODE_DIRTY_NONE;
         }
 
-        const TargetEntry *targetsHead() const
+        ConstIterator targetsBegin() const
         {
-          return head;
+          return ConstIterator(head);
+        }
+
+        long targetCount() const
+        {
+          long count = 0;
+          ConstIterator it = targetsBegin();
+          while (it.isValid())
+          {
+            ++count;
+            it.next();
+          }
+          return count;
         }
 
       private:

@@ -3499,30 +3499,24 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
     assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_PROPS);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) != 0);
-    const SceneProjectionTransaction::TargetEntry *entry = SceneTestAccess::projectionTransactionFirstTarget(scene);
-    assert(entry != 0);
-    assert(entry->node == rootBoundary);
-    assert(entry->dirtyFlags == NODE_DIRTY_PROPS);
-    assert(entry->next == 0);
+    assert(SceneTestAccess::projectionTransactionFirstTargetNode(scene) == rootBoundary);
+    assert(SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) == NODE_DIRTY_PROPS);
 
     scene.requestInvalidate(NODE_DIRTY_LAYOUT);
     assert(SceneTestAccess::projectionTransaction(scene).hasPending());
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
     assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_PROPS) != 0);
     assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_LAYOUT) != 0);
-    entry = SceneTestAccess::projectionTransactionFirstTarget(scene);
-    assert(entry != 0);
-    assert(entry->node == rootBoundary);
-    assert((entry->dirtyFlags & NODE_DIRTY_PROPS) != 0);
-    assert((entry->dirtyFlags & NODE_DIRTY_LAYOUT) != 0);
-    assert(entry->next == 0);
+    assert(SceneTestAccess::projectionTransactionFirstTargetNode(scene) == rootBoundary);
+    assert((SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) & NODE_DIRTY_PROPS) != 0);
+    assert((SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) & NODE_DIRTY_LAYOUT) != 0);
 
     assert(scene.flushInvalidation());
     assert(!SceneTestAccess::projectionTransaction(scene).hasPending());
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 0);
     assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_NONE);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
-    assert(SceneTestAccess::projectionTransactionFirstTarget(scene) == 0);
+    assert(SceneTestAccess::projectionTransactionFirstTargetNode(scene) == 0);
 
     scene.unmount();
   }

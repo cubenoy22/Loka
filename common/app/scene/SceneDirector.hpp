@@ -560,15 +560,16 @@ namespace loka
 
           BoundaryNode *firstPendingBoundary() const
           {
-            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
-            while (entry)
+            SceneProjectionTransaction::ConstIterator it = projectionTransaction().targetsBegin();
+            while (it.isValid())
             {
-              BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
+              Node *node = it.node();
+              BoundaryNode *boundary = node ? node->asBoundary() : 0;
               if (boundary)
               {
                 return boundary;
               }
-              entry = entry->next;
+              it.next();
             }
             return 0;
           }
@@ -715,7 +716,7 @@ namespace loka
           BoundaryNode *next();
 
           const SceneDirector *director;
-          const SceneProjectionTransaction::TargetEntry *entry;
+          SceneProjectionTransaction::ConstIterator iterator;
           PendingUpdateRootAnalysis analysis;
         };
 
