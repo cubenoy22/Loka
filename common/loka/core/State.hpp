@@ -451,9 +451,6 @@ namespace loka
       void set(const T &v, bool forceUpdate = false)
       {
         StateBase::LifetimeToken *token = this->retainNotifyToken();
-#ifdef TEST_BUILD
-        printf("[MutableState::set] this=%p\n", (void *)this);
-#endif
         if (forceUpdate)
         {
           State<T>::set(v);

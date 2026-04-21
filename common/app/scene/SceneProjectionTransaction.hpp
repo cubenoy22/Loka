@@ -31,6 +31,7 @@ namespace loka
           const void *address;
         };
 
+      private:
         struct TargetEntry
         {
           TargetEntry()
@@ -38,9 +39,62 @@ namespace loka
           {
           }
 
+          TargetEntry(Node *targetNode, NodeDirtyFlags flags)
+              : node(targetNode), dirtyFlags(flags), next(0)
+          {
+          }
+
+          void includeDirtyFlags(NodeDirtyFlags flags)
+          {
+            dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flags);
+          }
+
           Node *node;
           NodeDirtyFlags dirtyFlags;
           TargetEntry *next;
+        };
+
+      public:
+        class ConstIterator
+        {
+        public:
+          ConstIterator()
+              : entry_(0)
+          {
+          }
+
+          bool isValid() const
+          {
+            return entry_ != 0;
+          }
+
+          void next()
+          {
+            if (entry_)
+            {
+              entry_ = entry_->next;
+            }
+          }
+
+          Node *node() const
+          {
+            return entry_ ? entry_->node : 0;
+          }
+
+          NodeDirtyFlags dirtyFlags() const
+          {
+            return entry_ ? entry_->dirtyFlags : NODE_DIRTY_NONE;
+          }
+
+        private:
+          friend struct SceneProjectionTransaction;
+
+          explicit ConstIterator(const TargetEntry *entry)
+              : entry_(entry)
+          {
+          }
+
+          const TargetEntry *entry_;
         };
 
         SceneProjectionTransaction()
@@ -66,22 +120,11 @@ namespace loka
           TargetEntry *entry = find(node);
           if (entry)
           {
-            entry->dirtyFlags = static_cast<NodeDirtyFlags>(entry->dirtyFlags | flags);
+            entry->includeDirtyFlags(flags);
             return;
           }
-          entry = new TargetEntry();
-          entry->node = node;
-          entry->dirtyFlags = flags;
-          if (!head)
-          {
-            head = entry;
-            tail = entry;
-          }
-          else
-          {
-            tail->next = entry;
-            tail = entry;
-          }
+          entry = new TargetEntry(node, flags);
+          append(entry);
         }
 
         void clear()
@@ -138,9 +181,21 @@ namespace loka
           return NODE_DIRTY_NONE;
         }
 
-        const TargetEntry *targetsHead() const
+        ConstIterator targetsBegin() const
         {
-          return head;
+          return ConstIterator(head);
+        }
+
+        long targetCount() const
+        {
+          long count = 0;
+          ConstIterator it = targetsBegin();
+          while (it.isValid())
+          {
+            ++count;
+            it.next();
+          }
+          return count;
         }
 
       private:
@@ -164,6 +219,24 @@ namespace loka
             entry = entry->next;
           }
           return 0;
+        }
+
+        void append(TargetEntry *entry)
+        {
+          if (!entry)
+          {
+            return;
+          }
+          if (!head)
+          {
+            head = entry;
+            tail = entry;
+          }
+          else
+          {
+            tail->next = entry;
+            tail = entry;
+          }
         }
 
         TargetEntry *head;

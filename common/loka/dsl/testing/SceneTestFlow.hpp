@@ -1,6 +1,7 @@
 #ifndef LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 #define LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 
+#include <cassert>
 #include <cstdio>
 #include <string>
 
@@ -55,21 +56,19 @@ namespace loka
           return scene.updateCycleState_.lastAppliedSnapshotValue();
         }
 
-        static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
+        static bool projectionTransactionHasPending(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.projectionTransaction();
+          return projectionTransaction(scene).hasPending();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags projectionTransactionAggregateDirtyFlags(const ::loka::app::scene::Scene &scene)
+        {
+          return projectionTransaction(scene).aggregateDirtyFlags();
         }
 
         static long projectionTransactionTargetCount(const ::loka::app::scene::Scene &scene)
         {
-          long count = 0;
-          const ::loka::app::scene::SceneProjectionTransaction::TargetEntry *entry = scene.director_.projectionTransaction().targetsHead();
-          while (entry)
-          {
-            ++count;
-            entry = entry->next;
-          }
-          return count;
+          return projectionTransaction(scene).targetCount();
         }
 
         static unsigned long projectionTransactionGeneration(const ::loka::app::scene::Scene &scene)
@@ -77,6 +76,25 @@ namespace loka
           return scene.director_.projectionTransactionGenerationForTesting();
         }
 
+        static ::loka::app::scene::Node *projectionTransactionFirstTargetNode(
+            const ::loka::app::scene::Scene &scene)
+        {
+          return projectionTransaction(scene).targetsBegin().node();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags projectionTransactionFirstTargetDirtyFlags(
+            const ::loka::app::scene::Scene &scene)
+        {
+          return projectionTransaction(scene).targetsBegin().dirtyFlags();
+        }
+
+      private:
+        static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.updateTransaction_.projectionTransaction();
+        }
+
+      public:
         static ::loka::app::scene::NodeDirtyFlags requestedDirtyFlags(const ::loka::app::scene::Scene &scene)
         {
           return scene.director_.requestedDirtyFlags();
@@ -97,6 +115,90 @@ namespace loka
           return scene.director_.requestedFullRebuild();
         }
 
+        static ::loka::app::scene::NodeDirtyFlags snapshotRequestedDirtyFlags(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().requestedDirtyFlagsValue();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags snapshotTransactionDirtyFlags(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().transactionDirtyFlagsValue();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags snapshotEffectiveDirtyFlags(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().effectiveDirtyFlagsValue();
+        }
+
+        static bool snapshotRequestedFullRebuild(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().requestedFullRebuildValue();
+        }
+
+        static bool snapshotEffectiveFullRebuild(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().effectiveFullRebuildRequired();
+        }
+
+        static ::loka::app::scene::BoundaryNode *snapshotFirstPendingRoot(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().firstPendingRootValue();
+        }
+
+        static ::loka::app::scene::BoundaryNode *snapshotRootBoundary(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().rootBoundaryValue();
+        }
+
+        static ::loka::app::scene::BoundaryNode *snapshotPrimaryRoot(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.requestSnapshot().primaryRoot();
+        }
+
+        static unsigned long snapshotGeneration(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.generationValue();
+        }
+
+        static bool snapshotLayoutRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().layoutRequired();
+        }
+
+        static bool snapshotStructureRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().structureRequired();
+        }
+
+        static bool snapshotCompositedPaintRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().compositedPaintRequired();
+        }
+
+        static bool snapshotOpaqueLocalPaintRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().opaqueLocalPaintRequired();
+        }
+
+        static bool snapshotLocalCompositionDiffApplicable(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().localCompositionDiffApplicable();
+        }
+
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
         {
           return scene.flushInvalidation();
@@ -105,6 +207,29 @@ namespace loka
         static ::loka::app::scene::IPlatformController *platformController(const ::loka::app::scene::Scene &scene)
         {
           return scene.platformController_;
+        }
+      };
+
+      class BoundaryObservedStateTestAccess
+      {
+      public:
+        static void appendObservedEntry(::loka::app::scene::BoundaryObservedState &observedState,
+                                        ::loka::core::StateBase *state,
+                                        ::loka::app::scene::NodeDirtyFlags flags)
+        {
+          ::loka::app::scene::BoundaryObservedStateEntry entry;
+          entry.state = state;
+          entry.flags = flags;
+          entry.observedGeneration = observedState.pass.generation;
+          observedState.entries.push_back(entry);
+        }
+
+        static void updateFirstEntryForCurrentPass(::loka::app::scene::BoundaryObservedState &observedState,
+                                                   ::loka::app::scene::NodeDirtyFlags flags)
+        {
+          assert(!observedState.entries.empty());
+          observedState.entries[0].flags = flags;
+          observedState.entries[0].observedGeneration = observedState.pass.generation;
         }
       };
 

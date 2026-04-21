@@ -63,6 +63,28 @@ namespace loka
         COMPOSE_ATTACH_STATE_PENDING_ATTACH = 1
       };
 
+      struct ComposeAttachLifecycle
+      {
+        ComposeAttachLifecycle() : state(COMPOSE_ATTACH_STATE_NONE) {}
+
+        void markPendingAttach()
+        {
+          state = COMPOSE_ATTACH_STATE_PENDING_ATTACH;
+        }
+
+        ComposeEvent resolveChildComposeEvent(ComposeEvent parentEvent)
+        {
+          if (state != COMPOSE_ATTACH_STATE_PENDING_ATTACH)
+          {
+            return parentEvent;
+          }
+          state = COMPOSE_ATTACH_STATE_NONE;
+          return parentEvent == COMPOSE_EVENT_UPDATE ? COMPOSE_EVENT_ATTACH : parentEvent;
+        }
+
+        ComposeAttachState state;
+      };
+
       enum NodeKind
       {
         NODE_KIND_UNKNOWN = 0,
@@ -191,11 +213,11 @@ namespace loka
         // attach pass when a parent swaps in a freshly created child.
         // Platform/native code should not depend on this compose-local state
         // for presentation or lifecycle decisions.
-        ComposeAttachState composeAttachState_;
+        ComposeAttachLifecycle composeAttachLifecycle_;
         std::string testId_;
         NodeTag nodeTag_;
 
-        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), composeAttachState_(COMPOSE_ATTACH_STATE_NONE), testId_(), nodeTag_(NODE_TAG_NONE) {}
+        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), composeAttachLifecycle_(), testId_(), nodeTag_(NODE_TAG_NONE) {}
 
         virtual ~Node()
         {
@@ -210,13 +232,11 @@ namespace loka
         bool isArenaAllocated() const { return arenaAllocated_; }
         void markPendingAttachForCompose()
         {
-          composeAttachState_ = COMPOSE_ATTACH_STATE_PENDING_ATTACH;
+          composeAttachLifecycle_.markPendingAttach();
         }
-        ComposeAttachState consumeComposeAttachState()
+        ComposeEvent resolveChildComposeEvent(ComposeEvent parentEvent)
         {
-          ComposeAttachState value = composeAttachState_;
-          composeAttachState_ = COMPOSE_ATTACH_STATE_NONE;
-          return value;
+          return composeAttachLifecycle_.resolveChildComposeEvent(parentEvent);
         }
 
         // Custom operator delete - skip deallocation for arena nodes

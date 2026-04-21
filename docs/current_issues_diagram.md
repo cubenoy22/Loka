@@ -18,9 +18,9 @@ flowchart TD
     D --> D3[local rebuild / apply plan]
     D --> D4[temporary diff result]
 
-    E[子 Node] --> F[1 パス限りの dispatch truth はここに置かない]
-    F --> F1[composeAttachState_ を避ける]
-    F --> F2[consume ベースの lifecycle hint を避ける]
+    E[子 Node] --> F[1 パス限りの dispatch truth は裸 field に置かない]
+    F --> F1[ComposeAttachLifecycle のような小さい state machine に閉じる]
+    F --> F2[caller は resolve API だけを使う]
 ```
 
 ## 2. 現状の臭いと目標形
@@ -29,17 +29,17 @@ flowchart TD
 flowchart LR
     subgraph 現状
         C1[Conditional / Show] --> C2[child node に mark]
-        C2 --> C3[Node 上の composeAttachState_]
-        C3 --> C4[Boundary が consume して clear]
-        C4 --> C5[Platform 側コメントで補完]
+        C2 --> C3[Node 上の ComposeAttachLifecycle]
+        C3 --> C4[Boundary が child compose event を解決]
+        C4 --> C5[Platform からは lifecycle hint を見せない]
     end
 
     subgraph 目標
-        T1[Conditional / Show] --> T2[Boundary ローカルへ登録]
+        T1[Conditional / Show] --> T2[明示的な lifecycle state machine]
         T2 --> T3[Compose / Apply 用の working scope]
-        T3 --> T4[Boundary が child disposition を導出]
-        T4 --> T5[Traversal が disposition を参照]
-        T5 --> T6[パス終了時に一時情報を破棄]
+        T3 --> T4[Boundary が child compose event を導出]
+        T4 --> T5[Traversal は解決済み event を使う]
+        T5 --> T6[一時情報の破棄は lifecycle / scope 内に閉じる]
     end
 ```
 
@@ -156,7 +156,7 @@ flowchart LR
         C1[MutableState set] --> C2[StateTracker markDirty]
         C2 --> C3[Boundary / Scene が進む]
         C3 --> C4[Show / Conditional が child node に一時情報を置く]
-        C4 --> C5[Boundary が consume]
+        C4 --> C5[Boundary が compose event を resolve]
     end
 
     subgraph 理想
@@ -164,7 +164,7 @@ flowchart LR
         T2 --> T3[Boundary が dirty を受ける]
         T3 --> T4[Boundary ローカル phase で解釈]
         T4 --> T5[child disposition / projection を導出]
-        T5 --> T6[consume 不要]
+        T5 --> T6[手動 consume 不要]
     end
 ```
 
@@ -290,7 +290,7 @@ flowchart LR
     H --> D
 ```
 
-## 15. 火星通信メタファ
+## 17. 火星通信メタファ
 
 ```mermaid
 sequenceDiagram

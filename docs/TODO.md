@@ -4,10 +4,13 @@
 
 These items address recurring bug patterns and structural risks identified during recent bugfixes (ConditionalDefinition dangling pointer, Mac platform context preservation, startup redraw).
 
+- **0.0.1 release sanity pass**: Before tagging, exercise Tutorial and the main examples as user flows, verify the intended macOS/Win32/Toolbox sample paths, review README quick-start wording, and confirm `LICENSE.md` copyright holder text.
 - **Definition ownership clarity**: `clone()` returns raw `new`-ed pointers across 19+ call sites with implicit ownership. Introduce a lightweight `OwnedDef<T>` wrapper (C++98-compatible) so ownership intent is visible in code. Priority: prevents the same class of bug as the ConditionalDefinition fix.
 - **Platform Controller layout共通化**: `layoutNode()` is near-identical across Mac/Win32/Toolbox (~2000 lines each). Extract platform-independent layout traversal and size calculation to shared code; platform-specific parts (NSView/HWND/QuickDraw context creation) become overrides. Priority: bug fixes (like removing `clearContexts()`) currently need manual porting to 3 implementations.
 - **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
 - **Composition event tracing**: Add `LOKA_TRACE_COMPOSITION` macro to log ATTACH/UPDATE/DETACH transitions in the static boundary/scene compose path. Disable on Retro68. Priority: reduces manual printf debugging during composition bugs.
+- **Scene storage policy seam**: Introduce a small C++98-friendly list/storage abstraction for retained scene internals that can use `std::vector` on modern builds and intrusive linked lists on 68k-sensitive paths. Keep the interface inline/template-based where practical so the abstraction does not add runtime dispatch to hot paths.
+- **SceneManager transaction follow-up**: Revisit `SceneManager` on a separate branch after the first Scene transaction lifecycle pass lands. Align scene switching/pending transition ownership with the newer Scene/Projection transaction model instead of broadening the current refactor.
 
 ## Open
 
@@ -73,7 +76,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Platform apply taxonomy: revisit `PAINT_COMPOSITED` classification. A simple `ZStack`-presence heuristic was not sufficient even when the composed tree clearly contained `ZStack`; likely needs boundary-local paint/opacity metadata rather than scene-side structural guessing.
 - Flow DSL use-case validation: add video encoder stub scenarios (Qt / AVFoundation / Windows API style) for `open -> frame push -> finalize` and failure-path coverage.
 - Control components roadmap: add constrained `For` (static/fixed list) after `Cond`/`ShowIf`, while keeping platform `#if` isolated in capability/platform implementation layers and avoiding unnecessary 68k runtime loop costs.
-- `0.0.1` scope for conditional visibility: treat `Show()` as a non-loop primitive first. Default hidden behavior should move toward retained attach/detach semantics rather than implicit destroy/recreate; loop/list reuse semantics and shared reuse pools stay out of scope until dedicated `For`/list DSL work lands.
+- Conditional visibility follow-up: retained attach/detach is the baseline for `Show()` now. Keep loop/list reuse semantics and shared reuse pools out of scope until dedicated `For`/list DSL work lands.
 - Cond/ShowIf remaining coverage: fill the gaps beyond the current basic branch-switch tests, specifically default/otherwise branches, nested evaluation order, cleanup/destructor behavior on branch replacement, and platform-selection stubs without DSL-side `#if`.
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word/char`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
@@ -82,6 +85,7 @@ These items address recurring bug patterns and structural risks identified durin
 - State scheduler idea: add `NextEventTracker` (next-event-cycle flush, setTimeout(..., 0)-like batching) to coalesce rapid `State::set()` bursts on Main Thread.
 - Style follow-up: newer boundary state helper headers (`BoundaryStateTypes.hpp`, `BoundaryRuntimeState.hpp`, etc.) still mix direct member access and `this->`; align them with the repository-wide `this->` preference during future cleanup passes.
 - C++98 RAII follow-up: `BoundaryComposePhaseScope` / `BoundaryApplyPhaseScope` still rely on copy-transfer via `mutable` + `const_cast`; keep usage narrow and revisit if a simpler non-copying scope pattern becomes practical.
+- Testing surface policy follow-up: keep production fields private where possible and expose snapshot/transaction introspection through dedicated testing access helpers instead of widening normal app-facing APIs.
 - Animation scheduler: keep it separate from dirty routing. Use a lightweight frame/timeline scheduler that advances animation state, then let existing `State -> dirty` routing handle `PROPS/LAYOUT/CHILD`. Start with an active-animation list plus `NextTickTracker::request(delayMs)` rather than a generic global queue.
 - Motion architecture note: keep `attr()` static and model time-based behavior in `Flow`/`State` (`TimeController`, timeline/Frame/delay chain). Backends resolve execution quality (GPU interpolation vs CPU step/invert fallback) via capabilities.
   - Sketch:
@@ -109,3 +113,5 @@ These items address recurring bug patterns and structural risks identified durin
 - ProgrammingGuide boundary/state pass: the guide now explains the boundary-first model explicitly, including `declareStates()` as the normal owner path, `currentBoundary()` for owner-side access, `findBoundary()` for direct-parent borrowed access, `BoundaryProps` as parent-to-child input, and `Managed<T>` as explicit shared access.
 - Scene local diff first pass: retained native contexts now survive local replace/reorder paths across generic/macOS/Win32 tests, retired subtree cleanup has a platform seam, and boundary-local rebuild planning is separated from apply.
 - Scene `fullRebuild` accuracy is no longer root-only in the old sense; child-dirty and mixed dirty cycles now use boundary/root diff results to downgrade more aggressively when structure work is not required.
+- Scene transaction lifecycle first pass: projection targets are grouped in `SceneProjectionTransaction`, update request/apply facts are captured as snapshots, transaction internals are hidden from normal app-facing APIs, and test-only inspection goes through `SceneTestAccess`.
+- Show/OpenFileDialog retained lifecycle baseline: `Show()` uses retained attach/detach semantics for the `0.0.1` non-loop scope, and OpenFileDialog result delivery is guarded against stale callback/lifetime hazards across the supported platform paths.
