@@ -559,6 +559,9 @@ namespace loka
                                           const SceneUpdateSnapshot &snapshot,
                                           NodeDirtyFlags globalDirtyFlags,
                                           bool fullRebuild) const;
+        void applyPendingBoundaryUpdate(Node *rootNode,
+                                        BoundaryNode *root,
+                                        const PlatformApplyPlan &plan) const;
         void applyPendingBoundaryUpdates(Node *rootNode,
                                          const PlatformApplyPlan &plan) const;
         bool shouldSkipGlobalChange(IPlatformController *platformController,

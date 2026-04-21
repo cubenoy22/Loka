@@ -1189,6 +1189,20 @@ namespace loka
         return plan;
       }
 
+      inline void SceneDirector::applyPendingBoundaryUpdate(Node *rootNode,
+                                                            BoundaryNode *root,
+                                                            const PlatformApplyPlan &plan) const
+      {
+        PlatformApplyPlan localPlan = plan.forBoundary(root);
+        const BoundaryNode::LocalApplyInfo localInfo = root->localApplyInfo(localPlan);
+        assert(localPlan.isLocalizedFor(root));
+        if (localPlan.hasBoundaryApplyWork(root) && root->scene() && root->scene()->platformController_)
+        {
+          root->scene()->platformController_->onBoundaryApply(rootNode, root, localInfo, localPlan);
+        }
+        root->applyPendingUpdate(localPlan);
+      }
+
       inline void SceneDirector::applyPendingBoundaryUpdates(Node *rootNode,
                                                              const PlatformApplyPlan &plan) const
       {
@@ -1196,14 +1210,7 @@ namespace loka
         while (root)
         {
           BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
-          PlatformApplyPlan localPlan = plan.forBoundary(root);
-          const BoundaryNode::LocalApplyInfo localInfo = root->localApplyInfo(localPlan);
-          assert(localPlan.isLocalizedFor(root));
-          if (localPlan.hasBoundaryApplyWork(root) && root->scene() && root->scene()->platformController_)
-          {
-            root->scene()->platformController_->onBoundaryApply(rootNode, root, localInfo, localPlan);
-          }
-          root->applyPendingUpdate(localPlan);
+          applyPendingBoundaryUpdate(rootNode, root, plan);
           root = nextPendingUpdateRoot(root);
         }
       }
