@@ -245,6 +245,7 @@ namespace loka
             return canApplyLocalCompositionDiff;
           }
 
+        private:
           bool requiresLayout;
           bool requiresStructure;
           bool requiresCompositedPaint;
