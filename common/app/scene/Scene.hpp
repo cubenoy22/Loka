@@ -1319,7 +1319,7 @@ namespace loka
           return false;
         }
         const NodeDirtyFlags rootFlags = director->pendingDirtyFlagsForBoundary(root);
-        SceneProjectionTransaction::ConstIterator it = director->projectionTransaction().targetsBegin();
+        SceneProjectionTransaction::ConstIterator it = director->updateTransaction_.projectionTransaction().targetsBegin();
         while (it.isValid())
         {
           Node *node = it.node();
@@ -1396,7 +1396,7 @@ namespace loka
 
       inline SceneDirector::PendingUpdateRootCursor::PendingUpdateRootCursor(const SceneDirector *director)
           : director(director),
-            iterator(director ? director->projectionTransaction().targetsBegin() : SceneProjectionTransaction::ConstIterator()),
+            iterator(director ? director->updateTransaction_.projectionTransaction().targetsBegin() : SceneProjectionTransaction::ConstIterator()),
             analysis(director)
       {
       }
