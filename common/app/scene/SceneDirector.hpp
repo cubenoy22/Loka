@@ -381,7 +381,7 @@ namespace loka
                 }
               }
 
-              NodeDirtyFlags effectiveDirtyFlags() const
+              NodeDirtyFlags dirtyFlagsForSnapshot() const
               {
                 return dirtyFlags == NODE_DIRTY_NONE ? NODE_DIRTY_PROPS : dirtyFlags;
               }
@@ -450,7 +450,7 @@ namespace loka
 
             NodeDirtyFlags effectiveRequestedDirtyFlags() const
             {
-              return requestedInput.effectiveDirtyFlags();
+              return requestedInput.dirtyFlagsForSnapshot();
             }
 
             bool hasRequestedInput() const
