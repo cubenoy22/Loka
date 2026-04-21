@@ -121,8 +121,8 @@ namespace loka
 
           void applyRequestSnapshot(const SceneDirector::SceneUpdateRequestSnapshot &request)
           {
-            compositionDiff.flags = request.effectiveDirtyFlags;
-            compositionDiff.fullRebuild = request.effectiveFullRebuild;
+            compositionDiff.flags = request.effectiveDirtyFlagsValue();
+            compositionDiff.fullRebuild = request.effectiveFullRebuildRequired();
           }
 
           void beginRefresh(const SceneDirector::SceneUpdateRequestSnapshot &request)
@@ -160,12 +160,12 @@ namespace loka
 
           NodeDirtyFlags effectivePendingRequestDirtyFlags() const
           {
-            return pendingSnapshot.request.effectiveDirtyFlags;
+            return pendingSnapshot.request.effectiveDirtyFlagsValue();
           }
 
           NodeDirtyFlags aggregateTransactionDirtyFlags() const
           {
-            return pendingSnapshot.request.transactionDirtyFlags;
+            return pendingSnapshot.request.transactionDirtyFlagsValue();
           }
 
           bool refreshStructureRequired() const
@@ -1431,23 +1431,23 @@ namespace loka
 
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        return snapshot.request.effectiveFullRebuild && snapshot.apply.localCompositionDiffApplicable();
+        return snapshot.request.effectiveFullRebuildRequired() && snapshot.apply.localCompositionDiffApplicable();
       }
 
       inline static bool CanRelaxFullRebuildForChildOnlyUpdate(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        return snapshot.request.effectiveFullRebuild &&
+        return snapshot.request.effectiveFullRebuildRequired() &&
                snapshot.request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
                !snapshot.apply.structureRequired();
       }
 
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        if (!snapshot.request.effectiveFullRebuild)
+        if (!snapshot.request.effectiveFullRebuildRequired())
         {
           return false;
         }
-        BoundaryNode *rootBoundary = snapshot.request.rootBoundary;
+        BoundaryNode *rootBoundary = snapshot.request.rootBoundaryValue();
         return rootBoundary && rootBoundary->canApplyLocalCompositionDiff();
       }
 

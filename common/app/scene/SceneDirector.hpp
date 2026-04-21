@@ -142,6 +142,26 @@ namespace loka
             return firstPendingRoot ? firstPendingRoot : rootBoundary;
           }
 
+          NodeDirtyFlags effectiveDirtyFlagsValue() const
+          {
+            return effectiveDirtyFlags;
+          }
+
+          NodeDirtyFlags transactionDirtyFlagsValue() const
+          {
+            return transactionDirtyFlags;
+          }
+
+          bool effectiveFullRebuildRequired() const
+          {
+            return effectiveFullRebuild;
+          }
+
+          BoundaryNode *rootBoundaryValue() const
+          {
+            return rootBoundary;
+          }
+
           NodeDirtyFlags requestedDirtyFlags;
           NodeDirtyFlags transactionDirtyFlags;
           NodeDirtyFlags effectiveDirtyFlags;
@@ -267,7 +287,7 @@ namespace loka
           {
             return request.hasEffectiveDirtyFlag(NODE_DIRTY_INITIAL) ||
                    (request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
-                    (request.effectiveFullRebuild || apply.structureRequired()));
+                    (request.effectiveFullRebuildRequired() || apply.structureRequired()));
           }
 
           bool requiresLayoutChange() const
@@ -277,7 +297,7 @@ namespace loka
 
           bool hasAnyPaintChange() const
           {
-            return request.effectiveDirtyFlags != NODE_DIRTY_NONE;
+            return request.effectiveDirtyFlagsValue() != NODE_DIRTY_NONE;
           }
 
           bool requiresOpaqueLocalPaint() const
