@@ -4,6 +4,7 @@
 
 These items address recurring bug patterns and structural risks identified during recent bugfixes (ConditionalDefinition dangling pointer, Mac platform context preservation, startup redraw).
 
+- **0.0.1 release sanity pass**: Before tagging, exercise Tutorial and the main examples as user flows, verify the intended macOS/Win32/Toolbox sample paths, review README quick-start wording, and confirm `LICENSE.md` copyright holder text.
 - **Definition ownership clarity**: `clone()` returns raw `new`-ed pointers across 19+ call sites with implicit ownership. Introduce a lightweight `OwnedDef<T>` wrapper (C++98-compatible) so ownership intent is visible in code. Priority: prevents the same class of bug as the ConditionalDefinition fix.
 - **Platform Controller layout共通化**: `layoutNode()` is near-identical across Mac/Win32/Toolbox (~2000 lines each). Extract platform-independent layout traversal and size calculation to shared code; platform-specific parts (NSView/HWND/QuickDraw context creation) become overrides. Priority: bug fixes (like removing `clearContexts()`) currently need manual porting to 3 implementations.
 - **Portable platform controller tests**: Mac/Win32 layout/context tests only run on their native platform. Abstract layout calculation into a testable interface so core layout logic can be verified on Linux CI.
@@ -75,7 +76,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Platform apply taxonomy: revisit `PAINT_COMPOSITED` classification. A simple `ZStack`-presence heuristic was not sufficient even when the composed tree clearly contained `ZStack`; likely needs boundary-local paint/opacity metadata rather than scene-side structural guessing.
 - Flow DSL use-case validation: add video encoder stub scenarios (Qt / AVFoundation / Windows API style) for `open -> frame push -> finalize` and failure-path coverage.
 - Control components roadmap: add constrained `For` (static/fixed list) after `Cond`/`ShowIf`, while keeping platform `#if` isolated in capability/platform implementation layers and avoiding unnecessary 68k runtime loop costs.
-- `0.0.1` scope for conditional visibility: treat `Show()` as a non-loop primitive first. Default hidden behavior should move toward retained attach/detach semantics rather than implicit destroy/recreate; loop/list reuse semantics and shared reuse pools stay out of scope until dedicated `For`/list DSL work lands.
+- Conditional visibility follow-up: retained attach/detach is the baseline for `Show()` now. Keep loop/list reuse semantics and shared reuse pools out of scope until dedicated `For`/list DSL work lands.
 - Cond/ShowIf remaining coverage: fill the gaps beyond the current basic branch-switch tests, specifically default/otherwise branches, nested evaluation order, cleanup/destructor behavior on branch replacement, and platform-selection stubs without DSL-side `#if`.
 - Layout alignment tests: validate `VStack` horizontal alignment and `HStack` vertical alignment defaults/overrides with deterministic node bounds.
 - Text overflow tests: validate `TextAttr` wrap/truncation (`none/word/char`, `none/clip/ellipsis`) under constrained width and confirm `isClipped` does not replace text overflow policy.
@@ -113,3 +114,4 @@ These items address recurring bug patterns and structural risks identified durin
 - Scene local diff first pass: retained native contexts now survive local replace/reorder paths across generic/macOS/Win32 tests, retired subtree cleanup has a platform seam, and boundary-local rebuild planning is separated from apply.
 - Scene `fullRebuild` accuracy is no longer root-only in the old sense; child-dirty and mixed dirty cycles now use boundary/root diff results to downgrade more aggressively when structure work is not required.
 - Scene transaction lifecycle first pass: projection targets are grouped in `SceneProjectionTransaction`, update request/apply facts are captured as snapshots, transaction internals are hidden from normal app-facing APIs, and test-only inspection goes through `SceneTestAccess`.
+- Show/OpenFileDialog retained lifecycle baseline: `Show()` uses retained attach/detach semantics for the `0.0.1` non-loop scope, and OpenFileDialog result delivery is guarded against stale callback/lifetime hazards across the supported platform paths.
