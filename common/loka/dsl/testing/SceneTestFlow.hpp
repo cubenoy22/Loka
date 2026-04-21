@@ -97,6 +97,54 @@ namespace loka
           return scene.director_.requestedFullRebuild();
         }
 
+        static ::loka::app::scene::NodeDirtyFlags snapshotRequestedDirtyFlags(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.requestedDirtyFlagsValue();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags snapshotTransactionDirtyFlags(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.transactionDirtyFlagsValue();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags snapshotEffectiveDirtyFlags(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.effectiveDirtyFlagsValue();
+        }
+
+        static bool snapshotRequestedFullRebuild(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.requestedFullRebuildValue();
+        }
+
+        static bool snapshotEffectiveFullRebuild(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.effectiveFullRebuildRequired();
+        }
+
+        static ::loka::app::scene::BoundaryNode *snapshotFirstPendingRoot(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.firstPendingRootValue();
+        }
+
+        static ::loka::app::scene::BoundaryNode *snapshotRootBoundary(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.rootBoundaryValue();
+        }
+
+        static ::loka::app::scene::BoundaryNode *snapshotPrimaryRoot(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.request.primaryRoot();
+        }
+
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
         {
           return scene.flushInvalidation();

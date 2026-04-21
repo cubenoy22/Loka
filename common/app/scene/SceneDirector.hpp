@@ -147,9 +147,19 @@ namespace loka
             return effectiveDirtyFlags;
           }
 
+          NodeDirtyFlags requestedDirtyFlagsValue() const
+          {
+            return requestedDirtyFlags;
+          }
+
           NodeDirtyFlags transactionDirtyFlagsValue() const
           {
             return transactionDirtyFlags;
+          }
+
+          bool requestedFullRebuildValue() const
+          {
+            return requestedFullRebuild;
           }
 
           bool effectiveFullRebuildRequired() const
@@ -157,11 +167,17 @@ namespace loka
             return effectiveFullRebuild;
           }
 
+          BoundaryNode *firstPendingRootValue() const
+          {
+            return firstPendingRoot;
+          }
+
           BoundaryNode *rootBoundaryValue() const
           {
             return rootBoundary;
           }
 
+        private:
           NodeDirtyFlags requestedDirtyFlags;
           NodeDirtyFlags transactionDirtyFlags;
           NodeDirtyFlags effectiveDirtyFlags;
