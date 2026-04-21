@@ -299,6 +299,61 @@ namespace loka
         {
           struct TransactionSnapshot
           {
+            struct AccumulatedProjectionState
+            {
+              AccumulatedProjectionState()
+                  : projection(), generation(0)
+              {
+              }
+
+              const SceneProjectionTransaction &projectionTransaction() const
+              {
+                return projection;
+              }
+
+              NodeDirtyFlags aggregateDirtyFlags() const
+              {
+                return projection.aggregateDirtyFlags();
+              }
+
+              void enqueue(Node *node, NodeDirtyFlags flags)
+              {
+                if (!projection.hasPending())
+                {
+                  markNewAccumulation();
+                }
+                projection.enqueue(node, flags);
+              }
+
+              bool hasPending() const
+              {
+                return projection.hasPending();
+              }
+
+              unsigned long snapshotGeneration() const
+              {
+                return hasPending() ? generation : 0;
+              }
+
+              void clear()
+              {
+                projection.clear();
+              }
+
+            private:
+              void markNewAccumulation()
+              {
+                ++generation;
+                if (generation == 0)
+                {
+                  generation = 1;
+                }
+              }
+
+              SceneProjectionTransaction projection;
+              unsigned long generation;
+            };
+
             struct RequestedInputState
             {
               RequestedInputState()
@@ -352,31 +407,23 @@ namespace loka
             };
 
             TransactionSnapshot()
-                : projection(), generation(0), requestedInput()
+                : projectionState(), requestedInput()
             {
             }
 
             const SceneProjectionTransaction &projectionTransaction() const
             {
-              return projection;
+              return projectionState.projectionTransaction();
             }
 
             NodeDirtyFlags aggregateDirtyFlags() const
             {
-              return projection.aggregateDirtyFlags();
+              return projectionState.aggregateDirtyFlags();
             }
 
             void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
             {
-              if (!projection.hasPending())
-              {
-                ++generation;
-                if (generation == 0)
-                {
-                  generation = 1;
-                }
-              }
-              projection.enqueue(node, flags);
+              projectionState.enqueue(node, flags);
             }
 
             void enqueueRequestedInput(NodeDirtyFlags flags)
@@ -388,12 +435,12 @@ namespace loka
 
             bool hasAccumulatedUpdates() const
             {
-              return projection.hasPending();
+              return projectionState.hasPending();
             }
 
             unsigned long snapshotGeneration() const
             {
-              return hasAccumulatedUpdates() ? generation : 0;
+              return projectionState.snapshotGeneration();
             }
 
             NodeDirtyFlags requestedDirtyFlags() const
@@ -435,13 +482,12 @@ namespace loka
 
             void clearAccumulatedState()
             {
-              projection.clear();
+              projectionState.clear();
               requestedInput.clear();
             }
 
           private:
-            SceneProjectionTransaction projection;
-            unsigned long generation;
+            AccumulatedProjectionState projectionState;
             RequestedInputState requestedInput;
           };
 
