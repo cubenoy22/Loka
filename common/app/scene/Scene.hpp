@@ -899,11 +899,6 @@ namespace loka
         return updateTransaction_.firstPendingBoundary();
       }
 
-      inline BoundaryNode *SceneDirector::nextPendingBoundary(const BoundaryNode *boundary) const
-      {
-        return updateTransaction_.nextPendingBoundary(boundary);
-      }
-
       inline BoundaryNode *SceneDirector::topMostRequestedBoundary(BoundaryNode *boundary) const
       {
         if (!boundary)
@@ -1100,7 +1095,8 @@ namespace loka
         };
 
         ApplySnapshotAccumulator accumulator;
-        BoundaryNode *root = firstPendingUpdateRoot();
+        PendingUpdateRootCursor updateRoots(this);
+        BoundaryNode *root = updateRoots.next();
         while (root)
         {
           accumulator.observeRoot();
@@ -1195,7 +1191,7 @@ namespace loka
 
           accumulator.observeComposeResult(composeResult);
 
-          root = nextPendingUpdateRoot(root);
+          root = updateRoots.next();
         }
         return accumulator.build();
       }
@@ -1251,12 +1247,17 @@ namespace loka
       inline void SceneDirector::applyPendingBoundaryUpdates(Node *rootNode,
                                                              const PlatformApplyPlan &plan) const
       {
-        BoundaryNode *root = primaryUpdateRootFor(rootNode);
+        PendingUpdateRootCursor updateRoots(this);
+        BoundaryNode *root = updateRoots.next();
+        if (!root)
+        {
+          root = rootBoundaryFor(rootNode);
+        }
         while (root)
         {
           BoundaryApplyPhaseScope applyScope = root->beginApplyPhaseScope();
           applyPendingBoundaryUpdate(rootNode, root, plan);
-          root = nextPendingUpdateRoot(root);
+          root = updateRoots.next();
         }
       }
 
@@ -1288,8 +1289,21 @@ namespace loka
       }
 
       inline SceneDirector::PendingUpdateRootAnalysis::PendingUpdateRootAnalysis(const SceneDirector *director)
-          : director(director)
+          : director(director), seenHead(0), seenTail(0)
       {
+      }
+
+      inline SceneDirector::PendingUpdateRootAnalysis::~PendingUpdateRootAnalysis()
+      {
+        SeenRoot *entry = seenHead;
+        while (entry)
+        {
+          SeenRoot *next = entry->next;
+          delete entry;
+          entry = next;
+        }
+        seenHead = 0;
+        seenTail = 0;
       }
 
       inline bool SceneDirector::PendingUpdateRootAnalysis::hasEquivalentDescendant(BoundaryNode *root) const
@@ -1298,11 +1312,13 @@ namespace loka
         {
           return false;
         }
-        BoundaryNode *boundary = director->firstPendingBoundary();
-        while (boundary)
+        const NodeDirtyFlags rootFlags = director->pendingDirtyFlagsForBoundary(root);
+        const SceneProjectionTransaction::TargetEntry *entry = director->projectionTransaction().targetsHead();
+        while (entry)
         {
-          if (boundary != root && director->hasPendingBoundary(boundary) && IsBoundaryDescendantOf(boundary, root) &&
-              director->pendingDirtyFlagsForBoundary(boundary) == director->pendingDirtyFlagsForBoundary(root))
+          BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
+          if (boundary != root && boundary && IsBoundaryDescendantOf(boundary, root) &&
+              entry->dirtyFlags == rootFlags)
           {
             const BoundaryComposeResult &candidateResult = boundary->composeResult();
             if (candidateResult.composed && candidateResult.preservedNativeContexts)
@@ -1310,27 +1326,47 @@ namespace loka
               return true;
             }
           }
-          boundary = director->nextPendingBoundary(boundary);
+          entry = entry->next;
         }
         return false;
       }
 
-      inline bool SceneDirector::PendingUpdateRootAnalysis::hasSeenRootBefore(BoundaryNode *boundary, BoundaryNode *root) const
+      inline bool SceneDirector::PendingUpdateRootAnalysis::hasSeenRoot(BoundaryNode *root) const
       {
-        if (!director || !boundary || !root)
+        if (!root)
         {
           return false;
         }
-        BoundaryNode *previous = director->firstPendingBoundary();
-        while (previous && previous != boundary)
+        SeenRoot *entry = seenHead;
+        while (entry)
         {
-          if (director->topMostRequestedBoundary(previous) == root)
+          if (entry->root == root)
           {
             return true;
           }
-          previous = director->nextPendingBoundary(previous);
+          entry = entry->next;
         }
         return false;
+      }
+
+      inline void SceneDirector::PendingUpdateRootAnalysis::recordSeenRoot(BoundaryNode *root)
+      {
+        if (!root || hasSeenRoot(root))
+        {
+          return;
+        }
+        SeenRoot *entry = new SeenRoot();
+        entry->root = root;
+        if (!seenHead)
+        {
+          seenHead = entry;
+          seenTail = entry;
+        }
+        else
+        {
+          seenTail->next = entry;
+          seenTail = entry;
+        }
       }
 
       inline bool SceneDirector::PendingUpdateRootAnalysis::shouldSkip(BoundaryNode *boundary, BoundaryNode *root) const
@@ -1339,7 +1375,7 @@ namespace loka
         {
           return true;
         }
-        if (hasSeenRootBefore(boundary, root))
+        if (hasSeenRoot(root))
         {
           return true;
         }
@@ -1349,6 +1385,36 @@ namespace loka
           return true;
         }
         return false;
+      }
+
+      inline SceneDirector::PendingUpdateRootCursor::PendingUpdateRootCursor(const SceneDirector *director)
+          : director(director),
+            entry(director ? director->projectionTransaction().targetsHead() : 0),
+            analysis(director)
+      {
+      }
+
+      inline BoundaryNode *SceneDirector::PendingUpdateRootCursor::next()
+      {
+        while (entry)
+        {
+          const SceneProjectionTransaction::TargetEntry *current = entry;
+          entry = entry->next;
+
+          BoundaryNode *boundary = current->node ? current->node->asBoundary() : 0;
+          if (!boundary)
+          {
+            continue;
+          }
+
+          BoundaryNode *root = director ? director->topMostRequestedBoundary(boundary) : 0;
+          if (root && !analysis.shouldSkip(boundary, root))
+          {
+            analysis.recordSeenRoot(root);
+            return root;
+          }
+        }
+        return 0;
       }
 
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
@@ -1392,27 +1458,17 @@ namespace loka
 
       inline BoundaryNode *SceneDirector::nextPendingUpdateRoot(BoundaryNode *afterRoot) const
       {
-        PendingUpdateRootAnalysis analysis(this);
         bool started = afterRoot == 0;
-        BoundaryNode *boundary = updateTransaction_.firstPendingBoundary();
-        while (boundary)
+        PendingUpdateRootCursor cursor(this);
+        BoundaryNode *root = cursor.next();
+        while (root)
         {
-          BoundaryNode *root = topMostRequestedBoundary(boundary);
-          if (root)
+          if (started)
           {
-            if (!started)
-            {
-              started = root == afterRoot;
-              boundary = updateTransaction_.nextPendingBoundary(boundary);
-              continue;
-            }
-
-            if (!analysis.shouldSkip(boundary, root))
-            {
-              return root;
-            }
+            return root;
           }
-          boundary = updateTransaction_.nextPendingBoundary(boundary);
+          started = root == afterRoot;
+          root = cursor.next();
         }
         return 0;
       }

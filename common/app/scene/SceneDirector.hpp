@@ -433,12 +433,17 @@ namespace loka
 
           BoundaryNode *firstPendingBoundary() const
           {
-            return nextPendingBoundaryAfterIdentity(0);
-          }
-
-          BoundaryNode *nextPendingBoundary(const BoundaryNode *after) const
-          {
-            return nextPendingBoundaryAfterIdentity(static_cast<const void *>(after));
+            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
+            while (entry)
+            {
+              BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
+              if (boundary)
+              {
+                return boundary;
+              }
+              entry = entry->next;
+            }
+            return 0;
           }
 
           bool hasPendingBoundary(const BoundaryNode *boundary) const
@@ -502,29 +507,6 @@ namespace loka
           }
 
         private:
-          BoundaryNode *nextPendingBoundaryAfterIdentity(const void *afterIdentity) const
-          {
-            bool sawAfter = afterIdentity == 0;
-            const SceneProjectionTransaction::TargetEntry *entry = projectionTransaction().targetsHead();
-            while (entry)
-            {
-              BoundaryNode *boundary = entry->node ? entry->node->asBoundary() : 0;
-              if (boundary)
-              {
-                if (sawAfter)
-                {
-                  return boundary;
-                }
-                if (static_cast<const void *>(boundary) == afterIdentity)
-                {
-                  sawAfter = true;
-                }
-              }
-              entry = entry->next;
-            }
-            return 0;
-          }
-
           TransactionSnapshot transactionSnapshot;
         };
 
@@ -540,7 +522,6 @@ namespace loka
         NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const;
         bool hasPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *firstPendingBoundary() const;
-        BoundaryNode *nextPendingBoundary(const BoundaryNode *boundary) const;
         BoundaryNode *rootBoundaryFor(Node *rootNode) const;
         BoundaryNode *topMostRequestedBoundary(BoundaryNode *boundary) const;
         bool isBoundaryUpdateRoot(BoundaryNode *boundary) const;
@@ -583,11 +564,37 @@ namespace loka
         struct PendingUpdateRootAnalysis
         {
           explicit PendingUpdateRootAnalysis(const SceneDirector *director);
+          ~PendingUpdateRootAnalysis();
           bool hasEquivalentDescendant(BoundaryNode *root) const;
-          bool hasSeenRootBefore(BoundaryNode *boundary, BoundaryNode *root) const;
+          bool hasSeenRoot(BoundaryNode *root) const;
+          void recordSeenRoot(BoundaryNode *root);
           bool shouldSkip(BoundaryNode *boundary, BoundaryNode *root) const;
 
+          struct SeenRoot
+          {
+            SeenRoot() : root(0), next(0) {}
+
+            BoundaryNode *root;
+            SeenRoot *next;
+          };
+
           const SceneDirector *director;
+          SeenRoot *seenHead;
+          SeenRoot *seenTail;
+
+        private:
+          PendingUpdateRootAnalysis(const PendingUpdateRootAnalysis &);
+          PendingUpdateRootAnalysis &operator=(const PendingUpdateRootAnalysis &);
+        };
+
+        struct PendingUpdateRootCursor
+        {
+          explicit PendingUpdateRootCursor(const SceneDirector *director);
+          BoundaryNode *next();
+
+          const SceneDirector *director;
+          const SceneProjectionTransaction::TargetEntry *entry;
+          PendingUpdateRootAnalysis analysis;
         };
 
         BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
