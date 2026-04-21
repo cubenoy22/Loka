@@ -3433,6 +3433,7 @@ void testLokaFlowDslV1Core() {
     assert(lastObservationAfterUnmount.request.firstPendingRoot == 0);
     assert(lastObservationAfterUnmount.request.rootBoundary == 0);
     assert(lastObservationAfterUnmount.request.primaryRoot() == 0);
+    assert(SceneTestAccess::lastApplyPlan(scene).hasAnyWork() == false);
   }
 
   {

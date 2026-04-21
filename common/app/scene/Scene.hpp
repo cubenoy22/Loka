@@ -77,6 +77,7 @@ namespace loka
 
             void clear()
             {
+              lastApplyPlan.clear();
               lastAppliedSnapshot.clear();
             }
 
@@ -114,7 +115,7 @@ namespace loka
 
           void discardRetainedState()
           {
-            pendingSnapshot.clear();
+            clearPendingState();
             retainedApply.clear();
           }
 
