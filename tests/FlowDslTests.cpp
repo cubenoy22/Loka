@@ -3397,7 +3397,7 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::snapshotEffectiveDirtyFlags(SceneTestAccess::updateSnapshot(scene)) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotFirstPendingRoot(SceneTestAccess::updateSnapshot(scene)) == 0);
     assert(SceneTestAccess::snapshotRootBoundary(SceneTestAccess::updateSnapshot(scene)) == 0);
-    assert(SceneTestAccess::updateSnapshot(scene).generation == 0);
+    assert(SceneTestAccess::snapshotGeneration(SceneTestAccess::updateSnapshot(scene)) == 0);
     assert(SceneTestAccess::snapshotEffectiveDirtyFlags(SceneTestAccess::lastUpdateSnapshot(scene)) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::hasRequestedInput(scene));
     assert(SceneTestAccess::requestedDirtyFlags(scene) == NODE_DIRTY_PROPS);
@@ -3409,7 +3409,7 @@ void testLokaFlowDslV1Core() {
 
     assert(scene.flushInvalidation());
     const SceneDirector::SceneUpdateSnapshot &observationAfterFlush = SceneTestAccess::updateSnapshot(scene);
-    assert(observationAfterFlush.generation == 0);
+    assert(SceneTestAccess::snapshotGeneration(observationAfterFlush) == 0);
     assert(SceneTestAccess::snapshotRequestedDirtyFlags(observationAfterFlush) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotTransactionDirtyFlags(observationAfterFlush) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotEffectiveDirtyFlags(observationAfterFlush) == NODE_DIRTY_NONE);
@@ -3418,13 +3418,13 @@ void testLokaFlowDslV1Core() {
     assert(SceneTestAccess::snapshotFirstPendingRoot(observationAfterFlush) == 0);
     assert(SceneTestAccess::snapshotRootBoundary(observationAfterFlush) == 0);
     assert(SceneTestAccess::snapshotPrimaryRoot(observationAfterFlush) == 0);
-    assert(observationAfterFlush.apply.layoutRequired() == false);
-    assert(observationAfterFlush.apply.structureRequired() == false);
-    assert(observationAfterFlush.apply.compositedPaintRequired() == false);
-    assert(observationAfterFlush.apply.opaqueLocalPaintRequired() == false);
-    assert(observationAfterFlush.apply.localCompositionDiffApplicable() == false);
+    assert(SceneTestAccess::snapshotLayoutRequired(observationAfterFlush) == false);
+    assert(SceneTestAccess::snapshotStructureRequired(observationAfterFlush) == false);
+    assert(SceneTestAccess::snapshotCompositedPaintRequired(observationAfterFlush) == false);
+    assert(SceneTestAccess::snapshotOpaqueLocalPaintRequired(observationAfterFlush) == false);
+    assert(SceneTestAccess::snapshotLocalCompositionDiffApplicable(observationAfterFlush) == false);
     const SceneDirector::SceneUpdateSnapshot &lastObservationAfterFlush = SceneTestAccess::lastUpdateSnapshot(scene);
-    assert(lastObservationAfterFlush.generation == firstGeneration);
+    assert(SceneTestAccess::snapshotGeneration(lastObservationAfterFlush) == firstGeneration);
     assert((SceneTestAccess::snapshotRequestedDirtyFlags(lastObservationAfterFlush) & NODE_DIRTY_PROPS) != 0);
     assert((SceneTestAccess::snapshotTransactionDirtyFlags(lastObservationAfterFlush) & NODE_DIRTY_PROPS) != 0);
     assert((SceneTestAccess::snapshotEffectiveDirtyFlags(lastObservationAfterFlush) & NODE_DIRTY_PROPS) != 0);
@@ -3454,7 +3454,7 @@ void testLokaFlowDslV1Core() {
     assert(plan.layoutRoot == rootBoundary);
     assert(plan.paintRoot == rootBoundary);
     const SceneDirector::SceneUpdateSnapshot &lastLayoutObservation = SceneTestAccess::lastUpdateSnapshot(scene);
-    assert(lastLayoutObservation.generation == secondGeneration);
+    assert(SceneTestAccess::snapshotGeneration(lastLayoutObservation) == secondGeneration);
     assert((SceneTestAccess::snapshotRequestedDirtyFlags(lastLayoutObservation) & NODE_DIRTY_LAYOUT) != 0);
     assert((SceneTestAccess::snapshotEffectiveDirtyFlags(lastLayoutObservation) & NODE_DIRTY_LAYOUT) != 0);
     assert(SceneTestAccess::snapshotRootBoundary(lastLayoutObservation) == rootBoundary);
@@ -3467,13 +3467,13 @@ void testLokaFlowDslV1Core() {
 
     scene.unmount();
     const SceneDirector::SceneUpdateSnapshot &observationAfterUnmount = SceneTestAccess::updateSnapshot(scene);
-    assert(observationAfterUnmount.generation == 0);
+    assert(SceneTestAccess::snapshotGeneration(observationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotEffectiveDirtyFlags(observationAfterUnmount) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotFirstPendingRoot(observationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotRootBoundary(observationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotPrimaryRoot(observationAfterUnmount) == 0);
     const SceneDirector::SceneUpdateSnapshot &lastObservationAfterUnmount = SceneTestAccess::lastUpdateSnapshot(scene);
-    assert(lastObservationAfterUnmount.generation == 0);
+    assert(SceneTestAccess::snapshotGeneration(lastObservationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotEffectiveDirtyFlags(lastObservationAfterUnmount) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::snapshotFirstPendingRoot(lastObservationAfterUnmount) == 0);
     assert(SceneTestAccess::snapshotRootBoundary(lastObservationAfterUnmount) == 0);

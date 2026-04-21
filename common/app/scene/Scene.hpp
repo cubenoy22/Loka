@@ -134,7 +134,7 @@ namespace loka
           void recordPendingSnapshot(const SceneDirector::SceneUpdateSnapshot &snapshot)
           {
             pendingSnapshot = snapshot;
-            applyRequestSnapshot(pendingSnapshot.request);
+            applyRequestSnapshot(pendingSnapshot.requestSnapshot());
           }
 
           void completeApply(const PlatformApplyPlan &plan)
@@ -160,27 +160,27 @@ namespace loka
 
           NodeDirtyFlags effectivePendingRequestDirtyFlags() const
           {
-            return pendingSnapshot.request.effectiveDirtyFlagsValue();
+            return pendingSnapshot.requestSnapshot().effectiveDirtyFlagsValue();
           }
 
           NodeDirtyFlags aggregateTransactionDirtyFlags() const
           {
-            return pendingSnapshot.request.transactionDirtyFlagsValue();
+            return pendingSnapshot.requestSnapshot().transactionDirtyFlagsValue();
           }
 
           bool refreshStructureRequired() const
           {
-            return pendingSnapshot.apply.structureRequired();
+            return pendingSnapshot.applySnapshot().structureRequired();
           }
 
           bool refreshLayoutRequired() const
           {
-            return pendingSnapshot.apply.layoutRequired();
+            return pendingSnapshot.applySnapshot().layoutRequired();
           }
 
           bool refreshLocalCompositionDiffApplicable() const
           {
-            return pendingSnapshot.apply.localCompositionDiffApplicable();
+            return pendingSnapshot.applySnapshot().localCompositionDiffApplicable();
           }
 
           const SceneCompositionDiff &compositionDiffValue() const
@@ -1203,7 +1203,7 @@ namespace loka
         plan.structureChanged = snapshot.requiresStructureChange();
         plan.layoutChanged = snapshot.requiresLayoutChange();
         plan.paintKind = ResolvePaintKind(snapshot);
-        plan.setPrimaryRoot(snapshot.request.primaryRoot());
+        plan.setPrimaryRoot(snapshot.requestSnapshot().primaryRoot());
         return plan;
       }
 
@@ -1431,23 +1431,24 @@ namespace loka
 
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        return snapshot.request.effectiveFullRebuildRequired() && snapshot.apply.localCompositionDiffApplicable();
+        return snapshot.requestSnapshot().effectiveFullRebuildRequired() &&
+               snapshot.applySnapshot().localCompositionDiffApplicable();
       }
 
       inline static bool CanRelaxFullRebuildForChildOnlyUpdate(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        return snapshot.request.effectiveFullRebuildRequired() &&
-               snapshot.request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
-               !snapshot.apply.structureRequired();
+        return snapshot.requestSnapshot().effectiveFullRebuildRequired() &&
+               snapshot.requestSnapshot().hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
+               !snapshot.applySnapshot().structureRequired();
       }
 
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        if (!snapshot.request.effectiveFullRebuildRequired())
+        if (!snapshot.requestSnapshot().effectiveFullRebuildRequired())
         {
           return false;
         }
-        BoundaryNode *rootBoundary = snapshot.request.rootBoundaryValue();
+        BoundaryNode *rootBoundary = snapshot.requestSnapshot().rootBoundaryValue();
         return rootBoundary && rootBoundary->canApplyLocalCompositionDiff();
       }
 

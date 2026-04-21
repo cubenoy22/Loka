@@ -326,6 +326,22 @@ namespace loka
             return apply.compositedPaintRequired();
           }
 
+          unsigned long generationValue() const
+          {
+            return generation;
+          }
+
+          const SceneUpdateRequestSnapshot &requestSnapshot() const
+          {
+            return request;
+          }
+
+          const SceneUpdateApplySnapshot &applySnapshot() const
+          {
+            return apply;
+          }
+
+        private:
           unsigned long generation;
           SceneUpdateRequestSnapshot request;
           SceneUpdateApplySnapshot apply;

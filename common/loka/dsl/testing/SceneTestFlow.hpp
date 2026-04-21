@@ -107,49 +107,85 @@ namespace loka
         static ::loka::app::scene::NodeDirtyFlags snapshotRequestedDirtyFlags(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.requestedDirtyFlagsValue();
+          return snapshot.requestSnapshot().requestedDirtyFlagsValue();
         }
 
         static ::loka::app::scene::NodeDirtyFlags snapshotTransactionDirtyFlags(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.transactionDirtyFlagsValue();
+          return snapshot.requestSnapshot().transactionDirtyFlagsValue();
         }
 
         static ::loka::app::scene::NodeDirtyFlags snapshotEffectiveDirtyFlags(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.effectiveDirtyFlagsValue();
+          return snapshot.requestSnapshot().effectiveDirtyFlagsValue();
         }
 
         static bool snapshotRequestedFullRebuild(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.requestedFullRebuildValue();
+          return snapshot.requestSnapshot().requestedFullRebuildValue();
         }
 
         static bool snapshotEffectiveFullRebuild(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.effectiveFullRebuildRequired();
+          return snapshot.requestSnapshot().effectiveFullRebuildRequired();
         }
 
         static ::loka::app::scene::BoundaryNode *snapshotFirstPendingRoot(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.firstPendingRootValue();
+          return snapshot.requestSnapshot().firstPendingRootValue();
         }
 
         static ::loka::app::scene::BoundaryNode *snapshotRootBoundary(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.rootBoundaryValue();
+          return snapshot.requestSnapshot().rootBoundaryValue();
         }
 
         static ::loka::app::scene::BoundaryNode *snapshotPrimaryRoot(
             const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
-          return snapshot.request.primaryRoot();
+          return snapshot.requestSnapshot().primaryRoot();
+        }
+
+        static unsigned long snapshotGeneration(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.generationValue();
+        }
+
+        static bool snapshotLayoutRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().layoutRequired();
+        }
+
+        static bool snapshotStructureRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().structureRequired();
+        }
+
+        static bool snapshotCompositedPaintRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().compositedPaintRequired();
+        }
+
+        static bool snapshotOpaqueLocalPaintRequired(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().opaqueLocalPaintRequired();
+        }
+
+        static bool snapshotLocalCompositionDiffApplicable(
+            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        {
+          return snapshot.applySnapshot().localCompositionDiffApplicable();
         }
 
         static bool flushInvalidation(::loka::app::scene::Scene &scene)
