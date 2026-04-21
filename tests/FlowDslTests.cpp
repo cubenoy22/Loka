@@ -3495,26 +3495,26 @@ void testLokaFlowDslV1Core() {
     assert(rootBoundary != 0);
 
     scene.requestInvalidate(NODE_DIRTY_PROPS);
-    assert(SceneTestAccess::projectionTransaction(scene).hasPending());
+    assert(SceneTestAccess::projectionTransactionHasPending(scene));
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
-    assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_PROPS);
+    assert(SceneTestAccess::projectionTransactionAggregateDirtyFlags(scene) == NODE_DIRTY_PROPS);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) != 0);
     assert(SceneTestAccess::projectionTransactionFirstTargetNode(scene) == rootBoundary);
     assert(SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) == NODE_DIRTY_PROPS);
 
     scene.requestInvalidate(NODE_DIRTY_LAYOUT);
-    assert(SceneTestAccess::projectionTransaction(scene).hasPending());
+    assert(SceneTestAccess::projectionTransactionHasPending(scene));
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 1);
-    assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_PROPS) != 0);
-    assert((SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() & NODE_DIRTY_LAYOUT) != 0);
+    assert((SceneTestAccess::projectionTransactionAggregateDirtyFlags(scene) & NODE_DIRTY_PROPS) != 0);
+    assert((SceneTestAccess::projectionTransactionAggregateDirtyFlags(scene) & NODE_DIRTY_LAYOUT) != 0);
     assert(SceneTestAccess::projectionTransactionFirstTargetNode(scene) == rootBoundary);
     assert((SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) & NODE_DIRTY_PROPS) != 0);
     assert((SceneTestAccess::projectionTransactionFirstTargetDirtyFlags(scene) & NODE_DIRTY_LAYOUT) != 0);
 
     assert(scene.flushInvalidation());
-    assert(!SceneTestAccess::projectionTransaction(scene).hasPending());
+    assert(!SceneTestAccess::projectionTransactionHasPending(scene));
     assert(SceneTestAccess::projectionTransactionTargetCount(scene) == 0);
-    assert(SceneTestAccess::projectionTransaction(scene).aggregateDirtyFlags() == NODE_DIRTY_NONE);
+    assert(SceneTestAccess::projectionTransactionAggregateDirtyFlags(scene) == NODE_DIRTY_NONE);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
     assert(SceneTestAccess::projectionTransactionFirstTargetNode(scene) == 0);
 

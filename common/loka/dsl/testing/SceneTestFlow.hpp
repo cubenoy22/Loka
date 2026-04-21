@@ -56,9 +56,14 @@ namespace loka
           return scene.updateCycleState_.lastAppliedSnapshotValue();
         }
 
-        static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
+        static bool projectionTransactionHasPending(const ::loka::app::scene::Scene &scene)
         {
-          return scene.director_.updateTransaction_.projectionTransaction();
+          return projectionTransaction(scene).hasPending();
+        }
+
+        static ::loka::app::scene::NodeDirtyFlags projectionTransactionAggregateDirtyFlags(const ::loka::app::scene::Scene &scene)
+        {
+          return projectionTransaction(scene).aggregateDirtyFlags();
         }
 
         static long projectionTransactionTargetCount(const ::loka::app::scene::Scene &scene)
@@ -83,6 +88,13 @@ namespace loka
           return projectionTransaction(scene).targetsBegin().dirtyFlags();
         }
 
+      private:
+        static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.director_.updateTransaction_.projectionTransaction();
+        }
+
+      public:
         static ::loka::app::scene::NodeDirtyFlags requestedDirtyFlags(const ::loka::app::scene::Scene &scene)
         {
           return scene.director_.requestedDirtyFlags();
