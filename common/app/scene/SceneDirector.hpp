@@ -45,6 +45,28 @@ namespace loka
 
         struct SceneUpdateRequestSnapshot
         {
+          struct TransactionInputs
+          {
+            TransactionInputs(NodeDirtyFlags requestedFlags,
+                              bool requestedRebuild,
+                              BoundaryNode *root,
+                              NodeDirtyFlags transactionFlags,
+                              BoundaryNode *firstRoot)
+                : requestedDirtyFlags(requestedFlags),
+                  requestedFullRebuild(requestedRebuild),
+                  rootBoundary(root),
+                  transactionDirtyFlags(transactionFlags),
+                  firstPendingRoot(firstRoot)
+            {
+            }
+
+            NodeDirtyFlags requestedDirtyFlags;
+            bool requestedFullRebuild;
+            BoundaryNode *rootBoundary;
+            NodeDirtyFlags transactionDirtyFlags;
+            BoundaryNode *firstPendingRoot;
+          };
+
           SceneUpdateRequestSnapshot()
               : requestedDirtyFlags(NODE_DIRTY_NONE),
                 transactionDirtyFlags(NODE_DIRTY_NONE),
@@ -86,16 +108,12 @@ namespace loka
             firstPendingRoot = root;
           }
 
-          void applyTransactionInputs(NodeDirtyFlags requestedFlags,
-                                      bool requestedRebuild,
-                                      BoundaryNode *root,
-                                      NodeDirtyFlags transactionFlags,
-                                      BoundaryNode *firstRoot)
+          void captureTransactionInputs(const TransactionInputs &inputs)
           {
-            setRequestedInput(requestedFlags, requestedRebuild, root);
-            setTransactionDirtyFlags(transactionFlags);
+            setRequestedInput(inputs.requestedDirtyFlags, inputs.requestedFullRebuild, inputs.rootBoundary);
+            setTransactionDirtyFlags(inputs.transactionDirtyFlags);
             deriveEffectiveFullRebuild();
-            setFirstPendingRoot(firstRoot);
+            setFirstPendingRoot(inputs.firstPendingRoot);
           }
 
           void deriveEffectiveFullRebuild()
@@ -406,11 +424,12 @@ namespace loka
               {
                 return requestSnapshot;
               }
-              requestSnapshot.applyTransactionInputs(effectiveRequestedDirtyFlags(),
-                                                     requestedFullRebuild(),
-                                                     rootBoundary,
-                                                     aggregateDirtyFlags(),
-                                                     firstPendingRoot);
+              SceneUpdateRequestSnapshot::TransactionInputs inputs(effectiveRequestedDirtyFlags(),
+                                                                   requestedFullRebuild(),
+                                                                   rootBoundary,
+                                                                   aggregateDirtyFlags(),
+                                                                   firstPendingRoot);
+              requestSnapshot.captureTransactionInputs(inputs);
               return requestSnapshot;
             }
 
