@@ -38,6 +38,16 @@ namespace loka
           {
           }
 
+          TargetEntry(Node *targetNode, NodeDirtyFlags flags)
+              : node(targetNode), dirtyFlags(flags), next(0)
+          {
+          }
+
+          void includeDirtyFlags(NodeDirtyFlags flags)
+          {
+            dirtyFlags = static_cast<NodeDirtyFlags>(dirtyFlags | flags);
+          }
+
           Node *node;
           NodeDirtyFlags dirtyFlags;
           TargetEntry *next;
@@ -66,12 +76,10 @@ namespace loka
           TargetEntry *entry = find(node);
           if (entry)
           {
-            entry->dirtyFlags = static_cast<NodeDirtyFlags>(entry->dirtyFlags | flags);
+            entry->includeDirtyFlags(flags);
             return;
           }
-          entry = new TargetEntry();
-          entry->node = node;
-          entry->dirtyFlags = flags;
+          entry = new TargetEntry(node, flags);
           if (!head)
           {
             head = entry;
