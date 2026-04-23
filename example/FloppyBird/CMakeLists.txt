@@ -40,8 +40,11 @@ endif()
 
 # ---- macOS ----------------------------------------------------------------
 if(APPLE)
+  file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
+
   add_executable(LokaFloppyBirdMacOS
     src/MacOSMain.mm
+    ${MACOS_HEADERS}
   )
 
   set_target_properties(LokaFloppyBirdMacOS PROPERTIES

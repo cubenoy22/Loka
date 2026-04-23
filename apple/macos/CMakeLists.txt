@@ -36,6 +36,11 @@ target_include_directories(LokaAppleMacOSAppKit INTERFACE
 )
 
 file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
+file(GLOB_RECURSE COMMON_HEADERS ${PROJECT_SOURCE_DIR}/common/*.hpp)
+file(GLOB_RECURSE LOKA_MACOS_CORE_HEADERS
+  ${CMAKE_CURRENT_LIST_DIR}/src/*.hpp
+  ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/*.hpp
+)
 
 set(LOKA_MACOS_CORE_SOURCES
   src/MacApp.mm
@@ -56,7 +61,12 @@ set(LOKA_MACOS_CORE_SOURCES
   ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
 )
 
-add_library(LokaMacOSCore STATIC ${LOKA_MACOS_CORE_SOURCES} ${COMMON_SOURCES})
+add_library(LokaMacOSCore STATIC
+  ${LOKA_MACOS_CORE_SOURCES}
+  ${COMMON_SOURCES}
+  ${COMMON_HEADERS}
+  ${LOKA_MACOS_CORE_HEADERS}
+)
 
 target_include_directories(LokaMacOSCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
@@ -77,9 +87,13 @@ set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
   ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
 )
+file(GLOB_RECURSE LOKA_MACOS_TEST_HEADERS ${PROJECT_SOURCE_DIR}/tests/*.hpp)
 
 if(NOT LOKA_MAC_OS_10_4)
-  add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_SOURCES})
+  add_executable(LokaTestsMacOS
+    ${LOKA_MACOS_TEST_SOURCES}
+    ${LOKA_MACOS_TEST_HEADERS}
+  )
 
   target_include_directories(LokaTestsMacOS PRIVATE
     ${PROJECT_SOURCE_DIR}/common

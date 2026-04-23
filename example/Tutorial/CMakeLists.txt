@@ -46,8 +46,9 @@ if(APPLE)
   set(MACOS_SOURCES
     src/MacOSMain.mm
   )
+  file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
 
-  add_executable(LokaTutorialMacOS ${MACOS_SOURCES})
+  add_executable(LokaTutorialMacOS ${MACOS_SOURCES} ${MACOS_HEADERS})
 
   target_include_directories(LokaTutorialMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

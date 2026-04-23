@@ -45,8 +45,9 @@ if(APPLE)
   set(MACOS_SOURCES
     src/MacOSMain.mm
   )
+  file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
 
-  add_executable(LokaMineMacOS ${MACOS_SOURCES})
+  add_executable(LokaMineMacOS ${MACOS_SOURCES} ${MACOS_HEADERS})
 
   target_include_directories(LokaMineMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

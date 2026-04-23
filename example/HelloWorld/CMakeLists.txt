@@ -77,8 +77,9 @@ if(APPLE)
     src/MacOSMain.mm
     src/MainNode.cpp
   )
+  file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
 
-  add_executable(LokaHelloMacOS ${MACOS_SOURCES})
+  add_executable(LokaHelloMacOS ${MACOS_SOURCES} ${MACOS_HEADERS})
 
   target_include_directories(LokaHelloMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
