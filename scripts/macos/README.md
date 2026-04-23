@@ -42,6 +42,9 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Intended for OS X Mountain Lion (10.8) and later.
   - Projects generated on 10.8+ are generally Xcode 3.2-compatible enough to be opened on Snow Leopard with Xcode 3.2.6.
   - Some newer flags may still need manual cleanup for Xcode 3.2.6, for example removing unsupported options such as `-fno-objc-arc`.
+  - The generated project remains path-sensitive: source references are anchored to the path used when `gen-xcodeproj.sh` ran.
+  - In practice, older Xcode versions may fail to resolve sources if the repository root folder name changes or if the project is reopened from a different absolute path after generation.
+  - Treat generated `build/macos-xcodeproj/...` projects as machine-local artifacts; regenerate them on the target machine/path instead of copying them as reusable nightly-build artifacts.
   - Legacy `MAC_OS_10_4*` flags are intentionally not used here.
 
 ## Examples
