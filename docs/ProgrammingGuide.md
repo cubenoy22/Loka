@@ -511,6 +511,43 @@ Loka を使い始める段階では、次のルールだけ先に覚えると読
 Loka では現代的な lambda や `std::function` を前提にしないため、
 イベント結線では関数ポインタと `void *userData` を受ける形をよく使います。
 
+ここでさらに、チュートリアルのサンプルでは
+`BoundaryNodeFor<FooNode>` や `BoundaryPropsFor<FooNode>` が
+いきなり出てくることがあります。
+最初は名前だけ見ると少し分かりにくいですが、役割は比較的単純です。
+
+- `BoundaryNode` は state ownership / compose / update の境界になる node
+- `BoundaryNodeFor<FooNode>` は、その `FooNode` を普通に書くための便利な base class
+- `BoundaryPropsFor<FooNode>` は、その node に渡す props の基本型
+
+つまり、最初の理解としては
+「この node は 1 つの Boundary として動く」
+「その Boundary 用の props 型を `PropsType` として使っている」
+くらいで十分です。
+
+```cpp
+class MyNode : public loka::app::scene::BoundaryNodeFor<MyNode>
+{
+public:
+  typedef loka::app::scene::BoundaryPropsFor<MyNode> PropsType;
+
+  MyNode(const PropsType &p)
+      : loka::app::scene::BoundaryNodeFor<MyNode>(p)
+  {
+  }
+};
+```
+
+この `PropsType` に独自フィールドを足したいときは、
+単純な例では `BoundaryPropsFor<MyNode>` をそのまま使い、
+必要が増えたら独自の props struct を定義します。
+
+なお `BoundaryPropsFor<T>` は何でも入れてよい入れ物ではありません。
+ownership を曖昧にしやすい値は避ける方向で設計されており、
+特に raw の `MutableState<T>*` や `BoundState<T>` を props に直接持たせる前提ではありません。
+まずは「Boundary は state の所有者寄りの単位であり、
+props はその外側から渡す入力」と考えると読みやすくなります。
+
 ```cpp
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
