@@ -1,9 +1,8 @@
-#include "loka/platform/Main.hpp"
 #include "MyAppConfig.hpp"
+#include "loka/platform/Main.hpp"
 #include <Foundation/Foundation.h>
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
