@@ -477,6 +477,44 @@ Loka を使い始める段階では、次のルールだけ先に覚えると読
 この時点では、Boundary や Tracker の細かい内部まで理解しなくても構いません。
 ただし「State には所有者がある」という感覚だけは、早い段階で持っておくべきです。
 
+### `StateTracker` は何をしているのか
+
+Loka では、state 更新は単に値を書き換えて終わりではありません。
+`StateTracker` が更新のまとまりを扱います。
+
+役割をざっくり言うと、次の通りです。
+
+- 複数の `set()` を 1 つの transaction としてまとめる
+- dirty になった state を覚える
+- `DerivedState<T>` の再計算をまとめる
+- deferred な副作用を commit の最後に流す
+
+イメージは次のようになります。
+
+```text
+MutableState::set()
+  -> 現在の tracker に dirty を通知
+StateTracker::end()
+  -> dirty を安定するまで再計算
+  -> deferred な副作用を最後に実行
+```
+
+利用者側が最初に覚えるべきことは多くありません。
+普通の app/DSL code では、
+「複数の state 更新は `StateTrackerGuard` の下で行う」
+と理解しておけば十分です。
+
+```cpp
+loka::core::StateTrackerGuard guard(this->tracker());
+this->count_.set(this->count_.get() + 1);
+this->label_.set(loka::core::String::Literal("Updated"));
+```
+
+また、`deferBind` や `StateTracker::defer()` のような deferred な仕組みは、
+「更新途中ではなく、ひとまとまりの更新が落ち着いたあとに副作用を流したい」
+ときに使います。
+最初の段階では、まず `bind` / `deferBind` と `StateTrackerGuard` の役割だけ掴めば十分です。
+
 ## 5. 他フレームワーク経験者向けの最初の対応づけ
 
 ざっくりした感覚では、次の対応で考えると入りやすくなります。
