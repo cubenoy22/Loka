@@ -81,7 +81,7 @@ namespace loka
           virtual ~CallbackEntryBase() {}
           virtual void unbind() = 0;
           virtual void invalidate() = 0;
-          virtual bool matches(loka::core::EmitterState *emitter, void *node, const void *methodBytes, size_t methodSize) const = 0;
+          virtual bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const = 0;
         };
 
         template <class NodeT>
@@ -114,9 +114,9 @@ namespace loka
             valid_ = false;
           }
 
-          bool matches(loka::core::EmitterState *emitter, void *node, const void *methodBytes, size_t methodSize) const
+          bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const
           {
-            if (emitter_ != emitter || node_ != node || methodSize != sizeof(method_))
+            if (emitter_ != source || node_ != node || methodSize != sizeof(method_))
             {
               return false;
             }
@@ -125,6 +125,51 @@ namespace loka
 
           NodeT *node_;
           loka::core::EmitterState *emitter_;
+          Method method_;
+          bool valid_;
+        };
+
+        template <class StateT, class NodeT>
+        struct StateCallbackEntry : public CallbackEntryBase
+        {
+          typedef void (NodeT::*Method)();
+          StateCallbackEntry(StateT *state, NodeT *node, Method method)
+              : state_(state), node_(node), method_(method), valid_(true) {}
+
+          static void Invoke(void *userData)
+          {
+            StateCallbackEntry *self = static_cast<StateCallbackEntry *>(userData);
+            if (!self || !self->valid_ || !self->node_)
+            {
+              return;
+            }
+            (self->node_->*(self->method_))();
+          }
+
+          void unbind()
+          {
+            if (state_)
+            {
+              state_->unbind(&Invoke, this);
+            }
+          }
+
+          void invalidate()
+          {
+            valid_ = false;
+          }
+
+          bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const
+          {
+            if (state_ != source || node_ != node || methodSize != sizeof(method_))
+            {
+              return false;
+            }
+            return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+          }
+
+          StateT *state_;
+          NodeT *node_;
           Method method_;
           bool valid_;
         };
@@ -161,6 +206,40 @@ namespace loka
         void bindForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
         {
           this->bindActionForUi(emitter, method);
+        }
+
+        template <class StateT, class NodeT>
+        void watchStateForUi(StateT &state, NodeT *node, void (NodeT::*method)(), bool callImmediately = false)
+        {
+          for (size_t i = 0; i < callbacks_.size(); ++i)
+          {
+            if (callbacks_[i] && callbacks_[i]->matches(&state, node, &method, sizeof(method)))
+            {
+              return;
+            }
+          }
+          StateCallbackEntry<StateT, NodeT> *entry = new StateCallbackEntry<StateT, NodeT>(&state, node, method);
+          callbacks_.push_back(entry);
+          state.bind(&StateCallbackEntry<StateT, NodeT>::Invoke, entry, callImmediately);
+        }
+
+        template <class StateT, class NodeT>
+        void watchStateForUi(StateT &state, void (NodeT::*method)(), bool callImmediately = false)
+        {
+          NodeT *self = static_cast<NodeT *>(this);
+          this->watchStateForUi(state, self, method, callImmediately);
+        }
+
+        template <class StateT, class NodeT>
+        void bindStateForUi(StateT &state, NodeT *node, void (NodeT::*method)(), bool callImmediately = false)
+        {
+          this->watchStateForUi(state, node, method, callImmediately);
+        }
+
+        template <class StateT, class NodeT>
+        void bindStateForUi(StateT &state, void (NodeT::*method)(), bool callImmediately = false)
+        {
+          this->watchStateForUi(state, method, callImmediately);
         }
 
         struct AttachedContext

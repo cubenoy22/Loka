@@ -70,8 +70,8 @@ namespace helloworld
     this->bindActionForUi(this->toggleEvent_, &MainNode::toggleMessage);
     this->bindActionForUi(this->toggleActionEnabledEvent_, &MainNode::toggleActionEnabled);
     this->bindActionForUi(this->actionProbeEvent_, &MainNode::handleActionProbe);
-    this->heightInput_.bind(&MainNode::BmiChangedThunk, this, false);
-    this->weightInput_.bind(&MainNode::BmiChangedThunk, this, false);
+    this->watchStateForUi(this->heightInput_, &MainNode::refreshBmiResult);
+    this->watchStateForUi(this->weightInput_, &MainNode::refreshBmiResult);
     {
       loka::dsl::StateStream<int> fruitIndexStream = this->fruitIndex_.stream();
       fruitIndexStream.map(loka::dsl::Const("You chose ")
@@ -82,15 +82,6 @@ namespace helloworld
     this->refreshActionSummary();
     this->refreshBmiResult();
     this->initialized_ = true;
-  }
-
-  void MainNode::BmiChangedThunk(void *userData)
-  {
-    MainNode *self = static_cast<MainNode *>(userData);
-    if (self)
-    {
-      self->refreshBmiResult();
-    }
   }
 
   ::Window *MainNode::windowOrNull() const
