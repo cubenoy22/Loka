@@ -1,5 +1,7 @@
 # Loka Programming Guide
 
+Target version: Loka `0.0.1`
+
 ## はじめに
 
 Loka を一言で言えば、
@@ -1404,6 +1406,26 @@ Menu DSL でも考え方は同じです。
 - 論理構造を先に書く
 - 必要なら event や attr を積む
 - 最終的な反映は各 OS の menu system へ投影される
+
+ただし、Loka `0.0.1` の `MenuComposition` は、
+Scene node の `StdComposition` とは更新モデルが異なります。
+
+`StdComposition` の `composeNode()` は attach 時に一度だけ構造を宣言し、
+以後は bind 済み state の更新で反映します。
+一方、`composeMenu()` は初回だけでなく、
+menu invalidation が発生したときにも再実行されます。
+そのたびに `MenuBarDefinition` を作り直し、
+前回の menu bar と diff して platform menu へ反映します。
+
+これは、より動的な composition 方針を取っていた時期の名残です。
+通常の Scene DSL では `StdComposition` を基準に考え、
+`Show()` や stream などで再利用ヒントを明示できる形を優先します。
+Menu DSL についても、可能なら構造は安定させ、
+有効/無効やイベントなどの live な変化だけを state / binding で表すほうが扱いやすくなります。
+
+そのため `composeMenu()` には、
+「一度だけ実行される」ことを前提にした副作用を置かないでください。
+state 作成や binding 登録を行う場合も、再実行時の重複登録や寿命を意識する必要があります。
 
 つまり Loka では、
 Window、Scene、Menu を別々の imperative API として扱うのではなく、

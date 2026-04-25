@@ -8,14 +8,12 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
-{
+class MyAppConfig : public AppConfigurable {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
-      : AppConfigurable(ctx), menu_() {}
+  explicit MyAppConfig(PlatformContext *ctx) : AppConfigurable(ctx), menu_() {
+  }
 
-  virtual void compose(AppComposition &c)
-  {
+  virtual void compose(AppComposition &c) {
     c << WindowDef(WindowProps()
                        .frame(50, 50, 420, 300)
                        .scene(loka::app::scene::NodeDefinition<helloworld::MainProps, helloworld::MainNode>())
@@ -23,29 +21,30 @@ public:
                        .visible(true));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &c)
-  {
+  virtual void composeMenu(loka::app::MenuComposition &c) {
     c << menu_;
   }
 
 private:
-  class MainMenu : public loka::app::MenuBoundary
-  {
+  class MainMenu : public loka::app::MenuBoundary {
   public:
-    MainMenu()
-        : randomSeed_(0x1234u), rebuildBound_(false), rebuildEvent_() {}
+    MainMenu() : randomSeed_(0x1234u), rebuildBound_(false), rebuildEvent_() {
+    }
 
-    virtual void composeMenu(loka::app::MenuComposition &c)
-    {
+    virtual void composeMenu(loka::app::MenuComposition &c) {
       using namespace loka::app;
-      c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
-                          << MenuSeparator()
-                          << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
-      c.declare(Menu("View") << MenuItem("Color Picker").actionType(MENU_ACTION_SHOW_COLOR_PICKER));
-      c.declare(Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
-      c.declare(Menu("Special") << (MenuItem("Item") << MenuItem("Sub Item")) << MenuItem("Item 2"));
-      if (!rebuildBound_)
-      {
+      c.declare(AppMenu()                                              //
+                << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) //
+                << MenuSeparator()                                     //
+                << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
+      c.declare(Menu("View") //
+                << MenuItem("Color Picker").actionType(MENU_ACTION_SHOW_COLOR_PICKER));
+      c.declare(Menu("File") //
+                << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
+      c.declare(Menu("Special")                               //
+                << (MenuItem("Item") << MenuItem("Sub Item")) //
+                << MenuItem("Item 2"));
+      if (!rebuildBound_) {
         this->bindActionForMenu(this->rebuildEvent_, &MainMenu::handleRebuild);
         rebuildBound_ = true;
       }
@@ -55,35 +54,30 @@ private:
     }
 
   private:
-    void buildRandomMenu(loka::app::MenuDefinition &menu, unsigned int seed)
-    {
+    void buildRandomMenu(loka::app::MenuDefinition &menu, unsigned int seed) {
       using namespace loka::app;
       using namespace loka::core;
 
       MenuItemDefinition labels[6];
-      for (int i = 0; i < 6; ++i)
-      {
+      for (int i = 0; i < 6; ++i) {
         labels[i] = MenuItem(String::Literal("Random ") + String::FromInt(i + 1));
       }
       menu.opaqueChildren(false);
       menu << MenuItem("Rebuild menu").actionType(MENU_ACTION_REBUILD_MENU).onClick(&rebuildEvent_);
       menu << MenuSeparator();
-      for (int i = 5; i > 0; --i)
-      {
+      for (int i = 5; i > 0; --i) {
         int j = static_cast<int>(seed % static_cast<unsigned int>(i + 1));
         const MenuItemDefinition tmp = labels[i];
         labels[i] = labels[j];
         labels[j] = tmp;
         seed = seed * 1103515245u + 12345u;
       }
-      for (int i = 0; i < 6; ++i)
-      {
+      for (int i = 0; i < 6; ++i) {
         menu << labels[i];
       }
     }
 
-    void handleRebuild()
-    {
+    void handleRebuild() {
       randomSeed_ = randomSeed_ * 1103515245u + 12345u;
     }
 

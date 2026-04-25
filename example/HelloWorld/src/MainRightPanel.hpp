@@ -8,18 +8,17 @@
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 
-namespace helloworld
-{
-  struct FruitPopupLabel
-  {
+namespace helloworld {
+  struct FruitPopupLabel {
     typedef loka::core::String Result;
-    loka::core::String operator()(const loka::core::String &value) const { return value; }
+    loka::core::String operator()(const loka::core::String &value) const {
+      return value;
+    }
   };
 
   inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,
                                           loka::core::State<int> *fruitIndex,
-                                          loka::core::State<loka::core::String> *fruitMessage)
-  {
+                                          loka::core::State<loka::core::String> *fruitMessage) {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.RightPanel")
            << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")
