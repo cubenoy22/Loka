@@ -5,9 +5,15 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/OpenFileDialog.hpp"
+#include "app/PlatformContext.hpp"
+#include "app/scene/BoundState.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/ImageView.hpp"
+#include "SimpleViewerFlowAdapters.hpp"
+#include "loka/core/State.hpp"
+#include "loka/core/String.hpp"
+#include "core/resource/Image.hpp"
 #include <cassert>
 
 namespace simpleviewer
@@ -22,22 +28,13 @@ namespace simpleviewer
   {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
-    loka::core::MutableState<bool> *isDialogShown_;
+    PlatformContext *platformContext_;
     loka::core::EmitterState *openDialogEvent_;
-    loka::core::State<loka::core::String> *message_;
-    loka::core::MutableState<loka::app::FileChooserResult> *result_;
-    loka::core::State<loka::core::resource::Image> *image_;
-    MainProps() : isDialogShown_(0), openDialogEvent_(0), message_(0), result_(0), image_(0) {}
+    MainProps() : platformContext_(0), openDialogEvent_(0) {}
 
-    MainProps &isDialogShown(loka::core::MutableState<bool> *state)
+    MainProps &platformContext(PlatformContext *context)
     {
-      this->isDialogShown_ = state;
-      return *this;
-    }
-
-    MainProps &message(loka::core::State<loka::core::String> *state)
-    {
-      this->message_ = state;
+      this->platformContext_ = context;
       return *this;
     }
 
@@ -47,25 +44,10 @@ namespace simpleviewer
       return *this;
     }
 
-    MainProps &result(loka::core::MutableState<loka::app::FileChooserResult> *state)
-    {
-      this->result_ = state;
-      return *this;
-    }
-
-    MainProps &image(loka::core::State<loka::core::resource::Image> *state)
-    {
-      this->image_ = state;
-      return *this;
-    }
-
     void assertInitialized() const
     {
-      assert(this->isDialogShown_);
+      assert(this->platformContext_);
       assert(this->openDialogEvent_);
-      assert(this->message_);
-      assert(this->result_);
-      assert(this->image_);
     }
 
     bool operator<(const loka::app::scene::PropsBase &rhs) const
@@ -75,15 +57,11 @@ namespace simpleviewer
         return false;
       }
       const MainProps &other = static_cast<const MainProps &>(rhs);
-      if (isDialogShown_ != other.isDialogShown_)
-        return isDialogShown_ < other.isDialogShown_;
+      if (platformContext_ != other.platformContext_)
+        return platformContext_ < other.platformContext_;
       if (openDialogEvent_ != other.openDialogEvent_)
         return openDialogEvent_ < other.openDialogEvent_;
-      if (message_ != other.message_)
-        return message_ < other.message_;
-      if (result_ != other.result_)
-        return result_ < other.result_;
-      return image_ < other.image_;
+      return false;
     }
   };
 
@@ -91,8 +69,40 @@ namespace simpleviewer
   {
   public:
     typedef MainTypeTag TypeTag;
+    typedef loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> ViewerFlowChain;
+
     MainNode(const MainProps &p)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p) {}
+        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
+          initialized_(false),
+          isDialogShown_(),
+          chooserResult_(),
+          chooserMessage_(),
+          image_(),
+          flow_(0) {}
+
+    virtual ~MainNode()
+    {
+      delete this->flow_;
+      this->flow_ = 0;
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      this->props.assertInitialized();
+      c.declareStates()
+          .state(this->isDialogShown_, false)
+          .state(this->chooserMessage_, loka::core::String::Literal("(none)"))
+          .state(this->image_, loka::core::resource::Image::Empty());
+      // FileChooserResult is larger than StateBatch's inline initializer storage.
+      this->chooserResult_ = c.dangerouslyUseState(loka::app::FileChooserResult());
+      this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
+      this->flow_ = new ViewerFlowChain(buildFlow(this));
+      this->initialized_ = true;
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
@@ -103,16 +113,161 @@ namespace simpleviewer
           << F()
           << Button("Open...").onClick(this->props.openDialogEvent_)
           << Text("Loka file:")
-          << Text(this->props.message_).attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
+          << Text(this->chooserMessage_.state()).attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
           << ImageView()
-                 .image(this->props.image_)
+                 .image(this->image_.state())
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
-          << (Show(*this->props.isDialogShown_)
+          << (Show(*this->isDialogShown_.state())
               << OpenFileDialog()
-                     .result(this->props.result_)
-                     .closeState(this->props.isDialogShown_)));
+                     .result(this->chooserResult_.dangerouslyMutableState())
+                     .closeState(this->isDialogShown_.dangerouslyMutableState())));
     }
+
+  private:
+    static bool IsNoFileSelectedError(const loka::dsl::FlowError &error, void *)
+    {
+      return error.code == simpleviewer::SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED;
+    }
+
+    static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData)
+    {
+      MainNode *self = static_cast<MainNode *>(userData);
+      if (self)
+      {
+        self->setEmptyImageIfNeeded();
+        self->setChooserMessageIfChanged(buildErrorMessage(error));
+      }
+      return loka::dsl::FLOW_ERROR_HANDLED;
+    }
+
+    static loka::dsl::FlowHandleResult OnBlobLoadCanceled(const loka::dsl::FlowError &, void *userData)
+    {
+      MainNode *self = static_cast<MainNode *>(userData);
+      if (!self) return loka::dsl::FLOW_ERROR_HANDLED;
+      self->setEmptyImageIfNeeded();
+      return loka::dsl::FLOW_ERROR_HANDLED;
+    }
+
+    static loka::dsl::FlowHandleResult OnBlobLoadFailure(const loka::dsl::FlowError &error, void *userData)
+    {
+      MainNode *self = static_cast<MainNode *>(userData);
+      if (!self) return loka::dsl::FLOW_ERROR_HANDLED;
+      self->setEmptyImageIfNeeded();
+      self->setChooserMessageIfChanged(buildErrorMessage(error));
+      return loka::dsl::FLOW_ERROR_HANDLED;
+    }
+
+    static loka::core::String buildErrorMessage(const loka::dsl::FlowError &error);
+
+    static ViewerFlowChain buildFlow(MainNode *self)
+    {
+      ViewerFlowChain chain =
+          loka::dsl::Flow()
+          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
+          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
+                .onSuccess(self->chooserMessage_.dangerouslyMutableState(), &simpleviewer::ChooserProjection::message)
+          | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter(self->props.platformContext_))
+                .onFailure(&MainNode::IsNoFileSelectedError, &MainNode::OnBlobLoadCanceled, self)
+                .onFailure(&MainNode::OnBlobLoadFailure, self)
+          | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(self->props.platformContext_))
+                .onFailure(&MainNode::OnBlobDecodeFailure, self)
+          | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
+                .onSuccess(self->image_.dangerouslyMutableState());
+      chain.bindTrigger(self->chooserResult_.dangerouslyMutableState());
+      chain.withTracker(static_cast<loka::core::PushStateTracker *>(self->tracker()));
+      return chain;
+    }
+
+    void openDialog()
+    {
+      this->isDialogShown_.set(true, true);
+    }
+
+    void setEmptyImageIfNeeded()
+    {
+      const loka::core::resource::Image empty = loka::core::resource::Image::Empty();
+      if (this->image_.get() == empty)
+      {
+        return;
+      }
+      this->image_.set(empty);
+    }
+
+    void setChooserMessageIfChanged(const loka::core::String &message)
+    {
+      if (this->chooserMessage_.get().equals(message))
+      {
+        return;
+      }
+      this->chooserMessage_.set(message);
+    }
+
+    bool initialized_;
+    loka::app::scene::BoundState<bool> isDialogShown_;
+    loka::app::scene::BoundState<loka::app::FileChooserResult> chooserResult_;
+    loka::app::scene::BoundState<loka::core::String> chooserMessage_;
+    loka::app::scene::BoundState<loka::core::resource::Image> image_;
+    ViewerFlowChain *flow_;
   };
+
+  inline loka::core::String MainNode::buildErrorMessage(const loka::dsl::FlowError &error)
+  {
+    using namespace simpleviewer;
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_CONTEXT_MISSING)
+    {
+      return loka::core::String::Literal("Platform context is missing.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED)
+    {
+      return loka::core::String::Literal("Failed to read file.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: path UTF-8 conversion.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: platform openFile failed.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_NO_FSSPEC)
+    {
+      return loka::core::String::Literal("Read failed: Classic FSSpec missing.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_OPEN_DF_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: FSpOpenDF failed.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_GETEOF_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: GetEOF failed.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_READ_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: FSRead failed.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: fopen failed.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: fseek failed.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED)
+    {
+      return loka::core::String::Literal("Read failed: fread failed.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED)
+    {
+      return loka::core::String::Literal("No file selected.");
+    }
+    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED)
+    {
+      return loka::core::String::Literal("Failed to decode image. Classic supports mainly uncompressed PICT; QuickTime-compressed PICT or low memory may fail.");
+    }
+    return loka::core::String::Literal("Unexpected flow error code: ")
+           + loka::core::String::FromInt(error.code);
+  }
 } // namespace simpleviewer
 
 #endif // LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
