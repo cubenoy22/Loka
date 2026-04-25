@@ -2,6 +2,7 @@
 #define LOKA_APP_MENU_COMPOSITION_HPP
 
 #include <cassert>
+#include <cstring>
 #include <vector>
 #include "loka/core/State.hpp"
 #include "loka/dsl/CompositionList.hpp"
@@ -18,9 +19,10 @@ namespace loka
     class MenuBoundary
     {
     public:
-      MenuBoundary() : tracker_(), ownedStates_() {}
+      MenuBoundary() : tracker_(), ownedStates_(), callbacks_() {}
       virtual ~MenuBoundary()
       {
+        this->releaseCallbacks();
         for (size_t i = 0; i < ownedStates_.size(); ++i)
         {
           delete ownedStates_[i];
@@ -46,9 +48,96 @@ namespace loka
         tracker_.reserveStates(count);
       }
 
+      template <class NodeT>
+      void bindActionForMenu(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
+      {
+        for (size_t i = 0; i < callbacks_.size(); ++i)
+        {
+          if (callbacks_[i] && callbacks_[i]->matches(&emitter, node, &method, sizeof(method)))
+          {
+            return;
+          }
+        }
+        CallbackEntry<NodeT> *entry = new CallbackEntry<NodeT>(node, &emitter, method);
+        callbacks_.push_back(entry);
+        emitter.deferBind(&CallbackEntry<NodeT>::Invoke, entry);
+      }
+
+      template <class NodeT>
+      void bindActionForMenu(loka::core::EmitterState &emitter, void (NodeT::*method)())
+      {
+        NodeT *self = static_cast<NodeT *>(this);
+        this->bindActionForMenu(emitter, self, method);
+      }
+
     private:
+      struct CallbackEntryBase
+      {
+        virtual ~CallbackEntryBase() {}
+        virtual void unbind() = 0;
+        virtual void invalidate() = 0;
+        virtual bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const = 0;
+      };
+
+      template <class NodeT>
+      struct CallbackEntry : public CallbackEntryBase
+      {
+        typedef void (NodeT::*Method)();
+        CallbackEntry(NodeT *node, loka::core::EmitterState *emitter, Method method)
+            : node_(node), emitter_(emitter), method_(method), valid_(true) {}
+
+        static void Invoke(void *userData)
+        {
+          CallbackEntry *self = static_cast<CallbackEntry *>(userData);
+          if (!self || !self->valid_ || !self->node_)
+          {
+            return;
+          }
+          (self->node_->*(self->method_))();
+        }
+
+        void unbind()
+        {
+          if (emitter_)
+          {
+            emitter_->deferUnbind(&Invoke, this);
+          }
+        }
+
+        void invalidate()
+        {
+          valid_ = false;
+        }
+
+        bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const
+        {
+          if (emitter_ != source || node_ != node || methodSize != sizeof(method_))
+          {
+            return false;
+          }
+          return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+        }
+
+        NodeT *node_;
+        loka::core::EmitterState *emitter_;
+        Method method_;
+        bool valid_;
+      };
+
+      void releaseCallbacks()
+      {
+        for (size_t i = 0; i < callbacks_.size(); ++i)
+        {
+          callbacks_[i]->unbind();
+          callbacks_[i]->invalidate();
+          delete callbacks_[i];
+        }
+        callbacks_.clear();
+      }
+
       loka::core::PushStateTracker tracker_;
       std::vector<loka::core::StateBase *> ownedStates_;
+      std::vector<CallbackEntryBase *> callbacks_;
     };
 
     struct MenuCompositionDiff : public loka::dsl::CompositionDiff

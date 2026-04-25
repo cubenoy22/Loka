@@ -39,8 +39,8 @@ namespace tutorial {
         loka::dsl::StateStream<int> s = this->itemCount_.stream();
         s.map(loka::dsl::Const("Items: ") + s.slot.value()).set(this->itemSummary_);
       }
-      this->bindForUi(this->addItemEvent_, this, &Step4Node::addItem);
-      this->bindForUi(this->toggleSummaryEvent_, this, &Step4Node::toggleSummary);
+      this->bindActionForUi(this->addItemEvent_, &Step4Node::addItem);
+      this->bindActionForUi(this->toggleSummaryEvent_, &Step4Node::toggleSummary);
       this->initialized_ = true;
     }
 

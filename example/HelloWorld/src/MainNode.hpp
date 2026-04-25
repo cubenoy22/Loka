@@ -22,7 +22,6 @@ namespace helloworld
     virtual void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
-    static void BmiChangedThunk(void *userData);
     ::Window *windowOrNull() const;
     double parseBmiValue(const loka::core::String &value) const;
     void refreshBmiResult();

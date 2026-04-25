@@ -27,7 +27,7 @@ namespace tutorial {
       c.declareStates()           //
           .state(this->count_, 0) //
           .state(this->countText_, loka::core::String::Literal("Count: 0"));
-      this->bindForUi(this->incrementEvent_, this, &Step2Node::increment);
+      this->bindActionForUi(this->incrementEvent_, &Step2Node::increment);
       this->initialized_ = true;
     }
 

@@ -46,7 +46,7 @@ private:
       c.declare(Menu("Special") << (MenuItem("Item") << MenuItem("Sub Item")) << MenuItem("Item 2"));
       if (!rebuildBound_)
       {
-        rebuildEvent_.bind(&MainMenu::RebuildThunk, this, false);
+        this->bindActionForMenu(this->rebuildEvent_, &MainMenu::handleRebuild);
         rebuildBound_ = true;
       }
       MenuDefinition randomMenu("Random");
@@ -85,15 +85,6 @@ private:
     void handleRebuild()
     {
       randomSeed_ = randomSeed_ * 1103515245u + 12345u;
-    }
-
-    static void RebuildThunk(void *userData)
-    {
-      MainMenu *self = static_cast<MainMenu *>(userData);
-      if (self)
-      {
-        self->handleRebuild();
-      }
     }
 
     unsigned int randomSeed_;

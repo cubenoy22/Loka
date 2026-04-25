@@ -25,7 +25,7 @@ namespace tutorial {
       }
       c.declareStates() //
           .state(this->showDetails_, false);
-      this->bindForUi(this->toggleDetailsEvent_, this, &Step3Node::toggleDetails);
+      this->bindActionForUi(this->toggleDetailsEvent_, &Step3Node::toggleDetails);
       this->initialized_ = true;
     }
 
