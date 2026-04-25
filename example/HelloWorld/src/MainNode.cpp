@@ -67,9 +67,9 @@ namespace helloworld
         .state(this->bmiResult_, loka::core::String::Literal("BMI: --"))
         .state(this->fruitIndex_, 0)
         .state(this->fruitMessage_, loka::core::String::Literal("You chose Apple."));
-    this->bindForUi(this->toggleEvent_, this, &MainNode::toggleMessage);
-    this->bindForUi(this->toggleActionEnabledEvent_, this, &MainNode::toggleActionEnabled);
-    this->bindForUi(this->actionProbeEvent_, this, &MainNode::handleActionProbe);
+    this->bindActionForUi(this->toggleEvent_, &MainNode::toggleMessage);
+    this->bindActionForUi(this->toggleActionEnabledEvent_, &MainNode::toggleActionEnabled);
+    this->bindActionForUi(this->actionProbeEvent_, &MainNode::handleActionProbe);
     this->heightInput_.bind(&MainNode::BmiChangedThunk, this, false);
     this->weightInput_.bind(&MainNode::BmiChangedThunk, this, false);
     {

@@ -130,7 +130,7 @@ namespace loka
         };
 
         template <class NodeT>
-        void bindForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
+        void bindActionForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
         {
           for (size_t i = 0; i < callbacks_.size(); ++i)
           {
@@ -142,6 +142,25 @@ namespace loka
           CallbackEntry<NodeT> *entry = new CallbackEntry<NodeT>(node, &emitter, method);
           callbacks_.push_back(entry);
           emitter.deferBind(&CallbackEntry<NodeT>::Invoke, entry);
+        }
+
+        template <class NodeT>
+        void bindActionForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
+        {
+          NodeT *self = static_cast<NodeT *>(this);
+          this->bindActionForUi(emitter, self, method);
+        }
+
+        template <class NodeT>
+        void bindForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
+        {
+          this->bindActionForUi(emitter, node, method);
+        }
+
+        template <class NodeT>
+        void bindForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
+        {
+          this->bindActionForUi(emitter, method);
         }
 
         struct AttachedContext
