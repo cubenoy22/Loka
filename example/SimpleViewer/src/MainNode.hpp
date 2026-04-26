@@ -7,6 +7,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/scene/BoundState.hpp"
+#include "app/scene/FlowSlot.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/ImageView.hpp"
@@ -64,12 +65,7 @@ namespace simpleviewer {
 
     MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p), initialized_(false), isDialogShown_(),
-          chooserResult_(), chooserMessage_(), image_(), flow_(0) {
-    }
-
-    virtual ~MainNode() {
-      delete this->flow_;
-      this->flow_ = 0;
+          chooserResult_(), chooserMessage_(), image_(), flow_() {
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c) {
@@ -84,7 +80,7 @@ namespace simpleviewer {
       // FileChooserResult is larger than StateBatch's inline initializer storage.
       this->chooserResult_ = c.dangerouslyUseState(loka::app::FileChooserResult());
       this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
-      this->flow_ = new ViewerFlowChain(buildFlow(*this));
+      this->flow_.set(buildFlow(*this));
       this->initialized_ = true;
     }
 
@@ -135,7 +131,7 @@ namespace simpleviewer {
     loka::app::scene::BoundState<loka::app::FileChooserResult> chooserResult_;
     loka::app::scene::BoundState<loka::core::String> chooserMessage_;
     loka::app::scene::BoundState<loka::core::resource::Image> image_;
-    ViewerFlowChain *flow_;
+    loka::app::scene::FlowSlot<ViewerFlowChain> flow_;
   };
 } // namespace simpleviewer
 

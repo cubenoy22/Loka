@@ -22,6 +22,7 @@
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
+#include "../example/SimpleViewer/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
