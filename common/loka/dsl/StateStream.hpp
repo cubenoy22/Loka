@@ -6,7 +6,7 @@
 
 #include "loka/core/Profiler.hpp"
 #include "loka/core/State.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "app/scene/StateOwner.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/Slot.hpp"
@@ -83,7 +83,7 @@ namespace loka
         return StateStream<typename Combiner::Result>(derived, this->tracker_, this->owner_);
       }
 
-      void set(::loka::app::scene::BoundState<T> &target, bool forceUpdate = false) const
+      void set(::loka::app::scene::NodeState<T> &target, bool forceUpdate = false) const
       {
         PROFILE_SECTION_ID("sSet", 7);
         if (!this->state_)
@@ -153,7 +153,7 @@ namespace loka
       struct SetBinding
       {
         SetBinding(::loka::core::State<T> *state,
-                   ::loka::app::scene::BoundState<T> *target,
+                   ::loka::app::scene::NodeState<T> *target,
                    bool forceUpdate)
             : state_(state), target_(target), forceUpdate_(forceUpdate) {}
 
@@ -176,7 +176,7 @@ namespace loka
         }
 
         ::loka::core::State<T> *state_;
-        ::loka::app::scene::BoundState<T> *target_;
+        ::loka::app::scene::NodeState<T> *target_;
         bool forceUpdate_;
       };
 
@@ -240,7 +240,7 @@ namespace loka
     namespace scene
     {
       template <typename T>
-      inline loka::dsl::StateStream<T> BoundState<T>::stream() const
+      inline loka::dsl::StateStream<T> NodeState<T>::stream() const
       {
         return loka::dsl::StateStream<T>(this->state_, this->tracker_, this->owner_);
       }

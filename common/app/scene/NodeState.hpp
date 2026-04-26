@@ -1,5 +1,5 @@
-#ifndef LOKA_CORE2_SCENE_BOUND_STATE_HPP
-#define LOKA_CORE2_SCENE_BOUND_STATE_HPP
+#ifndef LOKA_CORE2_SCENE_NODE_STATE_HPP
+#define LOKA_CORE2_SCENE_NODE_STATE_HPP
 
 #include <cassert>
 #include "loka/core/State.hpp"
@@ -57,13 +57,13 @@ namespace loka
       };
 
       template <typename T>
-      class BoundState
+      class NodeState
       {
       public:
-        BoundState() : state_(0), tracker_(0), owner_(0) {}
-        BoundState(loka::core::MutableState<T> *state, loka::core::StateTracker *tracker)
+        NodeState() : state_(0), tracker_(0), owner_(0) {}
+        NodeState(loka::core::MutableState<T> *state, loka::core::StateTracker *tracker)
             : state_(state), tracker_(tracker), owner_(0) {}
-        BoundState(loka::core::MutableState<T> *state, loka::core::StateTracker *tracker, IStateOwner *owner)
+        NodeState(loka::core::MutableState<T> *state, loka::core::StateTracker *tracker, IStateOwner *owner)
             : state_(state), tracker_(tracker), owner_(owner) {}
 
         bool isValid() const { return state_ != 0; }
@@ -74,13 +74,13 @@ namespace loka
 
         T get() const
         {
-          assert(state_ && "BoundState::get requires a state");
+          assert(state_ && "NodeState::get requires a state");
           return state_->get();
         }
 
         void set(const T &value, bool forceUpdate = false)
         {
-          assert(state_ && "BoundState::set requires a state");
+          assert(state_ && "NodeState::set requires a state");
           if (tracker_ && tracker_->phase() == loka::core::TRACKER_IDLE)
           {
             tracker_->begin();
@@ -109,7 +109,7 @@ namespace loka
 
         loka::core::MutableState<T> &dangerouslyUnwrapMutableState() const
         {
-          assert(state_ && "BoundState::dangerouslyUnwrapMutableState requires a state");
+          assert(state_ && "NodeState::dangerouslyUnwrapMutableState requires a state");
           return *state_;
         }
 
@@ -125,4 +125,4 @@ namespace loka
   }   // namespace app
 } // namespace loka
 
-#endif // LOKA_CORE2_SCENE_BOUND_STATE_HPP
+#endif // LOKA_CORE2_SCENE_NODE_STATE_HPP

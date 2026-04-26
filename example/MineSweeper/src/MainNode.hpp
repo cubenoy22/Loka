@@ -81,7 +81,7 @@ namespace minesweeper
     bool mines_[kCellCount];
     bool revealed_[kCellCount];
     loka::core::EmitterState cellClick_[kCellCount];
-    loka::app::scene::BoundState<loka::core::String> cellText_[kCellCount];
+    loka::app::scene::NodeState<loka::core::String> cellText_[kCellCount];
     CellClickProxy clickProxy_[kCellCount];
 
     void resetBoard()

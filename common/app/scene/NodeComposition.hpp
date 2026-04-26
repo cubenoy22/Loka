@@ -8,7 +8,7 @@
 #include "app/scene/StreamView.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "app/scene/ComponentContext.hpp"
 #include "app/scene/StateOwner.hpp"
 #include "loka/core/Profiler.hpp"
@@ -53,22 +53,22 @@ namespace loka
           {
           public:
             CurrentState() : state_(0), owned_(false) {}
-            CurrentState(BoundState<T> *state, bool owned) : state_(state), owned_(owned) {}
+            CurrentState(NodeState<T> *state, bool owned) : state_(state), owned_(owned) {}
 
             bool isValid() const { return state_ && owned_ && state_->isValid(); }
             T get() const
             {
-              assert(this->isValid() && "CurrentState::get requires owner-matched BoundState");
+              assert(this->isValid() && "CurrentState::get requires owner-matched NodeState");
               return state_->get();
             }
             void set(const T &value, bool forceUpdate = false) const
             {
-              assert(this->isValid() && "CurrentState::set requires owner-matched BoundState");
+              assert(this->isValid() && "CurrentState::set requires owner-matched NodeState");
               state_->set(value, forceUpdate);
             }
 
           private:
-            BoundState<T> *state_;
+            NodeState<T> *state_;
             bool owned_;
           };
 
@@ -77,9 +77,9 @@ namespace loka
 
           bool isValid() const { return owner_ != 0; }
           template <typename T>
-          CurrentState<T> state(BoundState<T> &boundState) const
+          CurrentState<T> state(NodeState<T> &nodeState) const
           {
-            return CurrentState<T>(&boundState, owner_ && boundState.dangerouslyOwner() == owner_);
+            return CurrentState<T>(&nodeState, owner_ && nodeState.dangerouslyOwner() == owner_);
           }
 
         private:
@@ -153,7 +153,7 @@ namespace loka
           }
 
           template <typename T>
-          StateBatch &state(BoundState<T> &out, const T &initial)
+          StateBatch &state(NodeState<T> &out, const T &initial)
           {
             if (count_ >= kMaxStates)
             {
@@ -204,7 +204,7 @@ namespace loka
           template <typename T>
           static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
           {
-            BoundState<T> *out = static_cast<BoundState<T> *>(outPtr);
+            NodeState<T> *out = static_cast<NodeState<T> *>(outPtr);
             T *initial = reinterpret_cast<T *>(initialPtr);
             loka::core::MutableState<T> *state = 0;
             size_t align = AlignOf<loka::core::MutableState<T> >::value;
@@ -220,14 +220,14 @@ namespace loka
               state = new loka::core::MutableState<T>(*initial);
             }
             owner->adoptStateUnchecked(state);
-            *out = BoundState<T>(state, owner->tracker(), owner);
+            *out = NodeState<T>(state, owner->tracker(), owner);
             // 初期値のデストラクタ呼び出し
             initial->~T();
           }
 
         public:
           template <typename T>
-          static void CreateImmediateState(IStateOwner *owner, BoundState<T> &out, const T &initial)
+          static void CreateImmediateState(IStateOwner *owner, NodeState<T> &out, const T &initial)
           {
             loka::core::MutableState<T> *state = 0;
             size_t align = AlignOf<loka::core::MutableState<T> >::value;
@@ -245,11 +245,11 @@ namespace loka
             if (owner)
             {
               owner->adoptStateUnchecked(state);
-              out = BoundState<T>(state, owner->tracker(), owner);
+              out = NodeState<T>(state, owner->tracker(), owner);
             }
             else
             {
-              out = BoundState<T>(state, 0, 0);
+              out = NodeState<T>(state, 0, 0);
             }
           }
 
@@ -487,7 +487,7 @@ namespace loka
         }
 
         template <typename T>
-        BoundState<T> dangerouslyUseState(const T &initial)
+        NodeState<T> dangerouslyUseState(const T &initial)
         {
           assert(context_ && "NodeComposition::dangerouslyUseState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
@@ -507,7 +507,7 @@ namespace loka
           }
           // Use unchecked version - useState always creates new unique states
           stateOwner->adoptStateUnchecked(state);
-          return BoundState<T>(state, stateOwner->tracker(), stateOwner);
+          return NodeState<T>(state, stateOwner->tracker(), stateOwner);
         }
 
         StateBatch declareStates()
@@ -519,7 +519,7 @@ namespace loka
         }
 
         template <typename T>
-        BoundState<T> dangerouslyUseState()
+        NodeState<T> dangerouslyUseState()
         {
           return dangerouslyUseState(T());
         }

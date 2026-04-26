@@ -203,7 +203,7 @@ namespace SceneTests
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
+    loka::app::scene::NodeState<int> count_;
     bool attachedOnce_;
   };
 
@@ -278,7 +278,7 @@ namespace SceneTests
     }
 
   private:
-    loka::app::scene::BoundState<int> late_;
+    loka::app::scene::NodeState<int> late_;
     bool registered_;
   };
 

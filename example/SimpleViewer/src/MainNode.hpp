@@ -6,7 +6,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "app/scene/FlowSlot.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
@@ -130,10 +130,10 @@ namespace simpleviewer {
     }
 
     bool initialized_;
-    loka::app::scene::BoundState<bool> isDialogShown_;
-    loka::app::scene::BoundState<loka::app::FileChooserResult> chooserResult_;
-    loka::app::scene::BoundState<loka::core::String> chooserMessage_;
-    loka::app::scene::BoundState<loka::core::resource::Image> image_;
+    loka::app::scene::NodeState<bool> isDialogShown_;
+    loka::app::scene::NodeState<loka::app::FileChooserResult> chooserResult_;
+    loka::app::scene::NodeState<loka::core::String> chooserMessage_;
+    loka::app::scene::NodeState<loka::core::resource::Image> image_;
     loka::app::scene::FlowSlot<ViewerFlowChain> flow_;
   };
 } // namespace simpleviewer

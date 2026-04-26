@@ -3,7 +3,7 @@
 
 #include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
@@ -36,18 +36,18 @@ namespace helloworld {
     bool bmiCacheValid_;
     bool lastBmiWasValid_;
     int lastBmiHundredths_;
-    loka::app::scene::BoundState<loka::core::String> message_;
+    loka::app::scene::NodeState<loka::core::String> message_;
     loka::core::EmitterState toggleEvent_;
-    loka::app::scene::BoundState<bool> actionEnabled_;
-    loka::app::scene::BoundState<int> actionProbeCount_;
-    loka::app::scene::BoundState<loka::core::String> actionSummary_;
-    loka::app::scene::BoundState<loka::core::String> heightInput_;
-    loka::app::scene::BoundState<loka::core::String> weightInput_;
-    loka::app::scene::BoundState<loka::core::String> bmiResult_;
+    loka::app::scene::NodeState<bool> actionEnabled_;
+    loka::app::scene::NodeState<int> actionProbeCount_;
+    loka::app::scene::NodeState<loka::core::String> actionSummary_;
+    loka::app::scene::NodeState<loka::core::String> heightInput_;
+    loka::app::scene::NodeState<loka::core::String> weightInput_;
+    loka::app::scene::NodeState<loka::core::String> bmiResult_;
     loka::core::EmitterState toggleActionEnabledEvent_;
     loka::core::EmitterState actionProbeEvent_;
-    loka::app::scene::BoundState<int> fruitIndex_;
-    loka::app::scene::BoundState<loka::core::String> fruitMessage_;
+    loka::app::scene::NodeState<int> fruitIndex_;
+    loka::app::scene::NodeState<loka::core::String> fruitMessage_;
     loka::Vector<loka::core::String> fruits_;
   };
 

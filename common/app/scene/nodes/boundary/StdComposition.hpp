@@ -39,7 +39,7 @@ namespace loka
       };
 
       template <typename T>
-      struct BoundaryPropValueRules<BoundState<T> >
+      struct BoundaryPropValueRules<NodeState<T> >
       {
         enum
         {

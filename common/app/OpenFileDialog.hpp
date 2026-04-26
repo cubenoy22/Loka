@@ -3,7 +3,7 @@
 
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "file/File.hpp"
 
 namespace loka
@@ -147,7 +147,7 @@ namespace loka
         return *this;
       }
 
-      OpenFileDialogProps &result(const loka::app::scene::BoundState<FileChooserResult> &state)
+      OpenFileDialogProps &result(const loka::app::scene::NodeState<FileChooserResult> &state)
       {
         this->result_ = state.dangerouslyMutableState();
         return *this;
@@ -165,7 +165,7 @@ namespace loka
         return *this;
       }
 
-      OpenFileDialogProps &closeState(const loka::app::scene::BoundState<bool> &state)
+      OpenFileDialogProps &closeState(const loka::app::scene::NodeState<bool> &state)
       {
         this->closeState_ = state.dangerouslyMutableState();
         return *this;
@@ -238,7 +238,7 @@ namespace loka
         return *this;
       }
 
-      OpenFileDialogDefinition &result(const loka::app::scene::BoundState<FileChooserResult> &state)
+      OpenFileDialogDefinition &result(const loka::app::scene::NodeState<FileChooserResult> &state)
       {
         this->props.result(state);
         return *this;
@@ -256,7 +256,7 @@ namespace loka
         return *this;
       }
 
-      OpenFileDialogDefinition &closeState(const loka::app::scene::BoundState<bool> &state)
+      OpenFileDialogDefinition &closeState(const loka::app::scene::NodeState<bool> &state)
       {
         this->props.closeState(state);
         return *this;

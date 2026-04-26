@@ -585,7 +585,7 @@ namespace {
       this->show_.set(!this->show_.get(), true);
     }
 
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     loka::core::EmitterState toggle_;
     bool initialized_;
   };
@@ -667,8 +667,8 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
     bool initialized_;
   };
 
@@ -718,7 +718,7 @@ namespace {
       this->show_.set(!this->show_.get(), true);
     }
 
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     loka::core::EmitterState toggle_;
     bool initialized_;
   };
@@ -778,8 +778,8 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
     bool initialized_;
   };
 
@@ -822,7 +822,7 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     bool initialized_;
   };
 
@@ -876,8 +876,8 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
     bool initialized_;
   };
 
@@ -931,8 +931,8 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
     bool initialized_;
   };
 
@@ -980,7 +980,7 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     bool initialized_;
   };
 
@@ -1062,7 +1062,7 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     bool initialized_;
   };
 
@@ -1702,7 +1702,7 @@ void testLokaFlowDslV1Core() {
     assert((loka::app::scene::BoundaryPropValueRules<int>::kAllowed));
     assert((loka::app::scene::BoundaryPropValueRules<loka::core::State<int> *>::kAllowed));
     assert((loka::app::scene::BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<int> > >::kAllowed));
-    assert(!(loka::app::scene::BoundaryPropValueRules<loka::app::scene::BoundState<int> >::kAllowed));
+    assert(!(loka::app::scene::BoundaryPropValueRules<loka::app::scene::NodeState<int> >::kAllowed));
     assert(!(loka::app::scene::BoundaryPropValueRules<loka::core::MutableState<int> *>::kAllowed));
     loka::core::MutableState<int> countState(21);
     loka::app::scene::BorrowedState<int> borrowedCount = PendingLayoutBoundaryProps::borrowed<int>(&countState);
@@ -1822,14 +1822,14 @@ void testLokaFlowDslV1Core() {
     loka::app::scene::NodeComposition composition;
     loka::app::scene::ComponentContext context;
     loka::core::MutableState<int> ownedValue(3);
-    loka::app::scene::BoundState<int> boundState(&ownedValue, 0, &owner);
+    loka::app::scene::NodeState<int> nodeState(&ownedValue, 0, &owner);
 
     context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x6000));
     context.setStateOwner(&owner);
     composition.setContext(&context);
 
     loka::app::scene::NodeComposition::CurrentBoundary current = composition.currentBoundary();
-    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundState = current.state(boundState);
+    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundState = current.state(nodeState);
     assert(current.isValid());
     assert(foundState.isValid());
     assert(foundState.get() == 3);
@@ -1843,14 +1843,14 @@ void testLokaFlowDslV1Core() {
     loka::app::scene::NodeComposition composition;
     loka::app::scene::ComponentContext context;
     loka::core::MutableState<int> foreignValue(11);
-    loka::app::scene::BoundState<int> foreignBoundState(&foreignValue, 0, &foreignOwner);
+    loka::app::scene::NodeState<int> foreignNodeState(&foreignValue, 0, &foreignOwner);
 
     context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x7000));
     context.setStateOwner(&currentOwner);
     composition.setContext(&context);
 
     loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundForeignState =
-        composition.currentBoundary().state(foreignBoundState);
+        composition.currentBoundary().state(foreignNodeState);
     assert(!foundForeignState.isValid());
   }
 
@@ -2460,7 +2460,7 @@ void testLokaFlowDslV1Core() {
     loka::core::MutableState<int> countState(2);
     loka::core::PushStateTracker tracker;
     DummyStateOwner owner;
-    BoundState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
+    NodeState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
     loka::dsl::StateStream<int> countStream(&countState, &tracker, &owner);
 
     tracker.begin();

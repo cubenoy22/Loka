@@ -6,7 +6,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
@@ -79,12 +79,12 @@ namespace tutorial {
                              + loka::core::String::FromInt(this->itemCount_.get()));
     }
 
-    loka::app::scene::BoundState<int> itemCount_;
-    loka::app::scene::BoundState<loka::core::String> itemSummary_;
-    loka::app::scene::BoundState<bool> showSummary_;
-    loka::app::scene::BoundState<bool> showItem1_;
-    loka::app::scene::BoundState<bool> showItem2_;
-    loka::app::scene::BoundState<bool> showItem3_;
+    loka::app::scene::NodeState<int> itemCount_;
+    loka::app::scene::NodeState<loka::core::String> itemSummary_;
+    loka::app::scene::NodeState<bool> showSummary_;
+    loka::app::scene::NodeState<bool> showItem1_;
+    loka::app::scene::NodeState<bool> showItem2_;
+    loka::app::scene::NodeState<bool> showItem3_;
     loka::core::EmitterState addItemEvent_;
     loka::core::EmitterState toggleSummaryEvent_;
     bool initialized_;

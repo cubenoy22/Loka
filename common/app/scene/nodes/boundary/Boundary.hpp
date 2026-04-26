@@ -6,7 +6,7 @@
 #include "../../Node.hpp"
 #include "../../PlatformController.hpp"
 #include "../../node/ComposableNode.hpp"
-#include "../../BoundState.hpp"
+#include "../../NodeState.hpp"
 #include "../../ComponentContext.hpp"
 #include "../../PlatformApplyPlan.hpp"
 #include "BoundaryApplyInfo.hpp"
@@ -489,13 +489,13 @@ namespace loka
         static void ObservedStateDeferredInvalidateThunk(void *userData);
 
         template <class T>
-        BoundState<T> dangerouslyUseState()
+        NodeState<T> dangerouslyUseState()
         {
           return dangerouslyUseStateWithValue(T());
         }
 
         template <class T>
-        BoundState<T> dangerouslyUseState(const T &initial)
+        NodeState<T> dangerouslyUseState(const T &initial)
         {
           return dangerouslyUseStateWithValue(initial);
         }
@@ -1030,11 +1030,11 @@ namespace loka
         };
 
         template <class T>
-        BoundState<T> dangerouslyUseStateWithValue(const T &initial)
+        NodeState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
           adoptState(state);
-          return BoundState<T>(state, this->tracker(), this);
+          return NodeState<T>(state, this->tracker(), this);
         }
 
         template <class T>

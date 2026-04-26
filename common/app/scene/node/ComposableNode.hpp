@@ -250,13 +250,13 @@ namespace loka
         }
 
         template <typename T>
-        void state(BoundState<T> &out, const T &initial)
+        void state(NodeState<T> &out, const T &initial)
         {
           for (size_t i = 0; i < nodeStates_.size(); ++i)
           {
             if (nodeStates_[i] && nodeStates_[i]->matches(&out))
             {
-              assert(false && "ComposableNode::state registered the same BoundState twice");
+              assert(false && "ComposableNode::state registered the same NodeState twice");
               return;
             }
           }
@@ -334,7 +334,7 @@ namespace loka
         template <typename T>
         struct NodeStateRegistration : public NodeStateRegistrationBase
         {
-          NodeStateRegistration(BoundState<T> *out, const T &initial)
+          NodeStateRegistration(NodeState<T> *out, const T &initial)
               : out_(out), initial_(initial) {}
 
           bool matches(const void *out) const
@@ -356,7 +356,7 @@ namespace loka
             NodeComposition::StateBatch::CreateImmediateState(owner, *out_, initial_);
           }
 
-          BoundState<T> *out_;
+          NodeState<T> *out_;
           T initial_;
         };
 

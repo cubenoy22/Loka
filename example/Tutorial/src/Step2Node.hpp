@@ -5,7 +5,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
@@ -48,8 +48,8 @@ namespace tutorial {
       this->countText_.set(String::Literal("Count: ") + String::FromInt(next));
     }
 
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> countText_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> countText_;
     loka::core::EmitterState incrementEvent_;
     bool initialized_;
   };
