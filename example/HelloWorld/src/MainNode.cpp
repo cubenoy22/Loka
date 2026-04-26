@@ -27,23 +27,23 @@ namespace helloworld {
         bmiCacheValid_(false), lastBmiWasValid_(false), lastBmiHundredths_(0), message_(), toggleEvent_(),
         actionEnabled_(), actionProbeCount_(), actionSummary_(), heightInput_(), weightInput_(), bmiResult_(),
         toggleActionEnabledEvent_(), actionProbeEvent_(), fruitIndex_(), fruitMessage_(), fruits_() {
+    this->state(this->message_, String::Literal("Hello, Loka!"));
+    this->state(this->actionEnabled_, true);
+    this->state(this->actionProbeCount_, 0);
+    this->state(this->actionSummary_, String::Literal("Button enabled: yes / clicks: 0"));
+    this->state(this->heightInput_, String::Literal("170.0"));
+    this->state(this->weightInput_, String::Literal("60.0"));
+    this->state(this->bmiResult_, String::Literal("BMI: --"));
+    this->state(this->fruitIndex_, 0);
+    this->state(this->fruitMessage_, String::Literal("You chose Apple."));
     this->fruits_.assign(kFruitItems, kFruitItemCount);
   }
 
   void MainNode::attachNode(loka::app::scene::NodeComposition &c) {
+    (void)c;
     if (this->initialized_) {
       return;
     }
-    c.declareStates()
-        .state(this->message_, String::Literal("Hello, Loka!"))
-        .state(this->actionEnabled_, true)
-        .state(this->actionProbeCount_, 0)
-        .state(this->actionSummary_, String::Literal("Button enabled: yes / clicks: 0"))
-        .state(this->heightInput_, String::Literal("170.0"))
-        .state(this->weightInput_, String::Literal("60.0"))
-        .state(this->bmiResult_, String::Literal("BMI: --"))
-        .state(this->fruitIndex_, 0)
-        .state(this->fruitMessage_, String::Literal("You chose Apple."));
     this->bindActionForUi(this->toggleEvent_, &MainNode::toggleMessage);
     this->bindActionForUi(this->toggleActionEnabledEvent_, &MainNode::toggleActionEnabled);
     this->bindActionForUi(this->actionProbeEvent_, &MainNode::handleActionProbe);

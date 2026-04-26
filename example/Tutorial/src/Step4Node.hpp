@@ -20,19 +20,19 @@ namespace tutorial {
         : loka::app::scene::BoundaryNodeFor<Step4Node>(p), itemCount_(), itemSummary_(), showSummary_(), showItem1_(),
           showItem2_(), showItem3_(), addItemEvent_(), toggleSummaryEvent_(), initialized_(false),
           item1_(loka::app::Text("Item 1")), item2_(loka::app::Text("Item 2")), item3_(loka::app::Text("Item 3")) {
+      this->state(this->itemCount_, 0);
+      this->state(this->itemSummary_, loka::core::String::Literal("Items: 0"));
+      this->state(this->showSummary_, true);
+      this->state(this->showItem1_, false);
+      this->state(this->showItem2_, false);
+      this->state(this->showItem3_, false);
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c) {
+      (void)c;
       if (this->initialized_) {
         return;
       }
-      c.declareStates()
-          .state(this->itemCount_, 0)
-          .state(this->itemSummary_, loka::core::String::Literal("Items: 0"))
-          .state(this->showSummary_, true)
-          .state(this->showItem1_, false)
-          .state(this->showItem2_, false)
-          .state(this->showItem3_, false);
       this->bindActionForUi(this->addItemEvent_, &Step4Node::addItem);
       this->bindActionForUi(this->toggleSummaryEvent_, &Step4Node::toggleSummary);
       this->refreshItemSummary();

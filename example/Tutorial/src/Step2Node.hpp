@@ -18,15 +18,15 @@ namespace tutorial {
     Step2Node(const PropsType &p)
         : loka::app::scene::BoundaryNodeFor<Step2Node>(p), count_(), countText_(), incrementEvent_(),
           initialized_(false) {
+      this->state(this->count_, 0);
+      this->state(this->countText_, loka::core::String::Literal("Count: 0"));
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c) {
+      (void)c;
       if (this->initialized_) {
         return;
       }
-      c.declareStates()           //
-          .state(this->count_, 0) //
-          .state(this->countText_, loka::core::String::Literal("Count: 0"));
       this->bindActionForUi(this->incrementEvent_, &Step2Node::increment);
       this->initialized_ = true;
     }

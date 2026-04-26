@@ -31,11 +31,12 @@ namespace loka
       class ComposableNode : public NestableNode
       {
       public:
-        ComposableNode() : currentContext_(0), isAttached_(false), attached_() {}
+        ComposableNode() : currentContext_(0), nodeStateOwner_(0), isAttached_(false), attached_(), nodeStates_() {}
         virtual ~ComposableNode()
         {
           releaseCallbacks();
           clearChildren();
+          releaseNodeStateRegistrations();
         }
 
         virtual ComposableNode *asComposable() { return this; }
@@ -49,6 +50,11 @@ namespace loka
             attached_.scene_ = context.scene();
             attached_.window_ = context.window();
             isAttached_ = attached_.boundary_ && attached_.scene_ && attached_.window_;
+            nodeStateOwner_ = context.stateOwner();
+            if (event != COMPOSE_EVENT_DETACH)
+            {
+              this->connectNodeStateRegistrations();
+            }
             {
               PROFILE_SECTION("compWith");
               this->composeWithContext(context, event);
@@ -57,6 +63,7 @@ namespace loka
             {
               attached_.reset();
               isAttached_ = false;
+              nodeStateOwner_ = 0;
             }
           }
         }
@@ -242,6 +249,22 @@ namespace loka
           this->watchStateForUi(state, method, callImmediately);
         }
 
+        template <typename T>
+        void state(BoundState<T> &out, const T &initial)
+        {
+          for (size_t i = 0; i < nodeStates_.size(); ++i)
+          {
+            if (nodeStates_[i] && nodeStates_[i]->matches(&out))
+            {
+              assert(false && "ComposableNode::state registered the same BoundState twice");
+              return;
+            }
+          }
+          NodeStateRegistration<T> *entry = new NodeStateRegistration<T>(&out, initial);
+          nodeStates_.push_back(entry);
+          this->connectNodeStateRegistration(entry);
+        }
+
         struct AttachedContext
         {
           AttachedContext() : boundary_(0), scene_(0), window_(0) {}
@@ -301,6 +324,68 @@ namespace loka
         }
 
       private:
+        struct NodeStateRegistrationBase
+        {
+          virtual ~NodeStateRegistrationBase() {}
+          virtual bool matches(const void *out) const = 0;
+          virtual void connect(IStateOwner *owner) = 0;
+        };
+
+        template <typename T>
+        struct NodeStateRegistration : public NodeStateRegistrationBase
+        {
+          NodeStateRegistration(BoundState<T> *out, const T &initial)
+              : out_(out), initial_(initial) {}
+
+          bool matches(const void *out) const
+          {
+            return out_ == out;
+          }
+
+          void connect(IStateOwner *owner)
+          {
+            if (!out_ || !owner)
+            {
+              return;
+            }
+            if (out_->isValid())
+            {
+              assert(out_->dangerouslyOwner() == owner && "Node-local state reattached to a different owner");
+              return;
+            }
+            NodeComposition::StateBatch::CreateImmediateState(owner, *out_, initial_);
+          }
+
+          BoundState<T> *out_;
+          T initial_;
+        };
+
+        void connectNodeStateRegistration(NodeStateRegistrationBase *entry)
+        {
+          if (!entry || !nodeStateOwner_)
+          {
+            return;
+          }
+          entry->connect(nodeStateOwner_);
+        }
+
+        void connectNodeStateRegistrations()
+        {
+          for (size_t i = 0; i < nodeStates_.size(); ++i)
+          {
+            this->connectNodeStateRegistration(nodeStates_[i]);
+          }
+        }
+
+        void releaseNodeStateRegistrations()
+        {
+          for (size_t i = 0; i < nodeStates_.size(); ++i)
+          {
+            delete nodeStates_[i];
+          }
+          nodeStates_.clear();
+        }
+
         void releaseCallbacks()
         {
           for (size_t i = 0; i < callbacks_.size(); ++i)
@@ -346,10 +431,12 @@ namespace loka
         };
 
         ComponentContext *currentContext_;
+        IStateOwner *nodeStateOwner_;
         NodeComposition composition_;
         bool isAttached_;
         AttachedContext attached_;
         std::vector<CallbackEntryBase *> callbacks_;
+        std::vector<NodeStateRegistrationBase *> nodeStates_;
       };
 
     } // namespace scene
