@@ -271,8 +271,8 @@ namespace loka
           clearObservedStateEntries();
           // Detach children before the arena is cleared to avoid touching freed nodes.
           clearChildren();
-          releaseNodeStateRegistrations();
           nodeArena_.clear();
+          releaseNodeStateRegistrations();
           clearOwnedStates();
           clearOwnedStateHandles();
           stateArena_.clear();

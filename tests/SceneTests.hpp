@@ -8,6 +8,8 @@
 #include "app/scene/Scene.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/Text.hpp"
 
 namespace SceneTests
 {
@@ -18,6 +20,7 @@ namespace SceneTests
   static int g_flowSlotProbeLiveCount = 0;
   static int g_flowSlotProbeCopyCount = 0;
   static int g_nodeLocalOwnerReleaseCount = 0;
+  static int g_nodeLocalConditionalReleaseCount = 0;
 
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
@@ -446,6 +449,39 @@ namespace SceneTests
     loka::app::scene::NodeState<loka::core::String> summary_;
   };
 
+  class NodeLocalConditionalReleaseNode;
+  typedef loka::app::scene::BoundaryPropsFor<NodeLocalConditionalReleaseNode> NodeLocalConditionalReleaseProps;
+
+  class NodeLocalConditionalReleaseNode : public loka::app::scene::BoundaryNodeFor<NodeLocalConditionalReleaseNode>
+  {
+  public:
+    NodeLocalConditionalReleaseNode(const NodeLocalConditionalReleaseProps &p)
+        : loka::app::scene::BoundaryNodeFor<NodeLocalConditionalReleaseNode>(NodeLocalConditionalReleaseProps(p)),
+          show_()
+    {
+      this->state(this->show_, true);
+    }
+
+    virtual ~NodeLocalConditionalReleaseNode()
+    {
+      ++g_nodeLocalConditionalReleaseCount;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      using namespace loka::app;
+      c.declare(Show(*this->show_.state()) << Text("Alive"));
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> show_;
+  };
+
+  inline loka::app::scene::BoundaryDefinition<NodeLocalConditionalReleaseProps, NodeLocalConditionalReleaseNode> NodeLocalConditionalReleaseBoundary()
+  {
+    return loka::app::scene::Boundary<NodeLocalConditionalReleaseNode>();
+  }
+
   void test_Node_local_state_releases_owner_state_on_node_destroy()
   {
     g_nodeLocalOwnerReleaseCount = 0;
@@ -492,6 +528,30 @@ namespace SceneTests
     assert(g_nodeLocalOwnerReleaseCount == 2);
   }
 
+  void test_Node_local_conditional_unbinds_before_state_release()
+  {
+    using loka::app::scene::IPlatformController;
+    using loka::app::scene::Node;
+    using loka::app::scene::Scene;
+
+    class DummyPlatformController : public IPlatformController
+    {
+    public:
+      virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
+      virtual void synchronize() {}
+      virtual bool hasPendingSync() const { return false; }
+      virtual void destroy() {}
+    };
+
+    g_nodeLocalConditionalReleaseCount = 0;
+    Scene scene(NodeLocalConditionalReleaseBoundary());
+    DummyPlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    scene.unmount();
+    assert(g_nodeLocalConditionalReleaseCount == 1);
+  }
+
   typedef void (*TestFunc)();
 
   void runAll()
@@ -503,7 +563,8 @@ namespace SceneTests
         test_Node_local_state_registration_after_attach_connects_immediately,
         test_Node_local_state_releases_owner_state_on_node_destroy,
         test_Node_local_stream_releases_owned_state_on_node_destroy,
-        test_Node_local_batch_releases_owner_state_on_node_destroy};
+        test_Node_local_batch_releases_owner_state_on_node_destroy,
+        test_Node_local_conditional_unbinds_before_state_release};
     const int numTests = sizeof(tests) / sizeof(tests[0]);
     for (int i = 0; i < numTests; ++i)
     {

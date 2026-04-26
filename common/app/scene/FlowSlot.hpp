@@ -74,6 +74,7 @@ namespace loka
         FlowSlot &bindTrigger(const NodeState<InT> &source)
         {
           assert(flow_ && "FlowSlot::bindTrigger requires a flow");
+          assert(source.isValid() && "FlowSlot::bindTrigger requires a valid NodeState source");
           flow_->bindTrigger(source.dangerouslyMutableState());
           return *this;
         }

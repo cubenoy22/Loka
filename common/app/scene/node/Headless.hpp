@@ -49,6 +49,7 @@ namespace loka
 
         virtual ~HeadlessNodeBase()
         {
+          this->clearChildren();
           this->releaseNodeStateRegistrations();
           this->clearOwnedStates();
         }
