@@ -251,7 +251,7 @@ Scene
 ここで重要なのは、`Node` と `Boundary` の役割が違うことです。
 
 - `Node` は UI の意味を持つ部品
-- `Boundary` is also one of Node
+- `Boundary` is also a kind of `Node`
 - `Boundary` は Node でありながら、state storage / tracker / update scope を持つ所有単位
 - `Node` 固有の state は `this->state(...)` で登録する
 - 登録された state の実体は、attach された Boundary owner に属する
