@@ -184,7 +184,8 @@ Loka では、この「State を中心に置く」構造がすべての基本に
 State の種類を見る前に、Loka の UI がどのような単位で区切られているかを見ておきます。
 
 Loka では、`Node` が UI の論理的な部品です。
-一方で、`Boundary` は state ownership、tracking、composition/update の区切りです。
+そして `Boundary` もまた Node の一種です。
+ただし通常の Node と違い、`Boundary` は state ownership、tracking、composition/update の区切りを持ちます。
 大きな UI は、1 つの巨大なツリーではなく、
 複数の Boundary と、その中にある複数の Node として考えます。
 
@@ -238,7 +239,8 @@ Scene
 ここで重要なのは、`Node` と `Boundary` の役割が違うことです。
 
 - `Node` は UI の意味を持つ部品
-- `Boundary` は state storage / tracker / update scope を持つ所有単位
+- `Boundary` is also one of Node
+- `Boundary` は Node でありながら、state storage / tracker / update scope を持つ所有単位
 - `Node` 固有の state は `this->state(...)` で登録する
 - 登録された state の実体は、attach された Boundary owner に属する
 - 子孫へ共有したい state は、将来的に Boundary-scoped/context 的に扱う余地がある
@@ -317,7 +319,9 @@ SwiftUI / Compose の可変 state に近い位置づけです。
 
 ### `BoundState<T>`
 
-`BoundState<T>` は Boundary に結びついた State ハンドルです。
+`BoundState<T>` は owner/tracker に結びついた State ハンドルです。
+名前から Boundary 専用に見えるかもしれませんが、実際には Node-local state にも
+Boundary-scoped state にも使います。
 
 これは Loka らしい重要な概念です。
 単なる値ではなく、
@@ -1290,6 +1294,9 @@ Loka の ownership policy を単純化して言うなら、
 ## 14. Boundary とは何か
 
 Boundary は、Loka を理解するうえで最重要の概念のひとつです。
+まず大事なのは、Boundary も Node の一種だという点です。
+通常の Node と同じ scene tree に存在しながら、
+その地点に state owner / tracker / composition boundary を追加します。
 
 直感的には、Boundary は次のものを束ねる単位です。
 
