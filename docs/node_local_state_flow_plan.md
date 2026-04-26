@@ -295,7 +295,7 @@ Long-term:
 
 3. SimpleViewer
    - replace raw `ViewerFlowChain *flow_` with `FlowSlot`
-   - review `dangerouslyUseState` use separately
+   - hide `dangerouslyMutableState()` behind standard-node and FlowSlot overloads
 
 4. MineSweeper and remaining examples
    - migrate `c.declareStates()` where Node-local ownership is clearer
@@ -311,6 +311,18 @@ Standard declaration APIs should be preferred. They give Loka:
 - future platform projection control
 
 Manual APIs remain available for engine-level, game, media, and platform-specific work. Manual ownership means manual responsibility. These APIs should be named or documented as explicit escape hatches.
+
+## Pre-0.0.1 Public API Checklist
+
+Before adding or documenting a new app-facing API, check the surface against these rules:
+
+- Prefer accepting `BoundState<T>` or `State<T>*` at DSL call sites instead of requiring raw `MutableState<T>*`.
+- If a node must mutate caller-owned state, provide a narrow overload that converts internally; do not make app code spell `dangerouslyMutableState()`.
+- Keep `BoundState<T>` as an owner-local member type. Do not store foreign `BoundState<T>` across Boundary lines unless the API is explicitly owner-side.
+- Use `this->state(...)` for ordinary Node-local state. Use `declareStates()` only when the state intentionally belongs to Boundary scope or future context-like sharing.
+- Use `FlowSlot<T>` for long-lived Flow chains owned by a Node. Keep one-shot stack `FlowChain(...).run()` for tests and bounded scenarios.
+- Treat `StateStream` as internal/test-facing until a lifecycle-owned `ReactionSlot` or equivalent exists.
+- Keep `dangerously*` names on real escape hatches, but hide them behind safe standard-node overloads where the ownership rule is clear.
 
 ## Static Tooling Direction
 

@@ -3,6 +3,7 @@
 
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
+#include "app/scene/BoundState.hpp"
 
 namespace loka
 {
@@ -36,9 +37,19 @@ namespace loka
         title = t;
         return *this;
       }
+      MsgBoxProps &setTitle(const loka::app::scene::BoundState<loka::core::String> &t)
+      {
+        title = t.state();
+        return *this;
+      }
       MsgBoxProps &setBody(loka::core::State<loka::core::String> *b)
       {
         body = b;
+        return *this;
+      }
+      MsgBoxProps &setBody(const loka::app::scene::BoundState<loka::core::String> &b)
+      {
+        body = b.state();
         return *this;
       }
       MsgBoxProps &setShow(loka::core::MutableState<bool> *s)
@@ -46,9 +57,19 @@ namespace loka
         show = s;
         return *this;
       }
+      MsgBoxProps &setShow(const loka::app::scene::BoundState<bool> &s)
+      {
+        show = s.dangerouslyMutableState();
+        return *this;
+      }
       MsgBoxProps &setResult(loka::core::MutableState<int> *r)
       {
         result = r;
+        return *this;
+      }
+      MsgBoxProps &setResult(const loka::app::scene::BoundState<int> &r)
+      {
+        result = r.dangerouslyMutableState();
         return *this;
       }
       MsgBoxProps &setIcon(MsgBoxIcon::Value i)
