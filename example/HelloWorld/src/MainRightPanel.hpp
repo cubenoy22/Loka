@@ -9,20 +9,13 @@
 #include "loka/core/Vector.hpp"
 
 namespace helloworld {
-  struct FruitPopupLabel {
-    typedef loka::core::String Result;
-    loka::core::String operator()(const loka::core::String &value) const {
-      return value;
-    }
-  };
-
   inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,
                                           loka::core::State<int> *fruitIndex,
                                           loka::core::State<loka::core::String> *fruitMessage) {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.RightPanel")
            << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")
-           << PopupMenu(fruits->map<loka::core::String>(FruitPopupLabel()))
+           << PopupMenu(fruits)
                   .selectedIndex(fruitIndex)
                   .TEST_ID("HelloWorld.RightPanel.FruitPopup")
            << Text(fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage");
