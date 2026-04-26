@@ -29,7 +29,6 @@ These items address recurring bug patterns and structural risks identified durin
 - MutableState notification timing: micro-tick end vs immediate; document or change.
 - DerivedState::EvalFn ownership/cleanup and dependency registration policy.
 - Boundary lifecycle policy follow-up: current default is scene/tree-owned rather than native-view-owned. If a future opt-in `view-scoped` boundary lifecycle is needed, define it explicitly as a separate policy instead of overloading `detach`/visibility semantics.
-- StateBatch: add useLargeStates path for large initializers (heap-backed initial copies).
 - Wire Node.dirty with IPlatformController::synchronize (diff-based redraw path).
 - Smart redraw scheduler at Window/Scene scope: collect dirty rects per tick and flush once via platform invalidate APIs.
 - Win32 redraw policy follow-up: keep `Text`/`Cell` immediate for correctness for now, but revisit a clearer control-type policy once transparent text/custom child repaint contracts are documented.

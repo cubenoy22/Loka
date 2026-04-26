@@ -66,6 +66,10 @@ namespace simpleviewer {
     MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p), initialized_(false), isDialogShown_(),
           chooserResult_(), chooserMessage_(), image_(), flow_() {
+      this->state(this->isDialogShown_, false);
+      this->state(this->chooserResult_, loka::app::FileChooserResult());
+      this->state(this->chooserMessage_, loka::core::String::Literal("(none)"));
+      this->state(this->image_, loka::core::resource::Image::Empty());
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c) {
@@ -73,12 +77,7 @@ namespace simpleviewer {
         return;
       }
       this->props.assertInitialized();
-      c.declareStates()
-          .state(this->isDialogShown_, false)
-          .state(this->chooserMessage_, loka::core::String::Literal("(none)"))
-          .state(this->image_, loka::core::resource::Image::Empty());
-      // FileChooserResult is larger than StateBatch's inline initializer storage.
-      this->chooserResult_ = c.dangerouslyUseState(loka::app::FileChooserResult());
+      (void)c;
       this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
       this->flow_.set(buildFlow(*this));
       this->initialized_ = true;
