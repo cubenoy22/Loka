@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <stdio.h>
+#include "app/scene/FlowSlot.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
@@ -12,6 +13,9 @@ namespace SceneTests
   static int g_rootComposeCount = 0;
   static int g_childComposeCount = 0;
   static int g_nodeLocalAttachCount = 0;
+  static int g_lateNodeLocalAttachCount = 0;
+  static int g_flowSlotProbeLiveCount = 0;
+  static int g_flowSlotProbeCopyCount = 0;
 
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
@@ -71,7 +75,7 @@ namespace SceneTests
         lastMaterialized_ = rootNode;
       }
       virtual void synchronize() {}
-    virtual bool hasPendingSync() const { return false; }
+      virtual bool hasPendingSync() const { return false; }
       virtual void destroy() { destroyed_ = true; }
 
       Node *lastMaterialized_;
@@ -98,6 +102,68 @@ namespace SceneTests
 
     // Unmount before stack-allocated platform is destroyed
     scene.unmount();
+  }
+
+  class FlowSlotProbe
+  {
+  public:
+    FlowSlotProbe(int value)
+        : value_(value)
+    {
+      ++g_flowSlotProbeLiveCount;
+    }
+
+    FlowSlotProbe(const FlowSlotProbe &other)
+        : value_(other.value_)
+    {
+      ++g_flowSlotProbeLiveCount;
+      ++g_flowSlotProbeCopyCount;
+    }
+
+    ~FlowSlotProbe()
+    {
+      --g_flowSlotProbeLiveCount;
+    }
+
+    int value() const { return value_; }
+
+  private:
+    int value_;
+  };
+
+  void test_FlowSlot_releases_owned_value()
+  {
+    using loka::app::scene::FlowSlot;
+
+    g_flowSlotProbeLiveCount = 0;
+    g_flowSlotProbeCopyCount = 0;
+    {
+      FlowSlot<FlowSlotProbe> slot;
+      assert(!slot.isValid());
+      {
+        FlowSlotProbe first(3);
+        assert(g_flowSlotProbeLiveCount == 1);
+        slot.set(first);
+        assert(slot.isValid());
+        assert(slot.get()->value() == 3);
+        assert(g_flowSlotProbeLiveCount == 2);
+        assert(g_flowSlotProbeCopyCount == 1);
+      }
+      assert(g_flowSlotProbeLiveCount == 1);
+      {
+        FlowSlotProbe second(5);
+        slot.set(second);
+        assert(slot.isValid());
+        assert(slot.get()->value() == 5);
+        assert(g_flowSlotProbeLiveCount == 2);
+        assert(g_flowSlotProbeCopyCount == 2);
+      }
+      assert(g_flowSlotProbeLiveCount == 1);
+      slot.clear();
+      assert(!slot.isValid());
+      assert(g_flowSlotProbeLiveCount == 0);
+    }
+    assert(g_flowSlotProbeLiveCount == 0);
   }
 
   class NodeLocalStateNode;
@@ -180,13 +246,80 @@ namespace SceneTests
     scene.unmount();
   }
 
+  class LateNodeLocalStateNode;
+  typedef loka::app::scene::BoundaryPropsFor<LateNodeLocalStateNode> LateNodeLocalStateProps;
+
+  class LateNodeLocalStateNode : public loka::app::scene::BoundaryNodeFor<LateNodeLocalStateNode>
+  {
+  public:
+    LateNodeLocalStateNode(const LateNodeLocalStateProps &p)
+        : loka::app::scene::BoundaryNodeFor<LateNodeLocalStateNode>(LateNodeLocalStateProps(p)),
+          late_(),
+          registered_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+      if (!this->registered_)
+      {
+        this->state(this->late_, 11);
+        this->registered_ = true;
+      }
+      assert(this->late_.isValid());
+      assert(this->late_.get() == 11);
+      ++g_lateNodeLocalAttachCount;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      (void)c;
+    }
+
+  private:
+    loka::app::scene::BoundState<int> late_;
+    bool registered_;
+  };
+
+  inline loka::app::scene::BoundaryDefinition<LateNodeLocalStateProps, LateNodeLocalStateNode> LateNodeLocalStateBoundary()
+  {
+    return loka::app::scene::Boundary<LateNodeLocalStateNode>();
+  }
+
+  void test_Node_local_state_registration_after_attach_connects_immediately()
+  {
+    using loka::app::scene::IPlatformController;
+    using loka::app::scene::Node;
+    using loka::app::scene::Scene;
+
+    class DummyPlatformController : public IPlatformController
+    {
+    public:
+      virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
+      virtual void synchronize() {}
+      virtual bool hasPendingSync() const { return false; }
+      virtual void destroy() {}
+    };
+
+    g_lateNodeLocalAttachCount = 0;
+    Scene scene(LateNodeLocalStateBoundary());
+    DummyPlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(g_lateNodeLocalAttachCount == 1);
+    scene.unmount();
+  }
+
   typedef void (*TestFunc)();
 
   void runAll()
   {
     TestFunc tests[] = {
         test_Boundary_nested_compose,
-        test_Node_local_state_registration_is_idempotent};
+        test_FlowSlot_releases_owned_value,
+        test_Node_local_state_registration_is_idempotent,
+        test_Node_local_state_registration_after_attach_connects_immediately};
     const int numTests = sizeof(tests) / sizeof(tests[0]);
     for (int i = 0; i < numTests; ++i)
     {
