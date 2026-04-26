@@ -18,6 +18,7 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/FlowSlot.hpp"
 #include "app/scene/node/Headless.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
@@ -4791,6 +4792,67 @@ void testLokaFlowDslV1Core() {
 
     trigger.set(3, true);
     assert(result.get() == 6);   // 3 * 2
+  }
+
+  // --- FlowSlot: long-lived owner forwards run and trigger binding ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 8;
+    int directResult = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    SlotFlowChain directChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestMul2Adapter())
+              .input(&input)
+              .onSuccess(&directResult);
+
+    assert(!slot.isValid());
+    slot.set(directChain);
+    assert(slot.isValid());
+    assert(slot.run());
+    assert(directResult == 16);
+
+    loka::core::MutableState<int> trigger;
+    loka::core::MutableState<int> triggerResult;
+    SlotFlowChain triggerChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestAdd1Adapter())
+              .onSuccess(&triggerResult);
+
+    slot.set(triggerChain)
+        .bindTrigger(&trigger);
+    trigger.set(41, true);
+    assert(triggerResult.get() == 42);
+
+    slot.clear();
+    assert(!slot.isValid());
+  }
+
+  // --- FlowSlot: cancel and resume are available through the owner slot ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 12;
+    int calls = 0;
+    bool ready = false;
+    int captured = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    SlotFlowChain chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+              .input(&input)
+              .onSuccess(&captured);
+
+    slot.set(chain);
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_PENDING);
+    assert(calls == 1);
+    slot.cancel();
+    ready = true;
+    assert(slot.resumeResult(1) == loka::dsl::FLOW_RUN_CANCELED);
+    assert(captured == 0);
+
+    slot.clear();
   }
 
   // --- bindTrigger: reentry guard prevents double execution ---

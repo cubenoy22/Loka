@@ -79,7 +79,9 @@ namespace simpleviewer {
       this->props.assertInitialized();
       (void)c;
       this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
-      this->flow_.set(buildFlow(*this));
+      this->flow_.set(buildFlow(*this))
+          .bindTrigger(this->chooserResult_.dangerouslyMutableState())
+          .withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
       this->initialized_ = true;
     }
 

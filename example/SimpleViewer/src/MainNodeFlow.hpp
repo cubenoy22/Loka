@@ -58,8 +58,6 @@ namespace simpleviewer
               .onFailure(&MainNode::OnBlobDecodeFailure, &self)
         | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
               .onSuccess(self.image_.dangerouslyMutableState());
-    chain.bindTrigger(self.chooserResult_.dangerouslyMutableState());
-    chain.withTracker(static_cast<loka::core::PushStateTracker *>(self.tracker()));
     return chain;
   }
 

@@ -2,6 +2,7 @@
 #define LOKA_APP_SCENE_FLOW_SLOT_HPP
 
 #include <cassert>
+#include "loka/dsl/Flow.hpp"
 
 namespace loka
 {
@@ -18,6 +19,13 @@ namespace loka
 
         bool isValid() const { return flow_ != 0; }
 
+        FlowSlot &set(const FlowT &flow)
+        {
+          this->clear();
+          flow_ = new FlowT(flow);
+          return *this;
+        }
+
         void clear()
         {
           if (flow_)
@@ -27,10 +35,57 @@ namespace loka
           }
         }
 
-        void set(const FlowT &flow)
+        FlowSlot &withTracker(loka::core::PushStateTracker *tracker)
         {
-          this->clear();
-          flow_ = new FlowT(flow);
+          assert(flow_ && "FlowSlot::withTracker requires a flow");
+          flow_->withTracker(tracker);
+          return *this;
+        }
+
+        template <typename InT>
+        FlowSlot &bindTrigger(loka::core::State<InT> *source)
+        {
+          assert(flow_ && "FlowSlot::bindTrigger requires a flow");
+          flow_->bindTrigger(source);
+          return *this;
+        }
+
+        bool run() const
+        {
+          assert(flow_ && "FlowSlot::run requires a flow");
+          return flow_->run();
+        }
+
+        loka::dsl::FlowRunResult runResult() const
+        {
+          assert(flow_ && "FlowSlot::runResult requires a flow");
+          return flow_->runResult();
+        }
+
+        bool resume(int stepId) const
+        {
+          assert(flow_ && "FlowSlot::resume requires a flow");
+          return flow_->resume(stepId);
+        }
+
+        loka::dsl::FlowRunResult resumeResult(int stepId) const
+        {
+          assert(flow_ && "FlowSlot::resumeResult requires a flow");
+          return flow_->resumeResult(stepId);
+        }
+
+        FlowSlot &cancel()
+        {
+          assert(flow_ && "FlowSlot::cancel requires a flow");
+          flow_->cancel();
+          return *this;
+        }
+
+        FlowSlot &clearCancel()
+        {
+          assert(flow_ && "FlowSlot::clearCancel requires a flow");
+          flow_->clearCancel();
+          return *this;
         }
 
         FlowT *get() { return flow_; }
