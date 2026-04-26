@@ -574,6 +574,74 @@ state が連鎖しても、どの owner / tracker の上で動いているかを
 ただしその場合でも、注意点は memory lifetime だけではありません。
 Tracker がどちらの owner に属するかが重要です。
 
+0.0.1 での基本パターンは、次のように考えます。
+
+```text
+Safe 0.0.1 pattern
+
+Node / Boundary owner
++-- NodeState<T> source
++-- FlowSlot<StateStream<U>>
+|   +-- derived state
+|   +-- bindings installed by the stream
++-- NodeState<U> output
+
+state changes
+  source -> stream/derived -> output.set(...)
+
+cleanup
+  child nodes unbind first
+  FlowSlot releases stream-owned bindings / derived state
+  Node-local state registrations are released with the owner
+```
+
+ここで `StateStream` の copy / assignment は、C++98 の一時オブジェクトを
+`FlowSlot::set(...)` に渡すための transfer-on-copy です。
+これは stream の ownership を自由に移動させるための設計ではありません。
+通常は Node / Boundary の内側で作り、同じ owner の `FlowSlot` に固定して使います。
+
+`Flow` も同じ考え方です。
+Flow 自体が大きな ownership boundary になるのではなく、
+Node / Boundary の内側で state、trigger、callback、result propagation を束ねます。
+結果は owner 側の `NodeState<T>` へ `set(...)` するか、
+owner method / callback を通して反映します。
+
+```text
+Flow as a controller
+
+Node / Boundary owner
++-- input NodeState<A>
++-- FlowSlot<FlowChain<A, B>>
+|   +-- trigger / cancel / resume
+|   +-- steps and callbacks
++-- output NodeState<B>
+
+Flow result
+  onSuccess(...) -> owner updates output state
+```
+
+逆に、次の形は 0.0.1 の通常ルートではありません。
+
+```text
+Not the default 0.0.1 pattern
+
+Parent owner                  Child owner
++-- State<T> source  ----->   +-- FlowSlot<StateStream<U>>
+                                  +-- derived/output owned by child?
+                                  +-- tracker parent or child?
+
+This needs explicit owner/tracker/lifetime dependency design.
+```
+
+Image や cache も同じです。
+今の `Image` は `Managed<ImageRecord>` で native handle を安全に共有しますが、
+将来の CacheRepository / disk cache / reload Flow では、
+「メモリ上の画像を誰が保持しているか」だけでなく、
+「ディスクから再生成できるか」
+「どの Boundary が表示中か」
+「cache-only になったときに破棄してよいか」
+を別の owner model として扱います。
+
 今後、Boundary をまたいで `StateStream` や `Flow` をより安全に渡すには、
 state pointer だけではなく、
 

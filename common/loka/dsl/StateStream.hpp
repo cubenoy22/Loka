@@ -44,6 +44,43 @@ namespace loka
                   ::loka::app::scene::IStateOwner *owner,
                   bool ownsState)
           : state_(state), tracker_(tracker), owner_(owner), ownsState_(ownsState), bindings_(), slot(1) {}
+      StateStream(const StateStream &other)
+          : state_(other.state_),
+            tracker_(other.tracker_),
+            owner_(other.owner_),
+            ownsState_(other.ownsState_),
+            bindings_(other.bindings_),
+            slot(1)
+      {
+        other.state_ = 0;
+        other.tracker_ = 0;
+        other.owner_ = 0;
+        other.ownsState_ = false;
+        other.bindings_.clear();
+      }
+      ~StateStream()
+      {
+        this->releaseOwnedState();
+      }
+
+      StateStream &operator=(const StateStream &other)
+      {
+        if (this != &other)
+        {
+          this->releaseOwnedState();
+          state_ = other.state_;
+          tracker_ = other.tracker_;
+          owner_ = other.owner_;
+          ownsState_ = other.ownsState_;
+          bindings_ = other.bindings_;
+          other.state_ = 0;
+          other.tracker_ = 0;
+          other.owner_ = 0;
+          other.ownsState_ = false;
+          other.bindings_.clear();
+        }
+        return *this;
+      }
 
       template <typename Mapper>
       StateStream<typename Mapper::Result> map(const Mapper &mapper) const
@@ -63,7 +100,7 @@ namespace loka
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         StateStream<typename Mapper::Result> out(derived, this->tracker_, this->owner_, true);
-        this->copyBindingsTo(out);
+        this->transferBindingsTo(out);
         return out;
       }
 
@@ -82,7 +119,7 @@ namespace loka
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         StateStream<R> out(derived, this->tracker_, this->owner_, true);
-        this->copyBindingsTo(out);
+        this->transferBindingsTo(out);
         return out;
       }
 
@@ -105,8 +142,8 @@ namespace loka
         this->bindRecompute(this->state_, derived);
         this->bindRecompute(other.state_, derived);
         StateStream<typename Combiner::Result> out(derived, this->tracker_, this->owner_, true);
-        this->copyBindingsTo(out);
-        other.copyBindingsTo(out);
+        this->transferBindingsTo(out);
+        other.transferBindingsTo(out);
         return out;
       }
 
@@ -159,12 +196,13 @@ namespace loka
       }
 
       template <typename U>
-      void copyBindingsTo(StateStream<U> &out) const
+      void transferBindingsTo(StateStream<U> &out) const
       {
         for (size_t i = 0; i < bindings_.size(); ++i)
         {
           out.bindings_.push_back(bindings_[i]);
         }
+        bindings_.clear();
       }
 
       template <typename SrcT, typename R, typename Mapper>
@@ -303,10 +341,10 @@ namespace loka
         this->addBinding(source, &RecomputeBinding::ApplyThunk, binding, &RecomputeBinding::Destroy);
       }
 
-      ::loka::core::State<T> *state_;
-      ::loka::core::StateTracker *tracker_;
-      ::loka::app::scene::IStateOwner *owner_;
-      bool ownsState_;
+      mutable ::loka::core::State<T> *state_;
+      mutable ::loka::core::StateTracker *tracker_;
+      mutable ::loka::app::scene::IStateOwner *owner_;
+      mutable bool ownsState_;
       mutable std::vector<StateStreamBindingEntry> bindings_;
       template <typename U>
       friend class StateStream;

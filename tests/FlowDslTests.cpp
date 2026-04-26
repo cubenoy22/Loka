@@ -624,6 +624,7 @@ namespace {
         : loka::app::scene::BoundaryNodeFor<HeadlessScopeProbeBoundaryNode>(HeadlessScopeProbeProps(p)),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -639,8 +640,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("Headless 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("Headless ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("Headless ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessScopeAttachCount;
       g_headlessScopeProbe = this;
@@ -670,6 +672,7 @@ namespace {
   private:
     loka::app::scene::NodeState<int> count_;
     loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -731,6 +734,7 @@ namespace {
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedProbeProps>(p),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -755,8 +759,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("Owned 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("Owned ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("Owned ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessOwnedAttachCount;
       g_headlessOwnedProbe = this;
@@ -781,6 +786,7 @@ namespace {
   private:
     loka::app::scene::NodeState<int> count_;
     loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -834,6 +840,7 @@ namespace {
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedMultiProbeAProps>(p),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -858,8 +865,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("OwnedA 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("OwnedA ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("OwnedA ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessOwnedMultiAttachCountA;
       g_headlessOwnedMultiProbeA = this;
@@ -879,6 +887,7 @@ namespace {
   private:
     loka::app::scene::NodeState<int> count_;
     loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -889,6 +898,7 @@ namespace {
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedMultiProbeBProps>(p),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -913,8 +923,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("OwnedB 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("OwnedB ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("OwnedB ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessOwnedMultiAttachCountB;
       g_headlessOwnedMultiProbeB = this;
@@ -934,6 +945,7 @@ namespace {
   private:
     loka::app::scene::NodeState<int> count_;
     loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -2463,9 +2475,12 @@ void testLokaFlowDslV1Core() {
     DummyStateOwner owner;
     NodeState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
     loka::dsl::StateStream<int> countStream(&countState, &tracker, &owner);
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > labelFlow;
 
     tracker.begin();
-    countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value()).set(label, true);
+    labelFlow
+        .set(countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value()))
+        .bindTo(label, true);
     tracker.end();
 
     assert(label.isValid());
