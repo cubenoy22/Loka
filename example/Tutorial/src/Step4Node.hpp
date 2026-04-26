@@ -10,8 +10,6 @@
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
-#include "loka/dsl/Expr.hpp"
-#include "loka/dsl/StateStream.hpp"
 
 namespace tutorial {
   class Step4Node : public loka::app::scene::BoundaryNodeFor<Step4Node> {
@@ -35,12 +33,9 @@ namespace tutorial {
           .state(this->showItem1_, false)
           .state(this->showItem2_, false)
           .state(this->showItem3_, false);
-      {
-        loka::dsl::StateStream<int> s = this->itemCount_.stream();
-        s.map(loka::dsl::Const("Items: ") + s.slot.value()).set(this->itemSummary_);
-      }
       this->bindActionForUi(this->addItemEvent_, &Step4Node::addItem);
       this->bindActionForUi(this->toggleSummaryEvent_, &Step4Node::toggleSummary);
+      this->refreshItemSummary();
       this->initialized_ = true;
     }
 
@@ -55,8 +50,8 @@ namespace tutorial {
                     << (Show(*this->showItem1_.state()) << this->item1_)
                     << (Show(*this->showItem2_.state()) << this->item2_)
                     << (Show(*this->showItem3_.state()) << this->item3_))
-                << TutorialHint("StdComposition can still reveal predeclared children, and stream().map() "
-                                "can derive display text."));
+                << TutorialHint("StdComposition can still reveal predeclared children while state changes update "
+                                "derived display text."));
     }
 
   private:
@@ -69,10 +64,19 @@ namespace tutorial {
       this->showItem1_.set(next >= 1);
       this->showItem2_.set(next >= 2);
       this->showItem3_.set(next >= 3);
+      this->refreshItemSummary();
     }
 
     void toggleSummary() {
       this->showSummary_.set(!this->showSummary_.get(), true);
+    }
+
+    void refreshItemSummary() {
+      if (!this->itemCount_.isValid() || !this->itemSummary_.isValid()) {
+        return;
+      }
+      this->itemSummary_.set(loka::core::String::Literal("Items: ")
+                             + loka::core::String::FromInt(this->itemCount_.get()));
     }
 
     loka::app::scene::BoundState<int> itemCount_;

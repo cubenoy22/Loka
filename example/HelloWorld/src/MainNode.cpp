@@ -4,8 +4,6 @@
 #include "app/core/Window.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
-#include "loka/dsl/Expr.hpp"
-#include "loka/dsl/StateStream.hpp"
 #include "loka/platform/StringUTF8.hpp"
 
 #include <cstdio>
@@ -51,15 +49,10 @@ namespace helloworld {
     this->bindActionForUi(this->actionProbeEvent_, &MainNode::handleActionProbe);
     this->watchStateForUi(this->heightInput_, &MainNode::refreshBmiResult);
     this->watchStateForUi(this->weightInput_, &MainNode::refreshBmiResult);
-    {
-      loka::dsl::StateStream<int> strm = this->fruitIndex_.stream();
-      strm.map(loka::dsl::Const("You chose ")                    //
-               + loka::dsl::At(this->fruits_, strm.slot.value()) //
-               + loka::dsl::Const("."))
-          .set(this->fruitMessage_);
-    }
+    this->watchStateForUi(this->fruitIndex_, &MainNode::refreshFruitMessage);
     this->refreshActionSummary();
     this->refreshBmiResult();
+    this->refreshFruitMessage();
     this->initialized_ = true;
   }
 
@@ -182,6 +175,22 @@ namespace helloworld {
     const String countText = String::FromInt(count);
     this->actionSummary_.set(String::Literal("Button enabled: ") + enabledText + String::Literal(" / clicks: ")
                              + countText);
+  }
+
+  void MainNode::refreshFruitMessage() {
+    if (!this->fruitIndex_.isValid() || !this->fruitMessage_.isValid()) {
+      return;
+    }
+    if (this->fruits_.empty()) {
+      this->fruitMessage_.set(String::Literal("You chose ."));
+      return;
+    }
+    int index = this->fruitIndex_.get();
+    if (index < 0 || static_cast<std::size_t>(index) >= this->fruits_.size()) {
+      index = 0;
+    }
+    this->fruitMessage_.set(String::Literal("You chose ") + this->fruits_[static_cast<std::size_t>(index)]
+                            + String::Literal("."));
   }
 
   void MainNode::composeNode(loka::app::scene::NodeComposition &c) {

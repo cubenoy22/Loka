@@ -27,6 +27,7 @@ namespace helloworld {
     void toggleActionEnabled();
     void handleActionProbe();
     void refreshActionSummary();
+    void refreshFruitMessage();
 
     bool initialized_;
     bool actionSummaryCacheValid_;
