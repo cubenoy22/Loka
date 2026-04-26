@@ -49,6 +49,7 @@ namespace loka
 
         virtual ~HeadlessNodeBase()
         {
+          this->releaseNodeStateRegistrations();
           this->clearOwnedStates();
         }
 
@@ -122,6 +123,30 @@ namespace loka
           }
           this->ownedStates_.push_back(state);
           this->tracker_.addStateUnchecked(state);
+        }
+
+        virtual void releaseState(loka::core::StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          for (size_t i = 0; i < this->ownedStates_.size();)
+          {
+            if (this->ownedStates_[i] == state)
+            {
+              this->ownedStates_.erase(this->ownedStates_.begin() + i);
+            }
+            else
+            {
+              ++i;
+            }
+          }
+          this->tracker_.removeState(state);
+          if (!state->isArenaAllocated())
+          {
+            delete state;
+          }
         }
 
         virtual void reserveStates(size_t count)

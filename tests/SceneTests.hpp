@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <stdio.h>
+#include <vector>
 #include "app/scene/FlowSlot.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/PlatformController.hpp"
@@ -16,6 +17,7 @@ namespace SceneTests
   static int g_lateNodeLocalAttachCount = 0;
   static int g_flowSlotProbeLiveCount = 0;
   static int g_flowSlotProbeCopyCount = 0;
+  static int g_nodeLocalOwnerReleaseCount = 0;
 
   class ChildBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ChildBoundaryNode> ChildBoundaryProps;
@@ -311,6 +313,144 @@ namespace SceneTests
     scene.unmount();
   }
 
+  class NodeLocalReleaseOwner : public loka::app::scene::IStateOwner
+  {
+  public:
+    NodeLocalReleaseOwner() : tracker_(), states_() {}
+    virtual void adoptState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      states_.push_back(state);
+      tracker_.addState(state);
+    }
+    virtual void adoptStateUnchecked(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      states_.push_back(state);
+      tracker_.addStateUnchecked(state);
+    }
+    virtual void releaseState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < states_.size();)
+      {
+        if (states_[i] == state)
+        {
+          states_.erase(states_.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+      tracker_.removeState(state);
+      delete state;
+      ++g_nodeLocalOwnerReleaseCount;
+    }
+    virtual void reserveStates(size_t) {}
+    virtual void reserveStateArena(size_t) {}
+    virtual void *allocateStateMemory(size_t, size_t) { return 0; }
+    virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
+    virtual loka::core::StateTracker *tracker() { return &tracker_; }
+    size_t stateCount() const { return states_.size(); }
+
+  private:
+    loka::core::PushStateTracker tracker_;
+    std::vector<loka::core::StateBase *> states_;
+  };
+
+  class NodeLocalReleaseNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    NodeLocalReleaseNode() : count_()
+    {
+      this->state(this->count_, 3);
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
+    {
+      (void)context;
+      (void)event;
+      assert(this->count_.isValid());
+      assert(this->count_.get() == 3);
+    }
+
+  private:
+    loka::app::scene::NodeState<int> count_;
+  };
+
+  class NodeLocalStreamReleaseNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    NodeLocalStreamReleaseNode() : count_(), summary_(), summaryFlow_()
+    {
+      this->state(this->count_, 3);
+      this->state(this->summary_, loka::core::String::Literal("Count: 0"));
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
+    {
+      (void)context;
+      (void)event;
+      assert(this->count_.isValid());
+      assert(this->summary_.isValid());
+      {
+        loka::dsl::StateStream<int> count = this->count_.stream();
+        this->summaryFlow_
+            .set(count.map(loka::dsl::Const("Count: ") + count.slot.value()))
+            .bindTo(this->summary_);
+      }
+      assert(this->summary_.get().equals(loka::core::String::Literal("Count: 3")));
+    }
+
+  private:
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
+  };
+
+  void test_Node_local_state_releases_owner_state_on_node_destroy()
+  {
+    g_nodeLocalOwnerReleaseCount = 0;
+    NodeLocalReleaseOwner owner;
+    loka::app::scene::ComponentContext context;
+    context.setStateOwner(&owner);
+
+    NodeLocalReleaseNode *node = new NodeLocalReleaseNode();
+    assert(owner.stateCount() == 0);
+    node->compose(context, loka::app::scene::COMPOSE_EVENT_ATTACH);
+    assert(owner.stateCount() == 1);
+    delete node;
+    assert(owner.stateCount() == 0);
+    assert(g_nodeLocalOwnerReleaseCount == 1);
+  }
+
+  void test_Node_local_stream_releases_owned_state_on_node_destroy()
+  {
+    g_nodeLocalOwnerReleaseCount = 0;
+    NodeLocalReleaseOwner owner;
+    loka::app::scene::ComponentContext context;
+    context.setStateOwner(&owner);
+
+    NodeLocalStreamReleaseNode *node = new NodeLocalStreamReleaseNode();
+    node->compose(context, loka::app::scene::COMPOSE_EVENT_ATTACH);
+    assert(owner.stateCount() == 3);
+    delete node;
+    assert(owner.stateCount() == 0);
+    assert(g_nodeLocalOwnerReleaseCount == 3);
+  }
+
   typedef void (*TestFunc)();
 
   void runAll()
@@ -319,7 +459,9 @@ namespace SceneTests
         test_Boundary_nested_compose,
         test_FlowSlot_releases_owned_value,
         test_Node_local_state_registration_is_idempotent,
-        test_Node_local_state_registration_after_attach_connects_immediately};
+        test_Node_local_state_registration_after_attach_connects_immediately,
+        test_Node_local_state_releases_owner_state_on_node_destroy,
+        test_Node_local_stream_releases_owned_state_on_node_destroy};
     const int numTests = sizeof(tests) / sizeof(tests[0]);
     for (int i = 0; i < numTests; ++i)
     {

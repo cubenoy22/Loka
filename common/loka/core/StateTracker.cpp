@@ -150,6 +150,87 @@ namespace loka
       }
     }
 
+    void PushStateTracker::removeState(StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+
+      StateEntry *prev = 0;
+      StateEntry *entry = statesHead_;
+      while (entry)
+      {
+        if (entry->state == state)
+        {
+          StateEntry *next = entry->next;
+          if (prev)
+          {
+            prev->next = next;
+          }
+          else
+          {
+            statesHead_ = next;
+          }
+          if (statesTail_ == entry)
+          {
+            statesTail_ = prev;
+          }
+          entry->state = 0;
+          entry->next = freeEntries_;
+          freeEntries_ = entry;
+          break;
+        }
+        prev = entry;
+        entry = entry->next;
+      }
+
+      for (size_t i = 0; i < dirtyStates.size();)
+      {
+        if (dirtyStates[i] == state)
+        {
+          dirtyStates.erase(dirtyStates.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+      for (size_t i = 0; i < committedDirtyStates_.size();)
+      {
+        if (committedDirtyStates_[i] == state)
+        {
+          committedDirtyStates_.erase(committedDirtyStates_.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+
+      dependents.erase(state);
+      for (DependencyMap::iterator it = dependents.begin(); it != dependents.end(); ++it)
+      {
+        StateList &list = it->second;
+        for (size_t i = 0; i < list.size();)
+        {
+          if (list[i] == state)
+          {
+            list.erase(list.begin() + i);
+          }
+          else
+          {
+            ++i;
+          }
+        }
+      }
+      visiting_.erase(state);
+      if (state->currentTracker == this)
+      {
+        state->currentTracker = 0;
+      }
+    }
+
     void PushStateTracker::reserveStates(size_t count)
     {
       if (count == 0)

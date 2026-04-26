@@ -188,6 +188,29 @@ namespace loka
           }
         }
 
+        void releaseState(loka::core::StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          for (size_t i = 0; i < states_.size();)
+          {
+            if (states_[i].state == state)
+            {
+              if (states_[i].destroy)
+              {
+                states_[i].destroy(states_[i].state);
+              }
+              states_.erase(states_.begin() + i);
+            }
+            else
+            {
+              ++i;
+            }
+          }
+        }
+
         void clear()
         {
           for (size_t i = 0; i < states_.size(); ++i)
@@ -248,6 +271,7 @@ namespace loka
           clearObservedStateEntries();
           // Detach children before the arena is cleared to avoid touching freed nodes.
           clearChildren();
+          releaseNodeStateRegistrations();
           nodeArena_.clear();
           clearOwnedStates();
           clearOwnedStateHandles();
@@ -839,6 +863,32 @@ namespace loka
           }
           ownedStates_.push_back(state);
           tracker_.addStateUnchecked(state);
+        }
+
+        virtual void releaseState(loka::core::StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          for (size_t i = 0; i < ownedStates_.size();)
+          {
+            if (ownedStates_[i] == state)
+            {
+              ownedStates_.erase(ownedStates_.begin() + i);
+            }
+            else
+            {
+              ++i;
+            }
+          }
+          tracker_.removeState(state);
+          if (state->isArenaAllocated())
+          {
+            stateArena_.releaseState(state);
+            return;
+          }
+          delete state;
         }
 
         virtual void reserveStates(size_t count)

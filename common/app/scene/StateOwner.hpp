@@ -19,6 +19,7 @@ namespace loka
         virtual ~IStateOwner() {}
         virtual void adoptState(core::StateBase *state) = 0;
         virtual void adoptStateUnchecked(core::StateBase *state) = 0;
+        virtual void releaseState(core::StateBase *state) = 0;
         virtual void reserveStates(size_t count) = 0;
         virtual void reserveStateArena(size_t totalSize) = 0;
         virtual void *allocateStateMemory(size_t size, size_t align) = 0;

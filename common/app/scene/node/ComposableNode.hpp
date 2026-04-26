@@ -323,19 +323,20 @@ namespace loka
           clearChildrenInternal(false);
         }
 
-      private:
+      protected:
         struct NodeStateRegistrationBase
         {
           virtual ~NodeStateRegistrationBase() {}
           virtual bool matches(const void *out) const = 0;
           virtual void connect(IStateOwner *owner) = 0;
+          virtual void disconnect() = 0;
         };
 
         template <typename T>
         struct NodeStateRegistration : public NodeStateRegistrationBase
         {
           NodeStateRegistration(NodeState<T> *out, const T &initial)
-              : out_(out), initial_(initial) {}
+              : out_(out), initial_(initial), owner_(0), state_(0) {}
 
           bool matches(const void *out) const
           {
@@ -351,13 +352,30 @@ namespace loka
             if (out_->isValid())
             {
               assert(out_->dangerouslyOwner() == owner && "Node-local state reattached to a different owner");
+              owner_ = out_->dangerouslyOwner();
+              state_ = out_->dangerouslyMutableState();
               return;
             }
             NodeComposition::StateBatch::CreateImmediateState(owner, *out_, initial_);
+            owner_ = out_->dangerouslyOwner();
+            state_ = out_->dangerouslyMutableState();
+          }
+
+          void disconnect()
+          {
+            if (owner_ && state_)
+            {
+              owner_->releaseState(state_);
+            }
+            owner_ = 0;
+            state_ = 0;
+            out_ = 0;
           }
 
           NodeState<T> *out_;
           T initial_;
+          IStateOwner *owner_;
+          loka::core::MutableState<T> *state_;
         };
 
         void connectNodeStateRegistration(NodeStateRegistrationBase *entry)
@@ -381,6 +399,10 @@ namespace loka
         {
           for (size_t i = 0; i < nodeStates_.size(); ++i)
           {
+            if (nodeStates_[i])
+            {
+              nodeStates_[i]->disconnect();
+            }
             delete nodeStates_[i];
           }
           nodeStates_.clear();

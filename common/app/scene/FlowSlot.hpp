@@ -4,6 +4,7 @@
 #include <cassert>
 #include "app/scene/NodeState.hpp"
 #include "loka/dsl/Flow.hpp"
+#include "loka/dsl/StateStream.hpp"
 
 namespace loka
 {
@@ -11,6 +12,23 @@ namespace loka
   {
     namespace scene
     {
+      namespace flow_slot_detail
+      {
+        template <typename FlowT>
+        inline void releaseOwnedFlow(FlowT *)
+        {
+        }
+
+        template <typename T>
+        inline void releaseOwnedFlow(loka::dsl::StateStream<T> *stream)
+        {
+          if (stream)
+          {
+            stream->releaseOwnedState();
+          }
+        }
+      }
+
       template <typename FlowT>
       class FlowSlot
       {
@@ -31,6 +49,7 @@ namespace loka
         {
           if (flow_)
           {
+            flow_slot_detail::releaseOwnedFlow(flow_);
             delete flow_;
             flow_ = 0;
           }

@@ -323,6 +323,7 @@ namespace {
 
     virtual void adoptState(loka::core::StateBase *) {}
     virtual void adoptStateUnchecked(loka::core::StateBase *) {}
+    virtual void releaseState(loka::core::StateBase *) {}
     virtual void reserveStates(size_t) {}
     virtual void reserveStateArena(size_t) {}
     virtual void *allocateStateMemory(size_t, size_t) { return 0; }

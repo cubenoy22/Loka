@@ -15,15 +15,35 @@ namespace loka
 {
   namespace dsl
   {
+    struct StateStreamBindingEntry
+    {
+      StateStreamBindingEntry()
+          : source(0), cb(0), userData(0), destroy(0) {}
+      StateStreamBindingEntry(::loka::core::StateBase *s,
+                              ::loka::core::StateBase::OnChangeFn c,
+                              void *u,
+                              void (*d)(void *))
+          : source(s), cb(c), userData(u), destroy(d) {}
+      ::loka::core::StateBase *source;
+      ::loka::core::StateBase::OnChangeFn cb;
+      void *userData;
+      void (*destroy)(void *);
+    };
+
     template <typename T>
     class StateStream
     {
     public:
-      StateStream() : state_(0), tracker_(0), owner_(0), slot(1) {}
+      StateStream() : state_(0), tracker_(0), owner_(0), ownsState_(false), bindings_(), slot(1) {}
       StateStream(::loka::core::State<T> *state,
                   ::loka::core::StateTracker *tracker,
                   ::loka::app::scene::IStateOwner *owner)
-          : state_(state), tracker_(tracker), owner_(owner), slot(1) {}
+          : state_(state), tracker_(tracker), owner_(owner), ownsState_(false), bindings_(), slot(1) {}
+      StateStream(::loka::core::State<T> *state,
+                  ::loka::core::StateTracker *tracker,
+                  ::loka::app::scene::IStateOwner *owner,
+                  bool ownsState)
+          : state_(state), tracker_(tracker), owner_(owner), ownsState_(ownsState), bindings_(), slot(1) {}
 
       template <typename Mapper>
       StateStream<typename Mapper::Result> map(const Mapper &mapper) const
@@ -42,7 +62,9 @@ namespace loka
             new ::loka::core::DerivedState<typename Mapper::Result>(this->state_, eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
-        return StateStream<typename Mapper::Result>(derived, this->tracker_, this->owner_);
+        StateStream<typename Mapper::Result> out(derived, this->tracker_, this->owner_, true);
+        this->copyBindingsTo(out);
+        return out;
       }
 
       template <typename R, typename ExprT>
@@ -59,7 +81,9 @@ namespace loka
             new ::loka::core::DerivedState<R>(this->state_, eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
-        return StateStream<R>(derived, this->tracker_, this->owner_);
+        StateStream<R> out(derived, this->tracker_, this->owner_, true);
+        this->copyBindingsTo(out);
+        return out;
       }
 
       template <typename U, typename Combiner>
@@ -80,7 +104,10 @@ namespace loka
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         this->bindRecompute(other.state_, derived);
-        return StateStream<typename Combiner::Result>(derived, this->tracker_, this->owner_);
+        StateStream<typename Combiner::Result> out(derived, this->tracker_, this->owner_, true);
+        this->copyBindingsTo(out);
+        other.copyBindingsTo(out);
+        return out;
       }
 
       void set(::loka::app::scene::NodeState<T> &target, bool forceUpdate = false) const
@@ -96,9 +123,50 @@ namespace loka
         binding->apply();
         PROFILE_SECTION_ID("sSetBind", 10);
         this->state_->deferBind(&SetBinding::ApplyThunk, binding);
+        this->addBinding(this->state_, &SetBinding::ApplyThunk, binding, &SetBinding::Destroy);
+      }
+
+      void releaseOwnedState()
+      {
+        for (size_t i = 0; i < bindings_.size(); ++i)
+        {
+          StateStreamBindingEntry &entry = bindings_[i];
+          if (entry.source && entry.cb)
+          {
+            entry.source->deferUnbind(entry.cb, entry.userData);
+          }
+          if (entry.destroy)
+          {
+            entry.destroy(entry.userData);
+          }
+        }
+        bindings_.clear();
+        if (ownsState_ && owner_ && state_)
+        {
+          owner_->releaseState(state_);
+        }
+        state_ = 0;
+        ownsState_ = false;
       }
 
     private:
+      void addBinding(::loka::core::StateBase *source,
+                      ::loka::core::StateBase::OnChangeFn cb,
+                      void *userData,
+                      void (*destroy)(void *)) const
+      {
+        bindings_.push_back(StateStreamBindingEntry(source, cb, userData, destroy));
+      }
+
+      template <typename U>
+      void copyBindingsTo(StateStream<U> &out) const
+      {
+        for (size_t i = 0; i < bindings_.size(); ++i)
+        {
+          out.bindings_.push_back(bindings_[i]);
+        }
+      }
+
       template <typename SrcT, typename R, typename Mapper>
       struct MapEval : public ::loka::core::DerivedState<R>::EvalFn
       {
@@ -175,6 +243,11 @@ namespace loka
           target_->set(state_->get(), forceUpdate_);
         }
 
+        static void Destroy(void *userData)
+        {
+          delete static_cast<SetBinding *>(userData);
+        }
+
         ::loka::core::State<T> *state_;
         ::loka::app::scene::NodeState<T> *target_;
         bool forceUpdate_;
@@ -210,6 +283,11 @@ namespace loka
           }
         }
 
+        static void Destroy(void *userData)
+        {
+          delete static_cast<RecomputeBinding *>(userData);
+        }
+
         ::loka::core::StateBase *state_;
       };
 
@@ -222,11 +300,16 @@ namespace loka
         }
         RecomputeBinding *binding = new RecomputeBinding(derived);
         source->deferBind(&RecomputeBinding::ApplyThunk, binding);
+        this->addBinding(source, &RecomputeBinding::ApplyThunk, binding, &RecomputeBinding::Destroy);
       }
 
       ::loka::core::State<T> *state_;
       ::loka::core::StateTracker *tracker_;
       ::loka::app::scene::IStateOwner *owner_;
+      bool ownsState_;
+      mutable std::vector<StateStreamBindingEntry> bindings_;
+      template <typename U>
+      friend class StateStream;
     public:
       ValueSlot<T> slot;
     };
