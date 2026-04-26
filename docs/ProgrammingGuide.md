@@ -1028,7 +1028,7 @@ typedef loka::dsl::FlowChain<Input, Output> MyFlow;
 loka::app::scene::FlowSlot<MyFlow> flow_;
 
 flow_.set(buildFlow(*this))
-    .bindTrigger(this->input_.dangerouslyMutableState())
+    .bindTrigger(this->input_)
     .withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
 ```
 

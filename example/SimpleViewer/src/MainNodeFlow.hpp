@@ -42,6 +42,24 @@ namespace simpleviewer
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
 
+  inline void MainNode::OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData)
+  {
+    MainNode *self = static_cast<MainNode *>(userData);
+    if (self)
+    {
+      self->chooserMessage_.set(projection.message, true);
+    }
+  }
+
+  inline void MainNode::OnImageDecoded(const loka::core::resource::Image &image, void *userData)
+  {
+    MainNode *self = static_cast<MainNode *>(userData);
+    if (self)
+    {
+      self->image_.set(image, true);
+    }
+  }
+
   // MainNode's file-chooser pipeline starts here.
   // This is the main entry point in this file; the handlers above support it.
   inline MainNode::ViewerFlowChain MainNode::buildFlow(MainNode &self)
@@ -50,14 +68,14 @@ namespace simpleviewer
         loka::dsl::Flow()
         | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
         | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-              .onSuccess(self.chooserMessage_.dangerouslyMutableState(), &simpleviewer::ChooserProjection::message)
+              .onSuccess(&MainNode::OnChooserProjection, &self)
         | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter(self.props.platformContext_))
               .onFailure(&MainNode::IsNoFileSelectedError, &MainNode::OnBlobLoadCanceled, &self)
               .onFailure(&MainNode::OnBlobLoadFailure, &self)
         | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(self.props.platformContext_))
               .onFailure(&MainNode::OnBlobDecodeFailure, &self)
         | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
-              .onSuccess(self.image_.dangerouslyMutableState());
+              .onSuccess(&MainNode::OnImageDecoded, &self);
     return chain;
   }
 

@@ -2,6 +2,7 @@
 #define LOKA_APP_SCENE_FLOW_SLOT_HPP
 
 #include <cassert>
+#include "app/scene/BoundState.hpp"
 #include "loka/dsl/Flow.hpp"
 
 namespace loka
@@ -47,6 +48,14 @@ namespace loka
         {
           assert(flow_ && "FlowSlot::bindTrigger requires a flow");
           flow_->bindTrigger(source);
+          return *this;
+        }
+
+        template <typename InT>
+        FlowSlot &bindTrigger(const BoundState<InT> &source)
+        {
+          assert(flow_ && "FlowSlot::bindTrigger requires a flow");
+          flow_->bindTrigger(source.dangerouslyMutableState());
           return *this;
         }
 

@@ -80,7 +80,7 @@ namespace simpleviewer {
       (void)c;
       this->bindActionForUi(*this->props.openDialogEvent_, &MainNode::openDialog);
       this->flow_.set(buildFlow(*this))
-          .bindTrigger(this->chooserResult_.dangerouslyMutableState())
+          .bindTrigger(this->chooserResult_)
           .withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
       this->initialized_ = true;
     }
@@ -96,8 +96,8 @@ namespace simpleviewer {
                  .image(this->image_.state())
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
           << (Show(*this->isDialogShown_.state()) << OpenFileDialog()
-                                                         .result(this->chooserResult_.dangerouslyMutableState())
-                                                         .closeState(this->isDialogShown_.dangerouslyMutableState())));
+                                                         .result(this->chooserResult_)
+                                                         .closeState(this->isDialogShown_)));
     }
 
   private:
@@ -105,6 +105,8 @@ namespace simpleviewer {
     static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData);
     static loka::dsl::FlowHandleResult OnBlobLoadCanceled(const loka::dsl::FlowError &error, void *userData);
     static loka::dsl::FlowHandleResult OnBlobLoadFailure(const loka::dsl::FlowError &error, void *userData);
+    static void OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData);
+    static void OnImageDecoded(const loka::core::resource::Image &image, void *userData);
     static ViewerFlowChain buildFlow(MainNode &self);
     static loka::core::String buildErrorMessage(const loka::dsl::FlowError &error);
 
