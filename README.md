@@ -74,8 +74,8 @@ Status terms:
 | Environment | Status | Notes |
 | --- | --- | --- |
 | Modern Windows / Win32 | `active` | Native Win32 projection path. Windows XP-class compatibility is tracked as a legacy build target. |
-| macOS / Cocoa | `active` | Native macOS projection path. Library/core code keeps older macOS compatibility in mind. |
-| Classic Mac OS / Toolbox | `active` | Built through Retro68 for 68k and PowerPC-style Classic targets. Practical mainstream target is PPC601 / 603e-class systems and later, with 68k kept as an important constraint and validation path. |
+| macOS / Cocoa | `active` | Native macOS projection path. Mac OS X 10.4 Tiger or newer and PowerPC G3 or newer are supported targets. |
+| Classic Mac OS / Toolbox | `active` | Built through Retro68 for System 7 or later on 68k and PowerPC-style Classic targets. Practical mainstream target is PPC601 / 603e-class systems and later, with 68k kept as an important constraint and validation path. |
 | Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.1`. |
 | iOS / iPadOS, Linux desktop UI, Windows Mobile-class systems, game-oriented backends | `planned` | Future ports should reuse the same Node / Boundary / State / Flow model rather than adding platform-specific application models. |
 
