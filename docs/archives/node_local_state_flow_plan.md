@@ -1,5 +1,8 @@
 # Node-local State and Flow Plan
 
+Status: archived design note. The implemented parts have been folded into the
+current Node-local state / FlowSlot APIs and `docs/ProgrammingGuide.md`.
+
 ## Goal
 
 Loka should make ordinary UI code safe by default without hiding lifecycle ownership.
