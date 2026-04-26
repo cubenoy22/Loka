@@ -530,6 +530,68 @@ Loka の考え方では、
 したがって `Managed<T>` は便利な抜け道ではなく、
 cross-boundary sharing を explicit にするための手段です。
 
+### Owner-aware lifecycle management
+
+Loka の memory management は、単なる参照カウントや smart pointer の代替ではありません。
+重要なのは、「誰が参照しているか」だけではなく、
+「どの Boundary / Node の lifecycle に属する resource なのか」を追えることです。
+
+たとえば、Node-local な state と flow は次のように扱います。
+
+```cpp
+loka::dsl::StateStream<int> count = this->count_.stream();
+this->summaryFlow_
+    .set(count.map(loka::dsl::Const("Count: ") + count.slot.value()))
+    .bindTo(this->summary_);
+```
+
+この形では、
+
+- source state
+- derived state / stream
+- output state
+- `FlowSlot`
+
+が同じ Node / Boundary owner の範囲に閉じます。
+そのため、Node が detach / destruct されたときに、
+関連する state、binding、derived value、flow holder を同じ owner 単位で片付けられます。
+
+Loka では、Flow は巨大な所有者ではなく、
+state、derived state、trigger、binding、cancel / resume、debug trace を束ねる
+controller に近いものです。
+state が連鎖しても、どの owner / tracker の上で動いているかを Flow が見えるようにすることで、
+ピンボールのような更新連鎖でも止める場所、調べる場所、解放する場所を明確にできます。
+
+この考え方は、参照カウントより意味が強い場合があります。
+単に「まだ参照されているから残す」のではなく、
+「この Boundary がこの resource を借りている」
+「この Flow がこの binding を設置した」
+「この Node が消えたらこの derived state も消える」
+という lifecycle dependency として扱えるからです。
+
+現時点で安全な基本形は、source / output / FlowSlot が同じ Node owner に属するケースです。
+親 Boundary から子 Boundary へ read-only state を Props 経由で渡すことも、
+親が所有し子が借りて読む限り自然な方向です。
+ただしその場合でも、注意点は memory lifetime だけではありません。
+Tracker がどちらの owner に属するかが重要です。
+
+今後、Boundary をまたいで `StateStream` や `Flow` をより安全に渡すには、
+state pointer だけではなく、
+
+- source owner Boundary
+- consumer owner Boundary
+- tracker used for output updates
+- installed bindings / derived states
+
+を `StateStream` / `Flow` 側で運べるようにする必要があります。
+`BoundaryProps::borrow(...)` のような API は、新しい所有者を増やすためではなく、
+既存の State / Flow に owner 情報を正しく伝搬する sugar として設計するのが自然です。
+
+この方向を取ると、C++98 や Classic Mac OS のように ARC / GC / exceptions に頼れない環境でも、
+app-facing code では GC があるように感じられる一方で、
+実際には Boundary destructor / detach / owner dependency によって
+細かい cleanup と debug ができます。
+
 ### 子から親を変えたいとき
 
 子から親を変えたい場合でも、
