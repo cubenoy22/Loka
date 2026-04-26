@@ -72,7 +72,8 @@ For the main development and test workflow:
 - CMake 3.19 or newer when using `CMakePresets.json`
 - Ninja
 - A C++ compiler capable of building C++98 code
-- Git
+
+The core is intentionally C++98-friendly and already builds with older toolchains such as GCC 4.0-era environments. Modern host builds can use current Clang, GCC, or MSVC.
 
 Platform-specific builds also need the matching native toolchain:
 
