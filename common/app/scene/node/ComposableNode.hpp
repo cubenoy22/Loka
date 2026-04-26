@@ -274,44 +274,22 @@ namespace loka
           };
 
           NodeStateBatch(ComposableNode *node, size_t capacity)
-              : node_(node), entries_(0), count_(0), capacity_(capacity)
+              : block_(new Block(node, capacity))
           {
-            if (capacity_ > 0)
-            {
-              entries_ = new Entry[capacity_];
-            }
           }
 
           NodeStateBatch(const NodeStateBatch &other)
-              : node_(other.node_), entries_(other.entries_), count_(other.count_), capacity_(other.capacity_)
+              : block_(other.block_)
           {
-            other.node_ = 0;
-            other.entries_ = 0;
-            other.count_ = 0;
-            other.capacity_ = 0;
+            if (block_)
+            {
+              ++block_->refs;
+            }
           }
 
           ~NodeStateBatch()
           {
-            if (node_ && entries_ && count_ > 0)
-            {
-              node_->addNodeStateBatchRegistration(entries_, count_);
-              entries_ = 0;
-              count_ = 0;
-              capacity_ = 0;
-              return;
-            }
-            if (entries_)
-            {
-              for (size_t i = 0; i < count_; ++i)
-              {
-                if (entries_[i].destroyInitial)
-                {
-                  entries_[i].destroyInitial(entries_[i]);
-                }
-              }
-              delete[] entries_;
-            }
+            this->releaseBlock();
           }
 
           template <typename T>
@@ -322,12 +300,17 @@ namespace loka
             {
               return *this;
             }
-            assert(count_ < capacity_ && "NodeStateBatch capacity exceeded");
-            if (count_ >= capacity_)
+            assert(block_ && "NodeStateBatch::state requires a live batch");
+            if (!block_)
             {
               return *this;
             }
-            Entry &entry = entries_[count_++];
+            assert(block_->count < block_->capacity && "NodeStateBatch capacity exceeded");
+            if (block_->count >= block_->capacity)
+            {
+              return *this;
+            }
+            Entry &entry = block_->entries[block_->count++];
             entry.out = &out;
             entry.connect = &ConnectState<T>;
             entry.disconnect = &DisconnectState<T>;
@@ -361,6 +344,59 @@ namespace loka
           };
 
         private:
+          struct Block
+          {
+            Block(ComposableNode *ownerNode, size_t entryCapacity)
+                : node(ownerNode), entries(0), count(0), capacity(entryCapacity), refs(1)
+            {
+              if (capacity > 0)
+              {
+                entries = new Entry[capacity];
+              }
+            }
+
+            ~Block()
+            {
+              if (entries)
+              {
+                for (size_t i = 0; i < count; ++i)
+                {
+                  if (entries[i].destroyInitial)
+                  {
+                    entries[i].destroyInitial(entries[i]);
+                  }
+                }
+                delete[] entries;
+              }
+            }
+
+            ComposableNode *node;
+            Entry *entries;
+            size_t count;
+            size_t capacity;
+            size_t refs;
+          };
+
+          void releaseBlock()
+          {
+            if (!block_)
+            {
+              return;
+            }
+            --block_->refs;
+            if (block_->refs == 0)
+            {
+              if (block_->node && block_->entries && block_->count > 0)
+              {
+                block_->node->addNodeStateBatchRegistration(block_->entries, block_->count);
+                block_->entries = 0;
+                block_->count = 0;
+              }
+              delete block_;
+            }
+            block_ = 0;
+          }
+
           template <typename T>
           static bool MatchesState(const Entry &entry, const void *out)
           {
@@ -409,10 +445,7 @@ namespace loka
 
           NodeStateBatch &operator=(const NodeStateBatch &);
 
-          mutable ComposableNode *node_;
-          mutable Entry *entries_;
-          mutable size_t count_;
-          mutable size_t capacity_;
+          mutable Block *block_;
         };
 
         NodeStateBatch declareStates()

@@ -449,6 +449,33 @@ namespace SceneTests
     loka::app::scene::NodeState<loka::core::String> summary_;
   };
 
+  class NodeLocalBatchCopyReleaseNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    NodeLocalBatchCopyReleaseNode() : count_(), summary_()
+    {
+      NodeStateBatch states = this->declareStates(2);
+      states.state(this->count_, 6);
+      NodeStateBatch copied = states;
+      copied.state(this->summary_, loka::core::String::Literal("CopiedBatch"));
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
+    {
+      (void)context;
+      (void)event;
+      assert(this->count_.isValid());
+      assert(this->summary_.isValid());
+      assert(this->count_.get() == 6);
+      assert(this->summary_.get().equals(loka::core::String::Literal("CopiedBatch")));
+    }
+
+  private:
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
+  };
+
   class NodeLocalConditionalReleaseNode;
   typedef loka::app::scene::BoundaryPropsFor<NodeLocalConditionalReleaseNode> NodeLocalConditionalReleaseProps;
 
@@ -528,6 +555,21 @@ namespace SceneTests
     assert(g_nodeLocalOwnerReleaseCount == 2);
   }
 
+  void test_Node_local_batch_copy_keeps_original_valid()
+  {
+    g_nodeLocalOwnerReleaseCount = 0;
+    NodeLocalReleaseOwner owner;
+    loka::app::scene::ComponentContext context;
+    context.setStateOwner(&owner);
+
+    NodeLocalBatchCopyReleaseNode *node = new NodeLocalBatchCopyReleaseNode();
+    node->compose(context, loka::app::scene::COMPOSE_EVENT_ATTACH);
+    assert(owner.stateCount() == 2);
+    delete node;
+    assert(owner.stateCount() == 0);
+    assert(g_nodeLocalOwnerReleaseCount == 2);
+  }
+
   void test_Node_local_conditional_unbinds_before_state_release()
   {
     using loka::app::scene::IPlatformController;
@@ -564,6 +606,7 @@ namespace SceneTests
         test_Node_local_state_releases_owner_state_on_node_destroy,
         test_Node_local_stream_releases_owned_state_on_node_destroy,
         test_Node_local_batch_releases_owner_state_on_node_destroy,
+        test_Node_local_batch_copy_keeps_original_valid,
         test_Node_local_conditional_unbinds_before_state_release};
     const int numTests = sizeof(tests) / sizeof(tests[0]);
     for (int i = 0; i < numTests; ++i)
