@@ -302,6 +302,14 @@ namespace loka
             {
               return *this;
             }
+            for (size_t i = 0; i < block_->count; ++i)
+            {
+              if (block_->entries[i].matches && block_->entries[i].matches(block_->entries[i], &out))
+              {
+                assert(false && "NodeStateBatch::state registered the same NodeState twice");
+                return *this;
+              }
+            }
             assert(block_->count < block_->capacity && "NodeStateBatch capacity exceeded");
             if (block_->count >= block_->capacity)
             {
