@@ -65,6 +65,29 @@ For deeper design notes, see [docs/ProgrammingGuide.md](docs/ProgrammingGuide.md
 
 Loka uses a **CMake + Ninja** based build system.
 
+### Prerequisites
+
+For the main development and test workflow:
+
+- CMake 3.19 or newer when using `CMakePresets.json`
+- Ninja
+- A C++ compiler capable of building C++98 code
+- Git
+
+Platform-specific builds also need the matching native toolchain:
+
+- macOS: Xcode or Xcode Command Line Tools
+- Windows: Visual Studio Build Tools or Visual Studio, usually from a matching Developer Command Prompt
+- Classic Mac OS targets: Retro68, typically from a Linux, WSL, Docker, or container-based environment
+
+For a quick headless test build on Linux/WSL:
+
+```sh
+cmake -S . -B build/Testing -DTEST_BUILD=ON
+cmake --build build/Testing
+ctest --test-dir build/Testing
+```
+
 Development, build, and target environment notes are documented in [docs/environments.md](docs/environments.md).
 
 Classic Mac OS and Retro68-specific notes are documented in [docs/retro68.md](docs/retro68.md).
