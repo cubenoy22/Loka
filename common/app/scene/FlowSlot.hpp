@@ -59,6 +59,14 @@ namespace loka
           return *this;
         }
 
+        template <typename TargetT>
+        FlowSlot &bindTo(TargetT &target, bool forceUpdate = false)
+        {
+          assert(flow_ && "FlowSlot::bindTo requires a flow");
+          flow_->set(target, forceUpdate);
+          return *this;
+        }
+
         bool run() const
         {
           assert(flow_ && "FlowSlot::run requires a flow");

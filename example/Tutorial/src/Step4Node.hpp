@@ -6,10 +6,12 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/scene/FlowSlot.hpp"
 #include "app/scene/NodeState.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
+#include "loka/dsl/StateStream.hpp"
 
 namespace tutorial {
   class Step4Node : public loka::app::scene::BoundaryNodeFor<Step4Node> {
@@ -18,7 +20,7 @@ namespace tutorial {
 
     Step4Node(const PropsType &p)
         : loka::app::scene::BoundaryNodeFor<Step4Node>(p), itemCount_(), itemSummary_(), showSummary_(), showItem1_(),
-          showItem2_(), showItem3_(), addItemEvent_(), toggleSummaryEvent_(), initialized_(false),
+          showItem2_(), showItem3_(), itemSummaryFlow_(), addItemEvent_(), toggleSummaryEvent_(), initialized_(false),
           item1_(loka::app::Text("Item 1")), item2_(loka::app::Text("Item 2")), item3_(loka::app::Text("Item 3")) {
       this->state(this->itemCount_, 0);
       this->state(this->itemSummary_, loka::core::String::Literal("Items: 0"));
@@ -35,7 +37,12 @@ namespace tutorial {
       }
       this->bindActionForUi(this->addItemEvent_, &Step4Node::addItem);
       this->bindActionForUi(this->toggleSummaryEvent_, &Step4Node::toggleSummary);
-      this->refreshItemSummary();
+      {
+        loka::dsl::StateStream<int> itemCountStream = this->itemCount_.stream();
+        this->itemSummaryFlow_
+            .set(itemCountStream.map(loka::dsl::Const("Items: ") + itemCountStream.slot.value()))
+            .bindTo(this->itemSummary_);
+      }
       this->initialized_ = true;
     }
 
@@ -64,19 +71,10 @@ namespace tutorial {
       this->showItem1_.set(next >= 1);
       this->showItem2_.set(next >= 2);
       this->showItem3_.set(next >= 3);
-      this->refreshItemSummary();
     }
 
     void toggleSummary() {
       this->showSummary_.set(!this->showSummary_.get(), true);
-    }
-
-    void refreshItemSummary() {
-      if (!this->itemCount_.isValid() || !this->itemSummary_.isValid()) {
-        return;
-      }
-      this->itemSummary_.set(loka::core::String::Literal("Items: ")
-                             + loka::core::String::FromInt(this->itemCount_.get()));
     }
 
     loka::app::scene::NodeState<int> itemCount_;
@@ -85,6 +83,7 @@ namespace tutorial {
     loka::app::scene::NodeState<bool> showItem1_;
     loka::app::scene::NodeState<bool> showItem2_;
     loka::app::scene::NodeState<bool> showItem3_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > itemSummaryFlow_;
     loka::core::EmitterState addItemEvent_;
     loka::core::EmitterState toggleSummaryEvent_;
     bool initialized_;
