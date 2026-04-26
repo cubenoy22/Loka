@@ -295,11 +295,8 @@ namespace loka
           template <typename T>
           NodeStateBatch &state(NodeState<T> &out, const T &initial)
           {
-            assert(sizeof(T) <= kStorageBytes && "NodeStateBatch::state only supports small state initializers");
-            if (sizeof(T) > kStorageBytes)
-            {
-              return *this;
-            }
+            typedef char LokaNodeStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
+            (void)sizeof(LokaNodeStateBatchInitializerTooLarge);
             assert(block_ && "NodeStateBatch::state requires a live batch");
             if (!block_)
             {
@@ -308,6 +305,10 @@ namespace loka
             assert(block_->count < block_->capacity && "NodeStateBatch capacity exceeded");
             if (block_->count >= block_->capacity)
             {
+              if (block_->node)
+              {
+                block_->node->state(out, initial);
+              }
               return *this;
             }
             Entry &entry = block_->entries[block_->count++];

@@ -160,11 +160,8 @@ namespace loka
               CreateImmediateState(owner_, out, initial);
               return *this;
             }
-            if (sizeof(T) > kStorageBytes)
-            {
-              assert(false && "StateBatch::state only supports small state initializers");
-              return *this;
-            }
+            typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
+            (void)sizeof(LokaStateBatchInitializerTooLarge);
             Entry &e = entries_[count_++];
             e.out = &out;
             e.size = sizeof(loka::core::MutableState<T>);
