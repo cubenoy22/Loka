@@ -95,9 +95,8 @@ namespace simpleviewer {
           << ImageView()
                  .image(this->image_.state())
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
-          << (Show(*this->isDialogShown_.state()) << OpenFileDialog()
-                                                         .result(this->chooserResult_)
-                                                         .closeState(this->isDialogShown_)));
+          << (Show(*this->isDialogShown_.state())
+              << OpenFileDialog().result(this->chooserResult_).closeState(this->isDialogShown_)));
     }
 
   private:
