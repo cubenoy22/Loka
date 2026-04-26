@@ -55,6 +55,8 @@ A Node may own:
 
 The Node is the semantic owner. The current Boundary remains the allocation/tracker owner unless a more explicit owner is provided.
 
+`FlowSlot` is the current lightweight owner for long-lived Flow chains. It stores the chain, clears it in the Node/member destructor path, and forwards common Flow operations such as `bindTrigger`, `withTracker`, `runResult`, `resumeResult`, and `cancel`. This keeps pipeline construction separate from Node lifecycle wiring.
+
 ### Boundary role
 
 The Boundary provides:
