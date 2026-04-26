@@ -61,6 +61,28 @@ For deeper design notes, see [docs/ProgrammingGuide.md](docs/ProgrammingGuide.md
 
 ---
 
+## Supported Target Environments
+
+Loka is designed around explicit target environments rather than assuming one modern desktop baseline.
+
+Status terms:
+
+- `active`: implementation exists in this repository and is part of the current development loop.
+- `headless`: non-UI/core test target only.
+- `planned`: design direction, not a supported runtime yet.
+
+| Environment | Status | Notes |
+| --- | --- | --- |
+| Modern Windows / Win32 | `active` | Native Win32 projection path. Windows XP-class compatibility is tracked as a legacy build target. |
+| macOS / Cocoa | `active` | Native macOS projection path. Library/core code keeps older macOS compatibility in mind. |
+| Classic Mac OS / Toolbox | `active` | Built through Retro68 for 68k and PowerPC-style Classic targets. Practical mainstream target is PPC601 / 603e-class systems and later, with 68k kept as an important constraint and validation path. |
+| Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.1`. |
+| iOS / iPadOS, Linux desktop UI, Windows Mobile-class systems, game-oriented backends | `planned` | Future ports should reuse the same Node / Boundary / State / Flow model rather than adding platform-specific application models. |
+
+For exact build and workflow details, see [docs/environments.md](docs/environments.md). Classic Mac OS and Retro68-specific notes are in [docs/retro68.md](docs/retro68.md).
+
+---
+
 ## Building
 
 Loka uses a **CMake + Ninja** based build system.
