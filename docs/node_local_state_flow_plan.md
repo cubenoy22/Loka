@@ -12,7 +12,7 @@ This keeps the standard API close to GC-like ergonomics while preserving determi
 
 - `StateStream::map().set()` creates heap-owned binding objects without a clear owner.
 - Example code can look stack-only even when it installs long-lived deferred bindings.
-- `c.declareStates()` works, but it reads as Boundary composition plumbing even when the state semantically belongs to one Node.
+- `c.declareStates()` is useful for Boundary-scoped state, and may later become the basis for React Context-like sharing, but it reads as Boundary composition plumbing when the state semantically belongs to one Node.
 - Manual `bind` / `unbind` patterns are easy to get wrong, especially in C++98 code with early returns and retained/dynamic child lifetimes.
 - Static tooling cannot reliably estimate state/flow/reaction resource cost when ownership is implicit or created through ad hoc helpers.
 
@@ -65,6 +65,8 @@ The Boundary provides:
 - composition/update boundary
 
 Boundary-owned resources should not become a catch-all bucket for unrelated shared resources. Shared resources should live at the nearest meaningful common owner, root owner, app-level owner, or cache repository.
+
+`declareStates()` should remain available for state that intentionally belongs to the Boundary scope rather than one Node. This includes future context-like state that avoids long Props relay chains while still keeping ownership explicit. The Node-local API is the default for ordinary per-Node state, not a replacement for all Boundary-scoped state.
 
 ### Child access
 
