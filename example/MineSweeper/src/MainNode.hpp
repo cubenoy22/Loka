@@ -19,9 +19,10 @@ namespace minesweeper
         : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false)
     {
+      NodeStateBatch states = this->declareStates(kCellCount);
       for (int i = 0; i < kCellCount; ++i)
       {
-        this->state(this->cellText_[i], loka::core::String::Literal("."));
+        states.state(this->cellText_[i], loka::core::String::Literal("."));
       }
     }
 

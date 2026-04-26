@@ -265,6 +265,166 @@ namespace loka
           this->connectNodeStateRegistration(entry);
         }
 
+        class NodeStateBatch
+        {
+        public:
+          enum
+          {
+            kStorageBytes = 32
+          };
+
+          NodeStateBatch(ComposableNode *node, size_t capacity)
+              : node_(node), entries_(0), count_(0), capacity_(capacity)
+          {
+            if (capacity_ > 0)
+            {
+              entries_ = new Entry[capacity_];
+            }
+          }
+
+          NodeStateBatch(const NodeStateBatch &other)
+              : node_(other.node_), entries_(other.entries_), count_(other.count_), capacity_(other.capacity_)
+          {
+            other.node_ = 0;
+            other.entries_ = 0;
+            other.count_ = 0;
+            other.capacity_ = 0;
+          }
+
+          ~NodeStateBatch()
+          {
+            if (node_ && entries_ && count_ > 0)
+            {
+              node_->addNodeStateBatchRegistration(entries_, count_);
+              entries_ = 0;
+              count_ = 0;
+              capacity_ = 0;
+              return;
+            }
+            if (entries_)
+            {
+              for (size_t i = 0; i < count_; ++i)
+              {
+                if (entries_[i].destroyInitial)
+                {
+                  entries_[i].destroyInitial(entries_[i]);
+                }
+              }
+              delete[] entries_;
+            }
+          }
+
+          template <typename T>
+          NodeStateBatch &state(NodeState<T> &out, const T &initial)
+          {
+            assert(sizeof(T) <= kStorageBytes && "NodeStateBatch::state only supports small state initializers");
+            if (sizeof(T) > kStorageBytes)
+            {
+              return *this;
+            }
+            assert(count_ < capacity_ && "NodeStateBatch capacity exceeded");
+            if (count_ >= capacity_)
+            {
+              return *this;
+            }
+            Entry &entry = entries_[count_++];
+            entry.out = &out;
+            entry.connect = &ConnectState<T>;
+            entry.disconnect = &DisconnectState<T>;
+            entry.matches = &MatchesState<T>;
+            entry.destroyInitial = &DestroyInitial<T>;
+            new (entry.storage.bytes) T(initial);
+            return *this;
+          }
+
+        private:
+          struct Storage
+          {
+            double d;
+            void *p;
+            char bytes[kStorageBytes];
+          };
+
+        public:
+          struct Entry
+          {
+            Entry()
+                : out(0), owner(0), state(0), connect(0), disconnect(0), matches(0), destroyInitial(0), storage() {}
+            void *out;
+            IStateOwner *owner;
+            loka::core::StateBase *state;
+            void (*connect)(Entry &, IStateOwner *);
+            void (*disconnect)(Entry &);
+            bool (*matches)(const Entry &, const void *);
+            void (*destroyInitial)(Entry &);
+            Storage storage;
+          };
+
+        private:
+          template <typename T>
+          static bool MatchesState(const Entry &entry, const void *out)
+          {
+            return entry.out == out;
+          }
+
+          template <typename T>
+          static void ConnectState(Entry &entry, IStateOwner *owner)
+          {
+            NodeState<T> *out = static_cast<NodeState<T> *>(entry.out);
+            if (!out || !owner)
+            {
+              return;
+            }
+            if (out->isValid())
+            {
+              assert(out->dangerouslyOwner() == owner && "Node-local state reattached to a different owner");
+              entry.owner = out->dangerouslyOwner();
+              entry.state = out->dangerouslyMutableState();
+              return;
+            }
+            T *initial = reinterpret_cast<T *>(entry.storage.bytes);
+            NodeComposition::StateBatch::CreateImmediateState(owner, *out, *initial);
+            entry.owner = out->dangerouslyOwner();
+            entry.state = out->dangerouslyMutableState();
+          }
+
+          template <typename T>
+          static void DisconnectState(Entry &entry)
+          {
+            if (entry.owner && entry.state)
+            {
+              entry.owner->releaseState(entry.state);
+            }
+            entry.owner = 0;
+            entry.state = 0;
+            entry.out = 0;
+          }
+
+          template <typename T>
+          static void DestroyInitial(Entry &entry)
+          {
+            T *initial = reinterpret_cast<T *>(entry.storage.bytes);
+            initial->~T();
+          }
+
+          NodeStateBatch &operator=(const NodeStateBatch &);
+
+          mutable ComposableNode *node_;
+          mutable Entry *entries_;
+          mutable size_t count_;
+          mutable size_t capacity_;
+        };
+
+        NodeStateBatch declareStates()
+        {
+          return NodeStateBatch(this, 16);
+        }
+
+        NodeStateBatch declareStates(size_t count)
+        {
+          return NodeStateBatch(this, count);
+        }
+
         struct AttachedContext
         {
           AttachedContext() : boundary_(0), scene_(0), window_(0) {}
@@ -377,6 +537,79 @@ namespace loka
           IStateOwner *owner_;
           loka::core::MutableState<T> *state_;
         };
+
+        struct NodeStateBatchRegistration : public NodeStateRegistrationBase
+        {
+          typedef NodeStateBatch::Entry Entry;
+
+          NodeStateBatchRegistration(Entry *entries, size_t count)
+              : entries_(entries), count_(count)
+          {
+          }
+
+          ~NodeStateBatchRegistration()
+          {
+            if (entries_)
+            {
+              for (size_t i = 0; i < count_; ++i)
+              {
+                if (entries_[i].destroyInitial)
+                {
+                  entries_[i].destroyInitial(entries_[i]);
+                }
+              }
+              delete[] entries_;
+            }
+          }
+
+          bool matches(const void *out) const
+          {
+            for (size_t i = 0; i < count_; ++i)
+            {
+              if (entries_[i].matches && entries_[i].matches(entries_[i], out))
+              {
+                return true;
+              }
+            }
+            return false;
+          }
+
+          void connect(IStateOwner *owner)
+          {
+            for (size_t i = 0; i < count_; ++i)
+            {
+              if (entries_[i].connect)
+              {
+                entries_[i].connect(entries_[i], owner);
+              }
+            }
+          }
+
+          void disconnect()
+          {
+            for (size_t i = 0; i < count_; ++i)
+            {
+              if (entries_[i].disconnect)
+              {
+                entries_[i].disconnect(entries_[i]);
+              }
+            }
+          }
+
+          Entry *entries_;
+          size_t count_;
+        };
+
+        void addNodeStateBatchRegistration(NodeStateBatch::Entry *entries, size_t count)
+        {
+          if (!entries || count == 0)
+          {
+            return;
+          }
+          NodeStateBatchRegistration *entry = new NodeStateBatchRegistration(entries, count);
+          nodeStates_.push_back(entry);
+          this->connectNodeStateRegistration(entry);
+        }
 
         void connectNodeStateRegistration(NodeStateRegistrationBase *entry)
         {
