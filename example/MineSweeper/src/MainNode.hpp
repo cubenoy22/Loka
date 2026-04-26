@@ -19,22 +19,20 @@ namespace minesweeper
         : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
           initialized_(false)
     {
+      for (int i = 0; i < kCellCount; ++i)
+      {
+        this->state(this->cellText_[i], loka::core::String::Literal("."));
+      }
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c)
     {
+      (void)c;
       if (this->initialized_)
       {
         return;
       }
       this->initialized_ = true;
-      {
-        loka::app::scene::NodeComposition::StateBatch states = c.declareStates();
-        for (int i = 0; i < kCellCount; ++i)
-        {
-          states.state(this->cellText_[i], loka::core::String::Literal("."));
-        }
-      }
       for (int i = 0; i < kCellCount; ++i)
       {
         this->clickProxy_[i].owner = this;
