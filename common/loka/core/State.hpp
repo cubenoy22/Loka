@@ -459,7 +459,7 @@ namespace loka
             StateBase::releaseNotifyToken(token);
             return;
           }
-          this->notifyStateChanged(); // 値が同じでも必ず通知
+          this->notifyStateChanged(); // Always notify even when the value is unchanged.
           if (!StateBase::isNotifyTokenAlive(token))
           {
             StateBase::releaseNotifyToken(token);
@@ -544,15 +544,6 @@ namespace loka
       std::vector<StateBase *> dependencies;
       EvalFn *evalFn;
     };
-
-    // Utility for creating static instances of State<T>
-    // Example: auto* s = StaticState<int>(42);
-    template <typename T>
-    static State<T> *StaticState(const T &value)
-    {
-      static State<T> s(value);
-      return &s;
-    }
 
   } // namespace core
 } // namespace loka

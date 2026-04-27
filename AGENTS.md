@@ -15,22 +15,22 @@
 - Before adding new variables, especially member fields, consider whether they introduce long-term ownership/lifecycle/cleanup complexity. Prefer reusing an existing owner or encapsulating the state so management does not become more fragmented over time.
 - When state or variables must be introduced, consider whether they should be encapsulated or expressed as a small state machine instead of scattered flags. Prefer lifecycle-aware structures that make ownership, transitions, and cleanup easier to reason about.
 - MutableState<T>::set() must be wrapped in a StateTracker transaction (use RAII guard).
-- Ownership policy: follow gravity. Parent owns child-facing state/data by default; cross-boundary sharing must be explicit (`Managed<T>` or equivalent), and broad reuse should prefer global caches for immutable/shared resources. Avoid designs where a child effectively owns or stabilizes its parent.
+- Ownership policy: follow gravity. Parent owns child-facing state/data by default; cross-boundary sharing must be explicit and should use a meaningful owner/facade; `Managed<T>` may stabilize payload lifetime but should not replace a real state/resource owner. Broad reuse should prefer global caches for immutable/shared resources. Avoid designs where a child effectively owns or stabilizes its parent.
 - Boundary access policy: `currentBoundary()` is the owner-side path; `findBoundary()` is for direct-parent borrowed access only. Do not rely on multi-hop or sibling boundary traversal from DSL code.
-- State creation policy: prefer `declareStates()` for ordinary boundary-owned mutable state. Treat ad hoc state creation helpers such as `dangerouslyUseState()` / `dangerouslyUseManagedState()` as escape hatches that require explicit review.
+- State creation policy: prefer lifecycle-aware APIs such as `state()` and `declareStates()` for ordinary Node/Boundary-owned mutable state. Treat ad hoc state creation helpers such as `dangerouslyUseState()` / `dangerouslyUseManagedState()` as escape hatches that require explicit review.
 - Dangerous state API policy: keep `dangerously*` state access/creation callsites out of normal `common/` and `example/` DSL code unless there is a documented reason. A new `dangerously*` usage should be treated as a design event, not routine implementation.
 - NodeState storage policy: a component may keep `NodeState<T>` members only for its own Node/Boundary-owned state declared through lifecycle-aware state APIs such as `state()` or `declareStates()`. Do not expose `NodeState<T>` across boundary lines or use it as a foreign mutation channel.
 - NodeState pass-through policy: when a DSL/API needs read-only live state, pass `nodeState.state()` explicitly instead of relying on implicit conversions from `NodeState<T>`.
 - NodeState internal-surface policy: owner/tracker access on `NodeState<T>` is internal and should stay behind `dangerously*` naming; ordinary DSL code should use `get()`, `set()`, and `.state()` only.
+- Flow ownership policy: long-lived Flow/StateStream chains owned by a Node or Boundary should be stored in `FlowSlot<T>` or an equivalent lifecycle-aware slot. Keep one-shot stack Flow usage limited to tests or bounded local operations.
 - Ownership/binding policy: distinguish borrowed live state from props-owned constant values explicitly. Props-owned constant values may reuse internal storage helpers, but they must not be registered as observed state or bound/unbound through NativeContext live-state paths.
 
 ## DSL And Composition
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
 - Prefer `deferBind` for UI reflection or lazy updates; use `bind` only when immediate recompute is required.
-- DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `LightComponent` to inline into the parent composition when you don't need an independent lifecycle.
-- DSL design: prefer one-shot Static composition on Classic paths unless you truly need updates; extra compose passes are expensive.
-- UI props constant-value policy: do not route DSL constant props through `StaticState<T>` in production UI code. For values such as button/cell text or menu enabled flags, props/definitions should own the constant value directly and only use `State<T>*` when live updates are actually required.
+- DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `Fragment` or helper functions returning node definitions to inline into the parent composition when you don't need an independent lifecycle.
+- UI props constant-value policy: do not route DSL constant props through shared static `State<T>` helpers. For values such as button/cell text or menu enabled flags, props/definitions should own the constant value directly and only use `State<T>*` when live updates are actually required.
 - Native binding policy: `PlatformController`/`NativeContext` code should bind only states that the logical node layer has classified as live. Avoid re-deciding liveness in platform code except for defensive guards.
 - NativeContext should guard against null/empty state before drawing or binding.
 - RTTI (`dynamic_cast`) is prohibited in DSL/scene code due to severe performance impact on 68k. Use virtual methods (`asXxx()`) or `NodeKind` checks instead. Add new `asXxx()` methods to Node when type-specific access is needed.
