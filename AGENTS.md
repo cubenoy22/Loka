@@ -36,9 +36,9 @@
 - Boundary access policy: `currentBoundary()` is the owner-side path; `findBoundary()` is for direct-parent borrowed access only. Do not rely on multi-hop or sibling boundary traversal from DSL code.
 - State creation policy: prefer `declareStates()` for ordinary boundary-owned mutable state. Treat ad hoc state creation helpers such as `dangerouslyUseState()` / `dangerouslyUseManagedState()` as escape hatches that require explicit review.
 - Dangerous state API policy: keep `dangerously*` state access/creation callsites out of normal `common/` and `example/` DSL code unless there is a documented reason. A new `dangerously*` usage should be treated as a design event, not routine implementation.
-- BoundState storage policy: a component may keep `BoundState<T>` members only for its own boundary-owned state declared through `declareStates()`. Do not expose `BoundState<T>` across boundary lines or use it as a foreign mutation channel.
-- BoundState pass-through policy: when a DSL/API needs read-only live state, pass `boundState.state()` explicitly instead of relying on implicit conversions from `BoundState<T>`.
-- BoundState internal-surface policy: owner/tracker access on `BoundState<T>` is internal and should stay behind `dangerously*` naming; ordinary DSL code should use `get()`, `set()`, and `.state()` only.
+- NodeState storage policy: a component may keep `NodeState<T>` members only for its own Node/Boundary-owned state declared through lifecycle-aware state APIs such as `state()` or `declareStates()`. Do not expose `NodeState<T>` across boundary lines or use it as a foreign mutation channel.
+- NodeState pass-through policy: when a DSL/API needs read-only live state, pass `nodeState.state()` explicitly instead of relying on implicit conversions from `NodeState<T>`.
+- NodeState internal-surface policy: owner/tracker access on `NodeState<T>` is internal and should stay behind `dangerously*` naming; ordinary DSL code should use `get()`, `set()`, and `.state()` only.
 - DSL design: prefer one-shot Static composition on Classic paths unless you truly need updates; extra compose passes are expensive.
 - Attr policy (68k): keep default attr structs as small PODs (target roughly <= 16-32 bytes). Avoid embedding heavy owned data in default attrs; route heavier payloads through explicit extended/pro attr types or external state handles.
 - DSL props API policy: `Props` is the canonical/full API surface. `Definition` setters are optional shorthand only for frequently used fields in DSL call sites.
