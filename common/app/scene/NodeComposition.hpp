@@ -125,7 +125,7 @@ namespace loka
         };
 
         // StateBatch collects State declarations and creates them as one owner-side batch.
-        class StateBatch : public StateBatchBase
+        class StateBatch : private StateBatchBase
         {
         public:
           enum
