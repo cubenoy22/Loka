@@ -7,35 +7,27 @@
 #include <cstdlib>
 #include <ctime>
 
-namespace minesweeper
-{
+namespace minesweeper {
   class MainNode;
   typedef loka::app::scene::StdCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode>
-  {
+  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode> {
   public:
     MainNode(const MainProps &p)
-        : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)),
-          initialized_(false)
-    {
+        : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)), initialized_(false) {
       NodeStateBatch states = this->declareStates(kCellCount);
-      for (int i = 0; i < kCellCount; ++i)
-      {
+      for (int i = 0; i < kCellCount; ++i) {
         states.state(this->cellText_[i], loka::core::String::Literal("."));
       }
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c)
-    {
+    virtual void attachNode(loka::app::scene::NodeComposition &c) {
       (void)c;
-      if (this->initialized_)
-      {
+      if (this->initialized_) {
         return;
       }
       this->initialized_ = true;
-      for (int i = 0; i < kCellCount; ++i)
-      {
+      for (int i = 0; i < kCellCount; ++i) {
         this->clickProxy_[i].owner = this;
         this->clickProxy_[i].index = i;
         this->bindForUi(this->cellClick_[i], &this->clickProxy_[i], &CellClickProxy::handleClick);
@@ -43,34 +35,24 @@ namespace minesweeper
       this->resetBoard();
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c)
-    {
+    virtual void composeNode(loka::app::scene::NodeComposition &c) {
       using namespace loka::app;
       Grid grid;
       grid.rows(kRows).cols(kCols);
-      for (int i = 0; i < kCellCount; ++i)
-      {
+      for (int i = 0; i < kCellCount; ++i) {
         grid << Cell(this->cellText_[i].state()).onClick(&this->cellClick_[i]);
       }
       c.declare(grid);
     }
 
   private:
-    enum
-    {
-      kRows = 8,
-      kCols = 8,
-      kCellCount = kRows * kCols,
-      kMineCount = 10
-    };
+    enum { kRows = 8, kCols = 8, kCellCount = kRows * kCols, kMineCount = 10 };
 
-    struct CellClickProxy
-    {
-      CellClickProxy() : owner(0), index(0) {}
-      void handleClick()
-      {
-        if (owner)
-        {
+    struct CellClickProxy {
+      CellClickProxy() : owner(0), index(0) {
+      }
+      void handleClick() {
+        if (owner) {
           owner->revealCell(index);
         }
       }
@@ -85,10 +67,8 @@ namespace minesweeper
     loka::app::scene::NodeState<loka::core::String> cellText_[kCellCount];
     CellClickProxy clickProxy_[kCellCount];
 
-    void resetBoard()
-    {
-      for (int i = 0; i < kCellCount; ++i)
-      {
+    void resetBoard() {
+      for (int i = 0; i < kCellCount; ++i) {
         this->mines_[i] = false;
         this->revealed_[i] = false;
         this->cellText_[i].set(loka::core::String::Literal("."));
@@ -96,39 +76,31 @@ namespace minesweeper
       unsigned int seed = static_cast<unsigned int>(std::time(0));
       std::srand(seed);
       int placed = 0;
-      while (placed < kMineCount)
-      {
+      while (placed < kMineCount) {
         int index = std::rand() % kCellCount;
-        if (!this->mines_[index])
-        {
+        if (!this->mines_[index]) {
           this->mines_[index] = true;
           ++placed;
         }
       }
     }
 
-    int countAdjacent(int index) const
-    {
+    int countAdjacent(int index) const {
       int row = index / kCols;
       int col = index % kCols;
       int count = 0;
-      for (int dy = -1; dy <= 1; ++dy)
-      {
-        for (int dx = -1; dx <= 1; ++dx)
-        {
-          if (dx == 0 && dy == 0)
-          {
+      for (int dy = -1; dy <= 1; ++dy) {
+        for (int dx = -1; dx <= 1; ++dx) {
+          if (dx == 0 && dy == 0) {
             continue;
           }
           int nr = row + dy;
           int nc = col + dx;
-          if (nr < 0 || nr >= kRows || nc < 0 || nc >= kCols)
-          {
+          if (nr < 0 || nr >= kRows || nc < 0 || nc >= kCols) {
             continue;
           }
           int nindex = nr * kCols + nc;
-          if (this->mines_[nindex])
-          {
+          if (this->mines_[nindex]) {
             ++count;
           }
         }
@@ -136,25 +108,20 @@ namespace minesweeper
       return count;
     }
 
-    void revealCell(int index)
-    {
-      if (index < 0 || index >= kCellCount)
-      {
+    void revealCell(int index) {
+      if (index < 0 || index >= kCellCount) {
         return;
       }
-      if (this->revealed_[index])
-      {
+      if (this->revealed_[index]) {
         return;
       }
       this->revealed_[index] = true;
-      if (this->mines_[index])
-      {
+      if (this->mines_[index]) {
         this->cellText_[index].set(loka::core::String::Literal("X"));
         return;
       }
       int count = countAdjacent(index);
-      if (count == 0)
-      {
+      if (count == 0) {
         this->cellText_[index].set(loka::core::String::Literal(" "));
         return;
       }
