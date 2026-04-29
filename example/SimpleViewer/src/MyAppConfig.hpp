@@ -8,35 +8,34 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable
-{
+class MyAppConfig : public AppConfigurable {
 public:
-  explicit MyAppConfig(PlatformContext *ctx)
-      : AppConfigurable(ctx),
-        openDialogEvent_()
-  {
+  explicit MyAppConfig(PlatformContext *ctx) : AppConfigurable(ctx), openDialogEvent_() {
   }
 
-  virtual void compose(AppComposition &c)
-  {
-    c << WindowDef(WindowProps()
-                       .frame(40, 40, 320, 240)
-                       .scene(loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
-                           simpleviewer::MainProps()
-                               .platformContext(this->getPlatformContext())
-                               .openDialogEvent(&this->openDialogEvent_)
-                               ))
-                       .title("LokaSimpleViewer")
-                       .visible(true));
+  virtual void compose(AppComposition &c) {
+    c << WindowDef(
+        WindowProps()
+            .frame(40, 40, 320, 240)
+            .scene(loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(
+                simpleviewer::MainProps()
+                    .platformContext(this->getPlatformContext()) // TODO: Make this retrievable from inside the Node
+                    .openDialogEvent(&this->openDialogEvent_)))
+            .title("LokaSimpleViewer")
+            .visible(true));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &c)
-  {
+  virtual void composeMenu(loka::app::MenuComposition &c) {
     using namespace loka::app;
-    c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
-                        << MenuSeparator()
-                        << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
-    c.declare(Menu("File") << MenuItem("Open...").onClick(&this->openDialogEvent_));
+    c.declare(                                                 //
+        AppMenu()                                              //
+        << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) //
+        << MenuSeparator()                                     //
+        << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP)   //
+    );
+    c.declare(       //
+        Menu("File") //
+        << MenuItem("Open...").onClick(&this->openDialogEvent_));
   }
 
 private:
