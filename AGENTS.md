@@ -25,6 +25,13 @@
 - Flow ownership policy: long-lived Flow/StateStream chains owned by a Node or Boundary should be stored in `FlowSlot<T>` or an equivalent lifecycle-aware slot. Keep one-shot stack Flow usage limited to tests or bounded local operations.
 - Ownership/binding policy: distinguish borrowed live state from props-owned constant values explicitly. Props-owned constant values may reuse internal storage helpers, but they must not be registered as observed state or bound/unbound through NativeContext live-state paths.
 
+## Design Taste
+- Prefer designs that make ownership, lifecycle, and update flow visible in the type or API shape.
+- A good Loka abstraction should make application code feel simple without hiding where state lives or who cleans it up.
+- Avoid cleverness that only shortens code. Prefer clarity that makes the next feature easier to place.
+- When an abstraction works, it should reduce future decisions, not create new special cases.
+- Treat "magic" as acceptable only when the underlying structure remains inspectable and explainable.
+
 ## DSL And Composition
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
