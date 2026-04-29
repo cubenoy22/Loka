@@ -39,7 +39,7 @@ namespace tutorial {
       this->bindActionForUi(this->toggleSummaryEvent_, &Step4Node::toggleSummary);
       {
         loka::dsl::StateStream<int> itemCountStream = this->itemCount_.stream();
-        this->itemSummaryFlow_
+        this->itemSummaryFlow_ //
             .set(itemCountStream.map(loka::dsl::Const("Items: ") + itemCountStream.slot.value()))
             .bindTo(this->itemSummary_);
       }
