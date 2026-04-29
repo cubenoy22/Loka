@@ -123,58 +123,13 @@ namespace loka
           ParentScope scope_;
         };
 
-        // StateBatch: Builder パターンで State を収集し、デストラクタで一括作成
-        class StateBatch
+        class StateBatchBase
         {
         public:
           enum
           {
-            kMaxStates = 16,
             kStorageBytes = 32
           };
-
-          StateBatch(IStateOwner *owner)
-              : owner_(owner), count_(0), totalBytes_(0) {}
-
-          ~StateBatch()
-          {
-            if (count_ == 0 || !owner_)
-            {
-              return;
-            }
-            // 1回だけ確保
-            owner_->reserveStateArena(totalBytes_);
-            owner_->reserveStates(count_);
-            // 各 state を作成
-            for (size_t i = 0; i < count_; ++i)
-            {
-              entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);
-            }
-          }
-
-          template <typename T>
-          StateBatch &state(NodeState<T> &out, const T &initial)
-          {
-            if (count_ >= kMaxStates)
-            {
-              CreateImmediateState(owner_, out, initial);
-              return *this;
-            }
-            typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
-            (void)sizeof(LokaStateBatchInitializerTooLarge);
-            Entry &e = entries_[count_++];
-            e.out = &out;
-            e.size = sizeof(loka::core::MutableState<T>);
-            e.align = AlignOf<loka::core::MutableState<T> >::value;
-            e.create = &CreateState<T>;
-            // 初期値をコピー（小さい値のみ inline）
-            copyInitial<T>(e.storage.bytes, initial);
-            totalBytes_ += e.size + e.align; // alignment 余裕
-            return *this;
-          }
-
-        private:
-          typedef void (*CreateFn)(IStateOwner *, void *, void *);
 
           struct Storage
           {
@@ -183,48 +138,32 @@ namespace loka
             char bytes[kStorageBytes];
           };
 
-          struct Entry
-          {
-            void *out;
-            size_t size;
-            size_t align;
-            CreateFn create;
-            Storage storage; // 初期値の inline storage
-          };
-
           template <typename T>
-          static void copyInitial(char *storage, const T &value)
+          static void CopyInitial(char *storage, const T &value)
           {
             new (storage) T(value);
           }
 
           template <typename T>
-          static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
+          static void DestroyInitialObject(void *initialPtr)
           {
-            NodeState<T> *out = static_cast<NodeState<T> *>(outPtr);
             T *initial = reinterpret_cast<T *>(initialPtr);
-            loka::core::MutableState<T> *state = 0;
-            size_t align = AlignOf<loka::core::MutableState<T> >::value;
-            void *mem = owner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align);
-            if (mem)
-            {
-              state = new (mem) loka::core::MutableState<T>(*initial);
-              state->setArenaAllocated(true);
-              owner->registerStateMemory(state, &DestroyState<T>);
-            }
-            else
-            {
-              state = new loka::core::MutableState<T>(*initial);
-            }
-            owner->adoptStateUnchecked(state);
-            *out = NodeState<T>(state, owner->tracker(), owner);
-            // 初期値のデストラクタ呼び出し
             initial->~T();
           }
 
-        public:
           template <typename T>
-          static void CreateImmediateState(IStateOwner *owner, NodeState<T> &out, const T &initial)
+          static void DestroyState(loka::core::StateBase *state)
+          {
+            loka::core::MutableState<T> *typed = static_cast<loka::core::MutableState<T> *>(state);
+            if (typed)
+            {
+              typedef loka::core::MutableState<T> MutableStateType;
+              typed->~MutableStateType();
+            }
+          }
+
+          template <typename T>
+          static void CreateStateFromInitial(IStateOwner *owner, NodeState<T> &out, const T &initial)
           {
             loka::core::MutableState<T> *state = 0;
             size_t align = AlignOf<loka::core::MutableState<T> >::value;
@@ -251,17 +190,81 @@ namespace loka
           }
 
           template <typename T>
-          static void DestroyState(loka::core::StateBase *state)
+          static void CreateImmediateState(IStateOwner *owner, NodeState<T> &out, const T &initial)
           {
-            loka::core::MutableState<T> *typed = static_cast<loka::core::MutableState<T> *>(state);
-            if (typed)
+            CreateStateFromInitial<T>(owner, out, initial);
+          }
+        };
+
+        // StateBatch collects State declarations and creates them as one owner-side batch.
+        class StateBatch : public StateBatchBase
+        {
+        public:
+          enum
+          {
+            kMaxStates = 16
+          };
+
+          StateBatch(IStateOwner *owner)
+              : owner_(owner), count_(0), totalBytes_(0) {}
+
+          ~StateBatch()
+          {
+            if (count_ == 0 || !owner_)
             {
-              typedef loka::core::MutableState<T> MutableStateType;
-              typed->~MutableStateType();
+              return;
+            }
+            // Reserve once for all declarations in this batch.
+            owner_->reserveStateArena(totalBytes_);
+            owner_->reserveStates(count_);
+            // Create each state after the owner has reserved enough storage.
+            for (size_t i = 0; i < count_; ++i)
+            {
+              entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);
             }
           }
 
+          template <typename T>
+          StateBatch &state(NodeState<T> &out, const T &initial)
+          {
+            if (count_ >= kMaxStates)
+            {
+              CreateImmediateState(owner_, out, initial);
+              return *this;
+            }
+            typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
+            (void)sizeof(LokaStateBatchInitializerTooLarge);
+            Entry &e = entries_[count_++];
+            e.out = &out;
+            e.size = sizeof(loka::core::MutableState<T>);
+            e.align = AlignOf<loka::core::MutableState<T> >::value;
+            e.create = &CreateState<T>;
+            CopyInitial<T>(e.storage.bytes, initial);
+            totalBytes_ += e.size + e.align; // spare bytes for alignment
+            return *this;
+          }
+
         private:
+          typedef void (*CreateFn)(IStateOwner *, void *, void *);
+
+          struct Entry
+          {
+            void *out;
+            size_t size;
+            size_t align;
+            CreateFn create;
+            Storage storage; // inline storage for the initial value
+          };
+
+          template <typename T>
+          static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
+          {
+            NodeState<T> *out = static_cast<NodeState<T> *>(outPtr);
+            T *initial = reinterpret_cast<T *>(initialPtr);
+            CreateStateFromInitial<T>(owner, *out, *initial);
+            DestroyInitialObject<T>(initial);
+          }
+
           IStateOwner *owner_;
           Entry entries_[kMaxStates];
           size_t count_;
@@ -489,22 +492,9 @@ namespace loka
           assert(context_ && "NodeComposition::dangerouslyUseState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
           assert(stateOwner && "NodeComposition::dangerouslyUseState requires Boundary owner");
-          loka::core::MutableState<T> *state = 0;
-          size_t align = AlignOf<loka::core::MutableState<T> >::value;
-          void *mem = stateOwner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align);
-          if (mem)
-          {
-            state = new (mem) loka::core::MutableState<T>(initial);
-            state->setArenaAllocated(true);
-            stateOwner->registerStateMemory(state, &StateBatch::DestroyState<T>);
-          }
-          else
-          {
-            state = new loka::core::MutableState<T>(initial);
-          }
-          // Use unchecked version - useState always creates new unique states
-          stateOwner->adoptStateUnchecked(state);
-          return NodeState<T>(state, stateOwner->tracker(), stateOwner);
+          NodeState<T> state;
+          StateBatchBase::CreateStateFromInitial<T>(stateOwner, state, initial);
+          return state;
         }
 
         StateBatch declareStates()
