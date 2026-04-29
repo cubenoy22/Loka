@@ -17,36 +17,48 @@
 #include "core/resource/Image.hpp"
 #include <cassert>
 
-namespace simpleviewer {
-  class MainTypeTag {};
+namespace simpleviewer
+{
+  class MainTypeTag
+  {
+  };
 
   class MainNode;
 
-  struct MainProps : public loka::app::scene::NodePropsBase<MainProps> {
+  struct MainProps : public loka::app::scene::NodePropsBase<MainProps>
+  {
     typedef MainTypeTag TypeTag;
     typedef MainNode NodeType;
     PlatformContext *platformContext_;
     loka::core::EmitterState *openDialogEvent_;
-    MainProps() : platformContext_(0), openDialogEvent_(0) {
+    MainProps()
+        : platformContext_(0),
+          openDialogEvent_(0)
+    {
     }
 
-    MainProps &platformContext(PlatformContext *context) {
+    MainProps &platformContext(PlatformContext *context)
+    {
       this->platformContext_ = context;
       return *this;
     }
 
-    MainProps &openDialogEvent(loka::core::EmitterState *eventState) {
+    MainProps &openDialogEvent(loka::core::EmitterState *eventState)
+    {
       this->openDialogEvent_ = eventState;
       return *this;
     }
 
-    void assertInitialized() const {
+    void assertInitialized() const
+    {
       assert(this->platformContext_);
       assert(this->openDialogEvent_);
     }
 
-    bool operator<(const loka::app::scene::PropsBase &rhs) const {
-      if (rhs.propsTypeId() != propsTypeId()) {
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != propsTypeId())
+      {
         return false;
       }
       const MainProps &other = static_cast<const MainProps &>(rhs);
@@ -58,22 +70,31 @@ namespace simpleviewer {
     }
   };
 
-  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps> {
+  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
+  {
   public:
     typedef MainTypeTag TypeTag;
     typedef loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> ViewerFlowChain;
 
     MainNode(const MainProps &p)
-        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p), initialized_(false), isDialogShown_(),
-          chooserResult_(), chooserMessage_(), image_(), flow_() {
+        : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
+          initialized_(false),
+          isDialogShown_(),
+          chooserResult_(),
+          chooserMessage_(),
+          image_(),
+          flow_()
+    {
       this->state(this->isDialogShown_, false);
       this->state(this->chooserResult_, loka::app::FileChooserResult());
       this->state(this->chooserMessage_, loka::core::String::Literal("(none)"));
       this->state(this->image_, loka::core::resource::Image::Empty());
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c) {
-      if (this->initialized_) {
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
+      if (this->initialized_)
+      {
         return;
       }
       this->props.assertInitialized();
@@ -85,7 +106,8 @@ namespace simpleviewer {
       this->initialized_ = true;
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c) {
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
       using namespace loka::app;
       this->props.assertInitialized();
       c.declare(
@@ -109,20 +131,25 @@ namespace simpleviewer {
     static ViewerFlowChain buildFlow(MainNode &self);
     static loka::core::String buildErrorMessage(const loka::dsl::FlowError &error);
 
-    void openDialog() {
+    void openDialog()
+    {
       this->isDialogShown_.set(true, true);
     }
 
-    void setEmptyImageIfNeeded() {
+    void setEmptyImageIfNeeded()
+    {
       const loka::core::resource::Image empty = loka::core::resource::Image::Empty();
-      if (this->image_.get() == empty) {
+      if (this->image_.get() == empty)
+      {
         return;
       }
       this->image_.set(empty);
     }
 
-    void setChooserMessageIfChanged(const loka::core::String &message) {
-      if (this->chooserMessage_.get().equals(message)) {
+    void setChooserMessageIfChanged(const loka::core::String &message)
+    {
+      if (this->chooserMessage_.get().equals(message))
+      {
         return;
       }
       this->chooserMessage_.set(message);

@@ -10,28 +10,37 @@
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 
-namespace tutorial {
-  class Step2Node : public loka::app::scene::BoundaryNodeFor<Step2Node> {
+namespace tutorial
+{
+  class Step2Node : public loka::app::scene::BoundaryNodeFor<Step2Node>
+  {
   public:
     typedef loka::app::scene::BoundaryPropsFor<Step2Node> PropsType;
 
     Step2Node(const PropsType &p)
-        : loka::app::scene::BoundaryNodeFor<Step2Node>(p), count_(), countText_(), incrementEvent_(),
-          initialized_(false) {
+        : loka::app::scene::BoundaryNodeFor<Step2Node>(p),
+          count_(),
+          countText_(),
+          incrementEvent_(),
+          initialized_(false)
+    {
       this->state(this->count_, 0);
       this->state(this->countText_, loka::core::String::Literal("Count: 0"));
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c) {
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
       (void)c;
-      if (this->initialized_) {
+      if (this->initialized_)
+      {
         return;
       }
       this->bindActionForUi(this->incrementEvent_, &Step2Node::increment);
       this->initialized_ = true;
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c) {
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
       using namespace loka::app;
       c.declare(VStack()                          //
                 << TutorialTitle("Step 2")        //
@@ -41,7 +50,8 @@ namespace tutorial {
     }
 
   private:
-    void increment() {
+    void increment()
+    {
       const int next = this->count_.get() + 1;
       this->count_.set(next);
       using loka::core::String;

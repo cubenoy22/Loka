@@ -7,10 +7,12 @@
 #include "app/nodes/nestable/Fragment.hpp"
 #include "loka/core/State.hpp"
 
-namespace helloworld {
+namespace helloworld
+{
   inline loka::app::F BmiCalculator(loka::core::State<loka::core::String> *heightInput,
                                     loka::core::State<loka::core::String> *weightInput,
-                                    loka::core::State<loka::core::String> *bmiResult) {
+                                    loka::core::State<loka::core::String> *bmiResult)
+  {
     using namespace loka::app;
     return F()                       //
            << Text("BMI Calculator") //

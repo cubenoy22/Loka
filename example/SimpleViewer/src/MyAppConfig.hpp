@@ -8,12 +8,17 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
-class MyAppConfig : public AppConfigurable {
+class MyAppConfig : public AppConfigurable
+{
 public:
-  explicit MyAppConfig(PlatformContext *ctx) : AppConfigurable(ctx), openDialogEvent_() {
+  explicit MyAppConfig(PlatformContext *ctx)
+      : AppConfigurable(ctx),
+        openDialogEvent_()
+  {
   }
 
-  virtual void compose(AppComposition &c) {
+  virtual void compose(AppComposition &c)
+  {
     c << WindowDef(
         WindowProps()
             .frame(40, 40, 320, 240)
@@ -25,7 +30,8 @@ public:
             .visible(true));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &c) {
+  virtual void composeMenu(loka::app::MenuComposition &c)
+  {
     using namespace loka::app;
     c.declare(                                                 //
         AppMenu()                                              //

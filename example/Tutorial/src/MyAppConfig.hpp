@@ -12,12 +12,16 @@
 #include "Step3Node.hpp"
 #include "Step4Node.hpp"
 
-class MyAppConfig : public AppConfigurable {
+class MyAppConfig : public AppConfigurable
+{
 public:
-  explicit MyAppConfig(PlatformContext *ctx) : AppConfigurable(ctx) {
+  explicit MyAppConfig(PlatformContext *ctx)
+      : AppConfigurable(ctx)
+  {
   }
 
-  virtual void compose(AppComposition &c) {
+  virtual void compose(AppComposition &c)
+  {
     typedef tutorial::DoItYourselfNode TutorialNode;
     // typedef tutorial::Step1Node TutorialNode;
     // typedef tutorial::Step2Node TutorialNode;
@@ -32,7 +36,8 @@ public:
             .visible(true));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &c) {
+  virtual void composeMenu(loka::app::MenuComposition &c)
+  {
     using namespace loka::app;
     c.declare(AppMenu()                                 //
               << MenuItem("About")                      //

@@ -13,15 +13,29 @@
 #include "loka/core/String.hpp"
 #include "loka/dsl/StateStream.hpp"
 
-namespace tutorial {
-  class Step4Node : public loka::app::scene::BoundaryNodeFor<Step4Node> {
+namespace tutorial
+{
+  class Step4Node : public loka::app::scene::BoundaryNodeFor<Step4Node>
+  {
   public:
     typedef loka::app::scene::BoundaryPropsFor<Step4Node> PropsType;
 
     Step4Node(const PropsType &p)
-        : loka::app::scene::BoundaryNodeFor<Step4Node>(p), itemCount_(), itemSummary_(), showSummary_(), showItem1_(),
-          showItem2_(), showItem3_(), itemSummaryFlow_(), addItemEvent_(), toggleSummaryEvent_(), initialized_(false),
-          item1_(loka::app::Text("Item 1")), item2_(loka::app::Text("Item 2")), item3_(loka::app::Text("Item 3")) {
+        : loka::app::scene::BoundaryNodeFor<Step4Node>(p),
+          itemCount_(),
+          itemSummary_(),
+          showSummary_(),
+          showItem1_(),
+          showItem2_(),
+          showItem3_(),
+          itemSummaryFlow_(),
+          addItemEvent_(),
+          toggleSummaryEvent_(),
+          initialized_(false),
+          item1_(loka::app::Text("Item 1")),
+          item2_(loka::app::Text("Item 2")),
+          item3_(loka::app::Text("Item 3"))
+    {
       this->state(this->itemCount_, 0);
       this->state(this->itemSummary_, loka::core::String::Literal("Items: 0"));
       this->state(this->showSummary_, true);
@@ -30,9 +44,11 @@ namespace tutorial {
       this->state(this->showItem3_, false);
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c) {
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
       (void)c;
-      if (this->initialized_) {
+      if (this->initialized_)
+      {
         return;
       }
       this->bindActionForUi(this->addItemEvent_, &Step4Node::addItem);
@@ -46,7 +62,8 @@ namespace tutorial {
       this->initialized_ = true;
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c) {
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
       using namespace loka::app;
       c.declare(VStack()                                    //
                 << TutorialTitle("Step 4")                  //
@@ -62,9 +79,11 @@ namespace tutorial {
     }
 
   private:
-    void addItem() {
+    void addItem()
+    {
       int next = this->itemCount_.get();
-      if (next < 3) {
+      if (next < 3)
+      {
         ++next;
       }
       this->itemCount_.set(next);
@@ -73,7 +92,8 @@ namespace tutorial {
       this->showItem3_.set(next >= 3);
     }
 
-    void toggleSummary() {
+    void toggleSummary()
+    {
       this->showSummary_.set(!this->showSummary_.get(), true);
     }
 

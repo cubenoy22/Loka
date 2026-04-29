@@ -9,11 +9,13 @@
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
 
-namespace helloworld {
+namespace helloworld
+{
   class MainNode;
   typedef loka::app::scene::StdCompositionPropsFor<MainNode> MainProps;
 
-  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode> {
+  class MainNode : public loka::app::scene::StdCompositionNodeFor<MainNode>
+  {
   public:
     MainNode(const MainProps &p);
     virtual void attachNode(loka::app::scene::NodeComposition &c);

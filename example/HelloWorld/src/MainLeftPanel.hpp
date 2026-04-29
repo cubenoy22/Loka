@@ -8,7 +8,8 @@
 #include "loka/core/State.hpp"
 #include "BmiCalculatorComponent.hpp"
 
-namespace helloworld {
+namespace helloworld
+{
   inline loka::app::VStack MainLeftPanel(loka::core::State<loka::core::String> *message,
                                          loka::core::EmitterState *toggleEvent,
                                          loka::core::State<loka::core::String> *actionSummary,
@@ -17,7 +18,8 @@ namespace helloworld {
                                          loka::core::EmitterState *toggleActionEnabledEvent,
                                          loka::core::State<loka::core::String> *heightInput,
                                          loka::core::State<loka::core::String> *weightInput,
-                                         loka::core::State<loka::core::String> *bmiResult) {
+                                         loka::core::State<loka::core::String> *bmiResult)
+  {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.LeftPanel")
            << Text("Loka Sample").TEST_ID("HelloWorld.LeftPanel.Title")

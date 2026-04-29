@@ -15,7 +15,7 @@ namespace helloworld {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.RightPanel")
            << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")
-           << PopupMenu(fruits)
+           << PopupMenu(fruits) //
                   .selectedIndex(fruitIndex)
                   .TEST_ID("HelloWorld.RightPanel.FruitPopup")
            << Text(fruitMessage).TEST_ID("HelloWorld.RightPanel.FruitMessage");

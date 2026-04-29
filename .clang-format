@@ -1,11 +1,14 @@
 BasedOnStyle: LLVM
 Standard: Cpp03
 ColumnLimit: 120
+BreakBeforeBraces: Allman
 # Keep formatting conservative to avoid breaking C++98 parsing
 SpacesInAngles: false
 BinPackParameters: false
 BinPackArguments: false
-AllowShortFunctionsOnASingleLine: None
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+PackConstructorInitializers: Never
 SortIncludes: false
 # TODO: Revisit and switch back to None after broader formatting migration.
 NamespaceIndentation: All

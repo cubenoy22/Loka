@@ -6,15 +6,20 @@
 #include "app/nodes/Text.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 
-namespace tutorial {
-  class DoItYourselfNode : public loka::app::scene::BoundaryNodeFor<DoItYourselfNode> {
+namespace tutorial
+{
+  class DoItYourselfNode : public loka::app::scene::BoundaryNodeFor<DoItYourselfNode>
+  {
   public:
     typedef loka::app::scene::BoundaryPropsFor<DoItYourselfNode> PropsType;
 
-    DoItYourselfNode(const PropsType &p) : loka::app::scene::BoundaryNodeFor<DoItYourselfNode>(p) {
+    DoItYourselfNode(const PropsType &p)
+        : loka::app::scene::BoundaryNodeFor<DoItYourselfNode>(p)
+    {
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c) {
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
       using namespace loka::app;
       c.declare(                                                             //
           VStack()                                                           //

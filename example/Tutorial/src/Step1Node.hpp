@@ -6,15 +6,20 @@
 #include "app/nodes/Text.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 
-namespace tutorial {
-  class Step1Node : public loka::app::scene::BoundaryNodeFor<Step1Node> {
+namespace tutorial
+{
+  class Step1Node : public loka::app::scene::BoundaryNodeFor<Step1Node>
+  {
   public:
     typedef loka::app::scene::BoundaryPropsFor<Step1Node> PropsType;
 
-    Step1Node(const PropsType &p) : loka::app::scene::BoundaryNodeFor<Step1Node>(p) {
+    Step1Node(const PropsType &p)
+        : loka::app::scene::BoundaryNodeFor<Step1Node>(p)
+    {
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c) {
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
       using namespace loka::app;
       c.declare(                     //
           VStack()                   //

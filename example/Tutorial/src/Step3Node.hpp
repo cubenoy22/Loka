@@ -10,26 +10,35 @@
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 
-namespace tutorial {
-  class Step3Node : public loka::app::scene::BoundaryNodeFor<Step3Node> {
+namespace tutorial
+{
+  class Step3Node : public loka::app::scene::BoundaryNodeFor<Step3Node>
+  {
   public:
     typedef loka::app::scene::BoundaryPropsFor<Step3Node> PropsType;
 
     Step3Node(const PropsType &p)
-        : loka::app::scene::BoundaryNodeFor<Step3Node>(p), showDetails_(), toggleDetailsEvent_(), initialized_(false) {
+        : loka::app::scene::BoundaryNodeFor<Step3Node>(p),
+          showDetails_(),
+          toggleDetailsEvent_(),
+          initialized_(false) //
+    {
       this->state(this->showDetails_, false);
     }
 
-    virtual void attachNode(loka::app::scene::NodeComposition &c) {
+    virtual void attachNode(loka::app::scene::NodeComposition &c)
+    {
       (void)c;
-      if (this->initialized_) {
+      if (this->initialized_)
+      {
         return;
       }
       this->bindActionForUi(this->toggleDetailsEvent_, &Step3Node::toggleDetails);
       this->initialized_ = true;
     }
 
-    virtual void composeNode(loka::app::scene::NodeComposition &c) {
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
       using namespace loka::app;
       c.declare(                     //
           VStack()                   //
@@ -41,8 +50,10 @@ namespace tutorial {
     }
 
   private:
-    void toggleDetails() {
-      if (!this->showDetails_.isValid()) {
+    void toggleDetails()
+    {
+      if (!this->showDetails_.isValid())
+      {
         return;
       }
       this->showDetails_.set(!this->showDetails_.get(), true);
