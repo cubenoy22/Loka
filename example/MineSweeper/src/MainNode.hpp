@@ -16,8 +16,9 @@ namespace minesweeper {
     MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionNodeFor<MainNode>(MainProps(p)), initialized_(false) {
       NodeStateBatch states = this->declareStates(kCellCount);
+      const loka::core::String coveredText = loka::core::String::Literal(".");
       for (int i = 0; i < kCellCount; ++i) {
-        states.state(this->cellText_[i], loka::core::String::Literal("."));
+        states.state(this->cellText_[i], coveredText);
       }
     }
 
@@ -68,10 +69,11 @@ namespace minesweeper {
     CellClickProxy clickProxy_[kCellCount];
 
     void resetBoard() {
+      const loka::core::String coveredText = loka::core::String::Literal(".");
       for (int i = 0; i < kCellCount; ++i) {
         this->mines_[i] = false;
         this->revealed_[i] = false;
-        this->cellText_[i].set(loka::core::String::Literal("."));
+        this->cellText_[i].set(coveredText);
       }
       unsigned int seed = static_cast<unsigned int>(std::time(0));
       std::srand(seed);
