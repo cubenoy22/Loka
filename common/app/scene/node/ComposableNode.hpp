@@ -7,6 +7,7 @@
 #include "../Node.hpp"
 #include "../ComponentContext.hpp"
 #include "../NodeComposition.hpp"
+#include "../StateBatchBase.hpp"
 #include "../StateOwner.hpp"
 #include "loka/core/Profiler.hpp"
 
@@ -265,12 +266,12 @@ namespace loka
           this->connectNodeStateRegistration(entry);
         }
 
-        class NodeStateBatch : private NodeComposition::StateBatchBase
+        class NodeStateBatch : private StateBatchBase
         {
         public:
           enum
           {
-            kStorageBytes = NodeComposition::StateBatchBase::kStorageBytes
+            kStorageBytes = StateBatchBase::kStorageBytes
           };
 
           NodeStateBatch(ComposableNode *node, size_t capacity)
@@ -330,7 +331,7 @@ namespace loka
           }
 
         private:
-          typedef NodeComposition::StateBatchBase::Storage Storage;
+          typedef StateBatchBase::Storage Storage;
 
         public:
           struct Entry
@@ -552,7 +553,7 @@ namespace loka
               state_ = out_->dangerouslyMutableState();
               return;
             }
-            NodeComposition::StateBatchBase::CreateStateFromInitial<T>(owner, *out_, initial_);
+            StateBatchBase::CreateStateFromInitial<T>(owner, *out_, initial_);
             owner_ = out_->dangerouslyOwner();
             state_ = out_->dangerouslyMutableState();
           }
