@@ -49,6 +49,7 @@ namespace loka
       void markDirty(StateBase *state);
       void addState(StateBase *state);
       void addStateUnchecked(StateBase *state);
+      void removeState(StateBase *state);
       void reserveStates(size_t count);
       bool end();
       bool consumeDirty();

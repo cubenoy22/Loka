@@ -18,10 +18,13 @@
 #include "app/scene/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/FlowSlot.hpp"
 #include "app/scene/node/Headless.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
+#include "../example/MineSweeper/src/MainNode.hpp"
+#include "../example/SimpleViewer/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
@@ -320,6 +323,7 @@ namespace {
 
     virtual void adoptState(loka::core::StateBase *) {}
     virtual void adoptStateUnchecked(loka::core::StateBase *) {}
+    virtual void releaseState(loka::core::StateBase *) {}
     virtual void reserveStates(size_t) {}
     virtual void reserveStateArena(size_t) {}
     virtual void *allocateStateMemory(size_t, size_t) { return 0; }
@@ -582,7 +586,7 @@ namespace {
       this->show_.set(!this->show_.get(), true);
     }
 
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     loka::core::EmitterState toggle_;
     bool initialized_;
   };
@@ -620,6 +624,7 @@ namespace {
         : loka::app::scene::BoundaryNodeFor<HeadlessScopeProbeBoundaryNode>(HeadlessScopeProbeProps(p)),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -635,8 +640,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("Headless 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("Headless ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("Headless ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessScopeAttachCount;
       g_headlessScopeProbe = this;
@@ -664,8 +670,9 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -715,7 +722,7 @@ namespace {
       this->show_.set(!this->show_.get(), true);
     }
 
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     loka::core::EmitterState toggle_;
     bool initialized_;
   };
@@ -727,6 +734,7 @@ namespace {
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedProbeProps>(p),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -751,8 +759,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("Owned 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("Owned ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("Owned ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessOwnedAttachCount;
       g_headlessOwnedProbe = this;
@@ -775,8 +784,9 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -819,7 +829,7 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     bool initialized_;
   };
 
@@ -830,6 +840,7 @@ namespace {
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedMultiProbeAProps>(p),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -854,8 +865,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("OwnedA 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("OwnedA ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("OwnedA ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessOwnedMultiAttachCountA;
       g_headlessOwnedMultiProbeA = this;
@@ -873,8 +885,9 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -885,6 +898,7 @@ namespace {
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedMultiProbeBProps>(p),
           count_(),
           summary_(),
+          summaryFlow_(),
           initialized_(false)
     {
     }
@@ -909,8 +923,9 @@ namespace {
           .state(this->summary_, loka::core::String::Literal("OwnedB 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        countStream.map(loka::dsl::Const("OwnedB ") + countStream.slot.value())
-            .set(this->summary_);
+        this->summaryFlow_
+            .set(countStream.map(loka::dsl::Const("OwnedB ") + countStream.slot.value()))
+            .bindTo(this->summary_);
       }
       ++g_headlessOwnedMultiAttachCountB;
       g_headlessOwnedMultiProbeB = this;
@@ -928,8 +943,9 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<int> count_;
-    loka::app::scene::BoundState<loka::core::String> summary_;
+    loka::app::scene::NodeState<int> count_;
+    loka::app::scene::NodeState<loka::core::String> summary_;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > summaryFlow_;
     bool initialized_;
   };
 
@@ -977,7 +993,7 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     bool initialized_;
   };
 
@@ -1059,7 +1075,7 @@ namespace {
     }
 
   private:
-    loka::app::scene::BoundState<bool> show_;
+    loka::app::scene::NodeState<bool> show_;
     bool initialized_;
   };
 
@@ -1699,7 +1715,7 @@ void testLokaFlowDslV1Core() {
     assert((loka::app::scene::BoundaryPropValueRules<int>::kAllowed));
     assert((loka::app::scene::BoundaryPropValueRules<loka::core::State<int> *>::kAllowed));
     assert((loka::app::scene::BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<int> > >::kAllowed));
-    assert(!(loka::app::scene::BoundaryPropValueRules<loka::app::scene::BoundState<int> >::kAllowed));
+    assert(!(loka::app::scene::BoundaryPropValueRules<loka::app::scene::NodeState<int> >::kAllowed));
     assert(!(loka::app::scene::BoundaryPropValueRules<loka::core::MutableState<int> *>::kAllowed));
     loka::core::MutableState<int> countState(21);
     loka::app::scene::BorrowedState<int> borrowedCount = PendingLayoutBoundaryProps::borrowed<int>(&countState);
@@ -1819,14 +1835,14 @@ void testLokaFlowDslV1Core() {
     loka::app::scene::NodeComposition composition;
     loka::app::scene::ComponentContext context;
     loka::core::MutableState<int> ownedValue(3);
-    loka::app::scene::BoundState<int> boundState(&ownedValue, 0, &owner);
+    loka::app::scene::NodeState<int> nodeState(&ownedValue, 0, &owner);
 
     context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x6000));
     context.setStateOwner(&owner);
     composition.setContext(&context);
 
     loka::app::scene::NodeComposition::CurrentBoundary current = composition.currentBoundary();
-    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundState = current.state(boundState);
+    loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundState = current.state(nodeState);
     assert(current.isValid());
     assert(foundState.isValid());
     assert(foundState.get() == 3);
@@ -1840,14 +1856,14 @@ void testLokaFlowDslV1Core() {
     loka::app::scene::NodeComposition composition;
     loka::app::scene::ComponentContext context;
     loka::core::MutableState<int> foreignValue(11);
-    loka::app::scene::BoundState<int> foreignBoundState(&foreignValue, 0, &foreignOwner);
+    loka::app::scene::NodeState<int> foreignNodeState(&foreignValue, 0, &foreignOwner);
 
     context.setBoundary(reinterpret_cast<loka::app::scene::BoundaryNode *>(0x7000));
     context.setStateOwner(&currentOwner);
     composition.setContext(&context);
 
     loka::app::scene::NodeComposition::CurrentBoundary::CurrentState<int> foundForeignState =
-        composition.currentBoundary().state(foreignBoundState);
+        composition.currentBoundary().state(foreignNodeState);
     assert(!foundForeignState.isValid());
   }
 
@@ -2457,11 +2473,14 @@ void testLokaFlowDslV1Core() {
     loka::core::MutableState<int> countState(2);
     loka::core::PushStateTracker tracker;
     DummyStateOwner owner;
-    BoundState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
+    NodeState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
     loka::dsl::StateStream<int> countStream(&countState, &tracker, &owner);
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > labelFlow;
 
     tracker.begin();
-    countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value()).set(label, true);
+    labelFlow
+        .set(countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value()))
+        .bindTo(label, true);
     tracker.end();
 
     assert(label.isValid());
@@ -4789,6 +4808,67 @@ void testLokaFlowDslV1Core() {
 
     trigger.set(3, true);
     assert(result.get() == 6);   // 3 * 2
+  }
+
+  // --- FlowSlot: long-lived owner forwards run and trigger binding ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 8;
+    int directResult = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    SlotFlowChain directChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestMul2Adapter())
+              .input(&input)
+              .onSuccess(&directResult);
+
+    assert(!slot.isValid());
+    slot.set(directChain);
+    assert(slot.isValid());
+    assert(slot.run());
+    assert(directResult == 16);
+
+    loka::core::MutableState<int> trigger;
+    loka::core::MutableState<int> triggerResult;
+    SlotFlowChain triggerChain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestAdd1Adapter())
+              .onSuccess(&triggerResult);
+
+    slot.set(triggerChain)
+        .bindTrigger(&trigger);
+    trigger.set(41, true);
+    assert(triggerResult.get() == 42);
+
+    slot.clear();
+    assert(!slot.isValid());
+  }
+
+  // --- FlowSlot: cancel and resume are available through the owner slot ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 12;
+    int calls = 0;
+    bool ready = false;
+    int captured = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    SlotFlowChain chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+              .input(&input)
+              .onSuccess(&captured);
+
+    slot.set(chain);
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_PENDING);
+    assert(calls == 1);
+    slot.cancel();
+    ready = true;
+    assert(slot.resumeResult(1) == loka::dsl::FLOW_RUN_CANCELED);
+    assert(captured == 0);
+
+    slot.clear();
   }
 
   // --- bindTrigger: reentry guard prevents double execution ---

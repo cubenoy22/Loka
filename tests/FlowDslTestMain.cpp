@@ -2,6 +2,7 @@
 #include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
+#include "SceneTests.hpp"
 #include "StartupRedrawTests.hpp"
 
 int main() {
@@ -18,6 +19,7 @@ int main() {
   testPlatformLayoutHandlerReplacement();
   testPlatformLayoutHandlerRejectsInvalidTypeKey();
   testPlatformLayoutHandlerSamePointerReregister();
+  SceneTests::runAll();
   testPrepareProjectedLayoutDelegation();
   testProjectedLayoutUsesActiveBoundaryModel();
   testPrepareProjectedLayoutRejectsNullController();

@@ -1,6 +1,7 @@
 # Boundary State Access Plan
 
-Status: active design note
+Status: archived design note. The implemented parts have been folded into the
+current state ownership model and `docs/ProgrammingGuide.md`.
 
 This note captures the next ownership/access tightening after the constant-prop
 state binding bug fixed in `93a3279`.

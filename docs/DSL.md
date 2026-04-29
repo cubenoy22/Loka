@@ -191,11 +191,27 @@ Use `NodeComposition::showIf` to include optional content inside `StdComposition
 using namespace loka::app;
 using namespace loka::app::scene;
 
-BoundState<bool> flag;
-c.declareStates().state(flag, false);
+class ToggleNode : public StdCompositionNodeFor<ToggleNode>
+{
+public:
+  typedef StdCompositionPropsFor<ToggleNode> PropsType;
 
-c.declare(VStack()
-          << (Show(*flag.state()) << Text("On")));
+  ToggleNode(const PropsType &p)
+      : StdCompositionNodeFor<ToggleNode>(p),
+        flag_()
+  {
+    this->state(this->flag_, false);
+  }
+
+  virtual void composeNode(NodeComposition &c)
+  {
+    c.declare(VStack()
+              << (Show(*this->flag_.state()) << Text("On")));
+  }
+
+private:
+  NodeState<bool> flag_;
+};
 ```
 
 This keeps the branch in the same `StdComposition` model. If the condition is
@@ -226,36 +242,35 @@ loka::Vector<int> values = s.map<int>(s.slot.member<int, &Item::value>() + loka:
 
 ## State + Events
 
-Use `EmitterState` for events and `MutableState<T>` for values. Mutating state must be wrapped in a `loka::core::StateTrackerGuard`.
+Use `EmitterState` for events and `NodeState<T>` for Node-local values. Register Node-local state with `this->state(...)` so it is attached to the active Boundary owner. Mutating state must be wrapped in a `loka::core::StateTrackerGuard`.
 
 ```cpp
-#include "loka/core/State.hpp"
+#include "app/scene/NodeState.hpp"
+#include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 
-class DemoComponent
+class DemoNode : public loka::app::scene::StdCompositionNodeFor<DemoNode>
 {
 public:
-  DemoComponent()
-      : count_(),
+  typedef loka::app::scene::StdCompositionPropsFor<DemoNode> PropsType;
+
+  DemoNode(const PropsType &p)
+      : loka::app::scene::StdCompositionNodeFor<DemoNode>(p),
+        count_(),
         clickEvent_()
   {
-  }
-
-  void attach(loka::app::scene::NodeComposition &c)
-  {
-    c.declareStates().state(count_, 0);
+    this->state(this->count_, 0);
   }
 
   void onClick()
   {
-    loka::core::StateTrackerGuard guard(&this->tracker_);
+    loka::core::StateTrackerGuard guard(this->tracker());
     this->count_.set(this->count_.get() + 1, true);
   }
 
-  loka::core::MutableState<int> count_;
+  loka::app::scene::NodeState<int> count_;
   loka::core::EmitterState clickEvent_;
-  loka::core::PushStateTracker tracker_;
 };
 ```
 

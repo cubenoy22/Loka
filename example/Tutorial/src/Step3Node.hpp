@@ -6,7 +6,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
-#include "app/scene/BoundState.hpp"
+#include "app/scene/NodeState.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 
@@ -17,14 +17,14 @@ namespace tutorial {
 
     Step3Node(const PropsType &p)
         : loka::app::scene::BoundaryNodeFor<Step3Node>(p), showDetails_(), toggleDetailsEvent_(), initialized_(false) {
+      this->state(this->showDetails_, false);
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &c) {
+      (void)c;
       if (this->initialized_) {
         return;
       }
-      c.declareStates() //
-          .state(this->showDetails_, false);
       this->bindActionForUi(this->toggleDetailsEvent_, &Step3Node::toggleDetails);
       this->initialized_ = true;
     }
@@ -48,7 +48,7 @@ namespace tutorial {
       this->showDetails_.set(!this->showDetails_.get(), true);
     }
 
-    loka::app::scene::BoundState<bool> showDetails_;
+    loka::app::scene::NodeState<bool> showDetails_;
     loka::core::EmitterState toggleDetailsEvent_;
     bool initialized_;
   };

@@ -3,6 +3,7 @@
 
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
+#include "app/scene/NodeState.hpp"
 #include "file/File.hpp"
 
 namespace loka
@@ -146,6 +147,12 @@ namespace loka
         return *this;
       }
 
+      OpenFileDialogProps &result(const loka::app::scene::NodeState<FileChooserResult> &state)
+      {
+        this->result_ = state.dangerouslyMutableState();
+        return *this;
+      }
+
       OpenFileDialogProps &onResult(loka::core::EmitterState *emitter)
       {
         this->onResult_ = emitter;
@@ -155,6 +162,12 @@ namespace loka
       OpenFileDialogProps &closeState(loka::core::MutableState<bool> *state)
       {
         this->closeState_ = state;
+        return *this;
+      }
+
+      OpenFileDialogProps &closeState(const loka::app::scene::NodeState<bool> &state)
+      {
+        this->closeState_ = state.dangerouslyMutableState();
         return *this;
       }
 
@@ -225,6 +238,12 @@ namespace loka
         return *this;
       }
 
+      OpenFileDialogDefinition &result(const loka::app::scene::NodeState<FileChooserResult> &state)
+      {
+        this->props.result(state);
+        return *this;
+      }
+
       OpenFileDialogDefinition &onResult(loka::core::EmitterState *emitter)
       {
         this->props.onResult_ = emitter;
@@ -234,6 +253,12 @@ namespace loka
       OpenFileDialogDefinition &closeState(loka::core::MutableState<bool> *state)
       {
         this->props.closeState_ = state;
+        return *this;
+      }
+
+      OpenFileDialogDefinition &closeState(const loka::app::scene::NodeState<bool> &state)
+      {
+        this->props.closeState(state);
         return *this;
       }
       using loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;

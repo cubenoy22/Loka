@@ -29,7 +29,7 @@ namespace tutorial
                 << Text("1. Show Hello, Loka")
                 << Text("2. Add an Increment button")
                 << Text("3. Add Show(condition) details")
-                << Text("4. Add a revealed item list and derive summary text with stream().map()"));
+                << Text("4. Add a revealed item list and update derived summary text"));
     }
   };
 } // namespace tutorial

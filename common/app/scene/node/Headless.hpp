@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 
 #include <vector>
-#include "../BoundState.hpp"
+#include "../NodeState.hpp"
 #include "../StateOwner.hpp"
 #include "../nodes/boundary/Boundary.hpp"
 #include "ComposableNode.hpp"
@@ -49,6 +49,8 @@ namespace loka
 
         virtual ~HeadlessNodeBase()
         {
+          this->clearChildren();
+          this->releaseNodeStateRegistrations();
           this->clearOwnedStates();
         }
 
@@ -122,6 +124,30 @@ namespace loka
           }
           this->ownedStates_.push_back(state);
           this->tracker_.addStateUnchecked(state);
+        }
+
+        virtual void releaseState(loka::core::StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          for (size_t i = 0; i < this->ownedStates_.size();)
+          {
+            if (this->ownedStates_[i] == state)
+            {
+              this->ownedStates_.erase(this->ownedStates_.begin() + i);
+            }
+            else
+            {
+              ++i;
+            }
+          }
+          this->tracker_.removeState(state);
+          if (!state->isArenaAllocated())
+          {
+            delete state;
+          }
         }
 
         virtual void reserveStates(size_t count)

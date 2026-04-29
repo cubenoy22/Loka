@@ -6,7 +6,7 @@
 #include "../../Node.hpp"
 #include "../../PlatformController.hpp"
 #include "../../node/ComposableNode.hpp"
-#include "../../BoundState.hpp"
+#include "../../NodeState.hpp"
 #include "../../ComponentContext.hpp"
 #include "../../PlatformApplyPlan.hpp"
 #include "BoundaryApplyInfo.hpp"
@@ -188,6 +188,29 @@ namespace loka
           }
         }
 
+        void releaseState(loka::core::StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          for (size_t i = 0; i < states_.size();)
+          {
+            if (states_[i].state == state)
+            {
+              if (states_[i].destroy)
+              {
+                states_[i].destroy(states_[i].state);
+              }
+              states_.erase(states_.begin() + i);
+            }
+            else
+            {
+              ++i;
+            }
+          }
+        }
+
         void clear()
         {
           for (size_t i = 0; i < states_.size(); ++i)
@@ -249,6 +272,7 @@ namespace loka
           // Detach children before the arena is cleared to avoid touching freed nodes.
           clearChildren();
           nodeArena_.clear();
+          releaseNodeStateRegistrations();
           clearOwnedStates();
           clearOwnedStateHandles();
           stateArena_.clear();
@@ -489,13 +513,13 @@ namespace loka
         static void ObservedStateDeferredInvalidateThunk(void *userData);
 
         template <class T>
-        BoundState<T> dangerouslyUseState()
+        NodeState<T> dangerouslyUseState()
         {
           return dangerouslyUseStateWithValue(T());
         }
 
         template <class T>
-        BoundState<T> dangerouslyUseState(const T &initial)
+        NodeState<T> dangerouslyUseState(const T &initial)
         {
           return dangerouslyUseStateWithValue(initial);
         }
@@ -841,6 +865,32 @@ namespace loka
           tracker_.addStateUnchecked(state);
         }
 
+        virtual void releaseState(loka::core::StateBase *state)
+        {
+          if (!state)
+          {
+            return;
+          }
+          for (size_t i = 0; i < ownedStates_.size();)
+          {
+            if (ownedStates_[i] == state)
+            {
+              ownedStates_.erase(ownedStates_.begin() + i);
+            }
+            else
+            {
+              ++i;
+            }
+          }
+          tracker_.removeState(state);
+          if (state->isArenaAllocated())
+          {
+            stateArena_.releaseState(state);
+            return;
+          }
+          delete state;
+        }
+
         virtual void reserveStates(size_t count)
         {
           ownedStates_.reserve(ownedStates_.size() + count);
@@ -1030,11 +1080,11 @@ namespace loka
         };
 
         template <class T>
-        BoundState<T> dangerouslyUseStateWithValue(const T &initial)
+        NodeState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
           adoptState(state);
-          return BoundState<T>(state, this->tracker(), this);
+          return NodeState<T>(state, this->tracker(), this);
         }
 
         template <class T>
