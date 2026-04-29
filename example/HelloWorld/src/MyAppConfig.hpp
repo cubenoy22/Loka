@@ -8,6 +8,9 @@
 #include "app/Menu.hpp"
 #include "MainNode.hpp"
 
+#include <cstdlib>
+#include <ctime>
+
 class MyAppConfig : public AppConfigurable
 {
 public:
@@ -36,10 +39,10 @@ private:
   {
   public:
     MainMenu()
-        : randomSeed_(0x1234u),
-          rebuildBound_(false),
+        : rebuildBound_(false),
           rebuildEvent_()
     {
+      std::srand(static_cast<unsigned int>(std::time(0)));
     }
 
     virtual void composeMenu(loka::app::MenuComposition &c)
@@ -62,12 +65,12 @@ private:
         rebuildBound_ = true;
       }
       MenuDefinition randomMenu("Random");
-      buildRandomMenu(randomMenu, randomSeed_);
+      buildRandomMenu(randomMenu);
       c.declare(randomMenu);
     }
 
   private:
-    void buildRandomMenu(loka::app::MenuDefinition &menu, unsigned int seed)
+    void buildRandomMenu(loka::app::MenuDefinition &menu)
     {
       using namespace loka::app;
       using namespace loka::core;
@@ -82,11 +85,10 @@ private:
       menu << MenuSeparator();
       for (int i = 5; i > 0; --i)
       {
-        int j = static_cast<int>(seed % static_cast<unsigned int>(i + 1));
+        int j = std::rand() % (i + 1);
         const MenuItemDefinition tmp = labels[i];
         labels[i] = labels[j];
         labels[j] = tmp;
-        seed = seed * 1103515245u + 12345u;
       }
       for (int i = 0; i < 6; ++i)
       {
@@ -94,12 +96,8 @@ private:
       }
     }
 
-    void handleRebuild()
-    {
-      randomSeed_ = randomSeed_ * 1103515245u + 12345u;
-    }
+    void handleRebuild() {}
 
-    unsigned int randomSeed_;
     bool rebuildBound_;
     loka::core::EmitterState rebuildEvent_;
   };

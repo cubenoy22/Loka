@@ -1,8 +1,8 @@
 #ifndef LOKA_HELLOWORLD_MAIN_NODE_HPP
 #define LOKA_HELLOWORLD_MAIN_NODE_HPP
 
-#include "MainLeftPanel.hpp"
 #include "MainRightPanel.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/NodeState.hpp"
 #include "app/scene/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
@@ -23,6 +23,7 @@ namespace helloworld
 
   private:
     ::Window *windowOrNull() const;
+    loka::app::VStack mainLeftPanel();
     double parseBmiValue(const loka::core::String &value) const;
     void refreshBmiResult();
     void toggleMessage();

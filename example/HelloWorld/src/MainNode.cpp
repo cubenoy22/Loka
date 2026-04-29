@@ -1,7 +1,9 @@
 #include "MainNode.hpp"
 
+#include "BmiCalculatorComponent.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/core/Window.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/platform/StringUTF8.hpp"
@@ -81,6 +83,22 @@ namespace helloworld
   {
     const AttachedContext *ctx = this->attachedContext();
     return ctx ? ctx->window() : 0;
+  }
+
+  loka::app::VStack MainNode::mainLeftPanel()
+  {
+    using namespace loka::app;
+    return VStack().TEST_ID("HelloWorld.LeftPanel")
+           << Text("Loka Sample").TEST_ID("HelloWorld.LeftPanel.Title")
+           << Text(this->message_.state()).TEST_ID("HelloWorld.LeftPanel.Message")
+           << Button("Add +", &this->toggleEvent_).TEST_ID("HelloWorld.LeftPanel.AddButton")
+           << Text(this->actionSummary_.state()).TEST_ID("HelloWorld.LeftPanel.ActionSummary")
+           << Button("Probe Button", &this->actionProbeEvent_)
+                  .enabled(this->actionEnabled_.state())
+                  .TEST_ID("HelloWorld.LeftPanel.ProbeButton")
+           << Button("Toggle Button Enabled", &this->toggleActionEnabledEvent_)
+                  .TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton")
+           << BmiCalculator(this->heightInput_.state(), this->weightInput_.state(), this->bmiResult_.state());
   }
 
   double MainNode::parseBmiValue(const String &value) const
@@ -250,15 +268,7 @@ namespace helloworld
     ZStack &root = c.declare(ZStack().TEST_ID("HelloWorld.Root"));
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
     c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
-              << MainLeftPanel(this->message_.state(),
-                               &this->toggleEvent_,
-                               this->actionSummary_.state(),
-                               &this->actionProbeEvent_,
-                               this->actionEnabled_.state(),
-                               &this->toggleActionEnabledEvent_,
-                               this->heightInput_.state(),
-                               this->weightInput_.state(),
-                               this->bmiResult_.state())
+              << this->mainLeftPanel()
               << MainRightPanel(&this->fruits_, this->fruitIndex_.state(), this->fruitMessage_.state()));
     c.declare(Text("*").TEST_ID("HelloWorld.Decoration"));
   }
