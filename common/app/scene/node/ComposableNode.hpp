@@ -7,6 +7,7 @@
 #include "../Node.hpp"
 #include "../ComponentContext.hpp"
 #include "../NodeComposition.hpp"
+#include "../StateBatchBase.hpp"
 #include "../StateOwner.hpp"
 #include "loka/core/Profiler.hpp"
 
@@ -265,12 +266,12 @@ namespace loka
           this->connectNodeStateRegistration(entry);
         }
 
-        class NodeStateBatch
+        class NodeStateBatch : private StateBatchBase
         {
         public:
           enum
           {
-            kStorageBytes = 32
+            kStorageBytes = StateBatchBase::kStorageBytes
           };
 
           NodeStateBatch(ComposableNode *node, size_t capacity)
@@ -325,17 +326,12 @@ namespace loka
             entry.disconnect = &DisconnectState<T>;
             entry.matches = &MatchesState<T>;
             entry.destroyInitial = &DestroyInitial<T>;
-            new (entry.storage.bytes) T(initial);
+            CopyInitial<T>(entry.storage.bytes, initial);
             return *this;
           }
 
         private:
-          struct Storage
-          {
-            double d;
-            void *p;
-            char bytes[kStorageBytes];
-          };
+          typedef StateBatchBase::Storage Storage;
 
         public:
           struct Entry
@@ -428,7 +424,7 @@ namespace loka
               return;
             }
             T *initial = reinterpret_cast<T *>(entry.storage.bytes);
-            NodeComposition::StateBatch::CreateImmediateState(owner, *out, *initial);
+            CreateStateFromInitial<T>(owner, *out, *initial);
             entry.owner = out->dangerouslyOwner();
             entry.state = out->dangerouslyMutableState();
           }
@@ -448,8 +444,7 @@ namespace loka
           template <typename T>
           static void DestroyInitial(Entry &entry)
           {
-            T *initial = reinterpret_cast<T *>(entry.storage.bytes);
-            initial->~T();
+            DestroyInitialObject<T>(entry.storage.bytes);
           }
 
           NodeStateBatch &operator=(const NodeStateBatch &);
@@ -558,7 +553,7 @@ namespace loka
               state_ = out_->dangerouslyMutableState();
               return;
             }
-            NodeComposition::StateBatch::CreateImmediateState(owner, *out_, initial_);
+            StateBatchBase::CreateStateFromInitial<T>(owner, *out_, initial_);
             owner_ = out_->dangerouslyOwner();
             state_ = out_->dangerouslyMutableState();
           }
