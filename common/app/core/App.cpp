@@ -331,8 +331,8 @@ bool App::refreshDefaultMenuBar()
       for (size_t i = 0; i < dirtyMenus.size(); ++i)
       {
         bool exists = false;
-        loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> it(
-            menuDiff_.changedHead(), menuDiff_.changedCount());
+        loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> it(menuDiff_.changedHead(),
+                                                                                      menuDiff_.changedCount());
         for (loka::app::MenuCompositionDiff::ChangedIndex *entry = it.next(); entry; entry = it.next())
         {
           if (entry->value == dirtyMenus[i])

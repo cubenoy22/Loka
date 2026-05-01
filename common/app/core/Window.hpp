@@ -20,8 +20,8 @@ namespace loka
     {
       class Scene;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class PlatformContext;
 
@@ -367,24 +367,51 @@ public:
     }
   }
 
-  PlatformContext *context() const { return context_; }
-  loka::app::scene::Scene *scene() const { return sceneManager_.getCurrentScene().get(); }
-  SceneManager *sceneManager() { return &sceneManager_; }
+  PlatformContext *context() const
+  {
+    return context_;
+  }
+  loka::app::scene::Scene *scene() const
+  {
+    return sceneManager_.getCurrentScene().get();
+  }
+  SceneManager *sceneManager()
+  {
+    return &sceneManager_;
+  }
   bool flushSceneInvalidation();
   bool hasPendingSceneInvalidation() const
   {
     const loka::app::scene::Scene *current = this->scene();
     return current ? current->hasPendingInvalidation() : false;
   }
-  virtual bool hasPendingScenePlatformSync() const { return false; }
+  virtual bool hasPendingScenePlatformSync() const
+  {
+    return false;
+  }
   virtual void synchronizeScenePlatform() {}
 
-  loka::core::MutableState<bool> &visibilityState() { return *visibility_; }
-  loka::core::MutableState<loka::core::String> &titleState() { return *title_; }
-  loka::core::MutableState<loka::core::Frame> &frameState() { return *frameStatePtr_; }
-  const loka::app::MenuBarDefinition *menuBar() const { return menuBarDefinition_; }
+  loka::core::MutableState<bool> &visibilityState()
+  {
+    return *visibility_;
+  }
+  loka::core::MutableState<loka::core::String> &titleState()
+  {
+    return *title_;
+  }
+  loka::core::MutableState<loka::core::Frame> &frameState()
+  {
+    return *frameStatePtr_;
+  }
+  const loka::app::MenuBarDefinition *menuBar() const
+  {
+    return menuBarDefinition_;
+  }
 
-  loka::core::StateTracker *getTracker() const { return tracker_; }
+  loka::core::StateTracker *getTracker() const
+  {
+    return tracker_;
+  }
 
   virtual void onCreate() {}
   virtual void onShow() {}
@@ -392,10 +419,22 @@ public:
   virtual void onDestroy() {}
 
   // Type casts (avoid dynamic_cast for 68k performance)
-  virtual Window *asWindow() { return this; }
-  virtual ToolboxWindow *asToolboxWindow() { return 0; }
-  virtual Win32Window *asWin32Window() { return 0; }
-  virtual MacWindow *asMacWindow() { return 0; }
+  virtual Window *asWindow()
+  {
+    return this;
+  }
+  virtual ToolboxWindow *asToolboxWindow()
+  {
+    return 0;
+  }
+  virtual Win32Window *asWin32Window()
+  {
+    return 0;
+  }
+  virtual MacWindow *asMacWindow()
+  {
+    return 0;
+  }
   bool hasPosition() const
   {
     return frameStatePtr_->get().hasPosition();
@@ -404,11 +443,26 @@ public:
   {
     return frameStatePtr_->get().hasSize();
   }
-  int positionX() const { return frameStatePtr_->get().x; }
-  int positionY() const { return frameStatePtr_->get().y; }
-  int width() const { return frameStatePtr_->get().width; }
-  int height() const { return frameStatePtr_->get().height; }
-  const loka::app::IdlePolicy &idlePolicy() const { return idlePolicy_; }
+  int positionX() const
+  {
+    return frameStatePtr_->get().x;
+  }
+  int positionY() const
+  {
+    return frameStatePtr_->get().y;
+  }
+  int width() const
+  {
+    return frameStatePtr_->get().width;
+  }
+  int height() const
+  {
+    return frameStatePtr_->get().height;
+  }
+  const loka::app::IdlePolicy &idlePolicy() const
+  {
+    return idlePolicy_;
+  }
   bool handleIdle(double elapsedSeconds)
   {
     if (!onIdleFn_)

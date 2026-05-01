@@ -44,19 +44,34 @@ public:
       return *this;
     }
 
-    SceneTransaction *clone() const { return new SceneTransaction(*this); }
+    SceneTransaction *clone() const
+    {
+      return new SceneTransaction(*this);
+    }
 
     loka::app::scene::Scene *from;
     loka::app::scene::Scene *to;
     SceneTransaction *nextInComposition;
   };
 
-    class SceneTransactionList
+  class SceneTransactionList
+  {
+  public:
+    SceneTransactionList()
+        : list_(),
+          id_(nextId())
     {
-    public:
-    SceneTransactionList() : list_(), id_(nextId()) {}
-    SceneTransactionList(const SceneTransactionList &other) : list_(), id_(other.id_) { copyFrom(other); }
-    ~SceneTransactionList() { list_.clear(); }
+    }
+    SceneTransactionList(const SceneTransactionList &other)
+        : list_(),
+          id_(other.id_)
+    {
+      copyFrom(other);
+    }
+    ~SceneTransactionList()
+    {
+      list_.clear();
+    }
 
     SceneTransactionList &operator=(const SceneTransactionList &other)
     {
@@ -68,8 +83,14 @@ public:
       return *this;
     }
 
-    bool operator!=(const SceneTransactionList &other) const { return id_ != other.id_; }
-    bool operator==(const SceneTransactionList &other) const { return id_ == other.id_; }
+    bool operator!=(const SceneTransactionList &other) const
+    {
+      return id_ != other.id_;
+    }
+    bool operator==(const SceneTransactionList &other) const
+    {
+      return id_ == other.id_;
+    }
 
     void push(loka::app::scene::Scene *from, loka::app::scene::Scene *to)
     {
@@ -77,9 +98,18 @@ public:
       id_ = nextId();
     }
 
-    bool empty() const { return list_.count() == 0; }
-    size_t size() const { return list_.count(); }
-    SceneTransaction *head() const { return list_.head(); }
+    bool empty() const
+    {
+      return list_.count() == 0;
+    }
+    size_t size() const
+    {
+      return list_.count();
+    }
+    SceneTransaction *head() const
+    {
+      return list_.head();
+    }
 
     void popFront()
     {
@@ -107,7 +137,10 @@ public:
     loka::dsl::CompositionList<SceneTransaction> list_;
     unsigned long id_;
     static unsigned long nextId_;
-    static unsigned long nextId() { return nextId_++; }
+    static unsigned long nextId()
+    {
+      return nextId_++;
+    }
   };
 
   SceneManager();
@@ -127,8 +160,14 @@ protected:
   void swapScene(loka::app::scene::Scene *oldScene, loka::app::scene::Scene *newScene);
 
 public:
-  void setWindow(Window *window) { window_ = window; }
-  Window *window() const { return window_; }
+  void setWindow(Window *window)
+  {
+    window_ = window;
+  }
+  Window *window() const
+  {
+    return window_;
+  }
 
 private:
   loka::core::MutableState<loka::app::scene::Scene *> currentScene_;

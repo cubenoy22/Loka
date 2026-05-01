@@ -20,7 +20,10 @@ public:
     for (std::size_t i = 0; i < components.size(); ++i)
       delete components[i];
   }
-  const std::vector<AppComponent *> &getComponents() const { return components; }
+  const std::vector<AppComponent *> &getComponents() const
+  {
+    return components;
+  }
 
   std::vector<AppComponent *> build()
   {
@@ -32,7 +35,6 @@ public:
 protected:
   std::vector<AppComponent *> components;
 
-  // コピー禁止
   AppComponentGroup(const AppComponentGroup &);
   AppComponentGroup &operator=(const AppComponentGroup &);
 };

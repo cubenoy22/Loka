@@ -21,7 +21,10 @@ public:
 
   std::vector<AppComponent *> build();
 
-  PlatformContext *context() const { return context_; }
+  PlatformContext *context() const
+  {
+    return context_;
+  }
   void setContext(PlatformContext *ctx);
 
 private:

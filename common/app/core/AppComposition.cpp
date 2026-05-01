@@ -1,7 +1,9 @@
 #include "app/core/AppComposition.hpp"
 
 AppComposition::AppComposition(PlatformContext *context)
-    : components_(), windowList_(), context_(context)
+    : components_(),
+      windowList_(),
+      context_(context)
 {
   assert(context_ && "AppComposition: PlatformContext* must not be null");
 }

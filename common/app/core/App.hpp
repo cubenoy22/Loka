@@ -16,7 +16,10 @@ class App : public AppComponent
 public:
   explicit App(AppConfigurable *config);
   virtual ~App();
-  static App *current() { return currentApp_; }
+  static App *current()
+  {
+    return currentApp_;
+  }
 
   virtual void run();
   virtual void quit() = 0;
@@ -30,9 +33,15 @@ public:
   bool flushMenuInvalidation();
   void invalidateMenu();
   void setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar);
-  const loka::app::MenuBarDefinition *defaultMenuBar() const { return menuBar_; }
+  const loka::app::MenuBarDefinition *defaultMenuBar() const
+  {
+    return menuBar_;
+  }
   void setActiveWindow(Window *window);
-  Window *activeWindow() const { return activeWindow_; }
+  Window *activeWindow() const
+  {
+    return activeWindow_;
+  }
 
 protected:
   AppComponentGroup *group_;
@@ -48,7 +57,10 @@ protected:
   virtual void applyMenuBar(Window *activeWindow);
   bool refreshDefaultMenuBar();
 
-  const loka::app::MenuCompositionDiff &menuDiff() const { return menuDiff_; }
+  const loka::app::MenuCompositionDiff &menuDiff() const
+  {
+    return menuDiff_;
+  }
   void clearMenuDiff();
 
   void reflectInitialVisibilityChunks();
