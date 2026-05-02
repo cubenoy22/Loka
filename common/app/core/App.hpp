@@ -11,15 +11,14 @@
 class Window;
 class AppComposition;
 
+// App is owned by the platform/application layer. Code that needs an App
+// instance should reach it through an owner-side path such as Window, not
+// through a global current-App accessor.
 class App : public AppComponent
 {
 public:
   explicit App(AppConfigurable *config);
   virtual ~App();
-  static App *current()
-  {
-    return currentApp_;
-  }
 
   virtual void run();
   virtual void quit() = 0;
@@ -67,7 +66,6 @@ protected:
   void flushWindowInvalidations();
 
 private:
-  static App *currentApp_;
   static bool MenuRefreshThunk(void *userData);
   static void MenuApplyThunk(void *userData);
 };
