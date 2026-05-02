@@ -15,8 +15,8 @@ namespace loka
     namespace layout
     {
       inline int DispatchTraversalLayoutChild(void *context,
-                                             loka::app::scene::Node *child,
-                                             const loka::app::scene::LayoutState &state)
+                                              loka::app::scene::Node *child,
+                                              const loka::app::scene::LayoutState &state)
       {
         loka::app::scene::IPlatformLayoutTraversal *traversal =
             static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
@@ -112,7 +112,8 @@ namespace loka
           {
             return state.y;
           }
-          return loka::app::layout::computeRowLayoutResultY(row, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
+          return loka::app::layout::computeRowLayoutResultY(
+              row, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
         }
 
       private:
@@ -141,7 +142,8 @@ namespace loka
           {
             return state.y;
           }
-          return loka::app::layout::computeGridLayoutResultY(grid, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
+          return loka::app::layout::computeGridLayoutResultY(
+              grid, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
         }
 
       private:
@@ -164,8 +166,8 @@ namespace loka
           registry.registerHandler(new GridPlatformLayoutHandler(*gridMetrics));
         }
       }
-    }
-  }
-}
+    } // namespace layout
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_APP_LAYOUT_PLATFORM_BUILTIN_LAYOUT_HANDLERS_HPP

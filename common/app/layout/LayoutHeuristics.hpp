@@ -96,8 +96,8 @@ namespace loka
         }
         return fallbackHeight;
       }
-    }
-  }
-}
+    } // namespace layout
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_APP_LAYOUT_HEURISTICS_HPP
