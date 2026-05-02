@@ -13,7 +13,6 @@ namespace loka
     {
     };
 
-    // Forward declaration
     class ButtonNode;
 
     class IButtonProps
@@ -35,16 +34,22 @@ namespace loka
       bool ownsText_;
       loka::core::State<bool> *enabled_;
       loka::core::EmitterState *onClick_;
-      short toolboxControlId_;
       int controlTag_;
-      ButtonProps() : text_(0), ownedText_(), ownsText_(false), enabled_(0), onClick_(0), toolboxControlId_(0), controlTag_(0) {}
+      ButtonProps()
+          : text_(0),
+            ownedText_(),
+            ownsText_(false),
+            enabled_(0),
+            onClick_(0),
+            controlTag_(0)
+      {
+      }
       ButtonProps(const ButtonProps &other)
           : text_(other.text_),
             ownedText_(other.ownedText_),
             ownsText_(other.ownsText_),
             enabled_(other.enabled_),
             onClick_(other.onClick_),
-            toolboxControlId_(other.toolboxControlId_),
             controlTag_(other.controlTag_)
       {
         if (ownsText_)
@@ -61,7 +66,6 @@ namespace loka
           ownsText_ = other.ownsText_;
           enabled_ = other.enabled_;
           onClick_ = other.onClick_;
-          toolboxControlId_ = other.toolboxControlId_;
           controlTag_ = other.controlTag_;
           if (ownsText_)
           {
@@ -97,27 +101,29 @@ namespace loka
         this->onClick_ = e;
         return *this;
       }
-      ButtonProps &toolboxControl(short id)
-      {
-        this->toolboxControlId_ = id;
-        return *this;
-      }
       ButtonProps &controlTag(int tag)
       {
         this->controlTag_ = tag;
         return *this;
       }
-      // --- IButtonProps 実装 ---
-      virtual loka::core::State<loka::core::String> *getText() const { return text_; }
-      virtual loka::core::State<bool> *getEnabled() const { return enabled_; }
-      virtual loka::core::EmitterState *getOnClick() const { return onClick_; }
+      virtual loka::core::State<loka::core::String> *getText() const
+      {
+        return text_;
+      }
+      virtual loka::core::State<bool> *getEnabled() const
+      {
+        return enabled_;
+      }
+      virtual loka::core::EmitterState *getOnClick() const
+      {
+        return onClick_;
+      }
       int hash() const
       {
         std::size_t h = 17;
         h = h * 31 + reinterpret_cast<std::size_t>(text_);
         h = h * 31 + reinterpret_cast<std::size_t>(enabled_);
         h = h * 31 + reinterpret_cast<std::size_t>(onClick_);
-        h = h * 31 + static_cast<std::size_t>(toolboxControlId_);
         h = h * 31 + static_cast<std::size_t>(controlTag_);
         return static_cast<int>(h);
       }
@@ -130,24 +136,37 @@ namespace loka
           return text_ < b.text_;
         if (controlTag_ != b.controlTag_)
           return controlTag_ < b.controlTag_;
-        if (toolboxControlId_ != b.toolboxControlId_)
-          return toolboxControlId_ < b.toolboxControlId_;
         return enabled_ < b.enabled_;
       }
     };
 
-    class ButtonNode : public loka::app::scene::Node,
-                       public loka::app::scene::IProjectedLayoutNode
+    class ButtonNode : public loka::app::scene::Node, public loka::app::scene::IProjectedLayoutNode
     {
     public:
       typedef ButtonTypeTag TypeTag;
       ButtonProps props;
-      ButtonNode(const ButtonProps &p) : props(p) {}
-      virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_BUTTON; }
-      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
-      virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<ButtonNode>(); }
-      virtual ButtonNode *asButtonNode() { return this; }
-      virtual short layoutProjected(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
+      ButtonNode(const ButtonProps &p)
+          : props(p)
+      {
+      }
+      virtual loka::app::scene::NodeKind kind() const
+      {
+        return loka::app::scene::NODE_KIND_BUTTON;
+      }
+      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode()
+      {
+        return this;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return loka::app::scene::NodeTypeToken<ButtonNode>();
+      }
+      virtual ButtonNode *asButtonNode()
+      {
+        return this;
+      }
+      virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
+                                    loka::app::scene::LayoutState &state)
       {
         if (!controller)
         {
@@ -172,24 +191,35 @@ namespace loka
       }
     };
 
-    struct ButtonDefinition : public loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>, public loka::app::scene::TestIdDslMixin<ButtonDefinition>
+    struct ButtonDefinition : public loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>,
+                              public loka::app::scene::TestIdDslMixin<ButtonDefinition>
     {
-      ButtonDefinition() : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>() {}
-      ButtonDefinition(const ButtonProps &p) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>(p) {}
-      ButtonDefinition(const char *text) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
+      ButtonDefinition()
+          : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
+      {
+      }
+      ButtonDefinition(const ButtonProps &p)
+          : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>(p)
+      {
+      }
+      ButtonDefinition(const char *text)
+          : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text(text);
       }
-      ButtonDefinition(loka::core::State<loka::core::String> *text) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
+      ButtonDefinition(loka::core::State<loka::core::String> *text)
+          : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text_ = text;
       }
-      ButtonDefinition(const char *text, loka::core::EmitterState *onClick) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
+      ButtonDefinition(const char *text, loka::core::EmitterState *onClick)
+          : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text(text);
         this->props.onClick_ = onClick;
       }
-      ButtonDefinition(loka::core::State<loka::core::String> *text, loka::core::EmitterState *onClick) : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
+      ButtonDefinition(loka::core::State<loka::core::String> *text, loka::core::EmitterState *onClick)
+          : loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>()
       {
         this->props.text_ = text;
         this->props.onClick_ = onClick;
@@ -207,11 +237,6 @@ namespace loka
         return *this;
       }
 
-      ButtonDefinition &toolboxControl(short id)
-      {
-        this->props.toolboxControlId_ = id;
-        return *this;
-      }
       ButtonDefinition &controlTag(int tag)
       {
         this->props.controlTag_ = tag;
@@ -219,7 +244,7 @@ namespace loka
       }
       using loka::app::scene::NodeDefinition<ButtonProps, ButtonNode>::create;
     };
-    // DSL向け短縮名
+
     typedef ButtonDefinition Button;
 
     inline ButtonNode *createNode(ButtonProps &props)

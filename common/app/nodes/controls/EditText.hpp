@@ -21,18 +21,20 @@ namespace loka
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
       loka::core::State<loka::core::String> *text_;
-      short toolboxControlId_;
       int controlTag_;
-      EditTextProps() : text_(0), toolboxControlId_(0), controlTag_(0) {}
-      EditTextProps(loka::core::State<loka::core::String> *state) : text_(state), toolboxControlId_(0), controlTag_(0) {}
+      EditTextProps()
+          : text_(0),
+            controlTag_(0)
+      {
+      }
+      EditTextProps(loka::core::State<loka::core::String> *state)
+          : text_(state),
+            controlTag_(0)
+      {
+      }
       EditTextProps &text(loka::core::State<loka::core::String> *state)
       {
         this->text_ = state;
-        return *this;
-      }
-      EditTextProps &toolboxControl(short id)
-      {
-        this->toolboxControlId_ = id;
         return *this;
       }
       EditTextProps &controlTag(int tag)
@@ -47,23 +49,35 @@ namespace loka
         const EditTextProps &other = static_cast<const EditTextProps &>(rhs);
         if (controlTag_ != other.controlTag_)
           return controlTag_ < other.controlTag_;
-        if (toolboxControlId_ != other.toolboxControlId_)
-          return toolboxControlId_ < other.toolboxControlId_;
         return text_ < other.text_;
       }
     };
 
-    class EditTextNode : public scene::Node,
-                         public scene::IProjectedLayoutNode
+    class EditTextNode : public scene::Node, public scene::IProjectedLayoutNode
     {
     public:
       typedef EditTextTypeTag TypeTag;
       EditTextProps props;
-      EditTextNode(const EditTextProps &p) : props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_EDIT_TEXT; }
-      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
-      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<EditTextNode>(); }
-      virtual EditTextNode *asEditTextNode() { return this; }
+      EditTextNode(const EditTextProps &p)
+          : props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_EDIT_TEXT;
+      }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode()
+      {
+        return this;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<EditTextNode>();
+      }
+      virtual EditTextNode *asEditTextNode()
+      {
+        return this;
+      }
       virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
       {
         if (!controller)
@@ -85,16 +99,20 @@ namespace loka
       }
     };
 
-    struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>, public scene::TestIdDslMixin<EditTextDefinition>
+    struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>,
+                                public scene::TestIdDslMixin<EditTextDefinition>
     {
-      EditTextDefinition() : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>() {}
-      EditTextDefinition(const EditTextProps &p) : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(p) {}
-      EditTextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(EditTextProps(state)) {}
-
-      EditTextDefinition &toolboxControl(short id)
+      EditTextDefinition()
+          : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>()
       {
-        this->props.toolboxControlId_ = id;
-        return *this;
+      }
+      EditTextDefinition(const EditTextProps &p)
+          : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(p)
+      {
+      }
+      EditTextDefinition(loka::core::State<loka::core::String> *state)
+          : loka::app::scene::NodeDefinition<EditTextProps, EditTextNode>(EditTextProps(state))
+      {
       }
 
       EditTextDefinition &controlTag(int tag)

@@ -180,8 +180,8 @@ namespace
     short maxId = 0;
     if (loka::app::ButtonNode *button = node->asButtonNode())
     {
-      short id = button->props.toolboxControlId_;
-      if (id <= 0 && button->props.controlTag_ > 0 && button->props.controlTag_ <= 32767)
+      short id = 0;
+      if (button->props.controlTag_ > 0 && button->props.controlTag_ <= 32767)
       {
         id = static_cast<short>(button->props.controlTag_);
       }
@@ -192,8 +192,8 @@ namespace
     }
     if (loka::app::EditTextNode *edit = node->asEditTextNode())
     {
-      short id = edit->props.toolboxControlId_;
-      if (id <= 0 && edit->props.controlTag_ > 0 && edit->props.controlTag_ <= 32767)
+      short id = 0;
+      if (edit->props.controlTag_ > 0 && edit->props.controlTag_ <= 32767)
       {
         id = static_cast<short>(edit->props.controlTag_);
       }

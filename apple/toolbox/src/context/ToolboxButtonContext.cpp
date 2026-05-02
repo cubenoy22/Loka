@@ -108,7 +108,7 @@ short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *contro
   rect.top = static_cast<short>(state.y - state.lineHeight + 2);
   rect.right = static_cast<short>(state.x + width);
   rect.bottom = static_cast<short>(state.y + 6);
-  updateData(label, node_->props.onClick_, node_->props.enabled_, node_->props.toolboxControlId_, node_->props.controlTag_);
+  updateData(label, node_->props.onClick_, node_->props.enabled_, 0, node_->props.controlTag_);
   updateRect(rect);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;
