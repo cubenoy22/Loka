@@ -3,7 +3,7 @@
 ## Core Constraints
 - Loka repository code should remain compatible with the project's target platform constraints; treat C++98 as the baseline unless a narrower file- or platform-specific rule explicitly allows otherwise.
 - Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.
-- Use TypeTag static checks in debug builds; allow overriding with `USE_LOKA_STATIC_ASSERT`. Prefer `static_assert` when C++11+ is available; in C++98 builds, keep them behind `LOKA_*_CHECK_TYPETAG`.
+- Use TypeTag static checks automatically when the compiler supports `static_assert` (C++11+). In C++98 builds, keep optional TypeTag checks behind explicit `LOKA_*_CHECK_TYPETAG` gates so classic/release builds stay lightweight.
 - C++ exceptions are disabled; do not add `try`/`catch` or rely on throwing.
 - Loka applications are single-threaded at the application layer; all UI and DSL logic must execute on the Main Thread. Multi-threading and concurrency are deferred to OS/platform-specific implementations, which must dispatch results back to the Main Thread.
 - Prefer explicit error handling and nothrow/nullable patterns in Classic builds.
