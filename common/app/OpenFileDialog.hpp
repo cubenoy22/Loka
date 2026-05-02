@@ -215,7 +215,7 @@ namespace loka
         }
         return state.y;
       }
-      virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+      virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
       {
         (void)registrar;
       }

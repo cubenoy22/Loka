@@ -252,11 +252,11 @@ namespace loka
       virtual scene::NodeKind kind() const { return scene::NODE_KIND_RECT_SURFACE; }
       virtual RectSurfaceNode *asRectSurfaceNode() { return this; }
 
-      virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
+      virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
         if (this->props.model_)
         {
-          registrar.observe(this->props.model_, scene::NODE_DIRTY_PROPS);
+          registrar.markDirtyOnChange(this->props.model_, scene::NODE_DIRTY_PROPS);
         }
       }
     };

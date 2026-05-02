@@ -33,11 +33,11 @@ namespace loka
         Node *falseNode_;
         ConditionalNode(const ConditionalProps &p);
         ~ConditionalNode();
-        virtual void declareObservedStates(ObservedStateRegistrar &registrar)
+        virtual void declareDirtySources(DirtySourceRegistrar &registrar)
         {
           if (this->props.condition)
           {
-            registrar.observe(this->props.condition, static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
+            registrar.markDirtyOnChange(this->props.condition, static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
           }
         }
         static void onConditionChanged(void *userData);

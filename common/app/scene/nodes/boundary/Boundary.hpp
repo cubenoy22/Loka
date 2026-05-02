@@ -959,13 +959,13 @@ namespace loka
           if (nextBoundary)
           {
             nextBoundary->noteLocalPaintWork();
-            class LocalObservedStateRegistrar : public ObservedStateRegistrar
+            class LocalDirtySourceRegistrar : public DirtySourceRegistrar
             {
             public:
-              explicit LocalObservedStateRegistrar(BoundaryNode *boundary)
+              explicit LocalDirtySourceRegistrar(BoundaryNode *boundary)
                   : boundary_(boundary) {}
 
-              virtual void observe(loka::core::StateBase *state, NodeDirtyFlags flags)
+              virtual void markDirtyOnChange(loka::core::StateBase *state, NodeDirtyFlags flags)
               {
                 if (!boundary_ || !state)
                 {
@@ -978,8 +978,8 @@ namespace loka
             private:
               BoundaryNode *boundary_;
             };
-            LocalObservedStateRegistrar registrar(nextBoundary);
-            node->declareObservedStates(registrar);
+            LocalDirtySourceRegistrar registrar(nextBoundary);
+            node->declareDirtySources(registrar);
           }
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);

@@ -163,11 +163,11 @@ namespace loka
         }
         return scene::Node::layout(controller, state);
       }
-      virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
+      virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
         if (this->props.image_)
         {
-          registrar.observe(this->props.image_, scene::NODE_DIRTY_PROPS);
+          registrar.markDirtyOnChange(this->props.image_, scene::NODE_DIRTY_PROPS);
         }
       }
     };

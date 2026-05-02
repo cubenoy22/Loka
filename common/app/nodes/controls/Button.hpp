@@ -178,15 +178,15 @@ namespace loka
         }
         return loka::app::scene::Node::layout(controller, state);
       }
-      virtual void declareObservedStates(loka::app::scene::ObservedStateRegistrar &registrar)
+      virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
       {
         if (this->props.text_ && !this->props.ownsText_)
         {
-          registrar.observe(this->props.text_, loka::app::scene::NODE_DIRTY_PROPS);
+          registrar.markDirtyOnChange(this->props.text_, loka::app::scene::NODE_DIRTY_PROPS);
         }
         if (this->props.enabled_)
         {
-          registrar.observe(this->props.enabled_, loka::app::scene::NODE_DIRTY_PROPS);
+          registrar.markDirtyOnChange(this->props.enabled_, loka::app::scene::NODE_DIRTY_PROPS);
         }
       }
     };

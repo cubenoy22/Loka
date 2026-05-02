@@ -44,7 +44,7 @@ Reading rule:
   - `NODE_DIRTY_LAYOUT`: サイズ・配置への影響あり
   - `NODE_DIRTY_CHILD`: 子ノード構造の変化
 - **Node/NativeContext はタイマーや遅延処理を持たない**。dirty の種別判定に専念する。
-- 各 Node は `declareObservedStates(...)` で **state -> dirty flags** を明示的に申告する。
+- 各 Node は `declareDirtySources(...)` で **state -> dirty flags** を明示的に申告する。
   - 例: wrap あり `Text.text` は `NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT`
   - 例: `Button.enabled` は `NODE_DIRTY_PROPS`
   - 例: `Conditional.visible` は `NODE_DIRTY_CHILD`

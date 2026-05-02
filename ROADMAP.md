@@ -80,6 +80,8 @@ In practice, that means `v0.1.0` should ideally reach the point where:
 * New node/control behavior does not require `PlatformController` growth by default.
 * New retained layout/container behavior can follow shared layout helpers and internal layout handler seams rather than ad-hoc platform branches.
 * `Boundary` responsibilities are understood well enough that future Menu/Window DSL work can reuse the same kernel ideas instead of inventing separate update/apply models.
+* A more complete real application has exercised the app-wide ownership model enough to design Repository/ApplicationScope-style access deliberately, without turning `App` itself into a `BoundaryNode`.
+* App/window platform conventions, such as application-wide menus on macOS/Classic Mac and window-attached menus on Win32, are captured as explicit policy instead of implicit platform code.
 * The current Win32/macOS internal seams are documented and tested well enough that Toolbox can follow later without changing the public controller contract.
 * Contribution paths are visible: examples, docs, and tests should show where custom nodes, handlers, and future layout extensions belong.
 
@@ -92,6 +94,7 @@ Practical interpretation:
 
 * until `v0.1.x`, Loka should prioritize proving that its core architectural model is coherent across current targets over maximizing platform count or control count
 * new work before `v0.1.0` should primarily strengthen the model, seams, and examples rather than widen the surface area prematurely
+* Repository/ApplicationScope design should be driven by a real application built after `v0.0.1`, so app-owned services, window-owned state, and scene `Boundary` access are separated by actual usage pressure
 
 ### Planned
 

@@ -111,7 +111,7 @@ namespace loka
       class ComposableNode;
       class BoundaryNode;
       class IStateOwner;
-      struct ObservedStateRegistrar;
+      struct DirtySourceRegistrar;
 
       template <typename NodeT>
       struct NodeTypeTokenStorage
@@ -267,7 +267,7 @@ namespace loka
         virtual ::loka::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
         virtual ::loka::app::ImageViewNode *asImageViewNode() { return 0; }
         virtual ::loka::app::RectSurfaceNode *asRectSurfaceNode() { return 0; }
-        virtual void declareObservedStates(ObservedStateRegistrar &) {}
+        virtual void declareDirtySources(DirtySourceRegistrar &) {}
         // Generic interface query (for findBoundary without RTTI)
         virtual void *queryInterface(const char *name) { (void)name; return 0; }
         virtual void render(IPlatformController *controller)
@@ -311,12 +311,11 @@ namespace loka
         NodeTag nodeTag() const { return nodeTag_; }
       };
 
-      struct ObservedStateRegistrar
+      struct DirtySourceRegistrar
       {
-        virtual ~ObservedStateRegistrar() {}
-        // `flags` is reserved for future fine-grained dirty routing
-        // (e.g. CHILD/LAYOUT/PROPS) once Boundary tracks observed-state categories.
-        virtual void observe(loka::core::StateBase *state, NodeDirtyFlags flags) = 0;
+        virtual ~DirtySourceRegistrar() {}
+        // Register a live state as a source of the given dirty flags.
+        virtual void markDirtyOnChange(loka::core::StateBase *state, NodeDirtyFlags flags) = 0;
       };
 
       // --- Generic Props base ---

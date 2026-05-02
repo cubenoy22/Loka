@@ -2234,7 +2234,7 @@ Loka を読み書きするときは、常に次の順で考えると整理しや
 - `this->state(...)` と `NodeState<T>` の実践
 - `Boundary` の attach / compose の流れ
 - `StdComposition` と `Boundary` の使い分け
-- `ObservedStateRegistrar` による観測
+- `DirtySourceRegistrar` による dirty source 宣言
 - `StateTrackerGuard` と更新規約
 - `Props` と `Definition` の設計方針
 - Scene / Projection transaction による platform 反映の考え方

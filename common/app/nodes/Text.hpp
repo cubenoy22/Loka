@@ -289,7 +289,7 @@ namespace loka
         }
         return scene::Node::layout(controller, state);
       }
-      virtual void declareObservedStates(scene::ObservedStateRegistrar &registrar)
+      virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
         if (this->props.text_ && !this->props.ownsText)
         {
@@ -300,11 +300,11 @@ namespace loka
           {
             textFlags = static_cast<scene::NodeDirtyFlags>(textFlags | scene::NODE_DIRTY_LAYOUT);
           }
-          registrar.observe(this->props.text_, textFlags);
+          registrar.markDirtyOnChange(this->props.text_, textFlags);
         }
         if (this->props.hasAttr_ && this->props.attr_.fontSizeState_)
         {
-          registrar.observe(this->props.attr_.fontSizeState_, scene::NODE_DIRTY_LAYOUT);
+          registrar.markDirtyOnChange(this->props.attr_.fontSizeState_, scene::NODE_DIRTY_LAYOUT);
         }
       }
     };
