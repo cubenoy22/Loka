@@ -10,9 +10,8 @@ App::App(AppConfigurable *config)
     : group_(0),
       quitWhenLastWindowClosed_(true),
       config_(config),
-      menuBar_(0),
+      menuController_(config, &App::ApplyMenuBarThunk, this),
       activeWindow_(0),
-      menuRefresh_(),
       idleAccumulatedSeconds_(0.0)
 {
 }
@@ -20,30 +19,14 @@ App::App(AppConfigurable *config)
 App::~App()
 {
   delete group_;
-  delete menuBar_;
 }
 
-static void MenuInvalidateThunk(void *userData)
+void App::ApplyMenuBarThunk(void *userData, Window *activeWindow)
 {
   App *app = static_cast<App *>(userData);
   if (app)
   {
-    app->requestMenuInvalidation();
-  }
-}
-
-bool App::MenuRefreshThunk(void *userData)
-{
-  App *app = static_cast<App *>(userData);
-  return app ? app->refreshDefaultMenuBar() : false;
-}
-
-void App::MenuApplyThunk(void *userData)
-{
-  App *app = static_cast<App *>(userData);
-  if (app)
-  {
-    app->applyMenuBar(app->activeWindow());
+    app->applyMenuBar(activeWindow);
   }
 }
 
@@ -53,7 +36,7 @@ void App::run()
   {
     AppComposition composition(config_->getPlatformContext());
     config_->compose(composition);
-    refreshDefaultMenuBar();
+    menuController_.refreshDefaultMenuBar();
     group_ = new AppComponentGroup(composition.build());
   }
   reflectInitialVisibilityChunks();
@@ -209,45 +192,27 @@ bool App::handleMenuCommand(int commandId, Window *window)
 
 void App::invalidateMenu()
 {
-  requestMenuInvalidation();
-  flushMenuInvalidation();
+  menuController_.invalidate(activeWindow_);
 }
 
 void App::requestMenuInvalidation()
 {
-  menuRefresh_.request();
+  menuController_.requestInvalidation();
 }
 
 bool App::flushMenuInvalidation()
 {
-  return menuRefresh_.run(&MenuRefreshThunk, &MenuApplyThunk, this);
+  return menuController_.flushInvalidation(activeWindow_);
 }
 
 void App::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar)
 {
-  if (menuBar_)
-  {
-    delete menuBar_;
-    menuBar_ = 0;
-  }
-  if (menuBar)
-  {
-    menuBar_ = menuBar->clone();
-  }
-  applyMenuBar(activeWindow_);
+  menuController_.setDefaultMenuBar(menuBar, activeWindow_);
 }
 
 const loka::app::MenuBarDefinition *App::resolveMenuBar(Window *window)
 {
-  if (window && window->menuBar())
-  {
-    return window->menuBar();
-  }
-  if (!menuDiff_.valid)
-  {
-    refreshDefaultMenuBar();
-  }
-  return menuBar_;
+  return menuController_.resolveMenuBar(window);
 }
 
 void App::setActiveWindow(Window *window)
@@ -267,94 +232,10 @@ void App::applyMenuBar(Window *activeWindow)
 
 bool App::refreshDefaultMenuBar()
 {
-  if (!config_)
-  {
-    return false;
-  }
-  loka::app::MenuBarDefinition menuBar;
-  loka::app::MenuComposition menuComposition(&menuBar);
-  menuComposition.setInvalidateCallback(&MenuInvalidateThunk, this);
-  config_->composeMenu(menuComposition);
-  menuComposition.finish();
-  std::vector<size_t> dirtyMenus;
-  menuComposition.takeDirtyMenuIndices(dirtyMenus);
-  if (menuBar.empty())
-  {
-    menuDiff_.clear();
-    if (menuBar_)
-    {
-      delete menuBar_;
-      menuBar_ = 0;
-      menuDiff_.valid = true;
-      menuDiff_.fullRebuild = true;
-      return true;
-    }
-    return false;
-  }
-  bool diffAttempted = false;
-  bool diffResult = false;
-  if (!menuBar_)
-  {
-    menuDiff_.valid = true;
-    menuDiff_.fullRebuild = true;
-  }
-  else
-  {
-    diffAttempted = true;
-    diffResult = loka::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, menuDiff_);
-    if (!diffResult)
-    {
-      menuDiff_.clear();
-      if (dirtyMenus.empty())
-      {
-        return false;
-      }
-    }
-  }
-  if (!dirtyMenus.empty())
-  {
-    menuDiff_.valid = true;
-    if (menuDiff_.fullRebuild && diffAttempted && !diffResult)
-    {
-      menuDiff_.fullRebuild = false;
-    }
-    if (!menuDiff_.fullRebuild)
-    {
-      for (size_t i = 0; i < dirtyMenus.size(); ++i)
-      {
-        bool exists = false;
-        loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> it(menuDiff_.changedHead(),
-                                                                                      menuDiff_.changedCount());
-        for (loka::app::MenuCompositionDiff::ChangedIndex *entry = it.next(); entry; entry = it.next())
-        {
-          if (entry->value == dirtyMenus[i])
-          {
-            exists = true;
-            break;
-          }
-        }
-        if (!exists)
-        {
-          menuDiff_.addChanged(dirtyMenus[i]);
-        }
-      }
-    }
-  }
-  if (!menuBar_ || menuDiff_.valid)
-  {
-    if (menuBar_)
-    {
-      delete menuBar_;
-      menuBar_ = 0;
-    }
-    menuBar_ = menuBar.clone();
-    return true;
-  }
-  menuDiff_.clear();
-  return false;
+  return menuController_.refreshDefaultMenuBar();
 }
 
 void App::clearMenuDiff()
 {
-  menuDiff_.clear();
+  menuController_.clearDiff();
 }

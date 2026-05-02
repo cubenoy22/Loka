@@ -4,8 +4,8 @@
 #include "app/core/AppComponentGroup.hpp"
 #include "app/core/AppComponent.hpp"
 #include "app/core/AppConfigurable.hpp"
+#include "app/core/MenuController.hpp"
 #include "app/Menu.hpp"
-#include "loka/dsl/NextTickTracker.hpp"
 #include <cassert>
 
 class Window;
@@ -34,7 +34,7 @@ public:
   void setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar);
   const loka::app::MenuBarDefinition *defaultMenuBar() const
   {
-    return menuBar_;
+    return menuController_.defaultMenuBar();
   }
   void setActiveWindow(Window *window);
   Window *activeWindow() const
@@ -46,10 +46,8 @@ protected:
   AppComponentGroup *group_;
   bool quitWhenLastWindowClosed_;
   AppConfigurable *config_;
-  loka::app::MenuBarDefinition *menuBar_;
+  MenuController menuController_;
   Window *activeWindow_;
-  loka::dsl::NextTickTracker menuRefresh_;
-  loka::app::MenuCompositionDiff menuDiff_;
   double idleAccumulatedSeconds_;
 
   const loka::app::MenuBarDefinition *resolveMenuBar(Window *window);
@@ -58,7 +56,7 @@ protected:
 
   const loka::app::MenuCompositionDiff &menuDiff() const
   {
-    return menuDiff_;
+    return menuController_.diff();
   }
   void clearMenuDiff();
 
@@ -66,8 +64,7 @@ protected:
   void flushWindowInvalidations();
 
 private:
-  static bool MenuRefreshThunk(void *userData);
-  static void MenuApplyThunk(void *userData);
+  static void ApplyMenuBarThunk(void *userData, Window *activeWindow);
 };
 
 #endif // LOKA_APP_HPP

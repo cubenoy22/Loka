@@ -25,7 +25,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxPlatformContext.cpp
 )
 
-file(GLOB_RECURSE COMMON_SOURCES ${PROJECT_SOURCE_DIR}/common/*.cpp)
+file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/common/*.cpp)
 
 add_library(LokaAppleToolboxCore STATIC ${LOKA_TOOLBOX_SOURCES} ${COMMON_SOURCES})
 
