@@ -96,7 +96,6 @@ bool App::handleKeyPress(char key)
   return config_ ? config_->handleKeyPress(key) : false;
 }
 
-// --- visibility chunk反映をprivate関数に分離 ---
 void App::reflectInitialVisibilityChunks()
 {
   if (!group_)
@@ -139,7 +138,6 @@ void App::flushWindowInvalidations()
   }
 }
 
-// App::windowClosed の実装
 void App::windowClosed(Window *window)
 {
   if (!group_ || !window)
