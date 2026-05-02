@@ -47,7 +47,9 @@ namespace loka
             selectedIndex_(0),
             enabled_(0),
             onChange_(0),
-            controlTag_(0) {}
+            controlTag_(0)
+      {
+      }
       PopupMenuProps(const PopupMenuProps &other)
           : items_(other.items_),
             ownedItems_(other.ownedItems_),
@@ -133,10 +135,22 @@ namespace loka
         return *this;
       }
 
-      virtual const loka::Vector<loka::core::String> *getItems() const { return items_; }
-      virtual loka::core::State<int> *getSelectedIndex() const { return selectedIndex_; }
-      virtual loka::core::State<bool> *getEnabled() const { return enabled_; }
-      virtual loka::core::EmitterState *getOnChange() const { return onChange_; }
+      virtual const loka::Vector<loka::core::String> *getItems() const
+      {
+        return items_;
+      }
+      virtual loka::core::State<int> *getSelectedIndex() const
+      {
+        return selectedIndex_;
+      }
+      virtual loka::core::State<bool> *getEnabled() const
+      {
+        return enabled_;
+      }
+      virtual loka::core::EmitterState *getOnChange() const
+      {
+        return onChange_;
+      }
 
       int hash() const
       {
@@ -217,18 +231,33 @@ namespace loka
       }
     };
 
-    class PopupMenuNode : public loka::app::scene::Node,
-                          public loka::app::scene::IProjectedLayoutNode
+    class PopupMenuNode : public loka::app::scene::Node, public loka::app::scene::IProjectedLayoutNode
     {
     public:
       typedef PopupMenuTypeTag TypeTag;
       PopupMenuProps props;
-      PopupMenuNode(const PopupMenuProps &p) : props(p) {}
-      virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_POPUP_MENU; }
-      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
-      virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<PopupMenuNode>(); }
-      virtual PopupMenuNode *asPopupMenuNode() { return this; }
-      virtual short layoutProjected(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
+      PopupMenuNode(const PopupMenuProps &p)
+          : props(p)
+      {
+      }
+      virtual loka::app::scene::NodeKind kind() const
+      {
+        return loka::app::scene::NODE_KIND_POPUP_MENU;
+      }
+      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode()
+      {
+        return this;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return loka::app::scene::NodeTypeToken<PopupMenuNode>();
+      }
+      virtual PopupMenuNode *asPopupMenuNode()
+      {
+        return this;
+      }
+      virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
+                                    loka::app::scene::LayoutState &state)
       {
         if (!controller)
         {
@@ -253,19 +282,29 @@ namespace loka
       }
     };
 
-    struct PopupMenuDefinition : public loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>, public loka::app::scene::TestIdDslMixin<PopupMenuDefinition>
+    struct PopupMenuDefinition : public loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>,
+                                 public loka::app::scene::TestIdDslMixin<PopupMenuDefinition>
     {
-      PopupMenuDefinition() : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>() {}
-      PopupMenuDefinition(const PopupMenuProps &p) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>(p) {}
-      PopupMenuDefinition(const loka::Vector<loka::core::String> &items) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
+      PopupMenuDefinition()
+          : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
+      {
+      }
+      PopupMenuDefinition(const PopupMenuProps &p)
+          : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>(p)
+      {
+      }
+      PopupMenuDefinition(const loka::Vector<loka::core::String> &items)
+          : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
       {
         this->props.items(items);
       }
-      PopupMenuDefinition(const loka::Vector<loka::core::String> *items) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
+      PopupMenuDefinition(const loka::Vector<loka::core::String> *items)
+          : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
       {
         this->props.items(items);
       }
-      PopupMenuDefinition(const char **items, std::size_t count) : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
+      PopupMenuDefinition(const char **items, std::size_t count)
+          : loka::app::scene::NodeDefinition<PopupMenuProps, PopupMenuNode>()
       {
         this->props.items(items, count);
       }

@@ -23,9 +23,18 @@ namespace loka
       loka::core::MutableState<loka::core::String> ownedText_;
       bool ownsText_;
       loka::core::EmitterState *onClick_;
-      CellProps() : text_(0), ownedText_(), ownsText_(false), onClick_(0) {}
+      CellProps()
+          : text_(0),
+            ownedText_(),
+            ownsText_(false),
+            onClick_(0)
+      {
+      }
       CellProps(const CellProps &other)
-          : text_(other.text_), ownedText_(other.ownedText_), ownsText_(other.ownsText_), onClick_(other.onClick_)
+          : text_(other.text_),
+            ownedText_(other.ownedText_),
+            ownsText_(other.ownsText_),
+            onClick_(other.onClick_)
       {
         if (ownsText_)
         {
@@ -82,17 +91,31 @@ namespace loka
       }
     };
 
-    class CellNode : public scene::Node,
-                     public scene::IProjectedLayoutNode
+    class CellNode : public scene::Node, public scene::IProjectedLayoutNode
     {
     public:
       typedef CellTypeTag TypeTag;
       CellProps props;
-      CellNode(const CellProps &p) : props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_CELL; }
-      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
-      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<CellNode>(); }
-      virtual CellNode *asCellNode() { return this; }
+      CellNode(const CellProps &p)
+          : props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_CELL;
+      }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode()
+      {
+        return this;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<CellNode>();
+      }
+      virtual CellNode *asCellNode()
+      {
+        return this;
+      }
       virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
       {
         if (!controller)
@@ -114,15 +137,24 @@ namespace loka
       }
     };
 
-    struct CellDefinition : public scene::NodeDefinition<CellProps, CellNode>, public scene::TestIdDslMixin<CellDefinition>
+    struct CellDefinition : public scene::NodeDefinition<CellProps, CellNode>,
+                            public scene::TestIdDslMixin<CellDefinition>
     {
-      CellDefinition() : loka::app::scene::NodeDefinition<CellProps, CellNode>() {}
-      CellDefinition(const CellProps &p) : loka::app::scene::NodeDefinition<CellProps, CellNode>(p) {}
-      CellDefinition(const char *text) : loka::app::scene::NodeDefinition<CellProps, CellNode>()
+      CellDefinition()
+          : loka::app::scene::NodeDefinition<CellProps, CellNode>()
+      {
+      }
+      CellDefinition(const CellProps &p)
+          : loka::app::scene::NodeDefinition<CellProps, CellNode>(p)
+      {
+      }
+      CellDefinition(const char *text)
+          : loka::app::scene::NodeDefinition<CellProps, CellNode>()
       {
         this->props.text(text);
       }
-      CellDefinition(loka::core::State<loka::core::String> *text) : loka::app::scene::NodeDefinition<CellProps, CellNode>()
+      CellDefinition(loka::core::State<loka::core::String> *text)
+          : loka::app::scene::NodeDefinition<CellProps, CellNode>()
       {
         this->props.text_ = text;
       }
