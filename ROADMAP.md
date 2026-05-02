@@ -82,6 +82,7 @@ In practice, that means `v0.1.0` should ideally reach the point where:
 * `Boundary` responsibilities are understood well enough that future Menu/Window DSL work can reuse the same kernel ideas instead of inventing separate update/apply models.
 * A more complete real application has exercised the app-wide ownership model enough to design Repository/ApplicationScope-style access deliberately, without turning `App` itself into a `BoundaryNode`.
 * App/window platform conventions, such as application-wide menus on macOS/Classic Mac and window-attached menus on Win32, are captured as explicit policy instead of implicit platform code.
+* CMake targets reflect the major module boundaries instead of each platform target compiling all of `common/*.cpp` directly. Start with `LokaCommon`, then split toward `LokaCore`, `LokaDsl`, `LokaApp`, and future optional modules as dependencies become clear.
 * The current Win32/macOS internal seams are documented and tested well enough that Toolbox can follow later without changing the public controller contract.
 * Contribution paths are visible: examples, docs, and tests should show where custom nodes, handlers, and future layout extensions belong.
 
