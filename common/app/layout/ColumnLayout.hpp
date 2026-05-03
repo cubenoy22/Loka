@@ -57,8 +57,8 @@ namespace loka
         }
         return currentY;
       }
-    }
-  }
-}
+    } // namespace layout
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_APP_LAYOUT_COLUMN_LAYOUT_HPP

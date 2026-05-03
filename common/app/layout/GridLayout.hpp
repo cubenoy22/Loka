@@ -15,7 +15,11 @@ namespace loka
         int gapX;
         int gapY;
 
-        GridLayoutMetrics() : gapX(0), gapY(0) {}
+        GridLayoutMetrics()
+            : gapX(0),
+              gapY(0)
+        {
+        }
       };
 
       template <typename LayoutStateT>
@@ -62,8 +66,8 @@ namespace loka
         }
         return maxY;
       }
-    }
-  }
-}
+    } // namespace layout
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_APP_LAYOUT_GRID_LAYOUT_HPP
