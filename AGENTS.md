@@ -1,5 +1,10 @@
 # Project rules
 
+For proposal and design judgment, also follow [PHILOSOPHY.md](PHILOSOPHY.md).
+When choosing between plausible implementations, prefer the option that best
+matches Loka's philosophy of meaningful app-facing code, explicit ownership,
+clear boundaries, and small reusable concepts.
+
 ## Core Constraints
 - Loka repository code should remain compatible with the project's target platform constraints; treat C++98 as the baseline unless a narrower file- or platform-specific rule explicitly allows otherwise.
 - Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.

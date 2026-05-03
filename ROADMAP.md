@@ -96,6 +96,7 @@ Practical interpretation:
 * until `v0.1.x`, Loka should prioritize proving that its core architectural model is coherent across current targets over maximizing platform count or control count
 * new work before `v0.1.0` should primarily strengthen the model, seams, and examples rather than widen the surface area prematurely
 * Repository/ApplicationScope design should be driven by a real application built after `v0.0.1`, so app-owned services, window-owned state, and scene `Boundary` access are separated by actual usage pressure
+* after `v0.0.1`, scale up through real application work toward the long-term app-layer proof: Loka should be able to support professional applications that are awkward or fragile to build on existing frameworks, while keeping the application's core meaning portable and inspectable
 
 ### Planned
 
@@ -113,6 +114,19 @@ Practical interpretation:
 
   * `LazyList` (planned)
   * Additional layout primitives and common widgets
+* **Early authoring and animation surface**
+
+  * Add a small first-pass animation/property surface that can express simple
+    movement, timing, and state-driven transitions without committing to the
+    final multimedia/game API shape.
+  * Keep animation intent explicit about where work is projected, such as
+    platform/CPU drawing versus future composition/GPU-backed paths, so the
+    application remains understandable instead of relying on hidden runtime
+    policy.
+  * Validate that Loka can support lightweight HyperCard-style software:
+    card/stack-like screens, simple interactions, stateful widgets, scripted or
+    Flow-driven actions, and portable authoring patterns that can later scale
+    toward games, video tools, and professional applications.
 * **Project infrastructure (minimum)**
 
   * Transfer repository to the **Loka GitHub organization**
