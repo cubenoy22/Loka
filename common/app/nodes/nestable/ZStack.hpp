@@ -31,18 +31,43 @@ namespace loka
     public:
       typedef ZStackTypeTag TypeTag;
       ZStackProps props;
-      ZStackNode(const ZStackProps &p) : scene::NestableNode(), props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_ZSTACK; }
-      virtual ZStackNode *asZStackNode() { return this; }
+      ZStackNode(const ZStackProps &p)
+          : scene::NestableNode(),
+            props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_ZSTACK;
+      }
+      virtual ZStackNode *asZStackNode()
+      {
+        return this;
+      }
     };
 
-    struct ZStackDefinition : public scene::NodeDefinition<ZStackProps, ZStackNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<ZStackDefinition>, public scene::TestIdDslMixin<ZStackDefinition>
+    struct ZStackDefinition : public scene::NodeDefinition<ZStackProps, ZStackNode>,
+                              public scene::NestableDefinitionBase,
+                              public scene::NestableDslMixin<ZStackDefinition>,
+                              public scene::TestIdDslMixin<ZStackDefinition>
     {
       typedef scene::NodeDefinition<ZStackProps, ZStackNode> BaseType;
       using scene::NestableDslMixin<ZStackDefinition>::operator<<;
-      ZStackDefinition() : BaseType(), scene::NestableDefinitionBase() {}
-      ZStackDefinition(const ZStackProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
-      ZStackDefinition(const ZStackDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
+      ZStackDefinition()
+          : BaseType(),
+            scene::NestableDefinitionBase()
+      {
+      }
+      ZStackDefinition(const ZStackProps &p)
+          : BaseType(p),
+            scene::NestableDefinitionBase()
+      {
+      }
+      ZStackDefinition(const ZStackDefinition &other)
+          : BaseType(other),
+            scene::NestableDefinitionBase(other)
+      {
+      }
       ZStackDefinition &operator=(const ZStackDefinition &other)
       {
         if (this != &other)
@@ -56,8 +81,14 @@ namespace loka
       {
         return new ZStackDefinition(*this);
       }
-      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition()
+      {
+        return this;
+      }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
+      {
+        return this;
+      }
     };
 
     typedef ZStackDefinition ZStack;

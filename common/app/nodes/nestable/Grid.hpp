@@ -19,8 +19,16 @@ namespace loka
       typedef GridNode NodeType;
       short rows;
       short cols;
-      GridProps() : rows(1), cols(1) {}
-      GridProps(short r, short c) : rows(r), cols(c) {}
+      GridProps()
+          : rows(1),
+            cols(1)
+      {
+      }
+      GridProps(short r, short c)
+          : rows(r),
+            cols(c)
+      {
+      }
       bool operator<(const scene::PropsBase &rhs) const
       {
         if (rhs.propsTypeId() != propsTypeId())
@@ -39,18 +47,43 @@ namespace loka
     public:
       typedef GridTypeTag TypeTag;
       GridProps props;
-      GridNode(const GridProps &p) : scene::NestableNode(), props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_GRID; }
-      virtual GridNode *asGridNode() { return this; }
+      GridNode(const GridProps &p)
+          : scene::NestableNode(),
+            props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_GRID;
+      }
+      virtual GridNode *asGridNode()
+      {
+        return this;
+      }
     };
 
-    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<GridDefinition>, public scene::TestIdDslMixin<GridDefinition>
+    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>,
+                            public scene::NestableDefinitionBase,
+                            public scene::NestableDslMixin<GridDefinition>,
+                            public scene::TestIdDslMixin<GridDefinition>
     {
       typedef scene::NodeDefinition<GridProps, GridNode> BaseType;
       using scene::NestableDslMixin<GridDefinition>::operator<<;
-      GridDefinition() : BaseType(), NestableDefinitionBase() {}
-      GridDefinition(const GridProps &p) : BaseType(p), NestableDefinitionBase() {}
-      GridDefinition(const GridDefinition &other) : BaseType(other), NestableDefinitionBase(other) {}
+      GridDefinition()
+          : BaseType(),
+            NestableDefinitionBase()
+      {
+      }
+      GridDefinition(const GridProps &p)
+          : BaseType(p),
+            NestableDefinitionBase()
+      {
+      }
+      GridDefinition(const GridDefinition &other)
+          : BaseType(other),
+            NestableDefinitionBase(other)
+      {
+      }
       GridDefinition &operator=(const GridDefinition &other)
       {
         if (this != &other)
@@ -60,9 +93,18 @@ namespace loka
         }
         return *this;
       }
-      virtual scene::NodeDefinitionBase *clone() const { return new GridDefinition(*this); }
-      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::NodeDefinitionBase *clone() const
+      {
+        return new GridDefinition(*this);
+      }
+      virtual scene::INestableDefinition *asNestableDefinition()
+      {
+        return this;
+      }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
+      {
+        return this;
+      }
       GridDefinition &rows(short value)
       {
         this->props.rows = value;
