@@ -76,7 +76,6 @@ c.declare(VStack()
 ```
 
 Notes:
-- `Group` nodes are non-boundary and use the nearest Boundary as `stateOwner`.
 - If a Scene root is non-boundary, it is wrapped by `RootBoundaryWrapper`.
 
 ## App Composition (WindowDef)
@@ -128,29 +127,6 @@ using namespace loka::app;
 
 Text *label = c.group(Text("Reusable"));
 c.declare(VStack() << *label << *label);
-```
-
-`Group` is a non-boundary composable node. Use it when you want compose-time grouping
-without owning state.
-
-```cpp
-#include "app/scene/node/Group.hpp"
-#include "app/nodes/Text.hpp"
-
-using namespace loka::app::scene;
-using namespace loka::app;
-
-class MyGroup : public GroupNodeBase<GroupPropsFor<MyGroup> >
-{
-public:
-  typedef GroupPropsFor<MyGroup> PropsType;
-  MyGroup(const PropsType &p) : GroupNodeBase<GroupPropsFor<MyGroup> >(p) {}
-
-  virtual void composeNode(NodeComposition &c)
-  {
-    c.declare(Text("Grouped content"));
-  }
-};
 ```
 
 Use scopes when you need to temporarily change the active parent or capture the current composition.
