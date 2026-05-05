@@ -1,12 +1,10 @@
 #ifndef LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 #define LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 
-#include <vector>
+#include "app/scene/BoundaryInnerStateOwner.hpp"
 #include "app/scene/NodeState.hpp"
-#include "app/scene/StateOwner.hpp"
 #include "app/scene/nodes/boundary/Boundary.hpp"
 #include "app/scene/node/ComposableNode.hpp"
-#include "loka/core/StateTracker.hpp"
 
 namespace loka
 {
@@ -35,27 +33,25 @@ namespace loka
       };
 
       template <class PropsT>
-      class HeadlessNodeBase : public ComposableNode, public IStateOwner
+      class HeadlessNodeBase : public ComposableNode
       {
       public:
         typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
 
         HeadlessNodeBase(const PropsT &p)
-            : ComposableNode(), props(p), tracker_(), ownedStates_(), composed_(false)
+            : ComposableNode(), props(p), stateOwner_(), composed_(false)
         {
-          this->tracker_.setInvalidateCallback(&HeadlessNodeBase::InvalidateThunk, this);
+          this->stateOwner_.setInvalidateCallback(&HeadlessNodeBase::InvalidateThunk, this);
         }
 
         virtual ~HeadlessNodeBase()
         {
           this->clearChildren();
           this->releaseNodeStateRegistrations();
-          this->clearOwnedStates();
         }
 
-        virtual IStateOwner *asStateOwner() { return this; }
-        virtual loka::core::StateTracker *tracker() { return &this->tracker_; }
+        virtual IStateOwner *asStateOwner() { return &this->stateOwner_; }
         virtual void composeNode(NodeComposition &c) { (void)c; }
 
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
@@ -106,84 +102,6 @@ namespace loka
           composed_ = true;
         }
 
-        virtual void adoptState(loka::core::StateBase *state)
-        {
-          if (!state)
-          {
-            return;
-          }
-          this->ownedStates_.push_back(state);
-          this->tracker_.addState(state);
-        }
-
-        virtual void adoptStateUnchecked(loka::core::StateBase *state)
-        {
-          if (!state)
-          {
-            return;
-          }
-          this->ownedStates_.push_back(state);
-          this->tracker_.addStateUnchecked(state);
-        }
-
-        virtual void releaseState(loka::core::StateBase *state)
-        {
-          if (!state)
-          {
-            return;
-          }
-          for (size_t i = 0; i < this->ownedStates_.size();)
-          {
-            if (this->ownedStates_[i] == state)
-            {
-              this->ownedStates_.erase(this->ownedStates_.begin() + i);
-            }
-            else
-            {
-              ++i;
-            }
-          }
-          this->tracker_.removeState(state);
-          if (!state->isArenaAllocated())
-          {
-            delete state;
-          }
-        }
-
-        virtual void reserveStates(size_t count)
-        {
-          this->ownedStates_.reserve(this->ownedStates_.size() + count);
-          this->tracker_.reserveStates(count);
-        }
-
-        virtual void reserveStateArena(size_t totalSize)
-        {
-          (void)totalSize;
-        }
-
-        virtual void *allocateStateMemory(size_t size, size_t align)
-        {
-          (void)size;
-          (void)align;
-          return 0;
-        }
-
-        virtual void registerStateMemory(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
-        {
-          (void)state;
-          (void)destroy;
-        }
-
-      protected:
-        void clearOwnedStates()
-        {
-          for (size_t i = 0; i < this->ownedStates_.size(); ++i)
-          {
-            delete this->ownedStates_[i];
-          }
-          this->ownedStates_.clear();
-        }
-
       private:
         struct ComposeBridge : public BoundaryNode
         {
@@ -208,8 +126,7 @@ namespace loka
           attached->boundary()->markViewDirty(NODE_DIRTY_CHILD);
         }
 
-        loka::core::PushStateTracker tracker_;
-        std::vector<loka::core::StateBase *> ownedStates_;
+        BoundaryInnerStateOwner stateOwner_;
         bool composed_;
       };
 
