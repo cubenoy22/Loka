@@ -282,6 +282,56 @@ Boundary: CounterPanel
 この見方を先に持っておくと、
 `NodeState<T>`、`declareStates()`、`FlowSlot`、`currentBoundary()` の意味が追いやすくなります。
 
+### UI を持たない ownership scope
+
+複雑なアプリケーションでは、画面に直接表示される UI 部品だけでなく、
+状態、Flow、リソース、入力処理、変換処理をまとめるための
+「UI を持たない ownership scope」が欲しくなることがあります。
+
+この考え方はまだ安定した公開 API として扱う段階ではありません。
+現時点の `Headless` は tests/support 側の検証用ヘルパーに留め、
+production-facing な `common/` API としては出さない方針です。
+ただし意図としては重要です。
+
+UI を持たない scope は、見た目を持たないまま composition tree に参加し、
+subtree に属する state と logic の置き場所を明示するためのものです。
+React であれば custom hook、Context Provider、画面に出ない component、
+model/controller 的なクラスに分散しがちな責務を、
+Loka では Node として tree 上に置くことで、
+どの lifecycle に属する処理なのかを追いやすくできます。
+
+たとえば概念的には次のような形です。
+
+```text
+Boundary: SearchPanel
+  |
+  +-- Logic/Scope Node: SearchModel
+  |     state:
+  |       - query
+  |       - loading
+  |       - results
+  |     flow:
+  |       - request/search/update results
+  |
+  +-- TextInputNode
+  +-- SearchButtonNode
+  +-- ResultsListNode
+```
+
+この場合、`SearchModel` は描画しません。
+しかし「検索に関する state と logic はこの subtree のもの」という事実を
+composition tree の中で表現できます。
+
+これは `Boundary` を増やすほど大きな区切りではないが、
+単なる helper object や自由な global state に逃がしたくない場合の
+中間的な所有単位になり得ます。
+
+将来、正式な名前や API は `LogicNode`、`ModelNode`、`ScopeNode`、
+`BoundaryInnerStateOwner`、または resource scope のような形に変わる可能性があります。
+重要なのは名前ではなく、
+UI を持たない state + logic owner であっても、
+Loka では ownership と lifecycle を tree 上で見える形に保つ、という考え方です。
+
 ## 4. Loka における主な State の種類
 
 ### `State<T>`

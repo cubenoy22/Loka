@@ -2,10 +2,10 @@
 #define LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 
 #include <vector>
-#include "../NodeState.hpp"
-#include "../StateOwner.hpp"
-#include "../nodes/boundary/Boundary.hpp"
-#include "ComposableNode.hpp"
+#include "app/scene/NodeState.hpp"
+#include "app/scene/StateOwner.hpp"
+#include "app/scene/nodes/boundary/Boundary.hpp"
+#include "app/scene/node/ComposableNode.hpp"
 #include "loka/core/StateTracker.hpp"
 
 namespace loka

@@ -32,6 +32,8 @@ Focus:
 * Reduce friction during rapid iteration
 * Improve correctness and portability
 * Make builds reproducible and predictable
+* Use `0.0.1` as a first public "does the model work?" release, then tighten
+  early lifecycle and ownership contracts in `0.0.2`
 
 ### Planned
 
@@ -40,6 +42,10 @@ Focus:
   * Memory safety improvements and leak fixes
   * Rendering correctness and layout fixes
   * Performance tuning where it matters (layout, diffing, redraw)
+  * Define Boundary-inner state ownership and conditional subtree lifetime
+    policy: introduce a shared `IStateOwner` implementation for owner scopes
+    shorter than a Boundary, and make `Show`/conditional retain-vs-destroy
+    behavior explicit.
 * Documentation cleanup
 
   * Consolidate DSL and API quick-start docs

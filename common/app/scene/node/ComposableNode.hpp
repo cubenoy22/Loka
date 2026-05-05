@@ -250,6 +250,10 @@ namespace loka
           this->watchStateForUi(state, method, callImmediately);
         }
 
+        // Registers Node-local state with the current composition owner.
+        // This does not make ComposableNode a state owner; nodes that need a
+        // shorter ownership scope than Boundary should expose an explicit
+        // IStateOwner through asStateOwner().
         template <typename T>
         void state(NodeState<T> &out, const T &initial)
         {

@@ -19,7 +19,7 @@
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/FlowSlot.hpp"
-#include "app/scene/node/Headless.hpp"
+#include "support/Headless.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
