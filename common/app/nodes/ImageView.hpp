@@ -51,10 +51,9 @@ namespace loka
 
       bool operator==(const ImageViewAttr &other) const
       {
-        return this->hasFitValue_ == other.hasFitValue_ &&
-               this->fitValue_ == other.fitValue_ &&
-               this->hasSizePolicyValue_ == other.hasSizePolicyValue_ &&
-               this->sizePolicyValue_ == other.sizePolicyValue_;
+        return this->hasFitValue_ == other.hasFitValue_ && this->fitValue_ == other.fitValue_
+               && this->hasSizePolicyValue_ == other.hasSizePolicyValue_
+               && this->sizePolicyValue_ == other.sizePolicyValue_;
       }
 
       bool operator<(const ImageViewAttr &other) const
@@ -95,7 +94,14 @@ namespace loka
       ImageViewAttr attr_;
       bool hasAttr_;
 
-      ImageViewProps() : image_(0), width_(0), height_(0), attr_(), hasAttr_(false) {}
+      ImageViewProps()
+          : image_(0),
+            width_(0),
+            height_(0),
+            attr_(),
+            hasAttr_(false)
+      {
+      }
 
       ImageViewProps &image(loka::core::State<loka::core::resource::Image> *state)
       {
@@ -140,17 +146,31 @@ namespace loka
       }
     };
 
-    class ImageViewNode : public scene::Node,
-                          public scene::IProjectedLayoutNode
+    class ImageViewNode : public scene::Node, public scene::IProjectedLayoutNode
     {
     public:
       typedef ImageViewTypeTag TypeTag;
       ImageViewProps props;
-      ImageViewNode(const ImageViewProps &p) : props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_IMAGE_VIEW; }
-      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
-      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<ImageViewNode>(); }
-      virtual ImageViewNode *asImageViewNode() { return this; }
+      ImageViewNode(const ImageViewProps &p)
+          : props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_IMAGE_VIEW;
+      }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode()
+      {
+        return this;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<ImageViewNode>();
+      }
+      virtual ImageViewNode *asImageViewNode()
+      {
+        return this;
+      }
       virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
       {
         if (!controller)
@@ -172,10 +192,17 @@ namespace loka
       }
     };
 
-    struct ImageViewDefinition : public scene::NodeDefinition<ImageViewProps, ImageViewNode>, public scene::TestIdDslMixin<ImageViewDefinition>
+    struct ImageViewDefinition : public scene::NodeDefinition<ImageViewProps, ImageViewNode>,
+                                 public scene::TestIdDslMixin<ImageViewDefinition>
     {
-      ImageViewDefinition() : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>() {}
-      ImageViewDefinition(const ImageViewProps &p) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p) {}
+      ImageViewDefinition()
+          : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>()
+      {
+      }
+      ImageViewDefinition(const ImageViewProps &p)
+          : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p)
+      {
+      }
       ImageViewDefinition &image(loka::core::State<loka::core::resource::Image> *state)
       {
         this->props.image(state);
@@ -191,11 +218,19 @@ namespace loka
       using loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>::create;
     };
 
-    struct ImageViewDefinitionWithAttr : public scene::NodeDefinition<ImageViewProps, ImageViewNode>, public scene::TestIdDslMixin<ImageViewDefinitionWithAttr>
+    struct ImageViewDefinitionWithAttr : public scene::NodeDefinition<ImageViewProps, ImageViewNode>,
+                                         public scene::TestIdDslMixin<ImageViewDefinitionWithAttr>
     {
-      ImageViewDefinitionWithAttr() : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>() {}
-      ImageViewDefinitionWithAttr(const ImageViewProps &p) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p) {}
-      ImageViewDefinitionWithAttr(const ImageViewDefinition &def) : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(def.props)
+      ImageViewDefinitionWithAttr()
+          : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>()
+      {
+      }
+      ImageViewDefinitionWithAttr(const ImageViewProps &p)
+          : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(p)
+      {
+      }
+      ImageViewDefinitionWithAttr(const ImageViewDefinition &def)
+          : loka::app::scene::NodeDefinition<ImageViewProps, ImageViewNode>(def.props)
       {
         this->copyTestIdPolicyFrom(def);
       }

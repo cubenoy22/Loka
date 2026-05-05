@@ -116,6 +116,41 @@ namespace loka
       return left == right ? StringCompareEqual : StringCompareNotEqual;
     }
 
+    int String::compare(const String &other) const
+    {
+      if (handle_ == other.handle_)
+      {
+        return 0;
+      }
+
+      StringBuffer leftBuffer = bufferWithEncoding(StringEncodingUtf8);
+      StringBuffer rightBuffer = other.bufferWithEncoding(StringEncodingUtf8);
+      std::size_t leftLength = leftBuffer.length();
+      std::size_t rightLength = rightBuffer.length();
+      std::size_t commonLength = leftLength < rightLength ? leftLength : rightLength;
+      if (commonLength > 0)
+      {
+        int compareResult = std::memcmp(leftBuffer.data(), rightBuffer.data(), commonLength);
+        if (compareResult < 0)
+        {
+          return -1;
+        }
+        if (compareResult > 0)
+        {
+          return 1;
+        }
+      }
+      if (leftLength < rightLength)
+      {
+        return -1;
+      }
+      if (rightLength < leftLength)
+      {
+        return 1;
+      }
+      return 0;
+    }
+
     bool String::equals(const String &other) const
     {
       return compare(other, true) == StringCompareEqual;
