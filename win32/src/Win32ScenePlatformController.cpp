@@ -1,6 +1,6 @@
 #include "Win32ScenePlatformController.hpp"
 #include "Win32BuiltInSupport.hpp"
-#include "app/scene/nodes/boundary/Boundary.hpp"
+#include "app/scene/boundary/Boundary.hpp"
 #include <windows.h>
 #include <vector>
 #include "app/nodes/nestable/Box.hpp"

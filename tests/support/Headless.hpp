@@ -3,7 +3,7 @@
 
 #include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
 #include "app/scene/NodeState.hpp"
-#include "app/scene/nodes/boundary/Boundary.hpp"
+#include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/node/ComposableNode.hpp"
 
 namespace loka

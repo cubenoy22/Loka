@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_STDCOMPOSITION_HPP
 
 #include "app/scene/NodeComposition.hpp"
-#include "app/scene/nodes/boundary/Boundary.hpp"
+#include "app/scene/boundary/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 
 namespace loka
