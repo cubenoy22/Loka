@@ -206,9 +206,7 @@ namespace loka
 
         bool hasCompositionDiffState() const
         {
-          return !this->previousSnapshot.empty() ||
-                 !this->currentSnapshot.empty() ||
-                 !this->diff.empty();
+          return !this->previousSnapshot.empty() || !this->currentSnapshot.empty() || !this->diff.empty();
         }
 
         bool canApplyLocalCompositionDiff() const
@@ -248,8 +246,8 @@ namespace loka
         NodeCompositionSnapshot currentSnapshot;
         NodeCompositionDiff diff;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif

@@ -14,7 +14,7 @@ namespace loka
     {
       class BoundaryObservedStateTestAccess;
     }
-  }
+  } // namespace dsl
 
   namespace app
   {
@@ -25,7 +25,13 @@ namespace loka
       struct BoundaryObservedStateBinding
       {
         BoundaryObservedStateBinding()
-            : boundary(0), state(0), flags(NODE_DIRTY_NONE), refs(1), stateLifetimeToken(0) {}
+            : boundary(0),
+              state(0),
+              flags(NODE_DIRTY_NONE),
+              refs(1),
+              stateLifetimeToken(0)
+        {
+        }
 
         ~BoundaryObservedStateBinding()
         {
@@ -56,7 +62,13 @@ namespace loka
 
       struct BoundaryObservedStateEntry
       {
-        BoundaryObservedStateEntry() : state(0), flags(NODE_DIRTY_NONE), observedGeneration(0), binding(0) {}
+        BoundaryObservedStateEntry()
+            : state(0),
+              flags(NODE_DIRTY_NONE),
+              observedGeneration(0),
+              binding(0)
+        {
+        }
         loka::core::StateBase *state;
         NodeDirtyFlags flags;
         unsigned long observedGeneration;
@@ -67,7 +79,10 @@ namespace loka
       {
         struct ObservedPassState
         {
-          ObservedPassState() : generation(0) {}
+          ObservedPassState()
+              : generation(0)
+          {
+          }
 
           void begin()
           {
@@ -88,7 +103,10 @@ namespace loka
 
         struct ObservedDirtyState
         {
-          ObservedDirtyState() : dirtyFlags(NODE_DIRTY_NONE) {}
+          ObservedDirtyState()
+              : dirtyFlags(NODE_DIRTY_NONE)
+          {
+          }
 
           void clear()
           {
@@ -112,7 +130,12 @@ namespace loka
           NodeDirtyFlags dirtyFlags;
         };
 
-        BoundaryObservedState() : pass(), dirty(), entries() {}
+        BoundaryObservedState()
+            : pass(),
+              dirty(),
+              entries()
+        {
+        }
 
         void clearDirtyFlags()
         {
@@ -131,8 +154,8 @@ namespace loka
             BoundaryObservedStateEntry &entry = entries[i];
             if (entry.state && entry.binding)
             {
-              if (entry.binding->stateLifetimeToken &&
-                  loka::core::StateBase::isExternalLifetimeTokenAlive(entry.binding->stateLifetimeToken))
+              if (entry.binding->stateLifetimeToken
+                  && loka::core::StateBase::isExternalLifetimeTokenAlive(entry.binding->stateLifetimeToken))
               {
                 entry.state->unbind(changedThunk, entry.binding);
               }

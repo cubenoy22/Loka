@@ -66,11 +66,8 @@ namespace loka
         {
           const int normalizedWidth = width < 0 ? 0 : width;
           const int normalizedHeight = height < 0 ? 0 : height;
-          const bool changed = !layoutBounds.valid ||
-                               layoutBounds.x != x ||
-                               layoutBounds.y != y ||
-                               layoutBounds.width != normalizedWidth ||
-                               layoutBounds.height != normalizedHeight;
+          const bool changed = !layoutBounds.valid || layoutBounds.x != x || layoutBounds.y != y
+                               || layoutBounds.width != normalizedWidth || layoutBounds.height != normalizedHeight;
           layoutBounds.set(x, y, normalizedWidth, normalizedHeight);
           return changed;
         }
@@ -97,8 +94,8 @@ namespace loka
         BoundaryUpdateResult::BoundsHint layoutBounds;
         bool frozen;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif
