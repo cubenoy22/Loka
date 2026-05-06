@@ -106,6 +106,15 @@ Practical interpretation:
   concepts are practical on PPC601-era and newer machines; avoid deep
   68k/68030-first micro-optimization unless profiling shows a specific
   regression or correctness problem
+* before `v0.1.0`, validate the build/distribution shape for retro Mac targets:
+  Loka should stay header-friendly for modern integration, but it should also
+  support a compiled/static-core path so older machines are not forced to
+  rebuild heavy scene/runtime code for every application change
+* treat CodeWarrior compatibility as a measured target rather than an assumption:
+  first check whether CodeWarrior Pro 5-era builds are practical at all, then
+  evaluate the Carbon-era Pro 10 path on late G4-class machines such as a
+  1.5GHz PowerBook G4; use the results to decide how aggressively to split
+  headers, `.cpp` implementation units, and static libraries
 * Repository/ApplicationScope design should be driven by a real application built after `v0.0.1`, so app-owned services, window-owned state, and scene `Boundary` access are separated by actual usage pressure
 * after `v0.0.1`, scale up through real application work toward the long-term app-layer proof: Loka should be able to support professional applications that are awkward or fragile to build on existing frameworks, while keeping the application's core meaning portable and inspectable
 
@@ -167,6 +176,16 @@ Practical interpretation:
     * Contribution guidelines
     * Lightweight PR expectations
   * Enable Discussions for design and usage questions
+* **Build distribution strategy**
+
+  * Keep public DSL/API headers easy to integrate in modern projects.
+  * Identify non-template scene/runtime code that can be built once into a
+    static library for retro machines.
+  * Avoid very large single headers where they make CodeWarrior/GCC 4.0-era
+    builds slow or fragile; prefer readable header splits first, then move
+    measured hot spots into `.cpp` units when the static-library path benefits.
+  * Record build-time observations for G3/G4-class machines separately from
+    modern-host results so optimization work is guided by real hardware.
 
 ---
 
