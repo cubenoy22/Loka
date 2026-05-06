@@ -10,10 +10,9 @@ namespace loka
 {
   namespace dsl
   {
-    template <typename T>
-    class StateStream;
+    template <typename T> class StateStream;
   }
-}
+} // namespace loka
 
 namespace loka
 {
@@ -21,14 +20,22 @@ namespace loka
   {
     namespace scene
     {
-      template <typename T>
-      class BorrowedState
+      template <typename T> class BorrowedState
       {
       public:
-        BorrowedState() : state_(0) {}
-        explicit BorrowedState(loka::core::State<T> *state) : state_(state) {}
+        BorrowedState()
+            : state_(0)
+        {
+        }
+        explicit BorrowedState(loka::core::State<T> *state)
+            : state_(state)
+        {
+        }
 
-        bool isValid() const { return state_ != 0; }
+        bool isValid() const
+        {
+          return state_ != 0;
+        }
 
         T get() const
         {
@@ -36,7 +43,11 @@ namespace loka
           return state_->get();
         }
 
-        void bind(typename loka::core::State<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) const
+        void bind(typename loka::core::State<T>::OnChangeFn cb,
+                  void *userData,
+                  bool callImmediately = true,
+                  bool callOnce = false,
+                  int priority = 0) const
         {
           if (state_)
           {
@@ -56,21 +67,48 @@ namespace loka
         loka::core::State<T> *state_;
       };
 
-      template <typename T>
-      class NodeState
+      template <typename T> class NodeState
       {
       public:
-        NodeState() : state_(0), tracker_(0), owner_(0) {}
+        NodeState()
+            : state_(0),
+              tracker_(0),
+              owner_(0)
+        {
+        }
         NodeState(loka::core::MutableState<T> *state, loka::core::StateTracker *tracker)
-            : state_(state), tracker_(tracker), owner_(0) {}
+            : state_(state),
+              tracker_(tracker),
+              owner_(0)
+        {
+        }
         NodeState(loka::core::MutableState<T> *state, loka::core::StateTracker *tracker, IStateOwner *owner)
-            : state_(state), tracker_(tracker), owner_(owner) {}
+            : state_(state),
+              tracker_(tracker),
+              owner_(owner)
+        {
+        }
 
-        bool isValid() const { return state_ != 0; }
-        loka::core::State<T> *state() const { return state_; }
-        loka::core::StateTracker *dangerouslyTracker() const { return tracker_; }
-        IStateOwner *dangerouslyOwner() const { return owner_; }
-        loka::core::MutableState<T> *dangerouslyMutableState() const { return state_; }
+        bool isValid() const
+        {
+          return state_ != 0;
+        }
+        loka::core::State<T> *state() const
+        {
+          return state_;
+        }
+        loka::core::StateTracker *dangerouslyTracker() const
+        {
+          return tracker_;
+        }
+        IStateOwner *dangerouslyOwner() const
+        {
+          return owner_;
+        }
+        loka::core::MutableState<T> *dangerouslyMutableState() const
+        {
+          return state_;
+        }
 
         T get() const
         {
@@ -91,7 +129,11 @@ namespace loka
           state_->set(value, forceUpdate);
         }
 
-        void bind(typename loka::core::State<T>::OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
+        void bind(typename loka::core::State<T>::OnChangeFn cb,
+                  void *userData,
+                  bool callImmediately = true,
+                  bool callOnce = false,
+                  int priority = 0)
         {
           if (state_)
           {
@@ -122,7 +164,7 @@ namespace loka
       };
 
     } // namespace scene
-  }   // namespace app
+  } // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_STATE_NODE_STATE_HPP

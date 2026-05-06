@@ -7,7 +7,7 @@ namespace loka
   {
     class StateBase;
     class StateTracker;
-  }
+  } // namespace core
 
   namespace app
   {

@@ -27,21 +27,18 @@ namespace loka
           char bytes[kStorageBytes];
         };
 
-        template <typename T>
-        static void CopyInitial(char *storage, const T &value)
+        template <typename T> static void CopyInitial(char *storage, const T &value)
         {
           new (storage) T(value);
         }
 
-        template <typename T>
-        static void DestroyInitialObject(void *initialPtr)
+        template <typename T> static void DestroyInitialObject(void *initialPtr)
         {
           T *initial = reinterpret_cast<T *>(initialPtr);
           initial->~T();
         }
 
-        template <typename T>
-        static void DestroyState(loka::core::StateBase *state)
+        template <typename T> static void DestroyState(loka::core::StateBase *state)
         {
           loka::core::MutableState<T> *typed = static_cast<loka::core::MutableState<T> *>(state);
           if (typed)
@@ -78,8 +75,7 @@ namespace loka
           }
         }
 
-        template <typename T>
-        static void CreateImmediateState(IStateOwner *owner, NodeState<T> &out, const T &initial)
+        template <typename T> static void CreateImmediateState(IStateOwner *owner, NodeState<T> &out, const T &initial)
         {
           CreateStateFromInitial<T>(owner, out, initial);
         }

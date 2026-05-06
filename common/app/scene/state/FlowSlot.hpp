@@ -14,29 +14,33 @@ namespace loka
     {
       namespace flow_slot_detail
       {
-        template <typename FlowT>
-        inline void releaseOwnedFlow(FlowT *)
-        {
-        }
+        template <typename FlowT> inline void releaseOwnedFlow(FlowT *) {}
 
-        template <typename T>
-        inline void releaseOwnedFlow(loka::dsl::StateStream<T> *stream)
+        template <typename T> inline void releaseOwnedFlow(loka::dsl::StateStream<T> *stream)
         {
           if (stream)
           {
             stream->releaseOwnedState();
           }
         }
-      }
+      } // namespace flow_slot_detail
 
-      template <typename FlowT>
-      class FlowSlot
+      template <typename FlowT> class FlowSlot
       {
       public:
-        FlowSlot() : flow_(0) {}
-        ~FlowSlot() { this->clear(); }
+        FlowSlot()
+            : flow_(0)
+        {
+        }
+        ~FlowSlot()
+        {
+          this->clear();
+        }
 
-        bool isValid() const { return flow_ != 0; }
+        bool isValid() const
+        {
+          return flow_ != 0;
+        }
 
         FlowSlot &set(const FlowT &flow)
         {
@@ -62,16 +66,14 @@ namespace loka
           return *this;
         }
 
-        template <typename InT>
-        FlowSlot &bindTrigger(loka::core::State<InT> *source)
+        template <typename InT> FlowSlot &bindTrigger(loka::core::State<InT> *source)
         {
           assert(flow_ && "FlowSlot::bindTrigger requires a flow");
           flow_->bindTrigger(source);
           return *this;
         }
 
-        template <typename InT>
-        FlowSlot &bindTrigger(const NodeState<InT> &source)
+        template <typename InT> FlowSlot &bindTrigger(const NodeState<InT> &source)
         {
           assert(flow_ && "FlowSlot::bindTrigger requires a flow");
           assert(source.isValid() && "FlowSlot::bindTrigger requires a valid NodeState source");
@@ -79,8 +81,7 @@ namespace loka
           return *this;
         }
 
-        template <typename TargetT>
-        FlowSlot &bindTo(TargetT &target, bool forceUpdate = false)
+        template <typename TargetT> FlowSlot &bindTo(TargetT &target, bool forceUpdate = false)
         {
           assert(flow_ && "FlowSlot::bindTo requires a flow");
           flow_->set(target, forceUpdate);
@@ -125,8 +126,14 @@ namespace loka
           return *this;
         }
 
-        FlowT *get() { return flow_; }
-        const FlowT *get() const { return flow_; }
+        FlowT *get()
+        {
+          return flow_;
+        }
+        const FlowT *get() const
+        {
+          return flow_;
+        }
 
         FlowT &dangerouslyUnwrap()
         {
