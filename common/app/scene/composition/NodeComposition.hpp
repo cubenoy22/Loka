@@ -5,7 +5,6 @@
 #include <cassert>
 #include <new>
 #include "app/scene/Node.hpp"
-#include "app/scene/composition/StreamView.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/state/NodeState.hpp"
@@ -449,16 +448,6 @@ namespace loka
         {
           static loka::app::F emptyDef;
           return this->conditional(condition, x, emptyDef);
-        }
-
-        template <typename T> StreamView<typename std::vector<T>::const_iterator> stream(const std::vector<T> &v)
-        {
-          return StreamView<typename std::vector<T>::const_iterator>(v.begin(), v.end());
-        }
-
-        template <typename It> StreamView<It> stream(It begin, It end)
-        {
-          return StreamView<It>(begin, end);
         }
 
         template <typename T> T *group(const T &x)

@@ -19,7 +19,6 @@
 #include "loka/core/State.hpp"
 #include "loka/core/Profiler.hpp"
 #include "app/scene/ability/CapturableBitmap.hpp"
-// StreamView is only needed by NodeComposition; avoid including here to reduce coupling
 
 #if defined(TEST_BUILD)
 #define TEST_ID(value) testId(value)
