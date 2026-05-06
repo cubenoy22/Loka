@@ -1,4 +1,5 @@
 #include "app/scene/composition/NodeComposition.hpp"
+#include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/boundary/Boundary.hpp"
