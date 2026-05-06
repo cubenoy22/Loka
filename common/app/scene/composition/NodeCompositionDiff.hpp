@@ -81,7 +81,10 @@ namespace loka
             return *this;
           }
 
-          Entry *clone() const { return new Entry(*this); }
+          Entry *clone() const
+          {
+            return new Entry(*this);
+          }
 
           NodeTag tag;
           int slot;
@@ -93,7 +96,11 @@ namespace loka
           Entry *nextInComposition;
         };
 
-        NodeCompositionDiff() : loka::dsl::CompositionDiff(), entries() {}
+        NodeCompositionDiff()
+            : loka::dsl::CompositionDiff(),
+              entries()
+        {
+        }
 
         void clear()
         {
@@ -109,12 +116,22 @@ namespace loka
                       int previousIndex,
                       int currentIndex)
         {
-          entries.appendOwned(new Entry(tag, slot, action, compatibleType, equivalentProps, previousIndex, currentIndex));
+          entries.appendOwned(
+              new Entry(tag, slot, action, compatibleType, equivalentProps, previousIndex, currentIndex));
         }
 
-        bool empty() const { return entries.count() == 0; }
-        size_t entryCount() const { return entries.count(); }
-        Entry *entriesHead() const { return entries.head(); }
+        bool empty() const
+        {
+          return entries.count() == 0;
+        }
+        size_t entryCount() const
+        {
+          return entries.count();
+        }
+        Entry *entriesHead() const
+        {
+          return entries.head();
+        }
 
       private:
         bool hasRetainOnlyEntries(bool requireEquivalentProps) const
@@ -171,8 +188,8 @@ namespace loka
 
         loka::dsl::CompositionList<Entry> entries;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONDIFF_HPP

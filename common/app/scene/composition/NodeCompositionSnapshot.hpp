@@ -11,9 +11,13 @@ namespace loka
     {
       struct NodeCompositionSnapshot
       {
-        NodeCompositionSnapshot() : root_(0) {}
+        NodeCompositionSnapshot()
+            : root_(0)
+        {
+        }
 
-        NodeCompositionSnapshot(const NodeCompositionSnapshot &other) : root_(0)
+        NodeCompositionSnapshot(const NodeCompositionSnapshot &other)
+            : root_(0)
         {
           if (other.root_)
           {
@@ -71,8 +75,8 @@ namespace loka
       private:
         NodeDefinitionBase *root_;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONSNAPSHOT_HPP

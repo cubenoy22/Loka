@@ -5,7 +5,6 @@
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/core/Window.hpp"
 #include <cstdio>
-#include <new>
 
 namespace loka
 {
@@ -31,7 +30,6 @@ namespace loka
         return current_;
       }
 
-      // 宣言のみ。実際の型はNode.hppで定義されるINestableなどから取得
       struct INestableDefinition;
       struct INestable;
 
@@ -225,6 +223,6 @@ namespace loka
         return window;
       }
 
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka

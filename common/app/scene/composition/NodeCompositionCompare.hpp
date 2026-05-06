@@ -21,8 +21,7 @@ namespace loka
           }
           const scene::PropsBase *previousProps = previousNode->propsBase();
           const scene::PropsBase *currentProps = currentNode->propsBase();
-          return previousProps && currentProps &&
-                 previousProps->propsTypeId() == currentProps->propsTypeId();
+          return previousProps && currentProps && previousProps->propsTypeId() == currentProps->propsTypeId();
         }
 
         inline void addDiffEntry(NodeCompositionDiff &out,
@@ -34,8 +33,8 @@ namespace loka
                                  int currentIndex)
         {
           const bool compatibleType = haveCompatibleProps(previousNode, currentNode);
-          const bool equivalentProps = compatibleType && previousNode && currentNode &&
-                                       previousNode->hasEquivalentProps(*currentNode);
+          const bool equivalentProps =
+              compatibleType && previousNode && currentNode && previousNode->hasEquivalentProps(*currentNode);
           out.addEntry(tag,
                        slot,
                        compatibleType ? NodeCompositionDiff::ACTION_RETAIN : NodeCompositionDiff::ACTION_REPLACE,
@@ -107,8 +106,8 @@ namespace loka
                                               std::vector<NodeDefinitionBase *> &previousChildren,
                                               std::vector<NodeDefinitionBase *> &currentChildren)
         {
-          return collectUniqueTaggedChildren(previousParent, previousChildren) &&
-                 collectUniqueTaggedChildren(currentParent, currentChildren);
+          return collectUniqueTaggedChildren(previousParent, previousChildren)
+                 && collectUniqueTaggedChildren(currentParent, currentChildren);
         }
 
         inline int indexOfTag(const std::vector<NodeDefinitionBase *> &children, NodeTag tag)
@@ -123,9 +122,8 @@ namespace loka
           return -1;
         }
 
-        inline NodeDefinitionBase *findChildByTag(const std::vector<NodeDefinitionBase *> &children,
-                                                  NodeTag tag,
-                                                  int &index)
+        inline NodeDefinitionBase *
+        findChildByTag(const std::vector<NodeDefinitionBase *> &children, NodeTag tag, int &index)
         {
           index = indexOfTag(children, tag);
           return index >= 0 ? children[static_cast<size_t>(index)] : 0;
@@ -134,9 +132,8 @@ namespace loka
 
       namespace detail
       {
-        inline bool buildRootDiffByTag(NodeDefinitionBase *previousRoot,
-                                       NodeDefinitionBase *currentRoot,
-                                       NodeCompositionDiff &out)
+        inline bool
+        buildRootDiffByTag(NodeDefinitionBase *previousRoot, NodeDefinitionBase *currentRoot, NodeCompositionDiff &out)
         {
           out.clear();
 
@@ -181,7 +178,8 @@ namespace loka
           {
             NodeDefinitionBase *currentChild = currentChildren[i];
             int previousIndex = -1;
-            NodeDefinitionBase *previousChild = findChildByTag(previousChildren, currentChild->nodeTag(), previousIndex);
+            NodeDefinitionBase *previousChild =
+                findChildByTag(previousChildren, currentChild->nodeTag(), previousIndex);
             if (previousChild)
             {
               addDiffEntry(out,
@@ -232,8 +230,8 @@ namespace loka
       {
         return detail::buildRootDiffByTag(previous.root(), current.root(), out);
       }
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONCOMPARE_HPP

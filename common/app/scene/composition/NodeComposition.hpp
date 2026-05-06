@@ -28,14 +28,22 @@ namespace loka
       struct NodeComposition
       {
       public:
-        template <typename T>
-        class FoundBoundary
+        template <typename T> class FoundBoundary
         {
         public:
-          FoundBoundary() : facade_(0) {}
-          explicit FoundBoundary(const T *facade) : facade_(facade) {}
+          FoundBoundary()
+              : facade_(0)
+          {
+          }
+          explicit FoundBoundary(const T *facade)
+              : facade_(facade)
+          {
+          }
 
-          bool isValid() const { return facade_ != 0; }
+          bool isValid() const
+          {
+            return facade_ != 0;
+          }
           const T &facade() const
           {
             assert(facade_ && "FoundBoundary::facade requires a boundary");
@@ -49,14 +57,24 @@ namespace loka
         class CurrentBoundary
         {
         public:
-          template <typename T>
-          class CurrentState
+          template <typename T> class CurrentState
           {
           public:
-            CurrentState() : state_(0), owned_(false) {}
-            CurrentState(NodeState<T> *state, bool owned) : state_(state), owned_(owned) {}
+            CurrentState()
+                : state_(0),
+                  owned_(false)
+            {
+            }
+            CurrentState(NodeState<T> *state, bool owned)
+                : state_(state),
+                  owned_(owned)
+            {
+            }
 
-            bool isValid() const { return state_ && owned_ && state_->isValid(); }
+            bool isValid() const
+            {
+              return state_ && owned_ && state_->isValid();
+            }
             T get() const
             {
               assert(this->isValid() && "CurrentState::get requires owner-matched NodeState");
@@ -73,12 +91,20 @@ namespace loka
             bool owned_;
           };
 
-          CurrentBoundary() : owner_(0) {}
-          explicit CurrentBoundary(IStateOwner *owner) : owner_(owner) {}
+          CurrentBoundary()
+              : owner_(0)
+          {
+          }
+          explicit CurrentBoundary(IStateOwner *owner)
+              : owner_(owner)
+          {
+          }
 
-          bool isValid() const { return owner_ != 0; }
-          template <typename T>
-          CurrentState<T> state(NodeState<T> &nodeState) const
+          bool isValid() const
+          {
+            return owner_ != 0;
+          }
+          template <typename T> CurrentState<T> state(NodeState<T> &nodeState) const
           {
             return CurrentState<T>(&nodeState, owner_ && nodeState.dangerouslyOwner() == owner_);
           }
@@ -91,6 +117,7 @@ namespace loka
         {
           explicit CompositionScope(NodeComposition &composition);
           ~CompositionScope();
+
         private:
           NodeComposition *prev_;
         };
@@ -98,7 +125,8 @@ namespace loka
         struct ParentScope
         {
           explicit ParentScope(NodeComposition &composition, INestableDefinition &parent)
-              : composition_(composition), prev_(composition.activeParent_)
+              : composition_(composition),
+                prev_(composition.activeParent_)
           {
             composition_.activeParent_ = &parent;
           }
@@ -106,6 +134,7 @@ namespace loka
           {
             composition_.activeParent_ = prev_;
           }
+
         private:
           NodeComposition &composition_;
           INestableDefinition *prev_;
@@ -114,10 +143,19 @@ namespace loka
         struct ChildComposition
         {
           explicit ChildComposition(NodeComposition &composition, INestableDefinition &parent)
-              : composition_(composition), scope_(composition, parent) {}
+              : composition_(composition),
+                scope_(composition, parent)
+          {
+          }
 
-          operator NodeComposition &() { return composition_; }
-          NodeComposition &composition() { return composition_; }
+          operator NodeComposition &()
+          {
+            return composition_;
+          }
+          NodeComposition &composition()
+          {
+            return composition_;
+          }
 
         private:
           NodeComposition &composition_;
@@ -134,7 +172,11 @@ namespace loka
           };
 
           StateBatch(IStateOwner *owner)
-              : owner_(owner), count_(0), totalBytes_(0) {}
+              : owner_(owner),
+                count_(0),
+                totalBytes_(0)
+          {
+          }
 
           ~StateBatch()
           {
@@ -152,8 +194,7 @@ namespace loka
             }
           }
 
-          template <typename T>
-          StateBatch &state(NodeState<T> &out, const T &initial)
+          template <typename T> StateBatch &state(NodeState<T> &out, const T &initial)
           {
             if (count_ >= kMaxStates)
             {
@@ -184,8 +225,7 @@ namespace loka
             Storage storage; // inline storage for the initial value
           };
 
-          template <typename T>
-          static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
+          template <typename T> static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
           {
             NodeState<T> *out = static_cast<NodeState<T> *>(outPtr);
             T *initial = reinterpret_cast<T *>(initialPtr);
@@ -258,21 +298,30 @@ namespace loka
         }
 
       public:
-        NodeComposition() : root_(0), activeParent_(0), context_(0) {}
+        NodeComposition()
+            : root_(0),
+              activeParent_(0),
+              context_(0)
+        {
+        }
 
-        ~NodeComposition() { this->destroyArena(); }
+        ~NodeComposition()
+        {
+          this->destroyArena();
+        }
 
         // Store a copy of the definition in the arena and return pointer
-        template <typename T>
-        T *store(const T &def)
+        template <typename T> T *store(const T &def)
         {
           return static_cast<T *>(storeBase(def));
         }
-        NodeDefinitionBase *store(const NodeDefinitionBase &def) { return storeBase(def); }
+        NodeDefinitionBase *store(const NodeDefinitionBase &def)
+        {
+          return storeBase(def);
+        }
 
         // Declare root node
-        template <typename T>
-        T &declare(const T &def)
+        template <typename T> T &declare(const T &def)
         {
           if (activeParent_)
           {
@@ -284,8 +333,7 @@ namespace loka
           return *newRoot;
         }
 
-        template <typename T>
-        T &declareTagged(NodeTag tag, const T &def)
+        template <typename T> T &declareTagged(NodeTag tag, const T &def)
         {
           T tagged(def);
           tagged.tag(tag);
@@ -329,9 +377,18 @@ namespace loka
           return this->declareTagged(tag, *base);
         }
 
-        void setContext(ComponentContext *context) { context_ = context; }
-        ComponentContext *componentContext() const { return context_; }
-        const ComponentContext *attachedContext() const { return context_; }
+        void setContext(ComponentContext *context)
+        {
+          context_ = context;
+        }
+        ComponentContext *componentContext() const
+        {
+          return context_;
+        }
+        const ComponentContext *attachedContext() const
+        {
+          return context_;
+        }
         const ComponentContext &ensureAttached() const
         {
           assert(context_ && "NodeComposition::ensureAttached requires ComponentContext");
@@ -340,7 +397,10 @@ namespace loka
           assert(context_->window() && "NodeComposition::ensureAttached requires Window");
           return *context_;
         }
-        bool hasContext() const { return context_ != 0; }
+        bool hasContext() const
+        {
+          return context_ != 0;
+        }
         BoundaryNode *boundary() const;
         CurrentBoundary currentBoundary() const
         {
@@ -361,7 +421,10 @@ namespace loka
         Node *createNodeTree() const;
         Node *createNodeFromDefinition(NodeDefinitionBase *definition) const;
 
-        NodeDefinitionBase *root() const { return root_; }
+        NodeDefinitionBase *root() const
+        {
+          return root_;
+        }
 
         // --- DSL helpers ---
         template <typename TTrue, typename TFalse>
@@ -376,34 +439,29 @@ namespace loka
           return ConditionalDefinition(ConditionalProps(&condition, &trueDef, &falseDef));
         }
 
-        template <typename T>
-        ConditionalDefinition conditional(const loka::core::State<bool> &condition, T &x)
+        template <typename T> ConditionalDefinition conditional(const loka::core::State<bool> &condition, T &x)
         {
           static loka::app::F emptyDef;
           return this->conditional(condition, x, emptyDef);
         }
 
-        template <typename T>
-        ConditionalDefinition conditional(loka::core::State<bool> &condition, T &x)
+        template <typename T> ConditionalDefinition conditional(loka::core::State<bool> &condition, T &x)
         {
           static loka::app::F emptyDef;
           return this->conditional(condition, x, emptyDef);
         }
 
-        template <typename T>
-        StreamView<typename std::vector<T>::const_iterator> stream(const std::vector<T> &v)
+        template <typename T> StreamView<typename std::vector<T>::const_iterator> stream(const std::vector<T> &v)
         {
           return StreamView<typename std::vector<T>::const_iterator>(v.begin(), v.end());
         }
 
-        template <typename It>
-        StreamView<It> stream(It begin, It end)
+        template <typename It> StreamView<It> stream(It begin, It end)
         {
           return StreamView<It>(begin, end);
         }
 
-        template <typename T>
-        T *group(const T &x)
+        template <typename T> T *group(const T &x)
         {
           return this->store(x);
         }
@@ -414,8 +472,7 @@ namespace loka
           return this->store(*base);
         }
 
-        template <typename T>
-        NodeState<T> dangerouslyUseState(const T &initial)
+        template <typename T> NodeState<T> dangerouslyUseState(const T &initial)
         {
           assert(context_ && "NodeComposition::dangerouslyUseState requires ComponentContext");
           IStateOwner *stateOwner = context_->stateOwner();
@@ -433,15 +490,13 @@ namespace loka
           return StateBatch(owner);
         }
 
-        template <typename T>
-        NodeState<T> dangerouslyUseState()
+        template <typename T> NodeState<T> dangerouslyUseState()
         {
           return dangerouslyUseState(T());
         }
 
         // findBoundary: T must implement static T* fromNode(Node*)
-        template <typename T>
-        FoundBoundary<T> findBoundary() const
+        template <typename T> FoundBoundary<T> findBoundary() const
         {
           if (!context_)
           {
