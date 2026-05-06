@@ -6,7 +6,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
-#include "app/scene/FlowSlot.hpp"
+#include "app/scene/state/FlowSlot.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/composition/StdComposition.hpp"
 #include "loka/core/State.hpp"

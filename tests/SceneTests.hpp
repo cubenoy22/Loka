@@ -4,7 +4,7 @@
 #include <cassert>
 #include <stdio.h>
 #include <vector>
-#include "app/scene/FlowSlot.hpp"
+#include "app/scene/state/FlowSlot.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/composition/StdComposition.hpp"

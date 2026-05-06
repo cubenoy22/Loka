@@ -1,5 +1,5 @@
-#ifndef LOKA_APP_SCENE_FLOW_SLOT_HPP
-#define LOKA_APP_SCENE_FLOW_SLOT_HPP
+#ifndef LOKA_APP_SCENE_STATE_FLOW_SLOT_HPP
+#define LOKA_APP_SCENE_STATE_FLOW_SLOT_HPP
 
 #include <cassert>
 #include "app/scene/state/NodeState.hpp"
@@ -150,4 +150,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_APP_SCENE_FLOW_SLOT_HPP
+#endif // LOKA_APP_SCENE_STATE_FLOW_SLOT_HPP

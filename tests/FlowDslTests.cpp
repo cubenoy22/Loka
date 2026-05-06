@@ -18,7 +18,7 @@
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
-#include "app/scene/FlowSlot.hpp"
+#include "app/scene/state/FlowSlot.hpp"
 #include "support/Headless.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"

@@ -7,7 +7,7 @@
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/scene/state/NodeState.hpp"
-#include "app/scene/FlowSlot.hpp"
+#include "app/scene/state/FlowSlot.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/ImageView.hpp"
