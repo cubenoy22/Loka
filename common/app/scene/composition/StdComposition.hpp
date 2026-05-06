@@ -14,18 +14,15 @@ namespace loka
       {
       };
 
-      template <class NodeT>
-      struct StdCompositionPropsForTypeTag
+      template <class NodeT> struct StdCompositionPropsForTypeTag
       {
       };
 
-      template <class NodeT>
-      struct BoundaryPropsForTypeTag
+      template <class NodeT> struct BoundaryPropsForTypeTag
       {
       };
 
-      template <typename T>
-      struct BoundaryPropValueRules
+      template <typename T> struct BoundaryPropValueRules
       {
         enum
         {
@@ -33,8 +30,7 @@ namespace loka
         };
       };
 
-      template <typename T>
-      struct BoundaryPropValueRules<NodeState<T> >
+      template <typename T> struct BoundaryPropValueRules<NodeState<T> >
       {
         enum
         {
@@ -42,8 +38,7 @@ namespace loka
         };
       };
 
-      template <typename T>
-      struct BoundaryPropValueRules<loka::core::MutableState<T> *>
+      template <typename T> struct BoundaryPropValueRules<loka::core::MutableState<T> *>
       {
         enum
         {
@@ -51,8 +46,7 @@ namespace loka
         };
       };
 
-      template <typename T>
-      struct BoundaryPropValueRules<const loka::core::MutableState<T> *>
+      template <typename T> struct BoundaryPropValueRules<const loka::core::MutableState<T> *>
       {
         enum
         {
@@ -60,10 +54,10 @@ namespace loka
         };
       };
 
-      template <typename T>
-      inline void AssertBoundaryPropValueAllowed()
+      template <typename T> inline void AssertBoundaryPropValueAllowed()
       {
-        LOKA_STATIC_ASSERT(BoundaryPropValueRules<T>::kAllowed, boundary_props_must_not_hold_owned_or_raw_mutable_state);
+        LOKA_STATIC_ASSERT(BoundaryPropValueRules<T>::kAllowed,
+                           boundary_props_must_not_hold_owned_or_raw_mutable_state);
       }
 
       struct StdCompositionProps : public NodePropsBase<StdCompositionProps>
@@ -83,8 +77,7 @@ namespace loka
       typedef StdCompositionBoundaryNode StdCompositionNode;
 
       // Helper props for standard composition boundary nodes with no custom fields.
-      template <class NodeT>
-      struct StdCompositionPropsFor : public NodePropsBase<StdCompositionPropsFor<NodeT> >
+      template <class NodeT> struct StdCompositionPropsFor : public NodePropsBase<StdCompositionPropsFor<NodeT> >
       {
         typedef StdCompositionPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
@@ -99,27 +92,23 @@ namespace loka
       // Alias to avoid exposing composition strategy in common user code.
       // Note: Must inherit from NodePropsBase<BoundaryPropsFor<NodeT>> directly
       // so that createNode() receives the correct Props type for node constructors.
-      template <class NodeT>
-      struct BoundaryPropsFor : public NodePropsBase<BoundaryPropsFor<NodeT> >
+      template <class NodeT> struct BoundaryPropsFor : public NodePropsBase<BoundaryPropsFor<NodeT> >
       {
         typedef BoundaryPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
 
-        template <typename T>
-        static void assertAllowedValueType()
+        template <typename T> static void assertAllowedValueType()
         {
           AssertBoundaryPropValueAllowed<T>();
         }
 
-        template <typename T>
-        static BorrowedState<T> borrowed(loka::core::State<T> *state)
+        template <typename T> static BorrowedState<T> borrowed(loka::core::State<T> *state)
         {
           AssertBoundaryPropValueAllowed<loka::core::State<T> *>();
           return BorrowedState<T>(state);
         }
 
-        template <typename T>
-        static loka::core::Managed<T> shared(const loka::core::Managed<T> &value)
+        template <typename T> static loka::core::Managed<T> shared(const loka::core::Managed<T> &value)
         {
           AssertBoundaryPropValueAllowed<loka::core::Managed<T> >();
           return value;
@@ -135,14 +124,27 @@ namespace loka
 
       struct StdCompositionDefinition : public NodeDefinition<StdCompositionProps, StdCompositionNode>
       {
-        StdCompositionDefinition() : NodeDefinition<StdCompositionProps, StdCompositionNode>() {}
-        StdCompositionDefinition(const StdCompositionProps &p) : NodeDefinition<StdCompositionProps, StdCompositionNode>(p) {}
+        StdCompositionDefinition()
+            : NodeDefinition<StdCompositionProps, StdCompositionNode>()
+        {
+        }
+        StdCompositionDefinition(const StdCompositionProps &p)
+            : NodeDefinition<StdCompositionProps, StdCompositionNode>(p)
+        {
+        }
       };
 
-      struct StdCompositionBoundaryDefinition : public BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>
+      struct StdCompositionBoundaryDefinition
+          : public BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>
       {
-        StdCompositionBoundaryDefinition() : BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>() {}
-        StdCompositionBoundaryDefinition(const StdCompositionProps &p) : BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>(p) {}
+        StdCompositionBoundaryDefinition()
+            : BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>()
+        {
+        }
+        StdCompositionBoundaryDefinition(const StdCompositionProps &p)
+            : BoundaryDefinition<StdCompositionProps, StdCompositionBoundaryNode>(p)
+        {
+        }
       };
 
       inline StdCompositionDefinition StdComposition(const StdCompositionProps &p)
@@ -155,21 +157,20 @@ namespace loka
         return StdCompositionBoundaryDefinition(p);
       }
 
-      template <class NodeT>
-      inline BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT> StdCompositionBoundary()
+      template <class NodeT> inline BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT> StdCompositionBoundary()
       {
         return BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT>();
       }
 
       template <class NodeT>
-      inline BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT> StdCompositionBoundary(const StdCompositionPropsFor<NodeT> &p)
+      inline BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT>
+      StdCompositionBoundary(const StdCompositionPropsFor<NodeT> &p)
       {
         return BoundaryDefinition<StdCompositionPropsFor<NodeT>, NodeT>(p);
       }
 
       // Alias to avoid exposing composition strategy in common user code.
-      template <class NodeT>
-      inline BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT> Boundary()
+      template <class NodeT> inline BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT> Boundary()
       {
         return BoundaryDefinition<BoundaryPropsFor<NodeT>, NodeT>();
       }
@@ -187,19 +188,22 @@ namespace loka
       public:
         typedef StdCompositionPropsFor<NodeT> PropsType;
         StdCompositionNodeFor(const PropsType &p)
-            : StdCompositionBoundaryNodeBase<StdCompositionPropsFor<NodeT> >(p) {}
+            : StdCompositionBoundaryNodeBase<StdCompositionPropsFor<NodeT> >(p)
+        {
+        }
         virtual ~StdCompositionNodeFor() {}
       };
 
       // Alias for boundary nodes without exposing composition strategy in user code.
       // Uses BoundaryPropsFor<NodeT> to match user constructor expectations.
-      template <class NodeT>
-      class BoundaryNodeFor : public StdCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >
+      template <class NodeT> class BoundaryNodeFor : public StdCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >
       {
       public:
         typedef BoundaryPropsFor<NodeT> PropsType;
         BoundaryNodeFor(const PropsType &p)
-            : StdCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >(p) {}
+            : StdCompositionBoundaryNodeBase<BoundaryPropsFor<NodeT> >(p)
+        {
+        }
         virtual ~BoundaryNodeFor() {}
       };
 

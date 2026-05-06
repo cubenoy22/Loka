@@ -11,14 +11,17 @@ namespace loka
   {
     namespace scene
     {
-      template <class PropsT>
-      class StdCompositionBoundaryNodeBase : public BoundaryNode
+      template <class PropsT> class StdCompositionBoundaryNodeBase : public BoundaryNode
       {
       public:
         typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
         StdCompositionBoundaryNodeBase(const PropsT &p)
-            : BoundaryNode(), props(p), composed_(false) {}
+            : BoundaryNode(),
+              props(p),
+              composed_(false)
+        {
+        }
         virtual ~StdCompositionBoundaryNodeBase() {}
 
         // Build node definitions into composition container (default: no children)
