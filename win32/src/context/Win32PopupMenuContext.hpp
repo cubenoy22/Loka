@@ -2,7 +2,7 @@
 #define LOKA_WIN32_POPUP_MENU_CONTEXT_HPP
 
 #include <windows.h>
-#include "app/scene/NativeNodeContext.hpp"
+#include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 
 namespace loka

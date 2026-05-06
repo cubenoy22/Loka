@@ -1,6 +1,6 @@
 #include "MacCellContext.hpp"
 #include "../MacScenePlatformController.hpp"
-#include "app/scene/PlatformNodeHandler.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/nodes/controls/Cell.hpp"

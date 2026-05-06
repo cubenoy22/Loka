@@ -31,7 +31,10 @@ namespace loka
     public:
       typedef FragmentTypeTag TypeTag;
       FragmentProps props;
-      FragmentNode(const FragmentProps &p) : props(p) {}
+      FragmentNode(const FragmentProps &p)
+          : props(p)
+      {
+      }
       virtual void render(scene::IPlatformController *controller)
       {
         scene::Node *child = this->childrenHead();
@@ -54,13 +57,28 @@ namespace loka
       }
     };
 
-    struct FragmentDefinition : public scene::NodeDefinition<FragmentProps, FragmentNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<FragmentDefinition>, public scene::TestIdDslMixin<FragmentDefinition>
+    struct FragmentDefinition : public scene::NodeDefinition<FragmentProps, FragmentNode>,
+                                public scene::NestableDefinitionBase,
+                                public scene::NestableDslMixin<FragmentDefinition>,
+                                public scene::TestIdDslMixin<FragmentDefinition>
     {
       typedef scene::NodeDefinition<FragmentProps, FragmentNode> BaseType;
       using scene::NestableDslMixin<FragmentDefinition>::operator<<;
-      FragmentDefinition() : BaseType(), scene::NestableDefinitionBase() {}
-      FragmentDefinition(const FragmentProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
-      FragmentDefinition(const FragmentDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
+      FragmentDefinition()
+          : BaseType(),
+            scene::NestableDefinitionBase()
+      {
+      }
+      FragmentDefinition(const FragmentProps &p)
+          : BaseType(p),
+            scene::NestableDefinitionBase()
+      {
+      }
+      FragmentDefinition(const FragmentDefinition &other)
+          : BaseType(other),
+            scene::NestableDefinitionBase(other)
+      {
+      }
       FragmentDefinition &operator=(const FragmentDefinition &other)
       {
         if (this != &other)
@@ -74,8 +92,14 @@ namespace loka
       {
         return new FragmentDefinition(*this);
       }
-      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition()
+      {
+        return this;
+      }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
+      {
+        return this;
+      }
     };
 
     typedef FragmentDefinition Fragment;

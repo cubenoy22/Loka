@@ -3,9 +3,9 @@
 
 #include <windows.h>
 #include <map>
-#include "app/scene/PlatformController.hpp"
-#include "app/scene/PlatformLayoutHandler.hpp"
-#include "app/scene/PlatformNodeHandler.hpp"
+#include "app/scene/projection/PlatformController.hpp"
+#include "app/scene/projection/PlatformLayoutHandler.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "context/Win32NodeContextMapper.hpp"
 
 class Win32ButtonContext;

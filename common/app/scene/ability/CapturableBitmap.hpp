@@ -9,7 +9,7 @@ namespace loka
     {
       class Image;
     }
-  }
+  } // namespace core
 
   namespace app
   {
@@ -20,8 +20,8 @@ namespace loka
         virtual ~ICapturableBitmap() {}
         virtual bool captureBitmap(::loka::core::resource::Image &out) const = 0;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_APP_SCENE_ABILITY_CAPTURABLE_BITMAP_HPP

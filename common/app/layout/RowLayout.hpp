@@ -103,12 +103,12 @@ namespace loka
           if (row->props.hasVerticalAlignment_)
           {
             const int childHeight = loka::app::layout::preferredChildHeightForRow(child,
-                                                                                   rowHeight,
-                                                                                   metrics.buttonHeight,
-                                                                                   metrics.editTextHeight,
-                                                                                   metrics.popupMenuHeight,
-                                                                                   metrics.textHeight,
-                                                                                   metrics.imageFallbackHeight);
+                                                                                  rowHeight,
+                                                                                  metrics.buttonHeight,
+                                                                                  metrics.editTextHeight,
+                                                                                  metrics.popupMenuHeight,
+                                                                                  metrics.textHeight,
+                                                                                  metrics.imageFallbackHeight);
             int offset = 0;
             const int remain = rowHeight - childHeight;
             if (remain > 0)
@@ -134,8 +134,8 @@ namespace loka
         }
         return maxY;
       }
-    }
-  }
-}
+    } // namespace layout
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_APP_LAYOUT_ROW_LAYOUT_HPP

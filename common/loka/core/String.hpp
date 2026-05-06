@@ -42,6 +42,7 @@ namespace loka
 
       bool empty() const;
       StringCompareResult compare(const String &other, bool allowAllocateBuffer) const;
+      int compare(const String &other) const;
       bool equals(const String &other) const;
       StringBuffer buffer() const;
       StringBuffer bufferWithEncoding(StringEncoding encoding) const;

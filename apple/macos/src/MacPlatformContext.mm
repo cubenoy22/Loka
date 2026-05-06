@@ -4,7 +4,7 @@
 #include "loka/platform/file/FileHandle.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/scene/Node.hpp"
-#include "app/scene/NativeNodeContext.hpp"
+#include "app/scene/projection/NativeNodeContext.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 #include <AppKit/AppKit.h>

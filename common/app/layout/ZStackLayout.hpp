@@ -37,8 +37,8 @@ namespace loka
         }
         return maxY;
       }
-    }
-  }
-}
+    } // namespace layout
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_APP_LAYOUT_ZSTACK_LAYOUT_HPP

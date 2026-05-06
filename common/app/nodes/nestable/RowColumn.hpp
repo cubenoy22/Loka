@@ -35,7 +35,9 @@ namespace loka
       HorizontalAlignment horizontalAlignment_;
       ColumnProps()
           : hasHorizontalAlignment_(false),
-            horizontalAlignment_(HORIZONTAL_ALIGNMENT_LEADING) {}
+            horizontalAlignment_(HORIZONTAL_ALIGNMENT_LEADING)
+      {
+      }
       ColumnProps &alignHorizontal(HorizontalAlignment value)
       {
         this->hasHorizontalAlignment_ = true;
@@ -58,18 +60,42 @@ namespace loka
     public:
       typedef ColumnTypeTag TypeTag;
       ColumnProps props;
-      ColumnNode(const ColumnProps &p) : props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_COLUMN; }
-      virtual ColumnNode *asColumnNode() { return this; }
+      ColumnNode(const ColumnProps &p)
+          : props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_COLUMN;
+      }
+      virtual ColumnNode *asColumnNode()
+      {
+        return this;
+      }
     };
 
-    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<ColumnDefinition>, public scene::TestIdDslMixin<ColumnDefinition>
+    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>,
+                              public scene::NestableDefinitionBase,
+                              public scene::NestableDslMixin<ColumnDefinition>,
+                              public scene::TestIdDslMixin<ColumnDefinition>
     {
       typedef scene::NodeDefinition<ColumnProps, ColumnNode> BaseType;
       using scene::NestableDslMixin<ColumnDefinition>::operator<<;
-      ColumnDefinition() : BaseType(), scene::NestableDefinitionBase() {}
-      ColumnDefinition(const ColumnProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
-      ColumnDefinition(const ColumnDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
+      ColumnDefinition()
+          : BaseType(),
+            scene::NestableDefinitionBase()
+      {
+      }
+      ColumnDefinition(const ColumnProps &p)
+          : BaseType(p),
+            scene::NestableDefinitionBase()
+      {
+      }
+      ColumnDefinition(const ColumnDefinition &other)
+          : BaseType(other),
+            scene::NestableDefinitionBase(other)
+      {
+      }
       ColumnDefinition &operator=(const ColumnDefinition &other)
       {
         if (this != &other)
@@ -88,8 +114,14 @@ namespace loka
         this->props.alignHorizontal(value);
         return *this;
       }
-      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition()
+      {
+        return this;
+      }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
+      {
+        return this;
+      }
     };
 
     struct RowTypeTag
@@ -106,7 +138,9 @@ namespace loka
       VerticalAlignment verticalAlignment_;
       RowProps()
           : hasVerticalAlignment_(false),
-            verticalAlignment_(VERTICAL_ALIGNMENT_TOP) {}
+            verticalAlignment_(VERTICAL_ALIGNMENT_TOP)
+      {
+      }
       RowProps &alignVertical(VerticalAlignment value)
       {
         this->hasVerticalAlignment_ = true;
@@ -129,18 +163,42 @@ namespace loka
     public:
       typedef RowTypeTag TypeTag;
       RowProps props;
-      RowNode(const RowProps &p) : props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_ROW; }
-      virtual RowNode *asRowNode() { return this; }
+      RowNode(const RowProps &p)
+          : props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_ROW;
+      }
+      virtual RowNode *asRowNode()
+      {
+        return this;
+      }
     };
 
-    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<RowDefinition>, public scene::TestIdDslMixin<RowDefinition>
+    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>,
+                           public scene::NestableDefinitionBase,
+                           public scene::NestableDslMixin<RowDefinition>,
+                           public scene::TestIdDslMixin<RowDefinition>
     {
       typedef scene::NodeDefinition<RowProps, RowNode> BaseType;
       using scene::NestableDslMixin<RowDefinition>::operator<<;
-      RowDefinition() : BaseType(), scene::NestableDefinitionBase() {}
-      RowDefinition(const RowProps &p) : BaseType(p), scene::NestableDefinitionBase() {}
-      RowDefinition(const RowDefinition &other) : BaseType(other), scene::NestableDefinitionBase(other) {}
+      RowDefinition()
+          : BaseType(),
+            scene::NestableDefinitionBase()
+      {
+      }
+      RowDefinition(const RowProps &p)
+          : BaseType(p),
+            scene::NestableDefinitionBase()
+      {
+      }
+      RowDefinition(const RowDefinition &other)
+          : BaseType(other),
+            scene::NestableDefinitionBase(other)
+      {
+      }
       RowDefinition &operator=(const RowDefinition &other)
       {
         if (this != &other)
@@ -159,8 +217,14 @@ namespace loka
         this->props.alignVertical(value);
         return *this;
       }
-      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition()
+      {
+        return this;
+      }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
+      {
+        return this;
+      }
     };
 
     typedef ColumnDefinition Column;

@@ -139,6 +139,43 @@ A good Loka abstraction should make it possible to answer:
 If those answers are not visible in the type or API shape, the abstraction is
 not ready to become a framework-facing surface.
 
+## State Ownership Is Explicit, Not Ambient
+
+Loka should not assume that every `Node` is a state owner. A `Node` may express
+meaning, receive props, compose children, draw, handle events, or declare local
+state handles, but those capabilities do not automatically make it a lifecycle
+owner.
+
+Making all nodes own state would be convenient at first, but it would scatter
+lifetime, tracking, cleanup, and update roots across the whole tree. That makes
+applications harder to optimize and harder to inspect, especially on retro
+targets where every hidden tracker, list, and allocation matters.
+
+The default path should be that ordinary node-local state is backed by the
+attached `Boundary` owner. Shorter or more specific lifetimes should be explicit:
+a scope, logic/model node, resource owner, or boundary-inner owner should say in
+its type shape that it owns state. Loka should make it easy to create such
+owners when they are meaningful, but it should not create them everywhere by
+default.
+
+## Read And Write State Are Different
+
+State access should communicate authority. If a prop or API only needs to read
+a live value, it should accept `State<T>*`. Requiring `MutableState<T>*` for a
+read-only input gives the callee apparent write authority it does not need.
+
+Use `MutableState<T>*` when the component, platform bridge, or framework feature
+is expected to write a result back to the caller, such as text input, selection
+changes, file dialog results, or window state. Use `State<T>*` for borrowed live
+inputs such as labels, enabled flags, layout alignment, padding, font size, or
+other values that affect rendering or layout but are not owned or mutated by
+the receiving node.
+
+This distinction keeps application code meaningful: a state binding should show
+whether data flows into a node, out of a node, or both. It also keeps ownership
+and debugging clearer on targets without ARC, tracing GC, or pervasive smart
+pointers.
+
 ## Boundary-Centered Memory
 
 Memory and resource ownership should be organized around `Boundary` whenever

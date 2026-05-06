@@ -12,12 +12,19 @@ namespace loka
     {
     public:
       explicit ShowDefinition(loka::core::State<bool> *condition)
-          : scene::NodeDefinitionBase(), condition_(condition), trueBranch_(), falseBranch_() {}
+          : scene::NodeDefinitionBase(),
+            condition_(condition),
+            trueBranch_(),
+            falseBranch_()
+      {
+      }
       ShowDefinition(const ShowDefinition &other)
           : scene::NodeDefinitionBase(other),
             condition_(other.condition_),
             trueBranch_(other.trueBranch_),
-            falseBranch_(other.falseBranch_) {}
+            falseBranch_(other.falseBranch_)
+      {
+      }
       ShowDefinition &operator=(const ShowDefinition &other)
       {
         if (this != &other)
@@ -46,9 +53,18 @@ namespace loka
       {
         return scene::ConditionalDefinition(this->props()).nodeAlign();
       }
-      virtual scene::NodeDefinitionBase *clone() const { return new ShowDefinition(*this); }
-      virtual scene::NodeKind nodeKind() const { return scene::NODE_KIND_UNKNOWN; }
-      virtual const scene::PropsBase *propsBase() const { return 0; }
+      virtual scene::NodeDefinitionBase *clone() const
+      {
+        return new ShowDefinition(*this);
+      }
+      virtual scene::NodeKind nodeKind() const
+      {
+        return scene::NODE_KIND_UNKNOWN;
+      }
+      virtual const scene::PropsBase *propsBase() const
+      {
+        return 0;
+      }
       virtual bool hasEquivalentProps(const scene::NodeDefinitionBase &other) const
       {
         (void)other;
@@ -85,7 +101,9 @@ namespace loka
 
       scene::ConditionalProps props() const
       {
-        return scene::ConditionalProps(this->condition_, const_cast<FragmentDefinition *>(&this->trueBranch_), const_cast<FragmentDefinition *>(&this->falseBranch_));
+        return scene::ConditionalProps(this->condition_,
+                                       const_cast<FragmentDefinition *>(&this->trueBranch_),
+                                       const_cast<FragmentDefinition *>(&this->falseBranch_));
       }
 
       size_t childrenCount() const

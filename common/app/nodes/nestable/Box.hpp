@@ -18,8 +18,14 @@ namespace loka
       typedef BoxTypeTag TypeTag;
       typedef BoxNode NodeType;
       int padding;
-      BoxProps() : padding(0) {}
-      int hash() const { return padding; }
+      BoxProps()
+          : padding(0)
+      {
+      }
+      int hash() const
+      {
+        return padding;
+      }
       BoxProps &setPadding(int value)
       {
         padding = value;
@@ -39,19 +45,44 @@ namespace loka
     public:
       typedef BoxTypeTag TypeTag;
       BoxProps props;
-      BoxNode(const BoxProps &p) : scene::NestableNode(), props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_BOX; }
-      virtual BoxNode *asBoxNode() { return this; }
+      BoxNode(const BoxProps &p)
+          : scene::NestableNode(),
+            props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_BOX;
+      }
+      virtual BoxNode *asBoxNode()
+      {
+        return this;
+      }
     };
 
-    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>, public scene::NestableDefinitionBase, public scene::NestableDslMixin<BoxDefinition>, public scene::TestIdDslMixin<BoxDefinition>
+    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>,
+                           public scene::NestableDefinitionBase,
+                           public scene::NestableDslMixin<BoxDefinition>,
+                           public scene::TestIdDslMixin<BoxDefinition>
     {
       typedef scene::NodeDefinition<BoxProps, BoxNode> BaseType;
       using scene::NestableDslMixin<BoxDefinition>::operator<<;
 
-      BoxDefinition() : BaseType(), NestableDefinitionBase() {}
-      BoxDefinition(const BoxProps &p) : BaseType(p), NestableDefinitionBase() {}
-      BoxDefinition(const BoxDefinition &other) : BaseType(other), NestableDefinitionBase(other) {}
+      BoxDefinition()
+          : BaseType(),
+            NestableDefinitionBase()
+      {
+      }
+      BoxDefinition(const BoxProps &p)
+          : BaseType(p),
+            NestableDefinitionBase()
+      {
+      }
+      BoxDefinition(const BoxDefinition &other)
+          : BaseType(other),
+            NestableDefinitionBase(other)
+      {
+      }
       BoxDefinition &operator=(const BoxDefinition &other)
       {
         if (this != &other)
@@ -65,8 +96,14 @@ namespace loka
       {
         return new BoxDefinition(*this);
       }
-      virtual scene::INestableDefinition *asNestableDefinition() { return this; }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const { return this; }
+      virtual scene::INestableDefinition *asNestableDefinition()
+      {
+        return this;
+      }
+      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
+      {
+        return this;
+      }
       BoxDefinition &padding(int value)
       {
         this->props.setPadding(value);

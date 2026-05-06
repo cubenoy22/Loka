@@ -2,7 +2,6 @@
 #define LOKA_APP_POPUP_MENU_HPP
 
 #include <cstddef>
-#include <cstring>
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
@@ -186,30 +185,10 @@ namespace loka
         {
           const loka::core::String &leftString = (*left)[i];
           const loka::core::String &rightString = (*right)[i];
-          loka::core::StringBuffer leftBuffer = leftString.bufferWithEncoding(loka::core::StringEncodingUtf8);
-          loka::core::StringBuffer rightBuffer = rightString.bufferWithEncoding(loka::core::StringEncodingUtf8);
-          std::size_t leftLength = leftBuffer.length();
-          std::size_t rightLength = rightBuffer.length();
-          std::size_t commonLength = leftLength < rightLength ? leftLength : rightLength;
-          if (commonLength > 0)
+          const int compareResult = leftString.compare(rightString);
+          if (compareResult != 0)
           {
-            int compare = std::memcmp(leftBuffer.data(), rightBuffer.data(), commonLength);
-            if (compare < 0)
-            {
-              return -1;
-            }
-            if (compare > 0)
-            {
-              return 1;
-            }
-          }
-          if (leftLength < rightLength)
-          {
-            return -1;
-          }
-          if (rightLength < leftLength)
-          {
-            return 1;
+            return compareResult;
           }
         }
         return 0;

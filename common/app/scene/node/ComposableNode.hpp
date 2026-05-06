@@ -5,10 +5,10 @@
 #include <cstring>
 #include <vector>
 #include "../Node.hpp"
-#include "../ComponentContext.hpp"
-#include "../NodeComposition.hpp"
-#include "../StateBatchBase.hpp"
-#include "../StateOwner.hpp"
+#include "app/scene/context/ComponentContext.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
+#include "app/scene/state/StateBatchBase.hpp"
+#include "app/scene/state/StateOwner.hpp"
 #include "loka/core/Profiler.hpp"
 
 class Window;
@@ -250,6 +250,10 @@ namespace loka
           this->watchStateForUi(state, method, callImmediately);
         }
 
+        // Registers Node-local state with the current composition owner.
+        // This does not make ComposableNode a state owner; nodes that need a
+        // shorter ownership scope than Boundary should expose an explicit
+        // IStateOwner through asStateOwner().
         template <typename T>
         void state(NodeState<T> &out, const T &initial)
         {

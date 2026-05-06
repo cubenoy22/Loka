@@ -1,0 +1,116 @@
+#include "Boundary.hpp"
+#include "app/scene/Scene.hpp"
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+#include "loka/platform/DebugLog.hpp"
+#endif
+
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      void BoundaryNode::markViewDirty(NodeDirtyFlags flags)
+      {
+        if (this->isFrozen())
+        {
+          return;
+        }
+        Scene *scene = this->getScene();
+        if (!scene)
+        {
+          return;
+        }
+        const bool flushImmediately = this->flushViewDirtyImmediately(flags);
+        scene->requestBoundaryUpdate(this, flags, flushImmediately);
+      }
+
+      void BoundaryNode::InvalidateSceneThunk(void *userData)
+      {
+        BoundaryNode *self = static_cast<BoundaryNode *>(userData);
+        if (!self)
+        {
+          return;
+        }
+        Scene *scene = self->getScene();
+        if (scene)
+        {
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
+          loka::platform::DebugLogSceneUpdateTracked(static_cast<void *>(self), static_cast<void *>(scene));
+#endif
+          NodeDirtyFlags flags = self->observedDirtyFlagsForCommittedStates();
+          if (flags == NODE_DIRTY_NONE)
+          {
+            flags = self->observedDirtyFlags();
+          }
+          if (flags == NODE_DIRTY_NONE)
+          {
+            return;
+          }
+          self->markViewDirty(flags);
+        }
+      }
+
+      void BoundaryNode::ObservedStateChangedThunk(void *userData)
+      {
+        BoundaryObservedStateBinding *binding = static_cast<BoundaryObservedStateBinding *>(userData);
+        if (!binding || !binding->boundary)
+        {
+          return;
+        }
+        if (binding->state && binding->state->trackerOwner() == binding->boundary->tracker())
+        {
+          return;
+        }
+        if (!binding->boundary->getScene())
+        {
+          return;
+        }
+        NodeDirtyFlags flags = binding->flags;
+        if (flags == NODE_DIRTY_NONE)
+        {
+          return;
+        }
+        loka::core::StateTracker *ownerTracker = binding->state ? binding->state->trackerOwner() : 0;
+        if (ownerTracker && ownerTracker->phase() != loka::core::TRACKER_IDLE)
+        {
+          binding->retain();
+          ownerTracker->defer(&BoundaryNode::ObservedStateDeferredInvalidateThunk, binding);
+          return;
+        }
+        binding->boundary->markViewDirty(flags);
+      }
+
+      void BoundaryNode::ObservedStateDeferredInvalidateThunk(void *userData)
+      {
+        BoundaryObservedStateBinding *binding = static_cast<BoundaryObservedStateBinding *>(userData);
+        if (!binding)
+        {
+          return;
+        }
+        if (!binding->boundary)
+        {
+          if (binding->release())
+          {
+            delete binding;
+          }
+          return;
+        }
+        NodeDirtyFlags flags = binding->flags;
+        if (flags == NODE_DIRTY_NONE)
+        {
+          if (binding->release())
+          {
+            delete binding;
+          }
+          return;
+        }
+        binding->boundary->markViewDirty(flags);
+        if (binding->release())
+        {
+          delete binding;
+        }
+      }
+    } // namespace scene
+  } // namespace app
+} // namespace loka

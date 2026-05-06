@@ -2,7 +2,6 @@
 #define LOKA_APP2_TEXT_HPP
 
 #include <cassert>
-#include <cstring>
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
 #include "loka/core/String.hpp"
@@ -84,15 +83,11 @@ namespace loka
 
       bool operator==(const TextAttr &other) const
       {
-        return this->hasFontSizeValue_ == other.hasFontSizeValue_ &&
-               this->fontSizeValue_ == other.fontSizeValue_ &&
-               this->fontSizeState_ == other.fontSizeState_ &&
-               this->hasWeightValue_ == other.hasWeightValue_ &&
-               this->weightValue_ == other.weightValue_ &&
-               this->hasWrapValue_ == other.hasWrapValue_ &&
-               this->wrapValue_ == other.wrapValue_ &&
-               this->hasTruncationValue_ == other.hasTruncationValue_ &&
-               this->truncationValue_ == other.truncationValue_;
+        return this->hasFontSizeValue_ == other.hasFontSizeValue_ && this->fontSizeValue_ == other.fontSizeValue_
+               && this->fontSizeState_ == other.fontSizeState_ && this->hasWeightValue_ == other.hasWeightValue_
+               && this->weightValue_ == other.weightValue_ && this->hasWrapValue_ == other.hasWrapValue_
+               && this->wrapValue_ == other.wrapValue_ && this->hasTruncationValue_ == other.hasTruncationValue_
+               && this->truncationValue_ == other.truncationValue_;
       }
 
       bool operator<(const TextAttr &other) const
@@ -143,18 +138,46 @@ namespace loka
       bool ownsText;
       TextAttr attr_;
       bool hasAttr_;
-      TextProps() : text_(0), ownedText(), ownsText(false), attr_(), hasAttr_(false) {}
-      TextProps(loka::core::State<loka::core::String> *state) : text_(state), ownedText(), ownsText(false), attr_(), hasAttr_(false) {}
-      TextProps(const loka::core::String &value) : text_(0), ownedText(value), ownsText(true), attr_(), hasAttr_(false)
+      TextProps()
+          : text_(0),
+            ownedText(),
+            ownsText(false),
+            attr_(),
+            hasAttr_(false)
+      {
+      }
+      TextProps(loka::core::State<loka::core::String> *state)
+          : text_(state),
+            ownedText(),
+            ownsText(false),
+            attr_(),
+            hasAttr_(false)
+      {
+      }
+      TextProps(const loka::core::String &value)
+          : text_(0),
+            ownedText(value),
+            ownsText(true),
+            attr_(),
+            hasAttr_(false)
       {
         text_ = &ownedText;
       }
-      TextProps(const char *value) : text_(0), ownedText(loka::core::String::Literal(value)), ownsText(true), attr_(), hasAttr_(false)
+      TextProps(const char *value)
+          : text_(0),
+            ownedText(loka::core::String::Literal(value)),
+            ownsText(true),
+            attr_(),
+            hasAttr_(false)
       {
         text_ = &ownedText;
       }
       TextProps(const TextProps &other)
-          : text_(other.text_), ownedText(other.ownedText), ownsText(other.ownsText), attr_(other.attr_), hasAttr_(other.hasAttr_)
+          : text_(other.text_),
+            ownedText(other.ownedText),
+            ownsText(other.ownsText),
+            attr_(other.attr_),
+            hasAttr_(other.hasAttr_)
       {
         if (ownsText)
         {
@@ -218,38 +241,7 @@ namespace loka
         {
           return 1;
         }
-        const loka::core::String &leftString = left->get();
-        const loka::core::String &rightString = right->get();
-        if (leftString.equals(rightString))
-        {
-          return 0;
-        }
-        loka::core::StringBuffer leftBuffer = leftString.bufferWithEncoding(loka::core::StringEncodingUtf8);
-        loka::core::StringBuffer rightBuffer = rightString.bufferWithEncoding(loka::core::StringEncodingUtf8);
-        std::size_t leftLength = leftBuffer.length();
-        std::size_t rightLength = rightBuffer.length();
-        std::size_t commonLength = leftLength < rightLength ? leftLength : rightLength;
-        if (commonLength > 0)
-        {
-          int compare = std::memcmp(leftBuffer.data(), rightBuffer.data(), commonLength);
-          if (compare < 0)
-          {
-            return -1;
-          }
-          if (compare > 0)
-          {
-            return 1;
-          }
-        }
-        if (leftLength < rightLength)
-        {
-          return -1;
-        }
-        if (rightLength < leftLength)
-        {
-          return 1;
-        }
-        return 0;
+        return left->get().compare(right->get());
       }
 
       bool operator<(const scene::PropsBase &rhs) const
@@ -266,17 +258,31 @@ namespace loka
       }
     };
 
-    class TextNode : public scene::Node,
-                     public scene::IProjectedLayoutNode
+    class TextNode : public scene::Node, public scene::IProjectedLayoutNode
     {
     public:
       typedef TextTypeTag TypeTag;
       TextProps props;
-      TextNode(const TextProps &p) : props(p) {}
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_TEXT; }
-      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
-      virtual const void *nodeTypeKey() const { return scene::NodeTypeToken<TextNode>(); }
-      virtual TextNode *asTextNode() { return this; }
+      TextNode(const TextProps &p)
+          : props(p)
+      {
+      }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_TEXT;
+      }
+      virtual scene::IProjectedLayoutNode *asProjectedLayoutNode()
+      {
+        return this;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<TextNode>();
+      }
+      virtual TextNode *asTextNode()
+      {
+        return this;
+      }
       virtual short layoutProjected(scene::IPlatformController *controller, scene::LayoutState &state)
       {
         if (!controller)
@@ -294,9 +300,7 @@ namespace loka
         if (this->props.text_ && !this->props.ownsText)
         {
           scene::NodeDirtyFlags textFlags = scene::NODE_DIRTY_PROPS;
-          if (this->props.hasAttr_ &&
-              this->props.attr_.hasWrapValue_ &&
-              this->props.attr_.wrapValue_ != TEXT_WRAP_NONE)
+          if (this->props.hasAttr_ && this->props.attr_.hasWrapValue_ && this->props.attr_.wrapValue_ != TEXT_WRAP_NONE)
           {
             textFlags = static_cast<scene::NodeDirtyFlags>(textFlags | scene::NODE_DIRTY_LAYOUT);
           }
@@ -309,21 +313,45 @@ namespace loka
       }
     };
 
-    struct TextDefinition : public scene::NodeDefinition<TextProps, TextNode>, public scene::TestIdDslMixin<TextDefinition>
+    struct TextDefinition : public scene::NodeDefinition<TextProps, TextNode>,
+                            public scene::TestIdDslMixin<TextDefinition>
     {
-      TextDefinition() : loka::app::scene::NodeDefinition<TextProps, TextNode>() {}
-      TextDefinition(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
-      TextDefinition(const char *value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
-      TextDefinition(const loka::core::String &value) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value)) {}
-      TextDefinition(loka::core::State<loka::core::String> *state) : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state)) {}
+      TextDefinition()
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>()
+      {
+      }
+      TextDefinition(const TextProps &p)
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>(p)
+      {
+      }
+      TextDefinition(const char *value)
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value))
+      {
+      }
+      TextDefinition(const loka::core::String &value)
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(value))
+      {
+      }
+      TextDefinition(loka::core::State<loka::core::String> *state)
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>(TextProps(state))
+      {
+      }
       TextDefinitionWithAttr attr(const TextAttr &value) const;
     };
 
-    struct TextDefinitionWithAttr : public scene::NodeDefinition<TextProps, TextNode>, public scene::TestIdDslMixin<TextDefinitionWithAttr>
+    struct TextDefinitionWithAttr : public scene::NodeDefinition<TextProps, TextNode>,
+                                    public scene::TestIdDslMixin<TextDefinitionWithAttr>
     {
-      TextDefinitionWithAttr() : loka::app::scene::NodeDefinition<TextProps, TextNode>() {}
-      TextDefinitionWithAttr(const TextProps &p) : loka::app::scene::NodeDefinition<TextProps, TextNode>(p) {}
-      TextDefinitionWithAttr(const TextDefinition &def) : loka::app::scene::NodeDefinition<TextProps, TextNode>(def.props)
+      TextDefinitionWithAttr()
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>()
+      {
+      }
+      TextDefinitionWithAttr(const TextProps &p)
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>(p)
+      {
+      }
+      TextDefinitionWithAttr(const TextDefinition &def)
+          : loka::app::scene::NodeDefinition<TextProps, TextNode>(def.props)
       {
         this->copyTestIdPolicyFrom(def);
       }
