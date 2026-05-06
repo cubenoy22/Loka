@@ -7,7 +7,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/scene/NodeState.hpp"
-#include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/scene/StdComposition.hpp"
 #include "loka/core/State.hpp"
 
 namespace tutorial

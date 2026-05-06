@@ -8,7 +8,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/scene/FlowSlot.hpp"
 #include "app/scene/NodeState.hpp"
-#include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/scene/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/dsl/StateStream.hpp"

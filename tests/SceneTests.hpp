@@ -7,7 +7,7 @@
 #include "app/scene/FlowSlot.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/PlatformController.hpp"
-#include "app/scene/nodes/boundary/StdComposition.hpp"
+#include "app/scene/StdComposition.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
 
