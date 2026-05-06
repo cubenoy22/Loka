@@ -80,6 +80,10 @@ is to prevent platform, media, game, or experimental behavior from weakening the
 core model. A seam is good when it keeps ownership, lifecycle, and dirty/apply
 contracts inspectable.
 
+A `Boundary` is both a compartment and a diagnostic boundary. It localizes
+ownership, lifecycle, update routing, composition policy, and platform
+projection so complexity has a place to live and a place to be inspected.
+
 ## No Black Boxes
 
 Loka should avoid black boxes. Powerful features may hide routine mechanics, but
