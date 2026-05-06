@@ -1,8 +1,8 @@
-#ifndef LOKA_CORE2_SCENE_NODE_BOUNDARY_OBSERVED_STATE_HPP
-#define LOKA_CORE2_SCENE_NODE_BOUNDARY_OBSERVED_STATE_HPP
+#ifndef LOKA_CORE2_SCENE_BOUNDARY_OBSERVED_STATE_HPP
+#define LOKA_CORE2_SCENE_BOUNDARY_OBSERVED_STATE_HPP
 
 #include <vector>
-#include "../../Node.hpp"
+#include "app/scene/Node.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
 
@@ -243,4 +243,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_CORE2_SCENE_NODE_BOUNDARY_OBSERVED_STATE_HPP
+#endif // LOKA_CORE2_SCENE_BOUNDARY_OBSERVED_STATE_HPP

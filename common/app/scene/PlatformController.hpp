@@ -3,7 +3,7 @@
 
 #include "app/scene/Node.hpp"
 #include "app/scene/PlatformNodeHandler.hpp"
-#include "app/scene/nodes/boundary/BoundaryApplyInfo.hpp"
+#include "app/scene/boundary/BoundaryApplyInfo.hpp"
 
 namespace loka
 {

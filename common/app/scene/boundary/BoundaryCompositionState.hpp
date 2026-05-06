@@ -1,12 +1,12 @@
-#ifndef LOKA_CORE2_SCENE_NODES_BOUNDARY_BOUNDARYCOMPOSITIONSTATE_HPP
-#define LOKA_CORE2_SCENE_NODES_BOUNDARY_BOUNDARYCOMPOSITIONSTATE_HPP
+#ifndef LOKA_CORE2_SCENE_BOUNDARY_BOUNDARYCOMPOSITIONSTATE_HPP
+#define LOKA_CORE2_SCENE_BOUNDARY_BOUNDARYCOMPOSITIONSTATE_HPP
 
 #include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/NodeCompositionCompare.hpp"
 #include "app/scene/NodeCompositionDiff.hpp"
 #include "app/scene/NodeCompositionSnapshot.hpp"
-#include "app/scene/nodes/boundary/BoundaryStateTypes.hpp"
+#include "app/scene/boundary/BoundaryStateTypes.hpp"
 
 namespace loka
 {
