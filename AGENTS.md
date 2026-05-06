@@ -35,6 +35,7 @@ clear boundaries, and small reusable concepts.
 - A good Loka abstraction should make application code feel simple without hiding where state lives or who cleans it up.
 - Favor meaningful application code: app-facing APIs should express intent, ownership, and state flow rather than platform IDs, encoding buffers, or other incidental mechanics. Push platform-specific details down behind neutral names and thin value types when doing so keeps lifecycle and ownership understandable.
 - Framework-facing names and contracts must not depend on vibes or leave room for competing interpretations. If users or maintainers could reasonably disagree about what an API means, tighten the name, split the concept, or make the ownership/lifecycle/dirty-flow contract explicit in the type shape before promoting it.
+- Use `/** ... */` for class, struct, and API documentation comments that describe shipped concepts or contracts. Use `//` for local implementation notes.
 - Avoid cleverness that only shortens code. Prefer clarity that makes the next feature easier to place.
 - When an abstraction works, it should reduce future decisions, not create new special cases.
 - Treat "magic" as acceptable only when the underlying structure remains inspectable and explainable.

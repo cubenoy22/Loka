@@ -19,6 +19,13 @@ namespace loka
       class Scene;
       class NodeComposition;
 
+      /**
+       * Borrowed traversal context for compose/update work.
+       *
+       * ComponentContext does not own the objects it points to. It carries the
+       * current owner, state owner, boundary, platform controller, scene,
+       * window, active composition, and dirty flags for one traversal frame.
+       */
       class ComponentContext
       {
       public:
