@@ -42,20 +42,50 @@ namespace loka
 
         virtual ~NativeNodeContext() {}
 
-        virtual ICapturableBitmap *asCapturableBitmap() { return 0; }
-        virtual const ICapturableBitmap *asCapturableBitmap() const { return 0; }
+        virtual ICapturableBitmap *asCapturableBitmap()
+        {
+          return 0;
+        }
+        virtual const ICapturableBitmap *asCapturableBitmap() const
+        {
+          return 0;
+        }
 
-        void setPriority(ResourcePriority priority) { priority_ = priority; }
-        ResourcePriority priority() const { return priority_; }
+        void setPriority(ResourcePriority priority)
+        {
+          priority_ = priority;
+        }
+        ResourcePriority priority() const
+        {
+          return priority_;
+        }
 
-        void setMemoryCostBytes(std::size_t bytes) { memoryCostBytes_ = bytes; }
-        std::size_t memoryCostBytes() const { return memoryCostBytes_; }
+        void setMemoryCostBytes(std::size_t bytes)
+        {
+          memoryCostBytes_ = bytes;
+        }
+        std::size_t memoryCostBytes() const
+        {
+          return memoryCostBytes_;
+        }
 
-        void setPersistent(bool persistent) { persistent_ = persistent; }
-        bool isPersistent() const { return persistent_; }
+        void setPersistent(bool persistent)
+        {
+          persistent_ = persistent;
+        }
+        bool isPersistent() const
+        {
+          return persistent_;
+        }
 
-        void requestRelease() { releaseRequested_ = true; }
-        bool releaseRequested() const { return releaseRequested_; }
+        void requestRelease()
+        {
+          releaseRequested_ = true;
+        }
+        bool releaseRequested() const
+        {
+          return releaseRequested_;
+        }
 
       private:
         ResourcePriority priority_;
@@ -64,7 +94,7 @@ namespace loka
         bool releaseRequested_;
       };
     } // namespace scene
-  }   // namespace app
+  } // namespace app
 } // namespace loka
 
 #endif // LOKA_CORE2_SCENE_PROJECTION_NATIVE_NODE_CONTEXT_HPP

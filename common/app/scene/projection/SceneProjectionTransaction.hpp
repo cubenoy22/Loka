@@ -35,12 +35,16 @@ namespace loka
         struct TargetEntry
         {
           TargetEntry()
-              : node(0), dirtyFlags(NODE_DIRTY_NONE), next(0)
+              : node(0),
+                dirtyFlags(NODE_DIRTY_NONE),
+                next(0)
           {
           }
 
           TargetEntry(Node *targetNode, NodeDirtyFlags flags)
-              : node(targetNode), dirtyFlags(flags), next(0)
+              : node(targetNode),
+                dirtyFlags(flags),
+                next(0)
           {
           }
 
@@ -98,7 +102,8 @@ namespace loka
         };
 
         SceneProjectionTransaction()
-            : head(0), tail(0)
+            : head(0),
+              tail(0)
         {
         }
 

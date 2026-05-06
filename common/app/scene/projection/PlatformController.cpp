@@ -16,6 +16,6 @@ namespace loka
         return controller->prepareProjectedLayout(node, state);
       }
 
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka

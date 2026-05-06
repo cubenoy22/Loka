@@ -17,15 +17,16 @@ namespace loka
         virtual ~IPlatformNodeHandler() {}
 
         virtual const void *nodeTypeKey() const = 0;
-        virtual NodeContext *ensureContext(Node *node,
-                                           IPlatformController *controller,
-                                           const LayoutState &state) = 0;
+        virtual NodeContext *ensureContext(Node *node, IPlatformController *controller, const LayoutState &state) = 0;
       };
 
       class PlatformNodeHandlerRegistry
       {
       public:
-        PlatformNodeHandlerRegistry() : head_(0) {}
+        PlatformNodeHandlerRegistry()
+            : head_(0)
+        {
+        }
         ~PlatformNodeHandlerRegistry()
         {
           HandlerEntry *entry = this->head_;
@@ -100,7 +101,11 @@ namespace loka
         struct HandlerEntry
         {
           HandlerEntry(const void *nodeTypeKey, IPlatformNodeHandler *handler)
-              : nodeTypeKey_(nodeTypeKey), handler_(handler), next_(0) {}
+              : nodeTypeKey_(nodeTypeKey),
+                handler_(handler),
+                next_(0)
+          {
+          }
 
           const void *nodeTypeKey_;
           IPlatformNodeHandler *handler_;
@@ -112,8 +117,8 @@ namespace loka
         PlatformNodeHandlerRegistry(const PlatformNodeHandlerRegistry &);
         PlatformNodeHandlerRegistry &operator=(const PlatformNodeHandlerRegistry &);
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_PROJECTION_PLATFORM_NODE_HANDLER_HPP

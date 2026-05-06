@@ -17,45 +17,57 @@ namespace loka
       enum NodeDirtyFlags;
       struct PlatformApplyPlan;
 
-      // プラットフォーム固有コントローラーの抽象インターフェース
-      // UIの同期 (Synchronization) を担当する
+      /**
+       * Abstract platform controller for projecting scene changes into native UI.
+       */
       class IPlatformController
       {
       public:
         virtual ~IPlatformController() {}
 
-        // Nodeツリーを受け取り、UIに反映する（flagsは将来の差分用）
+        // Reflect a changed node tree into native UI.
         virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild) = 0;
 
         // Optional boundary-local apply seam. Default is no-op to preserve existing controllers.
-        virtual void onBoundaryApply(Node *, BoundaryNode *, const BoundaryLocalApplyInfo &, const PlatformApplyPlan &) {}
+        virtual void onBoundaryApply(Node *, BoundaryNode *, const BoundaryLocalApplyInfo &, const PlatformApplyPlan &)
+        {
+        }
 
         // Platforms that can fully consume pure paint-only updates through onBoundaryApply()
         // may opt into skipping the legacy global onChange() callback for those cycles.
-        virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return false; }
+        virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const
+        {
+          return false;
+        }
 
         // Optional hook to start a new scene apply/update measurement cycle.
         virtual void beginApplyCycle() {}
 
-        // 変更があったNodeをUIに同期する
+        // Synchronize pending native UI changes.
         virtual void synchronize() = 0;
         virtual bool hasPendingSync() const = 0;
 
-        // UIリソースを破棄する
+        // Destroy platform-owned UI resources.
         virtual void destroy() = 0;
 
         // Retired subtree cleanup without forcing a full scene rebuild.
         virtual void releaseNodeContexts(Node *) {}
 
         // Generic hook for nodes that can begin their own platform projection.
-        virtual bool prepareProjectedLayout(Node *, LayoutState &) { return false; }
+        virtual bool prepareProjectedLayout(Node *, LayoutState &)
+        {
+          return false;
+        }
 
         // Optional external extension seam for platform-specific/custom node handlers.
-        virtual bool registerNodeHandler(IPlatformNodeHandler *) { return false; }
+        virtual bool registerNodeHandler(IPlatformNodeHandler *)
+        {
+          return false;
+        }
       };
 
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif // LOKA_CORE2_SCENE_PROJECTION_IPLATFORMCONTROLLER_HPP

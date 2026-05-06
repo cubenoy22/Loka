@@ -152,8 +152,8 @@ namespace loka
         BoundaryNode *layoutRoot;
         BoundaryNode *paintRoot;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif
