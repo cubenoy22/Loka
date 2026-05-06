@@ -94,14 +94,30 @@ namespace loka
         return createConditionalNodeRecursiveWithAutoId(def, autoIdCounter);
       }
 
-      ConditionalProps::ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
-          : condition(cond), trueDef(tDef), falseDef(fDef) {}
+      ConditionalProps::ConditionalProps(loka::core::State<bool> *cond,
+                                         NodeDefinitionBase *tDef,
+                                         NodeDefinitionBase *fDef)
+          : condition(cond),
+            trueDef(tDef),
+            falseDef(fDef)
+      {
+      }
 
-      ConditionalProps::ConditionalProps(const loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef)
-          : condition(const_cast<loka::core::State<bool> *>(cond)), trueDef(tDef), falseDef(fDef) {}
+      ConditionalProps::ConditionalProps(const loka::core::State<bool> *cond,
+                                         NodeDefinitionBase *tDef,
+                                         NodeDefinitionBase *fDef)
+          : condition(const_cast<loka::core::State<bool> *>(cond)),
+            trueDef(tDef),
+            falseDef(fDef)
+      {
+      }
 
       ConditionalNode::ConditionalNode(const ConditionalProps &p)
-          : NestableNode(), props(p), activeNode(0), trueNode_(0), falseNode_(0)
+          : NestableNode(),
+            props(p),
+            activeNode(0),
+            trueNode_(0),
+            falseNode_(0)
       {
         if (props.condition)
         {

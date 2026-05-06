@@ -32,7 +32,14 @@ namespace loka
       class ComposableNode : public NestableNode
       {
       public:
-        ComposableNode() : currentContext_(0), nodeStateOwner_(0), isAttached_(false), attached_(), nodeStates_() {}
+        ComposableNode()
+            : currentContext_(0),
+              nodeStateOwner_(0),
+              isAttached_(false),
+              attached_(),
+              nodeStates_()
+        {
+        }
         virtual ~ComposableNode()
         {
           releaseCallbacks();
@@ -40,7 +47,10 @@ namespace loka
           releaseNodeStateRegistrations();
         }
 
-        virtual ComposableNode *asComposable() { return this; }
+        virtual ComposableNode *asComposable()
+        {
+          return this;
+        }
 
         virtual void compose(ComponentContext &context, ComposeEvent event)
         {
@@ -76,14 +86,20 @@ namespace loka
 
       protected:
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event) = 0;
-        virtual void attachNode(NodeComposition &c) { (void)c; }
+        virtual void attachNode(NodeComposition &c)
+        {
+          (void)c;
+        }
         virtual void detachNode(NodeComposition &c)
         {
           (void)c;
           releaseCallbacks();
         }
 
-        ComponentContext *componentContext() const { return currentContext_; }
+        ComponentContext *componentContext() const
+        {
+          return currentContext_;
+        }
         struct CallbackEntryBase
         {
           virtual ~CallbackEntryBase() {}
@@ -92,12 +108,16 @@ namespace loka
           virtual bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const = 0;
         };
 
-        template <class NodeT>
-        struct CallbackEntry : public CallbackEntryBase
+        template <class NodeT> struct CallbackEntry : public CallbackEntryBase
         {
           typedef void (NodeT::*Method)();
           CallbackEntry(NodeT *node, loka::core::EmitterState *emitter, Method method)
-              : node_(node), emitter_(emitter), method_(method), valid_(true) {}
+              : node_(node),
+                emitter_(emitter),
+                method_(method),
+                valid_(true)
+          {
+          }
 
           static void Invoke(void *userData)
           {
@@ -137,12 +157,16 @@ namespace loka
           bool valid_;
         };
 
-        template <class StateT, class NodeT>
-        struct StateCallbackEntry : public CallbackEntryBase
+        template <class StateT, class NodeT> struct StateCallbackEntry : public CallbackEntryBase
         {
           typedef void (NodeT::*Method)();
           StateCallbackEntry(StateT *state, NodeT *node, Method method)
-              : state_(state), node_(node), method_(method), valid_(true) {}
+              : state_(state),
+                node_(node),
+                method_(method),
+                valid_(true)
+          {
+          }
 
           static void Invoke(void *userData)
           {
@@ -197,21 +221,18 @@ namespace loka
           emitter.deferBind(&CallbackEntry<NodeT>::Invoke, entry);
         }
 
-        template <class NodeT>
-        void bindActionForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
+        template <class NodeT> void bindActionForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
         {
           NodeT *self = static_cast<NodeT *>(this);
           this->bindActionForUi(emitter, self, method);
         }
 
-        template <class NodeT>
-        void bindForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
+        template <class NodeT> void bindForUi(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)())
         {
           this->bindActionForUi(emitter, node, method);
         }
 
-        template <class NodeT>
-        void bindForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
+        template <class NodeT> void bindForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
         {
           this->bindActionForUi(emitter, method);
         }
@@ -254,8 +275,7 @@ namespace loka
         // This does not make ComposableNode a state owner; nodes that need a
         // shorter ownership scope than Boundary should expose an explicit
         // IStateOwner through asStateOwner().
-        template <typename T>
-        void state(NodeState<T> &out, const T &initial)
+        template <typename T> void state(NodeState<T> &out, const T &initial)
         {
           for (size_t i = 0; i < nodeStates_.size(); ++i)
           {
@@ -297,8 +317,7 @@ namespace loka
             this->releaseBlock();
           }
 
-          template <typename T>
-          NodeStateBatch &state(NodeState<T> &out, const T &initial)
+          template <typename T> NodeStateBatch &state(NodeState<T> &out, const T &initial)
           {
             typedef char LokaNodeStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
             (void)sizeof(LokaNodeStateBatchInitializerTooLarge);
@@ -341,7 +360,16 @@ namespace loka
           struct Entry
           {
             Entry()
-                : out(0), owner(0), state(0), connect(0), disconnect(0), matches(0), destroyInitial(0), storage() {}
+                : out(0),
+                  owner(0),
+                  state(0),
+                  connect(0),
+                  disconnect(0),
+                  matches(0),
+                  destroyInitial(0),
+                  storage()
+            {
+            }
             void *out;
             IStateOwner *owner;
             loka::core::StateBase *state;
@@ -356,7 +384,11 @@ namespace loka
           struct Block
           {
             Block(ComposableNode *ownerNode, size_t entryCapacity)
-                : node(ownerNode), entries(0), count(0), capacity(entryCapacity), refs(1)
+                : node(ownerNode),
+                  entries(0),
+                  count(0),
+                  capacity(entryCapacity),
+                  refs(1)
             {
               if (capacity > 0)
               {
@@ -406,14 +438,12 @@ namespace loka
             block_ = 0;
           }
 
-          template <typename T>
-          static bool MatchesState(const Entry &entry, const void *out)
+          template <typename T> static bool MatchesState(const Entry &entry, const void *out)
           {
             return entry.out == out;
           }
 
-          template <typename T>
-          static void ConnectState(Entry &entry, IStateOwner *owner)
+          template <typename T> static void ConnectState(Entry &entry, IStateOwner *owner)
           {
             NodeState<T> *out = static_cast<NodeState<T> *>(entry.out);
             if (!out || !owner)
@@ -433,8 +463,7 @@ namespace loka
             entry.state = out->dangerouslyMutableState();
           }
 
-          template <typename T>
-          static void DisconnectState(Entry &entry)
+          template <typename T> static void DisconnectState(Entry &entry)
           {
             if (entry.owner && entry.state)
             {
@@ -445,8 +474,7 @@ namespace loka
             entry.out = 0;
           }
 
-          template <typename T>
-          static void DestroyInitial(Entry &entry)
+          template <typename T> static void DestroyInitial(Entry &entry)
           {
             DestroyInitialObject<T>(entry.storage.bytes);
           }
@@ -468,10 +496,24 @@ namespace loka
 
         struct AttachedContext
         {
-          AttachedContext() : boundary_(0), scene_(0), window_(0) {}
-          BoundaryNode *boundary() const { return boundary_; }
-          Scene *scene() const { return scene_; }
-          ::Window *window() const { return window_; }
+          AttachedContext()
+              : boundary_(0),
+                scene_(0),
+                window_(0)
+          {
+          }
+          BoundaryNode *boundary() const
+          {
+            return boundary_;
+          }
+          Scene *scene() const
+          {
+            return scene_;
+          }
+          ::Window *window() const
+          {
+            return window_;
+          }
           void reset()
           {
             boundary_ = 0;
@@ -516,8 +558,14 @@ namespace loka
           return composition_;
         }
 
-        NodeComposition &composition() { return composition_; }
-        const NodeComposition &composition() const { return composition_; }
+        NodeComposition &composition()
+        {
+          return composition_;
+        }
+        const NodeComposition &composition() const
+        {
+          return composition_;
+        }
 
         void clearChildren()
         {
@@ -533,11 +581,15 @@ namespace loka
           virtual void disconnect() = 0;
         };
 
-        template <typename T>
-        struct NodeStateRegistration : public NodeStateRegistrationBase
+        template <typename T> struct NodeStateRegistration : public NodeStateRegistrationBase
         {
           NodeStateRegistration(NodeState<T> *out, const T &initial)
-              : out_(out), initial_(initial), owner_(0), state_(0) {}
+              : out_(out),
+                initial_(initial),
+                owner_(0),
+                state_(0)
+          {
+          }
 
           bool matches(const void *out) const
           {
@@ -584,7 +636,8 @@ namespace loka
           typedef NodeStateBatch::Entry Entry;
 
           NodeStateBatchRegistration(Entry *entries, size_t count)
-              : entries_(entries), count_(count)
+              : entries_(entries),
+                count_(count)
           {
           }
 
@@ -700,7 +753,10 @@ namespace loka
           Node *previousOwner;
           IStateOwner *previousStateOwner;
           ContextScope(ComposableNode *n, ComponentContext *ctx)
-              : node(n), previous(n->currentContext_), previousOwner(0), previousStateOwner(0)
+              : node(n),
+                previous(n->currentContext_),
+                previousOwner(0),
+                previousStateOwner(0)
           {
             node->currentContext_ = ctx;
             if (node->currentContext_)

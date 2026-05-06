@@ -37,7 +37,8 @@ namespace loka
         {
           if (this->props.condition)
           {
-            registrar.markDirtyOnChange(this->props.condition, static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
+            registrar.markDirtyOnChange(this->props.condition,
+                                        static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
           }
         }
         static void onConditionChanged(void *userData);
@@ -62,9 +63,18 @@ namespace loka
         Node *createInPlace(void *mem) const;
         size_t nodeSize() const;
         size_t nodeAlign() const;
-        virtual NodeDefinitionBase *clone() const { return new ConditionalDefinition(*this); }
-        virtual NodeKind nodeKind() const { return NODE_KIND_UNKNOWN; }
-        virtual const PropsBase *propsBase() const { return 0; }
+        virtual NodeDefinitionBase *clone() const
+        {
+          return new ConditionalDefinition(*this);
+        }
+        virtual NodeKind nodeKind() const
+        {
+          return NODE_KIND_UNKNOWN;
+        }
+        virtual const PropsBase *propsBase() const
+        {
+          return 0;
+        }
         virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const
         {
           (void)other;
