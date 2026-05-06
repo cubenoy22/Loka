@@ -102,8 +102,8 @@ namespace loka
         bool hasOpaqueCoverageHint;
         bool paintIsOpaque;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif

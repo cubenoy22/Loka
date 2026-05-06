@@ -19,7 +19,11 @@ namespace loka
       class BoundaryInnerStateOwner : public IStateOwner
       {
       public:
-        BoundaryInnerStateOwner() : tracker_(), ownedStates_() {}
+        BoundaryInnerStateOwner()
+            : tracker_(),
+              ownedStates_()
+        {
+        }
         virtual ~BoundaryInnerStateOwner()
         {
           this->clearOwnedStates();
@@ -30,7 +34,10 @@ namespace loka
           this->tracker_.setInvalidateCallback(fn, userData);
         }
 
-        virtual loka::core::StateTracker *tracker() { return &this->tracker_; }
+        virtual loka::core::StateTracker *tracker()
+        {
+          return &this->tracker_;
+        }
 
         virtual void adoptState(loka::core::StateBase *state)
         {

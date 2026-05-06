@@ -21,7 +21,10 @@ namespace loka
 
       struct BoundaryPhaseState
       {
-        BoundaryPhaseState() : current(BOUNDARY_PHASE_IDLE) {}
+        BoundaryPhaseState()
+            : current(BOUNDARY_PHASE_IDLE)
+        {
+        }
 
         void clear()
         {
@@ -58,10 +61,22 @@ namespace loka
           current = BOUNDARY_PHASE_IDLE;
         }
 
-        bool isIdle() const { return current == BOUNDARY_PHASE_IDLE; }
-        bool isComposing() const { return current == BOUNDARY_PHASE_COMPOSING; }
-        bool isUpdating() const { return current == BOUNDARY_PHASE_UPDATING; }
-        bool isApplying() const { return current == BOUNDARY_PHASE_APPLYING; }
+        bool isIdle() const
+        {
+          return current == BOUNDARY_PHASE_IDLE;
+        }
+        bool isComposing() const
+        {
+          return current == BOUNDARY_PHASE_COMPOSING;
+        }
+        bool isUpdating() const
+        {
+          return current == BOUNDARY_PHASE_UPDATING;
+        }
+        bool isApplying() const
+        {
+          return current == BOUNDARY_PHASE_APPLYING;
+        }
 
         BoundaryPhase current;
       };
@@ -70,7 +85,8 @@ namespace loka
       {
       public:
         explicit BoundaryComposePhaseScope(BoundaryPhaseState *state)
-            : state_(state), active_(state != 0)
+            : state_(state),
+              active_(state != 0)
         {
           if (state_)
           {
@@ -79,7 +95,8 @@ namespace loka
         }
 
         BoundaryComposePhaseScope(const BoundaryComposePhaseScope &other)
-            : state_(other.state_), active_(other.active_)
+            : state_(other.state_),
+              active_(other.active_)
         {
           const_cast<BoundaryComposePhaseScope &>(other).active_ = false;
         }
@@ -112,7 +129,8 @@ namespace loka
       {
       public:
         explicit BoundaryApplyPhaseScope(BoundaryPhaseState *state)
-            : state_(state), active_(state != 0)
+            : state_(state),
+              active_(state != 0)
         {
           if (state_)
           {
@@ -121,7 +139,8 @@ namespace loka
         }
 
         BoundaryApplyPhaseScope(const BoundaryApplyPhaseScope &other)
-            : state_(other.state_), active_(other.active_)
+            : state_(other.state_),
+              active_(other.active_)
         {
           const_cast<BoundaryApplyPhaseScope &>(other).active_ = false;
         }
@@ -152,7 +171,13 @@ namespace loka
 
       struct BoundaryComposeResult
       {
-        BoundaryComposeResult() : event(COMPOSE_EVENT_ATTACH), dirtyFlagsSeen(NODE_DIRTY_NONE), composed(false), preservedNativeContexts(false) {}
+        BoundaryComposeResult()
+            : event(COMPOSE_EVENT_ATTACH),
+              dirtyFlagsSeen(NODE_DIRTY_NONE),
+              composed(false),
+              preservedNativeContexts(false)
+        {
+        }
 
         void clear()
         {
@@ -172,7 +197,14 @@ namespace loka
       {
         struct BoundsHint
         {
-          BoundsHint() : x(0), y(0), width(0), height(0), valid(false) {}
+          BoundsHint()
+              : x(0),
+                y(0),
+                width(0),
+                height(0),
+                valid(false)
+          {
+          }
 
           void clear()
           {
@@ -201,7 +233,13 @@ namespace loka
 
         struct PaintMetadata
         {
-          PaintMetadata() : hasPaintWork(false), requiresCompositedPaint(false), hasOpaqueCoverageHint(false), opaqueCoverageHint(false) {}
+          PaintMetadata()
+              : hasPaintWork(false),
+                requiresCompositedPaint(false),
+                hasOpaqueCoverageHint(false),
+                opaqueCoverageHint(false)
+          {
+          }
 
           void clear()
           {
@@ -217,7 +255,14 @@ namespace loka
           bool opaqueCoverageHint;
         };
 
-        BoundaryUpdateResult() : actualBoundsChanged(false), affectsAncestorLayout(false), bounds(), paintBounds(), paint() {}
+        BoundaryUpdateResult()
+            : actualBoundsChanged(false),
+              affectsAncestorLayout(false),
+              bounds(),
+              paintBounds(),
+              paint()
+        {
+        }
 
         void clear()
         {
@@ -332,7 +377,11 @@ namespace loka
 
       struct BoundaryUpdateState
       {
-        BoundaryUpdateState() : result(), phase() {}
+        BoundaryUpdateState()
+            : result(),
+              phase()
+        {
+        }
 
         BoundaryUpdateResult &updateResult()
         {
@@ -380,12 +429,7 @@ namespace loka
           result.noteActualBoundsChanged(affectsAncestor);
         }
 
-        void noteLayoutBoundsTransition(bool changed,
-                                        bool affectsAncestor,
-                                        int x,
-                                        int y,
-                                        int width,
-                                        int height)
+        void noteLayoutBoundsTransition(bool changed, bool affectsAncestor, int x, int y, int width, int height)
         {
           noteLayoutAndPaintBoundsHint(x, y, width, height);
           if (changed)
@@ -541,8 +585,8 @@ namespace loka
         BoundaryUpdateResult result;
         BoundaryPhaseState phase;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 #endif
