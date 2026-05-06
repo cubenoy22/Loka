@@ -199,9 +199,22 @@ visible, centralized, and lifecycle-aware instead of accidental.
 validated that `State` + `StateTracker` can provide strong reactive behavior
 with much less machinery than full structural reconciliation.
 
-React-style recomposition is not forbidden. It can exist as another concrete
-composition strategy behind a `Boundary` when justified. The default path should
-remain simple, inspectable, and friendly to retro targets.
+Small implementation should not mean small expressive power. The standard
+composition path intentionally avoids implicit whole-tree reconciliation as the
+default model. It favors explicit ownership, visible lifecycle phases, and
+localized update paths that can be understood without reverse-engineering a
+hidden matching algorithm.
+
+`attachNode`, `composeNode`, and `detachNode` exist so composition can be
+recomposable without collapsing setup, structural declaration, and teardown into
+one ambiguous operation. A node should be able to say when it enters a
+composition scope, what children it declares, and when its local resources or
+bindings leave that scope.
+
+More dynamic composition strategies are not forbidden. They can exist as
+separate concrete strategies behind a `Boundary` when their identity, lifetime,
+state preservation, and platform-context rules are explicit. The default path
+should remain simple, inspectable, and friendly to retro targets.
 
 Menu composition and future media/game composition may use different strategies
 when their lifecycle and platform constraints justify it. Those differences
