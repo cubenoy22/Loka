@@ -4,6 +4,7 @@
 #include "SnapFormatTests.hpp"
 #include "SceneTests.hpp"
 #include "StartupRedrawTests.hpp"
+#include "BoundaryArenaTests.hpp"
 
 int main() {
   testStateNotify();
@@ -19,6 +20,7 @@ int main() {
   testPlatformLayoutHandlerReplacement();
   testPlatformLayoutHandlerRejectsInvalidTypeKey();
   testPlatformLayoutHandlerSamePointerReregister();
+  testBoundaryArenaContracts();
   SceneTests::runAll();
   testPrepareProjectedLayoutDelegation();
   testProjectedLayoutUsesActiveBoundaryModel();

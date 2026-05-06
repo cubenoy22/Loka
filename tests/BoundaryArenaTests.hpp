@@ -1,0 +1,6 @@
+#ifndef LOKA_BOUNDARY_ARENA_TESTS_HPP
+#define LOKA_BOUNDARY_ARENA_TESTS_HPP
+
+void testBoundaryArenaContracts();
+
+#endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

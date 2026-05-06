@@ -15,8 +15,17 @@ namespace loka
       class NodeArena
       {
       public:
-        NodeArena() : buffer_(0), raw_(0), size_(0), offset_(0) {}
-        ~NodeArena() { clear(); }
+        NodeArena()
+            : buffer_(0),
+              raw_(0),
+              size_(0),
+              offset_(0)
+        {
+        }
+        ~NodeArena()
+        {
+          clear();
+        }
 
         static size_t normalizeAlign(size_t align)
         {
@@ -107,7 +116,10 @@ namespace loka
           offset_ = 0;
         }
 
-        bool hasCapacity() const { return buffer_ != 0; }
+        bool hasCapacity() const
+        {
+          return buffer_ != 0;
+        }
 
       private:
         char *buffer_;
@@ -120,8 +132,18 @@ namespace loka
       class StateArena
       {
       public:
-        StateArena() : buffer_(0), raw_(0), size_(0), offset_(0), states_() {}
-        ~StateArena() { clear(); }
+        StateArena()
+            : buffer_(0),
+              raw_(0),
+              size_(0),
+              offset_(0),
+              states_()
+        {
+        }
+        ~StateArena()
+        {
+          clear();
+        }
 
         void reserve(size_t totalSize)
         {
@@ -218,12 +240,19 @@ namespace loka
           offset_ = 0;
         }
 
-        bool hasCapacity() const { return buffer_ != 0; }
+        bool hasCapacity() const
+        {
+          return buffer_ != 0;
+        }
 
       private:
         struct StateEntry
         {
-          StateEntry() : state(0), destroy(0) {}
+          StateEntry()
+              : state(0),
+                destroy(0)
+          {
+          }
           loka::core::StateBase *state;
           void (*destroy)(loka::core::StateBase *);
         };

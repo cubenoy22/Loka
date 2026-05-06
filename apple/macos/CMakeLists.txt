@@ -83,6 +83,7 @@ set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
+  ${PROJECT_SOURCE_DIR}/tests/BoundaryArenaTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
   ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
