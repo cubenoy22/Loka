@@ -1,7 +1,7 @@
 #ifndef LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 #define LOKA_SIMPLE_VIEWER_MAIN_NODE_HPP
 
-#include "app/scene/composition/StdComposition.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/OpenFileDialog.hpp"
