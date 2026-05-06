@@ -1,7 +1,7 @@
 #include "MacImageViewContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
-#include "app/scene/PlatformNodeHandler.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include <AppKit/AppKit.h>
 
 @interface LokaImageView : NSView

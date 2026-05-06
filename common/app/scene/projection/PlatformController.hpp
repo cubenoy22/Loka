@@ -1,8 +1,8 @@
-#ifndef LOKA_CORE2_SCENE_IPLATFORMCONTROLLER_HPP
-#define LOKA_CORE2_SCENE_IPLATFORMCONTROLLER_HPP
+#ifndef LOKA_CORE2_SCENE_PROJECTION_IPLATFORMCONTROLLER_HPP
+#define LOKA_CORE2_SCENE_PROJECTION_IPLATFORMCONTROLLER_HPP
 
 #include "app/scene/Node.hpp"
-#include "app/scene/PlatformNodeHandler.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/scene/boundary/BoundaryApplyInfo.hpp"
 
 namespace loka
@@ -58,4 +58,4 @@ namespace loka
   }
 }
 
-#endif // LOKA_CORE2_SCENE_IPLATFORMCONTROLLER_HPP
+#endif // LOKA_CORE2_SCENE_PROJECTION_IPLATFORMCONTROLLER_HPP

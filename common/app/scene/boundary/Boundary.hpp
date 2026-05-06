@@ -4,11 +4,11 @@
 #include <cstdarg>
 #include <vector>
 #include "app/scene/Node.hpp"
-#include "app/scene/PlatformController.hpp"
+#include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/node/ComposableNode.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/context/ComponentContext.hpp"
-#include "app/scene/PlatformApplyPlan.hpp"
+#include "app/scene/projection/PlatformApplyPlan.hpp"
 #include "app/scene/boundary/BoundaryApplyInfo.hpp"
 #include "app/scene/boundary/BoundaryCompositionState.hpp"
 #include "app/scene/boundary/BoundaryObservedState.hpp"

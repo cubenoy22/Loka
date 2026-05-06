@@ -1,6 +1,6 @@
 #include "Win32EditTextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/PlatformNodeHandler.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
 #include "loka/core/State.hpp"

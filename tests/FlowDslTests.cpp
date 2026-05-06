@@ -16,7 +16,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
-#include "app/scene/PlatformController.hpp"
+#include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/state/FlowSlot.hpp"
 #include "support/Headless.hpp"

@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_CELL_CONTEXT_HPP
 #define LOKA_TOOLBOX_CELL_CONTEXT_HPP
 
-#include "app/scene/NativeNodeContext.hpp"
+#include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include <Quickdraw.h>
 

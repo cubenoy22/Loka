@@ -1,9 +1,9 @@
 #ifndef LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
-#include "app/scene/PlatformController.hpp"
-#include "app/scene/PlatformLayoutHandler.hpp"
-#include "app/scene/PlatformNodeHandler.hpp"
+#include "app/scene/projection/PlatformController.hpp"
+#include "app/scene/projection/PlatformLayoutHandler.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "context/MacNodeContextMapper.hpp"
 
 namespace loka

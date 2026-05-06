@@ -6,7 +6,7 @@
 #include <vector>
 #include "app/scene/state/FlowSlot.hpp"
 #include "app/scene/Scene.hpp"
-#include "app/scene/PlatformController.hpp"
+#include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/composition/StdComposition.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"

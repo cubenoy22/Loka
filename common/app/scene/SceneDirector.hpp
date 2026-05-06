@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_SCENEDIRECTOR_HPP
 
 #include "app/scene/Node.hpp"
-#include "app/scene/SceneProjectionTransaction.hpp"
+#include "app/scene/projection/SceneProjectionTransaction.hpp"
 
 namespace loka
 {

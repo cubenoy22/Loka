@@ -1,6 +1,6 @@
 #include "Win32OpenFileDialogContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/PlatformNodeHandler.hpp"
+#include "app/scene/projection/PlatformNodeHandler.hpp"
 #include <commdlg.h>
 
 namespace

@@ -2,7 +2,7 @@
 #define LOKA_MAC_RECT_SURFACE_CONTEXT_HPP
 
 #include "app/RectSurface.hpp"
-#include "app/scene/NativeNodeContext.hpp"
+#include "app/scene/projection/NativeNodeContext.hpp"
 
 namespace loka
 {

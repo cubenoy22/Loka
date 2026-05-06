@@ -1,8 +1,8 @@
 #ifndef LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
-#include "app/scene/PlatformController.hpp"
-#include "app/scene/PlatformLayoutHandler.hpp"
+#include "app/scene/projection/PlatformController.hpp"
+#include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
 #include "loka/core/Vector.hpp"
