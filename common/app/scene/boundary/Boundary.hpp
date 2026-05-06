@@ -40,7 +40,13 @@ namespace loka
         static const LocalApplyPaintKind LOCAL_APPLY_PAINT_GENERIC = scene::LOCAL_APPLY_PAINT_GENERIC;
         static const LocalApplyPaintKind LOCAL_APPLY_PAINT_OPAQUE = scene::LOCAL_APPLY_PAINT_OPAQUE;
         static const LocalApplyPaintKind LOCAL_APPLY_PAINT_COMPOSITED = scene::LOCAL_APPLY_PAINT_COMPOSITED;
-        BoundaryNode() : ComposableNode(), tracker_(), runtimeState_(), updateState_(), compositionState_(), observedState_()
+        BoundaryNode()
+            : ComposableNode(),
+              tracker_(),
+              runtimeState_(),
+              updateState_(),
+              compositionState_(),
+              observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
@@ -56,10 +62,19 @@ namespace loka
           stateArena_.clear();
         }
 
-        virtual BoundaryNode *asBoundary() { return this; }
-        virtual IStateOwner *asStateOwner() { return this; }
+        virtual BoundaryNode *asBoundary()
+        {
+          return this;
+        }
+        virtual IStateOwner *asStateOwner()
+        {
+          return this;
+        }
 
-        virtual loka::core::StateTracker *tracker() { return &tracker_; }
+        virtual loka::core::StateTracker *tracker()
+        {
+          return &tracker_;
+        }
         virtual bool flushViewDirtyImmediately(NodeDirtyFlags flags) const
         {
           (void)flags;
@@ -113,9 +128,8 @@ namespace loka
           info.hasStructureWork = info.isLocalStructureRoot;
           info.hasLayoutWork = info.isLocalLayoutRoot;
           bool opaqueByHint = false;
-          this->updateState_.selectLocalOpaqueCoverageHint(info.isLocalPaintRoot,
-                                                           info.hasOpaqueCoverageHint,
-                                                           opaqueByHint);
+          this->updateState_.selectLocalOpaqueCoverageHint(
+              info.isLocalPaintRoot, info.hasOpaqueCoverageHint, opaqueByHint);
           if (!info.isLocalPaintRoot)
           {
             info.paintKind = LOCAL_APPLY_PAINT_NONE;
@@ -132,7 +146,8 @@ namespace loka
           {
             info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
           }
-          info.paintIsOpaque = info.paintKind == LOCAL_APPLY_PAINT_OPAQUE || info.paintKind == LOCAL_APPLY_PAINT_COMPOSITED;
+          info.paintIsOpaque =
+              info.paintKind == LOCAL_APPLY_PAINT_OPAQUE || info.paintKind == LOCAL_APPLY_PAINT_COMPOSITED;
           this->updateState_.selectLocalApplyBoundsHint(info.hasPaintWork(),
                                                         info.hasLayoutWork,
                                                         info.bounds,
@@ -178,48 +193,96 @@ namespace loka
           return this->localApplyInfo(plan).bounds;
         }
         void markViewDirty(NodeDirtyFlags flags);
-        void setFrozen(bool frozen) { this->runtimeState_.setFrozen(frozen); }
-        bool isFrozen() const { return this->runtimeState_.isFrozen(); }
-        bool isApplyingPlatform() const { return this->updateState_.isApplying(); }
-        bool isComposingPhase() const { return this->updateState_.isComposing(); }
-        BoundaryComposePhaseScope beginComposePhaseScope() { return this->updateState_.beginComposeScope(); }
-        BoundaryApplyPhaseScope beginApplyPhaseScope() { return this->updateState_.beginApplyScope(); }
-        Scene *scene() const { return this->runtimeState_.currentScene(); }
+        void setFrozen(bool frozen)
+        {
+          this->runtimeState_.setFrozen(frozen);
+        }
+        bool isFrozen() const
+        {
+          return this->runtimeState_.isFrozen();
+        }
+        bool isApplyingPlatform() const
+        {
+          return this->updateState_.isApplying();
+        }
+        bool isComposingPhase() const
+        {
+          return this->updateState_.isComposing();
+        }
+        BoundaryComposePhaseScope beginComposePhaseScope()
+        {
+          return this->updateState_.beginComposeScope();
+        }
+        BoundaryApplyPhaseScope beginApplyPhaseScope()
+        {
+          return this->updateState_.beginApplyScope();
+        }
+        Scene *scene() const
+        {
+          return this->runtimeState_.currentScene();
+        }
         Scene *getScene() const
         {
           if (this->runtimeState_.hasScene())
           {
             return this->runtimeState_.currentScene();
           }
-          return this->runtimeState_.currentParentBoundary() ? this->runtimeState_.currentParentBoundary()->getScene() : 0;
+          return this->runtimeState_.currentParentBoundary() ? this->runtimeState_.currentParentBoundary()->getScene()
+                                                             : 0;
         }
-        void setScene(Scene *scene) { this->runtimeState_.setScene(scene); }
-        BoundaryNode *parentBoundary() const { return this->runtimeState_.currentParentBoundary(); }
-        void setParentBoundary(BoundaryNode *parent) { this->runtimeState_.setParentBoundary(parent); }
+        void setScene(Scene *scene)
+        {
+          this->runtimeState_.setScene(scene);
+        }
+        BoundaryNode *parentBoundary() const
+        {
+          return this->runtimeState_.currentParentBoundary();
+        }
+        void setParentBoundary(BoundaryNode *parent)
+        {
+          this->runtimeState_.setParentBoundary(parent);
+        }
         void setLayoutBounds(int x, int y, int width, int height)
         {
           const int normalizedWidth = width < 0 ? 0 : width;
           const int normalizedHeight = height < 0 ? 0 : height;
           const bool changed = this->runtimeState_.setLayoutBounds(x, y, normalizedWidth, normalizedHeight);
-          updateState_.noteLayoutBoundsTransition(changed,
-                                                 this->runtimeState_.hasParentBoundary(),
-                                                 x,
-                                                 y,
-                                                 normalizedWidth,
-                                                 normalizedHeight);
+          updateState_.noteLayoutBoundsTransition(
+              changed, this->runtimeState_.hasParentBoundary(), x, y, normalizedWidth, normalizedHeight);
         }
         void clearLayoutBounds()
         {
           const bool changed = this->runtimeState_.clearLayoutBounds();
           updateState_.noteLayoutBoundsCleared(changed, this->runtimeState_.hasParentBoundary());
         }
-        const LayoutBounds &layoutBounds() const { return this->runtimeState_.currentLayoutBounds(); }
-        bool hasLayoutBounds() const { return this->runtimeState_.hasLayoutBounds(); }
-        void clearObservedDirtyFlags() { observedState_.clearDirtyFlags(); }
-        BoundaryComposeResult &composeResult() { return compositionState_.composeResult(); }
-        const BoundaryComposeResult &composeResult() const { return compositionState_.composeResult(); }
-        BoundaryUpdateResult &updateResult() { return updateState_.updateResult(); }
-        const BoundaryUpdateResult &updateResult() const { return updateState_.updateResult(); }
+        const LayoutBounds &layoutBounds() const
+        {
+          return this->runtimeState_.currentLayoutBounds();
+        }
+        bool hasLayoutBounds() const
+        {
+          return this->runtimeState_.hasLayoutBounds();
+        }
+        void clearObservedDirtyFlags()
+        {
+          observedState_.clearDirtyFlags();
+        }
+        BoundaryComposeResult &composeResult()
+        {
+          return compositionState_.composeResult();
+        }
+        const BoundaryComposeResult &composeResult() const
+        {
+          return compositionState_.composeResult();
+        }
+        BoundaryUpdateResult &updateResult()
+        {
+          return updateState_.updateResult();
+        }
+        const BoundaryUpdateResult &updateResult() const
+        {
+          return updateState_.updateResult();
+        }
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
         {
           compositionState_.beginCompose(event, dirtyFlags);
@@ -248,10 +311,22 @@ namespace loka
           assert(updateState_.canMutateLocalPaintMetadata());
           updateState_.noteOpaquePaintCoverage(opaque);
         }
-        void beginPlatformApply() { updateState_.beginApply(); }
-        void endPlatformApply() { updateState_.endApply(); }
-        void beginObservedStatePass() { observedState_.beginPass(); }
-        void clearObservedStateEntries() { observedState_.clearEntries(&BoundaryNode::ObservedStateChangedThunk); }
+        void beginPlatformApply()
+        {
+          updateState_.beginApply();
+        }
+        void endPlatformApply()
+        {
+          updateState_.endApply();
+        }
+        void beginObservedStatePass()
+        {
+          observedState_.beginPass();
+        }
+        void clearObservedStateEntries()
+        {
+          observedState_.clearEntries(&BoundaryNode::ObservedStateChangedThunk);
+        }
         void addObservedDirtyFlags(NodeDirtyFlags flags)
         {
           observedState_.addDirtyFlags(flags);
@@ -260,15 +335,24 @@ namespace loka
         {
           observedState_.registerState(this, state, flags, &BoundaryNode::ObservedStateChangedThunk);
         }
-        NodeDirtyFlags observedDirtyFlags() const { return observedState_.currentDirtyFlags(); }
+        NodeDirtyFlags observedDirtyFlags() const
+        {
+          return observedState_.currentDirtyFlags();
+        }
         NodeDirtyFlags observedDirtyFlagsForCommittedStates() const
         {
           const loka::core::PushStateTracker *pushTracker = this->tracker_.asPushTracker();
           return observedState_.dirtyFlagsForCommittedStates(pushTracker);
         }
 
-        NodeArena *nodeArena() { return &nodeArena_; }
-        virtual void *allocateStateMemory(size_t size, size_t align) { return stateArena_.allocate(size, align); }
+        NodeArena *nodeArena()
+        {
+          return &nodeArena_;
+        }
+        virtual void *allocateStateMemory(size_t size, size_t align)
+        {
+          return stateArena_.allocate(size, align);
+        }
         virtual void registerStateMemory(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
         {
           stateArena_.registerState(state, destroy);
@@ -281,7 +365,8 @@ namespace loka
           }
         }
 
-        static void composeSubtree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
+        static void
+        composeSubtree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
         {
           composeTree(node, parentContext, event, currentBoundary);
         }
@@ -290,20 +375,17 @@ namespace loka
         static void ObservedStateChangedThunk(void *userData);
         static void ObservedStateDeferredInvalidateThunk(void *userData);
 
-        template <class T>
-        NodeState<T> dangerouslyUseState()
+        template <class T> NodeState<T> dangerouslyUseState()
         {
           return dangerouslyUseStateWithValue(T());
         }
 
-        template <class T>
-        NodeState<T> dangerouslyUseState(const T &initial)
+        template <class T> NodeState<T> dangerouslyUseState(const T &initial)
         {
           return dangerouslyUseStateWithValue(initial);
         }
 
-        template <class T>
-        loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedState()
+        template <class T> loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedState()
         {
           return dangerouslyUseManagedStateWithValue(T());
         }
@@ -314,7 +396,10 @@ namespace loka
           return dangerouslyUseManagedStateWithValue(initial);
         }
 
-        bool hasCompositionDiffState() const { return compositionState_.hasCompositionDiffState(); }
+        bool hasCompositionDiffState() const
+        {
+          return compositionState_.hasCompositionDiffState();
+        }
         const NodeCompositionDiff *localCompositionDiff() const
         {
           return compositionState_.localCompositionDiff();
@@ -381,7 +466,8 @@ namespace loka
           }
           return definition->applyPropsToNode(liveRoot);
         }
-        bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context, std::vector<Node *> &retainedChildren)
+        bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context,
+                                                           std::vector<Node *> &retainedChildren)
         {
           INestable *root = compositionRootNestable();
           INestableDefinition *currentRoot = compositionState_.currentRootNestableDefinition();
@@ -470,10 +556,22 @@ namespace loka
           }
           return sawBoundaryChild;
         }
-        NodeCompositionSnapshot &previousCompositionSnapshot() { return compositionState_.previousCompositionSnapshot(); }
-        const NodeCompositionSnapshot &previousCompositionSnapshot() const { return compositionState_.previousCompositionSnapshot(); }
-        NodeCompositionSnapshot &currentCompositionSnapshot() { return compositionState_.currentCompositionSnapshot(); }
-        const NodeCompositionSnapshot &currentCompositionSnapshot() const { return compositionState_.currentCompositionSnapshot(); }
+        NodeCompositionSnapshot &previousCompositionSnapshot()
+        {
+          return compositionState_.previousCompositionSnapshot();
+        }
+        const NodeCompositionSnapshot &previousCompositionSnapshot() const
+        {
+          return compositionState_.previousCompositionSnapshot();
+        }
+        NodeCompositionSnapshot &currentCompositionSnapshot()
+        {
+          return compositionState_.currentCompositionSnapshot();
+        }
+        const NodeCompositionSnapshot &currentCompositionSnapshot() const
+        {
+          return compositionState_.currentCompositionSnapshot();
+        }
 
       protected:
         virtual void applyPendingStructureInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
@@ -501,17 +599,11 @@ namespace loka
           this->applyPendingCompositedPaint(plan);
         }
 
-        virtual void applyPendingStructure(const PlatformApplyPlan &)
-        {
-        }
+        virtual void applyPendingStructure(const PlatformApplyPlan &) {}
 
-        virtual void applyPendingLayout(const PlatformApplyPlan &)
-        {
-        }
+        virtual void applyPendingLayout(const PlatformApplyPlan &) {}
 
-        virtual void applyPendingLocalPaint(const PlatformApplyPlan &)
-        {
-        }
+        virtual void applyPendingLocalPaint(const PlatformApplyPlan &) {}
 
         virtual void applyPendingOpaquePaint(const PlatformApplyPlan &plan)
         {
@@ -523,8 +615,7 @@ namespace loka
           this->applyPendingLocalPaint(plan);
         }
 
-        bool buildLocalRebuildPlan(const INestableDefinition &currentRoot,
-                                   BoundaryLocalRebuildPlan &plan)
+        bool buildLocalRebuildPlan(const INestableDefinition &currentRoot, BoundaryLocalRebuildPlan &plan)
         {
           // This translates the current desired child set into a concrete
           // boundary-local apply plan. It intentionally stays one level above
@@ -549,9 +640,9 @@ namespace loka
               {
                 return false;
               }
-              plan.entries.push_back(existing
-                                         ? BoundaryLocalRebuildPlanEntry::replace(created, existing, definition->nodeTag())
-                                         : BoundaryLocalRebuildPlanEntry::attach(created, definition->nodeTag()));
+              plan.entries.push_back(
+                  existing ? BoundaryLocalRebuildPlanEntry::replace(created, existing, definition->nodeTag())
+                           : BoundaryLocalRebuildPlanEntry::attach(created, definition->nodeTag()));
             }
             definition = definition->nextInComposition;
           }
@@ -675,7 +766,8 @@ namespace loka
           tracker_.reserveStates(count);
         }
 
-        static void composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
+        static void
+        composeTree(Node *node, ComponentContext &parentContext, ComposeEvent event, BoundaryNode *currentBoundary)
         {
           if (!node)
           {
@@ -704,9 +796,8 @@ namespace loka
             boundary->beginObservedStatePass();
             nextBoundary = boundary;
           }
-          BoundaryComposePhaseScope composeScope = boundary
-                                                       ? boundary->beginComposePhaseScope()
-                                                       : BoundaryComposePhaseScope(0);
+          BoundaryComposePhaseScope composeScope =
+              boundary ? boundary->beginComposePhaseScope() : BoundaryComposePhaseScope(0);
           if (boundary)
           {
             boundary->beginComposeResult(event, parentContext.dirtyFlags());
@@ -721,15 +812,15 @@ namespace loka
               if (firstChild && firstChild->testId() == "PendingDefaultApplyText")
               {
                 loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(boundary->scene()),
-                                                         static_cast<void *>(boundary),
-                                                         static_cast<unsigned int>(boundary->kind()),
-                                                         "pending-default-boundary-compose",
-                                                         boundary->previousCompositionSnapshot().root() ? 1 : 0,
-                                                         boundary->currentCompositionSnapshot().root() ? 1 : 0,
-                                                         boundary->hasCompositionDiffState() ? 0 : 1,
-                                                         static_cast<unsigned int>(boundary->childrenCount()),
-                                                         static_cast<unsigned int>(firstChild->kind()),
-                                                         firstChild->testId().c_str());
+                                                          static_cast<void *>(boundary),
+                                                          static_cast<unsigned int>(boundary->kind()),
+                                                          "pending-default-boundary-compose",
+                                                          boundary->previousCompositionSnapshot().root() ? 1 : 0,
+                                                          boundary->currentCompositionSnapshot().root() ? 1 : 0,
+                                                          boundary->hasCompositionDiffState() ? 0 : 1,
+                                                          static_cast<unsigned int>(boundary->childrenCount()),
+                                                          static_cast<unsigned int>(firstChild->kind()),
+                                                          firstChild->testId().c_str());
               }
             }
 #endif
@@ -741,7 +832,9 @@ namespace loka
             {
             public:
               explicit LocalDirtySourceRegistrar(BoundaryNode *boundary)
-                  : boundary_(boundary) {}
+                  : boundary_(boundary)
+              {
+              }
 
               virtual void markDirtyOnChange(loka::core::StateBase *state, NodeDirtyFlags flags)
               {
@@ -849,16 +942,20 @@ namespace loka
           virtual loka::core::StateBase *state() const = 0;
         };
 
-        template <class T>
-        struct StateHandle : public StateHandleBase
+        template <class T> struct StateHandle : public StateHandleBase
         {
           loka::core::Managed<loka::core::MutableState<T> > handle;
-          explicit StateHandle(const loka::core::Managed<loka::core::MutableState<T> > &h) : handle(h) {}
-          loka::core::StateBase *state() const { return handle.get(); }
+          explicit StateHandle(const loka::core::Managed<loka::core::MutableState<T> > &h)
+              : handle(h)
+          {
+          }
+          loka::core::StateBase *state() const
+          {
+            return handle.get();
+          }
         };
 
-        template <class T>
-        NodeState<T> dangerouslyUseStateWithValue(const T &initial)
+        template <class T> NodeState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
           adoptState(state);
@@ -868,7 +965,8 @@ namespace loka
         template <class T>
         loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedStateWithValue(const T &initial)
         {
-          loka::core::Managed<loka::core::MutableState<T> > handle = loka::core::Managed<loka::core::MutableState<T> >::Wrap(new loka::core::MutableState<T>(initial));
+          loka::core::Managed<loka::core::MutableState<T> > handle =
+              loka::core::Managed<loka::core::MutableState<T> >::Wrap(new loka::core::MutableState<T>(initial));
           StateHandleBase *entry = new StateHandle<T>(handle);
           ownedStateHandles_.push_back(entry);
           tracker_.addState(entry->state());
@@ -913,15 +1011,26 @@ namespace loka
         StateArena stateArena_;
       };
 
-      template <class PropsT, class NodeT>
-      struct BoundaryDefinition : public NodeDefinition<PropsT, NodeT>
+      template <class PropsT, class NodeT> struct BoundaryDefinition : public NodeDefinition<PropsT, NodeT>
       {
         typedef NodeDefinition<PropsT, NodeT> BaseType;
         typedef int IsBoundaryDefinition;
-        BoundaryDefinition() : BaseType() {}
-        BoundaryDefinition(const PropsT &p) : BaseType(p) {}
-        virtual NodeDefinitionBase *clone() const { return new BoundaryDefinition(*this); }
-        virtual bool isBoundary() const { return true; }
+        BoundaryDefinition()
+            : BaseType()
+        {
+        }
+        BoundaryDefinition(const PropsT &p)
+            : BaseType(p)
+        {
+        }
+        virtual NodeDefinitionBase *clone() const
+        {
+          return new BoundaryDefinition(*this);
+        }
+        virtual bool isBoundary() const
+        {
+          return true;
+        }
       };
 
     } // namespace scene
