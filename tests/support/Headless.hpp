@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 
 #include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
-#include "app/scene/NodeState.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/node/ComposableNode.hpp"
 

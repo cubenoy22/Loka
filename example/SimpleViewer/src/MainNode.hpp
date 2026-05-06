@@ -6,7 +6,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
-#include "app/scene/NodeState.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "app/scene/FlowSlot.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"

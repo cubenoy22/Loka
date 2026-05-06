@@ -6,8 +6,8 @@
 
 #include "loka/core/Profiler.hpp"
 #include "loka/core/State.hpp"
-#include "app/scene/NodeState.hpp"
-#include "app/scene/StateOwner.hpp"
+#include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/StateOwner.hpp"
 #include "loka/dsl/Expr.hpp"
 #include "loka/dsl/Slot.hpp"
 

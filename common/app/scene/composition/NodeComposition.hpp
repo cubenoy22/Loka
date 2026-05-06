@@ -5,13 +5,13 @@
 #include <cassert>
 #include <new>
 #include "app/scene/Node.hpp"
-#include "app/scene/StreamView.hpp"
+#include "app/scene/composition/StreamView.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
-#include "app/scene/NodeState.hpp"
-#include "app/scene/StateBatchBase.hpp"
+#include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/StateBatchBase.hpp"
 #include "app/scene/ComponentContext.hpp"
-#include "app/scene/StateOwner.hpp"
+#include "app/scene/state/StateOwner.hpp"
 #include "loka/core/Profiler.hpp"
 
 class Window;

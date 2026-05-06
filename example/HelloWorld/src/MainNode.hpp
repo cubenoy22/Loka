@@ -3,7 +3,7 @@
 
 #include "MainRightPanel.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/scene/NodeState.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "app/scene/composition/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"

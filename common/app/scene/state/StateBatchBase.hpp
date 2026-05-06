@@ -1,10 +1,10 @@
-#ifndef LOKA_CORE2_SCENE_STATEBATCHBASE_HPP
-#define LOKA_CORE2_SCENE_STATEBATCHBASE_HPP
+#ifndef LOKA_CORE2_SCENE_STATE_STATEBATCHBASE_HPP
+#define LOKA_CORE2_SCENE_STATE_STATEBATCHBASE_HPP
 
 #include <new>
 #include "app/scene/Node.hpp"
-#include "app/scene/NodeState.hpp"
-#include "app/scene/StateOwner.hpp"
+#include "app/scene/state/NodeState.hpp"
+#include "app/scene/state/StateOwner.hpp"
 
 namespace loka
 {
@@ -89,4 +89,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_CORE2_SCENE_STATEBATCHBASE_HPP
+#endif // LOKA_CORE2_SCENE_STATE_STATEBATCHBASE_HPP

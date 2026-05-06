@@ -3,7 +3,7 @@
 
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
-#include "app/scene/NodeState.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "file/File.hpp"
 
 namespace loka

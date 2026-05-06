@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_COMPONENTCONTEXT_HPP
 #define LOKA_CORE2_SCENE_COMPONENTCONTEXT_HPP
 
-#include "app/scene/StateOwner.hpp"
+#include "app/scene/state/StateOwner.hpp"
 #include "app/scene/Node.hpp"
 
 class Window;

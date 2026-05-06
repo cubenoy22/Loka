@@ -221,7 +221,7 @@ loka::Vector<int> values = s.map<int>(s.slot.member<int, &Item::value>() + loka:
 Use `EmitterState` for events and `NodeState<T>` for Node-local values. Register Node-local state with `this->state(...)` so it is attached to the active Boundary owner. Mutating state must be wrapped in a `loka::core::StateTrackerGuard`.
 
 ```cpp
-#include "app/scene/NodeState.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "app/scene/composition/StdComposition.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"

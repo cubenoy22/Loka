@@ -1,10 +1,10 @@
-#ifndef LOKA_CORE2_SCENE_NODE_STATE_HPP
-#define LOKA_CORE2_SCENE_NODE_STATE_HPP
+#ifndef LOKA_CORE2_SCENE_STATE_NODE_STATE_HPP
+#define LOKA_CORE2_SCENE_STATE_NODE_STATE_HPP
 
 #include <cassert>
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
-#include "app/scene/StateOwner.hpp"
+#include "app/scene/state/StateOwner.hpp"
 
 namespace loka
 {
@@ -125,4 +125,4 @@ namespace loka
   }   // namespace app
 } // namespace loka
 
-#endif // LOKA_CORE2_SCENE_NODE_STATE_HPP
+#endif // LOKA_CORE2_SCENE_STATE_NODE_STATE_HPP

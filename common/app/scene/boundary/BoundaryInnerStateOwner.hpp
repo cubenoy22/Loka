@@ -3,7 +3,7 @@
 
 #include <cassert>
 #include <vector>
-#include "app/scene/StateOwner.hpp"
+#include "app/scene/state/StateOwner.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/StateTracker.hpp"
 

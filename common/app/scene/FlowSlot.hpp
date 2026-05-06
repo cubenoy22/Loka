@@ -2,7 +2,7 @@
 #define LOKA_APP_SCENE_FLOW_SLOT_HPP
 
 #include <cassert>
-#include "app/scene/NodeState.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "loka/dsl/Flow.hpp"
 #include "loka/dsl/StateStream.hpp"
 
