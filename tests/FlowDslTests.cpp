@@ -15,7 +15,7 @@
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
-#include "app/scene/NodeComposition.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/FlowSlot.hpp"

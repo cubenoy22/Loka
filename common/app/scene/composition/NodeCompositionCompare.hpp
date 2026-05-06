@@ -1,9 +1,9 @@
-#ifndef LOKA_CORE2_SCENE_NODECOMPOSITIONCOMPARE_HPP
-#define LOKA_CORE2_SCENE_NODECOMPOSITIONCOMPARE_HPP
+#ifndef LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONCOMPARE_HPP
+#define LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONCOMPARE_HPP
 
 #include <vector>
-#include "app/scene/NodeCompositionDiff.hpp"
-#include "app/scene/NodeCompositionSnapshot.hpp"
+#include "app/scene/composition/NodeCompositionDiff.hpp"
+#include "app/scene/composition/NodeCompositionSnapshot.hpp"
 
 namespace loka
 {
@@ -236,4 +236,4 @@ namespace loka
   }
 }
 
-#endif // LOKA_CORE2_SCENE_NODECOMPOSITIONCOMPARE_HPP
+#endif // LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONCOMPARE_HPP

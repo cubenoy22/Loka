@@ -1,7 +1,7 @@
-#ifndef LOKA_CORE2_SCENE_STDCOMPOSITION_HPP
-#define LOKA_CORE2_SCENE_STDCOMPOSITION_HPP
+#ifndef LOKA_CORE2_SCENE_COMPOSITION_STDCOMPOSITION_HPP
+#define LOKA_CORE2_SCENE_COMPOSITION_STDCOMPOSITION_HPP
 
-#include "app/scene/NodeComposition.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 
@@ -294,4 +294,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_CORE2_SCENE_STDCOMPOSITION_HPP
+#endif // LOKA_CORE2_SCENE_COMPOSITION_STDCOMPOSITION_HPP

@@ -9,7 +9,7 @@
 #include "app/scene/Node.hpp" // Required for NodeDefinitionBase.
 #include "app/scene/PlatformController.hpp"
 #include "app/scene/ComponentContext.hpp"
-#include "app/scene/NodeComposition.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/PlatformApplyPlan.hpp"
 #include "app/scene/SceneDirector.hpp"
 #include "app/scene/boundary/Boundary.hpp"

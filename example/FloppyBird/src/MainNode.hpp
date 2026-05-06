@@ -4,7 +4,7 @@
 #include "app/RectSurface.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
-#include "app/scene/StdComposition.hpp"
+#include "app/scene/composition/StdComposition.hpp"
 #include "GameLogic.hpp"
 
 namespace floppybird

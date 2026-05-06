@@ -7,7 +7,7 @@ This is a short, memory-jogging intro to the Loka composition DSL and string usa
 Nodes are declared into a `NodeComposition` using chaining. Prefer DSL-style chaining and avoid local temporaries.
 
 ```cpp
-#include "app/scene/StdComposition.hpp"
+#include "app/scene/composition/StdComposition.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -46,7 +46,7 @@ only `StdComposition` because it already provides enough expressive power, while
 reuse behavior, and redraw strategy much simpler and cheaper.
 
 ```cpp
-#include "app/scene/StdComposition.hpp"
+#include "app/scene/composition/StdComposition.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 
@@ -222,7 +222,7 @@ Use `EmitterState` for events and `NodeState<T>` for Node-local values. Register
 
 ```cpp
 #include "app/scene/NodeState.hpp"
-#include "app/scene/StdComposition.hpp"
+#include "app/scene/composition/StdComposition.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 

@@ -6,7 +6,7 @@
 #include <vector>
 #include "../Node.hpp"
 #include "../ComponentContext.hpp"
-#include "../NodeComposition.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "../StateBatchBase.hpp"
 #include "../StateOwner.hpp"
 #include "loka/core/Profiler.hpp"

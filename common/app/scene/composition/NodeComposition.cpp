@@ -1,4 +1,4 @@
-#include "app/scene/NodeComposition.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/boundary/Boundary.hpp"

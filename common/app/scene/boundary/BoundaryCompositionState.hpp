@@ -3,9 +3,9 @@
 
 #include <vector>
 #include "app/scene/Node.hpp"
-#include "app/scene/NodeCompositionCompare.hpp"
-#include "app/scene/NodeCompositionDiff.hpp"
-#include "app/scene/NodeCompositionSnapshot.hpp"
+#include "app/scene/composition/NodeCompositionCompare.hpp"
+#include "app/scene/composition/NodeCompositionDiff.hpp"
+#include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 
 namespace loka
