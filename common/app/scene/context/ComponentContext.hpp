@@ -1,5 +1,5 @@
-#ifndef LOKA_CORE2_SCENE_COMPONENTCONTEXT_HPP
-#define LOKA_CORE2_SCENE_COMPONENTCONTEXT_HPP
+#ifndef LOKA_CORE2_SCENE_CONTEXT_COMPONENTCONTEXT_HPP
+#define LOKA_CORE2_SCENE_CONTEXT_COMPONENTCONTEXT_HPP
 
 #include "app/scene/state/StateOwner.hpp"
 #include "app/scene/Node.hpp"
@@ -62,4 +62,4 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-#endif // LOKA_CORE2_SCENE_COMPONENTCONTEXT_HPP
+#endif // LOKA_CORE2_SCENE_CONTEXT_COMPONENTCONTEXT_HPP

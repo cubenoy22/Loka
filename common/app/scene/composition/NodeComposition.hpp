@@ -10,7 +10,7 @@
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
-#include "app/scene/ComponentContext.hpp"
+#include "app/scene/context/ComponentContext.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "loka/core/Profiler.hpp"
 

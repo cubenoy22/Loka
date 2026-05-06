@@ -5,7 +5,7 @@
 #include <cstring>
 #include <vector>
 #include "../Node.hpp"
-#include "../ComponentContext.hpp"
+#include "app/scene/context/ComponentContext.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
 #include "app/scene/state/StateOwner.hpp"
