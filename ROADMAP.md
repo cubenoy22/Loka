@@ -87,6 +87,10 @@ In practice, that means `v0.1.0` should ideally reach the point where:
 * New retained layout/container behavior can follow shared layout helpers and internal layout handler seams rather than ad-hoc platform branches.
 * Layout helper contracts are polished enough that container layout work is predictable: return values, child traversal callbacks, sizing heuristics, and platform projection responsibilities are named and tested explicitly.
 * `Boundary` responsibilities are understood well enough that future Menu/Window DSL work can reuse the same kernel ideas instead of inventing separate update/apply models.
+* The scene trunk is readable enough for contributors to navigate: `Boundary`,
+  `Node`, `Scene`, and `SceneDirector` should have clear responsibilities, with
+  large headers split only where it makes ownership, composition, update/apply,
+  or definition contracts easier to inspect.
 * A more complete real application has exercised the app-wide ownership model enough to design Repository/ApplicationScope-style access deliberately, without turning `App` itself into a `BoundaryNode`.
 * App/window platform conventions, such as application-wide menus on macOS/Classic Mac and window-attached menus on Win32, are captured as explicit policy instead of implicit platform code.
 * CMake targets reflect the major module boundaries instead of each platform target compiling all of `common/*.cpp` directly. Start with `LokaCommon`, then split toward `LokaCore`, `LokaDsl`, `LokaApp`, and future optional modules as dependencies become clear.
@@ -150,6 +154,18 @@ Practical interpretation:
   * Make the platform layout handler seam clear enough that future custom
     containers and Toolbox parity can be added without growing the platform
     controller switch paths.
+* **Scene architecture polish**
+
+  * Review `Boundary.hpp`, `Node.hpp`, `Scene.hpp`, and `SceneDirector.hpp`
+    before `v0.1.0` so the main scene runtime can keep growing without becoming
+    hard to read or debug.
+  * Prefer responsibility-based header splits and documentation over cosmetic
+    movement: boundary state/compose/apply details, node definition contracts,
+    scene update orchestration, and projection transactions should each have an
+    obvious home.
+  * Keep `Boundary` as the integration and diagnostic boundary, while moving
+    helper/detail pieces behind named headers when that improves inspectability
+    without hiding ownership or lifecycle contracts.
 * **Early authoring and animation surface**
 
   * Add a small first-pass animation/property surface that can express simple
