@@ -35,7 +35,7 @@ namespace loka
     {
       class SceneTestAccess;
     }
-  }
+  } // namespace dsl
 
   namespace app
   {
@@ -53,7 +53,9 @@ namespace loka
       public:
         struct SceneCompositionDiff : public loka::dsl::CompositionDiff
         {
-          SceneCompositionDiff() : loka::dsl::CompositionDiff(), flags(NODE_DIRTY_NONE)
+          SceneCompositionDiff()
+              : loka::dsl::CompositionDiff(),
+                flags(NODE_DIRTY_NONE)
           {
             fullRebuild = false;
           }
@@ -71,7 +73,8 @@ namespace loka
           struct RetainedApplyState
           {
             RetainedApplyState()
-                : lastApplyPlan(), lastAppliedSnapshot()
+                : lastApplyPlan(),
+                  lastAppliedSnapshot()
             {
             }
 
@@ -81,8 +84,7 @@ namespace loka
               lastAppliedSnapshot.clear();
             }
 
-            void record(const PlatformApplyPlan &plan,
-                        const SceneDirector::SceneUpdateSnapshot &snapshot)
+            void record(const PlatformApplyPlan &plan, const SceneDirector::SceneUpdateSnapshot &snapshot)
             {
               lastApplyPlan = plan;
               lastAppliedSnapshot = snapshot;
@@ -104,7 +106,9 @@ namespace loka
           };
 
           SceneUpdateCycleState()
-              : compositionDiff(), pendingSnapshot(), retainedApply()
+              : compositionDiff(),
+                pendingSnapshot(),
+                retainedApply()
           {
           }
 
@@ -217,14 +221,32 @@ namespace loka
         // Accept Boundary definitions only (compile-time check via IsBoundaryDefinition).
         template <class DefT>
         explicit Scene(DefT *def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), updateCycleState_()
+            : lifecycle_(ON_CREATE),
+              attached_(false),
+              rootDefinition_(def),
+              rootNode_(0),
+              platformController_(0),
+              window_(0),
+              mounted_(false),
+              composed_(false),
+              director_(),
+              updateCycleState_()
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
         }
         // Construct from NodeDefinitionBase and auto-wrap non-boundary roots.
         explicit Scene(NodeDefinitionBase *def)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), updateCycleState_()
+            : lifecycle_(ON_CREATE),
+              attached_(false),
+              rootDefinition_(def),
+              rootNode_(0),
+              platformController_(0),
+              window_(0),
+              mounted_(false),
+              composed_(false),
+              director_(),
+              updateCycleState_()
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
@@ -232,7 +254,16 @@ namespace loka
         // Clone and take ownership of the root definition.
         template <class DefT>
         explicit Scene(const DefT &def, typename DefT::IsBoundaryDefinition * = 0)
-            : lifecycle_(ON_CREATE), attached_(false), rootDefinition_(def.clone()), rootNode_(0), platformController_(0), window_(0), mounted_(false), composed_(false), director_(), updateCycleState_()
+            : lifecycle_(ON_CREATE),
+              attached_(false),
+              rootDefinition_(def.clone()),
+              rootNode_(0),
+              platformController_(0),
+              window_(0),
+              mounted_(false),
+              composed_(false),
+              director_(),
+              updateCycleState_()
         {
           director_.attach(this);
         }
@@ -248,20 +279,44 @@ namespace loka
           }
         }
 
-        NodeDefinitionBase *getRootDefinition() const { return rootDefinition_; }
-        Window *getWindow() const { return window_; }
-        void setWindow(Window *window) { window_ = window; }
-        const SceneCompositionDiff &compositionDiff() const { return updateCycleState_.compositionDiffValue(); }
-        SceneDirector &director() { return director_; }
-        const SceneDirector &director() const { return director_; }
+        NodeDefinitionBase *getRootDefinition() const
+        {
+          return rootDefinition_;
+        }
+        Window *getWindow() const
+        {
+          return window_;
+        }
+        void setWindow(Window *window)
+        {
+          window_ = window;
+        }
+        const SceneCompositionDiff &compositionDiff() const
+        {
+          return updateCycleState_.compositionDiffValue();
+        }
+        SceneDirector &director()
+        {
+          return director_;
+        }
+        const SceneDirector &director() const
+        {
+          return director_;
+        }
         size_t liveNodeCount() const
         {
           return countLiveNodes(rootNode_);
         }
 
         // Expose lifecycle and attached states for observation.
-        loka::core::State<SceneLifecycle> *getLifecycleState() { return &lifecycle_; }
-        loka::core::State<bool> *getAttachedState() { return &attached_; }
+        loka::core::State<SceneLifecycle> *getLifecycleState()
+        {
+          return &lifecycle_;
+        }
+        loka::core::State<bool> *getAttachedState()
+        {
+          return &attached_;
+        }
 
         // Public wrappers for controlled lifecycle and attached updates.
         // SceneManager is the main caller; other callers must manage side effects via StateTracker.
@@ -281,7 +336,10 @@ namespace loka
             }
           }
         }
-        void updateLifecycle(SceneLifecycle v) { setLifecycle(v); }
+        void updateLifecycle(SceneLifecycle v)
+        {
+          setLifecycle(v);
+        }
 
         void mount(IPlatformController *platformController)
         {
@@ -356,8 +414,14 @@ namespace loka
         }
 
       protected:
-        void setAttached(bool v) { attached_.set(v); }
-        void setLifecycle(SceneLifecycle v) { lifecycle_.set(v); }
+        void setAttached(bool v)
+        {
+          attached_.set(v);
+        }
+        void setLifecycle(SceneLifecycle v)
+        {
+          lifecycle_.set(v);
+        }
 
         loka::core::MutableState<SceneLifecycle> lifecycle_;
         loka::core::MutableState<bool> attached_;
@@ -435,22 +499,24 @@ namespace loka
         void logRefreshFlags() const
         {
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-          loka::platform::DebugLogSceneFlags(sceneIdentity(),
-                                            "refresh",
-                                            static_cast<unsigned int>(updateCycleState_.refreshDirtyFlags()),
-                                            static_cast<unsigned int>(updateCycleState_.effectivePendingRequestDirtyFlags()),
-                                            updateCycleState_.refreshFullRebuild() ? 1 : 0);
+          loka::platform::DebugLogSceneFlags(
+              sceneIdentity(),
+              "refresh",
+              static_cast<unsigned int>(updateCycleState_.refreshDirtyFlags()),
+              static_cast<unsigned int>(updateCycleState_.effectivePendingRequestDirtyFlags()),
+              updateCycleState_.refreshFullRebuild() ? 1 : 0);
 #endif
         }
 
         void logApplyFlags(NodeDirtyFlags flags) const
         {
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-          loka::platform::DebugLogSceneFlags(sceneIdentity(),
-                                            "apply",
-                                            static_cast<unsigned int>(flags),
-                                            static_cast<unsigned int>(updateCycleState_.aggregateTransactionDirtyFlags()),
-                                            updateCycleState_.refreshFullRebuild() ? 1 : 0);
+          loka::platform::DebugLogSceneFlags(
+              sceneIdentity(),
+              "apply",
+              static_cast<unsigned int>(flags),
+              static_cast<unsigned int>(updateCycleState_.aggregateTransactionDirtyFlags()),
+              updateCycleState_.refreshFullRebuild() ? 1 : 0);
 #endif
         }
 
@@ -483,7 +549,11 @@ namespace loka
         class RootBoundaryWrapper : public BoundaryNode
         {
         public:
-          explicit RootBoundaryWrapper(NodeDefinitionBase *def) : def_(def), composed_(false) {}
+          explicit RootBoundaryWrapper(NodeDefinitionBase *def)
+              : def_(def),
+                composed_(false)
+          {
+          }
           virtual ~RootBoundaryWrapper() {}
 
         protected:
@@ -548,8 +618,8 @@ namespace loka
             }
             this->captureCurrentCompositionSnapshot();
             this->rebuildCurrentCompositionDiff();
-            if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff() &&
-                this->localCompositionDiff()->isCompatibleRetainOnly())
+            if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff()
+                && this->localCompositionDiff()->isCompatibleRetainOnly())
             {
               if (!this->localCompositionDiff()->isStableRetainOnly())
               {
@@ -576,8 +646,8 @@ namespace loka
             if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff())
             {
               std::vector<Node *> retainedChildren;
-              if (this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren) ||
-                  this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
+              if (this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren)
+                  || this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
               {
                 this->promoteCurrentCompositionSnapshot();
                 for (size_t i = 0; i < retainedChildren.size(); ++i)
@@ -695,9 +765,8 @@ namespace loka
           }
         }
 
-        static void prepareRootBoundaryCompose(BoundaryNode *boundary,
-                                               ComponentContext &rootContext,
-                                               ComposeEvent event)
+        static void
+        prepareRootBoundaryCompose(BoundaryNode *boundary, ComponentContext &rootContext, ComposeEvent event)
         {
           if (!boundary)
           {
@@ -793,7 +862,8 @@ namespace loka
       };
 
       inline SceneDirector::SceneDirector()
-          : scene_(0), updateTransaction_()
+          : scene_(0),
+            updateTransaction_()
       {
       }
 
@@ -809,7 +879,8 @@ namespace loka
         clearUpdateTransaction();
       }
 
-      inline void SceneDirector::requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately)
+      inline void
+      SceneDirector::requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately)
       {
         if (!scene_)
         {
@@ -820,9 +891,8 @@ namespace loka
         applyBoundaryUpdateRequest(request);
       }
 
-      inline SceneDirector::BoundaryUpdateRequest SceneDirector::normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
-                                                                                                NodeDirtyFlags flags,
-                                                                                                bool flushImmediately) const
+      inline SceneDirector::BoundaryUpdateRequest SceneDirector::normalizeBoundaryUpdateRequest(
+          BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately) const
       {
         BoundaryUpdateRequest request(boundary, flags, flushImmediately);
         if (request.flags == NODE_DIRTY_NONE)
@@ -910,8 +980,7 @@ namespace loka
           {
             break;
           }
-          if (parentFlags == NODE_DIRTY_CHILD &&
-              boundaryFlags != NODE_DIRTY_NONE)
+          if (parentFlags == NODE_DIRTY_CHILD && boundaryFlags != NODE_DIRTY_NONE)
           {
             break;
           }
@@ -949,8 +1018,7 @@ namespace loka
 
       inline SceneDirector::SceneUpdateRequestSnapshot SceneDirector::buildRefreshRequestSnapshot(Node *rootNode) const
       {
-        return updateTransaction_.buildRequestSnapshot(rootBoundaryFor(rootNode),
-                                                       primaryUpdateRootFor(rootNode));
+        return updateTransaction_.buildRequestSnapshot(rootBoundaryFor(rootNode), primaryUpdateRootFor(rootNode));
       }
 
       inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
@@ -967,14 +1035,12 @@ namespace loka
         return snapshot;
       }
 
-      inline void SceneDirector::finalizeUpdateSnapshot(SceneUpdateSnapshot &snapshot,
-                                                        const Scene *scene) const
+      inline void SceneDirector::finalizeUpdateSnapshot(SceneUpdateSnapshot &snapshot, const Scene *scene) const
       {
         snapshot.setApply(buildApplySnapshot(scene));
         snapshot.finalizeAfterApplyAnalysis();
-        if (CanRelaxFullRebuildForLocalDiff(snapshot) ||
-            CanRelaxFullRebuildForChildOnlyUpdate(snapshot) ||
-            CanRelaxFullRebuildForRootBoundary(snapshot))
+        if (CanRelaxFullRebuildForLocalDiff(snapshot) || CanRelaxFullRebuildForChildOnlyUpdate(snapshot)
+            || CanRelaxFullRebuildForRootBoundary(snapshot))
         {
           snapshot.relaxEffectiveFullRebuild();
         }
@@ -1042,11 +1108,8 @@ namespace loka
             SceneUpdateApplySnapshot snapshot;
             bool opaqueLocalPaint = requiresCompositedPaint ? false : (sawPaintWork && hasOpaqueLocalPaint);
             bool localCompositionDiff = canApplyLocalCompositionDiff && sawRoot;
-            snapshot.setRequirements(layoutRequired,
-                                     structureRequired,
-                                     requiresCompositedPaint,
-                                     opaqueLocalPaint,
-                                     localCompositionDiff);
+            snapshot.setRequirements(
+                layoutRequired, structureRequired, requiresCompositedPaint, opaqueLocalPaint, localCompositionDiff);
             return snapshot;
           }
 
@@ -1106,27 +1169,28 @@ namespace loka
           const INestable *rootNestable = root->asNestable();
           const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-          loka::platform::DebugLogSceneRootIdentity(static_cast<void *>(root->scene()),
-                                                   static_cast<void *>(root),
-                                                   static_cast<unsigned int>(root->kind()),
-                                                   root->testId().c_str(),
-                                                   root->previousCompositionSnapshot().root() ? 1 : 0,
-                                                   root->currentCompositionSnapshot().root() ? 1 : 0,
-                                                   root->hasCompositionDiffState() ? 0 : 1,
-                                                   rootNestable ? static_cast<unsigned int>(rootNestable->childrenCount()) : 0U,
-                                                   firstChild ? static_cast<unsigned int>(firstChild->kind()) : 0U,
-                                                   firstChild ? firstChild->testId().c_str() : "");
+          loka::platform::DebugLogSceneRootIdentity(
+              static_cast<void *>(root->scene()),
+              static_cast<void *>(root),
+              static_cast<unsigned int>(root->kind()),
+              root->testId().c_str(),
+              root->previousCompositionSnapshot().root() ? 1 : 0,
+              root->currentCompositionSnapshot().root() ? 1 : 0,
+              root->hasCompositionDiffState() ? 0 : 1,
+              rootNestable ? static_cast<unsigned int>(rootNestable->childrenCount()) : 0U,
+              firstChild ? static_cast<unsigned int>(firstChild->kind()) : 0U,
+              firstChild ? firstChild->testId().c_str() : "");
           loka::platform::DebugLogSceneRootDiffDecision(static_cast<void *>(root->scene()),
-                                                       static_cast<void *>(root),
-                                                       static_cast<unsigned int>(composeResult.dirtyFlagsSeen),
-                                                       composeResult.composed ? 1 : 0,
-                                                       composeResult.preservedNativeContexts ? 1 : 0);
+                                                        static_cast<void *>(root),
+                                                        static_cast<unsigned int>(composeResult.dirtyFlagsSeen),
+                                                        composeResult.composed ? 1 : 0,
+                                                        composeResult.preservedNativeContexts ? 1 : 0);
           loka::platform::DebugLogSceneRootDiffShape(static_cast<void *>(root->scene()),
-                                                    static_cast<void *>(root),
-                                                    diff ? static_cast<int>(diff->entryCount()) : 0,
-                                                    (diff && diff->hasIncompatibleRetain()) ? 1 : 0,
-                                                    (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
-                                                    (diff && diff->isStableRetainOnly()) ? 1 : 0);
+                                                     static_cast<void *>(root),
+                                                     diff ? static_cast<int>(diff->entryCount()) : 0,
+                                                     (diff && diff->hasIncompatibleRetain()) ? 1 : 0,
+                                                     (diff && diff->isCompatibleRetainOnly()) ? 1 : 0,
+                                                     (diff && diff->isStableRetainOnly()) ? 1 : 0);
 #endif
           if (!composeResult.composed)
           {
@@ -1225,9 +1289,8 @@ namespace loka
         }
       }
 
-      inline void SceneDirector::applyPendingBoundaryUpdate(Node *rootNode,
-                                                            BoundaryNode *root,
-                                                            const PlatformApplyPlan &plan) const
+      inline void
+      SceneDirector::applyPendingBoundaryUpdate(Node *rootNode, BoundaryNode *root, const PlatformApplyPlan &plan) const
       {
         PlatformApplyPlan localPlan = plan.forBoundary(root);
         const BoundaryNode::LocalApplyInfo localInfo = root->localApplyInfo(localPlan);
@@ -1239,8 +1302,7 @@ namespace loka
         root->applyPendingUpdate(localPlan);
       }
 
-      inline void SceneDirector::applyPendingBoundaryUpdates(Node *rootNode,
-                                                             const PlatformApplyPlan &plan) const
+      inline void SceneDirector::applyPendingBoundaryUpdates(Node *rootNode, const PlatformApplyPlan &plan) const
       {
         PendingUpdateRootCursor updateRoots(this);
         BoundaryNode *root = updateRoots.next();
@@ -1259,9 +1321,8 @@ namespace loka
       inline bool SceneDirector::shouldApplyGlobalChange(IPlatformController *platformController,
                                                          const PlatformApplyPlan &plan) const
       {
-        return !platformController ||
-               !platformController->canSkipGlobalChangeForBoundaryLocalPaint() ||
-               !plan.isPaintOnlyWork();
+        return !platformController || !platformController->canSkipGlobalChangeForBoundaryLocalPaint()
+               || !plan.isPaintOnlyWork();
       }
 
       inline void SceneDirector::SceneUpdateTransaction::clearTransaction()
@@ -1295,7 +1356,9 @@ namespace loka
       }
 
       inline SceneDirector::PendingUpdateRootAnalysis::PendingUpdateRootAnalysis(const SceneDirector *director)
-          : director(director), seenHead(0), seenTail(0)
+          : director(director),
+            seenHead(0),
+            seenTail(0)
       {
       }
 
@@ -1319,13 +1382,13 @@ namespace loka
           return false;
         }
         const NodeDirtyFlags rootFlags = director->pendingDirtyFlagsForBoundary(root);
-        SceneProjectionTransaction::ConstIterator it = director->updateTransaction_.projectionTransaction().targetsBegin();
+        SceneProjectionTransaction::ConstIterator it =
+            director->updateTransaction_.projectionTransaction().targetsBegin();
         while (it.isValid())
         {
           Node *node = it.node();
           BoundaryNode *boundary = node ? node->asBoundary() : 0;
-          if (boundary != root && boundary && IsBoundaryDescendantOf(boundary, root) &&
-              it.dirtyFlags() == rootFlags)
+          if (boundary != root && boundary && IsBoundaryDescendantOf(boundary, root) && it.dirtyFlags() == rootFlags)
           {
             const BoundaryComposeResult &candidateResult = boundary->composeResult();
             if (candidateResult.composed && candidateResult.preservedNativeContexts)
@@ -1386,8 +1449,7 @@ namespace loka
         {
           return true;
         }
-        if ((director->pendingDirtyFlagsForBoundary(root) & NODE_DIRTY_CHILD) != 0 &&
-            hasEquivalentDescendant(root))
+        if ((director->pendingDirtyFlagsForBoundary(root) & NODE_DIRTY_CHILD) != 0 && hasEquivalentDescendant(root))
         {
           return true;
         }
@@ -1396,7 +1458,8 @@ namespace loka
 
       inline SceneDirector::PendingUpdateRootCursor::PendingUpdateRootCursor(const SceneDirector *director)
           : director(director),
-            iterator(director ? director->updateTransaction_.projectionTransaction().targetsBegin() : SceneProjectionTransaction::ConstIterator()),
+            iterator(director ? director->updateTransaction_.projectionTransaction().targetsBegin()
+                              : SceneProjectionTransaction::ConstIterator()),
             analysis(director)
       {
       }
@@ -1426,15 +1489,15 @@ namespace loka
 
       inline static bool CanRelaxFullRebuildForLocalDiff(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        return snapshot.requestSnapshot().effectiveFullRebuildRequired() &&
-               snapshot.applySnapshot().localCompositionDiffApplicable();
+        return snapshot.requestSnapshot().effectiveFullRebuildRequired()
+               && snapshot.applySnapshot().localCompositionDiffApplicable();
       }
 
       inline static bool CanRelaxFullRebuildForChildOnlyUpdate(const SceneDirector::SceneUpdateSnapshot &snapshot)
       {
-        return snapshot.requestSnapshot().effectiveFullRebuildRequired() &&
-               snapshot.requestSnapshot().hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
-               !snapshot.applySnapshot().structureRequired();
+        return snapshot.requestSnapshot().effectiveFullRebuildRequired()
+               && snapshot.requestSnapshot().hasEffectiveDirtyFlag(NODE_DIRTY_CHILD)
+               && !snapshot.applySnapshot().structureRequired();
       }
 
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot)

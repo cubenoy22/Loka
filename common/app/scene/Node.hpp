@@ -6,7 +6,11 @@
 #if __cplusplus >= 201103L
 #define LOKA_STATIC_ASSERT(expr, msg) static_assert((expr), #msg)
 #elif defined(NDEBUG)
-#define LOKA_STATIC_ASSERT(expr, msg) enum { static_assert_##msg = 1 }
+#define LOKA_STATIC_ASSERT(expr, msg)                                                                                  \
+  enum                                                                                                                 \
+  {                                                                                                                    \
+    static_assert_##msg = 1                                                                                            \
+  }
 #else
 #define LOKA_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
 #endif
@@ -39,7 +43,7 @@ namespace loka
         NODE_DIRTY_PROPS = 0x01,
         NODE_DIRTY_CHILD = 0x02,
         NODE_DIRTY_LAYOUT = 0x04,
-        NODE_DIRTY_MYSELF = 0xFF, // 全dirty
+        NODE_DIRTY_MYSELF = 0xFF, // All node-local dirty flags.
         NODE_DIRTY_INITIAL = 0x100
       };
 
@@ -59,7 +63,10 @@ namespace loka
 
       struct ComposeAttachLifecycle
       {
-        ComposeAttachLifecycle() : state(COMPOSE_ATTACH_STATE_NONE) {}
+        ComposeAttachLifecycle()
+            : state(COMPOSE_ATTACH_STATE_NONE)
+        {
+        }
 
         void markPendingAttach()
         {
@@ -112,17 +119,14 @@ namespace loka
       class IStateOwner;
       struct DirtySourceRegistrar;
 
-      template <typename NodeT>
-      struct NodeTypeTokenStorage
+      template <typename NodeT> struct NodeTypeTokenStorage
       {
         static const char value_;
       };
 
-      template <typename NodeT>
-      const char NodeTypeTokenStorage<NodeT>::value_ = 0;
+      template <typename NodeT> const char NodeTypeTokenStorage<NodeT>::value_ = 0;
 
-      template <typename NodeT>
-      const void *NodeTypeToken()
+      template <typename NodeT> const void *NodeTypeToken()
       {
         return &NodeTypeTokenStorage<NodeT>::value_;
       }
@@ -161,7 +165,15 @@ namespace loka
         short lineHeight;
         short spacing;
 
-        LayoutState() : x(0), y(0), width(0), height(0), lineHeight(0), spacing(0) {}
+        LayoutState()
+            : x(0),
+              y(0),
+              width(0),
+              height(0),
+              lineHeight(0),
+              spacing(0)
+        {
+        }
       };
 
       struct IProjectedLayoutNode
@@ -176,18 +188,39 @@ namespace loka
       struct NodeContext
       {
       public:
-        NodeContext() : owner_(0) {}
-        explicit NodeContext(Node *owner) : owner_(owner) {}
+        NodeContext()
+            : owner_(0)
+        {
+        }
+        explicit NodeContext(Node *owner)
+            : owner_(owner)
+        {
+        }
         virtual ~NodeContext() {}
 
-        void setOwner(Node *owner) { owner_ = owner; }
-        Node *owner() const { return owner_; }
-        virtual ICapturableBitmap *asCapturableBitmap() { return 0; }
-        virtual const ICapturableBitmap *asCapturableBitmap() const { return 0; }
+        void setOwner(Node *owner)
+        {
+          owner_ = owner;
+        }
+        Node *owner() const
+        {
+          return owner_;
+        }
+        virtual ICapturableBitmap *asCapturableBitmap()
+        {
+          return 0;
+        }
+        virtual const ICapturableBitmap *asCapturableBitmap() const
+        {
+          return 0;
+        }
         virtual void onNodeAttached() {}
         virtual void onNodeDetached() {}
         virtual void render(IPlatformController *) {}
-        virtual short layout(IPlatformController *, LayoutState &) { return 0; }
+        virtual short layout(IPlatformController *, LayoutState &)
+        {
+          return 0;
+        }
 
       private:
         NodeContext(const NodeContext &);
@@ -211,7 +244,16 @@ namespace loka
         std::string testId_;
         NodeTag nodeTag_;
 
-        Node() : context(0), dirty(NODE_DIRTY_NONE), nextInComposition(0), arenaAllocated_(false), composeAttachLifecycle_(), testId_(), nodeTag_(NODE_TAG_NONE) {}
+        Node()
+            : context(0),
+              dirty(NODE_DIRTY_NONE),
+              nextInComposition(0),
+              arenaAllocated_(false),
+              composeAttachLifecycle_(),
+              testId_(),
+              nodeTag_(NODE_TAG_NONE)
+        {
+        }
 
         virtual ~Node()
         {
@@ -222,8 +264,14 @@ namespace loka
           }
         }
 
-        void setArenaAllocated(bool v) { arenaAllocated_ = v; }
-        bool isArenaAllocated() const { return arenaAllocated_; }
+        void setArenaAllocated(bool v)
+        {
+          arenaAllocated_ = v;
+        }
+        bool isArenaAllocated() const
+        {
+          return arenaAllocated_;
+        }
         void markPendingAttachForCompose()
         {
           composeAttachLifecycle_.markPendingAttach();
@@ -245,30 +293,94 @@ namespace loka
           ::operator delete(ptr);
         }
         virtual void compose() {}
-        virtual NodeKind kind() const { return NODE_KIND_UNKNOWN; }
-        virtual INestable *asNestable() { return 0; }
-        virtual ComposableNode *asComposable() { return 0; }
-        virtual BoundaryNode *asBoundary() { return 0; }
-        virtual IStateOwner *asStateOwner() { return 0; }
-        virtual IProjectedLayoutNode *asProjectedLayoutNode() { return 0; }
-        virtual const void *nodeTypeKey() const { return 0; }
+        virtual NodeKind kind() const
+        {
+          return NODE_KIND_UNKNOWN;
+        }
+        virtual INestable *asNestable()
+        {
+          return 0;
+        }
+        virtual ComposableNode *asComposable()
+        {
+          return 0;
+        }
+        virtual BoundaryNode *asBoundary()
+        {
+          return 0;
+        }
+        virtual IStateOwner *asStateOwner()
+        {
+          return 0;
+        }
+        virtual IProjectedLayoutNode *asProjectedLayoutNode()
+        {
+          return 0;
+        }
+        virtual const void *nodeTypeKey() const
+        {
+          return 0;
+        }
         // App node type casts (avoid dynamic_cast for 68k performance)
-        virtual ::loka::app::RowNode *asRowNode() { return 0; }
-        virtual ::loka::app::ColumnNode *asColumnNode() { return 0; }
-        virtual ::loka::app::BoxNode *asBoxNode() { return 0; }
-        virtual ::loka::app::ZStackNode *asZStackNode() { return 0; }
-        virtual ::loka::app::GridNode *asGridNode() { return 0; }
-        virtual ::loka::app::CellNode *asCellNode() { return 0; }
-        virtual ::loka::app::TextNode *asTextNode() { return 0; }
-        virtual ::loka::app::ButtonNode *asButtonNode() { return 0; }
-        virtual ::loka::app::EditTextNode *asEditTextNode() { return 0; }
-        virtual ::loka::app::PopupMenuNode *asPopupMenuNode() { return 0; }
-        virtual ::loka::app::OpenFileDialogNode *asOpenFileDialogNode() { return 0; }
-        virtual ::loka::app::ImageViewNode *asImageViewNode() { return 0; }
-        virtual ::loka::app::RectSurfaceNode *asRectSurfaceNode() { return 0; }
+        virtual ::loka::app::RowNode *asRowNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::ColumnNode *asColumnNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::BoxNode *asBoxNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::ZStackNode *asZStackNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::GridNode *asGridNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::CellNode *asCellNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::TextNode *asTextNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::ButtonNode *asButtonNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::EditTextNode *asEditTextNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::PopupMenuNode *asPopupMenuNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::OpenFileDialogNode *asOpenFileDialogNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::ImageViewNode *asImageViewNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::RectSurfaceNode *asRectSurfaceNode()
+        {
+          return 0;
+        }
         virtual void declareDirtySources(DirtySourceRegistrar &) {}
         // Generic interface query (for findBoundary without RTTI)
-        virtual void *queryInterface(const char *name) { (void)name; return 0; }
+        virtual void *queryInterface(const char *name)
+        {
+          (void)name;
+          return 0;
+        }
         virtual void render(IPlatformController *controller)
         {
           if (context)
@@ -303,11 +415,26 @@ namespace loka
           }
         }
 
-        NodeContext *getContext() const { return context; }
-        void setTestId(const std::string &value) { testId_ = value; }
-        const std::string &testId() const { return testId_; }
-        void setNodeTag(NodeTag tag) { nodeTag_ = tag; }
-        NodeTag nodeTag() const { return nodeTag_; }
+        NodeContext *getContext() const
+        {
+          return context;
+        }
+        void setTestId(const std::string &value)
+        {
+          testId_ = value;
+        }
+        const std::string &testId() const
+        {
+          return testId_;
+        }
+        void setNodeTag(NodeTag tag)
+        {
+          nodeTag_ = tag;
+        }
+        NodeTag nodeTag() const
+        {
+          return nodeTag_;
+        }
       };
 
       struct DirtySourceRegistrar
@@ -330,16 +457,21 @@ namespace loka
       };
 
       // --- NodePropsBase (templated common base) ---
-      template <class PropsT>
-      struct NodePropsBase : public PropsBase
+      template <class PropsT> struct NodePropsBase : public PropsBase
       {
         static Node *createNode(const PropsBase &base)
         {
           const PropsT &props = static_cast<const PropsT &>(base);
           return new typename PropsT::NodeType(props);
         }
-        static NodeFactoryFunc staticFactory() { return &NodePropsBase::createNode; }
-        NodeFactoryFunc nodeFactory() const { return staticFactory(); }
+        static NodeFactoryFunc staticFactory()
+        {
+          return &NodePropsBase::createNode;
+        }
+        NodeFactoryFunc nodeFactory() const
+        {
+          return staticFactory();
+        }
 
         // Auto-generate unique TypeID per Props type (address of static local)
         static const void *staticTypeId()
@@ -347,14 +479,16 @@ namespace loka
           static char id;
           return &id;
         }
-        const void *propsTypeId() const { return staticTypeId(); }
+        const void *propsTypeId() const
+        {
+          return staticTypeId();
+        }
       };
 
       // Forward declaration
       struct INestableDefinition;
 
-      template <typename NodeT, typename PropsT>
-      struct NodePropsApplier
+      template <typename NodeT, typename PropsT> struct NodePropsApplier
       {
         static bool apply(NodeT *node, const PropsT &props)
         {
@@ -364,14 +498,12 @@ namespace loka
       };
 
       // C++98 alignof alternative
-      template <typename T>
-      struct AlignOfHelper
+      template <typename T> struct AlignOfHelper
       {
         char c;
         T t;
       };
-      template <typename T>
-      struct AlignOf
+      template <typename T> struct AlignOf
       {
         enum
         {
@@ -379,13 +511,22 @@ namespace loka
         };
       };
 
-      // --- NodeDefinitionの型消去基底 ---
+      // Type-erased base for node definitions.
       struct NodeDefinitionBase
       {
       public:
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
 
-        NodeDefinitionBase() : cleanupHook_(0), cleanupContext_(0), nextInComposition(0), testId_(), hasTestId_(false), autoTestId_(false), nodeTag_(NODE_TAG_NONE) {}
+        NodeDefinitionBase()
+            : cleanupHook_(0),
+              cleanupContext_(0),
+              nextInComposition(0),
+              testId_(),
+              hasTestId_(false),
+              autoTestId_(false),
+              nodeTag_(NODE_TAG_NONE)
+        {
+        }
         NodeDefinitionBase(const NodeDefinitionBase &other)
             : cleanupHook_(0),
               cleanupContext_(0),
@@ -393,7 +534,9 @@ namespace loka
               testId_(other.testId_),
               hasTestId_(other.hasTestId_),
               autoTestId_(other.autoTestId_),
-              nodeTag_(other.nodeTag_) {}
+              nodeTag_(other.nodeTag_)
+        {
+        }
         NodeDefinitionBase &operator=(const NodeDefinitionBase &other)
         {
           this->cleanupHook_ = 0;
@@ -405,7 +548,10 @@ namespace loka
           this->nodeTag_ = other.nodeTag_;
           return *this;
         }
-        virtual ~NodeDefinitionBase() { this->invokeCleanupHook(); }
+        virtual ~NodeDefinitionBase()
+        {
+          this->invokeCleanupHook();
+        }
         virtual Node *create() const = 0;
         virtual Node *createInPlace(void *mem) const = 0;
         virtual size_t nodeSize() const = 0;
@@ -419,8 +565,14 @@ namespace loka
         {
           return node && node->kind() == this->nodeKind();
         }
-        virtual bool isBoundary() const { return false; }
-        virtual INestableDefinition *asNestableDefinition() { return 0; }
+        virtual bool isBoundary() const
+        {
+          return false;
+        }
+        virtual INestableDefinition *asNestableDefinition()
+        {
+          return 0;
+        }
         NodeDefinitionBase *nextInComposition;
 
         void setCleanupHook(CleanupHook hook, void *context)
@@ -503,9 +655,8 @@ namespace loka
         NodeTag nodeTag_;
       };
 
-      // --- NodeDefinition: Props/Nodeの外部ラッパー（Propsをメンバーとして持つインスタンス型） ---
-      template <class DerivedT>
-      struct TestIdDslMixin
+      // Shared DSL mixin for attaching test ids to node definitions.
+      template <class DerivedT> struct TestIdDslMixin
       {
         DerivedT &noop()
         {
@@ -525,8 +676,7 @@ namespace loka
         }
       };
 
-      template <class PropsT, class NodeT>
-      struct NodeDefinition : public NodeDefinitionBase
+      template <class PropsT, class NodeT> struct NodeDefinition : public NodeDefinitionBase
       {
         typedef PropsT PropsType;
         typedef NodeT NodeType;
@@ -538,8 +688,14 @@ namespace loka
         LOKA_STATIC_ASSERT((typename PropsT::TypeTag *)0 == (typename NodeT::TypeTag *)0, props_node_type_mismatch);
 #endif
         PropsT props;
-        NodeDefinition() : props() {}
-        NodeDefinition(const PropsT &p) : props(p) {}
+        NodeDefinition()
+            : props()
+        {
+        }
+        NodeDefinition(const PropsT &p)
+            : props(p)
+        {
+        }
         NodeDefinition &set(const PropsT &p)
         {
           props = p;
@@ -550,8 +706,7 @@ namespace loka
           this->setNodeTag(value);
           return *this;
         }
-        template <typename F>
-        NodeDefinition &mutate(F f)
+        template <typename F> NodeDefinition &mutate(F f)
         {
           f(props);
           return *this;
@@ -574,15 +729,27 @@ namespace loka
           }
           return node;
         }
-        size_t nodeSize() const { return sizeof(NodeT); }
-        size_t nodeAlign() const { return AlignOf<NodeT>::value; }
-        virtual NodeDefinitionBase *clone() const { return new NodeDefinition(*this); }
+        size_t nodeSize() const
+        {
+          return sizeof(NodeT);
+        }
+        size_t nodeAlign() const
+        {
+          return AlignOf<NodeT>::value;
+        }
+        virtual NodeDefinitionBase *clone() const
+        {
+          return new NodeDefinition(*this);
+        }
         virtual NodeKind nodeKind() const
         {
           NodeT probe(props);
           return probe.kind();
         }
-        virtual const PropsBase *propsBase() const { return &props; }
+        virtual const PropsBase *propsBase() const
+        {
+          return &props;
+        }
         virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const
         {
           const PropsBase *otherProps = other.propsBase();
@@ -617,7 +784,10 @@ namespace loka
       {
         virtual ~INestableDefinition() {}
         virtual void addChild(NodeDefinitionBase *child) = 0;
-        virtual void addOwnedChild(NodeDefinitionBase *child) { addChild(child); }
+        virtual void addOwnedChild(NodeDefinitionBase *child)
+        {
+          addChild(child);
+        }
         virtual NodeDefinitionBase *childrenHead() const = 0;
         virtual size_t childrenCount() const = 0;
 
@@ -638,8 +808,7 @@ namespace loka
         // For future extensibility
       };
 
-      template <class DerivedT>
-      struct NestableDslMixin
+      template <class DerivedT> struct NestableDslMixin
       {
         DerivedT &operator<<(NodeDefinitionBase &child)
         {
@@ -674,8 +843,12 @@ namespace loka
       class NestableDefinitionBase : public INestableDefinition
       {
       public:
-        NestableDefinitionBase() : children_() {}
-        NestableDefinitionBase(const NestableDefinitionBase &other) : children_()
+        NestableDefinitionBase()
+            : children_()
+        {
+        }
+        NestableDefinitionBase(const NestableDefinitionBase &other)
+            : children_()
         {
           this->copyChildrenFrom(other);
         }
@@ -710,8 +883,14 @@ namespace loka
           children_.appendOwned(child);
         }
 
-        virtual NodeDefinitionBase *childrenHead() const { return children_.head(); }
-        virtual size_t childrenCount() const { return children_.count(); }
+        virtual NodeDefinitionBase *childrenHead() const
+        {
+          return children_.head();
+        }
+        virtual size_t childrenCount() const
+        {
+          return children_.count();
+        }
 
       protected:
         void clearChildren()
@@ -775,7 +954,11 @@ namespace loka
       class NestableNode : public Node, public INestable
       {
       public:
-        NestableNode() : Node(), children_() {}
+        NestableNode()
+            : Node(),
+              children_()
+        {
+        }
         virtual ~NestableNode()
         {
           clearChildrenInternal(false);
@@ -799,9 +982,18 @@ namespace loka
           children_.detachTo(out);
         }
 
-        virtual Node *childrenHead() const { return children_.head(); }
-        virtual size_t childrenCount() const { return children_.count(); }
-        virtual INestable *asNestable() { return this; }
+        virtual Node *childrenHead() const
+        {
+          return children_.head();
+        }
+        virtual size_t childrenCount() const
+        {
+          return children_.count();
+        }
+        virtual INestable *asNestable()
+        {
+          return this;
+        }
 
       protected:
         void clearChildrenInternal(bool deleteArenaChildren)
