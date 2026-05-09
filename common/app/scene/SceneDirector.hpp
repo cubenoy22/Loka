@@ -256,43 +256,19 @@ namespace loka
         struct SceneUpdateSnapshot
         {
           SceneUpdateSnapshot()
-              : generation(0), request(), apply()
+              : generation(0),
+                requestValue(),
+                applyValue()
           {
           }
 
-          void clear()
+          SceneUpdateSnapshot(unsigned long snapshotGeneration,
+                              const SceneUpdateRequestSnapshot &request,
+                              const SceneUpdateApplySnapshot &apply)
+              : generation(snapshotGeneration),
+                requestValue(request),
+                applyValue(apply)
           {
-            generation = 0;
-            request.clear();
-            apply.clear();
-          }
-
-          void setGeneration(unsigned long value)
-          {
-            generation = value;
-          }
-
-          void setRequest(const SceneUpdateRequestSnapshot &value)
-          {
-            request = value;
-          }
-
-          void setApply(const SceneUpdateApplySnapshot &value)
-          {
-            apply = value;
-          }
-
-          void finalizeAfterApplyAnalysis()
-          {
-            if (apply.layoutRequired())
-            {
-              request.includeDirtyFlags(NODE_DIRTY_LAYOUT);
-            }
-          }
-
-          void relaxEffectiveFullRebuild()
-          {
-            request.relaxFullRebuild();
           }
 
           bool hasGeneration() const
@@ -302,29 +278,29 @@ namespace loka
 
           bool requiresStructureChange() const
           {
-            return request.hasEffectiveDirtyFlag(NODE_DIRTY_INITIAL) ||
-                   (request.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD) &&
-                    (request.effectiveFullRebuildRequired() || apply.structureRequired()));
+            return requestValue.hasEffectiveDirtyFlag(NODE_DIRTY_INITIAL)
+                   || (requestValue.hasEffectiveDirtyFlag(NODE_DIRTY_CHILD)
+                       && (requestValue.effectiveFullRebuildRequired() || applyValue.structureRequired()));
           }
 
           bool requiresLayoutChange() const
           {
-            return request.hasEffectiveDirtyFlag(NODE_DIRTY_LAYOUT) || apply.layoutRequired();
+            return requestValue.hasEffectiveDirtyFlag(NODE_DIRTY_LAYOUT) || applyValue.layoutRequired();
           }
 
           bool hasAnyPaintChange() const
           {
-            return request.effectiveDirtyFlagsValue() != NODE_DIRTY_NONE;
+            return requestValue.effectiveDirtyFlagsValue() != NODE_DIRTY_NONE;
           }
 
           bool requiresOpaqueLocalPaint() const
           {
-            return apply.opaqueLocalPaintRequired();
+            return applyValue.opaqueLocalPaintRequired();
           }
 
           bool requiresCompositedPaint() const
           {
-            return apply.compositedPaintRequired();
+            return applyValue.compositedPaintRequired();
           }
 
           unsigned long generationValue() const
@@ -332,20 +308,20 @@ namespace loka
             return generation;
           }
 
-          const SceneUpdateRequestSnapshot &requestSnapshot() const
+          const SceneUpdateRequestSnapshot &request() const
           {
-            return request;
+            return requestValue;
           }
 
-          const SceneUpdateApplySnapshot &applySnapshot() const
+          const SceneUpdateApplySnapshot &apply() const
           {
-            return apply;
+            return applyValue;
           }
 
         private:
           unsigned long generation;
-          SceneUpdateRequestSnapshot request;
-          SceneUpdateApplySnapshot apply;
+          SceneUpdateRequestSnapshot requestValue;
+          SceneUpdateApplySnapshot applyValue;
         };
 
         struct SceneUpdateTransaction
@@ -653,8 +629,9 @@ namespace loka
         BoundaryNode *nextPendingUpdateRoot(BoundaryNode *afterRoot) const;
         SceneUpdateRequestSnapshot buildRefreshRequestSnapshot(Node *rootNode) const;
         SceneUpdateApplySnapshot buildApplySnapshot(const Scene *scene) const;
-        void finalizeUpdateSnapshot(SceneUpdateSnapshot &snapshot,
-                                    const Scene *scene) const;
+        SceneUpdateSnapshot finalizeUpdateSnapshot(unsigned long generation,
+                                                   const SceneUpdateRequestSnapshot &request,
+                                                   const Scene *scene) const;
         SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
                                                const Scene *scene) const;
         PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
