@@ -17,8 +17,11 @@ clear boundaries, and small reusable concepts.
 - Use English for code comments, code-facing docs, and API/design notes that ship with the repository; keep non-English prose for user conversation only unless a file already has an established localized convention.
 
 ## Ownership And State
+- Keep scopes small by default. Prefer immutable completed values, explicit owners for mutation, and small encapsulated types when a feature needs multiple pieces of internal state.
 - Before adding new variables, especially member fields, consider whether they introduce long-term ownership/lifecycle/cleanup complexity. Prefer reusing an existing owner or encapsulating the state so management does not become more fragmented over time.
 - When state or variables must be introduced, consider whether they should be encapsulated or expressed as a small state machine instead of scattered flags. Prefer lifecycle-aware structures that make ownership, transitions, and cleanup easier to reason about.
+- Prefer immutable value objects for facts, snapshots, props, plans, and completed analysis results. Use builders, local temporaries, or explicit owner state for construction/mutation, then expose the completed value through a read-only API. If this choice is ambiguous before implementation, stop and confirm whether the feature should prioritize immutable structure or measured mutation/reuse.
+- Performance-sensitive mutation is allowed when PPC601-era or other supported target constraints make copying too costly, but the mutable phase, owner, and cleanup path must remain explicit. Prefer splitting immutable sections into separate value types over making a broad object mutable.
 - MutableState<T>::set() must be wrapped in a StateTracker transaction (use RAII guard).
 - Ownership policy: follow gravity. Parent owns child-facing state/data by default; cross-boundary sharing must be explicit and should use a meaningful owner/facade; `Managed<T>` may stabilize payload lifetime but should not replace a real state/resource owner. Broad reuse should prefer global caches for immutable/shared resources. Avoid designs where a child effectively owns or stabilizes its parent.
 - Boundary access policy: `currentBoundary()` is the owner-side path; `findBoundary()` is for direct-parent borrowed access only. Do not rely on multi-hop or sibling boundary traversal from DSL code.
@@ -28,6 +31,7 @@ clear boundaries, and small reusable concepts.
 - NodeState pass-through policy: when a DSL/API needs read-only live state, pass `nodeState.state()` explicitly instead of relying on implicit conversions from `NodeState<T>`.
 - NodeState internal-surface policy: owner/tracker access on `NodeState<T>` is internal and should stay behind `dangerously*` naming; ordinary DSL code should use `get()`, `set()`, and `.state()` only.
 - Flow ownership policy: long-lived Flow/StateStream chains owned by a Node or Boundary should be stored in `FlowSlot<T>` or an equivalent lifecycle-aware slot. Keep one-shot stack Flow usage limited to tests or bounded local operations.
+- Flow state policy: do not share mutable state between unrelated Flow instances just because a value must change. Prefer Flow-owned input/result state, dedicated result state, or read-only input state. When multiple inputs should drive one event/result, consider `DerivedState`, an emitter adapter, or an explicit owner facade rather than passing the same `MutableState<T>*` through several Flow paths.
 - Ownership/binding policy: distinguish borrowed live state from props-owned constant values explicitly. Props-owned constant values may reuse internal storage helpers, but they must not be registered as observed state or bound/unbound through NativeContext live-state paths.
 
 ## Design Taste

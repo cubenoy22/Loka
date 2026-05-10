@@ -143,6 +143,21 @@ A good Loka abstraction should make it possible to answer:
 If those answers are not visible in the type or API shape, the abstraction is
 not ready to become a framework-facing surface.
 
+## Prefer Immutable Facts
+
+Completed facts should prefer immutable shapes. A snapshot, props object, apply
+plan, analysis result, or other completed value should normally become read-only
+once it has been built. Mutation belongs in a named owner, builder, transaction,
+or local construction phase.
+
+This is not immutability for fashion. It limits the number of places where a
+value can change, makes Flow and update routing easier to debug, and prevents a
+framework object from slowly becoming a shared mutable bag. When performance on
+PPC601-era or other supported targets makes copying too expensive, Loka may use
+explicit mutable storage, reusable buffers, or owner-local caches. The mutable
+section should still be narrow and named, and immutable subsections should be
+split into separate value types when that keeps the change surface smaller.
+
 ## State Ownership Is Explicit, Not Ambient
 
 Loka should not assume that every `Node` is a state owner. A `Node` may express

@@ -46,6 +46,10 @@ Focus:
     policy: introduce a shared `IStateOwner` implementation for owner scopes
     shorter than a Boundary, and make `Show`/conditional retain-vs-destroy
     behavior explicit.
+  * Start validating interaction patterns with a small converter-style sample
+    and a minimal `Slider` control, focusing on bidirectional input,
+    continuous input, quantized updates, and avoiding shared mutable state as
+    the default coordination mechanism.
 * Documentation cleanup
 
   * Consolidate DSL and API quick-start docs
@@ -87,6 +91,10 @@ In practice, that means `v0.1.0` should ideally reach the point where:
 * New retained layout/container behavior can follow shared layout helpers and internal layout handler seams rather than ad-hoc platform branches.
 * Layout helper contracts are polished enough that container layout work is predictable: return values, child traversal callbacks, sizing heuristics, and platform projection responsibilities are named and tested explicitly.
 * `Boundary` responsibilities are understood well enough that future Menu/Window DSL work can reuse the same kernel ideas instead of inventing separate update/apply models.
+* Common State/Flow interaction hazards have named framework patterns instead
+  of app-local mutable tricks: distinct-until-changed, quantized values,
+  throttle/debounce gates, stale-result dropping, owner-side apply adapters,
+  and explicit interaction groups for mutually dependent updates.
 * The scene trunk is readable enough for contributors to navigate: `Boundary`,
   `Node`, `Scene`, and `SceneDirector` should have clear responsibilities, with
   large headers split only where it makes ownership, composition, update/apply,
@@ -140,7 +148,25 @@ Practical interpretation:
 * **Core components**
 
   * `LazyList` (planned)
+  * `Slider` (planned, first pass in `0.0.2`)
   * Additional layout primitives and common widgets
+* **State/Flow interaction safety**
+
+  * Prefer small immutable scopes and owner-side state application over hidden
+    mutable coordination. If a value must be updated through Flow, distinguish
+    read-only input state, Flow-local input/result state, and shared result
+    state instead of passing one `MutableState<T>*` through several paths.
+  * Add official gates/adapters for common interaction needs: distinct output,
+    quantization/fixed-point comparison, throttle/debounce timing, stale-result
+    dropping, and explicit apply-to-state steps.
+  * Make the existing infinite-update limit debuggable in test/debug builds:
+    report the state, tracker phase, Flow/bind step, notification depth, and
+    interaction group involved.
+  * Explore explicit State interaction groups for bidirectional controls and
+    converter-style UIs. A group should declare which inputs may update which
+    outputs, detect update loops where practical, and allow an
+    `onUpdateLoopError`-style hook without requiring app-local `updating_`
+    flags or hidden version counters.
 * **Layout architecture polish**
 
   * Clarify the shared container layout contract before `v0.1.0`, especially
