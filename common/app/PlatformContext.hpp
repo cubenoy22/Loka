@@ -26,7 +26,7 @@ namespace loka
     {
       struct FileHandle;
     }
-  }
+  } // namespace platform
 
   namespace core
   {
@@ -34,8 +34,8 @@ namespace loka
     {
       class Blob;
       class Image;
-    }
-  }
+    } // namespace resource
+  } // namespace core
 
   namespace app
   {
@@ -44,26 +44,24 @@ namespace loka
       class Scene;
       class Node;
       struct NodeContext;
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 class PlatformContext
 {
 public:
   virtual ~PlatformContext() {}
 
-  // Appインスタンス取得用の純粋仮想関数を追加
+  // Creates the platform-specific App instance.
   virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const = 0;
 
-  // Window生成ファクトリーメソッド（サブクラス実装必須）
-  // app_がnullの場合はassertで即座に失敗させる設計にする
+  // Creates a platform-specific Window. Implementations should assert on invalid owner state.
   virtual Window *createWindow(const WindowProps &props) = 0;
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const = 0;
   virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const = 0;
-  virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
-                                   loka::core::resource::Image &out) const = 0;
+  virtual bool createImageFromBlob(const loka::core::resource::Blob &blob, loka::core::resource::Image &out) const = 0;
 };
 
 #endif // LOKA_PLATFORMCONTEXT_HPP
