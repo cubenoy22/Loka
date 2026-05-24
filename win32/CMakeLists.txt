@@ -9,7 +9,6 @@ set(SOURCES
   src/Win32Window.cpp
   src/Win32ScenePlatformController.cpp
   src/Win32PlatformContext.cpp
-  src/MsgBoxWin32.cpp
   src/context/Win32ButtonContext.cpp
   src/context/Win32CellContext.cpp
   src/context/Win32TextContext.cpp
