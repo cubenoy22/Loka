@@ -91,6 +91,17 @@ same state, tracker, dirty-result, and lifecycle contracts. This lets nested or
 sibling regions cooperate without forcing a parent to inspect a child's
 internals.
 
+A `Boundary` protects complexity; it should not become the complexity. This is
+not only a Boundary rule. Any long-lived object can become an accidental
+controller if it collects every property, operation, platform detail, and
+business rule that passes nearby. A Boundary is an owner, lifecycle scope,
+tracker, composition boundary, and diagnostic surface; other framework objects
+have their own narrower roles. When any object begins to grow a broad set of
+mutable fields plus general-purpose methods, split facts from operations:
+completed state belongs in small value objects or explicit owner state, while
+behavior belongs in Flow, actions, policies, repositories, domain objects, or
+platform projection seams.
+
 ## No Black Boxes
 
 Loka should avoid black boxes. Powerful features may hide routine mechanics, but
@@ -164,6 +175,13 @@ PPC601-era or other supported targets makes copying too expensive, Loka may use
 explicit mutable storage, reusable buffers, or owner-local caches. The mutable
 section should still be narrow and named, and immutable subsections should be
 split into separate value types when that keeps the change surface smaller.
+
+A growing set of properties plus general methods is often a sign that a class is
+becoming an accidental owner. Prefer stack-local construction, explicit input
+arguments, diff/result objects, builders, and small state machines over
+permanently adding fields to a long-lived object. Paying a small cost to keep
+facts immutable-like and lifecycle-aware is usually better than making cleanup,
+ownership, and update routing implicit.
 
 ## State Ownership Is Explicit, Not Ambient
 

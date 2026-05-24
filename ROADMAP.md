@@ -280,6 +280,12 @@ Practical interpretation:
 * Possible ultra-lightweight experiments such as a `LokaLite`-style profile for
   stricter 68k/low-memory targets, kept separate from the mainline proof that
   modern Loka concepts work well on PPC-era and newer systems
+* Plugin editor UI exploration after the `0.1.x` architecture stabilizes:
+  VST, AudioUnit, CLAP, and similar plugin formats are not a near-term core
+  implementation target, but Loka's Boundary/State/projection model may fit
+  embedded audio plugin editors well. Treat this as an external-collaboration
+  friendly research area, especially for parameter-bound controls,
+  host-provided surfaces, meters/canvas views, and standalone/editor UI reuse.
 
 ---
 
