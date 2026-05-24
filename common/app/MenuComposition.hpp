@@ -19,7 +19,12 @@ namespace loka
     class MenuBoundary
     {
     public:
-      MenuBoundary() : tracker_(), ownedStates_(), callbacks_() {}
+      MenuBoundary()
+          : tracker_(),
+            ownedStates_(),
+            callbacks_()
+      {
+      }
       virtual ~MenuBoundary()
       {
         this->releaseCallbacks();
@@ -30,17 +35,18 @@ namespace loka
         ownedStates_.clear();
       }
       virtual void composeMenu(MenuComposition &c) = 0;
-      loka::core::StateTracker *tracker() { return &tracker_; }
+      loka::core::StateTracker *tracker()
+      {
+        return &tracker_;
+      }
 
-      template <typename T>
-      loka::core::MutableState<T> &dangerouslyUseState(const T &initial)
+      template <typename T> loka::core::MutableState<T> &dangerouslyUseState(const T &initial)
       {
         loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
         ownedStates_.push_back(state);
         tracker_.addStateUnchecked(state);
         return *state;
       }
-
 
       void reserveStates(size_t count)
       {
@@ -63,8 +69,7 @@ namespace loka
         emitter.deferBind(&CallbackEntry<NodeT>::Invoke, entry);
       }
 
-      template <class NodeT>
-      void bindActionForMenu(loka::core::EmitterState &emitter, void (NodeT::*method)())
+      template <class NodeT> void bindActionForMenu(loka::core::EmitterState &emitter, void (NodeT::*method)())
       {
         NodeT *self = static_cast<NodeT *>(this);
         this->bindActionForMenu(emitter, self, method);
@@ -79,12 +84,16 @@ namespace loka
         virtual bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const = 0;
       };
 
-      template <class NodeT>
-      struct CallbackEntry : public CallbackEntryBase
+      template <class NodeT> struct CallbackEntry : public CallbackEntryBase
       {
         typedef void (NodeT::*Method)();
         CallbackEntry(NodeT *node, loka::core::EmitterState *emitter, Method method)
-            : node_(node), emitter_(emitter), method_(method), valid_(true) {}
+            : node_(node),
+              emitter_(emitter),
+              method_(method),
+              valid_(true)
+        {
+        }
 
         static void Invoke(void *userData)
         {
@@ -144,9 +153,21 @@ namespace loka
     {
       struct ChangedIndex
       {
-        ChangedIndex() : value(0), nextInComposition(0) {}
-        explicit ChangedIndex(size_t index) : value(index), nextInComposition(0) {}
-        ChangedIndex(const ChangedIndex &other) : value(other.value), nextInComposition(0) {}
+        ChangedIndex()
+            : value(0),
+              nextInComposition(0)
+        {
+        }
+        explicit ChangedIndex(size_t index)
+            : value(index),
+              nextInComposition(0)
+        {
+        }
+        ChangedIndex(const ChangedIndex &other)
+            : value(other.value),
+              nextInComposition(0)
+        {
+        }
         ChangedIndex &operator=(const ChangedIndex &other)
         {
           if (this == &other)
@@ -155,12 +176,19 @@ namespace loka
           nextInComposition = 0;
           return *this;
         }
-        ChangedIndex *clone() const { return new ChangedIndex(*this); }
+        ChangedIndex *clone() const
+        {
+          return new ChangedIndex(*this);
+        }
         size_t value;
         ChangedIndex *nextInComposition;
       };
 
-      MenuCompositionDiff() : loka::dsl::CompositionDiff(), changed() {}
+      MenuCompositionDiff()
+          : loka::dsl::CompositionDiff(),
+            changed()
+      {
+      }
       void clear()
       {
         loka::dsl::CompositionDiff::clear();
@@ -173,9 +201,18 @@ namespace loka
       {
         changed.appendOwned(new ChangedIndex(index));
       }
-      bool hasChanged() const { return changed.count() > 0; }
-      size_t changedCount() const { return changed.count(); }
-      ChangedIndex *changedHead() const { return changed.head(); }
+      bool hasChanged() const
+      {
+        return changed.count() > 0;
+      }
+      size_t changedCount() const
+      {
+        return changed.count();
+      }
+      ChangedIndex *changedHead() const
+      {
+        return changed.head();
+      }
 
       loka::dsl::CompositionList<ChangedIndex> changed;
     };
@@ -218,8 +255,7 @@ namespace loka
         out.swap(dirtyIndices_);
       }
 
-      template <typename T>
-      loka::core::MutableState<T> &dangerouslyUseState(const T &initial)
+      template <typename T> loka::core::MutableState<T> &dangerouslyUseState(const T &initial)
       {
         assert(activeBoundary_ && "MenuComposition::dangerouslyUseState requires MenuBoundary");
         return activeBoundary_->dangerouslyUseState(initial);

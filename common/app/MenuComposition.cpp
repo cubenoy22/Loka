@@ -5,7 +5,8 @@ namespace loka
 {
   namespace app
   {
-    bool MenuCompositionDiff::Diff(const MenuBarDefinition &before, const MenuBarDefinition &after, MenuCompositionDiff &out)
+    bool
+    MenuCompositionDiff::Diff(const MenuBarDefinition &before, const MenuBarDefinition &after, MenuCompositionDiff &out)
     {
       out.clear();
       out.fullRebuild = false;
@@ -18,8 +19,7 @@ namespace loka
       loka::dsl::CompositionCursor<MenuDefinition> beforeIt(before.menusHead(), before.menusCount());
       loka::dsl::CompositionCursor<MenuDefinition> afterIt(after.menusHead(), after.menusCount());
       size_t index = 0;
-      for (MenuDefinition *beforeMenu = beforeIt.next(), *afterMenu = afterIt.next();
-           beforeMenu && afterMenu;
+      for (MenuDefinition *beforeMenu = beforeIt.next(), *afterMenu = afterIt.next(); beforeMenu && afterMenu;
            beforeMenu = beforeIt.next(), afterMenu = afterIt.next(), ++index)
       {
         if (!beforeMenu->equalsStructure(*afterMenu))

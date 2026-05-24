@@ -56,12 +56,9 @@ namespace loka
 
       bool operator==(const MenuItemAttr &other) const
       {
-        return this->hasDisabledValue_ == other.hasDisabledValue_ &&
-               this->disabledValue_ == other.disabledValue_ &&
-               this->disabledState_ == other.disabledState_ &&
-               this->hasVisibleValue_ == other.hasVisibleValue_ &&
-               this->visibleValue_ == other.visibleValue_ &&
-               this->visibleState_ == other.visibleState_;
+        return this->hasDisabledValue_ == other.hasDisabledValue_ && this->disabledValue_ == other.disabledValue_
+               && this->disabledState_ == other.disabledState_ && this->hasVisibleValue_ == other.hasVisibleValue_
+               && this->visibleValue_ == other.visibleValue_ && this->visibleState_ == other.visibleState_;
       }
 
       bool operator<(const MenuItemAttr &other) const
@@ -205,7 +202,10 @@ namespace loka
         return *this;
       }
 
-      MenuItemDefinition *clone() const { return new MenuItemDefinition(*this); }
+      MenuItemDefinition *clone() const
+      {
+        return new MenuItemDefinition(*this);
+      }
 
       MenuItemDefinition &text(const loka::core::String &value)
       {
@@ -365,9 +365,18 @@ namespace loka
         return true;
       }
 
-      bool hasChildren() const { return children_.count() > 0; }
-      MenuItemDefinition *childrenHead() const { return children_.head(); }
-      size_t childrenCount() const { return children_.count(); }
+      bool hasChildren() const
+      {
+        return children_.count() > 0;
+      }
+      MenuItemDefinition *childrenHead() const
+      {
+        return children_.head();
+      }
+      size_t childrenCount() const
+      {
+        return children_.count();
+      }
 
       void clearChildren()
       {
@@ -391,8 +400,14 @@ namespace loka
 
     struct MenuItemDefinitionWithAttr : public MenuItemDefinition
     {
-      MenuItemDefinitionWithAttr() : MenuItemDefinition() {}
-      MenuItemDefinitionWithAttr(const MenuItemDefinition &base) : MenuItemDefinition(base) {}
+      MenuItemDefinitionWithAttr()
+          : MenuItemDefinition()
+      {
+      }
+      MenuItemDefinitionWithAttr(const MenuItemDefinition &base)
+          : MenuItemDefinition(base)
+      {
+      }
 
     private:
       MenuItemDefinitionWithAttr attr(const MenuItemAttr &value) const;
@@ -479,7 +494,10 @@ namespace loka
         return *this;
       }
 
-      MenuDefinition *clone() const { return new MenuDefinition(*this); }
+      MenuDefinition *clone() const
+      {
+        return new MenuDefinition(*this);
+      }
 
       MenuDefinition &text(const loka::core::String &value)
       {
@@ -536,9 +554,18 @@ namespace loka
         return true;
       }
 
-      bool hasItems() const { return items_.count() > 0; }
-      MenuItemDefinition *itemsHead() const { return items_.head(); }
-      size_t itemsCount() const { return items_.count(); }
+      bool hasItems() const
+      {
+        return items_.count() > 0;
+      }
+      MenuItemDefinition *itemsHead() const
+      {
+        return items_.head();
+      }
+      size_t itemsCount() const
+      {
+        return items_.count();
+      }
 
       void clearItems()
       {
@@ -555,9 +582,13 @@ namespace loka
 
     struct MenuBarDefinition
     {
-      MenuBarDefinition() : menus_() {}
+      MenuBarDefinition()
+          : menus_()
+      {
+      }
 
-      MenuBarDefinition(const MenuBarDefinition &other) : menus_()
+      MenuBarDefinition(const MenuBarDefinition &other)
+          : menus_()
       {
         const MenuDefinition *cur = other.menus_.head();
         while (cur)
@@ -586,7 +617,10 @@ namespace loka
         return *this;
       }
 
-      MenuBarDefinition *clone() const { return new MenuBarDefinition(*this); }
+      MenuBarDefinition *clone() const
+      {
+        return new MenuBarDefinition(*this);
+      }
 
       bool equalsStructure(const MenuBarDefinition &other) const
       {
@@ -610,9 +644,18 @@ namespace loka
         return *this;
       }
 
-      bool empty() const { return menus_.count() == 0; }
-      MenuDefinition *menusHead() const { return menus_.head(); }
-      size_t menusCount() const { return menus_.count(); }
+      bool empty() const
+      {
+        return menus_.count() == 0;
+      }
+      MenuDefinition *menusHead() const
+      {
+        return menus_.head();
+      }
+      size_t menusCount() const
+      {
+        return menus_.count();
+      }
       MenuDefinition *menuAt(size_t index) const
       {
         size_t i = 0;

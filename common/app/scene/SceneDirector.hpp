@@ -12,7 +12,7 @@ namespace loka
     {
       class SceneTestAccess;
     }
-  }
+  } // namespace dsl
 
   namespace app
   {
@@ -29,12 +29,16 @@ namespace loka
         struct BoundaryUpdateRequest
         {
           BoundaryUpdateRequest()
-              : boundary(0), flags(NODE_DIRTY_NONE), flushImmediately(false)
+              : boundary(0),
+                flags(NODE_DIRTY_NONE),
+                flushImmediately(false)
           {
           }
 
           BoundaryUpdateRequest(BoundaryNode *b, NodeDirtyFlags f, bool flushNow)
-              : boundary(b), flags(f), flushImmediately(flushNow)
+              : boundary(b),
+                flags(f),
+                flushImmediately(flushNow)
           {
           }
 
@@ -119,7 +123,8 @@ namespace loka
           void deriveEffectiveFullRebuild()
           {
             effectiveFullRebuild =
-                requestedFullRebuild || hasEffectiveDirtyFlag(static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL));
+                requestedFullRebuild
+                || hasEffectiveDirtyFlag(static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_INITIAL));
           }
 
           void includeDirtyFlags(NodeDirtyFlags flags)
@@ -207,11 +212,8 @@ namespace loka
             canApplyLocalCompositionDiff = false;
           }
 
-          void setRequirements(bool layout,
-                               bool structure,
-                               bool compositedPaint,
-                               bool opaqueLocalPaint,
-                               bool localCompositionDiff)
+          void setRequirements(
+              bool layout, bool structure, bool compositedPaint, bool opaqueLocalPaint, bool localCompositionDiff)
           {
             requiresLayout = layout;
             requiresStructure = structure;
@@ -331,7 +333,8 @@ namespace loka
             struct AccumulatedProjectionState
             {
               AccumulatedProjectionState()
-                  : projection(), generation(0)
+                  : projection(),
+                    generation(0)
               {
               }
 
@@ -436,7 +439,8 @@ namespace loka
             };
 
             AccumulatedState()
-                : projectionState(), requestedInput()
+                : projectionState(),
+                  requestedInput()
             {
             }
 
@@ -596,7 +600,7 @@ namespace loka
           void clearTransaction();
 
           SceneUpdateRequestSnapshot buildRequestSnapshot(BoundaryNode *rootBoundary,
-                                                         BoundaryNode *firstPendingRoot) const
+                                                          BoundaryNode *firstPendingRoot) const
           {
             return accumulatedState.buildRequestSnapshot(rootBoundary, firstPendingRoot);
           }
@@ -632,26 +636,21 @@ namespace loka
         SceneUpdateSnapshot finalizeUpdateSnapshot(unsigned long generation,
                                                    const SceneUpdateRequestSnapshot &request,
                                                    const Scene *scene) const;
-        SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode,
-                                               const Scene *scene) const;
+        SceneUpdateSnapshot buildUpdateSnapshot(Node *rootNode, const Scene *scene) const;
         PlatformApplyPlan buildPlatformApplyPlan(const SceneUpdateSnapshot &snapshot) const;
         PlatformApplyPlan executeApplyPlan(Node *rootNode,
-                                          IPlatformController *platformController,
-                                          const SceneUpdateSnapshot &snapshot,
-                                          NodeDirtyFlags globalDirtyFlags,
-                                          bool fullRebuild) const;
+                                           IPlatformController *platformController,
+                                           const SceneUpdateSnapshot &snapshot,
+                                           NodeDirtyFlags globalDirtyFlags,
+                                           bool fullRebuild) const;
         void applyPlatformApplyPlan(Node *rootNode,
                                     IPlatformController *platformController,
                                     const PlatformApplyPlan &plan,
                                     NodeDirtyFlags globalDirtyFlags,
                                     bool fullRebuild) const;
-        void applyPendingBoundaryUpdate(Node *rootNode,
-                                        BoundaryNode *root,
-                                        const PlatformApplyPlan &plan) const;
-        void applyPendingBoundaryUpdates(Node *rootNode,
-                                         const PlatformApplyPlan &plan) const;
-        bool shouldApplyGlobalChange(IPlatformController *platformController,
-                                     const PlatformApplyPlan &plan) const;
+        void applyPendingBoundaryUpdate(Node *rootNode, BoundaryNode *root, const PlatformApplyPlan &plan) const;
+        void applyPendingBoundaryUpdates(Node *rootNode, const PlatformApplyPlan &plan) const;
+        bool shouldApplyGlobalChange(IPlatformController *platformController, const PlatformApplyPlan &plan) const;
         void clearUpdateTransaction();
 #ifdef TEST_BUILD
         unsigned long projectionTransactionGenerationForTesting() const
@@ -672,7 +671,11 @@ namespace loka
 
           struct SeenRoot
           {
-            SeenRoot() : root(0), next(0) {}
+            SeenRoot()
+                : root(0),
+                  next(0)
+            {
+            }
 
             BoundaryNode *root;
             SeenRoot *next;
@@ -697,9 +700,8 @@ namespace loka
           PendingUpdateRootAnalysis analysis;
         };
 
-        BoundaryUpdateRequest normalizeBoundaryUpdateRequest(BoundaryNode *boundary,
-                                                            NodeDirtyFlags flags,
-                                                            bool flushImmediately) const;
+        BoundaryUpdateRequest
+        normalizeBoundaryUpdateRequest(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately) const;
         void applyBoundaryUpdateRequest(const BoundaryUpdateRequest &request) const;
         NodeDirtyFlags aggregateDirtyFlags() const;
         NodeDirtyFlags requestedDirtyFlags() const;

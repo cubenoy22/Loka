@@ -22,7 +22,12 @@ namespace loka
         RESULT_ERROR
       };
 
-      FileChooserResult() : kind(RESULT_NONE), item(), errorCode(0) {}
+      FileChooserResult()
+          : kind(RESULT_NONE),
+            item(),
+            errorCode(0)
+      {
+      }
 
       static FileChooserResult File(const loka::file::File &value)
       {
@@ -102,8 +107,7 @@ namespace loka
 
       bool beginPresent()
       {
-        if (value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTING ||
-            value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTED)
+        if (value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTING || value == OPEN_FILE_DIALOG_PRESENTATION_PRESENTED)
         {
           return false;
         }
@@ -139,7 +143,13 @@ namespace loka
       loka::core::EmitterState *onResult_;
       loka::core::MutableState<bool> *closeState_;
       void *windowToAttach_;
-      OpenFileDialogProps() : result_(0), onResult_(0), closeState_(0), windowToAttach_(0) {}
+      OpenFileDialogProps()
+          : result_(0),
+            onResult_(0),
+            closeState_(0),
+            windowToAttach_(0)
+      {
+      }
 
       OpenFileDialogProps &result(loka::core::MutableState<FileChooserResult> *state)
       {
@@ -192,18 +202,33 @@ namespace loka
       }
     };
 
-    class OpenFileDialogNode : public loka::app::scene::Node,
-                               public loka::app::scene::IProjectedLayoutNode
+    class OpenFileDialogNode : public loka::app::scene::Node, public loka::app::scene::IProjectedLayoutNode
     {
     public:
       typedef OpenFileDialogTypeTag TypeTag;
       OpenFileDialogProps props;
-      OpenFileDialogNode(const OpenFileDialogProps &p) : props(p) {}
-      virtual loka::app::scene::NodeKind kind() const { return loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG; }
-      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
-      virtual const void *nodeTypeKey() const { return loka::app::scene::NodeTypeToken<OpenFileDialogNode>(); }
-      virtual OpenFileDialogNode *asOpenFileDialogNode() { return this; }
-      virtual short layoutProjected(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
+      OpenFileDialogNode(const OpenFileDialogProps &p)
+          : props(p)
+      {
+      }
+      virtual loka::app::scene::NodeKind kind() const
+      {
+        return loka::app::scene::NODE_KIND_OPEN_FILE_DIALOG;
+      }
+      virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode()
+      {
+        return this;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return loka::app::scene::NodeTypeToken<OpenFileDialogNode>();
+      }
+      virtual OpenFileDialogNode *asOpenFileDialogNode()
+      {
+        return this;
+      }
+      virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
+                                    loka::app::scene::LayoutState &state)
       {
         if (!controller)
         {
@@ -221,10 +246,17 @@ namespace loka
       }
     };
 
-    struct OpenFileDialogDefinition : public loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>, public loka::app::scene::TestIdDslMixin<OpenFileDialogDefinition>
+    struct OpenFileDialogDefinition : public loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>,
+                                      public loka::app::scene::TestIdDslMixin<OpenFileDialogDefinition>
     {
-      OpenFileDialogDefinition() : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>() {}
-      OpenFileDialogDefinition(const OpenFileDialogProps &p) : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>(p) {}
+      OpenFileDialogDefinition()
+          : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>()
+      {
+      }
+      OpenFileDialogDefinition(const OpenFileDialogProps &p)
+          : loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>(p)
+      {
+      }
 
       OpenFileDialogDefinition &attachToWindow(void *window)
       {
