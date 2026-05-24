@@ -93,7 +93,10 @@ namespace loka
           return inlineBytes == other.inlineBytes;
         }
 
-        bool operator!=(const BlobLoaderRequest &other) const { return !(*this == other); }
+        bool operator!=(const BlobLoaderRequest &other) const
+        {
+          return !(*this == other);
+        }
 
         BlobSourceType source;
         std::vector<unsigned char> inlineBytes;
@@ -326,7 +329,7 @@ namespace loka
       };
 
     } // namespace resource
-  }   // namespace core
+  } // namespace core
 } // namespace loka
 
 #endif // LOKA_CORE2_RESOURCE_BLOB_LOADER_HPP

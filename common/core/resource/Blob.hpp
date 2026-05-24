@@ -36,8 +36,14 @@ namespace loka
       class Blob
       {
       public:
-        Blob() : handle_() {}
-        explicit Blob(const Managed<BlobRecord> &handle) : handle_(handle) {}
+        Blob()
+            : handle_()
+        {
+        }
+        explicit Blob(const Managed<BlobRecord> &handle)
+            : handle_(handle)
+        {
+        }
 
         static Blob Empty()
         {
@@ -49,8 +55,14 @@ namespace loka
           return Blob(CreateHandle());
         }
 
-        bool isValid() const { return handle_.isValid(); }
-        Managed<BlobRecord> handle() const { return handle_; }
+        bool isValid() const
+        {
+          return handle_.isValid();
+        }
+        Managed<BlobRecord> handle() const
+        {
+          return handle_;
+        }
 
         std::size_t size() const
         {
@@ -153,8 +165,14 @@ namespace loka
           return -1.0f;
         }
 
-        bool operator==(const Blob &other) const { return handle_ == other.handle_; }
-        bool operator!=(const Blob &other) const { return !(*this == other); }
+        bool operator==(const Blob &other) const
+        {
+          return handle_ == other.handle_;
+        }
+        bool operator!=(const Blob &other) const
+        {
+          return !(*this == other);
+        }
 
       private:
         static Managed<BlobRecord> CreateHandle()
@@ -191,7 +209,7 @@ namespace loka
         Managed<BlobRecord> handle_;
       };
     } // namespace resource
-  }   // namespace core
+  } // namespace core
 } // namespace loka
 
 #endif // LOKA_CORE2_RESOURCE_BLOB_HPP

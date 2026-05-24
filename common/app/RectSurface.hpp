@@ -20,16 +20,24 @@ namespace loka
       short width;
       short height;
 
-      RectSprite() : x(0), y(0), width(0), height(0) {}
+      RectSprite()
+          : x(0),
+            y(0),
+            width(0),
+            height(0)
+      {
+      }
       RectSprite(short left, short top, short rectWidth, short rectHeight)
-          : x(left), y(top), width(rectWidth), height(rectHeight) {}
+          : x(left),
+            y(top),
+            width(rectWidth),
+            height(rectHeight)
+      {
+      }
 
       bool operator==(const RectSprite &other) const
       {
-        return x == other.x &&
-               y == other.y &&
-               width == other.width &&
-               height == other.height;
+        return x == other.x && y == other.y && width == other.width && height == other.height;
       }
 
       bool operator!=(const RectSprite &other) const
@@ -53,16 +61,24 @@ namespace loka
         short width;
         short height;
 
-        DirtyRect() : x(0), y(0), width(0), height(0) {}
+        DirtyRect()
+            : x(0),
+              y(0),
+              width(0),
+              height(0)
+        {
+        }
         DirtyRect(short left, short top, short rectWidth, short rectHeight)
-            : x(left), y(top), width(rectWidth), height(rectHeight) {}
+            : x(left),
+              y(top),
+              width(rectWidth),
+              height(rectHeight)
+        {
+        }
 
         bool operator==(const DirtyRect &other) const
         {
-          return x == other.x &&
-                 y == other.y &&
-                 width == other.width &&
-                 height == other.height;
+          return x == other.x && y == other.y && width == other.width && height == other.height;
         }
 
         bool operator!=(const DirtyRect &other) const
@@ -114,8 +130,7 @@ namespace loka
         assert(dirtyRectCount >= 0 && dirtyRectCount <= kMaxDirtyRects);
         assert(other.rectCount >= 0 && other.rectCount <= kMaxRects);
         assert(other.dirtyRectCount >= 0 && other.dirtyRectCount <= kMaxDirtyRects);
-        if (rectCount != other.rectCount ||
-            dirtyRectCount != other.dirtyRectCount)
+        if (rectCount != other.rectCount || dirtyRectCount != other.dirtyRectCount)
         {
           return false;
         }
@@ -249,8 +264,14 @@ namespace loka
       {
       }
 
-      virtual scene::NodeKind kind() const { return scene::NODE_KIND_RECT_SURFACE; }
-      virtual RectSurfaceNode *asRectSurfaceNode() { return this; }
+      virtual scene::NodeKind kind() const
+      {
+        return scene::NODE_KIND_RECT_SURFACE;
+      }
+      virtual RectSurfaceNode *asRectSurfaceNode()
+      {
+        return this;
+      }
 
       virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
@@ -266,8 +287,14 @@ namespace loka
     {
       typedef scene::NodeDefinition<RectSurfaceProps, RectSurfaceNode> BaseType;
 
-      RectSurfaceDefinition() : BaseType() {}
-      RectSurfaceDefinition(const RectSurfaceProps &propsValue) : BaseType(propsValue) {}
+      RectSurfaceDefinition()
+          : BaseType()
+      {
+      }
+      RectSurfaceDefinition(const RectSurfaceProps &propsValue)
+          : BaseType(propsValue)
+      {
+      }
       RectSurfaceDefinition(loka::core::State<RectSurfaceModel> *state)
           : BaseType()
       {
@@ -300,7 +327,7 @@ namespace loka
     };
 
     typedef RectSurfaceDefinition RectSurface;
-  }
-}
+  } // namespace app
+} // namespace loka
 
 #endif

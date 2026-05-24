@@ -39,19 +39,22 @@ namespace loka
       class Image
       {
       public:
-        Image() : handle_() {}
-        explicit Image(const Managed<ImageRecord> &handle) : handle_(handle) {}
+        Image()
+            : handle_()
+        {
+        }
+        explicit Image(const Managed<ImageRecord> &handle)
+            : handle_(handle)
+        {
+        }
 
         static Image Empty()
         {
           return Image();
         }
 
-        static Image FromNative(void *nativeHandle,
-                                int width,
-                                int height,
-                                void (*releaseFn)(void *handle, void *userData),
-                                void *userData)
+        static Image FromNative(
+            void *nativeHandle, int width, int height, void (*releaseFn)(void *handle, void *userData), void *userData)
         {
           if (!nativeHandle)
           {
@@ -92,8 +95,14 @@ namespace loka
           return handle_.isValid() ? handle_->format : IMAGE_FORMAT_UNKNOWN;
         }
 
-        bool operator==(const Image &other) const { return handle_ == other.handle_; }
-        bool operator!=(const Image &other) const { return !(*this == other); }
+        bool operator==(const Image &other) const
+        {
+          return handle_ == other.handle_;
+        }
+        bool operator!=(const Image &other) const
+        {
+          return !(*this == other);
+        }
 
       private:
         static void ReleaseRecord(ImageRecord *record, void *)
@@ -112,7 +121,7 @@ namespace loka
         Managed<ImageRecord> handle_;
       };
     } // namespace resource
-  }   // namespace core
+  } // namespace core
 } // namespace loka
 
 #endif // LOKA_CORE2_RESOURCE_IMAGE_HPP

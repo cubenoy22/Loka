@@ -219,7 +219,7 @@ namespace loka
       return false;
     }
 
-  }   // namespace file
+  } // namespace file
 } // namespace loka
 
 #endif // LOKA_FILE_FILE_HPP
