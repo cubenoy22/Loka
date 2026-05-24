@@ -102,6 +102,16 @@ In practice, that means `v0.1.0` should ideally reach the point where:
   `Node`, `Scene`, and `SceneDirector` should have clear responsibilities, with
   large headers split only where it makes ownership, composition, update/apply,
   or definition contracts easier to inspect.
+* Review safety is visible from code shape: safety, relationships between
+  objects, ownership, lifecycle, mutability versus one-shot construction,
+  mutation points, and projection boundaries can usually be identified from
+  names, types, and structure without reading every line in detail. Memory
+  ownership should be visibly tied to Boundary/owner scopes or explicit
+  higher-level owners, and State update chains should be controllable through
+  Flow, gates, interaction groups, or owner-side apply steps instead of
+  becoming pinball-like cascades. Changes that make reviewers say "I cannot
+  tell what owns this, what it relates to, or when it changes" should be split,
+  renamed, or documented before approval.
 * A more complete real application has exercised the app-wide ownership model enough to design Repository/ApplicationScope-style access deliberately, without turning `App` itself into a `BoundaryNode`.
 * App/Window/Scene/Boundary ownership is readable from the declarative
   structure, and dynamic Window work has a path that shares lifecycle concepts
