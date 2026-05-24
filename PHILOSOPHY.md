@@ -84,6 +84,13 @@ A `Boundary` is both a compartment and a diagnostic boundary. It localizes
 ownership, lifecycle, update routing, composition policy, and platform
 projection so complexity has a place to live and a place to be inspected.
 
+A `Boundary` should also make independently owned application regions
+composable. Different composition, update, or projection strategies may live
+inside different boundaries, but they should meet the outside world through the
+same state, tracker, dirty-result, and lifecycle contracts. This lets nested or
+sibling regions cooperate without forcing a parent to inspect a child's
+internals.
+
 ## No Black Boxes
 
 Loka should avoid black boxes. Powerful features may hide routine mechanics, but
@@ -238,6 +245,21 @@ should remain simple, inspectable, and friendly to retro targets.
 Menu composition and future media/game composition may use different strategies
 when their lifecycle and platform constraints justify it. Those differences
 should be explicit, not accidental.
+
+Loka should not add another scene composition algorithm only because it is
+theoretically possible. New strategies should be justified by a domain that
+needs different timing, redraw, reuse, or resource rules, such as real-time
+surfaces, animation, games, or video tools. Until such pressure is concrete,
+bugs and missing behavior should be fixed in the standard path rather than
+splitting the model prematurely.
+
+Performance pressure alone should usually be handled as a target profile before
+it becomes a new application model. The standard composition path should remain
+modern, practical, and expressive. Extremely constrained targets may justify a
+separate 68k-focused Boundary/profile that sacrifices convenience, diagnostics,
+or generality for smaller memory, code size, and runtime overhead, but it should
+still honor the same ownership, state/tracker, dirty-result, and lifecycle
+contracts so it can coexist with ordinary Boundaries.
 
 ## Platform Native, Core Neutral
 

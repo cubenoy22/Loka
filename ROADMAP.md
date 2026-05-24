@@ -46,6 +46,9 @@ Focus:
     policy: introduce a shared `IStateOwner` implementation for owner scopes
     shorter than a Boundary, and make `Show`/conditional retain-vs-destroy
     behavior explicit.
+  * Begin the Boundary memory model work from `docs/BoundaryMemoryDraft.md`:
+    child-first teardown, default deferred release, structural
+    `BoundarySection` scopes, and owner-aware managed handles.
   * Start validating interaction patterns with a small converter-style sample
     and a minimal `Slider` control, focusing on bidirectional input,
     continuous input, quantized updates, and avoiding shared mutable state as
@@ -100,6 +103,9 @@ In practice, that means `v0.1.0` should ideally reach the point where:
   large headers split only where it makes ownership, composition, update/apply,
   or definition contracts easier to inspect.
 * A more complete real application has exercised the app-wide ownership model enough to design Repository/ApplicationScope-style access deliberately, without turning `App` itself into a `BoundaryNode`.
+* App/Window/Scene/Boundary ownership is readable from the declarative
+  structure, and dynamic Window work has a path that shares lifecycle concepts
+  without forcing Window into the ordinary Node hierarchy.
 * App/window platform conventions, such as application-wide menus on macOS/Classic Mac and window-attached menus on Win32, are captured as explicit policy instead of implicit platform code.
 * CMake targets reflect the major module boundaries instead of each platform target compiling all of `common/*.cpp` directly. Start with `LokaCommon`, then split toward `LokaCore`, `LokaDsl`, `LokaApp`, and future optional modules as dependencies become clear.
 * The current Win32/macOS internal seams are documented and tested well enough that Toolbox can follow later without changing the public controller contract.
