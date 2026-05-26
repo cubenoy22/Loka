@@ -6,7 +6,7 @@ namespace loka
 {
   namespace core
   {
-    // StateTracker用RAIIトランザクションガード
+    // RAII transaction guard for StateTracker.
     struct StateTrackerGuard
     {
       typedef void (*InvalidateFn)(void *userData);
@@ -26,9 +26,7 @@ namespace loka
         if (tracker)
         {
           tracker->end();
-          if (invalidateFn &&
-              tracker->phase() == TRACKER_IDLE &&
-              tracker->consumeDirty())
+          if (invalidateFn && tracker->phase() == TRACKER_IDLE && tracker->consumeDirty())
           {
             invalidateFn(invalidateUserData);
           }
@@ -39,4 +37,3 @@ namespace loka
 } // namespace loka
 
 #endif // LOKA_UTIL_STATE_TRACKER_GUARD_HPP
-  
