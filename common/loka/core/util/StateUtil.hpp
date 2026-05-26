@@ -3,7 +3,6 @@
 #include <vector>
 #include <cstdarg>
 
-// Forward declaration for loka::core::StateBase in its proper namespace
 namespace loka
 {
   namespace core

@@ -41,7 +41,10 @@ namespace loka
       long start_;
 
       ScopedProfile(const char *name)
-          : name_(name), start_(ProfileTicks()) {}
+          : name_(name),
+            start_(ProfileTicks())
+      {
+      }
 
       ~ScopedProfile()
       {
@@ -81,7 +84,10 @@ namespace loka
       long totalTicks;
     };
 
-    enum { kMaxProfileSlots = 256 };
+    enum
+    {
+      kMaxProfileSlots = 256
+    };
     extern FuncProfileSlot *gProfileSlots[kMaxProfileSlots];
     extern int gProfileSlotCount;
 
@@ -99,7 +105,8 @@ namespace loka
       long start_;
 
       FuncProfileScope(FuncProfileSlot *slot)
-          : slot_(slot), start_(ProfileTicks())
+          : slot_(slot),
+            start_(ProfileTicks())
       {
         ++slot_->callCount;
       }
@@ -152,25 +159,26 @@ namespace loka
       for (int i = 0; i < gProfileSlotCount; ++i)
       {
         FuncProfileSlot *s = gProfileSlots[i];
-        if (s->callCount == 0) continue;
-        int len = snprintf(buf, sizeof(buf), "%s:%d\t%s\t%d\t%ld\r",
-                           s->file, s->line, s->func, s->callCount, s->totalTicks);
+        if (s->callCount == 0)
+          continue;
+        int len =
+            snprintf(buf, sizeof(buf), "%s:%d\t%s\t%d\t%ld\r", s->file, s->line, s->func, s->callCount, s->totalTicks);
         out.write(buf, len);
       }
     }
 
 #if LOKA_PROFILE_FUNC_TICKS
-#define PROFILE_FUNC() \
-  static ::loka::core::FuncProfileSlot _pslot_ = {__FILE__, __func__, __LINE__, 0, 0}; \
-  static int _pslot_reg_ = ::loka::core::RegisterProfileSlot(&_pslot_); \
+#define PROFILE_FUNC()                                                                                                 \
+  static ::loka::core::FuncProfileSlot _pslot_ = {__FILE__, __func__, __LINE__, 0, 0};                                 \
+  static int _pslot_reg_ = ::loka::core::RegisterProfileSlot(&_pslot_);                                                \
   ::loka::core::FuncProfileScope _pscope_(&_pslot_)
-#define PROFILE_SECTION(name) \
-  static ::loka::core::FuncProfileSlot _psec_##__LINE__ = {__FILE__, name, __LINE__, 0, 0}; \
-  static int _psec_reg_##__LINE__ = ::loka::core::RegisterProfileSlot(&_psec_##__LINE__); \
+#define PROFILE_SECTION(name)                                                                                          \
+  static ::loka::core::FuncProfileSlot _psec_##__LINE__ = {__FILE__, name, __LINE__, 0, 0};                            \
+  static int _psec_reg_##__LINE__ = ::loka::core::RegisterProfileSlot(&_psec_##__LINE__);                              \
   ::loka::core::FuncProfileScope _pscope_##__LINE__(&_psec_##__LINE__)
-#define PROFILE_SECTION_ID(name, id) \
-  static ::loka::core::FuncProfileSlot _psec_##id = {__FILE__, name, __LINE__, 0, 0}; \
-  static int _psec_reg_##id = ::loka::core::RegisterProfileSlot(&_psec_##id); \
+#define PROFILE_SECTION_ID(name, id)                                                                                   \
+  static ::loka::core::FuncProfileSlot _psec_##id = {__FILE__, name, __LINE__, 0, 0};                                  \
+  static int _psec_reg_##id = ::loka::core::RegisterProfileSlot(&_psec_##id);                                          \
   ::loka::core::FuncProfileScope _pscope_##id(&_psec_##id)
 #else
 #define PROFILE_FUNC()

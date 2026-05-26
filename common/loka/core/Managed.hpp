@@ -11,14 +11,17 @@ namespace loka
     // - Wraps a pointer to T plus an optional releaser callback.
     // - Copying increments the refcount, destruction decrements it.
     // - When the count reaches zero, the releaser is invoked and the control block is destroyed.
-    template <typename T>
-    class Managed
+    template <typename T> class Managed
     {
     public:
       typedef void (*ReleaserFn)(T *value, void *userData);
 
-      Managed() : block_(0) {}
-      Managed(const Managed &other) : block_(other.block_)
+      Managed()
+          : block_(0)
+      {
+      }
+      Managed(const Managed &other)
+          : block_(other.block_)
       {
         retain();
       }
@@ -44,11 +47,26 @@ namespace loka
         return Managed<T>(new ControlBlock(value, releaser, userData));
       }
 
-      T *get() const { return block_ ? block_->value : 0; }
-      T &operator*() const { return *block_->value; }
-      T *operator->() const { return block_ ? block_->value : 0; }
-      bool isValid() const { return block_ && block_->value; }
-      int useCount() const { return block_ ? block_->refCount : 0; }
+      T *get() const
+      {
+        return block_ ? block_->value : 0;
+      }
+      T &operator*() const
+      {
+        return *block_->value;
+      }
+      T *operator->() const
+      {
+        return block_ ? block_->value : 0;
+      }
+      bool isValid() const
+      {
+        return block_ && block_->value;
+      }
+      int useCount() const
+      {
+        return block_ ? block_->refCount : 0;
+      }
 
       void reset()
       {
@@ -56,14 +74,23 @@ namespace loka
         block_ = 0;
       }
 
-      bool operator==(const Managed &other) const { return block_ == other.block_; }
-      bool operator!=(const Managed &other) const { return block_ != other.block_; }
+      bool operator==(const Managed &other) const
+      {
+        return block_ == other.block_;
+      }
+      bool operator!=(const Managed &other) const
+      {
+        return block_ != other.block_;
+      }
 
     private:
       struct ControlBlock
       {
         ControlBlock(T *ptr, ReleaserFn rel, void *ud)
-            : value(ptr), releaser(rel), userData(ud), refCount(1)
+            : value(ptr),
+              releaser(rel),
+              userData(ud),
+              refCount(1)
         {
         }
         T *value;
@@ -72,7 +99,10 @@ namespace loka
         int refCount;
       };
 
-      explicit Managed(ControlBlock *block) : block_(block) {}
+      explicit Managed(ControlBlock *block)
+          : block_(block)
+      {
+      }
 
       void retain()
       {
