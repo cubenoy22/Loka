@@ -57,6 +57,8 @@ namespace loka
       {
         if (this != &rhs)
         {
+          // State identity, bindings, and lifetime tokens are not transferable.
+          // Assignment only preserves arena placement metadata.
           currentTracker = 0;
           arenaAllocated_ = rhs.arenaAllocated_;
         }
@@ -336,17 +338,6 @@ namespace loka
         }
       }
 
-      typedef void (*OnChangeWithOldFn)(T oldValue, T newValue, void *userData);
-      void deferBindWithOld(OnChangeWithOldFn cb, void *userData, int priority = 0) const
-      {
-        OldNewCtx *ctx = new OldNewCtx();
-        ctx->lastValue = this->get();
-        ctx->cb = cb;
-        ctx->userData = userData;
-        ctx->state = this;
-        this->deferBind(&OldNewThunk, ctx, priority);
-      }
-
     protected:
       typedef StateBase::Handler Handler;
 
@@ -369,25 +360,6 @@ namespace loka
       }
 
       T value;
-
-    private:
-      struct OldNewCtx
-      {
-        T lastValue;
-        OnChangeWithOldFn cb;
-        void *userData;
-        const State<T> *state;
-      };
-      static void OldNewThunk(void *ud)
-      {
-        OldNewCtx *ctx = static_cast<OldNewCtx *>(ud);
-        T newValue = ctx->state->get();
-        if (!stateValuesEqual(ctx->lastValue, newValue))
-        {
-          ctx->cb(ctx->lastValue, newValue, ctx->userData);
-          ctx->lastValue = newValue;
-        }
-      }
     };
 
     // State<void> specialization: No value held, event propagation only
