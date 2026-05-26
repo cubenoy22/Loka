@@ -23,8 +23,7 @@ namespace loka
     class StateTracker;
     class PushStateTracker;
 
-    template <typename T>
-    inline bool stateValuesEqual(const T &a, const T &b)
+    template <typename T> inline bool stateValuesEqual(const T &a, const T &b)
     {
       return !(a != b);
     }
@@ -39,11 +38,21 @@ namespace loka
     {
     public:
       StateBase()
-          : currentTracker(0), arenaAllocated_(false), lifetimeToken_(new LifetimeToken()),
-            handlersVersion_(0), deferredHandlersVersion_(0) {}
+          : currentTracker(0),
+            arenaAllocated_(false),
+            lifetimeToken_(new LifetimeToken()),
+            handlersVersion_(0),
+            deferredHandlersVersion_(0)
+      {
+      }
       StateBase(const StateBase &rhs)
-          : currentTracker(0), arenaAllocated_(rhs.arenaAllocated_), lifetimeToken_(new LifetimeToken()),
-            handlersVersion_(0), deferredHandlersVersion_(0) {}
+          : currentTracker(0),
+            arenaAllocated_(rhs.arenaAllocated_),
+            lifetimeToken_(new LifetimeToken()),
+            handlersVersion_(0),
+            deferredHandlersVersion_(0)
+      {
+      }
       StateBase &operator=(const StateBase &rhs)
       {
         if (this != &rhs)
@@ -63,24 +72,40 @@ namespace loka
         }
       }
       // Enumerate dependent States (room for circular dependency detection)
-      virtual std::vector<StateBase *> getDependencyStates() const { return std::vector<StateBase *>(); }
+      virtual std::vector<StateBase *> getDependencyStates() const
+      {
+        return std::vector<StateBase *>();
+      }
       // Bind/subscribe API
       typedef void (*OnChangeFn)(void *userData);
-      virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0) {}
+      virtual void
+      bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
+      {
+      }
       virtual void unbind(OnChangeFn cb, void *userData) {}
       virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const {}
       virtual void deferUnbind(OnChangeFn cb, void *userData) const {}
       // Recompute (overridden by DerivedState)
-      virtual bool recompute() { return false; }
+      virtual bool recompute()
+      {
+        return false;
+      }
       // Type query (avoid RTTI)
-      virtual void *asMutableState() { return 0; }
+      virtual void *asMutableState()
+      {
+        return 0;
+      }
 
     protected:
       struct LifetimeToken
       {
         int refs;
         bool alive;
-        LifetimeToken() : refs(1), alive(true) {}
+        LifetimeToken()
+            : refs(1),
+              alive(true)
+        {
+        }
       };
 
       static void retainLifetimeToken(LifetimeToken *token)
@@ -198,10 +223,22 @@ namespace loka
       mutable LifetimeToken *lifetimeToken_;
 
     public:
-      void setArenaAllocated(bool v) { arenaAllocated_ = v; }
-      bool isArenaAllocated() const { return arenaAllocated_; }
-      StateTracker *trackerOwner() const { return currentTracker; }
-      void *retainExternalLifetimeToken() const { return retainNotifyToken(); }
+      void setArenaAllocated(bool v)
+      {
+        arenaAllocated_ = v;
+      }
+      bool isArenaAllocated() const
+      {
+        return arenaAllocated_;
+      }
+      StateTracker *trackerOwner() const
+      {
+        return currentTracker;
+      }
+      void *retainExternalLifetimeToken() const
+      {
+        return retainNotifyToken();
+      }
       static void releaseExternalLifetimeToken(void *token)
       {
         releaseNotifyToken(static_cast<LifetimeToken *>(token));
@@ -215,17 +252,26 @@ namespace loka
     // State<T>: Inherits StateBase, implements value holding and subscribe API
     // bindTracker removed
 
-    template <typename T>
-    class State : public StateBase
+    template <typename T> class State : public StateBase
     {
     public:
-      State(const T &initial = T()) : value(initial) {}
+      State(const T &initial = T())
+          : value(initial)
+      {
+      }
       virtual ~State() {}
-      virtual T get() const { return value; }
-      const T &getRef() const { return value; }
+      virtual T get() const
+      {
+        return value;
+      }
+      const T &getRef() const
+      {
+        return value;
+      }
 
     public:
-      virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
+      virtual void
+      bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
       {
         Handler h = {cb, userData, callOnce, priority};
         typename std::vector<Handler>::iterator it = this->handlers.begin();
@@ -312,9 +358,15 @@ namespace loka
           notifyStateChanged();
         }
       }
-      virtual void setValue(const T &v) { set(v); }
+      virtual void setValue(const T &v)
+      {
+        set(v);
+      }
       // setValue(const ValueHolderBase&) removed as no longer needed
-      void notifyStateChanged() { notifyHandlers(); }
+      void notifyStateChanged()
+      {
+        notifyHandlers();
+      }
 
       T value;
 
@@ -339,19 +391,20 @@ namespace loka
     };
 
     // State<void> specialization: No value held, event propagation only
-    // - Generic State for expressing UI events (button clicks, notifications, triggers, etc.) or "state changes without value"
+    // - Generic State for expressing UI events (button clicks, notifications, triggers, etc.) or "state changes without
+    // value"
     // - Also used as base for event-based States like EmitterState
     // - Realizes "type-safe event propagation" everywhere: tests, app body, extension libraries, etc.
     // Has the same bind API and handler management as State<T>
     //
-    template <>
-    class State<void> : public StateBase
+    template <> class State<void> : public StateBase
     {
     public:
       State() {}
       virtual ~State() {}
 
-      virtual void bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
+      virtual void
+      bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
       {
         Handler h = {cb, userData, callOnce, priority};
         std::vector<Handler>::iterator it = handlers.begin();
@@ -418,7 +471,10 @@ namespace loka
 
     protected:
       // Event notification API - Used by derived classes like EmitterState
-      void notifyStateChanged() { notifyHandlers(); }
+      void notifyStateChanged()
+      {
+        notifyHandlers();
+      }
     };
 
     // --- EmitterState: Pure event State without value ---
@@ -440,13 +496,21 @@ namespace loka
     };
 
     // --- New: MutableState ---
-    template <typename T>
-    class MutableState : public State<T>
+    template <typename T> class MutableState : public State<T>
     {
     public:
-      MutableState() : State<T>() {}
-      explicit MutableState(const T &initial) : State<T>(initial) {}
-      virtual void *asMutableState() { return this; }
+      MutableState()
+          : State<T>()
+      {
+      }
+      explicit MutableState(const T &initial)
+          : State<T>(initial)
+      {
+      }
+      virtual void *asMutableState()
+      {
+        return this;
+      }
       using State<T>::setValue;
       void set(const T &v, bool forceUpdate = false)
       {
@@ -482,8 +546,7 @@ namespace loka
     };
 
     // --- DerivedState: C++98-compatible implementation of State<T> ---
-    template <typename T>
-    class DerivedState : public State<T>
+    template <typename T> class DerivedState : public State<T>
     {
     public:
       // Pure virtual base class for evaluation expression (C++98-compatible: operator() can be const reference)
@@ -493,19 +556,23 @@ namespace loka
         virtual T operator()() = 0;
       };
       DerivedState(const std::vector<StateBase *> &deps, EvalFn *eval)
-          : State<T>(eval ? (*eval)() : T()), dependencies(deps), evalFn(eval)
+          : State<T>(eval ? (*eval)() : T()),
+            dependencies(deps),
+            evalFn(eval)
       {
         this->value = evalFn ? (*evalFn)() : T();
       }
       DerivedState(StateBase *dep, EvalFn *eval)
-          : State<T>(eval ? (*eval)() : T()), evalFn(eval)
+          : State<T>(eval ? (*eval)() : T()),
+            evalFn(eval)
       {
         if (dep)
           dependencies.push_back(dep);
         this->value = evalFn ? (*evalFn)() : T();
       }
       DerivedState(StateBase *dep1, StateBase *dep2, EvalFn *eval)
-          : State<T>(eval ? (*eval)() : T()), evalFn(eval)
+          : State<T>(eval ? (*eval)() : T()),
+            evalFn(eval)
       {
         dependencies.reserve(2);
         if (dep1)
