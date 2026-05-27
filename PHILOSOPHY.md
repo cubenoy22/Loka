@@ -298,6 +298,27 @@ predictable, and cheap to inspect.
 When modern convenience conflicts with those properties, prefer the design that
 keeps ownership and update flow understandable.
 
+## Modern Type Safety Without Modern Assumptions
+
+Loka should pursue modern type safety as far as each target allows. The fact
+that the portable core must remain C++98-friendly should not excuse ambiguous
+runtime contracts, untyped channels, or framework APIs that accept almost
+anything and fail later.
+
+Prefer compile-time structure over runtime discovery: typed props, explicit
+owner handles, narrow result types, template constraints, TypeTag checks,
+`asXxx()` accessors instead of RTTI, and small value/result objects that make
+valid usage visible from code shape. When a modern compiler offers stronger
+checks such as `static_assert`, Loka should benefit automatically. When a
+classic compiler cannot provide the same check, the API should still be shaped
+so misuse is difficult, reviewable, and easy to test.
+
+The goal is not to imitate modern language features for their own sake. The
+goal is to give application authors the same confidence: if code compiles, its
+ownership, state direction, boundary crossing, and platform capability
+assumptions should already be much narrower than an untyped runtime framework
+would allow.
+
 ## Modern Code Is Welcome At The Edges
 
 Loka's repository code keeps a C++98-friendly baseline so the same framework
