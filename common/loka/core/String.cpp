@@ -15,8 +15,12 @@ namespace loka
     class ConcatString : public platform::String
     {
     public:
-      ConcatString(const loka::core::Managed<platform::String> &left, const loka::core::Managed<platform::String> &right)
-          : left_(left), right_(right) {}
+      ConcatString(const loka::core::Managed<platform::String> &left,
+                   const loka::core::Managed<platform::String> &right)
+          : left_(left),
+            right_(right)
+      {
+      }
 
       virtual bool appendUtf8(std::string &out) const
       {
@@ -32,27 +36,32 @@ namespace loka
       loka::core::Managed<platform::String> right_;
     };
 
-    String::String() : handle_()
+    String::String()
+        : handle_()
     {
     }
 
-    String::String(const char *literal) : handle_()
+    String::String(const char *literal)
+        : handle_()
     {
       if (literal)
         handle_ = platform::CreatePlatformStringFromLiteral(literal);
     }
 
-    String::String(const std::string &utf8) : handle_()
+    String::String(const std::string &utf8)
+        : handle_()
     {
       if (!utf8.empty())
         handle_ = platform::CreatePlatformStringFromUtf8(utf8.c_str(), utf8.size());
     }
 
-    String::String(const loka::core::Managed<platform::String> &handle) : handle_(handle)
+    String::String(const loka::core::Managed<platform::String> &handle)
+        : handle_(handle)
     {
     }
 
-    String::String(const String &other) : handle_(other.handle_)
+    String::String(const String &other)
+        : handle_(other.handle_)
     {
     }
 
@@ -63,9 +72,7 @@ namespace loka
       return *this;
     }
 
-    String::~String()
-    {
-    }
+    String::~String() {}
 
     String String::Literal(const char *literal)
     {
@@ -230,8 +237,7 @@ namespace loka
       if (rhs.empty())
         return lhs;
       // Lazy concatenation - don't flatten until needed
-      return String(loka::core::Managed<platform::String>::Wrap(
-          new ConcatString(lhs.handle_, rhs.handle_)));
+      return String(loka::core::Managed<platform::String>::Wrap(new ConcatString(lhs.handle_, rhs.handle_)));
     }
 
     String String::FormatArray(const String &format, const String *args, std::size_t count)

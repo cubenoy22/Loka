@@ -13,7 +13,7 @@ namespace loka
   {
     class String;
     class GraphemeString;
-  }
+  } // namespace platform
 
   namespace core
   {
@@ -58,10 +58,8 @@ namespace loka
 
       static String Concat(const String &lhs, const String &rhs);
 
-      template <typename Fmt>
-      static String Format(const Fmt &fmt);
-      template <typename Fmt, typename T1>
-      static String Format(const Fmt &fmt, const T1 &a1);
+      template <typename Fmt> static String Format(const Fmt &fmt);
+      template <typename Fmt, typename T1> static String Format(const Fmt &fmt, const T1 &a1);
       template <typename Fmt, typename T1, typename T2>
       static String Format(const Fmt &fmt, const T1 &a1, const T2 &a2);
       template <typename Fmt, typename T1, typename T2, typename T3>
@@ -98,7 +96,8 @@ inline loka::core::String loka::core::String::ToStringSegment(const std::string 
   return loka::core::String(utf8);
 }
 
-inline loka::core::String loka::core::String::ToStringSegment(const loka::core::Managed<loka::platform::String> &platformValue)
+inline loka::core::String
+loka::core::String::ToStringSegment(const loka::core::Managed<loka::platform::String> &platformValue)
 {
   return loka::core::String::FromPlatform(platformValue);
 }
@@ -113,14 +112,12 @@ inline loka::core::String operator+(const std::string &lhs, const loka::core::St
   return loka::core::String::Concat(loka::core::String(lhs), rhs);
 }
 
-template <typename Fmt>
-inline loka::core::String loka::core::String::Format(const Fmt &fmt)
+template <typename Fmt> inline loka::core::String loka::core::String::Format(const Fmt &fmt)
 {
   return ToStringSegment(fmt);
 }
 
-template <typename Fmt, typename T1>
-inline loka::core::String loka::core::String::Format(const Fmt &fmt, const T1 &a1)
+template <typename Fmt, typename T1> inline loka::core::String loka::core::String::Format(const Fmt &fmt, const T1 &a1)
 {
   loka::core::String args[1];
   args[0] = ToStringSegment(a1);
@@ -147,7 +144,8 @@ inline loka::core::String loka::core::String::Format(const Fmt &fmt, const T1 &a
 }
 
 template <typename Fmt, typename T1, typename T2, typename T3, typename T4>
-inline loka::core::String loka::core::String::Format(const Fmt &fmt, const T1 &a1, const T2 &a2, const T3 &a3, const T4 &a4)
+inline loka::core::String
+loka::core::String::Format(const Fmt &fmt, const T1 &a1, const T2 &a2, const T3 &a3, const T4 &a4)
 {
   loka::core::String args[4];
   args[0] = ToStringSegment(a1);

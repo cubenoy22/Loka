@@ -129,11 +129,21 @@ namespace loka
 
     } // namespace
 
-    StringBuffer::StringBuffer() : encoding_(StringEncodingUtf16), platformHandle_(), utf8_(), utf16_(), utf32_()
+    StringBuffer::StringBuffer()
+        : encoding_(StringEncodingUtf16),
+          platformHandle_(),
+          utf8_(),
+          utf16_(),
+          utf32_()
     {
     }
 
-    StringBuffer::StringBuffer(StringEncoding encoding) : encoding_(encoding), platformHandle_(), utf8_(), utf16_(), utf32_()
+    StringBuffer::StringBuffer(StringEncoding encoding)
+        : encoding_(encoding),
+          platformHandle_(),
+          utf8_(),
+          utf16_(),
+          utf32_()
     {
     }
 

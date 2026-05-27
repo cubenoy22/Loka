@@ -13,7 +13,7 @@ namespace loka
   {
     class String;
     class GraphemeString;
-  }
+  } // namespace platform
 
   namespace core
   {

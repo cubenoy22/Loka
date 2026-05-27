@@ -33,6 +33,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Sample: MyTracker (editable device spec catalog).
 - Sample: FloppyBird (FlappyBird clone).
 - Audit remaining `std::string` usage and keep only intentional interop edges (UTF-8/platform bridge paths).
+- String comparison fast paths: keep the current pointer-identity shortcut, and consider empty/length/hash metadata fast paths only if profiling shows `loka::core::String::compare()` or sorting as a real cost. Prefer cached platform-string metadata over making the `String` value wrapper heavier.
 - Declarative OpenGL game foundation (mainline): scene/update/render flow, resource model, and platform bridge boundaries.
 - Sprite path (Toolbox/Win32) as lightweight compatibility backend, not the primary game direction.
 - Pseudo-view sprite path: for lightweight game/decorative nodes, prefer one retained root native view plus scene-managed pseudo-views/sprites instead of one native subview per sprite. Keep `RectSurfaceNode`/similar nodes as normal scene nodes and push backend-specific diff/draw optimization into `NodeContext`.
