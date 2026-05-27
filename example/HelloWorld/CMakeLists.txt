@@ -46,6 +46,7 @@ if(WIN32)
 
   set(WIN32_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/ValueTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/AttrDslTests.cpp
