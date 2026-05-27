@@ -21,7 +21,7 @@
 #include "app/scene/state/FlowSlot.hpp"
 #include "support/Headless.hpp"
 #include "dsl/flow/Expr.hpp"
-#include "loka/dsl/StateStream.hpp"
+#include "dsl/stream/StateStream.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/MainNode.hpp"

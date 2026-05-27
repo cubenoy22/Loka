@@ -4,7 +4,7 @@
 #include <cassert>
 #include "app/scene/state/NodeState.hpp"
 #include "dsl/flow/Flow.hpp"
-#include "loka/dsl/StateStream.hpp"
+#include "dsl/stream/StateStream.hpp"
 
 namespace loka
 {
