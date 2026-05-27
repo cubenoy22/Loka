@@ -5,9 +5,11 @@
 #include "SceneTests.hpp"
 #include "StartupRedrawTests.hpp"
 #include "BoundaryArenaTests.hpp"
+#include "ValueTests.hpp"
 
 int main() {
   testStateNotify();
+  testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();
   testLokaFlowDslV1Core();

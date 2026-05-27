@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_VALUE_TESTS_HPP
+#define LOKA_TESTS_VALUE_TESTS_HPP
+
+void testLokaValueCore();
+
+#endif // LOKA_TESTS_VALUE_TESTS_HPP

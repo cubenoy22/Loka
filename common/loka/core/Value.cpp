@@ -424,6 +424,9 @@ namespace loka
 
     Value *Dictionary::find(const String &key)
     {
+      if (!this->storage.isValid())
+        return 0;
+      this->detach();
       const std::string normalized = this->normalizeKey(key);
       DictionaryEntry *entry = this->findEntry(normalized);
       if (!entry)
