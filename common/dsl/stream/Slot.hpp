@@ -7,26 +7,29 @@ namespace loka
 {
   namespace dsl
   {
-    template <typename T>
-    struct SlotProxyBase
+    template <typename T> struct SlotProxyBase
     {
       int slotIndex;
 
-      SlotProxyBase(int index = 1) : slotIndex(index) {}
+      SlotProxyBase(int index = 1)
+          : slotIndex(index)
+      {
+      }
 
-      template <typename M, M T::*Ptr>
-      Expr<M, MemberExpr<T, M, Ptr> > member() const
+      template <typename M, M T::*Ptr> Expr<M, MemberExpr<T, M, Ptr> > member() const
       {
         return Member<T, M, Ptr>(slotIndex);
       }
     };
 
-    template <typename T>
-    struct ValueSlot
+    template <typename T> struct ValueSlot
     {
       int slotIndex;
 
-      explicit ValueSlot(int index = 1) : slotIndex(index) {}
+      explicit ValueSlot(int index = 1)
+          : slotIndex(index)
+      {
+      }
 
       Expr<T, ValueExpr<T> > value() const
       {

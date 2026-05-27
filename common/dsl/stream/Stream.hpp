@@ -11,20 +11,23 @@ namespace loka
 {
   namespace dsl
   {
-    template <typename T>
-    class Stream
+    template <typename T> class Stream
     {
     public:
       explicit Stream(loka::Vector<T> &source)
-          : source_(source), slot(1), slot2(2)
+          : source_(source),
+            slot(1),
+            slot2(2)
       {
       }
 
-      template <typename ExprT>
-      struct Comparator
+      template <typename ExprT> struct Comparator
       {
         const Expr<bool, ExprT> *expr_;
-        explicit Comparator(const Expr<bool, ExprT> &expr) : expr_(&expr) {}
+        explicit Comparator(const Expr<bool, ExprT> &expr)
+            : expr_(&expr)
+        {
+        }
         bool operator()(const T &a, const T &b) const
         {
           EvalContext ctx;
@@ -34,8 +37,7 @@ namespace loka
         }
       };
 
-      template <typename R, typename ExprT>
-      loka::Vector<R> map(const Expr<R, ExprT> &expr) const
+      template <typename R, typename ExprT> loka::Vector<R> map(const Expr<R, ExprT> &expr) const
       {
         loka::Vector<R> result;
         result.reserve(source_.size());
@@ -51,8 +53,7 @@ namespace loka
         return result;
       }
 
-      template <typename ExprT>
-      loka::Vector<T> filter(const Expr<bool, ExprT> &expr) const
+      template <typename ExprT> loka::Vector<T> filter(const Expr<bool, ExprT> &expr) const
       {
         loka::Vector<T> result;
 
@@ -70,8 +71,7 @@ namespace loka
         return result;
       }
 
-      template <typename ExprT>
-      void sort(const Expr<bool, ExprT> &expr)
+      template <typename ExprT> void sort(const Expr<bool, ExprT> &expr)
       {
         Comparator<ExprT> comp(expr);
         std::sort(source_.begin(), source_.end(), comp);
@@ -85,8 +85,7 @@ namespace loka
     };
   } // namespace dsl
 
-  template <typename T>
-  inline dsl::Stream<T> Vector<T>::stream()
+  template <typename T> inline dsl::Stream<T> Vector<T>::stream()
   {
     return dsl::Stream<T>(*this);
   }
