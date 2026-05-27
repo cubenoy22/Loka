@@ -4,7 +4,7 @@
 #include <algorithm>
 
 #include "loka/core/Vector.hpp"
-#include "loka/dsl/Expr.hpp"
+#include "dsl/flow/Expr.hpp"
 #include "loka/dsl/Slot.hpp"
 
 namespace loka

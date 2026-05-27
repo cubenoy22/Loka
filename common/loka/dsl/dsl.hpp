@@ -1,9 +1,9 @@
 #ifndef LOKA_DSL_DSL_HPP
 #define LOKA_DSL_DSL_HPP
 
-#include "loka/dsl/Expr.hpp"
-#include "loka/dsl/Flow.hpp"
-#include "loka/dsl/SnapFlow.hpp"
+#include "dsl/flow/Expr.hpp"
+#include "dsl/flow/Flow.hpp"
+#include "dsl/flow/SnapFlow.hpp"
 #include "loka/dsl/SnapFormat.hpp"
 #include "loka/dsl/Slot.hpp"
 #include "loka/dsl/Stream.hpp"

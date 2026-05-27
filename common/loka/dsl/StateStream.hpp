@@ -8,7 +8,7 @@
 #include "loka/core/State.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/StateOwner.hpp"
-#include "loka/dsl/Expr.hpp"
+#include "dsl/flow/Expr.hpp"
 #include "loka/dsl/Slot.hpp"
 
 namespace loka

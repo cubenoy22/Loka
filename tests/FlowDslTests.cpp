@@ -20,7 +20,7 @@
 #include "app/scene/Scene.hpp"
 #include "app/scene/state/FlowSlot.hpp"
 #include "support/Headless.hpp"
-#include "loka/dsl/Expr.hpp"
+#include "dsl/flow/Expr.hpp"
 #include "loka/dsl/StateStream.hpp"
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/MineSweeper/src/MainNode.hpp"

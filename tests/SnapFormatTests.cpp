@@ -10,9 +10,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif
-#include "loka/dsl/Flow.hpp"
+#include "dsl/flow/Flow.hpp"
 #include "loka/dsl/SnapFormat.hpp"
-#include "loka/dsl/SnapFlow.hpp"
+#include "dsl/flow/SnapFlow.hpp"
 
 namespace
 {

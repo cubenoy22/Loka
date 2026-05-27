@@ -1,7 +1,7 @@
 #ifndef LOKA_DSL_SLOT_HPP
 #define LOKA_DSL_SLOT_HPP
 
-#include "loka/dsl/Expr.hpp"
+#include "dsl/flow/Expr.hpp"
 
 namespace loka
 {
