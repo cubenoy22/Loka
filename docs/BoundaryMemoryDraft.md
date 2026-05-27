@@ -115,6 +115,29 @@ Default rule:
   attach/detach lifecycle so callbacks and platform attachment can pause or
   rebind correctly.
 
+`MutableState<T>` should be treated as the low-level state primitive, not the
+normal app-facing ownership unit. Ordinary app and DSL code should create state
+through lifecycle-aware handles such as `state()`, `declareStates()`,
+`NodeState<T>`, future `BoundState<T>`, or owner-scope APIs. Those handles bind
+the state to a Boundary, BoundarySection, or another explicit OwnerScope so
+tracker ownership, release timing, and cleanup all move together.
+
+Directly allocating or passing around `MutableState<T>` should remain a
+low-level/test/special-purpose path. If code needs a raw `MutableState<T>`, the
+owner should be explicit and the call site should be reviewed like other
+`dangerously*` state APIs. In the long term, checked APIs such as `trySet`
+should probably live on the owner-aware handle surface first, because many
+failure reasons depend on owner lifetime, tracker state, and boundary scope.
+
+The intended user model is simple:
+
+```text
+state() / NodeState / BoundState -> owned by the nearest explicit scope
+MutableState<T>                  -> implementation primitive
+State<T>* / BorrowedState<T>     -> borrowed read-only/live view
+EmitterState                     -> owner-aware event channel
+```
+
 This makes edit-dialog style workflows straightforward:
 
 1. parent Boundary or Repository owns the committed value;
@@ -179,6 +202,24 @@ The final names are not decided. Candidate policy markers include:
 The name must not imply that a resource is disposed at a specific time if
 another Boundary still holds it.
 
+The same principle can support an autorelease-style adoption model without
+making ownership invisible. Newly created resources can initially belong to a
+short-lived current tick/pool owner. If they are adopted by a Boundary,
+BoundarySection, App/Window owner, or AssetPool before the tick ends, ownership
+transfers to that visible owner. If no owner adopts them, they are released on
+the next tick.
+
+Possible vocabulary:
+
+- internal pool: `AutoPool` or tick pool;
+- public timing: `releaseOnNextTick`;
+- persistent owner action: `hold`, `adopt`, or `keep` depending on API context;
+- borrowed access: no ownership transfer.
+
+This should feel automatic for normal code while remaining inspectable in debug
+tools. A resource should be able to report whether it is pending next-tick
+release, held by a Boundary/Section, held by an AssetPool, or only borrowed.
+
 ## Logical And Native Resources
 
 Boundary memory has at least two layers that should stay separate.
@@ -222,6 +263,24 @@ Preferred direction:
 
 For debugging, the important question should be "which owner is still holding
 this?" rather than "why is the count nonzero?"
+
+The broader direction is one ownership model with multiple concrete scopes, not
+many unrelated lifetime mechanisms:
+
+```text
+OwnerScope owns resources.
+Boundary is the normal UI OwnerScope.
+BoundarySection is the normal smaller subtree OwnerScope.
+AssetPool is the normal shared immutable resource OwnerScope.
+AutoPool/tick pool is the short-lived temporary OwnerScope.
+Borrowed references never own.
+```
+
+`AssetPool` should be considered for localized strings, images, sounds, fonts,
+sprites, decoded blobs, and other reusable immutable or controlled-cache assets.
+It should not become a place for arbitrary mutable UI state. State and Flow
+belong to Boundary-style owner scopes; shared resources belong to AssetPool or
+Repository-style owners.
 
 ## Boundary Holds
 

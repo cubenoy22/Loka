@@ -101,6 +101,28 @@ Preset mapping used in this repo:
 - In practical terms, startup cost and responsiveness become much more constrained on 68k as applications grow in size and complexity.
 - For modern-style application development on Classic Mac OS, PPC601 / 603e-class PowerPC systems and later should be treated as the practical mainstream baseline.
 
+## Classic Toolbox Profiles
+
+Classic Mac localization should not assume that Unicode is the only normal
+answer. For pre-8.5 Toolbox-era targets, region-specific builds and resources
+are often more natural and stable than forcing one Unicode-first runtime path.
+
+The likely long-term shape is:
+
+- `ToolboxEN`: English/Roman-oriented Classic Toolbox resources and text path.
+- `ToolboxJP`: Japanese Classic Toolbox resources and text path, similar in
+  spirit to traditional `1.0J` builds.
+- `iToolbox`: a Mac OS 8.5+ "internet-era" Toolbox profile that may use
+  Unicode/ATSUI-style capabilities and newer Classic-era text/resource
+  behavior where available.
+
+The names are not final. The important rule is that Loka's app-facing
+`String`, `AssetPool`, and resource APIs should stay neutral while Classic
+backend profiles choose the appropriate build-time resource set and text
+backend. Japanese localization for Toolbox should wait until the String and
+asset ownership model is solid enough that the profile split is an implementation
+choice rather than an app-facing API fork.
+
 ## Debug Workflow
 
 Use different tools for different failure classes.

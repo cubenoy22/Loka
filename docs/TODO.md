@@ -66,6 +66,7 @@ These items address recurring bug patterns and structural risks identified durin
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
 - C++98: reintroduce NodeComposition map/filter via C++98-friendly adapters.
 - Toolchain matrix: validate oldest MSVC/GCC and record gaps.
+- Classic Toolbox profile split: keep app-facing String/Asset APIs neutral, but plan build-time profiles such as `ToolboxEN`, `ToolboxJP`, and an `iToolbox` Mac OS 8.5+ profile rather than forcing pre-8.5 Classic localization through a single Unicode-first path.
 - Docs/tests: document C++98 constraints and add checks for accidental C++11 usage.
 - Cleanup staged work from earlier C++98 retrofit (split/rebase if needed).
 - DSL shorthand ideas: direct props overloads (Text("...")), direct State props (EditText(State*)), optional prepare/compose merge, namespace alias, Fragment helper.
