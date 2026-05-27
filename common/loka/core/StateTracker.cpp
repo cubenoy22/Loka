@@ -1,5 +1,6 @@
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/State.hpp"
+#include <cstdio>
 
 namespace loka
 {
@@ -65,6 +66,10 @@ namespace loka
 
     void PushStateTracker::markDirty(StateBase *state)
     {
+      if (!state)
+      {
+        return;
+      }
       dirtyFlag_ = true;
       if (visiting_.count(state))
       {
@@ -300,12 +305,22 @@ namespace loka
           }
         }
       }
+      bool settled = dirtyStates.empty();
+      if (!settled)
+      {
+        fprintf(stderr, "[Loka] StateTracker transaction did not settle before the iteration limit.\n");
+      }
       phase_ = TRACKER_COMMIT;
       for (size_t i = 0; i < deferred.size(); ++i)
       {
         deferred[i].first(deferred[i].second);
       }
-      if (invalidateFn_ && dirtyFlag_)
+      if (settled && !dirtyStates.empty())
+      {
+        settled = false;
+        fprintf(stderr, "[Loka] StateTracker deferred callback marked state dirty during commit.\n");
+      }
+      if (settled && invalidateFn_ && dirtyFlag_)
       {
         invalidateFn_(invalidateUserData_);
       }
@@ -313,7 +328,7 @@ namespace loka
       for (StateEntry *e = statesHead_; e; e = e->next)
         e->state->currentTracker = 0;
       deferred.clear();
-      return dirtyStates.empty();
+      return settled;
     }
 
     PushStateTracker::StateEntry *PushStateTracker::allocateEntry(StateBase *state)
@@ -378,7 +393,19 @@ namespace loka
 
     void PushStateTracker::registerDependency(StateBase *dependent, StateBase *dependency)
     {
-      dependents[dependency].push_back(dependent);
+      if (!dependent || !dependency)
+      {
+        return;
+      }
+      StateList &list = dependents[dependency];
+      for (size_t i = 0; i < list.size(); ++i)
+      {
+        if (list[i] == dependent)
+        {
+          return;
+        }
+      }
+      list.push_back(dependent);
     }
 
     TrackerPhase PushStateTracker::phase() const

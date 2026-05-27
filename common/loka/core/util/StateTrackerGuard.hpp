@@ -1,6 +1,7 @@
 #ifndef LOKA_UTIL_STATE_TRACKER_GUARD_HPP
 #define LOKA_UTIL_STATE_TRACKER_GUARD_HPP
 #include "loka/core/StateTracker.hpp"
+#include <cassert>
 
 namespace loka
 {
@@ -25,8 +26,9 @@ namespace loka
       {
         if (tracker)
         {
-          tracker->end();
-          if (invalidateFn && tracker->phase() == TRACKER_IDLE && tracker->consumeDirty())
+          bool settled = tracker->end();
+          assert(settled && "StateTracker transaction did not settle");
+          if (settled && invalidateFn && tracker->phase() == TRACKER_IDLE && tracker->consumeDirty())
           {
             invalidateFn(invalidateUserData);
           }
