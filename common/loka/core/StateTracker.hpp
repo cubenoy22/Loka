@@ -14,7 +14,7 @@ namespace loka
 
     class StateBase;
 
-    // StateTrackerのPhase定義
+    // StateTracker transaction phase.
     enum TrackerPhase
     {
       TRACKER_IDLE = 0,
@@ -33,7 +33,10 @@ namespace loka
       virtual bool end() = 0;
       virtual void registerDependency(StateBase *dependent, StateBase *dependency) = 0;
       virtual TrackerPhase phase() const = 0;
-      virtual PushStateTracker *asPushTracker() { return 0; }
+      virtual PushStateTracker *asPushTracker()
+      {
+        return 0;
+      }
       virtual ~StateTracker() {}
     };
 
@@ -53,31 +56,50 @@ namespace loka
       void reserveStates(size_t count);
       bool end();
       bool consumeDirty();
-      const StateList &committedDirtyStates() const { return committedDirtyStates_; }
+      const StateList &committedDirtyStates() const
+      {
+        return committedDirtyStates_;
+      }
       void setInvalidateCallback(InvalidateFn fn, void *userData)
       {
         invalidateFn_ = fn;
         invalidateUserData_ = userData;
       }
       /**
-       * @brief 依存グラフ（依存元→依存先）を構築する。通常はDerivedStateの依存関係から自動生成される。
+       * Registers a dependency edge used for derived-state propagation.
+       * Usually built from DerivedState dependencies.
        */
       void registerDependency(StateBase *dependent, StateBase *dependency);
       TrackerPhase phase() const;
-      PushStateTracker *asPushTracker() { return this; }
-      const PushStateTracker *asPushTracker() const { return this; }
+      PushStateTracker *asPushTracker()
+      {
+        return this;
+      }
+      const PushStateTracker *asPushTracker() const
+      {
+        return this;
+      }
       ~PushStateTracker();
 
     private:
       struct StateEntry
       {
-        StateEntry() : state(0), next(0) {}
+        StateEntry()
+            : state(0),
+              next(0)
+        {
+        }
         StateBase *state;
         StateEntry *next;
       };
       struct StateEntryChunk
       {
-        StateEntryChunk() : entries(0), count(0), next(0) {}
+        StateEntryChunk()
+            : entries(0),
+              count(0),
+              next(0)
+        {
+        }
         StateEntry *entries;
         size_t count;
         StateEntryChunk *next;
@@ -90,20 +112,20 @@ namespace loka
       StateList dirtyStates;
       /// committedDirtyStates_: snapshot of states dirtied by the most recent commit.
       StateList committedDirtyStates_;
-      /// deferred: commit時に一括発火する副作用コールバック
+      /// deferred: side-effect callbacks fired together during commit.
       std::vector<DeferredEntry> deferred;
-      /// dependents: 依存グラフ（依存元→依存先リスト）。registerDependencyで構築され、依存伝播の起点となる。
+      /// dependents: dependency graph from a source state to dependent states.
       DependencyMap dependents;
-      /// phase_: Trackerの現在のトランザクションフェーズ
+      /// phase_: current tracker transaction phase.
       TrackerPhase phase_;
-      /// dirtyFlag_: トランザクション中にdirtyが発生したか
+      /// dirtyFlag_: whether any state was marked dirty during the transaction.
       bool dirtyFlag_;
-      /// depth_: ネストされたbegin/endの深さカウンタ
+      /// depth_: nested begin/end depth counter.
       unsigned int depth_;
       /// invalidate callback (optional)
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
-      /// visiting_: 再帰伝播時の循環依存検出用一時セット
+      /// visiting_: temporary set used to detect cycles during recursive propagation.
       std::set<StateBase *> visiting_;
       /// states: linked list (head/tail for O(1) append)
       StateEntry *statesHead_;

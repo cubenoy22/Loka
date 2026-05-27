@@ -7,12 +7,28 @@ namespace loka
   {
 
     PushStateTracker::PushStateTracker()
-        : phase_(TRACKER_IDLE), dirtyFlag_(false), depth_(0), invalidateFn_(0), invalidateUserData_(0),
-          statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0) {}
+        : phase_(TRACKER_IDLE),
+          dirtyFlag_(false),
+          depth_(0),
+          invalidateFn_(0),
+          invalidateUserData_(0),
+          statesHead_(0),
+          statesTail_(0),
+          freeEntries_(0),
+          chunks_(0)
+    {
+    }
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
-        : phase_(TRACKER_IDLE), dirtyFlag_(false), depth_(0), invalidateFn_(0), invalidateUserData_(0),
-          statesHead_(0), statesTail_(0), freeEntries_(0), chunks_(0)
+        : phase_(TRACKER_IDLE),
+          dirtyFlag_(false),
+          depth_(0),
+          invalidateFn_(0),
+          invalidateUserData_(0),
+          statesHead_(0),
+          statesTail_(0),
+          freeEntries_(0),
+          chunks_(0)
     {
       for (size_t i = 0; i < states.size(); ++i)
       {
@@ -52,7 +68,7 @@ namespace loka
       dirtyFlag_ = true;
       if (visiting_.count(state))
       {
-        fprintf(stderr, "[Loka] 循環依存検出: StateBase %p\n", (void *)state);
+        fprintf(stderr, "[Loka] Circular state dependency detected: StateBase %p\n", (void *)state);
         return;
       }
       visiting_.insert(state);
@@ -271,7 +287,7 @@ namespace loka
           bool changed = s->recompute();
           if (changed)
           {
-            // 依存先（dependents）をdirtyにする
+            // Mark dependent states dirty after a derived value changes.
             DependencyMap::iterator it = dependents.find(s);
             if (it != dependents.end())
             {
@@ -369,7 +385,6 @@ namespace loka
     {
       return phase_;
     }
-
 
   } // namespace core
 } // namespace loka
