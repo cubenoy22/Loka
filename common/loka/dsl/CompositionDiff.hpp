@@ -7,7 +7,11 @@ namespace loka
   {
     struct CompositionDiff
     {
-      CompositionDiff() : valid(false), fullRebuild(true) {}
+      CompositionDiff()
+          : valid(false),
+            fullRebuild(true)
+      {
+      }
       void clear()
       {
         valid = false;

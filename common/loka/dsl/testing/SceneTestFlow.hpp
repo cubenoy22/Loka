@@ -46,12 +46,14 @@ namespace loka
           return scene.updateCycleState_.lastApplyPlanValue();
         }
 
-        static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &updateSnapshot(const ::loka::app::scene::Scene &scene)
+        static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &
+        updateSnapshot(const ::loka::app::scene::Scene &scene)
         {
           return scene.updateCycleState_.pendingSnapshotValue();
         }
 
-        static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &lastUpdateSnapshot(const ::loka::app::scene::Scene &scene)
+        static const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &
+        lastUpdateSnapshot(const ::loka::app::scene::Scene &scene)
         {
           return scene.updateCycleState_.lastAppliedSnapshotValue();
         }
@@ -61,7 +63,8 @@ namespace loka
           return projectionTransaction(scene).hasPending();
         }
 
-        static ::loka::app::scene::NodeDirtyFlags projectionTransactionAggregateDirtyFlags(const ::loka::app::scene::Scene &scene)
+        static ::loka::app::scene::NodeDirtyFlags
+        projectionTransactionAggregateDirtyFlags(const ::loka::app::scene::Scene &scene)
         {
           return projectionTransaction(scene).aggregateDirtyFlags();
         }
@@ -76,20 +79,20 @@ namespace loka
           return scene.director_.projectionTransactionGenerationForTesting();
         }
 
-        static ::loka::app::scene::Node *projectionTransactionFirstTargetNode(
-            const ::loka::app::scene::Scene &scene)
+        static ::loka::app::scene::Node *projectionTransactionFirstTargetNode(const ::loka::app::scene::Scene &scene)
         {
           return projectionTransaction(scene).targetsBegin().node();
         }
 
-        static ::loka::app::scene::NodeDirtyFlags projectionTransactionFirstTargetDirtyFlags(
-            const ::loka::app::scene::Scene &scene)
+        static ::loka::app::scene::NodeDirtyFlags
+        projectionTransactionFirstTargetDirtyFlags(const ::loka::app::scene::Scene &scene)
         {
           return projectionTransaction(scene).targetsBegin().dirtyFlags();
         }
 
       private:
-        static const ::loka::app::scene::SceneProjectionTransaction &projectionTransaction(const ::loka::app::scene::Scene &scene)
+        static const ::loka::app::scene::SceneProjectionTransaction &
+        projectionTransaction(const ::loka::app::scene::Scene &scene)
         {
           return scene.director_.updateTransaction_.projectionTransaction();
         }
@@ -115,86 +118,81 @@ namespace loka
           return scene.director_.requestedFullRebuild();
         }
 
-        static ::loka::app::scene::NodeDirtyFlags snapshotRequestedDirtyFlags(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static ::loka::app::scene::NodeDirtyFlags
+        snapshotRequestedDirtyFlags(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().requestedDirtyFlagsValue();
         }
 
-        static ::loka::app::scene::NodeDirtyFlags snapshotTransactionDirtyFlags(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static ::loka::app::scene::NodeDirtyFlags
+        snapshotTransactionDirtyFlags(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().transactionDirtyFlagsValue();
         }
 
-        static ::loka::app::scene::NodeDirtyFlags snapshotEffectiveDirtyFlags(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static ::loka::app::scene::NodeDirtyFlags
+        snapshotEffectiveDirtyFlags(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().effectiveDirtyFlagsValue();
         }
 
-        static bool snapshotRequestedFullRebuild(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static bool snapshotRequestedFullRebuild(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().requestedFullRebuildValue();
         }
 
-        static bool snapshotEffectiveFullRebuild(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static bool snapshotEffectiveFullRebuild(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().effectiveFullRebuildRequired();
         }
 
-        static ::loka::app::scene::BoundaryNode *snapshotFirstPendingRoot(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static ::loka::app::scene::BoundaryNode *
+        snapshotFirstPendingRoot(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().firstPendingRootValue();
         }
 
-        static ::loka::app::scene::BoundaryNode *snapshotRootBoundary(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static ::loka::app::scene::BoundaryNode *
+        snapshotRootBoundary(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().rootBoundaryValue();
         }
 
-        static ::loka::app::scene::BoundaryNode *snapshotPrimaryRoot(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static ::loka::app::scene::BoundaryNode *
+        snapshotPrimaryRoot(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.request().primaryRoot();
         }
 
-        static unsigned long snapshotGeneration(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static unsigned long snapshotGeneration(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.generationValue();
         }
 
-        static bool snapshotLayoutRequired(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static bool snapshotLayoutRequired(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.apply().layoutRequired();
         }
 
-        static bool snapshotStructureRequired(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static bool snapshotStructureRequired(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.apply().structureRequired();
         }
 
-        static bool snapshotCompositedPaintRequired(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static bool
+        snapshotCompositedPaintRequired(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.apply().compositedPaintRequired();
         }
 
-        static bool snapshotOpaqueLocalPaintRequired(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static bool
+        snapshotOpaqueLocalPaintRequired(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.apply().opaqueLocalPaintRequired();
         }
 
-        static bool snapshotLocalCompositionDiffApplicable(
-            const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
+        static bool
+        snapshotLocalCompositionDiffApplicable(const ::loka::app::scene::SceneDirector::SceneUpdateSnapshot &snapshot)
         {
           return snapshot.apply().localCompositionDiffApplicable();
         }
@@ -251,13 +249,11 @@ namespace loka
         FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED = 8
       };
 
-      template <class NodeT>
-      struct SceneNodeCast;
+      template <class NodeT> struct SceneNodeCast;
       // Add explicit specializations for each supported node type so misuse fails at compile time,
       // not later as an unresolved symbol.
 
-      template <class NodeT>
-      struct SceneNodeCast
+      template <class NodeT> struct SceneNodeCast
       {
         static NodeT *cast(::loka::app::scene::Node *)
         {
@@ -267,8 +263,7 @@ namespace loka
         }
       };
 
-      template <>
-      struct SceneNodeCast< ::loka::app::scene::Node>
+      template <> struct SceneNodeCast< ::loka::app::scene::Node>
       {
         static ::loka::app::scene::Node *cast(::loka::app::scene::Node *node)
         {
@@ -276,8 +271,7 @@ namespace loka
         }
       };
 
-      template <>
-      struct SceneNodeCast< ::loka::app::TextNode>
+      template <> struct SceneNodeCast< ::loka::app::TextNode>
       {
         static ::loka::app::TextNode *cast(::loka::app::scene::Node *node)
         {
@@ -285,8 +279,7 @@ namespace loka
         }
       };
 
-      template <>
-      struct SceneNodeCast< ::loka::app::ButtonNode>
+      template <> struct SceneNodeCast< ::loka::app::ButtonNode>
       {
         static ::loka::app::ButtonNode *cast(::loka::app::scene::Node *node)
         {
@@ -330,10 +323,8 @@ namespace loka
             appendDirtyFlagName(result, "INITIAL");
           }
 
-          const int knownMask = ::loka::app::scene::NODE_DIRTY_PROPS |
-                                ::loka::app::scene::NODE_DIRTY_CHILD |
-                                ::loka::app::scene::NODE_DIRTY_LAYOUT |
-                                ::loka::app::scene::NODE_DIRTY_INITIAL;
+          const int knownMask = ::loka::app::scene::NODE_DIRTY_PROPS | ::loka::app::scene::NODE_DIRTY_CHILD
+                                | ::loka::app::scene::NODE_DIRTY_LAYOUT | ::loka::app::scene::NODE_DIRTY_INITIAL;
           const int unknownBits = static_cast<int>(flags) & ~knownMask;
           if (unknownBits != 0)
           {
@@ -386,20 +377,19 @@ namespace loka
       } // namespace scene_test_detail
 
       template <class NodeT>
-      static StepRunStatus LookupNodeById(::loka::app::scene::Scene *scene,
-                                          const std::string &testId,
-                                          NodeT *&out,
-                                          FlowError &error);
+      static StepRunStatus
+      LookupNodeById(::loka::app::scene::Scene *scene, const std::string &testId, NodeT *&out, FlowError &error);
 
-      template <class NodeT>
-      class FindNodeByIdAdapter
+      template <class NodeT> class FindNodeByIdAdapter
       {
       public:
         typedef ::loka::app::scene::Scene *In;
         typedef NodeT *Out;
 
         explicit FindNodeByIdAdapter(const char *testId)
-            : testId_(testId ? testId : "") {}
+            : testId_(testId ? testId : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -410,17 +400,14 @@ namespace loka
         std::string testId_;
       };
 
-      template <class NodeT>
-      inline FindNodeByIdAdapter<NodeT> FindNodeById(const char *testId)
+      template <class NodeT> inline FindNodeByIdAdapter<NodeT> FindNodeById(const char *testId)
       {
         return FindNodeByIdAdapter<NodeT>(testId);
       }
 
       template <class NodeT>
-      static StepRunStatus LookupNodeById(::loka::app::scene::Scene *scene,
-                                          const std::string &testId,
-                                          NodeT *&out,
-                                          FlowError &error)
+      static StepRunStatus
+      LookupNodeById(::loka::app::scene::Scene *scene, const std::string &testId, NodeT *&out, FlowError &error)
       {
         out = 0;
         if (!scene)
@@ -460,11 +447,9 @@ namespace loka
         return FLOW_STEP_SUCCEEDED;
       }
 
-      template <class NodeT>
-      struct SceneCaptureTraits;
+      template <class NodeT> struct SceneCaptureTraits;
 
-      template <>
-      struct SceneCaptureTraits< ::loka::app::TextNode>
+      template <> struct SceneCaptureTraits< ::loka::app::TextNode>
       {
         static bool capture(::loka::app::TextNode *node, SnapRecord &out)
         {
@@ -485,8 +470,7 @@ namespace loka
         }
       };
 
-      template <class NodeT>
-      class CaptureNodeAdapter
+      template <class NodeT> class CaptureNodeAdapter
       {
       public:
         typedef NodeT *In;
@@ -501,7 +485,9 @@ namespace loka
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : SnapStatusOk()) {}
+              status_(status ? status : SnapStatusOk())
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -519,12 +505,8 @@ namespace loka
             return FLOW_STEP_FAILED;
           }
 
-          BuildSnapV1RecordAdapter base(testName_.c_str(),
-                                        stepName_.c_str(),
-                                        nodeId.c_str(),
-                                        tick_,
-                                        scenarioVersion_,
-                                        status_.c_str());
+          BuildSnapV1RecordAdapter base(
+              testName_.c_str(), stepName_.c_str(), nodeId.c_str(), tick_, scenarioVersion_, status_.c_str());
           const int unused = 0;
           FlowError ignored;
           if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
@@ -551,20 +533,15 @@ namespace loka
       };
 
       template <class NodeT>
-      inline CaptureNodeAdapter<NodeT> CaptureNode(const char *testName,
-                                                   const char *stepName,
-                                                   long tick,
-                                                   long scenarioVersion,
-                                                   const char *status)
+      inline CaptureNodeAdapter<NodeT>
+      CaptureNode(const char *testName, const char *stepName, long tick, long scenarioVersion, const char *status)
       {
         return CaptureNodeAdapter<NodeT>(testName, stepName, tick, scenarioVersion, status);
       }
 
       template <class NodeT>
-      inline CaptureNodeAdapter<NodeT> CaptureNode(const char *testName,
-                                                   const char *stepName,
-                                                   long tick,
-                                                   long scenarioVersion)
+      inline CaptureNodeAdapter<NodeT>
+      CaptureNode(const char *testName, const char *stepName, long tick, long scenarioVersion)
       {
         return CaptureNodeAdapter<NodeT>(testName, stepName, tick, scenarioVersion);
       }
@@ -584,7 +561,9 @@ namespace loka
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : SnapStatusOk()) {}
+              status_(status ? status : SnapStatusOk())
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -595,12 +574,8 @@ namespace loka
             return FLOW_STEP_FAILED;
           }
 
-          BuildSnapV1RecordAdapter base(testName_.c_str(),
-                                        stepName_.c_str(),
-                                        "Scene",
-                                        tick_,
-                                        scenarioVersion_,
-                                        status_.c_str());
+          BuildSnapV1RecordAdapter base(
+              testName_.c_str(), stepName_.c_str(), "Scene", tick_, scenarioVersion_, status_.c_str());
           const int unused = 0;
           FlowError ignored;
           if (base.run(unused, out, ignored) != FLOW_STEP_SUCCEEDED)
@@ -633,19 +608,14 @@ namespace loka
         std::string status_;
       };
 
-      inline CaptureSceneAdapter CaptureScene(const char *testName,
-                                             const char *stepName,
-                                             long tick,
-                                             long scenarioVersion,
-                                             const char *status)
+      inline CaptureSceneAdapter
+      CaptureScene(const char *testName, const char *stepName, long tick, long scenarioVersion, const char *status)
       {
         return CaptureSceneAdapter(testName, stepName, tick, scenarioVersion, status);
       }
 
-      inline CaptureSceneAdapter CaptureScene(const char *testName,
-                                             const char *stepName,
-                                             long tick,
-                                             long scenarioVersion)
+      inline CaptureSceneAdapter
+      CaptureScene(const char *testName, const char *stepName, long tick, long scenarioVersion)
       {
         return CaptureSceneAdapter(testName, stepName, tick, scenarioVersion);
       }
@@ -657,7 +627,9 @@ namespace loka
               hasContext(false),
               capturableBitmap(0),
               kind(0),
-              testId() {}
+              testId()
+        {
+        }
 
         ::loka::app::scene::Node *node;
         bool hasContext;
@@ -673,7 +645,9 @@ namespace loka
         typedef ViewCaptureTarget Out;
 
         explicit CaptureViewTargetAdapter(const char *testId)
-            : testId_(testId ? testId : "") {}
+            : testId_(testId ? testId : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -715,7 +689,9 @@ namespace loka
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : SnapStatusOk()) {}
+              status_(status ? status : SnapStatusOk())
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -759,19 +735,14 @@ namespace loka
         std::string status_;
       };
 
-      inline CaptureViewTargetSnapAdapter CaptureView(const char *testName,
-                                                      const char *stepName,
-                                                      long tick,
-                                                      long scenarioVersion,
-                                                      const char *status)
+      inline CaptureViewTargetSnapAdapter
+      CaptureView(const char *testName, const char *stepName, long tick, long scenarioVersion, const char *status)
       {
         return CaptureViewTargetSnapAdapter(testName, stepName, tick, scenarioVersion, status);
       }
 
-      inline CaptureViewTargetSnapAdapter CaptureView(const char *testName,
-                                                      const char *stepName,
-                                                      long tick,
-                                                      long scenarioVersion)
+      inline CaptureViewTargetSnapAdapter
+      CaptureView(const char *testName, const char *stepName, long tick, long scenarioVersion)
       {
         return CaptureViewTargetSnapAdapter(testName, stepName, tick, scenarioVersion);
       }
@@ -782,7 +753,9 @@ namespace loka
             : image(::loka::core::resource::Image::Empty()),
               captured(false),
               width(0),
-              height(0) {}
+              height(0)
+        {
+        }
 
         ::loka::core::resource::Image image;
         bool captured;
@@ -802,7 +775,9 @@ namespace loka
 
         CaptureViewBitmapAdapter(CaptureFn captureFn, void *user)
             : captureFn_(captureFn),
-              user_(user) {}
+              user_(user)
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -835,8 +810,7 @@ namespace loka
         void *user_;
       };
 
-      inline CaptureViewBitmapAdapter CaptureViewBitmap(CaptureViewBitmapAdapter::CaptureFn captureFn,
-                                                        void *user)
+      inline CaptureViewBitmapAdapter CaptureViewBitmap(CaptureViewBitmapAdapter::CaptureFn captureFn, void *user)
       {
         return CaptureViewBitmapAdapter(captureFn, user);
       }
@@ -894,7 +868,9 @@ namespace loka
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : SnapStatusOk()) {}
+              status_(status ? status : SnapStatusOk())
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &) const
         {
@@ -925,19 +901,14 @@ namespace loka
         std::string status_;
       };
 
-      inline CaptureViewBitmapSnapAdapter CaptureViewBitmapSnap(const char *testName,
-                                                                const char *stepName,
-                                                                long tick,
-                                                                long scenarioVersion,
-                                                                const char *status)
+      inline CaptureViewBitmapSnapAdapter CaptureViewBitmapSnap(
+          const char *testName, const char *stepName, long tick, long scenarioVersion, const char *status)
       {
         return CaptureViewBitmapSnapAdapter(testName, stepName, tick, scenarioVersion, status);
       }
 
-      inline CaptureViewBitmapSnapAdapter CaptureViewBitmapSnap(const char *testName,
-                                                                const char *stepName,
-                                                                long tick,
-                                                                long scenarioVersion)
+      inline CaptureViewBitmapSnapAdapter
+      CaptureViewBitmapSnap(const char *testName, const char *stepName, long tick, long scenarioVersion)
       {
         return CaptureViewBitmapSnapAdapter(testName, stepName, tick, scenarioVersion);
       }
@@ -959,7 +930,9 @@ namespace loka
               stepName_(stepName ? stepName : ""),
               tick_(tick),
               scenarioVersion_(scenarioVersion),
-              status_(status ? status : SnapStatusOk()) {}
+              status_(status ? status : SnapStatusOk())
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -969,11 +942,8 @@ namespace loka
           {
             return lookupStatus;
           }
-          return CaptureNode< ::loka::app::TextNode>(testName_.c_str(),
-                                                     stepName_.c_str(),
-                                                     tick_,
-                                                     scenarioVersion_,
-                                                     status_.c_str())
+          return CaptureNode< ::loka::app::TextNode>(
+                     testName_.c_str(), stepName_.c_str(), tick_, scenarioVersion_, status_.c_str())
               .run(node, out, error);
         }
 
@@ -996,11 +966,8 @@ namespace loka
         return SnapTextAdapter(testId, testName, stepName, tick, scenarioVersion, status);
       }
 
-      inline SnapTextAdapter SnapText(const char *testId,
-                                      const char *testName,
-                                      const char *stepName,
-                                      long tick,
-                                      long scenarioVersion)
+      inline SnapTextAdapter
+      SnapText(const char *testId, const char *testName, const char *stepName, long tick, long scenarioVersion)
       {
         return SnapTextAdapter(testId, testName, stepName, tick, scenarioVersion);
       }
@@ -1013,7 +980,9 @@ namespace loka
 
         AssertSnapStringEqualsAdapter(const char *key, const char *expected)
             : key_(key ? key : ""),
-              expected_(expected ? expected : "") {}
+              expected_(expected ? expected : "")
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1052,7 +1021,9 @@ namespace loka
 
         CheckSnapStringEqualsAdapter(const char *key, const char *expected)
             : key_(key ? key : ""),
-              expected_(expected ? expected : "") {}
+              expected_(expected ? expected : "")
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1078,7 +1049,9 @@ namespace loka
 
         AssertSnapIntLessEqualAdapter(const char *key, long maxValue)
             : key_(key ? key : ""),
-              maxValue_(maxValue) {}
+              maxValue_(maxValue)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1117,7 +1090,9 @@ namespace loka
 
         AssertSnapIntEqualsAdapter(const char *key, long expectedValue)
             : key_(key ? key : ""),
-              expectedValue_(expectedValue) {}
+              expectedValue_(expectedValue)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1156,7 +1131,9 @@ namespace loka
 
         AssertSnapIntGreaterEqualAdapter(const char *key, long minValue)
             : key_(key ? key : ""),
-              minValue_(minValue) {}
+              minValue_(minValue)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1195,7 +1172,9 @@ namespace loka
 
         AssertSnapIntMaskHasBitsAdapter(const char *key, long mask)
             : key_(key ? key : ""),
-              mask_(mask) {}
+              mask_(mask)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1233,7 +1212,9 @@ namespace loka
         typedef SnapRecord Out;
 
         explicit CheckDirtyHasBitsAdapter(long mask)
-            : mask_(mask) {}
+            : mask_(mask)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1257,7 +1238,9 @@ namespace loka
         typedef SnapRecord Out;
 
         explicit CheckDirtyEqualsAdapter(long expectedMask)
-            : expectedMask_(expectedMask) {}
+            : expectedMask_(expectedMask)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1282,7 +1265,9 @@ namespace loka
 
         CheckSnapIntGreaterEqualAdapter(const char *key, long minValue)
             : key_(key ? key : ""),
-              minValue_(minValue) {}
+              minValue_(minValue)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1308,7 +1293,9 @@ namespace loka
 
         CheckTextAdapter(const char *testId, const char *expected)
             : testId_(testId ? testId : ""),
-              expected_(expected ? expected : "") {}
+              expected_(expected ? expected : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1354,14 +1341,17 @@ namespace loka
 
         CheckTextDirtyHasBitsAdapter(const char *testId, long mask)
             : testId_(testId ? testId : ""),
-              mask_(mask) {}
+              mask_(mask)
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
           out = in;
           // Internal snap only: used as a transient assertion payload, not for file output.
           SnapRecord snap;
-          StepRunStatus snapStatus = SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
+          StepRunStatus snapStatus =
+              SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
           if (snapStatus != FLOW_STEP_SUCCEEDED)
           {
             return snapStatus;
@@ -1388,14 +1378,17 @@ namespace loka
 
         CheckTextDirtyEqualsAdapter(const char *testId, long expectedMask)
             : testId_(testId ? testId : ""),
-              expectedMask_(expectedMask) {}
+              expectedMask_(expectedMask)
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
           out = in;
           // Internal snap only: used as a transient assertion payload, not for file output.
           SnapRecord snap;
-          StepRunStatus snapStatus = SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
+          StepRunStatus snapStatus =
+              SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
           if (snapStatus != FLOW_STEP_SUCCEEDED)
           {
             return snapStatus;
@@ -1447,7 +1440,9 @@ namespace loka
 
         SetStringStateAdapter(::loka::core::MutableState< ::loka::core::String> *state, const char *value)
             : state_(state),
-              value_(value ? value : "") {}
+              value_(value ? value : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1489,7 +1484,9 @@ namespace loka
 
         SetStringStateAndFlushAdapter(::loka::core::MutableState< ::loka::core::String> *state, const char *value)
             : state_(state),
-              value_(value ? value : "") {}
+              value_(value ? value : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1507,8 +1504,8 @@ namespace loka
         std::string value_;
       };
 
-      inline SetStringStateAndFlushAdapter SetStringStateAndFlush(::loka::core::MutableState< ::loka::core::String> *state,
-                                                                  const char *value)
+      inline SetStringStateAndFlushAdapter
+      SetStringStateAndFlush(::loka::core::MutableState< ::loka::core::String> *state, const char *value)
       {
         return SetStringStateAndFlushAdapter(state, value);
       }
@@ -1521,7 +1518,9 @@ namespace loka
 
         SetBoolStateAdapter(::loka::core::MutableState<bool> *state, bool value)
             : state_(state),
-              value_(value) {}
+              value_(value)
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1562,7 +1561,9 @@ namespace loka
 
         SetBoolStateAndFlushAdapter(::loka::core::MutableState<bool> *state, bool value)
             : state_(state),
-              value_(value) {}
+              value_(value)
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1593,7 +1594,9 @@ namespace loka
 
         SetIntStateAdapter(::loka::core::MutableState<int> *state, int value)
             : state_(state),
-              value_(value) {}
+              value_(value)
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1634,7 +1637,9 @@ namespace loka
 
         SetIntStateAndFlushAdapter(::loka::core::MutableState<int> *state, int value)
             : state_(state),
-              value_(value) {}
+              value_(value)
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1664,7 +1669,9 @@ namespace loka
         typedef ::loka::app::scene::Scene *Out;
 
         explicit ClickButtonByIdAdapter(const char *testId)
-            : testId_(testId ? testId : "") {}
+            : testId_(testId ? testId : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1719,7 +1726,9 @@ namespace loka
         typedef ::loka::app::scene::Scene *Out;
 
         explicit ClickButtonByIdAndFlushAdapter(const char *testId)
-            : testId_(testId ? testId : "") {}
+            : testId_(testId ? testId : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
@@ -1749,7 +1758,9 @@ namespace loka
 
         CheckTimingLessEqualAdapter(const char *key, long maxValue)
             : key_(key ? key : ""),
-              maxValue_(maxValue) {}
+              maxValue_(maxValue)
+        {
+        }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
         {
@@ -1774,7 +1785,9 @@ namespace loka
         typedef ::loka::app::TextNode *Out;
 
         explicit AssertTextEqualsAdapter(const char *expected)
-            : expected_(expected ? expected : "") {}
+            : expected_(expected ? expected : "")
+        {
+        }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {

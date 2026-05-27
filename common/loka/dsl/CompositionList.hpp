@@ -7,15 +7,28 @@ namespace loka
 {
   namespace dsl
   {
-    template <typename DefT>
-    class CompositionList
+    template <typename DefT> class CompositionList
     {
     public:
-      CompositionList() : head_(0), tail_(0), count_(0) {}
-      ~CompositionList() { clear(); }
+      CompositionList()
+          : head_(0),
+            tail_(0),
+            count_(0)
+      {
+      }
+      ~CompositionList()
+      {
+        clear();
+      }
 
-      size_t count() const { return count_; }
-      DefT *head() const { return head_; }
+      size_t count() const
+      {
+        return count_;
+      }
+      DefT *head() const
+      {
+        return head_;
+      }
 
       void appendClone(const DefT &def)
       {
@@ -157,12 +170,14 @@ namespace loka
       size_t count_;
     };
 
-    template <typename DefT>
-    class CompositionCursor
+    template <typename DefT> class CompositionCursor
     {
     public:
       CompositionCursor(DefT *head, size_t count)
-          : current_(head), remaining_(count) {}
+          : current_(head),
+            remaining_(count)
+      {
+      }
 
       DefT *next()
       {
