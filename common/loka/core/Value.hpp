@@ -69,8 +69,10 @@ namespace loka
       } storage;
 
       // TODO: Investigate pooling for heavier payload slots if profiling shows gains.
-      // TODO: Consider light wrapper types around Array/Dictionary to enforce typed views without changing the core Value container.
-      // TODO: std::vector works for now; abstract the storage layer only if legacy toolchains require a custom container.
+      // TODO: Consider light wrapper types around Array/Dictionary to enforce typed views without changing the core
+      // Value container.
+      // TODO: std::vector works for now; abstract the storage layer only if legacy toolchains require a custom
+      // container.
 
       String *stringSlot();
       const String *stringSlot() const;

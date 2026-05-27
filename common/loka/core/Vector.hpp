@@ -8,21 +8,37 @@ namespace loka
 {
   namespace dsl
   {
-    template <typename T>
-    class Stream;
+    template <typename T> class Stream;
   }
 
-  template <typename T>
-  class Vector
+  template <typename T> class Vector
   {
   public:
-    Vector() : values_() {}
+    Vector()
+        : values_()
+    {
+    }
 
-    std::size_t size() const { return values_.size(); }
-    bool empty() const { return values_.empty(); }
-    void clear() { values_.clear(); }
-    void reserve(std::size_t count) { values_.reserve(count); }
-    void push_back(const T &value) { values_.push_back(value); }
+    std::size_t size() const
+    {
+      return values_.size();
+    }
+    bool empty() const
+    {
+      return values_.empty();
+    }
+    void clear()
+    {
+      values_.clear();
+    }
+    void reserve(std::size_t count)
+    {
+      values_.reserve(count);
+    }
+    void push_back(const T &value)
+    {
+      values_.push_back(value);
+    }
     void assign(const T *items, std::size_t count)
     {
       values_.clear();
@@ -32,16 +48,33 @@ namespace loka
         values_.push_back(items[i]);
       }
     }
-    T &operator[](std::size_t index) { return values_[index]; }
-    const T &operator[](std::size_t index) const { return values_[index]; }
+    T &operator[](std::size_t index)
+    {
+      return values_[index];
+    }
+    const T &operator[](std::size_t index) const
+    {
+      return values_[index];
+    }
 
-    typename std::vector<T>::iterator begin() { return values_.begin(); }
-    typename std::vector<T>::iterator end() { return values_.end(); }
-    typename std::vector<T>::const_iterator begin() const { return values_.begin(); }
-    typename std::vector<T>::const_iterator end() const { return values_.end(); }
+    typename std::vector<T>::iterator begin()
+    {
+      return values_.begin();
+    }
+    typename std::vector<T>::iterator end()
+    {
+      return values_.end();
+    }
+    typename std::vector<T>::const_iterator begin() const
+    {
+      return values_.begin();
+    }
+    typename std::vector<T>::const_iterator end() const
+    {
+      return values_.end();
+    }
 
-    template <typename R, typename Mapper>
-    Vector<R> map(const Mapper &mapper) const
+    template <typename R, typename Mapper> Vector<R> map(const Mapper &mapper) const
     {
       Vector<R> result;
       result.reserve(values_.size());

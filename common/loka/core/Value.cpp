@@ -9,41 +9,49 @@ namespace loka
 {
   namespace core
   {
-    Value::Value() : valueType(ValueTypeNull)
+    Value::Value()
+        : valueType(ValueTypeNull)
     {
     }
 
-    Value::Value(bool b) : valueType(ValueTypeBool)
+    Value::Value(bool b)
+        : valueType(ValueTypeBool)
     {
       this->storage.boolValue = b;
     }
 
-    Value::Value(long n) : valueType(ValueTypeInt)
+    Value::Value(long n)
+        : valueType(ValueTypeInt)
     {
       this->storage.intValue = n;
     }
 
-    Value::Value(double d) : valueType(ValueTypeDouble)
+    Value::Value(double d)
+        : valueType(ValueTypeDouble)
     {
       this->storage.doubleValue = d;
     }
 
-    Value::Value(const String &s) : valueType(ValueTypeString)
+    Value::Value(const String &s)
+        : valueType(ValueTypeString)
     {
       new (this->storage.stringValue) String(s);
     }
 
-    Value::Value(const Array &array) : valueType(ValueTypeArray)
+    Value::Value(const Array &array)
+        : valueType(ValueTypeArray)
     {
       new (this->storage.arrayValue) loka::core::Managed<ArrayStorage>(array.getHandle());
     }
 
-    Value::Value(const Dictionary &dictionary) : valueType(ValueTypeDictionary)
+    Value::Value(const Dictionary &dictionary)
+        : valueType(ValueTypeDictionary)
     {
       new (this->storage.dictionaryValue) loka::core::Managed<DictionaryStorage>(dictionary.getHandle());
     }
 
-    Value::Value(const Value &other) : valueType(other.valueType)
+    Value::Value(const Value &other)
+        : valueType(other.valueType)
     {
       this->copyFrom(other);
     }
@@ -242,19 +250,23 @@ namespace loka
       return reinterpret_cast<const loka::core::Managed<DictionaryStorage> *>(this->storage.dictionaryValue);
     }
 
-    ArrayStorage::ArrayStorage() : values()
+    ArrayStorage::ArrayStorage()
+        : values()
     {
     }
 
-    Array::Array() : storage()
+    Array::Array()
+        : storage()
     {
     }
 
-    Array::Array(const Array &other) : storage(other.storage)
+    Array::Array(const Array &other)
+        : storage(other.storage)
     {
     }
 
-    Array::Array(const loka::core::Managed<ArrayStorage> &handle) : storage(handle)
+    Array::Array(const loka::core::Managed<ArrayStorage> &handle)
+        : storage(handle)
     {
     }
 
@@ -267,9 +279,7 @@ namespace loka
       return *this;
     }
 
-    Array::~Array()
-    {
-    }
+    Array::~Array() {}
 
     void Array::ensureStorage()
     {
@@ -341,19 +351,23 @@ namespace loka
       return this->storage;
     }
 
-    DictionaryStorage::DictionaryStorage() : entries()
+    DictionaryStorage::DictionaryStorage()
+        : entries()
     {
     }
 
-    Dictionary::Dictionary() : storage()
+    Dictionary::Dictionary()
+        : storage()
     {
     }
 
-    Dictionary::Dictionary(const Dictionary &other) : storage(other.storage)
+    Dictionary::Dictionary(const Dictionary &other)
+        : storage(other.storage)
     {
     }
 
-    Dictionary::Dictionary(const loka::core::Managed<DictionaryStorage> &handle) : storage(handle)
+    Dictionary::Dictionary(const loka::core::Managed<DictionaryStorage> &handle)
+        : storage(handle)
     {
     }
 
@@ -366,9 +380,7 @@ namespace loka
       return *this;
     }
 
-    Dictionary::~Dictionary()
-    {
-    }
+    Dictionary::~Dictionary() {}
 
     void Dictionary::ensureStorage()
     {
