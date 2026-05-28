@@ -11,8 +11,8 @@
 #include <unistd.h>
 #endif
 #include "dsl/flow/Flow.hpp"
-#include "loka/dsl/SnapFormat.hpp"
-#include "dsl/flow/SnapFlow.hpp"
+#include "testing/snap/SnapFormat.hpp"
+#include "testing/snap/SnapFlow.hpp"
 
 namespace
 {

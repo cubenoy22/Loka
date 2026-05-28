@@ -28,7 +28,7 @@
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
-#include "loka/dsl/testing/SceneTestFlow.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 namespace {
   static loka::app::HStack buildTypedHStack()
