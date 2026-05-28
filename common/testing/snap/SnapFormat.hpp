@@ -26,8 +26,7 @@ namespace loka
     inline bool isValidSnapStatusValue(const char *value)
     {
       return value
-             && ((std::string(value) == SnapStatusOk())
-                 || (std::string(value) == SnapStatusPartial())
+             && ((std::string(value) == SnapStatusOk()) || (std::string(value) == SnapStatusPartial())
                  || (std::string(value) == SnapStatusError()));
     }
 
@@ -70,16 +69,12 @@ namespace loka
     {
     public:
       static SnapWriteStatus appendRecordStatus(const char *path, const SnapRecord &record);
-      static SnapWriteStatus appendRecordStatusWithLimits(const char *path,
-                                                          const SnapRecord &record,
-                                                          long maxTotalBytes,
-                                                          long maxRecords);
+      static SnapWriteStatus
+      appendRecordStatusWithLimits(const char *path, const SnapRecord &record, long maxTotalBytes, long maxRecords);
       static bool appendRecord(const char *path, const SnapRecord &record);
       static bool appendRecordWithMaxBytes(const char *path, const SnapRecord &record, long maxTotalBytes);
-      static bool appendRecordWithLimits(const char *path,
-                                         const SnapRecord &record,
-                                         long maxTotalBytes,
-                                         long maxRecords);
+      static bool
+      appendRecordWithLimits(const char *path, const SnapRecord &record, long maxTotalBytes, long maxRecords);
     };
 
     class SnapTestConfig
@@ -94,7 +89,9 @@ namespace loka
               hasMaxFiles(false),
               maxTotalBytes(0),
               hasMaxTotalBytes(false),
-              hasParseError(false) {}
+              hasParseError(false)
+        {
+        }
 
         std::string captureDir;
         bool hasCaptureDir;

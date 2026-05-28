@@ -46,10 +46,8 @@ namespace loka
         {
           return true;
         }
-        if (path.size() >= 3 &&
-            ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) &&
-            path[1] == ':' &&
-            (path[2] == '\\' || path[2] == '/'))
+        if (path.size() >= 3 && ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))
+            && path[1] == ':' && (path[2] == '\\' || path[2] == '/'))
         {
           return true;
         }
@@ -307,14 +305,7 @@ namespace loka
     bool SnapRecord::validateV1RequiredKeys(std::string &missingKey) const
     {
       static const char *kRequired[] = {
-          "format_version",
-          "schema_version",
-          "scenario_version",
-          "test",
-          "step",
-          "node",
-          "tick",
-          "status"};
+          "format_version", "schema_version", "scenario_version", "test", "step", "node", "tick", "status"};
       const size_t kRequiredCount = sizeof(kRequired) / sizeof(kRequired[0]);
       for (size_t i = 0; i < kRequiredCount; ++i)
       {
@@ -430,9 +421,8 @@ namespace loka
         const size_t written = std::fwrite(payload.data(), 1, payload.size(), fp);
         const int flushResult = std::fflush(fp);
         const int closeResult = std::fclose(fp);
-        return (written == payload.size() && flushResult == 0 && closeResult == 0)
-                   ? SNAP_WRITE_OK
-                   : SNAP_WRITE_IO_ERROR;
+        return (written == payload.size() && flushResult == 0 && closeResult == 0) ? SNAP_WRITE_OK
+                                                                                   : SNAP_WRITE_IO_ERROR;
       }
 
       std::string current;
@@ -493,9 +483,7 @@ namespace loka
       }
 
       SnapTestConfig::Settings settings;
-      if (!readSettings(configPath, settings)
-          || settings.hasParseError
-          || !settings.hasCaptureDir
+      if (!readSettings(configPath, settings) || settings.hasParseError || !settings.hasCaptureDir
           || settings.captureDir.empty())
       {
         return pathStr;

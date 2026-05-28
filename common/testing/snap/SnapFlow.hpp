@@ -88,7 +88,12 @@ namespace loka
     struct SnapFlowErrorSnapshot
     {
       SnapFlowErrorSnapshot()
-          : kind(0), code(0), detail(), sourceStep() {}
+          : kind(0),
+            code(0),
+            detail(),
+            sourceStep()
+      {
+      }
 
       void clear()
       {
@@ -108,7 +113,10 @@ namespace loka
     {
     public:
       SnapErrorDetailBuilder()
-          : detail_(), hasPair_(false) {}
+          : detail_(),
+            hasPair_(false)
+      {
+      }
 
       SnapErrorDetailBuilder &add(const char *key, const char *value)
       {
@@ -163,7 +171,12 @@ namespace loka
     struct SnapFlowErrorCaptureContext
     {
       SnapFlowErrorCaptureContext()
-          : out(0), detail(0), sourceStep(0), sourceStepId(-1) {}
+          : out(0),
+            detail(0),
+            sourceStep(0),
+            sourceStepId(-1)
+      {
+      }
 
       SnapFlowErrorSnapshot *out;
       const char *detail;
@@ -174,7 +187,12 @@ namespace loka
     struct SnapFlowErrorCaptureBuilderContext
     {
       SnapFlowErrorCaptureBuilderContext()
-          : out(0), detailBuilder(0), sourceStep(0), sourceStepId(-1) {}
+          : out(0),
+            detailBuilder(0),
+            sourceStep(0),
+            sourceStepId(-1)
+      {
+      }
 
       SnapFlowErrorSnapshot *out;
       const SnapErrorDetailBuilder *detailBuilder;
@@ -269,7 +287,9 @@ namespace loka
           : path_(path ? path : ""),
             requireV1_(requireV1),
             defaultNodeId_(defaultNodeId ? defaultNodeId : ""),
-            configPath_(configPath ? configPath : "") {}
+            configPath_(configPath ? configPath : "")
+      {
+      }
 
       StepRunStatus run(const In &in, Out &out, FlowError &error) const
       {
@@ -301,10 +321,11 @@ namespace loka
         SnapWriteStatus writeStatus = SNAP_WRITE_OK;
         if (hasConfig && (settings.hasMaxTotalBytes || settings.hasMaxFiles))
         {
-          writeStatus = SnapFileWriter::appendRecordStatusWithLimits(outputPath.c_str(),
-                                                                     out,
-                                                                     settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
-                                                                     settings.hasMaxFiles ? settings.maxFiles : 0);
+          writeStatus =
+              SnapFileWriter::appendRecordStatusWithLimits(outputPath.c_str(),
+                                                           out,
+                                                           settings.hasMaxTotalBytes ? settings.maxTotalBytes : 0,
+                                                           settings.hasMaxFiles ? settings.maxFiles : 0);
         }
         else
         {
@@ -587,7 +608,9 @@ namespace loka
 
       AssertSnapTimingLessEqualAdapter(const char *key, long maxValueMs)
           : key_(key ? key : ""),
-            maxValueMs_(maxValueMs) {}
+            maxValueMs_(maxValueMs)
+      {
+      }
 
       StepRunStatus run(const In &in, Out &out, FlowError &error) const
       {
@@ -624,11 +647,8 @@ namespace loka
       typedef SnapFlowErrorSnapshot In;
       typedef SnapRecord Out;
 
-      BuildSnapErrorV1RecordAdapter(const char *testName,
-                                    const char *stepName,
-                                    const char *nodeId,
-                                    long tick,
-                                    long scenarioVersion)
+      BuildSnapErrorV1RecordAdapter(
+          const char *testName, const char *stepName, const char *nodeId, long tick, long scenarioVersion)
           : testName_(testName ? testName : ""),
             stepName_(stepName ? stepName : ""),
             nodeId_(nodeId ? nodeId : ""),
@@ -644,7 +664,9 @@ namespace loka
             hasTimingLayoutNa_(false),
             timingFlushMs_(0),
             timingRecomposeMs_(0),
-            timingLayoutMs_(0) {}
+            timingLayoutMs_(0)
+      {
+      }
 
       BuildSnapErrorV1RecordAdapter &status(const char *value)
       {
@@ -711,12 +733,8 @@ namespace loka
 
       StepRunStatus run(const In &in, Out &out, FlowError &) const
       {
-        BuildSnapV1RecordAdapter base(testName_.c_str(),
-                                      stepName_.c_str(),
-                                      nodeId_.c_str(),
-                                      tick_,
-                                      scenarioVersion_,
-                                      status_.c_str());
+        BuildSnapV1RecordAdapter base(
+            testName_.c_str(), stepName_.c_str(), nodeId_.c_str(), tick_, scenarioVersion_, status_.c_str());
         base.snapFlowError(in);
         base.status(status_.c_str());
         if (!dirty_.empty())
@@ -772,67 +790,37 @@ namespace loka
       long timingLayoutMs_;
     };
 
-    inline StepSpec<BuildSnapV1RecordAdapter> SnapStep(
-        int id,
-        const char *testName,
-        const char *stepName,
-        const char *nodeId,
-        long tick,
-        long scenarioVersion,
-        const char *status)
+    inline StepSpec<BuildSnapV1RecordAdapter> SnapStep(int id,
+                                                       const char *testName,
+                                                       const char *stepName,
+                                                       const char *nodeId,
+                                                       long tick,
+                                                       long scenarioVersion,
+                                                       const char *status)
     {
-      return Step(id,
-                  BuildSnapV1RecordAdapter(testName,
-                                           stepName,
-                                           nodeId,
-                                           tick,
-                                           scenarioVersion,
-                                           status));
+      return Step(id, BuildSnapV1RecordAdapter(testName, stepName, nodeId, tick, scenarioVersion, status));
     }
 
-    inline BuildSnapV1RecordAdapter SnapV1(
-        const char *testName,
-        const char *stepName,
-        const char *nodeId,
-        long tick,
-        long scenarioVersion,
-        const char *status)
+    inline BuildSnapV1RecordAdapter SnapV1(const char *testName,
+                                           const char *stepName,
+                                           const char *nodeId,
+                                           long tick,
+                                           long scenarioVersion,
+                                           const char *status)
     {
-      return BuildSnapV1RecordAdapter(testName,
-                                      stepName,
-                                      nodeId,
-                                      tick,
-                                      scenarioVersion,
-                                      status);
+      return BuildSnapV1RecordAdapter(testName, stepName, nodeId, tick, scenarioVersion, status);
     }
 
-    inline BuildSnapV1RecordAdapter SnapV1(
-        const char *testName,
-        const char *stepName,
-        const char *nodeId,
-        long tick,
-        long scenarioVersion)
+    inline BuildSnapV1RecordAdapter
+    SnapV1(const char *testName, const char *stepName, const char *nodeId, long tick, long scenarioVersion)
     {
-      return BuildSnapV1RecordAdapter(testName,
-                                      stepName,
-                                      nodeId,
-                                      tick,
-                                      scenarioVersion,
-                                      SnapStatusOk());
+      return BuildSnapV1RecordAdapter(testName, stepName, nodeId, tick, scenarioVersion, SnapStatusOk());
     }
 
-    inline BuildSnapErrorV1RecordAdapter SnapErrorV1(
-        const char *testName,
-        const char *stepName,
-        const char *nodeId,
-        long tick,
-        long scenarioVersion)
+    inline BuildSnapErrorV1RecordAdapter
+    SnapErrorV1(const char *testName, const char *stepName, const char *nodeId, long tick, long scenarioVersion)
     {
-      return BuildSnapErrorV1RecordAdapter(testName,
-                                           stepName,
-                                           nodeId,
-                                           tick,
-                                           scenarioVersion);
+      return BuildSnapErrorV1RecordAdapter(testName, stepName, nodeId, tick, scenarioVersion);
     }
   } // namespace dsl
 } // namespace loka
