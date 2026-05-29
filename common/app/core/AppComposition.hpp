@@ -5,7 +5,7 @@
 #include <cassert>
 #include "app/core/AppComponent.hpp"
 #include "app/core/WindowDefinition.hpp"
-#include "loka/dsl/CompositionList.hpp"
+#include "dsl/composition/CompositionList.hpp"
 
 class AppComposition
 {

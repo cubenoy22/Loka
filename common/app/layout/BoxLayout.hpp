@@ -2,7 +2,7 @@
 #define LOKA_APP_LAYOUT_BOX_LAYOUT_HPP
 
 #include "app/nodes/nestable/Box.hpp"
-#include "loka/dsl/CompositionList.hpp"
+#include "dsl/composition/CompositionList.hpp"
 
 namespace loka
 {

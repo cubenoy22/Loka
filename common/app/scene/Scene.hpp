@@ -15,7 +15,7 @@
 #include "app/scene/boundary/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
-#include "loka/dsl/CompositionDiff.hpp"
+#include "dsl/composition/CompositionDiff.hpp"
 
 class Window;
 

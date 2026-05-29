@@ -18,7 +18,7 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-#include "loka/dsl/CompositionList.hpp"
+#include "dsl/composition/CompositionList.hpp"
 
 #include "loka/core/State.hpp"
 #include "loka/core/Profiler.hpp"

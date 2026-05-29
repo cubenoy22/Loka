@@ -2,8 +2,8 @@
 #define LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONDIFF_HPP
 
 #include "app/scene/Node.hpp"
-#include "loka/dsl/CompositionDiff.hpp"
-#include "loka/dsl/CompositionList.hpp"
+#include "dsl/composition/CompositionDiff.hpp"
+#include "dsl/composition/CompositionList.hpp"
 
 namespace loka
 {

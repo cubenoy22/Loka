@@ -5,8 +5,8 @@
 #include <cstring>
 #include <vector>
 #include "loka/core/State.hpp"
-#include "loka/dsl/CompositionList.hpp"
-#include "loka/dsl/CompositionDiff.hpp"
+#include "dsl/composition/CompositionList.hpp"
+#include "dsl/composition/CompositionDiff.hpp"
 
 namespace loka
 {

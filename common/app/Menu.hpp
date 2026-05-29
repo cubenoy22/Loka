@@ -5,7 +5,7 @@
 #include <cassert>
 #include "loka/core/String.hpp"
 #include "loka/core/State.hpp"
-#include "loka/dsl/CompositionList.hpp"
+#include "dsl/composition/CompositionList.hpp"
 #include "app/MenuComposition.hpp"
 
 namespace loka
