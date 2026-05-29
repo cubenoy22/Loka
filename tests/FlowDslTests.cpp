@@ -30,52 +30,43 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
-namespace {
+namespace
+{
   static loka::app::HStack buildTypedHStack()
   {
     return loka::app::HStack().alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM)
-           << loka::app::Text("Left")
-           << loka::app::Text("Right");
+           << loka::app::Text("Left") << loka::app::Text("Right");
   }
 
   static loka::app::VStack buildTypedVStack()
   {
     return loka::app::VStack().alignHorizontal(loka::app::HORIZONTAL_ALIGNMENT_CENTER)
-           << loka::app::Text("Top")
-           << loka::app::Text("Bottom");
+           << loka::app::Text("Top") << loka::app::Text("Bottom");
   }
 
   static loka::app::Box buildTypedBox()
   {
-    return loka::app::Box().padding(8).testId("TypedBox")
-           << loka::app::Text("Box child");
+    return loka::app::Box().padding(8).testId("TypedBox") << loka::app::Text("Box child");
   }
 
   static loka::app::Fragment buildTypedFragment()
   {
-    return loka::app::Fragment()
-           << loka::app::Text("Fragment A")
-           << loka::app::Text("Fragment B");
+    return loka::app::Fragment() << loka::app::Text("Fragment A") << loka::app::Text("Fragment B");
   }
 
   static loka::app::Grid buildTypedGrid()
   {
-    return loka::app::Grid().rows(1).cols(2)
-           << loka::app::Text("Grid A")
-           << loka::app::Text("Grid B");
+    return loka::app::Grid().rows(1).cols(2) << loka::app::Text("Grid A") << loka::app::Text("Grid B");
   }
 
   static loka::app::ZStack buildTypedZStack()
   {
-    return loka::app::ZStack().testId("TypedZStack")
-           << loka::app::Text("Back")
-           << loka::app::Text("Front");
+    return loka::app::ZStack().testId("TypedZStack") << loka::app::Text("Back") << loka::app::Text("Front");
   }
 
   static loka::app::Fragment buildTypedInlineFragment()
   {
-    return loka::app::Fragment()
-           << loka::app::Text("Light child").testId("TypedDslLightChild");
+    return loka::app::Fragment() << loka::app::Text("Light child").testId("TypedDslLightChild");
   }
 
   class TypedDslLightHostNode;
@@ -85,28 +76,33 @@ namespace {
   {
   public:
     TypedDslLightHostNode(const TypedDslLightHostProps &p)
-        : loka::app::scene::BoundaryNodeFor<TypedDslLightHostNode>(TypedDslLightHostProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<TypedDslLightHostNode>(TypedDslLightHostProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::HStack().testId("TypedDslLightRow")
-                << buildTypedInlineFragment());
+      c.declare(loka::app::HStack().testId("TypedDslLightRow") << buildTypedInlineFragment());
     }
   };
 
-  struct FlowTestMarkerContext {
+  struct FlowTestMarkerContext
+  {
     std::vector<int> *order;
     int marker;
   };
 
-  struct FlowErrorCapture {
+  struct FlowErrorCapture
+  {
     int kind;
     int code;
     int calls;
   };
 
   class ConditionalProjectedProbeNode;
-  struct ConditionalProjectedProbeTypeTag {};
+  struct ConditionalProjectedProbeTypeTag
+  {
+  };
 
   struct ConditionalProjectedProbeProps : public loka::app::scene::NodePropsBase<ConditionalProjectedProbeProps>
   {
@@ -122,14 +118,19 @@ namespace {
   static int g_conditionalProjectedProbeLayoutCalls = 0;
   static int g_conditionalProjectedProbePrepareCalls = 0;
 
-  class ConditionalProjectedProbeNode : public loka::app::scene::Node,
-                                        public loka::app::scene::IProjectedLayoutNode
+  class ConditionalProjectedProbeNode : public loka::app::scene::Node, public loka::app::scene::IProjectedLayoutNode
   {
   public:
     typedef ConditionalProjectedProbeTypeTag TypeTag;
     ConditionalProjectedProbeProps props;
-    ConditionalProjectedProbeNode(const ConditionalProjectedProbeProps &p) : props(p) {}
-    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+    ConditionalProjectedProbeNode(const ConditionalProjectedProbeProps &p)
+        : props(p)
+    {
+    }
+    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode()
+    {
+      return this;
+    }
     virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
                                   loka::app::scene::LayoutState &state)
     {
@@ -163,9 +164,7 @@ namespace {
     {
     }
 
-    virtual void onChange(loka::app::scene::Node *rootNode,
-                          loka::app::scene::NodeDirtyFlags flags,
-                          bool fullRebuild)
+    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
     {
       lastRoot_ = rootNode;
       lastFlags_ = flags;
@@ -185,8 +184,7 @@ namespace {
       walkTree(this, rootNode, state);
     }
 
-    virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
-                                        loka::app::scene::LayoutState &state)
+    virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state)
     {
       (void)state;
       ++g_conditionalProjectedProbePrepareCalls;
@@ -198,7 +196,10 @@ namespace {
     }
 
     virtual void synchronize() {}
-    virtual bool hasPendingSync() const { return false; }
+    virtual bool hasPendingSync() const
+    {
+      return false;
+    }
     virtual void destroy() {}
 
     static void walkTree(loka::app::scene::IPlatformController *controller,
@@ -235,7 +236,12 @@ namespace {
   static loka::core::MutableState<int> g_pendingLayoutWidthState(32);
   struct RecordingDirtySourceRegistrar : public loka::app::scene::DirtySourceRegistrar
   {
-    RecordingDirtySourceRegistrar() : calls(0), lastState(0), lastFlags(loka::app::scene::NODE_DIRTY_NONE) {}
+    RecordingDirtySourceRegistrar()
+        : calls(0),
+          lastState(0),
+          lastFlags(loka::app::scene::NODE_DIRTY_NONE)
+    {
+    }
 
     virtual void markDirtyOnChange(loka::core::StateBase *state, loka::app::scene::NodeDirtyFlags flags)
     {
@@ -251,7 +257,10 @@ namespace {
   class BoundaryLookupTestApi
   {
   public:
-    static const char *kInterfaceName() { return "BoundaryLookupTestApi"; }
+    static const char *kInterfaceName()
+    {
+      return "BoundaryLookupTestApi";
+    }
     static BoundaryLookupTestApi *fromNode(loka::app::scene::Node *node)
     {
       if (!node)
@@ -267,14 +276,20 @@ namespace {
   class BoundaryLookupTestNode : public loka::app::scene::Node, public BoundaryLookupTestApi
   {
   public:
-    explicit BoundaryLookupTestNode(int value) : value_(value) {}
+    explicit BoundaryLookupTestNode(int value)
+        : value_(value)
+    {
+    }
 
     virtual void *queryInterface(const char *name)
     {
       return name && std::strcmp(name, kInterfaceName()) == 0 ? static_cast<BoundaryLookupTestApi *>(this) : 0;
     }
 
-    virtual int id() const { return value_; }
+    virtual int id() const
+    {
+      return value_;
+    }
 
   private:
     int value_;
@@ -283,7 +298,10 @@ namespace {
   class BoundaryLookupStateApi
   {
   public:
-    static const char *kInterfaceName() { return "BoundaryLookupStateApi"; }
+    static const char *kInterfaceName()
+    {
+      return "BoundaryLookupStateApi";
+    }
     static BoundaryLookupStateApi *fromNode(loka::app::scene::Node *node)
     {
       if (!node)
@@ -299,7 +317,10 @@ namespace {
   class BoundaryLookupStateNode : public loka::app::scene::Node, public BoundaryLookupStateApi
   {
   public:
-    explicit BoundaryLookupStateNode(int value) : count_(value) {}
+    explicit BoundaryLookupStateNode(int value)
+        : count_(value)
+    {
+    }
 
     virtual void *queryInterface(const char *name)
     {
@@ -318,16 +339,25 @@ namespace {
   class DummyStateOwner : public loka::app::scene::IStateOwner
   {
   public:
-    DummyStateOwner() : tracker_(0) {}
+    DummyStateOwner()
+        : tracker_(0)
+    {
+    }
 
     virtual void adoptState(loka::core::StateBase *) {}
     virtual void adoptStateUnchecked(loka::core::StateBase *) {}
     virtual void releaseState(loka::core::StateBase *) {}
     virtual void reserveStates(size_t) {}
     virtual void reserveStateArena(size_t) {}
-    virtual void *allocateStateMemory(size_t, size_t) { return 0; }
+    virtual void *allocateStateMemory(size_t, size_t)
+    {
+      return 0;
+    }
     virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
-    virtual loka::core::StateTracker *tracker() { return tracker_; }
+    virtual loka::core::StateTracker *tracker()
+    {
+      return tracker_;
+    }
 
   private:
     loka::core::StateTracker *tracker_;
@@ -402,7 +432,9 @@ namespace {
   {
   public:
     PendingLayoutBoundaryNode(const PendingLayoutBoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>(PendingLayoutBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<PendingLayoutBoundaryNode>(PendingLayoutBoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
@@ -420,7 +452,9 @@ namespace {
   {
   public:
     PendingApplyProbeBoundaryNode(const PendingApplyProbeBoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingApplyProbeBoundaryNode>(PendingApplyProbeBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<PendingApplyProbeBoundaryNode>(PendingApplyProbeBoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
@@ -442,16 +476,19 @@ namespace {
       g_pendingApplyLastPaintRoot = plan.paintRoot;
       assert(info.hasPaintWork());
       assert(info.hasGenericPaintWork() || info.hasOpaquePaintWork());
-      assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL ||
-             plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
+      assert(plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL
+             || plan.paintKind == loka::app::scene::PlatformApplyPlan::PAINT_LOCAL_OPAQUE);
     }
   };
 
-  class PendingCompositedProbeBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingCompositedProbeBoundaryNode>
+  class PendingCompositedProbeBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<PendingCompositedProbeBoundaryNode>
   {
   public:
     PendingCompositedProbeBoundaryNode(const PendingCompositedProbeBoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingCompositedProbeBoundaryNode>(PendingCompositedProbeBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<PendingCompositedProbeBoundaryNode>(PendingCompositedProbeBoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
@@ -461,13 +498,18 @@ namespace {
   };
 
   class PendingDefaultApplyProbeBoundaryNode;
-  typedef loka::app::scene::BoundaryPropsFor<PendingDefaultApplyProbeBoundaryNode> PendingDefaultApplyProbeBoundaryProps;
+  typedef loka::app::scene::BoundaryPropsFor<PendingDefaultApplyProbeBoundaryNode>
+      PendingDefaultApplyProbeBoundaryProps;
 
-  class PendingDefaultApplyProbeBoundaryNode : public loka::app::scene::BoundaryNodeFor<PendingDefaultApplyProbeBoundaryNode>
+  class PendingDefaultApplyProbeBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<PendingDefaultApplyProbeBoundaryNode>
   {
   public:
     PendingDefaultApplyProbeBoundaryNode(const PendingDefaultApplyProbeBoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingDefaultApplyProbeBoundaryNode>(PendingDefaultApplyProbeBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<PendingDefaultApplyProbeBoundaryNode>(
+              PendingDefaultApplyProbeBoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
@@ -508,7 +550,8 @@ namespace {
       ++g_defaultApplyLocalPaintCalls;
     }
 
-    virtual void applyPendingOpaquePaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
+    virtual void applyPendingOpaquePaintInfo(const LocalApplyInfo &info,
+                                             const loka::app::scene::PlatformApplyPlan &plan)
     {
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
@@ -516,14 +559,15 @@ namespace {
       assert(info.usesPaintBoundsHint);
       assert(info.hasPaintBoundsHint());
       assert(info.hasOpaqueCoverageHint);
-      assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE ||
-             info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
+      assert(info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_OPAQUE
+             || info.paintKind == loka::app::scene::BoundaryNode::LOCAL_APPLY_PAINT_COMPOSITED);
       assert(info.paintIsOpaque);
       ++g_defaultApplyOpaqueHintSeen;
       ++g_defaultApplyOpaquePaintCalls;
     }
 
-    virtual void applyPendingCompositedPaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
+    virtual void applyPendingCompositedPaintInfo(const LocalApplyInfo &info,
+                                                 const loka::app::scene::PlatformApplyPlan &plan)
     {
       (void)plan;
       assert(info.hasCompositedPaintWork());
@@ -565,8 +609,7 @@ namespace {
       using namespace loka::app;
       TextDefinition falseText = Text("Off").testId("SameBoundaryOffText");
       TextDefinition trueText = Text("On").testId("SameBoundaryOnText");
-      c.declare(Box().testId("SameBoundaryRoot")
-                << c.conditional(*this->show_.state(), trueText, falseText));
+      c.declare(Box().testId("SameBoundaryRoot") << c.conditional(*this->show_.state(), trueText, falseText));
     }
 
     void emitToggle()
@@ -594,14 +637,19 @@ namespace {
   {
   public:
     PendingApplySiblingABoundaryNode(const PendingApplySiblingABoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingApplySiblingABoundaryNode>(PendingApplySiblingABoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<PendingApplySiblingABoundaryNode>(PendingApplySiblingABoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       c.declare(loka::app::Text("SiblingA").testId("PendingSiblingAText"));
     }
 
-    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const { return false; }
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
 
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
@@ -634,13 +682,10 @@ namespace {
       {
         return;
       }
-      c.declareStates()
-          .state(this->count_, 0)
-          .state(this->summary_, loka::core::String::Literal("Headless 0"));
+      c.declareStates().state(this->count_, 0).state(this->summary_, loka::core::String::Literal("Headless 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        this->summaryFlow_
-            .set(countStream.map(loka::dsl::Const("Headless ") + countStream.slot.value()))
+        this->summaryFlow_.set(countStream.map(loka::dsl::Const("Headless ") + countStream.slot.value()))
             .bindTo(this->summary_);
       }
       ++g_headlessScopeAttachCount;
@@ -753,13 +798,10 @@ namespace {
       {
         return;
       }
-      c.declareStates()
-          .state(this->count_, 0)
-          .state(this->summary_, loka::core::String::Literal("Owned 0"));
+      c.declareStates().state(this->count_, 0).state(this->summary_, loka::core::String::Literal("Owned 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        this->summaryFlow_
-            .set(countStream.map(loka::dsl::Const("Owned ") + countStream.slot.value()))
+        this->summaryFlow_.set(countStream.map(loka::dsl::Const("Owned ") + countStream.slot.value()))
             .bindTo(this->summary_);
       }
       ++g_headlessOwnedAttachCount;
@@ -818,8 +860,7 @@ namespace {
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
-      c.declare(Box().testId("HeadlessOwnedHostRoot")
-                << (Show(*this->show_.state()) << HeadlessOwnedProbe()));
+      c.declare(Box().testId("HeadlessOwnedHostRoot") << (Show(*this->show_.state()) << HeadlessOwnedProbe()));
     }
 
     void setShown(bool value)
@@ -859,13 +900,10 @@ namespace {
       {
         return;
       }
-      c.declareStates()
-          .state(this->count_, 0)
-          .state(this->summary_, loka::core::String::Literal("OwnedA 0"));
+      c.declareStates().state(this->count_, 0).state(this->summary_, loka::core::String::Literal("OwnedA 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        this->summaryFlow_
-            .set(countStream.map(loka::dsl::Const("OwnedA ") + countStream.slot.value()))
+        this->summaryFlow_.set(countStream.map(loka::dsl::Const("OwnedA ") + countStream.slot.value()))
             .bindTo(this->summary_);
       }
       ++g_headlessOwnedMultiAttachCountA;
@@ -917,13 +955,10 @@ namespace {
       {
         return;
       }
-      c.declareStates()
-          .state(this->count_, 0)
-          .state(this->summary_, loka::core::String::Literal("OwnedB 0"));
+      c.declareStates().state(this->count_, 0).state(this->summary_, loka::core::String::Literal("OwnedB 0"));
       {
         loka::dsl::StateStream<int> countStream = this->count_.stream();
-        this->summaryFlow_
-            .set(countStream.map(loka::dsl::Const("OwnedB ") + countStream.slot.value()))
+        this->summaryFlow_.set(countStream.map(loka::dsl::Const("OwnedB ") + countStream.slot.value()))
             .bindTo(this->summary_);
       }
       ++g_headlessOwnedMultiAttachCountB;
@@ -948,17 +983,20 @@ namespace {
     bool initialized_;
   };
 
-  inline loka::app::scene::NodeDefinition<HeadlessOwnedMultiProbeAProps, HeadlessOwnedMultiProbeANode> HeadlessOwnedMultiProbeA()
+  inline loka::app::scene::NodeDefinition<HeadlessOwnedMultiProbeAProps, HeadlessOwnedMultiProbeANode>
+  HeadlessOwnedMultiProbeA()
   {
     return loka::app::scene::Headless<HeadlessOwnedMultiProbeANode>();
   }
 
-  inline loka::app::scene::NodeDefinition<HeadlessOwnedMultiProbeBProps, HeadlessOwnedMultiProbeBNode> HeadlessOwnedMultiProbeB()
+  inline loka::app::scene::NodeDefinition<HeadlessOwnedMultiProbeBProps, HeadlessOwnedMultiProbeBNode>
+  HeadlessOwnedMultiProbeB()
   {
     return loka::app::scene::Headless<HeadlessOwnedMultiProbeBNode>();
   }
 
-  class HeadlessOwnedMultiHostBoundaryNode : public loka::app::scene::BoundaryNodeFor<HeadlessOwnedMultiHostBoundaryNode>
+  class HeadlessOwnedMultiHostBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<HeadlessOwnedMultiHostBoundaryNode>
   {
   public:
     HeadlessOwnedMultiHostBoundaryNode(const HeadlessOwnedMultiHostProps &p)
@@ -1035,12 +1073,14 @@ namespace {
     bool initialized_;
   };
 
-  inline loka::app::scene::NodeDefinition<HeadlessOwnedPersistentProbeProps, HeadlessOwnedPersistentProbeNode> HeadlessOwnedPersistentProbe()
+  inline loka::app::scene::NodeDefinition<HeadlessOwnedPersistentProbeProps, HeadlessOwnedPersistentProbeNode>
+  HeadlessOwnedPersistentProbe()
   {
     return loka::app::scene::Headless<HeadlessOwnedPersistentProbeNode>();
   }
 
-  class HeadlessOwnedMixedHostBoundaryNode : public loka::app::scene::BoundaryNodeFor<HeadlessOwnedMixedHostBoundaryNode>
+  class HeadlessOwnedMixedHostBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<HeadlessOwnedMixedHostBoundaryNode>
   {
   public:
     HeadlessOwnedMixedHostBoundaryNode(const HeadlessOwnedMixedHostProps &p)
@@ -1064,8 +1104,7 @@ namespace {
     {
       using namespace loka::app;
       c.declare(Box().testId("HeadlessOwnedMixedHostRoot")
-                << HeadlessOwnedPersistentProbe()
-                << (Show(*this->show_.state()) << HeadlessOwnedProbe()));
+                << HeadlessOwnedPersistentProbe() << (Show(*this->show_.state()) << HeadlessOwnedProbe()));
     }
 
     void setShown(bool value)
@@ -1082,14 +1121,19 @@ namespace {
   {
   public:
     PendingApplySiblingBBoundaryNode(const PendingApplySiblingBBoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingApplySiblingBBoundaryNode>(PendingApplySiblingBBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<PendingApplySiblingBBoundaryNode>(PendingApplySiblingBBoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       c.declare(loka::app::Text("SiblingB").testId("PendingSiblingBText"));
     }
 
-    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const { return false; }
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
 
     virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
     {
@@ -1108,57 +1152,72 @@ namespace {
   {
   public:
     PendingApplySiblingsRootNode(const PendingApplySiblingsRootProps &p)
-        : loka::app::scene::BoundaryNodeFor<PendingApplySiblingsRootNode>(PendingApplySiblingsRootProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<PendingApplySiblingsRootNode>(PendingApplySiblingsRootProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      c.declare(loka::app::VStack()
-                << loka::app::scene::BoundaryDefinition<PendingApplySiblingABoundaryProps, PendingApplySiblingABoundaryNode>().tag(101)
-                << loka::app::scene::BoundaryDefinition<PendingApplySiblingBBoundaryProps, PendingApplySiblingBBoundaryNode>().tag(102));
+      c.declare(
+          loka::app::VStack()
+          << loka::app::scene::BoundaryDefinition<PendingApplySiblingABoundaryProps, PendingApplySiblingABoundaryNode>()
+                 .tag(101)
+          << loka::app::scene::BoundaryDefinition<PendingApplySiblingBBoundaryProps, PendingApplySiblingBBoundaryNode>()
+                 .tag(102));
     }
   };
 
-  struct FlowTestMarker {
-    static void onStepSuccess(const int &, void *user) {
+  struct FlowTestMarker
+  {
+    static void onStepSuccess(const int &, void *user)
+    {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
     }
 
-    static void onStepFinally(void *user) {
+    static void onStepFinally(void *user)
+    {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
     }
 
-    static void onFlowSuccess(void *user) {
+    static void onFlowSuccess(void *user)
+    {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
     }
 
-    static loka::dsl::FlowHandleResult onFlowFailureHandled(const loka::dsl::FlowError &, void *user) {
+    static loka::dsl::FlowHandleResult onFlowFailureHandled(const loka::dsl::FlowError &, void *user)
+    {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
       return loka::dsl::FLOW_ERROR_HANDLED;
     }
 
-    static loka::dsl::FlowHandleResult onStepFailureUnhandled(const loka::dsl::FlowError &, void *user) {
+    static loka::dsl::FlowHandleResult onStepFailureUnhandled(const loka::dsl::FlowError &, void *user)
+    {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
       return loka::dsl::FLOW_ERROR_UNHANDLED;
     }
 
-    static loka::dsl::FlowHandleResult onStepFailureHandled(const loka::dsl::FlowError &, void *user) {
+    static loka::dsl::FlowHandleResult onStepFailureHandled(const loka::dsl::FlowError &, void *user)
+    {
       FlowTestMarkerContext *ctx = static_cast<FlowTestMarkerContext *>(user);
       ctx->order->push_back(ctx->marker);
       return loka::dsl::FLOW_ERROR_HANDLED;
     }
 
-    static bool is500(const loka::dsl::FlowError &error, void *) {
+    static bool is500(const loka::dsl::FlowError &error, void *)
+    {
       return error.code == 500;
     }
 
-    static loka::dsl::FlowHandleResult captureFailure(const loka::dsl::FlowError &error, void *user) {
+    static loka::dsl::FlowHandleResult captureFailure(const loka::dsl::FlowError &error, void *user)
+    {
       FlowErrorCapture *capture = static_cast<FlowErrorCapture *>(user);
-      if (capture) {
+      if (capture)
+      {
         capture->kind = error.kind;
         capture->code = error.code;
         ++capture->calls;
@@ -1167,28 +1226,34 @@ namespace {
     }
   };
 
-  struct FlowTestMul2Adapter {
+  struct FlowTestMul2Adapter
+  {
     typedef int In;
     typedef int Out;
-    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
       out = in * 2;
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
   };
 
-  struct FlowTestAdd1Adapter {
+  struct FlowTestAdd1Adapter
+  {
     typedef int In;
     typedef int Out;
-    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
       out = in + 1;
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
   };
 
-  struct FlowTestFail500Adapter {
+  struct FlowTestFail500Adapter
+  {
     typedef int In;
     typedef int Out;
-    loka::dsl::StepRunStatus run(const int &, int &out, loka::dsl::FlowError &error) const {
+    loka::dsl::StepRunStatus run(const int &, int &out, loka::dsl::FlowError &error) const
+    {
       out = 0;
       error.kind = 1;
       error.code = 500;
@@ -1196,25 +1261,32 @@ namespace {
     }
   };
 
-  struct FlowTestPredicates {
-    static bool greaterThan10(const int &value, void *) {
+  struct FlowTestPredicates
+  {
+    static bool greaterThan10(const int &value, void *)
+    {
       return value > 10;
     }
 
-    static bool equalsExpected(const int &value, void *user) {
+    static bool equalsExpected(const int &value, void *user)
+    {
       const int *expected = static_cast<const int *>(user);
       return expected != 0 && value == *expected;
     }
   };
 
-  struct FlowTestCheckLoadingAdapter {
+  struct FlowTestCheckLoadingAdapter
+  {
     typedef int In;
     typedef int Out;
 
-    explicit FlowTestCheckLoadingAdapter(const bool *loadingState) : loadingState_(loadingState) {
+    explicit FlowTestCheckLoadingAdapter(const bool *loadingState)
+        : loadingState_(loadingState)
+    {
     }
 
-    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
       assert(this->loadingState_ != 0);
       assert(*this->loadingState_ == true);
       out = in;
@@ -1224,16 +1296,22 @@ namespace {
     const bool *loadingState_;
   };
 
-  struct FlowTestPendingThenSuccessAdapter {
+  struct FlowTestPendingThenSuccessAdapter
+  {
     typedef int In;
     typedef int Out;
 
-    FlowTestPendingThenSuccessAdapter(bool *ready, int *calls) : ready_(ready), calls_(calls) {
+    FlowTestPendingThenSuccessAdapter(bool *ready, int *calls)
+        : ready_(ready),
+          calls_(calls)
+    {
     }
 
-    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
       ++(*this->calls_);
-      if (!*this->ready_) {
+      if (!*this->ready_)
+      {
         return loka::dsl::FLOW_STEP_PENDING;
       }
       out = in + 100;
@@ -1244,16 +1322,20 @@ namespace {
     int *calls_;
   };
 
-  struct FlowTestFailOnceAdapter {
+  struct FlowTestFailOnceAdapter
+  {
     typedef int In;
     typedef int Out;
 
-    explicit FlowTestFailOnceAdapter(bool *failedOnce) : failedOnce_(failedOnce) {
+    explicit FlowTestFailOnceAdapter(bool *failedOnce)
+        : failedOnce_(failedOnce)
+    {
     }
 
-    loka::dsl::StepRunStatus run(const int &in, int &out,
-                                 loka::dsl::FlowError &error) const {
-      if (!*this->failedOnce_) {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &error) const
+    {
+      if (!*this->failedOnce_)
+      {
         *this->failedOnce_ = true;
         error.kind = 9;
         error.code = 500;
@@ -1266,15 +1348,18 @@ namespace {
     bool *failedOnce_;
   };
 
-  struct FlowTestCountedPassAdapter {
+  struct FlowTestCountedPassAdapter
+  {
     typedef int In;
     typedef int Out;
 
-    explicit FlowTestCountedPassAdapter(int *calls) : calls_(calls) {
+    explicit FlowTestCountedPassAdapter(int *calls)
+        : calls_(calls)
+    {
     }
 
-    loka::dsl::StepRunStatus run(const int &in, int &out,
-                                 loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
       ++(*this->calls_);
       out = in + 1;
       return loka::dsl::FLOW_STEP_SUCCEEDED;
@@ -1283,33 +1368,43 @@ namespace {
     int *calls_;
   };
 
-  struct FlowTestFieldOutput {
+  struct FlowTestFieldOutput
+  {
     int value;
     int extra;
-    FlowTestFieldOutput() : value(0), extra(0) {}
+    FlowTestFieldOutput()
+        : value(0),
+          extra(0)
+    {
+    }
   };
 
-  struct FlowTestFieldAdapter {
+  struct FlowTestFieldAdapter
+  {
     typedef int In;
     typedef FlowTestFieldOutput Out;
-    loka::dsl::StepRunStatus run(const int &in, FlowTestFieldOutput &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &in, FlowTestFieldOutput &out, loka::dsl::FlowError &) const
+    {
       out.value = in * 10;
       out.extra = in + 1;
       return loka::dsl::FLOW_STEP_SUCCEEDED;
     }
   };
 
-  struct FlowTestSnapTextValueAdapter {
+  struct FlowTestSnapTextValueAdapter
+  {
     typedef int In;
     typedef loka::dsl::SnapRecord Out;
 
     FlowTestSnapTextValueAdapter(const char *stepName, const char *value, long tick)
         : stepName_(stepName ? stepName : ""),
           value_(value ? value : ""),
-          tick_(tick) {
+          tick_(tick)
+    {
     }
 
-    loka::dsl::StepRunStatus run(const int &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &) const
+    {
       out.set("test", "SceneFlow");
       out.set("step", this->stepName_.c_str());
       out.set("node", "MainText");
@@ -1325,17 +1420,20 @@ namespace {
     long tick_;
   };
 
-  struct FlowTestSnapDirtyMaskAdapter {
+  struct FlowTestSnapDirtyMaskAdapter
+  {
     typedef int In;
     typedef loka::dsl::SnapRecord Out;
 
     FlowTestSnapDirtyMaskAdapter(const char *stepName, long dirtyMask, long tick)
         : stepName_(stepName ? stepName : ""),
           dirtyMask_(dirtyMask),
-          tick_(tick) {
+          tick_(tick)
+    {
     }
 
-    loka::dsl::StepRunStatus run(const int &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &) const {
+    loka::dsl::StepRunStatus run(const int &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &) const
+    {
       out.set("test", "SceneFlow");
       out.set("step", this->stepName_.c_str());
       out.set("node", "MainText");
@@ -1351,26 +1449,41 @@ namespace {
     long tick_;
   };
 
-  struct FlowTestPlatformContext : public PlatformContext {
+  struct FlowTestPlatformContext : public PlatformContext
+  {
     FlowTestPlatformContext()
         : createImageResult_(false),
           createImageCalls_(0),
           width_(16),
-          height_(16) {
+          height_(16)
+    {
     }
 
-    virtual App *createApp(AppConfigurable *, HINSTANCE, int) const { return 0; }
-    virtual Window *createWindow(const WindowProps &) { return 0; }
-    virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *) const { return 0; }
-    virtual bool openFile(const loka::file::File &, loka::platform::file::FileHandle &) const { return false; }
-    virtual bool createImageFromBlob(const loka::core::resource::Blob &,
-                                     loka::core::resource::Image &out) const {
+    virtual App *createApp(AppConfigurable *, HINSTANCE, int) const
+    {
+      return 0;
+    }
+    virtual Window *createWindow(const WindowProps &)
+    {
+      return 0;
+    }
+    virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *) const
+    {
+      return 0;
+    }
+    virtual bool openFile(const loka::file::File &, loka::platform::file::FileHandle &) const
+    {
+      return false;
+    }
+    virtual bool createImageFromBlob(const loka::core::resource::Blob &, loka::core::resource::Image &out) const
+    {
       ++createImageCalls_;
-      if (!createImageResult_) {
+      if (!createImageResult_)
+      {
         return false;
       }
-      out = loka::core::resource::Image::FromNative(reinterpret_cast<void *>(0x1), width_, height_,
-                                                    &FlowTestPlatformContext::ReleaseNativeNoop, 0);
+      out = loka::core::resource::Image::FromNative(
+          reinterpret_cast<void *>(0x1), width_, height_, &FlowTestPlatformContext::ReleaseNativeNoop, 0);
       return true;
     }
 
@@ -1382,86 +1495,109 @@ namespace {
     int height_;
   };
 
-  struct FlowTestCapturableBitmap : public loka::app::scene::ICapturableBitmap {
-    virtual bool captureBitmap(loka::core::resource::Image &out) const {
-      out = loka::core::resource::Image::FromNative(reinterpret_cast<void *>(0x2),
-                                                    80,
-                                                    40,
-                                                    &FlowTestPlatformContext::ReleaseNativeNoop,
-                                                    0);
+  struct FlowTestCapturableBitmap : public loka::app::scene::ICapturableBitmap
+  {
+    virtual bool captureBitmap(loka::core::resource::Image &out) const
+    {
+      out = loka::core::resource::Image::FromNative(
+          reinterpret_cast<void *>(0x2), 80, 40, &FlowTestPlatformContext::ReleaseNativeNoop, 0);
       return out.isValid();
     }
   };
 
-  struct FlowTestCapturableNodeContext : public loka::app::scene::NodeContext {
-    FlowTestCapturableNodeContext() : bitmap_() {}
+  struct FlowTestCapturableNodeContext : public loka::app::scene::NodeContext
+  {
+    FlowTestCapturableNodeContext()
+        : bitmap_()
+    {
+    }
 
-    virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return &bitmap_; }
-    virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return &bitmap_; }
+    virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
+    {
+      return &bitmap_;
+    }
+    virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const
+    {
+      return &bitmap_;
+    }
 
   private:
     FlowTestCapturableBitmap bitmap_;
   };
 
-  struct StateNotifyDeleteCtx {
+  struct StateNotifyDeleteCtx
+  {
     loka::core::EmitterState *state;
     loka::core::MutableState<int> *valueState;
     int destroyCalls;
     int siblingCalls;
   };
 
-  struct StateNotifyHelpers {
-    static void destroySelf(void *user) {
+  struct StateNotifyHelpers
+  {
+    static void destroySelf(void *user)
+    {
       StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
       ++ctx->destroyCalls;
-      if (ctx->state) {
+      if (ctx->state)
+      {
         loka::core::EmitterState *owned = ctx->state;
         ctx->state = 0;
         delete owned;
       }
     }
 
-    static void sibling(void *user) {
+    static void sibling(void *user)
+    {
       StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
       ++ctx->siblingCalls;
     }
 
-    static void destroyValueSelf(void *user) {
+    static void destroyValueSelf(void *user)
+    {
       StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
       ++ctx->destroyCalls;
-      if (ctx->valueState) {
+      if (ctx->valueState)
+      {
         loka::core::MutableState<int> *owned = ctx->valueState;
         ctx->valueState = 0;
         delete owned;
       }
     }
 
-    static void selfUnbind(void *user) {
+    static void selfUnbind(void *user)
+    {
       StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
       ++ctx->destroyCalls;
-      if (ctx->state) {
+      if (ctx->state)
+      {
         ctx->state->unbind(&StateNotifyHelpers::selfUnbind, user);
       }
     }
 
-    static void unbindSibling(void *user) {
+    static void unbindSibling(void *user)
+    {
       StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
       ++ctx->destroyCalls;
-      if (ctx->state) {
+      if (ctx->state)
+      {
         ctx->state->unbind(&StateNotifyHelpers::sibling, user);
       }
     }
 
-    static void unbindValueSibling(void *user) {
+    static void unbindValueSibling(void *user)
+    {
       StateNotifyDeleteCtx *ctx = static_cast<StateNotifyDeleteCtx *>(user);
       ++ctx->destroyCalls;
-      if (ctx->valueState) {
+      if (ctx->valueState)
+      {
         ctx->valueState->unbind(&StateNotifyHelpers::sibling, user);
       }
     }
   };
 
-  struct FlowScenePlatformController : public loka::app::scene::IPlatformController {
+  struct FlowScenePlatformController : public loka::app::scene::IPlatformController
+  {
     FlowScenePlatformController()
         : lastMaterialized_(0),
           lastFlags_(loka::app::scene::NODE_DIRTY_NONE),
@@ -1473,10 +1609,12 @@ namespace {
           boundaryApplyCalls_(0),
           calls_(0),
           skipGlobalChangeForBoundaryLocalPaint_(false),
-          destroyed_(false) {
+          destroyed_(false)
+    {
     }
 
-    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild) {
+    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+    {
       lastMaterialized_ = rootNode;
       lastFlags_ = flags;
       lastFullRebuild_ = fullRebuild;
@@ -1486,7 +1624,8 @@ namespace {
     virtual void onBoundaryApply(loka::app::scene::Node *rootNode,
                                  loka::app::scene::BoundaryNode *boundary,
                                  const loka::app::scene::BoundaryLocalApplyInfo &info,
-                                 const loka::app::scene::PlatformApplyPlan &plan) {
+                                 const loka::app::scene::PlatformApplyPlan &plan)
+    {
       assert(plan.isLocalizedFor(boundary));
       assert(plan.hasBoundaryApplyWork(boundary));
       lastBoundaryApplyRoot_ = rootNode;
@@ -1496,18 +1635,20 @@ namespace {
       ++boundaryApplyCalls_;
     }
 
-    virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const {
+    virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const
+    {
       return skipGlobalChangeForBoundaryLocalPaint_;
     }
 
-    virtual void synchronize() {
-    }
+    virtual void synchronize() {}
 
-    virtual bool hasPendingSync() const {
+    virtual bool hasPendingSync() const
+    {
       return false;
     }
 
-    virtual void destroy() {
+    virtual void destroy()
+    {
       destroyed_ = true;
     }
 
@@ -1524,20 +1665,23 @@ namespace {
     bool destroyed_;
   };
 
-  struct FlowTestPlatformDirtyMaskAdapter {
+  struct FlowTestPlatformDirtyMaskAdapter
+  {
     typedef loka::app::scene::Scene *In;
     typedef loka::dsl::SnapRecord Out;
 
-    FlowTestPlatformDirtyMaskAdapter(const char *stepName,
-                                     const FlowScenePlatformController *platform,
-                                     long tick)
+    FlowTestPlatformDirtyMaskAdapter(const char *stepName, const FlowScenePlatformController *platform, long tick)
         : stepName_(stepName ? stepName : ""),
           platform_(platform),
-          tick_(tick) {
+          tick_(tick)
+    {
     }
 
-    loka::dsl::StepRunStatus run(loka::app::scene::Scene *const &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &error) const {
-      if (!this->platform_) {
+    loka::dsl::StepRunStatus
+    run(loka::app::scene::Scene *const &, loka::dsl::SnapRecord &out, loka::dsl::FlowError &error) const
+    {
+      if (!this->platform_)
+      {
         error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
         error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NULL_SCENE;
         return loka::dsl::FLOW_STEP_FAILED;
@@ -1560,21 +1704,21 @@ namespace {
     long tick_;
   };
 
-  struct FlowTestViewBitmapCaptureHelpers {
+  struct FlowTestViewBitmapCaptureHelpers
+  {
     static bool capture(const loka::dsl::testing::ViewCaptureTarget &target,
                         loka::dsl::testing::ViewBitmapCapture &out,
                         loka::dsl::FlowError &error,
-                        void *) {
-      if (!target.node) {
+                        void *)
+    {
+      if (!target.node)
+      {
         error.kind = loka::dsl::testing::FLOW_ERROR_KIND_SCENE_SCENARIO;
         error.code = loka::dsl::testing::FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND;
         return false;
       }
-      out.image = loka::core::resource::Image::FromNative(reinterpret_cast<void *>(0x1),
-                                                          64,
-                                                          32,
-                                                          &FlowTestPlatformContext::ReleaseNativeNoop,
-                                                          0);
+      out.image = loka::core::resource::Image::FromNative(
+          reinterpret_cast<void *>(0x1), 64, 32, &FlowTestPlatformContext::ReleaseNativeNoop, 0);
       out.captured = out.image.isValid();
       out.width = out.image.width();
       out.height = out.image.height();
@@ -1583,7 +1727,8 @@ namespace {
   };
 } // namespace
 
-void testLokaFlowDslV1Core() {
+void testLokaFlowDslV1Core()
+{
   printf("\n==== [testLokaFlowDslV1Core] start ====\n");
 
   {
@@ -1650,7 +1795,9 @@ void testLokaFlowDslV1Core() {
 
     loka::app::TextNode *lightChild = 0;
     loka::dsl::FlowError lookupError;
-    assert(loka::dsl::testing::LookupNodeById<loka::app::TextNode>(&scene, "TypedDslLightChild", lightChild, lookupError) != loka::dsl::FLOW_STEP_FAILED);
+    assert(
+        loka::dsl::testing::LookupNodeById<loka::app::TextNode>(&scene, "TypedDslLightChild", lightChild, lookupError)
+        != loka::dsl::FLOW_STEP_FAILED);
     assert(lightChild != 0);
 
     scene.unmount();
@@ -1718,8 +1865,8 @@ void testLokaFlowDslV1Core() {
     assert(!(loka::app::scene::BoundaryPropValueRules<loka::core::MutableState<int> *>::kAllowed));
     loka::core::MutableState<int> countState(21);
     loka::app::scene::BorrowedState<int> borrowedCount = PendingLayoutBoundaryProps::borrowed<int>(&countState);
-    loka::core::Managed<loka::core::MutableState<int> > sharedCount =
-        PendingLayoutBoundaryProps::shared(loka::core::Managed<loka::core::MutableState<int> >::Wrap(new loka::core::MutableState<int>(34)));
+    loka::core::Managed<loka::core::MutableState<int> > sharedCount = PendingLayoutBoundaryProps::shared(
+        loka::core::Managed<loka::core::MutableState<int> >::Wrap(new loka::core::MutableState<int>(34)));
     assert(borrowedCount.isValid());
     assert(borrowedCount.get() == 21);
     assert(sharedCount.get() != 0);
@@ -1950,7 +2097,8 @@ void testLokaFlowDslV1Core() {
     bool hasFlowFailure = false;
     bool hasDefaultStepFailure = false;
     bool hasStep3Success = false;
-    for (std::size_t i = 0; i < order.size(); ++i) {
+    for (std::size_t i = 0; i < order.size(); ++i)
+    {
       if (order[i] == 150)
         hasFlowFailure = true;
       if (order[i] == 131)
@@ -2008,9 +2156,7 @@ void testLokaFlowDslV1Core() {
 
     // Keep this chain multi-line for readability of the DSL flow.
     loka::dsl::FlowChain<int, int> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, FlowTestCheckLoadingAdapter(&loading))
-              .input(&input);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestCheckLoadingAdapter(&loading)).input(&input);
     chain.trackLoading(&loading);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
@@ -2085,11 +2231,9 @@ void testLokaFlowDslV1Core() {
     std::vector<int> order;
     FlowTestMarkerContext flowFinal = {&order, 605};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
-                .input(&input)
-                .onSuccess(&captured);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls)).input(&input).onSuccess(&captured);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const loka::dsl::FlowRunResult first = chain.runResult();
@@ -2116,12 +2260,11 @@ void testLokaFlowDslV1Core() {
     std::vector<int> order;
     FlowTestMarkerContext flowFinal = {&order, 607};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
-                .input(&input)
-                .timeoutPending(1)
-                .onFailure(&FlowTestMarker::captureFailure, &capture);
+    loka::dsl::FlowChain<int, int> chain = loka::dsl::Flow()
+                                           | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
+                                                 .input(&input)
+                                                 .timeoutPending(1)
+                                                 .onFailure(&FlowTestMarker::captureFailure, &capture);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     assert(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
@@ -2145,11 +2288,9 @@ void testLokaFlowDslV1Core() {
     std::vector<int> order;
     FlowTestMarkerContext flowFinal = {&order, 615};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
-                .input(&input)
-                .onSuccess(&captured);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls)).input(&input).onSuccess(&captured);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     assert(chain.runResult() == loka::dsl::FLOW_RUN_PENDING);
@@ -2173,11 +2314,8 @@ void testLokaFlowDslV1Core() {
     std::vector<int> order;
     FlowTestMarkerContext flowFinal = {&order, 625};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestAdd1Adapter())
-                .input(&input)
-                .onSuccess(&out);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input).onSuccess(&out);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
     chain.cancel();
 
@@ -2197,13 +2335,13 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext stepSuccess = {&order, 611};
     FlowTestMarkerContext flowFinal = {&order, 699};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestFailOnceAdapter(&failedOnce))
-                .input(&input)
-                .onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureHandled, &stepFail, 1)
-                .onSuccess(&out)
-                .onSuccess(&FlowTestMarker::onStepSuccess, &stepSuccess);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestFailOnceAdapter(&failedOnce))
+              .input(&input)
+              .onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureHandled, &stepFail, 1)
+              .onSuccess(&out)
+              .onSuccess(&FlowTestMarker::onStepSuccess, &stepSuccess);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool ok = chain.run();
@@ -2224,11 +2362,8 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext flowSuccess = {&order, 711};
     FlowTestMarkerContext flowFinal = {&order, 799};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestFailOnceAdapter(&failedOnce))
-                .input(&input)
-                .onSuccess(&out);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestFailOnceAdapter(&failedOnce)).input(&input).onSuccess(&out);
     chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowFail, 1);
     chain.onSuccess(&FlowTestMarker::onFlowSuccess, &flowSuccess);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
@@ -2246,11 +2381,10 @@ void testLokaFlowDslV1Core() {
     int input = 7;
     int output = 0;
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input)
-          | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::greaterThan10, 0))
-          | loka::dsl::Step(3, FlowTestAdd1Adapter()).onSuccess(&output);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input)
+        | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::greaterThan10, 0))
+        | loka::dsl::Step(3, FlowTestAdd1Adapter()).onSuccess(&output);
 
     assert(chain.run());
     assert(output == 15);
@@ -2261,11 +2395,10 @@ void testLokaFlowDslV1Core() {
     int expected = 9;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input)
-          | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::equalsExpected, &expected))
-                .onFailure(&FlowTestMarker::captureFailure, &capture);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input)
+        | loka::dsl::Step(2, loka::dsl::AssertPredicate<int>(&FlowTestPredicates::equalsExpected, &expected))
+              .onFailure(&FlowTestMarker::captureFailure, &capture);
 
     assert(chain.run());
     assert(capture.calls == 1);
@@ -2281,13 +2414,9 @@ void testLokaFlowDslV1Core() {
     std::vector<int> order;
     FlowTestMarkerContext flowFinal = {&order, 899};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA))
-                .input(&input)
-                .onSuccess(&out, 2)
-          | loka::dsl::Step(2, FlowTestCountedPassAdapter(&callsB))
-                .onSuccess(&out);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA)).input(&input).onSuccess(&out, 2)
+        | loka::dsl::Step(2, FlowTestCountedPassAdapter(&callsB)).onSuccess(&out);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const bool ok = chain.run();
@@ -2307,11 +2436,8 @@ void testLokaFlowDslV1Core() {
     std::vector<int> order;
     FlowTestMarkerContext flowFinal = {&order, 999};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestAdd1Adapter())
-                .input(&input)
-                .onSuccess(&out);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input).onSuccess(&out);
     chain.onSuccess(&FlowTestMarker::onFlowSuccess, &flowSuccess, 9999);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
@@ -2330,13 +2456,10 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext step2Final = {&order, 1002};
     FlowTestMarkerContext flowFinal = {&order, 1099};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter())
-                .input(&input)
-                .onFinally(&FlowTestMarker::onStepFinally, &step1Final)
-          | loka::dsl::Step(2, FlowTestAdd1Adapter())
-                .onFinally(&FlowTestMarker::onStepFinally, &step2Final);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onFinally(&FlowTestMarker::onStepFinally, &step1Final)
+        | loka::dsl::Step(2, FlowTestAdd1Adapter()).onFinally(&FlowTestMarker::onStepFinally, &step2Final);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     assert(chain.run());
@@ -2354,15 +2477,11 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext step3Final = {&order, 1103};
     FlowTestMarkerContext flowFinal = {&order, 1199};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter())
-                .input(&input)
-                .onFinally(&FlowTestMarker::onStepFinally, &step1Final)
-          | loka::dsl::Step(2, FlowTestFail500Adapter())
-                .onFinally(&FlowTestMarker::onStepFinally, &step2Final)
-          | loka::dsl::Step(3, FlowTestAdd1Adapter())
-                .onFinally(&FlowTestMarker::onStepFinally, &step3Final);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onFinally(&FlowTestMarker::onStepFinally, &step1Final)
+        | loka::dsl::Step(2, FlowTestFail500Adapter()).onFinally(&FlowTestMarker::onStepFinally, &step2Final)
+        | loka::dsl::Step(3, FlowTestAdd1Adapter()).onFinally(&FlowTestMarker::onStepFinally, &step3Final);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     assert(!chain.run());
@@ -2379,12 +2498,12 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext stepDefault = {&order, 1202};
     FlowTestMarkerContext flowFinal = {&order, 1299};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestFail500Adapter())
-                .input(&input)
-                .onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &stepFirstMatch)
-                .onFailure(&FlowTestMarker::onStepFailureHandled, &stepDefault);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestFail500Adapter())
+              .input(&input)
+              .onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &stepFirstMatch)
+              .onFailure(&FlowTestMarker::onStepFailureHandled, &stepDefault);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     assert(!chain.run());
@@ -2400,9 +2519,8 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext flowDefault = {&order, 1302};
     FlowTestMarkerContext flowFinal = {&order, 1399};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input);
     chain.onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &flowFirstMatch);
     chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowDefault);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
@@ -2420,9 +2538,8 @@ void testLokaFlowDslV1Core() {
     FlowTestMarkerContext flowDefault = {&order, 1402};
     FlowTestMarkerContext flowFinal = {&order, 1499};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestFail500Adapter()).input(&input);
     chain.onFailure(&FlowTestMarker::onFlowFailureHandled, &flowDefault);
     chain.onFailure(&FlowTestMarker::is500, &FlowTestMarker::onStepFailureUnhandled, &flowNoMatch);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
@@ -2450,9 +2567,7 @@ void testLokaFlowDslV1Core() {
     loka::dsl::SnapRecord capture;
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("MainText"))
-              .input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("MainText")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CaptureNode<TextNode>("SceneFlow", "capture-text", 1, 1))
               .onSuccess(&capture);
 
@@ -2477,9 +2592,7 @@ void testLokaFlowDslV1Core() {
     loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > labelFlow;
 
     tracker.begin();
-    labelFlow
-        .set(countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value()))
-        .bindTo(label, true);
+    labelFlow.set(countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value())).bindTo(label, true);
     tracker.end();
 
     assert(label.isValid());
@@ -2518,8 +2631,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("ShowOnText", "On"));
 
     assert(chain.run());
@@ -2540,8 +2652,7 @@ void testLokaFlowDslV1Core() {
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("ConditionalProjectedRoot"));
-    root << (Show(showState)
-             << ConditionalProjectedProbeDefinition());
+    root << (Show(showState) << ConditionalProjectedProbeDefinition());
 
     Scene scene(composition.root()->clone());
     ConditionalProjectedProbeController platform;
@@ -2574,9 +2685,7 @@ void testLokaFlowDslV1Core() {
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << (Show(showState)
-             << Text("First").testId("ShowFirstText")
-             << Text("Second").testId("ShowSecondText"));
+    root << (Show(showState) << Text("First").testId("ShowFirstText") << Text("Second").testId("ShowSecondText"));
 
     Scene scene(composition.root()->clone());
     FlowScenePlatformController platform;
@@ -2587,8 +2696,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&showState, true)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("ShowFirstText", "First"))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("ShowSecondText", "Second"));
 
@@ -2697,7 +2805,9 @@ void testLokaFlowDslV1Core() {
     scene.updateAttached(true);
     loka::app::scene::Node *actionButton = 0;
     loka::dsl::FlowError lookupError;
-    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(&scene, std::string("ActionButton"), actionButton, lookupError) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
+               &scene, std::string("ActionButton"), actionButton, lookupError)
+           == loka::dsl::FLOW_STEP_SUCCEEDED);
     assert(actionButton);
     actionButton->setContext(new FlowTestCapturableNodeContext());
 
@@ -2705,8 +2815,7 @@ void testLokaFlowDslV1Core() {
     loka::dsl::testing::ViewBitmapCapture bitmap;
 
     loka::dsl::FlowChain<Scene *, loka::dsl::testing::ViewBitmapCapture> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmap(&FlowTestViewBitmapCaptureHelpers::capture, 0))
               .onSuccess(&bitmap);
 
@@ -2733,7 +2842,9 @@ void testLokaFlowDslV1Core() {
     scene.updateAttached(true);
     loka::app::scene::Node *actionButton = 0;
     loka::dsl::FlowError lookupError;
-    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(&scene, std::string("ActionButton"), actionButton, lookupError) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    assert(loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(
+               &scene, std::string("ActionButton"), actionButton, lookupError)
+           == loka::dsl::FLOW_STEP_SUCCEEDED);
     assert(actionButton);
     actionButton->setContext(new FlowTestCapturableNodeContext());
 
@@ -2741,10 +2852,8 @@ void testLokaFlowDslV1Core() {
     loka::dsl::testing::ViewBitmapCapture bitmap;
 
     loka::dsl::FlowChain<Scene *, loka::dsl::testing::ViewBitmapCapture> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmapFromPlatform())
-              .onSuccess(&bitmap);
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmapFromPlatform()).onSuccess(&bitmap);
 
     assert(chain.run());
     assert(bitmap.captured);
@@ -2772,8 +2881,7 @@ void testLokaFlowDslV1Core() {
     loka::dsl::SnapRecord captured;
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CaptureViewBitmap(&FlowTestViewBitmapCaptureHelpers::capture, 0))
         | loka::dsl::Step(3, loka::dsl::testing::CaptureViewBitmapSnap("SceneFlow", "capture-view-bitmap", 50, 1))
               .onSuccess(&captured)
@@ -2799,35 +2907,49 @@ void testLokaFlowDslV1Core() {
     Scene *scenePtr = &scene;
     loka::dsl::FlowChain<Scene *, Scene *> addChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.AddButton")).input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.AddButton"))
+              .input(&scenePtr);
     assert(addChain.run());
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> addSnapChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SnapText("HelloWorld.LeftPanel.Message", "HelloWorldFlow", "message-after-add", 61, 1)).input(&scenePtr)
+        | loka::dsl::Step(1,
+                          loka::dsl::testing::SnapText(
+                              "HelloWorld.LeftPanel.Message", "HelloWorldFlow", "message-after-add", 61, 1))
+              .input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::AssertSnapStringEquals("text.value", "Hello, Loka! +Loka"));
     assert(addSnapChain.run());
 
     loka::dsl::FlowChain<Scene *, Scene *> probeChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ProbeButton")).input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ProbeButton"))
+              .input(&scenePtr);
     assert(probeChain.run());
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> probeSnapChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SnapText("HelloWorld.LeftPanel.ActionSummary", "HelloWorldFlow", "summary-after-probe", 62, 1)).input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: yes / clicks: 1"));
+        | loka::dsl::Step(1,
+                          loka::dsl::testing::SnapText(
+                              "HelloWorld.LeftPanel.ActionSummary", "HelloWorldFlow", "summary-after-probe", 62, 1))
+              .input(&scenePtr)
+        | loka::dsl::Step(2,
+                          loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: yes / clicks: 1"));
     assert(probeSnapChain.run());
 
     loka::dsl::FlowChain<Scene *, Scene *> disableChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ToggleEnabledButton")).input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::ClickButtonByIdAndFlush("HelloWorld.LeftPanel.ToggleEnabledButton"))
+              .input(&scenePtr);
     assert(disableChain.run());
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> disableSnapChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SnapText("HelloWorld.LeftPanel.ActionSummary", "HelloWorldFlow", "summary-after-disable", 63, 1)).input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: no / clicks: 1"));
+        | loka::dsl::Step(1,
+                          loka::dsl::testing::SnapText(
+                              "HelloWorld.LeftPanel.ActionSummary", "HelloWorldFlow", "summary-after-disable", 63, 1))
+              .input(&scenePtr)
+        | loka::dsl::Step(2,
+                          loka::dsl::testing::AssertSnapStringEquals("text.value", "Button enabled: no / clicks: 1"));
     assert(disableSnapChain.run());
 
     scene.unmount();
@@ -2850,10 +2972,8 @@ void testLokaFlowDslV1Core() {
     loka::dsl::SnapRecord captured;
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
-        | loka::dsl::Step(2, loka::dsl::testing::CaptureView("SceneFlow", "capture-view", 48, 1))
-              .onSuccess(&captured)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::CaptureViewTarget("ActionButton")).input(&scenePtr)
+        | loka::dsl::Step(2, loka::dsl::testing::CaptureView("SceneFlow", "capture-view", 48, 1)).onSuccess(&captured)
         | loka::dsl::Step(3, loka::dsl::testing::AssertSnapIntEquals("view.target.present", 1))
         | loka::dsl::Step(4, loka::dsl::testing::AssertSnapStringEquals("view.node.test_id", "ActionButton"));
 
@@ -2976,8 +3096,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
-              .input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true)).input(&scenePtr);
 
     assert(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
@@ -3009,8 +3128,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
-              .input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true)).input(&scenePtr);
 
     assert(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
@@ -3034,8 +3152,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOffText", "Off"))
-              .input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOffText", "Off")).input(&scenePtr);
 
     assert(chain.run());
     assert(g_sameBoundaryConditionalProbe != 0);
@@ -3044,8 +3161,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> postToggleChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOnText", "On"))
-              .input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("SameBoundaryOnText", "On")).input(&scenePtr);
 
     assert(postToggleChain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0);
@@ -3072,9 +3188,7 @@ void testLokaFlowDslV1Core() {
     Scene *scenePtr = &scene;
 
     loka::dsl::FlowChain<Scene *, Scene *> initialChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 0"))
-              .input(&scenePtr);
+        loka::dsl::Flow() | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 0")).input(&scenePtr);
 
     assert(initialChain.run());
     assert(g_headlessScopeProbe != 0);
@@ -3086,9 +3200,7 @@ void testLokaFlowDslV1Core() {
     g_headlessScopeProbe->increment();
 
     loka::dsl::FlowChain<Scene *, Scene *> incrementedChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 1"))
-              .input(&scenePtr);
+        loka::dsl::Flow() | loka::dsl::Step(1, CheckText("HeadlessSummaryText", "Headless 1")).input(&scenePtr);
 
     assert(incrementedChain.run());
 
@@ -3099,7 +3211,8 @@ void testLokaFlowDslV1Core() {
     hiddenLookupError.kind = 0;
     hiddenLookupError.code = 0;
     loka::app::TextNode *hiddenNode = 0;
-    assert(LookupNodeById<loka::app::TextNode>(&scene, "HeadlessSummaryText", hiddenNode, hiddenLookupError) == loka::dsl::FLOW_STEP_FAILED);
+    assert(LookupNodeById<loka::app::TextNode>(&scene, "HeadlessSummaryText", hiddenNode, hiddenLookupError)
+           == loka::dsl::FLOW_STEP_FAILED);
     assert(hiddenLookupError.kind == FLOW_ERROR_KIND_SCENE_SCENARIO);
     assert(hiddenLookupError.code == FLOW_ERROR_SCENE_TEST_NODE_NOT_FOUND);
     assert(g_headlessScopeAttachCount == 1);
@@ -3314,8 +3427,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
-              .input(&scenePtr);
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true)).input(&scenePtr);
 
     assert(chain.run());
     assert((platform.lastFlags_ & loka::app::scene::NODE_DIRTY_PROPS) != 0);
@@ -3343,11 +3455,11 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::SetBoolStateAndFlush(&enabledState, true)).input(&scenePtr)
         | loka::dsl::Step(2, FlowTestPlatformDirtyMaskAdapter("platform-props-dirty", &platform, 24))
               .onSuccess(&captured)
-        | loka::dsl::Step(3, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_PROPS))
+        | loka::dsl::Step(
+            3, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_PROPS))
         | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
 
     assert(okChain.run());
@@ -3376,9 +3488,7 @@ void testLokaFlowDslV1Core() {
 
     BoundaryObservedState observedState;
     observedState.beginPass();
-    BoundaryObservedStateTestAccess::appendObservedEntry(observedState,
-                                                         &observedValue,
-                                                         NODE_DIRTY_PROPS);
+    BoundaryObservedStateTestAccess::appendObservedEntry(observedState, &observedValue, NODE_DIRTY_PROPS);
 
     {
       loka::core::StateTrackerGuard guard(&tracker);
@@ -3393,8 +3503,7 @@ void testLokaFlowDslV1Core() {
     }
     assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_NONE);
 
-    BoundaryObservedStateTestAccess::updateFirstEntryForCurrentPass(observedState,
-                                                                    NODE_DIRTY_LAYOUT);
+    BoundaryObservedStateTestAccess::updateFirstEntryForCurrentPass(observedState, NODE_DIRTY_LAYOUT);
     assert(observedState.dirtyFlagsForCommittedStates(&tracker) == NODE_DIRTY_LAYOUT);
   }
 
@@ -3631,11 +3740,13 @@ void testLokaFlowDslV1Core() {
     scene.requestBoundaryUpdate(rootBoundary, NODE_DIRTY_NONE, true);
 
     assert(platform.calls_ > baselineCalls);
-    assert((SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED) ||
-           (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE) ||
-           (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL));
-    assert((SceneTestAccess::snapshotRequestedDirtyFlags(SceneTestAccess::lastUpdateSnapshot(scene)) & NODE_DIRTY_PROPS) != 0);
-    assert((SceneTestAccess::snapshotEffectiveDirtyFlags(SceneTestAccess::lastUpdateSnapshot(scene)) & NODE_DIRTY_PROPS) != 0);
+    assert((SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_COMPOSITED)
+           || (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL_OPAQUE)
+           || (SceneTestAccess::lastApplyPlan(scene).paintKind == PlatformApplyPlan::PAINT_LOCAL));
+    assert((SceneTestAccess::snapshotRequestedDirtyFlags(SceneTestAccess::lastUpdateSnapshot(scene)) & NODE_DIRTY_PROPS)
+           != 0);
+    assert((SceneTestAccess::snapshotEffectiveDirtyFlags(SceneTestAccess::lastUpdateSnapshot(scene)) & NODE_DIRTY_PROPS)
+           != 0);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
     assert(SceneTestAccess::projectionTransactionGeneration(scene) == 0);
 
@@ -3660,13 +3771,15 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&g_pendingLayoutWidthState, 64))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&g_pendingLayoutWidthState, 64)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("PendingLayoutText", "Sized"))
         | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("pending-layout-upgrade", &platform, 20))
               .onSuccess(&captured)
-        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_PROPS))
-        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_LAYOUT));
+        | loka::dsl::Step(
+            4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_PROPS))
+        | loka::dsl::Step(
+            5,
+            loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_LAYOUT));
 
     okChain.onFailure(&FlowTestMarker::captureFailure, &failCapture);
     const bool ok = okChain.run();
@@ -3819,9 +3932,7 @@ void testLokaFlowDslV1Core() {
     Scene *scenePtr = &scene;
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckText("OffText", "Off"))
-              .input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::CheckText("OffText", "Off")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("OnText", "On"));
 
@@ -3852,17 +3963,16 @@ void testLokaFlowDslV1Core() {
     loka::dsl::SnapRecord captured;
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckText("OffText", "Off"))
-              .input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::CheckText("OffText", "Off")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::SetBoolStateAndFlush(&showState, true))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("OnText", "On"))
         | loka::dsl::Step(4, FlowTestPlatformDirtyMaskAdapter("platform-child-dirty", &platform, 16))
               .onSuccess(&captured)
-        | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask",
-                                                                          static_cast<loka::app::scene::NodeDirtyFlags>(
-                                                                              loka::app::scene::NODE_DIRTY_CHILD |
-                                                                              loka::app::scene::NODE_DIRTY_LAYOUT)))
+        | loka::dsl::Step(5,
+                          loka::dsl::testing::AssertSnapIntMaskHasBits(
+                              "platform.dirty.mask",
+                              static_cast<loka::app::scene::NodeDirtyFlags>(loka::app::scene::NODE_DIRTY_CHILD
+                                                                            | loka::app::scene::NODE_DIRTY_LAYOUT)))
         | loka::dsl::Step(6, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
 
     assert(okChain.run());
@@ -3899,12 +4009,12 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("SizedText", "Sized"))
         | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("platform-layout-dirty", &platform, 32))
               .onSuccess(&captured)
-        | loka::dsl::Step(4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_LAYOUT))
+        | loka::dsl::Step(
+            4, loka::dsl::testing::AssertSnapIntMaskHasBits("platform.dirty.mask", loka::app::scene::NODE_DIRTY_LAYOUT))
         | loka::dsl::Step(5, loka::dsl::testing::AssertSnapIntEquals("platform.materialized", 1));
 
     assert(okChain.run());
@@ -3940,8 +4050,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&fontSizeState, 20)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("SizedText", "Sized"));
 
     assert(chain.run());
@@ -3969,9 +4078,7 @@ void testLokaFlowDslV1Core() {
     Scene *scenePtr = &scene;
 
     loka::dsl::FlowChain<Scene *, Scene *> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetStringState(&textState, "After"))
-              .input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::SetStringState(&textState, "After")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::SetIntState(&fontSizeState, 18))
         | loka::dsl::Step(3, loka::dsl::testing::FlushSceneInvalidation())
         | loka::dsl::Step(4, loka::dsl::testing::CheckText("MixedText", "After"));
@@ -3987,11 +4094,10 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          FlowTestSnapDirtyMaskAdapter("dirty-mask-ok",
-                                                       loka::app::scene::NODE_DIRTY_LAYOUT |
-                                                           loka::app::scene::NODE_DIRTY_PROPS,
-                                                       12))
+        | loka::dsl::Step(
+              1,
+              FlowTestSnapDirtyMaskAdapter(
+                  "dirty-mask-ok", loka::app::scene::NODE_DIRTY_LAYOUT | loka::app::scene::NODE_DIRTY_PROPS, 12))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyHasBits(loka::app::scene::NODE_DIRTY_LAYOUT));
 
@@ -4000,10 +4106,7 @@ void testLokaFlowDslV1Core() {
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          FlowTestSnapDirtyMaskAdapter("dirty-mask-fail",
-                                                       loka::app::scene::NODE_DIRTY_PROPS,
-                                                       13))
+        | loka::dsl::Step(1, FlowTestSnapDirtyMaskAdapter("dirty-mask-fail", loka::app::scene::NODE_DIRTY_PROPS, 13))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyHasBits(loka::app::scene::NODE_DIRTY_LAYOUT))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
@@ -4018,9 +4121,7 @@ void testLokaFlowDslV1Core() {
     const int input = 0;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, FlowTestSnapDirtyMaskAdapter("dirty-equals-ok", 0, 14))
-              .input(&input)
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestSnapDirtyMaskAdapter("dirty-equals-ok", 0, 14)).input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyEquals(0));
 
     assert(okChain.run());
@@ -4028,10 +4129,7 @@ void testLokaFlowDslV1Core() {
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          FlowTestSnapDirtyMaskAdapter("dirty-equals-fail",
-                                                       loka::app::scene::NODE_DIRTY_PROPS,
-                                                       15))
+        | loka::dsl::Step(1, FlowTestSnapDirtyMaskAdapter("dirty-equals-fail", loka::app::scene::NODE_DIRTY_PROPS, 15))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckDirtyEquals(0))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
@@ -4047,8 +4145,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-ok", "Hello Flow", 2))
-              .input(&input)
+        | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-ok", "Hello Flow", 2)).input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapStringEquals("text.value", "Hello Flow"));
 
     assert(okChain.run());
@@ -4056,8 +4153,7 @@ void testLokaFlowDslV1Core() {
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-fail", "Hello Flow", 3))
-              .input(&input)
+        | loka::dsl::Step(1, FlowTestSnapTextValueAdapter("snap-check-fail", "Hello Flow", 3)).input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapStringEquals("text.value", "Mismatch"))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
@@ -4073,12 +4169,9 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SceneFlow", "timing-assert-ok", "TimingNode", 4, 1)
-                              .timingFlushMs(4))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SceneFlow", "timing-assert-ok", "TimingNode", 4, 1).timingFlushMs(4))
               .input(&input)
-        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapIntLessEqual("timing.flush_ms", 5))
-              .onSuccess(&captured);
+        | loka::dsl::Step(2, loka::dsl::testing::AssertSnapIntLessEqual("timing.flush_ms", 5)).onSuccess(&captured);
 
     assert(okChain.run());
     long flushMs = 0;
@@ -4088,9 +4181,7 @@ void testLokaFlowDslV1Core() {
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SceneFlow", "timing-assert-fail", "TimingNode", 5, 1)
-                              .timingFlushMs(7))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SceneFlow", "timing-assert-fail", "TimingNode", 5, 1).timingFlushMs(7))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::AssertSnapIntLessEqual("timing.flush_ms", 5))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
@@ -4106,9 +4197,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SceneFlow", "int-gte-ok", "LayoutNode", 8, 1)
-                              .timingLayoutMs(12))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SceneFlow", "int-gte-ok", "LayoutNode", 8, 1).timingLayoutMs(12))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapIntGreaterEqual("timing.layout_ms", 10));
 
@@ -4117,9 +4206,7 @@ void testLokaFlowDslV1Core() {
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SceneFlow", "int-gte-fail", "LayoutNode", 9, 1)
-                              .timingLayoutMs(7))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SceneFlow", "int-gte-fail", "LayoutNode", 9, 1).timingLayoutMs(7))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckSnapIntGreaterEqual("timing.layout_ms", 10))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
@@ -4135,9 +4222,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SceneFlow", "timing-check-ok", "TimingNode", 6, 1)
-                              .timingFlushMs(4))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SceneFlow", "timing-check-ok", "TimingNode", 6, 1).timingFlushMs(4))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckTimingLessEqual("timing.flush_ms", 5));
 
@@ -4146,9 +4231,7 @@ void testLokaFlowDslV1Core() {
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SceneFlow", "timing-check-fail", "TimingNode", 7, 1)
-                              .timingFlushMs(8))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SceneFlow", "timing-check-fail", "TimingNode", 7, 1).timingFlushMs(8))
               .input(&input)
         | loka::dsl::Step(2, loka::dsl::testing::CheckTimingLessEqual("timing.flush_ms", 5))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
@@ -4176,9 +4259,7 @@ void testLokaFlowDslV1Core() {
     loka::dsl::SnapRecord captured;
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("MainText"))
-              .input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("MainText")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CaptureNode<TextNode>("SceneFlow", "capture-assert", 2, 1))
         | loka::dsl::Step(3, loka::dsl::testing::AssertSnapStringEquals("text.value", "Hello Flow"))
               .onSuccess(&captured);
@@ -4190,9 +4271,7 @@ void testLokaFlowDslV1Core() {
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> failChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("MainText"))
-              .input(&scenePtr)
+        loka::dsl::Flow() | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("MainText")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CaptureNode<TextNode>("SceneFlow", "capture-assert-fail", 3, 1))
         | loka::dsl::Step(3, loka::dsl::testing::AssertSnapStringEquals("text.value", "Mismatch"))
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
@@ -4262,8 +4341,7 @@ void testLokaFlowDslV1Core() {
 
     loka::dsl::FlowChain<Scene *, TextNode *> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("StatusText"))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("StatusText")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::AssertTextEquals("Ready"));
 
     assert(okChain.run());
@@ -4271,8 +4349,7 @@ void testLokaFlowDslV1Core() {
     FlowErrorCapture capture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, TextNode *> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("StatusText"))
-              .input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::FindNodeById<TextNode>("StatusText")).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::AssertTextEquals("Busy"))
               .onFailure(&FlowTestMarker::captureFailure, &capture);
 
@@ -4352,13 +4429,10 @@ void testLokaFlowDslV1Core() {
     simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
-                .input(&fileResult)
-                .onSuccess(&context)
-          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-                .onSuccess(&projection);
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&fileResult).onSuccess(&context)
+        | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
     assert(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_FILE);
@@ -4373,13 +4447,10 @@ void testLokaFlowDslV1Core() {
     simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
-                .input(&canceled)
-                .onSuccess(&context)
-          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-                .onSuccess(&projection);
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&canceled).onSuccess(&context)
+        | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
     assert(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
@@ -4387,18 +4458,15 @@ void testLokaFlowDslV1Core() {
   }
 
   {
-    loka::app::FileChooserResult folder = loka::app::FileChooserResult::Folder(
-        loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/images")));
+    loka::app::FileChooserResult folder =
+        loka::app::FileChooserResult::Folder(loka::file::File::FromPath(loka::core::String::Literal("C:/tmp/images")));
     simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
-                .input(&folder)
-                .onSuccess(&context)
-          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-                .onSuccess(&projection);
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&folder).onSuccess(&context)
+        | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
     assert(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
@@ -4411,13 +4479,10 @@ void testLokaFlowDslV1Core() {
     simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
-                .input(&errorResult)
-                .onSuccess(&context)
-          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-                .onSuccess(&projection);
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&errorResult).onSuccess(&context)
+        | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
     assert(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
@@ -4431,13 +4496,10 @@ void testLokaFlowDslV1Core() {
     simpleviewer::ChooserContext context;
     simpleviewer::ChooserProjection projection;
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
-                .input(&fileEmptyPath)
-                .onSuccess(&context)
-          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-                .onSuccess(&projection);
+    loka::dsl::FlowChain<loka::app::FileChooserResult, simpleviewer::ChooserProjection> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&fileEmptyPath).onSuccess(&context)
+        | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter()).onSuccess(&projection);
 
     assert(chain.run());
     assert(projection.request.source == loka::core::resource::BLOB_SOURCE_NONE);
@@ -4452,14 +4514,13 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Image image;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(0))
-                .input(&blob)
-                .onSuccess(&attempt)
-                .onFailure(&FlowTestMarker::captureFailure, &capture)
-          | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
-                .onSuccess(&image);
+    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(0))
+              .input(&blob)
+              .onSuccess(&attempt)
+              .onFailure(&FlowTestMarker::captureFailure, &capture)
+        | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
     assert(chain.run());
     assert(!image.isValid());
@@ -4476,14 +4537,13 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Image image;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
-                .input(&blob)
-                .onSuccess(&attempt)
-                .onFailure(&FlowTestMarker::captureFailure, &capture)
-          | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
-                .onSuccess(&image);
+    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
+              .input(&blob)
+              .onSuccess(&attempt)
+              .onFailure(&FlowTestMarker::captureFailure, &capture)
+        | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
     assert(chain.run());
     assert(ctx.createImageCalls_ == 1);
@@ -4501,14 +4561,13 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Image image;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
-                .input(&blob)
-                .onSuccess(&attempt)
-                .onFailure(&FlowTestMarker::captureFailure, &capture)
-          | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter())
-                .onSuccess(&image);
+    loka::dsl::FlowChain<loka::core::resource::Blob, loka::core::resource::Image> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
+              .input(&blob)
+              .onSuccess(&attempt)
+              .onFailure(&FlowTestMarker::captureFailure, &capture)
+        | loka::dsl::Step(2, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
     assert(chain.run());
     assert(ctx.createImageCalls_ == 1);
@@ -4524,12 +4583,9 @@ void testLokaFlowDslV1Core() {
     bool ready = false;
     int captured = 0;
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter())
-                .input(&input)
-          | loka::dsl::Step(2, FlowTestPendingThenSuccessAdapter(&ready, &calls))
-                .onSuccess(&captured);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input)
+        | loka::dsl::Step(2, FlowTestPendingThenSuccessAdapter(&ready, &calls)).onSuccess(&captured);
 
     const loka::dsl::FlowRunResult first = chain.runResult();
     assert(first == loka::dsl::FLOW_RUN_PENDING);
@@ -4548,10 +4604,8 @@ void testLokaFlowDslV1Core() {
     bool ready = false;
     int captured = 0;
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
-                .onSuccess(&captured);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls)).onSuccess(&captured);
     chain.bindTrigger(&trigger);
 
     trigger.set(9, true);
@@ -4574,11 +4628,8 @@ void testLokaFlowDslV1Core() {
     int input = 5;
     loka::core::MutableState<int> result;
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter())
-                .input(&input)
-                .onSuccess(&result);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result);
 
     assert(chain.run());
     assert(result.get() == 10);
@@ -4590,11 +4641,8 @@ void testLokaFlowDslV1Core() {
     loka::core::PushStateTracker tracker;
     tracker.addState(&result);
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter())
-                .input(&input)
-                .onSuccess(&result);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result);
     chain.withTracker(&tracker);
 
     assert(chain.run());
@@ -4607,11 +4655,8 @@ void testLokaFlowDslV1Core() {
     std::vector<int> order;
     FlowTestMarkerContext flowFinal = {&order, 1599};
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA))
-                .input(&input)
-                .onSuccess(&input, 1);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA)).input(&input).onSuccess(&input, 1);
     chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
 
     const loka::dsl::FlowRunResult result = chain.runResult();
@@ -4628,12 +4673,12 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Blob blob;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
-                .input(&projection)
-                .onFailure(&FlowTestMarker::captureFailure, &capture)
-                .onSuccess(&blob);
+    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
+              .input(&projection)
+              .onFailure(&FlowTestMarker::captureFailure, &capture)
+              .onSuccess(&blob);
 
     assert(chain.run());
     assert(capture.calls == 1);
@@ -4659,12 +4704,12 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Blob blob;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
-                .input(&projection)
-                .onSuccess(&blob)
-                .onFailure(&FlowTestMarker::captureFailure, &capture);
+    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
+              .input(&projection)
+              .onSuccess(&blob)
+              .onFailure(&FlowTestMarker::captureFailure, &capture);
 
     assert(chain.run());
     assert(capture.calls == 0);
@@ -4687,12 +4732,12 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Blob blob;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
-                .input(&projection)
-                .onFailure(&FlowTestMarker::captureFailure, &capture)
-                .onSuccess(&blob);
+    loka::dsl::FlowChain<simpleviewer::ChooserProjection, loka::core::resource::Blob> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, simpleviewer::ProjectionToBlobAdapter())
+              .input(&projection)
+              .onFailure(&FlowTestMarker::captureFailure, &capture)
+              .onSuccess(&blob);
 
     assert(chain.run());
     assert(capture.calls == 1);
@@ -4722,16 +4767,13 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Image image;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
-                .input(&fileResult)
-          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-          | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter())
-          | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
-                .onFailure(&FlowTestMarker::captureFailure, &capture)
-          | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
-                .onSuccess(&image);
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&fileResult)
+        | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
+        | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter())
+        | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
+              .onFailure(&FlowTestMarker::captureFailure, &capture)
+        | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
 
     assert(chain.run());
     assert(capture.calls == 0);
@@ -4754,16 +4796,13 @@ void testLokaFlowDslV1Core() {
     loka::core::resource::Image image;
     FlowErrorCapture capture = {0, 0, 0};
 
-    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
-                .input(&canceled)
-          | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
-          | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter())
-          | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
-                .onFailure(&FlowTestMarker::captureFailure, &capture)
-          | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter())
-                .onSuccess(&image);
+    loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).input(&canceled)
+        | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
+        | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter())
+        | loka::dsl::Step(4, simpleviewer::BlobToDecodeAttemptAdapter(&ctx))
+              .onFailure(&FlowTestMarker::captureFailure, &capture)
+        | loka::dsl::Step(5, simpleviewer::DecodeAttemptToImageAdapter()).onSuccess(&image);
     chain.onFailure(&FlowTestMarker::captureFailure, &capture);
 
     assert(chain.run());
@@ -4779,16 +4818,15 @@ void testLokaFlowDslV1Core() {
     loka::core::MutableState<int> valueState;
     loka::core::MutableState<int> extraState;
 
-    loka::dsl::FlowChain<int, FlowTestFieldOutput> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestFieldAdapter())
-                .input(&input)
-                .onSuccess(&valueState, &FlowTestFieldOutput::value)
-                .onSuccess(&extraState, &FlowTestFieldOutput::extra);
+    loka::dsl::FlowChain<int, FlowTestFieldOutput> chain = loka::dsl::Flow()
+                                                           | loka::dsl::Step(1, FlowTestFieldAdapter())
+                                                                 .input(&input)
+                                                                 .onSuccess(&valueState, &FlowTestFieldOutput::value)
+                                                                 .onSuccess(&extraState, &FlowTestFieldOutput::extra);
 
     assert(chain.run());
-    assert(valueState.get() == 50);  // 5 * 10
-    assert(extraState.get() == 6);   // 5 + 1
+    assert(valueState.get() == 50); // 5 * 10
+    assert(extraState.get() == 6);  // 5 + 1
   }
 
   // --- bindTrigger: auto-execute flow on state change ---
@@ -4796,17 +4834,15 @@ void testLokaFlowDslV1Core() {
     loka::core::MutableState<int> trigger;
     loka::core::MutableState<int> result;
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestMul2Adapter())
-                .onSuccess(&result);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).onSuccess(&result);
     chain.bindTrigger(&trigger);
 
     trigger.set(7, true);
-    assert(result.get() == 14);  // 7 * 2
+    assert(result.get() == 14); // 7 * 2
 
     trigger.set(3, true);
-    assert(result.get() == 6);   // 3 * 2
+    assert(result.get() == 6); // 3 * 2
   }
 
   // --- FlowSlot: long-lived owner forwards run and trigger binding ---
@@ -4817,10 +4853,7 @@ void testLokaFlowDslV1Core() {
     int directResult = 0;
     loka::app::scene::FlowSlot<SlotFlowChain> slot;
     SlotFlowChain directChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, FlowTestMul2Adapter())
-              .input(&input)
-              .onSuccess(&directResult);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&directResult);
 
     assert(!slot.isValid());
     slot.set(directChain);
@@ -4831,12 +4864,9 @@ void testLokaFlowDslV1Core() {
     loka::core::MutableState<int> trigger;
     loka::core::MutableState<int> triggerResult;
     SlotFlowChain triggerChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, FlowTestAdd1Adapter())
-              .onSuccess(&triggerResult);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).onSuccess(&triggerResult);
 
-    slot.set(triggerChain)
-        .bindTrigger(&trigger);
+    slot.set(triggerChain).bindTrigger(&trigger);
     trigger.set(41, true);
     assert(triggerResult.get() == 42);
 
@@ -4855,9 +4885,7 @@ void testLokaFlowDslV1Core() {
     loka::app::scene::FlowSlot<SlotFlowChain> slot;
     SlotFlowChain chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls))
-              .input(&input)
-              .onSuccess(&captured);
+        | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls)).input(&input).onSuccess(&captured);
 
     slot.set(chain);
     assert(slot.runResult() == loka::dsl::FLOW_RUN_PENDING);
@@ -4877,23 +4905,23 @@ void testLokaFlowDslV1Core() {
 
     // Callback that re-sets the trigger during step onSuccess processing.
     // This fires while the flow is still running, so reentry guard must block it.
-    struct ReentryHelper {
-      static void reSetTrigger(const int &, void *user) {
-        loka::core::MutableState<int> *t
-            = static_cast<loka::core::MutableState<int> *>(user);
-        t->set(99);  // value changes → notifyStateChanged → OnTriggerChanged
+    struct ReentryHelper
+    {
+      static void reSetTrigger(const int &, void *user)
+      {
+        loka::core::MutableState<int> *t = static_cast<loka::core::MutableState<int> *>(user);
+        t->set(99); // value changes → notifyStateChanged → OnTriggerChanged
       }
     };
 
-    loka::dsl::FlowChain<int, int> chain
-        = loka::dsl::Flow()
-          | loka::dsl::Step(1, FlowTestCountedPassAdapter(&calls))
-                .onSuccess(&ReentryHelper::reSetTrigger, &trigger);
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestCountedPassAdapter(&calls)).onSuccess(&ReentryHelper::reSetTrigger, &trigger);
     chain.bindTrigger(&trigger);
 
     trigger.set(10);
-    assert(calls == 1);  // reentry blocked: flow ran only once
-    assert(trigger.get() == 99);  // but the trigger value was updated
+    assert(calls == 1);          // reentry blocked: flow ran only once
+    assert(trigger.get() == 99); // but the trigger value was updated
   }
 
   // --- State<void>: callback may delete emitter safely ---

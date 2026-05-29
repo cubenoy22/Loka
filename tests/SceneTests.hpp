@@ -29,7 +29,9 @@ namespace SceneTests
   {
   public:
     ChildBoundaryNode(const ChildBoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<ChildBoundaryNode>(ChildBoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
@@ -50,7 +52,9 @@ namespace SceneTests
   {
   public:
     RootBoundaryNode(const RootBoundaryProps &p)
-        : loka::app::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p)) {}
+        : loka::app::scene::BoundaryNodeFor<RootBoundaryNode>(RootBoundaryProps(p))
+    {
+    }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
@@ -73,15 +77,25 @@ namespace SceneTests
     class DummyPlatformController : public IPlatformController
     {
     public:
-      DummyPlatformController() : lastMaterialized_(0), destroyed_(false) {}
+      DummyPlatformController()
+          : lastMaterialized_(0),
+            destroyed_(false)
+      {
+      }
       virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
       {
         (void)flags;
         lastMaterialized_ = rootNode;
       }
       virtual void synchronize() {}
-      virtual bool hasPendingSync() const { return false; }
-      virtual void destroy() { destroyed_ = true; }
+      virtual bool hasPendingSync() const
+      {
+        return false;
+      }
+      virtual void destroy()
+      {
+        destroyed_ = true;
+      }
 
       Node *lastMaterialized_;
       bool destroyed_;
@@ -130,7 +144,10 @@ namespace SceneTests
       --g_flowSlotProbeLiveCount;
     }
 
-    int value() const { return value_; }
+    int value() const
+    {
+      return value_;
+    }
 
   private:
     int value_;
@@ -226,11 +243,20 @@ namespace SceneTests
     class DummyPlatformController : public IPlatformController
     {
     public:
-      DummyPlatformController() : destroyed_(false) {}
+      DummyPlatformController()
+          : destroyed_(false)
+      {
+      }
       virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
       virtual void synchronize() {}
-      virtual bool hasPendingSync() const { return false; }
-      virtual void destroy() { destroyed_ = true; }
+      virtual bool hasPendingSync() const
+      {
+        return false;
+      }
+      virtual void destroy()
+      {
+        destroyed_ = true;
+      }
 
       bool destroyed_;
     };
@@ -287,7 +313,8 @@ namespace SceneTests
     bool registered_;
   };
 
-  inline loka::app::scene::BoundaryDefinition<LateNodeLocalStateProps, LateNodeLocalStateNode> LateNodeLocalStateBoundary()
+  inline loka::app::scene::BoundaryDefinition<LateNodeLocalStateProps, LateNodeLocalStateNode>
+  LateNodeLocalStateBoundary()
   {
     return loka::app::scene::Boundary<LateNodeLocalStateNode>();
   }
@@ -303,7 +330,10 @@ namespace SceneTests
     public:
       virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
       virtual void synchronize() {}
-      virtual bool hasPendingSync() const { return false; }
+      virtual bool hasPendingSync() const
+      {
+        return false;
+      }
       virtual void destroy() {}
     };
 
@@ -319,7 +349,11 @@ namespace SceneTests
   class NodeLocalReleaseOwner : public loka::app::scene::IStateOwner
   {
   public:
-    NodeLocalReleaseOwner() : tracker_(), states_() {}
+    NodeLocalReleaseOwner()
+        : tracker_(),
+          states_()
+    {
+    }
     virtual void adoptState(loka::core::StateBase *state)
     {
       if (!state)
@@ -361,10 +395,19 @@ namespace SceneTests
     }
     virtual void reserveStates(size_t) {}
     virtual void reserveStateArena(size_t) {}
-    virtual void *allocateStateMemory(size_t, size_t) { return 0; }
+    virtual void *allocateStateMemory(size_t, size_t)
+    {
+      return 0;
+    }
     virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
-    virtual loka::core::StateTracker *tracker() { return &tracker_; }
-    size_t stateCount() const { return states_.size(); }
+    virtual loka::core::StateTracker *tracker()
+    {
+      return &tracker_;
+    }
+    size_t stateCount() const
+    {
+      return states_.size();
+    }
 
   private:
     loka::core::PushStateTracker tracker_;
@@ -374,7 +417,8 @@ namespace SceneTests
   class NodeLocalReleaseNode : public loka::app::scene::ComposableNode
   {
   public:
-    NodeLocalReleaseNode() : count_()
+    NodeLocalReleaseNode()
+        : count_()
     {
       this->state(this->count_, 3);
     }
@@ -395,7 +439,10 @@ namespace SceneTests
   class NodeLocalStreamReleaseNode : public loka::app::scene::ComposableNode
   {
   public:
-    NodeLocalStreamReleaseNode() : count_(), summary_(), summaryFlow_()
+    NodeLocalStreamReleaseNode()
+        : count_(),
+          summary_(),
+          summaryFlow_()
     {
       this->state(this->count_, 3);
       this->state(this->summary_, loka::core::String::Literal("Count: 0"));
@@ -410,9 +457,7 @@ namespace SceneTests
       assert(this->summary_.isValid());
       {
         loka::dsl::StateStream<int> count = this->count_.stream();
-        this->summaryFlow_
-            .set(count.map(loka::dsl::Const("Count: ") + count.slot.value()))
-            .bindTo(this->summary_);
+        this->summaryFlow_.set(count.map(loka::dsl::Const("Count: ") + count.slot.value())).bindTo(this->summary_);
       }
       assert(this->summary_.get().equals(loka::core::String::Literal("Count: 3")));
     }
@@ -426,11 +471,12 @@ namespace SceneTests
   class NodeLocalBatchReleaseNode : public loka::app::scene::ComposableNode
   {
   public:
-    NodeLocalBatchReleaseNode() : count_(), summary_()
+    NodeLocalBatchReleaseNode()
+        : count_(),
+          summary_()
     {
       NodeStateBatch states = this->declareStates(2);
-      states.state(this->count_, 4)
-          .state(this->summary_, loka::core::String::Literal("Batch"));
+      states.state(this->count_, 4).state(this->summary_, loka::core::String::Literal("Batch"));
     }
 
   protected:
@@ -452,7 +498,9 @@ namespace SceneTests
   class NodeLocalBatchCopyReleaseNode : public loka::app::scene::ComposableNode
   {
   public:
-    NodeLocalBatchCopyReleaseNode() : count_(), summary_()
+    NodeLocalBatchCopyReleaseNode()
+        : count_(),
+          summary_()
     {
       NodeStateBatch states = this->declareStates(2);
       states.state(this->count_, 6);
@@ -504,7 +552,8 @@ namespace SceneTests
     loka::app::scene::NodeState<bool> show_;
   };
 
-  inline loka::app::scene::BoundaryDefinition<NodeLocalConditionalReleaseProps, NodeLocalConditionalReleaseNode> NodeLocalConditionalReleaseBoundary()
+  inline loka::app::scene::BoundaryDefinition<NodeLocalConditionalReleaseProps, NodeLocalConditionalReleaseNode>
+  NodeLocalConditionalReleaseBoundary()
   {
     return loka::app::scene::Boundary<NodeLocalConditionalReleaseNode>();
   }
@@ -581,7 +630,10 @@ namespace SceneTests
     public:
       virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
       virtual void synchronize() {}
-      virtual bool hasPendingSync() const { return false; }
+      virtual bool hasPendingSync() const
+      {
+        return false;
+      }
       virtual void destroy() {}
     };
 
@@ -598,16 +650,15 @@ namespace SceneTests
 
   void runAll()
   {
-    TestFunc tests[] = {
-        test_Boundary_nested_compose,
-        test_FlowSlot_releases_owned_value,
-        test_Node_local_state_registration_is_idempotent,
-        test_Node_local_state_registration_after_attach_connects_immediately,
-        test_Node_local_state_releases_owner_state_on_node_destroy,
-        test_Node_local_stream_releases_owned_state_on_node_destroy,
-        test_Node_local_batch_releases_owner_state_on_node_destroy,
-        test_Node_local_batch_copy_keeps_original_valid,
-        test_Node_local_conditional_unbinds_before_state_release};
+    TestFunc tests[] = {test_Boundary_nested_compose,
+                        test_FlowSlot_releases_owned_value,
+                        test_Node_local_state_registration_is_idempotent,
+                        test_Node_local_state_registration_after_attach_connects_immediately,
+                        test_Node_local_state_releases_owner_state_on_node_destroy,
+                        test_Node_local_stream_releases_owned_state_on_node_destroy,
+                        test_Node_local_batch_releases_owner_state_on_node_destroy,
+                        test_Node_local_batch_copy_keeps_original_valid,
+                        test_Node_local_conditional_unbinds_before_state_release};
     const int numTests = sizeof(tests) / sizeof(tests[0]);
     for (int i = 0; i < numTests; ++i)
     {
@@ -615,6 +666,6 @@ namespace SceneTests
     }
     printf("SceneTests: All tests passed!\n");
   }
-}
+} // namespace SceneTests
 
 #endif // LOKA_SCENE_TESTS_HPP

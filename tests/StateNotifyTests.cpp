@@ -12,112 +12,112 @@
 namespace
 {
 
-static void increment(void *user)
-{
-  (*static_cast<int *>(user))++;
-}
-
-// --- Call-order tracking ---
-
-struct CallLog
-{
-  std::vector<int> ids;
-};
-
-struct CallLogCtx
-{
-  CallLog *log;
-  int id;
-};
-
-static void logId(void *user)
-{
-  CallLogCtx *ctx = static_cast<CallLogCtx *>(user);
-  ctx->log->ids.push_back(ctx->id);
-}
-
-// --- Handler-added-during-notification ---
-
-struct AddDuringNotifyCtx
-{
-  loka::core::EmitterState *state;
-  int *counter;
-  bool added;
-};
-
-static void addHandlerDuringNotify(void *user)
-{
-  AddDuringNotifyCtx *ctx = static_cast<AddDuringNotifyCtx *>(user);
-  if (!ctx->added)
+  static void increment(void *user)
   {
-    ctx->added = true;
-    ctx->state->bind(&increment, ctx->counter, false);
+    (*static_cast<int *>(user))++;
   }
-}
 
-// --- Notify-safety helpers (self-delete / sibling-unbind) ---
+  // --- Call-order tracking ---
 
-struct SafetyCtx
-{
-  loka::core::EmitterState *emitter;
-  loka::core::MutableState<int> *valueState;
-  int primaryCalls;
-  int siblingCalls;
-};
-
-static void deleteEmitter(void *user)
-{
-  SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
-  ++ctx->primaryCalls;
-  if (ctx->emitter)
+  struct CallLog
   {
-    loka::core::EmitterState *owned = ctx->emitter;
-    ctx->emitter = 0;
-    delete owned;
-  }
-}
+    std::vector<int> ids;
+  };
 
-static void deleteValueState(void *user)
-{
-  SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
-  ++ctx->primaryCalls;
-  if (ctx->valueState)
+  struct CallLogCtx
   {
-    loka::core::MutableState<int> *owned = ctx->valueState;
-    ctx->valueState = 0;
-    delete owned;
+    CallLog *log;
+    int id;
+  };
+
+  static void logId(void *user)
+  {
+    CallLogCtx *ctx = static_cast<CallLogCtx *>(user);
+    ctx->log->ids.push_back(ctx->id);
   }
-}
 
-static void countSibling(void *user)
-{
-  SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
-  ++ctx->siblingCalls;
-}
+  // --- Handler-added-during-notification ---
 
-static void selfUnbindEmitter(void *user)
-{
-  SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
-  ++ctx->primaryCalls;
-  if (ctx->emitter)
-    ctx->emitter->unbind(&selfUnbindEmitter, user);
-}
+  struct AddDuringNotifyCtx
+  {
+    loka::core::EmitterState *state;
+    int *counter;
+    bool added;
+  };
 
-static void unbindSiblingFromEmitter(void *user)
-{
-  SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
-  ++ctx->primaryCalls;
-  if (ctx->emitter)
-    ctx->emitter->unbind(&countSibling, user);
-}
+  static void addHandlerDuringNotify(void *user)
+  {
+    AddDuringNotifyCtx *ctx = static_cast<AddDuringNotifyCtx *>(user);
+    if (!ctx->added)
+    {
+      ctx->added = true;
+      ctx->state->bind(&increment, ctx->counter, false);
+    }
+  }
 
-static void unbindSiblingFromValueState(void *user)
-{
-  SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
-  ++ctx->primaryCalls;
-  if (ctx->valueState)
-    ctx->valueState->unbind(&countSibling, user);
-}
+  // --- Notify-safety helpers (self-delete / sibling-unbind) ---
+
+  struct SafetyCtx
+  {
+    loka::core::EmitterState *emitter;
+    loka::core::MutableState<int> *valueState;
+    int primaryCalls;
+    int siblingCalls;
+  };
+
+  static void deleteEmitter(void *user)
+  {
+    SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
+    ++ctx->primaryCalls;
+    if (ctx->emitter)
+    {
+      loka::core::EmitterState *owned = ctx->emitter;
+      ctx->emitter = 0;
+      delete owned;
+    }
+  }
+
+  static void deleteValueState(void *user)
+  {
+    SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
+    ++ctx->primaryCalls;
+    if (ctx->valueState)
+    {
+      loka::core::MutableState<int> *owned = ctx->valueState;
+      ctx->valueState = 0;
+      delete owned;
+    }
+  }
+
+  static void countSibling(void *user)
+  {
+    SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
+    ++ctx->siblingCalls;
+  }
+
+  static void selfUnbindEmitter(void *user)
+  {
+    SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
+    ++ctx->primaryCalls;
+    if (ctx->emitter)
+      ctx->emitter->unbind(&selfUnbindEmitter, user);
+  }
+
+  static void unbindSiblingFromEmitter(void *user)
+  {
+    SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
+    ++ctx->primaryCalls;
+    if (ctx->emitter)
+      ctx->emitter->unbind(&countSibling, user);
+  }
+
+  static void unbindSiblingFromValueState(void *user)
+  {
+    SafetyCtx *ctx = static_cast<SafetyCtx *>(user);
+    ++ctx->primaryCalls;
+    if (ctx->valueState)
+      ctx->valueState->unbind(&countSibling, user);
+  }
 
 } // namespace
 
@@ -273,9 +273,9 @@ void testStateNotify()
     loka::core::EmitterState s;
     AddDuringNotifyCtx ctx = {&s, &lateCount, false};
     s.bind(&addHandlerDuringNotify, &ctx, false);
-    s.emit(); // addHandlerDuringNotify runs, registers increment
+    s.emit();               // addHandlerDuringNotify runs, registers increment
     assert(lateCount == 0); // increment was added mid-notify, must not fire yet
-    s.emit(); // now increment fires
+    s.emit();               // now increment fires
     assert(lateCount == 1);
   }
 
@@ -341,7 +341,7 @@ void testStateNotify()
     s.emit();
     assert(ctx.primaryCalls == 1);
     assert(ctx.siblingCalls == 0); // was unbound before its turn
-    s.emit(); // sibling is gone; only primary fires
+    s.emit();                      // sibling is gone; only primary fires
     assert(ctx.primaryCalls == 2);
     assert(ctx.siblingCalls == 0);
   }

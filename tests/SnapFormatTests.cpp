@@ -85,7 +85,10 @@ namespace
     typedef loka::dsl::SnapRecord Out;
 
     BuildSnapRecordAdapter(bool valid, bool includeNode)
-        : valid_(valid), includeNode_(includeNode) {}
+        : valid_(valid),
+          includeNode_(includeNode)
+    {
+    }
 
     loka::dsl::StepRunStatus run(const int &in, Out &out, loka::dsl::FlowError &) const
     {
@@ -136,21 +139,20 @@ void testSnapFormatV1()
   assert(missingKey.empty());
 
   const std::string serialized = record.serialize(true);
-  const std::string expected =
-      "dirty\tLAYOUT|PROPS\n"
-      "format_version\t1\n"
-      "node\tMainText\n"
-      "note\ta\\tb\\nc\\\\d\n"
-      "scenario_version\t3\n"
-      "schema_version\t1\n"
-      "status\tok\n"
-      "step\tafter-wrap\n"
-      "test\tTextWrapRelayout\n"
-      "tick\t12\n"
-      "timing.flush_ms\t3\n"
-      "timing.layout_ms\t2\n"
-      "timing.recompose_ms\t1\n"
-      "\n";
+  const std::string expected = "dirty\tLAYOUT|PROPS\n"
+                               "format_version\t1\n"
+                               "node\tMainText\n"
+                               "note\ta\\tb\\nc\\\\d\n"
+                               "scenario_version\t3\n"
+                               "schema_version\t1\n"
+                               "status\tok\n"
+                               "step\tafter-wrap\n"
+                               "test\tTextWrapRelayout\n"
+                               "tick\t12\n"
+                               "timing.flush_ms\t3\n"
+                               "timing.layout_ms\t2\n"
+                               "timing.recompose_ms\t1\n"
+                               "\n";
   assert(serialized == expected);
 
   const char *path = "snap_format_test.tmp";
@@ -190,8 +192,7 @@ void testSnapFlowWriteAdapter()
 
   {
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(okPath));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
@@ -204,10 +205,8 @@ void testSnapFlowWriteAdapter()
   {
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(false, true)).input(&input)
-        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(badPath))
-              .onFailure(&captureSnapFlowError, &capture);
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(false, true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(badPath)).onFailure(&captureSnapFlowError, &capture);
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
@@ -221,10 +220,8 @@ void testSnapFlowWriteAdapter()
     const char *invalidPath = "";
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
-        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath))
-              .onFailure(&captureSnapFlowError, &capture);
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath)).onFailure(&captureSnapFlowError, &capture);
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
     assert(capture.kind == loka::dsl::FLOW_ERROR_KIND_SNAP);
@@ -243,8 +240,7 @@ void testSnapFlowWriteAdapter()
     context.sourceStepId = 2;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&inputForRelay)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&inputForRelay)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath))
               .onFailure(&loka::dsl::captureSnapFlowErrorWithDetail, &context);
 
@@ -257,9 +253,7 @@ void testSnapFlowWriteAdapter()
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> relayChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "relay", "RelayNode", 99, 2)
-                              .snapFlowError(snapshot))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "relay", "RelayNode", 99, 2).snapFlowError(snapshot))
               .input(&inputForRelay)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath));
 
@@ -339,8 +333,7 @@ void testSnapFlowWriteAdapter()
     context.sourceStepId = 7;
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failingChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&inputForRelay)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&inputForRelay)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidPath))
               .onFailure(&loka::dsl::captureSnapFlowErrorWithDetailBuilder, &context);
 
@@ -350,9 +343,7 @@ void testSnapFlowWriteAdapter()
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> relayChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "relay-kv", "RelayNode", 100, 2)
-                              .snapFlowError(snapshot))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "relay-kv", "RelayNode", 100, 2).snapFlowError(snapshot))
               .input(&inputForRelay)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(relayPath));
 
@@ -378,8 +369,7 @@ void testSnapFlowWriteAdapter()
 
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(ioPath, true, 0, cfgPath))
               .onFailure(&captureSnapFlowError, &capture);
 
@@ -394,8 +384,7 @@ void testSnapFlowWriteAdapter()
   {
     const char *autoNodePath = "snap_flow_auto_node.tmp";
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, false)).input(&input)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, false)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(autoNodePath, true, "FallbackNode"));
     const loka::dsl::FlowRunResult result = chain.runResult();
     assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
@@ -412,11 +401,8 @@ void testSnapFlowWriteAdapter()
     const char *cfgOutputPath = "snap_cfg_adapter.tmp";
 
     assert(writeFileBinary(cfgPath,
-                           std::string("# Loka test config\n")
-                           + "capture_dir = " + captureDir + "\n"
-                           + "max_files = 120\n"
-                           + "max_total_bytes = 4096\n"
-                           + "max_files_bad = x\n"));
+                           std::string("# Loka test config\n") + "capture_dir = " + captureDir + "\n"
+                               + "max_files = 120\n" + "max_total_bytes = 4096\n" + "max_files_bad = x\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
@@ -439,8 +425,7 @@ void testSnapFlowWriteAdapter()
     assert(fallback == std::string(captureFile));
 
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(cfgOutputPath, true, 0, cfgPath));
 
     const loka::dsl::FlowRunResult result = chain.runResult();
@@ -463,22 +448,18 @@ void testSnapFlowWriteAdapter()
     const char *cfgPath = "LokaTest-invalid.cfg";
     const char *captureDir = "snap_capture_invalid_dir";
     const char *invalidCfgPath = "snap_cfg_invalid.tmp";
-    assert(writeFileBinary(cfgPath,
-                           std::string("capture_dir = ") + captureDir + "\n"
-                           + "max_files = -1\n"
-                           + "max_total_bytes = 128\n"));
+    assert(writeFileBinary(
+        cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_files = -1\n" + "max_total_bytes = 128\n"));
     (void)createDirectoryIfMissing(captureDir);
 
     loka::dsl::SnapTestConfig::Settings settings;
     assert(!loka::dsl::SnapTestConfig::load(cfgPath, settings));
     assert(settings.hasParseError);
-    assert(loka::dsl::SnapTestConfig::resolveCapturePath(invalidCfgPath, cfgPath)
-           == std::string(invalidCfgPath));
+    assert(loka::dsl::SnapTestConfig::resolveCapturePath(invalidCfgPath, cfgPath) == std::string(invalidCfgPath));
 
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(invalidCfgPath, true, 0, cfgPath))
               .onFailure(&captureSnapFlowError, &capture);
 
@@ -505,16 +486,13 @@ void testSnapFlowWriteAdapter()
     const char *captureDir = "snap_capture_limit_dir";
     const char *limitedPath = "snap_cfg_limit.tmp";
 
-    assert(writeFileBinary(cfgPath,
-                           std::string("capture_dir = ") + captureDir + "\n"
-                           + "max_total_bytes = 10\n"));
+    assert(writeFileBinary(cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_total_bytes = 10\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
     SnapFlowErrorCapture capture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
+        loka::dsl::Flow() | loka::dsl::Step(1, BuildSnapRecordAdapter(true, true)).input(&input)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(limitedPath, true, 0, cfgPath))
               .onFailure(&captureSnapFlowError, &capture);
 
@@ -542,9 +520,7 @@ void testSnapFlowWriteAdapter()
     const char *path = "snap_cfg_max_files.tmp";
     const int inputForMaxFiles = 0;
 
-    assert(writeFileBinary(cfgPath,
-                           std::string("capture_dir = ") + captureDir + "\n"
-                           + "max_files = 1\n"));
+    assert(writeFileBinary(cfgPath, std::string("capture_dir = ") + captureDir + "\n" + "max_files = 1\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
@@ -704,8 +680,8 @@ void testSnapFlowWriteAdapter()
     const int inputForNullStatus = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "null-status", "StatusNode", 19, 2, static_cast<const char *>(0)))
+        | loka::dsl::Step(
+              1, loka::dsl::SnapV1("SnapFlow", "null-status", "StatusNode", 19, 2, static_cast<const char *>(0)))
               .input(&inputForNullStatus)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(nullStatusPath));
 
@@ -721,9 +697,7 @@ void testSnapFlowWriteAdapter()
     const int inputForTiming = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "timing-ok", "TimingNode", 16, 2)
-                              .timingFlushMs(3))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "timing-ok", "TimingNode", 16, 2).timingFlushMs(3))
               .input(&inputForTiming)
         | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5));
 
@@ -732,9 +706,7 @@ void testSnapFlowWriteAdapter()
     SnapFlowErrorCapture thresholdCapture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "timing-fail", "TimingNode", 17, 2)
-                              .timingFlushMs(7))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "timing-fail", "TimingNode", 17, 2).timingFlushMs(7))
               .input(&inputForTiming)
         | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5))
               .onFailure(&captureSnapFlowError, &thresholdCapture);
@@ -746,9 +718,7 @@ void testSnapFlowWriteAdapter()
     SnapFlowErrorCapture invalidValueCapture = {0, 0};
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> invalidValueChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "timing-na", "TimingNode", 18, 2)
-                              .timingFlushNa())
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "timing-na", "TimingNode", 18, 2).timingFlushNa())
               .input(&inputForTiming)
         | loka::dsl::Step(2, loka::dsl::AssertTimingLessEqual("timing.flush_ms", 5))
               .onFailure(&captureSnapFlowError, &invalidValueCapture);
@@ -809,9 +779,7 @@ void testSnapFlowWriteAdapter()
     const int inputForUnknown = 0;
     loka::dsl::FlowChain<int, loka::dsl::SnapRecord> chain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1,
-                          loka::dsl::SnapV1("SnapFlow", "error-unknown", "ErrorNode", 14, 2)
-                              .snapFlowError(9999))
+        | loka::dsl::Step(1, loka::dsl::SnapV1("SnapFlow", "error-unknown", "ErrorNode", 14, 2).snapFlowError(9999))
               .input(&inputForUnknown)
         | loka::dsl::Step(2, loka::dsl::SnapWriteAdapter(errorUnknownPath));
 

@@ -37,7 +37,10 @@ namespace
   class AttrDslCustomExternalHandler : public loka::app::scene::IPlatformNodeHandler
   {
   public:
-    AttrDslCustomExternalHandler() : ensureCalls_(0) {}
+    AttrDslCustomExternalHandler()
+        : ensureCalls_(0)
+    {
+    }
 
     virtual const void *nodeTypeKey() const
     {
@@ -67,7 +70,10 @@ namespace
   class AttrDslInvalidExternalHandler : public loka::app::scene::IPlatformNodeHandler
   {
   public:
-    virtual const void *nodeTypeKey() const { return 0; }
+    virtual const void *nodeTypeKey() const
+    {
+      return 0;
+    }
 
     virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
                                                          loka::app::scene::IPlatformController *controller,
@@ -84,13 +90,13 @@ namespace
   {
   public:
     AttrDslDummyRegistrationPlatformController()
-        : lastRoot_(0), prepareProjectedCalls_(0), prepareProjectedResult_(false)
+        : lastRoot_(0),
+          prepareProjectedCalls_(0),
+          prepareProjectedResult_(false)
     {
     }
 
-    virtual void onChange(loka::app::scene::Node *rootNode,
-                          loka::app::scene::NodeDirtyFlags flags,
-                          bool fullRebuild)
+    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)flags;
       (void)fullRebuild;
@@ -98,7 +104,10 @@ namespace
     }
 
     virtual void synchronize() {}
-    virtual bool hasPendingSync() const { return false; }
+    virtual bool hasPendingSync() const
+    {
+      return false;
+    }
     virtual void destroy() {}
 
     virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
@@ -106,8 +115,7 @@ namespace
       return this->registry_.registerHandler(handler);
     }
 
-    virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
-                                        loka::app::scene::LayoutState &state)
+    virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state)
     {
       ++prepareProjectedCalls_;
       lastPreparedNode_ = node;
@@ -131,7 +139,10 @@ namespace
   class AttrDslSecondExternalHandler : public loka::app::scene::IPlatformNodeHandler
   {
   public:
-    AttrDslSecondExternalHandler() : ensureCalls_(0) {}
+    AttrDslSecondExternalHandler()
+        : ensureCalls_(0)
+    {
+    }
 
     virtual const void *nodeTypeKey() const
     {
@@ -159,7 +170,10 @@ namespace
   class AttrDslProjectedExternalNode : public loka::app::scene::Node, public loka::app::scene::IProjectedLayoutNode
   {
   public:
-    AttrDslProjectedExternalNode() : projectedCalls_(0) {}
+    AttrDslProjectedExternalNode()
+        : projectedCalls_(0)
+    {
+    }
 
     virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
                                   loka::app::scene::LayoutState &state)
@@ -169,7 +183,10 @@ namespace
       return static_cast<short>(prepared ? state.y + 9 : state.y);
     }
 
-    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode()
+    {
+      return this;
+    }
 
     int projectedCalls_;
   };
@@ -177,7 +194,10 @@ namespace
   class AttrDslBoundaryAwareProjectedNode : public loka::app::scene::Node, public loka::app::scene::IProjectedLayoutNode
   {
   public:
-    AttrDslBoundaryAwareProjectedNode() : projectedCalls_(0) {}
+    AttrDslBoundaryAwareProjectedNode()
+        : projectedCalls_(0)
+    {
+    }
 
     virtual short layoutProjected(loka::app::scene::IPlatformController *controller,
                                   loka::app::scene::LayoutState &state)
@@ -186,7 +206,10 @@ namespace
       return static_cast<short>(loka::app::scene::PrepareProjectedLayout(controller, this, state) ? state.y : -1);
     }
 
-    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+    virtual loka::app::scene::IProjectedLayoutNode *asProjectedLayoutNode()
+    {
+      return this;
+    }
 
     int projectedCalls_;
   };
@@ -194,8 +217,7 @@ namespace
   class AttrDslConcreteBoundaryNode : public loka::app::scene::BoundaryNode
   {
   public:
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context, loka::app::scene::ComposeEvent event)
     {
       (void)context;
       (void)event;
@@ -206,13 +228,14 @@ namespace
   {
   public:
     AttrDslBoundaryAwareController()
-        : activeBoundary_(0), preparedBoundary_(0), preparedNode_(0), prepareCalls_(0)
+        : activeBoundary_(0),
+          preparedBoundary_(0),
+          preparedNode_(0),
+          prepareCalls_(0)
     {
     }
 
-    virtual void onChange(loka::app::scene::Node *rootNode,
-                          loka::app::scene::NodeDirtyFlags flags,
-                          bool fullRebuild)
+    virtual void onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
     {
       (void)rootNode;
       (void)flags;
@@ -220,11 +243,13 @@ namespace
     }
 
     virtual void synchronize() {}
-    virtual bool hasPendingSync() const { return false; }
+    virtual bool hasPendingSync() const
+    {
+      return false;
+    }
     virtual void destroy() {}
 
-    virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
-                                        loka::app::scene::LayoutState &state)
+    virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state)
     {
       ++prepareCalls_;
       preparedNode_ = node;
@@ -233,7 +258,10 @@ namespace
       return true;
     }
 
-    void setActiveBoundary(loka::app::scene::BoundaryNode *boundary) { activeBoundary_ = boundary; }
+    void setActiveBoundary(loka::app::scene::BoundaryNode *boundary)
+    {
+      activeBoundary_ = boundary;
+    }
 
     loka::app::scene::BoundaryNode *activeBoundary_;
     loka::app::scene::BoundaryNode *preparedBoundary_;
@@ -265,15 +293,16 @@ namespace
 
   struct AttrDslLayoutCallRecorder
   {
-    AttrDslLayoutCallRecorder() : count(0) {}
+    AttrDslLayoutCallRecorder()
+        : count(0)
+    {
+    }
 
     AttrDslLayoutCall calls[8];
     int count;
   };
 
-  int recordLayoutChild(void *context,
-                        loka::app::scene::Node *child,
-                        const loka::app::scene::LayoutState &state)
+  int recordLayoutChild(void *context, loka::app::scene::Node *child, const loka::app::scene::LayoutState &state)
   {
     AttrDslLayoutCallRecorder *recorder = static_cast<AttrDslLayoutCallRecorder *>(context);
     assert(recorder != 0);
@@ -297,7 +326,10 @@ namespace
   class AttrDslOffsetLayoutLeafNode : public AttrDslCustomLayoutLeafNode
   {
   public:
-    explicit AttrDslOffsetLayoutLeafNode(int offset) : offset_(offset) {}
+    explicit AttrDslOffsetLayoutLeafNode(int offset)
+        : offset_(offset)
+    {
+    }
 
     int offset_;
   };
@@ -330,7 +362,10 @@ namespace
   {
   public:
     AttrDslDummyLayoutTraversal()
-        : calls_(0), nextResult_(0), lastChild_(0), layoutResultY_(0)
+        : calls_(0),
+          nextResult_(0),
+          lastChild_(0),
+          layoutResultY_(0)
     {
     }
 
@@ -343,9 +378,15 @@ namespace
       return nextResult_;
     }
 
-    virtual void setLayoutResultY(short y) { layoutResultY_ = y; }
+    virtual void setLayoutResultY(short y)
+    {
+      layoutResultY_ = y;
+    }
 
-    virtual short layoutResultY() const { return layoutResultY_; }
+    virtual short layoutResultY() const
+    {
+      return layoutResultY_;
+    }
 
     int calls_;
     int nextResult_;
@@ -357,7 +398,11 @@ namespace
   class AttrDslCustomLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
   {
   public:
-    AttrDslCustomLayoutHandler() : layoutCalls_(0), fallbackResult_(0) {}
+    AttrDslCustomLayoutHandler()
+        : layoutCalls_(0),
+          fallbackResult_(0)
+    {
+    }
 
     virtual const void *nodeTypeKey() const
     {
@@ -399,7 +444,10 @@ namespace
   class AttrDslInvalidLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
   {
   public:
-    virtual const void *nodeTypeKey() const { return 0; }
+    virtual const void *nodeTypeKey() const
+    {
+      return 0;
+    }
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
@@ -444,7 +492,11 @@ namespace
   class AttrDslSecondLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
   {
   public:
-    AttrDslSecondLayoutHandler() : calls_(0), result_(0) {}
+    AttrDslSecondLayoutHandler()
+        : calls_(0),
+          result_(0)
+    {
+    }
 
     virtual const void *nodeTypeKey() const
     {
@@ -465,7 +517,7 @@ namespace
     int calls_;
     int result_;
   };
-}
+} // namespace
 
 void testLokaAttrDslV1Core()
 {
@@ -483,10 +535,10 @@ void testLokaAttrDslV1Core()
     assert(!text.props.attr_.hasWrapValue_);
     assert(!text.props.attr_.hasTruncationValue_);
 
-    loka::app::ImageViewDefinitionWithAttr image = loka::app::ImageView().attr(
-        loka::app::ImageViewAttr()
-            .sizePolicy(loka::app::IMAGE_VIEW_SIZE_FILL_PARENT)
-            .fit(loka::app::IMAGE_FIT_CONTAIN));
+    loka::app::ImageViewDefinitionWithAttr image =
+        loka::app::ImageView().attr(loka::app::ImageViewAttr()
+                                        .sizePolicy(loka::app::IMAGE_VIEW_SIZE_FILL_PARENT)
+                                        .fit(loka::app::IMAGE_FIT_CONTAIN));
     assert(image.props.hasAttr_);
     assert(image.props.attr_.hasFitValue_);
     assert(image.props.attr_.fitValue_ == loka::app::IMAGE_FIT_CONTAIN);
@@ -497,17 +549,15 @@ void testLokaAttrDslV1Core()
   // --- Text overflow attr storage ---
   {
     loka::app::TextDefinitionWithAttr text = loka::app::Text("Hello").attr(
-        loka::app::TextAttr()
-            .wrap(loka::app::TEXT_WRAP_WORD)
-            .truncation(loka::app::TEXT_TRUNCATION_ELLIPSIS));
+        loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD).truncation(loka::app::TEXT_TRUNCATION_ELLIPSIS));
     assert(text.props.hasAttr_);
     assert(text.props.attr_.hasWrapValue_);
     assert(text.props.attr_.wrapValue_ == loka::app::TEXT_WRAP_WORD);
     assert(text.props.attr_.hasTruncationValue_);
     assert(text.props.attr_.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS);
 
-    loka::app::TextDefinitionWithAttr charWrap = loka::app::Text("Path").attr(
-        loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_CHAR));
+    loka::app::TextDefinitionWithAttr charWrap =
+        loka::app::Text("Path").attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_CHAR));
     assert(charWrap.props.attr_.hasWrapValue_);
     assert(charWrap.props.attr_.wrapValue_ == loka::app::TEXT_WRAP_CHAR);
   }
@@ -1031,7 +1081,8 @@ void testContainerLayoutHelpersAdvanceResultY()
     metrics.gapX = 3;
     metrics.gapY = 5;
     AttrDslLayoutCallRecorder recorder;
-    const int resultY = loka::app::layout::computeGridLayoutResultY(&grid, state, metrics, &recorder, &recordLayoutChild);
+    const int resultY =
+        loka::app::layout::computeGridLayoutResultY(&grid, state, metrics, &recorder, &recordLayoutChild);
     assert(recorder.count == 4);
     assert(recorder.calls[0].state.x == 10);
     assert(recorder.calls[0].state.y == 20);
@@ -1060,7 +1111,8 @@ void testContainerLayoutHelpersAdvanceResultY()
     metrics.gapX = 4;
     metrics.gapY = 6;
     AttrDslLayoutCallRecorder recorder;
-    const int resultY = loka::app::layout::computeGridLayoutResultY(&grid, state, metrics, &recorder, &recordLayoutChild);
+    const int resultY =
+        loka::app::layout::computeGridLayoutResultY(&grid, state, metrics, &recorder, &recordLayoutChild);
     assert(recorder.count == 2);
     assert(recorder.calls[0].node == first);
     assert(recorder.calls[1].node == second);
@@ -1124,7 +1176,8 @@ void testContainerLayoutHelpersAdvanceResultY()
     loka::app::scene::LayoutState unevenState = state;
     unevenState.width = 101;
     AttrDslLayoutCallRecorder recorder;
-    const int resultY = loka::app::layout::computeRowLayoutResultY(&row, unevenState, metrics, &recorder, &recordLayoutChild);
+    const int resultY =
+        loka::app::layout::computeRowLayoutResultY(&row, unevenState, metrics, &recorder, &recordLayoutChild);
     assert(recorder.count == 3);
     assert(recorder.calls[0].state.width == 33);
     assert(recorder.calls[1].state.width == 32);

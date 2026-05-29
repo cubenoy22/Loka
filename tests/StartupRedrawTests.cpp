@@ -22,13 +22,23 @@ namespace
     int fullDrawCount_;
 
     StartupRedrawSimulator()
-        : needsInvalidate_(false), skipNextUpdateDraw_(false), fullDrawCount_(0) {}
+        : needsInvalidate_(false),
+          skipNextUpdateDraw_(false),
+          fullDrawCount_(0)
+    {
+    }
 
     // Models requestInvalidateWithReason (called from onChange with fullRebuild)
-    void requestInvalidate() { needsInvalidate_ = true; }
+    void requestInvalidate()
+    {
+      needsInvalidate_ = true;
+    }
 
     // Models draw() — direct draw, does not touch invalidation flags
-    void draw() { ++fullDrawCount_; }
+    void draw()
+    {
+      ++fullDrawCount_;
+    }
 
     // Models flushInvalidate() — only draws if needsInvalidate_ is true
     void flushInvalidate()
@@ -60,7 +70,10 @@ namespace
     int drawCount_;
 
     ToolboxFollowupRedrawSimulator()
-        : skipNextUpdateDraw_(false), drawCount_(0) {}
+        : skipNextUpdateDraw_(false),
+          drawCount_(0)
+    {
+    }
 
     void draw()
     {
@@ -98,9 +111,7 @@ namespace
       INVALIDATE_FULL = 2
     };
 
-    static InvalidateMode chooseInvalidateMode(bool hasRootNode,
-                                               bool fullRebuild,
-                                               bool hasChildDirty)
+    static InvalidateMode chooseInvalidateMode(bool hasRootNode, bool fullRebuild, bool hasChildDirty)
     {
       if (!hasRootNode || fullRebuild || hasChildDirty)
       {

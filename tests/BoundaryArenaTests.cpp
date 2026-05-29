@@ -8,134 +8,134 @@
 namespace
 {
 
-static bool isPowerOfTwo(size_t value)
-{
-  return value != 0 && (value & (value - 1)) == 0;
-}
-
-static bool isAligned(void *ptr, size_t align)
-{
-  size_t address = reinterpret_cast<size_t>(ptr);
-  return (address & (align - 1)) == 0;
-}
-
-struct StateArenaDestroyLog
-{
-  int count;
-  loka::core::StateBase *first;
-  loka::core::StateBase *second;
-};
-
-static StateArenaDestroyLog g_stateArenaDestroyLog = {0, 0, 0};
-
-static void resetStateArenaDestroyLog()
-{
-  g_stateArenaDestroyLog.count = 0;
-  g_stateArenaDestroyLog.first = 0;
-  g_stateArenaDestroyLog.second = 0;
-}
-
-static void recordStateDestroy(loka::core::StateBase *state)
-{
-  ++g_stateArenaDestroyLog.count;
-  if (!g_stateArenaDestroyLog.first)
+  static bool isPowerOfTwo(size_t value)
   {
-    g_stateArenaDestroyLog.first = state;
+    return value != 0 && (value & (value - 1)) == 0;
   }
-  else if (!g_stateArenaDestroyLog.second)
+
+  static bool isAligned(void *ptr, size_t align)
   {
-    g_stateArenaDestroyLog.second = state;
+    size_t address = reinterpret_cast<size_t>(ptr);
+    return (address & (align - 1)) == 0;
   }
-}
 
-static void testNodeArenaAlignmentAndCapacity()
-{
-  const size_t minAlign = loka::app::scene::NodeArena::normalizeAlign(1);
-  assert(minAlign >= sizeof(void *));
-  assert(isPowerOfTwo(minAlign));
+  struct StateArenaDestroyLog
+  {
+    int count;
+    loka::core::StateBase *first;
+    loka::core::StateBase *second;
+  };
 
-  const size_t roundedAlign = loka::app::scene::NodeArena::normalizeAlign(3);
-  assert(roundedAlign >= 3);
-  assert(isPowerOfTwo(roundedAlign));
+  static StateArenaDestroyLog g_stateArenaDestroyLog = {0, 0, 0};
 
-  loka::app::scene::NodeArena arena;
-  assert(!arena.hasCapacity());
-  assert(arena.allocate(4, 4) == 0);
+  static void resetStateArenaDestroyLog()
+  {
+    g_stateArenaDestroyLog.count = 0;
+    g_stateArenaDestroyLog.first = 0;
+    g_stateArenaDestroyLog.second = 0;
+  }
 
-  arena.reserve(32);
-  assert(arena.hasCapacity());
+  static void recordStateDestroy(loka::core::StateBase *state)
+  {
+    ++g_stateArenaDestroyLog.count;
+    if (!g_stateArenaDestroyLog.first)
+    {
+      g_stateArenaDestroyLog.first = state;
+    }
+    else if (!g_stateArenaDestroyLog.second)
+    {
+      g_stateArenaDestroyLog.second = state;
+    }
+  }
 
-  void *first = arena.allocate(4, 4);
-  assert(first != 0);
-  assert(isAligned(first, loka::app::scene::NodeArena::normalizeAlign(4)));
+  static void testNodeArenaAlignmentAndCapacity()
+  {
+    const size_t minAlign = loka::app::scene::NodeArena::normalizeAlign(1);
+    assert(minAlign >= sizeof(void *));
+    assert(isPowerOfTwo(minAlign));
 
-  void *second = arena.allocate(8, 8);
-  assert(second != 0);
-  assert(isAligned(second, loka::app::scene::NodeArena::normalizeAlign(8)));
-  assert(second != first);
+    const size_t roundedAlign = loka::app::scene::NodeArena::normalizeAlign(3);
+    assert(roundedAlign >= 3);
+    assert(isPowerOfTwo(roundedAlign));
 
-  assert(arena.allocate(1024, 4) == 0);
+    loka::app::scene::NodeArena arena;
+    assert(!arena.hasCapacity());
+    assert(arena.allocate(4, 4) == 0);
 
-  arena.reserve(16);
-  assert(arena.hasCapacity());
-  void *afterReserve = arena.allocate(16, 4);
-  assert(afterReserve != 0);
+    arena.reserve(32);
+    assert(arena.hasCapacity());
 
-  arena.clear();
-  assert(!arena.hasCapacity());
-  assert(arena.allocate(4, 4) == 0);
-}
+    void *first = arena.allocate(4, 4);
+    assert(first != 0);
+    assert(isAligned(first, loka::app::scene::NodeArena::normalizeAlign(4)));
 
-static void testStateArenaAllocation()
-{
-  loka::app::scene::StateArena arena;
-  assert(!arena.hasCapacity());
-  assert(arena.allocate(4, 4) == 0);
+    void *second = arena.allocate(8, 8);
+    assert(second != 0);
+    assert(isAligned(second, loka::app::scene::NodeArena::normalizeAlign(8)));
+    assert(second != first);
 
-  arena.reserve(32);
-  assert(arena.hasCapacity());
+    assert(arena.allocate(1024, 4) == 0);
 
-  void *first = arena.allocate(4, 4);
-  assert(first != 0);
-  assert(isAligned(first, loka::app::scene::NodeArena::normalizeAlign(4)));
+    arena.reserve(16);
+    assert(arena.hasCapacity());
+    void *afterReserve = arena.allocate(16, 4);
+    assert(afterReserve != 0);
 
-  void *second = arena.allocate(8, 8);
-  assert(second != 0);
-  assert(isAligned(second, loka::app::scene::NodeArena::normalizeAlign(8)));
-  assert(second != first);
+    arena.clear();
+    assert(!arena.hasCapacity());
+    assert(arena.allocate(4, 4) == 0);
+  }
 
-  assert(arena.allocate(1024, 4) == 0);
+  static void testStateArenaAllocation()
+  {
+    loka::app::scene::StateArena arena;
+    assert(!arena.hasCapacity());
+    assert(arena.allocate(4, 4) == 0);
 
-  arena.clear();
-  assert(!arena.hasCapacity());
-  assert(arena.allocate(4, 4) == 0);
-}
+    arena.reserve(32);
+    assert(arena.hasCapacity());
 
-static void testStateArenaReleaseAndClear()
-{
-  resetStateArenaDestroyLog();
+    void *first = arena.allocate(4, 4);
+    assert(first != 0);
+    assert(isAligned(first, loka::app::scene::NodeArena::normalizeAlign(4)));
 
-  loka::core::MutableState<int> first(1);
-  loka::core::MutableState<int> second(2);
+    void *second = arena.allocate(8, 8);
+    assert(second != 0);
+    assert(isAligned(second, loka::app::scene::NodeArena::normalizeAlign(8)));
+    assert(second != first);
 
-  loka::app::scene::StateArena arena;
-  arena.registerState(&first, &recordStateDestroy);
-  arena.registerState(&second, &recordStateDestroy);
+    assert(arena.allocate(1024, 4) == 0);
 
-  arena.releaseState(&first);
-  assert(g_stateArenaDestroyLog.count == 1);
-  assert(g_stateArenaDestroyLog.first == &first);
+    arena.clear();
+    assert(!arena.hasCapacity());
+    assert(arena.allocate(4, 4) == 0);
+  }
 
-  arena.releaseState(&first);
-  assert(g_stateArenaDestroyLog.count == 1);
+  static void testStateArenaReleaseAndClear()
+  {
+    resetStateArenaDestroyLog();
 
-  arena.clear();
-  assert(g_stateArenaDestroyLog.count == 2);
-  assert(g_stateArenaDestroyLog.second == &second);
+    loka::core::MutableState<int> first(1);
+    loka::core::MutableState<int> second(2);
 
-  arena.clear();
-  assert(g_stateArenaDestroyLog.count == 2);
-}
+    loka::app::scene::StateArena arena;
+    arena.registerState(&first, &recordStateDestroy);
+    arena.registerState(&second, &recordStateDestroy);
+
+    arena.releaseState(&first);
+    assert(g_stateArenaDestroyLog.count == 1);
+    assert(g_stateArenaDestroyLog.first == &first);
+
+    arena.releaseState(&first);
+    assert(g_stateArenaDestroyLog.count == 1);
+
+    arena.clear();
+    assert(g_stateArenaDestroyLog.count == 2);
+    assert(g_stateArenaDestroyLog.second == &second);
+
+    arena.clear();
+    assert(g_stateArenaDestroyLog.count == 2);
+  }
 
 } // namespace
 

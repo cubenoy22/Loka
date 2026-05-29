@@ -7,7 +7,8 @@
 #include "BoundaryArenaTests.hpp"
 #include "ValueTests.hpp"
 
-int main() {
+int main()
+{
   testStateNotify();
   testLokaValueCore();
   testSnapFormatV1();
