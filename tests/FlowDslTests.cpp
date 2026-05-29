@@ -27,7 +27,7 @@
 #include "../example/SimpleViewer/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
 namespace {

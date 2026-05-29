@@ -4,7 +4,7 @@
 #include <cassert>
 #include "app/core/App.hpp"
 #include "app/PlatformContext.hpp"
-#include "loka/core/util/ScopedPtr.hpp"
+#include "core/util/ScopedPtr.hpp"
 
 #if defined(_WIN32) || defined(WIN32)
 #include "Win32PlatformContext.hpp"

@@ -1,5 +1,5 @@
 // ScopedPtr.hpp - Simple C++98 RAII smart pointer.
-// Loka Project util (loka/core/util/ScopedPtr.hpp)
+// Loka Project util (core/util/ScopedPtr.hpp)
 //
 // - Non-copyable
 // - Deletes the owned object at scope exit

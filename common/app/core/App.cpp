@@ -2,7 +2,7 @@
 #include "app/core/Window.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/AppComposition.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "app/scene/Scene.hpp"
 #include <algorithm>
 

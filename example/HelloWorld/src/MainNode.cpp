@@ -5,7 +5,7 @@
 #include "app/core/Window.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "platform/StringUTF8.hpp"
 
 #include <cstdio>

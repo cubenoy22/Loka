@@ -17,7 +17,7 @@
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "loka/core/Managed.hpp"
 #include "loka/core/StateTracker.hpp"
-#include "loka/core/util/StateUtil.hpp"
+#include "core/util/StateUtil.hpp"
 #include "loka/core/Profiler.hpp"
 #include "platform/debug/DebugLog.hpp"
 

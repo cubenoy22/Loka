@@ -7,7 +7,7 @@
 
 #include "app/scene/Scene.hpp"
 #include "app/scene/Scene.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "loka/core/String.hpp"

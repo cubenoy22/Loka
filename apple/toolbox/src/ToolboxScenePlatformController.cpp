@@ -13,7 +13,7 @@
 #include <Menus.h>
 
 #include "platform/StringUTF8.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"

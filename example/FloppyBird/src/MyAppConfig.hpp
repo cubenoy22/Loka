@@ -7,7 +7,7 @@
 #include "app/RectSurface.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "loka/core/StateTracker.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "MainNode.hpp"
 
 class MyAppConfig : public AppConfigurable

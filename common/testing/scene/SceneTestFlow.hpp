@@ -8,7 +8,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/resource/Image.hpp"
-#include "loka/core/util/StateTrackerGuard.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "testing/snap/SnapFlow.hpp"
 #include "platform/StringUTF8.hpp"
 
