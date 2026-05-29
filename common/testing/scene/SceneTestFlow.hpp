@@ -10,7 +10,7 @@
 #include "core/resource/Image.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "testing/snap/SnapFlow.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace loka
 {

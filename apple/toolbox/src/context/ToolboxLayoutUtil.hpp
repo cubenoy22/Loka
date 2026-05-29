@@ -2,7 +2,7 @@
 #define LOKA_TOOLBOX_LAYOUT_UTIL_HPP
 
 #include "loka/core/String.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 #include <string>
 
 static inline short ToolboxMeasureTextWidth(const loka::core::String &value)

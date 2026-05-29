@@ -1,7 +1,7 @@
 #include "context/ToolboxImageViewContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxNativeImage.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 #include <cstdio>
 #include <cstring>
 #include <string>

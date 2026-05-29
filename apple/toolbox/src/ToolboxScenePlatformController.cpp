@@ -12,7 +12,7 @@
 #include <Memory.h>
 #include <Menus.h>
 
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 #include "loka/core/util/StateTrackerGuard.hpp"
 #include "loka/core/String.hpp"
 #include "app/nodes/Text.hpp"

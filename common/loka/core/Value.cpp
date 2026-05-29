@@ -3,7 +3,7 @@
 #include <cassert>
 #include <new>
 
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace loka
 {

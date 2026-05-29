@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-#include "loka/platform/String.hpp"
+#include "platform/String.hpp"
 
 namespace loka
 {

@@ -1,6 +1,6 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 #include <cstring>
 #include <string>
 

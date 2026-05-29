@@ -5,7 +5,7 @@
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/scene/Scene.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 @interface LokaFlippedView : NSView
 {

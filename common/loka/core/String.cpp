@@ -4,8 +4,8 @@
 #include <cstdio>
 #include <cstring>
 
-#include "loka/platform/String.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/String.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace loka
 {

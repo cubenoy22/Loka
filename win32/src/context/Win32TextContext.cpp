@@ -4,7 +4,7 @@
 #include "app/nodes/Text.hpp"
 #include "core/resource/Image.hpp"
 #include "loka/core/State.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace
 {

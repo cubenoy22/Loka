@@ -4,7 +4,7 @@
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
 #include "loka/core/State.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace
 {

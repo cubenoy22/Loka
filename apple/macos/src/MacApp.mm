@@ -6,7 +6,7 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach/mach_time.h>
 #include "app/core/AppComponent.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 @interface LokaMenuTarget : NSObject
 {

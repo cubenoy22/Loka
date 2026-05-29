@@ -11,7 +11,7 @@
 #include <TextEdit.h>
 #include <Windows.h>
 #include <Devices.h>
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 ToolboxApp::ToolboxApp(AppConfigurable *config)
     : App(config), nextMenuId_(128), commands_(), bindings_(), menuEntries_(), hierarchicalMenus_(), pendingWindowClosures_(), running_(false)

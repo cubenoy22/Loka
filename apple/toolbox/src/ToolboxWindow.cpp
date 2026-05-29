@@ -10,7 +10,7 @@
 #include "ToolboxWindowContext.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
 #include "loka/core/String.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace
 {

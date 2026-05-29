@@ -10,7 +10,7 @@
 #include "core/resource/Image.hpp"
 #include "dsl/flow/Flow.hpp"
 #include "loka/core/String.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 #include "platform/file/FileHandle.hpp"
 #if defined(LOKA_RETRO68)
 #include <Files.h>

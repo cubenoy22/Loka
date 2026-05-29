@@ -1,7 +1,7 @@
 #include "Win32PopupMenuContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 #include <string>
 #include <tchar.h>
 

@@ -8,7 +8,7 @@
 #include "loka/core/State.hpp"
 #include "core/resource/Blob.hpp"
 #include "loka/core/String.hpp"
-#include "loka/platform/StringUTF8.hpp"
+#include "platform/StringUTF8.hpp"
 
 namespace loka
 {

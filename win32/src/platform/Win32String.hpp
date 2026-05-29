@@ -5,7 +5,7 @@
 
 #include "loka/core/Managed.hpp"
 #include "loka/core/String.hpp"
-#include "loka/platform/String.hpp"
+#include "platform/String.hpp"
 
 namespace loka
 {
