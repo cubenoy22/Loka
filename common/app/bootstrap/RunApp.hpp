@@ -1,5 +1,5 @@
-#ifndef LOKA_PLATFORM_MAIN_HPP
-#define LOKA_PLATFORM_MAIN_HPP
+#ifndef LOKA_APP_BOOTSTRAP_RUNAPP_HPP
+#define LOKA_APP_BOOTSTRAP_RUNAPP_HPP
 
 #include <cassert>
 #include "app/core/App.hpp"
@@ -61,4 +61,4 @@ namespace loka
   } // namespace platform
 } // namespace loka
 
-#endif // LOKA_PLATFORM_MAIN_HPP
+#endif // LOKA_APP_BOOTSTRAP_RUNAPP_HPP

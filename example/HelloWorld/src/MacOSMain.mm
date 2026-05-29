@@ -1,5 +1,5 @@
 #include "MyAppConfig.hpp"
-#include "loka/platform/Main.hpp"
+#include "app/bootstrap/RunApp.hpp"
 #include <Foundation/Foundation.h>
 
 int main(int argc, char **argv)

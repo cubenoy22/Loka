@@ -1,4 +1,4 @@
-#include "loka/platform/Main.hpp"
+#include "app/bootstrap/RunApp.hpp"
 #include "MyAppConfig.hpp"
 #include <Foundation/Foundation.h>
 

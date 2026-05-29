@@ -1,4 +1,4 @@
-#include "loka/platform/Main.hpp"
+#include "app/bootstrap/RunApp.hpp"
 #include "MyAppConfig.hpp"
 
 #if defined(_WIN32) || defined(WIN32)
