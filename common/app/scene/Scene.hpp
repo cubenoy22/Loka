@@ -14,7 +14,7 @@
 #include "app/scene/SceneDirector.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "loka/core/Profiler.hpp"
-#include "loka/dsl/NextTickTracker.hpp"
+#include "core/scheduler/NextTickTracker.hpp"
 #include "loka/dsl/CompositionDiff.hpp"
 
 class Window;
@@ -431,7 +431,7 @@ namespace loka
         Window *window_;
         bool mounted_;
         bool composed_;
-        loka::dsl::NextTickTracker nextTickTracker_;
+        loka::core::NextTickTracker nextTickTracker_;
         SceneDirector director_;
         SceneUpdateCycleState updateCycleState_;
 

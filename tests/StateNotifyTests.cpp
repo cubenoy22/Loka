@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <vector>
 #include "loka/core/State.hpp"
-#include "loka/dsl/NextTickTracker.hpp"
+#include "core/scheduler/NextTickTracker.hpp"
 
 // ============================================================
 // Helpers
@@ -363,7 +363,7 @@ void testStateNotify()
 
   // --- NextTickTracker: delay accumulation keeps earliest request (min wins) ---
   {
-    loka::dsl::NextTickTracker tracker;
+    loka::core::NextTickTracker tracker;
     assert(!tracker.hasPendingRequest());
 
     tracker.request(1000);

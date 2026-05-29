@@ -1,9 +1,9 @@
-#ifndef LOKA_DSL_NEXT_TICK_TRACKER_HPP
-#define LOKA_DSL_NEXT_TICK_TRACKER_HPP
+#ifndef LOKA_CORE_SCHEDULER_NEXT_TICK_TRACKER_HPP
+#define LOKA_CORE_SCHEDULER_NEXT_TICK_TRACKER_HPP
 
 namespace loka
 {
-  namespace dsl
+  namespace core
   {
     class NextTickTracker
     {
@@ -71,7 +71,7 @@ namespace loka
       int maxIterations_;
       unsigned long pendingDelayMs_;
     };
-  } // namespace dsl
+  } // namespace core
 } // namespace loka
 
-#endif // LOKA_DSL_NEXT_TICK_TRACKER_HPP
+#endif // LOKA_CORE_SCHEDULER_NEXT_TICK_TRACKER_HPP

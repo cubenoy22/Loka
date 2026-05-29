@@ -2,7 +2,7 @@
 #define LOKA_MENU_CONTROLLER_HPP
 
 #include "app/Menu.hpp"
-#include "loka/dsl/NextTickTracker.hpp"
+#include "core/scheduler/NextTickTracker.hpp"
 
 class AppConfigurable;
 class Window;
@@ -42,7 +42,7 @@ private:
   void *applyUserData_;
   Window *pendingApplyWindow_;
   loka::app::MenuBarDefinition *menuBar_;
-  loka::dsl::NextTickTracker refresh_;
+  loka::core::NextTickTracker refresh_;
   loka::app::MenuCompositionDiff diff_;
 };
 
