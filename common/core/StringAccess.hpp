@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE_STRING_ACCESS_HPP
 #define LOKA_CORE_STRING_ACCESS_HPP
 
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 
 namespace loka
 {

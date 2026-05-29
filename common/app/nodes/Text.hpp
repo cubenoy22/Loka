@@ -4,7 +4,7 @@
 #include <cassert>
 #include "loka/core/State.hpp"
 #include "app/scene/Node.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 
 namespace loka
 {

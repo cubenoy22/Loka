@@ -9,7 +9,7 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindowContext.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace

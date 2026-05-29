@@ -1,6 +1,6 @@
 #include "platform/Win32String.hpp"
 
-#include "loka/core/StringAccess.hpp"
+#include "core/StringAccess.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

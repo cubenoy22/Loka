@@ -13,7 +13,7 @@
 #include "app/nodes/ImageView.hpp"
 #include "SimpleViewerFlowAdapters.hpp"
 #include "loka/core/State.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "core/resource/Image.hpp"
 #include <cassert>
 

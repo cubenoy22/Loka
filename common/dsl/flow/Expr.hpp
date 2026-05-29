@@ -3,7 +3,7 @@
 
 #include <cstddef>
 
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "core/Vector.hpp"
 
 namespace loka

@@ -1,7 +1,7 @@
 #ifndef LOKA_HELLOWORLD_BMI_CALCULATOR_COMPONENT_HPP
 #define LOKA_HELLOWORLD_BMI_CALCULATOR_COMPONENT_HPP
 
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/nestable/Fragment.hpp"

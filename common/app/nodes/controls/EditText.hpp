@@ -3,7 +3,7 @@
 
 #include <string>
 #include "loka/core/State.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "app/scene/Node.hpp"
 
 namespace loka

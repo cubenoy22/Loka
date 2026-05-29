@@ -10,7 +10,7 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "platform/StringUTF8.hpp"
 #include "platform/Win32String.hpp"
 

@@ -14,7 +14,7 @@
 
 #include "platform/StringUTF8.hpp"
 #include "core/util/StateTrackerGuard.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"

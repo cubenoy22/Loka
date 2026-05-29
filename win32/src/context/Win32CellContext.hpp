@@ -3,7 +3,7 @@
 
 #include <windows.h>
 #include "app/scene/projection/NativeNodeContext.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include <string>
 
 namespace loka

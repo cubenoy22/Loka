@@ -3,7 +3,7 @@
 
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "loka/core/State.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 
 namespace loka
 {

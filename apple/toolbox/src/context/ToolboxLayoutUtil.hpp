@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_LAYOUT_UTIL_HPP
 #define LOKA_TOOLBOX_LAYOUT_UTIL_HPP
 
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "platform/StringUTF8.hpp"
 #include <string>
 

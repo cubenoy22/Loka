@@ -5,7 +5,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/Text.hpp"
 #include "loka/core/State.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "core/Vector.hpp"
 
 namespace helloworld {

@@ -2,7 +2,7 @@
 #define LOKA_PLATFORM_FILE_FILEHANDLE_HPP
 
 #include "file/File.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #if defined(LOKA_RETRO68)
 #include <Files.h>
 #endif

@@ -2,7 +2,7 @@
 #define LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP
 
 #include "app/PlatformContext.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #if defined(LOKA_RETRO68)
 #include <Files.h>
 #endif

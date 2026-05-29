@@ -1,4 +1,4 @@
-#include "loka/core/StringBuffer.hpp"
+#include "core/StringBuffer.hpp"
 
 #include <cstring>
 

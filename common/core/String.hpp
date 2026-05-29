@@ -5,7 +5,7 @@
 #include <string>
 
 #include "core/Managed.hpp"
-#include "loka/core/StringBuffer.hpp"
+#include "core/StringBuffer.hpp"
 
 namespace loka
 {

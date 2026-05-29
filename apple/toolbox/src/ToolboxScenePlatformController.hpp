@@ -4,7 +4,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "loka/core/State.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "core/Vector.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "debug/ToolboxSceneDebugStats.hpp"

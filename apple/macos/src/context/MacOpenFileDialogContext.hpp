@@ -3,7 +3,7 @@
 
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 
 namespace loka
 {

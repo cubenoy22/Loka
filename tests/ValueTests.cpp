@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "loka/core/Value.hpp"
+#include "core/Value.hpp"
 
 void testLokaValueCore()
 {

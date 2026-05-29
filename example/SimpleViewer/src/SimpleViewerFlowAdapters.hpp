@@ -9,7 +9,7 @@
 #include "core/resource/BlobLoader.hpp"
 #include "core/resource/Image.hpp"
 #include "dsl/flow/Flow.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "platform/StringUTF8.hpp"
 #include "platform/file/FileHandle.hpp"
 #if defined(LOKA_RETRO68)

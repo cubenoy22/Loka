@@ -9,7 +9,7 @@
 #include "core/util/StateUtil.hpp"
 #include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "core/Frame.hpp"
 
 namespace loka

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "core/Managed.hpp"
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 
 namespace loka
 {

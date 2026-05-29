@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <cassert>
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include "loka/core/State.hpp"
 #include "dsl/composition/CompositionList.hpp"
 #include "app/MenuComposition.hpp"

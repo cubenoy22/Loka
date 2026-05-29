@@ -1,7 +1,7 @@
 #ifndef LOKA_FILE_FILE_HPP
 #define LOKA_FILE_FILE_HPP
 
-#include "loka/core/String.hpp"
+#include "core/String.hpp"
 #include <cstring>
 
 namespace loka
