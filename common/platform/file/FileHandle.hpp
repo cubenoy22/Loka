@@ -1,7 +1,7 @@
 #ifndef LOKA_PLATFORM_FILE_FILEHANDLE_HPP
 #define LOKA_PLATFORM_FILE_FILEHANDLE_HPP
 
-#include "file/File.hpp"
+#include "core/io/File.hpp"
 #include "core/String.hpp"
 #if defined(LOKA_RETRO68)
 #include <Files.h>

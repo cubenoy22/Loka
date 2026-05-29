@@ -1,5 +1,5 @@
-#ifndef LOKA_FILE_FILE_HPP
-#define LOKA_FILE_FILE_HPP
+#ifndef LOKA_CORE_IO_FILE_HPP
+#define LOKA_CORE_IO_FILE_HPP
 
 #include "core/String.hpp"
 #include <cstring>
@@ -222,4 +222,4 @@ namespace loka
   } // namespace file
 } // namespace loka
 
-#endif // LOKA_FILE_FILE_HPP
+#endif // LOKA_CORE_IO_FILE_HPP
