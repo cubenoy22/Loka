@@ -1,5 +1,5 @@
 #include "ToolboxProfiler.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include <Timer.h>
 
 // Backend implementation using TickCount()

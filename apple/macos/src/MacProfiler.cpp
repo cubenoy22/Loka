@@ -1,5 +1,5 @@
 #include "MacProfiler.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include <mach/mach_time.h>
 
 namespace

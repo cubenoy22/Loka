@@ -5,7 +5,7 @@
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
-#include "loka/core/Vector.hpp"
+#include "core/Vector.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "debug/ToolboxSceneDebugStats.hpp"
 #include <Quickdraw.h>

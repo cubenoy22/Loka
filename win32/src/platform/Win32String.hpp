@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "loka/core/Managed.hpp"
+#include "core/Managed.hpp"
 #include "loka/core/String.hpp"
 #include "platform/String.hpp"
 

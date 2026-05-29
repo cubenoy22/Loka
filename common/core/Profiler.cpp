@@ -1,4 +1,4 @@
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 
 namespace loka
 {

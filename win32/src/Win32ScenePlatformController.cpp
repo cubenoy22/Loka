@@ -16,7 +16,7 @@
 #include "app/layout/RowLayout.hpp"
 #include "app/layout/ZStackLayout.hpp"
 #include "app/scene/Node.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "context/Win32CellContext.hpp"

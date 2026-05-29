@@ -3,7 +3,7 @@
 
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
-#include "loka/core/Vector.hpp"
+#include "core/Vector.hpp"
 #include <Quickdraw.h>
 #include <Menus.h>
 

@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <string>
 
-#include "loka/core/Managed.hpp"
+#include "core/Managed.hpp"
 
 namespace loka
 {

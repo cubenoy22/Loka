@@ -2,7 +2,7 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxWindowContext.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <cstring>

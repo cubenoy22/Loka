@@ -10,7 +10,7 @@
 #include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
 #include "loka/core/String.hpp"
-#include "loka/core/Frame.hpp"
+#include "core/Frame.hpp"
 
 namespace loka
 {

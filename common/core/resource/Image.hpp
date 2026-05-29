@@ -2,7 +2,7 @@
 #define LOKA_CORE2_RESOURCE_IMAGE_HPP
 
 #include <cstddef>
-#include "loka/core/Managed.hpp"
+#include "core/Managed.hpp"
 
 namespace loka
 {

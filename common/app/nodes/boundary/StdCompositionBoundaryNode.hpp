@@ -3,7 +3,7 @@
 
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 
 namespace loka
 {

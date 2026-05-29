@@ -4,7 +4,7 @@
 #include <cstddef>
 
 #include "loka/core/String.hpp"
-#include "loka/core/Vector.hpp"
+#include "core/Vector.hpp"
 
 namespace loka
 {

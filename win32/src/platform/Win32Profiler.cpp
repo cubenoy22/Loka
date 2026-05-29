@@ -1,5 +1,5 @@
 #include "platform/Win32Profiler.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include <windows.h>
 
 namespace

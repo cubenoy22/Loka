@@ -6,7 +6,7 @@
 #include "app/nodes/Text.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
-#include "loka/core/Vector.hpp"
+#include "core/Vector.hpp"
 
 namespace helloworld {
   inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,

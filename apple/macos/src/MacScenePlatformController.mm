@@ -21,7 +21,7 @@
 #include "context/MacEditTextContext.hpp"
 #include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacRectSurfaceContext.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include <map>
 
 namespace

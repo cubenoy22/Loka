@@ -9,7 +9,7 @@
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
 #include "app/scene/state/StateOwner.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 
 class Window;
 

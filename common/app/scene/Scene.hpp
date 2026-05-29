@@ -13,7 +13,7 @@
 #include "app/scene/projection/PlatformApplyPlan.hpp"
 #include "app/scene/SceneDirector.hpp"
 #include "app/scene/boundary/Boundary.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
 #include "dsl/composition/CompositionDiff.hpp"
 

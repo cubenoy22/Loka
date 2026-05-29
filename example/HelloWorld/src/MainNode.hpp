@@ -7,7 +7,7 @@
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "loka/core/State.hpp"
 #include "loka/core/String.hpp"
-#include "loka/core/Vector.hpp"
+#include "core/Vector.hpp"
 
 namespace helloworld
 {

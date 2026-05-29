@@ -21,7 +21,7 @@
 #include "dsl/composition/CompositionList.hpp"
 
 #include "loka/core/State.hpp"
-#include "loka/core/Profiler.hpp"
+#include "core/Profiler.hpp"
 #include "app/scene/ability/CapturableBitmap.hpp"
 
 #if defined(TEST_BUILD)

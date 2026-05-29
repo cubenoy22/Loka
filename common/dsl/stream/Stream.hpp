@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "loka/core/Vector.hpp"
+#include "core/Vector.hpp"
 #include "dsl/flow/Expr.hpp"
 #include "dsl/stream/Slot.hpp"
 
