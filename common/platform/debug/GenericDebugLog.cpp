@@ -1,4 +1,4 @@
-#include "loka/platform/DebugLog.hpp"
+#include "platform/debug/DebugLog.hpp"
 #include <cstdio>
 
 #if !defined(_WIN32) && defined(LOKA_DEBUG_SCENE_UPDATE)

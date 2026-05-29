@@ -4,7 +4,7 @@
 #include "loka/core/State.hpp"
 #include <cassert>
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-#include "loka/platform/DebugLog.hpp"
+#include "platform/debug/DebugLog.hpp"
 #endif
 #include "app/scene/Node.hpp" // Required for NodeDefinitionBase.
 #include "app/scene/projection/PlatformController.hpp"

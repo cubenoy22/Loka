@@ -1,7 +1,7 @@
 #if defined(LOKA_DEBUG_RECOMPOSE)
 #include <windows.h>
 #include <cstdio>
-#include "loka/platform/DebugLog.hpp"
+#include "platform/debug/DebugLog.hpp"
 
 namespace loka
 {

@@ -1,7 +1,7 @@
 #include "Boundary.hpp"
 #include "app/scene/Scene.hpp"
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
-#include "loka/platform/DebugLog.hpp"
+#include "platform/debug/DebugLog.hpp"
 #endif
 
 namespace loka

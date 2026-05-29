@@ -19,7 +19,7 @@
 #include "loka/core/StateTracker.hpp"
 #include "loka/core/util/StateUtil.hpp"
 #include "loka/core/Profiler.hpp"
-#include "loka/platform/DebugLog.hpp"
+#include "platform/debug/DebugLog.hpp"
 
 namespace loka
 {
