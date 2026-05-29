@@ -3,7 +3,7 @@
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace

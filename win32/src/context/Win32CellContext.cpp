@@ -2,7 +2,7 @@
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/nodes/controls/Cell.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace

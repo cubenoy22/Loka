@@ -2,8 +2,8 @@
 #define LOKA_CORE2_SCENE_STATE_NODE_STATE_HPP
 
 #include <cassert>
-#include "loka/core/State.hpp"
-#include "loka/core/StateTracker.hpp"
+#include "core/State.hpp"
+#include "core/StateTracker.hpp"
 #include "app/scene/state/StateOwner.hpp"
 
 namespace loka

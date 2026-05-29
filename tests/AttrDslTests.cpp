@@ -21,7 +21,7 @@
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 
 namespace
 {

@@ -2,7 +2,7 @@
 #define LOKA_APP_POPUP_MENU_HPP
 
 #include <cstddef>
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/Vector.hpp"
 #include "app/scene/Node.hpp"

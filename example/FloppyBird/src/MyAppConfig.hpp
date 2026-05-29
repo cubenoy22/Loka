@@ -6,7 +6,7 @@
 #include "app/Menu.hpp"
 #include "app/RectSurface.hpp"
 #include "app/core/WindowDefinition.hpp"
-#include "loka/core/StateTracker.hpp"
+#include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "MainNode.hpp"
 

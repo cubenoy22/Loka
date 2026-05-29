@@ -1,8 +1,8 @@
 #ifndef LOKA_WINDOW_HPP
 #define LOKA_WINDOW_HPP
 
-#include "loka/core/State.hpp"
-#include "loka/core/StateTracker.hpp"
+#include "core/State.hpp"
+#include "core/StateTracker.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/core/AppComponent.hpp"
 #include "app/core/SceneManager.hpp"

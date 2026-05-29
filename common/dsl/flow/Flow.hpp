@@ -4,7 +4,7 @@
 #include <cassert>
 #include <vector>
 
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 
 namespace loka

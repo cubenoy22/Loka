@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "app/scene/Node.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 
 namespace loka
 {

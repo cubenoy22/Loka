@@ -3,7 +3,7 @@
 
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/Menu.hpp"
 #include "MainNode.hpp"

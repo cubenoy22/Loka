@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdio>
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 
 namespace
 {

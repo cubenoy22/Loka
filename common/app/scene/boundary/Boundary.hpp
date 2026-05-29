@@ -16,7 +16,7 @@
 #include "app/scene/boundary/detail/BoundaryRuntimeState.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "core/Managed.hpp"
-#include "loka/core/StateTracker.hpp"
+#include "core/StateTracker.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/Profiler.hpp"
 #include "platform/debug/DebugLog.hpp"

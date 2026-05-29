@@ -2,7 +2,7 @@
 #define LOKA_MAC_IMAGE_VIEW_CONTEXT_HPP
 
 #include "app/nodes/ImageView.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/resource/Image.hpp"
 
 namespace loka

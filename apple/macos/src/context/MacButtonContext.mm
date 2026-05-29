@@ -4,7 +4,7 @@
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/nodes/controls/Button.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "platform/StringUTF8.hpp"
 #include "core/resource/Image.hpp"
 

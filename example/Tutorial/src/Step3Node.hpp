@@ -8,7 +8,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 
 namespace tutorial
 {

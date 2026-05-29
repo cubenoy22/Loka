@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <string>
 #include "app/core/Window.hpp"
-#include "loka/core/StateTracker.hpp"
+#include "core/StateTracker.hpp"
 
 #include "app/scene/Scene.hpp"
 #include "app/scene/Scene.hpp"

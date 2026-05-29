@@ -1,5 +1,5 @@
-#include "loka/core/StateTracker.hpp"
-#include "loka/core/State.hpp"
+#include "core/StateTracker.hpp"
+#include "core/State.hpp"
 #include <cstdio>
 
 namespace loka

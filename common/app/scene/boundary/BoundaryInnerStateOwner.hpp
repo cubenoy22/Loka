@@ -4,8 +4,8 @@
 #include <cassert>
 #include <vector>
 #include "app/scene/state/StateOwner.hpp"
-#include "loka/core/State.hpp"
-#include "loka/core/StateTracker.hpp"
+#include "core/State.hpp"
+#include "core/StateTracker.hpp"
 
 namespace loka
 {

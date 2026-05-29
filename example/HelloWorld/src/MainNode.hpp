@@ -5,7 +5,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/Vector.hpp"
 

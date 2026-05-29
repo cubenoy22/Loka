@@ -5,7 +5,7 @@
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/nodes/controls/EditText.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace

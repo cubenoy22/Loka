@@ -20,7 +20,7 @@
 #include <vector>
 #include "dsl/composition/CompositionList.hpp"
 
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/Profiler.hpp"
 #include "app/scene/ability/CapturableBitmap.hpp"
 

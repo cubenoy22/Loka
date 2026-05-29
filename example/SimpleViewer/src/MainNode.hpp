@@ -12,7 +12,7 @@
 #include "app/nodes/Text.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "SimpleViewerFlowAdapters.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/resource/Image.hpp"
 #include <cassert>

@@ -4,7 +4,7 @@
 #include <vector>
 #include <cassert>
 #include "core/String.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "dsl/composition/CompositionList.hpp"
 #include "app/MenuComposition.hpp"
 

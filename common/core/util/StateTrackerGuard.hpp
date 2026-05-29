@@ -1,6 +1,6 @@
 #ifndef LOKA_UTIL_STATE_TRACKER_GUARD_HPP
 #define LOKA_UTIL_STATE_TRACKER_GUARD_HPP
-#include "loka/core/StateTracker.hpp"
+#include "core/StateTracker.hpp"
 #include <cassert>
 
 namespace loka

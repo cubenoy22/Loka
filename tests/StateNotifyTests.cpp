@@ -2,7 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include <vector>
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
 
 // ============================================================

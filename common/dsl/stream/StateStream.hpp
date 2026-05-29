@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "core/Profiler.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "dsl/flow/Expr.hpp"

@@ -3,7 +3,7 @@
 
 #include "app/scene/Node.hpp"
 #include "core/resource/Image.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include <cassert>
 
 namespace loka

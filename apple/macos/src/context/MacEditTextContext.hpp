@@ -2,7 +2,7 @@
 #define LOKA_MAC_EDIT_TEXT_CONTEXT_HPP
 
 #include "app/scene/projection/NativeNodeContext.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/String.hpp"
 
 namespace loka

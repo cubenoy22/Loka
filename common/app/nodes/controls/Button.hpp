@@ -1,7 +1,7 @@
 #ifndef LOKA_APP2_BUTTON_HPP
 #define LOKA_APP2_BUTTON_HPP
 
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/String.hpp"
 #include "app/scene/Node.hpp"
 

@@ -3,7 +3,7 @@
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "core/resource/Image.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "platform/StringUTF8.hpp"
 
 namespace

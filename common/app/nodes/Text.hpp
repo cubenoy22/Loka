@@ -2,7 +2,7 @@
 #define LOKA_APP2_TEXT_HPP
 
 #include <cassert>
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "app/scene/Node.hpp"
 #include "core/String.hpp"
 

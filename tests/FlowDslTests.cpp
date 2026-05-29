@@ -26,7 +26,7 @@
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 

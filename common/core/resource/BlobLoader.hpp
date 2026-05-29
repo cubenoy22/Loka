@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/String.hpp"
 #include "platform/StringUTF8.hpp"

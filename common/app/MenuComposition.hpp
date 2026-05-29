@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cstring>
 #include <vector>
-#include "loka/core/State.hpp"
+#include "core/State.hpp"
 #include "dsl/composition/CompositionList.hpp"
 #include "dsl/composition/CompositionDiff.hpp"
 
