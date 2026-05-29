@@ -31,16 +31,12 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureEditTextContext(edit,
-                                                         state.x,
-                                                         state.y,
-                                                         state.width,
-                                                         state.height);
+      return mac->contextMapper()->ensureEditTextContext(edit, state.x, state.y, state.width, state.height);
     }
   };
 
   MacEditTextNodeHandler gMacEditTextNodeHandler;
-}
+} // namespace
 
 @interface LokaTextFieldDelegate : NSObject
 {
@@ -61,8 +57,14 @@ namespace
 }
 @end
 
-MacEditTextContext::MacEditTextContext(void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node)
-    : node_(node), field_(0), delegate_(0), textState_(0), applyingFromState_(false), updatingFromControl_(false)
+MacEditTextContext::MacEditTextContext(
+    void *parentView, int x, int y, int width, int height, loka::app::EditTextNode *node)
+    : node_(node),
+      field_(0),
+      delegate_(0),
+      textState_(0),
+      applyingFromState_(false),
+      updatingFromControl_(false)
 {
   NSView *parent = (NSView *)parentView;
   NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(x, y, width, height)];
@@ -214,7 +216,8 @@ void MacEditTextContext::syncStateFromControl()
   {
     return;
   }
-  loka::core::MutableState<loka::core::String> *mutableState = dynamic_cast<loka::core::MutableState<loka::core::String> *>(textState_);
+  loka::core::MutableState<loka::core::String> *mutableState =
+      dynamic_cast<loka::core::MutableState<loka::core::String> *>(textState_);
   if (!mutableState)
   {
     return;

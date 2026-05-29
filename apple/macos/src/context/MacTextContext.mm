@@ -14,16 +14,14 @@ namespace
   const int kDefaultTextHeight = 20;
   const int kVerticalSpacing = 12;
 
-  int MeasureTextHeightForWidth(const loka::app::TextNode *text,
-                                int width,
-                                int defaultHeight)
+  int MeasureTextHeightForWidth(const loka::app::TextNode *text, int width, int defaultHeight)
   {
     if (!text || !text->props.text_)
     {
       return defaultHeight;
     }
-    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
-        text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_
+        || text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
     {
       return defaultHeight;
     }
@@ -56,9 +54,7 @@ namespace
       [cell setWraps:YES];
       [cell setScrollable:NO];
       [cell setLineBreakMode:NSLineBreakByWordWrapping];
-      NSSize size = [cell cellSizeForBounds:NSMakeRect(0.0f, 0.0f,
-                                                       static_cast<CGFloat>(width),
-                                                       CGFLOAT_MAX)];
+      NSSize size = [cell cellSizeForBounds:NSMakeRect(0.0f, 0.0f, static_cast<CGFloat>(width), CGFLOAT_MAX)];
       measured = static_cast<int>(size.height + 0.5f);
     }
     const int measuredWithPadding = measured + 2;
@@ -108,11 +104,8 @@ namespace
     }
     [bitmap retain];
     [view cacheDisplayInRect:bounds toBitmapImageRep:bitmap];
-    out = loka::core::resource::Image::FromNative((void *)bitmap,
-                                                  (int)bounds.size.width,
-                                                  (int)bounds.size.height,
-                                                  &ReleaseCapturedBitmap,
-                                                  0);
+    out = loka::core::resource::Image::FromNative(
+        (void *)bitmap, (int)bounds.size.width, (int)bounds.size.height, &ReleaseCapturedBitmap, 0);
     if (!out.isValid())
     {
       [bitmap release];
@@ -139,16 +132,12 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureTextContext(text,
-                                                     state.x,
-                                                     state.y,
-                                                     state.width,
-                                                     state.height);
+      return mac->contextMapper()->ensureTextContext(text, state.x, state.y, state.width, state.height);
     }
   };
 
   MacTextNodeHandler gMacTextNodeHandler;
-}
+} // namespace
 
 MacTextContext::MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node)
     : node_(node),

@@ -50,9 +50,7 @@ namespace
     return fallbackWidth;
   }
 
-  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node,
-                               int resolvedWidth,
-                               int fallbackHeight)
+  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node, int resolvedWidth, int fallbackHeight)
   {
     if (!node)
     {
@@ -113,16 +111,12 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureImageViewContext(image,
-                                                          state.x,
-                                                          state.y,
-                                                          state.width,
-                                                          state.height);
+      return mac->contextMapper()->ensureImageViewContext(image, state.x, state.y, state.width, state.height);
     }
   };
 
   MacImageViewNodeHandler gMacImageViewNodeHandler;
-}
+} // namespace
 
 @implementation LokaImageView
 - (id)initWithFrame:(NSRect)frame
@@ -241,8 +235,12 @@ namespace
 }
 @end
 
-MacImageViewContext::MacImageViewContext(void *parentView, int x, int y, int width, int height, loka::app::ImageViewNode *node)
-    : node_(node), imageView_(0), imageState_(0), image_()
+MacImageViewContext::MacImageViewContext(
+    void *parentView, int x, int y, int width, int height, loka::app::ImageViewNode *node)
+    : node_(node),
+      imageView_(0),
+      imageState_(0),
+      image_()
 {
   NSView *parent = (NSView *)parentView;
   LokaImageView *view = [[LokaImageView alloc] initWithFrame:NSMakeRect(x, y, width, height)];

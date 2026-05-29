@@ -14,11 +14,8 @@
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/Text.hpp"
 
-MacButtonContext *MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,
-                                                            int x,
-                                                            int y,
-                                                            int width,
-                                                            int height) const
+MacButtonContext *
+MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -35,11 +32,8 @@ MacButtonContext *MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNod
   return ctx;
 }
 
-MacCellContext *MacNodeContextMapper::ensureCellContext(loka::app::CellNode *node,
-                                                        int x,
-                                                        int y,
-                                                        int width,
-                                                        int height) const
+MacCellContext *
+MacNodeContextMapper::ensureCellContext(loka::app::CellNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -56,11 +50,8 @@ MacCellContext *MacNodeContextMapper::ensureCellContext(loka::app::CellNode *nod
   return ctx;
 }
 
-MacEditTextContext *MacNodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node,
-                                                                int x,
-                                                                int y,
-                                                                int width,
-                                                                int height) const
+MacEditTextContext *
+MacNodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -77,11 +68,8 @@ MacEditTextContext *MacNodeContextMapper::ensureEditTextContext(loka::app::EditT
   return ctx;
 }
 
-MacTextContext *MacNodeContextMapper::ensureTextContext(loka::app::TextNode *node,
-                                                        int x,
-                                                        int y,
-                                                        int width,
-                                                        int height) const
+MacTextContext *
+MacNodeContextMapper::ensureTextContext(loka::app::TextNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -98,11 +86,8 @@ MacTextContext *MacNodeContextMapper::ensureTextContext(loka::app::TextNode *nod
   return ctx;
 }
 
-MacImageViewContext *MacNodeContextMapper::ensureImageViewContext(loka::app::ImageViewNode *node,
-                                                                  int x,
-                                                                  int y,
-                                                                  int width,
-                                                                  int height) const
+MacImageViewContext *
+MacNodeContextMapper::ensureImageViewContext(loka::app::ImageViewNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -139,11 +124,8 @@ MacOpenFileDialogContext *MacNodeContextMapper::ensureOpenFileDialogContext(loka
   return ctx;
 }
 
-MacPopupMenuContext *MacNodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *node,
-                                                                  int x,
-                                                                  int y,
-                                                                  int width,
-                                                                  int height) const
+MacPopupMenuContext *
+MacNodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {

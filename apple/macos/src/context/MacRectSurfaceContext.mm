@@ -32,19 +32,14 @@
 }
 @end
 
-MacRectSurfaceContext::MacRectSurfaceContext(void *parentView,
-                                             int x,
-                                             int y,
-                                             int width,
-                                             int height,
-                                             loka::app::RectSurfaceNode *node)
+MacRectSurfaceContext::MacRectSurfaceContext(
+    void *parentView, int x, int y, int width, int height, loka::app::RectSurfaceNode *node)
     : node_(node),
       modelState_(0),
       view_(0)
 {
   NSView *parent = (NSView *)parentView;
-  LokaRectSurfaceView *view =
-      [[LokaRectSurfaceView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+  LokaRectSurfaceView *view = [[LokaRectSurfaceView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
   [view setContext:this];
   if (parent)
   {

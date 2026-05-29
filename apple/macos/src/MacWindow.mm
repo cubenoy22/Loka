@@ -88,7 +88,13 @@
 @end
 
 MacWindow::MacWindow(PlatformContext *context, const WindowProps &props)
-    : Window(context, props), window_(0), contentView_(0), delegate_(0), app_(0), closing_(false), scenePlatformController_(0)
+    : Window(context, props),
+      window_(0),
+      contentView_(0),
+      delegate_(0),
+      app_(0),
+      closing_(false),
+      scenePlatformController_(0)
 {
   this->visibilityState().deferBind(&MacWindow::VisibilityChangedThunk, this);
   this->titleState().deferBind(&MacWindow::TitleChangedThunk, this);
@@ -199,7 +205,8 @@ namespace
     return top;
   }
 
-  static NSRect FrameRectForContent(CGFloat x, CGFloat y, CGFloat width, CGFloat height, NSUInteger style, NSScreen *screen)
+  static NSRect
+  FrameRectForContent(CGFloat x, CGFloat y, CGFloat width, CGFloat height, NSUInteger style, NSScreen *screen)
   {
     NSRect contentRect = NSMakeRect(0.0, 0.0, width, height);
     NSRect frameRect = [NSWindow frameRectForContentRect:contentRect styleMask:style];
@@ -208,7 +215,7 @@ namespace
     frameRect.origin.y = top - y - frameRect.size.height;
     return frameRect;
   }
-}
+} // namespace
 
 void MacWindow::FrameChangedThunk(void *userData)
 {
@@ -258,11 +265,10 @@ void MacWindow::createNativeWindow()
   CGFloat width = this->hasSize() ? this->width() : 300;
   CGFloat height = this->hasSize() ? this->height() : 300;
 #if defined(NSWindowStyleMaskTitled)
-  NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
-                     NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
+  NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
+                     | NSWindowStyleMaskMiniaturizable;
 #else
-  NSUInteger style = NSTitledWindowMask | NSClosableWindowMask |
-                     NSResizableWindowMask | NSMiniaturizableWindowMask;
+  NSUInteger style = NSTitledWindowMask | NSClosableWindowMask | NSResizableWindowMask | NSMiniaturizableWindowMask;
 #endif
   NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, width, height)
                                                  styleMask:style
@@ -332,9 +338,7 @@ void MacWindow::onShow()
   }
 }
 
-void MacWindow::onHide()
-{
-}
+void MacWindow::onHide() {}
 
 void MacWindow::synchronizeScenePlatform()
 {

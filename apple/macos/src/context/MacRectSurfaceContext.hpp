@@ -10,7 +10,7 @@ namespace loka
   {
     class RectSurfaceNode;
   }
-}
+} // namespace loka
 
 class MacRectSurfaceContext : public loka::app::scene::NativeNodeContext
 {

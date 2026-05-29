@@ -14,8 +14,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class MacCellContext : public loka::app::scene::NativeNodeContext
 {

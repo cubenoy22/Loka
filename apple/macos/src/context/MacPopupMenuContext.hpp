@@ -12,8 +12,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class MacPopupMenuContext : public loka::app::scene::NativeNodeContext
 {

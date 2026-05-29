@@ -7,34 +7,34 @@ namespace loka
 {
   namespace macos
   {
-  inline NSString *CreateNSStringFromUtf8(const std::string &value)
-  {
-    if (value.empty())
+    inline NSString *CreateNSStringFromUtf8(const std::string &value)
     {
-      return @"";
+      if (value.empty())
+      {
+        return @"";
+      }
+      NSString *string = [NSString stringWithUTF8String:value.c_str()];
+      if (string)
+      {
+        return string;
+      }
+      NSData *data = [NSData dataWithBytes:value.data() length:value.size()];
+      string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+      return string ? [string autorelease] : @"";
     }
-    NSString *string = [NSString stringWithUTF8String:value.c_str()];
-    if (string)
-    {
-      return string;
-    }
-    NSData *data = [NSData dataWithBytes:value.data() length:value.size()];
-    string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    return string ? [string autorelease] : @"";
-  }
 
-  inline std::string Utf8FromNSString(NSString *string)
-  {
-    if (!string)
+    inline std::string Utf8FromNSString(NSString *string)
     {
-      return std::string();
+      if (!string)
+      {
+        return std::string();
+      }
+      const char *bytes = [string UTF8String];
+      if (!bytes)
+      {
+        return std::string();
+      }
+      return std::string(bytes);
     }
-    const char *bytes = [string UTF8String];
-    if (!bytes)
-    {
-      return std::string();
-    }
-    return std::string(bytes);
-  }
-  }
-}
+  } // namespace macos
+} // namespace loka

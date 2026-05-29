@@ -14,8 +14,8 @@ namespace loka
     {
       class MacScenePlatformTestAccess;
     }
-  }
-}
+  } // namespace dsl
+} // namespace loka
 
 namespace loka
 {
@@ -25,7 +25,7 @@ namespace loka
     {
       class Node;
     }
-  }
+  } // namespace core
 
   namespace app
   {
@@ -35,8 +35,8 @@ namespace loka
     {
       class MacPlatformLayoutTraversal;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class MacScenePlatformController : public loka::app::scene::IPlatformController
 {
@@ -51,8 +51,16 @@ public:
 
   struct LayoutNodeResult
   {
-    LayoutNodeResult() : boundaryWidth(0), resultY(0) {}
-    LayoutNodeResult(int width, int y) : boundaryWidth(width), resultY(y) {}
+    LayoutNodeResult()
+        : boundaryWidth(0),
+          resultY(0)
+    {
+    }
+    LayoutNodeResult(int width, int y)
+        : boundaryWidth(width),
+          resultY(y)
+    {
+    }
 
     int boundaryWidth;
     int resultY;
@@ -66,7 +74,10 @@ public:
                                loka::app::scene::BoundaryNode *boundary,
                                const loka::app::scene::BoundaryLocalApplyInfo &info,
                                const loka::app::scene::PlatformApplyPlan &plan);
-  virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return true; }
+  virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const
+  {
+    return true;
+  }
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
@@ -76,10 +87,16 @@ public:
 
   void relayout(int clientWidth, int clientHeight);
   void requestRelayout();
-  bool hasPendingRelayout() const { return relayoutPending_; }
+  bool hasPendingRelayout() const
+  {
+    return relayoutPending_;
+  }
   static MacScenePlatformController *findForRootView(void *rootView);
   static void flushPendingRelayouts();
-  MacNodeContextMapper *contextMapper() { return &contextMapper_; }
+  MacNodeContextMapper *contextMapper()
+  {
+    return &contextMapper_;
+  }
 
 private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
@@ -93,7 +110,9 @@ private:
   struct LeafLayoutHandlerEntry
   {
     LeafLayoutHandlerEntry(const void *nodeTypeKey, LeafLayoutHandlerFn handler)
-        : nodeTypeKey_(nodeTypeKey), handler_(handler), next_(0)
+        : nodeTypeKey_(nodeTypeKey),
+          handler_(handler),
+          next_(0)
     {
     }
 
@@ -105,7 +124,10 @@ private:
   class LeafLayoutHandlerRegistry
   {
   public:
-    LeafLayoutHandlerRegistry() : head_(0) {}
+    LeafLayoutHandlerRegistry()
+        : head_(0)
+    {
+    }
     ~LeafLayoutHandlerRegistry()
     {
       LeafLayoutHandlerEntry *entry = this->head_;
@@ -178,10 +200,7 @@ private:
   int layoutNodeFromSceneState(loka::app::scene::Node *node, const loka::app::scene::LayoutState &state);
   int layoutNode(loka::app::scene::Node *node, const LayoutState &state);
   LayoutNodeResult computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state);
-  int applyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary,
-                                int x,
-                                int y,
-                                const LayoutNodeResult &result);
+  int applyBoundaryLayoutResult(loka::app::scene::BoundaryNode *boundary, int x, int y, const LayoutNodeResult &result);
   LayoutNodeResult layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state);
   void performLayout(int clientWidth, int clientHeight, bool rebuildContexts);
   void clearContexts();

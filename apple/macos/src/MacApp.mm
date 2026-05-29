@@ -73,10 +73,18 @@ namespace
     return false;
 #endif
   }
-}
+} // namespace
 
 MacApp::MacApp(AppConfigurable *config)
-    : App(config), nextCommandId_(1), commands_(), bindings_(), menuTarget_(0), flushTarget_(0), flushTimer_(0), lastIdleTick_(0), idleTimebase_()
+    : App(config),
+      nextCommandId_(1),
+      commands_(),
+      bindings_(),
+      menuTarget_(0),
+      flushTarget_(0),
+      flushTimer_(0),
+      lastIdleTick_(0),
+      idleTimebase_()
 {
   idleTimebase_.numer = 0;
   idleTimebase_.denom = 0;
@@ -162,10 +170,8 @@ void MacApp::flushInvalidationsTick()
   if (lastIdleTick_ != 0 && idleTimebase_.denom != 0)
   {
     const unsigned long long elapsed = now - lastIdleTick_;
-    const double nanos =
-        static_cast<double>(elapsed) *
-        static_cast<double>(idleTimebase_.numer) /
-        static_cast<double>(idleTimebase_.denom);
+    const double nanos = static_cast<double>(elapsed) * static_cast<double>(idleTimebase_.numer)
+                         / static_cast<double>(idleTimebase_.denom);
     elapsedSeconds = nanos * 1.0e-9;
   }
   lastIdleTick_ = now;

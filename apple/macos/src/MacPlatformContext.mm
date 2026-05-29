@@ -48,7 +48,7 @@ namespace
       [(NSImage *)handle release];
     }
   }
-}
+} // namespace
 
 bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
                                              loka::core::resource::Image &out) const
@@ -75,10 +75,7 @@ bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &b
     return false;
   }
   NSSize size = [image size];
-  out = loka::core::resource::Image::FromNative(image,
-                                                static_cast<int>(size.width),
-                                                static_cast<int>(size.height),
-                                                &ReleaseNSImage,
-                                                0);
+  out = loka::core::resource::Image::FromNative(
+      image, static_cast<int>(size.width), static_cast<int>(size.height), &ReleaseNSImage, 0);
   return out.isValid();
 }

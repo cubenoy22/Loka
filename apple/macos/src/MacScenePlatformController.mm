@@ -36,7 +36,7 @@ namespace
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
 
-}
+} // namespace
 
 namespace loka
 {
@@ -48,7 +48,8 @@ namespace loka
       {
       public:
         explicit MacPlatformLayoutTraversal(MacScenePlatformController *controller)
-            : controller_(controller), layoutResultY_(0)
+            : controller_(controller),
+              layoutResultY_(0)
         {
         }
 
@@ -63,17 +64,23 @@ namespace loka
           return result;
         }
 
-        virtual void setLayoutResultY(short y) { this->layoutResultY_ = y; }
+        virtual void setLayoutResultY(short y)
+        {
+          this->layoutResultY_ = y;
+        }
 
-        virtual short layoutResultY() const { return this->layoutResultY_; }
+        virtual short layoutResultY() const
+        {
+          return this->layoutResultY_;
+        }
 
       private:
         MacScenePlatformController *controller_;
         short layoutResultY_;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
@@ -158,7 +165,9 @@ MacScenePlatformController *MacScenePlatformController::findForRootView(void *ro
   return it->second;
 }
 
-void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode,
+                                          loka::app::scene::NodeDirtyFlags flags,
+                                          bool fullRebuild)
 {
   rootNode_ = rootNode;
   lastChangeFlags_ = flags;
@@ -168,9 +177,9 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka
     return;
   }
 
-  const bool requiresLayout = (flags & loka::app::scene::NODE_DIRTY_INITIAL) != 0 ||
-                              (flags & loka::app::scene::NODE_DIRTY_LAYOUT) != 0 ||
-                              (flags & loka::app::scene::NODE_DIRTY_CHILD) != 0;
+  const bool requiresLayout = (flags & loka::app::scene::NODE_DIRTY_INITIAL) != 0
+                              || (flags & loka::app::scene::NODE_DIRTY_LAYOUT) != 0
+                              || (flags & loka::app::scene::NODE_DIRTY_CHILD) != 0;
   if (!requiresLayout)
   {
     return;
@@ -332,9 +341,8 @@ int MacScenePlatformController::applyBoundaryLayoutResult(loka::app::scene::Boun
   return result.resultY;
 }
 
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutRectSurfaceNode(
-    loka::app::RectSurfaceNode *surface,
-    const LayoutState &state)
+MacScenePlatformController::LayoutNodeResult
+MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state)
 {
   MacRectSurfaceContext *ctx = static_cast<MacRectSurfaceContext *>(surface->getContext());
   if (ctx)
@@ -343,12 +351,8 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::layoutR
   }
   else
   {
-    ctx = new MacRectSurfaceContext(rootView_,
-                                    state.x,
-                                    state.y,
-                                    surface->props.width_,
-                                    surface->props.height_,
-                                    surface);
+    ctx =
+        new MacRectSurfaceContext(rootView_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
     surface->setContext(ctx);
   }
   return LayoutNodeResult(state.width, state.y + surface->props.height_ + kVerticalSpacing);
@@ -363,9 +367,8 @@ int MacScenePlatformController::layoutNode(loka::app::scene::Node *node, const L
   return this->applyBoundaryLayoutResult(node->asBoundary(), state.x, state.y, this->computeLayoutResult(node, state));
 }
 
-MacScenePlatformController::LayoutNodeResult MacScenePlatformController::computeLayoutResult(
-    loka::app::scene::Node *node,
-    const LayoutState &state)
+MacScenePlatformController::LayoutNodeResult
+MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state)
 {
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
@@ -383,7 +386,8 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
     }
     else
     {
-      currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &MacScenePlatformController::layoutContainerChild);
+      currentY = loka::app::layout::computeColumnLayoutResultY(
+          column, state, this, &MacScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, currentY);
   }
@@ -412,7 +416,8 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
       metrics.popupMenuHeight = kPopupMenuHeight;
       metrics.textHeight = kTextHeight;
       metrics.imageFallbackHeight = kImageFallbackHeightModern;
-      maxY = loka::app::layout::computeRowLayoutResultY(row, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
+      maxY = loka::app::layout::computeRowLayoutResultY(
+          row, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, maxY);
   }
@@ -436,7 +441,8 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
       loka::app::layout::GridLayoutMetrics metrics;
       metrics.gapX = 0;
       metrics.gapY = 0;
-      maxY = loka::app::layout::computeGridLayoutResultY(grid, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
+      maxY = loka::app::layout::computeGridLayoutResultY(
+          grid, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, maxY);
   }
@@ -457,7 +463,8 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
     }
     else
     {
-      resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &MacScenePlatformController::layoutContainerChild);
+      resultY = loka::app::layout::computeBoxLayoutResultY(
+          box, state, this, &MacScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, resultY);
   }
@@ -478,7 +485,8 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
     }
     else
     {
-      maxY = loka::app::layout::computeZStackLayoutResultY(stack, state, this, &MacScenePlatformController::layoutContainerChild);
+      maxY = loka::app::layout::computeZStackLayoutResultY(
+          stack, state, this, &MacScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, maxY);
   }
@@ -526,7 +534,9 @@ MacScenePlatformController::LayoutNodeResult MacScenePlatformController::compute
   return LayoutNodeResult(state.width, state.y);
 }
 
-int MacScenePlatformController::layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
+int MacScenePlatformController::layoutContainerChild(void *context,
+                                                     loka::app::scene::Node *child,
+                                                     const LayoutState &state)
 {
   MacScenePlatformController *controller = static_cast<MacScenePlatformController *>(context);
   if (!controller)
@@ -638,7 +648,8 @@ void *MacScenePlatformController::findFieldForFocusedEdit(loka::app::scene::Node
   }
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
   {
-    const bool controlTagMatches = focusedEditTextControlTag_ != 0 && edit->props.controlTag_ == focusedEditTextControlTag_;
+    const bool controlTagMatches =
+        focusedEditTextControlTag_ != 0 && edit->props.controlTag_ == focusedEditTextControlTag_;
     const bool stateMatches = focusedEditTextState_ != 0 && edit->props.text_ == focusedEditTextState_;
     if (controlTagMatches || (focusedEditTextControlTag_ == 0 && stateMatches))
     {

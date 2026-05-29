@@ -14,17 +14,22 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
-class MacTextContext : public loka::app::scene::NativeNodeContext,
-                       public loka::app::scene::ICapturableBitmap
+class MacTextContext : public loka::app::scene::NativeNodeContext, public loka::app::scene::ICapturableBitmap
 {
 public:
   MacTextContext(void *parentView, int x, int y, int width, int height, loka::app::TextNode *node);
   virtual ~MacTextContext();
-  virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return this; }
-  virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return this; }
+  virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
+  {
+    return this;
+  }
+  virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const
+  {
+    return this;
+  }
   virtual bool captureBitmap(loka::core::resource::Image &out) const;
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   virtual void onNodeAttached();

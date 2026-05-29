@@ -101,9 +101,7 @@ namespace
     {
       onResult->emit();
     }
-    if (closeState &&
-        loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) &&
-        closeState->get())
+    if (closeState && loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) && closeState->get())
     {
       closeState->set(false, true);
     }
@@ -141,7 +139,7 @@ namespace
   };
 
   MacOpenFileDialogNodeHandler gMacOpenFileDialogNodeHandler;
-}
+} // namespace
 
 struct MacOpenFileDialogContext::NativeDialogSession : public MacOpenNativeDialogSession
 {
@@ -287,7 +285,8 @@ void MacOpenFileDialogContext::disposeDialog()
   dialog_ = 0;
 }
 
-MacOpenFileDialogContext::NativeDialogSession *MacOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
+MacOpenFileDialogContext::NativeDialogSession *
+MacOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
 {
   if (!dialog || dialog_ != dialog || dialog->disposed)
   {

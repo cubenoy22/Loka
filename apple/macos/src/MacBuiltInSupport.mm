@@ -25,10 +25,10 @@ namespace
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
 
-  MacScenePlatformController::LayoutNodeResult DispatchProjectedLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult
+  DispatchProjectedLayout(MacScenePlatformController *controller,
+                          loka::app::scene::Node *node,
+                          const MacScenePlatformController::LayoutState &state)
   {
     if (!controller || !node)
     {
@@ -46,67 +46,64 @@ namespace
     projectedState.height = static_cast<short>(state.height);
     projectedState.lineHeight = 0;
     projectedState.spacing = 0;
-    return MacScenePlatformController::LayoutNodeResult(
-        state.width,
-        projected->layoutProjected(controller, projectedState));
+    return MacScenePlatformController::LayoutNodeResult(state.width,
+                                                        projected->layoutProjected(controller, projectedState));
   }
 
-  MacScenePlatformController::LayoutNodeResult DispatchTextLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult DispatchTextLayout(MacScenePlatformController *controller,
+                                                                  loka::app::scene::Node *node,
+                                                                  const MacScenePlatformController::LayoutState &state)
   {
     return DispatchProjectedLayout(controller, node, state);
   }
 
-  MacScenePlatformController::LayoutNodeResult DispatchImageViewLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult
+  DispatchImageViewLayout(MacScenePlatformController *controller,
+                          loka::app::scene::Node *node,
+                          const MacScenePlatformController::LayoutState &state)
   {
     return DispatchProjectedLayout(controller, node, state);
   }
 
-  MacScenePlatformController::LayoutNodeResult DispatchButtonLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult
+  DispatchButtonLayout(MacScenePlatformController *controller,
+                       loka::app::scene::Node *node,
+                       const MacScenePlatformController::LayoutState &state)
   {
     return DispatchProjectedLayout(controller, node, state);
   }
 
-  MacScenePlatformController::LayoutNodeResult DispatchEditTextLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult
+  DispatchEditTextLayout(MacScenePlatformController *controller,
+                         loka::app::scene::Node *node,
+                         const MacScenePlatformController::LayoutState &state)
   {
     return DispatchProjectedLayout(controller, node, state);
   }
 
-  MacScenePlatformController::LayoutNodeResult DispatchPopupMenuLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult
+  DispatchPopupMenuLayout(MacScenePlatformController *controller,
+                          loka::app::scene::Node *node,
+                          const MacScenePlatformController::LayoutState &state)
   {
     return DispatchProjectedLayout(controller, node, state);
   }
 
-  MacScenePlatformController::LayoutNodeResult DispatchCellLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult DispatchCellLayout(MacScenePlatformController *controller,
+                                                                  loka::app::scene::Node *node,
+                                                                  const MacScenePlatformController::LayoutState &state)
   {
     return DispatchProjectedLayout(controller, node, state);
   }
 
-  MacScenePlatformController::LayoutNodeResult DispatchOpenFileDialogLayout(
-      MacScenePlatformController *controller,
-      loka::app::scene::Node *node,
-      const MacScenePlatformController::LayoutState &state)
+  MacScenePlatformController::LayoutNodeResult
+  DispatchOpenFileDialogLayout(MacScenePlatformController *controller,
+                               loka::app::scene::Node *node,
+                               const MacScenePlatformController::LayoutState &state)
   {
     return DispatchProjectedLayout(controller, node, state);
   }
-}
+} // namespace
 
 void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
 {
@@ -121,28 +118,22 @@ void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
   loka::app::layout::GridLayoutMetrics gridMetrics;
   gridMetrics.gapX = 0;
   gridMetrics.gapY = 0;
-  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(controller.layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
-  controller.leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
-      &DispatchButtonLayout);
-  controller.leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
-      &DispatchEditTextLayout);
-  controller.leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
-      &DispatchPopupMenuLayout);
-  controller.leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
-      &DispatchCellLayout);
-  controller.leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
-      &DispatchTextLayout);
-  controller.leafLayoutHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
-      &DispatchImageViewLayout);
+  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(
+      controller.layoutHandlerRegistry_, &rowMetrics, &gridMetrics);
+  controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::ButtonNode>(),
+                                                        &DispatchButtonLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::EditTextNode>(),
+                                                        &DispatchEditTextLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>(),
+                                                        &DispatchPopupMenuLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::CellNode>(),
+                                                        &DispatchCellLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::TextNode>(),
+                                                        &DispatchTextLayout);
+  controller.leafLayoutHandlerRegistry_.registerHandler(loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>(),
+                                                        &DispatchImageViewLayout);
   controller.hostActionHandlerRegistry_.registerHandler(
-      loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(),
-      &DispatchOpenFileDialogLayout);
+      loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>(), &DispatchOpenFileDialogLayout);
   RegisterMacButtonNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacTextNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacImageViewNodeHandler(controller.nodeHandlerRegistry_);

@@ -12,8 +12,8 @@ namespace loka
     class OpenFileDialogNode;
     class PopupMenuNode;
     class TextNode;
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class MacButtonContext;
 class MacCellContext;
@@ -27,39 +27,19 @@ class MacNodeContextMapper
 {
 public:
   explicit MacNodeContextMapper(void *rootView)
-      : rootView_(rootView) {}
+      : rootView_(rootView)
+  {
+  }
 
-  MacButtonContext *ensureButtonContext(loka::app::ButtonNode *node,
-                                        int x,
-                                        int y,
-                                        int width,
-                                        int height) const;
-  MacCellContext *ensureCellContext(loka::app::CellNode *node,
-                                    int x,
-                                    int y,
-                                    int width,
-                                    int height) const;
-  MacEditTextContext *ensureEditTextContext(loka::app::EditTextNode *node,
-                                            int x,
-                                            int y,
-                                            int width,
-                                            int height) const;
-  MacTextContext *ensureTextContext(loka::app::TextNode *node,
-                                    int x,
-                                    int y,
-                                    int width,
-                                    int height) const;
-  MacImageViewContext *ensureImageViewContext(loka::app::ImageViewNode *node,
-                                              int x,
-                                              int y,
-                                              int width,
-                                              int height) const;
+  MacButtonContext *ensureButtonContext(loka::app::ButtonNode *node, int x, int y, int width, int height) const;
+  MacCellContext *ensureCellContext(loka::app::CellNode *node, int x, int y, int width, int height) const;
+  MacEditTextContext *ensureEditTextContext(loka::app::EditTextNode *node, int x, int y, int width, int height) const;
+  MacTextContext *ensureTextContext(loka::app::TextNode *node, int x, int y, int width, int height) const;
+  MacImageViewContext *
+  ensureImageViewContext(loka::app::ImageViewNode *node, int x, int y, int width, int height) const;
   MacOpenFileDialogContext *ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node) const;
-  MacPopupMenuContext *ensurePopupMenuContext(loka::app::PopupMenuNode *node,
-                                              int x,
-                                              int y,
-                                              int width,
-                                              int height) const;
+  MacPopupMenuContext *
+  ensurePopupMenuContext(loka::app::PopupMenuNode *node, int x, int y, int width, int height) const;
 
 private:
   void *rootView_;

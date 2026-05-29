@@ -11,7 +11,8 @@ namespace loka
     class CocoaUtf8String : public String
     {
     public:
-      CocoaUtf8String(const char *bytes, std::size_t length) : value_(0)
+      CocoaUtf8String(const char *bytes, std::size_t length)
+          : value_(0)
       {
         if (bytes && length > 0)
         {

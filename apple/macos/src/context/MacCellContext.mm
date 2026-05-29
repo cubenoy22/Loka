@@ -32,16 +32,12 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureCellContext(cell,
-                                                     state.x,
-                                                     state.y,
-                                                     state.width,
-                                                     state.height);
+      return mac->contextMapper()->ensureCellContext(cell, state.x, state.y, state.width, state.height);
     }
   };
 
   MacCellNodeHandler gMacCellNodeHandler;
-}
+} // namespace
 
 @interface LokaCellView : NSView
 {
@@ -96,17 +92,17 @@ namespace
 
   if ([self text])
   {
-    NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:
-                                            [NSFont systemFontOfSize:12.0], NSFontAttributeName,
-                                            [NSColor blackColor], NSForegroundColorAttributeName,
-                                            nil];
+    NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:12.0],
+                                                                     NSFontAttributeName,
+                                                                     [NSColor blackColor],
+                                                                     NSForegroundColorAttributeName,
+                                                                     nil];
     NSSize textSize = [[self text] sizeWithAttributes:attrs];
     NSRect bounds = self.bounds;
-    NSRect textRect = NSMakeRect(
-        bounds.origin.x + (bounds.size.width - textSize.width) * 0.5,
-        bounds.origin.y + (bounds.size.height - textSize.height) * 0.5,
-        textSize.width,
-        textSize.height);
+    NSRect textRect = NSMakeRect(bounds.origin.x + (bounds.size.width - textSize.width) * 0.5,
+                                 bounds.origin.y + (bounds.size.height - textSize.height) * 0.5,
+                                 textSize.width,
+                                 textSize.height);
     [[self text] drawInRect:textRect withAttributes:attrs];
   }
 }
@@ -122,7 +118,10 @@ namespace
 @end
 
 MacCellContext::MacCellContext(void *parentView, int x, int y, int width, int height, loka::app::CellNode *node)
-    : node_(node), view_(0), textState_(0), textStateBound_(false)
+    : node_(node),
+      view_(0),
+      textState_(0),
+      textStateBound_(false)
 {
   NSView *parent = (NSView *)parentView;
   LokaCellView *view = [[LokaCellView alloc] initWithFrame:NSMakeRect(x, y, width, height)];

@@ -12,15 +12,13 @@ namespace
       mach_timebase_info(&sTimebase);
     }
     const unsigned long long ticks = mach_absolute_time();
-    const unsigned long long nanos = (ticks * static_cast<unsigned long long>(sTimebase.numer)) /
-                                     static_cast<unsigned long long>(sTimebase.denom);
+    const unsigned long long nanos =
+        (ticks * static_cast<unsigned long long>(sTimebase.numer)) / static_cast<unsigned long long>(sTimebase.denom);
     return static_cast<long>(nanos / 1000ULL);
   }
 
-  static loka::core::ProfilerBackend sMacBackend = {
-    &MacProfileTicks
-  };
-}
+  static loka::core::ProfilerBackend sMacBackend = {&MacProfileTicks};
+} // namespace
 
 void InitMacProfiler()
 {

@@ -29,16 +29,12 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensurePopupMenuContext(popup,
-                                                          state.x,
-                                                          state.y,
-                                                          state.width,
-                                                          state.height);
+      return mac->contextMapper()->ensurePopupMenuContext(popup, state.x, state.y, state.width, state.height);
     }
   };
 
   MacPopupMenuNodeHandler gMacPopupMenuNodeHandler;
-}
+} // namespace
 
 @interface LokaPopupMenuTarget : NSObject
 {
@@ -60,9 +56,15 @@ namespace
 }
 @end
 
-MacPopupMenuContext::MacPopupMenuContext(void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
-    : node_(node), popup_(0), target_(0), selectionState_(0), enabledState_(0),
-      applyingFromState_(false), updatingFromControl_(false)
+MacPopupMenuContext::MacPopupMenuContext(
+    void *parentView, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
+    : node_(node),
+      popup_(0),
+      target_(0),
+      selectionState_(0),
+      enabledState_(0),
+      applyingFromState_(false),
+      updatingFromControl_(false)
 {
   NSView *parent = (NSView *)parentView;
   NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(x, y, width, height) pullsDown:NO];

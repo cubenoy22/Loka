@@ -40,11 +40,8 @@ namespace
     }
     [bitmap retain];
     [view cacheDisplayInRect:bounds toBitmapImageRep:bitmap];
-    out = loka::core::resource::Image::FromNative((void *)bitmap,
-                                                  (int)bounds.size.width,
-                                                  (int)bounds.size.height,
-                                                  &ReleaseCapturedButtonBitmap,
-                                                  0);
+    out = loka::core::resource::Image::FromNative(
+        (void *)bitmap, (int)bounds.size.width, (int)bounds.size.height, &ReleaseCapturedButtonBitmap, 0);
     if (!out.isValid())
     {
       [bitmap release];
@@ -71,17 +68,12 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureButtonContext(button,
-                                                       state.x,
-                                                       state.y,
-                                                       state.width,
-                                                       state.height);
+      return mac->contextMapper()->ensureButtonContext(button, state.x, state.y, state.width, state.height);
     }
   };
 
   MacButtonNodeHandler gMacButtonNodeHandler;
-}
-
+} // namespace
 
 @interface LokaButtonTarget : NSObject
 {
@@ -104,7 +96,12 @@ namespace
 @end
 
 MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, int height, loka::app::ButtonNode *node)
-    : node_(node), button_(0), target_(0), textState_(0), textStateBound_(false), enabledState_(0)
+    : node_(node),
+      button_(0),
+      target_(0),
+      textState_(0),
+      textStateBound_(false),
+      enabledState_(0)
 {
   NSView *parent = (NSView *)parentView;
   NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, width, height)];

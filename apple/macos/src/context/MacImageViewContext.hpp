@@ -13,8 +13,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class MacImageViewContext : public loka::app::scene::NodeContext
 {
