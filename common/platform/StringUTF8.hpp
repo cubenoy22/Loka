@@ -11,7 +11,7 @@ namespace loka
   {
     // Flattens a logical string into UTF-8 bytes. Intended for tooling/tests and JSON utilities.
     bool CollectUtf8(const core::String &source, std::string &out);
-  }
-}
+  } // namespace platform
+} // namespace loka
 
 #endif // LOKA_PLATFORM_STRING_UTF8_HPP

@@ -12,13 +12,11 @@ namespace loka
   {
     namespace scene
     {
-      template <class NodeT>
-      struct HeadlessPropsForTypeTag
+      template <class NodeT> struct HeadlessPropsForTypeTag
       {
       };
 
-      template <class NodeT>
-      struct HeadlessPropsFor : public NodePropsBase<HeadlessPropsFor<NodeT> >
+      template <class NodeT> struct HeadlessPropsFor : public NodePropsBase<HeadlessPropsFor<NodeT> >
       {
         typedef HeadlessPropsForTypeTag<NodeT> TypeTag;
         typedef NodeT NodeType;
@@ -32,15 +30,17 @@ namespace loka
         }
       };
 
-      template <class PropsT>
-      class HeadlessNodeBase : public ComposableNode
+      template <class PropsT> class HeadlessNodeBase : public ComposableNode
       {
       public:
         typedef typename PropsT::TypeTag TypeTag;
         PropsT props;
 
         HeadlessNodeBase(const PropsT &p)
-            : ComposableNode(), props(p), stateOwner_(), composed_(false)
+            : ComposableNode(),
+              props(p),
+              stateOwner_(),
+              composed_(false)
         {
           this->stateOwner_.setInvalidateCallback(&HeadlessNodeBase::InvalidateThunk, this);
         }
@@ -51,8 +51,14 @@ namespace loka
           this->releaseNodeStateRegistrations();
         }
 
-        virtual IStateOwner *asStateOwner() { return &this->stateOwner_; }
-        virtual void composeNode(NodeComposition &c) { (void)c; }
+        virtual IStateOwner *asStateOwner()
+        {
+          return &this->stateOwner_;
+        }
+        virtual void composeNode(NodeComposition &c)
+        {
+          (void)c;
+        }
 
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
         {
@@ -130,8 +136,7 @@ namespace loka
         bool composed_;
       };
 
-      template <class NodeT>
-      inline NodeDefinition<HeadlessPropsFor<NodeT>, NodeT> Headless()
+      template <class NodeT> inline NodeDefinition<HeadlessPropsFor<NodeT>, NodeT> Headless()
       {
         return NodeDefinition<HeadlessPropsFor<NodeT>, NodeT>();
       }

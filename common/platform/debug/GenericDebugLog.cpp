@@ -24,11 +24,8 @@ namespace loka
       std::fflush(stderr);
     }
 
-    void DebugLogSceneFlags(void *scene,
-                           const char *stage,
-                           unsigned int flags,
-                           unsigned int boundaryFlags,
-                           int fullRebuild)
+    void
+    DebugLogSceneFlags(void *scene, const char *stage, unsigned int flags, unsigned int boundaryFlags, int fullRebuild)
     {
       std::fprintf(stderr,
                    "[scene-flags] %s scene=%p flags=0x%X boundaryFlags=0x%X fullRebuild=%d\n",
@@ -40,10 +37,7 @@ namespace loka
       std::fflush(stderr);
     }
 
-    void DebugLogSceneDecision(void *scene,
-                               int requiresStructure,
-                               int requiresLayout,
-                               int canApplyLocalDiff)
+    void DebugLogSceneDecision(void *scene, int requiresStructure, int requiresLayout, int canApplyLocalDiff)
     {
       std::fprintf(stderr,
                    "[scene-decision] scene=%p structure=%d layout=%d localDiff=%d\n",
@@ -64,7 +58,8 @@ namespace loka
                                     int requiresStructure)
     {
       std::fprintf(stderr,
-                   "[scene-structure-root] scene=%p boundary=%p pendingFlags=0x%X composed=%d hasDiff=%d empty=%d compatibleRetain=%d requires=%d\n",
+                   "[scene-structure-root] scene=%p boundary=%p pendingFlags=0x%X composed=%d hasDiff=%d empty=%d "
+                   "compatibleRetain=%d requires=%d\n",
                    scene,
                    boundary,
                    pendingDirtyFlags,
@@ -76,11 +71,8 @@ namespace loka
       std::fflush(stderr);
     }
 
-    void DebugLogSceneRootDiffDecision(void *scene,
-                                      void *boundary,
-                                      unsigned int dirtyFlagsSeen,
-                                      int composed,
-                                      int preservedNativeContexts)
+    void DebugLogSceneRootDiffDecision(
+        void *scene, void *boundary, unsigned int dirtyFlagsSeen, int composed, int preservedNativeContexts)
     {
       std::fprintf(stderr,
                    "[scene-root-diff] scene=%p boundary=%p dirtyFlagsSeen=0x%X composed=%d preserved=%d\n",
@@ -93,14 +85,15 @@ namespace loka
     }
 
     void DebugLogSceneRootDiffShape(void *scene,
-                                   void *boundary,
-                                   int entryCount,
-                                   int hasIncompatibleRetain,
-                                   int compatibleRetainOnly,
-                                   int stableRetainOnly)
+                                    void *boundary,
+                                    int entryCount,
+                                    int hasIncompatibleRetain,
+                                    int compatibleRetainOnly,
+                                    int stableRetainOnly)
     {
       std::fprintf(stderr,
-                   "[scene-root-diff-shape] scene=%p boundary=%p entries=%d incompatible=%d compatibleRetainOnly=%d stableRetainOnly=%d\n",
+                   "[scene-root-diff-shape] scene=%p boundary=%p entries=%d incompatible=%d compatibleRetainOnly=%d "
+                   "stableRetainOnly=%d\n",
                    scene,
                    boundary,
                    entryCount,
@@ -111,18 +104,19 @@ namespace loka
     }
 
     void DebugLogSceneRootIdentity(void *scene,
-                                  void *boundary,
-                                  unsigned int kind,
-                                  const char *testId,
-                                  int hasPreviousSnapshotRoot,
-                                  int hasCurrentSnapshotRoot,
-                                  int compositionDiffStateEmpty,
-                                  unsigned int childCount,
-                                  unsigned int firstChildKind,
-                                  const char *firstChildTestId)
+                                   void *boundary,
+                                   unsigned int kind,
+                                   const char *testId,
+                                   int hasPreviousSnapshotRoot,
+                                   int hasCurrentSnapshotRoot,
+                                   int compositionDiffStateEmpty,
+                                   unsigned int childCount,
+                                   unsigned int firstChildKind,
+                                   const char *firstChildTestId)
     {
       std::fprintf(stderr,
-                   "[scene-root-id] scene=%p boundary=%p kind=%u testId=%s prevSnap=%d currSnap=%d diffStateEmpty=%d childCount=%u firstChildKind=%u firstChildTestId=%s\n",
+                   "[scene-root-id] scene=%p boundary=%p kind=%u testId=%s prevSnap=%d currSnap=%d diffStateEmpty=%d "
+                   "childCount=%u firstChildKind=%u firstChildTestId=%s\n",
                    scene,
                    boundary,
                    kind,
@@ -137,9 +131,9 @@ namespace loka
     }
 
     void DebugLogBoundaryComposeDispatch(void *boundary,
-                                        unsigned int eventValue,
-                                        unsigned int dirtyFlags,
-                                        int isRootBoundary)
+                                         unsigned int eventValue,
+                                         unsigned int dirtyFlags,
+                                         int isRootBoundary)
     {
       std::fprintf(stderr,
                    "[boundary-compose] boundary=%p event=%u dirtyFlags=0x%X root=%d\n",

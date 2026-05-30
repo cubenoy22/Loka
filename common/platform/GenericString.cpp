@@ -11,8 +11,12 @@ namespace loka
     class GenericUtf8String : public String
     {
     public:
-      GenericUtf8String() : data_() {}
-      GenericUtf8String(const char *bytes, std::size_t length) : data_()
+      GenericUtf8String()
+          : data_()
+      {
+      }
+      GenericUtf8String(const char *bytes, std::size_t length)
+          : data_()
       {
         if (bytes && length > 0)
           data_.assign(bytes, length);

@@ -34,7 +34,7 @@ namespace loka
 #endif
       };
     } // namespace file
-  }   // namespace platform
+  } // namespace platform
 } // namespace loka
 
 #endif // LOKA_PLATFORM_FILE_FILEHANDLE_HPP

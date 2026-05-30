@@ -34,8 +34,7 @@ namespace loka
 #endif
     }
 
-    template <class ConfigT>
-    int RunApp(HINSTANCE hInstance, int nCmdShow)
+    template <class ConfigT> int RunApp(HINSTANCE hInstance, int nCmdShow)
     {
 #if defined(LOKA_RETRO68)
       InitToolboxProfiler();
@@ -52,8 +51,7 @@ namespace loka
       return 0;
     }
 
-    template <class ConfigT>
-    int RunApp()
+    template <class ConfigT> int RunApp()
     {
       return RunApp<ConfigT>(0, 0);
     }
