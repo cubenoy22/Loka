@@ -9,7 +9,6 @@
 #include "core/resource/Image.hpp"
 #include <wincodec.h>
 
-// 明示的なデフォルトコンストラクタ・デストラクタ実装（リンカエラー回避用）
 Win32PlatformContext::Win32PlatformContext() {}
 Win32PlatformContext::~Win32PlatformContext() {}
 
@@ -50,7 +49,7 @@ namespace
       DeleteObject(static_cast<HBITMAP>(handle));
     }
   }
-}
+} // namespace
 
 bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
                                                loka::core::resource::Image &out) const
@@ -75,8 +74,8 @@ bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob 
   }
 
   IWICImagingFactory *factory = 0;
-  HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, 0, CLSCTX_INPROC_SERVER,
-                                IID_IWICImagingFactory, reinterpret_cast<void **>(&factory));
+  HRESULT hr = CoCreateInstance(
+      CLSID_WICImagingFactory, 0, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory, reinterpret_cast<void **>(&factory));
   if (FAILED(hr) || !factory)
   {
     if (shouldUninit)
@@ -140,8 +139,8 @@ bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob 
     return false;
   }
 
-  hr = converter->Initialize(frame, GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone,
-                             0, 0.0, WICBitmapPaletteTypeCustom);
+  hr = converter->Initialize(
+      frame, GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, 0, 0.0, WICBitmapPaletteTypeCustom);
   if (FAILED(hr))
   {
     converter->Release();
@@ -187,7 +186,8 @@ bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob 
     hr = converter->CopyPixels(0, stride, total, reinterpret_cast<BYTE *>(bits));
     if (SUCCEEDED(hr))
     {
-      out = loka::core::resource::Image::FromNative(hbmp, static_cast<int>(width), static_cast<int>(height), &ReleaseWin32Bitmap, 0);
+      out = loka::core::resource::Image::FromNative(
+          hbmp, static_cast<int>(width), static_cast<int>(height), &ReleaseWin32Bitmap, 0);
     }
     else
     {

@@ -14,11 +14,8 @@
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/Text.hpp"
 
-Win32ButtonContext *Win32NodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,
-                                                                int x,
-                                                                int y,
-                                                                int width,
-                                                                int height) const
+Win32ButtonContext *
+Win32NodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -35,11 +32,8 @@ Win32ButtonContext *Win32NodeContextMapper::ensureButtonContext(loka::app::Butto
   return ctx;
 }
 
-Win32CellContext *Win32NodeContextMapper::ensureCellContext(loka::app::CellNode *node,
-                                                            int x,
-                                                            int y,
-                                                            int width,
-                                                            int height) const
+Win32CellContext *
+Win32NodeContextMapper::ensureCellContext(loka::app::CellNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -56,11 +50,8 @@ Win32CellContext *Win32NodeContextMapper::ensureCellContext(loka::app::CellNode 
   return ctx;
 }
 
-Win32EditTextContext *Win32NodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node,
-                                                                    int x,
-                                                                    int y,
-                                                                    int width,
-                                                                    int height) const
+Win32EditTextContext *
+Win32NodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -77,11 +68,8 @@ Win32EditTextContext *Win32NodeContextMapper::ensureEditTextContext(loka::app::E
   return ctx;
 }
 
-Win32TextContext *Win32NodeContextMapper::ensureTextContext(loka::app::TextNode *node,
-                                                            int x,
-                                                            int y,
-                                                            int width,
-                                                            int height) const
+Win32TextContext *
+Win32NodeContextMapper::ensureTextContext(loka::app::TextNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -98,11 +86,8 @@ Win32TextContext *Win32NodeContextMapper::ensureTextContext(loka::app::TextNode 
   return ctx;
 }
 
-Win32ImageViewContext *Win32NodeContextMapper::ensureImageViewContext(loka::app::ImageViewNode *node,
-                                                                      int x,
-                                                                      int y,
-                                                                      int width,
-                                                                      int height) const
+Win32ImageViewContext *Win32NodeContextMapper::ensureImageViewContext(
+    loka::app::ImageViewNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {
@@ -119,7 +104,8 @@ Win32ImageViewContext *Win32NodeContextMapper::ensureImageViewContext(loka::app:
   return ctx;
 }
 
-Win32OpenFileDialogContext *Win32NodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node) const
+Win32OpenFileDialogContext *
+Win32NodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node) const
 {
   if (!node)
   {
@@ -139,11 +125,8 @@ Win32OpenFileDialogContext *Win32NodeContextMapper::ensureOpenFileDialogContext(
   return ctx;
 }
 
-Win32PopupMenuContext *Win32NodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *node,
-                                                                      int x,
-                                                                      int y,
-                                                                      int width,
-                                                                      int height) const
+Win32PopupMenuContext *Win32NodeContextMapper::ensurePopupMenuContext(
+    loka::app::PopupMenuNode *node, int x, int y, int width, int height) const
 {
   if (!node)
   {

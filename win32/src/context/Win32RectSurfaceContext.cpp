@@ -7,29 +7,15 @@ namespace
   const char *kRectSurfaceClassName = "LOKA_RECT_SURFACE";
 }
 
-Win32RectSurfaceContext::Win32RectSurfaceContext(HWND parent,
-                                                 int x,
-                                                 int y,
-                                                 int width,
-                                                 int height,
-                                                 loka::app::RectSurfaceNode *node)
+Win32RectSurfaceContext::Win32RectSurfaceContext(
+    HWND parent, int x, int y, int width, int height, loka::app::RectSurfaceNode *node)
     : node_(node),
       hwnd_(0),
       modelState_(0)
 {
   EnsureClassRegistered();
-  hwnd_ = CreateWindowExA(0,
-                          kRectSurfaceClassName,
-                          "",
-                          WS_CHILD | WS_VISIBLE,
-                          x,
-                          y,
-                          width,
-                          height,
-                          parent,
-                          0,
-                          GetModuleHandle(NULL),
-                          this);
+  hwnd_ = CreateWindowExA(
+      0, kRectSurfaceClassName, "", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandle(NULL), this);
   bindModel();
 }
 
@@ -99,8 +85,8 @@ void Win32RectSurfaceContext::EnsureClassRegistered()
 
 LRESULT CALLBACK Win32RectSurfaceContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  Win32RectSurfaceContext *self = static_cast<Win32RectSurfaceContext *>(
-      reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
+  Win32RectSurfaceContext *self =
+      static_cast<Win32RectSurfaceContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
   if (msg == WM_NCCREATE)
   {
     CREATESTRUCT *create = reinterpret_cast<CREATESTRUCT *>(lParam);

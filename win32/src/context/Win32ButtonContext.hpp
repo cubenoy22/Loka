@@ -9,11 +9,10 @@ namespace loka
 {
   namespace core
   {
-    template <typename T>
-    class State;
+    template <typename T> class State;
     class EmitterState;
-  }
-}
+  } // namespace core
+} // namespace loka
 
 namespace loka
 {
@@ -24,23 +23,31 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
-class Win32ButtonContext : public loka::app::scene::NativeNodeContext,
-                           public loka::app::scene::ICapturableBitmap
+class Win32ButtonContext : public loka::app::scene::NativeNodeContext, public loka::app::scene::ICapturableBitmap
 {
 public:
   Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node);
   virtual ~Win32ButtonContext();
-  virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap() { return this; }
-  virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const { return this; }
+  virtual loka::app::scene::ICapturableBitmap *asCapturableBitmap()
+  {
+    return this;
+  }
+  virtual const loka::app::scene::ICapturableBitmap *asCapturableBitmap() const
+  {
+    return this;
+  }
   virtual bool captureBitmap(loka::core::resource::Image &out) const;
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   virtual void onNodeAttached();
   virtual void onNodeDetached();
 
-  HWND hwnd() const { return hwnd_; }
+  HWND hwnd() const
+  {
+    return hwnd_;
+  }
   void relayout(int x, int y, int width, int height);
   bool handleCommand(WPARAM wParam, LPARAM lParam);
 

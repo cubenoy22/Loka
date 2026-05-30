@@ -16,26 +16,30 @@ namespace loka
     {
       class Scene;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 
 class Win32ScenePlatformController;
 
-// 🦊 Win32固有のWindow実装
+/** Win32-specific Window implementation. */
 class Win32Window : public Window
 {
 public:
   Win32Window(PlatformContext *context, const WindowProps &props);
   virtual ~Win32Window();
-  virtual Win32Window *asWin32Window() { return this; }
+  virtual Win32Window *asWin32Window()
+  {
+    return this;
+  }
 
-  // Appの参照を設定するメソッド（アプリケーションのライフサイクル管理用）
   void setApp(App *app);
-  HWND hwnd() const { return hwnd_; }
+  HWND hwnd() const
+  {
+    return hwnd_;
+  }
 
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-  // --- Windowのイベントハンドラを明示的にoverride ---
   virtual void onShow();
   virtual void onHide();
   virtual bool hasPendingScenePlatformSync() const;
@@ -43,7 +47,7 @@ public:
 
 protected:
   HWND hwnd_;
-  App *app_; // アプリケーションインスタンスの参照
+  App *app_;
 
   virtual void onCreate();
 

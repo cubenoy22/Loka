@@ -38,7 +38,7 @@ namespace
   const int kHorizontalSpacing = 12;
   const int kImageFallbackHeightModern = 160;
 
-}
+} // namespace
 
 namespace loka
 {
@@ -50,7 +50,8 @@ namespace loka
       {
       public:
         explicit Win32PlatformLayoutTraversal(Win32ScenePlatformController *controller)
-            : controller_(controller), layoutResultY_(0)
+            : controller_(controller),
+              layoutResultY_(0)
         {
         }
 
@@ -65,20 +66,30 @@ namespace loka
           return result;
         }
 
-        virtual void setLayoutResultY(short y) { this->layoutResultY_ = y; }
+        virtual void setLayoutResultY(short y)
+        {
+          this->layoutResultY_ = y;
+        }
 
-        virtual short layoutResultY() const { return this->layoutResultY_; }
+        virtual short layoutResultY() const
+        {
+          return this->layoutResultY_;
+        }
 
       private:
         Win32ScenePlatformController *controller_;
         short layoutResultY_;
       };
-    }
-  }
-}
+    } // namespace scene
+  } // namespace app
+} // namespace loka
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
-    : rootHwnd_(rootHwnd), contextMapper_(rootHwnd), rootNode_(0), clientWidth_(0), clientHeight_(0)
+    : rootHwnd_(rootHwnd),
+      contextMapper_(rootHwnd),
+      rootNode_(0),
+      clientWidth_(0),
+      clientHeight_(0)
 {
   RegisterWin32BuiltInSupport(*this);
   if (rootHwnd_)
@@ -255,7 +266,9 @@ void Win32ScenePlatformController::noteNativePaint(HWND targetHwnd, NativePaintK
   }
 }
 
-void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode,
+                                            loka::app::scene::NodeDirtyFlags flags,
+                                            bool fullRebuild)
 {
   ++this->redrawStats_.onChangeCalls;
   this->redrawStats_.lastOnChangeFlags = flags;
@@ -267,9 +280,9 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode, lo
     return;
   }
 
-  const bool requiresLayout = (flags & loka::app::scene::NODE_DIRTY_INITIAL) != 0 ||
-                              (flags & loka::app::scene::NODE_DIRTY_LAYOUT) != 0 ||
-                              (flags & loka::app::scene::NODE_DIRTY_CHILD) != 0;
+  const bool requiresLayout = (flags & loka::app::scene::NODE_DIRTY_INITIAL) != 0
+                              || (flags & loka::app::scene::NODE_DIRTY_LAYOUT) != 0
+                              || (flags & loka::app::scene::NODE_DIRTY_CHILD) != 0;
   this->redrawStats_.lastOnChangeRequiredLayout = requiresLayout;
   if (!requiresLayout)
   {
@@ -392,7 +405,10 @@ void Win32ScenePlatformController::releaseNodeContexts(loka::app::scene::Node *n
   clearNodeContexts(node);
 }
 
-void Win32ScenePlatformController::queueDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground, bool includeChildren)
+void Win32ScenePlatformController::queueDirtyRect(HWND targetHwnd,
+                                                  const RECT *rect,
+                                                  BOOL eraseBackground,
+                                                  bool includeChildren)
 {
   if (!targetHwnd)
   {
@@ -453,18 +469,11 @@ void Win32ScenePlatformController::queueDirtyRect(HWND targetHwnd, const RECT *r
 void Win32ScenePlatformController::dumpRedrawStatsIfNeeded()
 {
 #if defined(LOKA_DEBUG_RECOMPOSE) && !defined(LOKA_RETRO68)
-  if (redrawStats_.onChangeCalls == 0 &&
-      redrawStats_.onBoundaryApplyCalls == 0 &&
-      redrawStats_.queuedFullWindowInvalidates == 0 &&
-      redrawStats_.queuedRectInvalidates == 0 &&
-      redrawStats_.rootEraseCount == 0 &&
-      redrawStats_.rootPaintCount == 0 &&
-      redrawStats_.cellEraseCount == 0 &&
-      redrawStats_.cellPaintCount == 0 &&
-      redrawStats_.imageEraseCount == 0 &&
-      redrawStats_.imagePaintCount == 0 &&
-      redrawStats_.rectSurfaceEraseCount == 0 &&
-      redrawStats_.rectSurfacePaintCount == 0)
+  if (redrawStats_.onChangeCalls == 0 && redrawStats_.onBoundaryApplyCalls == 0
+      && redrawStats_.queuedFullWindowInvalidates == 0 && redrawStats_.queuedRectInvalidates == 0
+      && redrawStats_.rootEraseCount == 0 && redrawStats_.rootPaintCount == 0 && redrawStats_.cellEraseCount == 0
+      && redrawStats_.cellPaintCount == 0 && redrawStats_.imageEraseCount == 0 && redrawStats_.imagePaintCount == 0
+      && redrawStats_.rectSurfaceEraseCount == 0 && redrawStats_.rectSurfacePaintCount == 0)
   {
     return;
   }
@@ -472,7 +481,9 @@ void Win32ScenePlatformController::dumpRedrawStatsIfNeeded()
   char buffer[512];
   ::snprintf(buffer,
              sizeof(buffer),
-             "[win32-redraw] onChange=%d localApply=%d changeFlags=0x%X changeNeedsLayout=%d changeFullRebuild=%d full=%d rect=%d layoutBounds=%d paintBounds=%d noBounds=%d comp=%d opaque=%d generic=%d root(e=%d p=%d) cell(e=%d p=%d) image(e=%d p=%d) rect(e=%d p=%d)\n",
+             "[win32-redraw] onChange=%d localApply=%d changeFlags=0x%X changeNeedsLayout=%d changeFullRebuild=%d "
+             "full=%d rect=%d layoutBounds=%d paintBounds=%d noBounds=%d comp=%d opaque=%d generic=%d root(e=%d p=%d) "
+             "cell(e=%d p=%d) image(e=%d p=%d) rect(e=%d p=%d)\n",
              redrawStats_.onChangeCalls,
              redrawStats_.onBoundaryApplyCalls,
              static_cast<unsigned int>(redrawStats_.lastOnChangeFlags),
@@ -610,9 +621,8 @@ int Win32ScenePlatformController::applyBoundaryLayoutResult(loka::app::scene::Bo
   return result.resultY;
 }
 
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::layoutRectSurfaceNode(
-    loka::app::RectSurfaceNode *surface,
-    const LayoutState &state)
+Win32ScenePlatformController::LayoutNodeResult
+Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *surface, const LayoutState &state)
 {
   Win32RectSurfaceContext *ctx = static_cast<Win32RectSurfaceContext *>(surface->getContext());
   if (ctx)
@@ -621,12 +631,8 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::lay
   }
   else
   {
-    ctx = new Win32RectSurfaceContext(rootHwnd_,
-                                      state.x,
-                                      state.y,
-                                      surface->props.width_,
-                                      surface->props.height_,
-                                      surface);
+    ctx = new Win32RectSurfaceContext(
+        rootHwnd_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
     surface->setContext(ctx);
   }
   return LayoutNodeResult(state.width, state.y + surface->props.height_ + kVerticalSpacing);
@@ -641,9 +647,8 @@ int Win32ScenePlatformController::layoutNode(loka::app::scene::Node *node, const
   return this->applyBoundaryLayoutResult(node->asBoundary(), state.x, state.y, this->computeLayoutResult(node, state));
 }
 
-Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::computeLayoutResult(
-    loka::app::scene::Node *node,
-    const LayoutState &state)
+Win32ScenePlatformController::LayoutNodeResult
+Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, const LayoutState &state)
 {
   if (loka::app::ColumnNode *column = node->asColumnNode())
   {
@@ -661,7 +666,8 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
     }
     else
     {
-      currentY = loka::app::layout::computeColumnLayoutResultY(column, state, this, &Win32ScenePlatformController::layoutContainerChild);
+      currentY = loka::app::layout::computeColumnLayoutResultY(
+          column, state, this, &Win32ScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, currentY);
   }
@@ -690,7 +696,8 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
       metrics.popupMenuHeight = kPopupMenuHeight;
       metrics.textHeight = kTextHeight;
       metrics.imageFallbackHeight = kImageFallbackHeightModern;
-      maxY = loka::app::layout::computeRowLayoutResultY(row, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+      maxY = loka::app::layout::computeRowLayoutResultY(
+          row, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, maxY);
   }
@@ -714,7 +721,8 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
       loka::app::layout::GridLayoutMetrics metrics;
       metrics.gapX = 0;
       metrics.gapY = 0;
-      maxY = loka::app::layout::computeGridLayoutResultY(grid, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+      maxY = loka::app::layout::computeGridLayoutResultY(
+          grid, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, maxY);
   }
@@ -735,7 +743,8 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
     }
     else
     {
-      resultY = loka::app::layout::computeBoxLayoutResultY(box, state, this, &Win32ScenePlatformController::layoutContainerChild);
+      resultY = loka::app::layout::computeBoxLayoutResultY(
+          box, state, this, &Win32ScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, resultY);
   }
@@ -756,7 +765,8 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
     }
     else
     {
-      maxY = loka::app::layout::computeZStackLayoutResultY(stack, state, this, &Win32ScenePlatformController::layoutContainerChild);
+      maxY = loka::app::layout::computeZStackLayoutResultY(
+          stack, state, this, &Win32ScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, maxY);
   }
@@ -804,7 +814,9 @@ Win32ScenePlatformController::LayoutNodeResult Win32ScenePlatformController::com
   return LayoutNodeResult(state.width, state.y);
 }
 
-int Win32ScenePlatformController::layoutContainerChild(void *context, loka::app::scene::Node *child, const LayoutState &state)
+int Win32ScenePlatformController::layoutContainerChild(void *context,
+                                                       loka::app::scene::Node *child,
+                                                       const LayoutState &state)
 {
   Win32ScenePlatformController *controller = static_cast<Win32ScenePlatformController *>(context);
   if (!controller)

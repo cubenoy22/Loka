@@ -34,17 +34,20 @@ namespace loka
           return false;
         const std::size_t start = out.size();
         out.resize(start + static_cast<std::size_t>(required));
-        int written = WideCharToMultiByte(CP_UTF8, 0, chars, static_cast<int>(length), &out[start], required, NULL, NULL);
+        int written =
+            WideCharToMultiByte(CP_UTF8, 0, chars, static_cast<int>(length), &out[start], required, NULL, NULL);
         return written == required;
       }
 
     } // namespace
 
-    Win32String::Win32String() : storage_()
+    Win32String::Win32String()
+        : storage_()
     {
     }
 
-    Win32String::Win32String(const std::wstring &value) : storage_(value)
+    Win32String::Win32String(const std::wstring &value)
+        : storage_(value)
     {
     }
 

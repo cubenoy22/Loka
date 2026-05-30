@@ -9,12 +9,10 @@ namespace loka
 {
   namespace core
   {
-    template <typename T>
-    class State;
-    template <typename T>
-    class MutableState;
-  }
-}
+    template <typename T> class State;
+    template <typename T> class MutableState;
+  } // namespace core
+} // namespace loka
 
 namespace loka
 {
@@ -25,8 +23,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class Win32EditTextContext : public loka::app::scene::NativeNodeContext
 {
@@ -37,7 +35,10 @@ public:
   virtual void onNodeAttached();
   virtual void onNodeDetached();
 
-  HWND hwnd() const { return hwnd_; }
+  HWND hwnd() const
+  {
+    return hwnd_;
+  }
   void relayout(int x, int y, int width, int height);
   bool handleCommand(WPARAM wParam, LPARAM lParam);
 

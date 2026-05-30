@@ -13,8 +13,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
@@ -33,7 +33,12 @@ private:
   struct DeferredResultDelivery
   {
     DeferredResultDelivery()
-        : resultState(0), onResult(0), closeState(0), result(), owner(0), dialog(0)
+        : resultState(0),
+          onResult(0),
+          closeState(0),
+          result(),
+          owner(0),
+          dialog(0)
     {
     }
 

@@ -29,27 +29,20 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureTextContext(text,
-                                                       state.x,
-                                                       state.y,
-                                                       state.width,
-                                                       state.height);
+      return win32->contextMapper()->ensureTextContext(text, state.x, state.y, state.width, state.height);
     }
   };
 
   Win32TextNodeHandler gWin32TextNodeHandler;
 
-  int MeasureTextHeightForWidth(HWND hwnd,
-                                const loka::app::TextNode *text,
-                                int width,
-                                int defaultHeight)
+  int MeasureTextHeightForWidth(HWND hwnd, const loka::app::TextNode *text, int width, int defaultHeight)
   {
     if (!hwnd || !text || !text->props.text_)
     {
       return defaultHeight;
     }
-    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_ ||
-        text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
+    if (!text->props.hasAttr_ || !text->props.attr_.hasWrapValue_
+        || text->props.attr_.wrapValue_ == loka::app::TEXT_WRAP_NONE)
     {
       return defaultHeight;
     }
@@ -151,27 +144,25 @@ namespace
       return false;
     }
 
-    out = loka::core::resource::Image::FromNative(bitmap,
-                                                  width,
-                                                  height,
-                                                  &ReleaseCapturedBitmap,
-                                                  0);
+    out = loka::core::resource::Image::FromNative(bitmap, width, height, &ReleaseCapturedBitmap, 0);
     return out.isValid();
   }
-}
+} // namespace
 
 Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int height, loka::app::TextNode *node)
-    : node_(node), hwnd_(NULL), textState_(0), didInitialApply_(false)
+    : node_(node),
+      hwnd_(NULL),
+      textState_(0),
+      didInitialApply_(false)
 {
   DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
   if (node_ && node_->props.hasAttr_)
   {
     const loka::app::TextAttr &attr = node_->props.attr_;
-    const bool wrapEnabled = attr.hasWrapValue_ &&
-                             (attr.wrapValue_ == loka::app::TEXT_WRAP_WORD ||
-                              attr.wrapValue_ == loka::app::TEXT_WRAP_CHAR);
-    const bool truncEllipsis = attr.hasTruncationValue_ &&
-                               attr.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
+    const bool wrapEnabled =
+        attr.hasWrapValue_
+        && (attr.wrapValue_ == loka::app::TEXT_WRAP_WORD || attr.wrapValue_ == loka::app::TEXT_WRAP_CHAR);
+    const bool truncEllipsis = attr.hasTruncationValue_ && attr.truncationValue_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
     if (!wrapEnabled)
     {
       style |= SS_LEFTNOWORDWRAP;
@@ -185,19 +176,7 @@ Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int hei
       style |= SS_ENDELLIPSIS;
     }
   }
-  hwnd_ = CreateWindowExA(
-      0,
-      "STATIC",
-      "",
-      style,
-      x,
-      y,
-      width,
-      height,
-      parent,
-      NULL,
-      GetModuleHandle(NULL),
-      NULL);
+  hwnd_ = CreateWindowExA(0, "STATIC", "", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
   if (hwnd_)
   {
     HDC hdc = GetDC(hwnd_);
@@ -344,8 +323,7 @@ void Win32TextContext::requestRelayoutIfNeeded()
   }
   const int width = rc.right - rc.left;
   const int height = rc.bottom - rc.top;
-  PostMessage(parent, WM_SIZE, static_cast<WPARAM>(SIZE_RESTORED),
-              static_cast<LPARAM>(MAKELPARAM(width, height)));
+  PostMessage(parent, WM_SIZE, static_cast<WPARAM>(SIZE_RESTORED), static_cast<LPARAM>(MAKELPARAM(width, height)));
 }
 
 void Win32TextContext::TextChangedThunk(void *userData)

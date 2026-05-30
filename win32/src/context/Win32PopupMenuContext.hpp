@@ -13,8 +13,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class Win32PopupMenuContext : public loka::app::scene::NativeNodeContext
 {
@@ -25,7 +25,10 @@ public:
   virtual void onNodeAttached();
   virtual void onNodeDetached();
 
-  HWND hwnd() const { return hwnd_; }
+  HWND hwnd() const
+  {
+    return hwnd_;
+  }
   void relayout(int x, int y, int width, int height);
   bool handleCommand(WPARAM wParam, LPARAM lParam);
 

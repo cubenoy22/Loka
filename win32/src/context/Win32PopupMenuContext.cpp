@@ -28,18 +28,15 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensurePopupMenuContext(popup,
-                                                            state.x,
-                                                            state.y,
-                                                            state.width,
-                                                            state.height);
+      return win32->contextMapper()->ensurePopupMenuContext(popup, state.x, state.y, state.width, state.height);
     }
   };
 
   Win32PopupMenuNodeHandler gWin32PopupMenuNodeHandler;
-}
+} // namespace
 
-Win32PopupMenuContext::Win32PopupMenuContext(HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
+Win32PopupMenuContext::Win32PopupMenuContext(
+    HWND parent, int x, int y, int width, int height, loka::app::PopupMenuNode *node)
     : node_(node),
       hwnd_(0),
       selectionState_(0),
@@ -49,19 +46,18 @@ Win32PopupMenuContext::Win32PopupMenuContext(HWND parent, int x, int y, int widt
       baseHeight_(height),
       baseWidth_(width)
 {
-  hwnd_ = CreateWindowEx(
-      0,
-      TEXT("COMBOBOX"),
-      TEXT(""),
-      WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-      x,
-      y,
-      width,
-      height,
-      parent,
-      0,
-      GetModuleHandle(NULL),
-      NULL);
+  hwnd_ = CreateWindowEx(0,
+                         TEXT("COMBOBOX"),
+                         TEXT(""),
+                         WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+                         x,
+                         y,
+                         width,
+                         height,
+                         parent,
+                         0,
+                         GetModuleHandle(NULL),
+                         NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));

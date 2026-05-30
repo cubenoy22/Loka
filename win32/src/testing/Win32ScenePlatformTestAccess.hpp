@@ -84,9 +84,8 @@ namespace loka
 
         static int queuedPaintInvalidates(const ::Win32ScenePlatformController &controller)
         {
-          return queuedCompositedInvalidates(controller) +
-                 queuedOpaquePaintInvalidates(controller) +
-                 queuedGenericPaintInvalidates(controller);
+          return queuedCompositedInvalidates(controller) + queuedOpaquePaintInvalidates(controller)
+                 + queuedGenericPaintInvalidates(controller);
         }
 
         static int clientWidth(const ::Win32ScenePlatformController &controller)

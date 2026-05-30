@@ -10,10 +10,9 @@ namespace loka
 {
   namespace core
   {
-    template <typename T>
-    class State;
+    template <typename T> class State;
   }
-}
+} // namespace loka
 
 namespace loka
 {
@@ -24,8 +23,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class Win32CellContext : public loka::app::scene::NativeNodeContext
 {

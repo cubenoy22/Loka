@@ -32,9 +32,7 @@ namespace
     {
       onResult->emit();
     }
-    if (closeState &&
-        loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) &&
-        closeState->get())
+    if (closeState && loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) && closeState->get())
     {
       closeState->set(false, true);
     }
@@ -72,7 +70,7 @@ namespace
   };
 
   Win32OpenFileDialogNodeHandler gWin32OpenFileDialogNodeHandler;
-}
+} // namespace
 
 struct Win32OpenFileDialogContext::NativeDialogSession : public Win32OpenNativeDialogSession
 {
@@ -193,12 +191,14 @@ void Win32OpenFileDialogContext::presentDialog()
   setResult(result, dialogSession);
 }
 
-void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession)
+void Win32OpenFileDialogContext::setResult(const loka::app::FileChooserResult &result,
+                                           NativeDialogSession *dialogSession)
 {
   this->queueDeferredResult(result, dialogSession);
 }
 
-void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChooserResult &result, NativeDialogSession *dialogSession)
+void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChooserResult &result,
+                                                     NativeDialogSession *dialogSession)
 {
   DeferredResultDelivery *delivery = new DeferredResultDelivery();
   delivery->resultState = resultState_;

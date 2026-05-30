@@ -18,12 +18,15 @@ namespace
 {
   static bool g_classRegistered = false;
   static const char *kWndClassName = "DevWndClass";
-}
+} // namespace
 
 Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
-    : Window(context, props), hwnd_(NULL), app_(NULL), scenePlatformController_(0)
+    : Window(context, props),
+      hwnd_(NULL),
+      app_(NULL),
+      scenePlatformController_(0)
 {
-  // visibilityステートの変更を監視
+  // Track window-owned states and reflect them into native Win32 state.
   this->visibilityState().deferBind(&Win32Window::VisibilityChangedThunk, this);
   this->titleState().deferBind(&Win32Window::TitleChangedThunk, this);
   this->frameState().deferBind(&Win32Window::FrameChangedThunk, this);
@@ -63,19 +66,18 @@ void Win32Window::VisibilityChangedThunk(void *userData)
   {
     if (self->hwnd_)
     {
-      self->onHide(); // 非表示直前にonHideを呼ぶ
+      self->onHide();
       self->destroyNativeWindow();
     }
   }
 }
 
-// --- タイトル変更時のthunk ---
 void Win32Window::TitleChangedThunk(void *userData)
 {
   Win32Window *self = static_cast<Win32Window *>(userData);
   if (self && self->hwnd_)
   {
-    // Window基底のtitle値(UTF-8)をUTF-16に変換して反映
+    // Convert the logical UTF-8 title to the Win32 UTF-16 title when possible.
     loka::core::String titleValue = self->titleState().get();
     if (titleValue.empty())
     {
@@ -83,7 +85,8 @@ void Win32Window::TitleChangedThunk(void *userData)
       return;
     }
     loka::core::Managed<loka::platform::String> handle = loka::win32::CreateWin32String(titleValue);
-    loka::win32::Win32String *win32String = handle.isValid() ? dynamic_cast<loka::win32::Win32String *>(handle.get()) : 0;
+    loka::win32::Win32String *win32String =
+        handle.isValid() ? dynamic_cast<loka::win32::Win32String *>(handle.get()) : 0;
     if (win32String)
       SetWindowTextW(self->hwnd_, win32String->c_str());
     else
@@ -212,7 +215,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_ROOT, false);
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
-      // 背景を白で塗りつぶす
+      // Clear the background with the native window color.
       RECT rc;
       GetClientRect(hwnd, &rc);
       FillRect(hdc, &rc, (HBRUSH)(COLOR_WINDOW + 1));
@@ -220,12 +223,11 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       break;
     }
     case WM_DESTROY:
-      // --- onDestroyイベントをここで一元的に呼ぶ ---
       self->onDestroy();
       self->hwnd_ = NULL;
       if (self->app_)
-      {                                                        // app_ポインタが有効か確認
-        self->app_->windowClosed(static_cast<Window *>(self)); // 明示的にWindowポインタにキャスト
+      {
+        self->app_->windowClosed(static_cast<Window *>(self));
       }
       break;
     default:
@@ -248,17 +250,18 @@ void Win32Window::createNativeWindow()
     RegisterClassA(&wc);
     g_classRegistered = true;
   }
-  HWND hwnd = CreateWindowExA(
-      WS_EX_CONTROLPARENT,
-      kWndClassName,
-      "",
-      WS_OVERLAPPEDWINDOW,
-      this->hasPosition() ? this->positionX() : 50,
-      this->hasPosition() ? this->positionY() : 50,
-      this->hasSize() ? this->width() : 300,
-      this->hasSize() ? this->height() : 300,
-      NULL, NULL, GetModuleHandle(NULL),
-      this);
+  HWND hwnd = CreateWindowExA(WS_EX_CONTROLPARENT,
+                              kWndClassName,
+                              "",
+                              WS_OVERLAPPEDWINDOW,
+                              this->hasPosition() ? this->positionX() : 50,
+                              this->hasPosition() ? this->positionY() : 50,
+                              this->hasSize() ? this->width() : 300,
+                              this->hasSize() ? this->height() : 300,
+                              NULL,
+                              NULL,
+                              GetModuleHandle(NULL),
+                              this);
   if (hwnd)
   {
     this->hwnd_ = hwnd;
@@ -306,7 +309,7 @@ void Win32Window::onShow()
 
 void Win32Window::onHide()
 {
-  // Win32ではdestroyNativeWindowで破棄するため、ここでSW_HIDEは不要
+  // Native hide is handled by destroyNativeWindow().
 }
 
 void Win32Window::synchronizeScenePlatform()

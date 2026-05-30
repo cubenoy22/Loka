@@ -1,5 +1,5 @@
 #include "Win32App.hpp"
-#include "Win32Window.hpp" // Win32Window クラスの定義をインクルード
+#include "Win32Window.hpp"
 #include <windows.h>
 #include <commdlg.h>
 #include "app/core/App.hpp"
@@ -14,14 +14,11 @@ Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
       commands_(),
       bindings_()
 {
-  // App基底クラスですでにconfig_が初期化されているのでここでは不要
+  // App already owns the shared configuration state.
 }
 
-// デストラクタ: override を追加
 Win32App::~Win32App()
 {
-  // windowsベクター内のウィンドウは App::windowClosed で削除されるか、
-  // App のデストラクタで解放されるべき (App.hppに仮想デストラクタ追加済み)
   clearMenuBindings();
   if (activeMenu_)
   {
@@ -30,26 +27,21 @@ Win32App::~Win32App()
   }
 }
 
-// アプリケーション終了処理 (Appからoverride)
 void Win32App::quit()
 {
-  PostQuitMessage(0); // Win32のメッセージループを終了させる
+  PostQuitMessage(0);
 }
 
-// ウィンドウが閉じたときの処理 (Appからoverride)
 void Win32App::windowClosed(Window *window)
 {
-  // まず基底クラスの処理を呼ぶ (windowsベクターからの削除と終了判定)
   App::windowClosed(window);
-
-  // Win32固有の後処理があればここに追加
 }
 
 void Win32App::run()
 {
   App::run();
 
-  // 各ウィンドウにこのアプリインスタンスへの参照を設定する
+  // Give each Win32 window a back-reference for native callbacks.
   if (group_)
   {
     const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -102,8 +94,7 @@ void Win32App::run()
     double elapsedSeconds = 0.0;
     if (frequency.QuadPart > 0)
     {
-      elapsedSeconds = static_cast<double>(now.QuadPart - lastTick.QuadPart) /
-                       static_cast<double>(frequency.QuadPart);
+      elapsedSeconds = static_cast<double>(now.QuadPart - lastTick.QuadPart) / static_cast<double>(frequency.QuadPart);
     }
     lastTick = now;
 
@@ -265,9 +256,7 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   }
 }
 
-void Win32App::buildMenuItems(HMENU menu,
-                              const loka::app::MenuItemDefinition *itemsHead,
-                              HWND hwnd)
+void Win32App::buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead, HWND hwnd)
 {
   const loka::app::MenuItemDefinition *itemDef = itemsHead;
   while (itemDef)

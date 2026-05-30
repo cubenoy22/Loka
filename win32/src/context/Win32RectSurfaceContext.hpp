@@ -11,7 +11,7 @@ namespace loka
   {
     class RectSurfaceNode;
   }
-}
+} // namespace loka
 
 class Win32RectSurfaceContext : public loka::app::scene::NativeNodeContext
 {

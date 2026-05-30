@@ -20,10 +20,8 @@ namespace
     return static_cast<long>((counter.QuadPart * 1000000LL) / sFrequency.QuadPart);
   }
 
-  static loka::core::ProfilerBackend sWin32Backend = {
-    &Win32ProfileTicks
-  };
-}
+  static loka::core::ProfilerBackend sWin32Backend = {&Win32ProfileTicks};
+} // namespace
 
 void InitWin32Profiler()
 {

@@ -29,34 +29,24 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureEditTextContext(edit,
-                                                           state.x,
-                                                           state.y,
-                                                           state.width,
-                                                           state.height);
+      return win32->contextMapper()->ensureEditTextContext(edit, state.x, state.y, state.width, state.height);
     }
   };
 
   Win32EditTextNodeHandler gWin32EditTextNodeHandler;
-}
+} // namespace
 
-Win32EditTextContext::Win32EditTextContext(HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node)
-    : node_(node), hwnd_(NULL), textState_(0), applyingFromState_(false), updatingFromControl_(false)
+Win32EditTextContext::Win32EditTextContext(
+    HWND parent, int x, int y, int width, int height, loka::app::EditTextNode *node)
+    : node_(node),
+      hwnd_(NULL),
+      textState_(0),
+      applyingFromState_(false),
+      updatingFromControl_(false)
 {
   DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;
   hwnd_ = CreateWindowExA(
-      WS_EX_CLIENTEDGE,
-      "EDIT",
-      "",
-      style,
-      x,
-      y,
-      width,
-      height,
-      parent,
-      NULL,
-      GetModuleHandle(NULL),
-      NULL);
+      WS_EX_CLIENTEDGE, "EDIT", "", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
@@ -187,7 +177,8 @@ void Win32EditTextContext::syncStateFromControl()
   {
     return;
   }
-  loka::core::MutableState<loka::core::String> *mutableState = dynamic_cast<loka::core::MutableState<loka::core::String> *>(textState_);
+  loka::core::MutableState<loka::core::String> *mutableState =
+      dynamic_cast<loka::core::MutableState<loka::core::String> *>(textState_);
   if (!mutableState)
   {
     return;

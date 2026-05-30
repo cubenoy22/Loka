@@ -14,8 +14,8 @@ namespace loka
     {
       class PlatformNodeHandlerRegistry;
     }
-  }
-}
+  } // namespace app
+} // namespace loka
 
 class Win32ImageViewContext : public loka::app::scene::NodeContext
 {

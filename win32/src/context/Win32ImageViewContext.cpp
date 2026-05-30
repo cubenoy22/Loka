@@ -25,11 +25,7 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureImageViewContext(image,
-                                                            state.x,
-                                                            state.y,
-                                                            state.width,
-                                                            state.height);
+      return win32->contextMapper()->ensureImageViewContext(image, state.x, state.y, state.width, state.height);
     }
   };
 
@@ -147,9 +143,7 @@ namespace
     return fallbackWidth;
   }
 
-  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node,
-                               int resolvedWidth,
-                               int fallbackHeight)
+  int ResolveImageLayoutHeight(const loka::app::ImageViewNode *node, int resolvedWidth, int fallbackHeight)
   {
     if (!node)
     {
@@ -191,9 +185,10 @@ namespace
     }
     return 160;
   }
-}
+} // namespace
 
-Win32ImageViewContext::Win32ImageViewContext(HWND parent, int x, int y, int width, int height, loka::app::ImageViewNode *node)
+Win32ImageViewContext::Win32ImageViewContext(
+    HWND parent, int x, int y, int width, int height, loka::app::ImageViewNode *node)
     : node_(node),
       hwnd_(0),
       imageState_(0),
@@ -201,18 +196,7 @@ Win32ImageViewContext::Win32ImageViewContext(HWND parent, int x, int y, int widt
 {
   EnsureClassRegistered();
   hwnd_ = CreateWindowExA(
-      0,
-      kImageViewClassName,
-      "",
-      WS_CHILD | WS_VISIBLE,
-      x,
-      y,
-      width,
-      height,
-      parent,
-      0,
-      GetModuleHandle(NULL),
-      this);
+      0, kImageViewClassName, "", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandle(NULL), this);
   bindImage();
 }
 
@@ -283,7 +267,8 @@ void Win32ImageViewContext::EnsureClassRegistered()
 
 LRESULT CALLBACK Win32ImageViewContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  Win32ImageViewContext *self = static_cast<Win32ImageViewContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
+  Win32ImageViewContext *self =
+      static_cast<Win32ImageViewContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
   if (msg == WM_NCCREATE)
   {
     CREATESTRUCT *cs = reinterpret_cast<CREATESTRUCT *>(lParam);
@@ -387,17 +372,8 @@ void Win32ImageViewContext::drawImage(HDC hdc, const RECT &rect)
     }
     BlitRect blit = ComputeBlitRect(fitMode, rect, srcWidth, srcHeight);
     SetStretchBltMode(hdc, COLORONCOLOR);
-    StretchBlt(hdc,
-               blit.dstX,
-               blit.dstY,
-               blit.dstW,
-               blit.dstH,
-               memdc,
-               blit.srcX,
-               blit.srcY,
-               blit.srcW,
-               blit.srcH,
-               SRCCOPY);
+    StretchBlt(
+        hdc, blit.dstX, blit.dstY, blit.dstW, blit.dstH, memdc, blit.srcX, blit.srcY, blit.srcW, blit.srcH, SRCCOPY);
   }
   SelectObject(memdc, old);
   DeleteDC(memdc);

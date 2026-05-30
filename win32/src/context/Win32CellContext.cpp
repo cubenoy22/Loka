@@ -29,16 +29,12 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureCellContext(cell,
-                                                       state.x,
-                                                       state.y,
-                                                       state.width,
-                                                       state.height);
+      return win32->contextMapper()->ensureCellContext(cell, state.x, state.y, state.width, state.height);
     }
   };
 
   Win32CellNodeHandler gWin32CellNodeHandler;
-}
+} // namespace
 
 Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int height, loka::app::CellNode *node)
     : node_(node),
@@ -48,18 +44,7 @@ Win32CellContext::Win32CellContext(HWND parent, int x, int y, int width, int hei
 {
   EnsureClassRegistered();
   hwnd_ = CreateWindowExA(
-      0,
-      kCellClassName,
-      "",
-      WS_CHILD | WS_VISIBLE,
-      x,
-      y,
-      width,
-      height,
-      parent,
-      0,
-      GetModuleHandle(NULL),
-      this);
+      0, kCellClassName, "", WS_CHILD | WS_VISIBLE, x, y, width, height, parent, 0, GetModuleHandle(NULL), this);
   bindText();
 }
 
@@ -134,7 +119,8 @@ void Win32CellContext::EnsureClassRegistered()
 
 LRESULT CALLBACK Win32CellContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  Win32CellContext *self = static_cast<Win32CellContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
+  Win32CellContext *self =
+      static_cast<Win32CellContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
   if (msg == WM_NCCREATE)
   {
     CREATESTRUCT *cs = reinterpret_cast<CREATESTRUCT *>(lParam);
@@ -225,8 +211,11 @@ void Win32CellContext::drawCell(HDC hdc, const RECT &rect)
   {
     SetBkMode(hdc, TRANSPARENT);
     RECT textRect = rect;
-    DrawTextA(hdc, text_.c_str(), static_cast<int>(text_.size()),
-              &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+    DrawTextA(hdc,
+              text_.c_str(),
+              static_cast<int>(text_.size()),
+              &textRect,
+              DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
   }
 }
 

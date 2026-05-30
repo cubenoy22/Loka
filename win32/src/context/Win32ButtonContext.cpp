@@ -29,11 +29,7 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureButtonContext(button,
-                                                         state.x,
-                                                         state.y,
-                                                         state.width,
-                                                         state.height);
+      return win32->contextMapper()->ensureButtonContext(button, state.x, state.y, state.width, state.height);
     }
   };
 
@@ -99,14 +95,10 @@ namespace
       return false;
     }
 
-    out = loka::core::resource::Image::FromNative(bitmap,
-                                                  width,
-                                                  height,
-                                                  &ReleaseCapturedButtonBitmap,
-                                                  0);
+    out = loka::core::resource::Image::FromNative(bitmap, width, height, &ReleaseCapturedButtonBitmap, 0);
     return out.isValid();
   }
-}
+} // namespace
 
 Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int height, loka::app::ButtonNode *node)
     : node_(node),
@@ -115,19 +107,18 @@ Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int
       enabledState_(0)
 {
   DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON;
-  hwnd_ = CreateWindowExA(
-      0,
-      "BUTTON",
-      "",
-      style,
-      x,
-      y,
-      width,
-      height,
-      parent,
-      reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
-      GetModuleHandle(NULL),
-      NULL);
+  hwnd_ = CreateWindowExA(0,
+                          "BUTTON",
+                          "",
+                          style,
+                          x,
+                          y,
+                          width,
+                          height,
+                          parent,
+                          reinterpret_cast<HMENU>(static_cast<INT_PTR>(1000)),
+                          GetModuleHandle(NULL),
+                          NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
