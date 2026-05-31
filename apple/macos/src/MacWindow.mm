@@ -105,6 +105,7 @@ MacWindow::~MacWindow()
 {
   this->visibilityState().deferUnbind(&MacWindow::VisibilityChangedThunk, this);
   this->titleState().deferUnbind(&MacWindow::TitleChangedThunk, this);
+  this->frameState().deferUnbind(&MacWindow::FrameChangedThunk, this);
   teardownScene();
   NSWindow *window = (NSWindow *)window_;
   if (window)

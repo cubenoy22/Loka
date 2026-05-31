@@ -34,8 +34,14 @@ namespace floppybird
 
     SharedModel *shared_;
 
-    MainProps() : shared_(0) {}
-    explicit MainProps(SharedModel *shared) : shared_(shared) {}
+    MainProps()
+        : shared_(0)
+    {
+    }
+    explicit MainProps(SharedModel *shared)
+        : shared_(shared)
+    {
+    }
 
     MainProps &shared(SharedModel *shared)
     {
@@ -73,20 +79,18 @@ namespace floppybird
       this->props.assertInitialized();
 #if defined(LOKA_RETRO68)
       c.declare(VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-                    << RectSurface(&this->props.shared_->surfaceModel_)
-                           .useRegionClip(false)
-                           .size(loka_floppy_bird::kWindowWidth,
-                                 loka_floppy_bird::kWindowHeight));
+                << RectSurface(&this->props.shared_->surfaceModel_)
+                       .useRegionClip(false)
+                       .size(loka_floppy_bird::kWindowWidth, loka_floppy_bird::kWindowHeight));
 #else
       c.declare(VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-                    << Text(&this->props.shared_->scoreText_)
-                    << RectSurface(&this->props.shared_->surfaceModel_)
-                           .useRegionClip(false)
-                           .size(loka_floppy_bird::kWindowWidth,
-                                 loka_floppy_bird::kWindowHeight));
+                << Text(&this->props.shared_->scoreText_)
+                << RectSurface(&this->props.shared_->surfaceModel_)
+                       .useRegionClip(false)
+                       .size(loka_floppy_bird::kWindowWidth, loka_floppy_bird::kWindowHeight));
 #endif
     }
   };
-}
+} // namespace floppybird
 
 #endif

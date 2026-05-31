@@ -41,9 +41,8 @@ public:
       }
       for (short i = 0; i < pipeCount; ++i)
       {
-        if (pipeLeft[i] != other.pipeLeft[i] ||
-            pipeGapTop[i] != other.pipeGapTop[i] ||
-            pipeGapBottom[i] != other.pipeGapBottom[i])
+        if (pipeLeft[i] != other.pipeLeft[i] || pipeGapTop[i] != other.pipeGapTop[i]
+            || pipeGapBottom[i] != other.pipeGapBottom[i])
         {
           return false;
         }
@@ -91,8 +90,7 @@ public:
   virtual void composeMenu(loka::app::MenuComposition &c)
   {
     using namespace loka::app;
-    c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
-                        << MenuSeparator()
+    c.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) << MenuSeparator()
                         << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
   }
 
@@ -163,8 +161,7 @@ private:
     const int score = this->game_.score();
     if (score != this->lastScore_)
     {
-      this->shared_.scoreText_.set(loka::core::String::Literal("Score: ")
-                                       + loka::core::String::FromInt(score));
+      this->shared_.scoreText_.set(loka::core::String::Literal("Score: ") + loka::core::String::FromInt(score));
       this->lastScore_ = score;
     }
 #endif
@@ -178,11 +175,8 @@ private:
     {
       if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
       {
-        this->cachedModel_.rects[this->cachedModel_.rectCount++] =
-            loka::app::RectSprite(snapshot.pipeLeft[i],
-                                  0,
-                                  static_cast<short>(loka_floppy_bird::kPipeWidth),
-                                  snapshot.pipeGapTop[i]);
+        this->cachedModel_.rects[this->cachedModel_.rectCount++] = loka::app::RectSprite(
+            snapshot.pipeLeft[i], 0, static_cast<short>(loka_floppy_bird::kPipeWidth), snapshot.pipeGapTop[i]);
       }
       if (this->cachedModel_.rectCount < loka::app::RectSurfaceModel::kMaxRects)
       {

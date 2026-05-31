@@ -8,10 +8,12 @@
 #include "core/String.hpp"
 #include "core/Vector.hpp"
 
-namespace helloworld {
+namespace helloworld
+{
   inline loka::app::VStack MainRightPanel(const loka::Vector<loka::core::String> *fruits,
                                           loka::core::State<int> *fruitIndex,
-                                          loka::core::State<loka::core::String> *fruitMessage) {
+                                          loka::core::State<loka::core::String> *fruitMessage)
+  {
     using namespace loka::app;
     return VStack().TEST_ID("HelloWorld.RightPanel")
            << Text("Fruit Picker").TEST_ID("HelloWorld.RightPanel.Title")

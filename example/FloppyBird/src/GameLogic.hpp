@@ -36,7 +36,12 @@ namespace loka_floppy_bird
     int gapCenterY;
     bool counted;
 
-    Pipe() : x(0.0), gapCenterY(kWindowHeight / 2), counted(false) {}
+    Pipe()
+        : x(0.0),
+          gapCenterY(kWindowHeight / 2),
+          counted(false)
+    {
+    }
   };
 
   class GameLogic
@@ -88,26 +93,36 @@ namespace loka_floppy_bird
       this->accumulatorSeconds_ += frameSeconds;
       bool advanced = false;
       int steps = 0;
-      while (this->accumulatorSeconds_ >= kFixedStepSeconds &&
-             steps < kMaxStepsPerFrame)
+      while (this->accumulatorSeconds_ >= kFixedStepSeconds && steps < kMaxStepsPerFrame)
       {
         this->step(kFixedStepSeconds);
         this->accumulatorSeconds_ -= kFixedStepSeconds;
         ++steps;
         advanced = true;
       }
-      if (steps == kMaxStepsPerFrame &&
-          this->accumulatorSeconds_ >= kFixedStepSeconds)
+      if (steps == kMaxStepsPerFrame && this->accumulatorSeconds_ >= kFixedStepSeconds)
       {
         this->accumulatorSeconds_ = 0.0;
       }
       return advanced;
     }
 
-    GameState state() const { return this->state_; }
-    int score() const { return this->score_; }
-    int pipeCount() const { return this->pipeCount_; }
-    const Pipe &pipeAt(int index) const { return this->pipes_[index]; }
+    GameState state() const
+    {
+      return this->state_;
+    }
+    int score() const
+    {
+      return this->score_;
+    }
+    int pipeCount() const
+    {
+      return this->pipeCount_;
+    }
+    const Pipe &pipeAt(int index) const
+    {
+      return this->pipes_[index];
+    }
 
     double birdY() const
     {
@@ -167,8 +182,7 @@ namespace loka_floppy_bird
         Pipe &pipe = this->pipes_[i];
         pipe.x -= kPipeSpeed * dt;
 
-        if (!pipe.counted &&
-            pipe.x + kPipeWidth <= static_cast<double>(kBirdX))
+        if (!pipe.counted && pipe.x + kPipeWidth <= static_cast<double>(kBirdX))
         {
           pipe.counted = true;
           ++this->score_;
@@ -180,8 +194,7 @@ namespace loka_floppy_bird
         }
       }
 
-      if (this->birdY_ < 0.0 ||
-          this->birdY_ + kBirdHeight > static_cast<double>(kWindowHeight))
+      if (this->birdY_ < 0.0 || this->birdY_ + kBirdHeight > static_cast<double>(kWindowHeight))
       {
         this->state_ = GAME_DEAD;
         return;
@@ -257,6 +270,6 @@ namespace loka_floppy_bird
     unsigned long randomState_;
     double accumulatorSeconds_;
   };
-}
+} // namespace loka_floppy_bird
 
 #endif
