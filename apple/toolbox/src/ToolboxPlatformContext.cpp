@@ -35,9 +35,7 @@ namespace
   }
   static unsigned short ReadU16BE(const unsigned char *p)
   {
-    return static_cast<unsigned short>(
-        (static_cast<unsigned short>(p[0]) << 8) |
-        static_cast<unsigned short>(p[1]));
+    return static_cast<unsigned short>((static_cast<unsigned short>(p[0]) << 8) | static_cast<unsigned short>(p[1]));
   }
 
   static short ReadS16BE(const unsigned char *p)
@@ -45,8 +43,7 @@ namespace
     return static_cast<short>(ReadU16BE(p));
   }
 
-  static std::size_t FindPictSizeByTerminator(const std::vector<unsigned char> &bytes,
-                                              std::size_t offset)
+  static std::size_t FindPictSizeByTerminator(const std::vector<unsigned char> &bytes, std::size_t offset)
   {
     // PICT end opcode is 0x00FF on word boundary.
     if (offset + 12 > bytes.size())
@@ -143,19 +140,21 @@ namespace
     sizeFieldFallbackOut = false;
     zeroSizeFieldOut = false;
     // 1) Raw PICT stream
-    if (TryParsePictAt(bytes, 0, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
+    if (TryParsePictAt(
+            bytes, 0, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
     {
       return true;
     }
     // 2) Classic file format with 512-byte header
-    if (bytes.size() > 522 &&
-        TryParsePictAt(bytes, 512, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
+    if (bytes.size() > 522
+        && TryParsePictAt(
+            bytes, 512, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
     {
       return true;
     }
     return false;
   }
-}
+} // namespace
 
 ToolboxPlatformContext::ToolboxPlatformContext() {}
 ToolboxPlatformContext::~ToolboxPlatformContext() {}

@@ -8,8 +8,7 @@ static long ToolboxGetTicks()
   return TickCount();
 }
 
-static loka::core::ProfilerBackend sToolboxBackend = {
-    &ToolboxGetTicks};
+static loka::core::ProfilerBackend sToolboxBackend = {&ToolboxGetTicks};
 
 void InitToolboxProfiler()
 {

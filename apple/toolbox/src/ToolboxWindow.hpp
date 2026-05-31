@@ -15,7 +15,10 @@ class ToolboxWindow : public Window
 public:
   ToolboxWindow(PlatformContext *context, const WindowProps &props);
   virtual ~ToolboxWindow();
-  virtual ToolboxWindow *asToolboxWindow() { return this; }
+  virtual ToolboxWindow *asToolboxWindow()
+  {
+    return this;
+  }
 
   void setApp(App *app);
   void ensureSceneMounted();
@@ -41,9 +44,18 @@ public:
   virtual void requestDeferredDebugDump();
   virtual void requestDeferredDebugDumpWithCompletion(DeferredDumpCompletion completion, void *userData);
   virtual void flushDeferredDebugDump();
-  WindowPtr window() const { return window_; }
-  ToolboxWindowContext *context() const { return context_; }
-  ToolboxScenePlatformController *scenePlatformController() const { return scenePlatformController_; }
+  WindowPtr window() const
+  {
+    return window_;
+  }
+  ToolboxWindowContext *context() const
+  {
+    return context_;
+  }
+  ToolboxScenePlatformController *scenePlatformController() const
+  {
+    return scenePlatformController_;
+  }
 
 private:
   static void TitleChangedThunk(void *userData);

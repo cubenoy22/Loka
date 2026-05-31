@@ -24,13 +24,20 @@ public:
   };
 
   explicit ToolboxNodeContextMapper(int capabilities)
-      : capabilities_(capabilities) {}
+      : capabilities_(capabilities)
+  {
+  }
 
-  int capabilities() const { return capabilities_; }
-  bool hasCapability(Capability cap) const { return (capabilities_ & cap) != 0; }
+  int capabilities() const
+  {
+    return capabilities_;
+  }
+  bool hasCapability(Capability cap) const
+  {
+    return (capabilities_ & cap) != 0;
+  }
 
-  bool ensureProjectedContext(loka::app::scene::Node *node,
-                              loka::app::scene::BoundaryNode *boundary);
+  bool ensureProjectedContext(loka::app::scene::Node *node, loka::app::scene::BoundaryNode *boundary);
   void ensureTextContext(loka::app::TextNode *node);
   void ensureCellContext(loka::app::CellNode *node);
   void ensureButtonContext(loka::app::ButtonNode *node);

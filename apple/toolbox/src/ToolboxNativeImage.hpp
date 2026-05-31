@@ -20,7 +20,11 @@ namespace loka
     {
       std::vector<unsigned char> bytes;
       std::size_t pictureOffset;
-      ToolboxPictBytesPayload() : bytes(), pictureOffset(0) {}
+      ToolboxPictBytesPayload()
+          : bytes(),
+            pictureOffset(0)
+      {
+      }
     };
 
     struct ToolboxNativeImage
@@ -31,14 +35,9 @@ namespace loka
       unsigned char ownsPayload;
     };
 
-    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture,
-                                                       int width,
-                                                       int height,
-                                                       bool takeOwnership);
-    loka::core::resource::Image MakeImageFromPictBytes(const std::vector<unsigned char> &bytes,
-                                                       std::size_t pictureOffset,
-                                                       int width,
-                                                       int height);
+    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height, bool takeOwnership);
+    loka::core::resource::Image
+    MakeImageFromPictBytes(const std::vector<unsigned char> &bytes, std::size_t pictureOffset, int width, int height);
 
     const ToolboxNativeImage *TryGetToolboxNativeImage(const loka::core::resource::Image &image);
 

@@ -62,9 +62,8 @@ namespace
     return fallbackHeight;
   }
 
-  inline int DispatchTraversalLayoutChild(void *context,
-                                          loka::app::scene::Node *child,
-                                          const loka::app::scene::LayoutState &state)
+  inline int
+  DispatchTraversalLayoutChild(void *context, loka::app::scene::Node *child, const loka::app::scene::LayoutState &state)
   {
     loka::app::scene::IPlatformLayoutTraversal *traversal =
         static_cast<loka::app::scene::IPlatformLayoutTraversal *>(context);
@@ -211,8 +210,8 @@ namespace
         childState.y = currentY;
         if (state.height > 0)
         {
-          childState.height = static_cast<short>(
-              loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+          childState.height =
+              static_cast<short>(loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
         }
         short childWidth = state.width;
         short childOffset = 0;
@@ -327,8 +326,7 @@ namespace
         const int width = DispatchTraversalLayoutChild(traversal, child, rowState);
         rowStartX = static_cast<short>(rowStartX + width + state.spacing);
         const short childResultY = traversal->layoutResultY();
-        if (childResultY > state.y &&
-            static_cast<short>(childResultY - state.y) > maxHeight)
+        if (childResultY > state.y && static_cast<short>(childResultY - state.y) > maxHeight)
         {
           maxHeight = static_cast<short>(childResultY - state.y);
         }
@@ -421,7 +419,7 @@ namespace
       return maxWidth;
     }
   };
-}
+} // namespace
 
 void RegisterToolboxPlatformLayoutHandlers(loka::app::scene::PlatformLayoutHandlerRegistry &registry)
 {

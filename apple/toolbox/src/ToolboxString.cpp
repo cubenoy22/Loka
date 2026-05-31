@@ -10,8 +10,12 @@ namespace loka
     class ToolboxByteString : public String
     {
     public:
-      ToolboxByteString() : data_() {}
-      ToolboxByteString(const char *bytes, std::size_t length) : data_()
+      ToolboxByteString()
+          : data_()
+      {
+      }
+      ToolboxByteString(const char *bytes, std::size_t length)
+          : data_()
       {
         if (bytes && length > 0)
           data_.assign(bytes, length);

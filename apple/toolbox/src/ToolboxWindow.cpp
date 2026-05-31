@@ -36,11 +36,23 @@ namespace
     short height = static_cast<short>(cont.top - struc.top);
     return height > 0 ? height : 0;
   }
-}
+} // namespace
 
-ToolboxWindow::ToolboxWindow(PlatformContext *context,
-                             const WindowProps &props)
-    : Window(context, props), app_(0), window_(0), scenePlatformController_(0), context_(0), needsInvalidate_(false), pendingDebugDump_(false), pendingDebugDumpCompletion_(0), pendingDebugDumpUserData_(0), pendingDeferredDebugDumpCompletion_(0), pendingDeferredDebugDumpUserData_(0), pendingDeferredDebugDumpCompletionDelay_(0), pendingInvalidateRects_(), titleBarHeight_(0)
+ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
+    : Window(context, props),
+      app_(0),
+      window_(0),
+      scenePlatformController_(0),
+      context_(0),
+      needsInvalidate_(false),
+      pendingDebugDump_(false),
+      pendingDebugDumpCompletion_(0),
+      pendingDebugDumpUserData_(0),
+      pendingDeferredDebugDumpCompletion_(0),
+      pendingDeferredDebugDumpUserData_(0),
+      pendingDeferredDebugDumpCompletionDelay_(0),
+      pendingInvalidateRects_(),
+      titleBarHeight_(0)
 {
   window_ = 0;
   context_ = new ToolboxWindowContext(
@@ -159,8 +171,8 @@ void ToolboxWindow::requestInvalidateRect(const Rect &rect)
   for (std::size_t i = 0; i < pendingInvalidateRects_.size(); ++i)
   {
     Rect &pending = pendingInvalidateRects_[i];
-    if (rect.right < pending.left || rect.left > pending.right ||
-        rect.bottom < pending.top || rect.top > pending.bottom)
+    if (rect.right < pending.left || rect.left > pending.right || rect.bottom < pending.top
+        || rect.top > pending.bottom)
     {
       continue;
     }

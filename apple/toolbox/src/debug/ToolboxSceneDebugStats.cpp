@@ -43,14 +43,9 @@ namespace
 
   void BuildRedrawDumpFileName(char out[13], const std::tm &local)
   {
-    std::sprintf(out,
-                 "%02d%02d%02d%02d.TXT",
-                 local.tm_mon + 1,
-                 local.tm_mday,
-                 local.tm_hour,
-                 local.tm_sec);
+    std::sprintf(out, "%02d%02d%02d%02d.TXT", local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_sec);
   }
-}
+} // namespace
 
 ToolboxSceneDebugStats::ToolboxSceneDebugStats()
     : changeSequence(0),
@@ -278,11 +273,13 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "last.fallback.queued_by_child=%d\n", this->fallbackQueuedByChild ? 1 : 0);
   std::fprintf(fp, "last.fallback.used_full_invalidate=%d\n", this->fallbackUsedFullInvalidate ? 1 : 0);
   std::fprintf(fp, "last.window.request_full=%d\n", this->windowFullRequestCount);
-  std::fprintf(fp, "last.window.request_full_source=%s\n", this->windowFullRequestSource ? this->windowFullRequestSource : "");
+  std::fprintf(
+      fp, "last.window.request_full_source=%s\n", this->windowFullRequestSource ? this->windowFullRequestSource : "");
   std::fprintf(fp, "last.request_invalidate.calls=%d\n", this->requestInvalidateCallCount);
   std::fprintf(fp, "last.request_invalidate.first.root_present=%d\n", this->requestInvalidateFirstRootPresent ? 1 : 0);
   std::fprintf(fp, "last.request_invalidate.first.full_rebuild=%d\n", this->requestInvalidateFirstFullRebuild ? 1 : 0);
-  std::fprintf(fp, "last.request_invalidate.first.flags=%s\n", flagsToString(this->requestInvalidateFirstFlags).c_str());
+  std::fprintf(
+      fp, "last.request_invalidate.first.flags=%s\n", flagsToString(this->requestInvalidateFirstFlags).c_str());
   std::fprintf(fp, "last.request_invalidate.root_present=%d\n", this->requestInvalidateRootPresent ? 1 : 0);
   std::fprintf(fp, "last.request_invalidate.full_rebuild=%d\n", this->requestInvalidateFullRebuild ? 1 : 0);
   std::fprintf(fp, "last.request_invalidate.flags=%s\n", flagsToString(this->requestInvalidateFlags).c_str());

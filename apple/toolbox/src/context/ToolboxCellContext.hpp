@@ -11,14 +11,13 @@ namespace loka
 {
   namespace core
   {
-    template <typename T>
-    class State;
+    template <typename T> class State;
     namespace scene
     {
       class BoundaryNode;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 
 class ToolboxCellContext : public loka::app::scene::NativeNodeContext
 {
@@ -26,13 +25,15 @@ public:
   explicit ToolboxCellContext(loka::app::CellNode *node);
   virtual ~ToolboxCellContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    boundary_ = boundary;
+  }
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
-  virtual short layout(loka::app::scene::IPlatformController *controller,
-                       loka::app::scene::LayoutState &state);
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:

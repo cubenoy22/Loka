@@ -9,7 +9,10 @@ public:
   explicit ToolboxWindowContext(int capabilities);
   ~ToolboxWindowContext();
 
-  ToolboxNodeContextMapper *contextMapper() const { return contextMapper_; }
+  ToolboxNodeContextMapper *contextMapper() const
+  {
+    return contextMapper_;
+  }
 
 private:
   ToolboxNodeContextMapper *contextMapper_;

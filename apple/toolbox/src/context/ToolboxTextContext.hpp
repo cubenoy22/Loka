@@ -15,8 +15,8 @@ namespace loka
     {
       class BoundaryNode;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 namespace loka
 {
   namespace core
@@ -25,8 +25,8 @@ namespace loka
     {
       class IPlatformController;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 
 class ToolboxTextContext : public loka::app::scene::NativeNodeContext
 {
@@ -34,14 +34,16 @@ public:
   explicit ToolboxTextContext(loka::app::TextNode *node);
   virtual ~ToolboxTextContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    boundary_ = boundary;
+  }
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
   short visibleWidth() const;
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
-  virtual short layout(loka::app::scene::IPlatformController *controller,
-                       loka::app::scene::LayoutState &state);
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
 private:
   loka::app::TextNode *node_;

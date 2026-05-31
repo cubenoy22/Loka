@@ -4,8 +4,7 @@ namespace
 {
   void ReleaseToolboxNativeImage(void *handle, void *)
   {
-    loka::toolbox::ToolboxNativeImage *native =
-        static_cast<loka::toolbox::ToolboxNativeImage *>(handle);
+    loka::toolbox::ToolboxNativeImage *native = static_cast<loka::toolbox::ToolboxNativeImage *>(handle);
     if (!native)
     {
       return;
@@ -25,16 +24,13 @@ namespace
 
     delete native;
   }
-}
+} // namespace
 
 namespace loka
 {
   namespace toolbox
   {
-    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture,
-                                                       int width,
-                                                       int height,
-                                                       bool takeOwnership)
+    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height, bool takeOwnership)
     {
       if (!picture)
       {
@@ -47,17 +43,11 @@ namespace loka
       native->payload = picture;
       native->ownsPayload = takeOwnership ? 1 : 0;
 
-      return loka::core::resource::Image::FromNative(native,
-                                                     width,
-                                                     height,
-                                                     &ReleaseToolboxNativeImage,
-                                                     0);
+      return loka::core::resource::Image::FromNative(native, width, height, &ReleaseToolboxNativeImage, 0);
     }
 
-    loka::core::resource::Image MakeImageFromPictBytes(const std::vector<unsigned char> &bytes,
-                                                       std::size_t pictureOffset,
-                                                       int width,
-                                                       int height)
+    loka::core::resource::Image
+    MakeImageFromPictBytes(const std::vector<unsigned char> &bytes, std::size_t pictureOffset, int width, int height)
     {
       if (pictureOffset >= bytes.size() || width <= 0 || height <= 0)
       {
@@ -74,11 +64,7 @@ namespace loka
       native->payload = payload;
       native->ownsPayload = 1;
 
-      return loka::core::resource::Image::FromNative(native,
-                                                     width,
-                                                     height,
-                                                     &ReleaseToolboxNativeImage,
-                                                     0);
+      return loka::core::resource::Image::FromNative(native, width, height, &ReleaseToolboxNativeImage, 0);
     }
 
     const ToolboxNativeImage *TryGetToolboxNativeImage(const loka::core::resource::Image &image)
@@ -87,8 +73,7 @@ namespace loka
       {
         return 0;
       }
-      const ToolboxNativeImage *native =
-          static_cast<const ToolboxNativeImage *>(image.nativeHandle());
+      const ToolboxNativeImage *native = static_cast<const ToolboxNativeImage *>(image.nativeHandle());
       if (!native || native->magic != kToolboxNativeImageMagic)
       {
         return 0;

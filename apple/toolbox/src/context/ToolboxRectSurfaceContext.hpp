@@ -15,12 +15,14 @@ public:
   void renderDirty(const Rect &dirtyRect);
   bool dirtyRect(Rect &outRect) const;
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    boundary_ = boundary;
+  }
 
 private:
-  bool findMatchingCurrentRect(const Rect &previousRect,
-                               const loka::app::RectSurfaceModel &model,
-                               Rect &currentRect) const;
+  bool
+  findMatchingCurrentRect(const Rect &previousRect, const loka::app::RectSurfaceModel &model, Rect &currentRect) const;
   Rect rectForSprite(const loka::app::RectSprite &sprite) const;
   bool previousRectForIndex(short index, Rect &previousRect) const;
   void paintCurrentMinusPrevious(const Rect &currentRect, const Rect &previousRect, const Rect &dirtyRect);

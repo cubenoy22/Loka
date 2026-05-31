@@ -168,8 +168,7 @@ namespace
                    loka::app::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller,
                    loka::app::scene::BoundaryNode *currentBoundary);
-  void RenderNode(loka::app::scene::Node *node,
-                  ToolboxScenePlatformController *controller);
+  void RenderNode(loka::app::scene::Node *node, ToolboxScenePlatformController *controller);
 
   short MaxExplicitControlId(loka::app::scene::Node *node)
   {
@@ -393,8 +392,7 @@ namespace
   class ToolboxLayoutTraversal : public loka::app::scene::IPlatformLayoutTraversal
   {
   public:
-    ToolboxLayoutTraversal(ToolboxScenePlatformController *controller,
-                           loka::app::scene::BoundaryNode *currentBoundary)
+    ToolboxLayoutTraversal(ToolboxScenePlatformController *controller, loka::app::scene::BoundaryNode *currentBoundary)
         : controller_(controller),
           currentBoundary_(currentBoundary),
           lastY_(0),
@@ -411,11 +409,20 @@ namespace
       return width;
     }
 
-    virtual void setLayoutResultY(short y) { layoutResultY_ = y; }
+    virtual void setLayoutResultY(short y)
+    {
+      layoutResultY_ = y;
+    }
 
-    virtual short layoutResultY() const { return layoutResultY_; }
+    virtual short layoutResultY() const
+    {
+      return layoutResultY_;
+    }
 
-    short lastY() const { return lastY_; }
+    short lastY() const
+    {
+      return lastY_;
+    }
 
   private:
     ToolboxScenePlatformController *controller_;
@@ -427,8 +434,7 @@ namespace
   class ActiveLayoutBoundaryScope
   {
   public:
-    ActiveLayoutBoundaryScope(ToolboxScenePlatformController *controller,
-                              loka::app::scene::BoundaryNode *boundary)
+    ActiveLayoutBoundaryScope(ToolboxScenePlatformController *controller, loka::app::scene::BoundaryNode *boundary)
         : controller_(controller),
           previous_(controller ? controller->activeLayoutBoundary() : 0)
     {
@@ -503,8 +509,8 @@ namespace
           childState.y = currentY;
           if (state.height > 0)
           {
-            childState.height = static_cast<short>(
-                loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+            childState.height =
+                static_cast<short>(loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
           }
           short childWidth = state.width;
           short childOffset = 0;
@@ -804,8 +810,7 @@ namespace
           }
           short childWidth = LayoutNode(child, rowState, controller, activeBoundary);
           rowStartX = static_cast<short>(rowStartX + childWidth + state.spacing);
-          if (rowState.y > state.y &&
-              static_cast<short>(rowState.y - state.y) > maxHeight)
+          if (rowState.y > state.y && static_cast<short>(rowState.y - state.y) > maxHeight)
           {
             maxHeight = static_cast<short>(rowState.y - state.y);
           }
@@ -849,8 +854,7 @@ namespace
     return width;
   }
 
-  void RenderChildren(loka::app::scene::INestable *nestable,
-                      ToolboxScenePlatformController *controller)
+  void RenderChildren(loka::app::scene::INestable *nestable, ToolboxScenePlatformController *controller)
   {
     if (!nestable)
     {
@@ -863,8 +867,7 @@ namespace
     }
   }
 
-  void RenderNode(loka::app::scene::Node *node,
-                  ToolboxScenePlatformController *controller)
+  void RenderNode(loka::app::scene::Node *node, ToolboxScenePlatformController *controller)
   {
     if (!node)
     {
@@ -904,7 +907,7 @@ namespace
     }
     return true;
   }
-}
+} // namespace
 
 ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *window)
     : window_(window),
@@ -979,7 +982,9 @@ short ToolboxScenePlatformController::allocateControlId()
   return id;
 }
 
-void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
+void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode,
+                                              loka::app::scene::NodeDirtyFlags flags,
+                                              bool fullRebuild)
 {
   rootNode_ = rootNode;
   debugStats_.begin(flags, fullRebuild);
@@ -1051,9 +1056,8 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
   if (!info.hasBoundsHint())
   {
     Rect surfaceDirtyRect;
-    if (info.hasPaintWork() &&
-        ContainsOnlyRectSurfacePainting(boundary) &&
-        CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
+    if (info.hasPaintWork() && ContainsOnlyRectSurfacePainting(boundary)
+        && CollectRectSurfaceDirtyRect(boundary, surfaceDirtyRect))
     {
       window_->requestInvalidateRect(surfaceDirtyRect);
       return;
@@ -1064,10 +1068,8 @@ void ToolboxScenePlatformController::onBoundaryApply(loka::app::scene::Node *roo
       loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
       firstChild = it.next();
     }
-    if (boundary->kind() == loka::app::scene::NODE_KIND_UNKNOWN &&
-        boundary->testId().empty() &&
-        firstChild &&
-        firstChild->kind() == loka::app::scene::NODE_KIND_ZSTACK)
+    if (boundary->kind() == loka::app::scene::NODE_KIND_UNKNOWN && boundary->testId().empty() && firstChild
+        && firstChild->kind() == loka::app::scene::NODE_KIND_ZSTACK)
     {
       return;
     }
@@ -1225,7 +1227,6 @@ void ToolboxScenePlatformController::render()
       ++i;
     }
   }
-
 }
 
 void ToolboxScenePlatformController::renderDirty(const Rect &rect)
@@ -1510,7 +1511,8 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   {
     return;
   }
-  loka::core::MutableState<int> *mutableIndex = static_cast<loka::core::MutableState<int> *>(selectedIndex->asMutableState());
+  loka::core::MutableState<int> *mutableIndex =
+      static_cast<loka::core::MutableState<int> *>(selectedIndex->asMutableState());
   if (!mutableIndex)
   {
     return;
@@ -1824,12 +1826,9 @@ void ToolboxScenePlatformController::endBatchUpdate()
     }
     const bool handledLocalDirty = !pendingDirtyRects_.empty();
     const bool handledLocalText = !pendingTextStates_.empty();
-    const bool hasChildDirty =
-        (pendingInvalidateFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0;
+    const bool hasChildDirty = (pendingInvalidateFlags_ & loka::app::scene::NODE_DIRTY_CHILD) != 0;
     const bool skipFollowupInvalidate =
-        !pendingFullInvalidate_ &&
-        !hasChildDirty &&
-        (handledLocalDirty || handledLocalText);
+        !pendingFullInvalidate_ && !hasChildDirty && (handledLocalDirty || handledLocalText);
     // Draw pending dirty rects without forcing full render
     // The textHits_ from previous render should still be valid for positions
     for (size_t i = 0; i < pendingDirtyRects_.size(); ++i)
@@ -1842,9 +1841,8 @@ void ToolboxScenePlatformController::endBatchUpdate()
     }
     if (!skipFollowupInvalidate)
     {
-      requestInvalidateForChange(pendingRootNode_ ? pendingRootNode_ : rootNode_,
-                                 pendingInvalidateFlags_,
-                                 pendingFullInvalidate_);
+      requestInvalidateForChange(
+          pendingRootNode_ ? pendingRootNode_ : rootNode_, pendingInvalidateFlags_, pendingFullInvalidate_);
     }
     if (window_->hasPendingInvalidate())
     {
@@ -1863,8 +1861,8 @@ void ToolboxScenePlatformController::addPendingDirty(const Rect &rect)
   for (size_t i = 0; i < pendingDirtyRects_.size(); ++i)
   {
     Rect &pending = pendingDirtyRects_[i];
-    if (rect.right < pending.left || rect.left > pending.right ||
-        rect.bottom < pending.top || rect.top > pending.bottom)
+    if (rect.right < pending.left || rect.left > pending.right || rect.bottom < pending.top
+        || rect.top > pending.bottom)
     {
       continue;
     }
@@ -1937,8 +1935,8 @@ bool ToolboxScenePlatformController::collectLocalBoundaryDirtyRects(loka::app::s
 }
 
 void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene::Node *rootNodeForChange,
-                                                               loka::app::scene::NodeDirtyFlags flags,
-                                                               bool fullRebuild)
+                                                                loka::app::scene::NodeDirtyFlags flags,
+                                                                bool fullRebuild)
 {
   if (debugStats_.requestInvalidateCallCount == 0)
   {
@@ -2233,12 +2231,11 @@ void ToolboxScenePlatformController::flushRetiredNativeHandles()
   retiredTextEdits_.clear();
 }
 
-bool ToolboxScenePlatformController::ensureButtonControl(
-    short resourceId,
-    const Rect &rect,
-    const loka::core::String &label,
-    loka::core::EmitterState *emitter,
-    loka::core::State<bool> *enabled)
+bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
+                                                         const Rect &rect,
+                                                         const loka::core::String &label,
+                                                         loka::core::EmitterState *emitter,
+                                                         loka::core::State<bool> *enabled)
 {
   if (!window_ || !window_->window() || resourceId <= 0)
   {
@@ -2259,15 +2256,7 @@ bool ToolboxScenePlatformController::ensureButtonControl(
     Rect rectCopy = rect;
     Str255 title;
     title[0] = 0;
-    ControlRef control = NewControl(window_->window(),
-                                    &rectCopy,
-                                    title,
-                                    false,
-                                    0,
-                                    0,
-                                    1,
-                                    pushButProc,
-                                    0);
+    ControlRef control = NewControl(window_->window(), &rectCopy, title, false, 0, 0, 1, pushButProc, 0);
     if (!control)
     {
       return false;
@@ -2290,9 +2279,8 @@ bool ToolboxScenePlatformController::ensureButtonControl(
   binding->enabled = enabled;
   bindEnabledState(enabled);
   binding->usedThisFrame = true;
-  if (created ||
-      binding->rect.left != rect.left || binding->rect.top != rect.top ||
-      binding->rect.right != rect.right || binding->rect.bottom != rect.bottom)
+  if (created || binding->rect.left != rect.left || binding->rect.top != rect.top || binding->rect.right != rect.right
+      || binding->rect.bottom != rect.bottom)
   {
     MoveControl(binding->control, rect.left, rect.top);
     SizeControl(binding->control, rect.right - rect.left, rect.bottom - rect.top);
@@ -2333,9 +2321,8 @@ void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
   LineTo(rect.right - 2, rect.top + 2);
 }
 
-TEHandle ToolboxScenePlatformController::ensureEditTextControl(
-    const Rect &rect,
-    loka::core::State<loka::core::String> *text)
+TEHandle ToolboxScenePlatformController::ensureEditTextControl(const Rect &rect,
+                                                               loka::core::State<loka::core::String> *text)
 {
   if (!text)
   {
@@ -2355,8 +2342,8 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(
     TEHandle te = TENew(&rect, &rect);
     if (!te)
     {
-    return 0;
-  }
+      return 0;
+    }
     EditTextControlBinding entry;
     entry.text = text;
     entry.te = te;
@@ -2369,8 +2356,8 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(
     TEAutoView(true, binding->te);
   }
   binding->usedThisFrame = true;
-  if (binding->rect.left != rect.left || binding->rect.top != rect.top ||
-      binding->rect.right != rect.right || binding->rect.bottom != rect.bottom)
+  if (binding->rect.left != rect.left || binding->rect.top != rect.top || binding->rect.right != rect.right
+      || binding->rect.bottom != rect.bottom)
   {
     binding->rect = rect;
     if (binding->te)
@@ -2445,8 +2432,8 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
     {
       continue;
     }
-    if (rect.right < binding.rect.left || rect.left > binding.rect.right ||
-        rect.bottom < binding.rect.top || rect.top > binding.rect.bottom)
+    if (rect.right < binding.rect.left || rect.left > binding.rect.right || rect.bottom < binding.rect.top
+        || rect.top > binding.rect.bottom)
     {
       continue;
     }
@@ -2488,7 +2475,6 @@ bool ToolboxScenePlatformController::isPointInEdit(const Point &point) const
   }
   return false;
 }
-
 
 void ToolboxScenePlatformController::beginClip(const Rect &rect)
 {

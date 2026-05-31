@@ -27,7 +27,7 @@ namespace
     MoveTo(x, y);
     DrawString(text);
   }
-}
+} // namespace
 
 ToolboxEditTextContext::ToolboxEditTextContext(loka::app::EditTextNode *node)
     : node_(node),

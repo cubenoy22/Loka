@@ -32,8 +32,7 @@ ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
   }
 }
 
-short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *,
-                                        loka::app::scene::LayoutState &state)
+short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   if (!node_)
   {
@@ -72,18 +71,16 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
   {
     return;
   }
-  if (dirtyRect.right < rect_.left || dirtyRect.left > rect_.right ||
-      dirtyRect.bottom < rect_.top || dirtyRect.top > rect_.bottom)
+  if (dirtyRect.right < rect_.left || dirtyRect.left > rect_.right || dirtyRect.bottom < rect_.top
+      || dirtyRect.top > rect_.bottom)
   {
     return;
   }
 
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   bool useRegionClip = false;
-  useRegionClip = node_->props.useRegionClip_ &&
-                  buildDirtyRegion(dirtyRect, model) &&
-                  dirtyRgn_ != 0 &&
-                  savedClipRgn_ != 0;
+  useRegionClip =
+      node_->props.useRegionClip_ && buildDirtyRegion(dirtyRect, model) && dirtyRgn_ != 0 && savedClipRgn_ != 0;
   if (useRegionClip)
   {
     GetClip(savedClipRgn_);
@@ -136,17 +133,13 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &dirtyRect)
     Rect previousSpriteRect;
     if (previousRectForIndex(i, previousSpriteRect))
     {
-      if (previousSpriteRect.left == spriteRect.left &&
-          previousSpriteRect.top == spriteRect.top &&
-          previousSpriteRect.right == spriteRect.right &&
-          previousSpriteRect.bottom == spriteRect.bottom)
+      if (previousSpriteRect.left == spriteRect.left && previousSpriteRect.top == spriteRect.top
+          && previousSpriteRect.right == spriteRect.right && previousSpriteRect.bottom == spriteRect.bottom)
       {
         continue;
       }
-      if ((previousSpriteRect.right - previousSpriteRect.left) ==
-              (spriteRect.right - spriteRect.left) &&
-          (previousSpriteRect.bottom - previousSpriteRect.top) ==
-              (spriteRect.bottom - spriteRect.top))
+      if ((previousSpriteRect.right - previousSpriteRect.left) == (spriteRect.right - spriteRect.left)
+          && (previousSpriteRect.bottom - previousSpriteRect.top) == (spriteRect.bottom - spriteRect.top))
       {
         paintCurrentMinusPrevious(spriteRect, previousSpriteRect, dirtyRect);
         continue;
@@ -323,10 +316,8 @@ bool ToolboxRectSurfaceContext::findMatchingCurrentRect(const Rect &previousRect
     {
       continue;
     }
-    if ((candidateRect.right - candidateRect.left) ==
-            (previousRect.right - previousRect.left) &&
-        (candidateRect.bottom - candidateRect.top) ==
-            (previousRect.bottom - previousRect.top))
+    if ((candidateRect.right - candidateRect.left) == (previousRect.right - previousRect.left)
+        && (candidateRect.bottom - candidateRect.top) == (previousRect.bottom - previousRect.top))
     {
       sizeMatchedRect = candidateRect;
       foundSizeMatch = true;
@@ -445,10 +436,8 @@ bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
     currentRect.top = static_cast<short>(rect_.top + model.rects[i].y);
     currentRect.right = static_cast<short>(currentRect.left + model.rects[i].width);
     currentRect.bottom = static_cast<short>(currentRect.top + model.rects[i].height);
-    if (currentRect.left == rect.left &&
-        currentRect.top == rect.top &&
-        currentRect.right == rect.right &&
-        currentRect.bottom == rect.bottom)
+    if (currentRect.left == rect.left && currentRect.top == rect.top && currentRect.right == rect.right
+        && currentRect.bottom == rect.bottom)
     {
       return true;
     }
@@ -456,9 +445,7 @@ bool ToolboxRectSurfaceContext::currentModelContainsRect(const Rect &rect,
   return false;
 }
 
-
-bool ToolboxRectSurfaceContext::buildDirtyRegion(const Rect &dirtyRect,
-                                                 const loka::app::RectSurfaceModel &model)
+bool ToolboxRectSurfaceContext::buildDirtyRegion(const Rect &dirtyRect, const loka::app::RectSurfaceModel &model)
 {
   if (!dirtyRgn_ || !tempRgn_)
   {

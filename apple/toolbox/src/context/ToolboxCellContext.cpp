@@ -26,7 +26,7 @@ namespace
       std::memcpy(text + 1, utf8.data(), length);
     }
   }
-}
+} // namespace
 
 ToolboxCellContext::ToolboxCellContext(loka::app::CellNode *node)
     : node_(node),
@@ -79,8 +79,7 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
   DrawString(text);
 }
 
-short ToolboxCellContext::layout(loka::app::scene::IPlatformController *,
-                                 loka::app::scene::LayoutState &state)
+short ToolboxCellContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   if (!node_)
   {

@@ -27,7 +27,7 @@ namespace
     MoveTo(x, y);
     DrawString(text);
   }
-}
+} // namespace
 
 ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node)
     : node_(node),

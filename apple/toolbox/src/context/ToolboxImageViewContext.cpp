@@ -157,10 +157,7 @@ namespace
     DrawString(text);
   }
 
-  static Rect ComputeImageDrawRect(const Rect &frameRect,
-                                   int fitMode,
-                                   int imageWidth,
-                                   int imageHeight)
+  static Rect ComputeImageDrawRect(const Rect &frameRect, int fitMode, int imageWidth, int imageHeight)
   {
     Rect out = frameRect;
     const int frameWidth = frameRect.right - frameRect.left;
@@ -185,9 +182,7 @@ namespace
     // contain / cover
     const double sx = static_cast<double>(frameWidth) / static_cast<double>(imageWidth);
     const double sy = static_cast<double>(frameHeight) / static_cast<double>(imageHeight);
-    const double scale = (fitMode == loka::app::IMAGE_FIT_COVER)
-                             ? ((sx > sy) ? sx : sy)
-                             : ((sx < sy) ? sx : sy);
+    const double scale = (fitMode == loka::app::IMAGE_FIT_COVER) ? ((sx > sy) ? sx : sy) : ((sx < sy) ? sx : sy);
 
     const int dstW = static_cast<int>(imageWidth * scale);
     const int dstH = static_cast<int>(imageHeight * scale);
@@ -199,7 +194,7 @@ namespace
     out.bottom = static_cast<short>(out.top + dstH);
     return out;
   }
-}
+} // namespace
 
 ToolboxImageViewContext::ToolboxImageViewContext(loka::app::ImageViewNode *node)
     : node_(node),
@@ -210,9 +205,7 @@ ToolboxImageViewContext::ToolboxImageViewContext(loka::app::ImageViewNode *node)
   SetRect(&rect_, 0, 0, 0, 0);
 }
 
-ToolboxImageViewContext::~ToolboxImageViewContext()
-{
-}
+ToolboxImageViewContext::~ToolboxImageViewContext() {}
 
 short ToolboxImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
@@ -321,11 +314,8 @@ void ToolboxImageViewContext::draw()
     fitMode = static_cast<int>(node_->props.attr_.fitValue_);
   }
 
-  const loka::toolbox::ToolboxNativeImage *native =
-      loka::toolbox::TryGetToolboxNativeImage(image_);
-  if (native &&
-      native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT &&
-      native->payload)
+  const loka::toolbox::ToolboxNativeImage *native = loka::toolbox::TryGetToolboxNativeImage(image_);
+  if (native && native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT && native->payload)
   {
     PicHandle picture = static_cast<PicHandle>(native->payload);
     Rect dstRect = ComputeImageDrawRect(rect_, fitMode, image_.width(), image_.height());
@@ -352,9 +342,7 @@ void ToolboxImageViewContext::draw()
     return;
   }
 
-  if (native &&
-      native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES &&
-      native->payload)
+  if (native && native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES && native->payload)
   {
     const loka::toolbox::ToolboxPictBytesPayload *payload =
         static_cast<const loka::toolbox::ToolboxPictBytesPayload *>(native->payload);

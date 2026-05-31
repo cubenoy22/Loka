@@ -14,7 +14,14 @@
 #include "platform/StringUTF8.hpp"
 
 ToolboxApp::ToolboxApp(AppConfigurable *config)
-    : App(config), nextMenuId_(128), commands_(), bindings_(), menuEntries_(), hierarchicalMenus_(), pendingWindowClosures_(), running_(false)
+    : App(config),
+      nextMenuId_(128),
+      commands_(),
+      bindings_(),
+      menuEntries_(),
+      hierarchicalMenus_(),
+      pendingWindowClosures_(),
+      running_(false)
 {
 }
 ToolboxApp::~ToolboxApp()
@@ -738,8 +745,8 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
   }
 
   bool needsFullRebuild = false;
-  loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> diffIt(
-      diff.changedHead(), diff.changedCount());
+  loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> diffIt(diff.changedHead(),
+                                                                                    diff.changedCount());
   for (loka::app::MenuCompositionDiff::ChangedIndex *diffEntry = diffIt.next(); diffEntry; diffEntry = diffIt.next())
   {
     size_t i = diffEntry->value;
@@ -835,7 +842,8 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       }
       continue;
     }
-    BuildMenuItems(entry.menu, menuDef->itemsHead(), entry.menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
+    BuildMenuItems(
+        entry.menu, menuDef->itemsHead(), entry.menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
     if (CountMenuItems(entry.menu) == 0)
     {
       needsFullRebuild = true;

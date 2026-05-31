@@ -30,9 +30,7 @@ namespace
     {
       onResult->emit();
     }
-    if (closeState &&
-        loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) &&
-        closeState->get())
+    if (closeState && loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) && closeState->get())
     {
       closeState->set(false, true);
     }
@@ -45,7 +43,7 @@ namespace
       loka::core::StateBase::releaseExternalLifetimeToken(closeStateToken);
     }
   }
-}
+} // namespace
 
 struct ToolboxOpenFileDialogContext::NativeDialogSession : public ToolboxOpenNativeDialogSession
 {
@@ -159,7 +157,8 @@ void ToolboxOpenFileDialogContext::disposeDialog()
   dialog_ = 0;
 }
 
-ToolboxOpenFileDialogContext::NativeDialogSession *ToolboxOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
+ToolboxOpenFileDialogContext::NativeDialogSession *
+ToolboxOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
 {
   if (!dialog || dialog_ != dialog || dialog->disposed)
   {

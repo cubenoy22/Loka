@@ -15,7 +15,10 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state);
   virtual void render(loka::app::scene::IPlatformController *);
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    boundary_ = boundary;
+  }
 
 private:
   void draw();

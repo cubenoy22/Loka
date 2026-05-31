@@ -29,7 +29,10 @@ public:
                                loka::app::scene::BoundaryNode *boundary,
                                const loka::app::scene::BoundaryLocalApplyInfo &info,
                                const loka::app::scene::PlatformApplyPlan &plan);
-  virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return true; }
+  virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const
+  {
+    return true;
+  }
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
@@ -89,9 +92,18 @@ public:
   void beginClip(const Rect &rect);
   void endClip();
   ToolboxNodeContextMapper *contextMapper() const;
-  loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry() { return &layoutHandlerRegistry_; }
-  void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *boundary) { activeLayoutBoundary_ = boundary; }
-  loka::app::scene::BoundaryNode *activeLayoutBoundary() const { return activeLayoutBoundary_; }
+  loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry()
+  {
+    return &layoutHandlerRegistry_;
+  }
+  void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    activeLayoutBoundary_ = boundary;
+  }
+  loka::app::scene::BoundaryNode *activeLayoutBoundary() const
+  {
+    return activeLayoutBoundary_;
+  }
 
 private:
   struct ButtonHit
@@ -232,20 +244,41 @@ private:
   void updateStateFromEdit(EditTextControlBinding &binding);
   static void TextStateChangedThunk(void *userData);
   static void EnabledStateChangedThunk(void *userData);
+
 public:
   void flushRetiredNativeHandles();
   std::string debugStatsSummary() const;
-  void noteWindowDraw() { ++debugStats_.drawCalls; ++debugStats_.totalDrawCalls; }
-  void noteWindowDirtyDraw() { ++debugStats_.drawDirtyCalls; ++debugStats_.totalDrawDirtyCalls; }
+  void noteWindowDraw()
+  {
+    ++debugStats_.drawCalls;
+    ++debugStats_.totalDrawCalls;
+  }
+  void noteWindowDirtyDraw()
+  {
+    ++debugStats_.drawDirtyCalls;
+    ++debugStats_.totalDrawDirtyCalls;
+  }
   void noteWindowFullRequest(const char *reason)
   {
     ++debugStats_.windowFullRequestCount;
     debugStats_.windowFullRequestSource = reason;
   }
-  void noteWindowRectRequest() { ++debugStats_.windowRectRequestCount; }
-  void noteWindowFlushFull() { ++debugStats_.windowFlushFullCount; }
-  void noteWindowFlushDirty() { ++debugStats_.windowFlushDirtyCount; }
-  void noteWindowUpdateEvtDraw() { ++debugStats_.windowUpdateEvtDrawCount; }
+  void noteWindowRectRequest()
+  {
+    ++debugStats_.windowRectRequestCount;
+  }
+  void noteWindowFlushFull()
+  {
+    ++debugStats_.windowFlushFullCount;
+  }
+  void noteWindowFlushDirty()
+  {
+    ++debugStats_.windowFlushDirtyCount;
+  }
+  void noteWindowUpdateEvtDraw()
+  {
+    ++debugStats_.windowUpdateEvtDrawCount;
+  }
   void resetDebugStats();
   bool dumpDebugStatsToTimestampedFile() const;
 };

@@ -16,8 +16,8 @@ namespace loka
     {
       class BoundaryNode;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 namespace loka
 {
   namespace core
@@ -26,8 +26,8 @@ namespace loka
     {
       class IPlatformController;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 
 class ToolboxPopupMenuContext : public loka::app::scene::NativeNodeContext
 {
@@ -35,7 +35,10 @@ public:
   explicit ToolboxPopupMenuContext(loka::app::PopupMenuNode *node);
   virtual ~ToolboxPopupMenuContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    boundary_ = boundary;
+  }
   void invalidate();
   void updateData(const loka::Vector<loka::core::String> *items,
                   loka::core::State<int> *selectedIndex,
@@ -44,11 +47,13 @@ public:
   void updateRect(const Rect &rect, short lineHeight);
   void draw();
   virtual void render(loka::app::scene::IPlatformController *controller);
-  virtual short layout(loka::app::scene::IPlatformController *controller,
-                       loka::app::scene::LayoutState &state);
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
-  const Rect &rect() const { return rect_; }
+  const Rect &rect() const
+  {
+    return rect_;
+  }
 
 private:
   short clampIndex(int index) const;

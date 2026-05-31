@@ -85,17 +85,13 @@ namespace
       do
       {
         --pos;
-      } while (pos > 0 &&
-               (static_cast<unsigned char>(prefix[pos]) & 0xC0u) == 0x80u);
+      } while (pos > 0 && (static_cast<unsigned char>(prefix[pos]) & 0xC0u) == 0x80u);
       prefix.erase(pos);
     }
     return std::string("...");
   }
 
-  short MeasureWrappedTextHeight(const loka::core::String &value,
-                                 short maxWidth,
-                                 short lineHeight,
-                                 bool charWrap)
+  short MeasureWrappedTextHeight(const loka::core::String &value, short maxWidth, short lineHeight, bool charWrap)
   {
     if (maxWidth <= 0 || lineHeight <= 0)
     {
@@ -176,7 +172,7 @@ namespace
     }
     return static_cast<short>(total);
   }
-}
+} // namespace
 
 ToolboxTextContext::ToolboxTextContext(loka::app::TextNode *node)
     : node_(node),
@@ -260,13 +256,8 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
   }
   if (controller)
   {
-    controller->recordTextHit(rect_,
-                              textX_,
-                              textY_,
-                              text_,
-                              boundary_,
-                              wrapMode_ != loka::app::TEXT_WRAP_NONE,
-                              visibleWidth());
+    controller->recordTextHit(
+        rect_, textX_, textY_, text_, boundary_, wrapMode_ != loka::app::TEXT_WRAP_NONE, visibleWidth());
   }
 }
 
@@ -279,11 +270,9 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   }
   if (node_->props.hasAttr_)
   {
-    wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_
-                                                 : loka::app::TEXT_WRAP_NONE;
-    truncationMode_ = node_->props.attr_.hasTruncationValue_
-                          ? node_->props.attr_.truncationValue_
-                          : loka::app::TEXT_TRUNCATION_NONE;
+    wrapMode_ = node_->props.attr_.hasWrapValue_ ? node_->props.attr_.wrapValue_ : loka::app::TEXT_WRAP_NONE;
+    truncationMode_ =
+        node_->props.attr_.hasTruncationValue_ ? node_->props.attr_.truncationValue_ : loka::app::TEXT_TRUNCATION_NONE;
   }
   else
   {
@@ -301,10 +290,8 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
     maxWidth_ = state.width;
     if (wrapWord || wrapChar)
     {
-      effectiveLineHeight = MeasureWrappedTextHeight(value,
-                                                     maxWidth_,
-                                                     state.lineHeight > 0 ? state.lineHeight : 12,
-                                                     wrapChar);
+      effectiveLineHeight =
+          MeasureWrappedTextHeight(value, maxWidth_, state.lineHeight > 0 ? state.lineHeight : 12, wrapChar);
     }
     width = maxWidth_;
   }

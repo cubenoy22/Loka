@@ -15,8 +15,8 @@ namespace loka
     {
       class BoundaryNode;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 namespace loka
 {
   namespace core
@@ -25,8 +25,8 @@ namespace loka
     {
       class IPlatformController;
     }
-  }
-}
+  } // namespace core
+} // namespace loka
 
 class ToolboxButtonContext : public loka::app::scene::NativeNodeContext
 {
@@ -34,7 +34,10 @@ public:
   explicit ToolboxButtonContext(loka::app::ButtonNode *node);
   virtual ~ToolboxButtonContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary) { boundary_ = boundary; }
+  void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  {
+    boundary_ = boundary;
+  }
   void updateData(const loka::core::String &label,
                   loka::core::EmitterState *emitter,
                   loka::core::State<bool> *enabled,
@@ -43,8 +46,7 @@ public:
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
-  virtual short layout(loka::app::scene::IPlatformController *controller,
-                       loka::app::scene::LayoutState &state);
+  virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   bool handleMouseDown(const Point &point, ToolboxScenePlatformController *controller);
 
 private:

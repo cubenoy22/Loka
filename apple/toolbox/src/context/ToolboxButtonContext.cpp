@@ -28,7 +28,7 @@ namespace
     MoveTo(x, y);
     DrawString(text);
   }
-}
+} // namespace
 
 ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node)
     : node_(node),
@@ -81,9 +81,7 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
     }
   }
   FrameRect(&rect_);
-  DrawStringAt(static_cast<short>(rect_.left + 4),
-               static_cast<short>(rect_.bottom - 6),
-               label_);
+  DrawStringAt(static_cast<short>(rect_.left + 4), static_cast<short>(rect_.bottom - 6), label_);
   if (controller)
   {
     controller->recordButtonHit(rect_, emitter_, enabled_, boundary_, this);
