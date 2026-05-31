@@ -2,6 +2,8 @@
 
 Target version: Loka `0.0.1`
 
+English version: [ProgrammingGuide.en.md](ProgrammingGuide.en.md)
+
 ## はじめに
 
 Loka を一言で言えば、
