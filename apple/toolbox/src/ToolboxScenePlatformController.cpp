@@ -1958,6 +1958,8 @@ void ToolboxScenePlatformController::requestInvalidateForChange(loka::app::scene
   }
   if (flags & loka::app::scene::NODE_DIRTY_CHILD)
   {
+    // Classic redraw currently prefers broad invalidation for child changes.
+    // Narrow child-region invalidation remains below for future re-enable work.
     ++debugStats_.fullInvalidateRequests;
     ++debugStats_.totalFullInvalidateRequests;
     window_->requestInvalidateWithReason("child_dirty");
@@ -2130,8 +2132,13 @@ void ToolboxScenePlatformController::clearTextBindings()
     TextBinding *binding = textBindings_[i];
     if (binding)
     {
+      if (binding->state)
+      {
+        binding->state->unbind(&ToolboxScenePlatformController::TextStateChangedThunk, binding);
+      }
       binding->state = 0;
       binding->controller = 0;
+      delete binding;
     }
   }
   textBindings_.clear();
@@ -2146,8 +2153,13 @@ void ToolboxScenePlatformController::clearEnabledBindings()
     EnabledBinding *binding = enabledBindings_[i];
     if (binding)
     {
+      if (binding->state)
+      {
+        binding->state->unbind(&ToolboxScenePlatformController::EnabledStateChangedThunk, binding);
+      }
       binding->state = 0;
       binding->controller = 0;
+      delete binding;
     }
   }
   enabledBindings_.clear();

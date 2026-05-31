@@ -395,6 +395,10 @@ void ToolboxApp::clearMenuBindings()
     MenuBinding *binding = bindings_[i];
     if (binding)
     {
+      if (binding->enabledState)
+      {
+        binding->enabledState->deferUnbind(&ToolboxApp::MenuEnabledChangedThunk, binding);
+      }
       binding->menu = 0;
       binding->enabledState = 0;
     }
@@ -411,6 +415,10 @@ void ToolboxApp::clearMenuBindingsFor(MenuHandle menuHandle, short menuId)
     MenuBinding *binding = bindings_[i];
     if (binding && binding->menu == menuHandle)
     {
+      if (binding->enabledState)
+      {
+        binding->enabledState->deferUnbind(&ToolboxApp::MenuEnabledChangedThunk, binding);
+      }
       binding->menu = 0;
       binding->enabledState = 0;
       delete binding;

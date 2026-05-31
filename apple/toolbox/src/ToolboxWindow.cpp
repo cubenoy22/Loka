@@ -383,10 +383,19 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   GetPort(&oldPort);
   SetPort(window_);
   Rect clip = rect;
-  ClipRect(&clip);
-  scenePlatformController_->renderDirty(rect);
-  Rect bounds = window_->portRect;
-  ClipRect(&bounds);
+  RgnHandle oldClip = NewRgn();
+  if (oldClip)
+  {
+    GetClip(oldClip);
+    ClipRect(&clip);
+    scenePlatformController_->renderDirty(rect);
+    SetClip(oldClip);
+    DisposeRgn(oldClip);
+  }
+  else
+  {
+    scenePlatformController_->renderDirty(rect);
+  }
   SetPort(oldPort);
 }
 
