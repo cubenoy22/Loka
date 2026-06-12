@@ -161,7 +161,12 @@ namespace loka
           ParentScope scope_;
         };
 
-        // StateBatch collects State declarations and creates them as one owner-side batch.
+        // StateBatch collects State declarations and creates them in owner-side pages.
+        // Declarations are created in pages of kMaxStates, preserving declaration order
+        // across pages. Boundary-owner StateArena reserve is one-shot, so pages after
+        // the first may fall back to per-state heap allocation inside
+        // CreateStateFromInitial; behavior is identical and arena locality remains
+        // best-effort for later pages.
         class StateBatch : private StateBatchBase
         {
         public:
@@ -179,26 +184,14 @@ namespace loka
 
           ~StateBatch()
           {
-            if (count_ == 0 || !owner_)
-            {
-              return;
-            }
-            // Reserve once for all declarations in this batch.
-            owner_->reserveStateArena(totalBytes_);
-            owner_->reserveStates(count_);
-            // Create each state after the owner has reserved enough storage.
-            for (size_t i = 0; i < count_; ++i)
-            {
-              entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);
-            }
+            this->flush();
           }
 
           template <typename T> StateBatch &state(NodeState<T> &out, const T &initial)
           {
             if (count_ >= kMaxStates)
             {
-              CreateImmediateState(owner_, out, initial);
-              return *this;
+              this->flush();
             }
             typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
             (void)sizeof(LokaStateBatchInitializerTooLarge);
@@ -230,6 +223,22 @@ namespace loka
             T *initial = reinterpret_cast<T *>(initialPtr);
             CreateStateFromInitial<T>(owner, *out, *initial);
             DestroyInitialObject<T>(initial);
+          }
+
+          void flush()
+          {
+            if (count_ == 0 || !owner_)
+            {
+              return;
+            }
+            owner_->reserveStateArena(totalBytes_);
+            owner_->reserveStates(count_);
+            for (size_t i = 0; i < count_; ++i)
+            {
+              entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);
+            }
+            count_ = 0;
+            totalBytes_ = 0;
           }
 
           IStateOwner *owner_;
