@@ -460,8 +460,19 @@ namespace SceneTests
       assert(states[i].get() == 100 + i);
     }
 
+    // Mutate on both sides of the page seam (15|16) plus interior states.
+    states[3].set(203);
+    assert(states[3].get() == 203);
+    states[15].set(215);
+    assert(states[15].get() == 215);
+    states[16].set(216);
+    assert(states[16].get() == 216);
     states[17].set(217);
     assert(states[17].get() == 217);
+    // Writes must not bleed into neighboring states across pages.
+    assert(states[2].get() == 102);
+    assert(states[14].get() == 114);
+    assert(states[18].get() == 118);
   }
 
   class NodeLocalReleaseNode : public loka::app::scene::ComposableNode
