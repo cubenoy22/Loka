@@ -225,14 +225,22 @@ namespace loka
             DestroyInitialObject<T>(initial);
           }
 
+          // Always drains and resets the page, even with a null owner: state()
+          // indexes entries_[count_] right after a page-full flush, so an early
+          // return here would overflow the fixed array and leak the placement-new
+          // initials. Only the reserve calls require a live owner; create handles
+          // a null owner via the same degenerate path the old immediate fallback used.
           void flush()
           {
-            if (count_ == 0 || !owner_)
+            if (count_ == 0)
             {
               return;
             }
-            owner_->reserveStateArena(totalBytes_);
-            owner_->reserveStates(count_);
+            if (owner_)
+            {
+              owner_->reserveStateArena(totalBytes_);
+              owner_->reserveStates(count_);
+            }
             for (size_t i = 0; i < count_; ++i)
             {
               entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);

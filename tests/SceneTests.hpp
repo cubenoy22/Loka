@@ -475,6 +475,31 @@ namespace SceneTests
     assert(states[18].get() == 118);
   }
 
+  void test_Node_composition_state_batch_null_owner_overflow_is_safe()
+  {
+    // Regression: a page-full flush with a null owner must still drain and
+    // reset the page, or the next declaration writes past entries_[16].
+    loka::app::scene::NodeState<int> states[18];
+    {
+      loka::app::scene::NodeComposition::StateBatch batch(0);
+      for (int i = 0; i < 18; ++i)
+      {
+        batch.state(states[i], 300 + i);
+      }
+      // Scope end: destructor flushes the remaining page-two declarations.
+    }
+    for (int i = 0; i < 18; ++i)
+    {
+      assert(states[i].isValid());
+      assert(states[i].get() == 300 + i);
+    }
+    // No owner: ownership never transferred, so the test reclaims the states.
+    for (int i = 0; i < 18; ++i)
+    {
+      delete states[i].dangerouslyMutableState();
+    }
+  }
+
   class NodeLocalReleaseNode : public loka::app::scene::ComposableNode
   {
   public:
@@ -716,6 +741,7 @@ namespace SceneTests
                         test_Node_local_state_registration_is_idempotent,
                         test_Node_local_state_registration_after_attach_connects_immediately,
                         test_Node_composition_state_batch_pages_overflow_declarations,
+                        test_Node_composition_state_batch_null_owner_overflow_is_safe,
                         test_Node_local_state_releases_owner_state_on_node_destroy,
                         test_Node_local_stream_releases_owned_state_on_node_destroy,
                         test_Node_local_batch_releases_owner_state_on_node_destroy,
