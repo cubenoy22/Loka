@@ -19,6 +19,8 @@ Loka's core idea is to keep the cast of concepts small and meaningful. `Node`, `
 
 That consistency is intentional. A `Boundary` is also a kind of `Node`; `NodeState<T>` is the state handle a node uses while storage and tracking remain attached to a lifecycle owner; `FlowSlot<T>` gives long-lived flows the same kind of owner-aware lifetime. The goal is code that feels modern and declarative while still making ownership, cleanup, and update routing explicit.
 
+Native UI work is full of version-specific OS bugs and subtle per-platform differences whose fixes usually survive only as scattered folklore. Loka aims to absorb that knowledge into its platform layers — a kind of executable Stack Overflow — so application code, written by a human or an AI, can simply declare intent with the known potholes already filled in.
+
 Loka is the third generation of a model-drives-UI research line that started around 2016, before the mainstream declarative wave. The story behind its shape and reach is in [docs/ORIGINS.md](docs/ORIGINS.md); the design principles it answers to are in [PHILOSOPHY.md](PHILOSOPHY.md).
 
 ## How does it work?

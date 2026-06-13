@@ -336,6 +336,20 @@ Platform conventions such as macOS application menus or Win32 window-attached
 menus should become explicit policies instead of implicit behavior scattered
 through platform code.
 
+## Platform Knowledge Becomes Framework Behavior
+
+Native platforms carry version-specific bugs and subtle behavioral differences
+whose fixes usually survive as folklore: forum answers, old blog posts,
+workarounds copied from app to app. Loka's projection layers are where that
+knowledge should be encoded once, as behavior, with a record of which platform
+quirk each workaround addresses. Application authors — human or AI — should
+receive corrected native behavior without knowing the history behind it.
+
+This matters more in an era of generated code, not less: models trained on
+public code reproduce stale workarounds along with good ones. A framework that
+absorbs verified platform knowledge gives every application built on it a floor
+of correctness that per-app care cannot reliably provide.
+
 ## Retro Constraints As Design Pressure
 
 C++98 support, no exceptions, classic hardware, and disabled RTTI are not only
