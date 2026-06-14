@@ -67,8 +67,8 @@ namespace tutorial
       using namespace loka::app;
       c.declare(VStack()                                    //
                 << TutorialTitle("Step 4")                  //
-                << Button("Add item", &this->addItemEvent_) //
-                << Button("Show/Hide map", &this->toggleSummaryEvent_)
+                << loka::app::Button("Add item", &this->addItemEvent_) //
+                << loka::app::Button("Show/Hide map", &this->toggleSummaryEvent_)
                 << (Show(*this->showSummary_.state())   //
                     << Text(this->itemSummary_.state()) //
                     << (Show(*this->showItem1_.state()) << this->item1_)

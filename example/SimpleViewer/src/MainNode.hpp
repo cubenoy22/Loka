@@ -112,7 +112,7 @@ namespace simpleviewer
       this->props.assertInitialized();
       c.declare(
           VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-          << F() << Button("Open...").onClick(this->props.openDialogEvent_) << Text("Loka file:")
+          << F() << loka::app::Button("Open...").onClick(this->props.openDialogEvent_) << Text("Loka file:")
           << Text(this->chooserMessage_.state()).attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
           << ImageView()
                  .image(this->image_.state())
