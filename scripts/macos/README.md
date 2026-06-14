@@ -47,6 +47,14 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Treat generated `build/macos-xcodeproj/...` projects as machine-local artifacts; regenerate them on the target machine/path instead of copying them as reusable nightly-build artifacts.
   - Legacy `MAC_OS_10_4*` flags are intentionally not used here.
 
+- `scripts/macos/gen-xcodeproj-10_6-ub1.sh`
+  - Experimental Snow Leopard Universal Binary 1 Xcode project generation path.
+  - Defaults: `OSX_SYSROOT=MacOSX10.6.sdk`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=i386;x86_64;ppc;ppc64`.
+  - Generates under `build/macos-xcodeproj-10.6-ub1`.
+  - Disables Loka's explicit `-fno-objc-arc` example-target flags so the generated project is easier to open in older Xcode versions.
+  - Sets `CLANG_ENABLE_OBJC_ARC=NO` for Xcode generators that understand it; Loka macOS code remains non-ARC by policy.
+  - This path is experimental: it is known to be friendlier on 10.8-era Xcode, should be retried on 10.10, and still needs 10.6/Xcode 3.2.6 verification.
+
 ## Examples
 
 ```bash
@@ -67,6 +75,9 @@ TARGET=LokaSimpleViewerMacOS ./scripts/macos/build-10_4.sh
 
 # Generate Xcode project for x86_64 only
 ARCHS="x86_64" DEPLOYMENT_TARGET=10.8 ./scripts/macos/gen-xcodeproj.sh
+
+# Generate experimental 10.6 SDK UB1 Xcode project
+./scripts/macos/gen-xcodeproj-10_6-ub1.sh
 ```
 
 ## Main Environment Variables

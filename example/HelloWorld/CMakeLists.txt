@@ -92,7 +92,7 @@ if(APPLE)
   )
 
   target_link_libraries(LokaHelloMacOS PRIVATE LokaMacOSCore)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
     target_compile_options(LokaHelloMacOS PRIVATE "-fno-objc-arc")
   endif()
 endif()

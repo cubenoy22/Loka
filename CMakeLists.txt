@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(Loka LANGUAGES CXX)
 
 option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
+option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
 option(TEST_BUILD "Enable test build mode" OFF)
 set(LOKA_CLASSIC_MAC OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
