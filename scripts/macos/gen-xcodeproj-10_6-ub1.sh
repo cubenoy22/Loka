@@ -33,10 +33,9 @@ if [[ -z "${OSX_SYSROOT}" ]]; then
   done
 fi
 
-if [[ -z "${OSX_SYSROOT}" || ! -d "${OSX_SYSROOT}" ]]; then
-  echo "error: MacOSX10.6.sdk not found." >&2
-  echo "Set OSX_SYSROOT to your MacOSX10.6.sdk path and retry." >&2
-  exit 1
+if [[ -z "${OSX_SYSROOT}" ]]; then
+  OSX_SYSROOT="macosx10.6"
+  echo "warning: MacOSX10.6.sdk path not found; using SDK name '${OSX_SYSROOT}' for Xcode to resolve." >&2
 fi
 
 if command -v xcodebuild >/dev/null 2>&1; then
