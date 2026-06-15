@@ -7,7 +7,7 @@ DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.5}"
 ARCHS="${ARCHS:-xcode-standard-32-64}"
 BUILD_VARIANT="${ARCHS//[^A-Za-z0-9_.-]/-}"
 CMAKE_OSX_ARCHITECTURES_VALUE="${ARCHS}"
-BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos-xcodeproj-10.6-ub1/${BUILD_TYPE}-${BUILD_VARIANT}}"
+BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos-xcodeproj-leopard-ub1/${BUILD_TYPE}-${BUILD_VARIANT}}"
 OSX_SYSROOT="${OSX_SYSROOT:-macosx}"
 XCODE_ARCHS="${XCODE_ARCHS:-}"
 XCODE_VALID_ARCHS="${XCODE_VALID_ARCHS:-}"
@@ -33,7 +33,7 @@ if command -v xcodebuild >/dev/null 2>&1; then
     echo "Generate on a newer Mac, then copy the project to Snow Leopard for Xcode 3.2.6 testing." >&2
     exit 1
   fi
-  echo "[gen-xcodeproj-10_6-ub1] xcodebuild version=${XCODE_VERSION}"
+  echo "[gen-xcodeproj-leopard-ub1] xcodebuild version=${XCODE_VERSION}"
 fi
 
 if ! cmake --help 2>/dev/null | grep -q "Xcode"; then
@@ -78,20 +78,20 @@ if [[ -n "${CXX:-}" ]]; then
   CMAKE_ARGS+=("-DCMAKE_CXX_COMPILER=${CXX}")
 fi
 
-echo "[gen-xcodeproj-10_6-ub1] ROOT_DIR=${ROOT_DIR}"
-echo "[gen-xcodeproj-10_6-ub1] BUILD_DIR=${BUILD_DIR}"
-echo "[gen-xcodeproj-10_6-ub1] SDK=${OSX_SYSROOT}"
-echo "[gen-xcodeproj-10_6-ub1] ARCHS=${ARCHS} DEPLOYMENT_TARGET=${DEPLOYMENT_TARGET}"
+echo "[gen-xcodeproj-leopard-ub1] ROOT_DIR=${ROOT_DIR}"
+echo "[gen-xcodeproj-leopard-ub1] BUILD_DIR=${BUILD_DIR}"
+echo "[gen-xcodeproj-leopard-ub1] SDK=${OSX_SYSROOT}"
+echo "[gen-xcodeproj-leopard-ub1] ARCHS=${ARCHS} DEPLOYMENT_TARGET=${DEPLOYMENT_TARGET}"
 if [[ -n "${XCODE_ARCHS}" ]]; then
-  echo "[gen-xcodeproj-10_6-ub1] XCODE_ARCHS=${XCODE_ARCHS}"
+  echo "[gen-xcodeproj-leopard-ub1] XCODE_ARCHS=${XCODE_ARCHS}"
 fi
 if [[ -n "${XCODE_VALID_ARCHS}" ]]; then
-  echo "[gen-xcodeproj-10_6-ub1] XCODE_VALID_ARCHS=${XCODE_VALID_ARCHS}"
+  echo "[gen-xcodeproj-leopard-ub1] XCODE_VALID_ARCHS=${XCODE_VALID_ARCHS}"
 fi
-echo "[gen-xcodeproj-10_6-ub1] running: cmake ${CMAKE_ARGS[*]}"
+echo "[gen-xcodeproj-leopard-ub1] running: cmake ${CMAKE_ARGS[*]}"
 cmake "${CMAKE_ARGS[@]}"
 
-echo "Generated 10.6 UB1 Xcode project in:"
+echo "Generated Leopard UB1 Xcode project in:"
 echo "  ${BUILD_DIR}"
 echo "SDK: ${OSX_SYSROOT}"
 echo "Archs: ${ARCHS}"

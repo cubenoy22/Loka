@@ -51,10 +51,10 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Treat generated `build/macos-xcodeproj/...` projects as machine-local artifacts; regenerate them on the target machine/path instead of copying them as reusable nightly-build artifacts.
   - Legacy `MAC_OS_10_4*` flags are intentionally not used here.
 
-- `scripts/macos/gen-xcodeproj-10_6-ub1.sh`
+- `scripts/macos/gen-xcodeproj-leopard-ub1.sh`
   - Experimental Leopard/Snow Leopard Universal Binary 1 Xcode project generation path.
   - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=xcode-standard-32-64`.
-  - Generates under `build/macos-xcodeproj-10.6-ub1/<build-type>-<arch-mode>`.
+  - Generates under `build/macos-xcodeproj-leopard-ub1/<build-type>-<arch-mode>`.
   - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer; generate on a newer Mac and copy the project to Snow Leopard for Xcode 3.2.6 testing.
   - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project for Snow Leopard/Xcode 3.2.6 testing.
   - Use an explicit CMake architecture list only when needed, for example `ARCHS="i386;x86_64;ppc;ppc64"` on generator environments that still accept PPC architecture names.
@@ -93,8 +93,8 @@ TARGET=LokaSimpleViewerMacOS ./scripts/macos/build-10_4.sh
 # Generate Xcode project for x86_64-only older macOS debugging
 ARCHS="x86_64" DEPLOYMENT_TARGET=10.8 ./scripts/macos/gen-xcodeproj.sh
 
-# Generate experimental 10.6 SDK UB1 Xcode project
-./scripts/macos/gen-xcodeproj-10_6-ub1.sh
+# Generate experimental Leopard/Snow Leopard UB1 Xcode project
+./scripts/macos/gen-xcodeproj-leopard-ub1.sh
 ```
 
 ## Main Environment Variables
