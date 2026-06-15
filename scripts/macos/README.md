@@ -69,6 +69,15 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - For Tiger 32-bit UB1 builds in Xcode 3.2.6, set Base SDK and deployment target to Mac OS X 10.4, use only 32-bit architectures, and choose 32-bit Intel plus manually added `ppc` when using the Xcode architecture picker.
   - This path is experimental: it is known to be friendlier on 10.8-era Xcode, should be retried on 10.10, and still needs 10.6/Xcode 3.2.6 verification.
 
+- `scripts/macos/gen-xcodeproj-lion-ub1.sh`
+  - Experimental Lion-era Universal Binary 1 Xcode project generation path.
+  - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.7`, `ARCHS=xcode-standard-32-64`.
+  - Generates under `build/macos-xcodeproj-lion-ub1/<build-type>-<arch-mode>`.
+  - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer; generate on a newer Mac and copy the project to Lion-era Xcode for testing if needed.
+  - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project.
+  - Keeps Loka's explicit `-fno-objc-arc` example-target flags enabled, unlike the Leopard/Xcode 3.2 compatibility path.
+  - Sets `CLANG_ENABLE_OBJC_ARC=NO`, `ONLY_ACTIVE_ARCH=NO`, and suppresses CMake's regeneration target in the generated project.
+
 ## Examples
 
 ```bash
@@ -95,6 +104,9 @@ ARCHS="x86_64" DEPLOYMENT_TARGET=10.8 ./scripts/macos/gen-xcodeproj.sh
 
 # Generate experimental Leopard/Snow Leopard UB1 Xcode project
 ./scripts/macos/gen-xcodeproj-leopard-ub1.sh
+
+# Generate experimental Lion-era UB1 Xcode project
+./scripts/macos/gen-xcodeproj-lion-ub1.sh
 ```
 
 ## Main Environment Variables
