@@ -63,6 +63,7 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Set `OSX_SYSROOT=macosx10.6`, `OSX_SYSROOT=macosx10.5`, or an SDK path when you need to force a specific SDK.
   - Disables Loka's explicit `-fno-objc-arc` example-target flags so the generated project is easier to open in older Xcode versions.
   - Suppresses generated `libarclite_macosx.a` link entries that are not available in Xcode 3.2.6.
+  - Suppresses CMake's regeneration target so copied Snow Leopard projects do not require CMake just to build.
   - Sets `CLANG_ENABLE_OBJC_ARC=NO` for Xcode generators that understand it; Loka macOS code remains non-ARC by policy.
   - This path is experimental: it is known to be friendlier on 10.8-era Xcode, should be retried on 10.10, and still needs 10.6/Xcode 3.2.6 verification.
 

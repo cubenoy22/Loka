@@ -3,6 +3,7 @@ project(LokaFloppyBird LANGUAGES CXX)
 
 if(APPLE)
   enable_language(OBJCXX)
+  loka_suppress_arclite_link()
 endif()
 
 if(NOT WIN32 AND NOT APPLE)

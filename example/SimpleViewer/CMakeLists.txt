@@ -3,6 +3,7 @@ project(LokaSimpleViewer LANGUAGES CXX)
 
 if(APPLE)
   enable_language(OBJCXX)
+  loka_suppress_arclite_link()
 endif()
 
 if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
