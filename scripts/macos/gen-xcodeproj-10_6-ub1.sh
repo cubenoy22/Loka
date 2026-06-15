@@ -45,6 +45,12 @@ if command -v xcodebuild >/dev/null 2>&1; then
     echo "A full Xcode.app installation is required for the Xcode generator." >&2
     exit 1
   fi
+  XCODE_MAJOR="${XCODE_VERSION%%.*}"
+  if [[ "${XCODE_MAJOR}" =~ ^[0-9]+$ && "${XCODE_MAJOR}" -lt 5 ]]; then
+    echo "error: CMake's Xcode generator requires Xcode 5.0 or newer." >&2
+    echo "Generate on a newer Mac, then copy the project to Snow Leopard for Xcode 3.2.6 testing." >&2
+    exit 1
+  fi
   echo "[gen-xcodeproj-10_6-ub1] xcodebuild version=${XCODE_VERSION}"
 fi
 
