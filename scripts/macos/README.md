@@ -49,9 +49,14 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
 
 - `scripts/macos/gen-xcodeproj-10_6-ub1.sh`
   - Experimental Snow Leopard Universal Binary 1 Xcode project generation path.
-  - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=i386;x86_64;ppc;ppc64`.
-  - Generates under `build/macos-xcodeproj-10.6-ub1`.
+  - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=xcode-standard-32-64`.
+  - Generates under `build/macos-xcodeproj-10.6-ub1/<build-type>-<arch-mode>`.
   - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer; generate on a newer Mac and copy the project to Snow Leopard for Xcode 3.2.6 testing.
+  - `ARCHS=native64` maps to `x86_64`; `ARCHS=intel-ub` maps to `i386;x86_64`.
+  - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project for Snow Leopard/Xcode 3.2.6 testing.
+  - Set `ARCHS="i386;x86_64;ppc;ppc64"` only on generator environments that still accept PPC architecture names.
+  - Set `XCODE_ARCHS='$(ARCHS_STANDARD_32_64_BIT)'` to write an Xcode-native architecture preset into the generated project; `ONLY_ACTIVE_ARCH=NO` is set by default.
+  - Set `XCODE_VALID_ARCHS="i386 x86_64 ppc ppc64"` if the destination Xcode needs an explicit valid-architecture list.
   - Set `OSX_SYSROOT=macosx10.6`, `OSX_SYSROOT=macosx10.5`, or an SDK path when you need to force a specific SDK.
   - Disables Loka's explicit `-fno-objc-arc` example-target flags so the generated project is easier to open in older Xcode versions.
   - Sets `CLANG_ENABLE_OBJC_ARC=NO` for Xcode generators that understand it; Loka macOS code remains non-ARC by policy.
