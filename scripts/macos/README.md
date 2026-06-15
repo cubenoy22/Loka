@@ -36,12 +36,14 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
 
 - `scripts/macos/gen-xcodeproj.sh`
   - Generates an Xcode project (`-G Xcode`) for debugging.
-  - Arch and deployment target are controlled by env vars (default `ARCHS=x86_64`, `DEPLOYMENT_TARGET=10.8`).
-  - The default is intentionally conservative so the generated project stays easier to reuse across older Apple IDEs.
+  - Arch, SDK, and deployment target are controlled by env vars (default `ARCHS=xcode-standard`, `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=11`).
+  - The default uses Xcode's `$(ARCHS_STANDARD)` preset so modern Xcode versions choose the appropriate standard architecture set.
   - `ARCHS=xcode-standard` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD)` preset into the generated project.
-  - `ARCHS=native64` maps to `x86_64`; `ARCHS=ub2` maps to `arm64;x86_64`.
+  - The legacy spelling `ARCHS=archs-standard` is accepted as an alias for `ARCHS=xcode-standard`.
+  - Use an explicit CMake architecture list only when needed, for example `ARCHS="arm64;x86_64"` or `ARCHS=x86_64`.
   - Requires a full `Xcode.app` installation; Command Line Tools alone are not enough.
-  - Intended for OS X Mountain Lion (10.8) and later.
+  - Intended for macOS Big Sur (11.0) and later by default.
+  - For OS X Mountain Lion (10.8) and later, override `ARCHS` and `DEPLOYMENT_TARGET` explicitly.
   - Projects generated on 10.8+ are generally Xcode 3.2-compatible enough to be opened on Snow Leopard with Xcode 3.2.6.
   - Some newer flags may still need manual cleanup for Xcode 3.2.6, for example removing unsupported options such as `-fno-objc-arc`.
   - The generated project remains path-sensitive: source references are anchored to the path used when `gen-xcodeproj.sh` ran.
@@ -50,17 +52,17 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Legacy `MAC_OS_10_4*` flags are intentionally not used here.
 
 - `scripts/macos/gen-xcodeproj-10_6-ub1.sh`
-  - Experimental Snow Leopard Universal Binary 1 Xcode project generation path.
+  - Experimental Leopard/Snow Leopard Universal Binary 1 Xcode project generation path.
   - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=xcode-standard-32-64`.
   - Generates under `build/macos-xcodeproj-10.6-ub1/<build-type>-<arch-mode>`.
   - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer; generate on a newer Mac and copy the project to Snow Leopard for Xcode 3.2.6 testing.
-  - `ARCHS=native64` maps to `x86_64`; `ARCHS=intel-ub` maps to `i386;x86_64`.
   - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project for Snow Leopard/Xcode 3.2.6 testing.
-  - Set `ARCHS="i386;x86_64;ppc;ppc64"` only on generator environments that still accept PPC architecture names.
-  - Set `XCODE_ARCHS='$(ARCHS_STANDARD_32_64_BIT)'` to write an Xcode-native architecture preset into the generated project; `ONLY_ACTIVE_ARCH=NO` is set by default.
+  - Use an explicit CMake architecture list only when needed, for example `ARCHS="i386;x86_64;ppc;ppc64"` on generator environments that still accept PPC architecture names.
+  - Set `XCODE_ARCHS='$(ARCHS_STANDARD_32_64_BIT)'` only when overriding the default Xcode-native architecture preset; `ONLY_ACTIVE_ARCH=NO` is set by default.
   - Set `XCODE_VALID_ARCHS="i386 x86_64 ppc ppc64"` if the destination Xcode needs an explicit valid-architecture list.
   - Set `OSX_SYSROOT=macosx10.6`, `OSX_SYSROOT=macosx10.5`, or an SDK path when you need to force a specific SDK.
   - Disables Loka's explicit `-fno-objc-arc` example-target flags so the generated project is easier to open in older Xcode versions.
+  - Suppresses generated `libarclite_macosx.a` link entries that are not available in Xcode 3.2.6.
   - Sets `CLANG_ENABLE_OBJC_ARC=NO` for Xcode generators that understand it; Loka macOS code remains non-ARC by policy.
   - This path is experimental: it is known to be friendlier on 10.8-era Xcode, should be retried on 10.10, and still needs 10.6/Xcode 3.2.6 verification.
 
@@ -82,7 +84,10 @@ TARGET=LokaSimpleViewerMacOS ./scripts/macos/build-10_4.sh
 # UB2 target (arm64 + x86_64, macOS 11+)
 ./scripts/macos/build-ub2.sh
 
-# Generate Xcode project for x86_64 only
+# Generate Xcode project with Xcode's standard architecture preset
+./scripts/macos/gen-xcodeproj.sh
+
+# Generate Xcode project for x86_64-only older macOS debugging
 ARCHS="x86_64" DEPLOYMENT_TARGET=10.8 ./scripts/macos/gen-xcodeproj.sh
 
 # Generate experimental 10.6 SDK UB1 Xcode project
