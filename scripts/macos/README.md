@@ -65,6 +65,7 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Suppresses generated `libarclite_macosx.a` link entries that are not available in Xcode 3.2.6.
   - Suppresses CMake's regeneration target so copied Snow Leopard projects do not require CMake just to build.
   - Sets `CLANG_ENABLE_OBJC_ARC=NO` for Xcode generators that understand it; Loka macOS code remains non-ARC by policy.
+  - When opening in Xcode 3.2.6 for Leopard UB1 builds, manually add `ppc` and `ppc64` to Architectures if needed, set Base SDK to Mac OS X 10.5, and switch the compiler from GCC 4.2 to GCC 4.0.
   - This path is experimental: it is known to be friendlier on 10.8-era Xcode, should be retried on 10.10, and still needs 10.6/Xcode 3.2.6 verification.
 
 ## Examples
