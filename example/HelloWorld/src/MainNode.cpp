@@ -88,15 +88,16 @@ namespace helloworld
   loka::app::VStack MainNode::mainLeftPanel()
   {
     using namespace loka::app;
+    using loka::app::Button;
     return VStack().TEST_ID("HelloWorld.LeftPanel")
            << Text("Loka Sample").TEST_ID("HelloWorld.LeftPanel.Title")
            << Text(this->message_.state()).TEST_ID("HelloWorld.LeftPanel.Message")
-           << loka::app::Button("Add +", &this->toggleEvent_).TEST_ID("HelloWorld.LeftPanel.AddButton")
+           << Button("Add +", &this->toggleEvent_).TEST_ID("HelloWorld.LeftPanel.AddButton")
            << Text(this->actionSummary_.state()).TEST_ID("HelloWorld.LeftPanel.ActionSummary")
-           << loka::app::Button("Probe Button", &this->actionProbeEvent_)
+           << Button("Probe Button", &this->actionProbeEvent_)
                   .enabled(this->actionEnabled_.state())
                   .TEST_ID("HelloWorld.LeftPanel.ProbeButton")
-           << loka::app::Button("Toggle Button Enabled", &this->toggleActionEnabledEvent_)
+           << Button("Toggle Button Enabled", &this->toggleActionEnabledEvent_)
                   .TEST_ID("HelloWorld.LeftPanel.ToggleEnabledButton")
            << BmiCalculator(this->heightInput_.state(), this->weightInput_.state(), this->bmiResult_.state());
   }

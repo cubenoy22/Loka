@@ -109,10 +109,11 @@ namespace simpleviewer
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
+      using loka::app::Button;
       this->props.assertInitialized();
       c.declare(
           VStack().alignHorizontal(HORIZONTAL_ALIGNMENT_LEADING)
-          << F() << loka::app::Button("Open...").onClick(this->props.openDialogEvent_) << Text("Loka file:")
+          << F() << Button("Open...").onClick(this->props.openDialogEvent_) << Text("Loka file:")
           << Text(this->chooserMessage_.state()).attr(TextAttr().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_NONE))
           << ImageView()
                  .image(this->image_.state())
