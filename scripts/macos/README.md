@@ -49,9 +49,10 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
 
 - `scripts/macos/gen-xcodeproj-10_6-ub1.sh`
   - Experimental Snow Leopard Universal Binary 1 Xcode project generation path.
-  - Defaults: `OSX_SYSROOT=MacOSX10.6.sdk`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=i386;x86_64;ppc;ppc64`.
+  - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=i386;x86_64;ppc;ppc64`.
   - Generates under `build/macos-xcodeproj-10.6-ub1`.
   - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer; generate on a newer Mac and copy the project to Snow Leopard for Xcode 3.2.6 testing.
+  - Set `OSX_SYSROOT=macosx10.6`, `OSX_SYSROOT=macosx10.5`, or an SDK path when you need to force a specific SDK.
   - Disables Loka's explicit `-fno-objc-arc` example-target flags so the generated project is easier to open in older Xcode versions.
   - Sets `CLANG_ENABLE_OBJC_ARC=NO` for Xcode generators that understand it; Loka macOS code remains non-ARC by policy.
   - This path is experimental: it is known to be friendlier on 10.8-era Xcode, should be retried on 10.10, and still needs 10.6/Xcode 3.2.6 verification.
