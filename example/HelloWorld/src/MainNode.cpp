@@ -88,6 +88,7 @@ namespace helloworld
   loka::app::VStack MainNode::mainLeftPanel()
   {
     using namespace loka::app;
+    // Retro68 0.0.1a exposes a Classic `Button` symbol, so keep this DSL name explicit.
     using loka::app::Button;
     return VStack().TEST_ID("HelloWorld.LeftPanel")
            << Text("Loka Sample").TEST_ID("HelloWorld.LeftPanel.Title")

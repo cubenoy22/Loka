@@ -109,6 +109,7 @@ namespace simpleviewer
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
+      // Retro68 0.0.1a exposes a Classic `Button` symbol, so keep this DSL name explicit.
       using loka::app::Button;
       this->props.assertInitialized();
       c.declare(
