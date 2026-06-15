@@ -38,6 +38,8 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
   - Generates an Xcode project (`-G Xcode`) for debugging.
   - Arch and deployment target are controlled by env vars (default `ARCHS=x86_64`, `DEPLOYMENT_TARGET=10.8`).
   - The default is intentionally conservative so the generated project stays easier to reuse across older Apple IDEs.
+  - `ARCHS=xcode-standard` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD)` preset into the generated project.
+  - `ARCHS=native64` maps to `x86_64`; `ARCHS=ub2` maps to `arm64;x86_64`.
   - Requires a full `Xcode.app` installation; Command Line Tools alone are not enough.
   - Intended for OS X Mountain Lion (10.8) and later.
   - Projects generated on 10.8+ are generally Xcode 3.2-compatible enough to be opened on Snow Leopard with Xcode 3.2.6.

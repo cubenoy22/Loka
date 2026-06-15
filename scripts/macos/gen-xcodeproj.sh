@@ -6,17 +6,40 @@ BUILD_TYPE="${BUILD_TYPE:-Debug}"
 # Default to a conservative Xcode-project configuration that is easier to
 # open across older Apple IDEs. Override these when you want a more modern
 # project shape, for example:
-#   ARCHS="arm64;x86_64" DEPLOYMENT_TARGET=11.0 ./scripts/macos/gen-xcodeproj.sh
+#   ARCHS=xcode-standard DEPLOYMENT_TARGET=11.0 ./scripts/macos/gen-xcodeproj.sh
 # For older single-arch experiments, for example:
 #   ARCHS="i386" DEPLOYMENT_TARGET=10.5 ./scripts/macos/gen-xcodeproj.sh
 ARCHS="${ARCHS:-x86_64}"
 DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.8}"
 OSX_SYSROOT="${OSX_SYSROOT:-}"
-BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos-xcodeproj/${BUILD_TYPE}}"
+CMAKE_OSX_ARCHITECTURES_VALUE="${ARCHS}"
+XCODE_ARCHS="${XCODE_ARCHS:-}"
+
+case "${ARCHS}" in
+  xcode-standard)
+    ARCHS='$(ARCHS_STANDARD)'
+    CMAKE_OSX_ARCHITECTURES_VALUE=""
+    XCODE_ARCHS='$(ARCHS_STANDARD)'
+    ;;
+  native64)
+    ARCHS="x86_64"
+    CMAKE_OSX_ARCHITECTURES_VALUE="${ARCHS}"
+    ;;
+  ub2)
+    ARCHS="arm64;x86_64"
+    CMAKE_OSX_ARCHITECTURES_VALUE="${ARCHS}"
+    ;;
+esac
+
+BUILD_VARIANT="${ARCHS//[^A-Za-z0-9_.-]/-}"
+BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos-xcodeproj/${BUILD_TYPE}-${BUILD_VARIANT}}"
 
 echo "[gen-xcodeproj] ROOT_DIR=${ROOT_DIR}"
 echo "[gen-xcodeproj] BUILD_DIR=${BUILD_DIR}"
 echo "[gen-xcodeproj] ARCHS=${ARCHS} DEPLOYMENT_TARGET=${DEPLOYMENT_TARGET}"
+if [[ -n "${XCODE_ARCHS}" ]]; then
+  echo "[gen-xcodeproj] XCODE_ARCHS=${XCODE_ARCHS}"
+fi
 
 if command -v xcodebuild >/dev/null 2>&1; then
   XCODE_VERSION="$(xcodebuild -version 2>/dev/null | awk '/^Xcode / {print $2; exit}' || true)"
@@ -41,8 +64,15 @@ CMAKE_ARGS=(
   "-G" "Xcode"
   "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   "-DCMAKE_OSX_DEPLOYMENT_TARGET=${DEPLOYMENT_TARGET}"
-  "-DCMAKE_OSX_ARCHITECTURES=${ARCHS}"
 )
+
+if [[ -n "${CMAKE_OSX_ARCHITECTURES_VALUE}" ]]; then
+  CMAKE_ARGS+=("-DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES_VALUE}")
+fi
+
+if [[ -n "${XCODE_ARCHS}" ]]; then
+  CMAKE_ARGS+=("-DCMAKE_XCODE_ATTRIBUTE_ARCHS=${XCODE_ARCHS}")
+fi
 
 if [[ -n "${CC:-}" ]]; then
   CMAKE_ARGS+=("-DCMAKE_C_COMPILER=${CC}")
@@ -62,4 +92,7 @@ cmake "${CMAKE_ARGS[@]}"
 echo "Generated Xcode project in:"
 echo "  ${BUILD_DIR}"
 echo "Archs: ${ARCHS}"
+if [[ -n "${XCODE_ARCHS}" ]]; then
+  echo "Xcode ARCHS: ${XCODE_ARCHS}"
+fi
 echo "Deployment target: ${DEPLOYMENT_TARGET}"
