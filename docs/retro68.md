@@ -134,6 +134,26 @@ Preset mapping used in this repo:
 - In practical terms, startup cost and responsiveness become much more constrained on 68k as applications grow in size and complexity.
 - For modern-style application development on Classic Mac OS, PPC601 / 603e-class PowerPC systems and later should be treated as the practical mainstream baseline.
 
+## Header Boundary Notes
+
+Classic Mac OS headers expose many old Toolbox names in the global namespace.
+For example, both Universal Interfaces and Retro68's Multiversal headers can
+declare a global `Button()` function. If those headers become visible in a
+translation unit that also uses `using namespace loka::app`, an unqualified Loka
+DSL expression such as `Button("OK")` can become ambiguous.
+
+The important fix is not to make application authors qualify every Loka UI
+control. App-facing composition should stay written in Loka concepts. Keep
+Classic headers inside Toolbox implementation files, platform-specific bootstrap
+files, or other private backend seams.
+
+One subtle source of leakage is standard C/C++ compatibility headers in the
+Retro68 toolchain. In at least one Retro68 setup, including `<cstring>` from a
+public Loka header pulled in `string.h`, then Classic string headers, then
+`Events.h`, which made the global Toolbox `Button()` visible to ordinary app
+composition code. Prefer small internal helpers over public-header includes
+when the only need is a tiny operation such as byte comparison.
+
 ## Classic Toolbox Profiles
 
 Classic Mac localization should not assume that Unicode is the only normal

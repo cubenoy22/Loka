@@ -34,6 +34,14 @@ behavior.
 The goal is not to avoid native integration. The goal is to keep native
 integration from becoming the application's identity.
 
+Application-facing headers and composition code should not inherit native
+toolkit namespace pollution as an ambient cost of portability. Platform headers,
+native type names, and compatibility shims belong behind platform projection
+boundaries or narrow bootstrap seams. If an application author is writing a
+logical `Button`, `Text`, `Window`, or future control, that expression should
+mean the Loka concept by default, not whichever native SDK happened to be
+included first.
+
 ## Meaningful Code
 
 Application-facing code should express intent, ownership, state flow, and
