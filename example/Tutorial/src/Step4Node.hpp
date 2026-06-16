@@ -65,8 +65,6 @@ namespace tutorial
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
-      // Retro68 0.0.1a exposes a Classic `Button` symbol, so keep this DSL name explicit.
-      using loka::app::Button;
       c.declare(VStack()                                    //
                 << TutorialTitle("Step 4")                  //
                 << Button("Add item", &this->addItemEvent_) //

@@ -2,9 +2,9 @@
 #define LOKA_APP_MENU_COMPOSITION_HPP
 
 #include <cassert>
-#include <cstring>
 #include <vector>
 #include "core/State.hpp"
+#include "core/util/Memory.hpp"
 #include "dsl/composition/CompositionList.hpp"
 #include "dsl/composition/CompositionDiff.hpp"
 
@@ -124,7 +124,7 @@ namespace loka
           {
             return false;
           }
-          return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+          return ::loka::core::util::BytesEqual(&method_, methodBytes, sizeof(method_));
         }
 
         NodeT *node_;

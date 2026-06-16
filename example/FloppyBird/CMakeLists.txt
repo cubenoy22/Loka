@@ -77,7 +77,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
 
   target_include_directories(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
 

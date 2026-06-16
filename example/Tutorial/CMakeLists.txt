@@ -74,7 +74,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   target_include_directories(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
   target_link_libraries(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)

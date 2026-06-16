@@ -2,7 +2,6 @@
 #define LOKA_CORE2_SCENE_NODE_COMPOSABLENODE_HPP
 
 #include <cassert>
-#include <cstring>
 #include <vector>
 #include "../Node.hpp"
 #include "app/scene/context/ComponentContext.hpp"
@@ -10,6 +9,7 @@
 #include "app/scene/state/StateBatchBase.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/Profiler.hpp"
+#include "core/util/Memory.hpp"
 
 class Window;
 
@@ -148,7 +148,7 @@ namespace loka
             {
               return false;
             }
-            return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+            return ::loka::core::util::BytesEqual(&method_, methodBytes, sizeof(method_));
           }
 
           NodeT *node_;
@@ -197,7 +197,7 @@ namespace loka
             {
               return false;
             }
-            return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+            return ::loka::core::util::BytesEqual(&method_, methodBytes, sizeof(method_));
           }
 
           StateT *state_;
