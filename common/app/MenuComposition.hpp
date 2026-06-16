@@ -4,7 +4,6 @@
 #include <cassert>
 #include <vector>
 #include "core/State.hpp"
-#include "core/util/Memory.hpp"
 #include "dsl/composition/CompositionList.hpp"
 #include "dsl/composition/CompositionDiff.hpp"
 
@@ -124,7 +123,8 @@ namespace loka
           {
             return false;
           }
-          return ::loka::core::util::BytesEqual(&method_, methodBytes, sizeof(method_));
+          const Method *method = static_cast<const Method *>(methodBytes);
+          return method && method_ == *method;
         }
 
         NodeT *node_;

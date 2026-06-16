@@ -9,7 +9,6 @@
 #include "app/scene/state/StateBatchBase.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/Profiler.hpp"
-#include "core/util/Memory.hpp"
 
 class Window;
 
@@ -148,7 +147,8 @@ namespace loka
             {
               return false;
             }
-            return ::loka::core::util::BytesEqual(&method_, methodBytes, sizeof(method_));
+            const Method *method = static_cast<const Method *>(methodBytes);
+            return method && method_ == *method;
           }
 
           NodeT *node_;
@@ -197,7 +197,8 @@ namespace loka
             {
               return false;
             }
-            return ::loka::core::util::BytesEqual(&method_, methodBytes, sizeof(method_));
+            const Method *method = static_cast<const Method *>(methodBytes);
+            return method && method_ == *method;
           }
 
           StateT *state_;

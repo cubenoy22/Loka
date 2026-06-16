@@ -151,8 +151,8 @@ One subtle source of leakage is standard C/C++ compatibility headers in the
 Retro68 toolchain. In at least one Retro68 setup, including `<cstring>` from a
 public Loka header pulled in `string.h`, then Classic string headers, then
 `Events.h`, which made the global Toolbox `Button()` visible to ordinary app
-composition code. Prefer small internal helpers over public-header includes
-when the only need is a tiny operation such as byte comparison.
+composition code. Prefer typed operations or small internal helpers over
+public-header includes when the only need is a tiny standard-library operation.
 
 ## Classic Toolbox Profiles
 
