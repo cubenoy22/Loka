@@ -17,7 +17,9 @@ case "${ARCHS}" in
   xcode-standard-32-64)
     ARCHS='$(ARCHS_STANDARD_32_64_BIT)'
     CMAKE_OSX_ARCHITECTURES_VALUE=""
-    XCODE_ARCHS='$(ARCHS_STANDARD_32_64_BIT)'
+    if [[ -z "${XCODE_ARCHS}" ]]; then
+      XCODE_ARCHS='$(ARCHS_STANDARD_32_64_BIT)'
+    fi
     ;;
 esac
 

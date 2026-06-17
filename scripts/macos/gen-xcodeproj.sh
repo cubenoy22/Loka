@@ -22,7 +22,9 @@ case "${ARCH_MODE}" in
     ARCH_MODE="xcode-standard"
     DISPLAY_ARCHS='$(ARCHS_STANDARD)'
     CMAKE_OSX_ARCHITECTURES_VALUE=""
-    XCODE_ARCHS='$(ARCHS_STANDARD)'
+    if [[ -z "${XCODE_ARCHS}" ]]; then
+      XCODE_ARCHS='$(ARCHS_STANDARD)'
+    fi
     ;;
 esac
 
