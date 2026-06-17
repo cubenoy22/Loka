@@ -13,12 +13,16 @@ if [[ -z "${OSX_SYSROOT:-}" ]]; then
 fi
 export OSX_SYSROOT="${OSX_SYSROOT:-/Developer/SDKs/MacOSX10.5.sdk}"
 if [[ -z "${CC:-}" ]]; then
-  CC="$(loka_find_first_selected_tool gcc-4.2 || true)"
-  export CC
+  CC_CANDIDATE="$(loka_find_first_selected_tool gcc-4.2 || true)"
+  if [[ -n "${CC_CANDIDATE}" ]]; then
+    export CC="${CC_CANDIDATE}"
+  fi
 fi
 if [[ -z "${CXX:-}" ]]; then
-  CXX="$(loka_find_first_selected_tool g++-4.2 || true)"
-  export CXX
+  CXX_CANDIDATE="$(loka_find_first_selected_tool g++-4.2 || true)"
+  if [[ -n "${CXX_CANDIDATE}" ]]; then
+    export CXX="${CXX_CANDIDATE}"
+  fi
 fi
 
 if [[ "${ARCHS}" != *";"* ]]; then

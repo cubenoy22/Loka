@@ -16,12 +16,16 @@ fi
 export MAC_OS_10_4_SYSROOT="${MAC_OS_10_4_SYSROOT:-/Developer/SDKs/MacOSX10.4u.sdk}"
 export OSX_SYSROOT="${OSX_SYSROOT:-${MAC_OS_10_4_SYSROOT}}"
 if [[ -z "${CC:-}" ]]; then
-  CC="$(loka_find_first_selected_tool gcc-4.0 gcc-4.2 || true)"
-  export CC
+  CC_CANDIDATE="$(loka_find_first_selected_tool gcc-4.0 gcc-4.2 || true)"
+  if [[ -n "${CC_CANDIDATE}" ]]; then
+    export CC="${CC_CANDIDATE}"
+  fi
 fi
 if [[ -z "${CXX:-}" ]]; then
-  CXX="$(loka_find_first_selected_tool g++-4.0 g++-4.2 || true)"
-  export CXX
+  CXX_CANDIDATE="$(loka_find_first_selected_tool g++-4.0 g++-4.2 || true)"
+  if [[ -n "${CXX_CANDIDATE}" ]]; then
+    export CXX="${CXX_CANDIDATE}"
+  fi
 fi
 
 if [[ "${ARCHS}" == *"ppc"* ]]; then
