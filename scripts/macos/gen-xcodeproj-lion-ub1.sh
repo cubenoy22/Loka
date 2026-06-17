@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/scripts/macos/lib-common.sh"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.7}"
 ARCHS="${ARCHS:-xcode-standard-32-64}"
@@ -20,26 +21,8 @@ case "${ARCHS}" in
     ;;
 esac
 
-if command -v xcodebuild >/dev/null 2>&1; then
-  XCODE_VERSION="$(xcodebuild -version 2>/dev/null | awk '/^Xcode / {print $2; exit}' || true)"
-  if [[ -z "${XCODE_VERSION}" ]]; then
-    echo "error: unable to read Xcode version from xcodebuild." >&2
-    echo "A full Xcode.app installation is required for the Xcode generator." >&2
-    exit 1
-  fi
-  XCODE_MAJOR="${XCODE_VERSION%%.*}"
-  if [[ "${XCODE_MAJOR}" =~ ^[0-9]+$ && "${XCODE_MAJOR}" -lt 5 ]]; then
-    echo "error: CMake's Xcode generator requires Xcode 5.0 or newer." >&2
-    echo "Generate on a newer Mac, then copy the project to Lion-era Xcode for testing." >&2
-    exit 1
-  fi
-  echo "[gen-xcodeproj-lion-ub1] xcodebuild version=${XCODE_VERSION}"
-fi
-
-if ! cmake --help 2>/dev/null | grep -q "Xcode"; then
-  echo "error: this CMake build does not provide the Xcode generator." >&2
-  exit 1
-fi
+loka_require_full_xcode_for_generator "gen-xcodeproj-lion-ub1" "5"
+loka_require_cmake_xcode_generator
 
 CMAKE_ARGS=(
   "-S" "${ROOT_DIR}"

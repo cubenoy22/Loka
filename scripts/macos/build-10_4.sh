@@ -9,48 +9,23 @@ export DEPLOYMENT_TARGET=10.4
 export ARCHS="${ARCHS:-ppc;i386}"
 
 if [[ -z "${MAC_OS_10_4_SYSROOT:-}" ]]; then
-  CANDIDATE_SYSROOTS=()
-
-  if [[ -n "${DEVELOPER_DIR:-}" ]]; then
-    CANDIDATE_SYSROOTS+=("${DEVELOPER_DIR}/SDKs/MacOSX10.4u.sdk")
-    CANDIDATE_SYSROOTS+=("${DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.4u.sdk")
-  fi
-
-  if command -v xcode-select >/dev/null 2>&1; then
-    XCODE_DEVELOPER_DIR="$(xcode-select -print-path 2>/dev/null || true)"
-    if [[ -n "${XCODE_DEVELOPER_DIR}" ]]; then
-      CANDIDATE_SYSROOTS+=("${XCODE_DEVELOPER_DIR}/SDKs/MacOSX10.4u.sdk")
-      CANDIDATE_SYSROOTS+=("${XCODE_DEVELOPER_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.4u.sdk")
-    fi
-  fi
-
-  CANDIDATE_SYSROOTS+=("/Developer/SDKs/MacOSX10.4u.sdk")
-  CANDIDATE_SYSROOTS+=("/Applications/Xcode.app/Contents/Developer/SDKs/MacOSX10.4u.sdk")
-  CANDIDATE_SYSROOTS+=("/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.4u.sdk")
-
-  for SDK_CANDIDATE in "${CANDIDATE_SYSROOTS[@]}"; do
-    if [[ -d "${SDK_CANDIDATE}" ]]; then
-      export MAC_OS_10_4_SYSROOT="${SDK_CANDIDATE}"
-      break
-    fi
-  done
+  MAC_OS_10_4_SYSROOT="$(loka_find_selected_sdk "MacOSX10.4u.sdk" || true)"
+  export MAC_OS_10_4_SYSROOT
 fi
 
 export MAC_OS_10_4_SYSROOT="${MAC_OS_10_4_SYSROOT:-/Developer/SDKs/MacOSX10.4u.sdk}"
 export OSX_SYSROOT="${OSX_SYSROOT:-${MAC_OS_10_4_SYSROOT}}"
-if command -v gcc-4.0 >/dev/null 2>&1; then
-  export CC="${CC:-$(command -v gcc-4.0)}"
-elif command -v gcc-4.2 >/dev/null 2>&1; then
-  export CC="${CC:-$(command -v gcc-4.2)}"
+if [[ -z "${CC:-}" ]]; then
+  CC="$(loka_find_first_selected_tool gcc-4.0 gcc-4.2 || true)"
+  export CC
 fi
-if command -v g++-4.0 >/dev/null 2>&1; then
-  export CXX="${CXX:-$(command -v g++-4.0)}"
-elif command -v g++-4.2 >/dev/null 2>&1; then
-  export CXX="${CXX:-$(command -v g++-4.2)}"
+if [[ -z "${CXX:-}" ]]; then
+  CXX="$(loka_find_first_selected_tool g++-4.0 g++-4.2 || true)"
+  export CXX
 fi
 
 if [[ "${ARCHS}" == *"ppc"* ]]; then
-  CXX_FOR_PPC_CHECK="${CXX:-$(command -v g++ || true)}"
+  CXX_FOR_PPC_CHECK="${CXX:-$(loka_find_first_selected_tool g++-4.0 g++-4.2 g++ || true)}"
   PPC_TOOLCHAIN_OK=0
   if [[ -n "${CXX_FOR_PPC_CHECK}" ]]; then
     PPC_TEST_CXX="$(mktemp /tmp/loka-ppc-check-XXXXXX.cpp)"

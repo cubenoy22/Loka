@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${ROOT_DIR}/scripts/macos/lib-common.sh"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
 # Default to Xcode's standard architecture preset so modern Xcode versions can
 # choose the right host/default universal set. Override this when you need an
@@ -35,22 +36,8 @@ if [[ -n "${XCODE_ARCHS}" ]]; then
   echo "[gen-xcodeproj] XCODE_ARCHS=${XCODE_ARCHS}"
 fi
 
-if command -v xcodebuild >/dev/null 2>&1; then
-  XCODE_VERSION="$(xcodebuild -version 2>/dev/null | awk '/^Xcode / {print $2; exit}' || true)"
-  if [[ -z "${XCODE_VERSION}" ]]; then
-    echo "error: unable to read Xcode version from xcodebuild." >&2
-    echo "gen-xcodeproj.sh requires a full Xcode.app installation, not just Command Line Tools." >&2
-    echo "Run 'xcode-select -p' and ensure xcodebuild points to a real Xcode installation." >&2
-    exit 1
-  fi
-  echo "[gen-xcodeproj] xcodebuild version=${XCODE_VERSION:-unknown}"
-fi
-
-if ! cmake --help 2>/dev/null | grep -q "Xcode"; then
-  echo "error: this CMake build does not provide the Xcode generator." >&2
-  echo "Install a CMake build with Xcode generator support." >&2
-  exit 1
-fi
+loka_require_full_xcode_for_generator "gen-xcodeproj"
+loka_require_cmake_xcode_generator
 
 CMAKE_ARGS=(
   "-S" "${ROOT_DIR}"
