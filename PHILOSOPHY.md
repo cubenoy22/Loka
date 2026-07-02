@@ -42,6 +42,45 @@ logical `Button`, `Text`, `Window`, or future control, that expression should
 mean the Loka concept by default, not whichever native SDK happened to be
 included first.
 
+## Software Should Stay Soft
+
+Modern software has become paradoxically hard. It is compiled, signed,
+distributed through stores, and frozen at release. Changing anything means
+rebuilding everything. Earlier systems such as HyperCard and Smalltalk let
+people reshape software while using it, but their softness lived inside sealed
+environments that could not survive outside their own world.
+
+Loka's long-term goal is that softness becomes a deployment choice rather than
+an architectural fate. The same semantic model — nodes, boundaries, state,
+flows, and platform projection — should be expressible both as statically
+compiled code that runs on a 68k machine and, in the future, as data- or
+script-driven definitions that can change without rebuilding the application.
+An application should be able to choose which of its parts stay frozen and
+which stay soft: a synthesizer editor may compile its engine while loading
+device parameter maps as data; a catalog application may ship its shell as a
+signed binary while its views evolve as definitions.
+
+In this sense C++98 is the host of the portable core, not the identity of the
+framework. It was chosen because it is the most behavior-compatible host across
+the supported eras, not because Loka is "a C++ framework" competing with
+JavaScript or Swift ones. The framework's identity is the semantic model, and
+that model must survive being bound to more than one language.
+
+Dynamic layers must follow the same rules as every other edge:
+
+- They live behind module and owner boundaries, as described in "Modern Code
+  Is Welcome At The Edges". The portable core never depends on them.
+- Script- or data-owned state, flows, and resources belong to explicit owner
+  scopes, so unloading a definition releases everything it held.
+- Where the static world relies on compile-time errors, the dynamic world must
+  rely on explicit runtime diagnostics — missing bindings and signature
+  mismatches fail loudly, never silently.
+
+Softness is not an excuse to weaken the model. It is the payoff for having
+made ownership, lifecycle, and update flow explicit enough that even code
+arriving at runtime has a well-defined place to live and a well-defined way to
+leave.
+
 ## Meaningful Code
 
 Application-facing code should express intent, ownership, state flow, and
