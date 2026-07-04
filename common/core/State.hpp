@@ -2,8 +2,6 @@
 #define LOKA_STATE_HPP
 
 #include <vector>
-#include <functional>
-#include <cstdio>
 #include "core/StateTracker.hpp"
 #include "core/String.hpp"
 
