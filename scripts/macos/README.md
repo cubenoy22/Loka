@@ -19,6 +19,7 @@ Legend: `:white_check_mark:` verified, `△` verified with caveats (see Notes),
 | Yosemite 10.10 | :white_check_mark: | :white_check_mark: | :x: | :x: | - | Project generation and native debugging work, but Xcode 3.2.6 cannot launch there. |
 | El Capitan 10.11 through Sierra 10.12 / Xcode 9.2 | :white_check_mark: | :white_check_mark: | - | - | - | Leopard-facing Xcode project generation has been verified on Sierra with Xcode 9.2; generated projects have been copied back to Snow Leopard and build-verified there. |
 | High Sierra 10.13 | △ | :white_check_mark: | - | - | - | Depends on the selected Xcode version; Xcode 9.4.1-era setups are expected to work, while Xcode 10.1 fails legacy UB1 generation. |
+| Mojave 10.14 / Catalina 10.15 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: the legacy UB1 generator run with `DEPLOYMENT_TARGET=10.9` produces projects that build in Xcode 3.2.6 with the usual manual steps and no `-fno-objc-arc` cleanup. |
 | Catalina 10.15 / Big Sur 11 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: plain `gen-xcodeproj.sh` projects open in Xcode 3.2.6 and build with the usual manual steps after removing `-fno-objc-arc` per target. |
 | Monterey 12 / Xcode 14.2 | △ | :white_check_mark: | - | - | - | Bridge to a separate Snow Leopard machine: after removing unsupported flags such as `-fno-objc-arc`, Monterey-generated bridge output has been four-architecture `lipo`-verified and runtime-verified on an iBook. Xcode 3.x cannot launch on Monterey; the UB1 build happens on Snow Leopard. |
 | Ventura 13 / Xcode 15.2 and newer | :x: | :white_check_mark: | - | - | - | Modern native debugging works, but Xcode 15.2 only offered Xcode 12.0+ project formats in testing. |
@@ -39,13 +40,15 @@ the legacy generators also work when run with `DEPLOYMENT_TARGET=10.9`, because
 deployment targets of 10.9 and newer switch the default C++ standard library
 from the removed `libstdc++` to `libc++`; the generated project then needs no
 `-fno-objc-arc` cleanup, and the final Base SDK, deployment target, and
-architectures are set in Xcode 3.2.6 as usual. Treat that override as a
-fallback for when the work must happen on a modern host (verified through
-Monterey). The most comfortable setup is a virtualized Mountain Lion 10.8 or
-Mavericks 10.9 system with a working Xcode 3.2.6 install: there the legacy
-generators run with their default deployment targets and the generated project
-builds in Xcode 3.2.6 on the same system, with no flag cleanup or cross-machine
-copying. The plain `gen-xcodeproj.sh`
+architectures are set in Xcode 3.2.6 as usual; this route has been
+build-verified from Mojave 10.14 and Catalina 10.15 generator hosts through to
+Xcode 3.2.6 builds. Treat that override as a fallback for when the work must
+happen on a modern host (generation verified through Monterey; build-verified
+from 10.14/10.15 hosts). The most comfortable setup is a virtualized Mountain
+Lion 10.8 or Mavericks 10.9 system with a working Xcode 3.2.6 install: there
+the legacy generators run with their default deployment targets and the
+generated project builds in Xcode 3.2.6 on the same system, with no flag
+cleanup or cross-machine copying. The plain `gen-xcodeproj.sh`
 path has been verified for bridge projects on Catalina 10.15, Big Sur 11, and
 Monterey 12, with `-fno-objc-arc` removed per target when opening the generated
 project in Xcode 3.2.6.
