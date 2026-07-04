@@ -50,11 +50,11 @@ namespace
 
   static void testNodeArenaAlignmentAndCapacity()
   {
-    const size_t minAlign = loka::app::scene::NodeArena::normalizeAlign(1);
+    const size_t minAlign = loka::app::scene::NormalizeArenaAlign(1);
     assert(minAlign >= sizeof(void *));
     assert(isPowerOfTwo(minAlign));
 
-    const size_t roundedAlign = loka::app::scene::NodeArena::normalizeAlign(3);
+    const size_t roundedAlign = loka::app::scene::NormalizeArenaAlign(3);
     assert(roundedAlign >= 3);
     assert(isPowerOfTwo(roundedAlign));
 
@@ -67,11 +67,11 @@ namespace
 
     void *first = arena.allocate(4, 4);
     assert(first != 0);
-    assert(isAligned(first, loka::app::scene::NodeArena::normalizeAlign(4)));
+    assert(isAligned(first, loka::app::scene::NormalizeArenaAlign(4)));
 
     void *second = arena.allocate(8, 8);
     assert(second != 0);
-    assert(isAligned(second, loka::app::scene::NodeArena::normalizeAlign(8)));
+    assert(isAligned(second, loka::app::scene::NormalizeArenaAlign(8)));
     assert(second != first);
 
     assert(arena.allocate(1024, 4) == 0);
@@ -97,11 +97,11 @@ namespace
 
     void *first = arena.allocate(4, 4);
     assert(first != 0);
-    assert(isAligned(first, loka::app::scene::NodeArena::normalizeAlign(4)));
+    assert(isAligned(first, loka::app::scene::NormalizeArenaAlign(4)));
 
     void *second = arena.allocate(8, 8);
     assert(second != 0);
-    assert(isAligned(second, loka::app::scene::NodeArena::normalizeAlign(8)));
+    assert(isAligned(second, loka::app::scene::NormalizeArenaAlign(8)));
     assert(second != first);
 
     assert(arena.allocate(1024, 4) == 0);
