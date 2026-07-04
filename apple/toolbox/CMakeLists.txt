@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.15)
 add_library(LokaAppleToolbox INTERFACE)
 
 set(LOKA_TOOLBOX_SOURCES
+  src/ToolboxBootstrap.cpp
   src/ToolboxString.cpp
   src/ToolboxApp.cpp
   src/ToolboxNativeImage.cpp
@@ -28,6 +29,10 @@ set(LOKA_TOOLBOX_SOURCES
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/common/*.cpp)
 
 add_library(LokaAppleToolboxCore STATIC ${LOKA_TOOLBOX_SOURCES} ${COMMON_SOURCES})
+set_target_properties(LokaAppleToolboxCore PROPERTIES
+  CXX_STANDARD 98
+  CXX_STANDARD_REQUIRED YES
+)
 
 target_link_libraries(LokaAppleToolbox INTERFACE
   LokaAppleCommonCarbon
@@ -61,5 +66,8 @@ target_include_directories(LokaAppleToolbox INTERFACE
 
 target_include_directories(LokaAppleToolboxCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
+)
+
+target_include_directories(LokaAppleToolboxCore PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/src
 )

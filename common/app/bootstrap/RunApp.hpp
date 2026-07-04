@@ -4,45 +4,16 @@
 #include <cassert>
 #include "app/core/App.hpp"
 #include "app/PlatformContext.hpp"
+#include "app/bootstrap/PlatformBootstrap.hpp"
 #include "core/util/ScopedPtr.hpp"
-
-#if defined(_WIN32) || defined(WIN32)
-#include "Win32PlatformContext.hpp"
-#include "platform/Win32Profiler.hpp"
-#elif defined(LOKA_RETRO68)
-#include "ToolboxPlatformContext.hpp"
-#include "ToolboxProfiler.hpp"
-#elif defined(__APPLE__)
-#include "MacPlatformContext.hpp"
-#include "MacProfiler.hpp"
-#endif
 
 namespace loka
 {
   namespace platform
   {
-    inline PlatformContext *CreatePlatformContext()
-    {
-#if defined(_WIN32) || defined(WIN32)
-      return new Win32PlatformContext();
-#elif defined(LOKA_RETRO68)
-      return new ToolboxPlatformContext();
-#elif defined(__APPLE__)
-      return new MacPlatformContext();
-#else
-      return 0;
-#endif
-    }
-
     template <class ConfigT> int RunApp(HINSTANCE hInstance, int nCmdShow)
     {
-#if defined(LOKA_RETRO68)
-      InitToolboxProfiler();
-#elif defined(_WIN32) || defined(WIN32)
-      InitWin32Profiler();
-#elif defined(__APPLE__)
-      InitMacProfiler();
-#endif
+      InitPlatformRuntime();
       loka::core::ScopedPtr<PlatformContext> platformContext(CreatePlatformContext());
       assert(platformContext.get() && "PlatformContext is required");
       ConfigT config(platformContext.get());

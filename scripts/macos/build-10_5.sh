@@ -7,12 +7,22 @@ source "${ROOT_DIR}/scripts/macos/lib-common.sh"
 export MAC_OS_10_4=0
 export DEPLOYMENT_TARGET="${DEPLOYMENT_TARGET:-10.5}"
 export ARCHS="${ARCHS:-ppc;i386;x86_64}"
-export OSX_SYSROOT="${OSX_SYSROOT:-/Developer/SDKs/MacOSX10.5.sdk}"
-if command -v gcc-4.2 >/dev/null 2>&1; then
-  export CC="${CC:-$(command -v gcc-4.2)}"
+if [[ -z "${OSX_SYSROOT:-}" ]]; then
+  OSX_SYSROOT="$(loka_find_selected_sdk "MacOSX10.5.sdk" || true)"
+  export OSX_SYSROOT
 fi
-if command -v g++-4.2 >/dev/null 2>&1; then
-  export CXX="${CXX:-$(command -v g++-4.2)}"
+export OSX_SYSROOT="${OSX_SYSROOT:-/Developer/SDKs/MacOSX10.5.sdk}"
+if [[ -z "${CC:-}" ]]; then
+  CC_CANDIDATE="$(loka_find_first_selected_tool gcc-4.2 || true)"
+  if [[ -n "${CC_CANDIDATE}" ]]; then
+    export CC="${CC_CANDIDATE}"
+  fi
+fi
+if [[ -z "${CXX:-}" ]]; then
+  CXX_CANDIDATE="$(loka_find_first_selected_tool g++-4.2 || true)"
+  if [[ -n "${CXX_CANDIDATE}" ]]; then
+    export CXX="${CXX_CANDIDATE}"
+  fi
 fi
 
 if [[ "${ARCHS}" != *";"* ]]; then

@@ -4,6 +4,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ../common/*.cpp)
 list(REMOVE_DUPLICATES COMMON_SOURCES)
 set(SOURCES
+  src/Win32Bootstrap.cpp
   src/Win32App.cpp
   src/Win32BuiltInSupport.cpp
   src/Win32Window.cpp
@@ -26,6 +27,9 @@ set(SOURCES
 add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
 target_include_directories(LokaWin32Core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../common
+)
+
+target_include_directories(LokaWin32Core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 

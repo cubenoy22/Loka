@@ -2,7 +2,22 @@ cmake_minimum_required(VERSION 3.15)
 project(Loka LANGUAGES CXX)
 
 option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
+option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
+option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS link settings" OFF)
 option(TEST_BUILD "Enable test build mode" OFF)
+
+macro(loka_suppress_arclite_link)
+  if(LOKA_MACOS_SUPPRESS_ARCLITE_LINK)
+    foreach(_loka_implicit_link_var
+        CMAKE_CXX_IMPLICIT_LINK_LIBRARIES
+        CMAKE_OBJCXX_IMPLICIT_LINK_LIBRARIES)
+      if(DEFINED ${_loka_implicit_link_var})
+        list(FILTER ${_loka_implicit_link_var} EXCLUDE REGEX ".*arclite.*")
+      endif()
+    endforeach()
+  endif()
+endmacro()
+
 set(LOKA_CLASSIC_MAC OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_CLASSIC_MAC ON)
