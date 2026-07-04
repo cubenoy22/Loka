@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "title": "Loka — Declarative UI in C++98",
+    "description": "Loka is a declarative GUI framework with a modern statically typed DSL built in C++98, projecting one UI model onto native toolkits from System 7 to modern Windows and macOS.",
+    "repoUrl": "https://github.com/cubenoy22/Loka",
+    "version": "0.0.1",
+    "versionNote": "proof of concept"
+  },
+  "hero": {
+    "title": "Declarative UI in C++98",
+    "subtitle": "One declarative model, projected onto native toolkits — from System 7 and Mac OS X Tiger to modern Windows and macOS. Modern, explicit, and honest about ownership.",
+    "primaryCta": { "label": "Get Started", "href": "#get-started" },
+    "secondaryCta": { "label": "View on GitHub", "href": "https://github.com/cubenoy22/Loka" }
+  },
+  "codeExample": {
+    "heading": "Modern shape, ancient toolchains",
+    "body": "Loka's DSL is plain C++98 with strong compile-time types — no exceptions, no RTTI, only a small STL surface. The same component builds with GCC 4.0-era compilers and today's Clang, GCC, and MSVC.",
+    "filename": "BmiCalculatorComponent.hpp",
+    "language": "cpp",
+    "code": "using loka::core::State;\nusing loka::core::String;\n\ninline loka::app::F BmiCalculator(\n    State<String> *heightInput,\n    State<String> *weightInput,\n    State<String> *bmiResult)\n{\n  using namespace loka::app;\n  return F()                       //\n         << Text(\"BMI Calculator\") //\n         << Text(\"Height (cm)\")    //\n         << EditText(heightInput)  //\n         << Text(\"Weight (kg)\")    //\n         << EditText(weightInput)  //\n         << Text(bmiResult);\n}"
+  },
+  "examples": {
+    "heading": "Examples",
+    "body": "Small, complete applications from the repository. Each one shares the same Node / Boundary / State / Flow model.",
+    "items": [
+      {
+        "slug": "helloworld",
+        "name": "HelloWorld",
+        "description": "A BMI calculator showing components, state, and text input.",
+        "image": null,
+        "source": "example/HelloWorld"
+      },
+      {
+        "slug": "minesweeper",
+        "name": "MineSweeper",
+        "description": "The classic game as a declarative grid of nodes.",
+        "image": null,
+        "source": "example/MineSweeper"
+      },
+      {
+        "slug": "floppybird",
+        "name": "FloppyBird",
+        "description": "A small action game driving animation from the same model.",
+        "image": null,
+        "source": "example/FloppyBird"
+      },
+      {
+        "slug": "simpleviewer",
+        "name": "SimpleViewer",
+        "description": "An image viewer using Flow for long-lived async work.",
+        "image": null,
+        "source": "example/SimpleViewer"
+      }
+    ]
+  },
+  "hardware": {
+    "heading": "Validated on real hardware",
+    "body": "Loka treats retro platforms as first-class targets, not novelty ports. Changes are exercised on real machines — 68k and PowerPC Classic Macs, Tiger-era PowerPC laptops, and modern desktops — so the platform layers absorb real-world OS behavior, not emulator folklore.",
+    "image": "images/LokaLaptops.jpg",
+    "imageAlt": "Loka running on a lineup of vintage and modern laptops",
+    "gallery": [
+      {
+        "slug": "vscode",
+        "name": "VS Code",
+        "caption": "Day-to-day development in VS Code with CMake and Ninja."
+      },
+      {
+        "slug": "xcode-326",
+        "name": "Xcode 3.2.6",
+        "caption": "Building the Cocoa projection in Xcode 3.2.6."
+      },
+      {
+        "slug": "powerbook-g4",
+        "name": "PowerBook G4",
+        "caption": "Running the examples on a PowerBook G4 with Xcode 3.1.4."
+      }
+    ]
+  },
+  "features": {
+    "heading": "Why Loka",
+    "items": [
+      {
+        "title": "A small, unified concept set",
+        "body": "Node, Boundary, State, Props, and Flow are reused consistently across UI, events, async pipelines, and native integration — instead of a new mechanism for every feature."
+      },
+      {
+        "title": "Modern DSL, C++98 core",
+        "body": "A statically typed declarative DSL that still builds on GCC 4.0-era toolchains, so 68k and PowerPC systems get the same programming model as modern desktops."
+      },
+      {
+        "title": "No exceptions, no RTTI",
+        "body": "Core DSL paths avoid exceptions, RTTI, and most of the STL. Error handling is explicit and the dependency surface stays small enough for retro toolchains."
+      },
+      {
+        "title": "Deterministic lifecycle",
+        "body": "Ownership, cleanup, and update routing are explicit behind the declarative API. State handles stay attached to a lifecycle owner — no hidden garbage collection."
+      },
+      {
+        "title": "One model, native projection",
+        "body": "Logical UI design is separated from OS-specific projection. The core stays neutral while thin platform layers map the same structure onto native windowing APIs."
+      },
+      {
+        "title": "An executable Stack Overflow",
+        "body": "Version-specific OS bugs and per-platform quirks usually survive only as folklore. Loka absorbs those fixes into its platform layers so app code can simply declare intent."
+      }
+    ]
+  },
+  "platforms": {
+    "heading": "Supported environments",
+    "body": "Loka is designed around explicit target environments rather than assuming one modern desktop baseline.",
+    "items": [
+      {
+        "name": "Modern Windows / Win32",
+        "status": "active",
+        "notes": "Native Win32 projection path. Windows XP-class compatibility tracked as a legacy build target."
+      },
+      {
+        "name": "macOS / Cocoa",
+        "status": "active",
+        "notes": "Mac OS X 10.4 Tiger or newer, PowerPC G3 or newer."
+      },
+      {
+        "name": "Classic Mac OS / Toolbox",
+        "status": "active",
+        "notes": "Built through Retro68 for System 7 or later on 68k and PowerPC-class targets."
+      },
+      {
+        "name": "Linux / WSL",
+        "status": "headless",
+        "notes": "Core and Flow DSL tests today. Native UI projection is planned, not part of 0.0.1."
+      },
+      {
+        "name": "iOS / iPadOS, Linux desktop UI, game-oriented backends",
+        "status": "planned",
+        "notes": "Future ports reuse the same Node / Boundary / State / Flow model."
+      }
+    ]
+  },
+  "quickstart": {
+    "heading": "Get started",
+    "steps": [
+      {
+        "title": "Clone the repository",
+        "code": "git clone https://github.com/cubenoy22/Loka.git\ncd Loka"
+      },
+      {
+        "title": "Build and run the core tests",
+        "body": "A quick headless build on Linux, WSL, or macOS. You need CMake 3.19+, Ninja, and any C++98-capable compiler.",
+        "code": "cmake -S . -B build/Testing -DTEST_BUILD=ON\ncmake --build build/Testing\nctest --test-dir build/Testing"
+      },
+      {
+        "title": "Explore the examples",
+        "body": "Platform builds (macOS, Windows, Retro68) are documented in docs/environments.md. Start from example/HelloWorld and work up.",
+        "code": null
+      }
+    ]
+  },
+  "footer": {
+    "links": [
+      { "label": "GitHub", "href": "https://github.com/cubenoy22/Loka" },
+      { "label": "Roadmap", "href": "https://github.com/cubenoy22/Loka/blob/main/ROADMAP.md" },
+      { "label": "Philosophy", "href": "https://github.com/cubenoy22/Loka/blob/main/PHILOSOPHY.md" },
+      { "label": "Origins", "href": "https://github.com/cubenoy22/Loka/blob/main/docs/ORIGINS.md" },
+      { "label": "Programming Guide", "href": "https://github.com/cubenoy22/Loka/blob/main/docs/ProgrammingGuide.en.md" }
+    ],
+    "note": "Released under the MIT License."
+  }
+}
