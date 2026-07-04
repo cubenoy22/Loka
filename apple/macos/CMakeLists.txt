@@ -43,6 +43,7 @@ file(GLOB_RECURSE LOKA_MACOS_CORE_HEADERS CONFIGURE_DEPENDS
 )
 
 set(LOKA_MACOS_CORE_SOURCES
+  src/MacBootstrap.mm
   src/MacApp.mm
   src/MacBuiltInSupport.mm
   src/MacPlatformContext.mm
@@ -70,6 +71,9 @@ add_library(LokaMacOSCore STATIC
 
 target_include_directories(LokaMacOSCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
+)
+
+target_include_directories(LokaMacOSCore PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/src
   ${CMAKE_CURRENT_LIST_DIR}/src/context
 )

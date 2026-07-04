@@ -100,7 +100,7 @@ The core is intentionally C++98-friendly and already builds with older toolchain
 Platform-specific builds also need the matching native toolchain:
 
 - macOS: Xcode or Xcode Command Line Tools
-- Windows: Visual Studio Build Tools or Visual Studio, usually from a matching Developer Command Prompt
+- Windows: Visual Studio Build Tools or Visual Studio, usually from a matching Developer Command Prompt. Launching VS Code with `code .` from an ARM64 Native Tools prompt builds native ARM64 on Windows on ARM; x64/x86 Cross Tools prompts can be used for x64 or x86 builds.
 - Classic Mac OS targets: Retro68, typically from a Linux, WSL, Docker, or container-based environment
 
 For a quick headless test build on Linux/WSL:

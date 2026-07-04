@@ -31,7 +31,6 @@ These items address recurring bug patterns and structural risks identified durin
 - Define Modifier system (Text style + Window sizing) and wire through WindowProps/Layout.
 - Decide default window size (macOS/Win32/Toolbox) and unify hardcoded values.
 - Sample: MyTracker (editable device spec catalog).
-- Sample: FloppyBird (FlappyBird clone).
 - Audit remaining `std::string` usage and keep only intentional interop edges (UTF-8/platform bridge paths).
 - String comparison fast paths: keep the current pointer-identity shortcut, and consider empty/length/hash metadata fast paths only if profiling shows `loka::core::String::compare()` or sorting as a real cost. Prefer cached platform-string metadata over making the `String` value wrapper heavier.
 - Declarative OpenGL game foundation (mainline): scene/update/render flow, resource model, and platform bridge boundaries.
@@ -57,7 +56,6 @@ These items address recurring bug patterns and structural risks identified durin
 - requestDiscard protocol for save/confirm flows via EmitterState.
 - Menu architecture status: treat the current Menu/App menu implementation as provisional. Clarify platform convention ownership before promoting the API: macOS/Classic Mac use an application menu bar, while Win32 attaches native menus to windows. Keep App-wide `MenuBarDefinition`/`MenuCompositionDiff` usage limited to the default/app menu snapshot for now, and avoid building future Win32 per-window menu diff/apply behavior on a single App-owned diff state.
 - Menu rebuild contract: `MENU_ACTION_REBUILD_MENU` and menu-local state changes do not yet produce reliable reactive rebuild/apply across platforms, especially on macOS menu tracking. Add dedicated contract tests before expanding reactive menu samples.
-- Leopard/PPC shutdown crash follow-up (`LokaMine` only): Snow Leopard is stable and other Leopard/PPC examples now exit cleanly, but `LokaMineMacOS` still crashes on both `Cmd+Q` and window close with `objc: FREED(id)` while `NSApplication run` pops an autorelease pool (see `Leopard3.txt`). Tried so far: `MacApp::quit()` switched from `terminate:` to `stop:`, outer `MacOSMain.mm` pool release suppressed, `MacWindow` close-path ObjC releases deferred, `MacCellContext` view release deferred, and `setWantsLayer:YES` removed. Next step: inspect Mine-specific scene/context teardown order during `Scene::unmount()` / `clearNodeContexts()` and identify which ObjC object is being over-released inside the app-runloop pool.
 - DSL definition lifetime safety: `ConditionalDefinition` now owns cloned trueDef/falseDef (fixed). Remaining: audit other definition types for similar raw-pointer-to-temporary patterns; see "Definition ownership clarity" in Highly recommended.
 - Dynamic subtree granularity: sibling context preservation now works via local diff RETAIN + removal of `clearContexts()` from platform layout (fixed). Remaining: `NODE_DIRTY_CHILD` still rebuilds the whole dynamic boundary subtree; lighter-weight partial-child diff is a future optimization.
 - Local dynamic diff follow-up: scene-side local rebuild planning is now split into comparison summary (`NodeCompositionDiff`) and boundary-local apply plan (`LocalRebuildPlan`). Remaining work is to decide how much of that kernel should be shared with menu diff/apply without forcing premature abstraction.
@@ -66,6 +64,7 @@ These items address recurring bug patterns and structural risks identified durin
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
 - C++98: reintroduce NodeComposition map/filter via C++98-friendly adapters.
 - Toolchain matrix: validate oldest MSVC/GCC and record gaps.
+- Legacy Mac build automation idea: document or prototype developer-side remote build workflows for old macOS hosts. Keep this outside Loka's runtime/core responsibilities: a modern development machine or AI assistant could sync the repository to a Snow Leopard build node over SSH, run `scripts/macos/build-10_4.sh` / `build-10_5.sh`, collect `lipo -info` output and logs, and leave Xcode 3.2.6 UI workflows as a manual or semi-automated verification path.
 - Classic Toolbox profile split: keep app-facing String/Asset APIs neutral, but plan build-time profiles such as `ToolboxEN`, `ToolboxJP`, and an `iToolbox` Mac OS 8.5+ profile rather than forcing pre-8.5 Classic localization through a single Unicode-first path.
 - Docs/tests: document C++98 constraints and add checks for accidental C++11 usage.
 - Cleanup staged work from earlier C++98 retrofit (split/rebase if needed).
@@ -119,6 +118,7 @@ These items address recurring bug patterns and structural risks identified durin
 
 ## Completed (recent)
 
+- Sample: FloppyBird (FlappyBird clone) implemented under `example/FloppyBird` (game logic, RectSurface-based main node, Retro68 path).
 - Update/apply optimization pass (2026-03): archived in [docs/archives/update_pipeline_optimization_2026-03.md](archives/update_pipeline_optimization_2026-03.md).
   Highlights:
   - scene-level `fullRebuild` accuracy improved for child-dirty and mixed dirty paths

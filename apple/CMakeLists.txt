@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 # Enable Objective-C++ when building Apple targets.
 if(APPLE)
   enable_language(OBJCXX)
+  loka_suppress_arclite_link()
 endif()
 
 add_subdirectory(common/cocoa)

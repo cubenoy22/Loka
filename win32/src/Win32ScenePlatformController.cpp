@@ -2,6 +2,7 @@
 #include "Win32BuiltInSupport.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <windows.h>
+#include <cstdio>
 #include <map>
 #include <vector>
 #include "app/nodes/nestable/Box.hpp"

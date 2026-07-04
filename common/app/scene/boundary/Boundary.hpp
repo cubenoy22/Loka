@@ -901,6 +901,8 @@ namespace loka
           tracker_.addState(state);
         }
 
+        // Varargs must end with a typed null terminator (use STATE_NULL from
+        // core/util/StateUtil.hpp); a missing terminator reads past the argument list.
         void registerStates(loka::core::StateBase *first, ...)
         {
           loka::core::StateVector states;
