@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdio>
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/state/StateBatchBase.hpp"
 #include "core/State.hpp"
 
 namespace
@@ -137,6 +138,30 @@ namespace
     assert(g_stateArenaDestroyLog.count == 2);
   }
 
+  template <typename T> static void testStateArenaReserveCoversBatchEstimate(const T &sample)
+  {
+    (void)sample;
+    typedef loka::core::MutableState<T> MutableStateType;
+
+    const size_t count = 8;
+    loka::app::scene::StateArena arena;
+    arena.reserve(loka::app::scene::StateBatchBase::ArenaBytesForState<T>() * count);
+
+    for (size_t i = 0; i < count; ++i)
+    {
+      void *mem = arena.allocate(sizeof(MutableStateType),
+                                 loka::app::scene::AlignOf<MutableStateType>::value);
+      assert(mem != 0);
+    }
+  }
+
+  static void testStateArenaReserveMatchesBatchEstimate()
+  {
+    testStateArenaReserveCoversBatchEstimate(char(0));
+    testStateArenaReserveCoversBatchEstimate(double(0));
+    testStateArenaReserveCoversBatchEstimate(loka::core::String::Literal("arena"));
+  }
+
 } // namespace
 
 void testBoundaryArenaContracts()
@@ -145,5 +170,6 @@ void testBoundaryArenaContracts()
   testNodeArenaAlignmentAndCapacity();
   testStateArenaAllocation();
   testStateArenaReleaseAndClear();
+  testStateArenaReserveMatchesBatchEstimate();
   printf("==== [testBoundaryArenaContracts] ok ====\n");
 }
