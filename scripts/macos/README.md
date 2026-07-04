@@ -20,7 +20,7 @@ Legend: `:white_check_mark:` verified, `-` unchecked / not part of that route,
 | El Capitan 10.11 through Sierra 10.12 / Xcode 9.2 | :white_check_mark: | :white_check_mark: | - | - | - | Leopard-facing Xcode project generation has been verified on Sierra with Xcode 9.2; generated projects have been copied back to Snow Leopard and build-verified there. |
 | High Sierra 10.13 | :white_check_mark: | :white_check_mark: | - | - | - | Depends on the selected Xcode version; Xcode 9.4.1-era setups are expected to work, while Xcode 10.1 fails legacy UB1 generation. |
 | Big Sur 11 through Monterey 12 | :white_check_mark: | :white_check_mark: | - | - | - | Default project generation can produce modern projects and Xcode 3.2-compatible bridge projects. |
-| Monterey 12 / Xcode 14.2 / Snow Leopard Xcode 3.2.6 | :white_check_mark: | - | :white_check_mark: | - | - | After removing unsupported flags such as `-fno-objc-arc`, Monterey-generated bridge output has been four-architecture `lipo`-verified and runtime-verified on iBook. |
+| Monterey 12 / Xcode 14.2 / Snow Leopard Xcode 3.2.6 | :white_check_mark: | - | :white_check_mark: | - | - | After removing unsupported flags such as `-fno-objc-arc`, Monterey-generated bridge output has been four-architecture `lipo`-verified and runtime-verified on an iBook. |
 | Ventura 13 / Xcode 15.2 and newer | :x: | :white_check_mark: | - | - | - | Modern native debugging works, but Xcode 15.2 only offered Xcode 12.0+ project formats in testing. |
 
 ## OS Workflow Notes
