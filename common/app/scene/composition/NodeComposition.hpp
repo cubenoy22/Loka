@@ -162,12 +162,13 @@ namespace loka
         };
 
         // StateBatch is a declaration transaction: it collects State declarations
-        // and commits them as one owner-side batch when the enclosing full
-        // expression ends, the same scope-guard idiom as CompositionScope and the
-        // tracker transaction guards. Scope end is the commit point because a
-        // fluent chain has no other hook C++98 can enforce; an explicit terminal
-        // call could be forgotten silently. Storage mechanics live in PageList
-        // below.
+        // and commits them as one owner-side batch when the batch leaves scope --
+        // the end of the declaring statement for the usual temporary chain, the
+        // end of the block for a named batch filled in a loop. This is the same
+        // scope-guard idiom as CompositionScope and the tracker transaction
+        // guards; the destructor is the commit hook because it is the only
+        // end-of-use signal C++98 can enforce, and an explicit terminal call
+        // could be forgotten silently. Storage mechanics live in PageList below.
         class StateBatch : private StateBatchBase
         {
         public:
@@ -190,7 +191,7 @@ namespace loka
               : owner_(other.owner_)
           {
             assert(other.pages_.stateCount() == 0 &&
-                   "StateBatch must be used as a single-expression temporary");
+                   "copying a StateBatch with pending declarations is not supported");
           }
 
           ~StateBatch()
