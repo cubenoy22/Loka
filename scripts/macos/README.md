@@ -19,9 +19,8 @@ Legend: `:white_check_mark:` verified, `△` verified with caveats (see Notes),
 | Yosemite 10.10 | :white_check_mark: | :white_check_mark: | :x: | :x: | - | Project generation and native debugging work, but Xcode 3.2.6 cannot launch there. |
 | El Capitan 10.11 through Sierra 10.12 / Xcode 9.2 | :white_check_mark: | :white_check_mark: | - | - | - | Leopard-facing Xcode project generation has been verified on Sierra with Xcode 9.2; generated projects have been copied back to Snow Leopard and build-verified there. |
 | High Sierra 10.13 | △ | :white_check_mark: | - | - | - | Depends on the selected Xcode version; Xcode 9.4.1-era setups are expected to work, while Xcode 10.1 fails legacy UB1 generation. |
-| Big Sur 11 through Monterey 12 | :white_check_mark: | :white_check_mark: | - | - | - | Default project generation can produce modern projects and Xcode 3.2-compatible bridge projects. |
 | Catalina 10.15 / Big Sur 11 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: plain `gen-xcodeproj.sh` projects open in Xcode 3.2.6 and build with the usual manual steps after removing `-fno-objc-arc` per target. |
-| Monterey 12 / Xcode 14.2 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: after removing unsupported flags such as `-fno-objc-arc`, Monterey-generated bridge output has been four-architecture `lipo`-verified and runtime-verified on an iBook. Xcode 3.x cannot launch on Monterey; the UB1 build happens on Snow Leopard. |
+| Monterey 12 / Xcode 14.2 | △ | :white_check_mark: | - | - | - | Bridge to a separate Snow Leopard machine: after removing unsupported flags such as `-fno-objc-arc`, Monterey-generated bridge output has been four-architecture `lipo`-verified and runtime-verified on an iBook. Xcode 3.x cannot launch on Monterey; the UB1 build happens on Snow Leopard. |
 | Ventura 13 / Xcode 15.2 and newer | :x: | :white_check_mark: | - | - | - | Modern native debugging works, but Xcode 15.2 only offered Xcode 12.0+ project formats in testing. |
 
 ## OS Workflow Notes
@@ -160,7 +159,7 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
 - `scripts/macos/build-ub2.sh`
   - Universal Binary 2 path for modern macOS.
   - Defaults: `DEPLOYMENT_TARGET=11.0`, `ARCHS=arm64;x86_64`, `MAC_OS_10_4=0`
-  - By default builds app targets only (`LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`, `LokaTutorialMacOS`).
+  - By default builds app targets only (`LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaTutorialMacOS`).
   - Treat this as a direct CLI build path for the UB2 generation, not as a fallback for legacy UB1 project generation.
 
 - `scripts/macos/build.sh`
