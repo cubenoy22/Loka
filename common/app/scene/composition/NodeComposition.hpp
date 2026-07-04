@@ -162,11 +162,9 @@ namespace loka
         };
 
         // StateBatch collects State declarations and creates them as one owner-side
-        // batch in the destructor. Declarations accumulate in pages of kMaxStates:
-        // the first page lives inline, overflow pages are heap-allocated and chained.
-        // The destructor sums sizes across all pages before a single one-shot
-        // StateArena reserve, so every declaration keeps arena locality and creation
-        // stays deferred to scope end regardless of count.
+        // batch in the destructor: reserve once for every declaration, then create
+        // in declaration order, so arena locality and deferred creation hold
+        // regardless of count. Storage mechanics live in PageList below.
         class StateBatch : private StateBatchBase
         {
         public:
@@ -176,40 +174,25 @@ namespace loka
           };
 
           StateBatch(IStateOwner *owner)
-              : owner_(owner),
-                tail_(&firstPage_)
+              : owner_(owner)
           {
           }
 
           ~StateBatch()
           {
-            size_t totalBytes = 0;
-            size_t totalCount = 0;
-            for (Page *p = &firstPage_; p; p = p->next)
-            {
-              totalBytes += p->totalBytes;
-              totalCount += p->count;
-            }
             // Reserve requires a live owner; create handles a null owner via the
             // same degenerate path CreateStateFromInitial always had.
-            if (totalCount != 0 && owner_)
+            if (pages_.stateCount() != 0 && owner_)
             {
-              owner_->reserveStateArena(totalBytes);
-              owner_->reserveStates(totalCount);
+              owner_->reserveStateArena(pages_.arenaBytes());
+              owner_->reserveStates(pages_.stateCount());
             }
-            Page *p = &firstPage_;
-            while (p)
+            for (Page *p = pages_.first(); p; p = p->next)
             {
               for (size_t i = 0; i < p->count; ++i)
               {
                 p->entries[i].create(owner_, p->entries[i].out, p->entries[i].storage.bytes);
               }
-              Page *next = p->next;
-              if (p != &firstPage_)
-              {
-                delete p;
-              }
-              p = next;
             }
           }
 
@@ -217,19 +200,12 @@ namespace loka
           {
             typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
             (void)sizeof(LokaStateBatchInitializerTooLarge);
-            if (tail_->count >= kMaxStates)
-            {
-              Page *page = new Page();
-              tail_->next = page;
-              tail_ = page;
-            }
-            Entry &e = tail_->entries[tail_->count++];
+            // Spare align bytes so the one-shot reserve covers worst-case padding.
+            Entry &e = pages_.append(sizeof(loka::core::MutableState<T>) +
+                                     AlignOf<loka::core::MutableState<T> >::value);
             e.out = &out;
-            e.size = sizeof(loka::core::MutableState<T>);
-            e.align = AlignOf<loka::core::MutableState<T> >::value;
             e.create = &CreateState<T>;
             CopyInitial<T>(e.storage.bytes, initial);
-            tail_->totalBytes += e.size + e.align; // spare bytes for alignment
             return *this;
           }
 
@@ -239,8 +215,6 @@ namespace loka
           struct Entry
           {
             void *out;
-            size_t size;
-            size_t align;
             CreateFn create;
             Storage storage; // inline storage for the initial value
           };
@@ -249,15 +223,71 @@ namespace loka
           {
             Page()
                 : count(0),
-                  totalBytes(0),
                   next(0)
             {
             }
 
             Entry entries[kMaxStates];
             size_t count;
-            size_t totalBytes;
             Page *next;
+          };
+
+          // Owns the page chain and the reserve totals. The first page lives
+          // inline, so batches of up to kMaxStates declarations never touch the
+          // heap; overflow chains one heap page per kMaxStates and is freed on
+          // destruction whether or not creation ran.
+          class PageList
+          {
+          public:
+            PageList()
+                : tail_(&first_),
+                  stateCount_(0),
+                  arenaBytes_(0)
+            {
+            }
+
+            ~PageList()
+            {
+              Page *p = first_.next;
+              while (p)
+              {
+                Page *next = p->next;
+                delete p;
+                p = next;
+              }
+            }
+
+            Entry &append(size_t reserveBytes)
+            {
+              if (tail_->count >= kMaxStates)
+              {
+                Page *page = new Page();
+                tail_->next = page;
+                tail_ = page;
+              }
+              ++stateCount_;
+              arenaBytes_ += reserveBytes;
+              return tail_->entries[tail_->count++];
+            }
+
+            Page *first()
+            {
+              return &first_;
+            }
+            size_t stateCount() const
+            {
+              return stateCount_;
+            }
+            size_t arenaBytes() const
+            {
+              return arenaBytes_;
+            }
+
+          private:
+            Page first_;
+            Page *tail_;
+            size_t stateCount_;
+            size_t arenaBytes_;
           };
 
           template <typename T> static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
@@ -269,8 +299,7 @@ namespace loka
           }
 
           IStateOwner *owner_;
-          Page firstPage_;
-          Page *tail_;
+          PageList pages_;
         };
 
       private:
