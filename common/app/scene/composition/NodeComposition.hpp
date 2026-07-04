@@ -203,6 +203,12 @@ namespace loka
           {
             typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
             (void)sizeof(LokaStateBatchInitializerTooLarge);
+            // First declaration wins, matching NodeStateBatch's duplicate guard.
+            if (pages_.contains(&out))
+            {
+              assert(false && "StateBatch::state declared the same NodeState twice");
+              return *this;
+            }
             Entry &e = pages_.append(ArenaBytesForState<T>());
             e.out = &out;
             e.create = &CreateState<T>;
@@ -274,6 +280,20 @@ namespace loka
             Page *first()
             {
               return &first_;
+            }
+            bool contains(const void *outPtr) const
+            {
+              for (const Page *p = &first_; p; p = p->next)
+              {
+                for (size_t i = 0; i < p->count; ++i)
+                {
+                  if (p->entries[i].out == outPtr)
+                  {
+                    return true;
+                  }
+                }
+              }
+              return false;
             }
             size_t stateCount() const
             {
