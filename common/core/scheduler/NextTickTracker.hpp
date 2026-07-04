@@ -71,11 +71,13 @@ namespace loka
           }
           ++iterations;
         }
-        inProgress_ = false;
         if (changed)
         {
+          // inProgress_ stays true across apply(): a request() made during
+          // apply must defer to the next run instead of re-entering refresh.
           apply(userData);
         }
+        inProgress_ = false;
         return changed;
       }
 

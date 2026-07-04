@@ -86,6 +86,7 @@ set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/DerivedStateTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/DefinitionCloneTests.cpp
+  ${PROJECT_SOURCE_DIR}/tests/PhaseGuardTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/ValueTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp

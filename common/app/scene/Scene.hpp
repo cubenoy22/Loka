@@ -333,6 +333,7 @@ namespace loka
             {
               notifyComposeEvent(COMPOSE_EVENT_DETACH);
               teardownComposition();
+              clearMountedUpdateState();
             }
           }
         }
