@@ -44,6 +44,29 @@ working at that layer.
 When an API name can reasonably be read in more than one way, tighten the name
 or split the concept. Framework code should not depend on vibes.
 
+## Structure Over Vigilance
+
+Correctness should be carried by structure, not by contributor care. When a
+comment must warn that several loose fields only stay consistent if every code
+path remembers to update or reset them together, that is not documentation; it
+is a fragile invariant waiting for a refactor to break it. Group those fields
+into a small type whose operations maintain the invariant, give resources a
+dedicated owner that releases them by construction/destruction pairing, and let
+the surrounding code shrink to policy that can be read as a short sequence of
+decisions.
+
+The test for such an internal boundary is what it deletes. A good extraction
+removes duplicated bookkeeping, per-item copies of aggregate data, defensive
+comments, and cleanup interleaved with unrelated work. The remaining types hold
+only data that is meaningful at their own level. A wrapper that merely adds a
+name and a level of indirection has not found a real boundary and should not be
+kept.
+
+This applies inside the framework as much as at app-facing surfaces. Retro
+targets make hidden fragility expensive to debug, so the same pressure that
+keeps application code explicit should keep internal mechanics encapsulated,
+owned, and inspectable.
+
 ## Joyful, Unambiguous Authoring
 
 Loka should be beautiful to design and pleasant to use. A person writing Loka
