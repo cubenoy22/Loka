@@ -62,6 +62,16 @@ only data that is meaningful at their own level. A wrapper that merely adds a
 name and a level of indirection has not found a real boundary and should not be
 kept.
 
+The same discipline applies to mirrored logic. Reserve and allocate, create
+and destroy, attach and detach, estimate and consume: when two code sites must
+agree for the system to stay correct, that agreement is an invariant even
+though no shared field connects them. Writing the second side by hand, from
+memory, in a different file is how such pairs drift. Give the shared fact one
+named home that both sides use, or keep the pair adjacent with an explicit
+cross-reference. Parallel implementations across platform seams may stay
+separate deliberately, but each unmarked twin is a porting hazard; divergence
+should be a choice, not an accident.
+
 This applies inside the framework as much as at app-facing surfaces. Retro
 targets make hidden fragility expensive to debug, so the same pressure that
 keeps application code explicit should keep internal mechanics encapsulated,

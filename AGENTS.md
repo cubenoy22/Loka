@@ -48,6 +48,7 @@ clear boundaries, and small reusable concepts.
 - When a defensive comment is needed to explain how loose fields or a manual reset keep each other consistent, treat that as a refactoring signal: group the fields into a small type whose operations maintain the invariant structurally (see PHILOSOPHY "Structure Over Vigilance").
 - Separate policy from mechanism inside framework internals: extract storage/chaining/cleanup mechanics into a small owning helper so the outer type reads as the intended sequence of decisions, and so resource release is guaranteed by the helper's destructor rather than by another loop running to completion.
 - Judge internal extractions by what they delete. A good mechanism boundary removes redundant bookkeeping fields, per-item copies of aggregate data, and defensive comments; if wrapping only adds indirection and a name, the boundary is wrong or unnecessary.
+- Treat writing a similar formula, loop, or sequence a second time as a stop-and-check signal. If two sites must agree to stay correct (reserve vs allocate, create vs destroy, attach vs detach, per-platform twins), give the shared fact one named home or keep the pair adjacent with an explicit cross-reference; deliberate platform-seam duplication should be marked so divergence is a choice, not an accident (see PHILOSOPHY "Structure Over Vigilance").
 
 ## DSL And Composition
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
