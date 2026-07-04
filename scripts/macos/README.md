@@ -149,7 +149,7 @@ hosts: Xcode 10/11 are useful for modern Intel-oriented projects, while UB2
 - `scripts/macos/build-ub2.sh`
   - Universal Binary 2 path for modern macOS.
   - Defaults: `DEPLOYMENT_TARGET=11.0`, `ARCHS=arm64;x86_64`, `MAC_OS_10_4=0`
-  - By default builds app targets only (`LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaTutorialMacOS`).
+  - By default builds app targets only (`LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`, `LokaTutorialMacOS`).
   - Treat this as a direct CLI build path for the UB2 generation, not as a fallback for legacy UB1 project generation.
 
 - `scripts/macos/build.sh`
