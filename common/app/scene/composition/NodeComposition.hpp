@@ -184,19 +184,25 @@ namespace loka
 
           // Copying is defined only for an empty batch: declareStates() returns
           // by value, which formally requires an accessible copy constructor even
-          // though compilers elide the copy. Copying declared entries would
-          // double-create states and double-free overflow pages, so a loaded
-          // source asserts and the copy always starts empty.
+          // though compilers elide the copy. A loaded source still asserts in
+          // debug because it is an unintended path. Release builds flush the
+          // source batch at the copy point and restart the copy empty: no
+          // declarations are lost, but the transaction splits at the copy site.
           StateBatch(const StateBatch &other)
               : owner_(other.owner_)
           {
             assert(other.pages_.stateCount() == 0 &&
                    "copying a StateBatch with pending declarations is not supported");
+            // Return-by-value formally requires an accessible copy ctor in C++98.
+            // If a loaded batch is copied anyway, flush the source once here and
+            // restart the copy empty rather than widening mutability for every
+            // const call site.
+            const_cast<StateBatch &>(other).flushPendingDeclarations();
           }
 
           ~StateBatch()
           {
-            this->commitDeclarations();
+            this->flushPendingDeclarations();
           }
 
           template <typename T> StateBatch &state(NodeState<T> &out, const T &initial)
@@ -255,13 +261,7 @@ namespace loka
 
             ~PageList()
             {
-              Page *p = first_.next;
-              while (p)
-              {
-                Page *next = p->next;
-                delete p;
-                p = next;
-              }
+              this->reset();
             }
 
             Entry &append(size_t reserveBytes)
@@ -303,6 +303,21 @@ namespace loka
             {
               return arenaBytes_;
             }
+            void reset()
+            {
+              Page *p = first_.next;
+              while (p)
+              {
+                Page *next = p->next;
+                delete p;
+                p = next;
+              }
+              first_.count = 0;
+              first_.next = 0;
+              tail_ = &first_;
+              stateCount_ = 0;
+              arenaBytes_ = 0;
+            }
 
           private:
             // Not defined: the chain owns heap pages, so memberwise copy would
@@ -329,7 +344,7 @@ namespace loka
           // locality and deferred creation hold regardless of count. Reserve
           // requires a live owner; create handles a null owner via the same
           // degenerate path CreateStateFromInitial always had.
-          void commitDeclarations()
+          void flushPendingDeclarations()
           {
             if (pages_.stateCount() != 0 && owner_)
             {
@@ -343,6 +358,7 @@ namespace loka
                 p->entries[i].create(owner_, p->entries[i].out, p->entries[i].storage.bytes);
               }
             }
+            pages_.reset();
           }
 
           IStateOwner *owner_;
