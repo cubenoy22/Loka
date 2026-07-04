@@ -36,10 +36,14 @@ newer cannot select.
 Generating bridge projects has two paths. The legacy UB1 generator scripts need
 an Xcode 9-series or earlier host; Sierra with Xcode 9.2 is verified and Xcode
 9.4.1-era High Sierra setups are expected to work. On Xcode 10 and newer hosts,
-use the plain `gen-xcodeproj.sh` path instead. That plain path has been verified
-for bridge projects on Catalina 10.15, Big Sur 11, and Monterey 12, with
-`-fno-objc-arc` removed per target when opening the generated project in Xcode
-3.2.6.
+the legacy generators also work when run with `DEPLOYMENT_TARGET=10.9`, because
+deployment targets of 10.9 and newer switch the default C++ standard library
+from the removed `libstdc++` to `libc++`; the generated project then needs no
+`-fno-objc-arc` cleanup, and the final Base SDK, deployment target, and
+architectures are set in Xcode 3.2.6 as usual. The plain `gen-xcodeproj.sh`
+path has been verified for bridge projects on Catalina 10.15, Big Sur 11, and
+Monterey 12, with `-fno-objc-arc` removed per target when opening the generated
+project in Xcode 3.2.6.
 
 Snow Leopard is the main Xcode 3.2.6 bridge. Projects generated on tested newer
 systems (10.8-10.12, plus 10.13 with a 9.4.1-era Xcode, and newer generator
@@ -112,9 +116,10 @@ setup is expected to behave like earlier verified hosts. High Sierra with Xcode
 10.1 and the MacOSX10.14.sdk has been checked and fails the Leopard and Lion UB1
 generation paths during CMake's initial C++ compiler check because the toolchain
 still selects `libstdc++` for the old deployment target, but the library is no
-longer available. Treat Xcode 10 and newer primarily as modern macOS generator
-hosts: Xcode 10/11 are useful for modern Intel-oriented projects, while UB2
-(`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
+longer available. Running the legacy generators with `DEPLOYMENT_TARGET=10.9`
+avoids this failure. Treat Xcode 10 and newer primarily as modern macOS
+generator hosts: Xcode 10/11 are useful for modern Intel-oriented projects,
+while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
 
 ## Which Script To Run
 
@@ -180,7 +185,7 @@ hosts: Xcode 10/11 are useful for modern Intel-oriented projects, while UB2
   - Experimental Leopard/Snow Leopard Universal Binary 1 Xcode project generation path.
   - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=xcode-standard-32-64`.
   - Generates under `build/macos-xcodeproj-leopard-ub1/<build-type>-<arch-mode>`.
-  - Requires a CMake/Xcode generator environment with Xcode 5.0 through the Xcode 9 series; Xcode 10 and newer fail this legacy generation path (see OS Workflow Notes). Use plain `gen-xcodeproj.sh` there and remove `-fno-objc-arc` per target in Xcode 3.2.6.
+  - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer. With the default `DEPLOYMENT_TARGET=10.5`, Xcode 10 and newer fail during CMake's initial compiler check because deployment targets below 10.9 select the removed `libstdc++`; on those hosts run this script with `DEPLOYMENT_TARGET=10.9` (clang then defaults to `libc++`) — generation succeeds and no `-fno-objc-arc` cleanup is needed, since this path already suppresses those flags. Set the final Base SDK, deployment target, and architectures in Xcode 3.2.6 as usual.
   - Make sure Xcode > Settings > Locations > Command Line Tools points at that full Xcode.app before running the script.
   - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project for Snow Leopard/Xcode 3.2.6 testing.
   - Use an explicit CMake architecture list only when needed, for example `ARCHS="i386;x86_64;ppc;ppc64"` on generator environments that still accept PPC architecture names.
@@ -199,7 +204,7 @@ hosts: Xcode 10/11 are useful for modern Intel-oriented projects, while UB2
   - Experimental Lion-era Universal Binary 1 Xcode project generation path.
   - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.7`, `ARCHS=xcode-standard-32-64`.
   - Generates under `build/macos-xcodeproj-lion-ub1/<build-type>-<arch-mode>`.
-  - Requires a CMake/Xcode generator environment with Xcode 5.0 through the Xcode 9 series; Xcode 10 and newer fail this legacy generation path (see OS Workflow Notes). Use plain `gen-xcodeproj.sh` there and remove `-fno-objc-arc` per target in Xcode 3.2.6.
+  - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer. With the default `DEPLOYMENT_TARGET=10.7`, Xcode 10 and newer fail during CMake's initial compiler check because deployment targets below 10.9 select the removed `libstdc++`; on those hosts this script is expected to behave the same when run with `DEPLOYMENT_TARGET=10.9` (clang then defaults to `libc++`), though that path has not been separately verified. Set the final Base SDK, deployment target, and architectures in Xcode 3.2.6 as usual.
   - Make sure Xcode > Settings > Locations > Command Line Tools points at that full Xcode.app before running the script.
   - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project.
   - Keeps Loka's explicit `-fno-objc-arc` example-target flags enabled, unlike the Leopard/Xcode 3.2 compatibility path.
