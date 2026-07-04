@@ -20,6 +20,7 @@ Legend: `:white_check_mark:` verified, `△` verified with caveats (see Notes),
 | El Capitan 10.11 through Sierra 10.12 / Xcode 9.2 | :white_check_mark: | :white_check_mark: | - | - | - | Leopard-facing Xcode project generation has been verified on Sierra with Xcode 9.2; generated projects have been copied back to Snow Leopard and build-verified there. |
 | High Sierra 10.13 | △ | :white_check_mark: | - | - | - | Depends on the selected Xcode version; Xcode 9.4.1-era setups are expected to work, while Xcode 10.1 fails legacy UB1 generation. |
 | Big Sur 11 through Monterey 12 | :white_check_mark: | :white_check_mark: | - | - | - | Default project generation can produce modern projects and Xcode 3.2-compatible bridge projects. |
+| Catalina 10.15 / Big Sur 11 / Snow Leopard Xcode 3.2.6 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: plain `gen-xcodeproj.sh` projects open in Xcode 3.2.6 and build with the usual manual steps after removing `-fno-objc-arc` per target. |
 | Monterey 12 / Xcode 14.2 / Snow Leopard Xcode 3.2.6 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: after removing unsupported flags such as `-fno-objc-arc`, Monterey-generated bridge output has been four-architecture `lipo`-verified and runtime-verified on an iBook. Xcode 3.x cannot launch on Monterey; the UB1 build happens on Snow Leopard. |
 | Ventura 13 / Xcode 15.2 and newer | :x: | :white_check_mark: | - | - | - | Modern native debugging works, but Xcode 15.2 only offered Xcode 12.0+ project formats in testing. |
 
@@ -36,8 +37,9 @@ Generating bridge projects has two paths. The legacy UB1 generator scripts need
 an Xcode 9-series or earlier host; Sierra with Xcode 9.2 is verified and Xcode
 9.4.1-era High Sierra setups are expected to work. On Xcode 10 and newer hosts,
 use the plain `gen-xcodeproj.sh` path instead. That plain path has been verified
-through Monterey for bridge projects, with `-fno-objc-arc` removed per target
-when opening the generated project in Xcode 3.2.6.
+for bridge projects on Catalina 10.15, Big Sur 11, and Monterey 12, with
+`-fno-objc-arc` removed per target when opening the generated project in Xcode
+3.2.6.
 
 Snow Leopard is the main Xcode 3.2.6 bridge. Projects generated on tested newer
 systems (10.8-10.12, plus 10.13 with a 9.4.1-era Xcode, and newer generator
@@ -147,7 +149,7 @@ hosts: Xcode 10/11 are useful for modern Intel-oriented projects, while UB2
 - `scripts/macos/build-ub2.sh`
   - Universal Binary 2 path for modern macOS.
   - Defaults: `DEPLOYMENT_TARGET=11.0`, `ARCHS=arm64;x86_64`, `MAC_OS_10_4=0`
-  - By default builds app targets only (`LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`, `LokaTutorialMacOS`).
+  - By default builds app targets only (`LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaTutorialMacOS`).
   - Treat this as a direct CLI build path for the UB2 generation, not as a fallback for legacy UB1 project generation.
 
 - `scripts/macos/build.sh`
