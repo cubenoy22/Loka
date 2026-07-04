@@ -63,6 +63,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   set(LOKA_FLOW_TEST_SOURCES
     ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/DerivedStateTests.cpp
+    ${PROJECT_SOURCE_DIR}/tests/DefinitionCloneTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/ValueTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp

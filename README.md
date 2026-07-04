@@ -106,9 +106,18 @@ Platform-specific builds also need the matching native toolchain:
 For a quick headless test build on Linux/WSL:
 
 ```sh
-cmake -S . -B build/Testing -DTEST_BUILD=ON
-cmake --build build/Testing
+cmake --preset testing        # or: cmake -S . -B build/Testing -DTEST_BUILD=ON
+cmake --build --preset testing
 ctest --test-dir build/Testing
+```
+
+Most lifecycle bugs only fail hard under AddressSanitizer, so run the same
+suite through the ASan preset before landing scene/state/flow changes:
+
+```sh
+cmake --preset testing-asan
+cmake --build --preset testing-asan
+ctest --test-dir build/Testing-ASan --output-on-failure
 ```
 
 Development, build, and target environment notes are documented in [docs/environments.md](docs/environments.md).

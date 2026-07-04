@@ -100,6 +100,26 @@
         "RETRO68_CPU": "ppc",
         "RETRO68_PPC_FLAVOR": "retroppc"
       }
+    },
+    {
+      "name": "testing",
+      "displayName": "Linux Headless Tests",
+      "binaryDir": "build/Testing",
+      "cacheVariables": {
+        "TEST_BUILD": "ON",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "testing-asan",
+      "displayName": "Linux Headless Tests (AddressSanitizer)",
+      "binaryDir": "build/Testing-ASan",
+      "cacheVariables": {
+        "TEST_BUILD": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address"
+      }
     }
   ],
   "buildPresets": [
@@ -144,6 +164,14 @@
     {
       "name": "retro68-ppc-release",
       "configurePreset": "retro68-ppc-release"
+    },
+    {
+      "name": "testing",
+      "configurePreset": "testing"
+    },
+    {
+      "name": "testing-asan",
+      "configurePreset": "testing-asan"
     }
   ]
 }
