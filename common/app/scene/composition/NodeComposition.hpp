@@ -161,10 +161,13 @@ namespace loka
           ParentScope scope_;
         };
 
-        // StateBatch collects State declarations and creates them as one owner-side
-        // batch in the destructor: reserve once for every declaration, then create
-        // in declaration order, so arena locality and deferred creation hold
-        // regardless of count. Storage mechanics live in PageList below.
+        // StateBatch is a declaration transaction: it collects State declarations
+        // and commits them as one owner-side batch when the enclosing full
+        // expression ends, the same scope-guard idiom as CompositionScope and the
+        // tracker transaction guards. Scope end is the commit point because a
+        // fluent chain has no other hook C++98 can enforce; an explicit terminal
+        // call could be forgotten silently. Storage mechanics live in PageList
+        // below.
         class StateBatch : private StateBatchBase
         {
         public:
@@ -178,22 +181,21 @@ namespace loka
           {
           }
 
+          // Copying is defined only for an empty batch: declareStates() returns
+          // by value, which formally requires an accessible copy constructor even
+          // though compilers elide the copy. Copying declared entries would
+          // double-create states and double-free overflow pages, so a loaded
+          // source asserts and the copy always starts empty.
+          StateBatch(const StateBatch &other)
+              : owner_(other.owner_)
+          {
+            assert(other.pages_.stateCount() == 0 &&
+                   "StateBatch must be used as a single-expression temporary");
+          }
+
           ~StateBatch()
           {
-            // Reserve requires a live owner; create handles a null owner via the
-            // same degenerate path CreateStateFromInitial always had.
-            if (pages_.stateCount() != 0 && owner_)
-            {
-              owner_->reserveStateArena(pages_.arenaBytes());
-              owner_->reserveStates(pages_.stateCount());
-            }
-            for (Page *p = pages_.first(); p; p = p->next)
-            {
-              for (size_t i = 0; i < p->count; ++i)
-              {
-                p->entries[i].create(owner_, p->entries[i].out, p->entries[i].storage.bytes);
-              }
-            }
+            this->commitDeclarations();
           }
 
           template <typename T> StateBatch &state(NodeState<T> &out, const T &initial)
@@ -284,6 +286,11 @@ namespace loka
             }
 
           private:
+            // Not defined: the chain owns heap pages, so memberwise copy would
+            // double-free. StateBatch's empty-only copy never copies its list.
+            PageList(const PageList &);
+            PageList &operator=(const PageList &);
+
             Page first_;
             Page *tail_;
             size_t stateCount_;
@@ -296,6 +303,27 @@ namespace loka
             T *initial = reinterpret_cast<T *>(initialPtr);
             CreateStateFromInitial<T>(owner, *out, *initial);
             DestroyInitialObject<T>(initial);
+          }
+
+          // The commit half of the transaction: reserve owner storage once for
+          // every declaration, then create in declaration order, so arena
+          // locality and deferred creation hold regardless of count. Reserve
+          // requires a live owner; create handles a null owner via the same
+          // degenerate path CreateStateFromInitial always had.
+          void commitDeclarations()
+          {
+            if (pages_.stateCount() != 0 && owner_)
+            {
+              owner_->reserveStateArena(pages_.arenaBytes());
+              owner_->reserveStates(pages_.stateCount());
+            }
+            for (Page *p = pages_.first(); p; p = p->next)
+            {
+              for (size_t i = 0; i < p->count; ++i)
+              {
+                p->entries[i].create(owner_, p->entries[i].out, p->entries[i].storage.bytes);
+              }
+            }
           }
 
           IStateOwner *owner_;
