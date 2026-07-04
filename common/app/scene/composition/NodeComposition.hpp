@@ -202,9 +202,7 @@ namespace loka
           {
             typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
             (void)sizeof(LokaStateBatchInitializerTooLarge);
-            // Spare align bytes so the one-shot reserve covers worst-case padding.
-            Entry &e = pages_.append(sizeof(loka::core::MutableState<T>) +
-                                     AlignOf<loka::core::MutableState<T> >::value);
+            Entry &e = pages_.append(ArenaBytesForState<T>());
             e.out = &out;
             e.create = &CreateState<T>;
             CopyInitial<T>(e.storage.bytes, initial);
