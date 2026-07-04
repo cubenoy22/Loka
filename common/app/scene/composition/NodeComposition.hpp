@@ -161,12 +161,12 @@ namespace loka
           ParentScope scope_;
         };
 
-        // StateBatch collects State declarations and creates them in owner-side pages.
-        // Declarations are created in pages of kMaxStates, preserving declaration order
-        // across pages. Boundary-owner StateArena reserve is one-shot, so pages after
-        // the first may fall back to per-state heap allocation inside
-        // CreateStateFromInitial; behavior is identical and arena locality remains
-        // best-effort for later pages.
+        // StateBatch collects State declarations and creates them as one owner-side
+        // batch in the destructor. Declarations accumulate in pages of kMaxStates:
+        // the first page lives inline, overflow pages are heap-allocated and chained.
+        // The destructor sums sizes across all pages before a single one-shot
+        // StateArena reserve, so every declaration keeps arena locality and creation
+        // stays deferred to scope end regardless of count.
         class StateBatch : private StateBatchBase
         {
         public:
@@ -177,31 +177,59 @@ namespace loka
 
           StateBatch(IStateOwner *owner)
               : owner_(owner),
-                count_(0),
-                totalBytes_(0)
+                tail_(&firstPage_)
           {
           }
 
           ~StateBatch()
           {
-            this->flush();
+            size_t totalBytes = 0;
+            size_t totalCount = 0;
+            for (Page *p = &firstPage_; p; p = p->next)
+            {
+              totalBytes += p->totalBytes;
+              totalCount += p->count;
+            }
+            // Reserve requires a live owner; create handles a null owner via the
+            // same degenerate path CreateStateFromInitial always had.
+            if (totalCount != 0 && owner_)
+            {
+              owner_->reserveStateArena(totalBytes);
+              owner_->reserveStates(totalCount);
+            }
+            Page *p = &firstPage_;
+            while (p)
+            {
+              for (size_t i = 0; i < p->count; ++i)
+              {
+                p->entries[i].create(owner_, p->entries[i].out, p->entries[i].storage.bytes);
+              }
+              Page *next = p->next;
+              if (p != &firstPage_)
+              {
+                delete p;
+              }
+              p = next;
+            }
           }
 
           template <typename T> StateBatch &state(NodeState<T> &out, const T &initial)
           {
-            if (count_ >= kMaxStates)
-            {
-              this->flush();
-            }
             typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
             (void)sizeof(LokaStateBatchInitializerTooLarge);
-            Entry &e = entries_[count_++];
+            if (tail_->count >= kMaxStates)
+            {
+              Page *page = new Page();
+              tail_->next = page;
+              tail_ = page;
+            }
+            Entry &e = tail_->entries[tail_->count++];
             e.out = &out;
             e.size = sizeof(loka::core::MutableState<T>);
             e.align = AlignOf<loka::core::MutableState<T> >::value;
             e.create = &CreateState<T>;
             CopyInitial<T>(e.storage.bytes, initial);
-            totalBytes_ += e.size + e.align; // spare bytes for alignment
+            tail_->totalBytes += e.size + e.align; // spare bytes for alignment
             return *this;
           }
 
@@ -217,6 +245,21 @@ namespace loka
             Storage storage; // inline storage for the initial value
           };
 
+          struct Page
+          {
+            Page()
+                : count(0),
+                  totalBytes(0),
+                  next(0)
+            {
+            }
+
+            Entry entries[kMaxStates];
+            size_t count;
+            size_t totalBytes;
+            Page *next;
+          };
+
           template <typename T> static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
           {
             NodeState<T> *out = static_cast<NodeState<T> *>(outPtr);
@@ -225,34 +268,9 @@ namespace loka
             DestroyInitialObject<T>(initial);
           }
 
-          // Always drains and resets the page, even with a null owner: state()
-          // indexes entries_[count_] right after a page-full flush, so an early
-          // return here would overflow the fixed array and leak the placement-new
-          // initials. Only the reserve calls require a live owner; create handles
-          // a null owner via the same degenerate path the old immediate fallback used.
-          void flush()
-          {
-            if (count_ == 0)
-            {
-              return;
-            }
-            if (owner_)
-            {
-              owner_->reserveStateArena(totalBytes_);
-              owner_->reserveStates(count_);
-            }
-            for (size_t i = 0; i < count_; ++i)
-            {
-              entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);
-            }
-            count_ = 0;
-            totalBytes_ = 0;
-          }
-
           IStateOwner *owner_;
-          Entry entries_[kMaxStates];
-          size_t count_;
-          size_t totalBytes_;
+          Page firstPage_;
+          Page *tail_;
         };
 
       private:

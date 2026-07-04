@@ -477,8 +477,9 @@ namespace SceneTests
 
   void test_Node_composition_state_batch_null_owner_overflow_is_safe()
   {
-    // Regression: a page-full flush with a null owner must still drain and
-    // reset the page, or the next declaration writes past entries_[16].
+    // Regression: overflow past one page with a null owner must still chain a
+    // fresh page and drain every page at scope end, or overflow declarations
+    // are lost and their placement-new initials leak.
     loka::app::scene::NodeState<int> states[18];
     {
       loka::app::scene::NodeComposition::StateBatch batch(0);
@@ -486,7 +487,7 @@ namespace SceneTests
       {
         batch.state(states[i], 300 + i);
       }
-      // Scope end: destructor flushes the remaining page-two declarations.
+      // Scope end: destructor drains both pages in declaration order.
     }
     for (int i = 0; i < 18; ++i)
     {
