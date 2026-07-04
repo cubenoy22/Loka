@@ -221,3 +221,6 @@ win32/DesktopApp/*.VC.VC.opendb
 .claude/settings.local.json
 
 # End of https://www.toptal.com/developers/gitignore/api/node,macos,linux
+
+# Loka website build output
+/site/dist/
