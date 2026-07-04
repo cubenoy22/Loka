@@ -40,7 +40,13 @@ the legacy generators also work when run with `DEPLOYMENT_TARGET=10.9`, because
 deployment targets of 10.9 and newer switch the default C++ standard library
 from the removed `libstdc++` to `libc++`; the generated project then needs no
 `-fno-objc-arc` cleanup, and the final Base SDK, deployment target, and
-architectures are set in Xcode 3.2.6 as usual. The plain `gen-xcodeproj.sh`
+architectures are set in Xcode 3.2.6 as usual. Treat that override as a
+fallback for when the work must happen on a modern host (verified through
+Monterey). The most comfortable setup is a virtualized Mountain Lion 10.8 or
+Mavericks 10.9 system with a working Xcode 3.2.6 install: there the legacy
+generators run with their default deployment targets and the generated project
+builds in Xcode 3.2.6 on the same system, with no flag cleanup or cross-machine
+copying. The plain `gen-xcodeproj.sh`
 path has been verified for bridge projects on Catalina 10.15, Big Sur 11, and
 Monterey 12, with `-fno-objc-arc` removed per target when opening the generated
 project in Xcode 3.2.6.
