@@ -179,7 +179,7 @@ or local construction phase.
 This is not immutability for fashion. It limits the number of places where a
 value can change, makes Flow and update routing easier to debug, and prevents a
 framework object from slowly becoming a shared mutable bag. When performance on
-PPC601-era or other supported targets makes copying too expensive, Loka may use
+68030-era or other supported targets makes copying too expensive, Loka may use
 explicit mutable storage, reusable buffers, or owner-local caches. The mutable
 section should still be narrow and named, and immutable subsections should be
 split into separate value types when that keeps the change surface smaller.
