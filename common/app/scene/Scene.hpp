@@ -398,6 +398,16 @@ namespace loka
           director_.requestBoundaryUpdate(boundary, flags, flushImmediately);
         }
 
+        // Scrubs every boundary in a logically retired subtree out of the
+        // pending update transaction, so a structural rebuild that deletes the
+        // subtree never leaves stale Node* targets behind (#44). Scene
+        // unmount/detach paths need no scrub: clearMountedUpdateState already
+        // clears the whole transaction.
+        void discardPendingUpdatesFor(Node *subtreeRoot)
+        {
+          director_.discardPendingUpdatesFor(subtreeRoot);
+        }
+
         bool flushInvalidation()
         {
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
@@ -665,6 +675,17 @@ namespace loka
             if (event == COMPOSE_EVENT_UPDATE)
             {
               this->detachExistingChildren(context);
+              // Full-rebuild fallback retires the whole child set: scrub after
+              // the DETACH compose and before the delete, like the
+              // local-rebuild paths, so pending targets (including ones
+              // re-enqueued by detach handlers) never dangle (#44).
+              {
+                loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+                for (Node *child = it.next(); child; child = it.next())
+                {
+                  this->discardScenePendingUpdatesFor(child);
+                }
+              }
               this->clearChildren();
               this->nodeArena()->clear();
             }
@@ -890,6 +911,30 @@ namespace loka
         const BoundaryUpdateRequest request = normalizeBoundaryUpdateRequest(boundary, flags, flushImmediately);
         registerBoundaryUpdate(request);
         applyBoundaryUpdateRequest(request);
+      }
+
+      inline void SceneDirector::discardPendingUpdatesFor(Node *subtreeRoot)
+      {
+        if (!subtreeRoot)
+        {
+          return;
+        }
+        // Only boundaries are ever enqueued as projection targets, so walking
+        // the subtree and removing every boundary covers all possible entries.
+        if (subtreeRoot->asBoundary())
+        {
+          updateTransaction_.removeProjectionTarget(subtreeRoot);
+        }
+        INestable *nestable = subtreeRoot->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
+        for (Node *child = it.next(); child; child = it.next())
+        {
+          discardPendingUpdatesFor(child);
+        }
       }
 
       inline SceneDirector::BoundaryUpdateRequest SceneDirector::normalizeBoundaryUpdateRequest(

@@ -132,6 +132,26 @@ namespace loka
           append(entry);
         }
 
+        // Drops a target without unlinking: the entry is tombstoned (node = 0,
+        // dirtyFlags = NODE_DIRTY_NONE) so removal is safe while a
+        // ConstIterator is live. Tombstones are reclaimed by clear() at the
+        // end of the update cycle.
+        bool removeTarget(const Node *node)
+        {
+          if (!node)
+          {
+            return false;
+          }
+          TargetEntry *entry = const_cast<TargetEntry *>(find(node));
+          if (!entry)
+          {
+            return false;
+          }
+          entry->node = 0;
+          entry->dirtyFlags = NODE_DIRTY_NONE;
+          return true;
+        }
+
         void clear()
         {
           TargetEntry *entry = head;
@@ -147,7 +167,16 @@ namespace loka
 
         bool hasPending() const
         {
-          return head != 0;
+          const TargetEntry *entry = head;
+          while (entry)
+          {
+            if (entry->node)
+            {
+              return true;
+            }
+            entry = entry->next;
+          }
+          return false;
         }
 
         NodeDirtyFlags aggregateDirtyFlags() const
@@ -197,7 +226,10 @@ namespace loka
           ConstIterator it = targetsBegin();
           while (it.isValid())
           {
-            ++count;
+            if (it.node())
+            {
+              ++count;
+            }
             it.next();
           }
           return count;
