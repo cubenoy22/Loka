@@ -336,9 +336,11 @@ namespace
     loka::core::MutableState<int> count_;
   };
 
-  // Owning test double that mirrors the BoundaryNode owner contract:
-  // adopted states belong to the owner, releaseState deletes, and anything
-  // still adopted is freed on owner teardown (keeps ASan runs leak-clean).
+  // Owning test double: adopted states belong to the owner, releaseState
+  // deletes, and anything still adopted is freed on teardown so ASan runs
+  // stay leak-clean. Unlike the real BoundaryNode owner it does not register
+  // states with a StateTracker and never deals with arena-allocated states,
+  // so do not reuse it where tracker integration matters.
   class DummyStateOwner : public loka::app::scene::IStateOwner
   {
   public:

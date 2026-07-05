@@ -106,7 +106,7 @@ Platform-specific builds also need the matching native toolchain:
 For a quick headless test build on Linux/WSL:
 
 ```sh
-cmake --preset testing        # or: cmake -S . -B build/Testing -DTEST_BUILD=ON
+cmake --preset testing        # or: cmake -S . -B build/Testing -G Ninja -DTEST_BUILD=ON
 cmake --build --preset testing
 ctest --test-dir build/Testing
 ```

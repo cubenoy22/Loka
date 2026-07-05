@@ -103,7 +103,8 @@
     },
     {
       "name": "testing",
-      "displayName": "Linux Headless Tests",
+      "displayName": "Linux Headless Tests (Ninja)",
+      "generator": "Ninja",
       "binaryDir": "build/Testing",
       "cacheVariables": {
         "TEST_BUILD": "ON",
@@ -112,7 +113,8 @@
     },
     {
       "name": "testing-asan",
-      "displayName": "Linux Headless Tests (AddressSanitizer)",
+      "displayName": "Linux Headless Tests (AddressSanitizer, Ninja)",
+      "generator": "Ninja",
       "binaryDir": "build/Testing-ASan",
       "cacheVariables": {
         "TEST_BUILD": "ON",
