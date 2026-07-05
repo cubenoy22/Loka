@@ -2,7 +2,7 @@
 #define LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <windows.h>
-#include <map>
+#include <vector>
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
@@ -325,9 +325,6 @@ private:
   loka::app::scene::Node *rootNode_;
   int clientWidth_;
   int clientHeight_;
-  std::map<HWND, Win32ButtonContext *> buttonMap_;
-  std::map<HWND, Win32EditTextContext *> editMap_;
-  std::map<HWND, Win32PopupMenuContext *> popupMap_;
   std::vector<PendingInvalidate> pendingInvalidations_;
   RedrawStats redrawStats_;
 };

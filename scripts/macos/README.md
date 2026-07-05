@@ -5,50 +5,57 @@ In normal use, call one of the wrapper scripts below instead of `build.sh` direc
 
 ## Verification Matrix
 
-Legend: `:white_check_mark:` verified, `-` unchecked / not part of that route,
-`:x:` checked and not working.
+Legend: `:white_check_mark:` verified, `△` verified with caveats (see Notes),
+`-` unchecked / not part of that route, `:x:` checked and not working.
 
 | Environment | Project generation | Native Xcode debug | Xcode 3.x UB1 build | Xcode 3.x debug | CLI build | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | Tiger 10.4 / Xcode 2.4 | - | :x: | - | :x: | - | Runtime-verified only for generated 10.4 UB1 samples; Xcode 2.4 debugging is not pursued. Tiger-hosted CLI builds are unchecked, including tigerbrew. |
 | Leopard 10.5 / Xcode 3.1 | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :x: | Requires a copied project saved with Xcode 3.1 compatibility; CMake could not be installed via MacPorts in testing. |
 | Snow Leopard 10.6 / Xcode 3.2.6 | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | Main UB1 bridge; copied projects and `build-10_4.sh` / `build-10_5.sh` are build-verified (`ppc/i386` and `ppc7400/i386/x86_64`). |
-| Lion 10.7 + final Xcode / Snow Leopard Xcode 3.2.6 | - | :white_check_mark: | :white_check_mark: | - | :x: | Final Xcode can debug native builds; cross-partition Xcode 3.2.6 can build UB1 through the UI, but CLI wrappers cannot select it with `xcode-select`. |
-| Mountain Lion 10.8 + final Xcode / Snow Leopard Xcode 3.2.6 | :white_check_mark: | :white_check_mark: | :white_check_mark: | - | :x: | Can generate projects from source, debug with the final Xcode, and run cross-partition Xcode 3.2.6 for UB1 UI builds. CLI wrappers cannot select that Xcode through `xcode-select`. |
-| Mavericks 10.9 | - | - | - | - | - | Unchecked because an official installer is not available in the test set. |
+| Lion 10.7 + final Xcode | - | :white_check_mark: | :white_check_mark: | - | :x: | Final Xcode can debug native builds; cross-partition Xcode 3.2.6 can build UB1 through the UI, but CLI wrappers cannot select it with `xcode-select`. |
+| Mountain Lion 10.8 + final Xcode | :white_check_mark: | :white_check_mark: | :white_check_mark: | - | :x: | Can generate projects from source, debug with the final Xcode, and run cross-partition Xcode 3.2.6 for UB1 UI builds. CLI wrappers cannot select that Xcode through `xcode-select`. |
+| Mavericks 10.9 / Xcode 6.2 | :white_check_mark: | - | :white_check_mark: | - | - | Legacy project generation works; Xcode 3.2.6 can launch there and build Leopard-facing four-architecture UB1 outputs from the UI. |
 | Yosemite 10.10 | :white_check_mark: | :white_check_mark: | :x: | :x: | - | Project generation and native debugging work, but Xcode 3.2.6 cannot launch there. |
-| El Capitan 10.11 through High Sierra 10.13 | :white_check_mark: | :white_check_mark: | - | - | - | Generated projects have been copied back to Snow Leopard and build-verified there. |
-| Big Sur 11 through Monterey 12 | :white_check_mark: | :white_check_mark: | - | - | - | Can generate modern projects; Monterey/Xcode 14.2 can still save Xcode 3.1-compatible projects. |
+| El Capitan 10.11 through Sierra 10.12 / Xcode 9.2 | :white_check_mark: | :white_check_mark: | - | - | - | Leopard-facing Xcode project generation has been verified on Sierra with Xcode 9.2; generated projects have been copied back to Snow Leopard and build-verified there. |
+| High Sierra 10.13 | △ | :white_check_mark: | - | - | - | Depends on the selected Xcode version; Xcode 9.4.1-era setups are expected to work, while Xcode 10.1 fails legacy UB1 generation. |
+| Mojave 10.14 / Catalina 10.15 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: the legacy UB1 generator run with `DEPLOYMENT_TARGET=10.9` produces projects that build in Xcode 3.2.6 with the usual manual steps and no `-fno-objc-arc` cleanup. |
+| Catalina 10.15 / Big Sur 11 | △ | - | - | - | - | Bridge to a separate Snow Leopard machine: plain `gen-xcodeproj.sh` projects open in Xcode 3.2.6 and build with the usual manual steps after removing `-fno-objc-arc` per target. |
+| Monterey 12 / Xcode 14.2 | △ | :white_check_mark: | - | - | - | Bridge to a separate Snow Leopard machine: after removing unsupported flags such as `-fno-objc-arc`, Monterey-generated bridge output has been four-architecture `lipo`-verified and runtime-verified on an iBook. Xcode 3.x cannot launch on Monterey; the UB1 build happens on Snow Leopard. |
 | Ventura 13 / Xcode 15.2 and newer | :x: | :white_check_mark: | - | - | - | Modern native debugging works, but Xcode 15.2 only offered Xcode 12.0+ project formats in testing. |
 
 ## OS Workflow Notes
 
-Mountain Lion through Monterey can generate Xcode projects with
-`gen-xcodeproj.sh`, so native debugging is available on the generating machine
-with that host's final supported Xcode. The default path is 64-bit-only for
-older Intel Macs, and Big Sur and later can use the UB2 path for
-`arm64;x86_64` builds. Projects generated in that range can be prepared for
-Xcode 3.2.6, and if the project is switched to Xcode 3.1 compatibility and
-saved, the same project can be copied to Leopard for Xcode-hosted debugging
-there.
+There are two separate legacy routes to keep in mind. Building UB1 outputs
+directly requires a host that can launch Xcode 3.2.6; this has been verified on
+Snow Leopard 10.6 through Mavericks 10.9 and is not available on Yosemite or
+newer. CLI wrapper builds through Xcode 3.2.6 are Snow Leopard-only: Xcode
+3.2.6 is an old `/Developer`-style install that `xcode-select` on Lion and
+newer cannot select.
 
-Lion and Mountain Lion can also run a correctly installed Xcode 3.2.6 from a
-Snow Leopard partition for Xcode-hosted UB1 work. With that setup,
-Tiger-oriented 32-bit UB1 builds using GCC 4.0 have been build-verified from
-the Xcode UI. The command-line wrappers are a secondary path there: they prefer
-tools resolved through `xcrun` / the selected developer directory before
-falling back to `PATH`, but Xcode 3.2.6 is an old `/Developer`-style install
-rather than a modern `Xcode.app/Contents/Developer` bundle and cannot be
-selected with `xcode-select` from those hosts. Direct Xcode UI verification is
-therefore the supported route for that setup.
-
-Mavericks is currently unverified because an official installer is not available
-in the test set. Yosemite has been checked and cannot launch Xcode 3.2.6, so
-the cross-partition Xcode 3.2.6 UI route is currently treated as verified only
-through Mountain Lion.
+Generating bridge projects has two paths. The legacy UB1 generator scripts need
+an Xcode 9-series or earlier host; Sierra with Xcode 9.2 is verified and Xcode
+9.4.1-era High Sierra setups are expected to work. On Xcode 10 and newer hosts,
+the legacy generators also work when run with `DEPLOYMENT_TARGET=10.9`, because
+deployment targets of 10.9 and newer switch the default C++ standard library
+from the removed `libstdc++` to `libc++`; the generated project then needs no
+`-fno-objc-arc` cleanup, and the final Base SDK, deployment target, and
+architectures are set in Xcode 3.2.6 as usual; this route has been
+build-verified from Mojave 10.14 and Catalina 10.15 generator hosts through to
+Xcode 3.2.6 builds. Treat that override as a fallback for when the work must
+happen on a modern host (generation verified through Monterey; build-verified
+from 10.14/10.15 hosts). The most comfortable setup is a virtualized Mountain
+Lion 10.8 or Mavericks 10.9 system with a working Xcode 3.2.6 install: there
+the legacy generators run with their default deployment targets and the
+generated project builds in Xcode 3.2.6 on the same system, with no flag
+cleanup or cross-machine copying. The plain `gen-xcodeproj.sh`
+path has been verified for bridge projects on Catalina 10.15, Big Sur 11, and
+Monterey 12, with `-fno-objc-arc` removed per target when opening the generated
+project in Xcode 3.2.6.
 
 Snow Leopard is the main Xcode 3.2.6 bridge. Projects generated on tested newer
-systems (10.8, 10.10-10.13, and newer generator hosts) can be copied with the
+systems (10.8-10.12, plus 10.13 with a 9.4.1-era Xcode, and newer generator
+hosts through the plain `gen-xcodeproj.sh` route) can be copied with the
 repository tree and opened directly in Xcode 3.2.6. Generated Xcode projects are
 absolute-path-sensitive: keep the same user/path layout used during generation,
 or Xcode file references may break. With a copied project, Snow Leopard does
@@ -57,14 +64,24 @@ not need CMake or Ninja installed. Direct script builds such as
 are useful for standalone command-line build verification, but they do not
 provide Xcode debugging.
 
-Xcode 3.2.6 is currently the key environment for UB1 builds. It can build
-32/64-bit Leopard-style UB1 outputs (`ppc7400`, `ppc64`, `i386`, `x86_64`) and
-Tiger-oriented 32-bit UB1 outputs. For Tiger, set the deployment target to Mac
-OS X 10.4 and use 32-bit Intel plus PPC; verified outputs use `ppc i386` slices.
-Tiger runtime compatibility does not imply Tiger/Xcode 2.4 project debugging:
-the Cocoa backend uses Objective-C `@property` / `@synthesize` in a few internal
-delegate classes, so use Snow Leopard/Xcode 3.2.6 for debugging Tiger-targeted
-builds.
+Xcode 3.2.6 can build 32/64-bit Leopard-style UB1 outputs (`ppc7400`, `ppc64`,
+`i386`, `x86_64`) and Tiger-oriented 32-bit UB1 outputs. For Tiger, set the
+deployment target to Mac OS X 10.4 and use 32-bit Intel plus PPC; verified
+outputs use `ppc i386` slices. Tiger runtime compatibility does not imply
+Tiger/Xcode 2.4 project debugging: the Cocoa backend uses Objective-C
+`@property` / `@synthesize` in a few internal delegate classes, so use Snow
+Leopard/Xcode 3.2.6 for debugging Tiger-targeted builds.
+
+Lion through Mavericks can also run a correctly installed Xcode 3.2.6 from a
+Snow Leopard partition for Xcode-hosted UB1 work. With that setup,
+Tiger-oriented 32-bit UB1 builds using GCC 4.0 have been build-verified from
+the Xcode UI on Lion/Mountain Lion; Mavericks has been verified for
+Leopard-facing UB1. The command-line wrappers are a secondary path there: they
+prefer tools resolved through `xcrun` / the selected developer directory before
+falling back to `PATH`, but Xcode 3.2.6 is an old `/Developer`-style install
+rather than a modern `Xcode.app/Contents/Developer` bundle and cannot be
+selected with `xcode-select` from those hosts. Direct Xcode UI verification is
+therefore the supported route for that setup.
 
 Leopard can open copied projects when a newer Xcode has saved them with Xcode
 3.1 compatibility. If the copied project reports the original Base SDK as
@@ -74,19 +91,43 @@ been build-verified on both Intel and G4 Leopard systems. Do not expect the
 CMake could not be installed via MacPorts in testing there, so those scripts
 should be treated as Snow Leopard CLI verification paths.
 
+Mountain Lion through Monterey can generate Xcode projects with
+`gen-xcodeproj.sh`, so native debugging is available on the generating machine
+with that host's final supported Xcode. The default path is 64-bit-only for
+older Intel Macs, and Big Sur and later can use the UB2 path for
+`arm64;x86_64` builds. Projects generated in that range can be prepared for
+Xcode 3.2.6, and if the project is switched to Xcode 3.1 compatibility and
+saved, the same project can be copied to Leopard for Xcode-hosted debugging
+there. This is a bridge-project workflow through the default `gen-xcodeproj.sh`
+path, not evidence that Monterey can directly generate a Leopard-deployment
+project with the legacy UB1 generator.
+
+On newer generator hosts, the deployment target used while generating an Xcode
+project may need to be newer than the final target built on Snow Leopard. For
+example, Monterey/Xcode 14 can run the default `gen-xcodeproj.sh` path and
+generate a usable bridge project, then Snow Leopard/Xcode 3.2.6 (or the
+copied-project Leopard/Xcode 3.1 route) can open that project and perform the
+final UB1 build after removing unsupported flags such as `-fno-objc-arc` and
+selecting the intended Base SDK, deployment target, and architectures. That
+workflow has produced four-architecture UB1 output verified with `lipo` and
+launched on an iBook.
+
 For project-format down-conversion, Xcode 14.2 on Monterey has been observed to
 offer Xcode 3.1 compatibility for a new project. Xcode 15.2 on Ventura only
 offered Xcode 12.0 and newer formats in testing, so use an older generator host
 when preparing projects for Leopard/Xcode 3.1.
 
-On newer generator hosts, the deployment target used while generating an Xcode
-project may need to be newer than the final target built on Snow Leopard. For
-example, Monterey/Xcode 14 can generate a usable project with a 10.9 deployment
-target, then Snow Leopard/Xcode 3.2.6 can open that project and perform the
-final UB1 build after selecting the intended Base SDK, deployment target, and
-architectures. The `gen-xcodeproj-leopard-ub1.sh` path is useful for this older
-Xcode bridge because it suppresses explicit `-fno-objc-arc` noise; it is not
-limited to projects that will keep the generator-time deployment target.
+High Sierra needs extra care because the selected Xcode version changes the
+legacy generator behavior. Sierra with Xcode 9.2 has been checked and can
+generate Leopard-facing Xcode projects. High Sierra with an Xcode 9.4.1-era
+setup is expected to behave like earlier verified hosts. High Sierra with Xcode
+10.1 and the MacOSX10.14.sdk has been checked and fails the Leopard and Lion UB1
+generation paths during CMake's initial C++ compiler check because the toolchain
+still selects `libstdc++` for the old deployment target, but the library is no
+longer available. Running the legacy generators with `DEPLOYMENT_TARGET=10.9`
+avoids this failure. Treat Xcode 10 and newer primarily as modern macOS
+generator hosts: Xcode 10/11 are useful for modern Intel-oriented projects,
+while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
 
 ## Which Script To Run
 
@@ -152,7 +193,7 @@ limited to projects that will keep the generator-time deployment target.
   - Experimental Leopard/Snow Leopard Universal Binary 1 Xcode project generation path.
   - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.5`, `ARCHS=xcode-standard-32-64`.
   - Generates under `build/macos-xcodeproj-leopard-ub1/<build-type>-<arch-mode>`.
-  - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer; generate on a newer Mac and copy the project to Snow Leopard for Xcode 3.2.6 testing.
+  - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer. With the default `DEPLOYMENT_TARGET=10.5`, Xcode 10 and newer fail during CMake's initial compiler check because deployment targets below 10.9 select the removed `libstdc++`; on those hosts run this script with `DEPLOYMENT_TARGET=10.9` (clang then defaults to `libc++`) — generation succeeds and no `-fno-objc-arc` cleanup is needed, since this path already suppresses those flags. Set the final Base SDK, deployment target, and architectures in Xcode 3.2.6 as usual.
   - Make sure Xcode > Settings > Locations > Command Line Tools points at that full Xcode.app before running the script.
   - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project for Snow Leopard/Xcode 3.2.6 testing.
   - Use an explicit CMake architecture list only when needed, for example `ARCHS="i386;x86_64;ppc;ppc64"` on generator environments that still accept PPC architecture names.
@@ -171,11 +212,12 @@ limited to projects that will keep the generator-time deployment target.
   - Experimental Lion-era Universal Binary 1 Xcode project generation path.
   - Defaults: `OSX_SYSROOT=macosx`, `DEPLOYMENT_TARGET=10.7`, `ARCHS=xcode-standard-32-64`.
   - Generates under `build/macos-xcodeproj-lion-ub1/<build-type>-<arch-mode>`.
-  - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer; generate on a newer Mac and copy the project to Lion-era Xcode for testing if needed.
+  - Requires a CMake/Xcode generator environment with Xcode 5.0 or newer. With the default `DEPLOYMENT_TARGET=10.7`, Xcode 10 and newer fail during CMake's initial compiler check because deployment targets below 10.9 select the removed `libstdc++`; on those hosts this script is expected to behave the same when run with `DEPLOYMENT_TARGET=10.9` (clang then defaults to `libc++`), though that path has not been separately verified. Set the final Base SDK, deployment target, and architectures in Xcode 3.2.6 as usual.
   - Make sure Xcode > Settings > Locations > Command Line Tools points at that full Xcode.app before running the script.
   - `ARCHS=xcode-standard-32-64` omits `CMAKE_OSX_ARCHITECTURES` and writes Xcode's `$(ARCHS_STANDARD_32_64_BIT)` preset into the generated project.
   - Keeps Loka's explicit `-fno-objc-arc` example-target flags enabled, unlike the Leopard/Xcode 3.2 compatibility path.
   - Sets `CLANG_ENABLE_OBJC_ARC=NO`, `ONLY_ACTIVE_ARCH=NO`, and suppresses CMake's regeneration target in the generated project.
+  - The Snow Leopard/Xcode 3.2.6 manual steps are otherwise similar to the Leopard path: select the intended Base SDK and deployment target, add/choose the needed PPC and Intel architectures in Xcode, and remove the kept `-fno-objc-arc` flags per target.
 
 ## Examples
 
@@ -218,3 +260,32 @@ ARCHS="x86_64" DEPLOYMENT_TARGET=10.8 ./scripts/macos/gen-xcodeproj.sh
 - `OSX_SYSROOT` (example: `/Developer/SDKs/MacOSX10.5.sdk`)
 - `CC`, `CXX` (for example `gcc-4.0`, `g++-4.0` when needed)
   - For `build-10_4.sh`, prefer `gcc-4.0` / `g++-4.0`; for `build-10_5.sh`, prefer `gcc-4.2` / `g++-4.2`.
+
+## Troubleshooting
+
+If Xcode.app is installed but CMake reports
+`No CMAKE_CXX_COMPILER could be found`, launch Xcode once, accept the license,
+and install the required components. Then verify the selected developer tools:
+
+```bash
+xcode-select -p
+xcodebuild -version
+xcrun -find clang++
+```
+
+If needed, select the full Xcode app and complete first-launch setup:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license
+sudo xcodebuild -runFirstLaunch
+```
+
+When keeping multiple Xcode.app versions side by side, avoid spaces in the app
+bundle name used for legacy project generation. For example,
+`/Applications/Xcode9.4.1.app/Contents/Developer` works more reliably than
+`/Applications/Xcode 9.4.1.app/Contents/Developer`; the latter can make CMake's
+Xcode generator fail to find `CMAKE_CXX_COMPILER` even when `xcode-select`,
+`xcodebuild`, and `xcrun` appear to resolve the selected Xcode correctly. This
+appears to be a generator/toolchain path-handling issue, not simply a wrapper
+script argument-splitting problem.
