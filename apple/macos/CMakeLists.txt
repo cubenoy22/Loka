@@ -84,6 +84,8 @@ target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 
 set(LOKA_MACOS_TEST_SOURCES
   ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
+  ${PROJECT_SOURCE_DIR}/tests/DerivedStateTests.cpp
+  ${PROJECT_SOURCE_DIR}/tests/DefinitionCloneTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/ValueTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
   ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
@@ -110,4 +112,7 @@ if(NOT LOKA_MAC_OS_10_4)
 
   target_link_libraries(LokaTestsMacOS PRIVATE LokaMacOSCore)
   target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
+
+  enable_testing()
+  add_test(NAME LokaTestsMacOS COMMAND LokaTestsMacOS)
 endif()

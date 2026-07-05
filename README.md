@@ -106,10 +106,32 @@ Platform-specific builds also need the matching native toolchain:
 For a quick headless test build on Linux/WSL:
 
 ```sh
-cmake -S . -B build/Testing -DTEST_BUILD=ON
-cmake --build build/Testing
-ctest --test-dir build/Testing
+cmake --preset testing        # or: cmake -S . -B build/Testing -G Ninja -DTEST_BUILD=ON
+cmake --build --preset testing
+ctest --preset testing
 ```
+
+Most lifecycle bugs only fail hard under AddressSanitizer, so run the same
+suite through the ASan preset before landing scene/state/flow changes:
+
+```sh
+cmake --preset testing-asan
+cmake --build --preset testing-asan
+ctest --preset testing-asan
+```
+
+On macOS and Windows the same suite runs as the `LokaTestsMacOS` /
+`LokaTestsWin32` targets:
+
+```sh
+# macOS                              # Windows (from a VS Developer Prompt)
+cmake --preset macos-debug           cmake --preset win32-debug
+cmake --build --preset macos-tests   cmake --build --preset win32-tests
+ctest --preset macos-tests           ctest --preset win32-tests
+```
+
+The same presets drive VS Code's CMake Tools integration: pick the matching
+configure/build/test preset and the suite appears in the Testing panel.
 
 Development, build, and target environment notes are documented in [docs/environments.md](docs/environments.md).
 

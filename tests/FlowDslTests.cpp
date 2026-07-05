@@ -336,6 +336,11 @@ namespace
     loka::core::MutableState<int> count_;
   };
 
+  // Owning test double: adopted states belong to the owner, releaseState
+  // deletes, and anything still adopted is freed on teardown so ASan runs
+  // stay leak-clean. Unlike the real BoundaryNode owner it does not register
+  // states with a StateTracker and never deals with arena-allocated states,
+  // so do not reuse it where tracker integration matters.
   class DummyStateOwner : public loka::app::scene::IStateOwner
   {
   public:
@@ -343,10 +348,52 @@ namespace
         : tracker_(0)
     {
     }
+    virtual ~DummyStateOwner()
+    {
+      for (size_t i = owned_.size(); i > 0; --i)
+      {
+        delete owned_[i - 1];
+      }
+    }
 
-    virtual void adoptState(loka::core::StateBase *) {}
-    virtual void adoptStateUnchecked(loka::core::StateBase *) {}
-    virtual void releaseState(loka::core::StateBase *) {}
+    virtual void adoptState(loka::core::StateBase *state)
+    {
+      adoptStateUnchecked(state);
+    }
+    virtual void adoptStateUnchecked(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < owned_.size(); ++i)
+      {
+        if (owned_[i] == state)
+        {
+          return;
+        }
+      }
+      owned_.push_back(state);
+    }
+    virtual void releaseState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < owned_.size();)
+      {
+        if (owned_[i] == state)
+        {
+          owned_.erase(owned_.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+      delete state;
+    }
     virtual void reserveStates(size_t) {}
     virtual void reserveStateArena(size_t) {}
     virtual void *allocateStateMemory(size_t, size_t)
@@ -361,6 +408,7 @@ namespace
 
   private:
     loka::core::StateTracker *tracker_;
+    std::vector<loka::core::StateBase *> owned_;
   };
 
   class PendingApplyProbeBoundaryNode;
@@ -2587,7 +2635,8 @@ void testLokaFlowDslV1Core()
     loka::core::MutableState<int> countState(2);
     loka::core::PushStateTracker tracker;
     DummyStateOwner owner;
-    NodeState<loka::core::String> label(new loka::core::MutableState<loka::core::String>(), &tracker, &owner);
+    loka::core::MutableState<loka::core::String> labelStorage;
+    NodeState<loka::core::String> label(&labelStorage, &tracker, &owner);
     loka::dsl::StateStream<int> countStream(&countState, &tracker, &owner);
     loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > labelFlow;
 

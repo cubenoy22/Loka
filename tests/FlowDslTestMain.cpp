@@ -1,4 +1,6 @@
 #include "StateNotifyTests.hpp"
+#include "DerivedStateTests.hpp"
+#include "DefinitionCloneTests.hpp"
 #include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
@@ -10,6 +12,8 @@
 int main()
 {
   testStateNotify();
+  testDerivedStateCore();
+  testConditionalDefinitionCloneOwnership();
   testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();
