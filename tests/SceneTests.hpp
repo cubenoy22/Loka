@@ -354,6 +354,13 @@ namespace SceneTests
           states_()
     {
     }
+    ~NodeLocalReleaseOwner()
+    {
+      while (!states_.empty())
+      {
+        this->releaseState(states_.back());
+      }
+    }
     virtual void adoptState(loka::core::StateBase *state)
     {
       if (!state)
@@ -413,6 +420,86 @@ namespace SceneTests
     loka::core::PushStateTracker tracker_;
     std::vector<loka::core::StateBase *> states_;
   };
+
+  void test_Node_composition_state_batch_pages_overflow_declarations()
+  {
+    NodeLocalReleaseOwner owner;
+    loka::app::scene::ComponentContext context;
+    loka::app::scene::NodeComposition composition;
+    loka::app::scene::NodeState<int> states[20];
+
+    context.setStateOwner(&owner);
+    composition.setContext(&context);
+
+    composition.declareStates()
+        .state(states[0], 100)
+        .state(states[1], 101)
+        .state(states[2], 102)
+        .state(states[3], 103)
+        .state(states[4], 104)
+        .state(states[5], 105)
+        .state(states[6], 106)
+        .state(states[7], 107)
+        .state(states[8], 108)
+        .state(states[9], 109)
+        .state(states[10], 110)
+        .state(states[11], 111)
+        .state(states[12], 112)
+        .state(states[13], 113)
+        .state(states[14], 114)
+        .state(states[15], 115)
+        .state(states[16], 116)
+        .state(states[17], 117)
+        .state(states[18], 118)
+        .state(states[19], 119);
+
+    assert(owner.stateCount() == 20);
+    for (int i = 0; i < 20; ++i)
+    {
+      assert(states[i].isValid());
+      assert(states[i].get() == 100 + i);
+    }
+
+    // Mutate on both sides of the page seam (15|16) plus interior states.
+    states[3].set(203);
+    assert(states[3].get() == 203);
+    states[15].set(215);
+    assert(states[15].get() == 215);
+    states[16].set(216);
+    assert(states[16].get() == 216);
+    states[17].set(217);
+    assert(states[17].get() == 217);
+    // Writes must not bleed into neighboring states across pages.
+    assert(states[2].get() == 102);
+    assert(states[14].get() == 114);
+    assert(states[18].get() == 118);
+  }
+
+  void test_Node_composition_state_batch_null_owner_overflow_is_safe()
+  {
+    // Regression: overflow past one page with a null owner must still chain a
+    // fresh page and drain every page at scope end, or overflow declarations
+    // are lost and their placement-new initials leak.
+    loka::app::scene::NodeState<int> states[18];
+    {
+      loka::app::scene::NodeComposition::StateBatch batch(0);
+      for (int i = 0; i < 18; ++i)
+      {
+        batch.state(states[i], 300 + i);
+      }
+      // Scope end: destructor drains both pages in declaration order.
+    }
+    for (int i = 0; i < 18; ++i)
+    {
+      assert(states[i].isValid());
+      assert(states[i].get() == 300 + i);
+    }
+    // No owner: ownership never transferred, so the test reclaims the states.
+    for (int i = 0; i < 18; ++i)
+    {
+      delete states[i].dangerouslyMutableState();
+    }
+  }
 
   class NodeLocalReleaseNode : public loka::app::scene::ComposableNode
   {
@@ -654,6 +741,8 @@ namespace SceneTests
                         test_FlowSlot_releases_owned_value,
                         test_Node_local_state_registration_is_idempotent,
                         test_Node_local_state_registration_after_attach_connects_immediately,
+                        test_Node_composition_state_batch_pages_overflow_declarations,
+                        test_Node_composition_state_batch_null_owner_overflow_is_safe,
                         test_Node_local_state_releases_owner_state_on_node_destroy,
                         test_Node_local_stream_releases_owned_state_on_node_destroy,
                         test_Node_local_batch_releases_owner_state_on_node_destroy,

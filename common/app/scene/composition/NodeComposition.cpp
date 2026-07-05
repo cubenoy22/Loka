@@ -42,7 +42,7 @@ namespace loka
         }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         // Add size with alignment padding (worst case)
-        size_t align = NodeArena::normalizeAlign(def->nodeAlign());
+        size_t align = NormalizeArenaAlign(def->nodeAlign());
         size_t total = def->nodeSize() + align;
 
         if (nestableDef)

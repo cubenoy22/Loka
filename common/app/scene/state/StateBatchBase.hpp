@@ -48,6 +48,19 @@ namespace loka
           }
         }
 
+        /** Worst-case owner arena bytes one CreateStateFromInitial call can
+            consume for T: the MutableState object plus the alignment padding
+            the arena may insert. Padding is bounded by the arena's effective
+            alignment (NormalizeArenaAlign), not raw AlignOf, which can sit
+            below the arena minimum on some ABIs. Batch reserve estimates must
+            use this helper (not a hand-written copy of the arithmetic) so a
+            one-shot reserve is never smaller than the creates that follow. */
+        template <typename T> static size_t ArenaBytesForState()
+        {
+          return sizeof(loka::core::MutableState<T>) +
+                 NormalizeArenaAlign(AlignOf<loka::core::MutableState<T> >::value);
+        }
+
         template <typename T>
         static void CreateStateFromInitial(IStateOwner *owner, NodeState<T> &out, const T &initial)
         {
