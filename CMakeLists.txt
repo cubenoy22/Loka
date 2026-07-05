@@ -34,6 +34,11 @@ if(TEST_BUILD)
   add_definitions(-DTEST_BUILD)
 endif()
 
+# Top-level CTest wiring so `ctest --test-dir <build dir>` finds test targets
+# registered in subdirectories (e.g. LokaTestsMacOS) as well as the headless
+# suite below.
+enable_testing()
+
 if(WIN32)
   add_subdirectory(win32)
 endif()

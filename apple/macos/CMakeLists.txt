@@ -112,4 +112,7 @@ if(NOT LOKA_MAC_OS_10_4)
 
   target_link_libraries(LokaTestsMacOS PRIVATE LokaMacOSCore)
   target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
+
+  enable_testing()
+  add_test(NAME LokaTestsMacOS COMMAND LokaTestsMacOS)
 endif()

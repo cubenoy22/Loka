@@ -120,6 +120,14 @@ cmake --build --preset testing-asan
 ctest --test-dir build/Testing-ASan --output-on-failure
 ```
 
+On macOS the same suite runs as the `LokaTestsMacOS` target:
+
+```sh
+cmake --preset macos-debug
+cmake --build --preset macos-tests
+ctest --test-dir build/macos/Debug -R LokaTestsMacOS
+```
+
 Development, build, and target environment notes are documented in [docs/environments.md](docs/environments.md).
 
 Classic Mac OS and Retro68-specific notes are documented in [docs/retro68.md](docs/retro68.md).

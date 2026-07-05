@@ -135,7 +135,8 @@
     },
     {
       "name": "macos-tests",
-      "configurePreset": "macos-debug"
+      "configurePreset": "macos-debug",
+      "targets": ["LokaTestsMacOS"]
     },
     {
       "name": "win32-debug",
