@@ -47,6 +47,8 @@ if(WIN32)
 
   set(WIN32_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DerivedStateTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DefinitionCloneTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/ValueTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
@@ -72,6 +74,8 @@ if(WIN32)
   if(MSVC)
     target_compile_options(LokaTestsWin32 PRIVATE /utf-8)
   endif()
+
+  add_test(NAME LokaTestsWin32 COMMAND LokaTestsWin32)
 
 endif()
 

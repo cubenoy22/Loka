@@ -120,12 +120,14 @@ cmake --build --preset testing-asan
 ctest --preset testing-asan
 ```
 
-On macOS the same suite runs as the `LokaTestsMacOS` target:
+On macOS and Windows the same suite runs as the `LokaTestsMacOS` /
+`LokaTestsWin32` targets:
 
 ```sh
-cmake --preset macos-debug
-cmake --build --preset macos-tests
-ctest --preset macos-tests
+# macOS                              # Windows (from a VS Developer Prompt)
+cmake --preset macos-debug           cmake --preset win32-debug
+cmake --build --preset macos-tests   cmake --build --preset win32-tests
+ctest --preset macos-tests           ctest --preset win32-tests
 ```
 
 The same presets drive VS Code's CMake Tools integration: pick the matching
