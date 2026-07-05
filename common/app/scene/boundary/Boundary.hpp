@@ -193,6 +193,7 @@ namespace loka
           return this->localApplyInfo(plan).bounds;
         }
         void markViewDirty(NodeDirtyFlags flags);
+        void discardScenePendingUpdatesFor(Node *subtreeRoot);
         void setFrozen(bool frozen)
         {
           this->runtimeState_.setFrozen(frozen);
@@ -518,6 +519,10 @@ namespace loka
           }
           this->composeTree(created, context, COMPOSE_EVENT_ATTACH, this);
           this->composeTree(liveRoot, context, COMPOSE_EVENT_DETACH, this);
+          // Scrub after the DETACH compose so targets re-enqueued by detach
+          // handlers are dropped too; the root is logically retired even when
+          // arena allocation keeps its memory alive (#44).
+          this->discardScenePendingUpdatesFor(liveRoot);
           if (context.platformController())
           {
             context.platformController()->releaseNodeContexts(liveRoot);
@@ -702,6 +707,11 @@ namespace loka
             if (detachedNode)
             {
               this->composeTree(detachedNode, context, COMPOSE_EVENT_DETACH, this);
+              // Scrub after the DETACH compose so targets re-enqueued by
+              // detach handlers are dropped too; the subtree is logically
+              // retired even when arena allocation keeps its memory alive
+              // (#44).
+              this->discardScenePendingUpdatesFor(detachedNode);
               if (context.platformController())
               {
                 context.platformController()->releaseNodeContexts(detachedNode);

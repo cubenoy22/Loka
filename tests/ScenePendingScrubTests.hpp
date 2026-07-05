@@ -1,0 +1,6 @@
+#ifndef LOKA_SCENE_PENDING_SCRUB_TESTS_HPP
+#define LOKA_SCENE_PENDING_SCRUB_TESTS_HPP
+
+void testScenePendingUpdateScrub();
+
+#endif // LOKA_SCENE_PENDING_SCRUB_TESTS_HPP

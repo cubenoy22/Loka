@@ -30,6 +30,16 @@ namespace loka
         scene->requestBoundaryUpdate(this, flags, flushImmediately);
       }
 
+      void BoundaryNode::discardScenePendingUpdatesFor(Node *subtreeRoot)
+      {
+        Scene *scene = this->getScene();
+        if (!scene)
+        {
+          return;
+        }
+        scene->discardPendingUpdatesFor(subtreeRoot);
+      }
+
       void BoundaryNode::InvalidateSceneThunk(void *userData)
       {
         BoundaryNode *self = static_cast<BoundaryNode *>(userData);

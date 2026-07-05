@@ -84,6 +84,15 @@ namespace loka
           return projectionTransaction(scene).targetsBegin().node();
         }
 
+        // Address-compare lookup: safe to call with a stale pointer because
+        // the transaction never dereferences the queried node.
+        static ::loka::app::scene::NodeDirtyFlags
+        projectionTransactionDirtyFlagsForNode(const ::loka::app::scene::Scene &scene,
+                                               const ::loka::app::scene::Node *node)
+        {
+          return projectionTransaction(scene).dirtyFlagsForNode(node);
+        }
+
         static ::loka::app::scene::NodeDirtyFlags
         projectionTransactionFirstTargetDirtyFlags(const ::loka::app::scene::Scene &scene)
         {

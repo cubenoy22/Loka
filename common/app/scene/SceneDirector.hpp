@@ -357,6 +357,11 @@ namespace loka
                 projection.enqueue(node, flags);
               }
 
+              bool removeTarget(const Node *node)
+              {
+                return projection.removeTarget(node);
+              }
+
               bool hasPending() const
               {
                 return projection.hasPending();
@@ -457,6 +462,11 @@ namespace loka
             void enqueueProjectionTarget(Node *node, NodeDirtyFlags flags)
             {
               projectionState.enqueue(node, flags);
+            }
+
+            bool removeProjectionTarget(const Node *node)
+            {
+              return projectionState.removeTarget(node);
             }
 
             void enqueueRequestedInput(NodeDirtyFlags flags)
@@ -596,6 +606,11 @@ namespace loka
                 SceneProjectionTransaction::TargetIdentity(static_cast<const void *>(boundary)));
           }
 
+          bool removeProjectionTarget(const Node *node)
+          {
+            return accumulatedState.removeProjectionTarget(node);
+          }
+
           void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
           void clearTransaction();
 
@@ -621,6 +636,7 @@ namespace loka
 
         void registerBoundaryUpdate(const BoundaryUpdateRequest &request);
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
+        void discardPendingUpdatesFor(Node *subtreeRoot);
 
         NodeDirtyFlags pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const;
         bool hasPendingBoundary(const BoundaryNode *boundary) const;

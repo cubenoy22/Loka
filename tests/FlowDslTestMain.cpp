@@ -2,6 +2,7 @@
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "PhaseGuardTests.hpp"
+#include "ScenePendingScrubTests.hpp"
 #include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
@@ -16,6 +17,7 @@ int main()
   testDerivedStateCore();
   testConditionalDefinitionCloneOwnership();
   testComposeApplyPhaseGuard();
+  testScenePendingUpdateScrub();
   testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();
