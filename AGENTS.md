@@ -106,6 +106,13 @@ clear boundaries, and small reusable concepts.
 - If a request is ambiguous, stop and ask before implementing.
 - If a design or implementation path looks fragile, hard to reason about, or likely to cause intermittent bugs, prefer a small refactor toward a simpler structure first. If no clear low-risk refactor is apparent, stop and call it out to the user before building further on top of it.
 
+## Verification Policy For Bug Fixes And Refactoring
+- Bug fixes must demonstrate red->green: add or extend a test that fails (or hard-fails under ASan) on the pre-fix code, confirm that failure, then land the fix that turns it green. Record the pre-fix failure evidence in the PR.
+- Refactoring must be behavior-preserving under pinned results: add characterization tests first where coverage is missing, then show identical results before and after the change in both the `testing` and `testing-asan` presets.
+- When the headless suite cannot discriminate a change (platform runtime behavior, menu/tick cadence, redraw semantics), verify on the affected OS: run the platform unit-test targets (`LokaTestsMacOS`, `LokaTestsWin32`) and/or drive the affected example flow on that platform.
+- For Classic targets, prefer building a test executable and running it in Mini vMac or on real hardware; scenario automation through Flow (state emit plus output capture) is the intended long-term harness for this.
+- If a discriminating test is impossible in the current fixture, state that explicitly in the PR and name the tracked follow-up issue or branch that will deliver it.
+
 ## Build, Test, And Commit
 - Retro68 workflow policy: if `.dsk` is mounted (emulator/host), unmount it before rebuild. Building while mounted can leave stale artifacts or produce corruption-like runtime issues; when users report corrupted/unchanged Classic output, first retry with `.dsk` unmounted, then rebuild.
 - Keep commits scoped; split large refactors into small, reviewable commits with verification between steps.
