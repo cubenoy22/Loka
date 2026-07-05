@@ -5174,6 +5174,32 @@ void testLokaFlowDslV1Core()
     assert(!slot.isValid());
   }
 
+  // --- FlowSlot: a chain copied out of the slot outlives the slot safely ---
+  // FlowChain copies share the impl, so a copy taken via dangerouslyUnwrap()
+  // keeps the hooked impl alive after the slot is gone. Disowning must clear
+  // the hooks on the shared impl, or running the escaped copy would fire
+  // them into the slot's freed run state.
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 6;
+    int result = 0;
+    SlotFlowChain *escaped = 0;
+    {
+      loka::app::scene::FlowSlot<SlotFlowChain> slot;
+      slot.set(loka::dsl::Flow()
+               | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result));
+      assert(slot.run());
+      assert(result == 12);
+      escaped = new SlotFlowChain(slot.dangerouslyUnwrap()); // shares the hooked impl
+    } // slot destroyed: its run state is freed with the slot
+
+    result = 0;
+    assert(escaped->run()); // pre-fix: hooks fire into the freed run state (ASan UAF)
+    assert(result == 12);
+    delete escaped;
+  }
+
   // --- bindTrigger: reentry guard prevents double execution ---
   {
     loka::core::MutableState<int> trigger;
