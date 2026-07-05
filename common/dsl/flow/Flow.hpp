@@ -530,28 +530,36 @@ namespace loka
 
       FlowRunResult runFromIndex(std::size_t startIndex) const
       {
+        // Snapshot the hook fields once: begin/end stay paired even if the
+        // hooks are cleared mid-run (e.g. the owning FlowSlot disowns the
+        // flow while a shared-impl copy is executing).
         struct RunScope
         {
           explicit RunScope(const FlowChainImpl *impl)
-              : impl_(impl)
+              : beginFn_(impl->runBeginFn_),
+                endFn_(impl->runEndFn_),
+                hookFlow_(impl->runHookFlow_),
+                hookUser_(impl->runHookUser_)
           {
-            if (this->impl_->runBeginFn_ != 0)
+            if (this->beginFn_ != 0)
             {
-              assert(this->impl_->runHookFlow_ != 0 && "FlowChainImpl::runFromIndex requires a hook flow");
-              this->impl_->runBeginFn_(this->impl_->runHookFlow_, this->impl_->runHookUser_);
+              assert(this->hookFlow_ != 0 && "FlowChainImpl::runFromIndex requires a hook flow");
+              this->beginFn_(this->hookFlow_, this->hookUser_);
             }
           }
 
           ~RunScope()
           {
-            if (this->impl_->runEndFn_ != 0)
+            if (this->beginFn_ != 0 && this->endFn_ != 0)
             {
-              assert(this->impl_->runHookFlow_ != 0 && "FlowChainImpl::runFromIndex requires a hook flow");
-              this->impl_->runEndFn_(this->impl_->runHookFlow_, this->impl_->runHookUser_);
+              this->endFn_(this->hookFlow_, this->hookUser_);
             }
           }
 
-          const FlowChainImpl *impl_;
+          RunLifecycleFn beginFn_;
+          RunLifecycleFn endFn_;
+          void *hookFlow_;
+          void *hookUser_;
         } runScope(this);
 
         if (startIndex >= this->steps_.size())
@@ -1062,6 +1070,17 @@ namespace loka
         this->impl_->runHookUser_ = user;
         this->impl_->runHookFlow_ = this;
         return *this;
+      }
+
+      // Clears the hooks on the SHARED impl without detaching: used when the
+      // hook owner (FlowSlot) disowns this flow, so wrappers that still share
+      // the impl cannot fire hooks into the owner's freed run state.
+      void clearExecutionHooks()
+      {
+        this->impl_->runBeginFn_ = 0;
+        this->impl_->runEndFn_ = 0;
+        this->impl_->runHookFlow_ = 0;
+        this->impl_->runHookUser_ = 0;
       }
 
       FlowRunResult resumeResult(int stepId) const

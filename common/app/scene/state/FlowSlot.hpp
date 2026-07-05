@@ -16,12 +16,25 @@ namespace loka
       {
         template <typename FlowT> inline void releaseOwnedFlow(FlowT *) {}
 
+        template <typename FlowT> inline void clearExecutionHooks(FlowT *)
+        {
+        }
+
+        template <typename InT, typename OutT> inline void clearExecutionHooks(loka::dsl::FlowChain<InT, OutT> *flow)
+        {
+          if (flow)
+          {
+            flow->clearExecutionHooks();
+          }
+        }
+
         template <typename FlowT> inline void destroyFlow(FlowT *flow)
         {
           if (!flow)
           {
             return;
           }
+          clearExecutionHooks(flow);
           releaseOwnedFlow(flow);
           delete flow;
         }
