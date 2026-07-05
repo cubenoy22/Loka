@@ -5093,6 +5093,87 @@ void testLokaFlowDslV1Core()
     slot.clear();
   }
 
+  // --- FlowSlot: set during onSuccess defers replacing the running flow ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    struct SetDuringRunHelper
+    {
+      struct Context
+      {
+        loka::app::scene::FlowSlot<SlotFlowChain> *slot;
+        SlotFlowChain *replacement;
+        int *calls;
+      };
+
+      static void replaceFlow(const int &, void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->calls);
+        ctx->slot->set(*ctx->replacement);
+      }
+    };
+
+    int input = 4;
+    int oldResult = 0;
+    int replacementInput = 10;
+    int replacementResult = 0;
+    int replaceCalls = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    SlotFlowChain replacement =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&replacementInput).onSuccess(&replacementResult);
+    SetDuringRunHelper::Context ctx = {&slot, &replacement, &replaceCalls};
+    slot.set(loka::dsl::Flow()
+             | loka::dsl::Step(1, FlowTestMul2Adapter())
+                   .input(&input)
+                   .onSuccess(&SetDuringRunHelper::replaceFlow, &ctx)
+                   .onSuccess(&oldResult));
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(replaceCalls == 1);
+    assert(oldResult == 8);
+    assert(slot.isValid());
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(replacementResult == 11);
+
+    slot.clear();
+  }
+
+  // --- FlowSlot: clear during onSuccess defers deleting the running flow ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    struct ClearDuringRunHelper
+    {
+      struct Context
+      {
+        loka::app::scene::FlowSlot<SlotFlowChain> *slot;
+        int *calls;
+      };
+
+      static void clearFlow(const int &, void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->calls);
+        ctx->slot->clear();
+      }
+    };
+
+    int input = 5;
+    int oldResult = 0;
+    int clearCalls = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    ClearDuringRunHelper::Context ctx = {&slot, &clearCalls};
+    slot.set(loka::dsl::Flow()
+             | loka::dsl::Step(1, FlowTestMul2Adapter())
+                   .input(&input)
+                   .onSuccess(&ClearDuringRunHelper::clearFlow, &ctx)
+                   .onSuccess(&oldResult));
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(clearCalls == 1);
+    assert(oldResult == 10);
+    assert(!slot.isValid());
+  }
+
   // --- bindTrigger: reentry guard prevents double execution ---
   {
     loka::core::MutableState<int> trigger;
