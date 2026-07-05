@@ -100,6 +100,28 @@
         "RETRO68_CPU": "ppc",
         "RETRO68_PPC_FLAVOR": "retroppc"
       }
+    },
+    {
+      "name": "testing",
+      "displayName": "Linux Headless Tests (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "build/Testing",
+      "cacheVariables": {
+        "TEST_BUILD": "ON",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "testing-asan",
+      "displayName": "Linux Headless Tests (AddressSanitizer, Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "build/Testing-ASan",
+      "cacheVariables": {
+        "TEST_BUILD": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address"
+      }
     }
   ],
   "buildPresets": [
@@ -113,7 +135,8 @@
     },
     {
       "name": "macos-tests",
-      "configurePreset": "macos-debug"
+      "configurePreset": "macos-debug",
+      "targets": ["LokaTestsMacOS"]
     },
     {
       "name": "win32-debug",
@@ -125,7 +148,8 @@
     },
     {
       "name": "win32-tests",
-      "configurePreset": "win32-debug"
+      "configurePreset": "win32-debug",
+      "targets": ["LokaTestsWin32"]
     },
     {
       "name": "win32-xp-debug",
@@ -144,6 +168,44 @@
     {
       "name": "retro68-ppc-release",
       "configurePreset": "retro68-ppc-release"
+    },
+    {
+      "name": "testing",
+      "configurePreset": "testing"
+    },
+    {
+      "name": "testing-asan",
+      "configurePreset": "testing-asan"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "testing",
+      "configurePreset": "testing",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "testing-asan",
+      "configurePreset": "testing-asan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "macos-tests",
+      "configurePreset": "macos-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "win32-tests",
+      "configurePreset": "win32-debug",
+      "output": {
+        "outputOnFailure": true
+      }
     }
   ]
 }

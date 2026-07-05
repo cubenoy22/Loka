@@ -2,6 +2,8 @@
 #include "Win32BuiltInSupport.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <windows.h>
+#include <cstdio>
+#include <map>
 #include <vector>
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Grid.hpp"
@@ -515,11 +517,6 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   WORD code = HIWORD(wParam);
   if (code == BN_CLICKED)
   {
-    std::map<HWND, Win32ButtonContext *>::iterator it = buttonMap_.find(target);
-    if (it != buttonMap_.end())
-    {
-      return it->second->handleCommand(wParam, lParam);
-    }
     Win32ButtonContext *button = reinterpret_cast<Win32ButtonContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
     if (!button)
     {
@@ -529,11 +526,6 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   }
   if (code == EN_CHANGE)
   {
-    std::map<HWND, Win32EditTextContext *>::iterator itEdit = editMap_.find(target);
-    if (itEdit != editMap_.end())
-    {
-      return itEdit->second->handleCommand(wParam, lParam);
-    }
     Win32EditTextContext *edit = reinterpret_cast<Win32EditTextContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
     if (!edit)
     {
@@ -543,11 +535,6 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
   }
   if (code == CBN_SELCHANGE)
   {
-    std::map<HWND, Win32PopupMenuContext *>::iterator itPopup = popupMap_.find(target);
-    if (itPopup != popupMap_.end())
-    {
-      return itPopup->second->handleCommand(wParam, lParam);
-    }
     Win32PopupMenuContext *popup = reinterpret_cast<Win32PopupMenuContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
     if (!popup)
     {
@@ -581,9 +568,6 @@ void Win32ScenePlatformController::relayout(int clientWidth, int clientHeight)
 void Win32ScenePlatformController::performLayout(int clientWidth, int clientHeight, bool rebuildContexts)
 {
   pendingInvalidations_.clear();
-  buttonMap_.clear();
-  editMap_.clear();
-  popupMap_.clear();
   if (rebuildContexts)
   {
     clearNodeContexts(rootNode_);
@@ -828,9 +812,6 @@ int Win32ScenePlatformController::layoutContainerChild(void *context,
 
 void Win32ScenePlatformController::clearContexts()
 {
-  buttonMap_.clear();
-  editMap_.clear();
-  popupMap_.clear();
   clearNodeContexts(rootNode_);
 }
 

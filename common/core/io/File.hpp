@@ -2,7 +2,6 @@
 #define LOKA_CORE_IO_FILE_HPP
 
 #include "core/String.hpp"
-#include <cstring>
 
 namespace loka
 {

@@ -1,0 +1,6 @@
+#ifndef LOKA_DERIVED_STATE_TESTS_HPP
+#define LOKA_DERIVED_STATE_TESTS_HPP
+
+void testDerivedStateCore();
+
+#endif // LOKA_DERIVED_STATE_TESTS_HPP

@@ -2,7 +2,6 @@
 #define LOKA_CORE2_SCENE_NODE_COMPOSABLENODE_HPP
 
 #include <cassert>
-#include <cstring>
 #include <vector>
 #include "../Node.hpp"
 #include "app/scene/context/ComponentContext.hpp"
@@ -148,7 +147,8 @@ namespace loka
             {
               return false;
             }
-            return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+            const Method *method = static_cast<const Method *>(methodBytes);
+            return method && method_ == *method;
           }
 
           NodeT *node_;
@@ -197,7 +197,8 @@ namespace loka
             {
               return false;
             }
-            return std::memcmp(&method_, methodBytes, sizeof(method_)) == 0;
+            const Method *method = static_cast<const Method *>(methodBytes);
+            return method && method_ == *method;
           }
 
           StateT *state_;

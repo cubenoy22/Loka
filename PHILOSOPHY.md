@@ -34,6 +34,14 @@ behavior.
 The goal is not to avoid native integration. The goal is to keep native
 integration from becoming the application's identity.
 
+Application-facing headers and composition code should not inherit native
+toolkit namespace pollution as an ambient cost of portability. Platform headers,
+native type names, and compatibility shims belong behind platform projection
+boundaries or narrow bootstrap seams. If an application author is writing a
+logical `Button`, `Text`, `Window`, or future control, that expression should
+mean the Loka concept by default, not whichever native SDK happened to be
+included first.
+
 ## Meaningful Code
 
 Application-facing code should express intent, ownership, state flow, and
@@ -204,7 +212,7 @@ or local construction phase.
 This is not immutability for fashion. It limits the number of places where a
 value can change, makes Flow and update routing easier to debug, and prevents a
 framework object from slowly becoming a shared mutable bag. When performance on
-PPC601-era or other supported targets makes copying too expensive, Loka may use
+68030-era or other supported targets makes copying too expensive, Loka may use
 explicit mutable storage, reusable buffers, or owner-local caches. The mutable
 section should still be narrow and named, and immutable subsections should be
 split into separate value types when that keeps the change surface smaller.

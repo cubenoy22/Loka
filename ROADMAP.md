@@ -130,10 +130,10 @@ Practical interpretation:
 
 * until `v0.1.x`, Loka should prioritize proving that its core architectural model is coherent across current targets over maximizing platform count or control count
 * new work before `v0.1.0` should primarily strengthen the model, seams, and examples rather than widen the surface area prematurely
-* near-term Classic performance work should focus on proving that modern Loka
-  concepts are practical on PPC601-era and newer machines; avoid deep
-  68k/68030-first micro-optimization unless profiling shows a specific
-  regression or correctness problem
+* near-term Classic performance work should focus on keeping modern Loka
+  concepts practical on 68030-era and newer machines (runtime-verified on a
+  68030 PowerBook 180c); avoid deep micro-optimization aimed at low-end 68k (68000 / 68020)
+  unless profiling shows a specific regression or correctness problem
 * before `v0.1.0`, validate the build/distribution shape for retro Mac targets:
   Loka should stay header-friendly for modern integration, but it should also
   support a compiled/static-core path so older machines are not forced to

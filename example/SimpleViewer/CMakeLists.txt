@@ -3,6 +3,7 @@ project(LokaSimpleViewer LANGUAGES CXX)
 
 if(APPLE)
   enable_language(OBJCXX)
+  loka_suppress_arclite_link()
 endif()
 
 if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
@@ -57,7 +58,7 @@ if(APPLE)
   )
 
   target_link_libraries(LokaSimpleViewerMacOS PRIVATE LokaMacOSCore)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
     target_compile_options(LokaSimpleViewerMacOS PRIVATE "-fno-objc-arc")
   endif()
 endif()
@@ -72,7 +73,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
 
   target_include_directories(${LOKA_SIMPLEVIEWER_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
   target_link_libraries(${LOKA_SIMPLEVIEWER_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)

@@ -232,6 +232,20 @@ void testStateNotify()
     assert(count == 1);
   }
 
+  // --- MutableState: forceUpdate on a *changed* value currently notifies twice ---
+  // Pins today's behavior: State<T>::set() notifies on the change, then
+  // MutableState::set(v, true) calls notifyStateChanged() unconditionally
+  // (State.hpp MutableState::set). This is the double-notify tracked as
+  // #45 item 3 (state notification contract); that fix must flip this
+  // expectation to exactly one notification, deliberately.
+  {
+    int count = 0;
+    loka::core::MutableState<int> s(5);
+    s.bind(&increment, &count, false);
+    s.set(6, true); // forceUpdate on a changed value
+    assert(count == 2);
+  }
+
   // --- deferBind: deferred handler fires after regular handlers ---
   {
     CallLog log;

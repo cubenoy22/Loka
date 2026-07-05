@@ -3,6 +3,7 @@ project(LokaHelloWorld LANGUAGES CXX)
 
 if(APPLE)
   enable_language(OBJCXX)
+  loka_suppress_arclite_link()
 endif()
 
 if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
@@ -46,6 +47,8 @@ if(WIN32)
 
   set(WIN32_TEST_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DerivedStateTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DefinitionCloneTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/ValueTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
@@ -72,6 +75,8 @@ if(WIN32)
     target_compile_options(LokaTestsWin32 PRIVATE /utf-8)
   endif()
 
+  add_test(NAME LokaTestsWin32 COMMAND LokaTestsWin32)
+
 endif()
 
 if(APPLE)
@@ -92,7 +97,7 @@ if(APPLE)
   )
 
   target_link_libraries(LokaHelloMacOS PRIVATE LokaMacOSCore)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
     target_compile_options(LokaHelloMacOS PRIVATE "-fno-objc-arc")
   endif()
 endif()
@@ -108,7 +113,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
 
   target_include_directories(${LOKA_HELLO_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/toolbox/src
   )
 
   target_link_libraries(${LOKA_HELLO_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)

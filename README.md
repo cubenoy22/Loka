@@ -75,7 +75,7 @@ Status terms:
 | --- | --- | --- |
 | Modern Windows / Win32 | `active` | Native Win32 projection path. Windows XP-class compatibility is tracked as a legacy build target. |
 | macOS / Cocoa | `active` | Native macOS projection path. Mac OS X 10.4 Tiger or newer and PowerPC G3 or newer are supported targets. |
-| Classic Mac OS / Toolbox | `active` | Built through Retro68 for System 7 or later on 68k and PowerPC-style Classic targets. Practical mainstream target is PPC601 / 603e-class systems and later, with 68k kept as an important constraint and validation path. |
+| Classic Mac OS / Toolbox | `active` | Built through Retro68 for System 7 or later on 68k and PowerPC-style Classic targets.<br>Practical mainstream target: 68030-class systems and later (and PPC601 / 603e-class PowerPC Macs). Low-end 68k (68000 / 68020) stays an important constraint and validation path.<br>All bundled examples are runtime-verified on a 68030 PowerBook 180c (33 MHz, 4 MB RAM) with no 68k-specific optimization pass. |
 | Linux / WSL | `headless` | Used today for core and Flow DSL tests. Full native UI projection is planned, not part of `0.0.1`. |
 | iOS / iPadOS, Linux desktop UI, Windows Mobile-class systems, game-oriented backends | `planned` | Future ports should reuse the same Node / Boundary / State / Flow model rather than adding platform-specific application models. |
 
@@ -100,16 +100,38 @@ The core is intentionally C++98-friendly and already builds with older toolchain
 Platform-specific builds also need the matching native toolchain:
 
 - macOS: Xcode or Xcode Command Line Tools
-- Windows: Visual Studio Build Tools or Visual Studio, usually from a matching Developer Command Prompt
+- Windows: Visual Studio Build Tools or Visual Studio, usually from a matching Developer Command Prompt. Launching VS Code with `code .` from an ARM64 Native Tools prompt builds native ARM64 on Windows on ARM; x64/x86 Cross Tools prompts can be used for x64 or x86 builds.
 - Classic Mac OS targets: Retro68, typically from a Linux, WSL, Docker, or container-based environment
 
 For a quick headless test build on Linux/WSL:
 
 ```sh
-cmake -S . -B build/Testing -DTEST_BUILD=ON
-cmake --build build/Testing
-ctest --test-dir build/Testing
+cmake --preset testing        # or: cmake -S . -B build/Testing -G Ninja -DTEST_BUILD=ON
+cmake --build --preset testing
+ctest --preset testing
 ```
+
+Most lifecycle bugs only fail hard under AddressSanitizer, so run the same
+suite through the ASan preset before landing scene/state/flow changes:
+
+```sh
+cmake --preset testing-asan
+cmake --build --preset testing-asan
+ctest --preset testing-asan
+```
+
+On macOS and Windows the same suite runs as the `LokaTestsMacOS` /
+`LokaTestsWin32` targets:
+
+```sh
+# macOS                              # Windows (from a VS Developer Prompt)
+cmake --preset macos-debug           cmake --preset win32-debug
+cmake --build --preset macos-tests   cmake --build --preset win32-tests
+ctest --preset macos-tests           ctest --preset win32-tests
+```
+
+The same presets drive VS Code's CMake Tools integration: pick the matching
+configure/build/test preset and the suite appears in the Testing panel.
 
 Development, build, and target environment notes are documented in [docs/environments.md](docs/environments.md).
 
