@@ -161,7 +161,14 @@ namespace loka
           ParentScope scope_;
         };
 
-        // StateBatch collects State declarations and creates them as one owner-side batch.
+        // StateBatch is a declaration transaction: it collects State declarations
+        // and commits them as one owner-side batch when the batch leaves scope --
+        // the end of the declaring statement for the usual temporary chain, the
+        // end of the block for a named batch filled in a loop. This is the same
+        // scope-guard idiom as CompositionScope and the tracker transaction
+        // guards; the destructor is the commit hook because it is the only
+        // end-of-use signal C++98 can enforce, and an explicit terminal call
+        // could be forgotten silently. Storage mechanics live in PageList below.
         class StateBatch : private StateBatchBase
         {
         public:
@@ -171,44 +178,47 @@ namespace loka
           };
 
           StateBatch(IStateOwner *owner)
-              : owner_(owner),
-                count_(0),
-                totalBytes_(0)
+              : owner_(owner)
           {
+          }
+
+          // Copying is defined only for an empty batch: declareStates() returns
+          // by value, which formally requires an accessible copy constructor even
+          // though compilers elide the copy. A loaded source still asserts in
+          // debug because it is an unintended path. Release builds flush the
+          // source batch at the copy point and restart the copy empty: no
+          // declarations are lost, but the transaction splits at the copy site.
+          StateBatch(const StateBatch &other)
+              : owner_(other.owner_)
+          {
+            assert(other.pages_.stateCount() == 0 &&
+                   "copying a StateBatch with pending declarations is not supported");
+            // Return-by-value formally requires an accessible copy ctor in C++98.
+            // If a loaded batch is copied anyway, flush the source once here and
+            // restart the copy empty rather than widening mutability for every
+            // const call site.
+            const_cast<StateBatch &>(other).flushPendingDeclarations();
           }
 
           ~StateBatch()
           {
-            if (count_ == 0 || !owner_)
-            {
-              return;
-            }
-            // Reserve once for all declarations in this batch.
-            owner_->reserveStateArena(totalBytes_);
-            owner_->reserveStates(count_);
-            // Create each state after the owner has reserved enough storage.
-            for (size_t i = 0; i < count_; ++i)
-            {
-              entries_[i].create(owner_, entries_[i].out, entries_[i].storage.bytes);
-            }
+            this->flushPendingDeclarations();
           }
 
           template <typename T> StateBatch &state(NodeState<T> &out, const T &initial)
           {
-            if (count_ >= kMaxStates)
-            {
-              CreateImmediateState(owner_, out, initial);
-              return *this;
-            }
             typedef char LokaStateBatchInitializerTooLarge[(sizeof(T) <= kStorageBytes) ? 1 : -1];
             (void)sizeof(LokaStateBatchInitializerTooLarge);
-            Entry &e = entries_[count_++];
+            // First declaration wins, matching NodeStateBatch's duplicate guard.
+            if (pages_.contains(&out))
+            {
+              assert(false && "StateBatch::state declared the same NodeState twice");
+              return *this;
+            }
+            Entry &e = pages_.append(ArenaBytesForState<T>());
             e.out = &out;
-            e.size = sizeof(loka::core::MutableState<T>);
-            e.align = AlignOf<loka::core::MutableState<T> >::value;
             e.create = &CreateState<T>;
             CopyInitial<T>(e.storage.bytes, initial);
-            totalBytes_ += e.size + e.align; // spare bytes for alignment
             return *this;
           }
 
@@ -218,10 +228,107 @@ namespace loka
           struct Entry
           {
             void *out;
-            size_t size;
-            size_t align;
             CreateFn create;
             Storage storage; // inline storage for the initial value
+          };
+
+          struct Page
+          {
+            Page()
+                : count(0),
+                  next(0)
+            {
+            }
+
+            Entry entries[kMaxStates];
+            size_t count;
+            Page *next;
+          };
+
+          // Owns the page chain and the reserve totals. The first page lives
+          // inline, so batches of up to kMaxStates declarations never touch the
+          // heap; overflow chains one heap page per kMaxStates and is freed on
+          // destruction whether or not creation ran.
+          class PageList
+          {
+          public:
+            PageList()
+                : tail_(&first_),
+                  stateCount_(0),
+                  arenaBytes_(0)
+            {
+            }
+
+            ~PageList()
+            {
+              this->reset();
+            }
+
+            Entry &append(size_t reserveBytes)
+            {
+              if (tail_->count >= kMaxStates)
+              {
+                Page *page = new Page();
+                tail_->next = page;
+                tail_ = page;
+              }
+              ++stateCount_;
+              arenaBytes_ += reserveBytes;
+              return tail_->entries[tail_->count++];
+            }
+
+            Page *first()
+            {
+              return &first_;
+            }
+            bool contains(const void *outPtr) const
+            {
+              for (const Page *p = &first_; p; p = p->next)
+              {
+                for (size_t i = 0; i < p->count; ++i)
+                {
+                  if (p->entries[i].out == outPtr)
+                  {
+                    return true;
+                  }
+                }
+              }
+              return false;
+            }
+            size_t stateCount() const
+            {
+              return stateCount_;
+            }
+            size_t arenaBytes() const
+            {
+              return arenaBytes_;
+            }
+            void reset()
+            {
+              Page *p = first_.next;
+              while (p)
+              {
+                Page *next = p->next;
+                delete p;
+                p = next;
+              }
+              first_.count = 0;
+              first_.next = 0;
+              tail_ = &first_;
+              stateCount_ = 0;
+              arenaBytes_ = 0;
+            }
+
+          private:
+            // Not defined: the chain owns heap pages, so memberwise copy would
+            // double-free. StateBatch's empty-only copy never copies its list.
+            PageList(const PageList &);
+            PageList &operator=(const PageList &);
+
+            Page first_;
+            Page *tail_;
+            size_t stateCount_;
+            size_t arenaBytes_;
           };
 
           template <typename T> static void CreateState(IStateOwner *owner, void *outPtr, void *initialPtr)
@@ -232,10 +339,30 @@ namespace loka
             DestroyInitialObject<T>(initial);
           }
 
+          // The commit half of the transaction: reserve owner storage once for
+          // every declaration, then create in declaration order, so arena
+          // locality and deferred creation hold regardless of count. Reserve
+          // requires a live owner; create handles a null owner via the same
+          // degenerate path CreateStateFromInitial always had.
+          void flushPendingDeclarations()
+          {
+            if (pages_.stateCount() != 0 && owner_)
+            {
+              owner_->reserveStateArena(pages_.arenaBytes());
+              owner_->reserveStates(pages_.stateCount());
+            }
+            for (Page *p = pages_.first(); p; p = p->next)
+            {
+              for (size_t i = 0; i < p->count; ++i)
+              {
+                p->entries[i].create(owner_, p->entries[i].out, p->entries[i].storage.bytes);
+              }
+            }
+            pages_.reset();
+          }
+
           IStateOwner *owner_;
-          Entry entries_[kMaxStates];
-          size_t count_;
-          size_t totalBytes_;
+          PageList pages_;
         };
 
       private:

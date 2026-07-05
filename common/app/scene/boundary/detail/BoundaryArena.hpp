@@ -27,29 +27,6 @@ namespace loka
           clear();
         }
 
-        static size_t normalizeAlign(size_t align)
-        {
-          size_t minAlign = sizeof(void *);
-          if (minAlign < 2)
-          {
-            minAlign = 2;
-          }
-          if (align < minAlign)
-          {
-            align = minAlign;
-          }
-          if ((align & (align - 1)) != 0)
-          {
-            size_t p2 = 1;
-            while (p2 < align)
-            {
-              p2 <<= 1;
-            }
-            align = p2;
-          }
-          return align;
-        }
-
         void reserve(size_t totalSize)
         {
           clear();
@@ -73,7 +50,7 @@ namespace loka
           {
             return 0;
           }
-          align = normalizeAlign(align);
+          align = NormalizeArenaAlign(align);
           // Align the offset
           size_t mask = align - 1;
           size_t aligned = (offset_ + mask) & ~mask;
@@ -170,7 +147,7 @@ namespace loka
           {
             return 0;
           }
-          align = NodeArena::normalizeAlign(align);
+          align = NormalizeArenaAlign(align);
           size_t mask = align - 1;
           size_t aligned = (offset_ + mask) & ~mask;
           if (aligned + size > size_)
