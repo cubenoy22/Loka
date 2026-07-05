@@ -16,11 +16,38 @@ namespace loka
       {
         template <typename FlowT> inline void releaseOwnedFlow(FlowT *) {}
 
+        template <typename FlowT> inline void destroyFlow(FlowT *flow)
+        {
+          if (!flow)
+          {
+            return;
+          }
+          releaseOwnedFlow(flow);
+          delete flow;
+        }
+
         template <typename T> inline void releaseOwnedFlow(loka::dsl::StateStream<T> *stream)
         {
           if (stream)
           {
             stream->releaseOwnedState();
+          }
+        }
+
+        template <typename FlowT>
+        inline void attachExecutionHooks(FlowT *, void (*)(void *, void *), void (*)(void *, void *), void *)
+        {
+        }
+
+        template <typename InT, typename OutT>
+        inline void attachExecutionHooks(loka::dsl::FlowChain<InT, OutT> *flow,
+                                         void (*beginFn)(void *, void *),
+                                         void (*endFn)(void *, void *),
+                                         void *user)
+        {
+          if (flow)
+          {
+            flow->setExecutionHooks(beginFn, endFn, user);
           }
         }
       } // namespace flow_slot_detail
@@ -29,12 +56,22 @@ namespace loka
       {
       public:
         FlowSlot()
-            : flow_(0)
+            : flow_(0),
+              runState_(new RunState())
         {
         }
         ~FlowSlot()
         {
           this->clear();
+          if (this->runState_)
+          {
+            this->runState_->ownerAlive_ = false;
+            if (this->runState_->runningDepth_ == 0)
+            {
+              delete this->runState_;
+            }
+            this->runState_ = 0;
+          }
         }
 
         bool isValid() const
@@ -44,18 +81,33 @@ namespace loka
 
         FlowSlot &set(const FlowT &flow)
         {
+          FlowT *next = new FlowT(flow);
+          this->attachExecutionHooks(next);
+          if (this->shouldDeferRelease(this->flow_))
+          {
+            assert(this->runState_->deferredFlow_ == 0 && "FlowSlot::set already has a deferred running flow");
+            this->runState_->deferredFlow_ = this->flow_;
+            this->flow_ = next;
+            return *this;
+          }
           this->clear();
-          flow_ = new FlowT(flow);
+          this->flow_ = next;
           return *this;
         }
 
         void clear()
         {
-          if (flow_)
+          if (this->shouldDeferRelease(this->flow_))
           {
-            flow_slot_detail::releaseOwnedFlow(flow_);
-            delete flow_;
-            flow_ = 0;
+            assert(this->runState_->deferredFlow_ == 0 && "FlowSlot::clear already has a deferred running flow");
+            this->runState_->deferredFlow_ = this->flow_;
+            this->flow_ = 0;
+            return;
+          }
+          if (this->flow_)
+          {
+            flow_slot_detail::destroyFlow(this->flow_);
+            this->flow_ = 0;
           }
         }
 
@@ -148,10 +200,77 @@ namespace loka
         }
 
       private:
+        struct RunState
+        {
+          RunState()
+              : runningDepth_(0),
+                runningFlow_(0),
+                deferredFlow_(0),
+                ownerAlive_(true)
+          {
+          }
+
+          int runningDepth_;
+          FlowT *runningFlow_;
+          FlowT *deferredFlow_;
+          bool ownerAlive_;
+        };
+
+        static void onFlowRunBegin(void *flow, void *user)
+        {
+          RunState *state = static_cast<RunState *>(user);
+          FlowT *runningFlow = static_cast<FlowT *>(flow);
+          assert(state != 0 && "FlowSlot::onFlowRunBegin requires run state");
+          if (state->runningDepth_ == 0)
+          {
+            state->runningFlow_ = runningFlow;
+          }
+          else
+          {
+            assert(state->runningFlow_ == runningFlow && "FlowSlot::onFlowRunBegin switched running flow mid-run");
+          }
+          ++state->runningDepth_;
+        }
+
+        static void onFlowRunEnd(void *flow, void *user)
+        {
+          RunState *state = static_cast<RunState *>(user);
+          FlowT *runningFlow = static_cast<FlowT *>(flow);
+          assert(state != 0 && "FlowSlot::onFlowRunEnd requires run state");
+          assert(state->runningDepth_ > 0 && "FlowSlot::onFlowRunEnd underflow");
+          assert(state->runningFlow_ == runningFlow && "FlowSlot::onFlowRunEnd running flow mismatch");
+          --state->runningDepth_;
+          if (state->runningDepth_ == 0)
+          {
+            state->runningFlow_ = 0;
+            if (state->deferredFlow_ != 0)
+            {
+              flow_slot_detail::destroyFlow(state->deferredFlow_);
+              state->deferredFlow_ = 0;
+            }
+            if (!state->ownerAlive_)
+            {
+              delete state;
+            }
+          }
+        }
+
+        bool shouldDeferRelease(FlowT *flow) const
+        {
+          return flow != 0 && this->runState_ != 0 && this->runState_->runningDepth_ > 0 &&
+                 this->runState_->runningFlow_ == flow;
+        }
+
+        void attachExecutionHooks(FlowT *flow)
+        {
+          flow_slot_detail::attachExecutionHooks(flow, &FlowSlot::onFlowRunBegin, &FlowSlot::onFlowRunEnd, this->runState_);
+        }
+
         FlowSlot(const FlowSlot &);
         FlowSlot &operator=(const FlowSlot &);
 
         FlowT *flow_;
+        RunState *runState_;
       };
     } // namespace scene
   } // namespace app
