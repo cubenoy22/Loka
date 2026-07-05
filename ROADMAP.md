@@ -132,7 +132,7 @@ Practical interpretation:
 * new work before `v0.1.0` should primarily strengthen the model, seams, and examples rather than widen the surface area prematurely
 * near-term Classic performance work should focus on keeping modern Loka
   concepts practical on 68030-era and newer machines (runtime-verified on a
-  68030 PowerBook 180c); avoid deep 68000/68020-first micro-optimization
+  68030 PowerBook 180c); avoid deep micro-optimization aimed at low-end 68k (68000 / 68020)
   unless profiling shows a specific regression or correctness problem
 * before `v0.1.0`, validate the build/distribution shape for retro Mac targets:
   Loka should stay header-friendly for modern integration, but it should also

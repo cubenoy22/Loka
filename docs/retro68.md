@@ -132,7 +132,7 @@ Preset mapping used in this repo:
 - If a `.dsk` is mounted, unmount it before rebuilding. Mounted images can leave stale artifacts or misleading runtime results.
 - 68k support remains important for compatibility and experimentation, and simple samples can still boot on 68000-class environments.
 - In practical terms, startup cost and responsiveness become much more constrained on low-end 68k (68000 / 68020) as applications grow in size and complexity.
-- For modern-style application development on Classic Mac OS, 68030-class systems and later — including PPC601 / 603e-class PowerPC Macs — should be treated as the practical mainstream baseline; all bundled examples are runtime-verified on a 68030 PowerBook 180c with 4 MB of RAM.
+- For modern-style application development on Classic Mac OS, 68030-class systems and later (and PPC601 / 603e-class PowerPC Macs) should be treated as the practical mainstream baseline; all bundled examples are runtime-verified on a 68030 PowerBook 180c with 4 MB of RAM.
 
 ## Header Boundary Notes
 
