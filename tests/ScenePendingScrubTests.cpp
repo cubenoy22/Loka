@@ -38,6 +38,10 @@ namespace
 
   // Selects the morph slot expansion for the NEXT root-definition clone.
   static bool g_morphToText = false;
+  // Expands to two untagged children so the by-tag diff fails to build and
+  // the root wrapper takes the full-rebuild fallback instead of a local
+  // rebuild.
+  static bool g_morphFullRebuild = false;
   // Controls whether the nested boundary requests an immediate flush for its
   // view-dirty writes. false leaves the write NextTick-pending, which is what
   // plants a pending transaction entry without running a cycle.
@@ -141,6 +145,14 @@ namespace
     virtual NodeDefinitionBase *clone() const
     {
       loka::app::FragmentDefinition *expanded = new loka::app::FragmentDefinition();
+      if (g_morphFullRebuild)
+      {
+        loka::app::TextDefinition a("full-a");
+        loka::app::TextDefinition b("full-b");
+        expanded->addChild(&a);
+        expanded->addChild(&b);
+        return expanded;
+      }
       {
         BoundaryDefinition<SiblingProps, SiblingBoundaryNode> sibling = SiblingBoundary();
         sibling.setNodeTag(kSiblingTag);
@@ -296,6 +308,7 @@ namespace
   void resetScrubGlobals()
   {
     g_morphToText = false;
+    g_morphFullRebuild = false;
     g_nestedFlushImmediately = false;
     g_writeOnNestedDetach = false;
     g_inNestedDetachWrite = false;
@@ -468,6 +481,47 @@ static void test_scrub_detach_write_reenqueue_and_no_reentry()
   scene.unmount();
 }
 
+// Same failure mode through the third deletion path (Codex P1 on the PR):
+// when the child diff cannot be built, the root wrapper falls back to a full
+// rebuild (detachExistingChildren + clearChildren + arena clear) instead of a
+// local rebuild. A pending nested boundary retired by that fallback must be
+// scrubbed too.
+static void test_scrub_full_rebuild_fallback_drops_pending_nested_boundary()
+{
+  using loka::app::scene::BoundaryNode;
+  using loka::app::scene::Node;
+  using loka::app::scene::Scene;
+
+  resetScrubGlobals();
+  Scene scene(new MorphRootDefinition());
+  ScrubTestController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  Node *root = SceneTestAccess::rootNode(scene);
+  assert(root);
+  BoundaryNode *nested = rebuildHostOnHeap(scene, root);
+
+  nested->markViewDirty(loka::app::scene::NODE_DIRTY_PROPS);
+  assert(SceneTestAccess::projectionTransactionDirtyFlagsForNode(scene, nested)
+         != loka::app::scene::NODE_DIRTY_NONE);
+  const Node *staleNested = nested;
+
+  // Two untagged children make the by-tag diff unbuildable, so this update
+  // takes the full-rebuild fallback and deletes the heap-allocated host
+  // subtree containing the pending boundary.
+  g_morphFullRebuild = true;
+  scene.invalidate(loka::app::scene::NODE_DIRTY_CHILD);
+
+  assert(SceneTestAccess::projectionTransactionDirtyFlagsForNode(scene, staleNested)
+         == loka::app::scene::NODE_DIRTY_NONE);
+  assert(!SceneTestAccess::projectionTransactionHasPending(scene));
+  assert(!findNodeByTag(root, kMorphTag)); // old tagged tree fully retired
+
+  scene.updateAttached(false);
+  scene.unmount();
+}
+
 // The discriminating fixture promised with the phase-guard work (#45 item 1):
 // a structure-changing write lands inside the apply window while a nested
 // boundary is a pending update target and the write flips the morph slot, so
@@ -524,6 +578,7 @@ void testScenePendingUpdateScrub()
   printf("\n==== [testScenePendingUpdateScrub] start ====\n");
   test_transaction_removeTarget_tombstones();
   test_scrub_replace_drops_pending_nested_boundary();
+  test_scrub_full_rebuild_fallback_drops_pending_nested_boundary();
   test_scrub_detach_write_reenqueue_and_no_reentry();
   test_apply_window_morph_write_defers();
   printf("==== [testScenePendingUpdateScrub] end ====\n");

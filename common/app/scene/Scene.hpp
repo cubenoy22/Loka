@@ -675,6 +675,17 @@ namespace loka
             if (event == COMPOSE_EVENT_UPDATE)
             {
               this->detachExistingChildren(context);
+              // Full-rebuild fallback retires the whole child set: scrub after
+              // the DETACH compose and before the delete, like the
+              // local-rebuild paths, so pending targets (including ones
+              // re-enqueued by detach handlers) never dangle (#44).
+              {
+                loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+                for (Node *child = it.next(); child; child = it.next())
+                {
+                  this->discardScenePendingUpdatesFor(child);
+                }
+              }
               this->clearChildren();
               this->nodeArena()->clear();
             }
