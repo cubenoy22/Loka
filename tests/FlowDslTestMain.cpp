@@ -1,6 +1,7 @@
 #include "StateNotifyTests.hpp"
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
+#include "PhaseGuardTests.hpp"
 #include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
@@ -14,6 +15,7 @@ int main()
   testStateNotify();
   testDerivedStateCore();
   testConditionalDefinitionCloneOwnership();
+  testComposeApplyPhaseGuard();
   testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();

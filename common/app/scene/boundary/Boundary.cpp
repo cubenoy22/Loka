@@ -21,7 +21,12 @@ namespace loka
         {
           return;
         }
-        const bool flushImmediately = this->flushViewDirtyImmediately(flags);
+        // Never flush synchronously while this boundary is inside a compose
+        // (including DETACH teardown) or platform apply phase: the write is
+        // queued and picked up by the outer flush loop or the next tick.
+        const bool flushImmediately = this->flushViewDirtyImmediately(flags) &&
+                                      !this->isComposingPhase() &&
+                                      !this->isApplyingPlatform();
         scene->requestBoundaryUpdate(this, flags, flushImmediately);
       }
 

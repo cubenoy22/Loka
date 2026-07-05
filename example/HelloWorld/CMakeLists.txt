@@ -49,6 +49,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DerivedStateTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DefinitionCloneTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/PhaseGuardTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/ValueTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
