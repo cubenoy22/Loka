@@ -176,5 +176,28 @@
       "name": "testing-asan",
       "configurePreset": "testing-asan"
     }
+  ],
+  "testPresets": [
+    {
+      "name": "testing",
+      "configurePreset": "testing",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "testing-asan",
+      "configurePreset": "testing-asan",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "macos-tests",
+      "configurePreset": "macos-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
   ]
 }

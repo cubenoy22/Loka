@@ -108,7 +108,7 @@ For a quick headless test build on Linux/WSL:
 ```sh
 cmake --preset testing        # or: cmake -S . -B build/Testing -G Ninja -DTEST_BUILD=ON
 cmake --build --preset testing
-ctest --test-dir build/Testing
+ctest --preset testing
 ```
 
 Most lifecycle bugs only fail hard under AddressSanitizer, so run the same
@@ -117,7 +117,7 @@ suite through the ASan preset before landing scene/state/flow changes:
 ```sh
 cmake --preset testing-asan
 cmake --build --preset testing-asan
-ctest --test-dir build/Testing-ASan --output-on-failure
+ctest --preset testing-asan
 ```
 
 On macOS the same suite runs as the `LokaTestsMacOS` target:
@@ -125,8 +125,11 @@ On macOS the same suite runs as the `LokaTestsMacOS` target:
 ```sh
 cmake --preset macos-debug
 cmake --build --preset macos-tests
-ctest --test-dir build/macos/Debug -R LokaTestsMacOS
+ctest --preset macos-tests
 ```
+
+The same presets drive VS Code's CMake Tools integration: pick the matching
+configure/build/test preset and the suite appears in the Testing panel.
 
 Development, build, and target environment notes are documented in [docs/environments.md](docs/environments.md).
 
