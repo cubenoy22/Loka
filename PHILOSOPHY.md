@@ -85,6 +85,37 @@ targets make hidden fragility expensive to debug, so the same pressure that
 keeps application code explicit should keep internal mechanics encapsulated,
 owned, and inspectable.
 
+## Safe By Shape
+
+A sound component should be drawable: boxes for owners, solid lines for the
+ports that are actually declared. If the drawing comes out as clean rectangles
+and labeled arrows, a reviewer can say "this is safe" without mentally
+executing every line. A bug is what water looks like poured into a plastic bag
+with holes — the shape itself is distorted. Code whose diagram is misshapen
+remains risky even when all of its tests pass, because the next change may leak
+through a hole nobody drew.
+
+Four properties make a shape clean:
+
+- one owner per box;
+- data enters and leaves only through drawn ports;
+- phases advance in order and cannot be skipped;
+- while a phase is executing, nothing outside the box can reach inside it.
+
+The review-stopper is the dashed arrow: a coupling that exists at runtime but
+appears nowhere in the types. A numeric stamp standing in for a structural
+boundary, a phase flag that silently changes what a write means, a container
+being fed while an iterator is walking it — each is a hole in the bag. A fix
+that patches behavior by adding another dashed arrow makes the shape worse
+even when it is provably correct; prefer reshaping the structure first, then
+re-fixing the bug deliberately on the clean shape, with the failure-mode tests
+carried over as the acceptance criteria.
+
+This is the geometric face of Structure Over Vigilance, and it doubles as a
+communication contract: a design that cannot be explained with one page of
+boxes and solid lines is not finished, no matter how correct the
+implementation is. Correct but illegible is not finished.
+
 ## Joyful, Unambiguous Authoring
 
 Loka should be beautiful to design and pleasant to use. A person writing Loka
