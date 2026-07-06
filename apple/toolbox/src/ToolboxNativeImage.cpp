@@ -47,15 +47,15 @@ namespace loka
     }
 
     loka::core::resource::Image
-    MakeImageFromPictBytes(const std::vector<unsigned char> &bytes, std::size_t pictureOffset, int width, int height)
+    MakeImageFromPictBlob(const loka::core::resource::Blob &blob, std::size_t pictureOffset, int width, int height)
     {
-      if (pictureOffset >= bytes.size() || width <= 0 || height <= 0)
+      if (pictureOffset >= blob.bytes().size() || width <= 0 || height <= 0)
       {
         return loka::core::resource::Image::Empty();
       }
 
       ToolboxPictBytesPayload *payload = new ToolboxPictBytesPayload();
-      payload->bytes = bytes;
+      payload->blob = blob;
       payload->pictureOffset = pictureOffset;
 
       ToolboxNativeImage *native = new ToolboxNativeImage();

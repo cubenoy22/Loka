@@ -22,22 +22,23 @@ namespace
     {
       return;
     }
+    const std::vector<unsigned char> &bytes = gActivePictBytes->blob.bytes();
     unsigned char *dst = static_cast<unsigned char *>(dataPtr);
     long remain = byteCount;
     while (remain > 0)
     {
-      if (gActivePictReadPos >= gActivePictBytes->bytes.size())
+      if (gActivePictReadPos >= bytes.size())
       {
         std::memset(dst, 0, static_cast<std::size_t>(remain));
         return;
       }
-      std::size_t available = gActivePictBytes->bytes.size() - gActivePictReadPos;
+      std::size_t available = bytes.size() - gActivePictReadPos;
       std::size_t chunk = static_cast<std::size_t>(remain);
       if (chunk > available)
       {
         chunk = available;
       }
-      std::memcpy(dst, &gActivePictBytes->bytes[gActivePictReadPos], chunk);
+      std::memcpy(dst, &bytes[gActivePictReadPos], chunk);
       dst += chunk;
       gActivePictReadPos += chunk;
       remain -= static_cast<long>(chunk);
@@ -50,8 +51,9 @@ namespace
     {
       return false;
     }
+    const std::vector<unsigned char> &bytes = payload->blob.bytes();
     const std::size_t headerSize = sizeof(Picture) + sizeof(long) * 8;
-    if (payload->pictureOffset + headerSize > payload->bytes.size())
+    if (payload->pictureOffset + headerSize > bytes.size())
     {
       return false;
     }
@@ -63,7 +65,7 @@ namespace
     }
 
     HLock((Handle)picHandle);
-    std::memcpy(*picHandle, &payload->bytes[payload->pictureOffset], headerSize);
+    std::memcpy(*picHandle, &bytes[payload->pictureOffset], headerSize);
     HUnlock((Handle)picHandle);
 
     if (!gReadPictFromBytesUPP)
