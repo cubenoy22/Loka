@@ -91,8 +91,8 @@ A sound component should be drawable: boxes for owners, solid lines for the
 ports that are actually declared. If the drawing comes out as clean rectangles
 and labeled arrows, a reviewer can say "this is safe" without mentally
 executing every line. A bug is what water looks like poured into a plastic bag
-with holes — the shape itself is distorted. Code whose diagram is misshapen is
-bad code even while all of its tests pass, because the next change will leak
+with holes — the shape itself is distorted. Code whose diagram is misshapen
+remains risky even when all of its tests pass, because the next change may leak
 through a hole nobody drew.
 
 Four properties make a shape clean:
@@ -114,7 +114,7 @@ carried over as the acceptance criteria.
 This is the geometric face of Structure Over Vigilance, and it doubles as a
 communication contract: a design that cannot be explained with one page of
 boxes and solid lines is not finished, no matter how correct the
-implementation is. Correct but illegible fails review.
+implementation is. Correct but illegible is not finished.
 
 ## Joyful, Unambiguous Authoring
 
