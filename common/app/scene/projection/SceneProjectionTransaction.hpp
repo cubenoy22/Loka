@@ -203,6 +203,20 @@ namespace loka
           return count;
         }
 
+        void swapContents(SceneProjectionTransaction &other)
+        {
+          if (this == &other)
+          {
+            return;
+          }
+          TargetEntry *otherHead = other.head;
+          TargetEntry *otherTail = other.tail;
+          other.head = head;
+          other.tail = tail;
+          head = otherHead;
+          tail = otherTail;
+        }
+
       private:
         SceneProjectionTransaction(const SceneProjectionTransaction &);
         SceneProjectionTransaction &operator=(const SceneProjectionTransaction &);

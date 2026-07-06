@@ -26,6 +26,13 @@ namespace loka
       class SceneDirector
       {
       public:
+        enum UpdateCyclePhase
+        {
+          UPDATE_CYCLE_IDLE = 0,
+          UPDATE_CYCLE_REFRESH = 1,
+          UPDATE_CYCLE_APPLY = 2
+        };
+
         struct BoundaryUpdateRequest
         {
           BoundaryUpdateRequest()
@@ -367,9 +374,34 @@ namespace loka
                 return hasPending() ? generation : 0;
               }
 
+              unsigned long generationValue() const
+              {
+                return generation;
+              }
+
               void clear()
               {
                 projection.clear();
+              }
+
+              void retainGeneration(unsigned long value)
+              {
+                if (generation < value)
+                {
+                  generation = value;
+                }
+              }
+
+              void swapState(AccumulatedProjectionState &other)
+              {
+                if (this == &other)
+                {
+                  return;
+                }
+                projection.swapContents(other.projection);
+                const unsigned long otherGeneration = other.generation;
+                other.generation = generation;
+                generation = otherGeneration;
               }
 
             private:
@@ -433,6 +465,20 @@ namespace loka
                 return fullRebuild;
               }
 
+              void swapState(RequestedInputState &other)
+              {
+                if (this == &other)
+                {
+                  return;
+                }
+                const NodeDirtyFlags otherDirtyFlags = other.dirtyFlags;
+                const bool otherFullRebuild = other.fullRebuild;
+                other.dirtyFlags = dirtyFlags;
+                other.fullRebuild = fullRebuild;
+                dirtyFlags = otherDirtyFlags;
+                fullRebuild = otherFullRebuild;
+              }
+
             private:
               NodeDirtyFlags dirtyFlags;
               bool fullRebuild;
@@ -476,6 +522,11 @@ namespace loka
               return projectionState.snapshotGeneration();
             }
 
+            unsigned long generationValue() const
+            {
+              return projectionState.generationValue();
+            }
+
             NodeDirtyFlags requestedDirtyFlags() const
             {
               return requestedInput.dirtyFlagsValue();
@@ -517,6 +568,21 @@ namespace loka
             {
               projectionState.clear();
               requestedInput.clear();
+            }
+
+            void retainGeneration(unsigned long value)
+            {
+              projectionState.retainGeneration(value);
+            }
+
+            void swapState(AccumulatedState &other)
+            {
+              if (this == &other)
+              {
+                return;
+              }
+              projectionState.swapState(other.projectionState);
+              requestedInput.swapState(other.requestedInput);
             }
 
           private:
@@ -570,6 +636,11 @@ namespace loka
             return accumulatedState.snapshotGeneration();
           }
 
+          unsigned long generationValue() const
+          {
+            return accumulatedState.generationValue();
+          }
+
           NodeDirtyFlags requestedDirtyFlags() const
           {
             return accumulatedState.requestedDirtyFlags();
@@ -610,6 +681,20 @@ namespace loka
             accumulatedState.clearAccumulatedState();
           }
 
+          void retainGeneration(unsigned long value)
+          {
+            accumulatedState.retainGeneration(value);
+          }
+
+          void swapTransaction(SceneUpdateTransaction &other)
+          {
+            if (this == &other)
+            {
+              return;
+            }
+            accumulatedState.swapState(other.accumulatedState);
+          }
+
         private:
           AccumulatedState accumulatedState;
         };
@@ -618,6 +703,11 @@ namespace loka
 
         void attach(Scene *scene);
         void detach();
+        bool beginRefreshCycle();
+        void beginApplyCycle();
+        void completeUpdateCycle();
+        UpdateCyclePhase phase() const;
+        bool isUpdateCycleActive() const;
 
         void registerBoundaryUpdate(const BoundaryUpdateRequest &request);
         void requestBoundaryUpdate(BoundaryNode *boundary, NodeDirtyFlags flags, bool flushImmediately);
@@ -660,6 +750,8 @@ namespace loka
 #endif
 
       private:
+        const SceneUpdateTransaction &transactionForCurrentCycle() const;
+        SceneUpdateTransaction &transactionForCurrentCycle();
         struct PendingUpdateRootAnalysis
         {
           explicit PendingUpdateRootAnalysis(const SceneDirector *director);
@@ -711,6 +803,8 @@ namespace loka
 
         Scene *scene_;
         SceneUpdateTransaction updateTransaction_;
+        SceneUpdateTransaction activeTransaction_;
+        UpdateCyclePhase phase_;
 
         friend class ::loka::dsl::testing::SceneTestAccess;
       };
