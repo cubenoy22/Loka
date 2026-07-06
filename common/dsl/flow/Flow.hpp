@@ -749,14 +749,16 @@ namespace loka
         FlowChainImpl *self = static_cast<FlowChainImpl *>(userData);
         if (self->triggerRunning_)
           return;
-        RetainScope retainScope(self);
         RunPinScope runPinScope(self);
         self->triggerRunning_ = true;
         if (self->triggerReadFn_ && self->triggerInputBuffer_)
         {
           self->triggerReadFn_(self->triggerInputBuffer_, self->triggerState_);
         }
-        FlowRunResult result = self->runPinnedFromIndex(0);
+        // Trigger callbacks hold only the impl pointer, so lifetime still
+        // needs pinning here; use the run pin rather than refs_ so callback
+        // code can cancel the active impl without tripping copy-on-write.
+        FlowRunResult result = self->runCoreFromIndex(0);
         if (result != FLOW_RUN_PENDING)
         {
           self->triggerRunning_ = false;
@@ -778,27 +780,6 @@ namespace loka
           delete this;
         }
       }
-
-      struct RetainScope
-      {
-        explicit RetainScope(FlowChainImpl *impl)
-            : impl_(impl)
-        {
-          assert(this->impl_ != 0 && "FlowChainImpl::RetainScope requires impl");
-          this->impl_->retain();
-        }
-
-        ~RetainScope()
-        {
-          this->impl_->release();
-        }
-
-        FlowChainImpl *impl_;
-
-      private:
-        RetainScope(const RetainScope &);
-        RetainScope &operator=(const RetainScope &);
-      };
 
       struct RunPinScope
       {

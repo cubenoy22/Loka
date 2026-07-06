@@ -5277,6 +5277,43 @@ void testLokaFlowDslV1Core()
     assert(trigger.get() == 99); // but the trigger value was updated
   }
 
+  // --- bindTrigger: trigger-driven cancel must hit the active impl ---
+  {
+    struct CancelDuringTriggeredStep
+    {
+      struct Context
+      {
+        loka::dsl::FlowChain<int, int> *chain;
+        int *cancelCalls;
+      };
+
+      static void cancelSelf(const int &, void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->cancelCalls);
+        ctx->chain->cancel();
+      }
+    };
+
+    loka::core::MutableState<int> trigger;
+    int callsA = 0;
+    int callsB = 0;
+    int cancelCalls = 0;
+    CancelDuringTriggeredStep::Context ctx = {0, &cancelCalls};
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA))
+              .onSuccess(&CancelDuringTriggeredStep::cancelSelf, &ctx)
+        | loka::dsl::Step(2, FlowTestCountedPassAdapter(&callsB));
+    ctx.chain = &chain;
+    chain.bindTrigger(&trigger);
+
+    trigger.set(10);
+    assert(callsA == 1);
+    assert(callsB == 0);
+    assert(cancelCalls == 1);
+  }
+
   // --- State<void>: callback may delete emitter safely ---
   {
     StateNotifyDeleteCtx ctx;
