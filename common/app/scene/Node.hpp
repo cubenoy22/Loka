@@ -879,13 +879,13 @@ namespace loka
         NestableDefinitionBase(const NestableDefinitionBase &other)
             : children_()
         {
-          this->copyChildrenFrom(other);
+          this->replaceChildrenFrom(other);
         }
         NestableDefinitionBase &operator=(const NestableDefinitionBase &other)
         {
           if (this != &other)
           {
-            this->copyChildrenFrom(other);
+            this->replaceChildrenFrom(other);
           }
           return *this;
         }
@@ -927,45 +927,107 @@ namespace loka
           children_.clear();
         }
 
-        void copyChildrenFrom(const NestableDefinitionBase &other)
+        template <typename BaseT>
+        bool assignNestableBase(BaseT &baseSelf, const BaseT &otherBase, const NestableDefinitionBase &otherChildren)
         {
-          std::vector<NodeDefinitionBase *> newChildren;
+          if (!replaceChildrenFrom(otherChildren))
+          {
+            return false;
+          }
+          baseSelf = otherBase;
+          return true;
+        }
+
+        bool replaceChildrenFrom(const NestableDefinitionBase &other)
+        {
+          loka::dsl::CompositionList<NodeDefinitionBase> newChildren;
           NodeDefinitionBase *cur = other.children_.head();
-#if defined(__EXCEPTIONS)
-          try
-          {
-            while (cur)
-            {
-              NodeDefinitionBase *child = cur ? cur->clone() : 0;
-              newChildren.push_back(child);
-              cur = cur->nextInComposition;
-            }
-          }
-          catch (...)
-          {
-            for (size_t i = 0; i < newChildren.size(); ++i)
-            {
-              delete newChildren[i];
-            }
-            throw;
-          }
-#else
           while (cur)
           {
             NodeDefinitionBase *child = cur ? cur->clone() : 0;
-            newChildren.push_back(child);
+            if (!child)
+            {
+              return false;
+            }
+            newChildren.appendOwned(child);
             cur = cur->nextInComposition;
           }
-#endif
           clearChildren();
-          for (size_t i = 0; i < newChildren.size(); ++i)
-          {
-            children_.appendOwned(newChildren[i]);
-          }
+          newChildren.detachTo(children_);
+          return true;
         }
 
       private:
         loka::dsl::CompositionList<NodeDefinitionBase> children_;
+      };
+
+      template <class PropsT, class NodeT, class DerivedT>
+      struct NestableNodeDefinition : public NodeDefinition<PropsT, NodeT>,
+                                      public NestableDefinitionBase,
+                                      public NestableDslMixin<DerivedT>
+      {
+        typedef NodeDefinition<PropsT, NodeT> BaseType;
+        using NestableDslMixin<DerivedT>::operator<<;
+
+        NestableNodeDefinition()
+            : BaseType(),
+              NestableDefinitionBase()
+        {
+        }
+
+        explicit NestableNodeDefinition(const PropsT &p)
+            : BaseType(p),
+              NestableDefinitionBase()
+        {
+        }
+
+        NestableNodeDefinition(const NestableNodeDefinition &other)
+            : BaseType(),
+              NestableDefinitionBase()
+        {
+          this->assignFromDefinition(other);
+        }
+
+        NestableNodeDefinition &operator=(const NestableNodeDefinition &other)
+        {
+          if (this != &other)
+          {
+            this->assignFromDefinition(other);
+          }
+          return *this;
+        }
+
+        virtual INestableDefinition *asNestableDefinition()
+        {
+          return static_cast<DerivedT *>(this);
+        }
+
+        virtual const NodeDefinitionBase *asNodeDefinitionBase() const
+        {
+          return static_cast<const DerivedT *>(this);
+        }
+
+        virtual NodeDefinitionBase *clone() const
+        {
+          DerivedT *copy = new DerivedT();
+          if (!copy)
+          {
+            return 0;
+          }
+          if (!copy->assignFromDefinition(*this))
+          {
+            delete copy;
+            return 0;
+          }
+          return copy;
+        }
+
+      protected:
+        bool assignFromDefinition(const NestableNodeDefinition &other)
+        {
+          return this->assignNestableBase(
+              static_cast<BaseType &>(*this), static_cast<const BaseType &>(other), other);
+        }
       };
 
       // --- Interface for nestable Node/Definition ---

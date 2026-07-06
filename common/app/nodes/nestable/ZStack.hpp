@@ -46,48 +46,22 @@ namespace loka
       }
     };
 
-    struct ZStackDefinition : public scene::NodeDefinition<ZStackProps, ZStackNode>,
-                              public scene::NestableDefinitionBase,
-                              public scene::NestableDslMixin<ZStackDefinition>,
+    struct ZStackDefinition : public scene::NestableNodeDefinition<ZStackProps, ZStackNode, ZStackDefinition>,
                               public scene::TestIdDslMixin<ZStackDefinition>
     {
-      typedef scene::NodeDefinition<ZStackProps, ZStackNode> BaseType;
-      using scene::NestableDslMixin<ZStackDefinition>::operator<<;
+      typedef scene::NestableNodeDefinition<ZStackProps, ZStackNode, ZStackDefinition> BaseType;
+      using BaseType::operator<<;
       ZStackDefinition()
-          : BaseType(),
-            scene::NestableDefinitionBase()
+          : BaseType()
       {
       }
       ZStackDefinition(const ZStackProps &p)
-          : BaseType(p),
-            scene::NestableDefinitionBase()
+          : BaseType(p)
       {
       }
       ZStackDefinition(const ZStackDefinition &other)
-          : BaseType(other),
-            scene::NestableDefinitionBase(other)
+          : BaseType(other)
       {
-      }
-      ZStackDefinition &operator=(const ZStackDefinition &other)
-      {
-        if (this != &other)
-        {
-          BaseType::operator=(other);
-          scene::NestableDefinitionBase::operator=(other);
-        }
-        return *this;
-      }
-      virtual scene::NodeDefinitionBase *clone() const
-      {
-        return new ZStackDefinition(*this);
-      }
-      virtual scene::INestableDefinition *asNestableDefinition()
-      {
-        return this;
-      }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
-      {
-        return this;
       }
     };
 
