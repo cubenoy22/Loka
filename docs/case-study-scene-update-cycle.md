@@ -49,7 +49,7 @@ the failure-mode test suite in `tests/ScenePendingScrubTests.cpp` and
 
 - Mode 1 was predicted by audit, but the first fixture could not reproduce it;
   the honest note "a discriminating fixture lands with the follow-up work"
-  was kept in the PR instead of overclaiming. The discrimination arrived later,
+  was kept in the PR instead of overclaiming. The discriminating fixture arrived later,
   from the richer REPLACE machinery built for mode 2.
 - Mode 2's third deletion path (full-rebuild fallback) came from bot review of
   the fix — an adversarial micro-read of exactly the code that had just been
@@ -64,7 +64,7 @@ the failure-mode test suite in `tests/ScenePendingScrubTests.cpp` and
   believed it.
 
 The division of labor mattered. Adversarial diff-reading (bots) caught holes
-in freshly written code (modes 2b, and a live-list/cursor interaction in the
+in freshly written code (mode 2’s third deletion path, and a live-list/cursor interaction in the
 mode-3 fix); instrumented cross-layer verification caught the mis-attribution
 nothing else had. Neither mode of review found the other's class of bug.
 
@@ -120,5 +120,5 @@ pinned, currently-unreachable bugs rather than fresh invisible couplings.
 - Treat "the minimal correct fix introduced a hidden version of concept X" as
   the strongest possible evidence that concept X should exist structurally.
 - When parking fixes in favor of structure, park loudly: issues stay open
-  with the decision recorded, tests stay green-able on the parked branch, and
+  with the decision recorded, tests stay green on the parked branch, and
   the redesign inherits them as its acceptance gate.
