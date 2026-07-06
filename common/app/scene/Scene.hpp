@@ -461,9 +461,14 @@ namespace loka
           }
         }
 
-        void beginPendingRefreshCycle()
+        bool beginPendingRefreshCycle()
         {
+          if (!director_.beginRefreshCycle())
+          {
+            return false;
+          }
           updateCycleState_.beginRefresh(director_.buildRefreshRequestSnapshot(rootNode_));
+          return true;
         }
 
         SceneDirector::SceneUpdateSnapshot buildPendingRefreshSnapshot() const
@@ -798,7 +803,15 @@ namespace loka
             clearPendingRefreshCycle();
             return false;
           }
-          beginPendingRefreshCycle();
+          if (director_.isUpdateCycleActive())
+          {
+            return false;
+          }
+          if (!beginPendingRefreshCycle())
+          {
+            clearPendingRefreshCycle();
+            return false;
+          }
           composePendingRefreshCycle();
           capturePendingRefreshSnapshot();
           logRefreshDecision();
@@ -812,11 +825,12 @@ namespace loka
           {
             return;
           }
+          director_.beginApplyCycle();
           platformController_->beginApplyCycle();
           const NodeDirtyFlags flags = updateCycleState_.effectiveApplyDirtyFlags();
           logApplyFlags(flags);
           executePendingApplyCycle(flags);
-          director_.clearUpdateTransaction();
+          director_.completeUpdateCycle();
         }
 
         void teardownComposition()
@@ -863,7 +877,9 @@ namespace loka
 
       inline SceneDirector::SceneDirector()
           : scene_(0),
-            updateTransaction_()
+            updateTransaction_(),
+            activeTransaction_(),
+            phase_(UPDATE_CYCLE_IDLE)
       {
       }
 
@@ -877,6 +893,50 @@ namespace loka
       {
         scene_ = 0;
         clearUpdateTransaction();
+      }
+
+      inline bool SceneDirector::beginRefreshCycle()
+      {
+        if (phase_ != UPDATE_CYCLE_IDLE)
+        {
+          return false;
+        }
+        if (!updateTransaction_.hasAccumulatedUpdates())
+        {
+          return false;
+        }
+        activeTransaction_.swapTransaction(updateTransaction_);
+        updateTransaction_.retainGeneration(activeTransaction_.generationValue());
+        phase_ = UPDATE_CYCLE_REFRESH;
+        return activeTransaction_.hasAccumulatedUpdates();
+      }
+
+      inline void SceneDirector::beginApplyCycle()
+      {
+        if (phase_ == UPDATE_CYCLE_REFRESH)
+        {
+          phase_ = UPDATE_CYCLE_APPLY;
+        }
+      }
+
+      inline void SceneDirector::completeUpdateCycle()
+      {
+        activeTransaction_.clearTransaction();
+        phase_ = UPDATE_CYCLE_IDLE;
+        if (scene_ && updateTransaction_.hasAccumulatedUpdates())
+        {
+          scene_->queueInvalidate();
+        }
+      }
+
+      inline SceneDirector::UpdateCyclePhase SceneDirector::phase() const
+      {
+        return phase_;
+      }
+
+      inline bool SceneDirector::isUpdateCycleActive() const
+      {
+        return phase_ != UPDATE_CYCLE_IDLE;
       }
 
       inline void
@@ -908,12 +968,18 @@ namespace loka
         {
           return;
         }
+        // New requests always accumulate into the pending transaction. When a
+        // cycle is active, they become work for the next run.
         updateTransaction_.enqueueBoundaryUpdate(request);
       }
 
       inline void SceneDirector::applyBoundaryUpdateRequest(const BoundaryUpdateRequest &request) const
       {
         if (!scene_)
+        {
+          return;
+        }
+        if (isUpdateCycleActive())
         {
           return;
         }
@@ -926,42 +992,42 @@ namespace loka
 
       inline NodeDirtyFlags SceneDirector::aggregateDirtyFlags() const
       {
-        return updateTransaction_.aggregateDirtyFlags();
+        return transactionForCurrentCycle().aggregateDirtyFlags();
       }
 
       inline NodeDirtyFlags SceneDirector::requestedDirtyFlags() const
       {
-        return updateTransaction_.requestedDirtyFlags();
+        return transactionForCurrentCycle().requestedDirtyFlags();
       }
 
       inline NodeDirtyFlags SceneDirector::effectiveRequestedDirtyFlags() const
       {
-        return updateTransaction_.effectiveRequestedDirtyFlags();
+        return transactionForCurrentCycle().effectiveRequestedDirtyFlags();
       }
 
       inline bool SceneDirector::hasRequestedInput() const
       {
-        return updateTransaction_.hasRequestedInput();
+        return transactionForCurrentCycle().hasRequestedInput();
       }
 
       inline bool SceneDirector::requestedFullRebuild() const
       {
-        return updateTransaction_.requestedFullRebuild();
+        return transactionForCurrentCycle().requestedFullRebuild();
       }
 
       inline NodeDirtyFlags SceneDirector::pendingDirtyFlagsForBoundary(const BoundaryNode *boundary) const
       {
-        return updateTransaction_.pendingDirtyFlagsForBoundary(boundary);
+        return transactionForCurrentCycle().pendingDirtyFlagsForBoundary(boundary);
       }
 
       inline bool SceneDirector::hasPendingBoundary(const BoundaryNode *boundary) const
       {
-        return updateTransaction_.hasPendingBoundary(boundary);
+        return transactionForCurrentCycle().hasPendingBoundary(boundary);
       }
 
       inline BoundaryNode *SceneDirector::firstPendingBoundary() const
       {
-        return updateTransaction_.firstPendingBoundary();
+        return transactionForCurrentCycle().firstPendingBoundary();
       }
 
       inline BoundaryNode *SceneDirector::topMostRequestedBoundary(BoundaryNode *boundary) const
@@ -1018,13 +1084,13 @@ namespace loka
 
       inline SceneDirector::SceneUpdateRequestSnapshot SceneDirector::buildRefreshRequestSnapshot(Node *rootNode) const
       {
-        return updateTransaction_.buildRequestSnapshot(rootBoundaryFor(rootNode), primaryUpdateRootFor(rootNode));
+        return activeTransaction_.buildRequestSnapshot(rootBoundaryFor(rootNode), primaryUpdateRootFor(rootNode));
       }
 
       inline SceneDirector::SceneUpdateSnapshot SceneDirector::buildUpdateSnapshot(Node *rootNode,
                                                                                    const Scene *scene) const
       {
-        const unsigned long generation = updateTransaction_.snapshotGeneration();
+        const unsigned long generation = activeTransaction_.snapshotGeneration();
         if (generation == 0)
         {
           return SceneUpdateSnapshot();
@@ -1387,7 +1453,7 @@ namespace loka
         }
         const NodeDirtyFlags rootFlags = director->pendingDirtyFlagsForBoundary(root);
         SceneProjectionTransaction::ConstIterator it =
-            director->updateTransaction_.projectionTransaction().targetsBegin();
+            director->activeTransaction_.projectionTransaction().targetsBegin();
         while (it.isValid())
         {
           Node *node = it.node();
@@ -1462,7 +1528,7 @@ namespace loka
 
       inline SceneDirector::PendingUpdateRootCursor::PendingUpdateRootCursor(const SceneDirector *director)
           : director(director),
-            iterator(director ? director->updateTransaction_.projectionTransaction().targetsBegin()
+            iterator(director ? director->activeTransaction_.projectionTransaction().targetsBegin()
                               : SceneProjectionTransaction::ConstIterator()),
             analysis(director)
       {
@@ -1549,11 +1615,23 @@ namespace loka
       inline void SceneDirector::clearUpdateTransaction()
       {
         updateTransaction_.clearTransaction();
+        activeTransaction_.clearTransaction();
+        phase_ = UPDATE_CYCLE_IDLE;
       }
 
       inline void SceneDirector::SceneUpdateTransaction::enqueueBoundaryUpdate(const BoundaryUpdateRequest &request)
       {
         accumulatedState.enqueueBoundaryUpdate(request);
+      }
+
+      inline const SceneDirector::SceneUpdateTransaction &SceneDirector::transactionForCurrentCycle() const
+      {
+        return isUpdateCycleActive() ? activeTransaction_ : updateTransaction_;
+      }
+
+      inline SceneDirector::SceneUpdateTransaction &SceneDirector::transactionForCurrentCycle()
+      {
+        return isUpdateCycleActive() ? activeTransaction_ : updateTransaction_;
       }
 
     } // namespace scene

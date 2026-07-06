@@ -439,6 +439,18 @@ namespace
   static loka::app::scene::BoundaryNode *g_pendingApplySiblingAPaintRoot = 0;
   static loka::app::scene::BoundaryNode *g_pendingApplySiblingBLayoutRoot = 0;
   static loka::app::scene::BoundaryNode *g_pendingApplySiblingBPaintRoot = 0;
+  class PendingApplyDefersSiblingABoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PendingApplyDefersSiblingABoundaryNode>
+      PendingApplyDefersSiblingABoundaryProps;
+  class PendingApplyDefersSiblingBBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PendingApplyDefersSiblingBBoundaryNode>
+      PendingApplyDefersSiblingBBoundaryProps;
+  class PendingApplyDefersSiblingsRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<PendingApplyDefersSiblingsRootNode> PendingApplyDefersSiblingsRootProps;
+  static int g_pendingApplyDefersSiblingACalls = 0;
+  static int g_pendingApplyDefersSiblingBCalls = 0;
+  static bool g_pendingApplyDefersSiblingAQueuedSiblingB = false;
+  static loka::app::scene::BoundaryNode *g_pendingApplyDeferredSiblingB = 0;
   class HeadlessScopeProbeBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<HeadlessScopeProbeBoundaryNode> HeadlessScopeProbeProps;
   class HeadlessScopeHostBoundaryNode;
@@ -1212,6 +1224,90 @@ namespace
                  .tag(101)
           << loka::app::scene::BoundaryDefinition<PendingApplySiblingBBoundaryProps, PendingApplySiblingBBoundaryNode>()
                  .tag(102));
+    }
+  };
+
+  class PendingApplyDefersSiblingABoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<PendingApplyDefersSiblingABoundaryNode>
+  {
+  public:
+    PendingApplyDefersSiblingABoundaryNode(const PendingApplyDefersSiblingABoundaryProps &p)
+        : loka::app::scene::BoundaryNodeFor<PendingApplyDefersSiblingABoundaryNode>(
+              PendingApplyDefersSiblingABoundaryProps(p))
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::Text("DeferA").testId("PendingDeferSiblingAText"));
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      ++g_pendingApplyDefersSiblingACalls;
+      assert(plan.paintRoot == this);
+      if (!g_pendingApplyDefersSiblingAQueuedSiblingB)
+      {
+        g_pendingApplyDefersSiblingAQueuedSiblingB = true;
+        assert(this->isApplyingPlatform());
+        assert(g_pendingApplyDeferredSiblingB != 0);
+        g_pendingApplyDeferredSiblingB->markViewDirty(loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+  };
+
+  class PendingApplyDefersSiblingBBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<PendingApplyDefersSiblingBBoundaryNode>
+  {
+  public:
+    PendingApplyDefersSiblingBBoundaryNode(const PendingApplyDefersSiblingBBoundaryProps &p)
+        : loka::app::scene::BoundaryNodeFor<PendingApplyDefersSiblingBBoundaryNode>(
+              PendingApplyDefersSiblingBBoundaryProps(p))
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(loka::app::Text("DeferB").testId("PendingDeferSiblingBText"));
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void applyPendingUpdate(const loka::app::scene::PlatformApplyPlan &plan)
+    {
+      ++g_pendingApplyDefersSiblingBCalls;
+      assert(plan.paintRoot == this);
+    }
+  };
+
+  class PendingApplyDefersSiblingsRootNode
+      : public loka::app::scene::BoundaryNodeFor<PendingApplyDefersSiblingsRootNode>
+  {
+  public:
+    PendingApplyDefersSiblingsRootNode(const PendingApplyDefersSiblingsRootProps &p)
+        : loka::app::scene::BoundaryNodeFor<PendingApplyDefersSiblingsRootNode>(
+              PendingApplyDefersSiblingsRootProps(p))
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      c.declare(
+          loka::app::VStack()
+          << loka::app::scene::BoundaryDefinition<PendingApplyDefersSiblingABoundaryProps,
+                                                  PendingApplyDefersSiblingABoundaryNode>()
+                 .tag(201)
+          << loka::app::scene::BoundaryDefinition<PendingApplyDefersSiblingBBoundaryProps,
+                                                  PendingApplyDefersSiblingBBoundaryNode>()
+                 .tag(202));
     }
   };
 
@@ -3956,6 +4052,56 @@ void testLokaFlowDslV1Core()
     assert(g_pendingApplySiblingBLayoutRoot != 0);
     assert(g_pendingApplySiblingBPaintRoot != 0);
     assert(platform.lastBoundaryApplyBoundary_ == siblingB || platform.lastBoundaryApplyBoundary_ == siblingA);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
+
+    scene.unmount();
+  }
+
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    using loka::dsl::testing::SceneTestAccess;
+
+    g_pendingApplyDefersSiblingACalls = 0;
+    g_pendingApplyDefersSiblingBCalls = 0;
+    g_pendingApplyDefersSiblingAQueuedSiblingB = false;
+    g_pendingApplyDeferredSiblingB = 0;
+
+    Scene scene((BoundaryDefinition<PendingApplyDefersSiblingsRootProps, PendingApplyDefersSiblingsRootNode>()));
+    FlowScenePlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = SceneTestAccess::rootBoundary(scene);
+    assert(rootBoundary != 0);
+    INestable *rootNestable = rootBoundary->asNestable();
+    assert(rootNestable != 0);
+    Node *stackNode = rootNestable->childrenHead();
+    assert(stackNode != 0);
+    INestable *stackNestable = stackNode->asNestable();
+    assert(stackNestable != 0);
+    loka::dsl::CompositionCursor<Node> it(stackNestable->childrenHead(), stackNestable->childrenCount());
+    Node *siblingANode = it.next();
+    Node *siblingBNode = it.next();
+    assert(siblingANode != 0);
+    assert(siblingBNode != 0);
+    BoundaryNode *siblingA = siblingANode->asBoundary();
+    BoundaryNode *siblingB = siblingBNode->asBoundary();
+    assert(siblingA != 0);
+    assert(siblingB != 0);
+    g_pendingApplyDeferredSiblingB = siblingB;
+
+    siblingA->markViewDirty(NODE_DIRTY_PROPS);
+
+    assert(scene.flushInvalidation());
+    assert(g_pendingApplyDefersSiblingACalls == 1);
+    assert(g_pendingApplyDefersSiblingBCalls == 0);
+    assert(SceneTestAccess::director(scene).firstPendingBoundary() == siblingB);
+    assert(scene.hasPendingInvalidation());
+
+    assert(scene.flushInvalidation());
+    assert(g_pendingApplyDefersSiblingACalls == 1);
+    assert(g_pendingApplyDefersSiblingBCalls == 1);
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.unmount();
