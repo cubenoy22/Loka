@@ -834,11 +834,16 @@ namespace loka
           {
             return;
           }
+          // Everything enqueued before this point was consumed by the
+          // refresh/snapshot that this apply executes; writes landing during
+          // the apply window belong to the next cycle and must survive the
+          // end-of-cycle clear (#59).
+          director_.beginApplyWindow();
           platformController_->beginApplyCycle();
           const NodeDirtyFlags flags = updateCycleState_.effectiveApplyDirtyFlags();
           logApplyFlags(flags);
           executePendingApplyCycle(flags);
-          director_.clearUpdateTransaction();
+          director_.clearUpdateTransactionAfterApply();
         }
 
         void teardownComposition()
@@ -1595,6 +1600,32 @@ namespace loka
       inline void SceneDirector::clearUpdateTransaction()
       {
         updateTransaction_.clearTransaction();
+      }
+
+      inline void SceneDirector::beginApplyWindow()
+      {
+        updateTransaction_.beginApplyWindow();
+      }
+
+      // End-of-apply clear that keeps updates enqueued during the apply
+      // window: survivors are requeued through enqueueBoundaryUpdate so both
+      // the projection target and the requested-input dirty/full-rebuild
+      // semantics are rebuilt on the normal path (#59). The already-scheduled
+      // NextTick request delivers them on the next flush.
+      inline void SceneDirector::clearUpdateTransactionAfterApply()
+      {
+        std::vector<SceneProjectionTransaction::CarriedTarget> carried;
+        updateTransaction_.takeUnconsumedProjectionTargets(carried);
+        updateTransaction_.clearTransaction();
+        for (size_t i = 0; i < carried.size(); ++i)
+        {
+          BoundaryNode *boundary = carried[i].node ? carried[i].node->asBoundary() : 0;
+          if (!boundary)
+          {
+            continue;
+          }
+          updateTransaction_.enqueueBoundaryUpdate(BoundaryUpdateRequest(boundary, carried[i].dirtyFlags, false));
+        }
       }
 
       inline void SceneDirector::SceneUpdateTransaction::enqueueBoundaryUpdate(const BoundaryUpdateRequest &request)

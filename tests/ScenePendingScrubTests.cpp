@@ -474,6 +474,10 @@ static void test_scrub_detach_write_reenqueue_and_no_reentry()
   assert(g_updateComposeDuringNestedDetachWrite == 0);
   assert(SceneTestAccess::projectionTransactionDirtyFlagsForNode(scene, staleNested)
          == loka::app::scene::NODE_DIRTY_NONE);
+  // Scrub/carry-over interaction (#59 acceptance): the retiring boundary's
+  // re-enqueue was tombstoned before the carry-over ran, so nothing of the
+  // dead subtree survives into the next cycle.
+  assert(!SceneTestAccess::projectionTransactionHasPending(scene));
   Node *morphed = findNodeByTag(root, kMorphTag);
   assert(morphed && !morphed->asBoundary() && !morphed->asNestable());
 
@@ -557,17 +561,20 @@ static void test_apply_window_morph_write_defers()
 
   assert(!platform.morphOnNextChange_); // the apply-window write ran
   assert(platform.nestedCallsDuringMorphWrite_ == 0);
-  // Current behavior pin (matches PhaseGuardTests): the update enqueued
-  // during apply is dropped by the end-of-cycle transaction clear (#45 item
-  // 3), so the morph slot still hosts the nested subtree after this flush.
+  // Fixed behavior (#59): the write is deferred, not applied mid-cycle...
   Node *slot = findNodeByTag(root, kMorphTag);
   assert(slot && slot->asNestable());
-
-  // An explicit follow-up rebuild applies the pending morph; the scrub keeps
-  // the retiring subtree out of the transaction as usual.
-  morph(scene, true);
+  // ...but it survives the end-of-apply clear as a carried-over target with
+  // its requested dirty semantics, and the already-scheduled next tick
+  // delivers it without any new invalidation.
+  assert((SceneTestAccess::projectionTransactionDirtyFlagsForNode(scene, sibling)
+          & loka::app::scene::NODE_DIRTY_CHILD) != 0);
+  assert(scene.hasPendingInvalidation());
+  scene.flushInvalidation();
   slot = findNodeByTag(root, kMorphTag);
   assert(slot && !slot->asBoundary() && !slot->asNestable());
+  // Convergence: the carried write was a one-shot, so the system settles.
+  assert(!SceneTestAccess::projectionTransactionHasPending(scene));
 
   scene.updateAttached(false);
   scene.unmount();

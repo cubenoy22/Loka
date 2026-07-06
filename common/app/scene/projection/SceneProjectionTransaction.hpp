@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_PROJECTION_SCENE_PROJECTION_TRANSACTION_HPP
 #define LOKA_CORE2_SCENE_PROJECTION_SCENE_PROJECTION_TRANSACTION_HPP
 
+#include <vector>
 #include "app/scene/Node.hpp"
 
 namespace loka
@@ -37,6 +38,7 @@ namespace loka
           TargetEntry()
               : node(0),
                 dirtyFlags(NODE_DIRTY_NONE),
+                epoch(0),
                 next(0)
           {
           }
@@ -44,6 +46,7 @@ namespace loka
           TargetEntry(Node *targetNode, NodeDirtyFlags flags)
               : node(targetNode),
                 dirtyFlags(flags),
+                epoch(0),
                 next(0)
           {
           }
@@ -55,6 +58,7 @@ namespace loka
 
           Node *node;
           NodeDirtyFlags dirtyFlags;
+          unsigned long epoch;
           TargetEntry *next;
         };
 
@@ -101,9 +105,30 @@ namespace loka
           const TargetEntry *entry_;
         };
 
+        // A live target carried out of takeUnconsumed() so the caller can
+        // requeue it through the normal enqueue path after a clear.
+        struct CarriedTarget
+        {
+          CarriedTarget()
+              : node(0),
+                dirtyFlags(NODE_DIRTY_NONE)
+          {
+          }
+
+          CarriedTarget(Node *targetNode, NodeDirtyFlags flags)
+              : node(targetNode),
+                dirtyFlags(flags)
+          {
+          }
+
+          Node *node;
+          NodeDirtyFlags dirtyFlags;
+        };
+
         SceneProjectionTransaction()
             : head(0),
-              tail(0)
+              tail(0),
+              epoch_(0)
         {
         }
 
@@ -126,10 +151,38 @@ namespace loka
           if (entry)
           {
             entry->includeDirtyFlags(flags);
+            // A coalescing write re-arms the entry: it must survive the
+            // end-of-cycle clear of the window it lands in.
+            entry->epoch = epoch_;
             return;
           }
           entry = new TargetEntry(node, flags);
+          entry->epoch = epoch_;
           append(entry);
+        }
+
+        // Marks the start of an apply window: entries stamped before this
+        // point are the ones the in-flight cycle consumed; anything enqueued
+        // (or re-armed by coalescing) afterwards belongs to the next cycle.
+        void beginApplyWindow()
+        {
+          ++epoch_;
+        }
+
+        // Collects the live targets enqueued at or after the current apply
+        // window (tombstones excluded) so the caller can clear the
+        // transaction and requeue them through the normal enqueue path.
+        void takeUnconsumed(std::vector<CarriedTarget> &out) const
+        {
+          const TargetEntry *entry = head;
+          while (entry)
+          {
+            if (entry->node && entry->epoch == epoch_)
+            {
+              out.push_back(CarriedTarget(entry->node, entry->dirtyFlags));
+            }
+            entry = entry->next;
+          }
         }
 
         // Drops a target without unlinking: the entry is tombstoned (node = 0,
@@ -278,6 +331,7 @@ namespace loka
 
         TargetEntry *head;
         TargetEntry *tail;
+        unsigned long epoch_;
       };
     } // namespace scene
   } // namespace app

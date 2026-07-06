@@ -362,6 +362,16 @@ namespace loka
                 return projection.removeTarget(node);
               }
 
+              void beginApplyWindow()
+              {
+                projection.beginApplyWindow();
+              }
+
+              void takeUnconsumed(std::vector<SceneProjectionTransaction::CarriedTarget> &out) const
+              {
+                projection.takeUnconsumed(out);
+              }
+
               bool hasPending() const
               {
                 return projection.hasPending();
@@ -467,6 +477,16 @@ namespace loka
             bool removeProjectionTarget(const Node *node)
             {
               return projectionState.removeTarget(node);
+            }
+
+            void beginApplyWindow()
+            {
+              projectionState.beginApplyWindow();
+            }
+
+            void takeUnconsumedProjectionTargets(std::vector<SceneProjectionTransaction::CarriedTarget> &out) const
+            {
+              projectionState.takeUnconsumed(out);
             }
 
             void enqueueRequestedInput(NodeDirtyFlags flags)
@@ -611,6 +631,16 @@ namespace loka
             return accumulatedState.removeProjectionTarget(node);
           }
 
+          void beginApplyWindow()
+          {
+            accumulatedState.beginApplyWindow();
+          }
+
+          void takeUnconsumedProjectionTargets(std::vector<SceneProjectionTransaction::CarriedTarget> &out) const
+          {
+            accumulatedState.takeUnconsumedProjectionTargets(out);
+          }
+
           void enqueueBoundaryUpdate(const BoundaryUpdateRequest &request);
           void clearTransaction();
 
@@ -668,6 +698,8 @@ namespace loka
         void applyPendingBoundaryUpdates(Node *rootNode, const PlatformApplyPlan &plan) const;
         bool shouldApplyGlobalChange(IPlatformController *platformController, const PlatformApplyPlan &plan) const;
         void clearUpdateTransaction();
+        void beginApplyWindow();
+        void clearUpdateTransactionAfterApply();
 #ifdef TEST_BUILD
         unsigned long projectionTransactionGenerationForTesting() const
         {

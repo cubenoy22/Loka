@@ -242,12 +242,15 @@ void testComposeApplyPhaseGuard()
     assert(!platform.pokeOnNextChange_); // the poke actually ran
     assert(g_updateComposeDuringApply == 0);
     assert(platform.nestedCallsDuringPoke_ == 0);
-    // Current behavior pin: the deferred entry does NOT survive the in-flight
-    // cycle — the end-of-apply transaction clear drops the boundary-update
-    // entry that was enqueued during apply, so the next flush applies nothing.
-    // This is the commit-phase write-loss half of #45 item 3 ("queue into the
-    // next transaction or assert; never silently drop"); that fix must flip
-    // this expectation to onChangeAfterFirstFlush + 1, deliberately.
+    // Current behavior pin: the mid-apply write is lost, but NOT where this
+    // comment originally claimed. This whole flush runs inside the boundary
+    // tracker's invalidate callback (TRACKER_COMMIT), so the poke's set()
+    // marks dirty after the settle loop and never re-fires invalidate — the
+    // write is swallowed at the tracker level and never reaches the scene
+    // transaction (#60). The transaction-clear half of #45 item 3 is fixed by
+    // the apply-window carry-over (#59, pinned in ScenePendingScrubTests);
+    // the #60 fix must flip this expectation to onChangeAfterFirstFlush + 1,
+    // deliberately.
     int onChangeAfterFirstFlush = platform.onChangeCalls_;
     scene.flushInvalidation();
     assert(platform.onChangeCalls_ == onChangeAfterFirstFlush);
