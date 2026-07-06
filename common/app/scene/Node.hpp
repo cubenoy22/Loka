@@ -927,6 +927,16 @@ namespace loka
           children_.clear();
         }
 
+        template <typename BaseT>
+        void assignNestableBase(BaseT &baseSelf, const BaseT &otherBase, const NestableDefinitionBase &otherChildren)
+        {
+          if (!replaceChildrenFrom(otherChildren))
+          {
+            return;
+          }
+          baseSelf = otherBase;
+        }
+
         bool replaceChildrenFrom(const NestableDefinitionBase &other)
         {
           loka::dsl::CompositionList<NodeDefinitionBase> newChildren;
@@ -948,6 +958,58 @@ namespace loka
 
       private:
         loka::dsl::CompositionList<NodeDefinitionBase> children_;
+      };
+
+      template <class PropsT, class NodeT, class DerivedT>
+      struct NestableNodeDefinition : public NodeDefinition<PropsT, NodeT>,
+                                      public NestableDefinitionBase,
+                                      public NestableDslMixin<DerivedT>
+      {
+        typedef NodeDefinition<PropsT, NodeT> BaseType;
+        using NestableDslMixin<DerivedT>::operator<<;
+
+        NestableNodeDefinition()
+            : BaseType(),
+              NestableDefinitionBase()
+        {
+        }
+
+        explicit NestableNodeDefinition(const PropsT &p)
+            : BaseType(p),
+              NestableDefinitionBase()
+        {
+        }
+
+        NestableNodeDefinition(const NestableNodeDefinition &other)
+            : BaseType(other),
+              NestableDefinitionBase(other)
+        {
+        }
+
+        NestableNodeDefinition &operator=(const NestableNodeDefinition &other)
+        {
+          if (this != &other)
+          {
+            this->assignNestableBase(
+                static_cast<BaseType &>(*this), static_cast<const BaseType &>(other), other);
+          }
+          return *this;
+        }
+
+        virtual INestableDefinition *asNestableDefinition()
+        {
+          return static_cast<DerivedT *>(this);
+        }
+
+        virtual const NodeDefinitionBase *asNodeDefinitionBase() const
+        {
+          return static_cast<const DerivedT *>(this);
+        }
+
+        virtual NodeDefinitionBase *clone() const
+        {
+          return new DerivedT(static_cast<const DerivedT &>(*this));
+        }
       };
 
       // --- Interface for nestable Node/Definition ---

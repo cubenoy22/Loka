@@ -57,51 +57,22 @@ namespace loka
       }
     };
 
-    struct FragmentDefinition : public scene::NodeDefinition<FragmentProps, FragmentNode>,
-                                public scene::NestableDefinitionBase,
-                                public scene::NestableDslMixin<FragmentDefinition>,
+    struct FragmentDefinition : public scene::NestableNodeDefinition<FragmentProps, FragmentNode, FragmentDefinition>,
                                 public scene::TestIdDslMixin<FragmentDefinition>
     {
-      typedef scene::NodeDefinition<FragmentProps, FragmentNode> BaseType;
-      using scene::NestableDslMixin<FragmentDefinition>::operator<<;
+      typedef scene::NestableNodeDefinition<FragmentProps, FragmentNode, FragmentDefinition> BaseType;
+      using BaseType::operator<<;
       FragmentDefinition()
-          : BaseType(),
-            scene::NestableDefinitionBase()
+          : BaseType()
       {
       }
       FragmentDefinition(const FragmentProps &p)
-          : BaseType(p),
-            scene::NestableDefinitionBase()
+          : BaseType(p)
       {
       }
       FragmentDefinition(const FragmentDefinition &other)
-          : BaseType(other),
-            scene::NestableDefinitionBase(other)
+          : BaseType(other)
       {
-      }
-      FragmentDefinition &operator=(const FragmentDefinition &other)
-      {
-        if (this != &other)
-        {
-          if (!scene::NestableDefinitionBase::replaceChildrenFrom(other))
-          {
-            return *this;
-          }
-          BaseType::operator=(other);
-        }
-        return *this;
-      }
-      virtual scene::NodeDefinitionBase *clone() const
-      {
-        return new FragmentDefinition(*this);
-      }
-      virtual scene::INestableDefinition *asNestableDefinition()
-      {
-        return this;
-      }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
-      {
-        return this;
       }
     };
 

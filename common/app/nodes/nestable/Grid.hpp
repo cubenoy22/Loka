@@ -62,51 +62,22 @@ namespace loka
       }
     };
 
-    struct GridDefinition : public scene::NodeDefinition<GridProps, GridNode>,
-                            public scene::NestableDefinitionBase,
-                            public scene::NestableDslMixin<GridDefinition>,
+    struct GridDefinition : public scene::NestableNodeDefinition<GridProps, GridNode, GridDefinition>,
                             public scene::TestIdDslMixin<GridDefinition>
     {
-      typedef scene::NodeDefinition<GridProps, GridNode> BaseType;
-      using scene::NestableDslMixin<GridDefinition>::operator<<;
+      typedef scene::NestableNodeDefinition<GridProps, GridNode, GridDefinition> BaseType;
+      using BaseType::operator<<;
       GridDefinition()
-          : BaseType(),
-            NestableDefinitionBase()
+          : BaseType()
       {
       }
       GridDefinition(const GridProps &p)
-          : BaseType(p),
-            NestableDefinitionBase()
+          : BaseType(p)
       {
       }
       GridDefinition(const GridDefinition &other)
-          : BaseType(other),
-            NestableDefinitionBase(other)
+          : BaseType(other)
       {
-      }
-      GridDefinition &operator=(const GridDefinition &other)
-      {
-        if (this != &other)
-        {
-          if (!scene::NestableDefinitionBase::replaceChildrenFrom(other))
-          {
-            return *this;
-          }
-          BaseType::operator=(other);
-        }
-        return *this;
-      }
-      virtual scene::NodeDefinitionBase *clone() const
-      {
-        return new GridDefinition(*this);
-      }
-      virtual scene::INestableDefinition *asNestableDefinition()
-      {
-        return this;
-      }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
-      {
-        return this;
       }
       GridDefinition &rows(short value)
       {

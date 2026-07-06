@@ -60,52 +60,23 @@ namespace loka
       }
     };
 
-    struct BoxDefinition : public scene::NodeDefinition<BoxProps, BoxNode>,
-                           public scene::NestableDefinitionBase,
-                           public scene::NestableDslMixin<BoxDefinition>,
+    struct BoxDefinition : public scene::NestableNodeDefinition<BoxProps, BoxNode, BoxDefinition>,
                            public scene::TestIdDslMixin<BoxDefinition>
     {
-      typedef scene::NodeDefinition<BoxProps, BoxNode> BaseType;
-      using scene::NestableDslMixin<BoxDefinition>::operator<<;
+      typedef scene::NestableNodeDefinition<BoxProps, BoxNode, BoxDefinition> BaseType;
+      using BaseType::operator<<;
 
       BoxDefinition()
-          : BaseType(),
-            NestableDefinitionBase()
+          : BaseType()
       {
       }
       BoxDefinition(const BoxProps &p)
-          : BaseType(p),
-            NestableDefinitionBase()
+          : BaseType(p)
       {
       }
       BoxDefinition(const BoxDefinition &other)
-          : BaseType(other),
-            NestableDefinitionBase(other)
+          : BaseType(other)
       {
-      }
-      BoxDefinition &operator=(const BoxDefinition &other)
-      {
-        if (this != &other)
-        {
-          if (!scene::NestableDefinitionBase::replaceChildrenFrom(other))
-          {
-            return *this;
-          }
-          BaseType::operator=(other);
-        }
-        return *this;
-      }
-      virtual scene::NodeDefinitionBase *clone() const
-      {
-        return new BoxDefinition(*this);
-      }
-      virtual scene::INestableDefinition *asNestableDefinition()
-      {
-        return this;
-      }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
-      {
-        return this;
       }
       BoxDefinition &padding(int value)
       {

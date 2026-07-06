@@ -74,56 +74,27 @@ namespace loka
       }
     };
 
-    struct ColumnDefinition : public scene::NodeDefinition<ColumnProps, ColumnNode>,
-                              public scene::NestableDefinitionBase,
-                              public scene::NestableDslMixin<ColumnDefinition>,
+    struct ColumnDefinition : public scene::NestableNodeDefinition<ColumnProps, ColumnNode, ColumnDefinition>,
                               public scene::TestIdDslMixin<ColumnDefinition>
     {
-      typedef scene::NodeDefinition<ColumnProps, ColumnNode> BaseType;
-      using scene::NestableDslMixin<ColumnDefinition>::operator<<;
+      typedef scene::NestableNodeDefinition<ColumnProps, ColumnNode, ColumnDefinition> BaseType;
+      using BaseType::operator<<;
       ColumnDefinition()
-          : BaseType(),
-            scene::NestableDefinitionBase()
+          : BaseType()
       {
       }
       ColumnDefinition(const ColumnProps &p)
-          : BaseType(p),
-            scene::NestableDefinitionBase()
+          : BaseType(p)
       {
       }
       ColumnDefinition(const ColumnDefinition &other)
-          : BaseType(other),
-            scene::NestableDefinitionBase(other)
+          : BaseType(other)
       {
-      }
-      ColumnDefinition &operator=(const ColumnDefinition &other)
-      {
-        if (this != &other)
-        {
-          if (!scene::NestableDefinitionBase::replaceChildrenFrom(other))
-          {
-            return *this;
-          }
-          BaseType::operator=(other);
-        }
-        return *this;
-      }
-      virtual scene::NodeDefinitionBase *clone() const
-      {
-        return new ColumnDefinition(*this);
       }
       ColumnDefinition &alignHorizontal(HorizontalAlignment value)
       {
         this->props.alignHorizontal(value);
         return *this;
-      }
-      virtual scene::INestableDefinition *asNestableDefinition()
-      {
-        return this;
-      }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
-      {
-        return this;
       }
     };
 
@@ -180,56 +151,27 @@ namespace loka
       }
     };
 
-    struct RowDefinition : public scene::NodeDefinition<RowProps, RowNode>,
-                           public scene::NestableDefinitionBase,
-                           public scene::NestableDslMixin<RowDefinition>,
+    struct RowDefinition : public scene::NestableNodeDefinition<RowProps, RowNode, RowDefinition>,
                            public scene::TestIdDslMixin<RowDefinition>
     {
-      typedef scene::NodeDefinition<RowProps, RowNode> BaseType;
-      using scene::NestableDslMixin<RowDefinition>::operator<<;
+      typedef scene::NestableNodeDefinition<RowProps, RowNode, RowDefinition> BaseType;
+      using BaseType::operator<<;
       RowDefinition()
-          : BaseType(),
-            scene::NestableDefinitionBase()
+          : BaseType()
       {
       }
       RowDefinition(const RowProps &p)
-          : BaseType(p),
-            scene::NestableDefinitionBase()
+          : BaseType(p)
       {
       }
       RowDefinition(const RowDefinition &other)
-          : BaseType(other),
-            scene::NestableDefinitionBase(other)
+          : BaseType(other)
       {
-      }
-      RowDefinition &operator=(const RowDefinition &other)
-      {
-        if (this != &other)
-        {
-          if (!scene::NestableDefinitionBase::replaceChildrenFrom(other))
-          {
-            return *this;
-          }
-          BaseType::operator=(other);
-        }
-        return *this;
-      }
-      virtual scene::NodeDefinitionBase *clone() const
-      {
-        return new RowDefinition(*this);
       }
       RowDefinition &alignVertical(VerticalAlignment value)
       {
         this->props.alignVertical(value);
         return *this;
-      }
-      virtual scene::INestableDefinition *asNestableDefinition()
-      {
-        return this;
-      }
-      virtual const scene::NodeDefinitionBase *asNodeDefinitionBase() const
-      {
-        return this;
       }
     };
 
