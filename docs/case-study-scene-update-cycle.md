@@ -8,7 +8,7 @@ eventual redesign starts from evidence instead of memory.
 Artifacts: issues #44, #45, #59, #60; PRs #51, #58, #61; branch
 `integration/scene-update-hardening` (parked — holds the reference fixes and
 the failure-mode test suite in `tests/ScenePendingScrubTests.cpp` and
-`tests/PhaseGuardTests.cpp`).
+`tests/PhaseGuardTests.cpp` on that branch).
 
 ## The four failure modes, as input -> expected -> actual
 
