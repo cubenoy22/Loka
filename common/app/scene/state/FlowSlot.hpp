@@ -52,6 +52,11 @@ namespace loka
         {
         }
 
+        template <typename FlowT> inline bool supportsExecutionHooks(FlowT *)
+        {
+          return false;
+        }
+
         template <typename InT, typename OutT>
         inline void attachExecutionHooks(loka::dsl::FlowChain<InT, OutT> *flow,
                                          void (*beginFn)(void *, void *),
@@ -63,6 +68,12 @@ namespace loka
             flow->setExecutionHooks(beginFn, endFn, user);
           }
         }
+
+        template <typename InT, typename OutT>
+        inline bool supportsExecutionHooks(loka::dsl::FlowChain<InT, OutT> *)
+        {
+          return true;
+        }
       } // namespace flow_slot_detail
 
       template <typename FlowT> class FlowSlot
@@ -70,7 +81,7 @@ namespace loka
       public:
         FlowSlot()
             : flow_(0),
-              runState_(new RunState())
+              runState_(flow_slot_detail::supportsExecutionHooks(static_cast<FlowT *>(0)) ? new RunState() : 0)
         {
         }
         ~FlowSlot()

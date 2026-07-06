@@ -390,7 +390,8 @@ namespace loka
             runEndFn_(0),
             runHookFlow_(0),
             runHookUser_(0),
-            refs_(1)
+            refs_(1),
+            runPins_(0)
       {
       }
 
@@ -416,7 +417,22 @@ namespace loka
       void release()
       {
         --this->refs_;
-        if (this->refs_ == 0)
+        if (this->refs_ == 0 && this->runPins_ == 0)
+        {
+          delete this;
+        }
+      }
+
+      void pinRun()
+      {
+        ++this->runPins_;
+      }
+
+      void unpinRun()
+      {
+        assert(this->runPins_ > 0 && "FlowChainImpl::unpinRun underflow");
+        --this->runPins_;
+        if (this->refs_ == 0 && this->runPins_ == 0)
         {
           delete this;
         }
@@ -485,10 +501,6 @@ namespace loka
         next->loadingState_ = this->loadingState_;
         next->tracker_ = this->tracker_;
         next->cancelRequested_ = this->cancelRequested_;
-        next->runBeginFn_ = this->runBeginFn_;
-        next->runEndFn_ = this->runEndFn_;
-        next->runHookFlow_ = 0;
-        next->runHookUser_ = this->runHookUser_;
         // trigger is NOT cloned
         for (std::size_t i = 0; i < this->steps_.size(); ++i)
         {
@@ -541,6 +553,8 @@ namespace loka
                 hookFlow_(impl->runHookFlow_),
                 hookUser_(impl->runHookUser_)
           {
+            assert((this->beginFn_ == 0) == (this->endFn_ == 0)
+                   && "FlowChainImpl::runFromIndex requires begin/end hooks to be paired");
             if (this->beginFn_ != 0)
             {
               assert(this->hookFlow_ != 0 && "FlowChainImpl::runFromIndex requires a hook flow");
@@ -735,6 +749,7 @@ namespace loka
         if (self->triggerRunning_)
           return;
         self->retain();
+        self->pinRun();
         self->triggerRunning_ = true;
         if (self->triggerReadFn_ && self->triggerInputBuffer_)
         {
@@ -745,11 +760,13 @@ namespace loka
         {
           self->triggerRunning_ = false;
         }
+        self->unpinRun();
         self->release();
       }
 
     private:
       int refs_;
+      int runPins_;
       FlowChainImpl(const FlowChainImpl &);
       FlowChainImpl &operator=(const FlowChainImpl &);
     };
@@ -1042,18 +1059,18 @@ namespace loka
       bool run() const
       {
         FlowChainImpl *impl = this->impl_;
-        impl->retain();
+        impl->pinRun();
         const FlowRunResult result = impl->runFromIndex(0);
-        impl->release();
+        impl->unpinRun();
         return result == FLOW_RUN_SUCCEEDED;
       }
 
       FlowRunResult runResult() const
       {
         FlowChainImpl *impl = this->impl_;
-        impl->retain();
+        impl->pinRun();
         const FlowRunResult result = impl->runFromIndex(0);
-        impl->release();
+        impl->unpinRun();
         return result;
       }
 
@@ -1064,6 +1081,7 @@ namespace loka
 
       FlowChain &setExecutionHooks(RunLifecycleFn beginFn, RunLifecycleFn endFn, void *user)
       {
+        assert((beginFn == 0) == (endFn == 0) && "FlowChain::setExecutionHooks requires begin/end hooks to be paired");
         this->detachIfShared();
         this->impl_->runBeginFn_ = beginFn;
         this->impl_->runEndFn_ = endFn;
@@ -1086,11 +1104,11 @@ namespace loka
       FlowRunResult resumeResult(int stepId) const
       {
         FlowChainImpl *impl = this->impl_;
-        impl->retain();
+        impl->pinRun();
         std::size_t start = 0;
         if (!impl->findStepIndex(stepId, start))
         {
-          impl->release();
+          impl->unpinRun();
           return FLOW_RUN_FAILED;
         }
         FlowRunResult result = impl->runFromIndex(start);
@@ -1098,7 +1116,7 @@ namespace loka
         {
           impl->triggerRunning_ = false;
         }
-        impl->release();
+        impl->unpinRun();
         return result;
       }
 
@@ -1114,11 +1132,19 @@ namespace loka
         {
           return;
         }
-        FlowChainImpl *next = this->impl_->clone();
-        this->impl_->release();
+        FlowChainImpl *current = this->impl_;
+        FlowChainImpl *next = current->clone();
+        const RunLifecycleFn runBeginFn = current->runBeginFn_;
+        const RunLifecycleFn runEndFn = current->runEndFn_;
+        void *runHookUser = current->runHookUser_;
+        const bool preserveHooks = (runBeginFn != 0 || runEndFn != 0) && current->runHookFlow_ == this;
+        current->release();
         this->impl_ = next;
-        if (this->impl_->runBeginFn_ != 0 || this->impl_->runEndFn_ != 0)
+        if (preserveHooks)
         {
+          this->impl_->runBeginFn_ = runBeginFn;
+          this->impl_->runEndFn_ = runEndFn;
+          this->impl_->runHookUser_ = runHookUser;
           this->impl_->runHookFlow_ = this;
         }
       }

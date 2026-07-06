@@ -5200,6 +5200,57 @@ void testLokaFlowDslV1Core()
     delete escaped;
   }
 
+  // --- FlowSlot: extending an escaped shared chain drops slot-owned hooks ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 6;
+    int result = 0;
+    SlotFlowChain *escaped = 0;
+    {
+      loka::app::scene::FlowSlot<SlotFlowChain> slot;
+      slot.set(loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input));
+      escaped = new SlotFlowChain(slot.dangerouslyUnwrap()
+                                  | loka::dsl::Step(2, FlowTestAdd1Adapter()).onSuccess(&result));
+    }
+
+    assert(escaped->run());
+    assert(result == 13);
+    delete escaped;
+  }
+
+  // --- FlowChain: run pinning must not make cancel() detach from the active impl ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    struct CancelDuringFlowSuccess
+    {
+      struct Context
+      {
+        SlotFlowChain *chain;
+        int *calls;
+      };
+
+      static void cancelSelf(void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->calls);
+        ctx->chain->cancel();
+      }
+    };
+
+    int input = 3;
+    int stepCalls = 0;
+    int cancelCalls = 0;
+    SlotFlowChain chain = loka::dsl::Flow() | loka::dsl::Step(1, FlowTestCountedPassAdapter(&stepCalls)).input(&input);
+    CancelDuringFlowSuccess::Context ctx = {&chain, &cancelCalls};
+    chain.onSuccess(&CancelDuringFlowSuccess::cancelSelf, &ctx, 1);
+
+    assert(chain.runResult() == loka::dsl::FLOW_RUN_CANCELED);
+    assert(stepCalls == 1);
+    assert(cancelCalls == 1);
+  }
+
   // --- bindTrigger: reentry guard prevents double execution ---
   {
     loka::core::MutableState<int> trigger;
