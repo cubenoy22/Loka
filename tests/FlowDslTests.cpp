@@ -4081,8 +4081,12 @@ void testLokaFlowDslV1Core()
     INestable *stackNestable = stackNode->asNestable();
     assert(stackNestable != 0);
     loka::dsl::CompositionCursor<Node> it(stackNestable->childrenHead(), stackNestable->childrenCount());
-    BoundaryNode *siblingA = it.next()->asBoundary();
-    BoundaryNode *siblingB = it.next()->asBoundary();
+    Node *siblingANode = it.next();
+    Node *siblingBNode = it.next();
+    assert(siblingANode != 0);
+    assert(siblingBNode != 0);
+    BoundaryNode *siblingA = siblingANode->asBoundary();
+    BoundaryNode *siblingB = siblingBNode->asBoundary();
     assert(siblingA != 0);
     assert(siblingB != 0);
     g_pendingApplyDeferredSiblingB = siblingB;
