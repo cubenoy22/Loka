@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include "core/State.hpp"
+#include "app/nodes/nestable/Box.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/node/Conditional.hpp"
 
@@ -75,6 +76,13 @@ namespace
     }
   };
 
+  struct NullCloneProbeDefinition : public CloneProbeDefinition
+  {
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      return 0;
+    }
+  };
 } // namespace
 
 // ============================================================
@@ -133,4 +141,29 @@ void testConditionalDefinitionCloneOwnership()
   assert(g_probeNodesAlive == 0);
 
   printf("==== [testConditionalDefinitionCloneOwnership] end ====\n");
+}
+
+void testNestableDefinitionAssignmentRejectsNullChildClone()
+{
+  printf("\n==== [testNestableDefinitionAssignmentRejectsNullChildClone] start ====\n");
+
+  using loka::app::Box;
+  using loka::app::BoxDefinition;
+
+  CloneProbeDefinition originalChild;
+  BoxDefinition stableTarget = Box().padding(10) << originalChild;
+  BoxDefinition sourceWithBadChild;
+  sourceWithBadChild.padding(20);
+  sourceWithBadChild << new NullCloneProbeDefinition();
+
+  stableTarget = sourceWithBadChild;
+
+  assert(stableTarget.props.padding == 10);
+  assert(stableTarget.childrenCount() == 1);
+  assert(stableTarget.childrenHead() != 0);
+  loka::app::scene::NodeDefinitionBase *childClone = stableTarget.childrenHead()->clone();
+  assert(childClone != 0);
+  delete childClone;
+
+  printf("==== [testNestableDefinitionAssignmentRejectsNullChildClone] end ====\n");
 }

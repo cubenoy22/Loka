@@ -14,6 +14,7 @@ int main()
   testStateNotify();
   testDerivedStateCore();
   testConditionalDefinitionCloneOwnership();
+  testNestableDefinitionAssignmentRejectsNullChildClone();
   testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();

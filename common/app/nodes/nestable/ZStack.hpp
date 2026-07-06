@@ -72,8 +72,11 @@ namespace loka
       {
         if (this != &other)
         {
+          if (!scene::NestableDefinitionBase::replaceChildrenFrom(other))
+          {
+            return *this;
+          }
           BaseType::operator=(other);
-          scene::NestableDefinitionBase::operator=(other);
         }
         return *this;
       }

@@ -879,13 +879,13 @@ namespace loka
         NestableDefinitionBase(const NestableDefinitionBase &other)
             : children_()
         {
-          this->copyChildrenFrom(other);
+          this->replaceChildrenFrom(other);
         }
         NestableDefinitionBase &operator=(const NestableDefinitionBase &other)
         {
           if (this != &other)
           {
-            this->copyChildrenFrom(other);
+            this->replaceChildrenFrom(other);
           }
           return *this;
         }
@@ -927,41 +927,23 @@ namespace loka
           children_.clear();
         }
 
-        void copyChildrenFrom(const NestableDefinitionBase &other)
+        bool replaceChildrenFrom(const NestableDefinitionBase &other)
         {
-          std::vector<NodeDefinitionBase *> newChildren;
+          loka::dsl::CompositionList<NodeDefinitionBase> newChildren;
           NodeDefinitionBase *cur = other.children_.head();
-#if defined(__EXCEPTIONS)
-          try
-          {
-            while (cur)
-            {
-              NodeDefinitionBase *child = cur ? cur->clone() : 0;
-              newChildren.push_back(child);
-              cur = cur->nextInComposition;
-            }
-          }
-          catch (...)
-          {
-            for (size_t i = 0; i < newChildren.size(); ++i)
-            {
-              delete newChildren[i];
-            }
-            throw;
-          }
-#else
           while (cur)
           {
             NodeDefinitionBase *child = cur ? cur->clone() : 0;
-            newChildren.push_back(child);
+            if (!child)
+            {
+              return false;
+            }
+            newChildren.appendOwned(child);
             cur = cur->nextInComposition;
           }
-#endif
           clearChildren();
-          for (size_t i = 0; i < newChildren.size(); ++i)
-          {
-            children_.appendOwned(newChildren[i]);
-          }
+          newChildren.detachTo(children_);
+          return true;
         }
 
       private:
