@@ -80,6 +80,16 @@ cross-reference. Parallel implementations across platform seams may stay
 separate deliberately, but each unmarked twin is a porting hazard; divergence
 should be a choice, not an accident.
 
+This matters during bugfix and PR-comment work too. The first locally correct
+patch is often the one that preserves the fragile shape: add one more reset,
+one more paired call, one more "remember to do both" rule. When a fix depends
+on contributors repeating a sequence in the right order, first ask whether a
+small structural move can carry that burden instead: RAII instead of manual
+pairing, one named entry point instead of several equivalent ones, private
+primitives behind a safer wrapper, or a helper type that owns the invariant.
+`assert` is still useful, but mainly to guard contracts after the shape has
+already made ordinary misuse difficult.
+
 This applies inside the framework as much as at app-facing surfaces. Retro
 targets make hidden fragility expensive to debug, so the same pressure that
 keeps application code explicit should keep internal mechanics encapsulated,

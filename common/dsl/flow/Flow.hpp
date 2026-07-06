@@ -423,21 +423,6 @@ namespace loka
         }
       }
 
-      void pinRun()
-      {
-        ++this->runPins_;
-      }
-
-      void unpinRun()
-      {
-        assert(this->runPins_ > 0 && "FlowChainImpl::unpinRun underflow");
-        --this->runPins_;
-        if (this->refs_ == 0 && this->runPins_ == 0)
-        {
-          delete this;
-        }
-      }
-
       struct FlowSuccessCallback
       {
         void (*fn)(void *);
@@ -540,7 +525,23 @@ namespace loka
         return false;
       }
 
-      FlowRunResult runFromIndex(std::size_t startIndex) const
+      FlowRunResult runPinnedFromIndex(std::size_t startIndex) const
+      {
+        RunPinScope runPinScope(this);
+        return this->runCoreFromIndex(startIndex);
+      }
+
+      FlowRunResult runPinnedFromStepId(int stepId) const
+      {
+        std::size_t start = 0;
+        if (!this->findStepIndex(stepId, start))
+        {
+          return FLOW_RUN_FAILED;
+        }
+        return this->runPinnedFromIndex(start);
+      }
+
+      FlowRunResult runCoreFromIndex(std::size_t startIndex) const
       {
         // Snapshot the hook fields once: begin/end stay paired even if the
         // hooks are cleared mid-run (e.g. the owning FlowSlot disowns the
@@ -700,7 +701,7 @@ namespace loka
             return FLOW_RUN_FAILED;
           }
           this->terminalCleanup();
-          return this->runFromIndex(jumpIndex);
+          return this->runCoreFromIndex(jumpIndex);
         }
 
         this->terminalCleanup();
@@ -748,23 +749,78 @@ namespace loka
         FlowChainImpl *self = static_cast<FlowChainImpl *>(userData);
         if (self->triggerRunning_)
           return;
-        self->retain();
-        self->pinRun();
+        RetainScope retainScope(self);
+        RunPinScope runPinScope(self);
         self->triggerRunning_ = true;
         if (self->triggerReadFn_ && self->triggerInputBuffer_)
         {
           self->triggerReadFn_(self->triggerInputBuffer_, self->triggerState_);
         }
-        FlowRunResult result = self->runFromIndex(0);
+        FlowRunResult result = self->runPinnedFromIndex(0);
         if (result != FLOW_RUN_PENDING)
         {
           self->triggerRunning_ = false;
         }
-        self->unpinRun();
-        self->release();
       }
 
     private:
+      void pinRun()
+      {
+        ++this->runPins_;
+      }
+
+      void unpinRun()
+      {
+        assert(this->runPins_ > 0 && "FlowChainImpl::unpinRun underflow");
+        --this->runPins_;
+        if (this->refs_ == 0 && this->runPins_ == 0)
+        {
+          delete this;
+        }
+      }
+
+      struct RetainScope
+      {
+        explicit RetainScope(FlowChainImpl *impl)
+            : impl_(impl)
+        {
+          assert(this->impl_ != 0 && "FlowChainImpl::RetainScope requires impl");
+          this->impl_->retain();
+        }
+
+        ~RetainScope()
+        {
+          this->impl_->release();
+        }
+
+        FlowChainImpl *impl_;
+
+      private:
+        RetainScope(const RetainScope &);
+        RetainScope &operator=(const RetainScope &);
+      };
+
+      struct RunPinScope
+      {
+        explicit RunPinScope(const FlowChainImpl *impl)
+            : impl_(const_cast<FlowChainImpl *>(impl))
+        {
+          assert(this->impl_ != 0 && "FlowChainImpl::RunPinScope requires impl");
+          this->impl_->pinRun();
+        }
+
+        ~RunPinScope()
+        {
+          this->impl_->unpinRun();
+        }
+
+        FlowChainImpl *impl_;
+
+      private:
+        RunPinScope(const RunPinScope &);
+        RunPinScope &operator=(const RunPinScope &);
+      };
+
       int refs_;
       int runPins_;
       FlowChainImpl(const FlowChainImpl &);
@@ -1058,20 +1114,13 @@ namespace loka
 
       bool run() const
       {
-        FlowChainImpl *impl = this->impl_;
-        impl->pinRun();
-        const FlowRunResult result = impl->runFromIndex(0);
-        impl->unpinRun();
+        const FlowRunResult result = this->impl_->runPinnedFromIndex(0);
         return result == FLOW_RUN_SUCCEEDED;
       }
 
       FlowRunResult runResult() const
       {
-        FlowChainImpl *impl = this->impl_;
-        impl->pinRun();
-        const FlowRunResult result = impl->runFromIndex(0);
-        impl->unpinRun();
-        return result;
+        return this->impl_->runPinnedFromIndex(0);
       }
 
       bool resume(int stepId) const
@@ -1104,19 +1153,11 @@ namespace loka
       FlowRunResult resumeResult(int stepId) const
       {
         FlowChainImpl *impl = this->impl_;
-        impl->pinRun();
-        std::size_t start = 0;
-        if (!impl->findStepIndex(stepId, start))
-        {
-          impl->unpinRun();
-          return FLOW_RUN_FAILED;
-        }
-        FlowRunResult result = impl->runFromIndex(start);
+        FlowRunResult result = impl->runPinnedFromStepId(stepId);
         if (result != FLOW_RUN_PENDING)
         {
           impl->triggerRunning_ = false;
         }
-        impl->unpinRun();
         return result;
       }
 
