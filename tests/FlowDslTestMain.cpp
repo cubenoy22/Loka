@@ -14,6 +14,7 @@ int main()
   testStateNotify();
   testDerivedStateCore();
   testConditionalDefinitionCloneOwnership();
+  testNestableDefinitionCloneRejectsNullChildClone();
   testNestableDefinitionAssignmentRejectsNullChildClone();
   testLokaValueCore();
   testSnapFormatV1();

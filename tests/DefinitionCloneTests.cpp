@@ -167,3 +167,19 @@ void testNestableDefinitionAssignmentRejectsNullChildClone()
 
   printf("==== [testNestableDefinitionAssignmentRejectsNullChildClone] end ====\n");
 }
+
+void testNestableDefinitionCloneRejectsNullChildClone()
+{
+  printf("\n==== [testNestableDefinitionCloneRejectsNullChildClone] start ====\n");
+
+  using loka::app::BoxDefinition;
+
+  BoxDefinition sourceWithBadChild;
+  sourceWithBadChild.padding(20);
+  sourceWithBadChild << new NullCloneProbeDefinition();
+
+  loka::app::scene::NodeDefinitionBase *copy = sourceWithBadChild.clone();
+  assert(copy == 0);
+
+  printf("==== [testNestableDefinitionCloneRejectsNullChildClone] end ====\n");
+}

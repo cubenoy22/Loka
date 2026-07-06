@@ -928,13 +928,14 @@ namespace loka
         }
 
         template <typename BaseT>
-        void assignNestableBase(BaseT &baseSelf, const BaseT &otherBase, const NestableDefinitionBase &otherChildren)
+        bool assignNestableBase(BaseT &baseSelf, const BaseT &otherBase, const NestableDefinitionBase &otherChildren)
         {
           if (!replaceChildrenFrom(otherChildren))
           {
-            return;
+            return false;
           }
           baseSelf = otherBase;
+          return true;
         }
 
         bool replaceChildrenFrom(const NestableDefinitionBase &other)
@@ -981,17 +982,17 @@ namespace loka
         }
 
         NestableNodeDefinition(const NestableNodeDefinition &other)
-            : BaseType(other),
-              NestableDefinitionBase(other)
+            : BaseType(),
+              NestableDefinitionBase()
         {
+          this->assignFromDefinition(other);
         }
 
         NestableNodeDefinition &operator=(const NestableNodeDefinition &other)
         {
           if (this != &other)
           {
-            this->assignNestableBase(
-                static_cast<BaseType &>(*this), static_cast<const BaseType &>(other), other);
+            this->assignFromDefinition(other);
           }
           return *this;
         }
@@ -1008,7 +1009,24 @@ namespace loka
 
         virtual NodeDefinitionBase *clone() const
         {
-          return new DerivedT(static_cast<const DerivedT &>(*this));
+          DerivedT *copy = new DerivedT();
+          if (!copy)
+          {
+            return 0;
+          }
+          if (!copy->assignFromDefinition(*this))
+          {
+            delete copy;
+            return 0;
+          }
+          return copy;
+        }
+
+      protected:
+        bool assignFromDefinition(const NestableNodeDefinition &other)
+        {
+          return this->assignNestableBase(
+              static_cast<BaseType &>(*this), static_cast<const BaseType &>(other), other);
         }
       };
 
