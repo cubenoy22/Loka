@@ -5093,6 +5093,164 @@ void testLokaFlowDslV1Core()
     slot.clear();
   }
 
+  // --- FlowSlot: set during onSuccess defers replacing the running flow ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    struct SetDuringRunHelper
+    {
+      struct Context
+      {
+        loka::app::scene::FlowSlot<SlotFlowChain> *slot;
+        SlotFlowChain *replacement;
+        int *calls;
+      };
+
+      static void replaceFlow(const int &, void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->calls);
+        ctx->slot->set(*ctx->replacement);
+      }
+    };
+
+    int input = 4;
+    int oldResult = 0;
+    int replacementInput = 10;
+    int replacementResult = 0;
+    int replaceCalls = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    SlotFlowChain replacement =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&replacementInput).onSuccess(&replacementResult);
+    SetDuringRunHelper::Context ctx = {&slot, &replacement, &replaceCalls};
+    slot.set(loka::dsl::Flow()
+             | loka::dsl::Step(1, FlowTestMul2Adapter())
+                   .input(&input)
+                   .onSuccess(&SetDuringRunHelper::replaceFlow, &ctx)
+                   .onSuccess(&oldResult));
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(replaceCalls == 1);
+    assert(oldResult == 8);
+    assert(slot.isValid());
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(replacementResult == 11);
+
+    slot.clear();
+  }
+
+  // --- FlowSlot: clear during onSuccess defers deleting the running flow ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    struct ClearDuringRunHelper
+    {
+      struct Context
+      {
+        loka::app::scene::FlowSlot<SlotFlowChain> *slot;
+        int *calls;
+      };
+
+      static void clearFlow(const int &, void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->calls);
+        ctx->slot->clear();
+      }
+    };
+
+    int input = 5;
+    int oldResult = 0;
+    int clearCalls = 0;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    ClearDuringRunHelper::Context ctx = {&slot, &clearCalls};
+    slot.set(loka::dsl::Flow()
+             | loka::dsl::Step(1, FlowTestMul2Adapter())
+                   .input(&input)
+                   .onSuccess(&ClearDuringRunHelper::clearFlow, &ctx)
+                   .onSuccess(&oldResult));
+    assert(slot.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+    assert(clearCalls == 1);
+    assert(oldResult == 10);
+    assert(!slot.isValid());
+  }
+
+  // --- FlowSlot: a chain copied out of the slot outlives the slot safely ---
+  // FlowChain copies share the impl, so a copy taken via dangerouslyUnwrap()
+  // keeps the hooked impl alive after the slot is gone. Disowning must clear
+  // the hooks on the shared impl, or running the escaped copy would fire
+  // them into the slot's freed run state.
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 6;
+    int result = 0;
+    SlotFlowChain *escaped = 0;
+    {
+      loka::app::scene::FlowSlot<SlotFlowChain> slot;
+      slot.set(loka::dsl::Flow()
+               | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result));
+      assert(slot.run());
+      assert(result == 12);
+      escaped = new SlotFlowChain(slot.dangerouslyUnwrap()); // shares the hooked impl
+    } // slot destroyed: its run state is freed with the slot
+
+    result = 0;
+    assert(escaped->run()); // pre-fix: hooks fire into the freed run state (ASan UAF)
+    assert(result == 12);
+    delete escaped;
+  }
+
+  // --- FlowSlot: extending an escaped shared chain drops slot-owned hooks ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    int input = 6;
+    int result = 0;
+    SlotFlowChain *escaped = 0;
+    {
+      loka::app::scene::FlowSlot<SlotFlowChain> slot;
+      slot.set(loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input));
+      escaped = new SlotFlowChain(slot.dangerouslyUnwrap()
+                                  | loka::dsl::Step(2, FlowTestAdd1Adapter()).onSuccess(&result));
+    }
+
+    assert(escaped->run());
+    assert(result == 13);
+    delete escaped;
+  }
+
+  // --- FlowChain: run pinning must not make cancel() detach from the active impl ---
+  {
+    typedef loka::dsl::FlowChain<int, int> SlotFlowChain;
+
+    struct CancelDuringFlowSuccess
+    {
+      struct Context
+      {
+        SlotFlowChain *chain;
+        int *calls;
+      };
+
+      static void cancelSelf(void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->calls);
+        ctx->chain->cancel();
+      }
+    };
+
+    int input = 3;
+    int stepCalls = 0;
+    int cancelCalls = 0;
+    SlotFlowChain chain = loka::dsl::Flow() | loka::dsl::Step(1, FlowTestCountedPassAdapter(&stepCalls)).input(&input);
+    CancelDuringFlowSuccess::Context ctx = {&chain, &cancelCalls};
+    chain.onSuccess(&CancelDuringFlowSuccess::cancelSelf, &ctx, 1);
+
+    assert(chain.runResult() == loka::dsl::FLOW_RUN_CANCELED);
+    assert(stepCalls == 1);
+    assert(cancelCalls == 1);
+  }
+
   // --- bindTrigger: reentry guard prevents double execution ---
   {
     loka::core::MutableState<int> trigger;
@@ -5117,6 +5275,43 @@ void testLokaFlowDslV1Core()
     trigger.set(10);
     assert(calls == 1);          // reentry blocked: flow ran only once
     assert(trigger.get() == 99); // but the trigger value was updated
+  }
+
+  // --- bindTrigger: trigger-driven cancel must hit the active impl ---
+  {
+    struct CancelDuringTriggeredStep
+    {
+      struct Context
+      {
+        loka::dsl::FlowChain<int, int> *chain;
+        int *cancelCalls;
+      };
+
+      static void cancelSelf(const int &, void *user)
+      {
+        Context *ctx = static_cast<Context *>(user);
+        ++(*ctx->cancelCalls);
+        ctx->chain->cancel();
+      }
+    };
+
+    loka::core::MutableState<int> trigger;
+    int callsA = 0;
+    int callsB = 0;
+    int cancelCalls = 0;
+    CancelDuringTriggeredStep::Context ctx = {0, &cancelCalls};
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow()
+        | loka::dsl::Step(1, FlowTestCountedPassAdapter(&callsA))
+              .onSuccess(&CancelDuringTriggeredStep::cancelSelf, &ctx)
+        | loka::dsl::Step(2, FlowTestCountedPassAdapter(&callsB));
+    ctx.chain = &chain;
+    chain.bindTrigger(&trigger);
+
+    trigger.set(10);
+    assert(callsA == 1);
+    assert(callsB == 0);
+    assert(cancelCalls == 1);
   }
 
   // --- State<void>: callback may delete emitter safely ---

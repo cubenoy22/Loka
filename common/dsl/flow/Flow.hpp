@@ -386,7 +386,12 @@ namespace loka
             triggerCallback_(0),
             triggerRunning_(false),
             cancelRequested_(false),
-            refs_(1)
+            runBeginFn_(0),
+            runEndFn_(0),
+            runHookFlow_(0),
+            runHookUser_(0),
+            refs_(1),
+            runPins_(0)
       {
       }
 
@@ -412,7 +417,7 @@ namespace loka
       void release()
       {
         --this->refs_;
-        if (this->refs_ == 0)
+        if (this->refs_ == 0 && this->runPins_ == 0)
         {
           delete this;
         }
@@ -433,6 +438,8 @@ namespace loka
         int resumeStepId;
       };
 
+      typedef void (*RunLifecycleFn)(void *, void *);
+
       std::vector<FlowSuccessCallback> successCallbacks_;
       std::vector<FlowFailureCallback> failureCallbacks_;
       void (*finallyFn_)(void *);
@@ -448,6 +455,10 @@ namespace loka
       loka::core::StateBase::OnChangeFn triggerCallback_;
       bool triggerRunning_;
       mutable bool cancelRequested_;
+      RunLifecycleFn runBeginFn_;
+      RunLifecycleFn runEndFn_;
+      void *runHookFlow_;
+      void *runHookUser_;
 
       class IRuntimeStep
       {
@@ -514,8 +525,58 @@ namespace loka
         return false;
       }
 
-      FlowRunResult runFromIndex(std::size_t startIndex) const
+      FlowRunResult runPinnedFromIndex(std::size_t startIndex) const
       {
+        RunPinScope runPinScope(this);
+        return this->runCoreFromIndex(startIndex);
+      }
+
+      FlowRunResult runPinnedFromStepId(int stepId) const
+      {
+        std::size_t start = 0;
+        if (!this->findStepIndex(stepId, start))
+        {
+          return FLOW_RUN_FAILED;
+        }
+        return this->runPinnedFromIndex(start);
+      }
+
+      FlowRunResult runCoreFromIndex(std::size_t startIndex) const
+      {
+        // Snapshot the hook fields once: begin/end stay paired even if the
+        // hooks are cleared mid-run (e.g. the owning FlowSlot disowns the
+        // flow while a shared-impl copy is executing).
+        struct RunScope
+        {
+          explicit RunScope(const FlowChainImpl *impl)
+              : beginFn_(impl->runBeginFn_),
+                endFn_(impl->runEndFn_),
+                hookFlow_(impl->runHookFlow_),
+                hookUser_(impl->runHookUser_)
+          {
+            assert((this->beginFn_ == 0) == (this->endFn_ == 0)
+                   && "FlowChainImpl::runFromIndex requires begin/end hooks to be paired");
+            if (this->beginFn_ != 0)
+            {
+              assert(this->hookFlow_ != 0 && "FlowChainImpl::runFromIndex requires a hook flow");
+              this->beginFn_(this->hookFlow_, this->hookUser_);
+            }
+          }
+
+          ~RunScope()
+          {
+            if (this->beginFn_ != 0 && this->endFn_ != 0)
+            {
+              this->endFn_(this->hookFlow_, this->hookUser_);
+            }
+          }
+
+          RunLifecycleFn beginFn_;
+          RunLifecycleFn endFn_;
+          void *hookFlow_;
+          void *hookUser_;
+        } runScope(this);
+
         if (startIndex >= this->steps_.size())
         {
           return FLOW_RUN_FAILED;
@@ -640,7 +701,7 @@ namespace loka
             return FLOW_RUN_FAILED;
           }
           this->terminalCleanup();
-          return this->runFromIndex(jumpIndex);
+          return this->runCoreFromIndex(jumpIndex);
         }
 
         this->terminalCleanup();
@@ -688,12 +749,16 @@ namespace loka
         FlowChainImpl *self = static_cast<FlowChainImpl *>(userData);
         if (self->triggerRunning_)
           return;
+        RunPinScope runPinScope(self);
         self->triggerRunning_ = true;
         if (self->triggerReadFn_ && self->triggerInputBuffer_)
         {
           self->triggerReadFn_(self->triggerInputBuffer_, self->triggerState_);
         }
-        FlowRunResult result = self->runFromIndex(0);
+        // Trigger callbacks hold only the impl pointer, so lifetime still
+        // needs pinning here; use the run pin rather than refs_ so callback
+        // code can cancel the active impl without tripping copy-on-write.
+        FlowRunResult result = self->runCoreFromIndex(0);
         if (result != FLOW_RUN_PENDING)
         {
           self->triggerRunning_ = false;
@@ -701,7 +766,44 @@ namespace loka
       }
 
     private:
+      void pinRun()
+      {
+        ++this->runPins_;
+      }
+
+      void unpinRun()
+      {
+        assert(this->runPins_ > 0 && "FlowChainImpl::unpinRun underflow");
+        --this->runPins_;
+        if (this->refs_ == 0 && this->runPins_ == 0)
+        {
+          delete this;
+        }
+      }
+
+      struct RunPinScope
+      {
+        explicit RunPinScope(const FlowChainImpl *impl)
+            : impl_(const_cast<FlowChainImpl *>(impl))
+        {
+          assert(this->impl_ != 0 && "FlowChainImpl::RunPinScope requires impl");
+          this->impl_->pinRun();
+        }
+
+        ~RunPinScope()
+        {
+          this->impl_->unpinRun();
+        }
+
+        FlowChainImpl *impl_;
+
+      private:
+        RunPinScope(const RunPinScope &);
+        RunPinScope &operator=(const RunPinScope &);
+      };
+
       int refs_;
+      int runPins_;
       FlowChainImpl(const FlowChainImpl &);
       FlowChainImpl &operator=(const FlowChainImpl &);
     };
@@ -853,6 +955,8 @@ namespace loka
       {
       }
 
+      typedef typename FlowChainImpl::RunLifecycleFn RunLifecycleFn;
+
       FlowChain(const FlowChain &other)
           : impl_(other.impl_)
       {
@@ -991,12 +1095,13 @@ namespace loka
 
       bool run() const
       {
-        return impl_->runFromIndex(0) == FLOW_RUN_SUCCEEDED;
+        const FlowRunResult result = this->impl_->runPinnedFromIndex(0);
+        return result == FLOW_RUN_SUCCEEDED;
       }
 
       FlowRunResult runResult() const
       {
-        return impl_->runFromIndex(0);
+        return this->impl_->runPinnedFromIndex(0);
       }
 
       bool resume(int stepId) const
@@ -1004,17 +1109,35 @@ namespace loka
         return this->resumeResult(stepId) == FLOW_RUN_SUCCEEDED;
       }
 
+      FlowChain &setExecutionHooks(RunLifecycleFn beginFn, RunLifecycleFn endFn, void *user)
+      {
+        assert((beginFn == 0) == (endFn == 0) && "FlowChain::setExecutionHooks requires begin/end hooks to be paired");
+        this->detachIfShared();
+        this->impl_->runBeginFn_ = beginFn;
+        this->impl_->runEndFn_ = endFn;
+        this->impl_->runHookUser_ = user;
+        this->impl_->runHookFlow_ = this;
+        return *this;
+      }
+
+      // Clears the hooks on the SHARED impl without detaching: used when the
+      // hook owner (FlowSlot) disowns this flow, so wrappers that still share
+      // the impl cannot fire hooks into the owner's freed run state.
+      void clearExecutionHooks()
+      {
+        this->impl_->runBeginFn_ = 0;
+        this->impl_->runEndFn_ = 0;
+        this->impl_->runHookFlow_ = 0;
+        this->impl_->runHookUser_ = 0;
+      }
+
       FlowRunResult resumeResult(int stepId) const
       {
-        std::size_t start = 0;
-        if (!impl_->findStepIndex(stepId, start))
-        {
-          return FLOW_RUN_FAILED;
-        }
-        FlowRunResult result = impl_->runFromIndex(start);
+        FlowChainImpl *impl = this->impl_;
+        FlowRunResult result = impl->runPinnedFromStepId(stepId);
         if (result != FLOW_RUN_PENDING)
         {
-          impl_->triggerRunning_ = false;
+          impl->triggerRunning_ = false;
         }
         return result;
       }
@@ -1031,9 +1154,21 @@ namespace loka
         {
           return;
         }
-        FlowChainImpl *next = this->impl_->clone();
-        this->impl_->release();
+        FlowChainImpl *current = this->impl_;
+        FlowChainImpl *next = current->clone();
+        const RunLifecycleFn runBeginFn = current->runBeginFn_;
+        const RunLifecycleFn runEndFn = current->runEndFn_;
+        void *runHookUser = current->runHookUser_;
+        const bool preserveHooks = (runBeginFn != 0 || runEndFn != 0) && current->runHookFlow_ == this;
+        current->release();
         this->impl_ = next;
+        if (preserveHooks)
+        {
+          this->impl_->runBeginFn_ = runBeginFn;
+          this->impl_->runEndFn_ = runEndFn;
+          this->impl_->runHookUser_ = runHookUser;
+          this->impl_->runHookFlow_ = this;
+        }
       }
 
       FlowChainImpl *impl_;
