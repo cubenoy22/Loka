@@ -2,9 +2,12 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
+#include <vector>
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
 #include "core/State.hpp"
+#include "core/StateTracker.hpp"
 
 namespace
 {
@@ -48,6 +51,120 @@ namespace
       g_stateArenaDestroyLog.second = state;
     }
   }
+
+  class TestStateOwner : public loka::app::scene::IStateOwner
+  {
+  public:
+    TestStateOwner()
+        : tracker_(),
+          ownedStates_(),
+          arena_()
+    {
+    }
+
+    ~TestStateOwner()
+    {
+      this->clearOwnedStates();
+    }
+
+    virtual void adoptState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      ownedStates_.push_back(state);
+      tracker_.addState(state);
+    }
+
+    virtual void adoptStateUnchecked(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      ownedStates_.push_back(state);
+      tracker_.addStateUnchecked(state);
+    }
+
+    virtual void releaseState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < ownedStates_.size();)
+      {
+        if (ownedStates_[i] == state)
+        {
+          ownedStates_.erase(ownedStates_.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+      tracker_.removeState(state);
+      if (state->isArenaAllocated())
+      {
+        arena_.releaseState(state);
+      }
+      else
+      {
+        delete state;
+      }
+    }
+
+    virtual void reserveStates(size_t count)
+    {
+      ownedStates_.reserve(ownedStates_.size() + count);
+      tracker_.reserveStates(count);
+    }
+
+    virtual void reserveStateArena(size_t totalSize)
+    {
+      arena_.reserve(totalSize);
+    }
+
+    virtual void *allocateStateMemory(size_t size, size_t align)
+    {
+      return arena_.allocate(size, align);
+    }
+
+    virtual void registerStateMemory(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
+    {
+      arena_.registerState(state, destroy);
+    }
+
+    virtual loka::core::StateTracker *tracker()
+    {
+      return &tracker_;
+    }
+
+  private:
+    void clearOwnedStates()
+    {
+      for (size_t i = 0; i < ownedStates_.size(); ++i)
+      {
+        loka::core::StateBase *state = ownedStates_[i];
+        if (!state)
+        {
+          continue;
+        }
+        tracker_.removeState(state);
+        if (!state->isArenaAllocated())
+        {
+          delete state;
+        }
+      }
+      ownedStates_.clear();
+      arena_.clear();
+    }
+
+    loka::core::PushStateTracker tracker_;
+    std::vector<loka::core::StateBase *> ownedStates_;
+    loka::app::scene::StateArena arena_;
+  };
 
   static void testNodeArenaAlignmentAndCapacity()
   {
@@ -105,7 +222,9 @@ namespace
     assert(isAligned(second, loka::app::scene::detail::NormalizeArenaAlign(8)));
     assert(second != first);
 
-    assert(arena.allocate(1024, 4) == 0);
+    void *grown = arena.allocate(1024, 4);
+    assert(grown != 0);
+    assert(isAligned(grown, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     arena.clear();
     assert(!arena.hasCapacity());
@@ -162,6 +281,46 @@ namespace
     testStateArenaReserveCoversBatchEstimate(loka::core::String::Literal("arena"));
   }
 
+  static void testStateArenaGrowsAcrossOwnerBatches()
+  {
+    TestStateOwner owner;
+    loka::app::scene::NodeState<int> firstBatch[4];
+    loka::app::scene::NodeState<int> secondBatch[4];
+    loka::app::scene::NodeState<int> immediate;
+
+    {
+      loka::app::scene::NodeComposition::StateBatch batch(&owner);
+      for (int i = 0; i < 4; ++i)
+      {
+        batch.state(firstBatch[i], 10 + i);
+      }
+    }
+
+    {
+      loka::app::scene::NodeComposition::StateBatch batch(&owner);
+      for (int i = 0; i < 4; ++i)
+      {
+        batch.state(secondBatch[i], 20 + i);
+      }
+    }
+
+    loka::app::scene::StateBatchBase::CreateImmediateState<int>(&owner, immediate, 99);
+
+    for (int i = 0; i < 4; ++i)
+    {
+      assert(firstBatch[i].isValid());
+      assert(firstBatch[i].dangerouslyMutableState()->isArenaAllocated());
+      assert(firstBatch[i].get() == 10 + i);
+      assert(secondBatch[i].isValid());
+      assert(secondBatch[i].dangerouslyMutableState()->isArenaAllocated());
+      assert(secondBatch[i].get() == 20 + i);
+    }
+
+    assert(immediate.isValid());
+    assert(immediate.dangerouslyMutableState()->isArenaAllocated());
+    assert(immediate.get() == 99);
+  }
+
 } // namespace
 
 void testBoundaryArenaContracts()
@@ -171,5 +330,6 @@ void testBoundaryArenaContracts()
   testStateArenaAllocation();
   testStateArenaReleaseAndClear();
   testStateArenaReserveMatchesBatchEstimate();
+  testStateArenaGrowsAcrossOwnerBatches();
   printf("==== [testBoundaryArenaContracts] ok ====\n");
 }
