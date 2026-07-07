@@ -23,6 +23,7 @@
 #include "core/State.hpp"
 #include "core/Profiler.hpp"
 #include "app/scene/ability/CapturableBitmap.hpp"
+#include "app/scene/detail/ArenaMath.hpp"
 
 #if defined(TEST_BUILD)
 #define TEST_ID(value) testId(value)
@@ -497,49 +498,6 @@ namespace loka
         }
       };
 
-      // C++98 alignof alternative
-      template <typename T> struct AlignOfHelper
-      {
-        char c;
-        T t;
-      };
-      template <typename T> struct AlignOf
-      {
-        enum
-        {
-          value = sizeof(AlignOfHelper<T>) - sizeof(T)
-        };
-      };
-
-      /** The effective alignment the arenas (NodeArena, StateArena) use for an
-          allocation request: raised to at least sizeof(void*) and rounded up to
-          a power of two. Reserve estimates must normalize through this same
-          function so an estimate is never smaller than the allocation it
-          mirrors -- raw AlignOf can sit below the arena minimum (e.g. 2-byte
-          natural alignment on 68k against a 4-byte pointer). */
-      inline size_t NormalizeArenaAlign(size_t align)
-      {
-        size_t minAlign = sizeof(void *);
-        if (minAlign < 2)
-        {
-          minAlign = 2;
-        }
-        if (align < minAlign)
-        {
-          align = minAlign;
-        }
-        if ((align & (align - 1)) != 0)
-        {
-          size_t p2 = 1;
-          while (p2 < align)
-          {
-            p2 <<= 1;
-          }
-          align = p2;
-        }
-        return align;
-      }
-
       // Type-erased base for node definitions.
       struct NodeDefinitionBase
       {
@@ -764,7 +722,7 @@ namespace loka
         }
         size_t nodeAlign() const
         {
-          return AlignOf<NodeT>::value;
+          return detail::AlignOf<NodeT>::value;
         }
         virtual NodeDefinitionBase *clone() const
         {

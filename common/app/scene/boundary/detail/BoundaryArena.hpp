@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "app/scene/Node.hpp"
+#include "app/scene/detail/ArenaMath.hpp"
 #include "core/State.hpp"
 
 namespace loka
@@ -50,7 +51,7 @@ namespace loka
           {
             return 0;
           }
-          align = NormalizeArenaAlign(align);
+          align = detail::NormalizeArenaAlign(align);
           // Align the offset
           size_t mask = align - 1;
           size_t aligned = (offset_ + mask) & ~mask;
@@ -147,7 +148,7 @@ namespace loka
           {
             return 0;
           }
-          align = NormalizeArenaAlign(align);
+          align = detail::NormalizeArenaAlign(align);
           size_t mask = align - 1;
           size_t aligned = (offset_ + mask) & ~mask;
           if (aligned + size > size_)

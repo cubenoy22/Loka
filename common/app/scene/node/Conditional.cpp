@@ -279,7 +279,7 @@ namespace loka
 
       size_t ConditionalDefinition::nodeAlign() const
       {
-        return AlignOf<ConditionalNode>::value;
+        return detail::AlignOf<ConditionalNode>::value;
       }
 
     } // namespace scene

@@ -2,7 +2,7 @@
 #define LOKA_CORE2_SCENE_STATE_STATEBATCHBASE_HPP
 
 #include <new>
-#include "app/scene/Node.hpp"
+#include "app/scene/detail/ArenaMath.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/StateOwner.hpp"
 
@@ -58,14 +58,14 @@ namespace loka
         template <typename T> static size_t ArenaBytesForState()
         {
           return sizeof(loka::core::MutableState<T>) +
-                 NormalizeArenaAlign(AlignOf<loka::core::MutableState<T> >::value);
+                 detail::NormalizeArenaAlign(detail::AlignOf<loka::core::MutableState<T> >::value);
         }
 
         template <typename T>
         static void CreateStateFromInitial(IStateOwner *owner, NodeState<T> &out, const T &initial)
         {
           loka::core::MutableState<T> *state = 0;
-          size_t align = AlignOf<loka::core::MutableState<T> >::value;
+          size_t align = detail::AlignOf<loka::core::MutableState<T> >::value;
           void *mem = owner ? owner->allocateStateMemory(sizeof(loka::core::MutableState<T>), align) : 0;
           if (mem)
           {

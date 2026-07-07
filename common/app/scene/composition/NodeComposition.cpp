@@ -1,6 +1,6 @@
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
-#include "app/scene/Node.hpp"
+#include "app/scene/detail/ArenaMath.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include "app/core/Window.hpp"
@@ -42,7 +42,7 @@ namespace loka
         }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         // Add size with alignment padding (worst case)
-        size_t align = NormalizeArenaAlign(def->nodeAlign());
+        size_t align = detail::NormalizeArenaAlign(def->nodeAlign());
         size_t total = def->nodeSize() + align;
 
         if (nestableDef)
