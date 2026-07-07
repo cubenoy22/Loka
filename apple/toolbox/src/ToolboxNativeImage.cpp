@@ -55,7 +55,23 @@ namespace loka
       }
 
       ToolboxPictBytesPayload *payload = new ToolboxPictBytesPayload();
-      payload->blob = blob;
+      // Share the source buffer only when the Blob is a stable snapshot
+      // (completed and immutable); the streamed bytes must stay consistent
+      // with the width/height parsed here. For a mutable or still-loading
+      // Blob, take an owned copy so later setBytes()/mutableBytes() can't
+      // desync the rendered picture from its reported size — matching the
+      // snapshot behavior of the macOS/Win32 decoders.
+      if (blob.isCompleted() && !blob.isMutable())
+      {
+        payload->blob = blob;
+      }
+      else
+      {
+        loka::core::resource::Blob snapshot = loka::core::resource::Blob::Create();
+        snapshot.setBytes(blob.bytes());
+        snapshot.setCompleted(true);
+        payload->blob = snapshot;
+      }
       payload->pictureOffset = pictureOffset;
 
       ToolboxNativeImage *native = new ToolboxNativeImage();

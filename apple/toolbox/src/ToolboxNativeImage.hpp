@@ -2,7 +2,6 @@
 #define LOKA_TOOLBOX_NATIVE_IMAGE_HPP
 
 #include <Quickdraw.h>
-#include <vector>
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 
