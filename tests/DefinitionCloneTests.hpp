@@ -2,7 +2,10 @@
 #define LOKA_DEFINITION_CLONE_TESTS_HPP
 
 void testConditionalDefinitionCloneOwnership();
-void testNestableDefinitionCloneRejectsNullChildClone();
-void testNestableDefinitionAssignmentRejectsNullChildClone();
+void testNestableDefinitionCloneReturnsNullOnOomChildClone();
+void testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
+void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
+void testWindowDefinitionCreateReturnsNullOnOomRootClone();
+void testWindowDefinitionCreateReturnsNullOnOomSceneClone();
 
 #endif // LOKA_DEFINITION_CLONE_TESTS_HPP

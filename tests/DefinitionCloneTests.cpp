@@ -2,6 +2,8 @@
 #include <cassert>
 #include <cstdio>
 #include "core/State.hpp"
+#include "app/PlatformContext.hpp"
+#include "app/core/WindowDefinition.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/node/Conditional.hpp"
@@ -27,6 +29,7 @@ namespace
   static int g_probePropsAlive = 0;
   static int g_probeNodesAlive = 0;
   static int g_probeNodesCreated = 0;
+  static int g_limitedCloneBudget = -1;
 
   struct CloneProbeProps : public loka::app::scene::NodePropsBase<CloneProbeProps>
   {
@@ -76,12 +79,64 @@ namespace
     }
   };
 
-  struct NullCloneProbeDefinition : public CloneProbeDefinition
+  struct OomCloneProbeDefinition : public CloneProbeDefinition
   {
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return 0;
     }
+  };
+
+  struct LimitedCloneProbeDefinition : public CloneProbeDefinition
+  {
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      if (g_limitedCloneBudget == 0)
+      {
+        return 0;
+      }
+      if (g_limitedCloneBudget > 0)
+      {
+        --g_limitedCloneBudget;
+      }
+      return new LimitedCloneProbeDefinition(*this);
+    }
+  };
+
+  struct NullWindowPlatformContext : public PlatformContext
+  {
+    NullWindowPlatformContext()
+        : createWindowCalls(0)
+    {
+    }
+
+    virtual App *createApp(AppConfigurable *, HINSTANCE, int) const
+    {
+      return 0;
+    }
+
+    virtual Window *createWindow(const WindowProps &)
+    {
+      ++createWindowCalls;
+      return 0;
+    }
+
+    virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *) const
+    {
+      return 0;
+    }
+
+    virtual bool openFile(const loka::file::File &, loka::platform::file::FileHandle &) const
+    {
+      return false;
+    }
+
+    virtual bool createImageFromBlob(const loka::core::resource::Blob &, loka::core::resource::Image &) const
+    {
+      return false;
+    }
+
+    int createWindowCalls;
   };
 } // namespace
 
@@ -143,9 +198,9 @@ void testConditionalDefinitionCloneOwnership()
   printf("==== [testConditionalDefinitionCloneOwnership] end ====\n");
 }
 
-void testNestableDefinitionAssignmentRejectsNullChildClone()
+void testNestableDefinitionAssignmentPreservesStableChildOnOomClone()
 {
-  printf("\n==== [testNestableDefinitionAssignmentRejectsNullChildClone] start ====\n");
+  printf("\n==== [testNestableDefinitionAssignmentPreservesStableChildOnOomClone] start ====\n");
 
   using loka::app::Box;
   using loka::app::BoxDefinition;
@@ -154,7 +209,7 @@ void testNestableDefinitionAssignmentRejectsNullChildClone()
   BoxDefinition stableTarget = Box().padding(10) << originalChild;
   BoxDefinition sourceWithBadChild;
   sourceWithBadChild.padding(20);
-  sourceWithBadChild << new NullCloneProbeDefinition();
+  sourceWithBadChild << new OomCloneProbeDefinition();
 
   stableTarget = sourceWithBadChild;
 
@@ -165,21 +220,75 @@ void testNestableDefinitionAssignmentRejectsNullChildClone()
   assert(childClone != 0);
   delete childClone;
 
-  printf("==== [testNestableDefinitionAssignmentRejectsNullChildClone] end ====\n");
+  printf("==== [testNestableDefinitionAssignmentPreservesStableChildOnOomClone] end ====\n");
 }
 
-void testNestableDefinitionCloneRejectsNullChildClone()
+void testNestableDefinitionCloneReturnsNullOnOomChildClone()
 {
-  printf("\n==== [testNestableDefinitionCloneRejectsNullChildClone] start ====\n");
+  printf("\n==== [testNestableDefinitionCloneReturnsNullOnOomChildClone] start ====\n");
 
   using loka::app::BoxDefinition;
 
   BoxDefinition sourceWithBadChild;
   sourceWithBadChild.padding(20);
-  sourceWithBadChild << new NullCloneProbeDefinition();
+  sourceWithBadChild << new OomCloneProbeDefinition();
 
   loka::app::scene::NodeDefinitionBase *copy = sourceWithBadChild.clone();
   assert(copy == 0);
 
-  printf("==== [testNestableDefinitionCloneRejectsNullChildClone] end ====\n");
+  printf("==== [testNestableDefinitionCloneReturnsNullOnOomChildClone] end ====\n");
+}
+
+void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone()
+{
+  printf("\n==== [testWindowPropsAssignmentPreservesOwnedSceneOnOomClone] start ====\n");
+
+  WindowProps stableTarget;
+  stableTarget.rootDefinition = new CloneProbeDefinition();
+
+  WindowProps sourceWithBadRoot;
+  sourceWithBadRoot.rootDefinition = new OomCloneProbeDefinition();
+
+  stableTarget = sourceWithBadRoot;
+
+  assert(stableTarget.rootDefinition != 0);
+  loka::app::scene::NodeDefinitionBase *childClone = stableTarget.rootDefinition->clone();
+  assert(childClone != 0);
+  delete childClone;
+
+  printf("==== [testWindowPropsAssignmentPreservesOwnedSceneOnOomClone] end ====\n");
+}
+
+void testWindowDefinitionCreateReturnsNullOnOomRootClone()
+{
+  printf("\n==== [testWindowDefinitionCreateReturnsNullOnOomRootClone] start ====\n");
+
+  WindowDefinition<WindowProps> def;
+  def.props.rootDefinition = new OomCloneProbeDefinition();
+
+  NullWindowPlatformContext context;
+  Window *window = def.create(&context);
+
+  assert(window == 0);
+  assert(context.createWindowCalls == 0);
+
+  printf("==== [testWindowDefinitionCreateReturnsNullOnOomRootClone] end ====\n");
+}
+
+void testWindowDefinitionCreateReturnsNullOnOomSceneClone()
+{
+  printf("\n==== [testWindowDefinitionCreateReturnsNullOnOomSceneClone] start ====\n");
+
+  WindowDefinition<WindowProps> def;
+  def.props.rootDefinition = new LimitedCloneProbeDefinition();
+
+  NullWindowPlatformContext context;
+  g_limitedCloneBudget = 1;
+  Window *window = def.create(&context);
+  g_limitedCloneBudget = -1;
+
+  assert(window == 0);
+  assert(context.createWindowCalls == 0);
+
+  printf("==== [testWindowDefinitionCreateReturnsNullOnOomSceneClone] end ====\n");
 }

@@ -14,8 +14,11 @@ int main()
   testStateNotify();
   testDerivedStateCore();
   testConditionalDefinitionCloneOwnership();
-  testNestableDefinitionCloneRejectsNullChildClone();
-  testNestableDefinitionAssignmentRejectsNullChildClone();
+  testNestableDefinitionCloneReturnsNullOnOomChildClone();
+  testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
+  testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
+  testWindowDefinitionCreateReturnsNullOnOomRootClone();
+  testWindowDefinitionCreateReturnsNullOnOomSceneClone();
   testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();

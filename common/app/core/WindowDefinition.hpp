@@ -16,6 +16,11 @@ public:
   {
   }
   virtual ~WindowDefinitionBase() {}
+  /**
+   * Window definition allocation follows the same no-exception policy as scene
+   * definitions: nullable results are reserved for allocation-style failure
+   * such as OOM, while contract misuse should assert elsewhere.
+   */
   virtual Window *create(PlatformContext *context) const = 0;
   virtual WindowDefinitionBase *clone() const = 0;
 
@@ -47,9 +52,17 @@ template <class PropsT> struct WindowDefinition : public WindowDefinitionBase
   {
     assert(context && "WindowDefinition::create requires PlatformContext");
     WindowProps resolved = props;
+    if ((props.rootDefinition && !resolved.rootDefinition) || (props.menuBarDefinition && !resolved.menuBarDefinition))
+    {
+      return 0;
+    }
     if (!resolved.initialScene && resolved.rootDefinition)
     {
       loka::app::scene::NodeDefinitionBase *def = resolved.rootDefinition->clone();
+      if (!def)
+      {
+        return 0;
+      }
       resolved.scene(new loka::app::scene::Scene(def));
     }
     return context->createWindow(resolved);
