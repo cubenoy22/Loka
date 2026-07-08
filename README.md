@@ -11,22 +11,24 @@
 
 ## Why Loka?
 
-Loka aims to bring new content and creative tools to retro platforms without treating them as novelty targets.
+Loka exists to help application authors spend more time on the software they want to make and less time on incidental platform work. Declarative UI, cross-platform projection, and a C++98-friendly core are not ends in themselves; they are tools for improving productivity, quality, and long-term maintainability.
 
-It is not just for GUI applications. Loka is also intended to grow toward animation, video, and game production on G3-class systems and later, where timelines, sprites, models, and characters can be treated as nodes in the same declarative system.
+The goal is to make meaningful application code portable by shape. State ownership, composition, events, resources, and future timelines should be expressed as Loka concepts, while each platform layer projects those concepts into native behavior. A fix or design improvement should usually be made once, tested once in the portable core when possible, and then carried to Classic Mac OS, macOS, Windows, and future targets through the same model.
 
-Loka's core idea is to keep the cast of concepts small and meaningful. `Node`, `Boundary`, `State`, `Props`, `Flow`, and platform projection are reused consistently across UI, events, async pipelines, and native integration instead of introducing a new mechanism for every feature.
+That matters especially for retro systems. Classic APIs can still build useful applications, but manual state, native handles, resource lifetimes, and platform-specific event code make quality hard to scale. Loka captures those recurring best practices as reusable structure: explicit owners, small boundaries, typed props, state direction, Flow lifetimes, and testable core behavior.
 
-That consistency is intentional. A `Boundary` is also a kind of `Node`; `NodeState<T>` is the state handle a node uses while storage and tracking remain attached to a lifecycle owner; `FlowSlot<T>` gives long-lived flows the same kind of owner-aware lifetime. The goal is code that feels modern and declarative while still making ownership, cleanup, and update routing explicit.
+The result should feel modern without hiding the machinery. Application code should read as intent, while reviewers, maintainers, and AI tools can still inspect where state lives, who cleans it up, what becomes dirty, and which platform layer is allowed to reflect it.
 
 ## How does it work?
 
-Loka uses a modern statically typed DSL built in C++98 to declaratively define UI and application structure, then projects it onto each target OS.
+Loka uses a modern statically typed DSL built in C++98 to describe application structure, then projects that structure onto each target OS.
 
-- One declarative model is shared across platforms.
-- Application logic stays in portable C++98 code.
+- One meaningful application model is shared across platforms.
+- Declarative composition reduces manual UI update bookkeeping.
+- Application logic stays in portable C++98 code where practical.
 - The public API tries to avoid exposing manual memory management in ordinary app code.
 - Strong types carry meaning: node-owned state, borrowed state, props input, flow lifetime, and platform projection are distinct.
+- Ownership and lifecycle are explicit enough for human review, automated tests, and AI-assisted analysis.
 - The core depends on only a small subset of the STL, helping it stay highly portable across old and new toolchains.
 - Each target maps that structure onto native windowing and drawing APIs.
 - The core stays neutral while platform layers stay thin.
