@@ -221,7 +221,7 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
     return false;
   }
 
-  out = loka::toolbox::MakeImageFromPictBytes(bytes, pictureOffset, width, height);
+  out = loka::toolbox::MakeImageFromPictBlob(blob, pictureOffset, width, height);
   return out.isValid();
 }
 

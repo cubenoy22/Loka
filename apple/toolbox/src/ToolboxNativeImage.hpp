@@ -2,7 +2,7 @@
 #define LOKA_TOOLBOX_NATIVE_IMAGE_HPP
 
 #include <Quickdraw.h>
-#include <vector>
+#include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 
 namespace loka
@@ -18,10 +18,12 @@ namespace loka
 
     struct ToolboxPictBytesPayload
     {
-      std::vector<unsigned char> bytes;
+      // Shares the source Blob's refcounted buffer instead of copying the PICT
+      // bytes a second time; the streaming getPicProc reads straight from it.
+      loka::core::resource::Blob blob;
       std::size_t pictureOffset;
       ToolboxPictBytesPayload()
-          : bytes(),
+          : blob(),
             pictureOffset(0)
       {
       }
@@ -37,7 +39,7 @@ namespace loka
 
     loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height, bool takeOwnership);
     loka::core::resource::Image
-    MakeImageFromPictBytes(const std::vector<unsigned char> &bytes, std::size_t pictureOffset, int width, int height);
+    MakeImageFromPictBlob(const loka::core::resource::Blob &blob, std::size_t pictureOffset, int width, int height);
 
     const ToolboxNativeImage *TryGetToolboxNativeImage(const loka::core::resource::Image &image);
 

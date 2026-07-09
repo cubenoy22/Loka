@@ -47,15 +47,31 @@ namespace loka
     }
 
     loka::core::resource::Image
-    MakeImageFromPictBytes(const std::vector<unsigned char> &bytes, std::size_t pictureOffset, int width, int height)
+    MakeImageFromPictBlob(const loka::core::resource::Blob &blob, std::size_t pictureOffset, int width, int height)
     {
-      if (pictureOffset >= bytes.size() || width <= 0 || height <= 0)
+      if (pictureOffset >= blob.bytes().size() || width <= 0 || height <= 0)
       {
         return loka::core::resource::Image::Empty();
       }
 
       ToolboxPictBytesPayload *payload = new ToolboxPictBytesPayload();
-      payload->bytes = bytes;
+      // Share the source buffer only when the Blob is a stable snapshot
+      // (completed and immutable); the streamed bytes must stay consistent
+      // with the width/height parsed here. For a mutable or still-loading
+      // Blob, take an owned copy so later setBytes()/mutableBytes() can't
+      // desync the rendered picture from its reported size — matching the
+      // snapshot behavior of the macOS/Win32 decoders.
+      if (blob.isCompleted() && !blob.isMutable())
+      {
+        payload->blob = blob;
+      }
+      else
+      {
+        loka::core::resource::Blob snapshot = loka::core::resource::Blob::Create();
+        snapshot.setBytes(blob.bytes());
+        snapshot.setCompleted(true);
+        payload->blob = snapshot;
+      }
       payload->pictureOffset = pictureOffset;
 
       ToolboxNativeImage *native = new ToolboxNativeImage();
