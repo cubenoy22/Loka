@@ -359,10 +359,7 @@ namespace loka
         }
         virtual void reserveStateArena(size_t totalSize)
         {
-          if (!stateArena_.hasCapacity())
-          {
-            stateArena_.reserve(totalSize);
-          }
+          stateArena_.reserve(totalSize);
         }
 
         static void

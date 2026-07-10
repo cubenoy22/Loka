@@ -1,8 +1,10 @@
 #ifndef LOKA_CORE2_SCENE_BOUNDARY_DETAIL_BOUNDARY_ARENA_HPP
 #define LOKA_CORE2_SCENE_BOUNDARY_DETAIL_BOUNDARY_ARENA_HPP
 
+#include <new>
 #include <vector>
 #include "app/scene/Node.hpp"
+#include "app/scene/detail/ArenaMath.hpp"
 #include "core/State.hpp"
 
 namespace loka
@@ -50,7 +52,7 @@ namespace loka
           {
             return 0;
           }
-          align = NormalizeArenaAlign(align);
+          align = detail::NormalizeArenaAlign(align);
           // Align the offset
           size_t mask = align - 1;
           size_t aligned = (offset_ + mask) & ~mask;
@@ -110,10 +112,8 @@ namespace loka
       {
       public:
         StateArena()
-            : buffer_(0),
-              raw_(0),
-              size_(0),
-              offset_(0),
+            : first_(0),
+              tail_(0),
               states_()
         {
         }
@@ -122,41 +122,42 @@ namespace loka
           clear();
         }
 
+        /** Ensures one owner-lifetime allocation batch has enough arena
+            capacity. allocate() consumes existing capacity only; it never
+            grows implicitly for unreserved node-local state. */
         void reserve(size_t totalSize)
         {
-          if (buffer_ || totalSize == 0)
+          if (totalSize == 0)
           {
             return;
           }
-          if (totalSize > 0)
+          if (!tail_)
           {
-            const size_t kArenaAlign = 16;
-            size_t rawSize = totalSize + kArenaAlign;
-            raw_ = new char[rawSize];
-            size_t rawAddr = reinterpret_cast<size_t>(raw_);
-            size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
-            buffer_ = reinterpret_cast<char *>(alignedAddr);
-            size_ = rawSize - (alignedAddr - rawAddr);
-            offset_ = 0;
+            appendBlock(totalSize);
+            return;
+          }
+          if (remainingCapacity(*tail_) < totalSize)
+          {
+            appendBlock(totalSize);
           }
         }
 
         void *allocate(size_t size, size_t align)
         {
-          if (!buffer_ || size == 0)
+          if (size == 0)
           {
             return 0;
           }
-          align = NormalizeArenaAlign(align);
-          size_t mask = align - 1;
-          size_t aligned = (offset_ + mask) & ~mask;
-          if (aligned + size > size_)
+          if (!tail_)
           {
             return 0;
           }
-          void *ptr = buffer_ + aligned;
-          offset_ = aligned + size;
-          return ptr;
+          void *ptr = allocateFromBlock(*tail_, size, align);
+          if (ptr)
+          {
+            return ptr;
+          }
+          return 0;
         }
 
         void registerState(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
@@ -203,26 +204,33 @@ namespace loka
             }
           }
           states_.clear();
-          if (raw_)
-          {
-            delete[] raw_;
-          }
-          else
-          {
-            delete[] buffer_;
-          }
-          buffer_ = 0;
-          raw_ = 0;
-          size_ = 0;
-          offset_ = 0;
+          clearBlocks();
         }
 
         bool hasCapacity() const
         {
-          return buffer_ != 0;
+          return tail_ != 0;
         }
 
       private:
+        struct Block
+        {
+          Block()
+              : buffer(0),
+                raw(0),
+                size(0),
+                offset(0),
+                next(0)
+          {
+          }
+
+          char *buffer;
+          char *raw;
+          size_t size;
+          size_t offset;
+          Block *next;
+        };
+
         struct StateEntry
         {
           StateEntry()
@@ -233,10 +241,77 @@ namespace loka
           loka::core::StateBase *state;
           void (*destroy)(loka::core::StateBase *);
         };
-        char *buffer_;
-        char *raw_;
-        size_t size_;
-        size_t offset_;
+
+        static size_t remainingCapacity(const Block &block)
+        {
+          return block.offset < block.size ? (block.size - block.offset) : 0;
+        }
+
+        static void *allocateFromBlock(Block &block, size_t size, size_t align)
+        {
+          if (!block.buffer)
+          {
+            return 0;
+          }
+          align = detail::NormalizeArenaAlign(align);
+          size_t mask = align - 1;
+          size_t aligned = (block.offset + mask) & ~mask;
+          if (aligned + size > block.size)
+          {
+            return 0;
+          }
+          void *ptr = block.buffer + aligned;
+          block.offset = aligned + size;
+          return ptr;
+        }
+
+        bool appendBlock(size_t totalSize)
+        {
+          const size_t kArenaAlign = 16;
+          Block *block = new (std::nothrow) Block();
+          if (!block)
+          {
+            return false;
+          }
+          size_t rawSize = totalSize + kArenaAlign;
+          block->raw = new (std::nothrow) char[rawSize];
+          if (!block->raw)
+          {
+            delete block;
+            return false;
+          }
+          size_t rawAddr = reinterpret_cast<size_t>(block->raw);
+          size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
+          block->buffer = reinterpret_cast<char *>(alignedAddr);
+          block->size = rawSize - (alignedAddr - rawAddr);
+          if (!first_)
+          {
+            first_ = block;
+          }
+          else
+          {
+            tail_->next = block;
+          }
+          tail_ = block;
+          return true;
+        }
+
+        void clearBlocks()
+        {
+          Block *block = first_;
+          while (block)
+          {
+            Block *next = block->next;
+            delete[] block->raw;
+            delete block;
+            block = next;
+          }
+          first_ = 0;
+          tail_ = 0;
+        }
+
+        Block *first_;
+        Block *tail_;
         std::vector<StateEntry> states_;
       };
     } // namespace scene

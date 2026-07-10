@@ -2,9 +2,12 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
+#include <vector>
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
 #include "core/State.hpp"
+#include "core/StateTracker.hpp"
 
 namespace
 {
@@ -49,13 +52,127 @@ namespace
     }
   }
 
+  class TestStateOwner : public loka::app::scene::IStateOwner
+  {
+  public:
+    TestStateOwner()
+        : tracker_(),
+          ownedStates_(),
+          arena_()
+    {
+    }
+
+    ~TestStateOwner()
+    {
+      this->clearOwnedStates();
+    }
+
+    virtual void adoptState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      ownedStates_.push_back(state);
+      tracker_.addState(state);
+    }
+
+    virtual void adoptStateUnchecked(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      ownedStates_.push_back(state);
+      tracker_.addStateUnchecked(state);
+    }
+
+    virtual void releaseState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < ownedStates_.size();)
+      {
+        if (ownedStates_[i] == state)
+        {
+          ownedStates_.erase(ownedStates_.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+      tracker_.removeState(state);
+      if (state->isArenaAllocated())
+      {
+        arena_.releaseState(state);
+      }
+      else
+      {
+        delete state;
+      }
+    }
+
+    virtual void reserveStates(size_t count)
+    {
+      ownedStates_.reserve(ownedStates_.size() + count);
+      tracker_.reserveStates(count);
+    }
+
+    virtual void reserveStateArena(size_t totalSize)
+    {
+      arena_.reserve(totalSize);
+    }
+
+    virtual void *allocateStateMemory(size_t size, size_t align)
+    {
+      return arena_.allocate(size, align);
+    }
+
+    virtual void registerStateMemory(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
+    {
+      arena_.registerState(state, destroy);
+    }
+
+    virtual loka::core::StateTracker *tracker()
+    {
+      return &tracker_;
+    }
+
+  private:
+    void clearOwnedStates()
+    {
+      for (size_t i = 0; i < ownedStates_.size(); ++i)
+      {
+        loka::core::StateBase *state = ownedStates_[i];
+        if (!state)
+        {
+          continue;
+        }
+        tracker_.removeState(state);
+        if (!state->isArenaAllocated())
+        {
+          delete state;
+        }
+      }
+      ownedStates_.clear();
+      arena_.clear();
+    }
+
+    loka::core::PushStateTracker tracker_;
+    std::vector<loka::core::StateBase *> ownedStates_;
+    loka::app::scene::StateArena arena_;
+  };
+
   static void testNodeArenaAlignmentAndCapacity()
   {
-    const size_t minAlign = loka::app::scene::NormalizeArenaAlign(1);
+    const size_t minAlign = loka::app::scene::detail::NormalizeArenaAlign(1);
     assert(minAlign >= sizeof(void *));
     assert(isPowerOfTwo(minAlign));
 
-    const size_t roundedAlign = loka::app::scene::NormalizeArenaAlign(3);
+    const size_t roundedAlign = loka::app::scene::detail::NormalizeArenaAlign(3);
     assert(roundedAlign >= 3);
     assert(isPowerOfTwo(roundedAlign));
 
@@ -68,11 +185,11 @@ namespace
 
     void *first = arena.allocate(4, 4);
     assert(first != 0);
-    assert(isAligned(first, loka::app::scene::NormalizeArenaAlign(4)));
+    assert(isAligned(first, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     void *second = arena.allocate(8, 8);
     assert(second != 0);
-    assert(isAligned(second, loka::app::scene::NormalizeArenaAlign(8)));
+    assert(isAligned(second, loka::app::scene::detail::NormalizeArenaAlign(8)));
     assert(second != first);
 
     assert(arena.allocate(1024, 4) == 0);
@@ -98,14 +215,21 @@ namespace
 
     void *first = arena.allocate(4, 4);
     assert(first != 0);
-    assert(isAligned(first, loka::app::scene::NormalizeArenaAlign(4)));
+    assert(isAligned(first, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     void *second = arena.allocate(8, 8);
     assert(second != 0);
-    assert(isAligned(second, loka::app::scene::NormalizeArenaAlign(8)));
+    assert(isAligned(second, loka::app::scene::detail::NormalizeArenaAlign(8)));
     assert(second != first);
 
+    // Allocation may consume reserved capacity, but only reserve() may grow the
+    // owner-lifetime arena. Unreserved state can then fall back to the heap.
     assert(arena.allocate(1024, 4) == 0);
+
+    arena.reserve(1024);
+    void *grown = arena.allocate(1024, 4);
+    assert(grown != 0);
+    assert(isAligned(grown, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     arena.clear();
     assert(!arena.hasCapacity());
@@ -150,7 +274,7 @@ namespace
     for (size_t i = 0; i < count; ++i)
     {
       void *mem = arena.allocate(sizeof(MutableStateType),
-                                 loka::app::scene::AlignOf<MutableStateType>::value);
+                                 loka::app::scene::detail::AlignOf<MutableStateType>::value);
       assert(mem != 0);
     }
   }
@@ -162,6 +286,86 @@ namespace
     testStateArenaReserveCoversBatchEstimate(loka::core::String::Literal("arena"));
   }
 
+  static void testStateArenaGrowsAcrossOwnerBatches()
+  {
+    TestStateOwner owner;
+    loka::app::scene::NodeState<int> firstBatch[4];
+    loka::app::scene::NodeState<int> secondBatch[4];
+    loka::app::scene::NodeState<int> immediate;
+
+    {
+      loka::app::scene::NodeComposition::StateBatch batch(&owner);
+      for (int i = 0; i < 4; ++i)
+      {
+        batch.state(firstBatch[i], 10 + i);
+      }
+    }
+
+    {
+      loka::app::scene::NodeComposition::StateBatch batch(&owner);
+      for (int i = 0; i < 4; ++i)
+      {
+        batch.state(secondBatch[i], 20 + i);
+      }
+    }
+
+    loka::app::scene::StateBatchBase::CreateImmediateState<int>(&owner, immediate, 99);
+
+    for (int i = 0; i < 4; ++i)
+    {
+      assert(firstBatch[i].isValid());
+      assert(firstBatch[i].dangerouslyMutableState()->isArenaAllocated());
+      assert(firstBatch[i].get() == 10 + i);
+      assert(secondBatch[i].isValid());
+      assert(secondBatch[i].dangerouslyMutableState()->isArenaAllocated());
+      assert(secondBatch[i].get() == 20 + i);
+    }
+
+    assert(immediate.isValid());
+    assert(immediate.dangerouslyMutableState()->isArenaAllocated());
+    assert(immediate.get() == 99);
+  }
+
+  struct LargeStateValue
+  {
+    char bytes[128];
+
+    bool operator!=(const LargeStateValue &other) const
+    {
+      for (size_t i = 0; i < sizeof(bytes); ++i)
+      {
+        if (bytes[i] != other.bytes[i])
+        {
+          return true;
+        }
+      }
+      return false;
+    }
+  };
+
+  static void testUnreservedStateFallsBackAfterReservedCapacityIsConsumed()
+  {
+    TestStateOwner owner;
+    loka::app::scene::NodeState<LargeStateValue> reserved;
+    loka::app::scene::NodeState<LargeStateValue> unreserved;
+    loka::app::scene::NodeState<LargeStateValue> immediate;
+    LargeStateValue initial = {{0}};
+
+    owner.reserveStateArena(
+        loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>());
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, reserved, initial);
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, unreserved, initial);
+
+    assert(reserved.dangerouslyMutableState()->isArenaAllocated());
+    assert(!unreserved.dangerouslyMutableState()->isArenaAllocated());
+
+    loka::app::scene::StateBatchBase::CreateImmediateState<LargeStateValue>(
+        &owner, immediate, initial);
+    assert(immediate.dangerouslyMutableState()->isArenaAllocated());
+  }
+
 } // namespace
 
 void testBoundaryArenaContracts()
@@ -171,5 +375,7 @@ void testBoundaryArenaContracts()
   testStateArenaAllocation();
   testStateArenaReleaseAndClear();
   testStateArenaReserveMatchesBatchEstimate();
+  testStateArenaGrowsAcrossOwnerBatches();
+  testUnreservedStateFallsBackAfterReservedCapacityIsConsumed();
   printf("==== [testBoundaryArenaContracts] ok ====\n");
 }
