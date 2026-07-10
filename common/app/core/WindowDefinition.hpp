@@ -2,6 +2,7 @@
 #define LOKA_WINDOW_DEFINITION_HPP
 
 #include <cassert>
+#include <new>
 #include "app/core/Window.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/scene/Scene.hpp"
@@ -58,12 +59,20 @@ template <class PropsT> struct WindowDefinition : public WindowDefinitionBase
     }
     if (!resolved.initialScene && resolved.rootDefinition)
     {
-      loka::app::scene::NodeDefinitionBase *def = resolved.rootDefinition->clone();
-      if (!def)
+      loka::app::scene::NodeDefinitionBase *def = resolved.takeRootDefinition();
+      loka::app::scene::Scene *createdScene = new (std::nothrow) loka::app::scene::Scene(def);
+      if (!createdScene)
       {
+        delete def;
         return 0;
       }
-      resolved.scene(new loka::app::scene::Scene(def));
+      resolved.scene(createdScene);
+      Window *window = context->createWindow(resolved);
+      if (!window)
+      {
+        delete createdScene;
+      }
+      return window;
     }
     return context->createWindow(resolved);
   }

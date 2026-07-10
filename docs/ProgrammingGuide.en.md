@@ -596,6 +596,11 @@ predictable surface.
   report failure explicitly should be treated as migration targets, not as the
   preferred pattern.
 
+This contract defines the meaning of a nullable result; it does not claim that
+every concrete allocator path can already produce one. Clone/create
+implementations that still use plain `new`, or whose constructors allocate
+internally, remain migration targets for an end-to-end no-exception OOM policy.
+
 ## 19. Framework Comparisons
 
 Loka shares ideas with modern declarative UI frameworks, but it is not trying to

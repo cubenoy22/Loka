@@ -6,6 +6,7 @@
 #include "app/core/WindowDefinition.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/scene/Node.hpp"
+#include "app/scene/composition/NodeCompositionSnapshot.hpp"
 #include "app/scene/node/Conditional.hpp"
 
 // Regression pin for the ConditionalDefinition dangling-branch fix (issue #47,
@@ -30,6 +31,7 @@ namespace
   static int g_probeNodesAlive = 0;
   static int g_probeNodesCreated = 0;
   static int g_limitedCloneBudget = -1;
+  static int g_limitedCloneCalls = 0;
 
   struct CloneProbeProps : public loka::app::scene::NodePropsBase<CloneProbeProps>
   {
@@ -91,6 +93,7 @@ namespace
   {
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
+      ++g_limitedCloneCalls;
       if (g_limitedCloneBudget == 0)
       {
         return 0;
@@ -106,7 +109,9 @@ namespace
   struct NullWindowPlatformContext : public PlatformContext
   {
     NullWindowPlatformContext()
-        : createWindowCalls(0)
+        : createWindowCalls(0),
+          sawInitialScene(false),
+          sawRootDefinition(false)
     {
     }
 
@@ -115,9 +120,11 @@ namespace
       return 0;
     }
 
-    virtual Window *createWindow(const WindowProps &)
+    virtual Window *createWindow(const WindowProps &props)
     {
       ++createWindowCalls;
+      sawInitialScene = props.initialScene != 0;
+      sawRootDefinition = props.rootDefinition != 0;
       return 0;
     }
 
@@ -137,6 +144,8 @@ namespace
     }
 
     int createWindowCalls;
+    bool sawInitialScene;
+    bool sawRootDefinition;
   };
 } // namespace
 
@@ -239,6 +248,35 @@ void testNestableDefinitionCloneReturnsNullOnOomChildClone()
   printf("==== [testNestableDefinitionCloneReturnsNullOnOomChildClone] end ====\n");
 }
 
+void testCompositionSnapshotClearsStaleRootOnOomClone()
+{
+  printf("\n==== [testCompositionSnapshotClearsStaleRootOnOomClone] start ====\n");
+
+  loka::app::scene::NodeCompositionSnapshot snapshot;
+  {
+    loka::app::scene::NodeComposition stableComposition;
+    CloneProbeDefinition stableRoot;
+    stableComposition.declare(stableRoot);
+    snapshot.capture(stableComposition);
+  }
+  assert(!snapshot.empty());
+
+  {
+    loka::app::scene::NodeComposition failingComposition;
+    LimitedCloneProbeDefinition failingRoot;
+    g_limitedCloneBudget = 1;
+    g_limitedCloneCalls = 0;
+    failingComposition.declare(failingRoot);
+    snapshot.capture(failingComposition);
+    g_limitedCloneBudget = -1;
+  }
+
+  assert(g_limitedCloneCalls == 2);
+  assert(snapshot.empty());
+
+  printf("==== [testCompositionSnapshotClearsStaleRootOnOomClone] end ====\n");
+}
+
 void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone()
 {
   printf("\n==== [testWindowPropsAssignmentPreservesOwnedSceneOnOomClone] start ====\n");
@@ -275,20 +313,24 @@ void testWindowDefinitionCreateReturnsNullOnOomRootClone()
   printf("==== [testWindowDefinitionCreateReturnsNullOnOomRootClone] end ====\n");
 }
 
-void testWindowDefinitionCreateReturnsNullOnOomSceneClone()
+void testWindowDefinitionCreateTransfersSingleRootClone()
 {
-  printf("\n==== [testWindowDefinitionCreateReturnsNullOnOomSceneClone] start ====\n");
+  printf("\n==== [testWindowDefinitionCreateTransfersSingleRootClone] start ====\n");
 
   WindowDefinition<WindowProps> def;
   def.props.rootDefinition = new LimitedCloneProbeDefinition();
 
   NullWindowPlatformContext context;
   g_limitedCloneBudget = 1;
+  g_limitedCloneCalls = 0;
   Window *window = def.create(&context);
   g_limitedCloneBudget = -1;
 
   assert(window == 0);
-  assert(context.createWindowCalls == 0);
+  assert(g_limitedCloneCalls == 1);
+  assert(context.createWindowCalls == 1);
+  assert(context.sawInitialScene);
+  assert(!context.sawRootDefinition);
 
-  printf("==== [testWindowDefinitionCreateReturnsNullOnOomSceneClone] end ====\n");
+  printf("==== [testWindowDefinitionCreateTransfersSingleRootClone] end ====\n");
 }

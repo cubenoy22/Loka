@@ -4,8 +4,9 @@
 void testConditionalDefinitionCloneOwnership();
 void testNestableDefinitionCloneReturnsNullOnOomChildClone();
 void testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
+void testCompositionSnapshotClearsStaleRootOnOomClone();
 void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
 void testWindowDefinitionCreateReturnsNullOnOomRootClone();
-void testWindowDefinitionCreateReturnsNullOnOomSceneClone();
+void testWindowDefinitionCreateTransfersSingleRootClone();
 
 #endif // LOKA_DEFINITION_CLONE_TESTS_HPP

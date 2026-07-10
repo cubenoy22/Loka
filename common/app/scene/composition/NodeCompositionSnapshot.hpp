@@ -22,6 +22,7 @@ namespace loka
           NodeDefinitionBase *nextRoot = root->clone();
           if (!nextRoot)
           {
+            this->clear();
             return false;
           }
           this->clear();

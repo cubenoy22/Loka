@@ -50,7 +50,9 @@ These items address recurring bug patterns and structural risks identified durin
   failure explicitly. Current examples: `NodeComposition::declare*()`,
   `Scene(const DefT &)`, and constructor-only clone paths that can still blur
   "empty" with "clone failed". Keep pointer/bool-returning seams as the normal
-  nullable/OOM surface for `0.0.x`.
+  nullable/OOM surface for `0.0.x`. Audit concrete clone/create implementations
+  that still use plain `new` (including constructors that allocate internally)
+  before claiming end-to-end OOM recovery in no-exception builds.
 - DerivedState::EvalFn ownership/cleanup and dependency registration policy.
 - Boundary lifecycle policy follow-up: current default is scene/tree-owned rather than native-view-owned. If a future opt-in `view-scoped` boundary lifecycle is needed, define it explicitly as a separate policy instead of overloading `detach`/visibility semantics.
 - Wire Node.dirty with IPlatformController::synchronize (diff-based redraw path).

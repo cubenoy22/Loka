@@ -289,6 +289,14 @@ public:
     return *this;
   }
 
+  /** Transfers ownership of the cloned root definition to the caller. */
+  loka::app::scene::NodeDefinitionBase *takeRootDefinition()
+  {
+    loka::app::scene::NodeDefinitionBase *result = rootDefinition;
+    rootDefinition = 0;
+    return result;
+  }
+
   WindowProps &scene(const loka::app::scene::NodeDefinitionBase &def)
   {
     loka::app::scene::NodeDefinitionBase *nextRootDefinition = def.clone();
