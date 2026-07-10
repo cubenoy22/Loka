@@ -222,6 +222,11 @@ namespace
     assert(isAligned(second, loka::app::scene::detail::NormalizeArenaAlign(8)));
     assert(second != first);
 
+    // Allocation may consume reserved capacity, but only reserve() may grow the
+    // owner-lifetime arena. Unreserved state can then fall back to the heap.
+    assert(arena.allocate(1024, 4) == 0);
+
+    arena.reserve(1024);
     void *grown = arena.allocate(1024, 4);
     assert(grown != 0);
     assert(isAligned(grown, loka::app::scene::detail::NormalizeArenaAlign(4)));
@@ -321,6 +326,46 @@ namespace
     assert(immediate.get() == 99);
   }
 
+  struct LargeStateValue
+  {
+    char bytes[128];
+
+    bool operator!=(const LargeStateValue &other) const
+    {
+      for (size_t i = 0; i < sizeof(bytes); ++i)
+      {
+        if (bytes[i] != other.bytes[i])
+        {
+          return true;
+        }
+      }
+      return false;
+    }
+  };
+
+  static void testUnreservedStateFallsBackAfterReservedCapacityIsConsumed()
+  {
+    TestStateOwner owner;
+    loka::app::scene::NodeState<LargeStateValue> reserved;
+    loka::app::scene::NodeState<LargeStateValue> unreserved;
+    loka::app::scene::NodeState<LargeStateValue> immediate;
+    LargeStateValue initial = {{0}};
+
+    owner.reserveStateArena(
+        loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>());
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, reserved, initial);
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, unreserved, initial);
+
+    assert(reserved.dangerouslyMutableState()->isArenaAllocated());
+    assert(!unreserved.dangerouslyMutableState()->isArenaAllocated());
+
+    loka::app::scene::StateBatchBase::CreateImmediateState<LargeStateValue>(
+        &owner, immediate, initial);
+    assert(immediate.dangerouslyMutableState()->isArenaAllocated());
+  }
+
 } // namespace
 
 void testBoundaryArenaContracts()
@@ -331,5 +376,6 @@ void testBoundaryArenaContracts()
   testStateArenaReleaseAndClear();
   testStateArenaReserveMatchesBatchEstimate();
   testStateArenaGrowsAcrossOwnerBatches();
+  testUnreservedStateFallsBackAfterReservedCapacityIsConsumed();
   printf("==== [testBoundaryArenaContracts] ok ====\n");
 }

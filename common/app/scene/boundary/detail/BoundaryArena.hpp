@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_BOUNDARY_DETAIL_BOUNDARY_ARENA_HPP
 #define LOKA_CORE2_SCENE_BOUNDARY_DETAIL_BOUNDARY_ARENA_HPP
 
+#include <new>
 #include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/detail/ArenaMath.hpp"
@@ -113,7 +114,6 @@ namespace loka
         StateArena()
             : first_(0),
               tail_(0),
-              growthHint_(0),
               states_()
         {
         }
@@ -122,15 +122,14 @@ namespace loka
           clear();
         }
 
+        /** Ensures one owner-lifetime allocation batch has enough arena
+            capacity. allocate() consumes existing capacity only; it never
+            grows implicitly for unreserved node-local state. */
         void reserve(size_t totalSize)
         {
           if (totalSize == 0)
           {
             return;
-          }
-          if (totalSize > growthHint_)
-          {
-            growthHint_ = totalSize;
           }
           if (!tail_)
           {
@@ -158,17 +157,7 @@ namespace loka
           {
             return ptr;
           }
-          size_t blockSize = growthHint_;
-          size_t required = size + detail::NormalizeArenaAlign(align);
-          if (blockSize < required)
-          {
-            blockSize = required;
-          }
-          if (!appendBlock(blockSize))
-          {
-            return 0;
-          }
-          return allocateFromBlock(*tail_, size, align);
+          return 0;
         }
 
         void registerState(loka::core::StateBase *state, void (*destroy)(loka::core::StateBase *))
@@ -279,13 +268,13 @@ namespace loka
         bool appendBlock(size_t totalSize)
         {
           const size_t kArenaAlign = 16;
-          Block *block = new Block();
+          Block *block = new (std::nothrow) Block();
           if (!block)
           {
             return false;
           }
           size_t rawSize = totalSize + kArenaAlign;
-          block->raw = new char[rawSize];
+          block->raw = new (std::nothrow) char[rawSize];
           if (!block->raw)
           {
             delete block;
@@ -319,12 +308,10 @@ namespace loka
           }
           first_ = 0;
           tail_ = 0;
-          growthHint_ = 0;
         }
 
         Block *first_;
         Block *tail_;
-        size_t growthHint_;
         std::vector<StateEntry> states_;
       };
     } // namespace scene

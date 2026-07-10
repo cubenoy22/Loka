@@ -54,13 +54,16 @@ namespace loka
             alignment (NormalizeArenaAlign), not raw AlignOf, which can sit
             below the arena minimum on some ABIs. Batch reserve estimates must
             use this helper (not a hand-written copy of the arithmetic) so a
-            one-shot reserve is never smaller than the creates that follow. */
+            batch reservation covers the state creations that immediately
+            follow it. */
         template <typename T> static size_t ArenaBytesForState()
         {
           return sizeof(loka::core::MutableState<T>) +
                  detail::NormalizeArenaAlign(detail::AlignOf<loka::core::MutableState<T> >::value);
         }
 
+        /** Creates from capacity already reserved by the caller, falling back
+            to heap ownership when no arena capacity remains. */
         template <typename T>
         static void CreateStateFromInitial(IStateOwner *owner, NodeState<T> &out, const T &initial)
         {
@@ -88,8 +91,14 @@ namespace loka
           }
         }
 
+        /** Reserves one owner-lifetime arena slot for an immediate declaration
+            before using the shared creation mechanism. */
         template <typename T> static void CreateImmediateState(IStateOwner *owner, NodeState<T> &out, const T &initial)
         {
+          if (owner)
+          {
+            owner->reserveStateArena(ArenaBytesForState<T>());
+          }
           CreateStateFromInitial<T>(owner, out, initial);
         }
       };
