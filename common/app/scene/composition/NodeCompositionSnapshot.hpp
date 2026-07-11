@@ -39,10 +39,7 @@ namespace loka
         NodeCompositionSnapshot(const NodeCompositionSnapshot &other)
             : root_(0)
         {
-          if (other.root_)
-          {
-            this->root_ = other.root_->clone();
-          }
+          this->replaceWithClone(other.root_);
         }
 
         NodeCompositionSnapshot &operator=(const NodeCompositionSnapshot &other)
