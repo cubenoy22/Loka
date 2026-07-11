@@ -45,21 +45,7 @@ if(WIN32)
     target_compile_options(LokaHelloWin32 PRIVATE /utf-8)
   endif()
 
-  set(WIN32_TEST_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StateNotifyTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DerivedStateTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/DefinitionCloneTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/ValueTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/SnapFormatTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/AttrDslTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/BoundaryArenaTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/StartupRedrawTests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/FlowDslTestMain.cpp
-    src/MainNode.cpp
-  )
-
-  add_executable(LokaTestsWin32 ${WIN32_TEST_SOURCES})
+  add_executable(LokaTestsWin32 ${LOKA_SHARED_TEST_SOURCES})
 
   target_include_directories(LokaTestsWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

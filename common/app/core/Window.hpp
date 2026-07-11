@@ -1,6 +1,7 @@
 #ifndef LOKA_WINDOW_HPP
 #define LOKA_WINDOW_HPP
 
+#include <new>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "app/core/AppConfigurable.hpp"
@@ -56,11 +57,47 @@ struct WindowProps
   void *onIdleUserData;
   OnKeyPressFn onKeyPressFn;
   void *onKeyPressUserData;
-  loka::app::scene::Scene *initialScene;
   loka::app::scene::NodeDefinitionBase *rootDefinition;
   loka::app::MenuBarDefinition *menuBarDefinition;
 
 private:
+  struct InitialSceneHandoff
+  {
+    explicit InitialSceneHandoff(loka::app::scene::Scene *value)
+        : scene(value),
+          references(1)
+    {
+    }
+
+    loka::app::scene::Scene *scene;
+    unsigned long references;
+  };
+
+  mutable InitialSceneHandoff *initialSceneHandoff_;
+
+  void retainInitialSceneHandoff()
+  {
+    if (this->initialSceneHandoff_)
+    {
+      ++this->initialSceneHandoff_->references;
+    }
+  }
+
+  void releaseInitialSceneHandoff()
+  {
+    if (!this->initialSceneHandoff_)
+    {
+      return;
+    }
+    --this->initialSceneHandoff_->references;
+    if (this->initialSceneHandoff_->references == 0)
+    {
+      delete this->initialSceneHandoff_->scene;
+      delete this->initialSceneHandoff_;
+    }
+    this->initialSceneHandoff_ = 0;
+  }
+
   static bool tryCloneOwnedDefinitions(const WindowProps &rhs,
                                        loka::app::scene::NodeDefinitionBase *&outRootDefinition,
                                        loka::app::MenuBarDefinition *&outMenuBarDefinition)
@@ -106,9 +143,9 @@ public:
         onIdleUserData(0),
         onKeyPressFn(0),
         onKeyPressUserData(0),
-        initialScene(0),
         rootDefinition(0),
-        menuBarDefinition(0)
+        menuBarDefinition(0),
+        initialSceneHandoff_(0)
   {
   }
 
@@ -129,10 +166,11 @@ public:
         onIdleUserData(rhs.onIdleUserData),
         onKeyPressFn(rhs.onKeyPressFn),
         onKeyPressUserData(rhs.onKeyPressUserData),
-        initialScene(rhs.initialScene),
         rootDefinition(0),
-        menuBarDefinition(0)
+        menuBarDefinition(0),
+        initialSceneHandoff_(rhs.initialSceneHandoff_)
   {
+    this->retainInitialSceneHandoff();
     loka::app::scene::NodeDefinitionBase *nextRootDefinition = 0;
     loka::app::MenuBarDefinition *nextMenuBarDefinition = 0;
     if (tryCloneOwnedDefinitions(rhs, nextRootDefinition, nextMenuBarDefinition))
@@ -144,6 +182,7 @@ public:
 
   ~WindowProps()
   {
+    this->releaseInitialSceneHandoff();
     if (rootDefinition)
     {
       delete rootDefinition;
@@ -184,7 +223,13 @@ public:
     onIdleUserData = rhs.onIdleUserData;
     onKeyPressFn = rhs.onKeyPressFn;
     onKeyPressUserData = rhs.onKeyPressUserData;
-    initialScene = rhs.initialScene;
+    InitialSceneHandoff *nextInitialSceneHandoff = rhs.initialSceneHandoff_;
+    if (nextInitialSceneHandoff)
+    {
+      ++nextInitialSceneHandoff->references;
+    }
+    this->releaseInitialSceneHandoff();
+    this->initialSceneHandoff_ = nextInitialSceneHandoff;
     if (rootDefinition)
     {
       delete rootDefinition;
@@ -280,13 +325,44 @@ public:
 
   WindowProps &scene(loka::app::scene::Scene *scene)
   {
-    initialScene = scene;
+    if (this->peekInitialScene() != scene)
+    {
+      this->releaseInitialSceneHandoff();
+      if (scene)
+      {
+        this->initialSceneHandoff_ = new (std::nothrow) InitialSceneHandoff(scene);
+        if (!this->initialSceneHandoff_)
+        {
+          delete scene;
+        }
+      }
+    }
     if (rootDefinition)
     {
       delete rootDefinition;
       rootDefinition = 0;
     }
     return *this;
+  }
+
+  /** Returns the Scene awaiting ownership transfer without consuming it. */
+  loka::app::scene::Scene *peekInitialScene() const
+  {
+    return this->initialSceneHandoff_ ? this->initialSceneHandoff_->scene : 0;
+  }
+
+  /**
+   * Transfers the initial Scene exactly once across all copies of these props.
+   * Window construction is the normal consumer.
+   */
+  loka::app::scene::Scene *takeInitialScene() const
+  {
+    loka::app::scene::Scene *result = this->peekInitialScene();
+    if (this->initialSceneHandoff_)
+    {
+      this->initialSceneHandoff_->scene = 0;
+    }
+    return result;
   }
 
   /** Transfers ownership of the cloned root definition to the caller. */
@@ -310,7 +386,7 @@ public:
       rootDefinition = 0;
     }
     rootDefinition = nextRootDefinition;
-    initialScene = 0;
+    this->releaseInitialSceneHandoff();
     return *this;
   }
 
@@ -337,6 +413,7 @@ public:
   typedef WindowTypeTag TypeTag;
   Window(PlatformContext *context, const WindowProps &props = WindowProps())
       : context_(context),
+        tracker_(0),
         titleStorage_(),
         visibilityStorage_(true),
         title_(&titleStorage_),
@@ -352,7 +429,6 @@ public:
         onIdleUserData_(props.onIdleUserData),
         onKeyPressFn_(props.onKeyPressFn),
         onKeyPressUserData_(props.onKeyPressUserData),
-        initialScene_(props.initialScene),
         menuBarDefinition_(0)
   {
     if (props.titleStatePtr)
@@ -399,13 +475,19 @@ public:
       menuBarDefinition_ = props.menuBarDefinition->clone();
     }
     sceneManager_.setWindow(this);
-    if (initialScene_)
+    loka::app::scene::Scene *initialScene = props.takeInitialScene();
+    if (initialScene)
     {
-      sceneManager_.commitTransaction(0, initialScene_);
+      sceneManager_.commitTransaction(0, initialScene);
     }
   }
   virtual ~Window()
   {
+    if (this->tracker_)
+    {
+      delete this->tracker_;
+      this->tracker_ = 0;
+    }
     if (menuBarDefinition_)
     {
       delete menuBarDefinition_;
@@ -429,7 +511,7 @@ public:
   bool hasPendingSceneInvalidation() const
   {
     const loka::app::scene::Scene *current = this->scene();
-    return current ? current->hasPendingInvalidation() : false;
+    return (current && current->hasPendingInvalidation()) || sceneManager_.hasRetiredScenes();
   }
   virtual bool hasPendingScenePlatformSync() const
   {
@@ -547,7 +629,6 @@ protected:
   void *onIdleUserData_;
   WindowProps::OnKeyPressFn onKeyPressFn_;
   void *onKeyPressUserData_;
-  loka::app::scene::Scene *initialScene_;
   loka::app::MenuBarDefinition *menuBarDefinition_;
 };
 

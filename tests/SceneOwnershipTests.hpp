@@ -1,0 +1,8 @@
+#ifndef LOKA_SCENE_OWNERSHIP_TESTS_HPP
+#define LOKA_SCENE_OWNERSHIP_TESTS_HPP
+
+void testWindowDefinitionTransfersSceneOwnershipToWindow();
+void testWindowPropsSceneHandoffIsOneShotAcrossCopies();
+void testWindowRetiresDetachedSceneAtFlushBoundary();
+
+#endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP

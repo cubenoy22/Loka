@@ -39,6 +39,11 @@ namespace loka
 
   namespace app
   {
+    namespace detail
+    {
+      class SceneRetirePool;
+    }
+
     namespace scene
     {
       // Forward declaration only. Include the concrete type where needed.
@@ -227,6 +232,7 @@ namespace loka
               rootNode_(0),
               platformController_(0),
               window_(0),
+              retiredNextScene_(0),
               mounted_(false),
               composed_(false),
               director_(),
@@ -243,6 +249,7 @@ namespace loka
               rootNode_(0),
               platformController_(0),
               window_(0),
+              retiredNextScene_(0),
               mounted_(false),
               composed_(false),
               director_(),
@@ -260,6 +267,7 @@ namespace loka
               rootNode_(0),
               platformController_(0),
               window_(0),
+              retiredNextScene_(0),
               mounted_(false),
               composed_(false),
               director_(),
@@ -429,6 +437,7 @@ namespace loka
         Node *rootNode_;
         IPlatformController *platformController_;
         Window *window_;
+        Scene *retiredNextScene_;
         bool mounted_;
         bool composed_;
         loka::core::NextTickTracker nextTickTracker_;
@@ -437,6 +446,7 @@ namespace loka
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class SceneManager;
+        friend class loka::app::detail::SceneRetirePool;
         friend class SceneDirector;
         friend class ::loka::dsl::testing::SceneTestAccess;
 
