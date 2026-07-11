@@ -11,6 +11,26 @@ namespace loka
     {
       struct NodeCompositionSnapshot
       {
+      private:
+        bool replaceWithClone(const NodeDefinitionBase *root)
+        {
+          if (!root)
+          {
+            this->clear();
+            return true;
+          }
+          NodeDefinitionBase *nextRoot = root->clone();
+          if (!nextRoot)
+          {
+            this->clear();
+            return false;
+          }
+          this->clear();
+          this->root_ = nextRoot;
+          return true;
+        }
+
+      public:
         NodeCompositionSnapshot()
             : root_(0)
         {
@@ -19,10 +39,7 @@ namespace loka
         NodeCompositionSnapshot(const NodeCompositionSnapshot &other)
             : root_(0)
         {
-          if (other.root_)
-          {
-            this->root_ = other.root_->clone();
-          }
+          this->replaceWithClone(other.root_);
         }
 
         NodeCompositionSnapshot &operator=(const NodeCompositionSnapshot &other)
@@ -31,11 +48,7 @@ namespace loka
           {
             return *this;
           }
-          this->clear();
-          if (other.root_)
-          {
-            this->root_ = other.root_->clone();
-          }
+          this->replaceWithClone(other.root_);
           return *this;
         }
 
@@ -46,11 +59,7 @@ namespace loka
 
         void capture(const NodeComposition &composition)
         {
-          this->clear();
-          if (composition.root())
-          {
-            this->root_ = composition.root()->clone();
-          }
+          this->replaceWithClone(composition.root());
         }
 
         void clear()

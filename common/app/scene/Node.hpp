@@ -539,6 +539,13 @@ namespace loka
         {
           this->invokeCleanupHook();
         }
+        /**
+         * Allocation contract:
+         * - `clone()` / pointer-returning materialization may return `0` only
+         *   for allocation-style failure such as OOM.
+         * - contract misuse should be rejected structurally or by debug assert,
+         *   not normalized through arbitrary `0` returns.
+         */
         virtual Node *create() const = 0;
         virtual Node *createInPlace(void *mem) const = 0;
         virtual size_t nodeSize() const = 0;

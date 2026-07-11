@@ -581,6 +581,26 @@ Boundary surface. Do not rely on hidden global lookup.
 Start with clear ownership and readable state flow. Optimize after measurement
 or after the lifecycle need becomes visible.
 
+### Keep Allocation Failure Narrow
+
+Loka does not use exceptions, so allocation-style failure needs a small,
+predictable surface.
+
+- Pointer-returning `clone()` / `create()` seams may return `0`, but only for
+  allocation-style failure such as OOM.
+- Contract misuse should be prevented structurally when possible, or stopped by
+  debug `assert` rather than normalized as routine control flow.
+- Owner-side assignment/setter code should stage replacement clones first and
+  preserve the previous value when that staging fails.
+- Reference-returning builder seams and constructor-only clone paths that cannot
+  report failure explicitly should be treated as migration targets, not as the
+  preferred pattern.
+
+This contract defines the meaning of a nullable result; it does not claim that
+every concrete allocator path can already produce one. Clone/create
+implementations that still use plain `new`, or whose constructors allocate
+internally, remain migration targets for an end-to-end no-exception OOM policy.
+
 ## 19. Framework Comparisons
 
 Loka shares ideas with modern declarative UI frameworks, but it is not trying to

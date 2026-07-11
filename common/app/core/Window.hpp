@@ -60,6 +60,35 @@ struct WindowProps
   loka::app::scene::NodeDefinitionBase *rootDefinition;
   loka::app::MenuBarDefinition *menuBarDefinition;
 
+private:
+  static bool tryCloneOwnedDefinitions(const WindowProps &rhs,
+                                       loka::app::scene::NodeDefinitionBase *&outRootDefinition,
+                                       loka::app::MenuBarDefinition *&outMenuBarDefinition)
+  {
+    outRootDefinition = 0;
+    outMenuBarDefinition = 0;
+    if (rhs.rootDefinition)
+    {
+      outRootDefinition = rhs.rootDefinition->clone();
+      if (!outRootDefinition)
+      {
+        return false;
+      }
+    }
+    if (rhs.menuBarDefinition)
+    {
+      outMenuBarDefinition = rhs.menuBarDefinition->clone();
+      if (!outMenuBarDefinition)
+      {
+        delete outRootDefinition;
+        outRootDefinition = 0;
+        return false;
+      }
+    }
+    return true;
+  }
+
+public:
   WindowProps()
       : titleStatePtr(0),
         visibilityStatePtr(0),
@@ -104,13 +133,12 @@ struct WindowProps
         rootDefinition(0),
         menuBarDefinition(0)
   {
-    if (rhs.rootDefinition)
+    loka::app::scene::NodeDefinitionBase *nextRootDefinition = 0;
+    loka::app::MenuBarDefinition *nextMenuBarDefinition = 0;
+    if (tryCloneOwnedDefinitions(rhs, nextRootDefinition, nextMenuBarDefinition))
     {
-      rootDefinition = rhs.rootDefinition->clone();
-    }
-    if (rhs.menuBarDefinition)
-    {
-      menuBarDefinition = rhs.menuBarDefinition->clone();
+      rootDefinition = nextRootDefinition;
+      menuBarDefinition = nextMenuBarDefinition;
     }
   }
 
@@ -131,6 +159,12 @@ struct WindowProps
   WindowProps &operator=(const WindowProps &rhs)
   {
     if (this == &rhs)
+    {
+      return *this;
+    }
+    loka::app::scene::NodeDefinitionBase *nextRootDefinition = 0;
+    loka::app::MenuBarDefinition *nextMenuBarDefinition = 0;
+    if (!tryCloneOwnedDefinitions(rhs, nextRootDefinition, nextMenuBarDefinition))
     {
       return *this;
     }
@@ -156,19 +190,13 @@ struct WindowProps
       delete rootDefinition;
       rootDefinition = 0;
     }
-    if (rhs.rootDefinition)
-    {
-      rootDefinition = rhs.rootDefinition->clone();
-    }
+    rootDefinition = nextRootDefinition;
     if (menuBarDefinition)
     {
       delete menuBarDefinition;
       menuBarDefinition = 0;
     }
-    if (rhs.menuBarDefinition)
-    {
-      menuBarDefinition = rhs.menuBarDefinition->clone();
-    }
+    menuBarDefinition = nextMenuBarDefinition;
     return *this;
   }
 
@@ -261,26 +289,44 @@ struct WindowProps
     return *this;
   }
 
+  /** Transfers ownership of the cloned root definition to the caller. */
+  loka::app::scene::NodeDefinitionBase *takeRootDefinition()
+  {
+    loka::app::scene::NodeDefinitionBase *result = rootDefinition;
+    rootDefinition = 0;
+    return result;
+  }
+
   WindowProps &scene(const loka::app::scene::NodeDefinitionBase &def)
   {
+    loka::app::scene::NodeDefinitionBase *nextRootDefinition = def.clone();
+    if (!nextRootDefinition)
+    {
+      return *this;
+    }
     if (rootDefinition)
     {
       delete rootDefinition;
       rootDefinition = 0;
     }
-    rootDefinition = def.clone();
+    rootDefinition = nextRootDefinition;
     initialScene = 0;
     return *this;
   }
 
   WindowProps &menuBar(const loka::app::MenuBarDefinition &bar)
   {
+    loka::app::MenuBarDefinition *nextMenuBarDefinition = bar.clone();
+    if (!nextMenuBarDefinition)
+    {
+      return *this;
+    }
     if (menuBarDefinition)
     {
       delete menuBarDefinition;
       menuBarDefinition = 0;
     }
-    menuBarDefinition = bar.clone();
+    menuBarDefinition = nextMenuBarDefinition;
     return *this;
   }
 };
