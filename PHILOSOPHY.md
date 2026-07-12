@@ -54,12 +54,15 @@ or split the concept. Framework code should not depend on vibes.
 
 Names should also carry their regime. A wrapper called `OwnedDef<T>` states
 that it holds a Definition-regime value — exclusively owned, moved by explicit
-transfer, entered and left only by clone — and its name fences it off from
-becoming a general-purpose smart pointer for chain residents whose lifetime
-belongs to owners and clocks instead. Generic tools invite no such contract,
-and experience shows they go unused (`ScopedPtr` existed without a single
-caller); a tool named for its regime carries its rules with it. When another
-regime needs a similar shape, mint a new name rather than generalizing.
+transfer, intended to enter and leave only via clone. The type alone cannot
+prove that intent (it adopts any pointer, and `take()` releases one); the name
+assigns the contract, and review enforces it — which is exactly what a generic
+name cannot do. `ScopedPtr` is the contrast, not a failure: it serves the
+bootstrap seam well precisely because "owns and deletes" is all that seam
+needs, but at the definition sites the missing information was *which regime's
+rules apply* — nullable clone, failure-atomic transfer, no use on chain
+residents — and no generic name can say that. When another regime needs a
+similar shape, mint a new name rather than generalizing.
 
 ## Structure Over Vigilance
 
@@ -356,16 +359,23 @@ opposite sides.
 
 ## Three Lifetime Regimes
 
-Every object belongs to exactly one lifetime regime; code that fits none of
-them is a design smell, not a fourth category waiting to be invented:
+Every independent lifetime participant belongs to exactly one regime; code
+that fits none of them is a design smell, not a fourth category waiting to be
+invented. Exclusively-owned values such as Definition trees are deliberately
+not a regime of their own: they are property of a container (a composition
+arena, snapshot, or template slot) owned by a chain resident, share that
+container's lifetime, and move between containers only through failure-atomic
+clone. They participate in lifetime through their owner, never independently.
 
 - **Chain residents** (App, Window, Scene, nodes, boundaries, state, flows,
   trackers): a single owner on the containment chain, retirement through the
   two lines. Reference counting is forbidden here — deleting a chain resident
   is observable, so its timing has meaning and must follow the clock.
-  Borrowing points upward only: the same scope or an ancestor, never child to
-  parent, never across siblings. A value that must outlive its scope is
-  declared in a higher scope, not smuggled upward.
+  Borrowing points upward only: a resident may borrow from its own scope or
+  from an ancestor, because ancestors outlive it by containment. Nothing may
+  hold a reference to a descendant-owned or sibling-owned value — the holder
+  must never outlive the target's owner. A value that must outlive its scope
+  is declared in a higher scope, not smuggled upward.
 - **Passive shared values** (strings, blobs, plain memory payloads):
   reference counted with a releaser, legal precisely because release is
   unobservable — no identity, no callbacks into the chain, no back-pointers.
@@ -384,6 +394,15 @@ temporaries, and commit only when everything has succeeded. Destroying the
 old value before the new one exists is a bug shape even when the failure path
 "cannot happen" on the machine in front of you.
 
+What failure-atomicity protects is *live truth* — the value the application
+is currently showing or acting on, like the installed menu bar. Derived and
+applied-state caches obey the opposite rule: a reconciliation baseline that
+no longer matches what was applied is more dangerous than an empty one, so a
+failed capture clears the cache and the next pass falls back to a full
+rebuild. Keeping "the old value" there would be preserving a lie. Decide
+which rule applies by asking what the value *is*: live truth is preserved,
+stale caches are invalidated.
+
 The transaction is wider than the allocation. Anything consumed on the way to
 a fallible commit — a dirty flag, a one-shot token, a queued event — is part
 of the same transaction and must be restored or requeued when the commit
@@ -393,8 +412,10 @@ after a failure that was supposed to change nothing.
 
 Retries obey structure too. A retry scheduled from inside a scheduler's own
 drain loop can spin that loop; schedule it after the current run completes so
-persistent failure degrades to one bounded attempt per tick instead of a busy
-loop full of recomposition.
+persistent failure degrades to one bounded attempt per drain run instead of a
+busy loop full of recomposition. (The bound is per run/flush — the scheduler
+has no notion of tick identity, and a second flush in the same event-loop
+turn may legitimately retry again.)
 
 ## Composition Strategy
 
