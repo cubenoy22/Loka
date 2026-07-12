@@ -52,6 +52,15 @@ working at that layer.
 When an API name can reasonably be read in more than one way, tighten the name
 or split the concept. Framework code should not depend on vibes.
 
+Names should also carry their regime. A wrapper called `OwnedDef<T>` states
+that it holds a Definition-regime value — exclusively owned, moved by explicit
+transfer, entered and left only by clone — and its name fences it off from
+becoming a general-purpose smart pointer for chain residents whose lifetime
+belongs to owners and clocks instead. Generic tools invite no such contract,
+and experience shows they go unused (`ScopedPtr` existed without a single
+caller); a tool named for its regime carries its rules with it. When another
+regime needs a similar shape, mint a new name rather than generalizing.
+
 ## Structure Over Vigilance
 
 Correctness should be carried by structure, not by contributor care. When a
@@ -318,6 +327,74 @@ runtime retained this?"
 Loka cannot assume ARC, tracing GC, exceptions, or modern smart-pointer-heavy
 code on every target. That is not a weakness. It is a reason to make ownership
 visible, centralized, and lifecycle-aware instead of accidental.
+
+## Lifetime Has Two Lines
+
+Retirement is two events, not one. The detach line fires: synchronously,
+inside the tick, it unbinds observers, deregisters back-pointers, cancels
+pending work, and hands native resources to their platform queue. The reclaim
+line is silent: at the boundary of its owning clock it returns memory and
+fires nothing — no callbacks, no state writes, nothing observable. Everything
+observable must finish on the detach line; that silence is what makes
+reclamation timing invisible, and invisible timing is what keeps pooling,
+deferral, and future offload possible without changing application meaning.
+
+A clock may only live in a box that cannot itself be retired mid-tick. A
+Boundary can be retired by its parent's recompose while its own handler is
+still on the stack; a Scene can be swapped out; a Window can be closed from
+inside its own button handler. The App is the fixed point — it dies only
+after the run loop exits, when no user code remains on the stack. Native
+resources follow a second clock at each platform's safe point, because the
+OS — not Loka — decides when a control may be disposed. The wall between the
+two clocks: by the time logical memory is reclaimed, native handles must
+already be stripped or queued on the platform clock.
+
+Mixing the lines is a bug shape. Reclaiming synchronously on the detach line
+(a `delete` inside a rebuild pass) and firing observable events during
+reclamation (a state write in a destructor) are the same hole viewed from
+opposite sides.
+
+## Three Lifetime Regimes
+
+Every object belongs to exactly one lifetime regime; code that fits none of
+them is a design smell, not a fourth category waiting to be invented:
+
+- **Chain residents** (App, Window, Scene, nodes, boundaries, state, flows,
+  trackers): a single owner on the containment chain, retirement through the
+  two lines. Reference counting is forbidden here — deleting a chain resident
+  is observable, so its timing has meaning and must follow the clock.
+  Borrowing points upward only: the same scope or an ancestor, never child to
+  parent, never across siblings. A value that must outlive its scope is
+  declared in a higher scope, not smuggled upward.
+- **Passive shared values** (strings, blobs, plain memory payloads):
+  reference counted with a releaser, legal precisely because release is
+  unobservable — no identity, no callbacks into the chain, no back-pointers.
+  When a value's releaser has a native side effect, it is not passive; its
+  release belongs behind the platform clock.
+- **Edge services** (sockets, decoders, future realtime I/O): own their own
+  concurrency and lifetime, and meet the chain only as sealed values handed
+  over at a tick boundary. Threads never enter the chain.
+
+## Failure Is An Input
+
+On a 4 MB machine, allocation failure is Tuesday, not an edge case. Loka
+treats clone/create failure as a first-class input: structural operations
+must be failure-atomic — build the replacement fully, cloning into
+temporaries, and commit only when everything has succeeded. Destroying the
+old value before the new one exists is a bug shape even when the failure path
+"cannot happen" on the machine in front of you.
+
+The transaction is wider than the allocation. Anything consumed on the way to
+a fallible commit — a dirty flag, a one-shot token, a queued event — is part
+of the same transaction and must be restored or requeued when the commit
+fails, or consumed only at the commit point. A lost dirty flag is the same
+bug as a destroyed menu bar: state that existed before the attempt is gone
+after a failure that was supposed to change nothing.
+
+Retries obey structure too. A retry scheduled from inside a scheduler's own
+drain loop can spin that loop; schedule it after the current run completes so
+persistent failure degrades to one bounded attempt per tick instead of a busy
+loop full of recomposition.
 
 ## Composition Strategy
 
