@@ -26,6 +26,7 @@ int main()
   testMenuControllerPreservesDefaultMenuBarOnOomClone();
   testMenuControllerPreservesRefreshedMenuBarOnOomClone();
   testMenuControllerRequeuesDirtyMenusAfterOomClone();
+  testMenuControllerSchedulesRetryAfterDirectRefreshFailure();
   testWindowDefinitionTransfersSceneOwnershipToWindow();
   testWindowPropsSceneHandoffIsOneShotAcrossCopies();
   testWindowRetiresDetachedSceneAtFlushBoundary();

@@ -13,5 +13,6 @@ void testWindowDefinitionCreateTransfersSingleRootClone();
 void testMenuControllerPreservesDefaultMenuBarOnOomClone();
 void testMenuControllerPreservesRefreshedMenuBarOnOomClone();
 void testMenuControllerRequeuesDirtyMenusAfterOomClone();
+void testMenuControllerSchedulesRetryAfterDirectRefreshFailure();
 
 #endif // LOKA_DEFINITION_CLONE_TESTS_HPP

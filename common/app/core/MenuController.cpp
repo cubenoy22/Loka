@@ -218,10 +218,21 @@ bool MenuController::refreshDefaultMenuBar()
     {
       // The compose above consumed the boundary dirty flags; without
       // requeueing them the retry would see a clean, structurally equal bar
-      // and drop this update. The retry itself is scheduled after the
-      // current run so a persistent failure cannot spin the refresh loop.
+      // and drop this update.
       pendingDirtyMenus_.swap(dirtyMenus);
-      retryCloneRequested_ = true;
+      if (refresh_.inProgress())
+      {
+        // Inside NextTickTracker::run a request() would re-enter the drain
+        // loop immediately; defer to flushInvalidation so a persistent
+        // failure costs one attempt per flush.
+        retryCloneRequested_ = true;
+      }
+      else
+      {
+        // Direct call (e.g. via resolveMenuBar): nobody will check the
+        // retry flag, so schedule the retry now.
+        refresh_.request();
+      }
       return false;
     }
     menuBar_.reset(nextMenuBar.take());

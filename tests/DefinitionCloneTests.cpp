@@ -585,3 +585,30 @@ void testMenuControllerRequeuesDirtyMenusAfterOomClone()
 
   printf("==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] end ====\n");
 }
+
+void testMenuControllerSchedulesRetryAfterDirectRefreshFailure()
+{
+  printf("\n==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] start ====\n");
+
+  MenuCloneTestConfig config;
+  int applyCount = 0;
+  MenuController controller(&config, &CountMenuApply, &applyCount);
+  controller.requestInvalidation();
+  assert(controller.flushInvalidation(0));
+  assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 1);
+
+  // Structural change with no boundary dirt: a direct refresh failure must
+  // schedule its own retry, because no invalidation was requested by compose.
+  config.includeSecondMenu = true;
+  loka::app::testing::failNextMenuBarDefinitionClone();
+  assert(!controller.refreshDefaultMenuBar());
+  assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 1);
+  loka::app::testing::allowMenuBarDefinitionClones();
+
+  // No explicit requestInvalidation here: the failed direct refresh must
+  // have queued the retry itself.
+  assert(controller.flushInvalidation(0));
+  assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 2);
+
+  printf("==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] end ====\n");
+}
