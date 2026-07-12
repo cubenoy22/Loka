@@ -9,6 +9,7 @@
 #include "app/core/AppComponent.hpp"
 #include "app/core/SceneManager.hpp"
 #include "core/util/StateUtil.hpp"
+#include "core/util/OwnedDef.hpp"
 #include "app/scene/Node.hpp"
 #include "app/Menu.hpp"
 #include "core/String.hpp"
@@ -473,7 +474,7 @@ public:
     }
     if (props.menuBarDefinition)
     {
-      menuBarDefinition_ = props.menuBarDefinition->clone();
+      menuBarDefinition_.reset(props.menuBarDefinition->clone());
     }
     sceneManager_.setWindow(this);
     loka::app::scene::Scene *initialScene = props.takeInitialScene();
@@ -491,11 +492,7 @@ public:
       delete this->tracker_;
       this->tracker_ = 0;
     }
-    if (menuBarDefinition_)
-    {
-      delete menuBarDefinition_;
-      menuBarDefinition_ = 0;
-    }
+    menuBarDefinition_.reset();
   }
 
   PlatformContext *context() const
@@ -536,7 +533,7 @@ public:
   }
   const loka::app::MenuBarDefinition *menuBar() const
   {
-    return menuBarDefinition_;
+    return menuBarDefinition_.get();
   }
 
   loka::core::StateTracker *getTracker() const
@@ -632,7 +629,7 @@ protected:
   void *onIdleUserData_;
   WindowProps::OnKeyPressFn onKeyPressFn_;
   void *onKeyPressUserData_;
-  loka::app::MenuBarDefinition *menuBarDefinition_;
+  loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBarDefinition_;
 };
 
 #endif // LOKA_WINDOW_HPP

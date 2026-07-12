@@ -15,6 +15,7 @@
 #include "app/scene/boundary/Boundary.hpp"
 #include "core/Profiler.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
+#include "core/util/OwnedDef.hpp"
 #include "dsl/composition/CompositionDiff.hpp"
 
 class Window;
@@ -280,16 +281,12 @@ namespace loka
           director_.detach();
           updateLifecycle(ON_DESTROY);
           unmount();
-          if (rootDefinition_)
-          {
-            delete rootDefinition_;
-            rootDefinition_ = 0;
-          }
+          rootDefinition_.reset();
         }
 
         NodeDefinitionBase *getRootDefinition() const
         {
-          return rootDefinition_;
+          return rootDefinition_.get();
         }
         Window *getWindow() const
         {
@@ -433,7 +430,7 @@ namespace loka
 
         loka::core::MutableState<SceneLifecycle> lifecycle_;
         loka::core::MutableState<bool> attached_;
-        NodeDefinitionBase *rootDefinition_;
+        loka::core::OwnedDef<NodeDefinitionBase> rootDefinition_;
         Node *rootNode_;
         IPlatformController *platformController_;
         Window *window_;
@@ -704,14 +701,14 @@ namespace loka
           {
             return;
           }
-          assert(rootDefinition_ && "Scene requires a root definition");
+          assert(rootDefinition_.isSet() && "Scene requires a root definition");
           if (rootDefinition_->isBoundary())
           {
             rootNode_ = rootDefinition_->create();
           }
           else
           {
-            rootNode_ = new RootBoundaryWrapper(rootDefinition_);
+            rootNode_ = new RootBoundaryWrapper(rootDefinition_.get());
           }
           assert(rootNode_ && "Scene failed to create root node");
           BoundaryNode *boundary = rootNode_->asBoundary();
@@ -737,7 +734,7 @@ namespace loka
           rootContext.setPlatformController(platformController_);
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
-          if (rootDefinition_ && !rootDefinition_->isBoundary())
+          if (rootDefinition_.isSet() && !rootDefinition_->isBoundary())
           {
             BoundaryNode::composeSubtree(rootNode_, rootContext, event, 0);
           }
@@ -768,7 +765,7 @@ namespace loka
           rootContext.setScene(this);
           rootContext.setWindow(this->getWindow());
           rootContext.setDirtyFlags(updateCycleState_.refreshDirtyFlags());
-          if (rootDefinition_ && !rootDefinition_->isBoundary())
+          if (rootDefinition_.isSet() && !rootDefinition_->isBoundary())
           {
             BoundaryNode::composeSubtree(rootNode_, rootContext, event, 0);
           }

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include "dsl/composition/CompositionList.hpp"
+#include "core/util/OwnedDef.hpp"
 
 #include "core/State.hpp"
 #include "core/Profiler.hpp"
@@ -909,12 +910,12 @@ namespace loka
           NodeDefinitionBase *cur = other.children_.head();
           while (cur)
           {
-            NodeDefinitionBase *child = cur ? cur->clone() : 0;
-            if (!child)
+            loka::core::OwnedDef<NodeDefinitionBase> child(cur ? cur->clone() : 0);
+            if (!child.isSet())
             {
               return false;
             }
-            newChildren.appendOwned(child);
+            newChildren.appendOwned(child.take());
             cur = cur->nextInComposition;
           }
           clearChildren();

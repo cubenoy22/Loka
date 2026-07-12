@@ -2,6 +2,7 @@
 #define LOKA_DEFINITION_CLONE_TESTS_HPP
 
 void testConditionalDefinitionCloneOwnership();
+void testOwnedDefOwnership();
 void testNestableDefinitionCloneReturnsNullOnOomChildClone();
 void testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
 void testCompositionSnapshotClearsStaleRootOnOomClone();

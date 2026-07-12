@@ -3,6 +3,7 @@
 
 #include "app/Menu.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
+#include "core/util/OwnedDef.hpp"
 
 class AppConfigurable;
 class Window;
@@ -41,7 +42,7 @@ private:
   ApplyFn applyFn_;
   void *applyUserData_;
   Window *pendingApplyWindow_;
-  loka::app::MenuBarDefinition *menuBar_;
+  loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBar_;
   loka::core::NextTickTracker refresh_;
   loka::app::MenuCompositionDiff diff_;
 };

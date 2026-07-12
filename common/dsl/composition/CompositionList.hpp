@@ -2,6 +2,7 @@
 #define LOKA_DSL_COMPOSITION_LIST_HPP
 
 #include <vector>
+#include "core/util/OwnedDef.hpp"
 
 namespace loka
 {
@@ -32,8 +33,8 @@ namespace loka
 
       void appendClone(const DefT &def)
       {
-        DefT *node = def.clone();
-        appendOwned(node);
+        loka::core::OwnedDef<DefT> node(def.clone());
+        appendOwned(node.take());
       }
 
       void appendOwned(DefT *node)
