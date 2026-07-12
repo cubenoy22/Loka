@@ -62,10 +62,18 @@ void MenuController::invalidate(Window *activeWindow)
 
 void MenuController::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar, Window *activeWindow)
 {
-  menuBar_.reset();
   if (menuBar)
   {
-    menuBar_.reset(menuBar->clone());
+    loka::core::OwnedDef<loka::app::MenuBarDefinition> nextMenuBar(menuBar->clone());
+    if (!nextMenuBar.isSet())
+    {
+      return;
+    }
+    menuBar_.reset(nextMenuBar.take());
+  }
+  else
+  {
+    menuBar_.reset();
   }
   this->apply(activeWindow);
 }
@@ -113,40 +121,41 @@ bool MenuController::refreshDefaultMenuBar()
     }
     return false;
   }
+  loka::app::MenuCompositionDiff nextDiff;
   bool diffAttempted = false;
   bool diffResult = false;
   if (!menuBar_.isSet())
   {
-    diff_.valid = true;
-    diff_.fullRebuild = true;
+    nextDiff.valid = true;
+    nextDiff.fullRebuild = true;
   }
   else
   {
     diffAttempted = true;
-    diffResult = loka::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, diff_);
+    diffResult = loka::app::MenuCompositionDiff::Diff(*menuBar_, menuBar, nextDiff);
     if (!diffResult)
     {
-      diff_.clear();
       if (dirtyMenus.empty())
       {
+        diff_.clear();
         return false;
       }
     }
   }
   if (!dirtyMenus.empty())
   {
-    diff_.valid = true;
-    if (diff_.fullRebuild && diffAttempted && !diffResult)
+    nextDiff.valid = true;
+    if (nextDiff.fullRebuild && diffAttempted && !diffResult)
     {
-      diff_.fullRebuild = false;
+      nextDiff.fullRebuild = false;
     }
-    if (!diff_.fullRebuild)
+    if (!nextDiff.fullRebuild)
     {
       for (size_t i = 0; i < dirtyMenus.size(); ++i)
       {
         bool exists = false;
-        loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> it(diff_.changedHead(),
-                                                                                      diff_.changedCount());
+        loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> it(nextDiff.changedHead(),
+                                                                                      nextDiff.changedCount());
         for (loka::app::MenuCompositionDiff::ChangedIndex *entry = it.next(); entry; entry = it.next())
         {
           if (entry->value == dirtyMenus[i])
@@ -157,15 +166,23 @@ bool MenuController::refreshDefaultMenuBar()
         }
         if (!exists)
         {
-          diff_.addChanged(dirtyMenus[i]);
+          nextDiff.addChanged(dirtyMenus[i]);
         }
       }
     }
   }
-  if (!menuBar_.isSet() || diff_.valid)
+  if (!menuBar_.isSet() || nextDiff.valid)
   {
-    menuBar_.reset();
-    menuBar_.reset(menuBar.clone());
+    loka::core::OwnedDef<loka::app::MenuBarDefinition> nextMenuBar(menuBar.clone());
+    if (!nextMenuBar.isSet())
+    {
+      return false;
+    }
+    menuBar_.reset(nextMenuBar.take());
+    diff_.clear();
+    diff_.valid = nextDiff.valid;
+    diff_.fullRebuild = nextDiff.fullRebuild;
+    nextDiff.changed.detachTo(diff_.changed);
     return true;
   }
   diff_.clear();

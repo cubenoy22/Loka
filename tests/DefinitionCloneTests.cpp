@@ -4,6 +4,9 @@
 #include "core/State.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "app/PlatformContext.hpp"
+#include "app/Menu.hpp"
+#include "app/core/AppConfigurable.hpp"
+#include "app/core/MenuController.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/scene/Node.hpp"
@@ -148,6 +151,43 @@ namespace
     bool sawInitialScene;
     bool sawRootDefinition;
   };
+
+  class MenuCloneTestConfig : public AppConfigurable
+  {
+  public:
+    MenuCloneTestConfig()
+        : AppConfigurable(0),
+          includeSecondMenu(false)
+    {
+    }
+
+    virtual void compose(AppComposition &)
+    {
+    }
+
+    virtual void composeMenu(loka::app::MenuComposition &composition)
+    {
+      composition << loka::app::Menu("Replacement");
+      if (includeSecondMenu)
+      {
+        composition << loka::app::Menu("Second");
+      }
+    }
+
+    bool includeSecondMenu;
+  };
+
+  void CountMenuApply(void *userData, Window *)
+  {
+    int *applyCount = static_cast<int *>(userData);
+    ++*applyCount;
+  }
+
+  bool hasSingleMenuNamed(const loka::app::MenuBarDefinition *menuBar, const char *title)
+  {
+    return menuBar && menuBar->menusCount() == 1 && menuBar->menuAt(0)
+           && menuBar->menuAt(0)->title.equals(loka::core::String::Literal(title));
+  }
 } // namespace
 
 // ============================================================
@@ -408,4 +448,55 @@ void testWindowDefinitionCreateTransfersSingleRootClone()
   assert(!context.sawRootDefinition);
 
   printf("==== [testWindowDefinitionCreateTransfersSingleRootClone] end ====\n");
+}
+
+void testMenuControllerPreservesDefaultMenuBarOnOomClone()
+{
+  printf("\n==== [testMenuControllerPreservesDefaultMenuBarOnOomClone] start ====\n");
+
+  MenuCloneTestConfig config;
+  int applyCount = 0;
+  MenuController controller(&config, &CountMenuApply, &applyCount);
+  loka::app::MenuBarDefinition stableMenuBar;
+  stableMenuBar << loka::app::Menu("Stable");
+  controller.setDefaultMenuBar(&stableMenuBar, 0);
+  assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
+  assert(applyCount == 1);
+
+  loka::app::MenuBarDefinition replacementMenuBar;
+  replacementMenuBar << loka::app::Menu("Replacement");
+  loka::app::testing::failNextMenuBarDefinitionClone();
+  controller.setDefaultMenuBar(&replacementMenuBar, 0);
+
+  assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
+  assert(applyCount == 1);
+  loka::app::testing::allowMenuBarDefinitionClones();
+
+  printf("==== [testMenuControllerPreservesDefaultMenuBarOnOomClone] end ====\n");
+}
+
+void testMenuControllerPreservesRefreshedMenuBarOnOomClone()
+{
+  printf("\n==== [testMenuControllerPreservesRefreshedMenuBarOnOomClone] start ====\n");
+
+  MenuCloneTestConfig config;
+  int applyCount = 0;
+  MenuController controller(&config, &CountMenuApply, &applyCount);
+  loka::app::MenuBarDefinition stableMenuBar;
+  stableMenuBar << loka::app::Menu("Stable");
+  controller.setDefaultMenuBar(&stableMenuBar, 0);
+  controller.clearDiff();
+  config.includeSecondMenu = true;
+
+  loka::app::testing::failNextMenuBarDefinitionClone();
+  controller.requestInvalidation();
+  bool refreshed = controller.flushInvalidation(0);
+
+  assert(!refreshed);
+  assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
+  assert(!controller.diff().valid);
+  assert(applyCount == 1);
+  loka::app::testing::allowMenuBarDefinitionClones();
+
+  printf("==== [testMenuControllerPreservesRefreshedMenuBarOnOomClone] end ====\n");
 }

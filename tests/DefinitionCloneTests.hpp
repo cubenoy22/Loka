@@ -10,5 +10,7 @@ void testNodeCompositionSkipsOomClones();
 void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
 void testWindowDefinitionCreateReturnsNullOnOomRootClone();
 void testWindowDefinitionCreateTransfersSingleRootClone();
+void testMenuControllerPreservesDefaultMenuBarOnOomClone();
+void testMenuControllerPreservesRefreshedMenuBarOnOomClone();
 
 #endif // LOKA_DEFINITION_CLONE_TESTS_HPP

@@ -23,6 +23,8 @@ int main()
   testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
   testWindowDefinitionCreateReturnsNullOnOomRootClone();
   testWindowDefinitionCreateTransfersSingleRootClone();
+  testMenuControllerPreservesDefaultMenuBarOnOomClone();
+  testMenuControllerPreservesRefreshedMenuBarOnOomClone();
   testWindowDefinitionTransfersSceneOwnershipToWindow();
   testWindowPropsSceneHandoffIsOneShotAcrossCopies();
   testWindowRetiresDetachedSceneAtFlushBoundary();
