@@ -374,6 +374,10 @@ namespace loka
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
           NodeDefinitionBase *cloned = def.clone();
+          if (!cloned)
+          {
+            return 0;
+          }
           cloned->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
           arena_.push_back(cloned);
           return cloned;
@@ -455,6 +459,10 @@ namespace loka
             return const_cast<T &>(def);
           }
           T *newRoot = this->store(def);
+          if (!newRoot)
+          {
+            return const_cast<T &>(def);
+          }
           this->root_ = newRoot;
           return *newRoot;
         }
@@ -473,12 +481,20 @@ namespace loka
             return const_cast<NodeDefinitionBase &>(def);
           }
           NodeDefinitionBase *newRoot = this->store(def);
+          if (!newRoot)
+          {
+            return const_cast<NodeDefinitionBase &>(def);
+          }
           this->root_ = newRoot;
           return *newRoot;
         }
         NodeDefinitionBase &declareTagged(NodeTag tag, const NodeDefinitionBase &def)
         {
           NodeDefinitionBase *tagged = def.clone();
+          if (!tagged)
+          {
+            return const_cast<NodeDefinitionBase &>(def);
+          }
           tagged->setNodeTag(tag);
           if (activeParent_)
           {

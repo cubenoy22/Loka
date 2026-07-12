@@ -5,6 +5,7 @@ void testConditionalDefinitionCloneOwnership();
 void testNestableDefinitionCloneReturnsNullOnOomChildClone();
 void testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
 void testCompositionSnapshotClearsStaleRootOnOomClone();
+void testNodeCompositionSkipsOomClones();
 void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
 void testWindowDefinitionCreateReturnsNullOnOomRootClone();
 void testWindowDefinitionCreateTransfersSingleRootClone();
