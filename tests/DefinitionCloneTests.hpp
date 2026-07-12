@@ -2,6 +2,8 @@
 #define LOKA_DEFINITION_CLONE_TESTS_HPP
 
 void testConditionalDefinitionCloneOwnership();
+void testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure();
+void testConditionalDefinitionCloneReturnsNullOnSecondBranchFailure();
 void testOwnedDefOwnership();
 void testNestableDefinitionCloneReturnsNullOnOomChildClone();
 void testNestableDefinitionAssignmentPreservesStableChildOnOomClone();

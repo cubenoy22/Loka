@@ -348,6 +348,77 @@ void testConditionalDefinitionCloneOwnership()
   printf("==== [testConditionalDefinitionCloneOwnership] end ====\n");
 }
 
+void testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure()
+{
+  printf("\n==== [testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure] start ====\n");
+
+  using loka::app::scene::ConditionalDefinition;
+  using loka::app::scene::ConditionalProps;
+
+  const int baseline = g_probePropsAlive;
+  {
+    loka::core::MutableState<bool> oldCondition(true);
+    loka::core::MutableState<bool> newCondition(false);
+    CloneProbeDefinition oldTrueBranch;
+    CloneProbeDefinition oldFalseBranch;
+    LimitedCloneProbeDefinition newTrueBranch;
+    LimitedCloneProbeDefinition newFalseBranch;
+    ConditionalDefinition target(ConditionalProps(&oldCondition, &oldTrueBranch, &oldFalseBranch));
+    ConditionalDefinition source(ConditionalProps(&newCondition, &newTrueBranch, &newFalseBranch));
+
+    loka::app::scene::NodeDefinitionBase *oldOwnedTrueDef = target.ownedTrueDef;
+    loka::app::scene::NodeDefinitionBase *oldOwnedFalseDef = target.ownedFalseDef;
+    const int aliveBeforeAssignment = g_probePropsAlive;
+
+    g_limitedCloneBudget = 1;
+    g_limitedCloneCalls = 0;
+    target = source;
+    g_limitedCloneBudget = -1;
+
+    assert(g_limitedCloneCalls == 2);
+    assert(target.props.condition == &oldCondition);
+    assert(target.ownedTrueDef == oldOwnedTrueDef);
+    assert(target.ownedFalseDef == oldOwnedFalseDef);
+    assert(target.props.trueDef == target.ownedTrueDef);
+    assert(target.props.falseDef == target.ownedFalseDef);
+    assert(g_probePropsAlive == aliveBeforeAssignment);
+  }
+  assert(g_probePropsAlive == baseline);
+  assert(g_probeNodesAlive == 0);
+
+  printf("==== [testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure] end ====\n");
+}
+
+void testConditionalDefinitionCloneReturnsNullOnSecondBranchFailure()
+{
+  printf("\n==== [testConditionalDefinitionCloneReturnsNullOnSecondBranchFailure] start ====\n");
+
+  using loka::app::scene::ConditionalDefinition;
+  using loka::app::scene::ConditionalProps;
+
+  const int baseline = g_probePropsAlive;
+  {
+    loka::core::MutableState<bool> condition(true);
+    LimitedCloneProbeDefinition trueBranch;
+    LimitedCloneProbeDefinition falseBranch;
+    ConditionalDefinition source(ConditionalProps(&condition, &trueBranch, &falseBranch));
+    const int aliveBeforeClone = g_probePropsAlive;
+
+    g_limitedCloneBudget = 1;
+    g_limitedCloneCalls = 0;
+    loka::app::scene::NodeDefinitionBase *copy = source.clone();
+    g_limitedCloneBudget = -1;
+
+    assert(g_limitedCloneCalls == 2);
+    assert(copy == 0);
+    assert(g_probePropsAlive == aliveBeforeClone);
+  }
+  assert(g_probePropsAlive == baseline);
+  assert(g_probeNodesAlive == 0);
+
+  printf("==== [testConditionalDefinitionCloneReturnsNullOnSecondBranchFailure] end ====\n");
+}
+
 void testNestableDefinitionAssignmentPreservesStableChildOnOomClone()
 {
   printf("\n==== [testNestableDefinitionAssignmentPreservesStableChildOnOomClone] start ====\n");
