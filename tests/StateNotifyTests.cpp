@@ -377,10 +377,10 @@ void testStateNotify()
   }
 
   // --- PushStateTracker: no currentTracker stamps survive outside a transaction ---
-  // Owner teardown (~Window, PR #73) deletes a PushStateTracker while
-  // externally-owned registered states may outlive it. That is only safe
-  // because end() clears every registered state's tracker back-pointer, so a
-  // later set() never dereferences the freed tracker. Pin that contract here.
+  // Owner teardown may delete a PushStateTracker while externally-owned
+  // registered states outlive it. That is only safe because end() clears every
+  // registered state's tracker back-pointer, so a later set() never
+  // dereferences the freed tracker. Pin that contract here.
   {
     loka::core::MutableState<int> outlivesTracker(0);
     loka::core::PushStateTracker *tracker = new loka::core::PushStateTracker();

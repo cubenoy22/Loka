@@ -39,23 +39,7 @@ endif()
 # suite below.
 enable_testing()
 
-# Shared by the headless and platform unit-test executables. Keep the test
-# translation-unit list in one place so every target agrees with the common
-# FlowDslTestMain entry point.
-set(LOKA_SHARED_TEST_SOURCES
-  ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/DerivedStateTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/DefinitionCloneTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/SceneOwnershipTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/ValueTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/BoundaryArenaTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
-  ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
-)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaTestSources.cmake)
 
 if(WIN32)
   add_subdirectory(win32)

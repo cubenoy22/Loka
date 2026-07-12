@@ -1,6 +1,7 @@
 #ifndef LOKA_WINDOW_HPP
 #define LOKA_WINDOW_HPP
 
+#include <cassert>
 #include <new>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
@@ -485,6 +486,8 @@ public:
   {
     if (this->tracker_)
     {
+      assert(this->tracker_->phase() == loka::core::TRACKER_IDLE &&
+             "Window cannot be destroyed during its StateTracker transaction");
       delete this->tracker_;
       this->tracker_ = 0;
     }

@@ -24,6 +24,7 @@ int main()
   testWindowDefinitionTransfersSceneOwnershipToWindow();
   testWindowPropsSceneHandoffIsOneShotAcrossCopies();
   testWindowRetiresDetachedSceneAtFlushBoundary();
+  testWindowDoesNotReclaimSceneDuringDetachNotification();
   testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();

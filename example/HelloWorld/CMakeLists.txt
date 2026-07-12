@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(LokaHelloWorld LANGUAGES CXX)
 
+if(NOT DEFINED LOKA_SHARED_TEST_SOURCES)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/LokaTestSources.cmake)
+endif()
+
 if(APPLE)
   enable_language(OBJCXX)
   loka_suppress_arclite_link()

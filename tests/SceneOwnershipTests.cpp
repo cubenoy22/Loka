@@ -78,6 +78,28 @@ namespace
       return false;
     }
   };
+
+  struct ReentrantSceneFlushContext
+  {
+    ReentrantSceneFlushContext()
+        : window(0),
+          callbackCalls(0),
+          scenesAliveAfterFlush(0)
+    {
+    }
+
+    Window *window;
+    int callbackCalls;
+    int scenesAliveAfterFlush;
+  };
+
+  void FlushWindowDuringDetach(void *userData)
+  {
+    ReentrantSceneFlushContext *context = static_cast<ReentrantSceneFlushContext *>(userData);
+    ++context->callbackCalls;
+    context->window->flushSceneInvalidation();
+    context->scenesAliveAfterFlush = g_sceneOwnershipScenesAlive;
+  }
 } // namespace
 
 void testWindowDefinitionTransfersSceneOwnershipToWindow()
@@ -155,4 +177,33 @@ void testWindowRetiresDetachedSceneAtFlushBoundary()
   assert(g_sceneOwnershipScenesAlive == 0);
 
   printf("==== [testWindowRetiresDetachedSceneAtFlushBoundary] end ====\n");
+}
+
+void testWindowDoesNotReclaimSceneDuringDetachNotification()
+{
+  printf("\n==== [testWindowDoesNotReclaimSceneDuringDetachNotification] start ====\n");
+
+  assert(g_sceneOwnershipScenesAlive == 0);
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  SceneOwnershipProbe *first = new SceneOwnershipProbe();
+  SceneOwnershipProbe *second = new SceneOwnershipProbe();
+  props.scene(first);
+  Window *window = new Window(&context, props);
+
+  ReentrantSceneFlushContext flushContext;
+  flushContext.window = window;
+  first->getAttachedState()->bind(&FlushWindowDuringDetach, &flushContext, false);
+
+  window->sceneManager()->commitTransaction(first, second);
+  assert(flushContext.callbackCalls == 1);
+  assert(flushContext.scenesAliveAfterFlush == 2);
+  assert(g_sceneOwnershipScenesAlive == 2);
+
+  window->flushSceneInvalidation();
+  assert(g_sceneOwnershipScenesAlive == 1);
+  delete window;
+  assert(g_sceneOwnershipScenesAlive == 0);
+
+  printf("==== [testWindowDoesNotReclaimSceneDuringDetachNotification] end ====\n");
 }

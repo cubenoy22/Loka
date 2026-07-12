@@ -71,13 +71,15 @@ void SceneManager::handleNextTransaction()
   nextTxns.popFront();
   pendingTransactions_.set(nextTxns);
   tracker_.end();
+  // Reclamation cannot become visible until every synchronous detach and
+  // transaction notification has finished using the old Scene.
+  retiredScenes_.retire(oldScene);
 }
 
 void SceneManager::swapScene(loka::app::scene::Scene *oldScene, loka::app::scene::Scene *newScene)
 {
   if (oldScene == newScene)
     return;
-  retiredScenes_.retire(oldScene);
   // Lifecycle is expressed through observable state instead of direct callbacks.
   tracker_.begin();
   if (oldScene)
@@ -94,4 +96,7 @@ void SceneManager::swapScene(loka::app::scene::Scene *oldScene, loka::app::scene
     newScene->updateLifecycle(ON_ATTACH);
   }
   tracker_.end();
+  // Reclamation cannot become visible until every synchronous detach and
+  // transaction notification has finished using the old Scene.
+  retiredScenes_.retire(oldScene);
 }
