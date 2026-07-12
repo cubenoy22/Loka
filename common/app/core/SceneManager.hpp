@@ -8,6 +8,76 @@
 
 class Window;
 
+namespace loka
+{
+  namespace app
+  {
+    namespace detail
+    {
+      /** Owns detached scenes until the enclosing Window flush cycle closes. */
+      class SceneRetirePool
+      {
+      public:
+        SceneRetirePool()
+            : head_(0)
+        {
+        }
+
+        ~SceneRetirePool()
+        {
+          this->drain();
+        }
+
+        bool empty() const
+        {
+          return this->head_ == 0;
+        }
+
+        void retire(loka::app::scene::Scene *scene)
+        {
+          if (!scene || this->contains(scene))
+          {
+            return;
+          }
+          scene->retiredNextScene_ = this->head_;
+          this->head_ = scene;
+        }
+
+        void drain()
+        {
+          while (this->head_)
+          {
+            loka::app::scene::Scene *scene = this->head_;
+            this->head_ = scene->retiredNextScene_;
+            scene->retiredNextScene_ = 0;
+            delete scene;
+          }
+        }
+
+      private:
+        bool contains(loka::app::scene::Scene *scene) const
+        {
+          loka::app::scene::Scene *entry = this->head_;
+          while (entry)
+          {
+            if (entry == scene)
+            {
+              return true;
+            }
+            entry = entry->retiredNextScene_;
+          }
+          return false;
+        }
+
+        loka::app::scene::Scene *head_;
+
+        SceneRetirePool(const SceneRetirePool &);
+        SceneRetirePool &operator=(const SceneRetirePool &);
+      };
+    } // namespace detail
+  } // namespace app
+} // namespace loka
+
 class SceneManager
 {
 public:
@@ -150,6 +220,14 @@ public:
   void commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to);
   // Return the currently attached scene state.
   const loka::core::State<loka::app::scene::Scene *> &getCurrentScene() const;
+  bool hasRetiredScenes() const
+  {
+    return !this->retiredScenes_.empty();
+  }
+  void reclaimRetiredScenes()
+  {
+    this->retiredScenes_.drain();
+  }
 
 protected:
   // Return the pending transition queue snapshot.
@@ -173,6 +251,7 @@ private:
   loka::core::MutableState<loka::app::scene::Scene *> currentScene_;
   loka::core::MutableState<SceneTransactionList> pendingTransactions_;
   loka::core::PushStateTracker tracker_;
+  loka::app::detail::SceneRetirePool retiredScenes_;
   Window *window_;
 };
 

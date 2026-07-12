@@ -39,6 +39,8 @@ endif()
 # suite below.
 enable_testing()
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaTestSources.cmake)
+
 if(WIN32)
   add_subdirectory(win32)
 endif()
@@ -66,22 +68,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/common/*.cpp
   )
 
-  set(LOKA_FLOW_TEST_SOURCES
-    ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/DerivedStateTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/DefinitionCloneTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/ValueTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/BoundaryArenaTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
-    ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
-    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
-  )
-
   add_executable(LokaFlowDslTests
-    ${LOKA_FLOW_TEST_SOURCES}
+    ${LOKA_SHARED_TEST_SOURCES}
     ${LOKA_COMMON_SOURCES}
   )
   target_include_directories(LokaFlowDslTests PRIVATE

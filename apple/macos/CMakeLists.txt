@@ -82,24 +82,11 @@ target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 
 # Loka core is ObjC1/non-ARC by design; do not force ARC flags here.
 
-set(LOKA_MACOS_TEST_SOURCES
-  ${PROJECT_SOURCE_DIR}/tests/StateNotifyTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/DerivedStateTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/DefinitionCloneTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/ValueTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/SnapFormatTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/AttrDslTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/BoundaryArenaTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/StartupRedrawTests.cpp
-  ${PROJECT_SOURCE_DIR}/tests/FlowDslTestMain.cpp
-  ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
-)
 file(GLOB_RECURSE LOKA_MACOS_TEST_HEADERS CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/*.hpp)
 
 if(NOT LOKA_MAC_OS_10_4)
   add_executable(LokaTestsMacOS
-    ${LOKA_MACOS_TEST_SOURCES}
+    ${LOKA_SHARED_TEST_SOURCES}
     ${LOKA_MACOS_TEST_HEADERS}
   )
 

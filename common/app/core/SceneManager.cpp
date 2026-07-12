@@ -9,13 +9,32 @@ SceneManager::SceneManager()
     : currentScene_(0),
       pendingTransactions_(),
       tracker_(),
+      retiredScenes_(),
       window_(0)
 {
   tracker_.addState(&currentScene_);
   tracker_.addState(&pendingTransactions_);
 }
 
-SceneManager::~SceneManager() {}
+SceneManager::~SceneManager()
+{
+  SceneTransaction *transaction = pendingTransactions_.getRef().head();
+  while (transaction)
+  {
+    retiredScenes_.retire(transaction->to);
+    transaction = transaction->nextInComposition;
+  }
+
+  loka::app::scene::Scene *current = currentScene_.get();
+  if (current)
+  {
+    current->setWindow(0);
+    current->updateAttached(false);
+    current->updateLifecycle(ON_DETACH);
+    retiredScenes_.retire(current);
+  }
+  retiredScenes_.drain();
+}
 
 void SceneManager::commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to)
 {
@@ -52,6 +71,9 @@ void SceneManager::handleNextTransaction()
   nextTxns.popFront();
   pendingTransactions_.set(nextTxns);
   tracker_.end();
+  // Reclamation cannot become visible until every synchronous detach and
+  // transaction notification has finished using the old Scene.
+  retiredScenes_.retire(oldScene);
 }
 
 void SceneManager::swapScene(loka::app::scene::Scene *oldScene, loka::app::scene::Scene *newScene)
@@ -74,4 +96,7 @@ void SceneManager::swapScene(loka::app::scene::Scene *oldScene, loka::app::scene
     newScene->updateLifecycle(ON_ATTACH);
   }
   tracker_.end();
+  // Reclamation cannot become visible until every synchronous detach and
+  // transaction notification has finished using the old Scene.
+  retiredScenes_.retire(oldScene);
 }

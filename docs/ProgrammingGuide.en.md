@@ -601,6 +601,14 @@ every concrete allocator path can already produce one. Clone/create
 implementations that still use plain `new`, or whose constructors allocate
 internally, remain migration targets for an end-to-end no-exception OOM policy.
 
+When using the low-level `WindowProps::scene(Scene *)` overload, the call adopts
+the pointer: ownership transfers into the props handoff and then exactly once
+into the Window. The caller must not delete or reuse the Scene afterward. The
+Window owns its current Scene, keeps a detached Scene alive until that Window's
+flush cycle closes, and reclaims all remaining current, queued, or retired Scenes
+when the Window is destroyed. Prefer the definition overload in ordinary DSL
+composition because it keeps this ownership transfer structural.
+
 ## 19. Framework Comparisons
 
 Loka shares ideas with modern declarative UI frameworks, but it is not trying to

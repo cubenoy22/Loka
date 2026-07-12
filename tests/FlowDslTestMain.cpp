@@ -8,6 +8,7 @@
 #include "StartupRedrawTests.hpp"
 #include "BoundaryArenaTests.hpp"
 #include "ValueTests.hpp"
+#include "SceneOwnershipTests.hpp"
 
 int main()
 {
@@ -20,6 +21,10 @@ int main()
   testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
   testWindowDefinitionCreateReturnsNullOnOomRootClone();
   testWindowDefinitionCreateTransfersSingleRootClone();
+  testWindowDefinitionTransfersSceneOwnershipToWindow();
+  testWindowPropsSceneHandoffIsOneShotAcrossCopies();
+  testWindowRetiresDetachedSceneAtFlushBoundary();
+  testWindowDoesNotReclaimSceneDuringDetachNotification();
   testLokaValueCore();
   testSnapFormatV1();
   testSnapFlowWriteAdapter();

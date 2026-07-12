@@ -1082,6 +1082,14 @@ virtual void compose(loka::app::AppComposition &c)
 }
 ```
 
+低レベルの `WindowProps::scene(Scene *)` overload を使う場合、その呼び出しは
+pointer を adopt します。所有権は props の handoff を経由して一度だけ Window
+へ移るため、呼び出し側は以後その Scene を delete したり再利用したりしてはいけません。
+Window は current Scene を所有し、detach 済み Scene はその Window の flush cycle
+終端まで生存させ、Window 破棄時には current / queued / retired Scene をすべて解放します。
+通常の DSL composition では、この ownership transfer が構造として見える definition
+overload を優先してください。
+
 このコードは、Toolbox でも macOS でも同じ論理構造として書けます。
 違うのは最終的な投影先の platform/app layer です。
 

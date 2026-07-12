@@ -123,7 +123,7 @@ namespace
     virtual Window *createWindow(const WindowProps &props)
     {
       ++createWindowCalls;
-      sawInitialScene = props.initialScene != 0;
+      sawInitialScene = props.peekInitialScene() != 0;
       sawRootDefinition = props.rootDefinition != 0;
       return 0;
     }

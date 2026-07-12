@@ -57,7 +57,7 @@ template <class PropsT> struct WindowDefinition : public WindowDefinitionBase
     {
       return 0;
     }
-    if (!resolved.initialScene && resolved.rootDefinition)
+    if (!resolved.peekInitialScene() && resolved.rootDefinition)
     {
       loka::app::scene::NodeDefinitionBase *def = resolved.takeRootDefinition();
       loka::app::scene::Scene *createdScene = new (std::nothrow) loka::app::scene::Scene(def);
@@ -67,12 +67,11 @@ template <class PropsT> struct WindowDefinition : public WindowDefinitionBase
         return 0;
       }
       resolved.scene(createdScene);
-      Window *window = context->createWindow(resolved);
-      if (!window)
+      if (!resolved.peekInitialScene())
       {
-        delete createdScene;
+        return 0;
       }
-      return window;
+      return context->createWindow(resolved);
     }
     return context->createWindow(resolved);
   }

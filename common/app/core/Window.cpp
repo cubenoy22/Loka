@@ -4,14 +4,11 @@
 bool Window::flushSceneInvalidation()
 {
   loka::app::scene::Scene *current = this->scene();
-  if (!current)
-  {
-    return false;
-  }
-  const bool changed = current->flushInvalidation();
+  const bool changed = current ? current->flushInvalidation() : false;
   if (changed || this->hasPendingScenePlatformSync())
   {
     this->synchronizeScenePlatform();
   }
+  this->sceneManager_.reclaimRetiredScenes();
   return changed;
 }

@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <vector>
 #include "core/State.hpp"
+#include "core/StateTracker.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
 
 // ============================================================
@@ -373,6 +374,25 @@ void testStateNotify()
     s.set(1);
     assert(ctx.primaryCalls == 1);
     assert(ctx.siblingCalls == 0);
+  }
+
+  // --- PushStateTracker: no currentTracker stamps survive outside a transaction ---
+  // Owner teardown may delete a PushStateTracker while externally-owned
+  // registered states outlive it. That is only safe because end() clears every
+  // registered state's tracker back-pointer, so a later set() never
+  // dereferences the freed tracker. Pin that contract here.
+  {
+    loka::core::MutableState<int> outlivesTracker(0);
+    loka::core::PushStateTracker *tracker = new loka::core::PushStateTracker();
+    tracker->addState(&outlivesTracker);
+    tracker->begin();
+    outlivesTracker.set(1);
+    assert(outlivesTracker.trackerOwner() == tracker); // stamped inside the transaction
+    tracker->end();
+    assert(outlivesTracker.trackerOwner() == 0); // stamp cleared at transaction end
+    delete tracker;
+    outlivesTracker.set(2); // must not touch the freed tracker (ASan-observable)
+    assert(outlivesTracker.get() == 2);
   }
 
   // --- NextTickTracker: delay accumulation keeps earliest request (min wins) ---
