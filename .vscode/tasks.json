@@ -423,6 +423,314 @@
       "group": "build",
       "problemMatcher": [],
       "detail": "CMake template clean rebuild task"
+    },
+    {
+      "label": "Build: Retro68 68K HelloWorld",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaHello68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K MineSweeper",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaMine68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K SimpleViewer",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaSimpleViewer68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K FloppyBird",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaFloppyBird68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Build: Retro68 68K Tutorial",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaTutorial68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: HelloWorld",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: MineSweeper",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: SimpleViewer",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: FloppyBird",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: Tutorial",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Start",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-run.sh",
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-run.ps1\""
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Eject Floppy",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": ["--eject"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Mount HelloWorld",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Mount MineSweeper",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Mount SimpleViewer",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Mount FloppyBird",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Mount Tutorial",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Mount in MAME: HelloWorld",
+      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K HelloWorld", "MAME: Mount HelloWorld"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Mount in MAME: MineSweeper",
+      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K MineSweeper", "MAME: Mount MineSweeper"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Mount in MAME: SimpleViewer",
+      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K SimpleViewer", "MAME: Mount SimpleViewer"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Mount in MAME: FloppyBird",
+      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K FloppyBird", "MAME: Mount FloppyBird"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Mount in MAME: Tutorial",
+      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K Tutorial", "MAME: Mount Tutorial"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: HelloWorld",
+      "dependsOn": ["Build: Retro68 68K HelloWorld", "Prepare SCSI Dev Disk: HelloWorld", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: MineSweeper",
+      "dependsOn": ["Build: Retro68 68K MineSweeper", "Prepare SCSI Dev Disk: MineSweeper", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: SimpleViewer",
+      "dependsOn": ["Build: Retro68 68K SimpleViewer", "Prepare SCSI Dev Disk: SimpleViewer", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: FloppyBird",
+      "dependsOn": ["Build: Retro68 68K FloppyBird", "Prepare SCSI Dev Disk: FloppyBird", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: Tutorial",
+      "dependsOn": ["Build: Retro68 68K Tutorial", "Prepare SCSI Dev Disk: Tutorial", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Mount .dsk (pick app)",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-mount.sh",
+      "args": ["${workspaceFolder}/${input:retro68DskPath}"],
+      "windows": {
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+      },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "retro68DskPath",
+      "type": "pickString",
+      "description": "Select Retro68 68K app floppy to mount in MAME",
+      "options": [
+        {
+          "label": "HelloWorld",
+          "value": "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"
+        },
+        {
+          "label": "MineSweeper",
+          "value": "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"
+        },
+        {
+          "label": "SimpleViewer",
+          "value": "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"
+        },
+        {
+          "label": "FloppyBird",
+          "value": "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"
+        },
+        {
+          "label": "Tutorial",
+          "value": "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"
+        }
+      ]
     }
   ]
 }

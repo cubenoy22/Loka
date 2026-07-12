@@ -3,6 +3,7 @@
 **/build
 compile_commands.json
 CMakeUserPresets.json
+.env-mame
 
 # Created by https://www.toptal.com/developers/gitignore/api/node,macos,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=node,macos,linux
