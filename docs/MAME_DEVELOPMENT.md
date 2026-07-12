@@ -7,7 +7,7 @@ The VS Code tasks provide two Retro68 application delivery paths for MAME:
   SCSI ID 5.
 
 The SCSI path is the faster default for application iteration. The floppy path
-remains available until the complete workflow is runtime-verified on Windows.
+remains available for live disk insertion without restarting MAME.
 
 ## Configuration
 
@@ -44,7 +44,8 @@ tasks eject before rebuilding so Retro68 never rewrites a mounted `.dsk`.
 
 ## Verification status
 
-- macOS: runtime-verified with MAME 0.288 on `maciici`, including live floppy
-  insertion and the generated `LokaDev` SCSI volume.
-- Windows: launchers and tasks are implemented, but runtime verification is
-  still required before the floppy/Lua compatibility path can be removed.
+- macOS Tahoe: runtime-verified on Intel and Apple silicon (A18 Pro) with MAME
+  0.288 on `maciici`, including live floppy insertion and the generated
+  `LokaDev` SCSI volume.
+- Windows: outside the current experimental scope. The launchers and tasks are
+  provisional and have not been runtime-verified.

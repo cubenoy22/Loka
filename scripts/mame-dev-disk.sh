@@ -45,8 +45,12 @@ find_retro68_tool() {
     command -v "$name"
     return
   fi
+  if [ -n "${RETRO68_BUILD_DIR:-}" ] \
+    && [ -x "$RETRO68_BUILD_DIR/toolchain/bin/$name" ]; then
+    echo "$RETRO68_BUILD_DIR/toolchain/bin/$name"
+    return
+  fi
   for candidate in \
-    "${RETRO68_BUILD_DIR:-}/toolchain/bin/$name" \
     "$HOME/Retro68-build/toolchain/bin/$name" \
     "$HOME/Documents/Projects/Retro68-build/toolchain/bin/$name"; do
     if [ -x "$candidate" ]; then

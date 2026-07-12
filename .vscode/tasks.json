@@ -697,7 +697,7 @@
       "label": "MAME: Mount .dsk (pick app)",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["${input:retro68DskPath}"],
+      "args": ["${workspaceFolder}/${input:retro68DskPath}"],
       "windows": {
         "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
       },
@@ -712,23 +712,23 @@
       "options": [
         {
           "label": "HelloWorld",
-          "value": "${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"
+          "value": "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"
         },
         {
           "label": "MineSweeper",
-          "value": "${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"
+          "value": "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"
         },
         {
           "label": "SimpleViewer",
-          "value": "${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"
+          "value": "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"
         },
         {
           "label": "FloppyBird",
-          "value": "${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"
+          "value": "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"
         },
         {
           "label": "Tutorial",
-          "value": "${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"
+          "value": "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"
         }
       ]
     }
