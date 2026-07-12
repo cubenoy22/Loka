@@ -12,6 +12,7 @@
 #include "app/scene/context/ComponentContext.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/Profiler.hpp"
+#include "core/util/OwnedDef.hpp"
 
 class Window;
 
@@ -373,14 +374,15 @@ namespace loka
         ComponentContext *context_;
         NodeDefinitionBase *storeBase(const NodeDefinitionBase &def)
         {
-          NodeDefinitionBase *cloned = def.clone();
-          if (!cloned)
+          loka::core::OwnedDef<NodeDefinitionBase> cloned(def.clone());
+          if (!cloned.isSet())
           {
             return 0;
           }
           cloned->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
-          arena_.push_back(cloned);
-          return cloned;
+          NodeDefinitionBase *stored = cloned.get();
+          arena_.push_back(cloned.take());
+          return stored;
         }
         static void cleanupStoredNode(NodeDefinitionBase *node, void *context)
         {
@@ -497,21 +499,22 @@ namespace loka
         }
         NodeDefinitionBase &declareTagged(NodeTag tag, const NodeDefinitionBase &def)
         {
-          NodeDefinitionBase *tagged = def.clone();
-          if (!tagged)
+          loka::core::OwnedDef<NodeDefinitionBase> tagged(def.clone());
+          if (!tagged.isSet())
           {
             return const_cast<NodeDefinitionBase &>(def);
           }
           tagged->setNodeTag(tag);
+          NodeDefinitionBase *stored = tagged.get();
           if (activeParent_)
           {
-            activeParent_->addOwnedChild(tagged);
-            return *tagged;
+            activeParent_->addOwnedChild(tagged.take());
+            return *stored;
           }
           tagged->setCleanupHook(&NodeComposition::cleanupStoredNode, this);
-          arena_.push_back(tagged);
-          this->root_ = tagged;
-          return *tagged;
+          arena_.push_back(tagged.take());
+          this->root_ = stored;
+          return *stored;
         }
         NodeDefinitionBase &declare(const INestableDefinition &def)
         {

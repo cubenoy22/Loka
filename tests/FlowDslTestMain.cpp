@@ -15,6 +15,7 @@ int main()
   testStateNotify();
   testDerivedStateCore();
   testConditionalDefinitionCloneOwnership();
+  testOwnedDefOwnership();
   testNestableDefinitionCloneReturnsNullOnOomChildClone();
   testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
   testCompositionSnapshotClearsStaleRootOnOomClone();

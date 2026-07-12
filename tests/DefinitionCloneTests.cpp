@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include "core/State.hpp"
+#include "core/util/OwnedDef.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/nodes/nestable/Box.hpp"
@@ -152,6 +153,47 @@ namespace
 // ============================================================
 // Tests
 // ============================================================
+
+void testOwnedDefOwnership()
+{
+  printf("\n==== [testOwnedDefOwnership] start ====\n");
+
+  int baseline = g_probePropsAlive;
+  {
+    loka::core::OwnedDef<CloneProbeDefinition> owned(new CloneProbeDefinition());
+    assert(owned.isSet());
+    assert(owned.get() != 0);
+    assert(g_probePropsAlive == baseline + 1);
+
+    CloneProbeDefinition *taken = owned.take();
+    assert(!owned.isSet());
+    assert(owned.get() == 0);
+    delete taken;
+    assert(g_probePropsAlive == baseline);
+
+    owned.reset(new CloneProbeDefinition());
+    CloneProbeDefinition *same = owned.get();
+    owned.reset(same);
+    assert(g_probePropsAlive == baseline + 1);
+    owned.reset();
+    assert(!owned.isSet());
+    assert(g_probePropsAlive == baseline);
+  }
+  {
+    loka::core::OwnedDef<CloneProbeDefinition> owned(new CloneProbeDefinition());
+    assert(g_probePropsAlive == baseline + 1);
+  }
+  assert(g_probePropsAlive == baseline);
+  {
+    OomCloneProbeDefinition failedClone;
+    loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> empty(failedClone.clone());
+    assert(!empty.isSet());
+    assert(empty.get() == 0);
+  }
+  assert(g_probePropsAlive == baseline);
+
+  printf("==== [testOwnedDefOwnership] end ====\n");
+}
 
 void testConditionalDefinitionCloneOwnership()
 {

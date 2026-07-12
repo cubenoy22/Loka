@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_COMPOSITION_NODECOMPOSITIONSNAPSHOT_HPP
 
 #include "app/scene/composition/NodeComposition.hpp"
+#include "core/util/OwnedDef.hpp"
 
 namespace loka
 {
@@ -19,14 +20,14 @@ namespace loka
             this->clear();
             return true;
           }
-          NodeDefinitionBase *nextRoot = root->clone();
-          if (!nextRoot)
+          loka::core::OwnedDef<NodeDefinitionBase> nextRoot(root->clone());
+          if (!nextRoot.isSet())
           {
             this->clear();
             return false;
           }
           this->clear();
-          this->root_ = nextRoot;
+          this->root_.reset(nextRoot.take());
           return true;
         }
 
@@ -39,7 +40,7 @@ namespace loka
         NodeCompositionSnapshot(const NodeCompositionSnapshot &other)
             : root_(0)
         {
-          this->replaceWithClone(other.root_);
+          this->replaceWithClone(other.root_.get());
         }
 
         NodeCompositionSnapshot &operator=(const NodeCompositionSnapshot &other)
@@ -48,7 +49,7 @@ namespace loka
           {
             return *this;
           }
-          this->replaceWithClone(other.root_);
+          this->replaceWithClone(other.root_.get());
           return *this;
         }
 
@@ -64,25 +65,21 @@ namespace loka
 
         void clear()
         {
-          if (this->root_)
-          {
-            delete this->root_;
-            this->root_ = 0;
-          }
+          this->root_.reset();
         }
 
         bool empty() const
         {
-          return this->root_ == 0;
+          return !this->root_.isSet();
         }
 
         NodeDefinitionBase *root() const
         {
-          return this->root_;
+          return this->root_.get();
         }
 
       private:
-        NodeDefinitionBase *root_;
+        loka::core::OwnedDef<NodeDefinitionBase> root_;
       };
     } // namespace scene
   } // namespace app

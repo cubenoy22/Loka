@@ -16,7 +16,7 @@ MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *a
 
 MenuController::~MenuController()
 {
-  delete menuBar_;
+  menuBar_.reset();
 }
 
 void MenuController::InvalidateThunk(void *userData)
@@ -62,21 +62,17 @@ void MenuController::invalidate(Window *activeWindow)
 
 void MenuController::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar, Window *activeWindow)
 {
-  if (menuBar_)
-  {
-    delete menuBar_;
-    menuBar_ = 0;
-  }
+  menuBar_.reset();
   if (menuBar)
   {
-    menuBar_ = menuBar->clone();
+    menuBar_.reset(menuBar->clone());
   }
   this->apply(activeWindow);
 }
 
 const loka::app::MenuBarDefinition *MenuController::defaultMenuBar() const
 {
-  return menuBar_;
+  return menuBar_.get();
 }
 
 const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *window)
@@ -89,7 +85,7 @@ const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *windo
   {
     this->refreshDefaultMenuBar();
   }
-  return menuBar_;
+  return menuBar_.get();
 }
 
 bool MenuController::refreshDefaultMenuBar()
@@ -108,10 +104,9 @@ bool MenuController::refreshDefaultMenuBar()
   if (menuBar.empty())
   {
     diff_.clear();
-    if (menuBar_)
+    if (menuBar_.isSet())
     {
-      delete menuBar_;
-      menuBar_ = 0;
+      menuBar_.reset();
       diff_.valid = true;
       diff_.fullRebuild = true;
       return true;
@@ -120,7 +115,7 @@ bool MenuController::refreshDefaultMenuBar()
   }
   bool diffAttempted = false;
   bool diffResult = false;
-  if (!menuBar_)
+  if (!menuBar_.isSet())
   {
     diff_.valid = true;
     diff_.fullRebuild = true;
@@ -167,14 +162,10 @@ bool MenuController::refreshDefaultMenuBar()
       }
     }
   }
-  if (!menuBar_ || diff_.valid)
+  if (!menuBar_.isSet() || diff_.valid)
   {
-    if (menuBar_)
-    {
-      delete menuBar_;
-      menuBar_ = 0;
-    }
-    menuBar_ = menuBar.clone();
+    menuBar_.reset();
+    menuBar_.reset(menuBar.clone());
     return true;
   }
   diff_.clear();
