@@ -12,6 +12,16 @@ namespace loka
 {
   namespace app
   {
+#ifdef TEST_BUILD
+    namespace testing
+    {
+      void failNextMenuBarDefinitionClone();
+      void failMenuBarDefinitionClones(int count);
+      void allowMenuBarDefinitionClones();
+      bool shouldCloneMenuBarDefinition();
+    } // namespace testing
+#endif
+
     struct MenuItemAttr
     {
       MenuItemAttr()
@@ -619,6 +629,10 @@ namespace loka
 
       MenuBarDefinition *clone() const
       {
+#ifdef TEST_BUILD
+        if (!testing::shouldCloneMenuBarDefinition())
+          return 0;
+#endif
         return new MenuBarDefinition(*this);
       }
 

@@ -1,6 +1,8 @@
 #ifndef LOKA_MENU_CONTROLLER_HPP
 #define LOKA_MENU_CONTROLLER_HPP
 
+#include <vector>
+
 #include "app/Menu.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
 #include "core/util/OwnedDef.hpp"
@@ -45,6 +47,12 @@ private:
   loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBar_;
   loka::core::NextTickTracker refresh_;
   loka::app::MenuCompositionDiff diff_;
+  // Dirty menu indices whose refresh lost its bar clone to OOM; merged into
+  // the next refresh so the boundary update survives the retry. The retry is
+  // scheduled after the current run (one attempt per flush, never spinning
+  // the refresh loop on persistent failure).
+  std::vector<size_t> pendingDirtyMenus_;
+  bool retryCloneRequested_;
 };
 
 #endif // LOKA_MENU_CONTROLLER_HPP
