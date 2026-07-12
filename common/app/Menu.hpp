@@ -16,6 +16,7 @@ namespace loka
     namespace testing
     {
       void failNextMenuBarDefinitionClone();
+      void failMenuBarDefinitionClones(int count);
       void allowMenuBarDefinitionClones();
       bool shouldCloneMenuBarDefinition();
     } // namespace testing

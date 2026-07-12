@@ -10,24 +10,29 @@ namespace loka
     {
       namespace
       {
-        int g_menuBarDefinitionCloneBudget = -1;
+        int g_menuBarDefinitionCloneFailures = 0;
       }
 
       void failNextMenuBarDefinitionClone()
       {
-        g_menuBarDefinitionCloneBudget = 0;
+        g_menuBarDefinitionCloneFailures = 1;
+      }
+
+      void failMenuBarDefinitionClones(int count)
+      {
+        g_menuBarDefinitionCloneFailures = count;
       }
 
       void allowMenuBarDefinitionClones()
       {
-        g_menuBarDefinitionCloneBudget = -1;
+        g_menuBarDefinitionCloneFailures = 0;
       }
 
       bool shouldCloneMenuBarDefinition()
       {
-        if (g_menuBarDefinitionCloneBudget == 0)
+        if (g_menuBarDefinitionCloneFailures > 0)
         {
-          g_menuBarDefinitionCloneBudget = -1;
+          --g_menuBarDefinitionCloneFailures;
           return false;
         }
         return true;

@@ -188,6 +188,65 @@ namespace
     return menuBar && menuBar->menusCount() == 1 && menuBar->menuAt(0)
            && menuBar->menuAt(0)->title.equals(loka::core::String::Literal(title));
   }
+
+  class ToggleMenuBoundary : public loka::app::MenuBoundary
+  {
+  public:
+    ToggleMenuBoundary()
+        : requestAfter(false),
+          flag_(0)
+    {
+    }
+
+    virtual void composeMenu(loka::app::MenuComposition &c)
+    {
+      if (!flag_)
+      {
+        flag_ = &this->dangerouslyUseState<bool>(false);
+      }
+      if (requestAfter && !flag_->get())
+      {
+        flag_->set(true);
+      }
+      c << (loka::app::Menu("Boundary") << loka::app::MenuItem(flag_->get() ? "After" : "Before"));
+    }
+
+    bool requestAfter;
+
+  private:
+    loka::core::MutableState<bool> *flag_;
+  };
+
+  class MenuBoundaryCloneTestConfig : public AppConfigurable
+  {
+  public:
+    MenuBoundaryCloneTestConfig()
+        : AppConfigurable(0)
+    {
+    }
+
+    virtual void compose(AppComposition &)
+    {
+    }
+
+    virtual void composeMenu(loka::app::MenuComposition &composition)
+    {
+      composition << boundary;
+    }
+
+    ToggleMenuBoundary boundary;
+  };
+
+  bool hasSingleItemLabeled(const loka::app::MenuBarDefinition *menuBar, const char *label)
+  {
+    if (!menuBar || menuBar->menusCount() != 1 || !menuBar->menuAt(0))
+    {
+      return false;
+    }
+    const loka::app::MenuDefinition *menu = menuBar->menuAt(0);
+    return menu->itemsCount() == 1 && menu->itemsHead()
+           && menu->itemsHead()->title.equals(loka::core::String::Literal(label));
+  }
 } // namespace
 
 // ============================================================
@@ -499,4 +558,30 @@ void testMenuControllerPreservesRefreshedMenuBarOnOomClone()
   loka::app::testing::allowMenuBarDefinitionClones();
 
   printf("==== [testMenuControllerPreservesRefreshedMenuBarOnOomClone] end ====\n");
+}
+
+void testMenuControllerRequeuesDirtyMenusAfterOomClone()
+{
+  printf("\n==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] start ====\n");
+
+  MenuBoundaryCloneTestConfig config;
+  int applyCount = 0;
+  MenuController controller(&config, &CountMenuApply, &applyCount);
+  controller.requestInvalidation();
+  assert(controller.flushInvalidation(0));
+  assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
+  int appliesAfterInitial = applyCount;
+
+  config.boundary.requestAfter = true;
+  loka::app::testing::failMenuBarDefinitionClones(2);
+  controller.requestInvalidation();
+  assert(!controller.flushInvalidation(0));
+  assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
+  loka::app::testing::allowMenuBarDefinitionClones();
+
+  assert(controller.flushInvalidation(0));
+  assert(hasSingleItemLabeled(controller.defaultMenuBar(), "After"));
+  assert(applyCount > appliesAfterInitial);
+
+  printf("==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] end ====\n");
 }

@@ -10,7 +10,9 @@ MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *a
       pendingApplyWindow_(0),
       menuBar_(0),
       refresh_(),
-      diff_()
+      diff_(),
+      pendingDirtyMenus_(),
+      retryCloneRequested_(false)
 {
 }
 
@@ -51,7 +53,13 @@ void MenuController::requestInvalidation()
 bool MenuController::flushInvalidation(Window *activeWindow)
 {
   pendingApplyWindow_ = activeWindow;
-  return refresh_.run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
+  bool changed = refresh_.run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
+  if (retryCloneRequested_)
+  {
+    retryCloneRequested_ = false;
+    refresh_.request();
+  }
+  return changed;
 }
 
 void MenuController::invalidate(Window *activeWindow)
@@ -109,6 +117,26 @@ bool MenuController::refreshDefaultMenuBar()
   menuComposition.finish();
   std::vector<size_t> dirtyMenus;
   menuComposition.takeDirtyMenuIndices(dirtyMenus);
+  if (!pendingDirtyMenus_.empty())
+  {
+    for (size_t i = 0; i < pendingDirtyMenus_.size(); ++i)
+    {
+      bool exists = false;
+      for (size_t j = 0; j < dirtyMenus.size(); ++j)
+      {
+        if (dirtyMenus[j] == pendingDirtyMenus_[i])
+        {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists)
+      {
+        dirtyMenus.push_back(pendingDirtyMenus_[i]);
+      }
+    }
+    pendingDirtyMenus_.clear();
+  }
   if (menuBar.empty())
   {
     diff_.clear();
@@ -176,6 +204,12 @@ bool MenuController::refreshDefaultMenuBar()
     loka::core::OwnedDef<loka::app::MenuBarDefinition> nextMenuBar(menuBar.clone());
     if (!nextMenuBar.isSet())
     {
+      // The compose above consumed the boundary dirty flags; without
+      // requeueing them the retry would see a clean, structurally equal bar
+      // and drop this update. The retry itself is scheduled after the
+      // current run so a persistent failure cannot spin the refresh loop.
+      pendingDirtyMenus_.swap(dirtyMenus);
+      retryCloneRequested_ = true;
       return false;
     }
     menuBar_.reset(nextMenuBar.take());
