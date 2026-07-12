@@ -277,6 +277,39 @@ void testCompositionSnapshotClearsStaleRootOnOomClone()
   printf("==== [testCompositionSnapshotClearsStaleRootOnOomClone] end ====\n");
 }
 
+void testNodeCompositionSkipsOomClones()
+{
+  printf("\n==== [testNodeCompositionSkipsOomClones] start ====\n");
+
+  {
+    loka::app::scene::NodeComposition composition;
+    CloneProbeDefinition stableRoot;
+    OomCloneProbeDefinition failingDefinition;
+    loka::app::scene::NodeDefinitionBase &failingBase = failingDefinition;
+
+    composition.declare(stableRoot);
+    loka::app::scene::NodeDefinitionBase *storedRoot = composition.root();
+    assert(storedRoot != 0);
+
+    loka::app::scene::NodeDefinitionBase *grouped = composition.group(failingDefinition);
+    OomCloneProbeDefinition &typedResult = composition.declare(failingDefinition);
+    loka::app::scene::NodeDefinitionBase &baseResult = composition.declare(failingBase);
+    loka::app::scene::NodeDefinitionBase &taggedResult = composition.declareTagged(42, failingBase);
+    OomCloneProbeDefinition &typedTaggedResult = composition.declareTagged(42, failingDefinition);
+
+    assert(grouped == 0);
+    assert(&typedResult == &failingDefinition);
+    assert(&baseResult == &failingBase);
+    assert(&taggedResult == &failingBase);
+    assert(&typedTaggedResult == &failingDefinition);
+    assert(composition.root() == storedRoot);
+  }
+  assert(g_probePropsAlive == 0);
+  assert(g_probeNodesAlive == 0);
+
+  printf("==== [testNodeCompositionSkipsOomClones] end ====\n");
+}
+
 void testWindowPropsAssignmentPreservesOwnedSceneOnOomClone()
 {
   printf("\n==== [testWindowPropsAssignmentPreservesOwnedSceneOnOomClone] start ====\n");

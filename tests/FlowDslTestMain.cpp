@@ -18,6 +18,7 @@ int main()
   testNestableDefinitionCloneReturnsNullOnOomChildClone();
   testNestableDefinitionAssignmentPreservesStableChildOnOomClone();
   testCompositionSnapshotClearsStaleRootOnOomClone();
+  testNodeCompositionSkipsOomClones();
   testWindowPropsAssignmentPreservesOwnedSceneOnOomClone();
   testWindowDefinitionCreateReturnsNullOnOomRootClone();
   testWindowDefinitionCreateTransfersSingleRootClone();
