@@ -2,6 +2,7 @@
 # included by both the repository root and standalone example projects.
 set(_LOKA_TEST_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 set(LOKA_SHARED_TEST_SOURCES
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/TestingHooks.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StateNotifyTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DerivedStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DefinitionCloneTests.cpp

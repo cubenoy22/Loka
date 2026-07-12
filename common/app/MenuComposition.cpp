@@ -5,41 +5,6 @@ namespace loka
 {
   namespace app
   {
-#ifdef TEST_BUILD
-    namespace testing
-    {
-      namespace
-      {
-        int g_menuBarDefinitionCloneFailures = 0;
-      }
-
-      void failNextMenuBarDefinitionClone()
-      {
-        g_menuBarDefinitionCloneFailures = 1;
-      }
-
-      void failMenuBarDefinitionClones(int count)
-      {
-        g_menuBarDefinitionCloneFailures = count;
-      }
-
-      void allowMenuBarDefinitionClones()
-      {
-        g_menuBarDefinitionCloneFailures = 0;
-      }
-
-      bool shouldCloneMenuBarDefinition()
-      {
-        if (g_menuBarDefinitionCloneFailures > 0)
-        {
-          --g_menuBarDefinitionCloneFailures;
-          return false;
-        }
-        return true;
-      }
-    } // namespace testing
-#endif
-
     bool
     MenuCompositionDiff::Diff(const MenuBarDefinition &before, const MenuBarDefinition &after, MenuCompositionDiff &out)
     {
