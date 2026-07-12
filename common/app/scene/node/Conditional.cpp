@@ -239,6 +239,11 @@ namespace loka
       {
         props.trueDef = 0;
         props.falseDef = 0;
+        // A C++98 constructor cannot report failure, so a branch clone OOM
+        // degrades this copy to an EMPTY conditional (condition kept, both
+        // branches null) - never a half pair. Same policy as WindowProps
+        // copies. Fallible callers must go through clone(), which is
+        // all-or-nothing.
         this->assignFrom(other.props, other.ownedTrueDef, other.ownedFalseDef, &other);
       }
 

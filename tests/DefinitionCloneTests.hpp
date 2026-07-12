@@ -4,6 +4,7 @@
 void testConditionalDefinitionCloneOwnership();
 void testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure();
 void testConditionalDefinitionCloneReturnsNullOnSecondBranchFailure();
+void testConditionalDefinitionCopyDegradesToEmptyOnCloneFailure();
 void testOwnedDefOwnership();
 void testNestableDefinitionCloneReturnsNullOnOomChildClone();
 void testNestableDefinitionAssignmentPreservesStableChildOnOomClone();

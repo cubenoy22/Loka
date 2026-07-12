@@ -683,3 +683,36 @@ void testMenuControllerSchedulesRetryAfterDirectRefreshFailure()
 
   printf("==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] end ====\n");
 }
+
+void testConditionalDefinitionCopyDegradesToEmptyOnCloneFailure()
+{
+  printf("\n==== [testConditionalDefinitionCopyDegradesToEmptyOnCloneFailure] start ====\n");
+
+  using loka::app::scene::ConditionalDefinition;
+  using loka::app::scene::ConditionalProps;
+
+  const int baseline = g_probePropsAlive;
+  {
+    loka::core::MutableState<bool> condition(true);
+    LimitedCloneProbeDefinition trueBranch;
+    LimitedCloneProbeDefinition falseBranch;
+    ConditionalDefinition source(ConditionalProps(&condition, &trueBranch, &falseBranch));
+
+    // A C++98 copy constructor cannot fail; the pinned contract is that a
+    // branch clone OOM degrades the copy to EMPTY (condition kept, both
+    // branches null), never to a half pair.
+    g_limitedCloneBudget = 1;
+    ConditionalDefinition copy(source);
+    g_limitedCloneBudget = -1;
+
+    assert(copy.props.condition == &condition);
+    assert(copy.props.trueDef == 0);
+    assert(copy.props.falseDef == 0);
+    assert(copy.ownedTrueDef == 0);
+    assert(copy.ownedFalseDef == 0);
+  }
+  assert(g_probePropsAlive == baseline);
+  assert(g_probeNodesAlive == 0);
+
+  printf("==== [testConditionalDefinitionCopyDegradesToEmptyOnCloneFailure] end ====\n");
+}
