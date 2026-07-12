@@ -295,11 +295,13 @@ void testNodeCompositionSkipsOomClones()
     OomCloneProbeDefinition &typedResult = composition.declare(failingDefinition);
     loka::app::scene::NodeDefinitionBase &baseResult = composition.declare(failingBase);
     loka::app::scene::NodeDefinitionBase &taggedResult = composition.declareTagged(42, failingBase);
+    OomCloneProbeDefinition &typedTaggedResult = composition.declareTagged(42, failingDefinition);
 
     assert(grouped == 0);
     assert(&typedResult == &failingDefinition);
     assert(&baseResult == &failingBase);
     assert(&taggedResult == &failingBase);
+    assert(&typedTaggedResult == &failingDefinition);
     assert(composition.root() == storedRoot);
   }
   assert(g_probePropsAlive == 0);

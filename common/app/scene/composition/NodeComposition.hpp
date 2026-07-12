@@ -471,7 +471,14 @@ namespace loka
         {
           T tagged(def);
           tagged.tag(tag);
-          return this->declare(tagged);
+          T &declared = this->declare(tagged);
+          if (&declared == &tagged)
+          {
+            // declare() handed back our stack-local copy (parent path or clone
+            // failure); returning it would dangle past this frame.
+            return const_cast<T &>(def);
+          }
+          return declared;
         }
         NodeDefinitionBase &declare(const NodeDefinitionBase &def)
         {
