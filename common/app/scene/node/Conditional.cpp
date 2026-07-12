@@ -223,37 +223,84 @@ namespace loka
 
       ConditionalDefinition::ConditionalDefinition(const ConditionalProps &p)
           : props(p),
-            ownedTrueDef(p.trueDef ? p.trueDef->clone() : 0),
-            ownedFalseDef(p.falseDef ? p.falseDef->clone() : 0)
+            ownedTrueDef(0),
+            ownedFalseDef(0)
       {
-        props.trueDef = ownedTrueDef;
-        props.falseDef = ownedFalseDef;
+        props.trueDef = 0;
+        props.falseDef = 0;
+        this->assignFrom(p, p.trueDef, p.falseDef, 0);
       }
 
       ConditionalDefinition::ConditionalDefinition(const ConditionalDefinition &other)
-          : NodeDefinitionBase(other),
+          : NodeDefinitionBase(),
             props(other.props),
-            ownedTrueDef(other.ownedTrueDef ? other.ownedTrueDef->clone() : 0),
-            ownedFalseDef(other.ownedFalseDef ? other.ownedFalseDef->clone() : 0)
+            ownedTrueDef(0),
+            ownedFalseDef(0)
       {
-        props.trueDef = ownedTrueDef;
-        props.falseDef = ownedFalseDef;
+        props.trueDef = 0;
+        props.falseDef = 0;
+        // A C++98 constructor cannot report failure, so a branch clone OOM
+        // degrades this copy to an EMPTY conditional (condition kept, both
+        // branches null) - never a half pair. Same policy as WindowProps
+        // copies. Fallible callers must go through clone(), which is
+        // all-or-nothing.
+        this->assignFrom(other.props, other.ownedTrueDef, other.ownedFalseDef, &other);
       }
 
       ConditionalDefinition &ConditionalDefinition::operator=(const ConditionalDefinition &other)
       {
         if (this != &other)
         {
-          NodeDefinitionBase::operator=(other);
-          delete ownedTrueDef;
-          delete ownedFalseDef;
-          props = other.props;
-          ownedTrueDef = other.ownedTrueDef ? other.ownedTrueDef->clone() : 0;
-          ownedFalseDef = other.ownedFalseDef ? other.ownedFalseDef->clone() : 0;
-          props.trueDef = ownedTrueDef;
-          props.falseDef = ownedFalseDef;
+          this->assignFrom(other.props, other.ownedTrueDef, other.ownedFalseDef, &other);
         }
         return *this;
+      }
+
+      bool ConditionalDefinition::assignFrom(const ConditionalProps &nextProps,
+                                             const NodeDefinitionBase *trueDef,
+                                             const NodeDefinitionBase *falseDef,
+                                             const NodeDefinitionBase *nextBase)
+      {
+        loka::core::OwnedDef<NodeDefinitionBase> nextTrueDef(trueDef ? trueDef->clone() : 0);
+        if (trueDef && !nextTrueDef.isSet())
+        {
+          return false;
+        }
+        loka::core::OwnedDef<NodeDefinitionBase> nextFalseDef(falseDef ? falseDef->clone() : 0);
+        if (falseDef && !nextFalseDef.isSet())
+        {
+          return false;
+        }
+
+        NodeDefinitionBase *oldTrueDef = ownedTrueDef;
+        NodeDefinitionBase *oldFalseDef = ownedFalseDef;
+        if (nextBase)
+        {
+          NodeDefinitionBase::operator=(*nextBase);
+        }
+        props = nextProps;
+        ownedTrueDef = nextTrueDef.take();
+        ownedFalseDef = nextFalseDef.take();
+        props.trueDef = ownedTrueDef;
+        props.falseDef = ownedFalseDef;
+        delete oldTrueDef;
+        delete oldFalseDef;
+        return true;
+      }
+
+      NodeDefinitionBase *ConditionalDefinition::clone() const
+      {
+        ConditionalDefinition *copy = new ConditionalDefinition(ConditionalProps(props.condition, 0, 0));
+        if (!copy)
+        {
+          return 0;
+        }
+        if (!copy->assignFrom(props, ownedTrueDef, ownedFalseDef, this))
+        {
+          delete copy;
+          return 0;
+        }
+        return copy;
       }
 
       ConditionalDefinition::~ConditionalDefinition()

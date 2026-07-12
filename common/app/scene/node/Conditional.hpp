@@ -63,10 +63,7 @@ namespace loka
         Node *createInPlace(void *mem) const;
         size_t nodeSize() const;
         size_t nodeAlign() const;
-        virtual NodeDefinitionBase *clone() const
-        {
-          return new ConditionalDefinition(*this);
-        }
+        virtual NodeDefinitionBase *clone() const;
         virtual NodeKind nodeKind() const
         {
           return NODE_KIND_UNKNOWN;
@@ -85,6 +82,12 @@ namespace loka
           (void)node;
           return false;
         }
+
+      private:
+        bool assignFrom(const ConditionalProps &nextProps,
+                        const NodeDefinitionBase *trueDef,
+                        const NodeDefinitionBase *falseDef,
+                        const NodeDefinitionBase *nextBase);
       };
 
     } // namespace scene
