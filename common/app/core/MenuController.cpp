@@ -104,6 +104,18 @@ const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *windo
   return menuBar_.get();
 }
 
+// Refresh is one transaction with a single commit point at the end:
+//   1. Recompose the candidate bar. This CONSUMES the boundary dirty flags
+//      (MenuComposition::declare -> consumeDirty), so from here on the dirty
+//      set exists only in `dirtyMenus`, merged with any entries requeued by a
+//      previously failed commit.
+//   2. Build the candidate diff into the local `nextDiff`; `menuBar_` and
+//      `diff_` stay untouched while anything can still fail.
+//   3. Clone the bar and commit bar + diff together. On clone failure nothing
+//      is published: the consumed dirty set is stashed into
+//      `pendingDirtyMenus_` and a retry is scheduled after this run (see
+//      flushInvalidation), because NextTickTracker::run drains re-requests in
+//      a loop within the current flush.
 bool MenuController::refreshDefaultMenuBar()
 {
   if (!config_)
