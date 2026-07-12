@@ -9,6 +9,20 @@ The VS Code tasks provide two Retro68 application delivery paths for MAME:
 The SCSI path is the faster default for application iteration. The floppy path
 remains available for live disk insertion without restarting MAME.
 
+## Quick start
+
+1. Install MAME and set up the ROMs and a bootable HDA for a supported Classic
+   Mac machine such as `maciici`.
+2. Copy `.env-mame.example` to `.env-mame` and set `MAME_HDA`. Also set
+   `MAME_EXECUTABLE` and `MAME_ROMPATH` when MAME cannot find them
+   automatically.
+3. In VS Code, run **Tasks: Run Task** and select
+   `Build & Start in MAME via SCSI: HelloWorld` (or another example).
+
+The task configures and builds the Retro68 application, creates the generated
+`LokaDev` SCSI disk, and starts MAME. For the live floppy workflow, start
+`MAME: Start` first and then run an app-specific `Build & Mount in MAME` task.
+
 ## Configuration
 
 Copy `.env-mame.example` to `.env-mame` and set at least `MAME_HDA`. The file
