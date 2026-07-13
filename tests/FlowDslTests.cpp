@@ -5407,3 +5407,621 @@ void testLokaFlowDslV1Core()
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");
 }
+
+namespace
+{
+  typedef loka::dsl::FlowChain<int, int> CharacterizationIntFlow;
+  typedef loka::app::scene::FlowSlot<CharacterizationIntFlow> CharacterizationIntFlowSlot;
+
+  struct FlowImplementationLifetimeProbe
+  {
+    FlowImplementationLifetimeProbe()
+        : liveAdapters(0),
+          runCalls(0)
+    {
+    }
+
+    int liveAdapters;
+    int runCalls;
+  };
+
+  struct CharacterizationFlowAdapter
+  {
+    typedef int In;
+    typedef int Out;
+    typedef void (*DuringRunFn)(void *);
+
+    CharacterizationFlowAdapter(FlowImplementationLifetimeProbe *probe,
+                                DuringRunFn duringRun = 0,
+                                void *userData = 0,
+                                bool pending = false)
+        : probe_(probe),
+          duringRun_(duringRun),
+          userData_(userData),
+          pending_(pending)
+    {
+      assert(this->probe_ != 0);
+      ++this->probe_->liveAdapters;
+    }
+
+    CharacterizationFlowAdapter(const CharacterizationFlowAdapter &other)
+        : probe_(other.probe_),
+          duringRun_(other.duringRun_),
+          userData_(other.userData_),
+          pending_(other.pending_)
+    {
+      assert(this->probe_ != 0);
+      ++this->probe_->liveAdapters;
+    }
+
+    ~CharacterizationFlowAdapter()
+    {
+      assert(this->probe_ != 0);
+      assert(this->probe_->liveAdapters > 0);
+      --this->probe_->liveAdapters;
+    }
+
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
+      ++this->probe_->runCalls;
+      if (this->duringRun_)
+      {
+        this->duringRun_(this->userData_);
+      }
+      if (this->pending_)
+      {
+        return loka::dsl::FLOW_STEP_PENDING;
+      }
+      out = in + 1;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    FlowImplementationLifetimeProbe *probe_;
+    DuringRunFn duringRun_;
+    void *userData_;
+    bool pending_;
+  };
+
+  static CharacterizationIntFlow makeCharacterizationFlow(
+      int *input,
+      FlowImplementationLifetimeProbe *probe,
+      CharacterizationFlowAdapter::DuringRunFn duringRun = 0,
+      void *userData = 0,
+      bool pending = false)
+  {
+    return loka::dsl::Flow()
+           | loka::dsl::Step(1, CharacterizationFlowAdapter(probe, duringRun, userData, pending)).input(input);
+  }
+
+  struct DropAllFlowHandlesContext
+  {
+    CharacterizationIntFlow **first;
+    CharacterizationIntFlow **second;
+    FlowImplementationLifetimeProbe *probe;
+  };
+
+  static void dropAllFlowHandlesDuringRun(void *userData)
+  {
+    DropAllFlowHandlesContext *context = static_cast<DropAllFlowHandlesContext *>(userData);
+    assert(context != 0);
+    assert(context->probe->liveAdapters == 1);
+
+    delete *context->first;
+    *context->first = 0;
+    assert(context->probe->liveAdapters == 1);
+
+    delete *context->second;
+    *context->second = 0;
+    assert(context->probe->liveAdapters == 1);
+  }
+
+  struct ClearRunningFlowContext
+  {
+    CharacterizationIntFlowSlot *slot;
+    FlowImplementationLifetimeProbe *runningProbe;
+  };
+
+  static void clearFlowSlotDuringRun(void *userData)
+  {
+    ClearRunningFlowContext *context = static_cast<ClearRunningFlowContext *>(userData);
+    assert(context != 0);
+    context->slot->clear();
+    assert(!context->slot->isValid());
+    assert(context->runningProbe->liveAdapters == 1);
+  }
+
+  struct ReplaceRunningFlowContext
+  {
+    CharacterizationIntFlowSlot *slot;
+    FlowImplementationLifetimeProbe *runningProbe;
+    FlowImplementationLifetimeProbe *replacementProbe;
+    int *replacementInput;
+  };
+
+  static void replaceFlowSlotDuringRun(void *userData)
+  {
+    ReplaceRunningFlowContext *context = static_cast<ReplaceRunningFlowContext *>(userData);
+    assert(context != 0);
+    CharacterizationIntFlow replacement =
+        makeCharacterizationFlow(context->replacementInput, context->replacementProbe);
+    context->slot->set(replacement);
+    assert(context->slot->isValid());
+    assert(context->runningProbe->liveAdapters == 1);
+  }
+
+  class CharacterizationBoundaryBase : public loka::app::scene::BoundaryNode
+  {
+  public:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &,
+                                    loka::app::scene::ComposeEvent)
+    {
+    }
+  };
+
+  class CharacterizationFlowOwner : public CharacterizationBoundaryBase
+  {
+  public:
+    virtual ~CharacterizationFlowOwner() {}
+
+    void setFlow(const CharacterizationIntFlow &flow)
+    {
+      this->flow_.set(flow);
+    }
+
+    loka::dsl::FlowRunResult runFlow()
+    {
+      return this->flow_.runResult();
+    }
+
+  private:
+    CharacterizationIntFlowSlot flow_;
+  };
+
+  struct DestroyRunningFlowOwnerContext
+  {
+    CharacterizationFlowOwner **owner;
+    FlowImplementationLifetimeProbe *runningProbe;
+  };
+
+  static void destroyFlowOwnerDuringRun(void *userData)
+  {
+    DestroyRunningFlowOwnerContext *context = static_cast<DestroyRunningFlowOwnerContext *>(userData);
+    assert(context != 0);
+    delete *context->owner;
+    *context->owner = 0;
+    assert(context->runningProbe->liveAdapters == 1);
+  }
+
+  class CharacterizationStateOwner : public loka::app::scene::IStateOwner
+  {
+  public:
+    CharacterizationStateOwner()
+        : tracker_(),
+          owned_(),
+          borrowed_(),
+          releaseCalls_(0)
+    {
+    }
+
+    virtual ~CharacterizationStateOwner()
+    {
+      for (size_t i = 0; i < this->borrowed_.size(); ++i)
+      {
+        this->tracker_.removeState(this->borrowed_[i]);
+      }
+      for (size_t i = this->owned_.size(); i > 0; --i)
+      {
+        this->tracker_.removeState(this->owned_[i - 1]);
+        delete this->owned_[i - 1];
+      }
+    }
+
+    virtual void adoptState(loka::core::StateBase *state)
+    {
+      this->adoptStateUnchecked(state);
+    }
+
+    virtual void adoptStateUnchecked(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < this->owned_.size(); ++i)
+      {
+        if (this->owned_[i] == state)
+        {
+          return;
+        }
+      }
+      this->owned_.push_back(state);
+      this->tracker_.addStateUnchecked(state);
+    }
+
+    virtual void releaseState(loka::core::StateBase *state)
+    {
+      if (!state)
+      {
+        return;
+      }
+      for (size_t i = 0; i < this->owned_.size(); ++i)
+      {
+        if (this->owned_[i] == state)
+        {
+          this->owned_.erase(this->owned_.begin() + i);
+          this->tracker_.removeState(state);
+          ++this->releaseCalls_;
+          delete state;
+          return;
+        }
+      }
+      assert(false && "CharacterizationStateOwner::releaseState requires an owned state");
+    }
+
+    virtual void reserveStates(size_t count)
+    {
+      this->owned_.reserve(this->owned_.size() + count);
+      this->tracker_.reserveStates(count);
+    }
+
+    virtual void reserveStateArena(size_t) {}
+
+    virtual void *allocateStateMemory(size_t, size_t)
+    {
+      return 0;
+    }
+
+    virtual void registerStateMemory(loka::core::StateBase *, void (*)(loka::core::StateBase *)) {}
+
+    virtual loka::core::StateTracker *tracker()
+    {
+      return &this->tracker_;
+    }
+
+    void trackBorrowed(loka::core::StateBase *state)
+    {
+      this->borrowed_.push_back(state);
+      this->tracker_.addState(state);
+    }
+
+    loka::core::PushStateTracker *pushTracker()
+    {
+      return &this->tracker_;
+    }
+
+    int releaseCalls() const
+    {
+      return this->releaseCalls_;
+    }
+
+  private:
+    loka::core::PushStateTracker tracker_;
+    std::vector<loka::core::StateBase *> owned_;
+    std::vector<loka::core::StateBase *> borrowed_;
+    int releaseCalls_;
+  };
+
+  struct CharacterizationAddOneMapper
+  {
+    typedef int Result;
+
+    int operator()(const int &value) const
+    {
+      return value + 1;
+    }
+  };
+
+  class BorrowDirectionApi
+  {
+  public:
+    static const char *kInterfaceName()
+    {
+      return "BorrowDirectionApi";
+    }
+
+    static BorrowDirectionApi *fromNode(loka::app::scene::Node *node)
+    {
+      return node ? static_cast<BorrowDirectionApi *>(node->queryInterface(kInterfaceName())) : 0;
+    }
+
+    virtual ~BorrowDirectionApi() {}
+  };
+
+  class BorrowDirectionBoundary : public CharacterizationBoundaryBase, public BorrowDirectionApi
+  {
+  public:
+    virtual void *queryInterface(const char *name)
+    {
+      return name && std::strcmp(name, kInterfaceName()) == 0 ? static_cast<BorrowDirectionApi *>(this) : 0;
+    }
+  };
+} // namespace
+
+void testFlowChainHandleCopiesShareImplementationLifetime()
+{
+  FlowImplementationLifetimeProbe sharedProbe;
+  FlowImplementationLifetimeProbe replacedProbe;
+  int sharedInput = 1;
+  int replacedInput = 2;
+
+  {
+    CharacterizationIntFlow original = makeCharacterizationFlow(&sharedInput, &sharedProbe);
+    assert(sharedProbe.liveAdapters == 1);
+
+    {
+      CharacterizationIntFlow copied(original);
+      assert(sharedProbe.liveAdapters == 1);
+
+      CharacterizationIntFlow assigned = makeCharacterizationFlow(&replacedInput, &replacedProbe);
+      assert(replacedProbe.liveAdapters == 1);
+      assigned = copied;
+      assert(replacedProbe.liveAdapters == 0);
+      assert(sharedProbe.liveAdapters == 1);
+    }
+
+    assert(sharedProbe.liveAdapters == 1);
+  }
+
+  assert(sharedProbe.liveAdapters == 0);
+  assert(replacedProbe.liveAdapters == 0);
+}
+
+void testFlowChainRunPinDefersImplementationDeletion()
+{
+  FlowImplementationLifetimeProbe probe;
+  int input = 5;
+  CharacterizationIntFlow *first = 0;
+  CharacterizationIntFlow *second = 0;
+  DropAllFlowHandlesContext context = {&first, &second, &probe};
+
+  first = new CharacterizationIntFlow(
+      makeCharacterizationFlow(&input, &probe, &dropAllFlowHandlesDuringRun, &context));
+  second = new CharacterizationIntFlow(*first);
+  assert(probe.liveAdapters == 1);
+
+  const loka::dsl::FlowRunResult result = first->runResult();
+  assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+  assert(first == 0);
+  assert(second == 0);
+  assert(probe.runCalls == 1);
+  assert(probe.liveAdapters == 0);
+}
+
+void testFlowSlotClearDefersRunningFlowDeletion()
+{
+  FlowImplementationLifetimeProbe probe;
+  int input = 8;
+  CharacterizationIntFlowSlot slot;
+  ClearRunningFlowContext context = {&slot, &probe};
+  {
+    CharacterizationIntFlow flow =
+        makeCharacterizationFlow(&input, &probe, &clearFlowSlotDuringRun, &context);
+    slot.set(flow);
+  }
+  assert(probe.liveAdapters == 1);
+
+  const loka::dsl::FlowRunResult result = slot.runResult();
+  assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+  assert(!slot.isValid());
+  assert(probe.runCalls == 1);
+  assert(probe.liveAdapters == 0);
+}
+
+void testFlowSlotSetDefersRunningFlowDeletion()
+{
+  FlowImplementationLifetimeProbe runningProbe;
+  FlowImplementationLifetimeProbe replacementProbe;
+  int runningInput = 13;
+  int replacementInput = 21;
+  CharacterizationIntFlowSlot slot;
+  ReplaceRunningFlowContext context = {&slot, &runningProbe, &replacementProbe, &replacementInput};
+  {
+    CharacterizationIntFlow flow =
+        makeCharacterizationFlow(&runningInput, &runningProbe, &replaceFlowSlotDuringRun, &context);
+    slot.set(flow);
+  }
+  assert(runningProbe.liveAdapters == 1);
+
+  const loka::dsl::FlowRunResult firstResult = slot.runResult();
+  assert(firstResult == loka::dsl::FLOW_RUN_SUCCEEDED);
+  assert(slot.isValid());
+  assert(runningProbe.runCalls == 1);
+  assert(runningProbe.liveAdapters == 0);
+  assert(replacementProbe.liveAdapters == 1);
+
+  const loka::dsl::FlowRunResult replacementResult = slot.runResult();
+  assert(replacementResult == loka::dsl::FLOW_RUN_SUCCEEDED);
+  assert(replacementProbe.runCalls == 1);
+  slot.clear();
+  assert(replacementProbe.liveAdapters == 0);
+}
+
+void testFlowSlotOwnerDestructionDefersRunningFlowDeletion()
+{
+  FlowImplementationLifetimeProbe probe;
+  int input = 34;
+  CharacterizationFlowOwner *owner = new CharacterizationFlowOwner();
+  DestroyRunningFlowOwnerContext context = {&owner, &probe};
+  {
+    CharacterizationIntFlow flow =
+        makeCharacterizationFlow(&input, &probe, &destroyFlowOwnerDuringRun, &context);
+    owner->setFlow(flow);
+  }
+  assert(probe.liveAdapters == 1);
+
+  const loka::dsl::FlowRunResult result = owner->runFlow();
+  assert(result == loka::dsl::FLOW_RUN_SUCCEEDED);
+  assert(owner == 0);
+  assert(probe.runCalls == 1);
+  assert(probe.liveAdapters == 0);
+}
+
+void testFlowOwnerDestructionReleasesPendingFlow()
+{
+  FlowImplementationLifetimeProbe neverRunProbe;
+  int neverRunInput = 55;
+  {
+    CharacterizationFlowOwner *owner = new CharacterizationFlowOwner();
+    {
+      CharacterizationIntFlow flow = makeCharacterizationFlow(&neverRunInput, &neverRunProbe);
+      owner->setFlow(flow);
+    }
+    assert(neverRunProbe.liveAdapters == 1);
+    delete owner;
+  }
+  assert(neverRunProbe.runCalls == 0);
+  assert(neverRunProbe.liveAdapters == 0);
+
+  FlowImplementationLifetimeProbe pendingProbe;
+  int pendingInput = 89;
+  {
+    CharacterizationFlowOwner *owner = new CharacterizationFlowOwner();
+    {
+      CharacterizationIntFlow flow = makeCharacterizationFlow(&pendingInput, &pendingProbe, 0, 0, true);
+      owner->setFlow(flow);
+    }
+    assert(pendingProbe.liveAdapters == 1);
+    assert(owner->runFlow() == loka::dsl::FLOW_RUN_PENDING);
+    assert(pendingProbe.runCalls == 1);
+    delete owner;
+  }
+  assert(pendingProbe.liveAdapters == 0);
+}
+
+void testStateStreamCopyTransfersOwnedState()
+{
+  CharacterizationStateOwner owner;
+  loka::core::MutableState<int> *state = new loka::core::MutableState<int>(7);
+  owner.adoptState(state);
+
+  {
+    loka::dsl::StateStream<int> source(state, owner.tracker(), &owner, true);
+    loka::dsl::StateStream<int> destination(source);
+    source.releaseOwnedState();
+    assert(owner.releaseCalls() == 0);
+    destination.releaseOwnedState();
+    assert(owner.releaseCalls() == 1);
+  }
+
+  assert(owner.releaseCalls() == 1);
+}
+
+void testStateStreamAssignmentTransfersOwnedState()
+{
+  CharacterizationStateOwner owner;
+  loka::core::MutableState<int> *sourceState = new loka::core::MutableState<int>(3);
+  loka::core::MutableState<int> *destinationState = new loka::core::MutableState<int>(9);
+  owner.adoptState(sourceState);
+  owner.adoptState(destinationState);
+
+  {
+    loka::dsl::StateStream<int> source(sourceState, owner.tracker(), &owner, true);
+    loka::dsl::StateStream<int> destination(destinationState, owner.tracker(), &owner, true);
+    destination = source;
+    assert(owner.releaseCalls() == 1);
+    source.releaseOwnedState();
+    assert(owner.releaseCalls() == 1);
+  }
+
+  assert(owner.releaseCalls() == 2);
+}
+
+void testStateStreamDestructionReleasesOwnedState()
+{
+  CharacterizationStateOwner owner;
+  loka::core::MutableState<int> *ownedState = new loka::core::MutableState<int>(12);
+  owner.adoptState(ownedState);
+  {
+    loka::dsl::StateStream<int> stream(ownedState, owner.tracker(), &owner, true);
+    assert(owner.releaseCalls() == 0);
+  }
+  assert(owner.releaseCalls() == 1);
+
+  loka::core::MutableState<int> *borrowedState = new loka::core::MutableState<int>(18);
+  owner.adoptState(borrowedState);
+  {
+    loka::dsl::StateStream<int> stream(borrowedState, owner.tracker(), &owner, false);
+  }
+  assert(owner.releaseCalls() == 1);
+  owner.releaseState(borrowedState);
+  assert(owner.releaseCalls() == 2);
+}
+
+void testStateStreamDestructionUnbindsSources()
+{
+  loka::core::MutableState<int> source(4);
+  loka::core::MutableState<int> targetStorage(0);
+  CharacterizationStateOwner owner;
+  owner.trackBorrowed(&source);
+  owner.trackBorrowed(&targetStorage);
+  loka::app::scene::NodeState<int> target(&targetStorage, owner.tracker(), &owner);
+
+  {
+    loka::dsl::StateStream<int> sourceStream(&source, owner.tracker(), &owner);
+    loka::dsl::StateStream<int> mapped = sourceStream.map(CharacterizationAddOneMapper());
+    mapped.set(target, true);
+    assert(target.get() == 5);
+  }
+  assert(owner.releaseCalls() == 1);
+
+  owner.pushTracker()->begin();
+  source.set(40, true);
+  owner.pushTracker()->end();
+  assert(target.get() == 5);
+}
+
+void testBoundaryBorrowDirectionsRejectSiblingAndDescendant()
+{
+  using loka::app::scene::ComponentContext;
+  using loka::app::scene::Node;
+  using loka::app::scene::NodeComposition;
+  using loka::app::scene::NodeState;
+
+  CharacterizationBoundaryBase parent;
+  BorrowDirectionBoundary siblingA;
+  BorrowDirectionBoundary siblingB;
+  BorrowDirectionBoundary descendant;
+  siblingA.setParentBoundary(&parent);
+  siblingB.setParentBoundary(&parent);
+  descendant.setParentBoundary(&siblingA);
+
+  loka::core::MutableState<int> siblingValue(1);
+  loka::core::MutableState<int> descendantValue(2);
+  NodeState<int> siblingState(&siblingValue, siblingB.tracker(), &siblingB);
+  NodeState<int> descendantState(&descendantValue, descendant.tracker(), &descendant);
+
+  ComponentContext parentContext;
+  ComponentContext siblingContext(&parentContext);
+  ComponentContext leafContext(&siblingContext);
+  Node leaf;
+  parentContext.setOwner(&parent);
+  parentContext.setBoundary(&parent);
+  parentContext.setStateOwner(&parent);
+  siblingContext.setOwner(&siblingA);
+  siblingContext.setBoundary(&siblingA);
+  siblingContext.setStateOwner(&siblingA);
+  leafContext.setOwner(&leaf);
+  leafContext.setBoundary(&siblingA);
+  leafContext.setStateOwner(&siblingA);
+
+  ComponentContext descendantContext(&leafContext);
+  descendantContext.setOwner(&descendant);
+  descendantContext.setBoundary(&descendant);
+  descendantContext.setStateOwner(&descendant);
+
+  ComponentContext siblingBContext(&parentContext);
+  siblingBContext.setOwner(&siblingB);
+  siblingBContext.setBoundary(&siblingB);
+  siblingBContext.setStateOwner(&siblingB);
+
+  NodeComposition composition;
+  composition.setContext(&parentContext);
+  assert(composition.currentBoundary().isValid());
+  assert(!composition.findBoundary<BorrowDirectionApi>().isValid());
+  assert(!composition.currentBoundary().state(descendantState).isValid());
+
+  composition.setContext(&leafContext);
+  assert(composition.currentBoundary().isValid());
+  assert(!composition.findBoundary<BorrowDirectionApi>().isValid());
+  assert(!composition.currentBoundary().state(siblingState).isValid());
+}

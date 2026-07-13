@@ -93,6 +93,17 @@ int main()
   LOKA_RUN_TEST(testSnapFormatV1);
   LOKA_RUN_TEST(testSnapFlowWriteAdapter);
   LOKA_RUN_TEST(testLokaFlowDslV1Core);
+  LOKA_RUN_TEST(testFlowChainHandleCopiesShareImplementationLifetime);
+  LOKA_RUN_TEST(testFlowChainRunPinDefersImplementationDeletion);
+  LOKA_RUN_TEST(testFlowSlotClearDefersRunningFlowDeletion);
+  LOKA_RUN_TEST(testFlowSlotSetDefersRunningFlowDeletion);
+  LOKA_RUN_TEST(testFlowSlotOwnerDestructionDefersRunningFlowDeletion);
+  LOKA_RUN_TEST(testFlowOwnerDestructionReleasesPendingFlow);
+  LOKA_RUN_TEST(testStateStreamCopyTransfersOwnedState);
+  LOKA_RUN_TEST(testStateStreamAssignmentTransfersOwnedState);
+  LOKA_RUN_TEST(testStateStreamDestructionReleasesOwnedState);
+  LOKA_RUN_TEST(testStateStreamDestructionUnbindsSources);
+  LOKA_RUN_TEST(testBoundaryBorrowDirectionsRejectSiblingAndDescendant);
   LOKA_RUN_TEST(testLokaAttrDslV1Core);
   LOKA_RUN_TEST(testPlatformNodeHandlerRegistration);
   LOKA_RUN_TEST(testPlatformNodeHandlerReplacement);
