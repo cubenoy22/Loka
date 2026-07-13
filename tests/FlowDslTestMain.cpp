@@ -80,6 +80,8 @@ int main()
   LOKA_RUN_TEST(testWindowPropsSceneHandoffIsOneShotAcrossCopies);
   LOKA_RUN_TEST(testWindowRetiresDetachedSceneAtFlushBoundary);
   LOKA_RUN_TEST(testWindowDoesNotReclaimSceneDuringDetachNotification);
+  LOKA_RUN_TEST(testWindowReclaimDoesNotNotifySceneLifecycleObservers);
+  LOKA_RUN_TEST(testWindowReclaimFiresNoSceneCompositionCallbacks);
   LOKA_RUN_TEST(testSceneUnmountNotifiesPlainNodeContextDetached);
   LOKA_RUN_TEST(testBoundaryLocalRebuildNotifiesCompositionDetachedOnce);
   LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);

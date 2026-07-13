@@ -5,5 +5,7 @@ void testWindowDefinitionTransfersSceneOwnershipToWindow();
 void testWindowPropsSceneHandoffIsOneShotAcrossCopies();
 void testWindowRetiresDetachedSceneAtFlushBoundary();
 void testWindowDoesNotReclaimSceneDuringDetachNotification();
+void testWindowReclaimDoesNotNotifySceneLifecycleObservers();
+void testWindowReclaimFiresNoSceneCompositionCallbacks();
 
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP
