@@ -14,7 +14,6 @@ SceneManager::SceneManager()
 {
   tracker_.addState(&currentScene_);
   tracker_.addState(&pendingTransactions_);
-  LOKA_AUDIT_ALIVE_INC(SceneManager);
 }
 
 SceneManager::~SceneManager()
@@ -35,7 +34,6 @@ SceneManager::~SceneManager()
     retiredScenes_.retire(current);
   }
   retiredScenes_.drain();
-  LOKA_AUDIT_ALIVE_DEC(SceneManager);
 }
 
 void SceneManager::commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to)

@@ -18,7 +18,6 @@ namespace loka
           freeEntries_(0),
           chunks_(0)
     {
-      LOKA_AUDIT_ALIVE_INC(PushStateTracker);
     }
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
@@ -32,7 +31,6 @@ namespace loka
           freeEntries_(0),
           chunks_(0)
     {
-      LOKA_AUDIT_ALIVE_INC(PushStateTracker);
       for (size_t i = 0; i < states.size(); ++i)
       {
         addState(states[i]);
@@ -42,7 +40,6 @@ namespace loka
     PushStateTracker::~PushStateTracker()
     {
       releaseEntries();
-      LOKA_AUDIT_ALIVE_DEC(PushStateTracker);
     }
 
     void PushStateTracker::begin()

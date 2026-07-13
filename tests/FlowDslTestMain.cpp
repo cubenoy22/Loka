@@ -11,6 +11,42 @@
 #include "SceneOwnershipTests.hpp"
 #include "core/LifecycleAudit.hpp"
 
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbe)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbeVerified)
+
+namespace
+{
+  class LifecycleAuditedConstructorProbe LOKA_AUDITED(LifecycleAuditedConstructorProbe)
+  {
+  public:
+    explicit LifecycleAuditedConstructorProbe(int value)
+        : value_(value)
+    {
+    }
+
+#ifdef LOKA_LIFECYCLE_AUDIT
+    void lifecycleAuditReclassify(const char *tag, loka::core::LifecycleAuditDomain domain)
+    {
+      this->reclassifyLifecycleAudit(tag, domain);
+    }
+#endif
+
+  private:
+    int value_;
+  };
+
+  void testLifecycleAuditedCountsEveryConstructor()
+  {
+    LifecycleAuditedConstructorProbe original(1);
+    LifecycleAuditedConstructorProbe copy(original);
+    copy = original;
+    LOKA_AUDIT_RECLASSIFY_ALIVE(original, LifecycleAuditedConstructorProbeVerified,
+                                loka::core::LIFECYCLE_AUDIT_CHAIN_RESIDENT);
+    LOKA_AUDIT_RECLASSIFY_ALIVE(copy, LifecycleAuditedConstructorProbeVerified,
+                                loka::core::LIFECYCLE_AUDIT_CHAIN_RESIDENT);
+  }
+} // namespace
+
 #define LOKA_RUN_TEST(testFunction)                                                                                    \
   do                                                                                                                   \
   {                                                                                                                    \
@@ -20,6 +56,7 @@
 
 int main()
 {
+  LOKA_RUN_TEST(testLifecycleAuditedCountsEveryConstructor);
   LOKA_RUN_TEST(testStateNotify);
   LOKA_RUN_TEST(testDerivedStateCore);
   LOKA_RUN_TEST(testConditionalDefinitionCloneOwnership);

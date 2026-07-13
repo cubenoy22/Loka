@@ -233,7 +233,7 @@ namespace loka
         Node *owner_;
       };
 
-      class Node
+      class Node LOKA_AUDITED(Node)
       {
       public:
         NodeContext *context;
@@ -257,7 +257,6 @@ namespace loka
               testId_(),
               nodeTag_(NODE_TAG_NONE)
         {
-          LOKA_AUDIT_ALIVE_INC(Node);
         }
 
         virtual ~Node()
@@ -267,7 +266,6 @@ namespace loka
             delete context;
             context = 0;
           }
-          LOKA_AUDIT_ALIVE_DEC(Node);
         }
 
         void setArenaAllocated(bool v)
@@ -504,7 +502,7 @@ namespace loka
       };
 
       // Type-erased base for node definitions.
-      struct NodeDefinitionBase
+      struct NodeDefinitionBase LOKA_AUDITED(NodeDefinitionBase)
       {
       public:
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
@@ -518,7 +516,6 @@ namespace loka
               autoTestId_(false),
               nodeTag_(NODE_TAG_NONE)
         {
-          LOKA_AUDIT_ALIVE_INC(NodeDefinitionBase);
         }
         NodeDefinitionBase(const NodeDefinitionBase &other)
             : cleanupHook_(0),
@@ -529,7 +526,6 @@ namespace loka
               autoTestId_(other.autoTestId_),
               nodeTag_(other.nodeTag_)
         {
-          LOKA_AUDIT_ALIVE_INC(NodeDefinitionBase);
         }
         NodeDefinitionBase &operator=(const NodeDefinitionBase &other)
         {
@@ -545,7 +541,6 @@ namespace loka
         virtual ~NodeDefinitionBase()
         {
           this->invokeCleanupHook();
-          LOKA_AUDIT_ALIVE_DEC(NodeDefinitionBase);
         }
         /**
          * Allocation contract:

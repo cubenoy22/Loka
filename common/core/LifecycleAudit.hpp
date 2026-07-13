@@ -24,9 +24,79 @@ namespace loka
     void LifecycleAuditDeclareProcessGlobal(const char *tag);
     /** Aborts after printing all nonzero tags when a checked domain is not empty. */
     void LifecycleAuditCheckpoint(const char *label);
+
+    /**
+     * Structurally records each audited instance. Copy construction adds a new
+     * live instance; assignment preserves the existing instance identity.
+     */
+    template <typename Tag> class LifecycleAudited
+    {
+    protected:
+      LifecycleAudited()
+          : lifecycleAuditTag_(Tag::name())
+      {
+        LifecycleAuditAliveIncrement(this->lifecycleAuditTag_);
+      }
+
+      LifecycleAudited(const LifecycleAudited &)
+          : lifecycleAuditTag_(Tag::name())
+      {
+        LifecycleAuditAliveIncrement(this->lifecycleAuditTag_);
+      }
+
+      ~LifecycleAudited()
+      {
+        LifecycleAuditAliveDecrement(this->lifecycleAuditTag_);
+      }
+
+      LifecycleAudited &operator=(const LifecycleAudited &)
+      {
+        return *this;
+      }
+
+      void reclassifyLifecycleAudit(const char *tag, LifecycleAuditDomain domain)
+      {
+        LifecycleAuditReclassifyAlive(this->lifecycleAuditTag_, tag, domain);
+        this->lifecycleAuditTag_ = tag;
+      }
+
+    private:
+      const char *lifecycleAuditTag_;
+    };
   } // namespace core
 } // namespace loka
 
+// Audit tags are explicit because supported builds disable RTTI.
+#define LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(Tag)                                                                         \
+  namespace loka                                                                                                      \
+  {                                                                                                                   \
+    namespace core                                                                                                    \
+    {                                                                                                                 \
+      struct LifecycleAuditTag_##Tag                                                                                  \
+      {                                                                                                               \
+        static const char *name()                                                                                     \
+        {                                                                                                             \
+          return #Tag;                                                                                                \
+        }                                                                                                             \
+      };                                                                                                              \
+    }                                                                                                                 \
+  }
+
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(Scene)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(Node)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(BoundaryNode)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(StateBase)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(NodeDefinitionBase)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(MenuBarDefinition)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(PushStateTracker)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(Window)
+LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(SceneManager)
+
+// Root and additional-base forms both vanish completely when auditing is off.
+#define LOKA_AUDITED(Tag) : private ::loka::core::LifecycleAudited< ::loka::core::LifecycleAuditTag_##Tag >
+#define LOKA_AUDITED_AS(Tag) , private ::loka::core::LifecycleAudited< ::loka::core::LifecycleAuditTag_##Tag >
+
+/** Manual escape hatches for types that cannot use an inherited audit base. */
 #define LOKA_AUDIT_ALIVE_INC(Tag) ::loka::core::LifecycleAuditAliveIncrement(#Tag)
 #define LOKA_AUDIT_ALIVE_DEC(Tag) ::loka::core::LifecycleAuditAliveDecrement(#Tag)
 #define LOKA_AUDIT_PROCESS_GLOBAL(Tag) ::loka::core::LifecycleAuditDeclareProcessGlobal(#Tag)
@@ -36,6 +106,9 @@ namespace loka
 
 #else
 
+#define LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(Tag)
+#define LOKA_AUDITED(Tag)
+#define LOKA_AUDITED_AS(Tag)
 #define LOKA_AUDIT_ALIVE_INC(Tag)
 #define LOKA_AUDIT_ALIVE_DEC(Tag)
 #define LOKA_AUDIT_PROCESS_GLOBAL(Tag)

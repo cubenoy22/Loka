@@ -41,7 +41,7 @@ namespace loka
       virtual ~StateTracker() {}
     };
 
-    class PushStateTracker : public StateTracker
+    class PushStateTracker : public StateTracker LOKA_AUDITED_AS(PushStateTracker)
     {
     public:
       typedef void (*InvalidateFn)(void *);

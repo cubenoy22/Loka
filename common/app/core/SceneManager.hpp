@@ -79,7 +79,7 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class SceneManager
+class SceneManager LOKA_AUDITED(SceneManager)
 {
 public:
   struct SceneTransaction

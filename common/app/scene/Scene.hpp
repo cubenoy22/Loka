@@ -55,7 +55,7 @@ namespace loka
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot);
       inline static PlatformApplyPlan::PaintKind ResolvePaintKind(const SceneDirector::SceneUpdateSnapshot &snapshot);
 
-      class Scene
+      class Scene LOKA_AUDITED(Scene)
       {
       public:
         struct SceneCompositionDiff : public loka::dsl::CompositionDiff
@@ -242,7 +242,6 @@ namespace loka
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
-          LOKA_AUDIT_ALIVE_INC(Scene);
         }
         // Construct from NodeDefinitionBase and auto-wrap non-boundary roots.
         explicit Scene(NodeDefinitionBase *def)
@@ -260,7 +259,6 @@ namespace loka
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
-          LOKA_AUDIT_ALIVE_INC(Scene);
         }
         // Clone and take ownership of the root definition.
         template <class DefT>
@@ -278,7 +276,6 @@ namespace loka
               updateCycleState_()
         {
           director_.attach(this);
-          LOKA_AUDIT_ALIVE_INC(Scene);
         }
         virtual ~Scene()
         {
@@ -286,7 +283,6 @@ namespace loka
           updateLifecycle(ON_DESTROY);
           unmount();
           rootDefinition_.reset();
-          LOKA_AUDIT_ALIVE_DEC(Scene);
         }
 
         NodeDefinitionBase *getRootDefinition() const

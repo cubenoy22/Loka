@@ -410,7 +410,7 @@ public:
   }
 };
 
-class Window : public AppComponent
+class Window : public AppComponent LOKA_AUDITED_AS(Window)
 {
 public:
   typedef WindowTypeTag TypeTag;
@@ -483,7 +483,6 @@ public:
     {
       sceneManager_.commitTransaction(0, initialScene);
     }
-    LOKA_AUDIT_ALIVE_INC(Window);
   }
   virtual ~Window()
   {
@@ -495,7 +494,6 @@ public:
       this->tracker_ = 0;
     }
     menuBarDefinition_.reset();
-    LOKA_AUDIT_ALIVE_DEC(Window);
   }
 
   PlatformContext *context() const

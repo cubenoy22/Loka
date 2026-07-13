@@ -31,7 +31,7 @@ namespace loka
       class Scene;
 
       // BoundaryNode: owns a local tracker for its subtree.
-      class BoundaryNode : public ComposableNode, public IStateOwner
+      class BoundaryNode : public ComposableNode, public IStateOwner LOKA_AUDITED_AS(BoundaryNode)
       {
       public:
         typedef BoundaryUpdateResult::BoundsHint LayoutBounds;
@@ -50,7 +50,6 @@ namespace loka
               observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
-          LOKA_AUDIT_ALIVE_INC(BoundaryNode);
         }
         virtual ~BoundaryNode()
         {
@@ -62,7 +61,6 @@ namespace loka
           clearOwnedStates();
           clearOwnedStateHandles();
           stateArena_.clear();
-          LOKA_AUDIT_ALIVE_DEC(BoundaryNode);
         }
 
         virtual BoundaryNode *asBoundary()

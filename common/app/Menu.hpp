@@ -591,18 +591,16 @@ namespace loka
       MenuDefinition *nextInComposition;
     };
 
-    struct MenuBarDefinition
+    struct MenuBarDefinition LOKA_AUDITED(MenuBarDefinition)
     {
       MenuBarDefinition()
           : menus_()
       {
-        LOKA_AUDIT_ALIVE_INC(MenuBarDefinition);
       }
 
       MenuBarDefinition(const MenuBarDefinition &other)
           : menus_()
       {
-        LOKA_AUDIT_ALIVE_INC(MenuBarDefinition);
         const MenuDefinition *cur = other.menus_.head();
         while (cur)
         {
@@ -614,7 +612,6 @@ namespace loka
       ~MenuBarDefinition()
       {
         clearMenus();
-        LOKA_AUDIT_ALIVE_DEC(MenuBarDefinition);
       }
 
       MenuBarDefinition &operator=(const MenuBarDefinition &other)
