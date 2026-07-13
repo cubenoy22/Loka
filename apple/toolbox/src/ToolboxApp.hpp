@@ -15,7 +15,6 @@ protected:
 public:
   virtual void run();
   virtual void quit();
-  virtual void windowClosed(Window *window);
   void handleMenuCommand(short menuId, short item);
   static void MenuEnabledChangedThunk(void *userData);
 
@@ -52,14 +51,11 @@ private:
   void resetMenuState();
   void disposeMenuEntries();
   void disposeHierarchicalMenus();
-  void requestWindowClose(Window *window);
-  void flushPendingWindowClosures();
   short nextMenuId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;
   std::vector<MenuEntry> menuEntries_;
   std::vector<MenuHandle> hierarchicalMenus_;
-  std::vector<Window *> pendingWindowClosures_;
   bool running_;
 };
 

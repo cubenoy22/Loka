@@ -20,7 +20,6 @@ ToolboxApp::ToolboxApp(AppConfigurable *config)
       bindings_(),
       menuEntries_(),
       hierarchicalMenus_(),
-      pendingWindowClosures_(),
       running_(false)
 {
 }
@@ -69,7 +68,6 @@ void ToolboxApp::run()
   running_ = true;
   while (running_)
   {
-    flushPendingWindowClosures();
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
     if (group_)
@@ -306,49 +304,12 @@ void ToolboxApp::run()
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
-    flushPendingWindowClosures();
   }
 }
 
 void ToolboxApp::quit()
 {
   running_ = false;
-}
-
-void ToolboxApp::windowClosed(Window *window)
-{
-  App::windowClosed(window);
-}
-
-void ToolboxApp::requestWindowClose(Window *window)
-{
-  if (!window)
-  {
-    return;
-  }
-  for (size_t i = 0; i < pendingWindowClosures_.size(); ++i)
-  {
-    if (pendingWindowClosures_[i] == window)
-    {
-      return;
-    }
-  }
-  pendingWindowClosures_.push_back(window);
-}
-
-void ToolboxApp::flushPendingWindowClosures()
-{
-  if (pendingWindowClosures_.empty())
-  {
-    return;
-  }
-  std::vector<Window *> pending = pendingWindowClosures_;
-  pendingWindowClosures_.clear();
-  for (size_t i = 0; i < pending.size(); ++i)
-  {
-    Window *window = pending[i];
-    windowClosed(window);
-  }
 }
 
 static void CopyToPascalString(const loka::core::String &value, Str255 out)

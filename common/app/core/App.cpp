@@ -12,13 +12,20 @@ App::App(AppConfigurable *config)
       config_(config),
       menuController_(config, &App::ApplyMenuBarThunk, this),
       activeWindow_(0),
-      idleAccumulatedSeconds_(0.0)
+      idleAccumulatedSeconds_(0.0),
+      pendingWindowClosures_(),
+      flushingPendingWindowClosures_(false)
 {
 }
 
 App::~App()
 {
+  while (!pendingWindowClosures_.empty())
+  {
+    flushPendingWindowClosures();
+  }
   delete group_;
+  group_ = 0;
 }
 
 void App::ApplyMenuBarThunk(void *userData, Window *activeWindow)
@@ -119,6 +126,9 @@ void App::reflectInitialVisibilityChunks()
 
 void App::flushWindowInvalidations()
 {
+  // Platform loops call this only after the native callback/notification that
+  // requested a close has unwound. This is the App clock's reclaim boundary.
+  flushPendingWindowClosures();
   if (!group_)
   {
     return;
@@ -140,10 +150,37 @@ void App::flushWindowInvalidations()
 
 void App::windowClosed(Window *window)
 {
+  if (!window)
+  {
+    return;
+  }
+  if (group_)
+  {
+    const std::vector<AppComponent *> &comps = group_->getComponents();
+    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+    {
+      assert((!(*it) || (*it)->asWindow() != window) &&
+             "App::windowClosed requires requestWindowClose detach first");
+    }
+  }
+  assert(activeWindow_ != window && "A retired Window cannot remain active at reclaim");
+  delete window;
+}
+
+void App::requestWindowClose(Window *window)
+{
   if (!group_ || !window)
   {
     return;
   }
+  for (size_t i = 0; i < pendingWindowClosures_.size(); ++i)
+  {
+    if (pendingWindowClosures_[i] == window)
+    {
+      return;
+    }
+  }
+
   std::vector<AppComponent *> &comps = const_cast<std::vector<AppComponent *> &>(group_->getComponents());
   std::vector<AppComponent *>::iterator eraseIt = comps.end();
   Window *nextActive = 0;
@@ -164,21 +201,38 @@ void App::windowClosed(Window *window)
   {
     return;
   }
+
+  // Reserve before changing ownership so an allocation failure cannot leave
+  // a detached Window without a queue owner.
+  pendingWindowClosures_.reserve(pendingWindowClosures_.size() + 1);
   comps.erase(eraseIt);
   if (activeWindow_ == window)
   {
-    activeWindow_ = 0;
+    this->setActiveWindow(nextActive);
   }
-  delete window;
-  if (!activeWindow_ && nextActive)
-  {
-    setActiveWindow(nextActive);
-  }
+  pendingWindowClosures_.push_back(window);
 
   if (quitWhenLastWindowClosed_ && comps.empty())
   {
     this->quit();
   }
+}
+
+void App::flushPendingWindowClosures()
+{
+  if (flushingPendingWindowClosures_ || pendingWindowClosures_.empty())
+  {
+    return;
+  }
+
+  std::vector<Window *> pending;
+  pending.swap(pendingWindowClosures_);
+  flushingPendingWindowClosures_ = true;
+  for (size_t i = 0; i < pending.size(); ++i)
+  {
+    this->windowClosed(pending[i]);
+  }
+  flushingPendingWindowClosures_ = false;
 }
 
 bool App::handleMenuCommand(int commandId, Window *window)

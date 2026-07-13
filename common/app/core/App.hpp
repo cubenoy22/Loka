@@ -22,7 +22,10 @@ public:
 
   virtual void run();
   virtual void quit() = 0;
+  /** Reclaims an already-detached Window. Platform close callbacks must use requestWindowClose(). */
   virtual void windowClosed(Window *window);
+  /** Detaches a Window immediately and queues its silent reclaim for the App clock boundary. */
+  void requestWindowClose(Window *window);
   virtual bool handleMenuCommand(int commandId, Window *window);
   loka::app::IdlePolicy idlePolicy() const;
   bool consumeIdle(double elapsedSeconds, double &dispatchElapsedSeconds);
@@ -62,8 +65,13 @@ protected:
 
   void reflectInitialVisibilityChunks();
   void flushWindowInvalidations();
+  /** Drains one queue snapshot; requests made during the drain wait for the next flush. */
+  void flushPendingWindowClosures();
 
 private:
+  std::vector<Window *> pendingWindowClosures_;
+  bool flushingPendingWindowClosures_;
+
   static void ApplyMenuBarThunk(void *userData, Window *activeWindow);
 };
 

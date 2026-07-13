@@ -17,7 +17,6 @@ protected:
 public:
   virtual void run();
   virtual void quit();
-  virtual void windowClosed(Window *window);
   bool handleMenuCommand(int commandId, Window *window);
 
 protected:

@@ -227,7 +227,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       self->hwnd_ = NULL;
       if (self->app_)
       {
-        self->app_->windowClosed(static_cast<Window *>(self));
+        self->app_->requestWindowClose(static_cast<Window *>(self));
       }
       break;
     default:
