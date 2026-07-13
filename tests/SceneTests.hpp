@@ -10,6 +10,8 @@
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/Text.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+#include "support/RecordingPlatformController.hpp"
 
 namespace SceneTests
 {
@@ -70,41 +72,12 @@ namespace SceneTests
 
   void test_Boundary_nested_compose()
   {
-    using loka::app::scene::IPlatformController;
-    using loka::app::scene::Node;
     using loka::app::scene::Scene;
-
-    class DummyPlatformController : public IPlatformController
-    {
-    public:
-      DummyPlatformController()
-          : lastMaterialized_(0),
-            destroyed_(false)
-      {
-      }
-      virtual void onChange(Node *rootNode, loka::app::scene::NodeDirtyFlags flags, bool fullRebuild)
-      {
-        (void)flags;
-        lastMaterialized_ = rootNode;
-      }
-      virtual void synchronize() {}
-      virtual bool hasPendingSync() const
-      {
-        return false;
-      }
-      virtual void destroy()
-      {
-        destroyed_ = true;
-      }
-
-      Node *lastMaterialized_;
-      bool destroyed_;
-    };
 
     g_rootComposeCount = 0;
     g_childComposeCount = 0;
     Scene scene(RootBoundary());
-    DummyPlatformController platform;
+    SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
     assert(g_rootComposeCount == 1);
@@ -120,6 +93,49 @@ namespace SceneTests
     assert(g_childComposeCount == 2);
 
     // Unmount before stack-allocated platform is destroyed
+    scene.unmount();
+  }
+
+  void test_Text_state_change_records_props_dirty_notification()
+  {
+    using loka::app::scene::BoundaryNode;
+    using loka::app::scene::NODE_DIRTY_PROPS;
+    using loka::app::scene::Node;
+    using loka::app::scene::NodeComposition;
+    using loka::app::scene::Scene;
+
+    loka::core::MutableState<loka::core::String> textState(loka::core::String::Literal("Before"));
+    NodeComposition composition;
+    composition.declare(loka::app::Text(&textState));
+    assert(composition.root() != 0);
+
+    Scene scene(composition.root()->clone());
+    SceneTestSupport::RecordingPlatformController platform;
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    Node *rootNode = platform.lastMaterialized_;
+    assert(rootNode != 0);
+    BoundaryNode *rootBoundary = rootNode->asBoundary();
+    assert(rootBoundary != 0);
+    assert(rootBoundary->observedDirtyFlags() == NODE_DIRTY_PROPS);
+    platform.clearChanges();
+
+    {
+      loka::core::StateTrackerGuard guard(rootBoundary->tracker());
+      assert(textState.trackerOwner() == rootBoundary->tracker());
+      textState.set(loka::core::String::Literal("After"));
+    }
+
+    assert(platform.changeCount() == 1);
+    assert(platform.changeCountForNode(rootNode) == 1);
+    assert(platform.flagsSeenForNode(rootNode) == NODE_DIRTY_PROPS);
+    assert(platform.changeSequence().size() == 1);
+    assert(platform.changeAt(0).node == rootNode);
+    assert(platform.changeAt(0).flags == NODE_DIRTY_PROPS);
+    assert(platform.changeAt(0).callOrder == 0);
+    assert(!platform.changeAt(0).fullRebuild);
+
     scene.unmount();
   }
 
@@ -236,34 +252,11 @@ namespace SceneTests
 
   void test_Node_local_state_registration_is_idempotent()
   {
-    using loka::app::scene::IPlatformController;
-    using loka::app::scene::Node;
     using loka::app::scene::Scene;
-
-    class DummyPlatformController : public IPlatformController
-    {
-    public:
-      DummyPlatformController()
-          : destroyed_(false)
-      {
-      }
-      virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
-      virtual void synchronize() {}
-      virtual bool hasPendingSync() const
-      {
-        return false;
-      }
-      virtual void destroy()
-      {
-        destroyed_ = true;
-      }
-
-      bool destroyed_;
-    };
 
     g_nodeLocalAttachCount = 0;
     Scene scene(NodeLocalStateBoundary());
-    DummyPlatformController platform;
+    SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
     assert(g_nodeLocalAttachCount == 1);
@@ -321,25 +314,11 @@ namespace SceneTests
 
   void test_Node_local_state_registration_after_attach_connects_immediately()
   {
-    using loka::app::scene::IPlatformController;
-    using loka::app::scene::Node;
     using loka::app::scene::Scene;
-
-    class DummyPlatformController : public IPlatformController
-    {
-    public:
-      virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
-      virtual void synchronize() {}
-      virtual bool hasPendingSync() const
-      {
-        return false;
-      }
-      virtual void destroy() {}
-    };
 
     g_lateNodeLocalAttachCount = 0;
     Scene scene(LateNodeLocalStateBoundary());
-    DummyPlatformController platform;
+    SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
     assert(g_lateNodeLocalAttachCount == 1);
@@ -708,25 +687,11 @@ namespace SceneTests
 
   void test_Node_local_conditional_unbinds_before_state_release()
   {
-    using loka::app::scene::IPlatformController;
-    using loka::app::scene::Node;
     using loka::app::scene::Scene;
-
-    class DummyPlatformController : public IPlatformController
-    {
-    public:
-      virtual void onChange(Node *, loka::app::scene::NodeDirtyFlags, bool) {}
-      virtual void synchronize() {}
-      virtual bool hasPendingSync() const
-      {
-        return false;
-      }
-      virtual void destroy() {}
-    };
 
     g_nodeLocalConditionalReleaseCount = 0;
     Scene scene(NodeLocalConditionalReleaseBoundary());
-    DummyPlatformController platform;
+    SceneTestSupport::RecordingPlatformController platform;
     scene.mount(&platform);
     scene.updateAttached(true);
     scene.unmount();
@@ -738,6 +703,7 @@ namespace SceneTests
   void runAll()
   {
     TestFunc tests[] = {test_Boundary_nested_compose,
+                        test_Text_state_change_records_props_dirty_notification,
                         test_FlowSlot_releases_owned_value,
                         test_Node_local_state_registration_is_idempotent,
                         test_Node_local_state_registration_after_attach_connects_immediately,
