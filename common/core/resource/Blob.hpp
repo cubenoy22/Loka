@@ -189,6 +189,12 @@ namespace loka
         static Managed<BlobRecord> &SharedEmptyHandle()
         {
           static Managed<BlobRecord> empty = CreateHandle();
+          LOKA_AUDIT_PROCESS_GLOBAL(BlobSharedEmptyState);
+          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->sizeState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
+          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->loadingState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
+          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->mutableState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
+          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->completedState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
+          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->progressState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
           return empty;
         }
 

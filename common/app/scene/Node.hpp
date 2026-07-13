@@ -1,6 +1,8 @@
 #ifndef LOKA_CORE2_SCENE_NODE_HPP
 #define LOKA_CORE2_SCENE_NODE_HPP
 
+#include "core/LifecycleAudit.hpp"
+
 // static_assert-like macro. Modern compilers get real checks automatically;
 // C++98 release builds keep optional checks lightweight unless explicitly gated.
 #if __cplusplus >= 201103L
@@ -255,6 +257,7 @@ namespace loka
               testId_(),
               nodeTag_(NODE_TAG_NONE)
         {
+          LOKA_AUDIT_ALIVE_INC(Node);
         }
 
         virtual ~Node()
@@ -264,6 +267,7 @@ namespace loka
             delete context;
             context = 0;
           }
+          LOKA_AUDIT_ALIVE_DEC(Node);
         }
 
         void setArenaAllocated(bool v)
@@ -514,6 +518,7 @@ namespace loka
               autoTestId_(false),
               nodeTag_(NODE_TAG_NONE)
         {
+          LOKA_AUDIT_ALIVE_INC(NodeDefinitionBase);
         }
         NodeDefinitionBase(const NodeDefinitionBase &other)
             : cleanupHook_(0),
@@ -524,6 +529,7 @@ namespace loka
               autoTestId_(other.autoTestId_),
               nodeTag_(other.nodeTag_)
         {
+          LOKA_AUDIT_ALIVE_INC(NodeDefinitionBase);
         }
         NodeDefinitionBase &operator=(const NodeDefinitionBase &other)
         {
@@ -539,6 +545,7 @@ namespace loka
         virtual ~NodeDefinitionBase()
         {
           this->invokeCleanupHook();
+          LOKA_AUDIT_ALIVE_DEC(NodeDefinitionBase);
         }
         /**
          * Allocation contract:

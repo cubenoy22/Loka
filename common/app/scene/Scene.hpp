@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_SCENE_HPP
 #define LOKA_CORE2_SCENE_SCENE_HPP
 
+#include "core/LifecycleAudit.hpp"
 #include "core/State.hpp"
 #include <cassert>
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
@@ -241,6 +242,7 @@ namespace loka
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
+          LOKA_AUDIT_ALIVE_INC(Scene);
         }
         // Construct from NodeDefinitionBase and auto-wrap non-boundary roots.
         explicit Scene(NodeDefinitionBase *def)
@@ -258,6 +260,7 @@ namespace loka
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
+          LOKA_AUDIT_ALIVE_INC(Scene);
         }
         // Clone and take ownership of the root definition.
         template <class DefT>
@@ -275,6 +278,7 @@ namespace loka
               updateCycleState_()
         {
           director_.attach(this);
+          LOKA_AUDIT_ALIVE_INC(Scene);
         }
         virtual ~Scene()
         {
@@ -282,6 +286,7 @@ namespace loka
           updateLifecycle(ON_DESTROY);
           unmount();
           rootDefinition_.reset();
+          LOKA_AUDIT_ALIVE_DEC(Scene);
         }
 
         NodeDefinitionBase *getRootDefinition() const

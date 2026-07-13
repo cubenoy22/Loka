@@ -5,6 +5,7 @@ option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
 option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS link settings" OFF)
 option(TEST_BUILD "Enable test build mode" OFF)
+option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 
 macro(loka_suppress_arclite_link)
   if(LOKA_MACOS_SUPPRESS_ARCLITE_LINK)
@@ -32,6 +33,10 @@ endif()
 
 if(TEST_BUILD)
   add_definitions(-DTEST_BUILD)
+endif()
+
+if(LOKA_LIFECYCLE_AUDIT)
+  add_definitions(-DLOKA_LIFECYCLE_AUDIT)
 endif()
 
 # Top-level CTest wiring so `ctest --test-dir <build dir>` finds test targets

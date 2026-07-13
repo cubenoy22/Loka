@@ -2,6 +2,7 @@
 #define LOKA_STATE_HPP
 
 #include <vector>
+#include "core/LifecycleAudit.hpp"
 #include "core/StateTracker.hpp"
 #include "core/String.hpp"
 
@@ -41,7 +42,11 @@ namespace loka
             lifetimeToken_(new LifetimeToken()),
             handlersVersion_(0),
             deferredHandlersVersion_(0)
+#ifdef LOKA_LIFECYCLE_AUDIT
+            , lifecycleAuditTag_("StateBase")
+#endif
       {
+        LOKA_AUDIT_ALIVE_INC(StateBase);
       }
       StateBase(const StateBase &rhs)
           : currentTracker(0),
@@ -49,7 +54,11 @@ namespace loka
             lifetimeToken_(new LifetimeToken()),
             handlersVersion_(0),
             deferredHandlersVersion_(0)
+#ifdef LOKA_LIFECYCLE_AUDIT
+            , lifecycleAuditTag_("StateBase")
+#endif
       {
+        LOKA_AUDIT_ALIVE_INC(StateBase);
       }
       StateBase &operator=(const StateBase &rhs)
       {
@@ -70,7 +79,19 @@ namespace loka
           releaseLifetimeToken(lifetimeToken_);
           lifetimeToken_ = 0;
         }
+#ifdef LOKA_LIFECYCLE_AUDIT
+        LifecycleAuditAliveDecrement(lifecycleAuditTag_);
+#else
+        LOKA_AUDIT_ALIVE_DEC(StateBase);
+#endif
       }
+#ifdef LOKA_LIFECYCLE_AUDIT
+      void lifecycleAuditReclassify(const char *tag, LifecycleAuditDomain domain)
+      {
+        LifecycleAuditReclassifyAlive(lifecycleAuditTag_, tag, domain);
+        lifecycleAuditTag_ = tag;
+      }
+#endif
       // Enumerate dependent States (room for circular dependency detection)
       virtual std::vector<StateBase *> getDependencyStates() const
       {
@@ -162,6 +183,9 @@ namespace loka
       mutable std::vector<Handler> deferredHandlers;
       unsigned long handlersVersion_;
       mutable unsigned long deferredHandlersVersion_;
+#ifdef LOKA_LIFECYCLE_AUDIT
+      const char *lifecycleAuditTag_;
+#endif
 
       bool containsHandler(const std::vector<Handler> &list, const Handler &target) const
       {

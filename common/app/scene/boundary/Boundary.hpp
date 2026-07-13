@@ -3,6 +3,7 @@
 
 #include <cstdarg>
 #include <vector>
+#include "core/LifecycleAudit.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/projection/PlatformController.hpp"
@@ -49,6 +50,7 @@ namespace loka
               observedState_()
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
+          LOKA_AUDIT_ALIVE_INC(BoundaryNode);
         }
         virtual ~BoundaryNode()
         {
@@ -60,6 +62,7 @@ namespace loka
           clearOwnedStates();
           clearOwnedStateHandles();
           stateArena_.clear();
+          LOKA_AUDIT_ALIVE_DEC(BoundaryNode);
         }
 
         virtual BoundaryNode *asBoundary()

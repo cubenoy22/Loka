@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <new>
+#include "core/LifecycleAudit.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "app/core/AppConfigurable.hpp"
@@ -482,6 +483,7 @@ public:
     {
       sceneManager_.commitTransaction(0, initialScene);
     }
+    LOKA_AUDIT_ALIVE_INC(Window);
   }
   virtual ~Window()
   {
@@ -493,6 +495,7 @@ public:
       this->tracker_ = 0;
     }
     menuBarDefinition_.reset();
+    LOKA_AUDIT_ALIVE_DEC(Window);
   }
 
   PlatformContext *context() const

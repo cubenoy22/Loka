@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cassert>
+#include "core/LifecycleAudit.hpp"
 #include "core/String.hpp"
 #include "core/State.hpp"
 #include "dsl/composition/CompositionList.hpp"
@@ -595,11 +596,13 @@ namespace loka
       MenuBarDefinition()
           : menus_()
       {
+        LOKA_AUDIT_ALIVE_INC(MenuBarDefinition);
       }
 
       MenuBarDefinition(const MenuBarDefinition &other)
           : menus_()
       {
+        LOKA_AUDIT_ALIVE_INC(MenuBarDefinition);
         const MenuDefinition *cur = other.menus_.head();
         while (cur)
         {
@@ -611,6 +614,7 @@ namespace loka
       ~MenuBarDefinition()
       {
         clearMenus();
+        LOKA_AUDIT_ALIVE_DEC(MenuBarDefinition);
       }
 
       MenuBarDefinition &operator=(const MenuBarDefinition &other)

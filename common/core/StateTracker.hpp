@@ -1,6 +1,7 @@
 #ifndef LOKA_STATETRACKER_HPP
 #define LOKA_STATETRACKER_HPP
 
+#include "core/LifecycleAudit.hpp"
 #include <vector>
 #include <functional>
 #include <map>
