@@ -1,6 +1,8 @@
 #ifndef LOKA_CORE2_SCENE_NODE_HPP
 #define LOKA_CORE2_SCENE_NODE_HPP
 
+#include "core/diag/LifecycleAudit.hpp"
+
 // static_assert-like macro. Modern compilers get real checks automatically;
 // C++98 release builds keep optional checks lightweight unless explicitly gated.
 #if __cplusplus >= 201103L
@@ -231,7 +233,7 @@ namespace loka
         Node *owner_;
       };
 
-      class Node
+      class Node LOKA_AUDITED(Node)
       {
       public:
         NodeContext *context;
@@ -500,7 +502,7 @@ namespace loka
       };
 
       // Type-erased base for node definitions.
-      struct NodeDefinitionBase
+      struct NodeDefinitionBase LOKA_AUDITED(NodeDefinitionBase)
       {
       public:
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);

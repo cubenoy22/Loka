@@ -1,6 +1,7 @@
 #ifndef LOKA_SCENEMANAGER_HPP
 #define LOKA_SCENEMANAGER_HPP
 
+#include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
@@ -78,7 +79,7 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class SceneManager
+class SceneManager LOKA_AUDITED(SceneManager)
 {
 public:
   struct SceneTransaction

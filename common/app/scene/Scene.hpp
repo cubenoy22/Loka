@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_SCENE_HPP
 #define LOKA_CORE2_SCENE_SCENE_HPP
 
+#include "core/diag/LifecycleAudit.hpp"
 #include "core/State.hpp"
 #include <cassert>
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
@@ -54,7 +55,7 @@ namespace loka
       inline static bool CanRelaxFullRebuildForRootBoundary(const SceneDirector::SceneUpdateSnapshot &snapshot);
       inline static PlatformApplyPlan::PaintKind ResolvePaintKind(const SceneDirector::SceneUpdateSnapshot &snapshot);
 
-      class Scene
+      class Scene LOKA_AUDITED(Scene)
       {
       public:
         struct SceneCompositionDiff : public loka::dsl::CompositionDiff

@@ -3,6 +3,7 @@
 
 #include <cstdarg>
 #include <vector>
+#include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/projection/PlatformController.hpp"
@@ -30,7 +31,7 @@ namespace loka
       class Scene;
 
       // BoundaryNode: owns a local tracker for its subtree.
-      class BoundaryNode : public ComposableNode, public IStateOwner
+      class BoundaryNode : public ComposableNode, public IStateOwner LOKA_AUDITED_AS(BoundaryNode)
       {
       public:
         typedef BoundaryUpdateResult::BoundsHint LayoutBounds;

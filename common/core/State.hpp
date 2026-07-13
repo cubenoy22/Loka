@@ -2,6 +2,7 @@
 #define LOKA_STATE_HPP
 
 #include <vector>
+#include "core/diag/LifecycleAudit.hpp"
 #include "core/StateTracker.hpp"
 #include "core/String.hpp"
 
@@ -32,7 +33,7 @@ namespace loka
     }
 
     // StateBase: Unified dependency management and bind API
-    class StateBase
+    class StateBase LOKA_AUDITED(StateBase)
     {
     public:
       StateBase()
@@ -71,6 +72,12 @@ namespace loka
           lifetimeToken_ = 0;
         }
       }
+#ifdef LOKA_LIFECYCLE_AUDIT
+      void lifecycleAuditReclassify(const char *tag, LifecycleAuditDomain domain)
+      {
+        this->reclassifyLifecycleAudit(tag, domain);
+      }
+#endif
       // Enumerate dependent States (room for circular dependency detection)
       virtual std::vector<StateBase *> getDependencyStates() const
       {

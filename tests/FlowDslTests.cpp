@@ -233,7 +233,7 @@ namespace
 
   class PendingLayoutBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<PendingLayoutBoundaryNode> PendingLayoutBoundaryProps;
-  static loka::core::MutableState<int> g_pendingLayoutWidthState(32);
+  static loka::core::MutableState<int> *g_pendingLayoutWidthState = 0;
   struct RecordingDirtySourceRegistrar : public loka::app::scene::DirtySourceRegistrar
   {
     RecordingDirtySourceRegistrar()
@@ -498,13 +498,15 @@ namespace
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
-      this->setLayoutBounds(0, 0, g_pendingLayoutWidthState.get(), 12);
+      assert(g_pendingLayoutWidthState);
+      this->setLayoutBounds(0, 0, g_pendingLayoutWidthState->get(), 12);
       c.declare(loka::app::Text("Sized").testId("PendingLayoutText"));
     }
 
     virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
     {
-      registrar.markDirtyOnChange(&g_pendingLayoutWidthState, loka::app::scene::NODE_DIRTY_PROPS);
+      assert(g_pendingLayoutWidthState);
+      registrar.markDirtyOnChange(g_pendingLayoutWidthState, loka::app::scene::NODE_DIRTY_PROPS);
     }
   };
 
@@ -3903,7 +3905,8 @@ void testLokaFlowDslV1Core()
     using namespace loka::app::scene;
     using loka::dsl::testing::SceneTestAccess;
 
-    g_pendingLayoutWidthState.set(32);
+    loka::core::MutableState<int> pendingLayoutWidthState(32);
+    g_pendingLayoutWidthState = &pendingLayoutWidthState;
 
     Scene scene((BoundaryDefinition<PendingLayoutBoundaryProps, PendingLayoutBoundaryNode>()));
     FlowScenePlatformController platform;
@@ -3916,7 +3919,7 @@ void testLokaFlowDslV1Core()
 
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(&g_pendingLayoutWidthState, 64)).input(&scenePtr)
+        | loka::dsl::Step(1, loka::dsl::testing::SetIntStateAndFlush(g_pendingLayoutWidthState, 64)).input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::CheckText("PendingLayoutText", "Sized"))
         | loka::dsl::Step(3, FlowTestPlatformDirtyMaskAdapter("pending-layout-upgrade", &platform, 20))
               .onSuccess(&captured)
@@ -3942,6 +3945,7 @@ void testLokaFlowDslV1Core()
     assert(SceneTestAccess::director(scene).firstPendingBoundary() == 0);
 
     scene.unmount();
+    g_pendingLayoutWidthState = 0;
   }
 
   {

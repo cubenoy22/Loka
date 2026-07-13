@@ -1,6 +1,7 @@
 #ifndef LOKA_STATETRACKER_HPP
 #define LOKA_STATETRACKER_HPP
 
+#include "core/diag/LifecycleAudit.hpp"
 #include <vector>
 #include <functional>
 #include <map>
@@ -40,7 +41,7 @@ namespace loka
       virtual ~StateTracker() {}
     };
 
-    class PushStateTracker : public StateTracker
+    class PushStateTracker : public StateTracker LOKA_AUDITED_AS(PushStateTracker)
     {
     public:
       typedef void (*InvalidateFn)(void *);

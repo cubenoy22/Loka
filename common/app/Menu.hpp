@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cassert>
+#include "core/diag/LifecycleAudit.hpp"
 #include "core/String.hpp"
 #include "core/State.hpp"
 #include "dsl/composition/CompositionList.hpp"
@@ -590,7 +591,7 @@ namespace loka
       MenuDefinition *nextInComposition;
     };
 
-    struct MenuBarDefinition
+    struct MenuBarDefinition LOKA_AUDITED(MenuBarDefinition)
     {
       MenuBarDefinition()
           : menus_()
