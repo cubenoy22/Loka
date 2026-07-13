@@ -102,6 +102,32 @@ namespace
 
   DetachHookCounts *g_boundaryInternalCounts = 0;
 
+  DetachHookCounts *g_conditionalSceneTrueCounts = 0;
+  DetachHookCounts *g_conditionalSceneFalseCounts = 0;
+  loka::core::MutableState<bool> *g_conditionalSceneCondition = 0;
+
+  class ConditionalSceneProbeNode;
+  typedef loka::app::scene::BoundaryPropsFor<ConditionalSceneProbeNode> ConditionalSceneProbeProps;
+
+  class ConditionalSceneProbeNode : public loka::app::scene::BoundaryNodeFor<ConditionalSceneProbeNode>
+  {
+  public:
+    explicit ConditionalSceneProbeNode(const ConditionalSceneProbeProps &props)
+        : loka::app::scene::BoundaryNodeFor<ConditionalSceneProbeNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      typedef loka::app::scene::NodeDefinition<PlainDetachProbeProps, PlainDetachProbeNode>
+          PlainDetachProbeDefinition;
+      PlainDetachProbeDefinition trueDefinition((PlainDetachProbeProps(g_conditionalSceneTrueCounts)));
+      PlainDetachProbeDefinition falseDefinition((PlainDetachProbeProps(g_conditionalSceneFalseCounts)));
+      composition.declare(
+          composition.conditional(*g_conditionalSceneCondition, trueDefinition, falseDefinition));
+    }
+  };
+
   class BoundaryInternalProbeNode;
   typedef loka::app::scene::BoundaryPropsFor<BoundaryInternalProbeNode> BoundaryInternalProbeProps;
 
@@ -243,4 +269,75 @@ void testConditionalUnbindsBeforeReclaim()
 
   BoundaryNode::composeSubtree(&conditional, context, COMPOSE_EVENT_ATTACH, 0);
   assert(conditional.activeNode != activeBeforeDetach);
+
+  condition.set(false);
+  assert(conditional.activeNode == activeBeforeDetach);
+}
+
+void testConditionalBranchSwapFiresContextHooksOncePerLifetime()
+{
+  using namespace loka::app::scene;
+  typedef NodeDefinition<PlainDetachProbeProps, PlainDetachProbeNode> PlainDetachProbeDefinition;
+
+  DetachHookCounts trueCounts;
+  DetachHookCounts falseCounts;
+  loka::core::MutableState<bool> condition(false);
+  PlainDetachProbeDefinition trueDefinition((PlainDetachProbeProps(&trueCounts)));
+  PlainDetachProbeDefinition falseDefinition((PlainDetachProbeProps(&falseCounts)));
+
+  {
+    ConditionalNode conditional((ConditionalProps(&condition, &trueDefinition, &falseDefinition)));
+    assert(falseCounts.attachCalls == 1);
+    assert(trueCounts.attachCalls == 0);
+
+    condition.set(true);
+    assert(trueCounts.attachCalls == 1);
+    assert(falseCounts.detachCalls == 0);
+
+    condition.set(false);
+    assert(falseCounts.attachCalls == 1);
+    assert(trueCounts.detachCalls == 0);
+  }
+
+  assert(trueCounts.attachCalls == 1);
+  assert(falseCounts.attachCalls == 1);
+  assert(trueCounts.detachCalls == 1);
+  assert(falseCounts.detachCalls == 1);
+}
+
+void testSceneTeardownReleasesBothConditionalBranchContextsOnce()
+{
+  using namespace loka::app::scene;
+
+  DetachHookCounts trueCounts;
+  DetachHookCounts falseCounts;
+  loka::core::MutableState<bool> condition(false);
+  g_conditionalSceneTrueCounts = &trueCounts;
+  g_conditionalSceneFalseCounts = &falseCounts;
+  g_conditionalSceneCondition = &condition;
+
+  {
+    Scene scene((Boundary<ConditionalSceneProbeNode>()));
+    DetachProbePlatformController platform;
+
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(falseCounts.attachCalls == 1);
+    assert(trueCounts.attachCalls == 0);
+
+    condition.set(true);
+    assert(trueCounts.attachCalls == 1);
+    assert(falseCounts.detachCalls == 0);
+
+    scene.unmount();
+
+    assert(trueCounts.detachCalls == 1);
+    assert(falseCounts.detachCalls == 1);
+    assert(trueCounts.attachCalls == 1);
+    assert(falseCounts.attachCalls == 1);
+  }
+
+  g_conditionalSceneTrueCounts = 0;
+  g_conditionalSceneFalseCounts = 0;
+  g_conditionalSceneCondition = 0;
 }

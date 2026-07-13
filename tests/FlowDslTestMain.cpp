@@ -85,6 +85,8 @@ int main()
   LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);
   LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
   LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
+  LOKA_RUN_TEST(testConditionalBranchSwapFiresContextHooksOncePerLifetime);
+  LOKA_RUN_TEST(testSceneTeardownReleasesBothConditionalBranchContextsOnce);
   LOKA_RUN_TEST(testLokaValueCore);
   LOKA_RUN_TEST(testSnapFormatV1);
   LOKA_RUN_TEST(testSnapFlowWriteAdapter);

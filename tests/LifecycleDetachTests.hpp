@@ -6,5 +6,7 @@ void testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce();
 void testBoundaryLocalRebuildNotifiesCompositionDetachedOnce();
 void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce();
 void testConditionalUnbindsBeforeReclaim();
+void testConditionalBranchSwapFiresContextHooksOncePerLifetime();
+void testSceneTeardownReleasesBothConditionalBranchContextsOnce();
 
 #endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP
