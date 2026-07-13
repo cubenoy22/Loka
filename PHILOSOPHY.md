@@ -372,10 +372,12 @@ clone. They participate in lifetime through their owner, never independently.
   two lines. Reference counting is forbidden here — deleting a chain resident
   is observable, so its timing has meaning and must follow the clock.
   Borrowing points upward only: a resident may borrow from its own scope or
-  from an ancestor, because ancestors outlive it by containment. Nothing may
-  hold a reference to a descendant-owned or sibling-owned value — the holder
-  must never outlive the target's owner. A value that must outlive its scope
-  is declared in a higher scope, not smuggled upward.
+  from an ancestor, because ancestors outlive it by containment. A resident
+  must not *retain* a borrowed reference to a descendant-owned or
+  sibling-owned value — the borrower must not outlive the target's owner.
+  (Owning edges and bounded downward traversal within a pass are not borrows
+  and are unaffected.) A value that must outlive its scope is declared in a
+  higher scope, not smuggled upward.
 - **Passive shared values** (strings, blobs, plain memory payloads):
   reference counted with a releaser, legal precisely because release is
   unobservable — no identity, no callbacks into the chain, no back-pointers.
