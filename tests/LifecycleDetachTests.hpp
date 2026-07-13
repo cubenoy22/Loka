@@ -2,6 +2,9 @@
 #define LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP
 
 void testSceneUnmountNotifiesPlainNodeContextDetached();
+void testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce();
+void testBoundaryLocalRebuildNotifiesCompositionDetachedOnce();
+void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce();
 void testConditionalUnbindsBeforeReclaim();
 
 #endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP

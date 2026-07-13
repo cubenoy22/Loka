@@ -54,7 +54,6 @@ namespace loka
       private:
         void bindCondition();
         void unbindCondition();
-        void updateActiveNode(bool notifyBranchLifecycle);
 
         loka::core::State<bool> *boundCondition_;
       };

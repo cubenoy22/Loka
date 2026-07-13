@@ -1,6 +1,5 @@
 #include "Conditional.hpp"
 #include "../Node.hpp"
-#include "app/scene/detail/NodeLifecycle.hpp"
 #include <cstdio>
 #include <new>
 
@@ -103,7 +102,7 @@ namespace loka
       void ConditionalNode::onCompositionAttached()
       {
         this->bindCondition();
-        this->updateActiveNode(false);
+        this->updateActiveNode();
       }
 
       void ConditionalNode::onCompositionDetached()
@@ -167,16 +166,10 @@ namespace loka
         {
           return;
         }
-        detail::notifyNodeDetachedRecursive(activeNode);
         children_.remove(activeNode);
       }
 
       void ConditionalNode::updateActiveNode()
-      {
-        this->updateActiveNode(true);
-      }
-
-      void ConditionalNode::updateActiveNode(bool notifyBranchLifecycle)
       {
         if (!props.condition)
         {
@@ -188,23 +181,12 @@ namespace loka
         {
           return;
         }
-        if (notifyBranchLifecycle)
-        {
-          removeActiveNodeFromChildren();
-        }
-        else if (activeNode)
-        {
-          children_.remove(activeNode);
-        }
+        removeActiveNodeFromChildren();
         activeNode = nextNode;
         if (activeNode)
         {
           activeNode->markPendingAttachForCompose();
           addChild(activeNode);
-          if (notifyBranchLifecycle)
-          {
-            detail::notifyNodeAttachedRecursive(activeNode);
-          }
         }
       }
 

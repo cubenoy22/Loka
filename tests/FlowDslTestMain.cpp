@@ -81,6 +81,9 @@ int main()
   LOKA_RUN_TEST(testWindowRetiresDetachedSceneAtFlushBoundary);
   LOKA_RUN_TEST(testWindowDoesNotReclaimSceneDuringDetachNotification);
   LOKA_RUN_TEST(testSceneUnmountNotifiesPlainNodeContextDetached);
+  LOKA_RUN_TEST(testBoundaryLocalRebuildNotifiesCompositionDetachedOnce);
+  LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);
+  LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
   LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
   LOKA_RUN_TEST(testLokaValueCore);
   LOKA_RUN_TEST(testSnapFormatV1);

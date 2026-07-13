@@ -50,8 +50,23 @@ namespace loka
         // Destroy platform-owned UI resources.
         virtual void destroy() = 0;
 
-        // Retired subtree cleanup without forcing a full scene rebuild.
-        virtual void releaseNodeContexts(Node *) {}
+        /** Releases every context owned by a retired subtree without forcing a full scene rebuild. */
+        virtual void releaseNodeContexts(Node *node)
+        {
+          if (!node)
+          {
+            return;
+          }
+          INestable *nestable = node->asNestable();
+          if (nestable)
+          {
+            for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+            {
+              IPlatformController::releaseNodeContexts(child);
+            }
+          }
+          node->setContext(0);
+        }
 
         // Generic hook for nodes that can begin their own platform projection.
         virtual bool prepareProjectedLayout(Node *, LayoutState &)

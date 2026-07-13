@@ -261,11 +261,7 @@ namespace loka
 
         virtual ~Node()
         {
-          if (context)
-          {
-            delete context;
-            context = 0;
-          }
+          this->releaseContext();
         }
 
         void setArenaAllocated(bool v)
@@ -412,14 +408,12 @@ namespace loka
           {
             return;
           }
-          if (context)
-          {
-            delete context;
-          }
+          this->releaseContext();
           context = ctx;
           if (context)
           {
             context->setOwner(this);
+            context->onNodeAttached();
           }
         }
 
@@ -442,6 +436,19 @@ namespace loka
         NodeTag nodeTag() const
         {
           return nodeTag_;
+        }
+
+      private:
+        void releaseContext()
+        {
+          NodeContext *released = context;
+          if (!released)
+          {
+            return;
+          }
+          context = 0;
+          released->onNodeDetached();
+          delete released;
         }
       };
 
