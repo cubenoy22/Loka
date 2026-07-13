@@ -9,6 +9,7 @@
 #include "BoundaryArenaTests.hpp"
 #include "ValueTests.hpp"
 #include "SceneOwnershipTests.hpp"
+#include "LifecycleDetachTests.hpp"
 #include "core/diag/LifecycleAudit.hpp"
 
 LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbe)
@@ -79,6 +80,13 @@ int main()
   LOKA_RUN_TEST(testWindowPropsSceneHandoffIsOneShotAcrossCopies);
   LOKA_RUN_TEST(testWindowRetiresDetachedSceneAtFlushBoundary);
   LOKA_RUN_TEST(testWindowDoesNotReclaimSceneDuringDetachNotification);
+  LOKA_RUN_TEST(testSceneUnmountNotifiesPlainNodeContextDetached);
+  LOKA_RUN_TEST(testBoundaryLocalRebuildNotifiesCompositionDetachedOnce);
+  LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);
+  LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
+  LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
+  LOKA_RUN_TEST(testConditionalBranchSwapFiresContextHooksOncePerLifetime);
+  LOKA_RUN_TEST(testSceneTeardownReleasesBothConditionalBranchContextsOnce);
   LOKA_RUN_TEST(testLokaValueCore);
   LOKA_RUN_TEST(testSnapFormatV1);
   LOKA_RUN_TEST(testSnapFlowWriteAdapter);

@@ -261,11 +261,7 @@ namespace loka
 
         virtual ~Node()
         {
-          if (context)
-          {
-            delete context;
-            context = 0;
-          }
+          this->releaseContext();
         }
 
         void setArenaAllocated(bool v)
@@ -297,6 +293,10 @@ namespace loka
           ::operator delete(ptr);
         }
         virtual void compose() {}
+        /** Runs node-owned attach work before the owner traverses the node's current children. */
+        virtual void onCompositionAttached() {}
+        /** Runs node-owned detach work before the owner traverses children and before reclaim. */
+        virtual void onCompositionDetached() {}
         virtual NodeKind kind() const
         {
           return NODE_KIND_UNKNOWN;
@@ -408,14 +408,12 @@ namespace loka
           {
             return;
           }
-          if (context)
-          {
-            delete context;
-          }
+          this->releaseContext();
           context = ctx;
           if (context)
           {
             context->setOwner(this);
+            context->onNodeAttached();
           }
         }
 
@@ -438,6 +436,19 @@ namespace loka
         NodeTag nodeTag() const
         {
           return nodeTag_;
+        }
+
+      private:
+        void releaseContext()
+        {
+          NodeContext *released = context;
+          if (!released)
+          {
+            return;
+          }
+          context = 0;
+          released->onNodeDetached();
+          delete released;
         }
       };
 

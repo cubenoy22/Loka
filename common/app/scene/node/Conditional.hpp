@@ -33,6 +33,8 @@ namespace loka
         Node *falseNode_;
         ConditionalNode(const ConditionalProps &p);
         ~ConditionalNode();
+        virtual void onCompositionAttached();
+        virtual void onCompositionDetached();
         virtual void declareDirtySources(DirtySourceRegistrar &registrar)
         {
           if (this->props.condition)
@@ -48,6 +50,12 @@ namespace loka
         void removeActiveNodeFromChildren();
         void render(IPlatformController *controller);
         short layout(IPlatformController *controller, LayoutState &state);
+
+      private:
+        void bindCondition();
+        void unbindCondition();
+
+        loka::core::State<bool> *boundCondition_;
       };
 
       struct ConditionalDefinition : public NodeDefinitionBase

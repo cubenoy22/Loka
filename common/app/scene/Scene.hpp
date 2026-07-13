@@ -849,6 +849,7 @@ namespace loka
           }
           if (platformController_)
           {
+            platformController_->releaseNodeContexts(rootNode_);
             platformController_->destroy();
           }
           composed_ = false;

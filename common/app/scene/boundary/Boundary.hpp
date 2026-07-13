@@ -771,6 +771,14 @@ namespace loka
           {
             return;
           }
+          if (event == COMPOSE_EVENT_ATTACH)
+          {
+            node->onCompositionAttached();
+          }
+          else if (event == COMPOSE_EVENT_DETACH)
+          {
+            node->onCompositionDetached();
+          }
           BoundaryNode *boundary;
           ComposableNode *composable;
           INestable *nestable;
