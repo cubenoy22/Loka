@@ -15,6 +15,7 @@
 #include "app/scene/boundary/detail/BoundaryCompositionState.hpp"
 #include "app/scene/boundary/detail/BoundaryObservedState.hpp"
 #include "app/scene/boundary/detail/BoundaryRuntimeState.hpp"
+#include "app/scene/detail/NodeLifecycle.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "core/Managed.hpp"
 #include "core/StateTracker.hpp"
@@ -699,6 +700,7 @@ namespace loka
             Node *detachedNode = entry.detachedNode();
             if (detachedNode)
             {
+              detail::notifyNodeDetachedRecursive(detachedNode);
               this->composeTree(detachedNode, context, COMPOSE_EVENT_DETACH, this);
               if (context.platformController())
               {
@@ -770,6 +772,14 @@ namespace loka
           if (!node)
           {
             return;
+          }
+          if (event == COMPOSE_EVENT_ATTACH)
+          {
+            node->onCompositionAttached();
+          }
+          else if (event == COMPOSE_EVENT_DETACH)
+          {
+            node->onCompositionDetached();
           }
           BoundaryNode *boundary;
           ComposableNode *composable;

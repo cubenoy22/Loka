@@ -14,6 +14,7 @@
 #include "app/scene/projection/PlatformApplyPlan.hpp"
 #include "app/scene/SceneDirector.hpp"
 #include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/detail/NodeLifecycle.hpp"
 #include "core/Profiler.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
 #include "core/util/OwnedDef.hpp"
@@ -361,6 +362,7 @@ namespace loka
 
         void unmount()
         {
+          detail::notifyNodeDetachedRecursive(rootNode_);
           notifyComposeEvent(COMPOSE_EVENT_DETACH);
           teardownComposition();
           mounted_ = false;

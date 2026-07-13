@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP
+#define LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP
+
+void testSceneUnmountNotifiesPlainNodeContextDetached();
+void testConditionalUnbindsBeforeReclaim();
+
+#endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP

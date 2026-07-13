@@ -1,5 +1,6 @@
 #include "Conditional.hpp"
 #include "../Node.hpp"
+#include "app/scene/detail/NodeLifecycle.hpp"
 #include <cstdio>
 #include <new>
 
@@ -9,48 +10,6 @@ namespace loka
   {
     namespace scene
     {
-      static void notifyNodeContextAttachedRecursive(Node *node)
-      {
-        if (!node)
-        {
-          return;
-        }
-        if (node->getContext())
-        {
-          node->getContext()->onNodeAttached();
-        }
-        INestable *nestable = node->asNestable();
-        if (!nestable)
-        {
-          return;
-        }
-        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
-        {
-          notifyNodeContextAttachedRecursive(child);
-        }
-      }
-
-      static void notifyNodeContextDetachedRecursive(Node *node)
-      {
-        if (!node)
-        {
-          return;
-        }
-        if (node->getContext())
-        {
-          node->getContext()->onNodeDetached();
-        }
-        INestable *nestable = node->asNestable();
-        if (!nestable)
-        {
-          return;
-        }
-        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
-        {
-          notifyNodeContextDetachedRecursive(child);
-        }
-      }
-
       static Node *createConditionalNodeRecursiveWithAutoId(NodeDefinitionBase *def, long &autoIdCounter)
       {
         if (!def)
@@ -118,21 +77,16 @@ namespace loka
             props(p),
             activeNode(0),
             trueNode_(0),
-            falseNode_(0)
+            falseNode_(0),
+            boundCondition_(0)
       {
-        if (props.condition)
-        {
-          props.condition->bind(&ConditionalNode::onConditionChanged, this, false);
-        }
+        this->bindCondition();
         updateActiveNode();
       }
 
       ConditionalNode::~ConditionalNode()
       {
-        if (props.condition)
-        {
-          props.condition->unbind(&ConditionalNode::onConditionChanged, this);
-        }
+        this->unbindCondition();
         if (trueNode_ && trueNode_ != activeNode)
         {
           delete trueNode_;
@@ -144,6 +98,41 @@ namespace loka
         trueNode_ = 0;
         falseNode_ = 0;
         activeNode = 0;
+      }
+
+      void ConditionalNode::onCompositionAttached()
+      {
+        this->bindCondition();
+        this->updateActiveNode(false);
+      }
+
+      void ConditionalNode::onCompositionDetached()
+      {
+        this->unbindCondition();
+      }
+
+      void ConditionalNode::bindCondition()
+      {
+        if (this->boundCondition_ == this->props.condition)
+        {
+          return;
+        }
+        this->unbindCondition();
+        if (this->props.condition)
+        {
+          this->props.condition->bind(&ConditionalNode::onConditionChanged, this, false);
+          this->boundCondition_ = this->props.condition;
+        }
+      }
+
+      void ConditionalNode::unbindCondition()
+      {
+        if (!this->boundCondition_)
+        {
+          return;
+        }
+        this->boundCondition_->unbind(&ConditionalNode::onConditionChanged, this);
+        this->boundCondition_ = 0;
       }
 
       void ConditionalNode::onConditionChanged(void *userData)
@@ -178,11 +167,16 @@ namespace loka
         {
           return;
         }
-        notifyNodeContextDetachedRecursive(activeNode);
+        detail::notifyNodeDetachedRecursive(activeNode);
         children_.remove(activeNode);
       }
 
       void ConditionalNode::updateActiveNode()
+      {
+        this->updateActiveNode(true);
+      }
+
+      void ConditionalNode::updateActiveNode(bool notifyBranchLifecycle)
       {
         if (!props.condition)
         {
@@ -194,13 +188,23 @@ namespace loka
         {
           return;
         }
-        removeActiveNodeFromChildren();
+        if (notifyBranchLifecycle)
+        {
+          removeActiveNodeFromChildren();
+        }
+        else if (activeNode)
+        {
+          children_.remove(activeNode);
+        }
         activeNode = nextNode;
         if (activeNode)
         {
           activeNode->markPendingAttachForCompose();
           addChild(activeNode);
-          notifyNodeContextAttachedRecursive(activeNode);
+          if (notifyBranchLifecycle)
+          {
+            detail::notifyNodeAttachedRecursive(activeNode);
+          }
         }
       }
 

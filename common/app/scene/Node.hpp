@@ -297,6 +297,10 @@ namespace loka
           ::operator delete(ptr);
         }
         virtual void compose() {}
+        /** Runs node-owned attach work before the owner traverses the node's current children. */
+        virtual void onCompositionAttached() {}
+        /** Runs node-owned detach work before the owner traverses children and before reclaim. */
+        virtual void onCompositionDetached() {}
         virtual NodeKind kind() const
         {
           return NODE_KIND_UNKNOWN;
