@@ -25,8 +25,7 @@ enum SceneLifecycle
 {
   ON_CREATE = 0,
   ON_ATTACH = 1,
-  ON_DETACH = 2,
-  ON_DESTROY = 3
+  ON_DETACH = 2
 };
 
 namespace loka
@@ -280,7 +279,6 @@ namespace loka
         virtual ~Scene()
         {
           director_.detach();
-          updateLifecycle(ON_DESTROY);
           unmount();
           rootDefinition_.reset();
         }
