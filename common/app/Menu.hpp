@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <cassert>
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 #include "core/String.hpp"
 #include "core/State.hpp"
 #include "dsl/composition/CompositionList.hpp"

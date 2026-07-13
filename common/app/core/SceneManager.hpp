@@ -1,7 +1,7 @@
 #ifndef LOKA_SCENEMANAGER_HPP
 #define LOKA_SCENEMANAGER_HPP
 
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"

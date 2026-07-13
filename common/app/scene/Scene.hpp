@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_SCENE_HPP
 #define LOKA_CORE2_SCENE_SCENE_HPP
 
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 #include "core/State.hpp"
 #include <cassert>
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)

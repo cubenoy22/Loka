@@ -1,4 +1,4 @@
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 
 #ifdef LOKA_LIFECYCLE_AUDIT
 

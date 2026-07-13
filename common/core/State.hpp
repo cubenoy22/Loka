@@ -2,7 +2,7 @@
 #define LOKA_STATE_HPP
 
 #include <vector>
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 #include "core/StateTracker.hpp"
 #include "core/String.hpp"
 

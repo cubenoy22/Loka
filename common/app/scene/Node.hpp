@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_NODE_HPP
 #define LOKA_CORE2_SCENE_NODE_HPP
 
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 
 // static_assert-like macro. Modern compilers get real checks automatically;
 // C++98 release builds keep optional checks lightweight unless explicitly gated.

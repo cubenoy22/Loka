@@ -9,7 +9,7 @@
 #include "BoundaryArenaTests.hpp"
 #include "ValueTests.hpp"
 #include "SceneOwnershipTests.hpp"
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 
 LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbe)
 LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbeVerified)

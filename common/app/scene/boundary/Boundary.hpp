@@ -3,7 +3,7 @@
 
 #include <cstdarg>
 #include <vector>
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/projection/PlatformController.hpp"

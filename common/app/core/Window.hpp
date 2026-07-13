@@ -3,7 +3,7 @@
 
 #include <cassert>
 #include <new>
-#include "core/LifecycleAudit.hpp"
+#include "core/diag/LifecycleAudit.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "app/core/AppConfigurable.hpp"
