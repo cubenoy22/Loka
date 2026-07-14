@@ -79,6 +79,7 @@ int main()
   LOKA_RUN_TEST(testWindowDefinitionTransfersSceneOwnershipToWindow);
   LOKA_RUN_TEST(testWindowPropsSceneHandoffIsOneShotAcrossCopies);
   LOKA_RUN_TEST(testWindowRetiresDetachedSceneAtFlushBoundary);
+  LOKA_RUN_TEST(testWindowDefersSceneRetiredDuringDrainUntilNextFlush);
   LOKA_RUN_TEST(testWindowDoesNotReclaimSceneDuringDetachNotification);
   LOKA_RUN_TEST(testWindowReclaimDoesNotNotifySceneLifecycleObservers);
   LOKA_RUN_TEST(testWindowReclaimFiresNoSceneCompositionCallbacks);

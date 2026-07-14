@@ -20,13 +20,17 @@ namespace loka
       {
       public:
         SceneRetirePool()
-            : head_(0)
+            : head_(0),
+              draining_(false)
         {
         }
 
         ~SceneRetirePool()
         {
-          this->drain();
+          while (!this->empty())
+          {
+            this->drain();
+          }
         }
 
         bool empty() const
@@ -44,15 +48,25 @@ namespace loka
           this->head_ = scene;
         }
 
+        /** Drains one snapshot; nested drains are no-ops and new retirees wait. */
         void drain()
         {
-          while (this->head_)
+          if (this->draining_ || !this->head_)
           {
-            loka::app::scene::Scene *scene = this->head_;
-            this->head_ = scene->retiredNextScene_;
+            return;
+          }
+
+          loka::app::scene::Scene *pending = this->head_;
+          this->head_ = 0;
+          this->draining_ = true;
+          while (pending)
+          {
+            loka::app::scene::Scene *scene = pending;
+            pending = scene->retiredNextScene_;
             scene->retiredNextScene_ = 0;
             delete scene;
           }
+          this->draining_ = false;
         }
 
       private:
@@ -71,6 +85,7 @@ namespace loka
         }
 
         loka::app::scene::Scene *head_;
+        bool draining_;
 
         SceneRetirePool(const SceneRetirePool &);
         SceneRetirePool &operator=(const SceneRetirePool &);

@@ -4,6 +4,7 @@
 void testWindowDefinitionTransfersSceneOwnershipToWindow();
 void testWindowPropsSceneHandoffIsOneShotAcrossCopies();
 void testWindowRetiresDetachedSceneAtFlushBoundary();
+void testWindowDefersSceneRetiredDuringDrainUntilNextFlush();
 void testWindowDoesNotReclaimSceneDuringDetachNotification();
 void testWindowReclaimDoesNotNotifySceneLifecycleObservers();
 void testWindowReclaimFiresNoSceneCompositionCallbacks();

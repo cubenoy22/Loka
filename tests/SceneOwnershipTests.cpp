@@ -82,6 +82,37 @@ namespace
     int *destructionCount_;
   };
 
+  class ReentrantSceneRetirementProbe : public loka::app::scene::Scene
+  {
+  public:
+    ReentrantSceneRetirementProbe(Window *window,
+                                  loka::app::scene::Scene *retiree,
+                                  loka::app::scene::Scene *replacement,
+                                  int *scenesAliveAfterNestedFlush)
+        : loka::app::scene::Scene(new SceneOwnershipDefinition()),
+          window_(window),
+          retiree_(retiree),
+          replacement_(replacement),
+          scenesAliveAfterNestedFlush_(scenesAliveAfterNestedFlush)
+    {
+      ++g_sceneOwnershipScenesAlive;
+    }
+
+    virtual ~ReentrantSceneRetirementProbe()
+    {
+      this->window_->sceneManager()->commitTransaction(this->retiree_, this->replacement_);
+      this->window_->flushSceneInvalidation();
+      *this->scenesAliveAfterNestedFlush_ = g_sceneOwnershipScenesAlive;
+      --g_sceneOwnershipScenesAlive;
+    }
+
+  private:
+    Window *window_;
+    loka::app::scene::Scene *retiree_;
+    loka::app::scene::Scene *replacement_;
+    int *scenesAliveAfterNestedFlush_;
+  };
+
   struct SceneLifecycleObservation
   {
     explicit SceneLifecycleObservation(loka::app::scene::Scene *observedScene)
@@ -570,6 +601,39 @@ void testWindowRetiresDetachedSceneAtFlushBoundary()
   assert(g_sceneOwnershipScenesAlive == 0);
 
   printf("==== [testWindowRetiresDetachedSceneAtFlushBoundary] end ====\n");
+}
+
+void testWindowDefersSceneRetiredDuringDrainUntilNextFlush()
+{
+  printf("\n==== [testWindowDefersSceneRetiredDuringDrainUntilNextFlush] start ====\n");
+
+  assert(g_sceneOwnershipScenesAlive == 0);
+  int scenesAliveAfterNestedFlush = 0;
+  WindowCreatingPlatformContext context;
+  Window *window = new Window(&context, WindowProps());
+  SceneOwnershipProbe *second = new SceneOwnershipProbe();
+  SceneOwnershipProbe *third = new SceneOwnershipProbe();
+  ReentrantSceneRetirementProbe *first =
+      new ReentrantSceneRetirementProbe(window, second, third, &scenesAliveAfterNestedFlush);
+
+  window->sceneManager()->commitTransaction(0, first);
+  window->sceneManager()->commitTransaction(first, second);
+  assert(g_sceneOwnershipScenesAlive == 3);
+
+  window->flushSceneInvalidation();
+  assert(scenesAliveAfterNestedFlush == 3);
+  assert(g_sceneOwnershipScenesAlive == 2);
+  assert(window->scene() == third);
+  assert(window->hasPendingSceneInvalidation());
+
+  window->flushSceneInvalidation();
+  assert(g_sceneOwnershipScenesAlive == 1);
+  assert(!window->hasPendingSceneInvalidation());
+
+  delete window;
+  assert(g_sceneOwnershipScenesAlive == 0);
+
+  printf("==== [testWindowDefersSceneRetiredDuringDrainUntilNextFlush] end ====\n");
 }
 
 void testWindowDoesNotReclaimSceneDuringDetachNotification()

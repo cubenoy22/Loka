@@ -33,7 +33,10 @@ SceneManager::~SceneManager()
     current->updateLifecycle(ON_DETACH);
     retiredScenes_.retire(current);
   }
-  retiredScenes_.drain();
+  while (!retiredScenes_.empty())
+  {
+    retiredScenes_.drain();
+  }
 }
 
 void SceneManager::commitTransaction(loka::app::scene::Scene *from, loka::app::scene::Scene *to)
