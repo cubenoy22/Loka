@@ -122,6 +122,10 @@ namespace loka
       class BoundaryNode;
       class IStateOwner;
       struct DirtySourceRegistrar;
+      namespace detail
+      {
+        class NodeArena;
+      }
 
       template <typename NodeT> struct NodeTypeTokenStorage
       {
@@ -239,7 +243,7 @@ namespace loka
         NodeContext *context;
         loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
-        bool arenaAllocated_;
+        detail::NodeArena *arenaOwner_;
         // Compose-only signal used to upgrade a child update pass into an
         // attach pass when a parent swaps in a freshly created child.
         // Platform/native code should not depend on this compose-local state
@@ -252,7 +256,7 @@ namespace loka
             : context(0),
               dirty(NODE_DIRTY_NONE),
               nextInComposition(0),
-              arenaAllocated_(false),
+              arenaOwner_(0),
               composeAttachLifecycle_(),
               testId_(),
               nodeTag_(NODE_TAG_NONE)
@@ -264,13 +268,17 @@ namespace loka
           this->releaseContext();
         }
 
-        void setArenaAllocated(bool v)
+        void setArenaOwner(detail::NodeArena *owner)
         {
-          arenaAllocated_ = v;
+          arenaOwner_ = owner;
+        }
+        detail::NodeArena *arenaOwner() const
+        {
+          return arenaOwner_;
         }
         bool isArenaAllocated() const
         {
-          return arenaAllocated_;
+          return arenaOwner_ != 0;
         }
         void markPendingAttachForCompose()
         {
@@ -285,7 +293,7 @@ namespace loka
         static void operator delete(void *ptr)
         {
           Node *node = static_cast<Node *>(ptr);
-          if (node && node->arenaAllocated_)
+          if (node && node->arenaOwner_)
           {
             // Arena handles memory, don't free
             return;

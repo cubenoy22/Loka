@@ -60,6 +60,8 @@ namespace loka
 
         if (node->isArenaAllocated())
         {
+          assert(node->arenaOwner() == this->nodeArena() &&
+                 "retired arena node must belong to the retiring Boundary arena");
           const bool released = this->nodeArena_.releaseNode(node);
           assert(released && "retired arena node must belong to the retiring Boundary ledger");
         }

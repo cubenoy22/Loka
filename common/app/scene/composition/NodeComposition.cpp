@@ -97,7 +97,6 @@ namespace loka
         if (mem)
         {
           node = def->createInPlace(mem);
-          node->setArenaAllocated(true);
           arena->registerNode(node);
         }
         else

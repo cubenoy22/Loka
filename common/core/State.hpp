@@ -230,6 +230,7 @@ namespace loka
       mutable LifetimeToken *lifetimeToken_;
 
     public:
+      // Core floor: no upward dependency on scene arenas; Node carries the owner pointer instead.
       void setArenaAllocated(bool v)
       {
         arenaAllocated_ = v;

@@ -204,6 +204,29 @@ namespace
     assert(arena.allocate(4, 4) == 0);
   }
 
+  static void testNodeArenaRegistrationStampsOwner()
+  {
+    loka::app::scene::Node *heapNode = new loka::app::scene::Node();
+    assert(heapNode->arenaOwner() == 0);
+    assert(!heapNode->isArenaAllocated());
+    delete heapNode;
+
+    loka::app::scene::NodeArena arena;
+    const size_t nodeBytes =
+        sizeof(loka::app::scene::Node) + loka::app::scene::detail::AlignOf<loka::app::scene::Node>::value;
+    arena.reserve(nodeBytes);
+    void *nodeMemory = arena.allocate(sizeof(loka::app::scene::Node),
+                                      loka::app::scene::detail::AlignOf<loka::app::scene::Node>::value);
+    assert(nodeMemory != 0);
+    loka::app::scene::Node *arenaNode = new (nodeMemory) loka::app::scene::Node();
+    assert(arenaNode->arenaOwner() == 0);
+    assert(!arenaNode->isArenaAllocated());
+
+    arena.registerNode(arenaNode);
+    assert(arenaNode->arenaOwner() == &arena);
+    assert(arenaNode->isArenaAllocated());
+  }
+
   class NodeArenaDestroyOrderProbe : public loka::app::scene::Node
   {
   public:
@@ -565,6 +588,7 @@ void testBoundaryArenaContracts()
 {
   printf("\n==== [testBoundaryArenaContracts] start ====\n");
   testNodeArenaAlignmentAndCapacity();
+  testNodeArenaRegistrationStampsOwner();
   testNodeArenaDestroysChildrenBeforeParents();
   testNodeArenaReleaseTombstonePreventsClearDoubleDestruction();
   testNodeArenaClearDestroysHeapChildOfArenaParentExactlyOnce();
