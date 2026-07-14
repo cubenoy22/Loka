@@ -32,11 +32,6 @@ void Win32App::quit()
   PostQuitMessage(0);
 }
 
-void Win32App::windowClosed(Window *window)
-{
-  App::windowClosed(window);
-}
-
 void Win32App::run()
 {
   App::run();

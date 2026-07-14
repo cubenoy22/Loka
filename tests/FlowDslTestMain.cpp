@@ -82,6 +82,13 @@ int main()
   LOKA_RUN_TEST(testWindowDoesNotReclaimSceneDuringDetachNotification);
   LOKA_RUN_TEST(testWindowReclaimDoesNotNotifySceneLifecycleObservers);
   LOKA_RUN_TEST(testWindowReclaimFiresNoSceneCompositionCallbacks);
+  LOKA_RUN_TEST(testAppDefersWindowReclaimUntilInvalidationFlush);
+  LOKA_RUN_TEST(testAppDefersReentrantWindowCloseRequestUntilNextFlush);
+  LOKA_RUN_TEST(testAppReclaimsWindowCloseBatchInRequestOrder);
+  LOKA_RUN_TEST(testAppWindowReclaimDrainsRetiredScenesExactlyOnce);
+  LOKA_RUN_TEST(testAppWindowCloseRequestsAreIdempotent);
+  LOKA_RUN_TEST(testAppWindowClosedRejectsUndetachedOrActiveWindow);
+  LOKA_RUN_TEST(testAppDrainsPendingWindowClosuresAtDestruction);
   LOKA_RUN_TEST(testSceneUnmountNotifiesPlainNodeContextDetached);
   LOKA_RUN_TEST(testBoundaryLocalRebuildNotifiesCompositionDetachedOnce);
   LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);

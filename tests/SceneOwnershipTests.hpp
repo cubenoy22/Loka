@@ -7,5 +7,12 @@ void testWindowRetiresDetachedSceneAtFlushBoundary();
 void testWindowDoesNotReclaimSceneDuringDetachNotification();
 void testWindowReclaimDoesNotNotifySceneLifecycleObservers();
 void testWindowReclaimFiresNoSceneCompositionCallbacks();
+void testAppDefersWindowReclaimUntilInvalidationFlush();
+void testAppDefersReentrantWindowCloseRequestUntilNextFlush();
+void testAppReclaimsWindowCloseBatchInRequestOrder();
+void testAppWindowReclaimDrainsRetiredScenesExactlyOnce();
+void testAppWindowCloseRequestsAreIdempotent();
+void testAppWindowClosedRejectsUndetachedOrActiveWindow();
+void testAppDrainsPendingWindowClosuresAtDestruction();
 
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP

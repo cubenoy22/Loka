@@ -2,15 +2,25 @@
 #include <cassert>
 #include <cstdio>
 #include "app/PlatformContext.hpp"
+#include "app/core/App.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/Scene.hpp"
 
+// LeakSanitizer cannot complete its process scan after fork-based death checks.
+#if defined(LOKA_LIFECYCLE_AUDIT) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
 namespace
 {
   static int g_sceneOwnershipDefinitionsAlive = 0;
   static int g_sceneOwnershipScenesAlive = 0;
+  static int g_windowRetirementWindowsAlive = 0;
 
   struct SceneOwnershipDefinition : public loka::app::BoxDefinition
   {
@@ -50,6 +60,26 @@ namespace
     {
       --g_sceneOwnershipScenesAlive;
     }
+  };
+
+  class SceneRetirementCountProbe : public loka::app::scene::Scene
+  {
+  public:
+    explicit SceneRetirementCountProbe(int *destructionCount)
+        : loka::app::scene::Scene(new SceneOwnershipDefinition()),
+          destructionCount_(destructionCount)
+    {
+      ++g_sceneOwnershipScenesAlive;
+    }
+
+    virtual ~SceneRetirementCountProbe()
+    {
+      ++*this->destructionCount_;
+      --g_sceneOwnershipScenesAlive;
+    }
+
+  private:
+    int *destructionCount_;
   };
 
   struct SceneLifecycleObservation
@@ -243,6 +273,191 @@ namespace
       return false;
     }
   };
+
+  class WindowRetirementProbe : public Window
+  {
+  public:
+    WindowRetirementProbe(PlatformContext *context, const WindowProps &props)
+        : Window(context, props)
+    {
+      ++g_windowRetirementWindowsAlive;
+    }
+
+    virtual ~WindowRetirementProbe()
+    {
+      --g_windowRetirementWindowsAlive;
+    }
+  };
+
+  class WindowRetirementTestApp : public App
+  {
+  public:
+    WindowRetirementTestApp()
+        : App(0),
+          quitCalls(0),
+          appliedWindow(0),
+          applyMenuCalls(0),
+          closeDuringReclaim(0),
+          reclaimCalls(0),
+          windowsAliveDuringNestedFlush(0)
+    {
+      for (int i = 0; i < 4; ++i)
+      {
+        reclaimOrder[i] = 0;
+      }
+    }
+
+    virtual void quit()
+    {
+      ++quitCalls;
+    }
+
+    void install(Window *window)
+    {
+      group_ = new AppComponentGroup(std::vector<AppComponent *>(1, window));
+      this->setActiveWindow(window);
+    }
+
+    void install(Window *first, Window *second)
+    {
+      this->install(first);
+      std::vector<AppComponent *> &components =
+          const_cast<std::vector<AppComponent *> &>(group_->getComponents());
+      components.push_back(second);
+    }
+
+    void install(Window *first, Window *second, Window *third)
+    {
+      this->install(first, second);
+      std::vector<AppComponent *> &components =
+          const_cast<std::vector<AppComponent *> &>(group_->getComponents());
+      components.push_back(third);
+    }
+
+    void detachWithoutReselectForMisuseTest(Window *window)
+    {
+      std::vector<AppComponent *> &components =
+          const_cast<std::vector<AppComponent *> &>(group_->getComponents());
+      for (std::vector<AppComponent *>::iterator it = components.begin(); it != components.end(); ++it)
+      {
+        if ((*it)->asWindow() == window)
+        {
+          components.erase(it);
+          return;
+        }
+      }
+    }
+
+    void flush()
+    {
+      this->flushWindowInvalidations();
+    }
+
+    int quitCalls;
+    Window *appliedWindow;
+    int applyMenuCalls;
+    Window *closeDuringReclaim;
+    int reclaimCalls;
+    int windowsAliveDuringNestedFlush;
+    Window *reclaimOrder[4];
+
+    virtual void windowClosed(Window *window)
+    {
+      assert(reclaimCalls < 4);
+      reclaimOrder[reclaimCalls] = window;
+      ++reclaimCalls;
+      if (closeDuringReclaim)
+      {
+        Window *next = closeDuringReclaim;
+        closeDuringReclaim = 0;
+        this->requestWindowClose(next);
+        this->flushPendingWindowClosures();
+        windowsAliveDuringNestedFlush = g_windowRetirementWindowsAlive;
+      }
+      App::windowClosed(window);
+    }
+
+    // windowClosed is protected since the review fix; external misuse is now a
+    // compile error. The death checks below exercise subclass-level misuse
+    // through this bridge.
+    void misuseWindowClosedForTest(Window *window)
+    {
+      this->windowClosed(window);
+    }
+
+  protected:
+    virtual void applyMenuBar(Window *window)
+    {
+      ++applyMenuCalls;
+      appliedWindow = window;
+    }
+  };
+
+  struct WindowRetirementNotification
+  {
+    WindowRetirementNotification()
+        : app(0),
+          window(0),
+          scene(0),
+          calls(0)
+    {
+    }
+
+    WindowRetirementTestApp *app;
+    WindowRetirementProbe *window;
+    SceneOwnershipProbe *scene;
+    int calls;
+  };
+
+  void RequestWindowCloseDuringNotification(void *userData)
+  {
+    WindowRetirementNotification *notification = static_cast<WindowRetirementNotification *>(userData);
+    ++notification->calls;
+    notification->app->requestWindowClose(notification->window);
+    notification->app->requestWindowClose(notification->window);
+    assert(g_windowRetirementWindowsAlive == 1);
+    assert(g_sceneOwnershipScenesAlive == 1);
+    assert(notification->window->scene() == notification->scene);
+    assert(notification->scene->getWindow() == notification->window);
+  }
+
+#if defined(LOKA_LIFECYCLE_AUDIT) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+  enum WindowClosedMisuse
+  {
+    WINDOW_CLOSED_WITHOUT_DETACH,
+    WINDOW_CLOSED_WHILE_ACTIVE
+  };
+
+  void AssertWindowClosedMisuseAborts(WindowClosedMisuse misuse)
+  {
+    const pid_t child = fork();
+    assert(child >= 0);
+    if (child == 0)
+    {
+      WindowCreatingPlatformContext context;
+      WindowRetirementTestApp app;
+      WindowRetirementProbe *first = new WindowRetirementProbe(&context, WindowProps());
+      if (misuse == WINDOW_CLOSED_WITHOUT_DETACH)
+      {
+        WindowRetirementProbe *second = new WindowRetirementProbe(&context, WindowProps());
+        app.install(first, second);
+        app.misuseWindowClosedForTest(second);
+      }
+      else
+      {
+        app.install(first);
+        app.detachWithoutReselectForMisuseTest(first);
+        app.misuseWindowClosedForTest(first);
+      }
+      _exit(0);
+    }
+
+    int status = 0;
+    assert(waitpid(child, &status, 0) == child);
+    assert(WIFSIGNALED(status));
+    assert(WTERMSIG(status) == SIGABRT);
+  }
+#endif
 
   struct ReentrantSceneFlushContext
   {
@@ -487,4 +702,214 @@ void testWindowReclaimFiresNoSceneCompositionCallbacks()
   assert(secondObservation.platformDestroyCalls == 1);
 
   printf("==== [testWindowReclaimFiresNoSceneCompositionCallbacks] end ====\n");
+}
+
+void testAppDefersWindowReclaimUntilInvalidationFlush()
+{
+  printf("\n==== [testAppDefersWindowReclaimUntilInvalidationFlush] start ====\n");
+
+  assert(g_windowRetirementWindowsAlive == 0);
+  assert(g_sceneOwnershipScenesAlive == 0);
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  SceneOwnershipProbe *scene = new SceneOwnershipProbe();
+  props.scene(scene);
+  WindowRetirementProbe *window = new WindowRetirementProbe(&context, props);
+  WindowRetirementTestApp app;
+  app.install(window);
+  assert(app.applyMenuCalls == 1);
+  assert(app.appliedWindow == window);
+
+  WindowRetirementNotification notification;
+  notification.app = &app;
+  notification.window = window;
+  notification.scene = scene;
+  loka::core::EmitterState close;
+  close.bind(&RequestWindowCloseDuringNotification, &notification, false);
+  close.emit();
+
+  assert(notification.calls == 1);
+  assert(g_windowRetirementWindowsAlive == 1);
+  assert(g_sceneOwnershipScenesAlive == 1);
+  assert(app.activeWindow() == 0);
+  assert(app.appliedWindow == 0);
+  assert(app.applyMenuCalls == 2);
+  assert(app.quitCalls == 1);
+
+  app.flush();
+  assert(app.reclaimCalls == 1);
+  assert(g_windowRetirementWindowsAlive == 0);
+  assert(g_sceneOwnershipScenesAlive == 0);
+
+  app.flush();
+  assert(app.reclaimCalls == 1);
+
+  printf("==== [testAppDefersWindowReclaimUntilInvalidationFlush] end ====\n");
+}
+
+void testAppDefersReentrantWindowCloseRequestUntilNextFlush()
+{
+  printf("\n==== [testAppDefersReentrantWindowCloseRequestUntilNextFlush] start ====\n");
+
+  assert(g_windowRetirementWindowsAlive == 0);
+  WindowCreatingPlatformContext context;
+  WindowRetirementProbe *first = new WindowRetirementProbe(&context, WindowProps());
+  WindowRetirementProbe *second = new WindowRetirementProbe(&context, WindowProps());
+  WindowRetirementTestApp app;
+  app.install(first, second);
+  assert(app.applyMenuCalls == 1);
+  app.closeDuringReclaim = second;
+
+  app.requestWindowClose(first);
+  assert(app.activeWindow() == second);
+  assert(app.appliedWindow == second);
+  assert(app.applyMenuCalls == 2);
+  assert(g_windowRetirementWindowsAlive == 2);
+
+  app.flush();
+  assert(app.reclaimCalls == 1);
+  assert(app.windowsAliveDuringNestedFlush == 2);
+  assert(g_windowRetirementWindowsAlive == 1);
+  assert(app.activeWindow() == 0);
+  assert(app.appliedWindow == 0);
+  assert(app.applyMenuCalls == 3);
+  assert(app.quitCalls == 1);
+
+  app.flush();
+  assert(app.reclaimCalls == 2);
+  assert(g_windowRetirementWindowsAlive == 0);
+
+  printf("==== [testAppDefersReentrantWindowCloseRequestUntilNextFlush] end ====\n");
+}
+
+void testAppReclaimsWindowCloseBatchInRequestOrder()
+{
+  printf("\n==== [testAppReclaimsWindowCloseBatchInRequestOrder] start ====\n");
+
+  assert(g_windowRetirementWindowsAlive == 0);
+  WindowCreatingPlatformContext context;
+  WindowRetirementProbe *first = new WindowRetirementProbe(&context, WindowProps());
+  WindowRetirementProbe *second = new WindowRetirementProbe(&context, WindowProps());
+  WindowRetirementProbe *third = new WindowRetirementProbe(&context, WindowProps());
+  WindowRetirementTestApp app;
+  app.install(first, second, third);
+
+  app.requestWindowClose(second);
+  app.requestWindowClose(first);
+  app.requestWindowClose(third);
+  assert(g_windowRetirementWindowsAlive == 3);
+  assert(app.quitCalls == 1);
+
+  app.flush();
+  assert(app.reclaimCalls == 3);
+  assert(app.reclaimOrder[0] == second);
+  assert(app.reclaimOrder[1] == first);
+  assert(app.reclaimOrder[2] == third);
+  assert(g_windowRetirementWindowsAlive == 0);
+
+  printf("==== [testAppReclaimsWindowCloseBatchInRequestOrder] end ====\n");
+}
+
+void testAppWindowReclaimDrainsRetiredScenesExactlyOnce()
+{
+  printf("\n==== [testAppWindowReclaimDrainsRetiredScenesExactlyOnce] start ====\n");
+
+  assert(g_windowRetirementWindowsAlive == 0);
+  assert(g_sceneOwnershipScenesAlive == 0);
+  int retiredSceneDestructions = 0;
+  int currentSceneDestructions = 0;
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  SceneRetirementCountProbe *retired = new SceneRetirementCountProbe(&retiredSceneDestructions);
+  SceneRetirementCountProbe *current = new SceneRetirementCountProbe(&currentSceneDestructions);
+  props.scene(retired);
+  WindowRetirementProbe *window = new WindowRetirementProbe(&context, props);
+  window->sceneManager()->commitTransaction(retired, current);
+  WindowRetirementTestApp app;
+  app.install(window);
+
+  assert(window->sceneManager()->hasRetiredScenes());
+  app.requestWindowClose(window);
+  assert(retiredSceneDestructions == 0);
+  assert(currentSceneDestructions == 0);
+  assert(g_sceneOwnershipScenesAlive == 2);
+
+  app.flush();
+  assert(retiredSceneDestructions == 1);
+  assert(currentSceneDestructions == 1);
+  assert(g_sceneOwnershipScenesAlive == 0);
+  assert(app.reclaimCalls == 1);
+
+  app.flush();
+  assert(retiredSceneDestructions == 1);
+  assert(currentSceneDestructions == 1);
+  assert(app.reclaimCalls == 1);
+
+  printf("==== [testAppWindowReclaimDrainsRetiredScenesExactlyOnce] end ====\n");
+}
+
+void testAppWindowCloseRequestsAreIdempotent()
+{
+  printf("\n==== [testAppWindowCloseRequestsAreIdempotent] start ====\n");
+
+  assert(g_windowRetirementWindowsAlive == 0);
+  WindowCreatingPlatformContext context;
+  WindowRetirementProbe *owned = new WindowRetirementProbe(&context, WindowProps());
+  WindowRetirementProbe *foreign = new WindowRetirementProbe(&context, WindowProps());
+  WindowRetirementTestApp app;
+  app.install(owned);
+
+  app.requestWindowClose(foreign);
+  app.flush();
+  assert(app.activeWindow() == owned);
+  assert(app.appliedWindow == owned);
+  assert(app.applyMenuCalls == 1);
+  assert(app.quitCalls == 0);
+  assert(app.reclaimCalls == 0);
+  assert(g_windowRetirementWindowsAlive == 2);
+
+  app.requestWindowClose(owned);
+  app.requestWindowClose(owned);
+  app.flush();
+  assert(app.reclaimCalls == 1);
+  assert(app.reclaimOrder[0] == owned);
+  assert(app.quitCalls == 1);
+  assert(g_windowRetirementWindowsAlive == 1);
+
+  app.flush();
+  assert(app.reclaimCalls == 1);
+  delete foreign;
+  assert(g_windowRetirementWindowsAlive == 0);
+
+  printf("==== [testAppWindowCloseRequestsAreIdempotent] end ====\n");
+}
+
+void testAppWindowClosedRejectsUndetachedOrActiveWindow()
+{
+  printf("\n==== [testAppWindowClosedRejectsUndetachedOrActiveWindow] start ====\n");
+
+#if defined(LOKA_LIFECYCLE_AUDIT) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+  AssertWindowClosedMisuseAborts(WINDOW_CLOSED_WITHOUT_DETACH);
+  AssertWindowClosedMisuseAborts(WINDOW_CLOSED_WHILE_ACTIVE);
+#endif
+
+  printf("==== [testAppWindowClosedRejectsUndetachedOrActiveWindow] end ====\n");
+}
+
+void testAppDrainsPendingWindowClosuresAtDestruction()
+{
+  printf("\n==== [testAppDrainsPendingWindowClosuresAtDestruction] start ====\n");
+
+  assert(g_windowRetirementWindowsAlive == 0);
+  WindowCreatingPlatformContext context;
+  {
+    WindowRetirementProbe *window = new WindowRetirementProbe(&context, WindowProps());
+    WindowRetirementTestApp app;
+    app.install(window);
+    app.requestWindowClose(window);
+    assert(g_windowRetirementWindowsAlive == 1);
+  }
+  assert(g_windowRetirementWindowsAlive == 0);
+
+  printf("==== [testAppDrainsPendingWindowClosuresAtDestruction] end ====\n");
 }

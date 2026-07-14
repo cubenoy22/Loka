@@ -392,7 +392,7 @@ void MacWindow::handleWindowWillClose()
   (void)window;
   if (app)
   {
-    app->windowClosed(static_cast<Window *>(this));
+    app->requestWindowClose(static_cast<Window *>(this));
   }
 }
 
