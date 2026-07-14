@@ -83,6 +83,14 @@ namespace loka
           this->compose(context, COMPOSE_EVENT_ATTACH);
         }
 
+        /** Disconnects node-owned state after the detaching subtree has run
+            its synchronous detach callbacks. The destructor remains the
+            fallback for nodes that never reached an attached tree. */
+        void completeCompositionDetach()
+        {
+          this->releaseNodeStateRegistrations();
+        }
+
       protected:
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event) = 0;
         virtual void attachNode(NodeComposition &c)

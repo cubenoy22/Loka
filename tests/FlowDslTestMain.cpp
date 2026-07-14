@@ -96,6 +96,13 @@ int main()
   LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
   LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
   LOKA_RUN_TEST(testConditionalBranchSwapFiresContextHooksOncePerLifetime);
+  LOKA_RUN_TEST(testRetiredBoundaryIsQuiescentBeforeNextTrackerRun);
+  LOKA_RUN_TEST(testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun);
+  LOKA_RUN_TEST(testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce);
+  LOKA_RUN_TEST(testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst);
+  LOKA_RUN_TEST(testRetiredArenaParentDestroysHeapChildExactlyOnceAtDrain);
+  LOKA_RUN_TEST(testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce);
+  LOKA_RUN_TEST(testRetiredBoundaryOwnedStateMutationIsQuiescent);
   LOKA_RUN_TEST(testSceneTeardownReleasesBothConditionalBranchContextsOnce);
   LOKA_RUN_TEST(testLokaValueCore);
   LOKA_RUN_TEST(testSnapFormatV1);

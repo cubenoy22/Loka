@@ -7,6 +7,13 @@ void testBoundaryLocalRebuildNotifiesCompositionDetachedOnce();
 void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce();
 void testConditionalUnbindsBeforeReclaim();
 void testConditionalBranchSwapFiresContextHooksOncePerLifetime();
+void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun();
+void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce();
+void testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst();
+void testRetiredArenaParentDestroysHeapChildExactlyOnceAtDrain();
+void testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce();
+void testRetiredBoundaryOwnedStateMutationIsQuiescent();
+void testRetiredBoundaryIsQuiescentBeforeNextTrackerRun();
 void testSceneTeardownReleasesBothConditionalBranchContextsOnce();
 
 #endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP

@@ -69,16 +69,64 @@ namespace loka
         {
           if (node)
           {
+            node->setArenaAllocated(true);
             nodes_.push_back(node);
           }
         }
 
-        void clear()
+        /** Tombstones and destroys one arena node without moving the ledger. */
+        bool releaseNode(Node *node)
         {
-          // Call destructors in creation order so parents can safely detach children.
+          if (!node)
+          {
+            return false;
+          }
           for (size_t i = 0; i < nodes_.size(); ++i)
           {
-            nodes_[i]->~Node();
+            if (nodes_[i] == node)
+            {
+              nodes_[i] = 0;
+              node->~Node();
+              return true;
+            }
+          }
+          return false;
+        }
+
+        void clear()
+        {
+          // Sever every parent-to-child edge while the whole ledger is alive.
+          std::vector<Node *> detachedChildren;
+          std::vector<Node *> detachedHeapRoots;
+          for (size_t i = 0; i < nodes_.size(); ++i)
+          {
+            Node *node = nodes_[i];
+            INestable *nestable = node ? node->asNestable() : 0;
+            if (nestable)
+            {
+              nestable->detachChildrenTo(detachedChildren);
+              for (size_t childIndex = 0; childIndex < detachedChildren.size(); ++childIndex)
+              {
+                Node *child = detachedChildren[childIndex];
+                if (child && !child->isArenaAllocated())
+                {
+                  detachedHeapRoots.push_back(child);
+                }
+              }
+            }
+          }
+          for (size_t i = 0; i < detachedHeapRoots.size(); ++i)
+          {
+            delete detachedHeapRoots[i];
+          }
+          // Creation is parent-first, so reverse order destroys children first.
+          for (size_t i = nodes_.size(); i > 0; --i)
+          {
+            Node *node = nodes_[i - 1];
+            if (node)
+            {
+              node->~Node();
+            }
           }
           nodes_.clear();
           if (raw_)
