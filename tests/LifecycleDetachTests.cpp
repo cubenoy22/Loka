@@ -148,6 +148,182 @@ namespace
     }
   };
 
+  struct DetachStateOwnerObservation
+  {
+    DetachStateOwnerObservation()
+        : detachCalls(0),
+          currentBoundaryValid(false),
+          parentStateReadable(false),
+          parentStateValue(0)
+    {
+    }
+
+    int detachCalls;
+    bool currentBoundaryValid;
+    bool parentStateReadable;
+    int parentStateValue;
+  };
+
+  DetachStateOwnerObservation *g_detachStateOwnerObservation = 0;
+  loka::app::scene::NodeState<int> *g_detachParentState = 0;
+
+  class DetachStateOwnerProbeNode;
+
+  struct DetachStateOwnerProbeTypeTag
+  {
+  };
+
+  struct DetachStateOwnerProbeProps
+      : public loka::app::scene::NodePropsBase<DetachStateOwnerProbeProps>
+  {
+    typedef DetachStateOwnerProbeTypeTag TypeTag;
+    typedef DetachStateOwnerProbeNode NodeType;
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return rhs.propsTypeId() == this->propsTypeId() ? false : this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+
+  class DetachStateOwnerProbeNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    typedef DetachStateOwnerProbeTypeTag TypeTag;
+
+    explicit DetachStateOwnerProbeNode(const DetachStateOwnerProbeProps &props)
+        : props(props)
+    {
+    }
+
+    DetachStateOwnerProbeProps props;
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_DETACH)
+      {
+        loka::app::scene::NodeComposition &composition = this->beginComposition(context);
+        this->detachNode(composition);
+      }
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &composition)
+    {
+      typedef loka::app::scene::NodeComposition::CurrentBoundary CurrentBoundary;
+      typedef CurrentBoundary::CurrentState<int> CurrentState;
+
+      assert(g_detachStateOwnerObservation != 0);
+      assert(g_detachParentState != 0);
+      ++g_detachStateOwnerObservation->detachCalls;
+      const CurrentBoundary current = composition.currentBoundary();
+      g_detachStateOwnerObservation->currentBoundaryValid = current.isValid();
+      const CurrentState parentState = current.state(*g_detachParentState);
+      g_detachStateOwnerObservation->parentStateReadable = parentState.isValid();
+      if (parentState.isValid())
+      {
+        g_detachStateOwnerObservation->parentStateValue = parentState.get();
+      }
+    }
+  };
+
+  class RootDetachStateOwnerBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootDetachStateOwnerBoundaryNode>
+      RootDetachStateOwnerBoundaryProps;
+
+  class RootDetachStateOwnerBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<RootDetachStateOwnerBoundaryNode>
+  {
+  public:
+    explicit RootDetachStateOwnerBoundaryNode(const RootDetachStateOwnerBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<RootDetachStateOwnerBoundaryNode>(props),
+          parentState_(),
+          initialized_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      composition.declareStates().state(this->parentState_, 37);
+      g_detachParentState = &this->parentState_;
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      typedef loka::app::scene::NodeDefinition<DetachStateOwnerProbeProps,
+                                               DetachStateOwnerProbeNode>
+          DetachStateOwnerProbeDefinition;
+      composition.declare(DetachStateOwnerProbeDefinition());
+    }
+
+  private:
+    loka::app::scene::NodeState<int> parentState_;
+    bool initialized_;
+  };
+
+  class NestedDetachStateOwnerBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedDetachStateOwnerBoundaryNode>
+      NestedDetachStateOwnerBoundaryProps;
+
+  class NestedDetachStateOwnerBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<NestedDetachStateOwnerBoundaryNode>
+  {
+  public:
+    explicit NestedDetachStateOwnerBoundaryNode(const NestedDetachStateOwnerBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<NestedDetachStateOwnerBoundaryNode>(props),
+          parentState_(),
+          initialized_(false)
+    {
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      composition.declareStates().state(this->parentState_, 73);
+      g_detachParentState = &this->parentState_;
+      this->initialized_ = true;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      typedef loka::app::scene::NodeDefinition<DetachStateOwnerProbeProps,
+                                               DetachStateOwnerProbeNode>
+          DetachStateOwnerProbeDefinition;
+      composition.declare(DetachStateOwnerProbeDefinition());
+    }
+
+  private:
+    loka::app::scene::NodeState<int> parentState_;
+    bool initialized_;
+  };
+
+  class NestedDetachStateOwnerHarnessNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedDetachStateOwnerHarnessNode>
+      NestedDetachStateOwnerHarnessProps;
+
+  class NestedDetachStateOwnerHarnessNode
+      : public loka::app::scene::BoundaryNodeFor<NestedDetachStateOwnerHarnessNode>
+  {
+  public:
+    explicit NestedDetachStateOwnerHarnessNode(const NestedDetachStateOwnerHarnessProps &props)
+        : loka::app::scene::BoundaryNodeFor<NestedDetachStateOwnerHarnessNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<NestedDetachStateOwnerBoundaryNode>());
+    }
+  };
+
   class ArenaRetireProbeNode;
 
   struct ArenaRetireProbeTypeTag
@@ -1033,6 +1209,45 @@ void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce()
 
   assert(counts.detachCalls == 1);
   g_boundaryInternalCounts = 0;
+}
+
+void testRootDetachChildWalkRetainsBoundaryStateOwner()
+{
+  using namespace loka::app::scene;
+
+  DetachProbePlatformController platform;
+  DetachStateOwnerObservation rootObservation;
+  g_detachStateOwnerObservation = &rootObservation;
+  {
+    Scene scene((Boundary<RootDetachStateOwnerBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    scene.unmount();
+  }
+
+  assert(rootObservation.detachCalls == 1);
+  assert(rootObservation.currentBoundaryValid &&
+         "root child detach must retain the root boundary as current state owner");
+  assert(rootObservation.parentStateReadable &&
+         "root child detach must read state declared by the root boundary");
+  assert(rootObservation.parentStateValue == 37);
+
+  DetachStateOwnerObservation nestedObservation;
+  g_detachStateOwnerObservation = &nestedObservation;
+  {
+    Scene scene((Boundary<NestedDetachStateOwnerHarnessNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    scene.unmount();
+  }
+
+  assert(nestedObservation.detachCalls == 1);
+  assert(nestedObservation.currentBoundaryValid);
+  assert(nestedObservation.parentStateReadable);
+  assert(nestedObservation.parentStateValue == 73);
+
+  g_detachStateOwnerObservation = 0;
+  g_detachParentState = 0;
 }
 
 void testConditionalUnbindsBeforeReclaim()

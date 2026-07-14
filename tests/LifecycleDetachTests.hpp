@@ -5,6 +5,7 @@ void testSceneUnmountNotifiesPlainNodeContextDetached();
 void testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce();
 void testBoundaryLocalRebuildNotifiesCompositionDetachedOnce();
 void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce();
+void testRootDetachChildWalkRetainsBoundaryStateOwner();
 void testConditionalUnbindsBeforeReclaim();
 void testConditionalBranchSwapFiresContextHooksOncePerLifetime();
 void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun();

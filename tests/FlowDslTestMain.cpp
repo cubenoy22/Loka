@@ -94,6 +94,7 @@ int main()
   LOKA_RUN_TEST(testBoundaryLocalRebuildNotifiesCompositionDetachedOnce);
   LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);
   LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
+  LOKA_RUN_TEST(testRootDetachChildWalkRetainsBoundaryStateOwner);
   LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
   LOKA_RUN_TEST(testConditionalBranchSwapFiresContextHooksOncePerLifetime);
   LOKA_RUN_TEST(testRetiredBoundaryIsQuiescentBeforeNextTrackerRun);
