@@ -56,6 +56,9 @@ namespace loka
       void removeState(StateBase *state);
       void reserveStates(size_t count);
       bool end();
+      /** Returns whether committed dirt is waiting to be acknowledged. */
+      bool peekDirty() const;
+      /** Returns and acknowledges committed dirt. */
       bool consumeDirty();
       const StateList &committedDirtyStates() const
       {
@@ -119,8 +122,10 @@ namespace loka
       DependencyMap dependents;
       /// phase_: current tracker transaction phase.
       TrackerPhase phase_;
-      /// dirtyFlag_: whether any state was marked dirty during the transaction.
-      bool dirtyFlag_;
+      /// transactionDirty_: whether this transaction marked any state dirty.
+      bool transactionDirty_;
+      /// pendingDirty_: committed dirt waiting for owner acknowledgment.
+      bool pendingDirty_;
       /// depth_: nested begin/end depth counter.
       unsigned int depth_;
       /// invalidate callback (optional)

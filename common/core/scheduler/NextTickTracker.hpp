@@ -14,6 +14,7 @@ namespace loka
       NextTickTracker()
           : requested_(false),
             inProgress_(false),
+            requestAfterRun_(false),
             maxIterations_(100),
             pendingDelayMs_(0)
       {
@@ -41,6 +42,21 @@ namespace loka
       bool hasPendingRequest() const
       {
         return requested_;
+      }
+      /**
+       * Schedules work for the next run without re-entering the current drain
+       * loop. Outside a run this is equivalent to request().
+       */
+      void requestAfterRun()
+      {
+        if (!inProgress_)
+        {
+          this->request();
+          return;
+        }
+        requested_ = false;
+        pendingDelayMs_ = 0;
+        requestAfterRun_ = true;
       }
       unsigned long pendingDelayMs() const
       {
@@ -78,6 +94,11 @@ namespace loka
           // refresh for the current one.
           apply(userData);
         }
+        if (requestAfterRun_)
+        {
+          requestAfterRun_ = false;
+          this->request();
+        }
         inProgress_ = false;
         return changed;
       }
@@ -85,6 +106,7 @@ namespace loka
     private:
       bool requested_;
       bool inProgress_;
+      bool requestAfterRun_;
       int maxIterations_;
       unsigned long pendingDelayMs_;
     };

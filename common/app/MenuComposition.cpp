@@ -80,7 +80,7 @@ namespace loka
       if (tracker)
       {
         tracker->end();
-        boundaryDirty = tracker->consumeDirty();
+        boundaryDirty = tracker->peekDirty();
         if (boundaryDirty && invalidateFn_)
         {
           invalidateFn_(invalidateUserData_);
@@ -88,6 +88,7 @@ namespace loka
       }
       if (boundaryDirty)
       {
+        dirtyTrackers_.push_back(tracker);
         size_t countAfter = list_.count();
         for (size_t i = countBefore; i < countAfter; ++i)
         {
@@ -108,6 +109,15 @@ namespace loka
       }
       activeBoundary_ = prevBoundary;
       boundaryDepth_ -= 1;
+    }
+
+    void MenuComposition::acknowledgeDirtyBoundaries()
+    {
+      for (size_t i = 0; i < dirtyTrackers_.size(); ++i)
+      {
+        dirtyTrackers_[i]->consumeDirty();
+      }
+      dirtyTrackers_.clear();
     }
 
     void MenuComposition::finish()

@@ -10,9 +10,7 @@ MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *a
       pendingApplyWindow_(0),
       menuBar_(0),
       refresh_(),
-      diff_(),
-      pendingDirtyMenus_(),
-      retryCloneRequested_(false)
+      diff_()
 {
 }
 
@@ -53,13 +51,7 @@ void MenuController::requestInvalidation()
 bool MenuController::flushInvalidation(Window *activeWindow)
 {
   pendingApplyWindow_ = activeWindow;
-  bool changed = refresh_.run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
-  if (retryCloneRequested_)
-  {
-    retryCloneRequested_ = false;
-    refresh_.request();
-  }
-  return changed;
+  return refresh_.run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
 }
 
 void MenuController::invalidate(Window *activeWindow)
@@ -105,17 +97,13 @@ const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *windo
 }
 
 // Refresh is one transaction with a single commit point at the end:
-//   1. Recompose the candidate bar. This CONSUMES the boundary dirty flags
-//      (MenuComposition::declare -> consumeDirty), so from here on the dirty
-//      set exists only in `dirtyMenus`, merged with any entries requeued by a
-//      previously failed commit.
+//   1. Recompose the candidate bar. MenuComposition peeks boundary dirt and
+//      records the affected menu indices without acknowledging it.
 //   2. Build the candidate diff into the local `nextDiff`; `menuBar_` and
 //      `diff_` stay untouched while anything can still fail.
-//   3. Clone the bar and commit bar + diff together. On clone failure nothing
-//      is published: the consumed dirty set is stashed into
-//      `pendingDirtyMenus_` and a retry is scheduled after this run (see
-//      flushInvalidation), because NextTickTracker::run drains re-requests in
-//      a loop within the current flush.
+//   3. Clone and commit bar + diff together, then acknowledge the boundary
+//      dirt. On clone failure neither live truth nor the dirty flags change;
+//      the retry is scheduled for the next run so the drain loop cannot spin.
 bool MenuController::refreshDefaultMenuBar()
 {
   if (!config_)
@@ -129,26 +117,6 @@ bool MenuController::refreshDefaultMenuBar()
   menuComposition.finish();
   std::vector<size_t> dirtyMenus;
   menuComposition.takeDirtyMenuIndices(dirtyMenus);
-  if (!pendingDirtyMenus_.empty())
-  {
-    for (size_t i = 0; i < pendingDirtyMenus_.size(); ++i)
-    {
-      bool exists = false;
-      for (size_t j = 0; j < dirtyMenus.size(); ++j)
-      {
-        if (dirtyMenus[j] == pendingDirtyMenus_[i])
-        {
-          exists = true;
-          break;
-        }
-      }
-      if (!exists)
-      {
-        dirtyMenus.push_back(pendingDirtyMenus_[i]);
-      }
-    }
-    pendingDirtyMenus_.clear();
-  }
   if (menuBar.empty())
   {
     diff_.clear();
@@ -157,8 +125,10 @@ bool MenuController::refreshDefaultMenuBar()
       menuBar_.reset();
       diff_.valid = true;
       diff_.fullRebuild = true;
+      menuComposition.acknowledgeDirtyBoundaries();
       return true;
     }
+    menuComposition.acknowledgeDirtyBoundaries();
     return false;
   }
   loka::app::MenuCompositionDiff nextDiff;
@@ -178,6 +148,7 @@ bool MenuController::refreshDefaultMenuBar()
       if (dirtyMenus.empty())
       {
         diff_.clear();
+        menuComposition.acknowledgeDirtyBoundaries();
         return false;
       }
     }
@@ -216,23 +187,7 @@ bool MenuController::refreshDefaultMenuBar()
     loka::core::OwnedDef<loka::app::MenuBarDefinition> nextMenuBar(menuBar.clone());
     if (!nextMenuBar.isSet())
     {
-      // The compose above consumed the boundary dirty flags; without
-      // requeueing them the retry would see a clean, structurally equal bar
-      // and drop this update.
-      pendingDirtyMenus_.swap(dirtyMenus);
-      if (refresh_.inProgress())
-      {
-        // Inside NextTickTracker::run a request() would re-enter the drain
-        // loop immediately; defer to flushInvalidation so a persistent
-        // failure costs one attempt per flush.
-        retryCloneRequested_ = true;
-      }
-      else
-      {
-        // Direct call (e.g. via resolveMenuBar): nobody will check the
-        // retry flag, so schedule the retry now.
-        refresh_.request();
-      }
+      refresh_.requestAfterRun();
       return false;
     }
     menuBar_.reset(nextMenuBar.take());
@@ -240,9 +195,11 @@ bool MenuController::refreshDefaultMenuBar()
     diff_.valid = nextDiff.valid;
     diff_.fullRebuild = nextDiff.fullRebuild;
     nextDiff.changed.detachTo(diff_.changed);
+    menuComposition.acknowledgeDirtyBoundaries();
     return true;
   }
   diff_.clear();
+  menuComposition.acknowledgeDirtyBoundaries();
   return false;
 }
 
