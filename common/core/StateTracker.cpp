@@ -9,7 +9,8 @@ namespace loka
 
     PushStateTracker::PushStateTracker()
         : phase_(TRACKER_IDLE),
-          dirtyFlag_(false),
+          transactionDirty_(false),
+          pendingDirty_(false),
           depth_(0),
           invalidateFn_(0),
           invalidateUserData_(0),
@@ -22,7 +23,8 @@ namespace loka
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
         : phase_(TRACKER_IDLE),
-          dirtyFlag_(false),
+          transactionDirty_(false),
+          pendingDirty_(false),
           depth_(0),
           invalidateFn_(0),
           invalidateUserData_(0),
@@ -55,7 +57,7 @@ namespace loka
       dirtyStates.clear();
       committedDirtyStates_.clear();
       deferred.clear();
-      dirtyFlag_ = false;
+      transactionDirty_ = false;
       phase_ = TRACKER_PRECOMMIT;
     }
 
@@ -70,7 +72,8 @@ namespace loka
       {
         return;
       }
-      dirtyFlag_ = true;
+      transactionDirty_ = true;
+      pendingDirty_ = true;
       if (visiting_.count(state))
       {
         fprintf(stderr, "[Loka] Circular state dependency detected: StateBase %p\n", (void *)state);
@@ -320,7 +323,7 @@ namespace loka
         settled = false;
         fprintf(stderr, "[Loka] StateTracker deferred callback marked state dirty during commit.\n");
       }
-      if (settled && invalidateFn_ && dirtyFlag_)
+      if (settled && invalidateFn_ && transactionDirty_)
       {
         invalidateFn_(invalidateUserData_);
       }
@@ -380,14 +383,19 @@ namespace loka
       }
     }
 
+    bool PushStateTracker::peekDirty() const
+    {
+      return depth_ == 0 && pendingDirty_;
+    }
+
     bool PushStateTracker::consumeDirty()
     {
       if (depth_ > 0)
       {
         return false;
       }
-      bool dirty = dirtyFlag_;
-      dirtyFlag_ = false;
+      bool dirty = pendingDirty_;
+      pendingDirty_ = false;
       return dirty;
     }
 

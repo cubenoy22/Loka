@@ -229,7 +229,8 @@ namespace loka
             invalidateFn_(0),
             invalidateUserData_(0),
             list_(),
-            dirtyIndices_()
+            dirtyIndices_(),
+            dirtyTrackers_()
       {
       }
       ~MenuComposition();
@@ -255,6 +256,9 @@ namespace loka
         out.swap(dirtyIndices_);
       }
 
+      /** Acknowledges boundary dirt after the composed menu bar is committed. */
+      void acknowledgeDirtyBoundaries();
+
       template <typename T> loka::core::MutableState<T> &dangerouslyUseState(const T &initial)
       {
         assert(activeBoundary_ && "MenuComposition::dangerouslyUseState requires MenuBoundary");
@@ -269,6 +273,7 @@ namespace loka
       void *invalidateUserData_;
       loka::dsl::CompositionList<MenuDefinition> list_;
       std::vector<size_t> dirtyIndices_;
+      std::vector<loka::core::PushStateTracker *> dirtyTrackers_;
     };
 
   } // namespace app

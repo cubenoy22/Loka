@@ -648,10 +648,12 @@ void testMenuControllerRequeuesDirtyMenusAfterOomClone()
   controller.requestInvalidation();
   assert(!controller.flushInvalidation(0));
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
+  assert(config.boundary.tracker()->asPushTracker()->peekDirty());
   loka::app::testing::allowMenuBarDefinitionClones();
 
   assert(controller.flushInvalidation(0));
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "After"));
+  assert(!config.boundary.tracker()->asPushTracker()->peekDirty());
   assert(applyCount > appliesAfterInitial);
 
   printf("==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] end ====\n");
