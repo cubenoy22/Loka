@@ -4,6 +4,7 @@
 #include <vector>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "core/scheduler/NextTickTracker.hpp"
 
 // ============================================================
@@ -393,6 +394,54 @@ void testStateNotify()
     delete tracker;
     outlivesTracker.set(2); // must not touch the freed tracker (ASan-observable)
     assert(outlivesTracker.get() == 2);
+  }
+
+  // --- PushStateTracker: a clean guard ignores unacknowledged owner dirt ---
+  // A later clean transaction must neither invalidate nor acknowledge dirt
+  // committed by an earlier transaction.
+  {
+    loka::core::MutableState<int> state(0);
+    loka::core::PushStateTracker tracker;
+    int invalidations = 0;
+    tracker.addState(&state);
+    tracker.begin();
+    state.set(1);
+    tracker.end();
+    {
+      loka::core::StateTrackerGuard guard(&tracker, &increment, &invalidations);
+    }
+    assert(invalidations == 0);
+    assert(tracker.peekDirty());
+  }
+
+  // --- PushStateTracker: a dirty guard invalidates once ---
+  // The guard callback reflects dirt produced by its own transaction.
+  {
+    loka::core::MutableState<int> state(0);
+    loka::core::PushStateTracker tracker;
+    int invalidations = 0;
+    tracker.addState(&state);
+    {
+      loka::core::StateTrackerGuard guard(&tracker, &increment, &invalidations);
+      state.set(1);
+    }
+    assert(invalidations == 1);
+  }
+
+  // --- PushStateTracker: a dirty guard leaves owner dirt for acknowledgment ---
+  // Guard-local invalidation must not consume the owner's sticky dirty result.
+  {
+    loka::core::MutableState<int> state(0);
+    loka::core::PushStateTracker tracker;
+    int invalidations = 0;
+    tracker.addState(&state);
+    {
+      loka::core::StateTrackerGuard guard(&tracker, &increment, &invalidations);
+      state.set(1);
+    }
+    assert(tracker.peekDirty());
+    assert(tracker.consumeDirty());
+    assert(!tracker.peekDirty());
   }
 
   // --- NextTickTracker: delay accumulation keeps earliest request (min wins) ---

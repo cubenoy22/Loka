@@ -56,6 +56,8 @@ namespace loka
       void removeState(StateBase *state);
       void reserveStates(size_t count);
       bool end();
+      /** Returns whether the current (or just-ended) transaction marked any state dirty. */
+      bool transactionDirty() const { return transactionDirty_; }
       /** Returns whether committed dirt is waiting to be acknowledged. */
       bool peekDirty() const;
       /** Returns and acknowledges committed dirt. */

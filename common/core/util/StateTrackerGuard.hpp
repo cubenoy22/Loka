@@ -28,7 +28,7 @@ namespace loka
         {
           bool settled = tracker->end();
           assert(settled && "StateTracker transaction did not settle");
-          if (settled && invalidateFn && tracker->phase() == TRACKER_IDLE && tracker->consumeDirty())
+          if (settled && invalidateFn && tracker->phase() == TRACKER_IDLE && tracker->transactionDirty())
           {
             invalidateFn(invalidateUserData);
           }
