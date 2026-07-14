@@ -804,15 +804,15 @@ namespace loka
           {
             return;
           }
-          boundary->setParentBoundary(0);
-          if (event == COMPOSE_EVENT_ATTACH)
+          if (event == COMPOSE_EVENT_DETACH)
           {
-            boundary->setCompositionAttached(true);
-          }
-          else if (event == COMPOSE_EVENT_DETACH)
-          {
-            boundary->setCompositionAttached(false);
+            boundary->setScene(0);
+            boundary->setParentBoundary(0);
             boundary->clearObservedStateEntries();
+          }
+          else
+          {
+            boundary->setParentBoundary(0);
           }
           boundary->clearObservedDirtyFlags();
           if (event != COMPOSE_EVENT_UPDATE)

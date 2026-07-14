@@ -18,7 +18,6 @@ namespace loka
             : scene(0),
               parentBoundary(0),
               layoutBounds(),
-              compositionAttached(false),
               frozen(false)
         {
         }
@@ -63,16 +62,6 @@ namespace loka
           return parentBoundary != 0;
         }
 
-        void setCompositionAttached(bool value)
-        {
-          compositionAttached = value;
-        }
-
-        bool isCompositionAttached() const
-        {
-          return compositionAttached;
-        }
-
         bool setLayoutBounds(int x, int y, int width, int height)
         {
           const int normalizedWidth = width < 0 ? 0 : width;
@@ -103,7 +92,6 @@ namespace loka
         Scene *scene;
         BoundaryNode *parentBoundary;
         BoundaryUpdateResult::BoundsHint layoutBounds;
-        bool compositionAttached;
         bool frozen;
       };
     } // namespace scene

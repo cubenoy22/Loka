@@ -110,7 +110,7 @@ namespace loka
 
       void BoundaryNode::markViewDirty(NodeDirtyFlags flags)
       {
-        if (this->isFrozen() || !this->isCompositionAttached())
+        if (this->isFrozen())
         {
           return;
         }

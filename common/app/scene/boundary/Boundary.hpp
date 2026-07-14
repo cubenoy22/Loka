@@ -203,14 +203,6 @@ namespace loka
         {
           return this->runtimeState_.isFrozen();
         }
-        bool isCompositionAttached() const
-        {
-          return this->runtimeState_.isCompositionAttached();
-        }
-        void setCompositionAttached(bool attached)
-        {
-          this->runtimeState_.setCompositionAttached(attached);
-        }
         bool isApplyingPlatform() const
         {
           return this->updateState_.isApplying();
@@ -798,13 +790,10 @@ namespace loka
             nestable = node->asNestable();
           }
 
-          if (boundary && event == COMPOSE_EVENT_ATTACH)
+          if (boundary && event == COMPOSE_EVENT_DETACH)
           {
-            boundary->setCompositionAttached(true);
-          }
-          else if (boundary && event == COMPOSE_EVENT_DETACH)
-          {
-            boundary->setCompositionAttached(false);
+            boundary->setScene(0);
+            boundary->setParentBoundary(0);
             boundary->clearObservedStateEntries();
           }
           if (event == COMPOSE_EVENT_ATTACH)
@@ -819,10 +808,13 @@ namespace loka
           BoundaryNode *nextBoundary = currentBoundary;
           if (boundary)
           {
-            boundary->setParentBoundary(currentBoundary);
-            if (currentBoundary)
+            if (event != COMPOSE_EVENT_DETACH)
             {
-              boundary->setScene(currentBoundary->getScene());
+              boundary->setParentBoundary(currentBoundary);
+              if (currentBoundary)
+              {
+                boundary->setScene(currentBoundary->getScene());
+              }
             }
             boundary->clearObservedDirtyFlags();
             boundary->clearPhaseResults();
