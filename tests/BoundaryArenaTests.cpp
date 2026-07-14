@@ -204,6 +204,222 @@ namespace
     assert(arena.allocate(4, 4) == 0);
   }
 
+  static void testNodeArenaRegistrationStampsOwner()
+  {
+    loka::app::scene::Node *heapNode = new loka::app::scene::Node();
+    assert(heapNode->arenaOwner() == 0);
+    assert(!heapNode->isArenaAllocated());
+    delete heapNode;
+
+    loka::app::scene::NodeArena arena;
+    const size_t nodeBytes =
+        sizeof(loka::app::scene::Node) + loka::app::scene::detail::AlignOf<loka::app::scene::Node>::value;
+    arena.reserve(nodeBytes);
+    void *nodeMemory = arena.allocate(sizeof(loka::app::scene::Node),
+                                      loka::app::scene::detail::AlignOf<loka::app::scene::Node>::value);
+    assert(nodeMemory != 0);
+    loka::app::scene::Node *arenaNode = new (nodeMemory) loka::app::scene::Node();
+    assert(arenaNode->arenaOwner() == 0);
+    assert(!arenaNode->isArenaAllocated());
+
+    arena.registerNode(arenaNode);
+    assert(arenaNode->arenaOwner() == &arena);
+    assert(arenaNode->isArenaAllocated());
+  }
+
+  class NodeArenaDestroyOrderProbe : public loka::app::scene::Node
+  {
+  public:
+    NodeArenaDestroyOrderProbe(std::vector<int> *destroyOrder, int marker)
+        : destroyOrder_(destroyOrder),
+          marker_(marker)
+    {
+    }
+
+    virtual ~NodeArenaDestroyOrderProbe()
+    {
+      this->destroyOrder_->push_back(this->marker_);
+    }
+
+  private:
+    std::vector<int> *destroyOrder_;
+    int marker_;
+  };
+
+  class LinkedNodeArenaDestroyOrderProbe : public loka::app::scene::NestableNode
+  {
+  public:
+    LinkedNodeArenaDestroyOrderProbe(std::vector<int> *destroyOrder, int marker)
+        : destroyOrder_(destroyOrder),
+          marker_(marker)
+    {
+    }
+
+    virtual ~LinkedNodeArenaDestroyOrderProbe()
+    {
+      this->destroyOrder_->push_back(this->marker_);
+    }
+
+  private:
+    std::vector<int> *destroyOrder_;
+    int marker_;
+  };
+
+  class NodeArenaDestroyCountProbe : public loka::app::scene::Node
+  {
+  public:
+    explicit NodeArenaDestroyCountProbe(int *destructorCalls)
+        : destructorCalls_(destructorCalls)
+    {
+    }
+
+    virtual ~NodeArenaDestroyCountProbe()
+    {
+      ++*this->destructorCalls_;
+    }
+
+  private:
+    int *destructorCalls_;
+  };
+
+  static void testNodeArenaDestroysChildrenBeforeParents()
+  {
+    const size_t probeBytes = sizeof(NodeArenaDestroyOrderProbe)
+                              + loka::app::scene::detail::AlignOf<NodeArenaDestroyOrderProbe>::value;
+    std::vector<int> destroyOrder;
+    loka::app::scene::NodeArena arena;
+    arena.reserve(probeBytes * 2);
+
+    void *parentMemory = arena.allocate(
+        sizeof(NodeArenaDestroyOrderProbe),
+        loka::app::scene::detail::AlignOf<NodeArenaDestroyOrderProbe>::value);
+    assert(parentMemory != 0);
+    NodeArenaDestroyOrderProbe *parent = new (parentMemory) NodeArenaDestroyOrderProbe(&destroyOrder, 1);
+    arena.registerNode(parent);
+
+    void *childMemory = arena.allocate(
+        sizeof(NodeArenaDestroyOrderProbe),
+        loka::app::scene::detail::AlignOf<NodeArenaDestroyOrderProbe>::value);
+    assert(childMemory != 0);
+    NodeArenaDestroyOrderProbe *child = new (childMemory) NodeArenaDestroyOrderProbe(&destroyOrder, 2);
+    arena.registerNode(child);
+
+    arena.clear();
+
+    assert(destroyOrder.size() == 2);
+    assert(destroyOrder[0] == 2 &&
+           "NodeArena::clear must destroy children before parents");
+    assert(destroyOrder[1] == 1);
+
+    const size_t linkedParentBytes = sizeof(LinkedNodeArenaDestroyOrderProbe)
+                                     + loka::app::scene::detail::AlignOf<LinkedNodeArenaDestroyOrderProbe>::value;
+    destroyOrder.clear();
+    arena.reserve(linkedParentBytes + probeBytes);
+
+    void *linkedParentMemory = arena.allocate(
+        sizeof(LinkedNodeArenaDestroyOrderProbe),
+        loka::app::scene::detail::AlignOf<LinkedNodeArenaDestroyOrderProbe>::value);
+    assert(linkedParentMemory != 0);
+    LinkedNodeArenaDestroyOrderProbe *linkedParent =
+        new (linkedParentMemory) LinkedNodeArenaDestroyOrderProbe(&destroyOrder, 1);
+    arena.registerNode(linkedParent);
+
+    void *linkedChildMemory = arena.allocate(
+        sizeof(NodeArenaDestroyOrderProbe),
+        loka::app::scene::detail::AlignOf<NodeArenaDestroyOrderProbe>::value);
+    assert(linkedChildMemory != 0);
+    NodeArenaDestroyOrderProbe *linkedChild =
+        new (linkedChildMemory) NodeArenaDestroyOrderProbe(&destroyOrder, 2);
+    arena.registerNode(linkedChild);
+    linkedParent->addChild(linkedChild);
+
+    arena.clear();
+
+    assert(destroyOrder.size() == 2);
+    assert(destroyOrder[0] == 2 &&
+           "NodeArena::clear must sever linked parents before reverse destruction");
+    assert(destroyOrder[1] == 1);
+  }
+
+  static void testNodeArenaReleaseTombstonePreventsClearDoubleDestruction()
+  {
+    const size_t probeBytes = sizeof(NodeArenaDestroyCountProbe)
+                              + loka::app::scene::detail::AlignOf<NodeArenaDestroyCountProbe>::value;
+    int firstDestructorCalls = 0;
+    int secondDestructorCalls = 0;
+
+    {
+      loka::app::scene::NodeArena arena;
+      arena.reserve(probeBytes * 2);
+
+      void *firstMemory = arena.allocate(
+          sizeof(NodeArenaDestroyCountProbe),
+          loka::app::scene::detail::AlignOf<NodeArenaDestroyCountProbe>::value);
+      assert(firstMemory != 0);
+      NodeArenaDestroyCountProbe *first =
+          new (firstMemory) NodeArenaDestroyCountProbe(&firstDestructorCalls);
+      arena.registerNode(first);
+
+      void *secondMemory = arena.allocate(
+          sizeof(NodeArenaDestroyCountProbe),
+          loka::app::scene::detail::AlignOf<NodeArenaDestroyCountProbe>::value);
+      assert(secondMemory != 0);
+      NodeArenaDestroyCountProbe *second =
+          new (secondMemory) NodeArenaDestroyCountProbe(&secondDestructorCalls);
+      arena.registerNode(second);
+
+      assert(arena.releaseNode(first));
+      assert(firstDestructorCalls == 1);
+      assert(secondDestructorCalls == 0);
+
+      arena.clear();
+      assert(firstDestructorCalls == 1 &&
+             "NodeArena::clear must skip a released node's tombstoned ledger entry");
+      assert(secondDestructorCalls == 1);
+    }
+
+    assert(firstDestructorCalls == 1);
+    assert(secondDestructorCalls == 1);
+  }
+
+  static void testNodeArenaClearDestroysHeapChildOfArenaParentExactlyOnce()
+  {
+    const size_t parentBytes = sizeof(LinkedNodeArenaDestroyOrderProbe)
+                               + loka::app::scene::detail::AlignOf<LinkedNodeArenaDestroyOrderProbe>::value;
+    std::vector<int> parentDestroyOrder;
+    int heapChildDestructorCalls = 0;
+
+    {
+      loka::app::scene::NodeArena arena;
+      arena.reserve(parentBytes);
+
+      void *parentMemory = arena.allocate(
+          sizeof(LinkedNodeArenaDestroyOrderProbe),
+          loka::app::scene::detail::AlignOf<LinkedNodeArenaDestroyOrderProbe>::value);
+      assert(parentMemory != 0);
+      LinkedNodeArenaDestroyOrderProbe *parent =
+          new (parentMemory) LinkedNodeArenaDestroyOrderProbe(&parentDestroyOrder, 1);
+      arena.registerNode(parent);
+
+      NodeArenaDestroyCountProbe *heapChild =
+          new NodeArenaDestroyCountProbe(&heapChildDestructorCalls);
+      assert(!heapChild->isArenaAllocated());
+      parent->addChild(heapChild);
+
+      arena.clear();
+      assert(heapChildDestructorCalls == 1 &&
+             "NodeArena::clear must delete a heap child detached from an arena parent exactly once");
+      assert(parentDestroyOrder.size() == 1);
+      assert(parentDestroyOrder[0] == 1);
+
+      arena.clear();
+      assert(heapChildDestructorCalls == 1);
+    }
+
+    assert(heapChildDestructorCalls == 1);
+    assert(parentDestroyOrder.size() == 1);
+  }
+
   static void testStateArenaAllocation()
   {
     loka::app::scene::StateArena arena;
@@ -372,6 +588,10 @@ void testBoundaryArenaContracts()
 {
   printf("\n==== [testBoundaryArenaContracts] start ====\n");
   testNodeArenaAlignmentAndCapacity();
+  testNodeArenaRegistrationStampsOwner();
+  testNodeArenaDestroysChildrenBeforeParents();
+  testNodeArenaReleaseTombstonePreventsClearDoubleDestruction();
+  testNodeArenaClearDestroysHeapChildOfArenaParentExactlyOnce();
   testStateArenaAllocation();
   testStateArenaReleaseAndClear();
   testStateArenaReserveMatchesBatchEstimate();

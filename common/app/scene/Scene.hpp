@@ -411,6 +411,13 @@ namespace loka
           return nextTickTracker_.hasPendingRequest();
         }
 
+        /** Requests retirement reclamation at the next tracker run, never in
+            the current tracker drain loop. */
+        void requestRetiredSubtreeDrainAfterRun()
+        {
+          nextTickTracker_.requestAfterRun();
+        }
+
         void invalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
         {
           requestInvalidate(flags);
@@ -455,7 +462,13 @@ namespace loka
         static bool RefreshThunk(void *userData)
         {
           Scene *scene = static_cast<Scene *>(userData);
-          return scene ? scene->refreshComposition() : false;
+          if (!scene)
+          {
+            return false;
+          }
+          drainLiveBoundaryRetireQueues(scene->rootNode_);
+          // Reclamation alone is silent and must not produce an apply snapshot.
+          return scene->refreshComposition();
         }
 
         static void ApplyThunk(void *userData)
@@ -772,6 +785,14 @@ namespace loka
           {
             prepareRootBoundaryCompose(boundary, rootContext, event);
             boundary->compose(rootContext, event);
+            if (event == COMPOSE_EVENT_DETACH)
+            {
+              loka::dsl::CompositionCursor<Node> it(boundary->childrenHead(), boundary->childrenCount());
+              for (Node *child = it.next(); child; child = it.next())
+              {
+                BoundaryNode::composeSubtree(child, rootContext, event, boundary);
+              }
+            }
             completeRootBoundaryCompose(boundary);
           }
         }
@@ -783,13 +804,25 @@ namespace loka
           {
             return;
           }
-          boundary->setParentBoundary(0);
+          if (event == COMPOSE_EVENT_DETACH)
+          {
+            boundary->setScene(0);
+            boundary->setParentBoundary(0);
+            boundary->clearObservedStateEntries();
+          }
+          else
+          {
+            boundary->setParentBoundary(0);
+          }
           boundary->clearObservedDirtyFlags();
           if (event != COMPOSE_EVENT_UPDATE)
           {
             boundary->clearPhaseResults();
           }
-          boundary->beginObservedStatePass();
+          if (event != COMPOSE_EVENT_DETACH)
+          {
+            boundary->beginObservedStatePass();
+          }
           boundary->beginComposeResult(event, rootContext.dirtyFlags());
         }
 
@@ -876,6 +909,29 @@ namespace loka
             count += countLiveNodes(child);
           }
           return count;
+        }
+
+        static void drainLiveBoundaryRetireQueues(Node *node)
+        {
+          if (!node)
+          {
+            return;
+          }
+          BoundaryNode *boundary = node->asBoundary();
+          if (boundary)
+          {
+            boundary->drainRetiredSubtreesAtNextTrackerRun();
+          }
+          INestable *nestable = node->asNestable();
+          if (!nestable)
+          {
+            return;
+          }
+          loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
+          for (Node *child = it.next(); child; child = it.next())
+          {
+            drainLiveBoundaryRetireQueues(child);
+          }
         }
 
         // Default constructor intentionally not implemented to forbid rootless scenes

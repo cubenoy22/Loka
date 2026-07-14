@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_BOUNDARY_DETAIL_BOUNDARY_ARENA_HPP
 #define LOKA_CORE2_SCENE_BOUNDARY_DETAIL_BOUNDARY_ARENA_HPP
 
+#include <cassert>
 #include <new>
 #include <vector>
 #include "app/scene/Node.hpp"
@@ -13,100 +14,154 @@ namespace loka
   {
     namespace scene
     {
-      // NodeArena: pre-allocated memory block for batch node creation
-      class NodeArena
+      namespace detail
       {
-      public:
-        NodeArena()
-            : buffer_(0),
-              raw_(0),
-              size_(0),
-              offset_(0)
+        // NodeArena: pre-allocated memory block for batch node creation
+        class NodeArena
         {
-        }
-        ~NodeArena()
-        {
-          clear();
-        }
-
-        void reserve(size_t totalSize)
-        {
-          clear();
-          if (totalSize > 0)
+        public:
+          NodeArena()
+              : buffer_(0),
+                raw_(0),
+                size_(0),
+                offset_(0)
           {
-            // Allocate with extra padding and align the base pointer.
-            const size_t kArenaAlign = 16;
-            size_t rawSize = totalSize + kArenaAlign;
-            raw_ = new char[rawSize];
-            size_t rawAddr = reinterpret_cast<size_t>(raw_);
-            size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
-            buffer_ = reinterpret_cast<char *>(alignedAddr);
-            size_ = rawSize - (alignedAddr - rawAddr);
+          }
+          ~NodeArena()
+          {
+            clear();
+          }
+
+          void reserve(size_t totalSize)
+          {
+            clear();
+            if (totalSize > 0)
+            {
+              // Allocate with extra padding and align the base pointer.
+              const size_t kArenaAlign = 16;
+              size_t rawSize = totalSize + kArenaAlign;
+              raw_ = new char[rawSize];
+              size_t rawAddr = reinterpret_cast<size_t>(raw_);
+              size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
+              buffer_ = reinterpret_cast<char *>(alignedAddr);
+              size_ = rawSize - (alignedAddr - rawAddr);
+              offset_ = 0;
+            }
+          }
+
+          void *allocate(size_t size, size_t align)
+          {
+            if (!buffer_ || size == 0)
+            {
+              return 0;
+            }
+            align = detail::NormalizeArenaAlign(align);
+            // Align the offset
+            size_t mask = align - 1;
+            size_t aligned = (offset_ + mask) & ~mask;
+            if (aligned + size > size_)
+            {
+              return 0; // Arena full
+            }
+            void *ptr = buffer_ + aligned;
+            offset_ = aligned + size;
+            return ptr;
+          }
+
+          void registerNode(Node *node)
+          {
+            if (node)
+            {
+              node->setArenaOwner(this);
+              nodes_.push_back(node);
+            }
+          }
+
+          /** Tombstones and destroys one arena node without moving the ledger. */
+          bool releaseNode(Node *node)
+          {
+            if (!node)
+            {
+              return false;
+            }
+            assert(node->arenaOwner() == this && "node released to a foreign arena ledger");
+            for (size_t i = 0; i < nodes_.size(); ++i)
+            {
+              if (nodes_[i] == node)
+              {
+                nodes_[i] = 0;
+                node->~Node();
+                return true;
+              }
+            }
+            return false;
+          }
+
+          void clear()
+          {
+            // Sever every parent-to-child edge while the whole ledger is alive.
+            std::vector<Node *> detachedChildren;
+            std::vector<Node *> detachedHeapRoots;
+            for (size_t i = 0; i < nodes_.size(); ++i)
+            {
+              Node *node = nodes_[i];
+              INestable *nestable = node ? node->asNestable() : 0;
+              if (nestable)
+              {
+                nestable->detachChildrenTo(detachedChildren);
+                for (size_t childIndex = 0; childIndex < detachedChildren.size(); ++childIndex)
+                {
+                  Node *child = detachedChildren[childIndex];
+                  if (child && !child->isArenaAllocated())
+                  {
+                    detachedHeapRoots.push_back(child);
+                  }
+                }
+              }
+            }
+            for (size_t i = 0; i < detachedHeapRoots.size(); ++i)
+            {
+              delete detachedHeapRoots[i];
+            }
+            // Creation is parent-first, so reverse order destroys children first.
+            for (size_t i = nodes_.size(); i > 0; --i)
+            {
+              Node *node = nodes_[i - 1];
+              if (node)
+              {
+                node->~Node();
+              }
+            }
+            nodes_.clear();
+            if (raw_)
+            {
+              delete[] raw_;
+            }
+            else
+            {
+              delete[] buffer_;
+            }
+            buffer_ = 0;
+            raw_ = 0;
+            size_ = 0;
             offset_ = 0;
           }
-        }
 
-        void *allocate(size_t size, size_t align)
-        {
-          if (!buffer_ || size == 0)
+          bool hasCapacity() const
           {
-            return 0;
+            return buffer_ != 0;
           }
-          align = detail::NormalizeArenaAlign(align);
-          // Align the offset
-          size_t mask = align - 1;
-          size_t aligned = (offset_ + mask) & ~mask;
-          if (aligned + size > size_)
-          {
-            return 0; // Arena full
-          }
-          void *ptr = buffer_ + aligned;
-          offset_ = aligned + size;
-          return ptr;
-        }
 
-        void registerNode(Node *node)
-        {
-          if (node)
-          {
-            nodes_.push_back(node);
-          }
-        }
+        private:
+          char *buffer_;
+          char *raw_;
+          size_t size_;
+          size_t offset_;
+          std::vector<Node *> nodes_;
+        };
+      } // namespace detail
 
-        void clear()
-        {
-          // Call destructors in creation order so parents can safely detach children.
-          for (size_t i = 0; i < nodes_.size(); ++i)
-          {
-            nodes_[i]->~Node();
-          }
-          nodes_.clear();
-          if (raw_)
-          {
-            delete[] raw_;
-          }
-          else
-          {
-            delete[] buffer_;
-          }
-          buffer_ = 0;
-          raw_ = 0;
-          size_ = 0;
-          offset_ = 0;
-        }
-
-        bool hasCapacity() const
-        {
-          return buffer_ != 0;
-        }
-
-      private:
-        char *buffer_;
-        char *raw_;
-        size_t size_;
-        size_t offset_;
-        std::vector<Node *> nodes_;
-      };
+      typedef detail::NodeArena NodeArena;
 
       class StateArena
       {

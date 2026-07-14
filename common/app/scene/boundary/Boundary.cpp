@@ -10,6 +10,104 @@ namespace loka
   {
     namespace scene
     {
+      void BoundaryNode::retireArenaSubtree(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        assert(node->isArenaAllocated());
+        assert(node->nextInComposition == 0 &&
+               "retired subtree root must be detached before reusing its sibling link");
+        if (this->retiredSubtreesTail_)
+        {
+          this->retiredSubtreesTail_->nextInComposition = node;
+        }
+        else
+        {
+          this->retiredSubtreesHead_ = node;
+        }
+        this->retiredSubtreesTail_ = node;
+
+        Scene *scene = this->getScene();
+        if (scene)
+        {
+          scene->requestRetiredSubtreeDrainAfterRun();
+        }
+      }
+
+      void BoundaryNode::destroyRetiredSubtree(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+
+        BoundaryNode *nestedBoundary = node->asBoundary();
+        if (!nestedBoundary || nestedBoundary == this)
+        {
+          INestable *nestable = node->asNestable();
+          if (nestable)
+          {
+            std::vector<Node *> children;
+            nestable->detachChildrenTo(children);
+            for (size_t i = 0; i < children.size(); ++i)
+            {
+              this->destroyRetiredSubtree(children[i]);
+            }
+          }
+        }
+
+        if (node->isArenaAllocated())
+        {
+          assert(node->arenaOwner() == this->nodeArena() &&
+                 "retired arena node must belong to the retiring Boundary arena");
+          const bool released = this->nodeArena_.releaseNode(node);
+          assert(released && "retired arena node must belong to the retiring Boundary ledger");
+        }
+        else
+        {
+          delete node;
+        }
+      }
+
+      void BoundaryNode::drainRetiredSubtreesAtNextTrackerRun()
+      {
+        if (this->drainingRetiredSubtrees_ || !this->retiredSubtreesHead_)
+        {
+          return;
+        }
+
+        Node *snapshot = this->retiredSubtreesHead_;
+        this->retiredSubtreesHead_ = 0;
+        this->retiredSubtreesTail_ = 0;
+        this->drainingRetiredSubtrees_ = true;
+        while (snapshot)
+        {
+          Node *next = snapshot->nextInComposition;
+          snapshot->nextInComposition = 0;
+          this->destroyRetiredSubtree(snapshot);
+          snapshot = next;
+        }
+        this->drainingRetiredSubtrees_ = false;
+      }
+
+      void BoundaryNode::drainAllRetiredSubtrees()
+      {
+        while (this->retiredSubtreesHead_)
+        {
+          this->drainRetiredSubtreesAtNextTrackerRun();
+        }
+      }
+
+      void BoundaryNode::releaseOwnedNodeStorage()
+      {
+        this->drainAllRetiredSubtrees();
+        // Detach the owner edge before NodeArena severs and destroys its ledger.
+        this->clearChildren();
+        this->nodeArena_.clear();
+      }
+
       void BoundaryNode::markViewDirty(NodeDirtyFlags flags)
       {
         if (this->isFrozen())

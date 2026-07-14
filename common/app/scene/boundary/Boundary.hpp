@@ -47,16 +47,17 @@ namespace loka
               runtimeState_(),
               updateState_(),
               compositionState_(),
-              observedState_()
+              observedState_(),
+              retiredSubtreesHead_(0),
+              retiredSubtreesTail_(0),
+              drainingRetiredSubtrees_(false)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
         }
         virtual ~BoundaryNode()
         {
           clearObservedStateEntries();
-          // Detach children before the arena is cleared to avoid touching freed nodes.
-          clearChildren();
-          nodeArena_.clear();
+          this->releaseOwnedNodeStorage();
           releaseNodeStateRegistrations();
           clearOwnedStates();
           clearOwnedStateHandles();
@@ -350,6 +351,10 @@ namespace loka
         {
           return &nodeArena_;
         }
+        /** Reclaims the queue snapshot owned by this Boundary at the head of
+            the next tracker run. Retirees added while draining wait for a
+            later tracker run. */
+        void drainRetiredSubtreesAtNextTrackerRun();
         virtual void *allocateStateMemory(size_t size, size_t align)
         {
           return stateArena_.allocate(size, align);
@@ -708,6 +713,10 @@ namespace loka
               {
                 delete detachedNode;
               }
+              else
+              {
+                this->retireArenaSubtree(detachedNode);
+              }
             }
           }
           return true;
@@ -771,14 +780,6 @@ namespace loka
           {
             return;
           }
-          if (event == COMPOSE_EVENT_ATTACH)
-          {
-            node->onCompositionAttached();
-          }
-          else if (event == COMPOSE_EVENT_DETACH)
-          {
-            node->onCompositionDetached();
-          }
           BoundaryNode *boundary;
           ComposableNode *composable;
           INestable *nestable;
@@ -789,17 +790,38 @@ namespace loka
             nestable = node->asNestable();
           }
 
+          if (boundary && event == COMPOSE_EVENT_DETACH)
+          {
+            boundary->setScene(0);
+            boundary->setParentBoundary(0);
+            boundary->clearObservedStateEntries();
+          }
+          if (event == COMPOSE_EVENT_ATTACH)
+          {
+            node->onCompositionAttached();
+          }
+          else if (event == COMPOSE_EVENT_DETACH)
+          {
+            node->onCompositionDetached();
+          }
+
           BoundaryNode *nextBoundary = currentBoundary;
           if (boundary)
           {
-            boundary->setParentBoundary(currentBoundary);
-            if (currentBoundary)
+            if (event != COMPOSE_EVENT_DETACH)
             {
-              boundary->setScene(currentBoundary->getScene());
+              boundary->setParentBoundary(currentBoundary);
+              if (currentBoundary)
+              {
+                boundary->setScene(currentBoundary->getScene());
+              }
             }
             boundary->clearObservedDirtyFlags();
             boundary->clearPhaseResults();
-            boundary->beginObservedStatePass();
+            if (event != COMPOSE_EVENT_DETACH)
+            {
+              boundary->beginObservedStatePass();
+            }
             nextBoundary = boundary;
           }
           BoundaryComposePhaseScope composeScope =
@@ -831,7 +853,7 @@ namespace loka
             }
 #endif
           }
-          if (nextBoundary)
+          if (nextBoundary && event != COMPOSE_EVENT_DETACH)
           {
             nextBoundary->noteLocalPaintWork();
             class LocalDirtySourceRegistrar : public DirtySourceRegistrar
@@ -1008,6 +1030,11 @@ namespace loka
           ownedStateHandles_.clear();
         }
 
+        void retireArenaSubtree(Node *node);
+        void destroyRetiredSubtree(Node *node);
+        void drainAllRetiredSubtrees();
+        void releaseOwnedNodeStorage();
+
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
@@ -1017,6 +1044,9 @@ namespace loka
         BoundaryObservedState observedState_;
         NodeArena nodeArena_;
         StateArena stateArena_;
+        Node *retiredSubtreesHead_;
+        Node *retiredSubtreesTail_;
+        bool drainingRetiredSubtrees_;
       };
 
       template <class PropsT, class NodeT> struct BoundaryDefinition : public NodeDefinition<PropsT, NodeT>
