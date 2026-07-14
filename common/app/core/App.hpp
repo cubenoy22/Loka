@@ -22,8 +22,6 @@ public:
 
   virtual void run();
   virtual void quit() = 0;
-  /** Reclaims an already-detached Window. Platform close callbacks must use requestWindowClose(). */
-  virtual void windowClosed(Window *window);
   /** Detaches a Window immediately and queues its silent reclaim for the App clock boundary. */
   void requestWindowClose(Window *window);
   virtual bool handleMenuCommand(int commandId, Window *window);
@@ -46,6 +44,10 @@ public:
   }
 
 protected:
+  /** Drain-internal reclaim step: deletes an already-detached Window. Only
+      flushPendingWindowClosures() and subclass observation hooks may call
+      this; everything else must go through requestWindowClose(). */
+  virtual void windowClosed(Window *window);
   AppComponentGroup *group_;
   bool quitWhenLastWindowClosed_;
   AppConfigurable *config_;

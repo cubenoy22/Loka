@@ -377,6 +377,14 @@ namespace
       App::windowClosed(window);
     }
 
+    // windowClosed is protected since the review fix; external misuse is now a
+    // compile error. The death checks below exercise subclass-level misuse
+    // through this bridge.
+    void misuseWindowClosedForTest(Window *window)
+    {
+      this->windowClosed(window);
+    }
+
   protected:
     virtual void applyMenuBar(Window *window)
     {
@@ -433,13 +441,13 @@ namespace
       {
         WindowRetirementProbe *second = new WindowRetirementProbe(&context, WindowProps());
         app.install(first, second);
-        app.windowClosed(second);
+        app.misuseWindowClosedForTest(second);
       }
       else
       {
         app.install(first);
         app.detachWithoutReselectForMisuseTest(first);
-        app.windowClosed(first);
+        app.misuseWindowClosedForTest(first);
       }
       _exit(0);
     }
