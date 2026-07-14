@@ -479,6 +479,98 @@ namespace
 
   int *g_nestedArenaRetireOuterDestructorCalls = 0;
 
+  class NativeBindingStateBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NativeBindingStateBoundaryNode>
+      NativeBindingStateBoundaryProps;
+
+  NativeBindingStateBoundaryNode *g_nativeBindingStateBoundary = 0;
+  bool g_includeNativeBindingRetireBranch = false;
+
+  class NativeBindingStateContext : public loka::app::scene::NodeContext
+  {
+  public:
+    NativeBindingStateContext(loka::core::State<int> *state,
+                              bool *unboundWhileStateAlive)
+        : state_(state),
+          unboundWhileStateAlive_(unboundWhileStateAlive)
+    {
+      assert(this->state_ != 0);
+      this->state_->bind(&NativeBindingStateContext::StateChanged, this, false);
+    }
+
+    virtual ~NativeBindingStateContext()
+    {
+      const int value = this->state_->get();
+      (void)value;
+      this->state_->unbind(&NativeBindingStateContext::StateChanged, this);
+      *this->unboundWhileStateAlive_ = true;
+    }
+
+  private:
+    static void StateChanged(void *)
+    {
+    }
+
+    loka::core::State<int> *state_;
+    bool *unboundWhileStateAlive_;
+  };
+
+  class NativeBindingStateBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<NativeBindingStateBoundaryNode>
+  {
+  public:
+    explicit NativeBindingStateBoundaryNode(const NativeBindingStateBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<NativeBindingStateBoundaryNode>(props),
+          nativeValue_(),
+          initialized_(false)
+    {
+    }
+
+    virtual ~NativeBindingStateBoundaryNode()
+    {
+      if (g_nativeBindingStateBoundary == this)
+      {
+        g_nativeBindingStateBoundary = 0;
+      }
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &composition)
+    {
+      (void)composition;
+      if (this->initialized_)
+      {
+        return;
+      }
+      this->declareStates(1).state(this->nativeValue_, 42);
+      g_nativeBindingStateBoundary = this;
+      this->initialized_ = true;
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &composition)
+    {
+      (void)composition;
+      if (g_nativeBindingStateBoundary == this)
+      {
+        g_nativeBindingStateBoundary = 0;
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      composition.declare(root);
+    }
+
+    loka::core::State<int> *nativeValueState() const
+    {
+      return this->nativeValue_.state();
+    }
+
+  private:
+    loka::app::scene::NodeState<int> nativeValue_;
+    bool initialized_;
+  };
+
   class OwnedStateCorpseBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<OwnedStateCorpseBoundaryNode>
       OwnedStateCorpseBoundaryProps;
@@ -666,6 +758,14 @@ namespace
         branch.tag(1);
         root << branch;
       }
+      else if (g_includeNativeBindingRetireBranch && !alternate)
+      {
+        loka::app::scene::BoundaryDefinition<NativeBindingStateBoundaryProps,
+                                             NativeBindingStateBoundaryNode>
+            branch = loka::app::scene::Boundary<NativeBindingStateBoundaryNode>();
+        branch.tag(1);
+        root << branch;
+      }
       else if (g_ownedStateCorpseDestructorCalls && !alternate)
       {
         loka::app::scene::BoundaryDefinition<OwnedStateCorpseBoundaryProps,
@@ -835,6 +935,27 @@ namespace
       return false;
     }
     virtual void destroy() {}
+  };
+
+  struct NativeBindingProbePlatformController : public DetachProbePlatformController
+  {
+    explicit NativeBindingProbePlatformController(bool *unboundWhileStateAlive)
+        : unboundWhileStateAlive_(unboundWhileStateAlive)
+    {
+    }
+
+    virtual void onChange(loka::app::scene::Node *, loka::app::scene::NodeDirtyFlags, bool)
+    {
+      if (g_nativeBindingStateBoundary && !g_nativeBindingStateBoundary->getContext())
+      {
+        g_nativeBindingStateBoundary->setContext(
+            new NativeBindingStateContext(g_nativeBindingStateBoundary->nativeValueState(),
+                                          this->unboundWhileStateAlive_));
+      }
+    }
+
+  private:
+    bool *unboundWhileStateAlive_;
   };
 } // namespace
 
@@ -1013,6 +1134,57 @@ void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun()
   g_conditionalArenaRetireDestructorCalls = 0;
   g_conditionalArenaActiveDestructorCalls = 0;
   g_conditionalArenaRetireProbe = 0;
+}
+
+void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim()
+{
+  using namespace loka::app::scene;
+
+  bool unboundWhileStateAlive = false;
+  g_includeNativeBindingRetireBranch = true;
+
+  {
+    NativeBindingProbePlatformController platform(&unboundWhileStateAlive);
+    Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
+
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_conditionalArenaRetireProbe != 0);
+    assert(g_nativeBindingStateBoundary != 0);
+    assert(g_nativeBindingStateBoundary->getContext() != 0);
+
+    g_conditionalArenaRetireProbe->showAlternate();
+    assert(scene.flushInvalidation());
+    assert(unboundWhileStateAlive &&
+           "retiring native context must unbind before its node-owned state is reclaimed");
+  }
+
+  g_includeNativeBindingRetireBranch = false;
+  g_nativeBindingStateBoundary = 0;
+  g_conditionalArenaRetireProbe = 0;
+}
+
+void testSceneDestructionUnbindsNativeContextBeforeNodeOwnedStateReclaim()
+{
+  using namespace loka::app::scene;
+
+  bool unboundWhileStateAlive = false;
+  NativeBindingProbePlatformController platform(&unboundWhileStateAlive);
+
+  {
+    Scene scene((Boundary<NativeBindingStateBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_nativeBindingStateBoundary != 0);
+    assert(g_nativeBindingStateBoundary->getContext() != 0);
+    assert(!unboundWhileStateAlive);
+  }
+
+  assert(unboundWhileStateAlive &&
+         "Scene destruction must unbind native context before its node-owned state is reclaimed");
+  g_nativeBindingStateBoundary = 0;
 }
 
 void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce()

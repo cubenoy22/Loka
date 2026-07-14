@@ -922,10 +922,6 @@ namespace loka
           }
           if (!nestable)
           {
-            if (composable && event == COMPOSE_EVENT_DETACH)
-            {
-              composable->completeCompositionDetach();
-            }
             return;
           }
           loka::dsl::CompositionCursor<Node> it(nestable->childrenHead(), nestable->childrenCount());
@@ -933,10 +929,6 @@ namespace loka
           {
             ComposeEvent childEvent = child->resolveChildComposeEvent(event);
             composeTree(child, *contextForChildren, childEvent, nextBoundary);
-          }
-          if (composable && event == COMPOSE_EVENT_DETACH)
-          {
-            composable->completeCompositionDetach();
           }
         }
 

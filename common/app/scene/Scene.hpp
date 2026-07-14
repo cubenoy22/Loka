@@ -792,7 +792,6 @@ namespace loka
               {
                 BoundaryNode::composeSubtree(child, rootContext, event, boundary);
               }
-              boundary->completeCompositionDetach();
             }
             completeRootBoundaryCompose(boundary);
           }
