@@ -97,12 +97,17 @@ int main()
   LOKA_RUN_TEST(testRootDetachChildWalkRetainsBoundaryStateOwner);
   LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
   LOKA_RUN_TEST(testConditionalBranchSwapFiresContextHooksOncePerLifetime);
+  LOKA_RUN_TEST(testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun);
+  LOKA_RUN_TEST(testRootUpdateFallbackReservesFreshArenaGeneration);
+  LOKA_RUN_TEST(testRetiredGenerationSubsumesQueuedArenaSubtreeExactlyOnce);
+  LOKA_RUN_TEST(testRootUpdateFallbackReleasesNativeContextBeforeNodeOwnedStateReclaim);
   LOKA_RUN_TEST(testRetiredBoundaryIsQuiescentBeforeNextTrackerRun);
   LOKA_RUN_TEST(testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim);
   LOKA_RUN_TEST(testSceneDestructionUnbindsNativeContextBeforeNodeOwnedStateReclaim);
   LOKA_RUN_TEST(testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun);
   LOKA_RUN_TEST(testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun);
   LOKA_RUN_TEST(testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce);
+  LOKA_RUN_TEST(testSceneTeardownDrainsPendingRetiredGenerationExactlyOnce);
   LOKA_RUN_TEST(testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst);
   LOKA_RUN_TEST(testRetiredArenaParentDestroysHeapChildExactlyOnceAtDrain);
   LOKA_RUN_TEST(testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce);
@@ -133,6 +138,7 @@ int main()
   LOKA_RUN_TEST(testPlatformLayoutHandlerRejectsInvalidTypeKey);
   LOKA_RUN_TEST(testPlatformLayoutHandlerSamePointerReregister);
   LOKA_RUN_TEST(testBoundaryArenaContracts);
+  LOKA_RUN_TEST(testNodeArenaRetiredGenerationContracts);
   LOKA_RUN_TEST(SceneTests::runAll);
   LOKA_RUN_TEST(testPrepareProjectedLayoutDelegation);
   LOKA_RUN_TEST(testProjectedLayoutUsesActiveBoundaryModel);

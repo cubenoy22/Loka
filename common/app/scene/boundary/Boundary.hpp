@@ -50,6 +50,7 @@ namespace loka
               observedState_(),
               retiredSubtreesHead_(0),
               retiredSubtreesTail_(0),
+              retiredGenerations_(),
               drainingRetiredSubtrees_(false)
         {
           this->tracker_.setInvalidateCallback(&BoundaryNode::InvalidateSceneThunk, this);
@@ -581,6 +582,9 @@ namespace loka
         }
 
       protected:
+        /** Retires the complete arena allocation and ledger for clock-boundary reclaim. */
+        void retireOwnedNodeGeneration();
+
         virtual void applyPendingStructureInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
         {
           this->applyPendingStructure(plan);
@@ -1050,6 +1054,7 @@ namespace loka
         StateArena stateArena_;
         Node *retiredSubtreesHead_;
         Node *retiredSubtreesTail_;
+        std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;
         bool drainingRetiredSubtrees_;
       };
 
