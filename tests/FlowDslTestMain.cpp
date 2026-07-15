@@ -96,7 +96,9 @@ int main()
   LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
   LOKA_RUN_TEST(testRootDetachChildWalkRetainsBoundaryStateOwner);
   LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
-  LOKA_RUN_TEST(testConditionalBranchSwapFiresContextHooksOncePerLifetime);
+  LOKA_RUN_TEST(testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach);
+  LOKA_RUN_TEST(testConditionalSwapUnderHiddenAncestorStaysSilent);
+  LOKA_RUN_TEST(testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach);
   LOKA_RUN_TEST(testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun);
   LOKA_RUN_TEST(testRootUpdateFallbackReservesFreshArenaGeneration);
   LOKA_RUN_TEST(testRetiredGenerationSubsumesQueuedArenaSubtreeExactlyOnce);

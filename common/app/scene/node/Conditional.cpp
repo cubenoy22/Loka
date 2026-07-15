@@ -77,7 +77,8 @@ namespace loka
             activeNode(0),
             trueNode_(0),
             falseNode_(0),
-            boundCondition_(0)
+            boundCondition_(0),
+            retainedDetached_(false)
       {
         this->bindCondition();
         updateActiveNode();
@@ -148,8 +149,9 @@ namespace loka
         updateActiveNode();
       }
 
-      Node *ConditionalNode::ensureBranchNode(bool cond)
+      Node *ConditionalNode::ensureBranchNode(bool cond, bool &created)
       {
+        created = false;
         Node **slot = cond ? &trueNode_ : &falseNode_;
         NodeDefinitionBase *def = cond ? props.trueDef : props.falseDef;
         if (*slot || !def)
@@ -157,6 +159,7 @@ namespace loka
           return *slot;
         }
         *slot = createConditionalNodeRecursive(def);
+        created = *slot != 0;
         return *slot;
       }
 
@@ -167,6 +170,10 @@ namespace loka
           return;
         }
         children_.remove(activeNode);
+        if (!retainedDetached_)
+        {
+          NotifySubtreeNodeDetached(activeNode);
+        }
       }
 
       void ConditionalNode::updateActiveNode()
@@ -176,7 +183,8 @@ namespace loka
           return;
         }
         bool cond = props.condition->get();
-        Node *nextNode = ensureBranchNode(cond);
+        bool created = false;
+        Node *nextNode = ensureBranchNode(cond, created);
         if (nextNode == activeNode)
         {
           return;
@@ -187,6 +195,14 @@ namespace loka
         {
           activeNode->markPendingAttachForCompose();
           addChild(activeNode);
+          if (!created && !retainedDetached_)
+          {
+            // Re-entry: the subtree kept its contexts across the retained
+            // detach; first entry is announced by setContext(). While an
+            // ancestor keeps this conditional hidden, swaps stay silent —
+            // the ancestor's re-attach walk shows the then-active path.
+            NotifySubtreeNodeAttached(activeNode);
+          }
         }
       }
 
