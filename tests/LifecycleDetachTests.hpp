@@ -10,6 +10,8 @@ void testConditionalUnbindsBeforeReclaim();
 void testConditionalBranchSwapFiresContextHooksOncePerLifetime();
 void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun();
 void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim();
+void testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun();
+void testRootUpdateFallbackReleasesNativeContextBeforeNodeOwnedStateReclaim();
 void testSceneDestructionUnbindsNativeContextBeforeNodeOwnedStateReclaim();
 void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce();
 void testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst();

@@ -97,6 +97,8 @@ int main()
   LOKA_RUN_TEST(testRootDetachChildWalkRetainsBoundaryStateOwner);
   LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
   LOKA_RUN_TEST(testConditionalBranchSwapFiresContextHooksOncePerLifetime);
+  LOKA_RUN_TEST(testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun);
+  LOKA_RUN_TEST(testRootUpdateFallbackReleasesNativeContextBeforeNodeOwnedStateReclaim);
   LOKA_RUN_TEST(testRetiredBoundaryIsQuiescentBeforeNextTrackerRun);
   LOKA_RUN_TEST(testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim);
   LOKA_RUN_TEST(testSceneDestructionUnbindsNativeContextBeforeNodeOwnedStateReclaim);

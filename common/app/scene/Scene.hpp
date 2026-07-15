@@ -687,9 +687,17 @@ namespace loka
             this->promoteCurrentCompositionSnapshot();
             if (event == COMPOSE_EVENT_UPDATE)
             {
-              this->detachExistingChildren(context);
-              this->clearChildren();
-              this->nodeArena()->clear();
+              std::vector<Node *> detached;
+              this->detachChildrenTo(detached);
+              for (size_t i = 0; i < detached.size(); ++i)
+              {
+                if (!detached[i])
+                {
+                  continue;
+                }
+                this->composeTree(detached[i], context, COMPOSE_EVENT_DETACH, this);
+                this->retireDetachedNode(context, detached[i]);
+              }
             }
             context.setComposition(&composition);
             Node *child = composition.createNodeTree();

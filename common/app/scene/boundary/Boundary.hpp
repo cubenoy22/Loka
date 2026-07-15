@@ -577,6 +577,10 @@ namespace loka
         }
 
       protected:
+        /** Releases native contexts from an already detached node, then
+            reclaims heap storage or queues arena storage for clock-boundary reclaim. */
+        void retireDetachedNode(ComponentContext &context, Node *node);
+
         virtual void applyPendingStructureInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
         {
           this->applyPendingStructure(plan);

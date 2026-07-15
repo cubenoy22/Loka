@@ -10,6 +10,24 @@ namespace loka
   {
     namespace scene
     {
+      void BoundaryNode::retireDetachedNode(ComponentContext &context, Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        if (context.platformController())
+        {
+          context.platformController()->releaseNodeContexts(node);
+        }
+        if (!node->isArenaAllocated())
+        {
+          delete node;
+          return;
+        }
+        this->retireArenaSubtree(node);
+      }
+
       void BoundaryNode::retireArenaSubtree(Node *node)
       {
         if (!node)
