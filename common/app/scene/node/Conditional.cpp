@@ -77,7 +77,8 @@ namespace loka
             activeNode(0),
             trueNode_(0),
             falseNode_(0),
-            boundCondition_(0)
+            boundCondition_(0),
+            retainedDetached_(false)
       {
         this->bindCondition();
         updateActiveNode();
@@ -169,7 +170,10 @@ namespace loka
           return;
         }
         children_.remove(activeNode);
-        NotifySubtreeNodeDetached(activeNode);
+        if (!retainedDetached_)
+        {
+          NotifySubtreeNodeDetached(activeNode);
+        }
       }
 
       void ConditionalNode::updateActiveNode()
@@ -191,10 +195,12 @@ namespace loka
         {
           activeNode->markPendingAttachForCompose();
           addChild(activeNode);
-          if (!created)
+          if (!created && !retainedDetached_)
           {
             // Re-entry: the subtree kept its contexts across the retained
-            // detach; first entry is announced by setContext().
+            // detach; first entry is announced by setContext(). While an
+            // ancestor keeps this conditional hidden, swaps stay silent —
+            // the ancestor's re-attach walk shows the then-active path.
             NotifySubtreeNodeAttached(activeNode);
           }
         }

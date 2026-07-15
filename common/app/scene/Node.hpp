@@ -284,6 +284,11 @@ namespace loka
         {
           composeAttachLifecycle_.markPendingAttach();
         }
+        /** Retained-detach facts delivered by the subtree notify walks.
+            Nodes that own retained branches (Conditional) override these to
+            stop announcing swaps while an ancestor keeps them hidden. */
+        virtual void onRetainedDetached() {}
+        virtual void onRetainedReattached() {}
         ComposeEvent resolveChildComposeEvent(ComposeEvent parentEvent)
         {
           return composeAttachLifecycle_.resolveChildComposeEvent(parentEvent);
@@ -1100,13 +1105,17 @@ namespace loka
       };
 
       /** Delivers the retained-detach fact to every native context in a
-          subtree. Contexts stay alive; platforms react (hide) or ignore. */
+          subtree. Contexts stay alive; platforms react (hide) or ignore.
+          Nodes that own retained branches of their own (Conditional) observe
+          the fact through onRetainedDetached so they stop announcing swaps
+          while an ancestor keeps them off the attached path. */
       inline void NotifySubtreeNodeDetached(Node *node)
       {
         if (!node)
         {
           return;
         }
+        node->onRetainedDetached();
         NodeContext *context = node->getContext();
         if (context)
         {
@@ -1123,13 +1132,16 @@ namespace loka
         }
       }
 
-      /** Re-entry counterpart: first entry is announced by setContext(). */
+      /** Re-entry counterpart: first entry is announced by setContext().
+          The walk follows live children only, so branches swapped out while
+          hidden stay hidden and the current active path is shown. */
       inline void NotifySubtreeNodeAttached(Node *node)
       {
         if (!node)
         {
           return;
         }
+        node->onRetainedReattached();
         NodeContext *context = node->getContext();
         if (context)
         {

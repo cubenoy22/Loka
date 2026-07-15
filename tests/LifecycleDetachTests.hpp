@@ -8,6 +8,7 @@ void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce();
 void testRootDetachChildWalkRetainsBoundaryStateOwner();
 void testConditionalUnbindsBeforeReclaim();
 void testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach();
+void testConditionalSwapUnderHiddenAncestorStaysSilent();
 void testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach();
 void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun();
 void testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun();

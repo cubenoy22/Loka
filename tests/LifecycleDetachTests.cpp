@@ -1598,6 +1598,58 @@ void testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach()
   assert(falseCounts.detachCalls == 2);
 }
 
+void testConditionalSwapUnderHiddenAncestorStaysSilent()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  typedef NodeDefinition<PlainDetachProbeProps, PlainDetachProbeNode> PlainDetachProbeDefinition;
+
+  DetachHookCounts outerFalseCounts;
+  DetachHookCounts innerTrueCounts;
+  DetachHookCounts innerFalseCounts;
+  loka::core::MutableState<bool> outerCondition(true);
+  loka::core::MutableState<bool> innerCondition(true);
+
+  PlainDetachProbeDefinition innerTrueDef((PlainDetachProbeProps(&innerTrueCounts)));
+  PlainDetachProbeDefinition innerFalseDef((PlainDetachProbeProps(&innerFalseCounts)));
+  ConditionalDefinition innerDef((ConditionalProps(&innerCondition, &innerTrueDef, &innerFalseDef)));
+  FragmentDefinition outerTrueWrap;
+  outerTrueWrap << innerDef;
+  PlainDetachProbeDefinition outerFalseDef((PlainDetachProbeProps(&outerFalseCounts)));
+
+  {
+    ConditionalNode outer((ConditionalProps(&outerCondition, &outerTrueWrap, &outerFalseDef)));
+    assert(innerTrueCounts.attachCalls == 1);
+
+    innerCondition.set(false);
+    innerCondition.set(true);
+    assert(innerTrueCounts.attachCalls == 2 && innerTrueCounts.detachCalls == 1);
+    assert(innerFalseCounts.attachCalls == 1 && innerFalseCounts.detachCalls == 1);
+
+    outerCondition.set(false);
+    assert(innerTrueCounts.detachCalls == 2 &&
+           "hiding the ancestor must deliver the detach fact down the active path");
+    assert(innerFalseCounts.detachCalls == 1 &&
+           "the inactive branch is already hidden and stays untouched");
+
+    innerCondition.set(false);
+    assert(innerFalseCounts.attachCalls == 1 &&
+           "a swap under a hidden ancestor must not show the incoming branch");
+    assert(innerTrueCounts.detachCalls == 2 &&
+           "a swap under a hidden ancestor must stay silent");
+
+    outerCondition.set(true);
+    assert(innerFalseCounts.attachCalls == 2 &&
+           "the ancestor's re-attach walk must show the then-active path");
+    assert(innerTrueCounts.attachCalls == 2 &&
+           "the branch swapped out while hidden must stay hidden");
+  }
+
+  assert(innerTrueCounts.detachCalls == 3);
+  assert(innerFalseCounts.detachCalls == 2);
+  assert(outerFalseCounts.detachCalls == 2);
+}
+
 void testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach()
 {
   using namespace loka::app;

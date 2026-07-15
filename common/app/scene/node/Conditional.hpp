@@ -35,6 +35,14 @@ namespace loka
         ~ConditionalNode();
         virtual void onCompositionAttached();
         virtual void onCompositionDetached();
+        virtual void onRetainedDetached()
+        {
+          retainedDetached_ = true;
+        }
+        virtual void onRetainedReattached()
+        {
+          retainedDetached_ = false;
+        }
         virtual void declareDirtySources(DirtySourceRegistrar &registrar)
         {
           if (this->props.condition)
@@ -56,6 +64,7 @@ namespace loka
         void unbindCondition();
 
         loka::core::State<bool> *boundCondition_;
+        bool retainedDetached_;
       };
 
       struct ConditionalDefinition : public NodeDefinitionBase
