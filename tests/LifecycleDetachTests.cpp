@@ -369,6 +369,112 @@ namespace
     ArenaRetireProbeProps props;
   };
 
+  class RootReplacementArenaRetireBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootReplacementArenaRetireBoundaryNode>
+      RootReplacementArenaRetireBoundaryProps;
+
+  int *g_rootReplacementRetireDestructorCalls = 0;
+  RootReplacementArenaRetireBoundaryNode *g_rootReplacementArenaRetireBoundary = 0;
+
+  class RootReplacementArenaRetireBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode>
+  {
+  public:
+    explicit RootReplacementArenaRetireBoundaryNode(const RootReplacementArenaRetireBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode>(props),
+          showReplacement_(),
+          initialized_(false)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      typedef loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode> BaseType;
+      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
+      {
+        BaseType::composeWithContext(context, event);
+        return;
+      }
+
+      loka::app::scene::NodeComposition &composition = this->beginComposition(context);
+      {
+        loka::app::scene::NodeComposition::CompositionScope scope(composition);
+        this->composeNode(composition);
+      }
+      this->captureCurrentCompositionSnapshot();
+      this->rebuildCurrentCompositionDiff();
+      std::vector<loka::app::scene::Node *> retainedChildren;
+      if (!this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
+      {
+        return;
+      }
+      this->promoteCurrentCompositionSnapshot();
+      for (size_t i = 0; i < retainedChildren.size(); ++i)
+      {
+        if (retainedChildren[i])
+        {
+          this->composeSubtree(retainedChildren[i], context, event, this);
+        }
+      }
+    }
+
+    virtual void attachNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->initialized_)
+      {
+        return;
+      }
+      composition.declareStates().state(this->showReplacement_, false);
+      g_rootReplacementArenaRetireBoundary = this;
+      this->initialized_ = true;
+    }
+
+    virtual void detachNode(loka::app::scene::NodeComposition &composition)
+    {
+      (void)composition;
+      if (g_rootReplacementArenaRetireBoundary == this)
+      {
+        g_rootReplacementArenaRetireBoundary = 0;
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->showReplacement_.get())
+      {
+        composition.declare(loka::app::Text("Replacement root"));
+      }
+      else
+      {
+        typedef loka::app::scene::NodeDefinition<ArenaRetireProbeProps, ArenaRetireProbeNode>
+            ArenaRetireProbeDefinition;
+        composition.declare(
+            ArenaRetireProbeDefinition((ArenaRetireProbeProps(g_rootReplacementRetireDestructorCalls))));
+      }
+    }
+
+    loka::app::scene::Node *activeRootNode() const
+    {
+      return this->compositionRootNode();
+    }
+
+    void showReplacement()
+    {
+      this->showReplacement_.set(true, true);
+      this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> showReplacement_;
+    bool initialized_;
+  };
+
   class RootUpdateFallbackDefinition : public loka::app::scene::NodeDefinitionBase
   {
   public:
@@ -1693,6 +1799,52 @@ void testRootUpdateFallbackReleasesNativeContextBeforeNodeOwnedStateReclaim()
   g_nativeBindingStateNodeDestroyed = 0;
   g_nativeBindingStateBoundary = 0;
 }
+
+void testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun()
+{
+  using namespace loka::app::scene;
+
+  int retiredDestructorCalls = 0;
+  g_rootReplacementRetireDestructorCalls = &retiredDestructorCalls;
+
+  {
+    DetachProbePlatformController platform;
+    Scene scene((Boundary<RootReplacementArenaRetireBoundaryNode>()));
+
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_rootReplacementArenaRetireBoundary != 0);
+    Node *retiringRoot = g_rootReplacementArenaRetireBoundary->activeRootNode();
+    assert(retiringRoot != 0);
+    assert(retiringRoot->asNestable() == 0 &&
+           "root replacement retire test must exercise a non-nestable root");
+    assert(retiringRoot->isArenaAllocated() &&
+           "root replacement retire test must exercise an arena-allocated root");
+    assert(retiredDestructorCalls == 0);
+
+    g_rootReplacementArenaRetireBoundary->showReplacement();
+    assert(scene.flushInvalidation());
+
+    assert(g_rootReplacementArenaRetireBoundary->activeRootNode() != retiringRoot &&
+           "incompatible root definition type must replace the retiring root");
+    assert(retiredDestructorCalls == 0 &&
+           "retired arena root must remain alive through the retiring apply");
+
+    assert(!scene.flushInvalidation() &&
+           "a drain-only tracker run must not report a refresh snapshot");
+
+    assert(retiredDestructorCalls == 1 &&
+           "retired arena root destructor must run at the next tracker run");
+  }
+
+  assert(retiredDestructorCalls == 1 &&
+         "Scene teardown must not destroy an already drained arena root again");
+
+  g_rootReplacementRetireDestructorCalls = 0;
+  g_rootReplacementArenaRetireBoundary = 0;
+}
+
 
 void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim()
 {

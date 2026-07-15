@@ -530,6 +530,10 @@ namespace loka
           {
             delete liveRoot;
           }
+          else
+          {
+            this->retireArenaSubtree(liveRoot);
+          }
           return true;
         }
         bool canApplyLocalCompositionDiff() const
