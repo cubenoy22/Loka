@@ -20,6 +20,19 @@ namespace loka
         class NodeArena
         {
         public:
+          struct RetiredNodeGeneration
+          {
+            RetiredNodeGeneration()
+                : buffer(0),
+                  raw(0)
+            {
+            }
+
+            char *buffer;
+            char *raw;
+            std::vector<Node *> nodes;
+          };
+
           NodeArena()
               : buffer_(0),
                 raw_(0),
@@ -99,12 +112,39 @@ namespace loka
 
           void clear()
           {
+            RetiredNodeGeneration gen;
+            if (detachRetiredGeneration(gen))
+            {
+              destroyRetiredGeneration(gen);
+            }
+          }
+
+          bool detachRetiredGeneration(RetiredNodeGeneration &out)
+          {
+            if (!buffer_ && !raw_ && nodes_.empty())
+            {
+              return false;
+            }
+
+            out.buffer = buffer_;
+            out.raw = raw_;
+            out.nodes.swap(nodes_);
+            buffer_ = 0;
+            raw_ = 0;
+            size_ = 0;
+            offset_ = 0;
+            nodes_.clear();
+            return true;
+          }
+
+          static void destroyRetiredGeneration(RetiredNodeGeneration &gen)
+          {
             // Sever every parent-to-child edge while the whole ledger is alive.
             std::vector<Node *> detachedChildren;
             std::vector<Node *> detachedHeapRoots;
-            for (size_t i = 0; i < nodes_.size(); ++i)
+            for (size_t i = 0; i < gen.nodes.size(); ++i)
             {
-              Node *node = nodes_[i];
+              Node *node = gen.nodes[i];
               INestable *nestable = node ? node->asNestable() : 0;
               if (nestable)
               {
@@ -124,27 +164,25 @@ namespace loka
               delete detachedHeapRoots[i];
             }
             // Creation is parent-first, so reverse order destroys children first.
-            for (size_t i = nodes_.size(); i > 0; --i)
+            for (size_t i = gen.nodes.size(); i > 0; --i)
             {
-              Node *node = nodes_[i - 1];
+              Node *node = gen.nodes[i - 1];
               if (node)
               {
                 node->~Node();
               }
             }
-            nodes_.clear();
-            if (raw_)
+            gen.nodes.clear();
+            if (gen.raw)
             {
-              delete[] raw_;
+              delete[] gen.raw;
             }
             else
             {
-              delete[] buffer_;
+              delete[] gen.buffer;
             }
-            buffer_ = 0;
-            raw_ = 0;
-            size_ = 0;
-            offset_ = 0;
+            gen.buffer = 0;
+            gen.raw = 0;
           }
 
           bool hasCapacity() const

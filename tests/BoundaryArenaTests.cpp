@@ -420,6 +420,64 @@ namespace
     assert(parentDestroyOrder.size() == 1);
   }
 
+  static void testNodeArenaDetachAndDestroyRetiredGeneration()
+  {
+    const size_t tombstoneBytes = sizeof(NodeArenaDestroyCountProbe)
+                                  + loka::app::scene::detail::AlignOf<NodeArenaDestroyCountProbe>::value;
+    const size_t parentBytes = sizeof(LinkedNodeArenaDestroyOrderProbe)
+                               + loka::app::scene::detail::AlignOf<LinkedNodeArenaDestroyOrderProbe>::value;
+    int tombstoneDestructorCalls = 0;
+    int heapChildDestructorCalls = 0;
+    std::vector<int> parentDestroyOrder;
+    loka::app::scene::NodeArena arena;
+    arena.reserve(tombstoneBytes + parentBytes);
+
+    void *tombstoneMemory = arena.allocate(
+        sizeof(NodeArenaDestroyCountProbe),
+        loka::app::scene::detail::AlignOf<NodeArenaDestroyCountProbe>::value);
+    assert(tombstoneMemory != 0);
+    NodeArenaDestroyCountProbe *tombstone =
+        new (tombstoneMemory) NodeArenaDestroyCountProbe(&tombstoneDestructorCalls);
+    arena.registerNode(tombstone);
+
+    void *parentMemory = arena.allocate(
+        sizeof(LinkedNodeArenaDestroyOrderProbe),
+        loka::app::scene::detail::AlignOf<LinkedNodeArenaDestroyOrderProbe>::value);
+    assert(parentMemory != 0);
+    LinkedNodeArenaDestroyOrderProbe *parent =
+        new (parentMemory) LinkedNodeArenaDestroyOrderProbe(&parentDestroyOrder, 1);
+    arena.registerNode(parent);
+    parent->addChild(new NodeArenaDestroyCountProbe(&heapChildDestructorCalls));
+
+    assert(arena.releaseNode(tombstone));
+    assert(tombstoneDestructorCalls == 1);
+
+    loka::app::scene::NodeArena::RetiredNodeGeneration generation;
+    assert(arena.detachRetiredGeneration(generation));
+    assert(!arena.hasCapacity());
+    assert(arena.allocate(4, 4) == 0);
+    assert(generation.nodes.size() == 2);
+    assert(generation.nodes[0] == 0 &&
+           "detaching a generation must preserve arena ledger tombstones");
+
+    arena.reserve(32);
+    assert(arena.hasCapacity());
+    assert(arena.allocate(4, 4) != 0 &&
+           "an emptied arena must accept a fresh reservation while its old generation is retired");
+
+    loka::app::scene::NodeArena::destroyRetiredGeneration(generation);
+    assert(tombstoneDestructorCalls == 1 &&
+           "retired generation destruction must skip tombstoned ledger entries");
+    assert(heapChildDestructorCalls == 1 &&
+           "retired generation destruction must delete detached heap children exactly once");
+    assert(parentDestroyOrder.size() == 1 && parentDestroyOrder[0] == 1);
+
+    loka::app::scene::NodeArena::destroyRetiredGeneration(generation);
+    assert(tombstoneDestructorCalls == 1);
+    assert(heapChildDestructorCalls == 1);
+    assert(parentDestroyOrder.size() == 1);
+  }
+
   static void testStateArenaAllocation()
   {
     loka::app::scene::StateArena arena;
@@ -598,4 +656,11 @@ void testBoundaryArenaContracts()
   testStateArenaGrowsAcrossOwnerBatches();
   testUnreservedStateFallsBackAfterReservedCapacityIsConsumed();
   printf("==== [testBoundaryArenaContracts] ok ====\n");
+}
+
+void testNodeArenaRetiredGenerationContracts()
+{
+  printf("\n==== [testNodeArenaRetiredGenerationContracts] start ====\n");
+  testNodeArenaDetachAndDestroyRetiredGeneration();
+  printf("==== [testNodeArenaRetiredGenerationContracts] ok ====\n");
 }

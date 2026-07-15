@@ -10,22 +10,47 @@ namespace loka
   {
     namespace scene
     {
-      void BoundaryNode::retireDetachedNode(ComponentContext &context, Node *node)
+      void BoundaryNode::retireOwnedNodeGeneration()
       {
-        if (!node)
+        Node *keptHead = 0;
+        Node *keptTail = 0;
+        Node *retired = this->retiredSubtreesHead_;
+        while (retired)
         {
-          return;
+          Node *next = retired->nextInComposition;
+          retired->nextInComposition = 0;
+          if (retired->arenaOwner() == this->nodeArena())
+          {
+            retired = next;
+            continue;
+          }
+          assert(retired->arenaOwner() != this->nodeArena() &&
+                 "a kept retired subtree must not belong to the retiring arena generation");
+          if (keptTail)
+          {
+            keptTail->nextInComposition = retired;
+          }
+          else
+          {
+            keptHead = retired;
+          }
+          keptTail = retired;
+          retired = next;
         }
-        if (context.platformController())
+        this->retiredSubtreesHead_ = keptHead;
+        this->retiredSubtreesTail_ = keptTail;
+
+        detail::NodeArena::RetiredNodeGeneration gen;
+        if (this->nodeArena_.detachRetiredGeneration(gen))
         {
-          context.platformController()->releaseNodeContexts(node);
+          this->retiredGenerations_.push_back(gen);
         }
-        if (!node->isArenaAllocated())
+
+        Scene *scene = this->getScene();
+        if (scene)
         {
-          delete node;
-          return;
+          scene->requestRetiredSubtreeDrainAfterRun();
         }
-        this->retireArenaSubtree(node);
       }
 
       void BoundaryNode::retireArenaSubtree(Node *node)
@@ -91,7 +116,8 @@ namespace loka
 
       void BoundaryNode::drainRetiredSubtreesAtNextTrackerRun()
       {
-        if (this->drainingRetiredSubtrees_ || !this->retiredSubtreesHead_)
+        if (this->drainingRetiredSubtrees_ ||
+            (!this->retiredSubtreesHead_ && this->retiredGenerations_.empty()))
         {
           return;
         }
@@ -99,6 +125,8 @@ namespace loka
         Node *snapshot = this->retiredSubtreesHead_;
         this->retiredSubtreesHead_ = 0;
         this->retiredSubtreesTail_ = 0;
+        std::vector<detail::NodeArena::RetiredNodeGeneration> generationSnapshot;
+        generationSnapshot.swap(this->retiredGenerations_);
         this->drainingRetiredSubtrees_ = true;
         while (snapshot)
         {
@@ -107,12 +135,17 @@ namespace loka
           this->destroyRetiredSubtree(snapshot);
           snapshot = next;
         }
+        for (size_t i = 0; i < generationSnapshot.size(); ++i)
+        {
+          detail::NodeArena::destroyRetiredGeneration(generationSnapshot[i]);
+        }
+        generationSnapshot.clear();
         this->drainingRetiredSubtrees_ = false;
       }
 
       void BoundaryNode::drainAllRetiredSubtrees()
       {
-        while (this->retiredSubtreesHead_)
+        while (this->retiredSubtreesHead_ || !this->retiredGenerations_.empty())
         {
           this->drainRetiredSubtreesAtNextTrackerRun();
         }

@@ -696,8 +696,16 @@ namespace loka
                   continue;
                 }
                 this->composeTree(detached[i], context, COMPOSE_EVENT_DETACH, this);
-                this->retireDetachedNode(context, detached[i]);
+                if (context.platformController())
+                {
+                  context.platformController()->releaseNodeContexts(detached[i]);
+                }
+                if (!detached[i]->isArenaAllocated())
+                {
+                  delete detached[i];
+                }
               }
+              this->retireOwnedNodeGeneration();
             }
             context.setComposition(&composition);
             Node *child = composition.createNodeTree();

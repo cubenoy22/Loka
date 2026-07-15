@@ -454,6 +454,53 @@ namespace
     }
   };
 
+  class RetiredGenerationOverlapBoundary : public loka::app::scene::BoundaryNode
+  {
+  public:
+    void reserveProbeNodes(size_t count)
+    {
+      const size_t probeBytes = sizeof(ArenaRetireProbeNode)
+                                + loka::app::scene::detail::AlignOf<ArenaRetireProbeNode>::value;
+      this->nodeArena()->reserve(probeBytes * count);
+    }
+
+    loka::app::scene::Node *createProbeNode(int *destructorCalls)
+    {
+      void *memory = this->nodeArena()->allocate(
+          sizeof(ArenaRetireProbeNode),
+          loka::app::scene::detail::AlignOf<ArenaRetireProbeNode>::value);
+      assert(memory != 0);
+      ArenaRetireProbeNode *node =
+          new (memory) ArenaRetireProbeNode((ArenaRetireProbeProps(destructorCalls)));
+      this->nodeArena()->registerNode(node);
+      return node;
+    }
+
+    void queueSubtreeThenRetireGeneration(loka::app::scene::Node *subtree)
+    {
+      using namespace loka::app::scene;
+
+      ComponentContext context;
+      context.setBoundary(this);
+      context.setStateOwner(this);
+      NestableNode root;
+      root.addChild(subtree);
+      BoundaryLocalRebuildPlan plan;
+      plan.entries.push_back(
+          BoundaryLocalRebuildPlanEntry::retire(subtree, subtree->nodeTag()));
+      std::vector<Node *> retainedChildren;
+      assert(this->applyLocalRebuildPlan(context, root, plan, retainedChildren));
+      assert(retainedChildren.empty());
+      this->retireOwnedNodeGeneration();
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &,
+                                    loka::app::scene::ComposeEvent)
+    {
+    }
+  };
+
   class ArenaRetireOrderLeafNode;
   struct ArenaRetireOrderLeafTypeTag
   {
@@ -1497,6 +1544,111 @@ void testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun()
          "Scene teardown must not destroy an already drained root arena node again");
 }
 
+void testRootUpdateFallbackReservesFreshArenaGeneration()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  int destructorCalls = 0;
+  std::vector<int> alternateDestroyOrder;
+  bool useAlternate = false;
+  NodeDefinition<ArenaRetireProbeProps, ArenaRetireProbeNode> retiring(
+      (ArenaRetireProbeProps(&destructorCalls)));
+  ArenaRetireOrderParentDefinition alternate(
+      (ArenaRetireOrderParentProps(&alternateDestroyOrder, 2)));
+
+  {
+    DetachProbePlatformController platform;
+    RootUpdateFallbackTestScene scene(
+        new RootUpdateFallbackDefinition(&useAlternate, &retiring, &alternate));
+
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = scene.rootBoundary();
+    assert(rootBoundary != 0);
+    Node *initialRoot = rootBoundary->childrenHead();
+    assert(initialRoot != 0 && initialRoot->isArenaAllocated());
+
+    useAlternate = true;
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+
+    Node *alternateRoot = rootBoundary->childrenHead();
+    assert(alternateRoot != 0 && alternateRoot != initialRoot);
+    assert(alternateRoot->isArenaAllocated() &&
+           "root fallback must reserve a fresh arena generation");
+    assert(destructorCalls == 0);
+    assert(alternateDestroyOrder.empty());
+
+    assert(!scene.flushInvalidation());
+    assert(destructorCalls == 1 &&
+           "the first retired generation must be reclaimed exactly once at the next run");
+    assert(alternateDestroyOrder.empty());
+
+    useAlternate = false;
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+
+    Node *secondRoot = rootBoundary->childrenHead();
+    assert(secondRoot != 0 && secondRoot != alternateRoot);
+    assert(secondRoot->isArenaAllocated() &&
+           "every root fallback must reserve a fresh arena generation");
+    assert(destructorCalls == 1);
+    assert(alternateDestroyOrder.empty() &&
+           "the second retired generation must remain alive through the retiring apply");
+
+    assert(!scene.flushInvalidation());
+    assert(destructorCalls == 1 &&
+           "draining the second retired generation must not revisit the first");
+    assert(alternateDestroyOrder.size() == 1 && alternateDestroyOrder[0] == 2 &&
+           "the second retired generation must be reclaimed exactly once at the next run");
+  }
+
+  assert(destructorCalls == 2 &&
+         "Scene teardown must destroy the active generation exactly once");
+  assert(alternateDestroyOrder.size() == 1);
+}
+
+void testRetiredGenerationSubsumesQueuedArenaSubtreeExactlyOnce()
+{
+  using namespace loka::app::scene;
+
+  int queuedDestructorCalls = 0;
+  int ledgerDestructorCalls = 0;
+
+  {
+    RetiredGenerationOverlapBoundary boundary;
+    boundary.reserveProbeNodes(2);
+    Node *queued = boundary.createProbeNode(&queuedDestructorCalls);
+    Node *ledgerOnly = boundary.createProbeNode(&ledgerDestructorCalls);
+    assert(queued->isArenaAllocated());
+    assert(ledgerOnly->isArenaAllocated());
+
+    boundary.queueSubtreeThenRetireGeneration(queued);
+
+    assert(!boundary.nodeArena()->hasCapacity() &&
+           "generation retirement must detach the arena after queue subsumption");
+    assert(queuedDestructorCalls == 0);
+    assert(ledgerDestructorCalls == 0);
+
+    boundary.drainRetiredSubtreesAtNextTrackerRun();
+    assert(queuedDestructorCalls == 1 &&
+           "the subtree-queued node must be destroyed once by its retired generation");
+    assert(ledgerDestructorCalls == 1 &&
+           "the remaining generation ledger node must be destroyed once");
+
+    boundary.drainRetiredSubtreesAtNextTrackerRun();
+    assert(queuedDestructorCalls == 1);
+    assert(ledgerDestructorCalls == 1);
+  }
+
+  assert(queuedDestructorCalls == 1 &&
+         "Boundary teardown must not revisit the subsumed queue entry");
+  assert(ledgerDestructorCalls == 1 &&
+         "Boundary teardown must not revisit the drained generation");
+}
+
 void testRootUpdateFallbackReleasesNativeContextBeforeNodeOwnedStateReclaim()
 {
   using namespace loka::app;
@@ -1627,6 +1779,46 @@ void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce()
   g_conditionalArenaRetireOrder = 0;
   g_conditionalArenaActiveOrder = 0;
   g_conditionalArenaRetireProbe = 0;
+}
+
+void testSceneTeardownDrainsPendingRetiredGenerationExactlyOnce()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  int destructorCalls = 0;
+  bool useAlternate = false;
+  NodeDefinition<ArenaRetireProbeProps, ArenaRetireProbeNode> retiring(
+      (ArenaRetireProbeProps(&destructorCalls)));
+  Fragment alternate;
+
+  {
+    DetachProbePlatformController platform;
+    RootUpdateFallbackTestScene scene(
+        new RootUpdateFallbackDefinition(&useAlternate, &retiring, &alternate));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    BoundaryNode *rootBoundary = scene.rootBoundary();
+    assert(rootBoundary != 0);
+    Node *retiringRoot = rootBoundary->childrenHead();
+    assert(retiringRoot != 0 && retiringRoot->isArenaAllocated());
+
+    useAlternate = true;
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+
+    assert(rootBoundary->childrenHead() != retiringRoot);
+    assert(rootBoundary->childrenHead() != 0 &&
+           rootBoundary->childrenHead()->isArenaAllocated());
+    assert(scene.hasPendingInvalidation() &&
+           "generation retirement must leave a later drain pending at Scene teardown");
+    assert(destructorCalls == 0 &&
+           "the retiring flush must not reclaim the pending generation");
+  }
+
+  assert(destructorCalls == 1 &&
+         "Scene teardown must drain a pending retired generation exactly once");
 }
 
 void testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst()
