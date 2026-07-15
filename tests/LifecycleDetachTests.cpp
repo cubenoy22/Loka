@@ -582,7 +582,7 @@ namespace
       return node;
     }
 
-    void queueSubtreeThenRetireGeneration(loka::app::scene::Node *subtree)
+    void queueSubtree(loka::app::scene::Node *subtree)
     {
       using namespace loka::app::scene;
 
@@ -597,6 +597,11 @@ namespace
       std::vector<Node *> retainedChildren;
       assert(this->applyLocalRebuildPlan(context, root, plan, retainedChildren));
       assert(retainedChildren.empty());
+    }
+
+    void queueSubtreeThenRetireGeneration(loka::app::scene::Node *subtree)
+    {
+      this->queueSubtree(subtree);
       this->retireOwnedNodeGeneration();
     }
 
@@ -814,6 +819,13 @@ namespace
     {
     }
 
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      // Keep dirtied instances NextTick-pending so pins can observe the
+      // pending-target entry across a structural replacement.
+      return false;
+    }
+
     virtual ~NestedArenaRetireBoundaryNode()
     {
       if (g_nestedArenaRetireBoundaryDestructorCalls)
@@ -892,6 +904,7 @@ namespace
   };
 
   int *g_nestedArenaRetireOuterDestructorCalls = 0;
+  bool g_heapReplacementNestedBranch = false;
 
   class NativeBindingStateBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<NativeBindingStateBoundaryNode>
@@ -1167,6 +1180,27 @@ namespace
         branch.tag(1);
         root << branch;
       }
+      else if (g_heapReplacementNestedBranch)
+      {
+        if (alternate)
+        {
+          NestedArenaRetireOuterDefinition branch(
+              (NestedArenaRetireOuterProps(g_nestedArenaRetireOuterDestructorCalls)));
+          loka::app::scene::BoundaryDefinition<NestedArenaRetireBoundaryProps,
+                                               NestedArenaRetireBoundaryNode>
+              nested = loka::app::scene::Boundary<NestedArenaRetireBoundaryNode>();
+          branch << nested;
+          branch.tag(2);
+          root << branch;
+        }
+        else
+        {
+          ArenaRetireProbeDefinition branch(
+              (ArenaRetireProbeProps(g_conditionalArenaRetireDestructorCalls)));
+          branch.tag(1);
+          root << branch;
+        }
+      }
       else if ((g_nestedArenaRetireOuterDestructorCalls ||
                 g_nestedArenaRetireBoundaryDestructorCalls ||
                 g_nestedArenaRetireLeafDestructorCalls) &&
@@ -1217,7 +1251,12 @@ namespace
 
     void showAlternate()
     {
-      this->showAlternate_.set(true, true);
+      this->setAlternate(true);
+    }
+
+    void setAlternate(bool value)
+    {
+      this->showAlternate_.set(value, true);
       this->markViewDirty(loka::app::scene::NODE_DIRTY_CHILD);
     }
 
@@ -2057,6 +2096,180 @@ void testRetiredArenaParentDestroysHeapChildExactlyOnceAtDrain()
   g_heapRetireParentDestructorCalls = 0;
   g_heapRetireChildDestructorCalls = 0;
   g_conditionalArenaRetireProbe = 0;
+}
+
+void testConditionalBranchSwapBackDestroysRetiredHeapNodeOnNextTrackerRun()
+{
+  using namespace loka::app::scene;
+
+  int retireCalls = 0;
+  int activeCalls = 0;
+  g_conditionalArenaRetireDestructorCalls = &retireCalls;
+  g_conditionalArenaActiveDestructorCalls = &activeCalls;
+
+  {
+    DetachProbePlatformController platform;
+    Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_conditionalArenaRetireProbe != 0);
+    Node *initialBranch = g_conditionalArenaRetireProbe->activeBranchNode();
+    assert(initialBranch != 0 && initialBranch->isArenaAllocated());
+
+    g_conditionalArenaRetireProbe->showAlternate();
+    assert(scene.flushInvalidation());
+    Node *heapBranch = g_conditionalArenaRetireProbe->activeBranchNode();
+    assert(heapBranch != 0 && heapBranch != initialBranch);
+    assert(!heapBranch->isArenaAllocated() &&
+           "the swapped-in branch must land on the heap once the slab is consumed");
+    assert(!scene.flushInvalidation());
+    assert(retireCalls == 1 && activeCalls == 0);
+
+    g_conditionalArenaRetireProbe->setAlternate(false);
+    assert(scene.flushInvalidation());
+    assert(activeCalls == 0 &&
+           "the retired heap branch must remain alive through the retiring apply");
+
+    assert(!scene.flushInvalidation() &&
+           "a drain-only tracker run must not report a refresh snapshot");
+    assert(activeCalls == 1 &&
+           "the retired heap branch destructor must run at the next tracker run");
+    assert(retireCalls == 1);
+  }
+
+  assert(activeCalls == 1 &&
+         "Scene teardown must not delete an already drained heap branch again");
+  assert(retireCalls == 2 &&
+         "Scene teardown must reclaim the swapped-back heap branch exactly once");
+
+  g_conditionalArenaRetireDestructorCalls = 0;
+  g_conditionalArenaActiveDestructorCalls = 0;
+  g_conditionalArenaRetireProbe = 0;
+}
+
+void testPendingChildBoundaryUpdateSurvivesHeapSubtreeReplacement()
+{
+  using namespace loka::app::scene;
+
+  int outerDestructorCalls = 0;
+  int nestedBoundaryDestructorCalls = 0;
+  g_heapReplacementNestedBranch = true;
+  g_nestedArenaRetireOuterDestructorCalls = &outerDestructorCalls;
+  g_nestedArenaRetireBoundaryDestructorCalls = &nestedBoundaryDestructorCalls;
+
+  {
+    DetachProbePlatformController platform;
+    Scene scene((Boundary<ConditionalArenaRetireProbeNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_conditionalArenaRetireProbe != 0);
+    g_conditionalArenaRetireProbe->showAlternate();
+    assert(scene.flushInvalidation());
+    assert(!scene.flushInvalidation());
+
+    Node *outer = g_conditionalArenaRetireProbe->activeBranchNode();
+    assert(outer != 0 && !outer->isArenaAllocated() &&
+           "the replacement subtree must land on the heap once the slab is consumed");
+    INestable *outerNestable = outer->asNestable();
+    Node *nestedNode = outerNestable ? outerNestable->childrenHead() : 0;
+    BoundaryNode *nested = nestedNode ? nestedNode->asBoundary() : 0;
+    assert(nested != 0 && !nestedNode->isArenaAllocated());
+
+    nested->markViewDirty(NODE_DIRTY_PROPS);
+    assert(scene.director().hasPendingBoundary(nested) &&
+           "the nested boundary must be a pending update target before the swap");
+
+    g_conditionalArenaRetireProbe->setAlternate(false);
+    assert(scene.flushInvalidation() &&
+           "the flush that replaces the pending target's subtree must complete");
+    assert(nestedBoundaryDestructorCalls == 0 && outerDestructorCalls == 0 &&
+           "the replaced heap subtree must remain alive through the flush that walks its pending entry");
+
+    assert(!scene.flushInvalidation());
+    assert(nestedBoundaryDestructorCalls == 1 && outerDestructorCalls == 1 &&
+           "the replaced heap subtree must be reclaimed at the next tracker run");
+  }
+
+  assert(nestedBoundaryDestructorCalls == 1);
+  assert(outerDestructorCalls == 1);
+
+  g_heapReplacementNestedBranch = false;
+  g_nestedArenaRetireOuterDestructorCalls = 0;
+  g_nestedArenaRetireBoundaryDestructorCalls = 0;
+  g_conditionalArenaRetireProbe = 0;
+}
+
+void testRetiredHeapParentDestroysArenaChildExactlyOnceAtDrain()
+{
+  using namespace loka::app::scene;
+
+  int heapParentCalls = 0;
+  int heapChildCalls = 0;
+  int arenaChildCalls = 0;
+
+  {
+    RetiredGenerationOverlapBoundary boundary;
+    boundary.reserveProbeNodes(1);
+    Node *arenaChild = boundary.createProbeNode(&arenaChildCalls);
+    ArenaParentWithHeapChildNode *heapRoot = new ArenaParentWithHeapChildNode(
+        (ArenaParentWithHeapChildProps(&heapParentCalls, &heapChildCalls)));
+    heapRoot->addChild(arenaChild);
+    assert(!heapRoot->isArenaAllocated());
+    assert(arenaChild->isArenaAllocated());
+
+    boundary.queueSubtree(heapRoot);
+    assert(heapParentCalls == 0 && heapChildCalls == 0 && arenaChildCalls == 0 &&
+           "the queued heap subtree must remain alive through the retiring apply");
+
+    boundary.drainRetiredSubtreesAtNextTrackerRun();
+    assert(heapParentCalls == 1 && heapChildCalls == 1 && arenaChildCalls == 1 &&
+           "the drain must reclaim the heap root, its heap child, and its arena child exactly once");
+
+    boundary.drainRetiredSubtreesAtNextTrackerRun();
+    assert(heapParentCalls == 1 && heapChildCalls == 1 && arenaChildCalls == 1);
+  }
+
+  assert(heapParentCalls == 1 && heapChildCalls == 1);
+  assert(arenaChildCalls == 1 &&
+         "Boundary teardown must not revisit the tombstoned arena child");
+}
+
+void testRetiredGenerationSubsumesQueuedHeapSubtreeExactlyOnce()
+{
+  using namespace loka::app::scene;
+
+  int heapParentCalls = 0;
+  int heapChildCalls = 0;
+  int arenaChildCalls = 0;
+
+  {
+    RetiredGenerationOverlapBoundary boundary;
+    boundary.reserveProbeNodes(1);
+    Node *arenaChild = boundary.createProbeNode(&arenaChildCalls);
+    ArenaParentWithHeapChildNode *heapRoot = new ArenaParentWithHeapChildNode(
+        (ArenaParentWithHeapChildProps(&heapParentCalls, &heapChildCalls)));
+    heapRoot->addChild(arenaChild);
+    assert(!heapRoot->isArenaAllocated());
+
+    boundary.queueSubtreeThenRetireGeneration(heapRoot);
+    assert(!boundary.nodeArena()->hasCapacity() &&
+           "generation retirement must detach the arena after subsuming the queue");
+    assert(heapParentCalls == 0 && heapChildCalls == 0 && arenaChildCalls == 0);
+
+    boundary.drainRetiredSubtreesAtNextTrackerRun();
+    assert(heapParentCalls == 1 &&
+           "the subsumed heap root must be destroyed once by its retired generation");
+    assert(heapChildCalls == 1 && arenaChildCalls == 1);
+
+    boundary.drainRetiredSubtreesAtNextTrackerRun();
+    assert(heapParentCalls == 1 && heapChildCalls == 1 && arenaChildCalls == 1);
+  }
+
+  assert(heapParentCalls == 1 && heapChildCalls == 1);
+  assert(arenaChildCalls == 1 &&
+         "Boundary teardown must not revisit the drained generation");
 }
 
 void testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce()

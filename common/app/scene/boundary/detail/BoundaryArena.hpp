@@ -31,6 +31,9 @@ namespace loka
             char *buffer;
             char *raw;
             std::vector<Node *> nodes;
+            /** Heap subtree roots retired alongside this generation; deleted
+                first, while the ledger they may reference is still alive. */
+            std::vector<Node *> heapRoots;
           };
 
           NodeArena()
@@ -139,6 +142,13 @@ namespace loka
 
           static void destroyRetiredGeneration(RetiredNodeGeneration &gen)
           {
+            // Heap roots go first, while every arena node they may still
+            // reference is alive: their destructors skip arena children.
+            for (size_t i = 0; i < gen.heapRoots.size(); ++i)
+            {
+              delete gen.heapRoots[i];
+            }
+            gen.heapRoots.clear();
             // Sever every parent-to-child edge while the whole ledger is alive.
             std::vector<Node *> detachedChildren;
             std::vector<Node *> detachedHeapRoots;
