@@ -84,7 +84,7 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   }
   if (controller && resourceId_ > 0)
   {
-    if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_))
+    if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_, lifetimeHint()))
     {
       return;
     }
@@ -116,6 +116,7 @@ short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *contro
   rect.right = static_cast<short>(state.x + width);
   rect.bottom = static_cast<short>(state.y + 6);
   updateData(label, node_->props.onClick_, node_->props.enabled_, 0, node_->props.controlTag_);
+  observeLifetimeHint(node_->nativeLifetimeHint());
   updateRect(rect);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;

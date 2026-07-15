@@ -1,0 +1,10 @@
+#ifndef LOKA_TESTS_NATIVE_LIFETIME_TESTS_HPP
+#define LOKA_TESTS_NATIVE_LIFETIME_TESTS_HPP
+
+void testNodeDefaultsToDefaultNativeLifetimeHint();
+void testDefinitionCarriesNativeLifetimeHintToCreatedNode();
+void testDefinitionCloneAndApplyPreserveNativeLifetimeHint();
+void testNativeContextObservesLifetimeHint();
+void testExactMatchBucketCountsHitsMissesEvictsAndDepth();
+
+#endif // LOKA_TESTS_NATIVE_LIFETIME_TESTS_HPP

@@ -10,6 +10,7 @@
 #include "ValueTests.hpp"
 #include "SceneOwnershipTests.hpp"
 #include "LifecycleDetachTests.hpp"
+#include "NativeLifetimeTests.hpp"
 #include "core/diag/LifecycleAudit.hpp"
 
 LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbe)
@@ -154,6 +155,11 @@ int main()
   LOKA_RUN_TEST(testStartupRedrawCount_After);
   LOKA_RUN_TEST(testToolboxChildDirtyInvalidationPrefersFullRedraw);
   LOKA_RUN_TEST(testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw);
+  LOKA_RUN_TEST(testNodeDefaultsToDefaultNativeLifetimeHint);
+  LOKA_RUN_TEST(testDefinitionCarriesNativeLifetimeHintToCreatedNode);
+  LOKA_RUN_TEST(testDefinitionCloneAndApplyPreserveNativeLifetimeHint);
+  LOKA_RUN_TEST(testNativeContextObservesLifetimeHint);
+  LOKA_RUN_TEST(testExactMatchBucketCountsHitsMissesEvictsAndDepth);
   LOKA_AUDIT_CHECKPOINT("FlowDslTestMain final");
   return 0;
 }

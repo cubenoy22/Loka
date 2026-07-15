@@ -114,6 +114,17 @@ namespace loka
         NODE_TAG_NONE = 0
       };
 
+      /** The one wish axis a Node may express about its native pair.
+          Crosses the wall as observable state alongside the lifecycle facts
+          (attached / detached-retained / retired); the native side decides
+          policy from facts + hint. No imperative release command exists. */
+      enum NativeLifetimeHint
+      {
+        NATIVE_HINT_DEFAULT = 0,
+        NATIVE_HINT_EAGER_RELEASE,
+        NATIVE_HINT_DESIRE_STAY
+      };
+
       struct INestable;
       class IPlatformController;
       class Node; // forward declaration for NodeContext owner
@@ -251,6 +262,7 @@ namespace loka
         ComposeAttachLifecycle composeAttachLifecycle_;
         std::string testId_;
         NodeTag nodeTag_;
+        NativeLifetimeHint nativeLifetimeHint_;
 
         Node()
             : context(0),
@@ -259,7 +271,8 @@ namespace loka
               arenaOwner_(0),
               composeAttachLifecycle_(),
               testId_(),
-              nodeTag_(NODE_TAG_NONE)
+              nodeTag_(NODE_TAG_NONE),
+              nativeLifetimeHint_(NATIVE_HINT_DEFAULT)
         {
         }
 
@@ -450,6 +463,14 @@ namespace loka
         {
           return nodeTag_;
         }
+        void setNativeLifetimeHint(NativeLifetimeHint hint)
+        {
+          nativeLifetimeHint_ = hint;
+        }
+        NativeLifetimeHint nativeLifetimeHint() const
+        {
+          return nativeLifetimeHint_;
+        }
 
       private:
         void releaseContext()
@@ -538,7 +559,8 @@ namespace loka
               testId_(),
               hasTestId_(false),
               autoTestId_(false),
-              nodeTag_(NODE_TAG_NONE)
+              nodeTag_(NODE_TAG_NONE),
+              nativeLifetimeHint_(NATIVE_HINT_DEFAULT)
         {
         }
         NodeDefinitionBase(const NodeDefinitionBase &other)
@@ -548,7 +570,8 @@ namespace loka
               testId_(other.testId_),
               hasTestId_(other.hasTestId_),
               autoTestId_(other.autoTestId_),
-              nodeTag_(other.nodeTag_)
+              nodeTag_(other.nodeTag_),
+              nativeLifetimeHint_(other.nativeLifetimeHint_)
         {
         }
         NodeDefinitionBase &operator=(const NodeDefinitionBase &other)
@@ -560,6 +583,7 @@ namespace loka
           this->hasTestId_ = other.hasTestId_;
           this->autoTestId_ = other.autoTestId_;
           this->nodeTag_ = other.nodeTag_;
+          this->nativeLifetimeHint_ = other.nativeLifetimeHint_;
           return *this;
         }
         virtual ~NodeDefinitionBase()
@@ -645,12 +669,21 @@ namespace loka
         {
           return this->nodeTag_;
         }
+        void setNativeLifetimeHint(NativeLifetimeHint hint)
+        {
+          this->nativeLifetimeHint_ = hint;
+        }
+        NativeLifetimeHint nativeLifetimeHint() const
+        {
+          return this->nativeLifetimeHint_;
+        }
         void copyTestIdPolicyFrom(const NodeDefinitionBase &other)
         {
           this->testId_ = other.testId_;
           this->hasTestId_ = other.hasTestId_;
           this->autoTestId_ = other.autoTestId_;
           this->nodeTag_ = other.nodeTag_;
+          this->nativeLifetimeHint_ = other.nativeLifetimeHint_;
         }
 
       protected:
@@ -674,6 +707,7 @@ namespace loka
         bool hasTestId_;
         bool autoTestId_;
         NodeTag nodeTag_;
+        NativeLifetimeHint nativeLifetimeHint_;
       };
 
       // Shared DSL mixin for attaching test ids to node definitions.
@@ -727,6 +761,11 @@ namespace loka
           this->setNodeTag(value);
           return *this;
         }
+        NodeDefinition &lifetimeHint(NativeLifetimeHint value)
+        {
+          this->setNativeLifetimeHint(value);
+          return *this;
+        }
         template <typename F> NodeDefinition &mutate(F f)
         {
           f(props);
@@ -738,6 +777,7 @@ namespace loka
           if (node)
           {
             node->setNodeTag(this->nodeTag());
+            node->setNativeLifetimeHint(this->nativeLifetimeHint());
           }
           return node;
         }
@@ -747,6 +787,7 @@ namespace loka
           if (node)
           {
             node->setNodeTag(this->nodeTag());
+            node->setNativeLifetimeHint(this->nativeLifetimeHint());
           }
           return node;
         }
@@ -795,6 +836,7 @@ namespace loka
           if (applied)
           {
             typed->setNodeTag(this->nodeTag());
+            typed->setNativeLifetimeHint(this->nativeLifetimeHint());
           }
           return applied;
         }
