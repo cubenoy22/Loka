@@ -205,6 +205,7 @@ Win32ImageViewContext::~Win32ImageViewContext()
   unbindImage();
   if (hwnd_)
   {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
     DestroyWindow(hwnd_);
     hwnd_ = 0;
   }

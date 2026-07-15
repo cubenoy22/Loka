@@ -145,6 +145,7 @@ MacButtonContext::~MacButtonContext()
   }
   if (target_)
   {
+    [(LokaButtonTarget *)target_ setOwner:0];
     [(id)target_ release];
     target_ = 0;
   }

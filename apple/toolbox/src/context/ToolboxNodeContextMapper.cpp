@@ -10,7 +10,8 @@
 #include "ToolboxScenePlatformController.hpp"
 
 bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *node,
-                                                      loka::app::scene::BoundaryNode *boundary)
+                                                      loka::app::scene::BoundaryNode *boundary,
+                                                      ToolboxScenePlatformController *controller)
 {
   if (!node)
   {
@@ -40,7 +41,7 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
   }
   if (loka::app::ButtonNode *button = node->asButtonNode())
   {
-    ensureButtonContext(button);
+    ensureButtonContext(button, controller);
     ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(button->getContext());
     if (!ctx)
     {
@@ -118,7 +119,8 @@ void ToolboxNodeContextMapper::ensureCellContext(loka::app::CellNode *node)
   }
 }
 
-void ToolboxNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node)
+void ToolboxNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node,
+                                                   ToolboxScenePlatformController *controller)
 {
   if (!node)
   {
@@ -127,7 +129,7 @@ void ToolboxNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node)
   ToolboxButtonContext *ctx = static_cast<ToolboxButtonContext *>(node->getContext());
   if (!ctx)
   {
-    ctx = new ToolboxButtonContext(node);
+    ctx = new ToolboxButtonContext(node, controller);
     node->setContext(ctx);
   }
 }

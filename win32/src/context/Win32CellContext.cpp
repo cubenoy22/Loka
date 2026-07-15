@@ -53,6 +53,7 @@ Win32CellContext::~Win32CellContext()
   unbindText();
   if (hwnd_)
   {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
     DestroyWindow(hwnd_);
     hwnd_ = 0;
   }

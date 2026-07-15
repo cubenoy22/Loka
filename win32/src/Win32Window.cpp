@@ -287,6 +287,7 @@ void Win32Window::destroyNativeWindow()
   if (this->hwnd_)
   {
     teardownScene();
+    SetWindowLongPtr(this->hwnd_, GWLP_USERDATA, 0);
     DestroyWindow(this->hwnd_);
     this->hwnd_ = NULL;
   }

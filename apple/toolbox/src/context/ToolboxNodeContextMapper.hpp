@@ -37,10 +37,12 @@ public:
     return (capabilities_ & cap) != 0;
   }
 
-  bool ensureProjectedContext(loka::app::scene::Node *node, loka::app::scene::BoundaryNode *boundary);
+  bool ensureProjectedContext(loka::app::scene::Node *node,
+                              loka::app::scene::BoundaryNode *boundary,
+                              ToolboxScenePlatformController *controller);
   void ensureTextContext(loka::app::TextNode *node);
   void ensureCellContext(loka::app::CellNode *node);
-  void ensureButtonContext(loka::app::ButtonNode *node);
+  void ensureButtonContext(loka::app::ButtonNode *node, ToolboxScenePlatformController *controller);
   void ensureEditTextContext(loka::app::EditTextNode *node);
   void ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node);
   void ensurePopupMenuContext(loka::app::PopupMenuNode *node);

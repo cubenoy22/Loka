@@ -100,6 +100,7 @@ MacPopupMenuContext::~MacPopupMenuContext()
   }
   if (target_)
   {
+    [(LokaPopupMenuTarget *)target_ setOwner:0];
     [(id)target_ release];
     target_ = 0;
   }

@@ -55,6 +55,7 @@ MacRectSurfaceContext::~MacRectSurfaceContext()
   LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
   if (view)
   {
+    [view setContext:0];
     [view removeFromSuperview];
     [view release];
   }

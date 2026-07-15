@@ -146,6 +146,7 @@ MacCellContext::~MacCellContext()
   LokaCellView *view = (LokaCellView *)view_;
   if (view)
   {
+    [view setContext:0];
     [view removeFromSuperview];
   }
   if (view_)

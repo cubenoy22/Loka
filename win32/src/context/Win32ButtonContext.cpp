@@ -133,6 +133,7 @@ Win32ButtonContext::~Win32ButtonContext()
   unbindEnabled();
   if (hwnd_)
   {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
     DestroyWindow(hwnd_);
     hwnd_ = NULL;
   }
