@@ -1564,7 +1564,7 @@ void testConditionalUnbindsBeforeReclaim()
   assert(conditional.activeNode == activeBeforeDetach);
 }
 
-void testConditionalBranchSwapFiresContextHooksOncePerLifetime()
+void testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach()
 {
   using namespace loka::app::scene;
   typedef NodeDefinition<PlainDetachProbeProps, PlainDetachProbeNode> PlainDetachProbeDefinition;
@@ -1582,17 +1582,52 @@ void testConditionalBranchSwapFiresContextHooksOncePerLifetime()
 
     condition.set(true);
     assert(trueCounts.attachCalls == 1);
-    assert(falseCounts.detachCalls == 0);
+    assert(falseCounts.detachCalls == 1 &&
+           "a retained detach must deliver the detach fact to the branch's contexts");
 
     condition.set(false);
-    assert(falseCounts.attachCalls == 1);
-    assert(trueCounts.detachCalls == 0);
+    assert(falseCounts.attachCalls == 2 &&
+           "re-entry must deliver the attach fact to the retained branch's contexts");
+    assert(trueCounts.detachCalls == 1);
   }
 
   assert(trueCounts.attachCalls == 1);
-  assert(falseCounts.attachCalls == 1);
-  assert(trueCounts.detachCalls == 1);
-  assert(falseCounts.detachCalls == 1);
+  assert(falseCounts.attachCalls == 2);
+  assert(trueCounts.detachCalls == 2 &&
+         "context destruction must still fire the detach hook exactly once more");
+  assert(falseCounts.detachCalls == 2);
+}
+
+void testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  typedef NodeDefinition<PlainDetachProbeProps, PlainDetachProbeNode> PlainDetachProbeDefinition;
+
+  DetachHookCounts innerCounts;
+  DetachHookCounts falseCounts;
+  loka::core::MutableState<bool> condition(true);
+  FragmentDefinition trueWrapper;
+  PlainDetachProbeDefinition innerDefinition((PlainDetachProbeProps(&innerCounts)));
+  trueWrapper << innerDefinition;
+  PlainDetachProbeDefinition falseDefinition((PlainDetachProbeProps(&falseCounts)));
+
+  {
+    ConditionalNode conditional((ConditionalProps(&condition, &trueWrapper, &falseDefinition)));
+    assert(innerCounts.attachCalls == 1);
+    assert(innerCounts.detachCalls == 0);
+
+    condition.set(false);
+    assert(innerCounts.detachCalls == 1 &&
+           "a retained detach must reach contexts below the branch root");
+
+    condition.set(true);
+    assert(innerCounts.attachCalls == 2 &&
+           "re-entry must reach contexts below the branch root");
+  }
+
+  assert(innerCounts.attachCalls == 2);
+  assert(innerCounts.detachCalls == 2);
 }
 
 void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun()
@@ -2421,12 +2456,14 @@ void testSceneTeardownReleasesBothConditionalBranchContextsOnce()
 
     condition.set(true);
     assert(trueCounts.attachCalls == 1);
-    assert(falseCounts.detachCalls == 0);
+    assert(falseCounts.detachCalls == 1 &&
+           "a retained detach must deliver the detach fact to the branch's contexts");
 
     scene.unmount();
 
+    // Teardown releases each branch context exactly once more.
     assert(trueCounts.detachCalls == 1);
-    assert(falseCounts.detachCalls == 1);
+    assert(falseCounts.detachCalls == 2);
     assert(trueCounts.attachCalls == 1);
     assert(falseCounts.attachCalls == 1);
   }

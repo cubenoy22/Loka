@@ -1099,6 +1099,53 @@ namespace loka
         loka::dsl::CompositionList<Node> children_;
       };
 
+      /** Delivers the retained-detach fact to every native context in a
+          subtree. Contexts stay alive; platforms react (hide) or ignore. */
+      inline void NotifySubtreeNodeDetached(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        NodeContext *context = node->getContext();
+        if (context)
+        {
+          context->onNodeDetached();
+        }
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          NotifySubtreeNodeDetached(child);
+        }
+      }
+
+      /** Re-entry counterpart: first entry is announced by setContext(). */
+      inline void NotifySubtreeNodeAttached(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        NodeContext *context = node->getContext();
+        if (context)
+        {
+          context->onNodeAttached();
+        }
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          NotifySubtreeNodeAttached(child);
+        }
+      }
+
       inline INestableDefinition &INestableDefinition::operator<<(NodeDefinitionBase &child)
       {
         addChild(&child);
