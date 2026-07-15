@@ -110,6 +110,10 @@ int main()
   LOKA_RUN_TEST(testSceneTeardownDrainsPendingRetiredGenerationExactlyOnce);
   LOKA_RUN_TEST(testConditionalBranchSwapDestroysRetiredArenaSubtreeChildrenFirst);
   LOKA_RUN_TEST(testRetiredArenaParentDestroysHeapChildExactlyOnceAtDrain);
+  LOKA_RUN_TEST(testConditionalBranchSwapBackDestroysRetiredHeapNodeOnNextTrackerRun);
+  LOKA_RUN_TEST(testPendingChildBoundaryUpdateSurvivesHeapSubtreeReplacement);
+  LOKA_RUN_TEST(testRetiredHeapParentDestroysArenaChildExactlyOnceAtDrain);
+  LOKA_RUN_TEST(testRetiredGenerationSubsumesQueuedHeapSubtreeExactlyOnce);
   LOKA_RUN_TEST(testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce);
   LOKA_RUN_TEST(testRetiredBoundaryOwnedStateMutationIsQuiescent);
   LOKA_RUN_TEST(testSceneTeardownReleasesBothConditionalBranchContextsOnce);

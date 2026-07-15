@@ -522,18 +522,7 @@ namespace loka
           }
           this->composeTree(created, context, COMPOSE_EVENT_ATTACH, this);
           this->composeTree(liveRoot, context, COMPOSE_EVENT_DETACH, this);
-          if (context.platformController())
-          {
-            context.platformController()->releaseNodeContexts(liveRoot);
-          }
-          if (!liveRoot->isArenaAllocated())
-          {
-            delete liveRoot;
-          }
-          else
-          {
-            this->retireArenaSubtree(liveRoot);
-          }
+          this->retireDetachedNode(context, liveRoot);
           return true;
         }
         bool canApplyLocalCompositionDiff() const
@@ -584,6 +573,10 @@ namespace loka
       protected:
         /** Retires the complete arena allocation and ledger for clock-boundary reclaim. */
         void retireOwnedNodeGeneration();
+
+        /** Releases native contexts from an already detached node, then queues it
+            for clock-boundary reclaim regardless of heap or arena storage. */
+        void retireDetachedNode(ComponentContext &context, Node *node);
 
         virtual void applyPendingStructureInfo(const LocalApplyInfo &, const PlatformApplyPlan &plan)
         {
@@ -713,18 +706,7 @@ namespace loka
             if (detachedNode)
             {
               this->composeTree(detachedNode, context, COMPOSE_EVENT_DETACH, this);
-              if (context.platformController())
-              {
-                context.platformController()->releaseNodeContexts(detachedNode);
-              }
-              if (!detachedNode->isArenaAllocated())
-              {
-                delete detachedNode;
-              }
-              else
-              {
-                this->retireArenaSubtree(detachedNode);
-              }
+              this->retireDetachedNode(context, detachedNode);
             }
           }
           return true;
@@ -1038,7 +1020,7 @@ namespace loka
           ownedStateHandles_.clear();
         }
 
-        void retireArenaSubtree(Node *node);
+        void retireSubtree(Node *node);
         void destroyRetiredSubtree(Node *node);
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();

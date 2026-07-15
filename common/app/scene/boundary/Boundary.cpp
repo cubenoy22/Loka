@@ -12,6 +12,7 @@ namespace loka
     {
       void BoundaryNode::retireOwnedNodeGeneration()
       {
+        detail::NodeArena::RetiredNodeGeneration gen;
         Node *keptHead = 0;
         Node *keptTail = 0;
         Node *retired = this->retiredSubtreesHead_;
@@ -21,27 +22,34 @@ namespace loka
           retired->nextInComposition = 0;
           if (retired->arenaOwner() == this->nodeArena())
           {
-            retired = next;
-            continue;
+            // Subsumed: the generation ledger already owns this corpse.
           }
-          assert(retired->arenaOwner() != this->nodeArena() &&
-                 "a kept retired subtree must not belong to the retiring arena generation");
-          if (keptTail)
+          else if (retired->arenaOwner() == 0)
           {
-            keptTail->nextInComposition = retired;
+            // Heap corpses ride the generation so their arena descendants and
+            // the ledger slots those descendants occupy drain as one unit.
+            gen.heapRoots.push_back(retired);
           }
           else
           {
-            keptHead = retired;
+            assert(false && "a boundary must not hold retired subtrees of a foreign arena");
+            if (keptTail)
+            {
+              keptTail->nextInComposition = retired;
+            }
+            else
+            {
+              keptHead = retired;
+            }
+            keptTail = retired;
           }
-          keptTail = retired;
           retired = next;
         }
         this->retiredSubtreesHead_ = keptHead;
         this->retiredSubtreesTail_ = keptTail;
 
-        detail::NodeArena::RetiredNodeGeneration gen;
-        if (this->nodeArena_.detachRetiredGeneration(gen))
+        const bool hasArenaGeneration = this->nodeArena_.detachRetiredGeneration(gen);
+        if (hasArenaGeneration || !gen.heapRoots.empty())
         {
           this->retiredGenerations_.push_back(gen);
         }
@@ -53,13 +61,25 @@ namespace loka
         }
       }
 
-      void BoundaryNode::retireArenaSubtree(Node *node)
+      void BoundaryNode::retireDetachedNode(ComponentContext &context, Node *node)
       {
         if (!node)
         {
           return;
         }
-        assert(node->isArenaAllocated());
+        if (context.platformController())
+        {
+          context.platformController()->releaseNodeContexts(node);
+        }
+        this->retireSubtree(node);
+      }
+
+      void BoundaryNode::retireSubtree(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
         assert(node->nextInComposition == 0 &&
                "retired subtree root must be detached before reusing its sibling link");
         if (this->retiredSubtreesTail_)
