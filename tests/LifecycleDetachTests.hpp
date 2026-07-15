@@ -9,6 +9,7 @@ void testRootDetachChildWalkRetainsBoundaryStateOwner();
 void testConditionalUnbindsBeforeReclaim();
 void testConditionalBranchSwapFiresContextHooksOncePerLifetime();
 void testConditionalBranchSwapDestroysRetiredArenaNodeOnNextTrackerRun();
+void testRootReplacementDestroysRetiredArenaNodeOnNextTrackerRun();
 void testRetiringNativeContextUnbindsBeforeNodeOwnedStateReclaim();
 void testSceneDestructionUnbindsNativeContextBeforeNodeOwnedStateReclaim();
 void testSceneTeardownDrainsNonEmptyRetiredArenaSubtreeExactlyOnce();
