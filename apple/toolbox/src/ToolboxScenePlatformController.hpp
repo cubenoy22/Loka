@@ -84,6 +84,7 @@ public:
                            const loka::core::String &label,
                            loka::core::EmitterState *emitter,
                            loka::core::State<bool> *enabled);
+  void destroyButtonControl(short resourceId);
   void drawFallbackControl(const Rect &rect);
   TEHandle ensureEditTextControl(const Rect &rect, loka::core::State<loka::core::String> *text);
   void idleTextEdits();

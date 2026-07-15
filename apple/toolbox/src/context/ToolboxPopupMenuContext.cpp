@@ -43,18 +43,6 @@ ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node)
 
 ToolboxPopupMenuContext::~ToolboxPopupMenuContext() {}
 
-void ToolboxPopupMenuContext::invalidate()
-{
-  node_ = 0;
-  boundary_ = 0;
-  items_ = 0;
-  selectedIndex_ = 0;
-  onChange_ = 0;
-  enabled_ = 0;
-  lineHeight_ = 0;
-  rect_.left = rect_.top = rect_.right = rect_.bottom = 0;
-}
-
 void ToolboxPopupMenuContext::updateData(const loka::Vector<loka::core::String> *items,
                                          loka::core::State<int> *selectedIndex,
                                          loka::core::EmitterState *onChange,

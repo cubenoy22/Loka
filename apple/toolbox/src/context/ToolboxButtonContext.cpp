@@ -30,18 +30,27 @@ namespace
   }
 } // namespace
 
-ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node)
+ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node,
+                                           ToolboxScenePlatformController *controller)
     : node_(node),
       boundary_(0),
       rect_(),
       label_(loka::core::String::Literal("Button")),
       emitter_(0),
       enabled_(0),
-      resourceId_(0)
+      resourceId_(0),
+      controller_(controller)
 {
 }
 
-ToolboxButtonContext::~ToolboxButtonContext() {}
+ToolboxButtonContext::~ToolboxButtonContext()
+{
+  if (controller_)
+  {
+    controller_->destroyButtonControl(resourceId_);
+  }
+  controller_ = 0;
+}
 
 void ToolboxButtonContext::updateData(const loka::core::String &label,
                                       loka::core::EmitterState *emitter,

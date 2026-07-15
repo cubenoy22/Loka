@@ -59,6 +59,7 @@ Win32EditTextContext::~Win32EditTextContext()
   unbindText();
   if (hwnd_)
   {
+    SetWindowLongPtr(hwnd_, GWLP_USERDATA, 0);
     DestroyWindow(hwnd_);
     hwnd_ = NULL;
   }

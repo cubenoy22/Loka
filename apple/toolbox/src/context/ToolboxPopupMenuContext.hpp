@@ -39,7 +39,6 @@ public:
   {
     boundary_ = boundary;
   }
-  void invalidate();
   void updateData(const loka::Vector<loka::core::String> *items,
                   loka::core::State<int> *selectedIndex,
                   loka::core::EmitterState *onChange,

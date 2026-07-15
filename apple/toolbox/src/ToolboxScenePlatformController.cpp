@@ -968,7 +968,7 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
     return false;
   }
   loka::app::scene::BoundaryNode *boundary = this->activeLayoutBoundary();
-  return mapper->ensureProjectedContext(node, boundary);
+  return mapper->ensureProjectedContext(node, boundary, this);
 }
 
 short ToolboxScenePlatformController::allocateControlId()
@@ -2322,6 +2322,31 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
   }
   ShowControl(binding->control);
   return true;
+}
+
+void ToolboxScenePlatformController::destroyButtonControl(short resourceId)
+{
+  for (size_t i = 0; i < buttonControls_.size(); ++i)
+  {
+    ButtonControlBinding &binding = buttonControls_[i];
+    if (binding.resourceId != resourceId)
+    {
+      continue;
+    }
+    ControlRef control = binding.control;
+    binding.control = 0;
+    binding.emitter = 0;
+    binding.enabled = 0;
+    buttonControls_.erase(buttonControls_.begin() + i);
+    if (control)
+    {
+      // Context destruction can run inside an update pass; disposal waits for
+      // the platform safe point like every other retired native handle.
+      HideControl(control);
+      queueRetiredControl(control);
+    }
+    return;
+  }
 }
 
 void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)

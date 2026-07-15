@@ -31,7 +31,7 @@ namespace loka
 class ToolboxButtonContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  explicit ToolboxButtonContext(loka::app::ButtonNode *node);
+  ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxButtonContext();
 
   void setBoundary(loka::app::scene::BoundaryNode *boundary)
@@ -57,6 +57,7 @@ private:
   loka::core::EmitterState *emitter_;
   loka::core::State<bool> *enabled_;
   short resourceId_;
+  ToolboxScenePlatformController *controller_;
 };
 
 #endif // LOKA_TOOLBOX_BUTTON_CONTEXT_HPP

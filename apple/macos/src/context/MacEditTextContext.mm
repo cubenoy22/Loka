@@ -102,6 +102,7 @@ MacEditTextContext::~MacEditTextContext()
   }
   if (delegate_)
   {
+    [(LokaTextFieldDelegate *)delegate_ setOwner:0];
     [(id)delegate_ release];
     delegate_ = 0;
   }
