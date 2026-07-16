@@ -331,6 +331,11 @@ namespace loka
 
         virtual ~Node()
         {
+          // Death is the last retire door: every deletion path funnels here,
+          // so a node that skipped the explicit retire/teardown doors (dying
+          // with its parent) still turns RETIRED before its context hears
+          // the terminal. Already-retired nodes are a silent same-value set.
+          this->applyLifecycleFact(NODE_FACT_RETIRED);
           this->releaseContext();
         }
 
@@ -579,7 +584,13 @@ namespace loka
             return;
           }
           context = 0;
-          released->onNodeDetached();
+          // Terminal delivery: the retire door has already written RETIRED
+          // and the context is severed from the node (context == 0), so the
+          // observer cannot route back into the tree. One onFactChanged(->R),
+          // then the ritual (context destruction). A release while the fact
+          // is not RETIRED (context replacement on a live node) is silent —
+          // the context's own destructor is its terminal signal.
+          released->deliverFact(lifecycleFact_);
           delete released;
         }
       };

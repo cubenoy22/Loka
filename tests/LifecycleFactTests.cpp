@@ -24,13 +24,16 @@ namespace
   struct FactRecord
   {
     FactRecord()
-        : node(0)
+        : node(0),
+          terminalContextSevered(false)
     {
     }
 
     loka::app::scene::Node *node;
     std::vector<loka::app::scene::NodeLifecycleFact> attachFacts;
     std::vector<loka::app::scene::NodeLifecycleFact> detachFacts;
+    // G5: at terminal delivery the context is already severed from the node.
+    bool terminalContextSevered;
   };
 
   class FactProbeContext : public loka::app::scene::NodeContext
@@ -57,8 +60,8 @@ namespace
       }
     }
 
-    // Living transitions arrive through the fact channel since the S2a
-    // delivery switch; terminal RETIRED still comes through onNodeDetached.
+    // Living transitions (S2a) and the terminal (S2b) arrive through the
+    // fact channel.
     virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                                loka::app::scene::NodeLifecycleFact next)
     {
@@ -67,13 +70,15 @@ namespace
       {
         return;
       }
-      if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
-      {
-        this->record_->detachFacts.push_back(next);
-      }
-      else if (next == loka::app::scene::NODE_FACT_ATTACHED)
+      if (next == loka::app::scene::NODE_FACT_ATTACHED)
       {
         this->record_->attachFacts.push_back(next);
+        return;
+      }
+      this->record_->detachFacts.push_back(next);
+      if (next == loka::app::scene::NODE_FACT_RETIRED && this->owner())
+      {
+        this->record_->terminalContextSevered = this->owner()->getContext() == 0;
       }
     }
 
@@ -287,6 +292,8 @@ void testLifecycleFactTerminalDetachObservesRetired()
   assert(record.detachFacts.size() == 1);
   assert(record.detachFacts[0] == loka::app::scene::NODE_FACT_RETIRED &&
          "teardown marks the subtree RETIRED before contexts are peeled");
+  assert(record.terminalContextSevered &&
+         "terminal delivery happens after severing: the context is already off the node (G5)");
   g_swapRecord = 0;
   g_swapCondition = 0;
 }

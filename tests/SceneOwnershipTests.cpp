@@ -242,6 +242,22 @@ namespace
       ++this->observation_->contextDetachCalls;
     }
 
+    // Living transitions (S2a) and the terminal (S2b) arrive through the
+    // fact channel; the counters keep their original meaning.
+    virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                               loka::app::scene::NodeLifecycleFact next)
+    {
+      (void)previous;
+      if (next == loka::app::scene::NODE_FACT_ATTACHED)
+      {
+        ++this->observation_->contextAttachCalls;
+      }
+      else
+      {
+        ++this->observation_->contextDetachCalls;
+      }
+    }
+
   private:
     SceneReclaimObservation *observation_;
   };

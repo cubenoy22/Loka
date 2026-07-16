@@ -43,19 +43,20 @@ namespace
       ++this->counts_->detachCalls;
     }
 
-    // Living transitions arrive through the fact channel since the S2a
-    // delivery switch; the counters keep their original meaning.
+    // Living transitions (S2a) and the terminal (S2b) arrive through the
+    // fact channel; the counters keep their original meaning — RETIRED
+    // counts as the destruction-time detach.
     virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                                loka::app::scene::NodeLifecycleFact next)
     {
       (void)previous;
-      if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
-      {
-        ++this->counts_->detachCalls;
-      }
-      else if (next == loka::app::scene::NODE_FACT_ATTACHED)
+      if (next == loka::app::scene::NODE_FACT_ATTACHED)
       {
         ++this->counts_->attachCalls;
+      }
+      else
+      {
+        ++this->counts_->detachCalls;
       }
     }
 
