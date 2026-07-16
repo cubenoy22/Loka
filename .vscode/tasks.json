@@ -515,7 +515,8 @@
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"]
       },
       "problemMatcher": []
     },
@@ -525,7 +526,8 @@
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"]
       },
       "problemMatcher": []
     },
@@ -535,7 +537,8 @@
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"]
       },
       "problemMatcher": []
     },
@@ -545,7 +548,8 @@
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"]
       },
       "problemMatcher": []
     },
@@ -555,7 +559,8 @@
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-dev-disk.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"]
       },
       "problemMatcher": []
     },
@@ -564,7 +569,8 @@
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-run.sh",
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-run.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-run.ps1"]
       },
       "presentation": {
         "reveal": "always",
@@ -579,7 +585,8 @@
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": ["--eject"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "eject"]
       },
       "problemMatcher": []
     },
@@ -589,7 +596,8 @@
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"]
       },
       "problemMatcher": []
     },
@@ -599,7 +607,8 @@
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"]
       },
       "problemMatcher": []
     },
@@ -609,7 +618,8 @@
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"]
       },
       "problemMatcher": []
     },
@@ -619,7 +629,8 @@
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"]
       },
       "problemMatcher": []
     },
@@ -629,7 +640,8 @@
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": ["${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"]
       },
       "problemMatcher": []
     },
@@ -699,7 +711,8 @@
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
       "args": ["${workspaceFolder}/${input:retro68DskPath}"],
       "windows": {
-        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"${workspaceFolder}\\scripts\\mame-mount.ps1\""
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "${input:retro68DskPath}"]
       },
       "problemMatcher": []
     }
