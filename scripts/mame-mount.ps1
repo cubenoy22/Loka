@@ -47,7 +47,7 @@ New-Item -ItemType Directory -Path $controlDirectory -Force | Out-Null
 Remove-Item -LiteralPath $responsePath -Force -ErrorAction SilentlyContinue
 
 $requestTemporary = "$requestPath.$PID"
-if ($DiskImage -eq "--eject") {
+if ($DiskImage -eq "--eject" -or $DiskImage -eq "eject") {
     [IO.File]::WriteAllText($requestTemporary, "eject`n")
 } else {
     $resolvedDiskImage = (Resolve-Path -LiteralPath $DiskImage).Path
