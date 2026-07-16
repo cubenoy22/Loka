@@ -34,9 +34,13 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   virtual void onNodeAttached();
   virtual void onNodeDetached();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
   void relayout(int x, int y, int width, int height);
 
 private:
+  void applyAttachedPresentation();
+  void applyDetachedPresentation();
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
   static void EnsureClassRegistered();
   void bindText();

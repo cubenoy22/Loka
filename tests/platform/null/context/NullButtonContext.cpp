@@ -85,6 +85,16 @@ void NullButtonContext::onNodeDetached()
   }
 }
 
+void NullButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                      loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (this->controller_)
+  {
+    this->controller_->setVisible(this->handle_, next == loka::app::scene::NODE_FACT_ATTACHED);
+  }
+}
+
 short NullButtonContext::layout(loka::app::scene::IPlatformController *,
                                 loka::app::scene::LayoutState &state)
 {

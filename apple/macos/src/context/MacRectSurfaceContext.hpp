@@ -19,11 +19,15 @@ public:
   virtual ~MacRectSurfaceContext();
   virtual void onNodeAttached();
   virtual void onNodeDetached();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
 
   void relayout(int x, int y, int width, int height);
   void draw(void *viewBounds);
 
 private:
+  void applyAttachedPresentation();
+  void applyDetachedPresentation();
   static void ModelChangedThunk(void *userData);
   void bindModel();
   void unbindModel();

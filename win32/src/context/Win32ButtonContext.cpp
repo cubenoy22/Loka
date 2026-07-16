@@ -141,13 +141,37 @@ Win32ButtonContext::~Win32ButtonContext()
 
 void Win32ButtonContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void Win32ButtonContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32ButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                       loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32ButtonContext::applyAttachedPresentation()
+{
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
 
-void Win32ButtonContext::onNodeDetached()
+void Win32ButtonContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {

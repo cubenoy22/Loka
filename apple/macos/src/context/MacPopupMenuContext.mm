@@ -113,6 +113,30 @@ MacPopupMenuContext::~MacPopupMenuContext()
 
 void MacPopupMenuContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void MacPopupMenuContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacPopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                        loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacPopupMenuContext::applyAttachedPresentation()
+{
   NSPopUpButton *popup = (NSPopUpButton *)popup_;
   if (popup)
   {
@@ -120,7 +144,7 @@ void MacPopupMenuContext::onNodeAttached()
   }
 }
 
-void MacPopupMenuContext::onNodeDetached()
+void MacPopupMenuContext::applyDetachedPresentation()
 {
   NSPopUpButton *popup = (NSPopUpButton *)popup_;
   if (popup)

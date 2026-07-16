@@ -10,6 +10,7 @@
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/State.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
 #include "support/RecomposingBoundary.hpp"
 
 // Shadow-mode pins for the lifecycle fact (S1): the enum is written through
@@ -53,6 +54,26 @@ namespace
       if (this->owner() && this->record_)
       {
         this->record_->detachFacts.push_back(this->owner()->lifecycleFact());
+      }
+    }
+
+    // Living transitions arrive through the fact channel since the S2a
+    // delivery switch; terminal RETIRED still comes through onNodeDetached.
+    virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                               loka::app::scene::NodeLifecycleFact next)
+    {
+      (void)previous;
+      if (!this->record_)
+      {
+        return;
+      }
+      if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+      {
+        this->record_->detachFacts.push_back(next);
+      }
+      else if (next == loka::app::scene::NODE_FACT_ATTACHED)
+      {
+        this->record_->attachFacts.push_back(next);
       }
     }
 
@@ -232,7 +253,8 @@ void testLifecycleFactBornAttachedAndSwapWritesRetainedDetach()
   condition.set(false);
   assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
          "a retained detach writes DETACHED_RETAINED through the walk door");
-  assert(record.detachFacts.size() == 1);
+  assert(record.detachFacts.size() == 1 &&
+         "the immediate-flush floor runs apply (and delivery) within the set");
   assert(record.detachFacts[0] == loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
          "the context observes the retained fact, not a terminal one");
 
@@ -291,6 +313,35 @@ void testLifecycleFactCompositionRetireObservesRetired()
   scene.unmount();
   g_retireRecord = 0;
   g_retireVisible = 0;
+}
+
+void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased()
+{
+  // Scene-less footing: no immediate flush, so the gap between the walk
+  // door and delivery is observable (G1's unit form), and a round trip
+  // sharing one delivery nets to silence (G2's unit form).
+  FactRecord record;
+  loka::core::MutableState<bool> condition(true);
+  FactProbeDefinition trueDef((FactProbeProps(&record)));
+  loka::app::FragmentDefinition empty;
+  loka::app::scene::ConditionalNode conditional(
+      (loka::app::scene::ConditionalProps(&condition, &trueDef, &empty)));
+  assert(record.attachFacts.size() == 1 && "construction announces through setContext");
+
+  condition.set(false);
+  assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_DETACHED_RETAINED);
+  assert(record.detachFacts.empty() &&
+         "the walk door never calls contexts synchronously (G1)");
+
+  condition.set(true);
+  loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&conditional);
+  assert(record.detachFacts.empty() && record.attachFacts.size() == 1 &&
+         "a round trip sharing one delivery nets to silence (G2)");
+
+  condition.set(false);
+  loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&conditional);
+  assert(record.detachFacts.size() == 1 &&
+         "a one-way swap still delivers exactly once");
 }
 
 void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached()

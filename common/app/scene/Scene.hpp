@@ -875,6 +875,10 @@ namespace loka
           }
           director_.beginApplyCycle();
           platformController_->beginApplyCycle();
+          // Living lifecycle transitions (A <-> D) reach contexts here, at
+          // the head of apply — before projection, so the frame presents the
+          // delivered state. A same-tick round trip nets out to silence.
+          Node::DeliverLifecycleFactsSubtree(rootNode_);
           const NodeDirtyFlags flags = updateCycleState_.effectiveApplyDirtyFlags();
           logApplyFlags(flags);
           executePendingApplyCycle(flags);

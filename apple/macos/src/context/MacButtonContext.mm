@@ -158,6 +158,30 @@ MacButtonContext::~MacButtonContext()
 
 void MacButtonContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void MacButtonContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                     loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacButtonContext::applyAttachedPresentation()
+{
   NSButton *button = (NSButton *)button_;
   if (button)
   {
@@ -165,7 +189,7 @@ void MacButtonContext::onNodeAttached()
   }
 }
 
-void MacButtonContext::onNodeDetached()
+void MacButtonContext::applyDetachedPresentation()
 {
   NSButton *button = (NSButton *)button_;
   if (button)

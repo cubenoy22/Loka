@@ -269,6 +269,30 @@ MacImageViewContext::~MacImageViewContext()
 
 void MacImageViewContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void MacImageViewContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacImageViewContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                        loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacImageViewContext::applyAttachedPresentation()
+{
   NSView *view = (NSView *)imageView_;
   if (view)
   {
@@ -276,7 +300,7 @@ void MacImageViewContext::onNodeAttached()
   }
 }
 
-void MacImageViewContext::onNodeDetached()
+void MacImageViewContext::applyDetachedPresentation()
 {
   NSView *view = (NSView *)imageView_;
   if (view)

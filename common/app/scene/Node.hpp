@@ -221,11 +221,13 @@ namespace loka
       {
       public:
         NodeContext()
-            : owner_(0)
+            : owner_(0),
+              deliveredFact_(NODE_FACT_ATTACHED)
         {
         }
         explicit NodeContext(Node *owner)
-            : owner_(owner)
+            : owner_(owner),
+              deliveredFact_(NODE_FACT_ATTACHED)
         {
         }
         virtual ~NodeContext() {}
@@ -237,6 +239,21 @@ namespace loka
         Node *owner() const
         {
           return owner_;
+        }
+        /** The consumer-side baseline: the last lifecycle fact this context
+            was told about (or read at attach time). Lives inside the wall —
+            the one permanent field besides the Node's own fact. */
+        NodeLifecycleFact deliveredFact() const
+        {
+          return deliveredFact_;
+        }
+        /** Living-transition observation point (A <-> D). Delivered from the
+            apply-phase diff walk only; terminal RETIRED still arrives through
+            onNodeDetached until the S2b slice moves it to the retire door. */
+        virtual void onFactChanged(NodeLifecycleFact previous, NodeLifecycleFact next)
+        {
+          (void)previous;
+          (void)next;
         }
         virtual ICapturableBitmap *asCapturableBitmap()
         {
@@ -258,7 +275,29 @@ namespace loka
         NodeContext(const NodeContext &);
         NodeContext &operator=(const NodeContext &);
 
+        /** Attach-time read (late-subscriber rule): adopt the current fact
+            as the baseline without firing onFactChanged. */
+        void initializeDeliveredFact(NodeLifecycleFact fact)
+        {
+          deliveredFact_ = fact;
+        }
+        /** Baseline moves before the hook fires, so reentrant reads see the
+            delivered value. Same-value delivery is silent. */
+        void deliverFact(NodeLifecycleFact next)
+        {
+          if (deliveredFact_ == next)
+          {
+            return;
+          }
+          const NodeLifecycleFact previous = deliveredFact_;
+          deliveredFact_ = next;
+          this->onFactChanged(previous, next);
+        }
+
         Node *owner_;
+        NodeLifecycleFact deliveredFact_;
+
+        friend class Node;
       };
 
       class Node LOKA_AUDITED(Node)
@@ -316,6 +355,14 @@ namespace loka
             stop announcing swaps while an ancestor keeps them hidden. */
         virtual void onRetainedDetached() {}
         virtual void onRetainedReattached() {}
+
+      protected:
+        /** The apply-phase fact-delivery walk follows live children; nodes
+            that park retained branches outside the composition (Conditional)
+            override this to let the walk descend into them. */
+        virtual void deliverRetainedLifecycleBranchFacts() {}
+
+      public:
         ComposeEvent resolveChildComposeEvent(ComposeEvent parentEvent)
         {
           return composeAttachLifecycle_.resolveChildComposeEvent(parentEvent);
@@ -453,6 +500,7 @@ namespace loka
           if (context)
           {
             context->setOwner(this);
+            context->initializeDeliveredFact(lifecycleFact_);
             context->onNodeAttached();
           }
         }
@@ -510,6 +558,7 @@ namespace loka
           lifecycleFact_ = next;
         }
         static void MarkSubtreeLifecycleFact(Node *node, NodeLifecycleFact fact);
+        static void DeliverLifecycleFactsSubtree(Node *node);
 
         NodeLifecycleFact lifecycleFact_;
 
@@ -518,6 +567,9 @@ namespace loka
         friend class ConditionalNode;
         friend void NotifySubtreeNodeDetached(Node *node);
         friend void NotifySubtreeNodeAttached(Node *node);
+        // Test backdoor (SceneTestAccess precedent): unit pins drive the
+        // delivery walk directly on scene-less node trees.
+        friend struct LifecycleFactTestAccess;
 
         void releaseContext()
         {
@@ -1192,11 +1244,6 @@ namespace loka
         loka::dsl::CompositionList<Node> children_;
       };
 
-      /** Delivers the retained-detach fact to every native context in a
-          subtree. Contexts stay alive; platforms react (hide) or ignore.
-          Nodes that own retained branches of their own (Conditional) observe
-          the fact through onRetainedDetached so they stop announcing swaps
-          while an ancestor keeps them off the attached path. */
       /** Marks a subtree's lifecycle fact through the single door, without
           delivering anything. Retained branches parked outside the live
           composition (Conditional slots) are not reached — they keep their
@@ -1219,6 +1266,40 @@ namespace loka
         }
       }
 
+      /** The apply-phase delivery walk: hands each context the diff between
+          its baseline (deliveredFact_) and the node's fact — the only path
+          that turns living transitions (A <-> D) into onFactChanged calls.
+          Descends into parked retained branches through the owner's virtual,
+          so a branch swapped out of the composition still hears its detach
+          at the next apply. Reclaim never runs this walk. */
+      inline void Node::DeliverLifecycleFactsSubtree(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        if (node->context)
+        {
+          node->context->deliverFact(node->lifecycleFact_);
+        }
+        node->deliverRetainedLifecycleBranchFacts();
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          DeliverLifecycleFactsSubtree(child);
+        }
+      }
+
+      /** Walk door, detach direction: writes the retained-detach fact down a
+          subtree. Contexts stay alive and hear the change from the
+          apply-phase delivery walk — never synchronously from here. Nodes
+          that own retained branches (Conditional) observe the fact through
+          onRetainedDetached so they stop announcing swaps while an ancestor
+          keeps them off the attached path. */
       inline void NotifySubtreeNodeDetached(Node *node)
       {
         if (!node)
@@ -1227,11 +1308,6 @@ namespace loka
         }
         node->applyLifecycleFact(NODE_FACT_DETACHED_RETAINED);
         node->onRetainedDetached();
-        NodeContext *context = node->getContext();
-        if (context)
-        {
-          context->onNodeDetached();
-        }
         INestable *nestable = node->asNestable();
         if (!nestable)
         {
@@ -1243,9 +1319,10 @@ namespace loka
         }
       }
 
-      /** Re-entry counterpart: first entry is announced by setContext().
-          The walk follows live children only, so branches swapped out while
-          hidden stay hidden and the current active path is shown. */
+      /** Walk door, re-entry direction: first entry is announced by
+          setContext()'s attach-time read. The walk follows live children
+          only, so branches swapped out while hidden stay hidden and the
+          current active path is shown at the next apply. */
       inline void NotifySubtreeNodeAttached(Node *node)
       {
         if (!node)
@@ -1254,11 +1331,6 @@ namespace loka
         }
         node->applyLifecycleFact(NODE_FACT_ATTACHED);
         node->onRetainedReattached();
-        NodeContext *context = node->getContext();
-        if (context)
-        {
-          context->onNodeAttached();
-        }
         INestable *nestable = node->asNestable();
         if (!nestable)
         {

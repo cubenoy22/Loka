@@ -213,13 +213,37 @@ Win32ImageViewContext::~Win32ImageViewContext()
 
 void Win32ImageViewContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void Win32ImageViewContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32ImageViewContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                          loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32ImageViewContext::applyAttachedPresentation()
+{
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
 
-void Win32ImageViewContext::onNodeDetached()
+void Win32ImageViewContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {

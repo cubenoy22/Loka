@@ -82,10 +82,34 @@ ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
 
 void ToolboxOpenFileDialogContext::onNodeAttached()
 {
-  presentIfNeeded();
+  this->applyAttachedPresentation();
 }
 
 void ToolboxOpenFileDialogContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void ToolboxOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                                 loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void ToolboxOpenFileDialogContext::applyAttachedPresentation()
+{
+  presentIfNeeded();
+}
+
+void ToolboxOpenFileDialogContext::applyDetachedPresentation()
 {
   presentation_.markDetached();
   this->disposeDialog();

@@ -11,9 +11,13 @@ public:
   virtual ~ToolboxOpenFileDialogContext();
   virtual void onNodeAttached();
   virtual void onNodeDetached();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
   void presentIfNeeded();
 
 private:
+  void applyAttachedPresentation();
+  void applyDetachedPresentation();
   struct NativeDialogSession;
 
   void presentDialog();

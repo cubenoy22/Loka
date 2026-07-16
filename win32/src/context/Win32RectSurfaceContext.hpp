@@ -20,10 +20,14 @@ public:
   virtual ~Win32RectSurfaceContext();
   virtual void onNodeAttached();
   virtual void onNodeDetached();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
 
   void relayout(int x, int y, int width, int height);
 
 private:
+  void applyAttachedPresentation();
+  void applyDetachedPresentation();
   static void EnsureClassRegistered();
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
   static void ModelChangedThunk(void *userData);

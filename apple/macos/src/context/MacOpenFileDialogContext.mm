@@ -174,10 +174,34 @@ MacOpenFileDialogContext::~MacOpenFileDialogContext()
 
 void MacOpenFileDialogContext::onNodeAttached()
 {
-  presentIfNeeded();
+  this->applyAttachedPresentation();
 }
 
 void MacOpenFileDialogContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                             loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacOpenFileDialogContext::applyAttachedPresentation()
+{
+  presentIfNeeded();
+}
+
+void MacOpenFileDialogContext::applyDetachedPresentation()
 {
   presentation_.markDetached();
   if (deferredPresenter_)

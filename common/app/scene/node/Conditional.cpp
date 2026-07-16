@@ -216,6 +216,18 @@ namespace loka
         }
       }
 
+      void ConditionalNode::deliverRetainedLifecycleBranchFacts()
+      {
+        if (trueNode_ && trueNode_ != activeNode)
+        {
+          Node::DeliverLifecycleFactsSubtree(trueNode_);
+        }
+        if (falseNode_ && falseNode_ != activeNode)
+        {
+          Node::DeliverLifecycleFactsSubtree(falseNode_);
+        }
+      }
+
       void ConditionalNode::render(IPlatformController *controller)
       {
         if (activeNode)

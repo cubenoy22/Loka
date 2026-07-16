@@ -158,6 +158,30 @@ MacCellContext::~MacCellContext()
 
 void MacCellContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void MacCellContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacCellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                   loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacCellContext::applyAttachedPresentation()
+{
   LokaCellView *view = (LokaCellView *)view_;
   if (view)
   {
@@ -165,7 +189,7 @@ void MacCellContext::onNodeAttached()
   }
 }
 
-void MacCellContext::onNodeDetached()
+void MacCellContext::applyDetachedPresentation()
 {
   LokaCellView *view = (LokaCellView *)view_;
   if (view)

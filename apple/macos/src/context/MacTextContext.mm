@@ -213,6 +213,30 @@ MacTextContext::~MacTextContext()
 
 void MacTextContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void MacTextContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                   loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacTextContext::applyAttachedPresentation()
+{
   NSTextField *label = (NSTextField *)label_;
   if (label)
   {
@@ -220,7 +244,7 @@ void MacTextContext::onNodeAttached()
   }
 }
 
-void MacTextContext::onNodeDetached()
+void MacTextContext::applyDetachedPresentation()
 {
   NSTextField *label = (NSTextField *)label_;
   if (label)
