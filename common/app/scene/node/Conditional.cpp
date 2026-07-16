@@ -313,12 +313,22 @@ namespace loka
 
       Node *ConditionalDefinition::create() const
       {
-        return new ConditionalNode(props);
+        Node *node = new ConditionalNode(props);
+        if (node)
+        {
+          node->setNativeLifetimeHint(this->nativeLifetimeHint());
+        }
+        return node;
       }
 
       Node *ConditionalDefinition::createInPlace(void *mem) const
       {
-        return new (mem) ConditionalNode(props);
+        Node *node = new (mem) ConditionalNode(props);
+        if (node)
+        {
+          node->setNativeLifetimeHint(this->nativeLifetimeHint());
+        }
+        return node;
       }
 
       size_t ConditionalDefinition::nodeSize() const

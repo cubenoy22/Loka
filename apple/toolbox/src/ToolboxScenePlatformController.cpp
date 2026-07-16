@@ -909,6 +909,11 @@ namespace
   }
 } // namespace
 
+// Hard per-bucket bound so a one-off control spike cannot pin its high-water
+// mark of native handles for the window's whole lifetime (4MB-class targets).
+// Provisional policy: revisit with measured hit/miss/evict counters.
+static const std::size_t kNativePoolBucketDepthCap = 8;
+
 ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *window)
     : window_(window),
       rootNode_(0),
@@ -924,8 +929,8 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       pendingDirtyRects_(),
       retiredControls_(),
       retiredTextEdits_(),
-      pushButtonBucket_(),
-      textEditBucket_(),
+      pushButtonBucket_(kNativePoolBucketDepthCap),
+      textEditBucket_(kNativePoolBucketDepthCap),
       poolIntakeAuditFailCount_(0),
       clipRgn_(NewRgn()),
       hasClip_(false),
@@ -2196,47 +2201,41 @@ void ToolboxScenePlatformController::clearControls()
   focusedEdit_ = 0;
 }
 
-void ToolboxScenePlatformController::queueRetiredControl(ControlRef control,
-                                                         loka::app::scene::NativeLifetimeHint lifetimeHint)
+template <typename HandleT>
+void ToolboxScenePlatformController::queueRetiredNativeHandle(std::vector<RetiredNativeEntry<HandleT> > &retired,
+                                                              HandleT handle,
+                                                              loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
-  if (!control)
+  if (!handle)
   {
     return;
   }
-  for (size_t i = 0; i < retiredControls_.size(); ++i)
+  for (size_t i = 0; i < retired.size(); ++i)
   {
-    if (retiredControls_[i].control == control)
+    if (retired[i].handle == handle)
     {
       return;
     }
   }
-  RetiredControlEntry entry;
-  entry.control = control;
+  RetiredNativeEntry<HandleT> entry;
+  entry.handle = handle;
   entry.lifetimeHint = lifetimeHint;
-  retiredControls_.push_back(entry);
+  retired.push_back(entry);
+}
+
+void ToolboxScenePlatformController::queueRetiredControl(ControlRef control,
+                                                         loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  queueRetiredNativeHandle(retiredControls_, control, lifetimeHint);
 }
 
 void ToolboxScenePlatformController::queueRetiredTextEdit(TEHandle te,
                                                           loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
-  if (!te)
-  {
-    return;
-  }
-  for (size_t i = 0; i < retiredTextEdits_.size(); ++i)
-  {
-    if (retiredTextEdits_[i].te == te)
-    {
-      return;
-    }
-  }
-  RetiredTextEditEntry entry;
-  entry.te = te;
-  entry.lifetimeHint = lifetimeHint;
-  retiredTextEdits_.push_back(entry);
+  queueRetiredNativeHandle(retiredTextEdits_, te, lifetimeHint);
 }
 
-bool ToolboxScenePlatformController::controlHasLiveBinding(ControlRef control) const
+bool ToolboxScenePlatformController::hasLiveBinding(ControlRef control) const
 {
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
@@ -2248,7 +2247,7 @@ bool ToolboxScenePlatformController::controlHasLiveBinding(ControlRef control) c
   return false;
 }
 
-bool ToolboxScenePlatformController::textEditHasLiveBinding(TEHandle te) const
+bool ToolboxScenePlatformController::hasLiveBinding(TEHandle te) const
 {
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
@@ -2260,53 +2259,61 @@ bool ToolboxScenePlatformController::textEditHasLiveBinding(TEHandle te) const
   return false;
 }
 
-void ToolboxScenePlatformController::flushRetiredNativeHandles()
+void ToolboxScenePlatformController::disposeNativeHandle(ControlRef control)
 {
-  for (size_t i = 0; i < retiredControls_.size(); ++i)
+  if (control)
   {
-    ControlRef control = retiredControls_[i].control;
-    if (!control)
+    DisposeControl(control);
+  }
+}
+
+void ToolboxScenePlatformController::disposeNativeHandle(TEHandle te)
+{
+  if (te)
+  {
+    TEDispose(te);
+  }
+}
+
+template <typename HandleT>
+void ToolboxScenePlatformController::flushRetiredEntriesInto(
+    std::vector<RetiredNativeEntry<HandleT> > &retired,
+    loka::app::scene::ExactMatchHandleBucket<HandleT> &bucket)
+{
+  for (size_t i = 0; i < retired.size(); ++i)
+  {
+    HandleT handle = retired[i].handle;
+    if (!handle)
     {
       continue;
     }
-    if (retiredControls_[i].lifetimeHint == loka::app::scene::NATIVE_HINT_EAGER_RELEASE)
+    if (retired[i].lifetimeHint == loka::app::scene::NATIVE_HINT_EAGER_RELEASE)
     {
-      DisposeControl(control);
+      disposeNativeHandle(handle);
       continue;
     }
     // Bag entries must hold zero pointers into Loka; a live binding still
-    // referencing the handle means the ritual did not complete. Dispose
-    // instead of pooling and surface the violation in debugStats.
-    if (controlHasLiveBinding(control))
+    // referencing the handle means the retire ritual did not complete.
+    // Leaking the handle (counted) is the safe arm — disposing it would
+    // hand the live binding a dead handle, and pooling it would pay the
+    // same handle out twice.
+    if (hasLiveBinding(handle))
     {
       ++poolIntakeAuditFailCount_;
-      DisposeControl(control);
       continue;
     }
-    pushButtonBucket_.offer(control);
+    if (!bucket.offer(handle))
+    {
+      disposeNativeHandle(handle);
+    }
   }
-  retiredControls_.clear();
-  for (size_t i = 0; i < retiredTextEdits_.size(); ++i)
-  {
-    TEHandle te = retiredTextEdits_[i].te;
-    if (!te)
-    {
-      continue;
-    }
-    if (retiredTextEdits_[i].lifetimeHint == loka::app::scene::NATIVE_HINT_EAGER_RELEASE)
-    {
-      TEDispose(te);
-      continue;
-    }
-    if (textEditHasLiveBinding(te))
-    {
-      ++poolIntakeAuditFailCount_;
-      TEDispose(te);
-      continue;
-    }
-    textEditBucket_.offer(te);
-  }
-  retiredTextEdits_.clear();
+  retired.clear();
+}
+
+void ToolboxScenePlatformController::flushRetiredNativeHandles()
+{
+  flushRetiredEntriesInto(retiredControls_, pushButtonBucket_);
+  flushRetiredEntriesInto(retiredTextEdits_, textEditBucket_);
   syncNativePoolStats();
 }
 
@@ -2389,12 +2396,10 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
       control = NewControl(window_->window(), &rectCopy, title, false, 0, 0, 1, pushButProc, 0);
       if (!control)
       {
-        syncNativePoolStats();
         return false;
       }
       HideControl(control);
     }
-    syncNativePoolStats();
     ButtonControlBinding entry;
     entry.resourceId = resourceId;
     entry.control = control;
@@ -2516,11 +2521,9 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(const Rect &rect,
       te = TENew(&rect, &rect);
       if (!te)
       {
-        syncNativePoolStats();
         return 0;
       }
     }
-    syncNativePoolStats();
     EditTextControlBinding entry;
     entry.text = text;
     entry.te = te;

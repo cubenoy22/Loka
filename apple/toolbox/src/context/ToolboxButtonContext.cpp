@@ -78,6 +78,12 @@ void ToolboxButtonContext::updateRect(const Rect &rect)
 
 void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
+  if (node_)
+  {
+    // Draw can run without a fresh layout (dirty-draw path); re-observe so
+    // the binding never retires under a hint older than one pass.
+    observeLifetimeHint(node_->nativeLifetimeHint());
+  }
   if (controller && resourceId_ <= 0)
   {
     resourceId_ = controller->allocateControlId();

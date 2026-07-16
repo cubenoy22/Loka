@@ -2,9 +2,12 @@
 
 #include <cassert>
 
+#include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Node.hpp"
+#include "app/scene/node/Conditional.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
+#include "core/State.hpp"
 
 // Pins for the W3-2 native table hint axis (#98): the one wish a Node may
 // express about its native pair travels declare -> definition -> node ->
@@ -97,12 +100,58 @@ void testDefinitionCloneAndApplyPreserveNativeLifetimeHint()
   delete clone;
 }
 
+void testDefinitionAssignmentCarriesNativeLifetimeHint()
+{
+  HintProbeDefinition source;
+  source.lifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+
+  HintProbeDefinition copied(source);
+  assert(copied.nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+
+  HintProbeDefinition assigned;
+  assigned = source;
+  assert(assigned.nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+
+  assigned = assigned;
+  assert(assigned.nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+
+  HintProbeDefinition policyTarget;
+  policyTarget.copyTestIdPolicyFrom(source);
+  assert(policyTarget.nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+}
+
+void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
+{
+  loka::core::MutableState<bool> condition(true);
+
+  loka::app::scene::ConditionalDefinition conditional(loka::app::scene::ConditionalProps(&condition, 0, 0));
+  conditional.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
+  loka::app::scene::Node *conditionalNode = conditional.create();
+  assert(conditionalNode);
+  assert(conditionalNode->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
+  delete conditionalNode;
+
+  loka::app::ShowDefinition show(&condition);
+  show.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+  loka::app::scene::Node *showNode = show.create();
+  assert(showNode);
+  assert(showNode->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+  delete showNode;
+}
+
 void testNativeContextObservesLifetimeHint()
 {
   loka::app::scene::NativeNodeContext context;
   assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_DEFAULT);
   context.observeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
   assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
+  context.observeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+  assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+  context.observeLifetimeHint(loka::app::scene::NATIVE_HINT_DEFAULT);
+  assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_DEFAULT);
+
+  loka::app::scene::NativeNodeContext prioritized(loka::app::scene::NativeNodeContext::PRIORITY_HIGH);
+  assert(prioritized.lifetimeHint() == loka::app::scene::NATIVE_HINT_DEFAULT);
 }
 
 void testExactMatchBucketCountsHitsMissesEvictsAndDepth()
@@ -132,4 +181,50 @@ void testExactMatchBucketCountsHitsMissesEvictsAndDepth()
 
   assert(!bucket.tryAcquire(handle));
   assert(bucket.missCount() == 2);
+}
+
+void testExactMatchBucketDepthCapRefusesAndCountsEvicts()
+{
+  loka::app::scene::ExactMatchHandleBucket<int> bucket(2);
+
+  assert(bucket.offer(1));
+  assert(bucket.offer(2));
+  assert(!bucket.offer(3));
+  assert(bucket.depth() == 2);
+  assert(bucket.evictCount() == 1);
+
+  int handle = 0;
+  assert(bucket.tryAcquire(handle));
+  assert(bucket.offer(3));
+  assert(bucket.depth() == 2);
+  assert(bucket.evictCount() == 1);
+}
+
+void testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain()
+{
+  loka::app::scene::ExactMatchHandleBucket<int> bucketA;
+  loka::app::scene::ExactMatchHandleBucket<int> bucketB;
+  int handle = 0;
+
+  bucketA.offer(5);
+  assert(!bucketB.tryAcquire(handle));
+  assert(bucketB.missCount() == 1);
+  assert(bucketA.missCount() == 0);
+  assert(bucketA.tryAcquire(handle));
+  assert(handle == 5);
+
+  // An empty drain touches nothing and counts nothing.
+  g_disposedHandleSum = 0;
+  bucketA.drainWith(recordDisposedHandle);
+  assert(g_disposedHandleSum == 0);
+  assert(bucketA.evictCount() == 0);
+
+  // The bucket keeps working after a drain, with cumulative counters.
+  bucketA.offer(11);
+  bucketA.drainWith(recordDisposedHandle);
+  assert(g_disposedHandleSum == 11);
+  assert(bucketA.evictCount() == 1);
+  assert(bucketA.tryAcquire(handle) == false);
+  assert(bucketA.hitCount() == 1);
+  assert(bucketA.missCount() == 1);
 }

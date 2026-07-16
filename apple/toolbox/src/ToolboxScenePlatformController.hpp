@@ -197,15 +197,9 @@ private:
       along so the flush can route it: EAGER_RELEASE handles are disposed
       at the clock (previous behavior for everything); the rest enter the
       exact-match pool bucket for reuse. */
-  struct RetiredControlEntry
+  template <typename HandleT> struct RetiredNativeEntry
   {
-    ControlRef control;
-    loka::app::scene::NativeLifetimeHint lifetimeHint;
-  };
-
-  struct RetiredTextEditEntry
-  {
-    TEHandle te;
+    HandleT handle;
     loka::app::scene::NativeLifetimeHint lifetimeHint;
   };
 
@@ -233,8 +227,8 @@ private:
   bool forceFullRedraw_;
   std::vector<Rect> pendingDirtyRects_;
   std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
-  std::vector<RetiredControlEntry> retiredControls_;
-  std::vector<RetiredTextEditEntry> retiredTextEdits_;
+  std::vector<RetiredNativeEntry<ControlRef> > retiredControls_;
+  std::vector<RetiredNativeEntry<TEHandle> > retiredTextEdits_;
   loka::app::scene::ExactMatchHandleBucket<ControlRef> pushButtonBucket_;
   loka::app::scene::ExactMatchHandleBucket<TEHandle> textEditBucket_;
   int poolIntakeAuditFailCount_;
@@ -266,8 +260,21 @@ private:
   void clearControls();
   void queueRetiredControl(ControlRef control, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void queueRetiredTextEdit(TEHandle te, loka::app::scene::NativeLifetimeHint lifetimeHint);
-  bool controlHasLiveBinding(ControlRef control) const;
-  bool textEditHasLiveBinding(TEHandle te) const;
+  bool hasLiveBinding(ControlRef control) const;
+  bool hasLiveBinding(TEHandle te) const;
+  void disposeNativeHandle(ControlRef control);
+  void disposeNativeHandle(TEHandle te);
+  template <typename HandleT>
+  void queueRetiredNativeHandle(std::vector<RetiredNativeEntry<HandleT> > &retired,
+                                HandleT handle,
+                                loka::app::scene::NativeLifetimeHint lifetimeHint);
+  /** The one flush policy for every retired native handle type:
+      EAGER_RELEASE dies at the clock; a handle still referenced by a live
+      binding is deliberately leaked (counted — safer than a double life);
+      the rest enter the bucket, and refusals (depth cap) die at the clock. */
+  template <typename HandleT>
+  void flushRetiredEntriesInto(std::vector<RetiredNativeEntry<HandleT> > &retired,
+                               loka::app::scene::ExactMatchHandleBucket<HandleT> &bucket);
   void drainNativeHandleBuckets();
   void syncNativePoolStats();
   void syncEditTextFromState(EditTextControlBinding &binding);

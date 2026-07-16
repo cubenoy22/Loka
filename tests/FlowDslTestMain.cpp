@@ -158,8 +158,12 @@ int main()
   LOKA_RUN_TEST(testNodeDefaultsToDefaultNativeLifetimeHint);
   LOKA_RUN_TEST(testDefinitionCarriesNativeLifetimeHintToCreatedNode);
   LOKA_RUN_TEST(testDefinitionCloneAndApplyPreserveNativeLifetimeHint);
+  LOKA_RUN_TEST(testDefinitionAssignmentCarriesNativeLifetimeHint);
+  LOKA_RUN_TEST(testConditionalAndShowDefinitionsCarryNativeLifetimeHint);
   LOKA_RUN_TEST(testNativeContextObservesLifetimeHint);
   LOKA_RUN_TEST(testExactMatchBucketCountsHitsMissesEvictsAndDepth);
+  LOKA_RUN_TEST(testExactMatchBucketDepthCapRefusesAndCountsEvicts);
+  LOKA_RUN_TEST(testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain);
   LOKA_AUDIT_CHECKPOINT("FlowDslTestMain final");
   return 0;
 }

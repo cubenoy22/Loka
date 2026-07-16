@@ -24,17 +24,31 @@ namespace loka
       template <typename HandleT> class ExactMatchHandleBucket
       {
       public:
-        ExactMatchHandleBucket()
+        /** maxDepth bounds how many handles the bag may keep (0 = unbounded).
+            The bound keeps peak-churn scenes from pinning their high-water
+            mark of native handles for the controller's whole lifetime —
+            a hard cap, not a scoring policy. */
+        explicit ExactMatchHandleBucket(std::size_t maxDepth = 0)
             : entries_(),
+              maxDepth_(maxDepth),
               hitCount_(0),
               missCount_(0),
               evictCount_(0)
         {
         }
 
-        void offer(HandleT handle)
+        /** Returns false when the bucket is full; the caller keeps ownership
+            and disposes the handle at its safe point. The refusal counts as
+            an evict — an entry the pool decided not to keep. */
+        bool offer(HandleT handle)
         {
+          if (maxDepth_ != 0 && entries_.size() >= maxDepth_)
+          {
+            ++evictCount_;
+            return false;
+          }
           entries_.push_back(handle);
+          return true;
         }
 
         bool tryAcquire(HandleT &out)
@@ -82,6 +96,7 @@ namespace loka
         ExactMatchHandleBucket &operator=(const ExactMatchHandleBucket &);
 
         std::vector<HandleT> entries_;
+        std::size_t maxDepth_;
         unsigned long hitCount_;
         unsigned long missCount_;
         unsigned long evictCount_;
