@@ -115,6 +115,30 @@ MacEditTextContext::~MacEditTextContext()
 
 void MacEditTextContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void MacEditTextContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacEditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                       loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacEditTextContext::applyAttachedPresentation()
+{
   NSTextField *field = (NSTextField *)field_;
   if (field)
   {
@@ -122,7 +146,7 @@ void MacEditTextContext::onNodeAttached()
   }
 }
 
-void MacEditTextContext::onNodeDetached()
+void MacEditTextContext::applyDetachedPresentation()
 {
   NSTextField *field = (NSTextField *)field_;
   if (field)

@@ -61,13 +61,37 @@ Win32CellContext::~Win32CellContext()
 
 void Win32CellContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void Win32CellContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32CellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                     loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32CellContext::applyAttachedPresentation()
+{
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
 
-void Win32CellContext::onNodeDetached()
+void Win32CellContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {

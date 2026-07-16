@@ -121,10 +121,34 @@ Win32OpenFileDialogContext::~Win32OpenFileDialogContext()
 
 void Win32OpenFileDialogContext::onNodeAttached()
 {
-  presentIfNeeded();
+  this->applyAttachedPresentation();
 }
 
 void Win32OpenFileDialogContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32OpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                               loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32OpenFileDialogContext::applyAttachedPresentation()
+{
+  presentIfNeeded();
+}
+
+void Win32OpenFileDialogContext::applyDetachedPresentation()
 {
   presentation_.markDetached();
   this->detachOwnedDialog();

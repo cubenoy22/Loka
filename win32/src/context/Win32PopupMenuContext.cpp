@@ -82,13 +82,37 @@ Win32PopupMenuContext::~Win32PopupMenuContext()
 
 void Win32PopupMenuContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void Win32PopupMenuContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32PopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                          loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32PopupMenuContext::applyAttachedPresentation()
+{
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
 
-void Win32PopupMenuContext::onNodeDetached()
+void Win32PopupMenuContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {

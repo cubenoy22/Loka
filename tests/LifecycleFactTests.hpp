@@ -4,6 +4,7 @@
 void testLifecycleFactBornAttachedAndSwapWritesRetainedDetach();
 void testLifecycleFactTerminalDetachObservesRetired();
 void testLifecycleFactCompositionRetireObservesRetired();
+void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased();
 void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached();
 
 #endif // LOKA_TESTS_LIFECYCLE_FACT_TESTS_HPP

@@ -25,12 +25,16 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
   virtual void onNodeAttached();
   virtual void onNodeDetached();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
 
   void handleTextDidChange();
   void *nativeField() const;
   void relayout(int x, int y, int width, int height);
 
 private:
+  void applyAttachedPresentation();
+  void applyDetachedPresentation();
   void bindText();
   void unbindText();
   void applyText();

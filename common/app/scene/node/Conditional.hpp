@@ -54,6 +54,11 @@ namespace loka
         static void onConditionChanged(void *userData);
         void compose();
         void updateActiveNode();
+
+      protected:
+        virtual void deliverRetainedLifecycleBranchFacts();
+
+      public:
         Node *ensureBranchNode(bool cond, bool &created);
         void removeActiveNodeFromChildren();
         void render(IPlatformController *controller);

@@ -64,6 +64,30 @@ MacRectSurfaceContext::~MacRectSurfaceContext()
 
 void MacRectSurfaceContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void MacRectSurfaceContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void MacRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                          loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void MacRectSurfaceContext::applyAttachedPresentation()
+{
   LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
   if (view)
   {
@@ -71,7 +95,7 @@ void MacRectSurfaceContext::onNodeAttached()
   }
 }
 
-void MacRectSurfaceContext::onNodeDetached()
+void MacRectSurfaceContext::applyDetachedPresentation()
 {
   LokaRectSurfaceView *view = (LokaRectSurfaceView *)view_;
   if (view)

@@ -190,6 +190,7 @@ int main()
   LOKA_RUN_TEST(testLifecycleFactBornAttachedAndSwapWritesRetainedDetach);
   LOKA_RUN_TEST(testLifecycleFactTerminalDetachObservesRetired);
   LOKA_RUN_TEST(testLifecycleFactCompositionRetireObservesRetired);
+  LOKA_RUN_TEST(testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased);
   LOKA_RUN_TEST(testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached);
   LOKA_AUDIT_CHECKPOINT("FlowDslTestMain final");
   return 0;

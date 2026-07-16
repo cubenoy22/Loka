@@ -32,13 +32,37 @@ Win32RectSurfaceContext::~Win32RectSurfaceContext()
 
 void Win32RectSurfaceContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void Win32RectSurfaceContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                            loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32RectSurfaceContext::applyAttachedPresentation()
+{
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
 
-void Win32RectSurfaceContext::onNodeDetached()
+void Win32RectSurfaceContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {

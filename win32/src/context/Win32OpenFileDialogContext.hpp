@@ -23,11 +23,15 @@ public:
   virtual ~Win32OpenFileDialogContext();
   virtual void onNodeAttached();
   virtual void onNodeDetached();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
   void presentIfNeeded();
   static UINT deferredResultMessage();
   static bool handlePostedResultMessage(UINT message, WPARAM wParam, LPARAM lParam);
 
 private:
+  void applyAttachedPresentation();
+  void applyDetachedPresentation();
   struct NativeDialogSession;
 
   struct DeferredResultDelivery

@@ -158,11 +158,11 @@ void ToolboxNodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDi
   if (!ctx)
   {
     ctx = new ToolboxOpenFileDialogContext(node);
+    // setContext's attach announce presents the newly materialized dialog;
+    // re-presentation is owned by the fact channel. A second drive from the
+    // projection sweep would re-fire after a mid-present close re-armed the
+    // phase (the "presents twice, then never again" failure).
     node->setContext(ctx);
-    // Boundary compose may already consume pendingAttach to turn the child
-    // compose event into ATTACH, so a newly materialized dialog must present
-    // immediately on first context creation.
-    ctx->presentIfNeeded();
     return;
   }
 }

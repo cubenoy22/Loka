@@ -23,10 +23,14 @@ public:
   virtual ~MacOpenFileDialogContext();
   virtual void onNodeAttached();
   virtual void onNodeDetached();
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                             loka::app::scene::NodeLifecycleFact next);
   void presentIfNeeded();
   void presentDeferred();
 
 private:
+  void applyAttachedPresentation();
+  void applyDetachedPresentation();
   struct NativeDialogSession;
 
   void presentDialog();

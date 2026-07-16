@@ -67,13 +67,37 @@ Win32EditTextContext::~Win32EditTextContext()
 
 void Win32EditTextContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void Win32EditTextContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32EditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                         loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32EditTextContext::applyAttachedPresentation()
+{
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
 
-void Win32EditTextContext::onNodeDetached()
+void Win32EditTextContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {

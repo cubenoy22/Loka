@@ -201,13 +201,37 @@ Win32TextContext::~Win32TextContext()
 
 void Win32TextContext::onNodeAttached()
 {
+  this->applyAttachedPresentation();
+}
+
+void Win32TextContext::onNodeDetached()
+{
+  this->applyDetachedPresentation();
+}
+
+void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                     loka::app::scene::NodeLifecycleFact next)
+{
+  (void)previous;
+  if (next == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
+  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  {
+    this->applyDetachedPresentation();
+  }
+}
+
+void Win32TextContext::applyAttachedPresentation()
+{
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
   }
 }
 
-void Win32TextContext::onNodeDetached()
+void Win32TextContext::applyDetachedPresentation()
 {
   if (hwnd_)
   {
