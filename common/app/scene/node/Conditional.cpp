@@ -89,10 +89,12 @@ namespace loka
         this->unbindCondition();
         if (trueNode_ && trueNode_ != activeNode)
         {
+          Node::MarkSubtreeLifecycleFact(trueNode_, NODE_FACT_RETIRED);
           delete trueNode_;
         }
         if (falseNode_ && falseNode_ != activeNode)
         {
+          Node::MarkSubtreeLifecycleFact(falseNode_, NODE_FACT_RETIRED);
           delete falseNode_;
         }
         trueNode_ = 0;
@@ -195,7 +197,15 @@ namespace loka
         {
           activeNode->markPendingAttachForCompose();
           addChild(activeNode);
-          if (!created && !retainedDetached_)
+          if (retainedDetached_)
+          {
+            // Adopted while an ancestor keeps this conditional hidden: the
+            // subtree inherits the detached-retained fact (born-hidden).
+            // The ancestor's re-attach walk restores ATTACHED for the
+            // then-active path.
+            Node::MarkSubtreeLifecycleFact(activeNode, NODE_FACT_DETACHED_RETAINED);
+          }
+          else if (!created)
           {
             // Re-entry: the subtree kept its contexts across the retained
             // detach; first entry is announced by setContext(). While an

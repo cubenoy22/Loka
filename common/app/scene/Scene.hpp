@@ -887,6 +887,7 @@ namespace loka
           {
             return;
           }
+          Node::MarkSubtreeLifecycleFact(rootNode_, NODE_FACT_RETIRED);
           if (platformController_)
           {
             platformController_->releaseNodeContexts(rootNode_);

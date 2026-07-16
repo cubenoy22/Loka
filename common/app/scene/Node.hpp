@@ -3,6 +3,8 @@
 
 #include "core/diag/LifecycleAudit.hpp"
 
+#include <cassert>
+
 // static_assert-like macro. Modern compilers get real checks automatically;
 // C++98 release builds keep optional checks lightweight unless explicitly gated.
 #if __cplusplus >= 201103L
@@ -123,6 +125,17 @@ namespace loka
         NATIVE_HINT_DEFAULT = 0,
         NATIVE_HINT_EAGER_RELEASE,
         NATIVE_HINT_DESIRE_STAY
+      };
+
+      /** The lifecycle fact: where a node stands relative to the attached
+          path. Nodes are born ATTACHED; RETIRED is terminal. Every write
+          passes the single door (Node::applyLifecycleFact) whose transition
+          table asserts on revival — the lifecycle version of the ABA ban. */
+      enum NodeLifecycleFact
+      {
+        NODE_FACT_ATTACHED = 0,
+        NODE_FACT_DETACHED_RETAINED,
+        NODE_FACT_RETIRED
       };
 
       struct INestable;
@@ -272,7 +285,8 @@ namespace loka
               composeAttachLifecycle_(),
               testId_(),
               nodeTag_(NODE_TAG_NONE),
-              nativeLifetimeHint_(NATIVE_HINT_DEFAULT)
+              nativeLifetimeHint_(NATIVE_HINT_DEFAULT),
+              lifecycleFact_(NODE_FACT_ATTACHED)
         {
         }
 
@@ -471,8 +485,40 @@ namespace loka
         {
           return nativeLifetimeHint_;
         }
+        NodeLifecycleFact lifecycleFact() const
+        {
+          return lifecycleFact_;
+        }
 
       private:
+        /** The single door. Same-value writes are silent (including R->R);
+            RETIRED is terminal, so R->A / R->D assert. The three writers are
+            the compose door (composeTree ATTACH), the walk door
+            (NotifySubtreeNode*), and the retire door (retire/teardown paths)
+            — reclaim never writes lifecycle state. */
+        void applyLifecycleFact(NodeLifecycleFact next)
+        {
+          if (lifecycleFact_ == next)
+          {
+            return;
+          }
+          if (lifecycleFact_ == NODE_FACT_RETIRED)
+          {
+            assert(false && "lifecycle fact: RETIRED is terminal; a retired node cannot re-enter the attached path");
+            return;
+          }
+          lifecycleFact_ = next;
+        }
+        static void MarkSubtreeLifecycleFact(Node *node, NodeLifecycleFact fact);
+
+        NodeLifecycleFact lifecycleFact_;
+
+        friend class BoundaryNode;
+        friend class Scene;
+        friend class ConditionalNode;
+        friend void NotifySubtreeNodeDetached(Node *node);
+        friend void NotifySubtreeNodeAttached(Node *node);
+
         void releaseContext()
         {
           NodeContext *released = context;
@@ -1151,12 +1197,35 @@ namespace loka
           Nodes that own retained branches of their own (Conditional) observe
           the fact through onRetainedDetached so they stop announcing swaps
           while an ancestor keeps them off the attached path. */
+      /** Marks a subtree's lifecycle fact through the single door, without
+          delivering anything. Retained branches parked outside the live
+          composition (Conditional slots) are not reached — they keep their
+          own fact until their owner's door writes it. */
+      inline void Node::MarkSubtreeLifecycleFact(Node *node, NodeLifecycleFact fact)
+      {
+        if (!node)
+        {
+          return;
+        }
+        node->applyLifecycleFact(fact);
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          MarkSubtreeLifecycleFact(child, fact);
+        }
+      }
+
       inline void NotifySubtreeNodeDetached(Node *node)
       {
         if (!node)
         {
           return;
         }
+        node->applyLifecycleFact(NODE_FACT_DETACHED_RETAINED);
         node->onRetainedDetached();
         NodeContext *context = node->getContext();
         if (context)
@@ -1183,6 +1252,7 @@ namespace loka
         {
           return;
         }
+        node->applyLifecycleFact(NODE_FACT_ATTACHED);
         node->onRetainedReattached();
         NodeContext *context = node->getContext();
         if (context)

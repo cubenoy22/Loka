@@ -12,6 +12,7 @@
 #include "LifecycleDetachTests.hpp"
 #include "NativeLifetimeTests.hpp"
 #include "NullPlatformContractTests.hpp"
+#include "LifecycleFactTests.hpp"
 #include "core/diag/LifecycleAudit.hpp"
 
 LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbe)
@@ -186,6 +187,10 @@ int main()
   LOKA_RUN_TEST(testNullPlatformContract_G4_retireBeforeContextAttachIsSilent);
   LOKA_RUN_TEST(testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete);
   LOKA_RUN_TEST(testNullPlatformContract_G6_materializedChildIsVisibleInSameRun);
+  LOKA_RUN_TEST(testLifecycleFactBornAttachedAndSwapWritesRetainedDetach);
+  LOKA_RUN_TEST(testLifecycleFactTerminalDetachObservesRetired);
+  LOKA_RUN_TEST(testLifecycleFactCompositionRetireObservesRetired);
+  LOKA_RUN_TEST(testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached);
   LOKA_AUDIT_CHECKPOINT("FlowDslTestMain final");
   return 0;
 }
