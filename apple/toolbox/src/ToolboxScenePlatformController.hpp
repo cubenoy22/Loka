@@ -3,6 +3,7 @@
 
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
+#include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 #include "core/Vector.hpp"
@@ -83,10 +84,13 @@ public:
                            const Rect &rect,
                            const loka::core::String &label,
                            loka::core::EmitterState *emitter,
-                           loka::core::State<bool> *enabled);
+                           loka::core::State<bool> *enabled,
+                           loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
   void destroyButtonControl(short resourceId);
   void drawFallbackControl(const Rect &rect);
-  TEHandle ensureEditTextControl(const Rect &rect, loka::core::State<loka::core::String> *text);
+  TEHandle ensureEditTextControl(const Rect &rect,
+                                 loka::core::State<loka::core::String> *text,
+                                 loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
   void idleTextEdits();
   bool isPointInEdit(const Point &point) const;
   short allocateControlId();
@@ -176,6 +180,7 @@ private:
     bool needsDraw;
     Rect rect;
     std::string label;
+    loka::app::scene::NativeLifetimeHint lifetimeHint;
   };
 
   struct EditTextControlBinding
@@ -185,6 +190,17 @@ private:
     Rect rect;
     bool usedThisFrame;
     std::string lastText;
+    loka::app::scene::NativeLifetimeHint lifetimeHint;
+  };
+
+  /** A native handle waiting for the platform safe point. The hint rides
+      along so the flush can route it: EAGER_RELEASE handles are disposed
+      at the clock (previous behavior for everything); the rest enter the
+      exact-match pool bucket for reuse. */
+  template <typename HandleT> struct RetiredNativeEntry
+  {
+    HandleT handle;
+    loka::app::scene::NativeLifetimeHint lifetimeHint;
   };
 
   ToolboxWindow *window_;
@@ -211,8 +227,11 @@ private:
   bool forceFullRedraw_;
   std::vector<Rect> pendingDirtyRects_;
   std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
-  std::vector<ControlRef> retiredControls_;
-  std::vector<TEHandle> retiredTextEdits_;
+  std::vector<RetiredNativeEntry<ControlRef> > retiredControls_;
+  std::vector<RetiredNativeEntry<TEHandle> > retiredTextEdits_;
+  loka::app::scene::ExactMatchHandleBucket<ControlRef> pushButtonBucket_;
+  loka::app::scene::ExactMatchHandleBucket<TEHandle> textEditBucket_;
+  int poolIntakeAuditFailCount_;
   RgnHandle clipRgn_;
   bool hasClip_;
   short nextControlId_;
@@ -239,8 +258,25 @@ private:
   void clearTextBindings();
   void clearEnabledBindings();
   void clearControls();
-  void queueRetiredControl(ControlRef control);
-  void queueRetiredTextEdit(TEHandle te);
+  void queueRetiredControl(ControlRef control, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  void queueRetiredTextEdit(TEHandle te, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  bool hasLiveBinding(ControlRef control) const;
+  bool hasLiveBinding(TEHandle te) const;
+  void disposeNativeHandle(ControlRef control);
+  void disposeNativeHandle(TEHandle te);
+  template <typename HandleT>
+  void queueRetiredNativeHandle(std::vector<RetiredNativeEntry<HandleT> > &retired,
+                                HandleT handle,
+                                loka::app::scene::NativeLifetimeHint lifetimeHint);
+  /** The one flush policy for every retired native handle type:
+      EAGER_RELEASE dies at the clock; a handle still referenced by a live
+      binding is deliberately leaked (counted — safer than a double life);
+      the rest enter the bucket, and refusals (depth cap) die at the clock. */
+  template <typename HandleT>
+  void flushRetiredEntriesInto(std::vector<RetiredNativeEntry<HandleT> > &retired,
+                               loka::app::scene::ExactMatchHandleBucket<HandleT> &bucket);
+  void drainNativeHandleBuckets();
+  void syncNativePoolStats();
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
   static void TextStateChangedThunk(void *userData);

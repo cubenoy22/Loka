@@ -105,7 +105,16 @@ ToolboxSceneDebugStats::ToolboxSceneDebugStats()
       totalDrawDirtyCalls(0),
       totalRenderCalls(0),
       totalRenderDirtyCalls(0),
-      totalControlDrawCount(0)
+      totalControlDrawCount(0),
+      buttonPoolHitCount(0),
+      buttonPoolMissCount(0),
+      buttonPoolEvictCount(0),
+      buttonPoolDepth(0),
+      editPoolHitCount(0),
+      editPoolMissCount(0),
+      editPoolEvictCount(0),
+      editPoolDepth(0),
+      poolIntakeAuditFailCount(0)
 {
 }
 
@@ -172,6 +181,27 @@ void ToolboxSceneDebugStats::refreshHitCounts(int buttonHits, int cellHits, int 
   this->popupHitCount = popupHits;
 }
 
+void ToolboxSceneDebugStats::refreshNativePoolCounters(unsigned long buttonHits,
+                                                       unsigned long buttonMisses,
+                                                       unsigned long buttonEvicts,
+                                                       int buttonDepth,
+                                                       unsigned long editHits,
+                                                       unsigned long editMisses,
+                                                       unsigned long editEvicts,
+                                                       int editDepth,
+                                                       int intakeAuditFails)
+{
+  this->buttonPoolHitCount = buttonHits;
+  this->buttonPoolMissCount = buttonMisses;
+  this->buttonPoolEvictCount = buttonEvicts;
+  this->buttonPoolDepth = buttonDepth;
+  this->editPoolHitCount = editHits;
+  this->editPoolMissCount = editMisses;
+  this->editPoolEvictCount = editEvicts;
+  this->editPoolDepth = editDepth;
+  this->poolIntakeAuditFailCount = intakeAuditFails;
+}
+
 std::string ToolboxSceneDebugStats::summary() const
 {
   std::string out(" seq:");
@@ -201,6 +231,27 @@ std::string ToolboxSceneDebugStats::summary() const
   AppendInt(out, this->editHitCount);
   out += " ctl:";
   AppendInt(out, this->controlDrawCount);
+  out += " pool.btn:";
+  AppendInt(out, static_cast<int>(this->buttonPoolHitCount));
+  out += "/";
+  AppendInt(out, static_cast<int>(this->buttonPoolMissCount));
+  out += "/";
+  AppendInt(out, static_cast<int>(this->buttonPoolEvictCount));
+  out += "@";
+  AppendInt(out, this->buttonPoolDepth);
+  out += " pool.te:";
+  AppendInt(out, static_cast<int>(this->editPoolHitCount));
+  out += "/";
+  AppendInt(out, static_cast<int>(this->editPoolMissCount));
+  out += "/";
+  AppendInt(out, static_cast<int>(this->editPoolEvictCount));
+  out += "@";
+  AppendInt(out, this->editPoolDepth);
+  if (this->poolIntakeAuditFailCount > 0)
+  {
+    out += " pool.audit_fail:";
+    AppendInt(out, this->poolIntakeAuditFailCount);
+  }
   return out;
 }
 
@@ -295,6 +346,15 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fprintf(fp, "total.render=%d\n", this->totalRenderCalls);
   std::fprintf(fp, "total.render_dirty=%d\n", this->totalRenderDirtyCalls);
   std::fprintf(fp, "total.control_draws=%d\n", this->totalControlDrawCount);
+  std::fprintf(fp, "pool.button.hits=%lu\n", this->buttonPoolHitCount);
+  std::fprintf(fp, "pool.button.misses=%lu\n", this->buttonPoolMissCount);
+  std::fprintf(fp, "pool.button.evicts=%lu\n", this->buttonPoolEvictCount);
+  std::fprintf(fp, "pool.button.depth=%d\n", this->buttonPoolDepth);
+  std::fprintf(fp, "pool.edit.hits=%lu\n", this->editPoolHitCount);
+  std::fprintf(fp, "pool.edit.misses=%lu\n", this->editPoolMissCount);
+  std::fprintf(fp, "pool.edit.evicts=%lu\n", this->editPoolEvictCount);
+  std::fprintf(fp, "pool.edit.depth=%d\n", this->editPoolDepth);
+  std::fprintf(fp, "pool.intake_audit_fails=%d\n", this->poolIntakeAuditFailCount);
   std::fclose(fp);
   return true;
 }

@@ -26,8 +26,7 @@ namespace loka
             : NodeContext(),
               priority_(PRIORITY_NORMAL),
               memoryCostBytes_(0),
-              persistent_(false),
-              releaseRequested_(false)
+              lifetimeHint_(NATIVE_HINT_DEFAULT)
         {
         }
 
@@ -35,8 +34,7 @@ namespace loka
             : NodeContext(),
               priority_(priority),
               memoryCostBytes_(0),
-              persistent_(false),
-              releaseRequested_(false)
+              lifetimeHint_(NATIVE_HINT_DEFAULT)
         {
         }
 
@@ -69,29 +67,22 @@ namespace loka
           return memoryCostBytes_;
         }
 
-        void setPersistent(bool persistent)
+        /** The native side's observed copy of the owner Node's lifetime
+            hint, refreshed on the normal observation paths (layout/update).
+            A snapshot of the one wish axis — never an imperative command. */
+        void observeLifetimeHint(NativeLifetimeHint hint)
         {
-          persistent_ = persistent;
+          lifetimeHint_ = hint;
         }
-        bool isPersistent() const
+        NativeLifetimeHint lifetimeHint() const
         {
-          return persistent_;
-        }
-
-        void requestRelease()
-        {
-          releaseRequested_ = true;
-        }
-        bool releaseRequested() const
-        {
-          return releaseRequested_;
+          return lifetimeHint_;
         }
 
       private:
         ResourcePriority priority_;
         std::size_t memoryCostBytes_;
-        bool persistent_;
-        bool releaseRequested_;
+        NativeLifetimeHint lifetimeHint_;
       };
     } // namespace scene
   } // namespace app

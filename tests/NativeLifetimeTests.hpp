@@ -1,0 +1,14 @@
+#ifndef LOKA_TESTS_NATIVE_LIFETIME_TESTS_HPP
+#define LOKA_TESTS_NATIVE_LIFETIME_TESTS_HPP
+
+void testNodeDefaultsToDefaultNativeLifetimeHint();
+void testDefinitionCarriesNativeLifetimeHintToCreatedNode();
+void testDefinitionCloneAndApplyPreserveNativeLifetimeHint();
+void testDefinitionAssignmentCarriesNativeLifetimeHint();
+void testConditionalAndShowDefinitionsCarryNativeLifetimeHint();
+void testNativeContextObservesLifetimeHint();
+void testExactMatchBucketCountsHitsMissesEvictsAndDepth();
+void testExactMatchBucketDepthCapRefusesAndCountsEvicts();
+void testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain();
+
+#endif // LOKA_TESTS_NATIVE_LIFETIME_TESTS_HPP

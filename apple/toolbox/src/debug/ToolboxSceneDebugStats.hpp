@@ -12,6 +12,15 @@ public:
   static std::string flagsToString(loka::app::scene::NodeDirtyFlags flags);
   void begin(loka::app::scene::NodeDirtyFlags flags, bool fullRebuild);
   void refreshHitCounts(int buttonHits, int cellHits, int editHits, int textHits, int popupHits);
+  void refreshNativePoolCounters(unsigned long buttonHits,
+                                 unsigned long buttonMisses,
+                                 unsigned long buttonEvicts,
+                                 int buttonDepth,
+                                 unsigned long editHits,
+                                 unsigned long editMisses,
+                                 unsigned long editEvicts,
+                                 int editDepth,
+                                 int intakeAuditFails);
   std::string summary() const;
   void reset();
   bool dumpToTimestampedFile() const;
@@ -74,6 +83,15 @@ public:
   int totalRenderCalls;
   int totalRenderDirtyCalls;
   int totalControlDrawCount;
+  unsigned long buttonPoolHitCount;
+  unsigned long buttonPoolMissCount;
+  unsigned long buttonPoolEvictCount;
+  int buttonPoolDepth;
+  unsigned long editPoolHitCount;
+  unsigned long editPoolMissCount;
+  unsigned long editPoolEvictCount;
+  int editPoolDepth;
+  int poolIntakeAuditFailCount;
 };
 
 #endif // LOKA_TOOLBOX_SCENE_DEBUG_STATS_HPP

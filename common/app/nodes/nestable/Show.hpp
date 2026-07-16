@@ -39,11 +39,21 @@ namespace loka
 
       virtual scene::Node *create() const
       {
-        return new scene::ConditionalNode(this->props());
+        scene::Node *node = new scene::ConditionalNode(this->props());
+        if (node)
+        {
+          node->setNativeLifetimeHint(this->nativeLifetimeHint());
+        }
+        return node;
       }
       virtual scene::Node *createInPlace(void *mem) const
       {
-        return new (mem) scene::ConditionalNode(this->props());
+        scene::Node *node = new (mem) scene::ConditionalNode(this->props());
+        if (node)
+        {
+          node->setNativeLifetimeHint(this->nativeLifetimeHint());
+        }
+        return node;
       }
       virtual size_t nodeSize() const
       {

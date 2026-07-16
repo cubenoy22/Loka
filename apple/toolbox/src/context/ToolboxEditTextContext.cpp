@@ -57,6 +57,12 @@ void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textR
 
 void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
 {
+  if (node_)
+  {
+    // Draw can run without a fresh layout (dirty-draw path); re-observe so
+    // the binding never retires under a hint older than one pass.
+    observeLifetimeHint(node_->nativeLifetimeHint());
+  }
   if (!text_)
   {
     FrameRect(&rect_);
@@ -64,7 +70,7 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
   }
   if (controller)
   {
-    TEHandle te = controller->ensureEditTextControl(textRect_, text_);
+    TEHandle te = controller->ensureEditTextControl(textRect_, text_, lifetimeHint());
     if (te)
     {
       controller->beginClip(textRect_);
@@ -101,6 +107,7 @@ short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *cont
   textRect.right = static_cast<short>(textRect.right - 1);
   textRect.bottom = static_cast<short>(textRect.bottom - 1);
   updateData(node_->props.text_);
+  observeLifetimeHint(node_->nativeLifetimeHint());
   updateRect(rect, textRect, static_cast<short>(state.x + 4), state.y);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;
