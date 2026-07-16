@@ -74,6 +74,16 @@ namespace loka
           entries_.clear();
         }
 
+        /** Zeroes the measurement counters without touching the bag itself —
+            depth is a live gauge, not a measurement, so it survives. Pairs
+            with the platform's debug-stats reset to bracket experiments. */
+        void resetCounters()
+        {
+          hitCount_ = 0;
+          missCount_ = 0;
+          evictCount_ = 0;
+        }
+
         std::size_t depth() const
         {
           return entries_.size();

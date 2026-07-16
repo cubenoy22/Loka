@@ -2019,6 +2019,12 @@ std::string ToolboxScenePlatformController::debugStatsSummary() const
 void ToolboxScenePlatformController::resetDebugStats()
 {
   debugStats_.reset();
+  // The pool counters are measurements too; leaving them cumulative would
+  // let the next sync copy pre-reset activity into the fresh stats.
+  pushButtonBucket_.resetCounters();
+  textEditBucket_.resetCounters();
+  poolIntakeAuditFailCount_ = 0;
+  syncNativePoolStats();
 }
 
 bool ToolboxScenePlatformController::dumpDebugStatsToTimestampedFile() const

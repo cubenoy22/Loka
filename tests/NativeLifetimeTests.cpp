@@ -227,4 +227,16 @@ void testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain()
   assert(bucketA.tryAcquire(handle) == false);
   assert(bucketA.hitCount() == 1);
   assert(bucketA.missCount() == 1);
+
+  // resetCounters brackets a measurement: counters go to zero, the bag
+  // itself (depth gauge) is untouched.
+  bucketA.offer(13);
+  bucketA.resetCounters();
+  assert(bucketA.hitCount() == 0);
+  assert(bucketA.missCount() == 0);
+  assert(bucketA.evictCount() == 0);
+  assert(bucketA.depth() == 1);
+  assert(bucketA.tryAcquire(handle));
+  assert(handle == 13);
+  assert(bucketA.hitCount() == 1);
 }
