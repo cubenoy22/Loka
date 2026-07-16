@@ -11,6 +11,7 @@
 #include "SceneOwnershipTests.hpp"
 #include "LifecycleDetachTests.hpp"
 #include "NativeLifetimeTests.hpp"
+#include "NullPlatformContractTests.hpp"
 #include "core/diag/LifecycleAudit.hpp"
 
 LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(LifecycleAuditedConstructorProbe)
@@ -164,6 +165,27 @@ int main()
   LOKA_RUN_TEST(testExactMatchBucketCountsHitsMissesEvictsAndDepth);
   LOKA_RUN_TEST(testExactMatchBucketDepthCapRefusesAndCountsEvicts);
   LOKA_RUN_TEST(testExactMatchBucketInstancesStayIsolatedAndReusableAfterDrain);
+  LOKA_RUN_TEST(testNullPlatformContract_A1_contextDestructorRunsTeardownSequence);
+  LOKA_RUN_TEST(testNullPlatformContract_A2_retainedDetachRunsNoTeardown);
+  LOKA_RUN_TEST(testNullPlatformContract_A3_intakeConsistencyFailureLeaksWithoutPooling);
+  LOKA_RUN_TEST(testNullPlatformContract_B1_attachShowsControl);
+  LOKA_RUN_TEST(testNullPlatformContract_B2_retainedDetachHidesAndKeepsRow);
+  LOKA_RUN_TEST(testNullPlatformContract_B3_reattachKeepsHandleIdentity);
+  LOKA_RUN_TEST(testNullPlatformContract_B4_retireRemovesLedgerRow);
+  LOKA_RUN_TEST(testNullPlatformContract_B5_hiddenAncestorSwapIsSilent);
+  LOKA_RUN_TEST(testNullPlatformContract_C2_hintControlsFlushPolicy);
+  LOKA_RUN_TEST(testNullPlatformContract_C3_hintChangesReachNextObservation);
+  LOKA_RUN_TEST(testNullPlatformContract_D1_exactMatchBucketsStaySeparated);
+  LOKA_RUN_TEST(testNullPlatformContract_D2_churnProducesPoolHits);
+  LOKA_RUN_TEST(testNullPlatformContract_D3_depthCapRefusalCountsEvict);
+  LOKA_RUN_TEST(testNullPlatformContract_D4_controllerDrainPrecedesWindowDispose);
+  LOKA_RUN_TEST(testNullPlatformContract_E1_reclaimOnlyFlushIsSilent);
+  LOKA_RUN_TEST(testNullPlatformContract_E2_disposeOccursOnlyAtSafePoints);
+  LOKA_RUN_TEST(testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush);
+  LOKA_RUN_TEST(testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown);
+  LOKA_RUN_TEST(testNullPlatformContract_G4_retireBeforeContextAttachIsSilent);
+  LOKA_RUN_TEST(testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete);
+  LOKA_RUN_TEST(testNullPlatformContract_G6_materializedChildIsVisibleInSameRun);
   LOKA_AUDIT_CHECKPOINT("FlowDslTestMain final");
   return 0;
 }
