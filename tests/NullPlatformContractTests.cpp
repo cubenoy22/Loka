@@ -737,6 +737,47 @@ void testNullPlatformContract_G4_retireBeforeContextAttachIsSilent()
   g_toggleVisible = 0;
 }
 
+void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete()
+{
+  // Window path with a borrowed controller: the props-attached scene must
+  // reach the ledger through NullWindow itself, and window destruction must
+  // unmount it (drain before the window-dispose record, all pairs closed).
+  {
+    NullPlatformContext platformContext;
+    NullScenePlatformController platform;
+    loka::app::ButtonDefinition button("window-path");
+    WindowProps props;
+    props.scene(new loka::app::scene::Scene(button.clone()));
+    NullWindow *window = new NullWindow(&platformContext, props, &platform);
+    loka::app::scene::Scene *scene = window->scene();
+    assert(scene);
+    scene->updateAttached(true);
+    assert(platform.ledger().size() == 1);
+    assert(platform.ledger()[0].visible);
+
+    delete window;
+
+    assert(platform.ledger().empty());
+    assert(platform.retiredCount() == 0);
+    assert(platform.createdCount() == platform.disposedCount());
+    assert(platform.eventCount(NullScenePlatformController::EVENT_WINDOW_DISPOSED) == 1);
+    assertDisposalsAreInsideSafePoints(platform);
+  }
+  // Window path with an owned controller: scene teardown must complete
+  // before the controller is deleted (the sanitizer guards this arm — the
+  // scene manager destroys the scene after ~NullWindow's body has run).
+  {
+    NullPlatformContext platformContext;
+    loka::app::ButtonDefinition button("window-path-owned");
+    WindowProps props;
+    props.scene(new loka::app::scene::Scene(button.clone()));
+    Window *window = platformContext.createWindow(props);
+    assert(window->scene());
+    window->scene()->updateAttached(true);
+    delete window;
+  }
+}
+
 void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun()
 {
   loka::core::MutableState<bool> visible(false);

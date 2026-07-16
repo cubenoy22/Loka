@@ -184,6 +184,7 @@ int main()
   LOKA_RUN_TEST(testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush);
   LOKA_RUN_TEST(testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown);
   LOKA_RUN_TEST(testNullPlatformContract_G4_retireBeforeContextAttachIsSilent);
+  LOKA_RUN_TEST(testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete);
   LOKA_RUN_TEST(testNullPlatformContract_G6_materializedChildIsVisibleInSameRun);
   LOKA_AUDIT_CHECKPOINT("FlowDslTestMain final");
   return 0;

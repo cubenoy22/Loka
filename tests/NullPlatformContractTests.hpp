@@ -20,6 +20,7 @@ void testNullPlatformContract_E2_disposeOccursOnlyAtSafePoints();
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush();
 void testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown();
 void testNullPlatformContract_G4_retireBeforeContextAttachIsSilent();
+void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete();
 void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun();
 
 #endif // LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
