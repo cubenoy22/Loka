@@ -1,0 +1,9 @@
+#ifndef LOKA_TESTS_LIFECYCLE_FACT_TESTS_HPP
+#define LOKA_TESTS_LIFECYCLE_FACT_TESTS_HPP
+
+void testLifecycleFactBornAttachedAndSwapWritesRetainedDetach();
+void testLifecycleFactTerminalDetachObservesRetired();
+void testLifecycleFactCompositionRetireObservesRetired();
+void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached();
+
+#endif // LOKA_TESTS_LIFECYCLE_FACT_TESTS_HPP

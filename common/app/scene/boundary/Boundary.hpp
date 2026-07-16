@@ -788,6 +788,7 @@ namespace loka
           }
           if (event == COMPOSE_EVENT_ATTACH)
           {
+            node->applyLifecycleFact(NODE_FACT_ATTACHED);
             node->onCompositionAttached();
           }
           else if (event == COMPOSE_EVENT_DETACH)
