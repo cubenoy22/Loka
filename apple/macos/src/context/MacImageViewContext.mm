@@ -267,14 +267,12 @@ MacImageViewContext::~MacImageViewContext()
   imageView_ = 0;
 }
 
-void MacImageViewContext::onNodeAttached()
+void MacImageViewContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacImageViewContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacImageViewContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

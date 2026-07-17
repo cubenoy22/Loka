@@ -80,14 +80,12 @@ Win32PopupMenuContext::~Win32PopupMenuContext()
   }
 }
 
-void Win32PopupMenuContext::onNodeAttached()
+void Win32PopupMenuContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32PopupMenuContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32PopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

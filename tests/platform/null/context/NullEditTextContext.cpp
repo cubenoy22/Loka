@@ -34,6 +34,7 @@ namespace
           return 0;
         }
         editText->setContext(context);
+        context->readLifecycleFactOnAttach();
       }
       context->observeNodeLifetimeHint();
       return context;
@@ -69,19 +70,12 @@ NullEditTextContext::~NullEditTextContext()
   this->node_ = 0;
 }
 
-void NullEditTextContext::onNodeAttached()
+void NullEditTextContext::readLifecycleFactOnAttach()
 {
-  if (this->controller_)
+  if (this->controller_ && this->node_)
   {
-    this->controller_->setVisible(this->handle_, true);
-  }
-}
-
-void NullEditTextContext::onNodeDetached()
-{
-  if (this->controller_)
-  {
-    this->controller_->setVisible(this->handle_, false);
+    this->controller_->setVisible(this->handle_,
+                                  this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED);
   }
 }
 

@@ -111,14 +111,12 @@ MacPopupMenuContext::~MacPopupMenuContext()
   popup_ = 0;
 }
 
-void MacPopupMenuContext::onNodeAttached()
+void MacPopupMenuContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacPopupMenuContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacPopupMenuContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

@@ -19,6 +19,13 @@ namespace loka
         {
           Node::DeliverLifecycleFactsSubtree(root);
         }
+
+        /** Drives the retire door on a bare tree (what retireDetachedNode
+            and teardown do before contexts are peeled). */
+        static void MarkSubtreeRetired(Node *root)
+        {
+          Node::MarkSubtreeLifecycleFact(root, NODE_FACT_RETIRED);
+        }
       };
     } // namespace scene
   } // namespace app

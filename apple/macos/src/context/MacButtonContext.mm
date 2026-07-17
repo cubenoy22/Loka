@@ -156,14 +156,12 @@ MacButtonContext::~MacButtonContext()
   button_ = 0;
 }
 
-void MacButtonContext::onNodeAttached()
+void MacButtonContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacButtonContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

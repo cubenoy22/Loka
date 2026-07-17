@@ -33,19 +33,19 @@ namespace
     {
     }
 
-    virtual void onNodeAttached()
+    /** Attach-time read: the announce successor — counts the attach the
+        installing site observes from the current fact. */
+    void readLifecycleFactOnAttach()
     {
-      ++this->counts_->attachCalls;
+      if (this->owner() && this->owner()->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+      {
+        ++this->counts_->attachCalls;
+      }
     }
 
-    virtual void onNodeDetached()
-    {
-      ++this->counts_->detachCalls;
-    }
-
-    // Living transitions (S2a) and the terminal (S2b) arrive through the
-    // fact channel; the counters keep their original meaning — RETIRED
-    // counts as the destruction-time detach.
+    // Living transitions and the terminal arrive through the fact channel;
+    // the counters keep their original meaning — RETIRED counts as the
+    // destruction-time detach.
     virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                                loka::app::scene::NodeLifecycleFact next)
     {
@@ -96,7 +96,9 @@ namespace
     explicit PlainDetachProbeNode(const PlainDetachProbeProps &props)
         : props(props)
     {
-      this->setContext(new PlainDetachProbeContext(props.counts));
+      PlainDetachProbeContext *context = new PlainDetachProbeContext(props.counts);
+      this->setContext(context);
+      context->readLifecycleFactOnAttach();
     }
 
     PlainDetachProbeProps props;
@@ -110,9 +112,17 @@ namespace
     {
     }
 
-    virtual void onCompositionDetached()
+  protected:
+    // The node-side observation point: retiring is the successor of the old
+    // composition-detach notification for context-less nodes.
+    virtual void onLifecycleFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                        loka::app::scene::NodeLifecycleFact next)
     {
-      ++*this->detachCalls_;
+      (void)previous;
+      if (next == loka::app::scene::NODE_FACT_RETIRED)
+      {
+        ++*this->detachCalls_;
+      }
     }
 
   private:
@@ -1563,23 +1573,21 @@ void testConditionalUnbindsBeforeReclaim()
   using namespace loka::app;
   using namespace loka::app::scene;
 
+  // Successor of the compose-detach unbind pin: the condition falls silent
+  // when the fact turns RETIRED (the retire door), so no callback can reach
+  // a retiring tree. Re-binding has no successor — a scene detach tears the
+  // tree down, and fresh nodes bind at construction.
   loka::core::MutableState<bool> condition(false);
   TextDefinition falseDefinition = Text("Detached false branch");
   TextDefinition trueDefinition = Text("Detached true branch");
   ConditionalNode conditional((ConditionalProps(&condition, &trueDefinition, &falseDefinition)));
-  Node *activeBeforeDetach = conditional.activeNode;
-  ComponentContext context;
+  Node *activeBeforeRetire = conditional.activeNode;
 
-  BoundaryNode::composeSubtree(&conditional, context, COMPOSE_EVENT_DETACH, 0);
+  LifecycleFactTestAccess::MarkSubtreeRetired(&conditional);
   condition.set(true);
 
-  assert(conditional.activeNode == activeBeforeDetach);
-
-  BoundaryNode::composeSubtree(&conditional, context, COMPOSE_EVENT_ATTACH, 0);
-  assert(conditional.activeNode != activeBeforeDetach);
-
-  condition.set(false);
-  assert(conditional.activeNode == activeBeforeDetach);
+  assert(conditional.activeNode == activeBeforeRetire &&
+         "a retiring conditional no longer hears its condition");
 }
 
 void testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach()

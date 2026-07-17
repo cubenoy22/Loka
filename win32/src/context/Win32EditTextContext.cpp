@@ -65,14 +65,12 @@ Win32EditTextContext::~Win32EditTextContext()
   }
 }
 
-void Win32EditTextContext::onNodeAttached()
+void Win32EditTextContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32EditTextContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32EditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

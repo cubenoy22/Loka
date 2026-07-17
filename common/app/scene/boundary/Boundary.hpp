@@ -786,14 +786,12 @@ namespace loka
             boundary->setParentBoundary(0);
             boundary->clearObservedStateEntries();
           }
+          // ComposeEvent is an input to the lifecycle state machine, not an
+          // observable of its own: ATTACH passes the compose door; nodes and
+          // contexts hear changes through the two fact observation points.
           if (event == COMPOSE_EVENT_ATTACH)
           {
             node->applyLifecycleFact(NODE_FACT_ATTACHED);
-            node->onCompositionAttached();
-          }
-          else if (event == COMPOSE_EVENT_DETACH)
-          {
-            node->onCompositionDetached();
           }
 
           BoundaryNode *nextBoundary = currentBoundary;

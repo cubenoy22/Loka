@@ -211,14 +211,12 @@ MacTextContext::~MacTextContext()
   label_ = 0;
 }
 
-void MacTextContext::onNodeAttached()
+void MacTextContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacTextContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

@@ -618,6 +618,7 @@ Win32ScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *
     ctx = new Win32RectSurfaceContext(
         rootHwnd_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
     surface->setContext(ctx);
+    ctx->readLifecycleFactOnAttach();
   }
   return LayoutNodeResult(state.width, state.y + surface->props.height_ + kVerticalSpacing);
 }

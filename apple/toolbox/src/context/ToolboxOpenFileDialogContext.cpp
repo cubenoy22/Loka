@@ -80,14 +80,12 @@ ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
   this->disposeDialog();
 }
 
-void ToolboxOpenFileDialogContext::onNodeAttached()
+void ToolboxOpenFileDialogContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void ToolboxOpenFileDialogContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void ToolboxOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

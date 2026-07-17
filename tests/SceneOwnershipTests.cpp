@@ -232,14 +232,14 @@ namespace
     {
     }
 
-    virtual void onNodeAttached()
+    /** Attach-time read: the announce successor. */
+    void readLifecycleFactOnAttach()
     {
-      ++this->observation_->contextAttachCalls;
-    }
-
-    virtual void onNodeDetached()
-    {
-      ++this->observation_->contextDetachCalls;
+      if (this->owner() &&
+          this->owner()->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+      {
+        ++this->observation_->contextAttachCalls;
+      }
     }
 
     // Living transitions (S2a) and the terminal (S2b) arrive through the
@@ -274,7 +274,9 @@ namespace
                           loka::app::scene::NodeDirtyFlags,
                           bool)
     {
-      rootNode->setContext(new SceneReclaimNodeContext(this->observation_));
+      SceneReclaimNodeContext *context = new SceneReclaimNodeContext(this->observation_);
+      rootNode->setContext(context);
+      context->readLifecycleFactOnAttach();
     }
 
     virtual void synchronize() {}

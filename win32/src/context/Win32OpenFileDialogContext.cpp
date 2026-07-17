@@ -119,14 +119,12 @@ Win32OpenFileDialogContext::~Win32OpenFileDialogContext()
   this->detachOwnedDialog();
 }
 
-void Win32OpenFileDialogContext::onNodeAttached()
+void Win32OpenFileDialogContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32OpenFileDialogContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32OpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

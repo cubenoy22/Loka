@@ -29,6 +29,7 @@ Win32NodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node, int x, 
   }
   ctx = new Win32ButtonContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -47,6 +48,7 @@ Win32NodeContextMapper::ensureCellContext(loka::app::CellNode *node, int x, int 
   }
   ctx = new Win32CellContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -65,6 +67,7 @@ Win32NodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node, int
   }
   ctx = new Win32EditTextContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -83,6 +86,7 @@ Win32NodeContextMapper::ensureTextContext(loka::app::TextNode *node, int x, int 
   }
   ctx = new Win32TextContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -101,6 +105,7 @@ Win32ImageViewContext *Win32NodeContextMapper::ensureImageViewContext(
   }
   ctx = new Win32ImageViewContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -118,6 +123,7 @@ Win32NodeContextMapper::ensureOpenFileDialogContext(loka::app::OpenFileDialogNod
   }
   ctx = new Win32OpenFileDialogContext(this->rootHwnd_, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   // Boundary compose may already consume pendingAttach to convert the child
   // compose event to ATTACH, so a freshly created dialog context should
   // present immediately even when pendingAttach is no longer visible here.
@@ -140,5 +146,6 @@ Win32PopupMenuContext *Win32NodeContextMapper::ensurePopupMenuContext(
   }
   ctx = new Win32PopupMenuContext(this->rootHwnd_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }

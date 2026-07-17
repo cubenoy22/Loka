@@ -199,14 +199,12 @@ Win32TextContext::~Win32TextContext()
   }
 }
 
-void Win32TextContext::onNodeAttached()
+void Win32TextContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32TextContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

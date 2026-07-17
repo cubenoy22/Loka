@@ -18,8 +18,9 @@ public:
   NullEditTextContext(loka::app::EditTextNode *node, NullScenePlatformController *controller);
   virtual ~NullEditTextContext();
 
-  virtual void onNodeAttached();
-  virtual void onNodeDetached();
+  /** Attach-time read (late-subscriber rule): presentation from the
+      current fact, called by the installing handler after setContext. */
+  void readLifecycleFactOnAttach();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
   virtual short layout(loka::app::scene::IPlatformController *controller,

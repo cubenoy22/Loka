@@ -59,14 +59,12 @@ Win32CellContext::~Win32CellContext()
   }
 }
 
-void Win32CellContext::onNodeAttached()
+void Win32CellContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32CellContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32CellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

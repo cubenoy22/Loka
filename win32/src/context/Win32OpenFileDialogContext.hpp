@@ -21,8 +21,9 @@ class Win32OpenFileDialogContext : public loka::app::scene::NativeNodeContext
 public:
   Win32OpenFileDialogContext(HWND parent, loka::app::OpenFileDialogNode *node);
   virtual ~Win32OpenFileDialogContext();
-  virtual void onNodeAttached();
-  virtual void onNodeDetached();
+  /** Attach-time read (late-subscriber rule): presentation from the current
+      fact, called by the installing handler right after setContext. */
+  void readLifecycleFactOnAttach();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
   void presentIfNeeded();
