@@ -13,6 +13,7 @@
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullWindow.hpp"
+#include "support/RecomposingBoundary.hpp"
 
 namespace
 {
@@ -276,6 +277,407 @@ namespace
       composition.declare(root);
     }
   };
+
+  struct NativeContextCallCounts
+  {
+    explicit NativeContextCallCounts(const NullScenePlatformController &platform)
+        : created(platform.createdCount()),
+          disposed(platform.disposedCount()),
+          backPointerCleared(platform.teardownCounters().backPointerCleared),
+          rowRemoved(platform.teardownCounters().rowRemoved),
+          handedToPool(platform.teardownCounters().handedToPool),
+          shown(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN)),
+          hidden(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_HIDDEN))
+    {
+    }
+
+    bool operator==(const NativeContextCallCounts &other) const
+    {
+      return this->created == other.created &&
+             this->disposed == other.disposed &&
+             this->backPointerCleared == other.backPointerCleared &&
+             this->rowRemoved == other.rowRemoved &&
+             this->handedToPool == other.handedToPool &&
+             this->shown == other.shown &&
+             this->hidden == other.hidden;
+    }
+
+    unsigned long created;
+    unsigned long disposed;
+    unsigned long backPointerCleared;
+    unsigned long rowRemoved;
+    unsigned long handedToPool;
+    unsigned long shown;
+    unsigned long hidden;
+  };
+
+  void assertExpectedRedForT1(bool observableOutcome)
+  {
+    assert(!observableOutcome &&
+           "expected-red contract pin turned green; T1 must promote this outcome assertion");
+  }
+
+  void assertExpectedRedForT2(bool observableOutcome)
+  {
+    assert(!observableOutcome &&
+           "expected-red contract pin turned green; T2 must promote this outcome assertion");
+  }
+
+  struct FactTransition
+  {
+    FactTransition(loka::app::scene::NodeLifecycleFact previousFact,
+                   loka::app::scene::NodeLifecycleFact nextFact)
+        : previous(previousFact),
+          next(nextFact)
+    {
+    }
+
+    loka::app::scene::NodeLifecycleFact previous;
+    loka::app::scene::NodeLifecycleFact next;
+  };
+
+  struct ParkedFactRecord
+  {
+    ParkedFactRecord()
+        : constructionCount(0),
+          attachReads(0),
+          transitions()
+    {
+    }
+
+    int constructionCount;
+    int attachReads;
+    std::vector<FactTransition> transitions;
+  };
+
+  class ParkedFactContext : public loka::app::scene::NodeContext
+  {
+  public:
+    explicit ParkedFactContext(ParkedFactRecord *record)
+        : record_(record)
+    {
+    }
+
+    void readFactOnAttach()
+    {
+      if (this->record_ && this->owner() &&
+          this->owner()->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+      {
+        ++this->record_->attachReads;
+      }
+    }
+
+    virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                               loka::app::scene::NodeLifecycleFact next)
+    {
+      if (this->record_)
+      {
+        this->record_->transitions.push_back(FactTransition(previous, next));
+      }
+    }
+
+  private:
+    ParkedFactRecord *record_;
+  };
+
+  class ParkedFactNode;
+
+  struct ParkedFactTypeTag
+  {
+  };
+
+  struct ParkedFactProps : public loka::app::scene::NodePropsBase<ParkedFactProps>
+  {
+    typedef ParkedFactTypeTag TypeTag;
+    typedef ParkedFactNode NodeType;
+
+    explicit ParkedFactProps(ParkedFactRecord *factRecord = 0)
+        : record(factRecord)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return rhs.propsTypeId() == this->propsTypeId() ? false : this->propsTypeId() < rhs.propsTypeId();
+    }
+
+    ParkedFactRecord *record;
+  };
+
+  class ParkedFactNode : public loka::app::scene::Node
+  {
+  public:
+    typedef ParkedFactTypeTag TypeTag;
+
+    explicit ParkedFactNode(const ParkedFactProps &props)
+        : props(props)
+    {
+      if (this->props.record)
+      {
+        ++this->props.record->constructionCount;
+      }
+      ParkedFactContext *context = new ParkedFactContext(props.record);
+      this->setContext(context);
+      context->readFactOnAttach();
+    }
+
+    ParkedFactProps props;
+  };
+
+  typedef loka::app::scene::NodeDefinition<ParkedFactProps, ParkedFactNode> ParkedFactDefinition;
+
+  bool recordedTransitionTo(const ParkedFactRecord &record,
+                            loka::app::scene::NodeLifecycleFact fact,
+                            std::size_t begin)
+  {
+    for (std::size_t i = begin; i < record.transitions.size(); ++i)
+    {
+      if (record.transitions[i].next == fact)
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void assertParkedTransitionTable(const ParkedFactRecord &record)
+  {
+    assert(record.constructionCount == 1);
+    assert(record.attachReads == 1);
+    assert(record.transitions.size() == 1);
+    assert(record.transitions[0].previous == loka::app::scene::NODE_FACT_ATTACHED);
+    assert(record.transitions[0].next == loka::app::scene::NODE_FACT_DETACHED_RETAINED);
+  }
+
+  template <class NodeT, class PropsT>
+  class PropsRecomposingBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<NodeT, PropsT>
+  {
+  public:
+    explicit PropsRecomposingBoundaryNode(const PropsT &props)
+        : SceneTestSupport::RecomposingBoundaryNode<NodeT, PropsT>(props)
+    {
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      if (event == loka::app::scene::COMPOSE_EVENT_UPDATE &&
+          !(context.dirtyFlags() & loka::app::scene::NODE_DIRTY_PROPS))
+      {
+        typedef loka::app::scene::BoundaryNodeFor<NodeT> BaseType;
+        BaseType::composeWithContext(context, event);
+        return;
+      }
+      SceneTestSupport::RecomposingBoundaryNode<NodeT, PropsT>::composeWithContext(context, event);
+    }
+  };
+
+  loka::core::MutableState<bool> *g_seatCondition = 0;
+  loka::core::MutableState<int> *g_seatUnrelatedState = 0;
+  loka::core::MutableState<loka::core::String> *g_seatDraft = 0;
+  ParkedFactRecord *g_seatProbeRecord = 0;
+
+  class ConditionalSeatBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ConditionalSeatBoundaryNode> ConditionalSeatBoundaryProps;
+  class ConditionalSeatBoundaryNode
+      : public PropsRecomposingBoundaryNode<ConditionalSeatBoundaryNode,
+                                            ConditionalSeatBoundaryProps>
+  {
+  public:
+    explicit ConditionalSeatBoundaryNode(const ConditionalSeatBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<ConditionalSeatBoundaryNode,
+                                       ConditionalSeatBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_seatUnrelatedState)
+      {
+        registrar.markDirtyOnChange(g_seatUnrelatedState, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::ButtonDefinition button("seat-active");
+      ParkedFactDefinition probe((ParkedFactProps(g_seatProbeRecord)));
+      loka::app::EditTextDefinition editText(g_seatDraft);
+      loka::app::FragmentDefinition parkedDraft;
+      parkedDraft << probe << editText;
+      loka::app::scene::ConditionalDefinition conditional(
+          (loka::app::scene::ConditionalProps(g_seatCondition, &button, &parkedDraft)));
+      loka::app::FragmentDefinition root;
+      root << conditional;
+      composition.declare(root);
+    }
+  };
+
+  class ConditionalSeatHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ConditionalSeatHarnessBoundaryNode>
+      ConditionalSeatHarnessBoundaryProps;
+
+  class ConditionalSeatHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<ConditionalSeatHarnessBoundaryNode>
+  {
+  public:
+    explicit ConditionalSeatHarnessBoundaryNode(const ConditionalSeatHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<ConditionalSeatHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<ConditionalSeatBoundaryNode>());
+    }
+  };
+
+  loka::core::MutableState<bool> *g_deferredFlipCondition = 0;
+  ParkedFactRecord *g_deferredTrueRecord = 0;
+  ParkedFactRecord *g_deferredFalseRecord = 0;
+
+  class DeferredFlipBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<DeferredFlipBoundaryNode> DeferredFlipBoundaryProps;
+  class DeferredFlipBoundaryNode : public loka::app::scene::BoundaryNodeFor<DeferredFlipBoundaryNode>
+  {
+  public:
+    explicit DeferredFlipBoundaryNode(const DeferredFlipBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<DeferredFlipBoundaryNode>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      ParkedFactDefinition trueProbe((ParkedFactProps(g_deferredTrueRecord)));
+      loka::app::ButtonDefinition button("flip-true");
+      loka::app::FragmentDefinition trueBranch;
+      trueBranch << trueProbe << button;
+      ParkedFactDefinition falseProbe((ParkedFactProps(g_deferredFalseRecord)));
+      loka::app::EditTextDefinition editText;
+      loka::app::FragmentDefinition falseBranch;
+      falseBranch << falseProbe << editText;
+      loka::app::scene::ConditionalDefinition conditional(
+          (loka::app::scene::ConditionalProps(g_deferredFlipCondition, &trueBranch, &falseBranch)));
+      loka::app::FragmentDefinition root;
+      root << conditional;
+      composition.declare(root);
+    }
+  };
+
+  loka::core::MutableState<bool> *g_enumeratedSubtreeVisible = 0;
+  loka::core::MutableState<bool> *g_enumeratedFirstCondition = 0;
+  loka::core::MutableState<bool> *g_enumeratedSecondCondition = 0;
+  ParkedFactRecord *g_enumeratedFirstRecord = 0;
+  ParkedFactRecord *g_enumeratedSecondRecord = 0;
+  class EnumeratedBranchesInnerBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<EnumeratedBranchesInnerBoundaryNode>
+      EnumeratedBranchesInnerBoundaryProps;
+  class EnumeratedBranchesInnerBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<EnumeratedBranchesInnerBoundaryNode>
+  {
+  public:
+    explicit EnumeratedBranchesInnerBoundaryNode(const EnumeratedBranchesInnerBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<EnumeratedBranchesInnerBoundaryNode>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      ParkedFactDefinition first((ParkedFactProps(g_enumeratedFirstRecord)));
+      ParkedFactDefinition second((ParkedFactProps(g_enumeratedSecondRecord)));
+      loka::app::FragmentDefinition empty;
+      loka::app::scene::ConditionalDefinition nested(
+          (loka::app::scene::ConditionalProps(g_enumeratedSecondCondition, &empty, &second)));
+      loka::app::FragmentDefinition parked;
+      parked << first << nested;
+      loka::app::scene::ConditionalDefinition outer(
+          (loka::app::scene::ConditionalProps(g_enumeratedFirstCondition, &empty, &parked)));
+      loka::app::FragmentDefinition root;
+      root << outer;
+      composition.declare(root);
+    }
+  };
+
+  class EnumeratedBranchesRetireBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<EnumeratedBranchesRetireBoundaryNode>
+      EnumeratedBranchesRetireBoundaryProps;
+
+  class EnumeratedBranchesRetireBoundaryNode
+      : public PropsRecomposingBoundaryNode<EnumeratedBranchesRetireBoundaryNode,
+                                            EnumeratedBranchesRetireBoundaryProps>
+  {
+  public:
+    explicit EnumeratedBranchesRetireBoundaryNode(const EnumeratedBranchesRetireBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<EnumeratedBranchesRetireBoundaryNode,
+                                       EnumeratedBranchesRetireBoundaryProps>(props)
+    {
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_enumeratedSubtreeVisible)
+      {
+        registrar.markDirtyOnChange(g_enumeratedSubtreeVisible, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_enumeratedSubtreeVisible && g_enumeratedSubtreeVisible->get())
+      {
+        root << loka::app::scene::Boundary<EnumeratedBranchesInnerBoundaryNode>();
+      }
+      composition.declare(root);
+    }
+  };
+
+  class EnumeratedBranchesHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<EnumeratedBranchesHarnessBoundaryNode>
+      EnumeratedBranchesHarnessBoundaryProps;
+
+  class EnumeratedBranchesHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<EnumeratedBranchesHarnessBoundaryNode>
+  {
+  public:
+    explicit EnumeratedBranchesHarnessBoundaryNode(const EnumeratedBranchesHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<EnumeratedBranchesHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<EnumeratedBranchesRetireBoundaryNode>());
+    }
+  };
+
+  void assertParkedRetirementTransitionTable(const ParkedFactRecord &record)
+  {
+    assert(record.constructionCount == 1);
+    assert(record.attachReads == 1);
+    assert(record.transitions.size() == 2);
+    assert(record.transitions[0].previous == loka::app::scene::NODE_FACT_ATTACHED);
+    assert(record.transitions[0].next == loka::app::scene::NODE_FACT_DETACHED_RETAINED);
+    assert(record.transitions[1].previous == loka::app::scene::NODE_FACT_DETACHED_RETAINED);
+    assert(record.transitions[1].next == loka::app::scene::NODE_FACT_RETIRED);
+  }
 
   void requestChildPump(loka::app::scene::Scene &scene)
   {
@@ -761,6 +1163,213 @@ void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim()
          "teardown closes every pair: disposed or pooled, nothing lost");
   g_parkedSubtreeVisible = 0;
   g_parkedInnerCondition = 0;
+}
+
+void testNullPlatformContract_H1_conditionalSeatSurvivesUnrelatedRecompose()
+{
+  ParkedFactRecord probeRecord;
+  loka::core::MutableState<bool> condition(false);
+  loka::core::MutableState<int> unrelated(0);
+  loka::core::MutableState<loka::core::String> draft(loka::core::String::Literal("parked draft"));
+  g_seatCondition = &condition;
+  g_seatUnrelatedState = &unrelated;
+  g_seatDraft = &draft;
+  g_seatProbeRecord = &probeRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ConditionalSeatHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(probeRecord);
+  const int constructionsBefore = probeRecord.constructionCount;
+  const std::size_t transitionsBefore = probeRecord.transitions.size();
+  const NativeContextCallCounts callsBefore(platform);
+
+  unrelated.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  const NativeContextCallCounts callsAfter(platform);
+  const bool parkedProbeSurvived =
+      probeRecord.constructionCount == constructionsBefore &&
+      !recordedTransitionTo(probeRecord,
+                            loka::app::scene::NODE_FACT_RETIRED,
+                            transitionsBefore);
+  const bool nativeContextCallsStayedEqual = callsAfter == callsBefore;
+
+  // Expected RED: T1 promotes this pin. It records the Conditional churn
+  // finding in issue #46 before seat identity is installed.
+  assertExpectedRedForT1(parkedProbeSurvived && nativeContextCallsStayedEqual);
+
+  scene.unmount();
+  g_seatCondition = 0;
+  g_seatUnrelatedState = 0;
+  g_seatDraft = 0;
+  g_seatProbeRecord = 0;
+}
+
+void testNullPlatformContract_H2_parkedDraftBranchSurvivesUnrelatedRecompose()
+{
+  ParkedFactRecord probeRecord;
+  loka::core::MutableState<bool> condition(false);
+  loka::core::MutableState<int> unrelated(0);
+  loka::core::MutableState<loka::core::String> draft(loka::core::String::Literal("unfinished draft"));
+  g_seatCondition = &condition;
+  g_seatUnrelatedState = &unrelated;
+  g_seatDraft = &draft;
+  g_seatProbeRecord = &probeRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ConditionalSeatHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(probeRecord);
+  const int constructionsBefore = probeRecord.constructionCount;
+  const std::size_t transitionsBefore = probeRecord.transitions.size();
+  const NativeContextCallCounts callsBefore(platform);
+
+  unrelated.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  const NativeContextCallCounts callsAfter(platform);
+  const bool parkedDraftSurvived =
+      probeRecord.constructionCount == constructionsBefore &&
+      !recordedTransitionTo(probeRecord,
+                            loka::app::scene::NODE_FACT_RETIRED,
+                            transitionsBefore) &&
+      callsAfter == callsBefore &&
+      draft.get().equals(loka::core::String::Literal("unfinished draft"));
+
+  // Expected RED: T1 turns this parked-state clause green together with the
+  // issue #46 seat-churn finding.
+  assertExpectedRedForT1(parkedDraftSurvived);
+
+  scene.unmount();
+  g_seatCondition = 0;
+  g_seatUnrelatedState = 0;
+  g_seatDraft = 0;
+  g_seatProbeRecord = 0;
+}
+
+void testNullPlatformContract_H3_conditionFlipIsReflectedAtNextScheduledApply()
+{
+  ParkedFactRecord trueRecord;
+  ParkedFactRecord falseRecord;
+  loka::core::MutableState<bool> condition(true);
+  g_deferredFlipCondition = &condition;
+  g_deferredTrueRecord = &trueRecord;
+  g_deferredFalseRecord = &falseRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<DeferredFlipBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  assert(trueRecord.constructionCount == 1);
+  assert(falseRecord.constructionCount == 0);
+  const int trueConstructionsBefore = trueRecord.constructionCount;
+  const int falseConstructionsBefore = falseRecord.constructionCount;
+  const std::size_t trueTransitionsBefore = trueRecord.transitions.size();
+  const std::size_t falseTransitionsBefore = falseRecord.transitions.size();
+  const NativeContextCallCounts callsBefore(platform);
+  const std::size_t eventsBefore = platform.eventLog().size();
+  const std::size_t ledgerRowsBefore = platform.ledger().size();
+  const NullScenePlatformController::LedgerRow *buttonBefore =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  const NullScenePlatformController::LedgerRow *editTextBefore =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  const bool buttonVisibleBefore = buttonBefore && buttonBefore->visible;
+  const bool editTextVisibleBefore = editTextBefore && editTextBefore->visible;
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+
+  const NativeContextCallCounts callsAfterWrite(platform);
+  const bool probeFactsStayedUnchanged =
+      trueRecord.constructionCount == trueConstructionsBefore &&
+      falseRecord.constructionCount == falseConstructionsBefore &&
+      trueRecord.transitions.size() == trueTransitionsBefore &&
+      falseRecord.transitions.size() == falseTransitionsBefore;
+  const bool nativeContextCallsStayedEqual = callsAfterWrite == callsBefore;
+  const bool nativeEventLogStayedEqual = platform.eventLog().size() == eventsBefore;
+  const NullScenePlatformController::LedgerRow *buttonAfterWrite =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  const NullScenePlatformController::LedgerRow *editTextAfterWrite =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  const bool nativeLedgerStayedEqual =
+      platform.ledger().size() == ledgerRowsBefore &&
+      (buttonAfterWrite != 0) == (buttonBefore != 0) &&
+      (editTextAfterWrite != 0) == (editTextBefore != 0) &&
+      (!buttonAfterWrite || buttonAfterWrite->visible == buttonVisibleBefore) &&
+      (!editTextAfterWrite || editTextAfterWrite->visible == editTextVisibleBefore);
+
+  // Expected RED: T2 promotes this pin when a condition write remains
+  // unobservable until the next scheduled apply.
+  assertExpectedRedForT2(probeFactsStayedUnchanged &&
+                         nativeContextCallsStayedEqual &&
+                         nativeEventLogStayedEqual &&
+                         nativeLedgerStayedEqual);
+
+  assert(scene.flushInvalidation());
+  const NullScenePlatformController::LedgerRow *button =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  const NullScenePlatformController::LedgerRow *editText =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(button && !button->visible);
+  assert(editText && editText->visible);
+
+  scene.unmount();
+  g_deferredFlipCondition = 0;
+  g_deferredTrueRecord = 0;
+  g_deferredFalseRecord = 0;
+}
+
+void testNullPlatformContract_H4_retiringBoundaryReportsEveryParkedBranchRetiredInSameTick()
+{
+  ParkedFactRecord firstRecord;
+  ParkedFactRecord secondRecord;
+  loka::core::MutableState<bool> visible(true);
+  loka::core::MutableState<bool> firstCondition(false);
+  loka::core::MutableState<bool> secondCondition(false);
+  g_enumeratedSubtreeVisible = &visible;
+  g_enumeratedFirstCondition = &firstCondition;
+  g_enumeratedSecondCondition = &secondCondition;
+  g_enumeratedFirstRecord = &firstRecord;
+  g_enumeratedSecondRecord = &secondRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<EnumeratedBranchesHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  assert(firstRecord.constructionCount == 1);
+  assert(secondRecord.constructionCount == 1);
+  secondCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(secondRecord);
+
+  firstCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(firstRecord);
+  assert(firstRecord.transitions.size() == secondRecord.transitions.size());
+
+  visible.set(false);
+
+  // The state write's immediate-flush floor is one tick. Both parked facts
+  // must already be terminal here; no follow-up pump may be needed.
+  assert(firstRecord.transitions.size() == secondRecord.transitions.size());
+  assertParkedRetirementTransitionTable(firstRecord);
+  assertParkedRetirementTransitionTable(secondRecord);
+
+  scene.unmount();
+  g_enumeratedSubtreeVisible = 0;
+  g_enumeratedFirstCondition = 0;
+  g_enumeratedSecondCondition = 0;
+  g_enumeratedFirstRecord = 0;
+  g_enumeratedSecondRecord = 0;
 }
 
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush()
