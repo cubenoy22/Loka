@@ -217,40 +217,6 @@ namespace
       composition.declare(controls);
     }
   };
-
-  loka::core::MutableState<int> *g_hintRevision = 0;
-  loka::app::scene::NativeLifetimeHint g_runtimeHint = loka::app::scene::NATIVE_HINT_DEFAULT;
-
-  class HintBoundaryNode;
-  typedef loka::app::scene::BoundaryPropsFor<HintBoundaryNode> HintBoundaryProps;
-
-  class HintBoundaryNode
-      : public RecomposingContractBoundaryNode<HintBoundaryNode, HintBoundaryProps>
-  {
-  public:
-    explicit HintBoundaryNode(const HintBoundaryProps &props)
-        : RecomposingContractBoundaryNode<HintBoundaryNode, HintBoundaryProps>(props)
-    {
-    }
-
-    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
-    {
-      if (g_hintRevision)
-      {
-        registrar.markDirtyOnChange(g_hintRevision, loka::app::scene::NODE_DIRTY_PROPS);
-      }
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      loka::app::FragmentDefinition root;
-      loka::app::ButtonDefinition button("hint");
-      button.lifetimeHint(g_runtimeHint);
-      root << button;
-      composition.declare(root);
-    }
-  };
-
   loka::core::MutableState<bool> *g_parkedSubtreeVisible = 0;
   loka::core::MutableState<bool> *g_parkedInnerCondition = 0;
 
