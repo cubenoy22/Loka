@@ -369,6 +369,7 @@ namespace loka
         Node *node = new ConditionalNode(props);
         if (node)
         {
+          node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
         return node;
@@ -379,6 +380,7 @@ namespace loka
         Node *node = new (mem) ConditionalNode(props);
         if (node)
         {
+          node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
         return node;

@@ -542,6 +542,73 @@ namespace
     }
   };
 
+  class TaggedConditionalSeatBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<TaggedConditionalSeatBoundaryNode>
+      TaggedConditionalSeatBoundaryProps;
+  class TaggedConditionalSeatBoundaryNode
+      : public PropsRecomposingBoundaryNode<TaggedConditionalSeatBoundaryNode,
+                                            TaggedConditionalSeatBoundaryProps>
+  {
+  public:
+    explicit TaggedConditionalSeatBoundaryNode(const TaggedConditionalSeatBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<TaggedConditionalSeatBoundaryNode,
+                                       TaggedConditionalSeatBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_seatUnrelatedState)
+      {
+        registrar.markDirtyOnChange(g_seatUnrelatedState, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::ButtonDefinition leading("tagged-leading");
+      leading.tag(101);
+      loka::app::ButtonDefinition active("tagged-seat-active");
+      ParkedFactDefinition probe((ParkedFactProps(g_seatProbeRecord)));
+      loka::app::EditTextDefinition parkedControl(g_seatDraft);
+      loka::app::FragmentDefinition parkedBranch;
+      parkedBranch << probe << parkedControl;
+      loka::app::scene::ConditionalDefinition conditional(
+          (loka::app::scene::ConditionalProps(g_seatCondition, &active, &parkedBranch)));
+      conditional.setNodeTag(102);
+      loka::app::EditTextDefinition trailing;
+      trailing.tag(103);
+      loka::app::FragmentDefinition root;
+      // Per-tag retention currently requires every sibling to carry a unique tag.
+      root << leading << conditional << trailing;
+      composition.declare(root);
+    }
+  };
+
+  class TaggedConditionalSeatHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<TaggedConditionalSeatHarnessBoundaryNode>
+      TaggedConditionalSeatHarnessBoundaryProps;
+  class TaggedConditionalSeatHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<TaggedConditionalSeatHarnessBoundaryNode>
+  {
+  public:
+    explicit TaggedConditionalSeatHarnessBoundaryNode(
+        const TaggedConditionalSeatHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<TaggedConditionalSeatHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<TaggedConditionalSeatBoundaryNode>());
+    }
+  };
+
   loka::core::MutableState<bool> *g_deferredFlipCondition = 0;
   ParkedFactRecord *g_deferredTrueRecord = 0;
   ParkedFactRecord *g_deferredFalseRecord = 0;
@@ -1411,6 +1478,49 @@ void testNullPlatformContract_H4_retiringBoundaryReportsEveryParkedBranchRetired
   g_enumeratedSecondCondition = 0;
   g_enumeratedFirstRecord = 0;
   g_enumeratedSecondRecord = 0;
+}
+
+void testNullPlatformContract_H5_taggedSeatAmongSiblingsSurvivesUnrelatedRecompose()
+{
+  ParkedFactRecord probeRecord;
+  loka::core::MutableState<bool> condition(false);
+  loka::core::MutableState<int> unrelated(0);
+  loka::core::MutableState<loka::core::String> draft(loka::core::String::Literal("tagged parked draft"));
+  g_seatCondition = &condition;
+  g_seatUnrelatedState = &unrelated;
+  g_seatDraft = &draft;
+  g_seatProbeRecord = &probeRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<TaggedConditionalSeatHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(probeRecord);
+  const int constructionsBefore = probeRecord.constructionCount;
+  const std::size_t transitionsBefore = probeRecord.transitions.size();
+  const NativeContextCallCounts callsBefore(platform);
+
+  unrelated.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  const bool taggedSeatSurvived =
+      probeRecord.constructionCount == constructionsBefore &&
+      !recordedTransitionTo(probeRecord,
+                            loka::app::scene::NODE_FACT_RETIRED,
+                            transitionsBefore) &&
+      NativeContextCallCounts(platform) == callsBefore;
+  assert(taggedSeatSurvived &&
+         "the tagged Conditional seat preserves its parked branch and native pairs");
+
+  scene.unmount();
+  g_seatCondition = 0;
+  g_seatUnrelatedState = 0;
+  g_seatDraft = 0;
+  g_seatProbeRecord = 0;
 }
 
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush()

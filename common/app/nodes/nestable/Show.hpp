@@ -44,6 +44,7 @@ namespace loka
         scene::Node *node = new scene::ConditionalNode(this->props());
         if (node)
         {
+          node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
         return node;
@@ -53,6 +54,7 @@ namespace loka
         scene::Node *node = new (mem) scene::ConditionalNode(this->props());
         if (node)
         {
+          node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
         return node;
