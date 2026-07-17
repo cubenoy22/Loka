@@ -25,16 +25,14 @@ namespace loka
         NativeNodeContext()
             : NodeContext(),
               priority_(PRIORITY_NORMAL),
-              memoryCostBytes_(0),
-              lifetimeHint_(NATIVE_HINT_DEFAULT)
+              memoryCostBytes_(0)
         {
         }
 
         explicit NativeNodeContext(ResourcePriority priority)
             : NodeContext(),
               priority_(priority),
-              memoryCostBytes_(0),
-              lifetimeHint_(NATIVE_HINT_DEFAULT)
+              memoryCostBytes_(0)
         {
         }
 
@@ -67,22 +65,13 @@ namespace loka
           return memoryCostBytes_;
         }
 
-        /** The native side's observed copy of the owner Node's lifetime
-            hint, refreshed on the normal observation paths (layout/update).
-            A snapshot of the one wish axis — never an imperative command. */
-        void observeLifetimeHint(NativeLifetimeHint hint)
-        {
-          lifetimeHint_ = hint;
-        }
-        NativeLifetimeHint lifetimeHint() const
-        {
-          return lifetimeHint_;
-        }
+        // The lifetime-hint snapshot lives on NodeContext, riding the same
+        // observation points as the lifecycle fact (attach-time read and
+        // every delivery-walk visit).
 
       private:
         ResourcePriority priority_;
         std::size_t memoryCostBytes_;
-        NativeLifetimeHint lifetimeHint_;
       };
     } // namespace scene
   } // namespace app

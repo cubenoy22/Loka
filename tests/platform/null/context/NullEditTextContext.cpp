@@ -36,7 +36,6 @@ namespace
         editText->setContext(context);
         context->readLifecycleFactOnAttach();
       }
-      context->observeNodeLifetimeHint();
       return context;
     }
   };
@@ -53,9 +52,8 @@ NullEditTextContext::NullEditTextContext(loka::app::EditTextNode *node,
 {
   if (this->controller_ && this->node_)
   {
-    this->observeLifetimeHint(this->node_->nativeLifetimeHint());
     this->handle_ = this->controller_->createLedgerRow(
-        NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT, this, this->lifetimeHint());
+        NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT, this, this->node_->nativeLifetimeHint());
   }
 }
 
@@ -76,6 +74,7 @@ void NullEditTextContext::readLifecycleFactOnAttach()
   {
     this->controller_->setVisible(this->handle_,
                                   this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED);
+    this->controller_->observeHint(this->handle_, this->lifetimeHint());
   }
 }
 
@@ -86,27 +85,14 @@ void NullEditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact prev
   if (this->controller_)
   {
     this->controller_->setVisible(this->handle_, next == loka::app::scene::NODE_FACT_ATTACHED);
+    this->controller_->observeHint(this->handle_, this->lifetimeHint());
   }
 }
 
 short NullEditTextContext::layout(loka::app::scene::IPlatformController *,
                                   loka::app::scene::LayoutState &state)
 {
-  this->observeNodeLifetimeHint();
   return static_cast<short>(state.y + state.height);
-}
-
-void NullEditTextContext::observeNodeLifetimeHint()
-{
-  if (!this->node_)
-  {
-    return;
-  }
-  this->observeLifetimeHint(this->node_->nativeLifetimeHint());
-  if (this->controller_)
-  {
-    this->controller_->observeHint(this->handle_, this->lifetimeHint());
-  }
 }
 
 void RegisterNullEditTextNodeHandler(NullScenePlatformController &controller)
