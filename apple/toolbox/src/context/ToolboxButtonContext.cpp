@@ -47,7 +47,9 @@ ToolboxButtonContext::~ToolboxButtonContext()
 {
   if (controller_)
   {
-    controller_->destroyButtonControl(resourceId_);
+    // The terminal fact delivery just refreshed the hint snapshot, so the
+    // retire flush decides on the freshest value — not the last render's.
+    controller_->destroyButtonControl(resourceId_, this->lifetimeHint());
   }
   controller_ = 0;
 }
