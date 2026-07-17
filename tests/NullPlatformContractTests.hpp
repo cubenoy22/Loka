@@ -17,6 +17,7 @@ void testNullPlatformContract_D3_depthCapRefusalCountsEvict();
 void testNullPlatformContract_D4_controllerDrainPrecedesWindowDispose();
 void testNullPlatformContract_E1_reclaimOnlyFlushIsSilent();
 void testNullPlatformContract_E2_disposeOccursOnlyAtSafePoints();
+void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim();
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush();
 void testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown();
 void testNullPlatformContract_G4_retireBeforeContextAttachIsSilent();
