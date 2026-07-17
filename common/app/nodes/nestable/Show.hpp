@@ -13,16 +13,16 @@ namespace loka
     public:
       explicit ShowDefinition(loka::core::State<bool> *condition)
           : scene::NodeDefinitionBase(),
-            condition_(condition),
             trueBranch_(),
-            falseBranch_()
+            falseBranch_(),
+            props_(condition, &this->trueBranch_, &this->falseBranch_)
       {
       }
       ShowDefinition(const ShowDefinition &other)
           : scene::NodeDefinitionBase(other),
-            condition_(other.condition_),
             trueBranch_(other.trueBranch_),
-            falseBranch_(other.falseBranch_)
+            falseBranch_(other.falseBranch_),
+            props_(other.props_.condition, &this->trueBranch_, &this->falseBranch_)
       {
       }
       ShowDefinition &operator=(const ShowDefinition &other)
@@ -30,9 +30,11 @@ namespace loka
         if (this != &other)
         {
           scene::NodeDefinitionBase::operator=(other);
-          condition_ = other.condition_;
           trueBranch_ = other.trueBranch_;
           falseBranch_ = other.falseBranch_;
+          props_.condition = other.props_.condition;
+          props_.trueDef = &this->trueBranch_;
+          props_.falseDef = &this->falseBranch_;
         }
         return *this;
       }
@@ -73,17 +75,30 @@ namespace loka
       }
       virtual const scene::PropsBase *propsBase() const
       {
-        return 0;
+        return &this->props_;
       }
       virtual bool hasEquivalentProps(const scene::NodeDefinitionBase &other) const
       {
-        (void)other;
-        return false;
+        const scene::PropsBase *otherProps = other.propsBase();
+        if (!otherProps || otherProps->propsTypeId() != this->props_.propsTypeId())
+        {
+          return false;
+        }
+        const scene::ConditionalProps &otherConditionalProps =
+            static_cast<const scene::ConditionalProps &>(*otherProps);
+        return this->props_.condition == otherConditionalProps.condition;
       }
       virtual bool applyPropsToNode(scene::Node *node) const
       {
-        (void)node;
-        return false;
+        if (!node || node->nodeTypeKey() != scene::NodeTypeToken<scene::ConditionalNode>())
+        {
+          return false;
+        }
+        scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
+        conditional->applyRetainedProps(this->props_);
+        conditional->setNodeTag(this->nodeTag());
+        conditional->setNativeLifetimeHint(this->nativeLifetimeHint());
+        return true;
       }
       ShowDefinition &operator<<(scene::NodeDefinitionBase &child)
       {
@@ -109,11 +124,9 @@ namespace loka
         return *this;
       }
 
-      scene::ConditionalProps props() const
+      const scene::ConditionalProps &props() const
       {
-        return scene::ConditionalProps(this->condition_,
-                                       const_cast<FragmentDefinition *>(&this->trueBranch_),
-                                       const_cast<FragmentDefinition *>(&this->falseBranch_));
+        return this->props_;
       }
 
       size_t childrenCount() const
@@ -122,9 +135,9 @@ namespace loka
       }
 
     private:
-      loka::core::State<bool> *condition_;
       FragmentDefinition trueBranch_;
       FragmentDefinition falseBranch_;
+      scene::ConditionalProps props_;
     };
 
     inline ShowDefinition Show(loka::core::State<bool> &condition)

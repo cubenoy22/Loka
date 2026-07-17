@@ -27,15 +27,19 @@ namespace loka
         BoundaryLocalRebuildPlanEntry()
             : node(0),
               previousNode(0),
+              definition(0),
               action(ACTION_RETAIN),
               tag(NODE_TAG_NONE)
         {
         }
 
-        static BoundaryLocalRebuildPlanEntry retain(Node *nodeValue, NodeTag tagValue)
+        static BoundaryLocalRebuildPlanEntry retain(Node *nodeValue,
+                                                    NodeDefinitionBase *definitionValue,
+                                                    NodeTag tagValue)
         {
           BoundaryLocalRebuildPlanEntry entry;
           entry.node = nodeValue;
+          entry.definition = definitionValue;
           entry.tag = tagValue;
           return entry;
         }
@@ -93,6 +97,8 @@ namespace loka
 
         Node *node;
         Node *previousNode;
+        /** Borrowed from the current compose arena for this apply pass. */
+        NodeDefinitionBase *definition;
         Action action;
         NodeTag tag;
       };

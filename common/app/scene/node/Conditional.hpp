@@ -12,21 +12,38 @@ namespace loka
     {
       // Forward declarations
       class Node;
+      class ConditionalNode;
       struct NodeDefinitionBase;
 
-      struct ConditionalProps
+      struct ConditionalTypeTag
       {
+      };
+
+      struct ConditionalProps : public NodePropsBase<ConditionalProps>
+      {
+        typedef ConditionalTypeTag TypeTag;
+        typedef ConditionalNode NodeType;
         loka::core::State<bool> *condition;
         NodeDefinitionBase *trueDef;
         NodeDefinitionBase *falseDef;
         ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
         ConditionalProps(const loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
+        bool operator<(const PropsBase &rhs) const
+        {
+          if (rhs.propsTypeId() != this->propsTypeId())
+          {
+            return false;
+          }
+          const ConditionalProps &other = static_cast<const ConditionalProps &>(rhs);
+          return this->condition < other.condition;
+        }
       };
 
       // ConditionalNode: node that switches by condition
       class ConditionalNode : public NestableNode
       {
       public:
+        typedef ConditionalTypeTag TypeTag;
         ConditionalProps props;
         Node *activeNode;
         Node *trueNode_;
@@ -45,6 +62,13 @@ namespace loka
         void compose();
         void updateActiveNode();
         virtual Node *retainedLifecycleBranch(unsigned index);
+        virtual const void *nodeTypeKey() const
+        {
+          return NodeTypeToken<ConditionalNode>();
+        }
+        /** Re-points borrowed branch definitions for a retained seat and
+            differentially rebinds its condition source. */
+        void applyRetainedProps(const ConditionalProps &nextProps);
 
       protected:
         /** The condition must fall silent once this conditional is off the
@@ -88,18 +112,10 @@ namespace loka
         }
         virtual const PropsBase *propsBase() const
         {
-          return 0;
+          return &this->props;
         }
-        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const
-        {
-          (void)other;
-          return false;
-        }
-        virtual bool applyPropsToNode(Node *node) const
-        {
-          (void)node;
-          return false;
-        }
+        virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const;
+        virtual bool applyPropsToNode(Node *node) const;
 
       private:
         bool assignFrom(const ConditionalProps &nextProps,

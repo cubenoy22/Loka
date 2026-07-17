@@ -440,11 +440,26 @@ namespace loka
         }
         NodeDefinitionBase *findCurrentCompositionDefinitionByTag(NodeTag tag) const
         {
-          return compositionState_.findCurrentDefinitionByTag(tag);
+          if (tag == NODE_TAG_NONE)
+          {
+            return 0;
+          }
+          NodeDefinitionBase *root = this->composition().root();
+          INestableDefinition *nestable = root ? root->asNestableDefinition() : 0;
+          NodeDefinitionBase *child = nestable ? nestable->childrenHead() : 0;
+          while (child)
+          {
+            if (child->nodeTag() == tag)
+            {
+              return child;
+            }
+            child = child->nextInComposition;
+          }
+          return 0;
         }
         NodeDefinitionBase *currentCompositionRootDefinition() const
         {
-          return compositionState_.currentCompositionSnapshot().root();
+          return this->composition().root();
         }
         bool applyCurrentDefinitionPropsToLiveChild(NodeTag tag)
         {
@@ -474,7 +489,9 @@ namespace loka
                                                            std::vector<Node *> &retainedChildren)
         {
           INestable *root = compositionRootNestable();
-          INestableDefinition *currentRoot = compositionState_.currentRootNestableDefinition();
+          NodeDefinitionBase *currentRootDefinition = this->composition().root();
+          INestableDefinition *currentRoot =
+              currentRootDefinition ? currentRootDefinition->asNestableDefinition() : 0;
           if (!root || !currentRoot)
           {
             return false;
@@ -628,13 +645,25 @@ namespace loka
           plan.clear();
           plan.reserve(currentRoot.childrenCount());
 
+          const NodeCompositionDiff *diff = this->localCompositionDiff();
+          NodeCompositionDiff::Entry *singleEntry = diff ? diff->entriesHead() : 0;
           NodeDefinitionBase *definition = currentRoot.childrenHead();
           while (definition)
           {
             Node *existing = findCompositionChildByTag(definition->nodeTag());
+            if (!existing && definition->nodeTag() == NODE_TAG_NONE &&
+                diff && !diff->fullRebuild && diff->entryCount() == 1 && singleEntry &&
+                singleEntry->action == NodeCompositionDiff::ACTION_RETAIN &&
+                singleEntry->compatibleType && singleEntry->previousIndex == 0 &&
+                singleEntry->currentIndex == 0)
+            {
+              INestable *root = compositionRootNestable();
+              existing = root && root->childrenCount() == 1 ? root->childrenHead() : 0;
+            }
             if (existing && definition->isCompatibleWithNode(existing))
             {
-              plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retain(existing, definition->nodeTag()));
+              plan.entries.push_back(
+                  BoundaryLocalRebuildPlanEntry::retain(existing, definition, definition->nodeTag()));
             }
             else
             {
@@ -659,7 +688,17 @@ namespace loka
           loka::dsl::CompositionCursor<Node> it(root->childrenHead(), root->childrenCount());
           for (Node *liveChild = it.next(); liveChild; liveChild = it.next())
           {
-            if (findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
+            bool retainedByPlan = false;
+            for (size_t i = 0; i < plan.entries.size(); ++i)
+            {
+              if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN &&
+                  plan.entries[i].node == liveChild)
+              {
+                retainedByPlan = true;
+                break;
+              }
+            }
+            if (!retainedByPlan && findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
             {
               plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retire(liveChild, liveChild->nodeTag()));
             }
@@ -681,8 +720,8 @@ namespace loka
             }
             if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN)
             {
-              NodeDefinitionBase *retainedDefinition = findCurrentCompositionDefinitionByTag(plan.entries[i].tag);
-              if (retainedDefinition && !retainedDefinition->applyPropsToNode(plan.entries[i].node))
+              NodeDefinitionBase *retainedDefinition = plan.entries[i].definition;
+              if (!retainedDefinition || !retainedDefinition->applyPropsToNode(plan.entries[i].node))
               {
                 return false;
               }

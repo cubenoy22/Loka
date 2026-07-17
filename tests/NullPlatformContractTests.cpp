@@ -311,12 +311,6 @@ namespace
     unsigned long hidden;
   };
 
-  void assertExpectedRedForT1(bool observableOutcome)
-  {
-    assert(!observableOutcome &&
-           "expected-red contract pin turned green; T1 must promote this outcome assertion");
-  }
-
   void assertExpectedRedForT2(bool observableOutcome)
   {
     assert(!observableOutcome &&
@@ -478,6 +472,8 @@ namespace
   loka::core::MutableState<int> *g_seatUnrelatedState = 0;
   loka::core::MutableState<loka::core::String> *g_seatDraft = 0;
   ParkedFactRecord *g_seatProbeRecord = 0;
+  ParkedFactRecord *g_seatOldBranchRecord = 0;
+  ParkedFactRecord *g_seatCurrentBranchRecord = 0;
 
   class ConditionalSeatBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ConditionalSeatBoundaryNode> ConditionalSeatBoundaryProps;
@@ -508,7 +504,14 @@ namespace
     virtual void composeNode(loka::app::scene::NodeComposition &composition)
     {
       loka::app::ButtonDefinition button("seat-active");
-      ParkedFactDefinition probe((ParkedFactProps(g_seatProbeRecord)));
+      ParkedFactRecord *probeRecord = g_seatProbeRecord;
+      if (g_seatCurrentBranchRecord)
+      {
+        probeRecord = g_seatUnrelatedState && g_seatUnrelatedState->get() != 0
+                          ? g_seatCurrentBranchRecord
+                          : g_seatOldBranchRecord;
+      }
+      ParkedFactDefinition probe((ParkedFactProps(probeRecord)));
       loka::app::EditTextDefinition editText(g_seatDraft);
       loka::app::FragmentDefinition parkedDraft;
       parkedDraft << probe << editText;
@@ -1199,9 +1202,8 @@ void testNullPlatformContract_H1_conditionalSeatSurvivesUnrelatedRecompose()
                             transitionsBefore);
   const bool nativeContextCallsStayedEqual = callsAfter == callsBefore;
 
-  // Expected RED: T1 promotes this pin. It records the Conditional churn
-  // finding in issue #46 before seat identity is installed.
-  assertExpectedRedForT1(parkedProbeSurvived && nativeContextCallsStayedEqual);
+  assert(parkedProbeSurvived && nativeContextCallsStayedEqual &&
+         "the retained Conditional seat preserves its parked branch and native pairs");
 
   scene.unmount();
   g_seatCondition = 0;
@@ -1245,15 +1247,54 @@ void testNullPlatformContract_H2_parkedDraftBranchSurvivesUnrelatedRecompose()
       callsAfter == callsBefore &&
       draft.get().equals(loka::core::String::Literal("unfinished draft"));
 
-  // Expected RED: T1 turns this parked-state clause green together with the
-  // issue #46 seat-churn finding.
-  assertExpectedRedForT1(parkedDraftSurvived);
+  assert(parkedDraftSurvived &&
+         "the retained Conditional seat preserves parked branch state");
 
   scene.unmount();
   g_seatCondition = 0;
   g_seatUnrelatedState = 0;
   g_seatDraft = 0;
   g_seatProbeRecord = 0;
+}
+
+void testConditionalSeatRepointsBranchDefinitionsAfterUnrelatedRecompose()
+{
+  ParkedFactRecord oldBranchRecord;
+  ParkedFactRecord currentBranchRecord;
+  loka::core::MutableState<bool> condition(true);
+  loka::core::MutableState<int> unrelated(0);
+  loka::core::MutableState<loka::core::String> draft;
+  g_seatCondition = &condition;
+  g_seatUnrelatedState = &unrelated;
+  g_seatDraft = &draft;
+  g_seatOldBranchRecord = &oldBranchRecord;
+  g_seatCurrentBranchRecord = &currentBranchRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ConditionalSeatHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  assert(oldBranchRecord.constructionCount == 0);
+  assert(currentBranchRecord.constructionCount == 0);
+  const NativeContextCallCounts callsBefore(platform);
+
+  unrelated.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(NativeContextCallCounts(platform) == callsBefore &&
+         "an unrelated recompose retains the Conditional seat and its native pair");
+
+  condition.set(false);
+  assert(oldBranchRecord.constructionCount == 0 &&
+         "the retained seat no longer reads the previous arena's branch definition");
+  assert(currentBranchRecord.constructionCount == 1 &&
+         "the retained seat creates the branch from the current arena's definition");
+
+  scene.unmount();
+  g_seatCondition = 0;
+  g_seatUnrelatedState = 0;
+  g_seatDraft = 0;
+  g_seatOldBranchRecord = 0;
+  g_seatCurrentBranchRecord = 0;
 }
 
 void testNullPlatformContract_H3_conditionFlipIsReflectedAtNextScheduledApply()
