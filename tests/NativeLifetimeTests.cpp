@@ -2,6 +2,8 @@
 
 #include <cassert>
 
+#include "support/LifecycleFactTestAccess.hpp"
+
 #include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/node/Conditional.hpp"
@@ -141,14 +143,21 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
 
 void testNativeContextObservesLifetimeHint()
 {
-  loka::app::scene::NativeNodeContext context;
-  assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_DEFAULT);
-  context.observeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
-  assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
-  context.observeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-  assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-  context.observeLifetimeHint(loka::app::scene::NATIVE_HINT_DEFAULT);
-  assert(context.lifetimeHint() == loka::app::scene::NATIVE_HINT_DEFAULT);
+  // The hint snapshot rides the fact observation points: the attach-time
+  // read adopts the declare-time value, and every delivery-walk visit
+  // refreshes it — no imperative observe call exists anymore.
+  loka::app::scene::Node node;
+  node.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
+  node.setContext(new loka::app::scene::NativeNodeContext());
+  assert(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE &&
+         "the attach-time read adopts the declare-time hint");
+
+  node.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+  assert(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE &&
+         "a runtime change is invisible until the next walk visit");
+  loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&node);
+  assert(node.getContext()->lifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
+         "the delivery walk refreshes the snapshot even without a fact transition");
 
   loka::app::scene::NativeNodeContext prioritized(loka::app::scene::NativeNodeContext::PRIORITY_HIGH);
   assert(prioritized.lifetimeHint() == loka::app::scene::NATIVE_HINT_DEFAULT);

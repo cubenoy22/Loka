@@ -47,7 +47,9 @@ ToolboxButtonContext::~ToolboxButtonContext()
 {
   if (controller_)
   {
-    controller_->destroyButtonControl(resourceId_);
+    // The terminal fact delivery just refreshed the hint snapshot, so the
+    // retire flush decides on the freshest value — not the last render's.
+    controller_->destroyButtonControl(resourceId_, this->lifetimeHint());
   }
   controller_ = 0;
 }
@@ -78,12 +80,6 @@ void ToolboxButtonContext::updateRect(const Rect &rect)
 
 void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
-  if (node_)
-  {
-    // Draw can run without a fresh layout (dirty-draw path); re-observe so
-    // the binding never retires under a hint older than one pass.
-    observeLifetimeHint(node_->nativeLifetimeHint());
-  }
   if (controller && resourceId_ <= 0)
   {
     resourceId_ = controller->allocateControlId();
@@ -122,7 +118,6 @@ short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *contro
   rect.right = static_cast<short>(state.x + width);
   rect.bottom = static_cast<short>(state.y + 6);
   updateData(label, node_->props.onClick_, node_->props.enabled_, 0, node_->props.controlTag_);
-  observeLifetimeHint(node_->nativeLifetimeHint());
   updateRect(rect);
   state.y = static_cast<short>(state.y + state.lineHeight + state.spacing);
   return width;

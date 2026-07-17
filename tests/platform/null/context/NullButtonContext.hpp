@@ -33,7 +33,6 @@ public:
   virtual short layout(loka::app::scene::IPlatformController *controller,
                        loka::app::scene::LayoutState &state);
 
-  void observeNodeLifetimeHint();
 
 private:
   loka::app::ButtonNode *node_;

@@ -222,12 +222,14 @@ namespace loka
       public:
         NodeContext()
             : owner_(0),
-              deliveredFact_(NODE_FACT_ATTACHED)
+              deliveredFact_(NODE_FACT_ATTACHED),
+              observedLifetimeHint_(NATIVE_HINT_DEFAULT)
         {
         }
         explicit NodeContext(Node *owner)
             : owner_(owner),
-              deliveredFact_(NODE_FACT_ATTACHED)
+              deliveredFact_(NODE_FACT_ATTACHED),
+              observedLifetimeHint_(NATIVE_HINT_DEFAULT)
         {
         }
         virtual ~NodeContext() {}
@@ -246,6 +248,14 @@ namespace loka
         NodeLifecycleFact deliveredFact() const
         {
           return deliveredFact_;
+        }
+        /** The native side's observed copy of the owner Node's lifetime
+            hint — the one wish axis, a snapshot never a command. Rides the
+            same observation points as the fact: the attach-time read and
+            every delivery-walk visit. */
+        NativeLifetimeHint lifetimeHint() const
+        {
+          return observedLifetimeHint_;
         }
         /** The context-side observation point — the one channel. Living
             transitions (A <-> D) arrive from the apply-phase diff walk;
@@ -274,27 +284,19 @@ namespace loka
         NodeContext(const NodeContext &);
         NodeContext &operator=(const NodeContext &);
 
-        /** Attach-time read (late-subscriber rule): adopt the current fact
-            as the baseline without firing onFactChanged. */
-        void initializeDeliveredFact(NodeLifecycleFact fact)
-        {
-          deliveredFact_ = fact;
-        }
-        /** Baseline moves before the hook fires, so reentrant reads see the
-            delivered value. Same-value delivery is silent. */
-        void deliverFact(NodeLifecycleFact next)
-        {
-          if (deliveredFact_ == next)
-          {
-            return;
-          }
-          const NodeLifecycleFact previous = deliveredFact_;
-          deliveredFact_ = next;
-          this->onFactChanged(previous, next);
-        }
+        /** Attach-time read (late-subscriber rule): adopt the current
+            observable state (fact + hint) as the baseline without firing
+            onFactChanged. Defined after Node. */
+        void initializeDeliveredFact(Node *ownerNode);
+        /** The hint snapshot rides every walk visit (before the same-value
+            gate); the fact baseline moves before the hook fires, so
+            reentrant reads see the delivered value. Same-value delivery is
+            silent. Defined after Node. */
+        void deliverFact(Node *ownerNode, NodeLifecycleFact next);
 
         Node *owner_;
         NodeLifecycleFact deliveredFact_;
+        NativeLifetimeHint observedLifetimeHint_;
 
         friend class Node;
       };
@@ -516,7 +518,7 @@ namespace loka
             // the current fact as its baseline; presentation from the
             // current fact is the installing handler's read, not a hook.
             context->setOwner(this);
-            context->initializeDeliveredFact(lifecycleFact_);
+            context->initializeDeliveredFact(this);
           }
         }
 
@@ -602,7 +604,7 @@ namespace loka
           // then the ritual (context destruction). A release while the fact
           // is not RETIRED (context replacement on a live node) is silent —
           // the context's own destructor is its terminal signal.
-          released->deliverFact(lifecycleFact_);
+          released->deliverFact(this, lifecycleFact_);
           delete released;
         }
       };
@@ -1267,6 +1269,31 @@ namespace loka
         loka::dsl::CompositionList<Node> children_;
       };
 
+      inline void NodeContext::initializeDeliveredFact(Node *ownerNode)
+      {
+        if (!ownerNode)
+        {
+          return;
+        }
+        deliveredFact_ = ownerNode->lifecycleFact();
+        observedLifetimeHint_ = ownerNode->nativeLifetimeHint();
+      }
+
+      inline void NodeContext::deliverFact(Node *ownerNode, NodeLifecycleFact next)
+      {
+        if (ownerNode)
+        {
+          observedLifetimeHint_ = ownerNode->nativeLifetimeHint();
+        }
+        if (deliveredFact_ == next)
+        {
+          return;
+        }
+        const NodeLifecycleFact previous = deliveredFact_;
+        deliveredFact_ = next;
+        this->onFactChanged(previous, next);
+      }
+
       /** Marks a subtree's lifecycle fact through the single door, without
           delivering anything. Retained branches parked outside the live
           composition (Conditional slots) are not reached — they keep their
@@ -1307,7 +1334,7 @@ namespace loka
         }
         if (node->context)
         {
-          node->context->deliverFact(node->lifecycleFact_);
+          node->context->deliverFact(node, node->lifecycleFact_);
         }
         for (unsigned i = 0; Node *branch = node->retainedLifecycleBranch(i); ++i)
         {

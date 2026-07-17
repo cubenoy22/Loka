@@ -2458,7 +2458,8 @@ bool ToolboxScenePlatformController::ensureButtonControl(short resourceId,
   return true;
 }
 
-void ToolboxScenePlatformController::destroyButtonControl(short resourceId)
+void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
+                                                           loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
@@ -2468,7 +2469,6 @@ void ToolboxScenePlatformController::destroyButtonControl(short resourceId)
       continue;
     }
     ControlRef control = binding.control;
-    loka::app::scene::NativeLifetimeHint lifetimeHint = binding.lifetimeHint;
     binding.control = 0;
     binding.emitter = 0;
     binding.enabled = 0;

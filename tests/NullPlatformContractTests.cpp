@@ -217,40 +217,6 @@ namespace
       composition.declare(controls);
     }
   };
-
-  loka::core::MutableState<int> *g_hintRevision = 0;
-  loka::app::scene::NativeLifetimeHint g_runtimeHint = loka::app::scene::NATIVE_HINT_DEFAULT;
-
-  class HintBoundaryNode;
-  typedef loka::app::scene::BoundaryPropsFor<HintBoundaryNode> HintBoundaryProps;
-
-  class HintBoundaryNode
-      : public RecomposingContractBoundaryNode<HintBoundaryNode, HintBoundaryProps>
-  {
-  public:
-    explicit HintBoundaryNode(const HintBoundaryProps &props)
-        : RecomposingContractBoundaryNode<HintBoundaryNode, HintBoundaryProps>(props)
-    {
-    }
-
-    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
-    {
-      if (g_hintRevision)
-      {
-        registrar.markDirtyOnChange(g_hintRevision, loka::app::scene::NODE_DIRTY_PROPS);
-      }
-    }
-
-    virtual void composeNode(loka::app::scene::NodeComposition &composition)
-    {
-      loka::app::FragmentDefinition root;
-      loka::app::ButtonDefinition button("hint");
-      button.lifetimeHint(g_runtimeHint);
-      root << button;
-      composition.declare(root);
-    }
-  };
-
   loka::core::MutableState<bool> *g_parkedSubtreeVisible = 0;
   loka::core::MutableState<bool> *g_parkedInnerCondition = 0;
 
@@ -577,24 +543,34 @@ void testNullPlatformContract_C2_hintControlsFlushPolicy()
 
 void testNullPlatformContract_C3_hintChangesReachNextObservation()
 {
-  loka::core::MutableState<int> revision(0);
-  g_hintRevision = &revision;
-  g_runtimeHint = loka::app::scene::NATIVE_HINT_EAGER_RELEASE;
+  // Declare-time hint arrives with the attach-time read; a runtime change
+  // is honored by the time the native side decides. Discriminating check:
+  // the retire flush runs BEFORE any teardown drain, so a stale
+  // DESIRE_STAY would pool the handle (depth 1, disposed 0) while the
+  // fresh EAGER_RELEASE must dispose it (depth 0, disposed 1).
+  loka::core::MutableState<bool> visible(true);
+  g_toggleVisible = &visible;
+  g_toggleHint = loka::app::scene::NATIVE_HINT_DESIRE_STAY;
   NullScenePlatformController platform;
-  loka::app::scene::Scene scene((loka::app::scene::Boundary<HintBoundaryNode>()));
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ToggleControlBoundaryNode>()));
   mountAndAttach(scene, platform);
   assert(platform.ledger().size() == 1);
-  assert(platform.ledger()[0].hint == loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
+  assert(platform.ledger()[0].hint == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
+         "the attach-time read carries the declare-time hint");
 
-  g_runtimeHint = loka::app::scene::NATIVE_HINT_DESIRE_STAY;
-  revision.set(1);
-  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_PROPS);
-  assert(scene.flushInvalidation());
+  g_toggleHint = loka::app::scene::NATIVE_HINT_EAGER_RELEASE;
+  requestChildPump(scene);
 
-  assert(platform.ledger().size() == 1);
-  assert(platform.ledger()[0].hint == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-  g_hintRevision = 0;
-  g_runtimeHint = loka::app::scene::NATIVE_HINT_DEFAULT;
+  visible.set(false);
+  requestChildPump(scene);
+  assert(platform.disposedCount() >= 1 &&
+         "the retire flush honors the runtime hint change: EAGER_RELEASE disposes");
+  assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0 &&
+         "nothing pools under the fresh hint");
+
+  scene.unmount();
+  g_toggleVisible = 0;
+  g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 }
 
 void testNullPlatformContract_D1_exactMatchBucketsStaySeparated()

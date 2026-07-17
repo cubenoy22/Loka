@@ -86,7 +86,7 @@ public:
                            loka::core::EmitterState *emitter,
                            loka::core::State<bool> *enabled,
                            loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
-  void destroyButtonControl(short resourceId);
+  void destroyButtonControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void drawFallbackControl(const Rect &rect);
   TEHandle ensureEditTextControl(const Rect &rect,
                                  loka::core::State<loka::core::String> *text,
