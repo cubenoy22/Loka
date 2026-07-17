@@ -182,6 +182,7 @@ int main()
   LOKA_RUN_TEST(testNullPlatformContract_D4_controllerDrainPrecedesWindowDispose);
   LOKA_RUN_TEST(testNullPlatformContract_E1_reclaimOnlyFlushIsSilent);
   LOKA_RUN_TEST(testNullPlatformContract_E2_disposeOccursOnlyAtSafePoints);
+  LOKA_RUN_TEST(testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim);
   LOKA_RUN_TEST(testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush);
   LOKA_RUN_TEST(testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown);
   LOKA_RUN_TEST(testNullPlatformContract_G4_retireBeforeContextAttachIsSilent);

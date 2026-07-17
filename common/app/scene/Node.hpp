@@ -331,6 +331,11 @@ namespace loka
 
         virtual ~Node()
         {
+          // Death is the last retire door: every deletion path funnels here,
+          // so a node that skipped the explicit retire/teardown doors (dying
+          // with its parent) still turns RETIRED before its context hears
+          // the terminal. Already-retired nodes are a silent same-value set.
+          this->applyLifecycleFact(NODE_FACT_RETIRED);
           this->releaseContext();
         }
 
@@ -356,13 +361,17 @@ namespace loka
         virtual void onRetainedDetached() {}
         virtual void onRetainedReattached() {}
 
-      protected:
-        /** The apply-phase fact-delivery walk follows live children; nodes
-            that park retained branches outside the composition (Conditional)
-            override this to let the walk descend into them. */
-        virtual void deliverRetainedLifecycleBranchFacts() {}
-
-      public:
+        /** Nodes that park retained branches outside the live composition
+            (Conditional) expose them here so every lifecycle walk — fact
+            marking, delivery, and context release — descends into them.
+            Returns the index-th parked branch root (compacted), 0 past the
+            end. The retire door relies on this: a parked branch hands its
+            native pair over at the door, never from the reclaim drain. */
+        virtual Node *retainedLifecycleBranch(unsigned index)
+        {
+          (void)index;
+          return 0;
+        }
         ComposeEvent resolveChildComposeEvent(ComposeEvent parentEvent)
         {
           return composeAttachLifecycle_.resolveChildComposeEvent(parentEvent);
@@ -579,7 +588,13 @@ namespace loka
             return;
           }
           context = 0;
-          released->onNodeDetached();
+          // Terminal delivery: the retire door has already written RETIRED
+          // and the context is severed from the node (context == 0), so the
+          // observer cannot route back into the tree. One onFactChanged(->R),
+          // then the ritual (context destruction). A release while the fact
+          // is not RETIRED (context replacement on a live node) is silent —
+          // the context's own destructor is its terminal signal.
+          released->deliverFact(lifecycleFact_);
           delete released;
         }
       };
@@ -1255,6 +1270,10 @@ namespace loka
           return;
         }
         node->applyLifecycleFact(fact);
+        for (unsigned i = 0; Node *branch = node->retainedLifecycleBranch(i); ++i)
+        {
+          MarkSubtreeLifecycleFact(branch, fact);
+        }
         INestable *nestable = node->asNestable();
         if (!nestable)
         {
@@ -1282,7 +1301,10 @@ namespace loka
         {
           node->context->deliverFact(node->lifecycleFact_);
         }
-        node->deliverRetainedLifecycleBranchFacts();
+        for (unsigned i = 0; Node *branch = node->retainedLifecycleBranch(i); ++i)
+        {
+          DeliverLifecycleFactsSubtree(branch);
+        }
         INestable *nestable = node->asNestable();
         if (!nestable)
         {

@@ -174,8 +174,10 @@ void MacButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
   {
     this->applyAttachedPresentation();
   }
-  else if (next == loka::app::scene::NODE_FACT_DETACHED_RETAINED)
+  else
   {
+    // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
+    // (hide before the ritual destroys the native pair).
     this->applyDetachedPresentation();
   }
 }

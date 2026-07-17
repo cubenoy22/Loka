@@ -821,6 +821,12 @@ void Win32ScenePlatformController::clearNodeContexts(loka::app::scene::Node *nod
   {
     return;
   }
+  // Parked retained branches (Conditional slots) hand their native pairs
+  // over here too — the retire door, not the reclaim drain.
+  for (unsigned i = 0; loka::app::scene::Node *branch = node->retainedLifecycleBranch(i); ++i)
+  {
+    clearNodeContexts(branch);
+  }
   if (loka::app::scene::INestable *nestable = node->asNestable())
   {
     loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());

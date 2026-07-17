@@ -251,6 +251,66 @@ namespace
     }
   };
 
+  loka::core::MutableState<bool> *g_parkedSubtreeVisible = 0;
+  loka::core::MutableState<bool> *g_parkedInnerCondition = 0;
+
+  // Non-recomposing inner boundary: the Conditional (and its parked branch)
+  // persists across the outer boundary's diffs, so the retire exercises the
+  // deferred-drain path instead of an immediate replacement.
+  class ParkedBranchInnerBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ParkedBranchInnerBoundaryNode> ParkedBranchInnerBoundaryProps;
+
+  class ParkedBranchInnerBoundaryNode : public loka::app::scene::BoundaryNodeFor<ParkedBranchInnerBoundaryNode>
+  {
+  public:
+    explicit ParkedBranchInnerBoundaryNode(const ParkedBranchInnerBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<ParkedBranchInnerBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::ButtonDefinition buttonA("parked-a");
+      loka::app::ButtonDefinition buttonB("parked-b");
+      loka::app::scene::ConditionalDefinition conditional(
+          (loka::app::scene::ConditionalProps(g_parkedInnerCondition, &buttonA, &buttonB)));
+      loka::app::FragmentDefinition root;
+      root << conditional;
+      composition.declare(root);
+    }
+  };
+
+  class ParkedBranchRetireBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ParkedBranchRetireBoundaryNode> ParkedBranchRetireBoundaryProps;
+
+  class ParkedBranchRetireBoundaryNode
+      : public RecomposingContractBoundaryNode<ParkedBranchRetireBoundaryNode, ParkedBranchRetireBoundaryProps>
+  {
+  public:
+    explicit ParkedBranchRetireBoundaryNode(const ParkedBranchRetireBoundaryProps &props)
+        : RecomposingContractBoundaryNode<ParkedBranchRetireBoundaryNode, ParkedBranchRetireBoundaryProps>(props)
+    {
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_parkedSubtreeVisible)
+      {
+        registrar.markDirtyOnChange(g_parkedSubtreeVisible, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_parkedSubtreeVisible && g_parkedSubtreeVisible->get())
+      {
+        root << loka::app::scene::Boundary<ParkedBranchInnerBoundaryNode>();
+      }
+      composition.declare(root);
+    }
+  };
+
   void requestChildPump(loka::app::scene::Scene &scene)
   {
     scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
@@ -679,6 +739,52 @@ void testNullPlatformContract_E2_disposeOccursOnlyAtSafePoints()
   assertDisposalsAreInsideSafePoints(platform);
   g_toggleVisible = 0;
   g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
+}
+
+void testNullPlatformContract_E3_parkedBranchRetiresAtTheDoorNotAtReclaim()
+{
+  // A Conditional parks a branch, then its whole subtree leaves the
+  // composition. However the composition diffs slice it (swap, replacement,
+  // removal), every native pair must be handed over at a retire door —
+  // synchronously with some pump — never from the deferred reclaim drain.
+  // The invariant: once the pumps settle, a reclaim-only flush is silent
+  // and leaves no half-processed handles behind.
+  loka::core::MutableState<bool> visible(true);
+  loka::core::MutableState<bool> inner(true);
+  g_parkedSubtreeVisible = &visible;
+  g_parkedInnerCondition = &inner;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ParkedBranchRetireBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(platform.ledger().size() == 1);
+
+  // The swap can retire the old conditional through the composition diff
+  // (definition identity is per-compose); whatever got queued, the follow-up
+  // reclaim-only drain must destroy it silently — its contexts were already
+  // handed over at the door.
+  inner.set(false);
+  std::size_t eventsBeforeDrain = platform.eventLog().size();
+  assert(!scene.flushInvalidation());
+  assert(platform.eventLog().size() == eventsBeforeDrain &&
+         "reclamation is silent — no fact reaches a context from the drain");
+  assert(platform.retiredCount() == 0);
+
+  visible.set(false);
+  requestChildPump(scene);
+  assert(platform.ledger().empty() &&
+         "every native pair is handed over at a retire door, not parked past it");
+  assert(platform.retiredCount() == 0);
+
+  eventsBeforeDrain = platform.eventLog().size();
+  assert(!scene.flushInvalidation());
+  assert(platform.eventLog().size() == eventsBeforeDrain &&
+         "the final drain is silent too");
+  assert(platform.retiredCount() == 0);
+  scene.unmount();
+  assert(platform.createdCount() == platform.disposedCount() + platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth &&
+         "teardown closes every pair: disposed or pooled, nothing lost");
+  g_parkedSubtreeVisible = 0;
+  g_parkedInnerCondition = 0;
 }
 
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush()

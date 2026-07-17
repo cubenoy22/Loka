@@ -57,6 +57,13 @@ namespace loka
           {
             return;
           }
+          // Parked retained branches (Conditional slots) hand their native
+          // pairs over here too — the retire door, not the reclaim drain,
+          // is where every context in the subtree ends.
+          for (unsigned i = 0; Node *branch = node->retainedLifecycleBranch(i); ++i)
+          {
+            IPlatformController::releaseNodeContexts(branch);
+          }
           INestable *nestable = node->asNestable();
           if (nestable)
           {

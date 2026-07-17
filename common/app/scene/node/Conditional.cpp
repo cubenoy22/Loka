@@ -87,14 +87,15 @@ namespace loka
       ConditionalNode::~ConditionalNode()
       {
         this->unbindCondition();
+        // Each node's own destructor is the last retire door (writes RETIRED
+        // before releasing its context), so parked branches need no explicit
+        // subtree mark here.
         if (trueNode_ && trueNode_ != activeNode)
         {
-          Node::MarkSubtreeLifecycleFact(trueNode_, NODE_FACT_RETIRED);
           delete trueNode_;
         }
         if (falseNode_ && falseNode_ != activeNode)
         {
-          Node::MarkSubtreeLifecycleFact(falseNode_, NODE_FACT_RETIRED);
           delete falseNode_;
         }
         trueNode_ = 0;
@@ -216,16 +217,19 @@ namespace loka
         }
       }
 
-      void ConditionalNode::deliverRetainedLifecycleBranchFacts()
+      Node *ConditionalNode::retainedLifecycleBranch(unsigned index)
       {
+        Node *branches[2];
+        unsigned count = 0;
         if (trueNode_ && trueNode_ != activeNode)
         {
-          Node::DeliverLifecycleFactsSubtree(trueNode_);
+          branches[count++] = trueNode_;
         }
         if (falseNode_ && falseNode_ != activeNode)
         {
-          Node::DeliverLifecycleFactsSubtree(falseNode_);
+          branches[count++] = falseNode_;
         }
+        return index < count ? branches[index] : 0;
       }
 
       void ConditionalNode::render(IPlatformController *controller)
