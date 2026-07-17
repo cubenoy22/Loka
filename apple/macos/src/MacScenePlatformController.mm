@@ -354,6 +354,7 @@ MacScenePlatformController::layoutRectSurfaceNode(loka::app::RectSurfaceNode *su
     ctx =
         new MacRectSurfaceContext(rootView_, state.x, state.y, surface->props.width_, surface->props.height_, surface);
     surface->setContext(ctx);
+    ctx->readLifecycleFactOnAttach();
   }
   return LayoutNodeResult(state.width, state.y + surface->props.height_ + kVerticalSpacing);
 }

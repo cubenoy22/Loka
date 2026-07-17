@@ -30,14 +30,12 @@ Win32RectSurfaceContext::~Win32RectSurfaceContext()
   }
 }
 
-void Win32RectSurfaceContext::onNodeAttached()
+void Win32RectSurfaceContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32RectSurfaceContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32RectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

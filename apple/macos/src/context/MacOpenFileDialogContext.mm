@@ -172,14 +172,12 @@ MacOpenFileDialogContext::~MacOpenFileDialogContext()
   this->disposeDialog();
 }
 
-void MacOpenFileDialogContext::onNodeAttached()
+void MacOpenFileDialogContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacOpenFileDialogContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

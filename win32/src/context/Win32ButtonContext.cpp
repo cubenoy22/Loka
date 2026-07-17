@@ -139,14 +139,12 @@ Win32ButtonContext::~Win32ButtonContext()
   }
 }
 
-void Win32ButtonContext::onNodeAttached()
+void Win32ButtonContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32ButtonContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32ButtonContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

@@ -62,14 +62,12 @@ MacRectSurfaceContext::~MacRectSurfaceContext()
   view_ = 0;
 }
 
-void MacRectSurfaceContext::onNodeAttached()
+void MacRectSurfaceContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacRectSurfaceContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

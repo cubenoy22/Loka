@@ -44,19 +44,13 @@ namespace
     {
     }
 
-    virtual void onNodeAttached()
+    /** Attach-time read: the announce successor. */
+    void readLifecycleFactOnAttach()
     {
-      if (this->owner() && this->record_)
+      if (this->owner() && this->record_ &&
+          this->owner()->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
       {
         this->record_->attachFacts.push_back(this->owner()->lifecycleFact());
-      }
-    }
-
-    virtual void onNodeDetached()
-    {
-      if (this->owner() && this->record_)
-      {
-        this->record_->detachFacts.push_back(this->owner()->lifecycleFact());
       }
     }
 
@@ -122,7 +116,9 @@ namespace
       {
         props.record->node = this;
       }
-      this->setContext(new FactProbeContext(props.record));
+      FactProbeContext *context = new FactProbeContext(props.record);
+      this->setContext(context);
+      context->readLifecycleFactOnAttach();
     }
 
     FactProbeProps props;

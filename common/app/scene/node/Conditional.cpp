@@ -77,8 +77,7 @@ namespace loka
             activeNode(0),
             trueNode_(0),
             falseNode_(0),
-            boundCondition_(0),
-            retainedDetached_(false)
+            boundCondition_(0)
       {
         this->bindCondition();
         updateActiveNode();
@@ -103,15 +102,13 @@ namespace loka
         activeNode = 0;
       }
 
-      void ConditionalNode::onCompositionAttached()
+      void ConditionalNode::onLifecycleFactChanged(NodeLifecycleFact previous, NodeLifecycleFact next)
       {
-        this->bindCondition();
-        this->updateActiveNode();
-      }
-
-      void ConditionalNode::onCompositionDetached()
-      {
-        this->unbindCondition();
+        (void)previous;
+        if (next == NODE_FACT_RETIRED)
+        {
+          this->unbindCondition();
+        }
       }
 
       void ConditionalNode::bindCondition()
@@ -173,7 +170,7 @@ namespace loka
           return;
         }
         children_.remove(activeNode);
-        if (!retainedDetached_)
+        if (!this->retainedDetached())
         {
           NotifySubtreeNodeDetached(activeNode);
         }
@@ -198,7 +195,7 @@ namespace loka
         {
           activeNode->markPendingAttachForCompose();
           addChild(activeNode);
-          if (retainedDetached_)
+          if (this->retainedDetached())
           {
             // Adopted while an ancestor keeps this conditional hidden: the
             // subtree inherits the detached-retained fact (born-hidden).

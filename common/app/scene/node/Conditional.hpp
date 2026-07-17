@@ -33,16 +33,6 @@ namespace loka
         Node *falseNode_;
         ConditionalNode(const ConditionalProps &p);
         ~ConditionalNode();
-        virtual void onCompositionAttached();
-        virtual void onCompositionDetached();
-        virtual void onRetainedDetached()
-        {
-          retainedDetached_ = true;
-        }
-        virtual void onRetainedReattached()
-        {
-          retainedDetached_ = false;
-        }
         virtual void declareDirtySources(DirtySourceRegistrar &registrar)
         {
           if (this->props.condition)
@@ -55,6 +45,13 @@ namespace loka
         void compose();
         void updateActiveNode();
         virtual Node *retainedLifecycleBranch(unsigned index);
+
+      protected:
+        /** The condition must fall silent once this conditional is off the
+            tree for good — the successor to the compose-detach unbind. */
+        virtual void onLifecycleFactChanged(NodeLifecycleFact previous, NodeLifecycleFact next);
+
+      public:
         Node *ensureBranchNode(bool cond, bool &created);
         void removeActiveNodeFromChildren();
         void render(IPlatformController *controller);
@@ -63,9 +60,12 @@ namespace loka
       private:
         void bindCondition();
         void unbindCondition();
+        bool retainedDetached() const
+        {
+          return this->lifecycleFact() == NODE_FACT_DETACHED_RETAINED;
+        }
 
         loka::core::State<bool> *boundCondition_;
-        bool retainedDetached_;
       };
 
       struct ConditionalDefinition : public NodeDefinitionBase

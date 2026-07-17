@@ -113,14 +113,12 @@ MacEditTextContext::~MacEditTextContext()
   field_ = 0;
 }
 
-void MacEditTextContext::onNodeAttached()
+void MacEditTextContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacEditTextContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacEditTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

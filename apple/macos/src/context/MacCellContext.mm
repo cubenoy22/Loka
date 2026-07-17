@@ -156,14 +156,12 @@ MacCellContext::~MacCellContext()
   view_ = 0;
 }
 
-void MacCellContext::onNodeAttached()
+void MacCellContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void MacCellContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void MacCellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,

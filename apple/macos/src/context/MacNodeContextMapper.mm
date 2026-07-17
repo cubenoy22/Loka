@@ -29,6 +29,7 @@ MacNodeContextMapper::ensureButtonContext(loka::app::ButtonNode *node, int x, in
   }
   ctx = new MacButtonContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -47,6 +48,7 @@ MacNodeContextMapper::ensureCellContext(loka::app::CellNode *node, int x, int y,
   }
   ctx = new MacCellContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -65,6 +67,7 @@ MacNodeContextMapper::ensureEditTextContext(loka::app::EditTextNode *node, int x
   }
   ctx = new MacEditTextContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -83,6 +86,7 @@ MacNodeContextMapper::ensureTextContext(loka::app::TextNode *node, int x, int y,
   }
   ctx = new MacTextContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -101,6 +105,7 @@ MacNodeContextMapper::ensureImageViewContext(loka::app::ImageViewNode *node, int
   }
   ctx = new MacImageViewContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }
 
@@ -117,6 +122,7 @@ MacOpenFileDialogContext *MacNodeContextMapper::ensureOpenFileDialogContext(loka
   }
   ctx = new MacOpenFileDialogContext(this->rootView_, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   // Boundary compose may already consume pendingAttach to convert the child
   // compose event to ATTACH, so a freshly created dialog context should
   // present immediately even when pendingAttach is no longer visible here.
@@ -139,5 +145,6 @@ MacNodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *node, int
   }
   ctx = new MacPopupMenuContext(this->rootView_, x, y, width, height, node);
   node->setContext(ctx);
+  ctx->readLifecycleFactOnAttach();
   return ctx;
 }

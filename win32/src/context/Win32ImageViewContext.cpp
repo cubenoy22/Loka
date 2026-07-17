@@ -211,14 +211,12 @@ Win32ImageViewContext::~Win32ImageViewContext()
   }
 }
 
-void Win32ImageViewContext::onNodeAttached()
+void Win32ImageViewContext::readLifecycleFactOnAttach()
 {
-  this->applyAttachedPresentation();
-}
-
-void Win32ImageViewContext::onNodeDetached()
-{
-  this->applyDetachedPresentation();
+  if (this->node_ && this->node_->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->applyAttachedPresentation();
+  }
 }
 
 void Win32ImageViewContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
