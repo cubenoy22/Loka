@@ -47,6 +47,7 @@ namespace loka
             {
               return;
             }
+            this->evaluateBranchSeatsForScheduledApply(context);
             loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
             for (Node *child = it.next(); child; child = it.next())
             {

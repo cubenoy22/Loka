@@ -16,6 +16,7 @@
 #include "app/scene/boundary/detail/BoundaryObservedState.hpp"
 #include "app/scene/boundary/detail/BoundaryRuntimeState.hpp"
 #include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
+#include "app/scene/boundary/detail/BoundaryBranchSeatState.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "core/Managed.hpp"
 #include "core/StateTracker.hpp"
@@ -50,6 +51,7 @@ namespace loka
               compositionState_(),
               observedState_(),
               parkedBranches_(),
+              branchSeats_(),
               retiredSubtreesHead_(0),
               retiredSubtreesTail_(0),
               retiredGenerations_(),
@@ -344,6 +346,21 @@ namespace loka
         {
           observedState_.registerState(this, state, flags, &BoundaryNode::ObservedStateChangedThunk);
         }
+        void registerBranchSeatConditionSources()
+        {
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+          {
+            if (!plans[i].condition)
+            {
+              continue;
+            }
+            this->registerState(plans[i].condition);
+            this->registerObservedState(
+                plans[i].condition,
+                static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
+          }
+        }
         NodeDirtyFlags observedDirtyFlags() const
         {
           return observedState_.currentDirtyFlags();
@@ -357,6 +374,38 @@ namespace loka
         NodeArena *nodeArena()
         {
           return &nodeArena_;
+        }
+        const BoundaryBranchSeatPlanEntry *branchSeatPlan(NodeDefinitionBase *definition) const
+        {
+          if (!definition)
+          {
+            return 0;
+          }
+          IBranchSeatDefinition *seat = definition->asBranchSeatDefinition();
+          if (!seat)
+          {
+            return 0;
+          }
+          return this->branchSeats_.findPlan(
+              BoundaryParkedBranchKey(definition->nodeTag(),
+                                      definition->compositionSeatSlot(),
+                                      seat->branchSeatTypeId()));
+        }
+        void registerMaterializedBranchSeat(const BoundaryBranchSeatPlanEntry &plan,
+                                            Node *parent,
+                                            Node *active,
+                                            bool condition)
+        {
+          this->branchSeats_.registerRuntime(plan, parent, active, condition);
+        }
+        void appendNestedBranchSeatPlan(NodeComposition &composition)
+        {
+          composition.assignCompositionSeatSlots();
+          this->branchSeats_.append(composition.root());
+        }
+        bool evaluateBranchSeatsForScheduledApply(ComponentContext &context)
+        {
+          return this->applyCurrentBranchSeatPlan(context);
         }
         /** Reclaims the queue snapshot owned by this Boundary at the head of
             the next tracker run. Retirees added while draining wait for a
@@ -488,9 +537,19 @@ namespace loka
                boundary: its runtime children come from attach compose, not
                from the definition) has exactly one retained seat — the root
                itself. The live node being nestable is expected there. */
-            liveNode = liveRoot;
             definition = currentRoot;
-            return true;
+            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
+            if (seatPlan)
+            {
+              const BoundaryBranchSeatRuntimeEntry *runtime =
+                  this->branchSeats_.findRuntime(seatPlan->key);
+              liveNode = runtime ? runtime->active : 0;
+            }
+            else
+            {
+              liveNode = liveRoot;
+            }
+            return liveNode != 0;
           }
           if (!liveNestable)
           {
@@ -499,25 +558,50 @@ namespace loka
 
           if (entry.tag != NODE_TAG_NONE)
           {
-            liveNode = this->findCompositionChildByTag(entry.tag);
             definition = this->findCurrentCompositionDefinitionByTag(entry.tag);
+          }
+          else
+          {
+            int slot = 0;
+            NodeDefinitionBase *currentChild = currentNestable->childrenHead();
+            while (slot < entry.currentIndex)
+            {
+              currentChild = currentChild ? currentChild->nextInComposition : 0;
+              ++slot;
+            }
+            definition = currentChild;
+          }
+          if (!definition)
+          {
+            return false;
+          }
+
+          const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
+          if (seatPlan)
+          {
+            const BoundaryBranchSeatRuntimeEntry *runtime =
+                this->branchSeats_.findRuntime(seatPlan->key);
+            liveNode = runtime ? runtime->active : 0;
+            return liveNode != 0;
+          }
+
+          if (entry.tag != NODE_TAG_NONE)
+          {
+            liveNode = this->findCompositionChildByTag(entry.tag);
           }
           else
           {
             int slot = 0;
             loka::dsl::CompositionCursor<Node> liveIt(
                 liveNestable->childrenHead(), liveNestable->childrenCount());
-            NodeDefinitionBase *currentChild = currentNestable->childrenHead();
             while (slot < entry.currentIndex)
             {
               liveIt.next();
-              currentChild = currentChild ? currentChild->nextInComposition : 0;
               ++slot;
             }
             liveNode = liveIt.next();
-            definition = currentChild;
           }
-          return liveNode && definition;
+          return liveNode != 0;
         }
         bool applyRetainFastPathDefinitions()
         {
@@ -534,6 +618,13 @@ namespace loka
             if (!this->resolveRetainedDiffEntry(*entry, liveNode, definition))
             {
               return false;
+            }
+            if (definition->asBranchSeatDefinition())
+            {
+              // The seat was applied from the definition-side plan before the
+              // composition diff. Its live node is the active branch, not a
+              // runtime representation of the seat.
+              continue;
             }
             const bool applied = entry->equivalentProps
                                      ? definition->repointRetainedNodeDefinition(liveNode)
@@ -571,6 +662,22 @@ namespace loka
           if (!liveRoot || !currentRoot)
           {
             return false;
+          }
+          const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(currentRoot);
+          if (seatPlan)
+          {
+            if (!this->applyBranchSeat(context, currentRoot, false))
+            {
+              return false;
+            }
+            BoundaryBranchSeatRuntimeEntry *runtime =
+                this->branchSeats_.findRuntime(seatPlan->key);
+            if (!runtime || !runtime->active)
+            {
+              return false;
+            }
+            retainedChildren.push_back(runtime->active);
+            return true;
           }
           if (compositionRootNestable() || currentRoot->asNestableDefinition())
           {
@@ -648,6 +755,12 @@ namespace loka
         }
 
       protected:
+        virtual void evaluateChildrenForScheduledApply(ComponentContext &context,
+                                                       BoundaryNode *)
+        {
+          this->applyCurrentBranchSeatPlan(context);
+        }
+
         enum LocalRecomposeMode
         {
           LOCAL_RECOMPOSE_APPLY_SNAPSHOT = 0,
@@ -673,6 +786,10 @@ namespace loka
             this->declareLocalRecomposition(composition);
           }
           this->captureCurrentCompositionSnapshot();
+          if (!this->applyCurrentBranchSeatPlan(context))
+          {
+            return false;
+          }
           this->rebuildCurrentCompositionDiff();
 
           if (mode == LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS)
@@ -781,8 +898,13 @@ namespace loka
           NodeDefinitionBase *definition = currentRoot.childrenHead();
           while (definition)
           {
-            Node *existing = findCompositionChildByTag(definition->nodeTag());
-            if (!existing && definition->nodeTag() == NODE_TAG_NONE &&
+            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
+            BoundaryBranchSeatRuntimeEntry *seatRuntime =
+                seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
+            Node *existing = seatPlan
+                                 ? (seatRuntime ? seatRuntime->active : 0)
+                                 : findCompositionChildByTag(definition->nodeTag());
+            if (!seatPlan && !existing && definition->nodeTag() == NODE_TAG_NONE &&
                 diff && !diff->fullRebuild && diff->entryCount() == 1 && singleEntry &&
                 singleEntry->action == NodeCompositionDiff::ACTION_RETAIN &&
                 singleEntry->compatibleType && singleEntry->previousIndex == 0 &&
@@ -791,7 +913,7 @@ namespace loka
               INestable *root = compositionRootNestable();
               existing = root && root->childrenCount() == 1 ? root->childrenHead() : 0;
             }
-            if (existing && definition->isCompatibleWithNode(existing))
+            if (existing && (seatPlan || definition->isCompatibleWithNode(existing)))
             {
               plan.entries.push_back(
                   BoundaryLocalRebuildPlanEntry::retain(existing, definition, definition->nodeTag()));
@@ -843,6 +965,27 @@ namespace loka
                                    BoundaryLocalRebuildPlan &plan,
                                    std::vector<Node *> &retainedChildren)
         {
+          for (size_t i = 0; i < plan.entries.size(); ++i)
+          {
+            BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+            if (entry.action != BoundaryLocalRebuildPlanEntry::ACTION_RETAIN ||
+                !entry.definition || !entry.definition->asBranchSeatDefinition())
+            {
+              continue;
+            }
+            if (!this->applyBranchSeat(context, entry.definition, false))
+            {
+              return false;
+            }
+            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(entry.definition);
+            BoundaryBranchSeatRuntimeEntry *runtime =
+                seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
+            if (!runtime || !runtime->active)
+            {
+              return false;
+            }
+            entry.node = runtime->active;
+          }
           std::vector<Node *> detachedChildren;
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
@@ -854,7 +997,9 @@ namespace loka
             if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN)
             {
               NodeDefinitionBase *retainedDefinition = plan.entries[i].definition;
-              if (!retainedDefinition || !retainedDefinition->applyPropsToNode(plan.entries[i].node))
+              if (!retainedDefinition ||
+                  (!retainedDefinition->asBranchSeatDefinition() &&
+                   !retainedDefinition->applyPropsToNode(plan.entries[i].node)))
               {
                 return false;
               }
@@ -902,8 +1047,11 @@ namespace loka
           size_t slot = 0;
           while (definition)
           {
-            Node *existing = 0;
-            if (definition->nodeTag() != NODE_TAG_NONE)
+            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
+            BoundaryBranchSeatRuntimeEntry *seatRuntime =
+                seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
+            Node *existing = seatRuntime ? seatRuntime->active : 0;
+            if (!seatPlan && !existing && definition->nodeTag() != NODE_TAG_NONE)
             {
               for (size_t i = 0; i < liveChildren.size(); ++i)
               {
@@ -914,13 +1062,13 @@ namespace loka
                 }
               }
             }
-            else if (slot < liveChildren.size() &&
+            else if (!seatPlan && !existing && slot < liveChildren.size() &&
                      liveChildren[slot] && liveChildren[slot]->nodeTag() == NODE_TAG_NONE)
             {
               existing = liveChildren[slot];
             }
 
-            if (existing && definition->isCompatibleWithNode(existing))
+            if (existing && (seatPlan || definition->isCompatibleWithNode(existing)))
             {
               plan.entries.push_back(
                   BoundaryLocalRebuildPlanEntry::retain(existing, definition, definition->nodeTag()));
@@ -968,13 +1116,17 @@ namespace loka
                                    Node *node,
                                    NodeDefinitionBase *definition)
         {
-          if (!node || !definition || !definition->applyPropsToNode(node))
+          if (!node || !definition)
           {
             return false;
           }
-          if (node->reconcileForScheduledBranchReentry(context, this))
+          if (definition->asBranchSeatDefinition())
           {
-            return true;
+            return this->applyBranchSeat(context, definition, true);
+          }
+          if (!definition->applyPropsToNode(node))
+          {
+            return false;
           }
           if (node->asComposable())
           {
@@ -1008,6 +1160,241 @@ namespace loka
             }
           }
           return true;
+        }
+
+        bool createCurrentBranch(ComponentContext &context,
+                                 const BoundaryBranchSeatPlanEntry &plan,
+                                 bool condition,
+                                 Node *parent,
+                                 Node *&created)
+        {
+          created = 0;
+          NodeDefinitionBase *definition = plan.branch(condition).definition;
+          if (!definition)
+          {
+            return true;
+          }
+          NodeComposition composition;
+          composition.setContext(&context);
+          created = composition.createNodeFromDefinition(definition);
+          return created != 0;
+        }
+
+        void retireSeatBranch(ComponentContext &context,
+                              const BoundaryParkedBranchKey &key,
+                              bool condition,
+                              Node *branch)
+        {
+          if (!branch)
+          {
+            return;
+          }
+          this->branchSeats_.eraseOwnedBranch(key, condition);
+          this->composeTree(branch, context, COMPOSE_EVENT_DETACH, this);
+          this->retireDetachedNode(context, branch);
+        }
+
+        bool replaceSeatBranch(ComponentContext &context,
+                               const BoundaryBranchSeatPlanEntry &plan,
+                               BoundaryBranchSeatRuntimeEntry &runtime,
+                               bool nextCondition,
+                               bool parkOutgoing)
+        {
+          const BoundaryParkedBranchKey runtimeKey = runtime.key;
+          Node *runtimeParent = runtime.parent;
+          Node *outgoing = runtime.active;
+          const bool outgoingCondition = runtime.activeCondition;
+          Node *incoming = this->takeParkedBranch(plan.key, nextCondition);
+          NodeDefinitionBase *definition = plan.branch(nextCondition).definition;
+          if (incoming &&
+              (!definition || !definition->isCompatibleWithNode(incoming) ||
+               !this->reconcileParkedBranch(context, incoming, definition)))
+          {
+            this->retireSeatBranch(context, plan.key, nextCondition, incoming);
+            incoming = 0;
+          }
+          if (!incoming && !this->createCurrentBranch(context,
+                                                      plan,
+                                                      nextCondition,
+                                                      runtimeParent,
+                                                      incoming))
+          {
+            return false;
+          }
+          if (!incoming)
+          {
+            return false;
+          }
+
+          INestable *parent = runtimeParent ? runtimeParent->asNestable() : 0;
+          if (!parent || !parent->replaceChild(outgoing, incoming))
+          {
+            return false;
+          }
+
+          if (outgoing)
+          {
+            if (parkOutgoing)
+            {
+              NotifySubtreeNodeDetached(outgoing);
+              this->parkBranch(plan.key, outgoing, outgoingCondition);
+            }
+            else
+            {
+              this->retireSeatBranch(context,
+                                     plan.key,
+                                     outgoingCondition,
+                                     outgoing);
+            }
+          }
+          BoundaryBranchSeatRuntimeEntry *committedRuntime =
+              this->branchSeats_.findRuntime(runtimeKey);
+          assert(committedRuntime &&
+                 "replacing a branch must preserve its definition-side seat mapping");
+          if (!committedRuntime)
+          {
+            return false;
+          }
+          committedRuntime->active = incoming;
+          committedRuntime->activeCondition = nextCondition;
+          committedRuntime->appliedGeneration = this->branchSeats_.generation();
+          incoming->markPendingAttachForCompose();
+          return true;
+        }
+
+        bool applyBranchSeat(ComponentContext &context,
+                             NodeDefinitionBase *definition,
+                             bool allowDetached)
+        {
+          const BoundaryBranchSeatPlanEntry *plan = this->branchSeatPlan(definition);
+          if (!plan || !plan->condition)
+          {
+            return false;
+          }
+          BoundaryBranchSeatRuntimeEntry *runtime = this->branchSeats_.findRuntime(plan->key);
+          if (!runtime || !runtime->active)
+          {
+            return false;
+          }
+          if (!allowDetached && !this->branchSeats_.isLive(*runtime))
+          {
+            return true;
+          }
+
+          const bool condition = plan->condition->get();
+          if (condition != runtime->activeCondition)
+          {
+            const bool parkOutgoing =
+                !plan->branch(runtime->activeCondition).policies.destroyOnDetach;
+            return this->replaceSeatBranch(context,
+                                           *plan,
+                                           *runtime,
+                                           condition,
+                                           parkOutgoing);
+          }
+
+          if (runtime->appliedGeneration == this->branchSeats_.generation())
+          {
+            return true;
+          }
+          NodeDefinitionBase *branchDefinition = plan->branch(condition).definition;
+          const bool mayDeliver =
+              allowDetached || this->branchSeats_.isLive(*runtime) ||
+              plan->branch(condition).policies.deliverWhileDetached;
+          if (!mayDeliver)
+          {
+            return true;
+          }
+          if (branchDefinition &&
+              this->reconcileParkedBranch(context, runtime->active, branchDefinition))
+          {
+            runtime->appliedGeneration = this->branchSeats_.generation();
+            return true;
+          }
+          return this->replaceSeatBranch(context,
+                                         *plan,
+                                         *runtime,
+                                         condition,
+                                         false);
+        }
+
+        bool applyCurrentBranchSeatPlan(ComponentContext &context)
+        {
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+          {
+            BoundaryBranchSeatRuntimeEntry *runtime = this->branchSeats_.findRuntime(plans[i].key);
+            if (!runtime || !this->branchSeats_.isLive(*runtime))
+            {
+              continue;
+            }
+            NodeDefinitionBase *definition = this->findBranchSeatDefinition(plans[i].key);
+            if (!definition || !this->applyBranchSeat(context, definition, false))
+            {
+              return false;
+            }
+          }
+          for (unsigned i = 0; BoundaryParkedBranchLedger::Entry *parked = this->parkedBranches_.entry(i); ++i)
+          {
+            BoundaryBranchSeatPlanEntry *plan = this->branchSeats_.findPlan(parked->key);
+            if (!plan || !plan->branch(parked->condition).policies.deliverWhileDetached)
+            {
+              continue;
+            }
+            NodeDefinitionBase *branchDefinition = plan->branch(parked->condition).definition;
+            if (branchDefinition &&
+                !this->reconcileParkedBranch(context, parked->branch, branchDefinition))
+            {
+              return false;
+            }
+          }
+          return true;
+        }
+
+        NodeDefinitionBase *findBranchSeatDefinition(const BoundaryParkedBranchKey &key) const
+        {
+          return this->findBranchSeatDefinitionRecursive(this->currentCompositionRootDefinition(), key);
+        }
+
+        NodeDefinitionBase *findBranchSeatDefinitionRecursive(NodeDefinitionBase *definition,
+                                                              const BoundaryParkedBranchKey &key) const
+        {
+          if (!definition)
+          {
+            return 0;
+          }
+          IBranchSeatDefinition *seat = definition->asBranchSeatDefinition();
+          if (seat)
+          {
+            BoundaryParkedBranchKey candidate(definition->nodeTag(),
+                                              definition->compositionSeatSlot(),
+                                              seat->branchSeatTypeId());
+            if (candidate.matches(key))
+            {
+              return definition;
+            }
+            NodeDefinitionBase *found =
+                this->findBranchSeatDefinitionRecursive(seat->branchDefinition(false), key);
+            return found ? found
+                         : this->findBranchSeatDefinitionRecursive(seat->branchDefinition(true), key);
+          }
+          IBranchPolicyScopeDefinition *scope = definition->asBranchPolicyScopeDefinition();
+          if (scope)
+          {
+            return this->findBranchSeatDefinitionRecursive(scope->scopedBranchDefinition(), key);
+          }
+          INestableDefinition *nestable = definition->asNestableDefinition();
+          for (NodeDefinitionBase *child = nestable ? nestable->childrenHead() : 0;
+               child;
+               child = child->nextInComposition)
+          {
+            NodeDefinitionBase *found = this->findBranchSeatDefinitionRecursive(child, key);
+            if (found)
+            {
+              return found;
+            }
+          }
+          return 0;
         }
 
         virtual void adoptState(loka::core::StateBase *state)
@@ -1109,6 +1496,7 @@ namespace loka
             if (event != COMPOSE_EVENT_DETACH)
             {
               boundary->beginObservedStatePass();
+              boundary->registerBranchSeatConditionSources();
             }
             nextBoundary = boundary;
           }
@@ -1246,6 +1634,8 @@ namespace loka
         void captureCurrentCompositionSnapshot()
         {
           this->composition().assignCompositionSeatSlots();
+          this->branchSeats_.capture(this->composition().root());
+          this->registerBranchSeatConditionSources();
           compositionState_.captureCurrentSnapshot(this->composition());
         }
 
@@ -1329,13 +1719,13 @@ namespace loka
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();
 
-        void parkBranch(const BoundaryParkedBranchKey &key, Node *branch)
+        void parkBranch(const BoundaryParkedBranchKey &key, Node *branch, bool condition)
         {
-          this->parkedBranches_.park(key, branch);
+          this->parkedBranches_.park(key, branch, condition);
         }
-        Node *takeParkedBranch(const BoundaryParkedBranchKey &key)
+        Node *takeParkedBranch(const BoundaryParkedBranchKey &key, bool condition)
         {
-          return this->parkedBranches_.take(key);
+          return this->parkedBranches_.take(key, condition);
         }
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
@@ -1345,6 +1735,7 @@ namespace loka
         BoundaryCompositionState compositionState_;
         BoundaryObservedState observedState_;
         BoundaryParkedBranchLedger parkedBranches_;
+        BoundaryBranchSeatState branchSeats_;
         NodeArena nodeArena_;
         StateArena stateArena_;
         Node *retiredSubtreesHead_;
@@ -1352,7 +1743,6 @@ namespace loka
         std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;
         bool drainingRetiredSubtrees_;
 
-        friend class ConditionalNode;
       };
 
       template <class PropsT, class NodeT> struct BoundaryDefinition : public NodeDefinition<PropsT, NodeT>

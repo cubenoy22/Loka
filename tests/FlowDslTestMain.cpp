@@ -98,10 +98,6 @@ int main()
   LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);
   LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
   LOKA_RUN_TEST(testRootDetachChildWalkRetainsBoundaryStateOwner);
-  LOKA_RUN_TEST(testRetiredConditionalIgnoresConditionWrite);
-  LOKA_RUN_TEST(testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach);
-  LOKA_RUN_TEST(testConditionalSwapUnderHiddenAncestorStaysSilent);
-  LOKA_RUN_TEST(testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach);
   LOKA_RUN_TEST(testRootUpdateFallbackDestroysRetiredArenaNodeOnNextTrackerRun);
   LOKA_RUN_TEST(testRootUpdateFallbackReservesFreshArenaGeneration);
   LOKA_RUN_TEST(testRetiredGenerationSubsumesQueuedArenaSubtreeExactlyOnce);
@@ -194,6 +190,12 @@ int main()
   LOKA_RUN_TEST(testNestedConditionalSeatRepointsDefinitionsAtOuterReentry);
   LOKA_RUN_TEST(testShowDslParkedBranchIsCurrentAtReentry);
   LOKA_RUN_TEST(testStdCompositionBoundaryShowFlipPreservesSiblings);
+  LOKA_RUN_TEST(testPolicyScopeIsDefinitionOnlyAndPreservesContentNativeHint);
+  LOKA_RUN_TEST(testPolicyScopeRejectsNonBranchRootPlacement);
+  LOKA_RUN_TEST(testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary);
+  LOKA_RUN_TEST(testPolicyScopeDeliverWhileDetachedContrastsWithDefaultInRecomposingBoundary);
+  LOKA_RUN_TEST(testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary);
+  LOKA_RUN_TEST(testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary);
   LOKA_RUN_TEST(testDepth2NestedConditionalSeatRepointsDefinitionsAtOuterReentry);
   LOKA_RUN_TEST(testFullRebuildSubsumesParkedBranchLedgerGeneration);
   LOKA_RUN_TEST(testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry);

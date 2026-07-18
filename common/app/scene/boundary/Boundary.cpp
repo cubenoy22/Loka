@@ -25,6 +25,7 @@ namespace loka
           }
           this->retireSubtree(branch);
         }
+        this->branchSeats_.clearRuntime();
 
         Node *keptHead = 0;
         Node *keptTail = 0;

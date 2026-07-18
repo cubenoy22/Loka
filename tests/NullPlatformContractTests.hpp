@@ -38,6 +38,12 @@ void testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown();
 void testNullPlatformContract_G4_retireBeforeContextAttachIsSilent();
 void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete();
 void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun();
+void testStdCompositionBoundaryShowFlipPreservesSiblings();
+void testPolicyScopeIsDefinitionOnlyAndPreservesContentNativeHint();
+void testPolicyScopeRejectsNonBranchRootPlacement();
+void testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary();
+void testPolicyScopeDeliverWhileDetachedContrastsWithDefaultInRecomposingBoundary();
+void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary();
+void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary();
 
 #endif // LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
-void testStdCompositionBoundaryShowFlipPreservesSiblings();

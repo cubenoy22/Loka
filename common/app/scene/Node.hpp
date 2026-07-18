@@ -141,6 +141,7 @@ namespace loka
       struct INestable;
       class IPlatformController;
       class Node; // forward declaration for NodeContext owner
+      struct NodeDefinitionBase;
       struct IProjectedLayoutNode;
       class ComposableNode;
       class BoundaryNode;
@@ -577,10 +578,6 @@ namespace loka
           return false;
         }
 
-#if defined(TEST_BUILD)
-        static void EvaluateChildrenForScheduledApplySubtree(Node *node);
-#endif
-
         /** The single door. Same-value writes are silent (including R->R);
             RETIRED is terminal, so R->A / R->D assert. The three writers are
             the compose door (composeTree ATTACH), the walk door
@@ -608,7 +605,6 @@ namespace loka
 
         friend class BoundaryNode;
         friend class Scene;
-        friend class ConditionalNode;
         friend void NotifySubtreeNodeDetached(Node *node);
         friend void NotifySubtreeNodeAttached(Node *node);
         // Test backdoor (SceneTestAccess precedent): unit pins drive the
@@ -684,6 +680,40 @@ namespace loka
 
       // Forward declaration
       struct INestableDefinition;
+      struct IBranchSeatDefinition;
+      struct IBranchPolicyScopeDefinition;
+
+      /** Seat-local lifecycle/diff policy values folded from definition-only
+          branch annotations. */
+      struct BranchPolicies
+      {
+        BranchPolicies(bool destroy = false, bool deliver = false)
+            : destroyOnDetach(destroy),
+              deliverWhileDetached(deliver)
+        {
+        }
+
+        bool destroyOnDetach;
+        bool deliverWhileDetached;
+      };
+
+      /** Definition-side description of a conditional branch seat. */
+      struct IBranchSeatDefinition
+      {
+        virtual ~IBranchSeatDefinition() {}
+        virtual loka::core::State<bool> *branchCondition() const = 0;
+        virtual NodeDefinitionBase *branchDefinition(bool condition) const = 0;
+        virtual const void *branchSeatTypeId() const = 0;
+      };
+
+      /** Definition-only branch-root annotation. It is consumed while the
+          boundary builds its seat plan and never enters the runtime tree. */
+      struct IBranchPolicyScopeDefinition
+      {
+        virtual ~IBranchPolicyScopeDefinition() {}
+        virtual BranchPolicies branchPolicies() const = 0;
+        virtual NodeDefinitionBase *scopedBranchDefinition() const = 0;
+      };
 
       template <typename NodeT, typename PropsT> struct NodePropsApplier
       {
@@ -772,6 +802,14 @@ namespace loka
           return false;
         }
         virtual INestableDefinition *asNestableDefinition()
+        {
+          return 0;
+        }
+        virtual IBranchSeatDefinition *asBranchSeatDefinition()
+        {
+          return 0;
+        }
+        virtual IBranchPolicyScopeDefinition *asBranchPolicyScopeDefinition()
         {
           return 0;
         }

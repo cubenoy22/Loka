@@ -34,11 +34,24 @@ namespace loka
       struct INestable;
 
       // Pass 1: Calculate total size needed for all nodes
-      static size_t calculateTotalNodeSize(NodeDefinitionBase *def)
+      static size_t calculateTotalNodeSize(NodeDefinitionBase *def, BoundaryNode *boundary)
       {
         if (!def)
         {
           return 0;
+        }
+        assert(!def->asBranchPolicyScopeDefinition() &&
+               "PolicyScope is legal only as the immediate branch root of a conditional seat");
+        IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
+        if (seat)
+        {
+          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
+          assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
+          if (!plan || !plan->condition)
+          {
+            return 0;
+          }
+          return calculateTotalNodeSize(plan->branch(plan->condition->get()).definition, boundary);
         }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         // Add size with alignment padding (worst case)
@@ -50,7 +63,7 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            total += calculateTotalNodeSize(child);
+            total += calculateTotalNodeSize(child, boundary);
             child = child->nextInComposition;
           }
         }
@@ -82,11 +95,42 @@ namespace loka
         }
       }
 
-      static Node *createNodeWithArena(NodeDefinitionBase *def, NodeArena *arena, long &autoIdCounter)
+      static Node *createNodeWithArena(NodeDefinitionBase *def,
+                                       NodeArena *arena,
+                                       long &autoIdCounter,
+                                       BoundaryNode *boundary,
+                                       Node *runtimeParent)
       {
         if (!def)
         {
           return 0;
+        }
+
+        assert(!def->asBranchPolicyScopeDefinition() &&
+               "PolicyScope is legal only as the immediate branch root of a conditional seat");
+        IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
+        if (seat)
+        {
+          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
+          assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
+          if (!plan || !plan->condition)
+          {
+            return 0;
+          }
+          const bool condition = plan->condition->get();
+          Node *active = createNodeWithArena(plan->branch(condition).definition,
+                                             arena,
+                                             autoIdCounter,
+                                             boundary,
+                                             runtimeParent);
+          if (active)
+          {
+            boundary->registerMaterializedBranchSeat(*plan,
+                                                     runtimeParent,
+                                                     active,
+                                                     condition);
+          }
+          return active;
         }
 
         // Allocate from arena
@@ -114,7 +158,11 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            Node *childNode = createNodeWithArena(child, arena, autoIdCounter);
+            Node *childNode = createNodeWithArena(child,
+                                                  arena,
+                                                  autoIdCounter,
+                                                  boundary,
+                                                  node);
             if (childNode)
             {
               nestableNode->addChild(childNode);
@@ -127,11 +175,40 @@ namespace loka
       }
 
       // Fallback: create without arena
-      static Node *createNodeRecursive(NodeDefinitionBase *def, long &autoIdCounter)
+      static Node *createNodeRecursive(NodeDefinitionBase *def,
+                                       long &autoIdCounter,
+                                       BoundaryNode *boundary,
+                                       Node *runtimeParent)
       {
         if (!def)
         {
           return 0;
+        }
+
+        assert(!def->asBranchPolicyScopeDefinition() &&
+               "PolicyScope is legal only as the immediate branch root of a conditional seat");
+        IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
+        if (seat)
+        {
+          const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
+          assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
+          if (!plan || !plan->condition)
+          {
+            return 0;
+          }
+          const bool condition = plan->condition->get();
+          Node *active = createNodeRecursive(plan->branch(condition).definition,
+                                             autoIdCounter,
+                                             boundary,
+                                             runtimeParent);
+          if (active)
+          {
+            boundary->registerMaterializedBranchSeat(*plan,
+                                                     runtimeParent,
+                                                     active,
+                                                     condition);
+          }
+          return active;
         }
 
         Node *node = def->create();
@@ -145,7 +222,10 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            Node *childNode = createNodeRecursive(child, autoIdCounter);
+            Node *childNode = createNodeRecursive(child,
+                                                  autoIdCounter,
+                                                  boundary,
+                                                  node);
             if (childNode)
             {
               nestableNode->addChild(childNode);
@@ -212,17 +292,18 @@ namespace loka
             if (!arena->hasCapacity())
             {
               // Calculate total size and reserve
-              size_t totalSize = calculateTotalNodeSize(root);
+              size_t totalSize = calculateTotalNodeSize(root, bnd);
               arena->reserve(totalSize);
             }
             long autoIdCounter = 1;
-            return createNodeWithArena(root, arena, autoIdCounter);
+            return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd);
           }
         }
 
         // Fallback without arena
         long autoIdCounter = 1;
-        return createNodeRecursive(root, autoIdCounter);
+        BoundaryNode *boundary = context_ ? context_->boundary() : 0;
+        return createNodeRecursive(root, autoIdCounter, boundary, boundary);
       }
 
       BoundaryNode *NodeComposition::boundary() const

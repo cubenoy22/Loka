@@ -735,6 +735,10 @@ namespace loka
           else
           {
             prepareRootBoundaryCompose(boundary, rootContext, event);
+            if (event == COMPOSE_EVENT_UPDATE)
+            {
+              boundary->evaluateBranchSeatsForScheduledApply(rootContext);
+            }
             boundary->compose(rootContext, event);
             completeRootBoundaryCompose(boundary);
           }
@@ -804,6 +808,7 @@ namespace loka
           if (event != COMPOSE_EVENT_DETACH)
           {
             boundary->beginObservedStatePass();
+            boundary->registerBranchSeatConditionSources();
           }
           boundary->beginComposeResult(event, rootContext.dirtyFlags());
         }
