@@ -482,15 +482,19 @@ namespace loka
 
           INestable *liveNestable = liveRoot->asNestable();
           INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
-          if (!liveNestable || !currentNestable)
+          if (!currentNestable)
           {
-            if (liveNestable || currentNestable)
-            {
-              return false;
-            }
+            /* A definition without materialized children (a compose-once
+               boundary: its runtime children come from attach compose, not
+               from the definition) has exactly one retained seat — the root
+               itself. The live node being nestable is expected there. */
             liveNode = liveRoot;
             definition = currentRoot;
             return true;
+          }
+          if (!liveNestable)
+          {
+            return false;
           }
 
           if (entry.tag != NODE_TAG_NONE)

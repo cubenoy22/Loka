@@ -40,3 +40,4 @@ void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete();
 void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun();
 
 #endif // LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
+void testStdCompositionBoundaryShowFlipPreservesSiblings();

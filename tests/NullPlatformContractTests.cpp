@@ -2908,3 +2908,93 @@ void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun()
   assert(platform.ledger()[0].visible);
   g_toggleVisible = 0;
 }
+
+namespace
+{
+  class StdCompositionShowShapeTypeTag
+  {
+  };
+  class StdCompositionShowShapeBoundaryNode;
+  struct StdCompositionShowShapeProps
+      : public loka::app::scene::NodePropsBase<StdCompositionShowShapeProps>
+  {
+    typedef StdCompositionShowShapeTypeTag TypeTag;
+    typedef StdCompositionShowShapeBoundaryNode NodeType;
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+  StdCompositionShowShapeBoundaryNode *g_stdCompositionShowShapeNode = 0;
+  /** Mirrors the SimpleViewer shape: a compose-once StdComposition boundary
+      whose Show condition is a boundary-owned NodeState — the door must fire
+      from the condition dirty alone, with no recomposition of the boundary. */
+  class StdCompositionShowShapeBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<StdCompositionShowShapeProps>
+  {
+  public:
+    explicit StdCompositionShowShapeBoundaryNode(const StdCompositionShowShapeProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<StdCompositionShowShapeProps>(props),
+          dialogShown_()
+    {
+      this->state(this->dialogShown_, false);
+      g_stdCompositionShowShapeNode = this;
+    }
+    virtual ~StdCompositionShowShapeBoundaryNode()
+    {
+      if (g_stdCompositionShowShapeNode == this)
+      {
+        g_stdCompositionShowShapeNode = 0;
+      }
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      loka::app::ButtonDefinition open("open");
+      loka::app::EditTextDefinition dialog;
+      loka::app::ShowDefinition shown = loka::app::Show(*this->dialogShown_.state());
+      shown << dialog;
+      loka::app::FragmentDefinition root;
+      root << open << shown;
+      c.declare(root);
+    }
+    void openDialog()
+    {
+      this->dialogShown_.set(true, true);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> dialogShown_;
+  };
+} // namespace
+
+void testStdCompositionBoundaryShowFlipPreservesSiblings()
+{
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<StdCompositionShowShapeProps,
+                                   StdCompositionShowShapeBoundaryNode> *root =
+      new loka::app::scene::NodeDefinition<StdCompositionShowShapeProps,
+                                           StdCompositionShowShapeBoundaryNode>(
+          StdCompositionShowShapeProps());
+  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
+  mountAndAttach(scene, platform);
+  const NullScenePlatformController::LedgerRow *button =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  assert(button && button->visible);
+  assert(!platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
+  assert(g_stdCompositionShowShapeNode);
+
+  g_stdCompositionShowShapeNode->openDialog();
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+
+  button = platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  const NullScenePlatformController::LedgerRow *dialog =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(button && button->visible &&
+         "siblings survive a Show flip inside a compose-once boundary");
+  assert(dialog && dialog->visible &&
+         "the shown branch materializes at the scheduled apply");
+  scene.unmount();
+}
