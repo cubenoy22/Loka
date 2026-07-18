@@ -311,12 +311,6 @@ namespace
     unsigned long hidden;
   };
 
-  void assertExpectedRedForT2(bool observableOutcome)
-  {
-    assert(!observableOutcome &&
-           "expected-red contract pin turned green; T2 must promote this outcome assertion");
-  }
-
   void assertExpectedRedForT3(bool observableOutcome)
   {
     assert(!observableOutcome &&
@@ -1563,6 +1557,8 @@ void testConditionalSeatRepointsBranchDefinitionsAfterUnrelatedRecompose()
          "an unrelated recompose retains the Conditional seat and its native pair");
 
   condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
   assert(oldBranchRecord.constructionCount == 0 &&
          "the retained seat no longer reads the previous arena's branch definition");
   assert(currentBranchRecord.constructionCount == 1 &&
@@ -1626,12 +1622,11 @@ void testNullPlatformContract_H3_conditionFlipIsReflectedAtNextScheduledApply()
       (!buttonAfterWrite || buttonAfterWrite->visible == buttonVisibleBefore) &&
       (!editTextAfterWrite || editTextAfterWrite->visible == editTextVisibleBefore);
 
-  // Expected RED: T2 promotes this pin when a condition write remains
-  // unobservable until the next scheduled apply.
-  assertExpectedRedForT2(probeFactsStayedUnchanged &&
-                         nativeContextCallsStayedEqual &&
-                         nativeEventLogStayedEqual &&
-                         nativeLedgerStayedEqual);
+  assert(probeFactsStayedUnchanged &&
+         nativeContextCallsStayedEqual &&
+         nativeEventLogStayedEqual &&
+         nativeLedgerStayedEqual &&
+         "a condition flip remains unobservable until the next scheduled apply");
 
   assert(scene.flushInvalidation());
   const NullScenePlatformController::LedgerRow *button =
@@ -1875,12 +1870,91 @@ void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()
   inputs.condition = &currentCondition;
   requestChildPump(scene);
 
-  // Conditional writes apply immediately today, so construction observes the
-  // definition source installed by the preceding per-tag apply.
   currentCondition.set(false);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
   assert(liveSourceRecord.constructionCount == 1 &&
          expiredSourceRecord.constructionCount == 0 &&
          "the tagged Conditional builds its branch from a live-arena definition");
+
+  scene.unmount();
+}
+
+void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition()
+{
+  ParkedFactRecord activeRecord;
+  ParkedFactRecord parkedRecord;
+  loka::core::MutableState<bool> previousCondition(false);
+  loka::core::MutableState<bool> replacementCondition(false);
+  TaggedPropsApplyInputs inputs(&previousCondition);
+  ParkedFactDefinition activeProbe((ParkedFactProps(&activeRecord)));
+  loka::app::ButtonDefinition activeControl("replacement-condition-active");
+  loka::app::FragmentDefinition activeBranch;
+  activeBranch << activeProbe << activeControl;
+  ParkedFactDefinition parkedProbe((ParkedFactProps(&parkedRecord)));
+  loka::app::EditTextDefinition parkedControl;
+  loka::app::FragmentDefinition parkedBranch;
+  parkedBranch << parkedProbe << parkedControl;
+  TaggedPropsApplyConditionalDefinition conditional(
+      loka::app::scene::ConditionalProps(&previousCondition, &activeBranch, &parkedBranch),
+      &inputs);
+  conditional.setNodeTag(301);
+  loka::app::FragmentDefinition *root = new loka::app::FragmentDefinition();
+  (*root) << conditional;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
+  mountAndAttach(scene, platform);
+
+  assert(activeRecord.constructionCount == 0);
+  assert(parkedRecord.constructionCount == 1);
+  const int parkedConstructionsBefore = parkedRecord.constructionCount;
+  const std::size_t parkedTransitionsBefore = parkedRecord.transitions.size();
+  const NativeContextCallCounts callsBeforeRebind(platform);
+
+  inputs.condition = &replacementCondition;
+  requestChildPump(scene);
+
+  assert(parkedRecord.constructionCount == parkedConstructionsBefore &&
+         parkedRecord.transitions.size() == parkedTransitionsBefore &&
+         NativeContextCallCounts(platform) == callsBeforeRebind &&
+         "re-binding the retained seat preserves its active branch and native pairs");
+
+  previousCondition.set(true);
+  assert(!scene.hasPendingInvalidation());
+  assert(activeRecord.constructionCount == 0 &&
+         parkedRecord.transitions.size() == parkedTransitionsBefore &&
+         NativeContextCallCounts(platform) == callsBeforeRebind &&
+         "the previous condition no longer drives the retained seat");
+
+  replacementCondition.set(true);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  const NullScenePlatformController::LedgerRow *button =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  const NullScenePlatformController::LedgerRow *editText =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(activeRecord.constructionCount == 1);
+  assertParkedTransitionTable(parkedRecord);
+  assert(button && button->visible);
+  assert(editText && !editText->visible);
+
+  const int activeConstructionsBefore = activeRecord.constructionCount;
+  const std::size_t activeTransitionsBefore = activeRecord.transitions.size();
+  const NativeContextCallCounts callsBeforeSecondFlip(platform);
+  replacementCondition.set(false);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(activeRecord.constructionCount == activeConstructionsBefore &&
+           activeRecord.transitions.size() == activeTransitionsBefore &&
+           NativeContextCallCounts(platform) == callsBeforeSecondFlip);
+    assert(scene.flushInvalidation());
+  }
+  assert(button && !button->visible);
+  assert(editText && editText->visible);
 
   scene.unmount();
 }

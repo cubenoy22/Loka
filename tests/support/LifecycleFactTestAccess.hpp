@@ -15,6 +15,17 @@ namespace loka
           nowhere else) is pinned by the scene-based tests instead. */
       struct LifecycleFactTestAccess
       {
+        /** Runs the seat-evaluation portion of a compose walk on a bare live
+            tree before a unit pin drives apply-phase fact delivery. */
+        static void EvaluateConditionalSeats(Node *root)
+        {
+          if (!root)
+          {
+            return;
+          }
+          Node::EvaluateChildrenForScheduledApplySubtree(root);
+        }
+
         static void DeliverFacts(Node *root)
         {
           Node::DeliverLifecycleFactsSubtree(root);

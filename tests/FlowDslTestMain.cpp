@@ -98,7 +98,7 @@ int main()
   LOKA_RUN_TEST(testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce);
   LOKA_RUN_TEST(testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce);
   LOKA_RUN_TEST(testRootDetachChildWalkRetainsBoundaryStateOwner);
-  LOKA_RUN_TEST(testConditionalUnbindsBeforeReclaim);
+  LOKA_RUN_TEST(testRetiredConditionalIgnoresConditionWrite);
   LOKA_RUN_TEST(testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach);
   LOKA_RUN_TEST(testConditionalSwapUnderHiddenAncestorStaysSilent);
   LOKA_RUN_TEST(testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach);
@@ -122,6 +122,7 @@ int main()
   LOKA_RUN_TEST(testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce);
   LOKA_RUN_TEST(testRetiredBoundaryOwnedStateMutationIsQuiescent);
   LOKA_RUN_TEST(testSceneTeardownReleasesBothConditionalBranchContextsOnce);
+  LOKA_RUN_TEST(testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch);
   LOKA_RUN_TEST(testLokaValueCore);
   LOKA_RUN_TEST(testSnapFormatV1);
   LOKA_RUN_TEST(testSnapFlowWriteAdapter);
@@ -192,6 +193,7 @@ int main()
   LOKA_RUN_TEST(testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose);
   LOKA_RUN_TEST(testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose);
   LOKA_RUN_TEST(testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition);
+  LOKA_RUN_TEST(testNullPlatformContract_H9_retainedSeatUsesReplacementCondition);
   LOKA_RUN_TEST(testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush);
   LOKA_RUN_TEST(testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown);
   LOKA_RUN_TEST(testNullPlatformContract_G4_retireBeforeContextAttachIsSilent);

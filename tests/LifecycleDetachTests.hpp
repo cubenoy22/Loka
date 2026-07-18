@@ -6,7 +6,7 @@ void testSceneUpdateAttachedFalseNotifiesPlainNodeContextDetachedOnce();
 void testBoundaryLocalRebuildNotifiesCompositionDetachedOnce();
 void testSceneTeardownNotifiesBoundaryInternalNodeContextDetachedOnce();
 void testRootDetachChildWalkRetainsBoundaryStateOwner();
-void testConditionalUnbindsBeforeReclaim();
+void testRetiredConditionalIgnoresConditionWrite();
 void testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach();
 void testConditionalSwapUnderHiddenAncestorStaysSilent();
 void testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach();
@@ -30,5 +30,6 @@ void testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce();
 void testRetiredBoundaryOwnedStateMutationIsQuiescent();
 void testRetiredBoundaryIsQuiescentBeforeNextTrackerRun();
 void testSceneTeardownReleasesBothConditionalBranchContextsOnce();
+void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch();
 
 #endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP

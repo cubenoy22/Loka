@@ -58,22 +58,18 @@ namespace loka
                                         static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
           }
         }
-        static void onConditionChanged(void *userData);
-        void compose();
         void updateActiveNode();
         virtual Node *retainedLifecycleBranch(unsigned index);
         virtual const void *nodeTypeKey() const
         {
           return NodeTypeToken<ConditionalNode>();
         }
-        /** Re-points borrowed branch definitions for a retained seat and
-            differentially rebinds its condition source. */
+        /** Re-points borrowed branch definitions and the condition source for
+            a retained seat. */
         void applyRetainedProps(const ConditionalProps &nextProps);
 
       protected:
-        /** The condition must fall silent once this conditional is off the
-            tree for good — the successor to the compose-detach unbind. */
-        virtual void onLifecycleFactChanged(NodeLifecycleFact previous, NodeLifecycleFact next);
+        virtual void evaluateChildrenForScheduledApply();
 
       public:
         Node *ensureBranchNode(bool cond, bool &created);
@@ -82,14 +78,10 @@ namespace loka
         short layout(IPlatformController *controller, LayoutState &state);
 
       private:
-        void bindCondition();
-        void unbindCondition();
         bool retainedDetached() const
         {
           return this->lifecycleFact() == NODE_FACT_DETACHED_RETAINED;
         }
-
-        loka::core::State<bool> *boundCondition_;
       };
 
       struct ConditionalDefinition : public NodeDefinitionBase

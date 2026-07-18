@@ -76,16 +76,13 @@ namespace loka
             props(p),
             activeNode(0),
             trueNode_(0),
-            falseNode_(0),
-            boundCondition_(0)
+            falseNode_(0)
       {
-        this->bindCondition();
         updateActiveNode();
       }
 
       ConditionalNode::~ConditionalNode()
       {
-        this->unbindCondition();
         // Each node's own destructor is the last retire door (writes RETIRED
         // before releasing its context), so parked branches need no explicit
         // subtree mark here.
@@ -102,49 +99,7 @@ namespace loka
         activeNode = 0;
       }
 
-      void ConditionalNode::onLifecycleFactChanged(NodeLifecycleFact previous, NodeLifecycleFact next)
-      {
-        (void)previous;
-        if (next == NODE_FACT_RETIRED)
-        {
-          this->unbindCondition();
-        }
-      }
-
-      void ConditionalNode::bindCondition()
-      {
-        if (this->boundCondition_ == this->props.condition)
-        {
-          return;
-        }
-        this->unbindCondition();
-        if (this->props.condition)
-        {
-          this->props.condition->bind(&ConditionalNode::onConditionChanged, this, false);
-          this->boundCondition_ = this->props.condition;
-        }
-      }
-
-      void ConditionalNode::unbindCondition()
-      {
-        if (!this->boundCondition_)
-        {
-          return;
-        }
-        this->boundCondition_->unbind(&ConditionalNode::onConditionChanged, this);
-        this->boundCondition_ = 0;
-      }
-
-      void ConditionalNode::onConditionChanged(void *userData)
-      {
-        ConditionalNode *self = static_cast<ConditionalNode *>(userData);
-        if (self)
-        {
-          self->updateActiveNode();
-        }
-      }
-
-      void ConditionalNode::compose()
+      void ConditionalNode::evaluateChildrenForScheduledApply()
       {
         updateActiveNode();
       }
@@ -152,7 +107,6 @@ namespace loka
       void ConditionalNode::applyRetainedProps(const ConditionalProps &nextProps)
       {
         this->props = nextProps;
-        this->bindCondition();
       }
 
       Node *ConditionalNode::ensureBranchNode(bool cond, bool &created)
