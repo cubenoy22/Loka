@@ -30,6 +30,7 @@ void testNestedConditionalSeatRepointsDefinitionsAtOuterReentry();
 void testShowDslParkedBranchIsCurrentAtReentry();
 void testDepth2NestedConditionalSeatRepointsDefinitionsAtOuterReentry();
 void testFullRebuildSubsumesParkedBranchLedgerGeneration();
+void testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry();
 void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition();
 void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition();
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush();

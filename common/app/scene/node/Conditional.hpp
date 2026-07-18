@@ -86,6 +86,10 @@ namespace loka
         bool updateActiveNode(ComponentContext &context,
                               BoundaryNode *boundary,
                               bool reconcileCurrentBranch);
+        void retireDetachedBranchForReplacement(ComponentContext &context,
+                                                BoundaryNode *boundary,
+                                                Node *branch);
+        void attachActiveBranchForScheduledApply(bool reentered);
         NodeDefinitionBase *branchDefinition(bool cond) const;
         int compositionSeatSlot_;
         bool activeCondition_;

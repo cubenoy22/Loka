@@ -195,6 +195,45 @@ namespace loka
         }
       }
 
+      void ConditionalNode::retireDetachedBranchForReplacement(
+          ComponentContext &context,
+          BoundaryNode *boundary,
+          Node *branch)
+      {
+        if (!boundary || !branch)
+        {
+          return;
+        }
+        boundary->composeTree(branch, context, COMPOSE_EVENT_DETACH, boundary);
+        boundary->retireDetachedNode(context, branch);
+      }
+
+      void ConditionalNode::attachActiveBranchForScheduledApply(bool reentered)
+      {
+        if (!this->activeNode)
+        {
+          return;
+        }
+        this->activeNode->markPendingAttachForCompose();
+        this->addChild(this->activeNode);
+        if (this->retainedDetached())
+        {
+          // Adopted while an ancestor keeps this conditional hidden: the
+          // subtree inherits the detached-retained fact (born-hidden).
+          // The ancestor's re-attach walk restores ATTACHED for the
+          // then-active path.
+          Node::MarkSubtreeLifecycleFact(this->activeNode, NODE_FACT_DETACHED_RETAINED);
+        }
+        else if (reentered)
+        {
+          // Re-entry: the subtree kept its contexts across the retained
+          // detach; first entry is announced by setContext(). While an
+          // ancestor keeps this conditional hidden, swaps stay silent —
+          // the ancestor's re-attach walk shows the then-active path.
+          NotifySubtreeNodeAttached(this->activeNode);
+        }
+      }
+
       bool ConditionalNode::updateActiveNode(ComponentContext &context,
                                              BoundaryNode *boundary,
                                              bool reconcileCurrentBranch)
@@ -223,7 +262,13 @@ namespace loka
           {
             if (!boundary->reconcileParkedBranch(context, this->activeNode, definition))
             {
-              boundary->markViewDirty(NODE_DIRTY_CHILD);
+              Node *failedBranch = this->activeNode;
+              this->removeActiveNodeFromChildren();
+              this->activeNode = 0;
+              this->retireDetachedBranchForReplacement(context, boundary, failedBranch);
+              this->activeNode = this->createBranchNode(cond);
+              this->attachActiveBranchForScheduledApply(false);
+              return true;
             }
           }
           return false;
@@ -233,6 +278,12 @@ namespace loka
             BoundaryParkedBranchKey(this->nodeTag(),
                                     this->compositionSeatSlot_,
                                     ConditionalProps::staticTypeId()));
+        if (incoming &&
+            (!definition || !definition->isCompatibleWithNode(incoming)))
+        {
+          this->retireDetachedBranchForReplacement(context, boundary, incoming);
+          incoming = 0;
+        }
         Node *outgoing = this->activeNode;
         this->removeActiveNodeFromChildren();
         if (outgoing)
@@ -245,7 +296,7 @@ namespace loka
         }
 
         this->activeNode = incoming;
-        const bool reentered = this->activeNode != 0;
+        bool reentered = this->activeNode != 0;
         if (!this->activeNode)
         {
           this->activeNode = this->createBranchNode(cond);
@@ -258,28 +309,15 @@ namespace loka
           {
             if (!boundary->reconcileParkedBranch(context, this->activeNode, definition))
             {
-              boundary->markViewDirty(NODE_DIRTY_CHILD);
+              Node *failedBranch = this->activeNode;
+              this->activeNode = 0;
+              this->retireDetachedBranchForReplacement(context, boundary, failedBranch);
+              this->activeNode = this->createBranchNode(cond);
+              reentered = false;
             }
           }
-          this->activeNode->markPendingAttachForCompose();
-          this->addChild(this->activeNode);
-          if (this->retainedDetached())
-          {
-            // Adopted while an ancestor keeps this conditional hidden: the
-            // subtree inherits the detached-retained fact (born-hidden).
-            // The ancestor's re-attach walk restores ATTACHED for the
-            // then-active path.
-            Node::MarkSubtreeLifecycleFact(this->activeNode, NODE_FACT_DETACHED_RETAINED);
-          }
-          else if (reentered)
-          {
-            // Re-entry: the subtree kept its contexts across the retained
-            // detach; first entry is announced by setContext(). While an
-            // ancestor keeps this conditional hidden, swaps stay silent —
-            // the ancestor's re-attach walk shows the then-active path.
-            NotifySubtreeNodeAttached(this->activeNode);
-          }
         }
+        this->attachActiveBranchForScheduledApply(reentered);
         return true;
       }
 

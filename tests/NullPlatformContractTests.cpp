@@ -771,6 +771,37 @@ namespace
     ParkedFactRecord *expiredRecord_;
   };
 
+  class RetainedApplyFailureParkedFactDefinition
+      : public loka::app::scene::NodeDefinition<ParkedFactProps,
+                                                ParkedFactNode>
+  {
+  public:
+    typedef loka::app::scene::NodeDefinition<ParkedFactProps,
+                                              ParkedFactNode>
+        BaseType;
+
+    explicit RetainedApplyFailureParkedFactDefinition(ParkedFactRecord *record)
+        : BaseType(ParkedFactProps(record))
+    {
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      RetainedApplyFailureParkedFactDefinition *copy =
+          new RetainedApplyFailureParkedFactDefinition(this->props.record);
+      if (copy)
+      {
+        copy->copyTestIdPolicyFrom(*this);
+      }
+      return copy;
+    }
+
+    virtual bool applyPropsToNode(loka::app::scene::Node *) const
+    {
+      return false;
+    }
+  };
+
   struct NestedSeatReentryInputs
   {
     NestedSeatReentryInputs(loka::core::MutableState<bool> *outerConditionState,
@@ -1158,6 +1189,164 @@ namespace
     bool *useReplacement_;
     loka::app::scene::NodeDefinitionBase *initial_;
     loka::app::scene::NodeDefinitionBase *replacement_;
+  };
+
+  struct IncompatibleParkedRootInputs
+  {
+    IncompatibleParkedRootInputs(loka::core::MutableState<bool> *visibleState,
+                                 loka::core::MutableState<bool> *nestedConditionState,
+                                 loka::core::MutableState<int> *revisionState,
+                                 ParkedFactRecord *directRecord,
+                                 ParkedFactRecord *nestedRecord,
+                                 ParkedFactRecord *failedApplyOldRecord,
+                                 ParkedFactRecord *failedApplyCurrentRecord,
+                                 ParkedFactRecord *removedOldRecord)
+        : visible(visibleState),
+          nestedCondition(nestedConditionState),
+          revision(revisionState),
+          directOldRoot(directRecord),
+          nestedOldRoot(nestedRecord),
+          failedApplyOldRoot(failedApplyOldRecord),
+          failedApplyCurrentRoot(failedApplyCurrentRecord),
+          removedOldRoot(removedOldRecord)
+    {
+    }
+
+    loka::core::MutableState<bool> *visible;
+    loka::core::MutableState<bool> *nestedCondition;
+    loka::core::MutableState<int> *revision;
+    ParkedFactRecord *directOldRoot;
+    ParkedFactRecord *nestedOldRoot;
+    ParkedFactRecord *failedApplyOldRoot;
+    ParkedFactRecord *failedApplyCurrentRoot;
+    ParkedFactRecord *removedOldRoot;
+  };
+
+  IncompatibleParkedRootInputs *g_incompatibleParkedRootInputs = 0;
+
+  class IncompatibleParkedRootBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<IncompatibleParkedRootBoundaryNode>
+      IncompatibleParkedRootBoundaryProps;
+  class IncompatibleParkedRootBoundaryNode
+      : public PropsRecomposingBoundaryNode<IncompatibleParkedRootBoundaryNode,
+                                            IncompatibleParkedRootBoundaryProps>
+  {
+  public:
+    explicit IncompatibleParkedRootBoundaryNode(
+        const IncompatibleParkedRootBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<IncompatibleParkedRootBoundaryNode,
+                                       IncompatibleParkedRootBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_incompatibleParkedRootInputs &&
+          g_incompatibleParkedRootInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_incompatibleParkedRootInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      const bool revised =
+          g_incompatibleParkedRootInputs &&
+          g_incompatibleParkedRootInputs->revision &&
+          g_incompatibleParkedRootInputs->revision->get() != 0;
+
+      ParkedFactDefinition directOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->directOldRoot)));
+      loka::app::EditTextDefinition directCurrent;
+      loka::app::ButtonDefinition directShown("incompatible-direct-shown");
+      loka::app::scene::NodeDefinitionBase *directHidden =
+          revised
+              ? static_cast<loka::app::scene::NodeDefinitionBase *>(&directCurrent)
+              : static_cast<loka::app::scene::NodeDefinitionBase *>(&directOld);
+      loka::app::scene::ConditionalDefinition direct(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &directShown,
+              directHidden)));
+
+      ParkedFactDefinition nestedOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->nestedOldRoot)));
+      loka::app::EditTextDefinition nestedCurrent;
+      loka::app::ButtonDefinition nestedAlternate("incompatible-nested-alternate");
+      loka::app::scene::NodeDefinitionBase *nestedCurrentBranch =
+          revised
+              ? static_cast<loka::app::scene::NodeDefinitionBase *>(&nestedCurrent)
+              : static_cast<loka::app::scene::NodeDefinitionBase *>(&nestedOld);
+      loka::app::scene::ConditionalDefinition nested(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->nestedCondition,
+              &nestedAlternate,
+              nestedCurrentBranch)));
+      loka::app::FragmentDefinition outerParked;
+      outerParked << nested;
+      loka::app::ButtonDefinition outerShown("incompatible-outer-shown");
+      loka::app::scene::ConditionalDefinition outer(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &outerShown,
+              &outerParked)));
+
+      ParkedFactDefinition failedApplyOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->failedApplyOldRoot)));
+      RetainedApplyFailureParkedFactDefinition failedApplyCurrent(
+          g_incompatibleParkedRootInputs->failedApplyCurrentRoot);
+      loka::app::ButtonDefinition failedApplyShown("failed-apply-shown");
+      loka::app::scene::NodeDefinitionBase *failedApplyHidden =
+          revised
+              ? static_cast<loka::app::scene::NodeDefinitionBase *>(&failedApplyCurrent)
+              : static_cast<loka::app::scene::NodeDefinitionBase *>(&failedApplyOld);
+      loka::app::scene::ConditionalDefinition failedApply(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &failedApplyShown,
+              failedApplyHidden)));
+
+      ParkedFactDefinition removedOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->removedOldRoot)));
+      loka::app::ButtonDefinition removedShown("removed-branch-shown");
+      loka::app::scene::ConditionalDefinition removed(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &removedShown,
+              revised
+                  ? static_cast<loka::app::scene::NodeDefinitionBase *>(0)
+                  : static_cast<loka::app::scene::NodeDefinitionBase *>(&removedOld))));
+
+      loka::app::FragmentDefinition root;
+      root << direct << outer << failedApply << removed;
+      composition.declare(root);
+    }
+  };
+
+  class IncompatibleParkedRootHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<IncompatibleParkedRootHarnessBoundaryNode>
+      IncompatibleParkedRootHarnessBoundaryProps;
+  class IncompatibleParkedRootHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<IncompatibleParkedRootHarnessBoundaryNode>
+  {
+  public:
+    explicit IncompatibleParkedRootHarnessBoundaryNode(
+        const IncompatibleParkedRootHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<IncompatibleParkedRootHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<IncompatibleParkedRootBoundaryNode>());
+    }
   };
 
   struct TaggedPropsApplyInputs
@@ -2408,6 +2597,82 @@ void testFullRebuildSubsumesParkedBranchLedgerGeneration()
   assertParkedRetirementTransitionTable(record);
 
   scene.unmount();
+}
+
+void testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry()
+{
+  ParkedFactRecord directOldRoot;
+  ParkedFactRecord nestedOldRoot;
+  ParkedFactRecord failedApplyOldRoot;
+  ParkedFactRecord failedApplyCurrentRoot;
+  ParkedFactRecord removedOldRoot;
+  loka::core::MutableState<bool> visible(false);
+  loka::core::MutableState<bool> nestedCondition(false);
+  loka::core::MutableState<int> revision(0);
+  IncompatibleParkedRootInputs inputs(&visible,
+                                      &nestedCondition,
+                                      &revision,
+                                      &directOldRoot,
+                                      &nestedOldRoot,
+                                      &failedApplyOldRoot,
+                                      &failedApplyCurrentRoot,
+                                      &removedOldRoot);
+  g_incompatibleParkedRootInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<IncompatibleParkedRootHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  assert(directOldRoot.constructionCount == 1);
+  assert(nestedOldRoot.constructionCount == 1);
+  assert(failedApplyOldRoot.constructionCount == 1);
+  assert(failedApplyCurrentRoot.constructionCount == 0);
+  assert(removedOldRoot.constructionCount == 1);
+
+  visible.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(directOldRoot);
+  assertParkedTransitionTable(nestedOldRoot);
+  assertParkedTransitionTable(failedApplyOldRoot);
+  assertParkedTransitionTable(removedOldRoot);
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  visible.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  std::size_t visibleEditRoots = 0;
+  const std::vector<NullScenePlatformController::LedgerRow> &ledger = platform.ledger();
+  for (std::size_t i = 0; i < ledger.size(); ++i)
+  {
+    if (ledger[i].recipe == NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT &&
+        ledger[i].visible)
+    {
+      ++visibleEditRoots;
+    }
+  }
+  assert(recordedTransitionTo(directOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         recordedTransitionTo(nestedOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         recordedTransitionTo(failedApplyOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         failedApplyCurrentRoot.constructionCount == 1 &&
+         recordedTransitionTo(removedOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         visibleEditRoots == 2 &&
+         "incompatible and failed-reconcile roots retire and recreate at reentry");
+
+  scene.unmount();
+  g_incompatibleParkedRootInputs = 0;
 }
 
 void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()

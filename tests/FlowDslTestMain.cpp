@@ -195,6 +195,7 @@ int main()
   LOKA_RUN_TEST(testShowDslParkedBranchIsCurrentAtReentry);
   LOKA_RUN_TEST(testDepth2NestedConditionalSeatRepointsDefinitionsAtOuterReentry);
   LOKA_RUN_TEST(testFullRebuildSubsumesParkedBranchLedgerGeneration);
+  LOKA_RUN_TEST(testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry);
   LOKA_RUN_TEST(testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose);
   LOKA_RUN_TEST(testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition);
   LOKA_RUN_TEST(testNullPlatformContract_H9_retainedSeatUsesReplacementCondition);
