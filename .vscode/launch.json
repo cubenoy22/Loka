@@ -42,6 +42,21 @@
       "preLaunchTask": "Build: macOS Tutorial"
     },
     {
+      "name": "Attach (MAME 68K gdbstub, Tutorial)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.code.bin.gdb",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb-multiarch",
+      "miDebuggerServerAddress": "localhost:23946",
+      "setupCommands": [
+        { "text": "set architecture m68k", "ignoreFailures": false },
+        { "text": "set endian big", "ignoreFailures": false }
+      ],
+      "externalConsole": false
+    },
+    {
       "name": "Run (Windows HelloWorld)",
       "type": "cppvsdbg",
       "request": "launch",
