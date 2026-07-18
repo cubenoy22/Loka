@@ -82,5 +82,12 @@ $mameArguments += @(
     "-autoboot_script", (Join-Path $ScriptDirectory "mame-floppy-service.lua")
 )
 
+# Mirrors mame-run.sh: MAME_DEBUG=1 halts at reset with the gdbstub listening
+# on MAME_DEBUG_PORT (default 23946) until a gdb connects and continues.
+if ($env:MAME_DEBUG) {
+    $debugPort = if ($env:MAME_DEBUG_PORT) { $env:MAME_DEBUG_PORT } else { "23946" }
+    $mameArguments += @("-debug", "-debugger", "gdbstub", "-debugger_port", $debugPort)
+}
+
 & $mameExecutable @mameArguments
 exit $LASTEXITCODE
