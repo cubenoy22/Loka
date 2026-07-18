@@ -191,6 +191,7 @@ int main()
   LOKA_RUN_TEST(testNullPlatformContract_H5_taggedSeatAmongSiblingsSurvivesUnrelatedRecompose);
   LOKA_RUN_TEST(testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose);
   LOKA_RUN_TEST(testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose);
+  LOKA_RUN_TEST(testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition);
   LOKA_RUN_TEST(testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush);
   LOKA_RUN_TEST(testNullPlatformContract_F2_createdHandlesAreDisposedAtTeardown);
   LOKA_RUN_TEST(testNullPlatformContract_G4_retireBeforeContextAttachIsSilent);

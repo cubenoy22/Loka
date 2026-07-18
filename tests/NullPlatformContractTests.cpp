@@ -736,6 +736,91 @@ namespace
     }
   };
 
+  class DefinitionSourceProbeDefinition
+      : public loka::app::scene::NodeDefinition<ParkedFactProps,
+                                                ParkedFactNode>
+  {
+  public:
+    typedef loka::app::scene::NodeDefinition<ParkedFactProps,
+                                              ParkedFactNode>
+        BaseType;
+
+    DefinitionSourceProbeDefinition(ParkedFactRecord *liveRecord,
+                                    ParkedFactRecord *expiredRecord)
+        : BaseType(ParkedFactProps(liveRecord)),
+          liveRecord_(liveRecord),
+          expiredRecord_(expiredRecord)
+    {
+    }
+
+    virtual ~DefinitionSourceProbeDefinition()
+    {
+      // If a retained seat reads this definition after its owner destroys it,
+      // an allocator-preserved object reports the expired source record. A
+      // poisoned/freed object instead hard-fails the same lifetime contract.
+      this->props.record = this->expiredRecord_;
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      DefinitionSourceProbeDefinition *copy =
+          new DefinitionSourceProbeDefinition(this->liveRecord_, this->expiredRecord_);
+      if (copy)
+      {
+        copy->copyTestIdPolicyFrom(*this);
+      }
+      return copy;
+    }
+
+  private:
+    ParkedFactRecord *liveRecord_;
+    ParkedFactRecord *expiredRecord_;
+  };
+
+  struct TaggedPropsApplyInputs
+  {
+    explicit TaggedPropsApplyInputs(loka::core::State<bool> *conditionState)
+        : condition(conditionState)
+    {
+    }
+
+    loka::core::State<bool> *condition;
+  };
+
+  class TaggedPropsApplyConditionalDefinition
+      : public loka::app::scene::ConditionalDefinition
+  {
+  public:
+    TaggedPropsApplyConditionalDefinition(
+        const loka::app::scene::ConditionalProps &props,
+        TaggedPropsApplyInputs *inputs)
+        : loka::app::scene::ConditionalDefinition(props),
+          inputs_(inputs)
+    {
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      // RootBoundaryWrapper clones the fixed scene definition each generation;
+      // read the test-owned input here so tagged props become non-equivalent.
+      TaggedPropsApplyConditionalDefinition *copy =
+          new TaggedPropsApplyConditionalDefinition(
+              loka::app::scene::ConditionalProps(
+                  this->inputs_ ? this->inputs_->condition : 0,
+                  this->ownedTrueDef,
+                  this->ownedFalseDef),
+              this->inputs_);
+      if (copy)
+      {
+        copy->copyTestIdPolicyFrom(*this);
+      }
+      return copy;
+    }
+
+  private:
+    TaggedPropsApplyInputs *inputs_;
+  };
+
   loka::core::MutableState<bool> *g_deferredFlipCondition = 0;
   ParkedFactRecord *g_deferredTrueRecord = 0;
   ParkedFactRecord *g_deferredFalseRecord = 0;
@@ -1758,6 +1843,46 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
 
   scene.unmount();
   g_contentInputs = 0;
+}
+
+void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()
+{
+  ParkedFactRecord liveSourceRecord;
+  ParkedFactRecord expiredSourceRecord;
+  loka::core::MutableState<bool> firstCondition(true);
+  loka::core::MutableState<bool> secondCondition(true);
+  loka::core::MutableState<bool> currentCondition(true);
+  TaggedPropsApplyInputs inputs(&firstCondition);
+  loka::app::ButtonDefinition active("tagged-props-apply-active");
+  DefinitionSourceProbeDefinition parked(&liveSourceRecord, &expiredSourceRecord);
+  TaggedPropsApplyConditionalDefinition conditional(
+      loka::app::scene::ConditionalProps(&firstCondition, &active, &parked),
+      &inputs);
+  conditional.setNodeTag(201);
+  loka::app::FragmentDefinition *root = new loka::app::FragmentDefinition();
+  (*root) << conditional;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
+  mountAndAttach(scene, platform);
+
+  assert(liveSourceRecord.constructionCount == 0);
+  assert(expiredSourceRecord.constructionCount == 0);
+
+  // Each changed condition pointer drives RootBoundaryWrapper's tagged-child
+  // props apply and turns over the snapshot generation without swapping seats.
+  inputs.condition = &secondCondition;
+  requestChildPump(scene);
+  inputs.condition = &currentCondition;
+  requestChildPump(scene);
+
+  // Conditional writes apply immediately today, so construction observes the
+  // definition source installed by the preceding per-tag apply.
+  currentCondition.set(false);
+  assert(liveSourceRecord.constructionCount == 1 &&
+         expiredSourceRecord.constructionCount == 0 &&
+         "the tagged Conditional builds its branch from a live-arena definition");
+
+  scene.unmount();
 }
 
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush()
