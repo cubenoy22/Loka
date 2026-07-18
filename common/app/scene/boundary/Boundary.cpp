@@ -10,9 +10,22 @@ namespace loka
   {
     namespace scene
     {
-      void BoundaryNode::retireOwnedNodeGeneration()
+      void BoundaryNode::retireOwnedNodeGeneration(ComponentContext &context)
       {
         detail::NodeArena::RetiredNodeGeneration gen;
+        std::vector<Node *> parkedBranches;
+        this->parkedBranches_.detachAll(parkedBranches);
+        for (size_t i = 0; i < parkedBranches.size(); ++i)
+        {
+          Node *branch = parkedBranches[i];
+          Node::MarkSubtreeLifecycleFact(branch, NODE_FACT_RETIRED);
+          if (context.platformController())
+          {
+            context.platformController()->releaseNodeContexts(branch);
+          }
+          this->retireSubtree(branch);
+        }
+
         Node *keptHead = 0;
         Node *keptTail = 0;
         Node *retired = this->retiredSubtreesHead_;
@@ -175,6 +188,12 @@ namespace loka
       void BoundaryNode::releaseOwnedNodeStorage()
       {
         this->drainAllRetiredSubtrees();
+        std::vector<Node *> parkedBranches;
+        this->parkedBranches_.detachAll(parkedBranches);
+        for (size_t i = 0; i < parkedBranches.size(); ++i)
+        {
+          this->destroyRetiredSubtree(parkedBranches[i]);
+        }
         // Detach the owner edge before NodeArena severs and destroys its ledger.
         this->clearChildren();
         this->nodeArena_.clear();

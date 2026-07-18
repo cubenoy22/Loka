@@ -1,5 +1,7 @@
 #include "Conditional.hpp"
 #include "../Node.hpp"
+#include "app/scene/boundary/Boundary.hpp"
+#include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
 #include <cstdio>
 #include <new>
 
@@ -9,6 +11,37 @@ namespace loka
   {
     namespace scene
     {
+#if defined(TEST_BUILD)
+      class ConditionalTestBoundaryOwner : public BoundaryNode
+      {
+      protected:
+        virtual void composeWithContext(ComponentContext &, ComposeEvent)
+        {
+        }
+      };
+#endif
+
+#if defined(TEST_BUILD)
+      void Node::EvaluateChildrenForScheduledApplySubtree(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        ComponentContext context;
+        node->evaluateChildrenForScheduledApply(context, 0);
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          EvaluateChildrenForScheduledApplySubtree(child);
+        }
+      }
+#endif
+
       static Node *createConditionalNodeRecursiveWithAutoId(NodeDefinitionBase *def, long &autoIdCounter)
       {
         if (!def)
@@ -75,33 +108,48 @@ namespace loka
           : NestableNode(),
             props(p),
             activeNode(0),
-            trueNode_(0),
-            falseNode_(0)
+            compositionSeatSlot_(-1),
+            activeCondition_(false),
+            hasActiveCondition_(false)
+#if defined(TEST_BUILD)
+            , testBoundaryOwner_(0)
+#endif
       {
-        updateActiveNode();
+        this->initializeActiveNode();
       }
 
       ConditionalNode::~ConditionalNode()
       {
-        // Each node's own destructor is the last retire door (writes RETIRED
-        // before releasing its context), so parked branches need no explicit
-        // subtree mark here.
-        if (trueNode_ && trueNode_ != activeNode)
-        {
-          delete trueNode_;
-        }
-        if (falseNode_ && falseNode_ != activeNode)
-        {
-          delete falseNode_;
-        }
-        trueNode_ = 0;
-        falseNode_ = 0;
-        activeNode = 0;
+#if defined(TEST_BUILD)
+        delete this->testBoundaryOwner_;
+        this->testBoundaryOwner_ = 0;
+#endif
+        this->activeNode = 0;
       }
 
-      void ConditionalNode::evaluateChildrenForScheduledApply()
+      void ConditionalNode::evaluateChildrenForScheduledApply(ComponentContext &context,
+                                                               BoundaryNode *boundary)
       {
-        updateActiveNode();
+        this->updateActiveNode(context, boundary, false);
+      }
+
+      bool ConditionalNode::reconcileForScheduledBranchReentry(ComponentContext &context,
+                                                               BoundaryNode *boundary)
+      {
+        this->updateActiveNode(context, boundary, true);
+        return true;
+      }
+
+      Node *ConditionalNode::retainedLifecycleBranch(unsigned index)
+      {
+#if defined(TEST_BUILD)
+        return this->testBoundaryOwner_
+                   ? this->testBoundaryOwner_->retainedLifecycleBranch(index)
+                   : 0;
+#else
+        (void)index;
+        return 0;
+#endif
       }
 
       void ConditionalNode::applyRetainedProps(const ConditionalProps &nextProps)
@@ -109,18 +157,29 @@ namespace loka
         this->props = nextProps;
       }
 
-      Node *ConditionalNode::ensureBranchNode(bool cond, bool &created)
+      NodeDefinitionBase *ConditionalNode::branchDefinition(bool cond) const
       {
-        created = false;
-        Node **slot = cond ? &trueNode_ : &falseNode_;
-        NodeDefinitionBase *def = cond ? props.trueDef : props.falseDef;
-        if (*slot || !def)
+        return cond ? this->props.trueDef : this->props.falseDef;
+      }
+
+      Node *ConditionalNode::createBranchNode(bool cond)
+      {
+        return createConditionalNodeRecursive(this->branchDefinition(cond));
+      }
+
+      void ConditionalNode::initializeActiveNode()
+      {
+        if (!this->props.condition)
         {
-          return *slot;
+          return;
         }
-        *slot = createConditionalNodeRecursive(def);
-        created = *slot != 0;
-        return *slot;
+        this->activeCondition_ = this->props.condition->get();
+        this->hasActiveCondition_ = true;
+        this->activeNode = this->createBranchNode(this->activeCondition_);
+        if (this->activeNode)
+        {
+          this->addChild(this->activeNode);
+        }
       }
 
       void ConditionalNode::removeActiveNodeFromChildren()
@@ -136,57 +195,130 @@ namespace loka
         }
       }
 
-      void ConditionalNode::updateActiveNode()
+      void ConditionalNode::retireDetachedBranchForReplacement(
+          ComponentContext &context,
+          BoundaryNode *boundary,
+          Node *branch)
       {
-        if (!props.condition)
+        if (!boundary || !branch)
         {
           return;
         }
-        bool cond = props.condition->get();
-        bool created = false;
-        Node *nextNode = ensureBranchNode(cond, created);
-        if (nextNode == activeNode)
+        boundary->composeTree(branch, context, COMPOSE_EVENT_DETACH, boundary);
+        boundary->retireDetachedNode(context, branch);
+      }
+
+      void ConditionalNode::attachActiveBranchForScheduledApply(bool reentered)
+      {
+        if (!this->activeNode)
         {
           return;
         }
-        removeActiveNodeFromChildren();
-        activeNode = nextNode;
-        if (activeNode)
+        this->activeNode->markPendingAttachForCompose();
+        this->addChild(this->activeNode);
+        if (this->retainedDetached())
         {
-          activeNode->markPendingAttachForCompose();
-          addChild(activeNode);
-          if (this->retainedDetached())
-          {
-            // Adopted while an ancestor keeps this conditional hidden: the
-            // subtree inherits the detached-retained fact (born-hidden).
-            // The ancestor's re-attach walk restores ATTACHED for the
-            // then-active path.
-            Node::MarkSubtreeLifecycleFact(activeNode, NODE_FACT_DETACHED_RETAINED);
-          }
-          else if (!created)
-          {
-            // Re-entry: the subtree kept its contexts across the retained
-            // detach; first entry is announced by setContext(). While an
-            // ancestor keeps this conditional hidden, swaps stay silent —
-            // the ancestor's re-attach walk shows the then-active path.
-            NotifySubtreeNodeAttached(activeNode);
-          }
+          // Adopted while an ancestor keeps this conditional hidden: the
+          // subtree inherits the detached-retained fact (born-hidden).
+          // The ancestor's re-attach walk restores ATTACHED for the
+          // then-active path.
+          Node::MarkSubtreeLifecycleFact(this->activeNode, NODE_FACT_DETACHED_RETAINED);
+        }
+        else if (reentered)
+        {
+          // Re-entry: the subtree kept its contexts across the retained
+          // detach; first entry is announced by setContext(). While an
+          // ancestor keeps this conditional hidden, swaps stay silent —
+          // the ancestor's re-attach walk shows the then-active path.
+          NotifySubtreeNodeAttached(this->activeNode);
         }
       }
 
-      Node *ConditionalNode::retainedLifecycleBranch(unsigned index)
+      bool ConditionalNode::updateActiveNode(ComponentContext &context,
+                                             BoundaryNode *boundary,
+                                             bool reconcileCurrentBranch)
       {
-        Node *branches[2];
-        unsigned count = 0;
-        if (trueNode_ && trueNode_ != activeNode)
+        bool shouldReconcile = true;
+#if defined(TEST_BUILD)
+        if (!boundary)
         {
-          branches[count++] = trueNode_;
+          if (!this->testBoundaryOwner_)
+          {
+            this->testBoundaryOwner_ = new ConditionalTestBoundaryOwner();
+          }
+          boundary = this->testBoundaryOwner_;
+          shouldReconcile = false;
         }
-        if (falseNode_ && falseNode_ != activeNode)
+#endif
+        if (!this->props.condition || !boundary)
         {
-          branches[count++] = falseNode_;
+          return false;
         }
-        return index < count ? branches[index] : 0;
+        const bool cond = this->props.condition->get();
+        NodeDefinitionBase *definition = this->branchDefinition(cond);
+        if (this->hasActiveCondition_ && cond == this->activeCondition_)
+        {
+          if (shouldReconcile && reconcileCurrentBranch && this->activeNode && definition)
+          {
+            if (!boundary->reconcileParkedBranch(context, this->activeNode, definition))
+            {
+              Node *failedBranch = this->activeNode;
+              this->removeActiveNodeFromChildren();
+              this->activeNode = 0;
+              this->retireDetachedBranchForReplacement(context, boundary, failedBranch);
+              this->activeNode = this->createBranchNode(cond);
+              this->attachActiveBranchForScheduledApply(false);
+              return true;
+            }
+          }
+          return false;
+        }
+
+        Node *incoming = boundary->takeParkedBranch(
+            BoundaryParkedBranchKey(this->nodeTag(),
+                                    this->compositionSeatSlot_,
+                                    ConditionalProps::staticTypeId()));
+        if (incoming &&
+            (!definition || !definition->isCompatibleWithNode(incoming)))
+        {
+          this->retireDetachedBranchForReplacement(context, boundary, incoming);
+          incoming = 0;
+        }
+        Node *outgoing = this->activeNode;
+        this->removeActiveNodeFromChildren();
+        if (outgoing)
+        {
+          boundary->parkBranch(
+              BoundaryParkedBranchKey(this->nodeTag(),
+                                      this->compositionSeatSlot_,
+                                      ConditionalProps::staticTypeId()),
+              outgoing);
+        }
+
+        this->activeNode = incoming;
+        bool reentered = this->activeNode != 0;
+        if (!this->activeNode)
+        {
+          this->activeNode = this->createBranchNode(cond);
+        }
+        this->activeCondition_ = cond;
+        this->hasActiveCondition_ = true;
+        if (this->activeNode)
+        {
+          if (shouldReconcile && reentered && definition)
+          {
+            if (!boundary->reconcileParkedBranch(context, this->activeNode, definition))
+            {
+              Node *failedBranch = this->activeNode;
+              this->activeNode = 0;
+              this->retireDetachedBranchForReplacement(context, boundary, failedBranch);
+              this->activeNode = this->createBranchNode(cond);
+              reentered = false;
+            }
+          }
+        }
+        this->attachActiveBranchForScheduledApply(reentered);
+        return true;
       }
 
       void ConditionalNode::render(IPlatformController *controller)
@@ -299,7 +431,7 @@ namespace loka
         return this->props.condition == otherConditionalProps.condition;
       }
 
-      bool ConditionalDefinition::applyPropsToNode(Node *node) const
+      bool ConditionalDefinition::repointRetainedNodeDefinition(Node *node) const
       {
         if (!node || node->nodeTypeKey() != NodeTypeToken<ConditionalNode>())
         {
@@ -307,6 +439,17 @@ namespace loka
         }
         ConditionalNode *conditional = static_cast<ConditionalNode *>(node);
         conditional->applyRetainedProps(this->props);
+        conditional->setCompositionSeatSlot(this->compositionSeatSlot());
+        return true;
+      }
+
+      bool ConditionalDefinition::applyPropsToNode(Node *node) const
+      {
+        if (!this->repointRetainedNodeDefinition(node))
+        {
+          return false;
+        }
+        ConditionalNode *conditional = static_cast<ConditionalNode *>(node);
         conditional->setNodeTag(this->nodeTag());
         conditional->setNativeLifetimeHint(this->nativeLifetimeHint());
         return true;
@@ -323,6 +466,8 @@ namespace loka
         Node *node = new ConditionalNode(props);
         if (node)
         {
+          static_cast<ConditionalNode *>(node)->setCompositionSeatSlot(this->compositionSeatSlot());
+          node->setPropsTypeId(ConditionalProps::staticTypeId());
           node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
@@ -334,6 +479,8 @@ namespace loka
         Node *node = new (mem) ConditionalNode(props);
         if (node)
         {
+          static_cast<ConditionalNode *>(node)->setCompositionSeatSlot(this->compositionSeatSlot());
+          node->setPropsTypeId(ConditionalProps::staticTypeId());
           node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }

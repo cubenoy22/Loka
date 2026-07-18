@@ -15,6 +15,7 @@
 #include "app/scene/boundary/detail/BoundaryCompositionState.hpp"
 #include "app/scene/boundary/detail/BoundaryObservedState.hpp"
 #include "app/scene/boundary/detail/BoundaryRuntimeState.hpp"
+#include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
 #include "core/Managed.hpp"
 #include "core/StateTracker.hpp"
@@ -48,6 +49,7 @@ namespace loka
               updateState_(),
               compositionState_(),
               observedState_(),
+              parkedBranches_(),
               retiredSubtreesHead_(0),
               retiredSubtreesTail_(0),
               retiredGenerations_(),
@@ -72,6 +74,10 @@ namespace loka
         virtual IStateOwner *asStateOwner()
         {
           return this;
+        }
+        virtual Node *retainedLifecycleBranch(unsigned index)
+        {
+          return this->parkedBranches_.branch(index);
         }
 
         virtual loka::core::StateTracker *tracker()
@@ -461,29 +467,83 @@ namespace loka
         {
           return this->composition().root();
         }
-        bool applyCurrentDefinitionPropsToLiveChild(NodeTag tag)
+        bool resolveRetainedDiffEntry(const NodeCompositionDiff::Entry &entry,
+                                      Node *&liveNode,
+                                      NodeDefinitionBase *&definition) const
         {
-          Node *liveChild = findCompositionChildByTag(tag);
-          NodeDefinitionBase *definition = findCurrentCompositionDefinitionByTag(tag);
-          if (!liveChild || !definition)
+          liveNode = 0;
+          definition = 0;
+          Node *liveRoot = this->compositionRootNode();
+          NodeDefinitionBase *currentRoot = this->currentCompositionRootDefinition();
+          if (!liveRoot || !currentRoot)
           {
             return false;
           }
-          return definition->applyPropsToNode(liveChild);
+
+          INestable *liveNestable = liveRoot->asNestable();
+          INestableDefinition *currentNestable = currentRoot->asNestableDefinition();
+          if (!currentNestable)
+          {
+            /* A definition without materialized children (a compose-once
+               boundary: its runtime children come from attach compose, not
+               from the definition) has exactly one retained seat — the root
+               itself. The live node being nestable is expected there. */
+            liveNode = liveRoot;
+            definition = currentRoot;
+            return true;
+          }
+          if (!liveNestable)
+          {
+            return false;
+          }
+
+          if (entry.tag != NODE_TAG_NONE)
+          {
+            liveNode = this->findCompositionChildByTag(entry.tag);
+            definition = this->findCurrentCompositionDefinitionByTag(entry.tag);
+          }
+          else
+          {
+            int slot = 0;
+            loka::dsl::CompositionCursor<Node> liveIt(
+                liveNestable->childrenHead(), liveNestable->childrenCount());
+            NodeDefinitionBase *currentChild = currentNestable->childrenHead();
+            while (slot < entry.currentIndex)
+            {
+              liveIt.next();
+              currentChild = currentChild ? currentChild->nextInComposition : 0;
+              ++slot;
+            }
+            liveNode = liveIt.next();
+            definition = currentChild;
+          }
+          return liveNode && definition;
         }
-        bool applyCurrentRootDefinitionPropsToLiveRoot()
+        bool applyRetainFastPathDefinitions()
         {
-          Node *liveRoot = compositionRootNode();
-          NodeDefinitionBase *definition = currentCompositionRootDefinition();
-          if (!liveRoot || !definition)
+          for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead();
+               entry;
+               entry = entry->nextInComposition)
           {
-            return false;
+            if (entry->action != NodeCompositionDiff::ACTION_RETAIN)
+            {
+              continue;
+            }
+            Node *liveNode = 0;
+            NodeDefinitionBase *definition = 0;
+            if (!this->resolveRetainedDiffEntry(*entry, liveNode, definition))
+            {
+              return false;
+            }
+            const bool applied = entry->equivalentProps
+                                     ? definition->repointRetainedNodeDefinition(liveNode)
+                                     : definition->applyPropsToNode(liveNode);
+            if (!applied)
+            {
+              return false;
+            }
           }
-          if (compositionRootNestable() || definition->asNestableDefinition())
-          {
-            return false;
-          }
-          return definition->applyPropsToNode(liveRoot);
+          return true;
         }
         bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context,
                                                            std::vector<Node *> &retainedChildren)
@@ -623,19 +683,9 @@ namespace loka
             }
             if (this->localCompositionDiff()->isCompatibleRetainOnly())
             {
-              if (!this->localCompositionDiff()->isStableRetainOnly())
+              if (!this->applyRetainFastPathDefinitions())
               {
-                if (!this->applyCurrentRootDefinitionPropsToLiveRoot())
-                {
-                  for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry;
-                       entry = entry->nextInComposition)
-                  {
-                    if (!entry->equivalentProps)
-                    {
-                      this->applyCurrentDefinitionPropsToLiveChild(entry->tag);
-                    }
-                  }
-                }
+                return false;
               }
               this->promoteCurrentCompositionSnapshot();
               loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
@@ -665,7 +715,12 @@ namespace loka
         }
 
         /** Retires the complete arena allocation and ledger for clock-boundary reclaim. */
-        void retireOwnedNodeGeneration();
+        void retireOwnedNodeGeneration(ComponentContext &context);
+        void retireOwnedNodeGeneration()
+        {
+          ComponentContext context;
+          this->retireOwnedNodeGeneration(context);
+        }
 
         /** Releases native contexts from an already detached node, then queues it
             for clock-boundary reclaim regardless of heap or arena storage. */
@@ -750,8 +805,10 @@ namespace loka
                 return false;
               }
               plan.entries.push_back(
-                  existing ? BoundaryLocalRebuildPlanEntry::replace(created, existing, definition->nodeTag())
-                           : BoundaryLocalRebuildPlanEntry::attach(created, definition->nodeTag()));
+                  existing ? BoundaryLocalRebuildPlanEntry::replace(
+                                 created, existing, definition, definition->nodeTag())
+                           : BoundaryLocalRebuildPlanEntry::attach(
+                                 created, definition, definition->nodeTag()));
             }
             definition = definition->nextInComposition;
           }
@@ -826,6 +883,133 @@ namespace loka
           }
           return true;
         }
+
+        bool buildParkedBranchReentryPlan(INestable &root,
+                                          INestableDefinition &desiredRoot,
+                                          BoundaryLocalRebuildPlan &plan)
+        {
+          plan.clear();
+          plan.reserve(desiredRoot.childrenCount());
+
+          std::vector<Node *> liveChildren;
+          loka::dsl::CompositionCursor<Node> liveIt(root.childrenHead(), root.childrenCount());
+          for (Node *live = liveIt.next(); live; live = liveIt.next())
+          {
+            liveChildren.push_back(live);
+          }
+
+          NodeDefinitionBase *definition = desiredRoot.childrenHead();
+          size_t slot = 0;
+          while (definition)
+          {
+            Node *existing = 0;
+            if (definition->nodeTag() != NODE_TAG_NONE)
+            {
+              for (size_t i = 0; i < liveChildren.size(); ++i)
+              {
+                if (liveChildren[i] && liveChildren[i]->nodeTag() == definition->nodeTag())
+                {
+                  existing = liveChildren[i];
+                  break;
+                }
+              }
+            }
+            else if (slot < liveChildren.size() &&
+                     liveChildren[slot] && liveChildren[slot]->nodeTag() == NODE_TAG_NONE)
+            {
+              existing = liveChildren[slot];
+            }
+
+            if (existing && definition->isCompatibleWithNode(existing))
+            {
+              plan.entries.push_back(
+                  BoundaryLocalRebuildPlanEntry::retain(existing, definition, definition->nodeTag()));
+            }
+            else
+            {
+              NodeComposition composition;
+              Node *created = composition.createNodeFromDefinition(definition);
+              if (!created)
+              {
+                return false;
+              }
+              plan.entries.push_back(
+                  existing ? BoundaryLocalRebuildPlanEntry::replace(
+                                 created, existing, definition, definition->nodeTag())
+                           : BoundaryLocalRebuildPlanEntry::attach(
+                                 created, definition, definition->nodeTag()));
+            }
+            definition = definition->nextInComposition;
+            ++slot;
+          }
+
+          for (size_t i = 0; i < liveChildren.size(); ++i)
+          {
+            bool represented = false;
+            for (size_t planIndex = 0; planIndex < plan.entries.size(); ++planIndex)
+            {
+              if (plan.entries[planIndex].node == liveChildren[i] ||
+                  plan.entries[planIndex].previousNode == liveChildren[i])
+              {
+                represented = true;
+                break;
+              }
+            }
+            if (!represented)
+            {
+              plan.entries.push_back(
+                  BoundaryLocalRebuildPlanEntry::retire(liveChildren[i], liveChildren[i]->nodeTag()));
+            }
+          }
+          return true;
+        }
+
+        bool reconcileParkedBranch(ComponentContext &context,
+                                   Node *node,
+                                   NodeDefinitionBase *definition)
+        {
+          if (!node || !definition || !definition->applyPropsToNode(node))
+          {
+            return false;
+          }
+          if (node->reconcileForScheduledBranchReentry(context, this))
+          {
+            return true;
+          }
+          if (node->asComposable())
+          {
+            return true;
+          }
+
+          INestable *root = node->asNestable();
+          INestableDefinition *desiredRoot = definition->asNestableDefinition();
+          if (!root || !desiredRoot)
+          {
+            return root == 0 && desiredRoot == 0;
+          }
+
+          BoundaryLocalRebuildPlan plan;
+          if (!this->buildParkedBranchReentryPlan(*root, *desiredRoot, plan))
+          {
+            return false;
+          }
+          std::vector<Node *> retainedChildren;
+          if (!this->applyLocalRebuildPlan(context, *root, plan, retainedChildren))
+          {
+            return false;
+          }
+          for (size_t i = 0; i < plan.entries.size(); ++i)
+          {
+            BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+            if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN &&
+                !this->reconcileParkedBranch(context, entry.node, entry.definition))
+            {
+              return false;
+            }
+          }
+          return true;
+        }
+
         virtual void adoptState(loka::core::StateBase *state)
         {
           if (!state)
@@ -998,6 +1182,11 @@ namespace loka
             nodeContext.setComposition(parentContext.composition());
           }
 
+          if (event == COMPOSE_EVENT_UPDATE)
+          {
+            node->evaluateChildrenForScheduledApply(nodeContext, nextBoundary);
+          }
+
           if (composable)
           {
             NodeComposition *composition = nodeContext.composition();
@@ -1056,6 +1245,7 @@ namespace loka
 
         void captureCurrentCompositionSnapshot()
         {
+          this->composition().assignCompositionSeatSlots();
           compositionState_.captureCurrentSnapshot(this->composition());
         }
 
@@ -1139,6 +1329,14 @@ namespace loka
         void drainAllRetiredSubtrees();
         void releaseOwnedNodeStorage();
 
+        void parkBranch(const BoundaryParkedBranchKey &key, Node *branch)
+        {
+          this->parkedBranches_.park(key, branch);
+        }
+        Node *takeParkedBranch(const BoundaryParkedBranchKey &key)
+        {
+          return this->parkedBranches_.take(key);
+        }
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
         std::vector<StateHandleBase *> ownedStateHandles_;
@@ -1146,12 +1344,15 @@ namespace loka
         BoundaryUpdateState updateState_;
         BoundaryCompositionState compositionState_;
         BoundaryObservedState observedState_;
+        BoundaryParkedBranchLedger parkedBranches_;
         NodeArena nodeArena_;
         StateArena stateArena_;
         Node *retiredSubtreesHead_;
         Node *retiredSubtreesTail_;
         std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;
         bool drainingRetiredSubtrees_;
+
+        friend class ConditionalNode;
       };
 
       template <class PropsT, class NodeT> struct BoundaryDefinition : public NodeDefinition<PropsT, NodeT>

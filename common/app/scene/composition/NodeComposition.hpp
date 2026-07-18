@@ -572,6 +572,7 @@ namespace loka
         // Create node tree
         Node *createNodeTree() const;
         Node *createNodeFromDefinition(NodeDefinitionBase *definition) const;
+        void assignCompositionSeatSlots();
 
         NodeDefinitionBase *root() const
         {

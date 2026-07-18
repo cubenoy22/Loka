@@ -85,8 +85,17 @@ target_link_libraries(LokaMacOSCore PUBLIC LokaAppleMacOSAppKit)
 file(GLOB_RECURSE LOKA_MACOS_TEST_HEADERS CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/tests/*.hpp)
 
 if(NOT LOKA_MAC_OS_10_4)
+  # The test binary compiles the common sources itself so TEST_BUILD applies
+  # to them uniformly (mirrors the Linux LokaFlowDslTests target). Linking the
+  # production LokaMacOSCore instead would mix TEST_BUILD and non-TEST_BUILD
+  # compilations of the same classes (ODR/layout divergence).
+  file(GLOB_RECURSE LOKA_MACOS_TEST_COMMON_SOURCES CONFIGURE_DEPENDS
+    ${PROJECT_SOURCE_DIR}/common/*.cpp
+  )
   add_executable(LokaTestsMacOS
     ${LOKA_SHARED_TEST_SOURCES}
+    ${LOKA_MACOS_TEST_COMMON_SOURCES}
+    ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
 
@@ -97,8 +106,11 @@ if(NOT LOKA_MAC_OS_10_4)
     ${CMAKE_CURRENT_LIST_DIR}/src
   )
 
-  target_link_libraries(LokaTestsMacOS PRIVATE LokaMacOSCore)
   target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
+  target_link_libraries(LokaTestsMacOS PRIVATE
+    "-framework Foundation"
+    "-framework CoreFoundation"
+  )
 
   enable_testing()
   add_test(NAME LokaTestsMacOS COMMAND LokaTestsMacOS)

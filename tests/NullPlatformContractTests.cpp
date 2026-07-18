@@ -270,12 +270,6 @@ namespace
     unsigned long hidden;
   };
 
-  void assertExpectedRedForT3(bool observableOutcome)
-  {
-    assert(!observableOutcome &&
-           "expected-red contract pin turned green; T3 must promote this outcome assertion");
-  }
-
   void assertExpectedRedForT4(bool observableOutcome)
   {
     assert(!observableOutcome &&
@@ -728,6 +722,631 @@ namespace
   private:
     ParkedFactRecord *liveRecord_;
     ParkedFactRecord *expiredRecord_;
+  };
+
+  class ShowDefinitionSourceProbeDefinition
+      : public loka::app::scene::NodeDefinition<ParkedFactProps,
+                                                ParkedFactNode>
+  {
+  public:
+    typedef loka::app::scene::NodeDefinition<ParkedFactProps,
+                                              ParkedFactNode>
+        BaseType;
+
+    ShowDefinitionSourceProbeDefinition(ParkedFactRecord *liveRecord,
+                                        ParkedFactRecord *expiredRecord)
+        : BaseType(ParkedFactProps(liveRecord)),
+          liveRecord_(liveRecord),
+          expiredRecord_(expiredRecord)
+    {
+    }
+
+    virtual ~ShowDefinitionSourceProbeDefinition()
+    {
+      this->props.record = this->expiredRecord_;
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      ShowDefinitionSourceProbeDefinition *copy =
+          new ShowDefinitionSourceProbeDefinition(this->liveRecord_, this->expiredRecord_);
+      if (copy)
+      {
+        copy->copyTestIdPolicyFrom(*this);
+      }
+      return copy;
+    }
+
+    virtual bool applyPropsToNode(loka::app::scene::Node *node) const
+    {
+      if (this->props.record)
+      {
+        ++this->props.record->attachReads;
+      }
+      return BaseType::applyPropsToNode(node);
+    }
+
+  private:
+    ParkedFactRecord *liveRecord_;
+    ParkedFactRecord *expiredRecord_;
+  };
+
+  class RetainedApplyFailureParkedFactDefinition
+      : public loka::app::scene::NodeDefinition<ParkedFactProps,
+                                                ParkedFactNode>
+  {
+  public:
+    typedef loka::app::scene::NodeDefinition<ParkedFactProps,
+                                              ParkedFactNode>
+        BaseType;
+
+    explicit RetainedApplyFailureParkedFactDefinition(ParkedFactRecord *record)
+        : BaseType(ParkedFactProps(record))
+    {
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      RetainedApplyFailureParkedFactDefinition *copy =
+          new RetainedApplyFailureParkedFactDefinition(this->props.record);
+      if (copy)
+      {
+        copy->copyTestIdPolicyFrom(*this);
+      }
+      return copy;
+    }
+
+    virtual bool applyPropsToNode(loka::app::scene::Node *) const
+    {
+      return false;
+    }
+  };
+
+  struct NestedSeatReentryInputs
+  {
+    NestedSeatReentryInputs(loka::core::MutableState<bool> *outerConditionState,
+                            loka::core::MutableState<bool> *innerConditionState,
+                            loka::core::MutableState<int> *revisionState,
+                            ParkedFactRecord *oldRecord,
+                            ParkedFactRecord *currentRecord,
+                            ParkedFactRecord *expiredRecord)
+        : outerCondition(outerConditionState),
+          innerCondition(innerConditionState),
+          revision(revisionState),
+          oldSource(oldRecord),
+          currentSource(currentRecord),
+          expiredSource(expiredRecord)
+    {
+    }
+
+    loka::core::MutableState<bool> *outerCondition;
+    loka::core::MutableState<bool> *innerCondition;
+    loka::core::MutableState<int> *revision;
+    ParkedFactRecord *oldSource;
+    ParkedFactRecord *currentSource;
+    ParkedFactRecord *expiredSource;
+  };
+
+  NestedSeatReentryInputs *g_nestedSeatReentryInputs = 0;
+
+  class NestedSeatReentryBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedSeatReentryBoundaryNode>
+      NestedSeatReentryBoundaryProps;
+  class NestedSeatReentryBoundaryNode
+      : public PropsRecomposingBoundaryNode<NestedSeatReentryBoundaryNode,
+                                            NestedSeatReentryBoundaryProps>
+  {
+  public:
+    explicit NestedSeatReentryBoundaryNode(const NestedSeatReentryBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<NestedSeatReentryBoundaryNode,
+                                       NestedSeatReentryBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_nestedSeatReentryInputs && g_nestedSeatReentryInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_nestedSeatReentryInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      const bool revised =
+          g_nestedSeatReentryInputs && g_nestedSeatReentryInputs->revision &&
+          g_nestedSeatReentryInputs->revision->get() != 0;
+      DefinitionSourceProbeDefinition nestedShown(
+          revised ? g_nestedSeatReentryInputs->currentSource
+                  : g_nestedSeatReentryInputs->oldSource,
+          g_nestedSeatReentryInputs->expiredSource);
+      loka::app::EditTextDefinition nestedHidden;
+      loka::app::scene::ConditionalDefinition nested(
+          (loka::app::scene::ConditionalProps(
+              g_nestedSeatReentryInputs ? g_nestedSeatReentryInputs->innerCondition : 0,
+              &nestedShown,
+              &nestedHidden)));
+      loka::app::FragmentDefinition parkedBranch;
+      parkedBranch << nested;
+      loka::app::ButtonDefinition activeBranch("nested-seat-active");
+      loka::app::scene::ConditionalDefinition outer(
+          (loka::app::scene::ConditionalProps(
+              g_nestedSeatReentryInputs ? g_nestedSeatReentryInputs->outerCondition : 0,
+              &activeBranch,
+              &parkedBranch)));
+      loka::app::FragmentDefinition root;
+      root << outer;
+      composition.declare(root);
+    }
+  };
+
+  class NestedSeatReentryHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedSeatReentryHarnessBoundaryNode>
+      NestedSeatReentryHarnessBoundaryProps;
+  class NestedSeatReentryHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<NestedSeatReentryHarnessBoundaryNode>
+  {
+  public:
+    explicit NestedSeatReentryHarnessBoundaryNode(
+        const NestedSeatReentryHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<NestedSeatReentryHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<NestedSeatReentryBoundaryNode>());
+    }
+  };
+
+  struct ShowReentryInputs
+  {
+    ShowReentryInputs(loka::core::MutableState<bool> *conditionState,
+                      loka::core::MutableState<int> *revisionState,
+                      ParkedFactRecord *oldRecord,
+                      ParkedFactRecord *currentRecord,
+                      ParkedFactRecord *expiredRecord)
+        : condition(conditionState),
+          revision(revisionState),
+          oldSource(oldRecord),
+          currentSource(currentRecord),
+          expiredSource(expiredRecord),
+          definitionReuseBlockers()
+    {
+    }
+
+    ~ShowReentryInputs()
+    {
+      for (size_t i = 0; i < this->definitionReuseBlockers.size(); ++i)
+      {
+        delete this->definitionReuseBlockers[i];
+      }
+    }
+
+    void blockFreedShowDefinitionAddress()
+    {
+      this->definitionReuseBlockers.push_back(
+          new loka::app::ShowDefinition(loka::app::Show(*this->condition)));
+    }
+
+    loka::core::MutableState<bool> *condition;
+    loka::core::MutableState<int> *revision;
+    ParkedFactRecord *oldSource;
+    ParkedFactRecord *currentSource;
+    ParkedFactRecord *expiredSource;
+    std::vector<loka::app::ShowDefinition *> definitionReuseBlockers;
+  };
+
+  ShowReentryInputs *g_showReentryInputs = 0;
+
+  class ShowReentryBoundaryNode;
+  ShowReentryBoundaryNode *g_showReentryBoundaryNode = 0;
+  typedef loka::app::scene::BoundaryPropsFor<ShowReentryBoundaryNode>
+      ShowReentryBoundaryProps;
+  class ShowReentryBoundaryNode
+      : public PropsRecomposingBoundaryNode<ShowReentryBoundaryNode,
+                                            ShowReentryBoundaryProps>
+  {
+  public:
+    explicit ShowReentryBoundaryNode(const ShowReentryBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<ShowReentryBoundaryNode,
+                                       ShowReentryBoundaryProps>(props)
+    {
+      g_showReentryBoundaryNode = this;
+    }
+
+    virtual ~ShowReentryBoundaryNode()
+    {
+      if (g_showReentryBoundaryNode == this)
+      {
+        g_showReentryBoundaryNode = 0;
+      }
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_showReentryInputs && g_showReentryInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_showReentryInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      const bool current =
+          g_showReentryInputs && g_showReentryInputs->revision &&
+          g_showReentryInputs->revision->get() == 2;
+      const bool revised =
+          g_showReentryInputs && g_showReentryInputs->revision &&
+          g_showReentryInputs->revision->get() != 0;
+      if (revised)
+      {
+        g_showReentryInputs->blockFreedShowDefinitionAddress();
+      }
+      ShowDefinitionSourceProbeDefinition probe(
+          revised ? g_showReentryInputs->currentSource : g_showReentryInputs->oldSource,
+          g_showReentryInputs->expiredSource);
+      loka::app::EditTextDefinition control;
+      control.lifetimeHint(current ? loka::app::scene::NATIVE_HINT_DESIRE_STAY
+                                   : loka::app::scene::NATIVE_HINT_DEFAULT);
+      loka::app::ShowDefinition shown =
+          loka::app::Show(*g_showReentryInputs->condition);
+      shown << probe << control;
+      loka::app::FragmentDefinition root;
+      root << shown;
+      composition.declare(root);
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
+      {
+        typedef loka::app::scene::BoundaryNodeFor<ShowReentryBoundaryNode> BaseType;
+        BaseType::composeWithContext(context, event);
+        return;
+      }
+      this->recomposeLocalComposition(
+          context, event, this->LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS);
+    }
+  };
+
+  class ShowReentryHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ShowReentryHarnessBoundaryNode>
+      ShowReentryHarnessBoundaryProps;
+  class ShowReentryHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<ShowReentryHarnessBoundaryNode>
+  {
+  public:
+    explicit ShowReentryHarnessBoundaryNode(const ShowReentryHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<ShowReentryHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<ShowReentryBoundaryNode>());
+    }
+  };
+
+  class Depth2NestedSeatReentryBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<Depth2NestedSeatReentryBoundaryNode>
+      Depth2NestedSeatReentryBoundaryProps;
+  class Depth2NestedSeatReentryBoundaryNode
+      : public PropsRecomposingBoundaryNode<Depth2NestedSeatReentryBoundaryNode,
+                                            Depth2NestedSeatReentryBoundaryProps>
+  {
+  public:
+    explicit Depth2NestedSeatReentryBoundaryNode(
+        const Depth2NestedSeatReentryBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<Depth2NestedSeatReentryBoundaryNode,
+                                       Depth2NestedSeatReentryBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_nestedSeatReentryInputs && g_nestedSeatReentryInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_nestedSeatReentryInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      const bool revised =
+          g_nestedSeatReentryInputs && g_nestedSeatReentryInputs->revision &&
+          g_nestedSeatReentryInputs->revision->get() != 0;
+      DefinitionSourceProbeDefinition nestedShown(
+          revised ? g_nestedSeatReentryInputs->currentSource
+                  : g_nestedSeatReentryInputs->oldSource,
+          g_nestedSeatReentryInputs->expiredSource);
+      loka::app::EditTextDefinition nestedHidden;
+      loka::app::scene::ConditionalDefinition nested(
+          (loka::app::scene::ConditionalProps(
+              g_nestedSeatReentryInputs ? g_nestedSeatReentryInputs->innerCondition : 0,
+              &nestedShown,
+              &nestedHidden)));
+      loka::app::FragmentDefinition intermediate;
+      intermediate << nested;
+      loka::app::FragmentDefinition parkedBranch;
+      parkedBranch << intermediate;
+      loka::app::ButtonDefinition activeBranch("depth-2-nested-seat-active");
+      loka::app::scene::ConditionalDefinition outer(
+          (loka::app::scene::ConditionalProps(
+              g_nestedSeatReentryInputs ? g_nestedSeatReentryInputs->outerCondition : 0,
+              &activeBranch,
+              &parkedBranch)));
+      loka::app::FragmentDefinition root;
+      root << outer;
+      composition.declare(root);
+    }
+  };
+
+  class Depth2NestedSeatReentryHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<Depth2NestedSeatReentryHarnessBoundaryNode>
+      Depth2NestedSeatReentryHarnessBoundaryProps;
+  class Depth2NestedSeatReentryHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<Depth2NestedSeatReentryHarnessBoundaryNode>
+  {
+  public:
+    explicit Depth2NestedSeatReentryHarnessBoundaryNode(
+        const Depth2NestedSeatReentryHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<Depth2NestedSeatReentryHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<Depth2NestedSeatReentryBoundaryNode>());
+    }
+  };
+
+  class FullRebuildLedgerDefinition : public loka::app::scene::NodeDefinitionBase
+  {
+  public:
+    FullRebuildLedgerDefinition(bool *useReplacement,
+                                loka::app::scene::NodeDefinitionBase *initial,
+                                loka::app::scene::NodeDefinitionBase *replacement)
+        : useReplacement_(useReplacement),
+          initial_(initial),
+          replacement_(replacement)
+    {
+    }
+
+    virtual loka::app::scene::Node *create() const
+    {
+      return this->selected()->create();
+    }
+
+    virtual loka::app::scene::Node *createInPlace(void *memory) const
+    {
+      return this->selected()->createInPlace(memory);
+    }
+
+    virtual size_t nodeSize() const
+    {
+      return this->selected()->nodeSize();
+    }
+
+    virtual size_t nodeAlign() const
+    {
+      return this->selected()->nodeAlign();
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      return this->selected()->clone();
+    }
+
+    virtual loka::app::scene::NodeKind nodeKind() const
+    {
+      return this->selected()->nodeKind();
+    }
+
+    virtual const loka::app::scene::PropsBase *propsBase() const
+    {
+      return this->selected()->propsBase();
+    }
+
+    virtual bool hasEquivalentProps(
+        const loka::app::scene::NodeDefinitionBase &other) const
+    {
+      return this->selected()->hasEquivalentProps(other);
+    }
+
+    virtual bool applyPropsToNode(loka::app::scene::Node *node) const
+    {
+      return this->selected()->applyPropsToNode(node);
+    }
+
+  private:
+    loka::app::scene::NodeDefinitionBase *selected() const
+    {
+      return *this->useReplacement_ ? this->replacement_ : this->initial_;
+    }
+
+    bool *useReplacement_;
+    loka::app::scene::NodeDefinitionBase *initial_;
+    loka::app::scene::NodeDefinitionBase *replacement_;
+  };
+
+  struct IncompatibleParkedRootInputs
+  {
+    IncompatibleParkedRootInputs(loka::core::MutableState<bool> *visibleState,
+                                 loka::core::MutableState<bool> *nestedConditionState,
+                                 loka::core::MutableState<int> *revisionState,
+                                 ParkedFactRecord *directRecord,
+                                 ParkedFactRecord *nestedRecord,
+                                 ParkedFactRecord *failedApplyOldRecord,
+                                 ParkedFactRecord *failedApplyCurrentRecord,
+                                 ParkedFactRecord *removedOldRecord)
+        : visible(visibleState),
+          nestedCondition(nestedConditionState),
+          revision(revisionState),
+          directOldRoot(directRecord),
+          nestedOldRoot(nestedRecord),
+          failedApplyOldRoot(failedApplyOldRecord),
+          failedApplyCurrentRoot(failedApplyCurrentRecord),
+          removedOldRoot(removedOldRecord)
+    {
+    }
+
+    loka::core::MutableState<bool> *visible;
+    loka::core::MutableState<bool> *nestedCondition;
+    loka::core::MutableState<int> *revision;
+    ParkedFactRecord *directOldRoot;
+    ParkedFactRecord *nestedOldRoot;
+    ParkedFactRecord *failedApplyOldRoot;
+    ParkedFactRecord *failedApplyCurrentRoot;
+    ParkedFactRecord *removedOldRoot;
+  };
+
+  IncompatibleParkedRootInputs *g_incompatibleParkedRootInputs = 0;
+
+  class IncompatibleParkedRootBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<IncompatibleParkedRootBoundaryNode>
+      IncompatibleParkedRootBoundaryProps;
+  class IncompatibleParkedRootBoundaryNode
+      : public PropsRecomposingBoundaryNode<IncompatibleParkedRootBoundaryNode,
+                                            IncompatibleParkedRootBoundaryProps>
+  {
+  public:
+    explicit IncompatibleParkedRootBoundaryNode(
+        const IncompatibleParkedRootBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<IncompatibleParkedRootBoundaryNode,
+                                       IncompatibleParkedRootBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_incompatibleParkedRootInputs &&
+          g_incompatibleParkedRootInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_incompatibleParkedRootInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      const bool revised =
+          g_incompatibleParkedRootInputs &&
+          g_incompatibleParkedRootInputs->revision &&
+          g_incompatibleParkedRootInputs->revision->get() != 0;
+
+      ParkedFactDefinition directOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->directOldRoot)));
+      loka::app::EditTextDefinition directCurrent;
+      loka::app::ButtonDefinition directShown("incompatible-direct-shown");
+      loka::app::scene::NodeDefinitionBase *directHidden =
+          revised
+              ? static_cast<loka::app::scene::NodeDefinitionBase *>(&directCurrent)
+              : static_cast<loka::app::scene::NodeDefinitionBase *>(&directOld);
+      loka::app::scene::ConditionalDefinition direct(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &directShown,
+              directHidden)));
+
+      ParkedFactDefinition nestedOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->nestedOldRoot)));
+      loka::app::EditTextDefinition nestedCurrent;
+      loka::app::ButtonDefinition nestedAlternate("incompatible-nested-alternate");
+      loka::app::scene::NodeDefinitionBase *nestedCurrentBranch =
+          revised
+              ? static_cast<loka::app::scene::NodeDefinitionBase *>(&nestedCurrent)
+              : static_cast<loka::app::scene::NodeDefinitionBase *>(&nestedOld);
+      loka::app::scene::ConditionalDefinition nested(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->nestedCondition,
+              &nestedAlternate,
+              nestedCurrentBranch)));
+      loka::app::FragmentDefinition outerParked;
+      outerParked << nested;
+      loka::app::ButtonDefinition outerShown("incompatible-outer-shown");
+      loka::app::scene::ConditionalDefinition outer(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &outerShown,
+              &outerParked)));
+
+      ParkedFactDefinition failedApplyOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->failedApplyOldRoot)));
+      RetainedApplyFailureParkedFactDefinition failedApplyCurrent(
+          g_incompatibleParkedRootInputs->failedApplyCurrentRoot);
+      loka::app::ButtonDefinition failedApplyShown("failed-apply-shown");
+      loka::app::scene::NodeDefinitionBase *failedApplyHidden =
+          revised
+              ? static_cast<loka::app::scene::NodeDefinitionBase *>(&failedApplyCurrent)
+              : static_cast<loka::app::scene::NodeDefinitionBase *>(&failedApplyOld);
+      loka::app::scene::ConditionalDefinition failedApply(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &failedApplyShown,
+              failedApplyHidden)));
+
+      ParkedFactDefinition removedOld(
+          (ParkedFactProps(g_incompatibleParkedRootInputs->removedOldRoot)));
+      loka::app::ButtonDefinition removedShown("removed-branch-shown");
+      loka::app::scene::ConditionalDefinition removed(
+          (loka::app::scene::ConditionalProps(
+              g_incompatibleParkedRootInputs->visible,
+              &removedShown,
+              revised
+                  ? static_cast<loka::app::scene::NodeDefinitionBase *>(0)
+                  : static_cast<loka::app::scene::NodeDefinitionBase *>(&removedOld))));
+
+      loka::app::FragmentDefinition root;
+      root << direct << outer << failedApply << removed;
+      composition.declare(root);
+    }
+  };
+
+  class IncompatibleParkedRootHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<IncompatibleParkedRootHarnessBoundaryNode>
+      IncompatibleParkedRootHarnessBoundaryProps;
+  class IncompatibleParkedRootHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<IncompatibleParkedRootHarnessBoundaryNode>
+  {
+  public:
+    explicit IncompatibleParkedRootHarnessBoundaryNode(
+        const IncompatibleParkedRootHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<IncompatibleParkedRootHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<IncompatibleParkedRootBoundaryNode>());
+    }
   };
 
   struct TaggedPropsApplyInputs
@@ -1791,12 +2410,269 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
   assert(seatRetained &&
          "the Conditional seat remains present through branch re-entry");
 
-  // Expected RED: T3 promotes this pin when the re-entered branch exposes the
-  // recomposed constant content after re-entry.
-  assertExpectedRedForT3(seatRetained && contentFresh);
+  assert(seatRetained && contentFresh &&
+         "the re-entered Conditional branch exposes current content in the same apply");
 
   scene.unmount();
   g_contentInputs = 0;
+}
+
+void testNestedConditionalSeatRepointsDefinitionsAtOuterReentry()
+{
+  ParkedFactRecord oldSourceRecord;
+  ParkedFactRecord currentSourceRecord;
+  ParkedFactRecord expiredSourceRecord;
+  loka::core::MutableState<bool> outerCondition(false);
+  loka::core::MutableState<bool> innerCondition(false);
+  loka::core::MutableState<int> revision(0);
+  NestedSeatReentryInputs inputs(&outerCondition,
+                                 &innerCondition,
+                                 &revision,
+                                 &oldSourceRecord,
+                                 &currentSourceRecord,
+                                 &expiredSourceRecord);
+  g_nestedSeatReentryInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<NestedSeatReentryHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  outerCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  outerCondition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  innerCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  assert(oldSourceRecord.constructionCount == 0);
+  assert(expiredSourceRecord.constructionCount == 0);
+  assert(currentSourceRecord.constructionCount == 1 &&
+         "a nested seat flipped after re-entry reads the current definition generation");
+
+  scene.unmount();
+  g_nestedSeatReentryInputs = 0;
+}
+
+void testShowDslParkedBranchIsCurrentAtReentry()
+{
+  ParkedFactRecord oldSourceRecord;
+  ParkedFactRecord currentSourceRecord;
+  ParkedFactRecord expiredSourceRecord;
+  loka::core::MutableState<bool> condition(true);
+  loka::core::MutableState<int> revision(0);
+  ShowReentryInputs inputs(&condition,
+                           &revision,
+                           &oldSourceRecord,
+                           &currentSourceRecord,
+                           &expiredSourceRecord);
+  g_showReentryInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<ShowReentryHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  loka::app::scene::INestable *showRoot =
+      g_showReentryBoundaryNode
+          ? g_showReentryBoundaryNode->compositionRootNestable()
+          : 0;
+  loka::app::scene::Node *showSeat = showRoot ? showRoot->childrenHead() : 0;
+  assert(showSeat &&
+         showSeat->propsTypeId() == loka::app::scene::ConditionalProps::staticTypeId() &&
+         "Show stamps its conditional seat identity at creation");
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(oldSourceRecord.constructionCount == 1);
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(oldSourceRecord);
+
+  revision.set(2);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  const NullScenePlatformController::LedgerRow *control =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(oldSourceRecord.constructionCount == 1 &&
+         !recordedTransitionTo(oldSourceRecord, loka::app::scene::NODE_FACT_RETIRED, 0) &&
+         "Show retains its seat and branch across the ledger round-trip");
+  assert(currentSourceRecord.attachReads > 0 &&
+         expiredSourceRecord.attachReads == 0 &&
+         "Show reentry applies the current definition generation");
+  assert(control && control->visible && control->handle && control->handle->owner &&
+         control->handle->owner->lifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
+         "Show exposes current branch content in the reentry apply");
+
+  scene.unmount();
+  g_showReentryInputs = 0;
+}
+
+void testDepth2NestedConditionalSeatRepointsDefinitionsAtOuterReentry()
+{
+  ParkedFactRecord oldSourceRecord;
+  ParkedFactRecord currentSourceRecord;
+  ParkedFactRecord expiredSourceRecord;
+  loka::core::MutableState<bool> outerCondition(false);
+  loka::core::MutableState<bool> innerCondition(false);
+  loka::core::MutableState<int> revision(0);
+  NestedSeatReentryInputs inputs(&outerCondition,
+                                 &innerCondition,
+                                 &revision,
+                                 &oldSourceRecord,
+                                 &currentSourceRecord,
+                                 &expiredSourceRecord);
+  g_nestedSeatReentryInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<Depth2NestedSeatReentryHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  outerCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  outerCondition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  innerCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  assert(oldSourceRecord.constructionCount == 0);
+  assert(expiredSourceRecord.constructionCount == 0);
+  assert(currentSourceRecord.constructionCount == 1 &&
+         "depth-2 recursive reentry reaches the nested seat's current definition");
+
+  scene.unmount();
+  g_nestedSeatReentryInputs = 0;
+}
+
+void testFullRebuildSubsumesParkedBranchLedgerGeneration()
+{
+  ParkedFactRecord record;
+  loka::core::MutableState<bool> condition(false);
+  bool useReplacement = false;
+  ParkedFactDefinition parked((ParkedFactProps(&record)));
+  loka::app::ButtonDefinition active("full-rebuild-active");
+  loka::app::scene::ConditionalDefinition conditional(
+      (loka::app::scene::ConditionalProps(&condition, &active, &parked)));
+  loka::app::FragmentDefinition initial;
+  initial << conditional;
+  loka::app::EditTextDefinition replacement;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      new FullRebuildLedgerDefinition(&useReplacement, &initial, &replacement));
+  mountAndAttach(scene, platform);
+
+  assert(record.constructionCount == 1);
+  condition.set(true);
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(record);
+
+  useReplacement = true;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assertParkedRetirementTransitionTable(record);
+
+  scene.unmount();
+}
+
+void testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry()
+{
+  ParkedFactRecord directOldRoot;
+  ParkedFactRecord nestedOldRoot;
+  ParkedFactRecord failedApplyOldRoot;
+  ParkedFactRecord failedApplyCurrentRoot;
+  ParkedFactRecord removedOldRoot;
+  loka::core::MutableState<bool> visible(false);
+  loka::core::MutableState<bool> nestedCondition(false);
+  loka::core::MutableState<int> revision(0);
+  IncompatibleParkedRootInputs inputs(&visible,
+                                      &nestedCondition,
+                                      &revision,
+                                      &directOldRoot,
+                                      &nestedOldRoot,
+                                      &failedApplyOldRoot,
+                                      &failedApplyCurrentRoot,
+                                      &removedOldRoot);
+  g_incompatibleParkedRootInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<IncompatibleParkedRootHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  assert(directOldRoot.constructionCount == 1);
+  assert(nestedOldRoot.constructionCount == 1);
+  assert(failedApplyOldRoot.constructionCount == 1);
+  assert(failedApplyCurrentRoot.constructionCount == 0);
+  assert(removedOldRoot.constructionCount == 1);
+
+  visible.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(directOldRoot);
+  assertParkedTransitionTable(nestedOldRoot);
+  assertParkedTransitionTable(failedApplyOldRoot);
+  assertParkedTransitionTable(removedOldRoot);
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  visible.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  std::size_t visibleEditRoots = 0;
+  const std::vector<NullScenePlatformController::LedgerRow> &ledger = platform.ledger();
+  for (std::size_t i = 0; i < ledger.size(); ++i)
+  {
+    if (ledger[i].recipe == NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT &&
+        ledger[i].visible)
+    {
+      ++visibleEditRoots;
+    }
+  }
+  assert(recordedTransitionTo(directOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         recordedTransitionTo(nestedOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         recordedTransitionTo(failedApplyOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         failedApplyCurrentRoot.constructionCount == 1 &&
+         recordedTransitionTo(removedOldRoot,
+                              loka::app::scene::NODE_FACT_RETIRED,
+                              0) &&
+         visibleEditRoots == 2 &&
+         "incompatible and failed-reconcile roots retire and recreate at reentry");
+
+  scene.unmount();
+  g_incompatibleParkedRootInputs = 0;
 }
 
 void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()
@@ -2031,4 +2907,94 @@ void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun()
   assert(platform.ledger().size() == 1);
   assert(platform.ledger()[0].visible);
   g_toggleVisible = 0;
+}
+
+namespace
+{
+  class StdCompositionShowShapeTypeTag
+  {
+  };
+  class StdCompositionShowShapeBoundaryNode;
+  struct StdCompositionShowShapeProps
+      : public loka::app::scene::NodePropsBase<StdCompositionShowShapeProps>
+  {
+    typedef StdCompositionShowShapeTypeTag TypeTag;
+    typedef StdCompositionShowShapeBoundaryNode NodeType;
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+  StdCompositionShowShapeBoundaryNode *g_stdCompositionShowShapeNode = 0;
+  /** Mirrors the SimpleViewer shape: a compose-once StdComposition boundary
+      whose Show condition is a boundary-owned NodeState — the door must fire
+      from the condition dirty alone, with no recomposition of the boundary. */
+  class StdCompositionShowShapeBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<StdCompositionShowShapeProps>
+  {
+  public:
+    explicit StdCompositionShowShapeBoundaryNode(const StdCompositionShowShapeProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<StdCompositionShowShapeProps>(props),
+          dialogShown_()
+    {
+      this->state(this->dialogShown_, false);
+      g_stdCompositionShowShapeNode = this;
+    }
+    virtual ~StdCompositionShowShapeBoundaryNode()
+    {
+      if (g_stdCompositionShowShapeNode == this)
+      {
+        g_stdCompositionShowShapeNode = 0;
+      }
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      loka::app::ButtonDefinition open("open");
+      loka::app::EditTextDefinition dialog;
+      loka::app::ShowDefinition shown = loka::app::Show(*this->dialogShown_.state());
+      shown << dialog;
+      loka::app::FragmentDefinition root;
+      root << open << shown;
+      c.declare(root);
+    }
+    void openDialog()
+    {
+      this->dialogShown_.set(true, true);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> dialogShown_;
+  };
+} // namespace
+
+void testStdCompositionBoundaryShowFlipPreservesSiblings()
+{
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<StdCompositionShowShapeProps,
+                                   StdCompositionShowShapeBoundaryNode> *root =
+      new loka::app::scene::NodeDefinition<StdCompositionShowShapeProps,
+                                           StdCompositionShowShapeBoundaryNode>(
+          StdCompositionShowShapeProps());
+  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
+  mountAndAttach(scene, platform);
+  const NullScenePlatformController::LedgerRow *button =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  assert(button && button->visible);
+  assert(!platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
+  assert(g_stdCompositionShowShapeNode);
+
+  g_stdCompositionShowShapeNode->openDialog();
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+
+  button = platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  const NullScenePlatformController::LedgerRow *dialog =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(button && button->visible &&
+         "siblings survive a Show flip inside a compose-once boundary");
+  assert(dialog && dialog->visible &&
+         "the shown branch materializes at the scheduled apply");
+  scene.unmount();
 }

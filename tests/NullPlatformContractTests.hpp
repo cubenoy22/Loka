@@ -26,6 +26,11 @@ void testNullPlatformContract_H4_retiringBoundaryReportsEveryParkedBranchRetired
 void testNullPlatformContract_H5_taggedSeatAmongSiblingsSurvivesUnrelatedRecompose();
 void testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose();
 void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose();
+void testNestedConditionalSeatRepointsDefinitionsAtOuterReentry();
+void testShowDslParkedBranchIsCurrentAtReentry();
+void testDepth2NestedConditionalSeatRepointsDefinitionsAtOuterReentry();
+void testFullRebuildSubsumesParkedBranchLedgerGeneration();
+void testIncompatibleParkedBranchRootsRetireAndRecreateAtReentry();
 void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition();
 void testNullPlatformContract_H9_retainedSeatUsesReplacementCondition();
 void testNullPlatformContract_F1_retiredQueueIsEmptyAfterFlush();
@@ -35,3 +40,4 @@ void testNullWindowScenePathMountsAndTearsDownBeforeControllerDelete();
 void testNullPlatformContract_G6_materializedChildIsVisibleInSameRun();
 
 #endif // LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
+void testStdCompositionBoundaryShowFlipPreservesSiblings();
