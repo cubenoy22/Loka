@@ -225,3 +225,45 @@ void testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw()
 
   printf("==== [testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw] PASSED ====\n");
 }
+
+// ---------------------------------------------------------------------------
+// Auto control-id policy (issue #120)
+//
+// Portable model, same philosophy as the redraw simulator above: the
+// allocator is plain C++ shared with ToolboxScenePlatformController.
+// The first sequence below is exactly the one that used to collide —
+// the controller re-announced the explicit base every frame while
+// contexts allocated lazily and cached their id, so the first control
+// revealed by a Show flip received an id that was still live.
+// ---------------------------------------------------------------------------
+
+#include "../apple/toolbox/src/ToolboxControlIdAllocator.hpp"
+
+void testToolboxAutoControlIdsNeverReissueLiveIds()
+{
+  ToolboxControlIdAllocator ids(128);
+
+  ids.raiseBaseAbove(0); // frame 1, no explicit tags
+  const short outerAdd = ids.allocate();
+  const short toggle = ids.allocate();
+
+  ids.raiseBaseAbove(0); // frame 2: cached contexts skip allocation
+  const short revealedAdd = ids.allocate(); // Show reveal
+  assert(revealedAdd != outerAdd && revealedAdd != toggle &&
+         "a control revealed after re-announcing the base must not receive a live id");
+
+  // Recycling: a released id may be reissued, live ids stay reserved.
+  ids.release(outerAdd);
+  const short reused = ids.allocate();
+  assert(reused == outerAdd);
+  const short another = ids.allocate();
+  assert(another != toggle && another != reused && "live ids stay reserved");
+
+  // A late explicit tag lifts the base; freed ids below it are discarded.
+  ids.release(reused);
+  ids.raiseBaseAbove(1000);
+  const short afterRaise = ids.allocate();
+  assert(afterRaise >= 1001 && "freed ids below a raised base are not reissued");
+  ids.release(afterRaise);
+  assert(ids.allocate() == afterRaise);
+}
