@@ -17,49 +17,6 @@
 
 namespace
 {
-  template <class NodeT, class PropsT>
-  class RecomposingContractBoundaryNode : public loka::app::scene::BoundaryNodeFor<NodeT>
-  {
-  public:
-    explicit RecomposingContractBoundaryNode(const PropsT &props)
-        : loka::app::scene::BoundaryNodeFor<NodeT>(props)
-    {
-    }
-
-  protected:
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
-    {
-      typedef loka::app::scene::BoundaryNodeFor<NodeT> BaseType;
-      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
-      {
-        BaseType::composeWithContext(context, event);
-        return;
-      }
-
-      loka::app::scene::NodeComposition &composition = this->beginComposition(context);
-      {
-        loka::app::scene::NodeComposition::CompositionScope scope(composition);
-        this->composeNode(composition);
-      }
-      this->captureCurrentCompositionSnapshot();
-      this->rebuildCurrentCompositionDiff();
-      std::vector<loka::app::scene::Node *> retainedChildren;
-      if (!this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren))
-      {
-        return;
-      }
-      this->promoteCurrentCompositionSnapshot();
-      for (std::size_t i = 0; i < retainedChildren.size(); ++i)
-      {
-        if (retainedChildren[i])
-        {
-          this->composeSubtree(retainedChildren[i], context, event, this);
-        }
-      }
-    }
-  };
-
   loka::core::MutableState<bool> *g_toggleVisible = 0;
   loka::app::scene::NativeLifetimeHint g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
 
@@ -67,11 +24,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<ToggleControlBoundaryNode> ToggleControlBoundaryProps;
 
   class ToggleControlBoundaryNode
-      : public RecomposingContractBoundaryNode<ToggleControlBoundaryNode, ToggleControlBoundaryProps>
+      : public SceneTestSupport::RecomposingBoundaryNode<ToggleControlBoundaryNode, ToggleControlBoundaryProps>
   {
   public:
     explicit ToggleControlBoundaryNode(const ToggleControlBoundaryProps &props)
-        : RecomposingContractBoundaryNode<ToggleControlBoundaryNode, ToggleControlBoundaryProps>(props)
+        : SceneTestSupport::RecomposingBoundaryNode<ToggleControlBoundaryNode, ToggleControlBoundaryProps>(props)
     {
     }
 
@@ -155,11 +112,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<RecipeBoundaryNode> RecipeBoundaryProps;
 
   class RecipeBoundaryNode
-      : public RecomposingContractBoundaryNode<RecipeBoundaryNode, RecipeBoundaryProps>
+      : public SceneTestSupport::RecomposingBoundaryNode<RecipeBoundaryNode, RecipeBoundaryProps>
   {
   public:
     explicit RecipeBoundaryNode(const RecipeBoundaryProps &props)
-        : RecomposingContractBoundaryNode<RecipeBoundaryNode, RecipeBoundaryProps>(props)
+        : SceneTestSupport::RecomposingBoundaryNode<RecipeBoundaryNode, RecipeBoundaryProps>(props)
     {
     }
 
@@ -192,11 +149,11 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<MultipleButtonBoundaryNode> MultipleButtonBoundaryProps;
 
   class MultipleButtonBoundaryNode
-      : public RecomposingContractBoundaryNode<MultipleButtonBoundaryNode, MultipleButtonBoundaryProps>
+      : public SceneTestSupport::RecomposingBoundaryNode<MultipleButtonBoundaryNode, MultipleButtonBoundaryProps>
   {
   public:
     explicit MultipleButtonBoundaryNode(const MultipleButtonBoundaryProps &props)
-        : RecomposingContractBoundaryNode<MultipleButtonBoundaryNode, MultipleButtonBoundaryProps>(props)
+        : SceneTestSupport::RecomposingBoundaryNode<MultipleButtonBoundaryNode, MultipleButtonBoundaryProps>(props)
     {
     }
 
@@ -251,11 +208,13 @@ namespace
   typedef loka::app::scene::BoundaryPropsFor<ParkedBranchRetireBoundaryNode> ParkedBranchRetireBoundaryProps;
 
   class ParkedBranchRetireBoundaryNode
-      : public RecomposingContractBoundaryNode<ParkedBranchRetireBoundaryNode, ParkedBranchRetireBoundaryProps>
+      : public SceneTestSupport::RecomposingBoundaryNode<ParkedBranchRetireBoundaryNode,
+                                                        ParkedBranchRetireBoundaryProps>
   {
   public:
     explicit ParkedBranchRetireBoundaryNode(const ParkedBranchRetireBoundaryProps &props)
-        : RecomposingContractBoundaryNode<ParkedBranchRetireBoundaryNode, ParkedBranchRetireBoundaryProps>(props)
+        : SceneTestSupport::RecomposingBoundaryNode<ParkedBranchRetireBoundaryNode, ParkedBranchRetireBoundaryProps>(
+              props)
     {
     }
 
