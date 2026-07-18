@@ -49,7 +49,20 @@ if(WIN32)
     target_compile_options(LokaHelloWin32 PRIVATE /utf-8)
   endif()
 
-  add_executable(LokaTestsWin32 ${LOKA_SHARED_TEST_SOURCES})
+  # The test binary compiles the common sources itself so TEST_BUILD applies
+  # to them uniformly (mirrors the Linux LokaFlowDslTests target and the
+  # macOS LokaTestsMacOS target). Linking the production LokaWin32Core
+  # instead would mix TEST_BUILD and non-TEST_BUILD compilations of the same
+  # classes (ODR/layout divergence). Win32String.cpp supplies the platform
+  # string seam that GenericString.cpp compiles out on _WIN32.
+  file(GLOB_RECURSE LOKA_WIN32_TEST_COMMON_SOURCES CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common/*.cpp
+  )
+  add_executable(LokaTestsWin32
+    ${LOKA_SHARED_TEST_SOURCES}
+    ${LOKA_WIN32_TEST_COMMON_SOURCES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32String.cpp
+  )
 
   target_include_directories(LokaTestsWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
@@ -58,7 +71,6 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/src
   )
 
-  target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32Core)
   target_compile_definitions(LokaTestsWin32 PRIVATE TEST_BUILD)
 
   if(MSVC)
