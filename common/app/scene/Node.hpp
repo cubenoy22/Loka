@@ -359,8 +359,7 @@ namespace loka
       protected:
         /** The second observation point (the first is the context's
             onFactChanged): nodes without contexts that own lifecycle
-            reactions of their own — Conditional unbinds its condition when
-            the fact turns RETIRED — hear their door writes here. Fires from
+            reactions of their own hear their door writes here. Fires from
             the single door on real transitions only; note that the write in
             ~Node dispatches to the base once a derived destructor has run,
             so destructors must not rely on it. */
@@ -556,6 +555,14 @@ namespace loka
         }
 
       private:
+        /** Re-projects node-owned child selection for a reserved apply before
+            any compose or DETACH walk can replace its definition sources. */
+        virtual void evaluateChildrenForScheduledApply()
+        {
+        }
+
+        static void EvaluateChildrenForScheduledApplySubtree(Node *node);
+
         /** The single door. Same-value writes are silent (including R->R);
             RETIRED is terminal, so R->A / R->D assert. The three writers are
             the compose door (composeTree ATTACH), the walk door
@@ -1348,6 +1355,24 @@ namespace loka
         for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
         {
           DeliverLifecycleFactsSubtree(child);
+        }
+      }
+
+      inline void Node::EvaluateChildrenForScheduledApplySubtree(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        node->evaluateChildrenForScheduledApply();
+        INestable *nestable = node->asNestable();
+        if (!nestable)
+        {
+          return;
+        }
+        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          EvaluateChildrenForScheduledApplySubtree(child);
         }
       }
 

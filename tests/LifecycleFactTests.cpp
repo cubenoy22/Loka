@@ -332,16 +332,21 @@ void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased()
   assert(record.attachFacts.size() == 1 && "construction announces through setContext");
 
   condition.set(false);
+  assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "the condition write does not run the seat-evaluation walk");
+  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
   assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_DETACHED_RETAINED);
   assert(record.detachFacts.empty() &&
          "the walk door never calls contexts synchronously (G1)");
 
   condition.set(true);
+  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
   loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&conditional);
   assert(record.detachFacts.empty() && record.attachFacts.size() == 1 &&
          "a round trip sharing one delivery nets to silence (G2)");
 
   condition.set(false);
+  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
   loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&conditional);
   assert(record.detachFacts.size() == 1 &&
          "a one-way swap still delivers exactly once");
@@ -365,13 +370,13 @@ void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached()
   pumpChild(scene);
   innerCondition.set(true);
 
-  assert(record.node && "the hidden swap still materializes the branch");
-  assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
-         "a child adopted under a hidden ancestor inherits DETACHED_RETAINED (born-hidden)");
+  assert(!record.node &&
+         "a condition write does not materialize a branch outside the scheduled walk");
 
   ancestorVisible.set(true);
   pumpChild(scene);
 
+  assert(record.node && "the scheduled walk materializes the current branch on re-entry");
   assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
          "the ancestor's re-attach walk restores ATTACHED for the then-active path");
 

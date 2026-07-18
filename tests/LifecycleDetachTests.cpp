@@ -157,6 +157,41 @@ namespace
     }
   };
 
+  DetachHookCounts *g_detachWindowTrueCounts = 0;
+  DetachHookCounts *g_detachWindowFalseCounts = 0;
+  loka::core::MutableState<bool> *g_detachWindowCondition = 0;
+
+  class DetachWindowConditionalBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<DetachWindowConditionalBoundaryNode>
+      DetachWindowConditionalBoundaryProps;
+
+  class DetachWindowConditionalBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<DetachWindowConditionalBoundaryNode>
+  {
+  public:
+    explicit DetachWindowConditionalBoundaryNode(const DetachWindowConditionalBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<DetachWindowConditionalBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      typedef loka::app::scene::NodeDefinition<PlainDetachProbeProps, PlainDetachProbeNode>
+          PlainDetachProbeDefinition;
+      PlainDetachProbeDefinition trueDefinition((PlainDetachProbeProps(g_detachWindowTrueCounts)));
+      PlainDetachProbeDefinition falseDefinition((PlainDetachProbeProps(g_detachWindowFalseCounts)));
+      composition.declare(
+          composition.conditional(*g_detachWindowCondition, trueDefinition, falseDefinition));
+    }
+
+  protected:
+    virtual void detachNode(loka::app::scene::NodeComposition &composition)
+    {
+      (void)composition;
+      g_detachWindowCondition->set(true);
+    }
+  };
+
   class BoundaryInternalProbeNode;
   typedef loka::app::scene::BoundaryPropsFor<BoundaryInternalProbeNode> BoundaryInternalProbeProps;
 
@@ -1568,15 +1603,13 @@ void testRootDetachChildWalkRetainsBoundaryStateOwner()
   g_detachParentState = 0;
 }
 
-void testConditionalUnbindsBeforeReclaim()
+void testRetiredConditionalIgnoresConditionWrite()
 {
   using namespace loka::app;
   using namespace loka::app::scene;
 
-  // Successor of the compose-detach unbind pin: the condition falls silent
-  // when the fact turns RETIRED (the retire door), so no callback can reach
-  // a retiring tree. Re-binding has no successor — a scene detach tears the
-  // tree down, and fresh nodes bind at construction.
+  // A write cannot reach a retired seat because condition changes only mark
+  // live ownership dirty; seat evaluation belongs to the scheduled walk.
   loka::core::MutableState<bool> condition(false);
   TextDefinition falseDefinition = Text("Detached false branch");
   TextDefinition trueDefinition = Text("Detached true branch");
@@ -1587,7 +1620,7 @@ void testConditionalUnbindsBeforeReclaim()
   condition.set(true);
 
   assert(conditional.activeNode == activeBeforeRetire &&
-         "a retiring conditional no longer hears its condition");
+         "a retired conditional ignores condition writes");
 }
 
 void testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach()
@@ -1607,12 +1640,14 @@ void testConditionalBranchSwapNotifiesContextsAcrossRetainedDetach()
     assert(trueCounts.attachCalls == 0);
 
     condition.set(true);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
     LifecycleFactTestAccess::DeliverFacts(&conditional);
     assert(trueCounts.attachCalls == 1);
     assert(falseCounts.detachCalls == 1 &&
            "a retained detach must deliver the detach fact to the branch's contexts");
 
     condition.set(false);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
     LifecycleFactTestAccess::DeliverFacts(&conditional);
     assert(falseCounts.attachCalls == 2 &&
            "re-entry must deliver the attach fact to the retained branch's contexts");
@@ -1650,13 +1685,16 @@ void testConditionalSwapUnderHiddenAncestorStaysSilent()
     assert(innerTrueCounts.attachCalls == 1);
 
     innerCondition.set(false);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&outer);
     LifecycleFactTestAccess::DeliverFacts(&outer);
     innerCondition.set(true);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&outer);
     LifecycleFactTestAccess::DeliverFacts(&outer);
     assert(innerTrueCounts.attachCalls == 2 && innerTrueCounts.detachCalls == 1);
     assert(innerFalseCounts.attachCalls == 1 && innerFalseCounts.detachCalls == 1);
 
     outerCondition.set(false);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&outer);
     LifecycleFactTestAccess::DeliverFacts(&outer);
     assert(innerTrueCounts.detachCalls == 2 &&
            "hiding the ancestor must deliver the detach fact down the active path");
@@ -1664,6 +1702,7 @@ void testConditionalSwapUnderHiddenAncestorStaysSilent()
            "the inactive branch is already hidden and stays untouched");
 
     innerCondition.set(false);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&outer);
     LifecycleFactTestAccess::DeliverFacts(&outer);
     assert(innerFalseCounts.attachCalls == 1 &&
            "a swap under a hidden ancestor must not show the incoming branch");
@@ -1671,6 +1710,7 @@ void testConditionalSwapUnderHiddenAncestorStaysSilent()
            "a swap under a hidden ancestor must stay silent");
 
     outerCondition.set(true);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&outer);
     LifecycleFactTestAccess::DeliverFacts(&outer);
     assert(innerFalseCounts.attachCalls == 2 &&
            "the ancestor's re-attach walk must show the then-active path");
@@ -1703,11 +1743,13 @@ void testConditionalBranchSwapNotifiesNestedContextsAcrossRetainedDetach()
     assert(innerCounts.detachCalls == 0);
 
     condition.set(false);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
     LifecycleFactTestAccess::DeliverFacts(&conditional);
     assert(innerCounts.detachCalls == 1 &&
            "a retained detach must reach contexts below the branch root");
 
     condition.set(true);
+    LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
     LifecycleFactTestAccess::DeliverFacts(&conditional);
     assert(innerCounts.attachCalls == 2 &&
            "re-entry must reach contexts below the branch root");
@@ -2542,6 +2584,8 @@ void testSceneTeardownReleasesBothConditionalBranchContextsOnce()
     assert(trueCounts.attachCalls == 0);
 
     condition.set(true);
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
     assert(trueCounts.attachCalls == 1);
     assert(falseCounts.detachCalls == 1 &&
            "a retained detach must deliver the detach fact to the branch's contexts");
@@ -2558,4 +2602,49 @@ void testSceneTeardownReleasesBothConditionalBranchContextsOnce()
   g_conditionalSceneTrueCounts = 0;
   g_conditionalSceneFalseCounts = 0;
   g_conditionalSceneCondition = 0;
+}
+
+void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
+{
+  using namespace loka::app::scene;
+
+  DetachHookCounts trueCounts;
+  DetachHookCounts falseCounts;
+  loka::core::MutableState<bool> condition(false);
+  g_detachWindowTrueCounts = &trueCounts;
+  g_detachWindowFalseCounts = &falseCounts;
+  g_detachWindowCondition = &condition;
+
+  bool showEmptyRoot = false;
+  BoundaryDefinition<DetachWindowConditionalBoundaryProps, DetachWindowConditionalBoundaryNode>
+      conditionalRoot = Boundary<DetachWindowConditionalBoundaryNode>();
+  loka::app::Fragment emptyRoot;
+
+  {
+    DetachProbePlatformController platform;
+    RootUpdateFallbackTestScene scene(
+        new RootUpdateFallbackDefinition(&showEmptyRoot, &conditionalRoot, &emptyRoot));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(falseCounts.attachCalls == 1);
+    assert(trueCounts.attachCalls == 0);
+
+    showEmptyRoot = true;
+    scene.requestInvalidate(NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+
+    assert(condition.get());
+    assert(trueCounts.attachCalls == 0 &&
+           "a condition write during DETACH must wait for a later scheduled apply");
+    assert(falseCounts.detachCalls == 1);
+    if (scene.hasPendingInvalidation())
+    {
+      assert(!scene.flushInvalidation());
+    }
+  }
+
+  g_detachWindowCondition = 0;
+  g_detachWindowFalseCounts = 0;
+  g_detachWindowTrueCounts = 0;
 }

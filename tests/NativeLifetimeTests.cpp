@@ -165,11 +165,14 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
   assert(typedShowNode->props.falseDef == updatedShow.props().falseDef);
   condition.set(false);
   assert(typedShowNode->activeNode == activeBeforeRebind &&
-         "retained Show unbinds the previous condition source");
+         "the previous condition no longer drives the retained Show seat");
   otherCondition.set(true);
   otherCondition.set(false);
+  assert(typedShowNode->activeNode == activeBeforeRebind &&
+         "the replacement condition waits for seat evaluation");
+  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(typedShowNode);
   assert(typedShowNode->activeNode != activeBeforeRebind &&
-         "retained Show binds the replacement condition source");
+         "seat evaluation reads the replacement condition source");
   delete showNode;
 }
 

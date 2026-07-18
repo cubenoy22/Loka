@@ -502,6 +502,7 @@ namespace loka
 
         void composePendingRefreshCycle()
         {
+          Node::EvaluateChildrenForScheduledApplySubtree(rootNode_);
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
         }
 
