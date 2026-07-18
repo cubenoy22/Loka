@@ -588,6 +588,82 @@ namespace loka
         }
 
       protected:
+        enum LocalRecomposeMode
+        {
+          LOCAL_RECOMPOSE_APPLY_SNAPSHOT = 0,
+          LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS = 1
+        };
+
+        /** Declares the desired definitions for a boundary-local recompose. */
+        virtual void declareLocalRecomposition(NodeComposition &composition)
+        {
+          (void)composition;
+        }
+
+        /** Rebuilds and applies this Boundary's current local composition.
+            Returns false without promoting the snapshot when no local plan
+            could be applied. */
+        bool recomposeLocalComposition(ComponentContext &context,
+                                       ComposeEvent event,
+                                       LocalRecomposeMode mode)
+        {
+          NodeComposition &composition = this->beginComposition(context);
+          {
+            NodeComposition::CompositionScope scope(composition);
+            this->declareLocalRecomposition(composition);
+          }
+          this->captureCurrentCompositionSnapshot();
+          this->rebuildCurrentCompositionDiff();
+
+          if (mode == LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS)
+          {
+            if (!this->canApplyLocalCompositionDiff())
+            {
+              return false;
+            }
+            if (this->localCompositionDiff()->isCompatibleRetainOnly())
+            {
+              if (!this->localCompositionDiff()->isStableRetainOnly())
+              {
+                if (!this->applyCurrentRootDefinitionPropsToLiveRoot())
+                {
+                  for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry;
+                       entry = entry->nextInComposition)
+                  {
+                    if (!entry->equivalentProps)
+                    {
+                      this->applyCurrentDefinitionPropsToLiveChild(entry->tag);
+                    }
+                  }
+                }
+              }
+              this->promoteCurrentCompositionSnapshot();
+              loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
+              for (Node *child = it.next(); child; child = it.next())
+              {
+                this->composeTree(child, context, event, this);
+              }
+              return true;
+            }
+          }
+
+          std::vector<Node *> retainedChildren;
+          if (!this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren)
+              && !this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
+          {
+            return false;
+          }
+          this->promoteCurrentCompositionSnapshot();
+          for (size_t i = 0; i < retainedChildren.size(); ++i)
+          {
+            if (retainedChildren[i])
+            {
+              this->composeTree(retainedChildren[i], context, event, this);
+            }
+          }
+          return true;
+        }
+
         /** Retires the complete arena allocation and ledger for clock-boundary reclaim. */
         void retireOwnedNodeGeneration();
 

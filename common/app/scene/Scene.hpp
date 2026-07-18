@@ -582,6 +582,11 @@ namespace loka
           virtual ~RootBoundaryWrapper() {}
 
         protected:
+          virtual void declareLocalRecomposition(NodeComposition &composition)
+          {
+            composition.declare(*def_);
+          }
+
           void detachExistingChildren(ComponentContext &context)
           {
             loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
@@ -630,60 +635,28 @@ namespace loka
                 return;
               }
             }
-            NodeComposition &composition = this->beginComposition(context);
+            NodeComposition *composition = 0;
             if (event == COMPOSE_EVENT_ATTACH)
             {
+              composition = &this->beginComposition(context);
               this->clearChildren();
               this->nodeArena()->clear();
-              this->attachNode(composition);
-            }
-            {
-              NodeComposition::CompositionScope scope(composition);
-              composition.declare(*def_);
-            }
-            this->captureCurrentCompositionSnapshot();
-            this->rebuildCurrentCompositionDiff();
-            if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff()
-                && this->localCompositionDiff()->isCompatibleRetainOnly())
-            {
-              if (!this->localCompositionDiff()->isStableRetainOnly())
+              this->attachNode(*composition);
               {
-                if (!this->applyCurrentRootDefinitionPropsToLiveRoot())
-                {
-                  for (NodeCompositionDiff::Entry *entry = this->localCompositionDiff()->entriesHead(); entry;
-                       entry = entry->nextInComposition)
-                  {
-                    if (!entry->equivalentProps)
-                    {
-                      this->applyCurrentDefinitionPropsToLiveChild(entry->tag);
-                    }
-                  }
-                }
+                NodeComposition::CompositionScope scope(*composition);
+                this->declareLocalRecomposition(*composition);
               }
-              this->promoteCurrentCompositionSnapshot();
-              loka::dsl::CompositionCursor<Node> it(this->childrenHead(), this->childrenCount());
-              for (Node *child = it.next(); child; child = it.next())
-              {
-                this->composeTree(child, context, event, this);
-              }
-              return;
+              this->captureCurrentCompositionSnapshot();
+              this->rebuildCurrentCompositionDiff();
             }
-            if (event == COMPOSE_EVENT_UPDATE && this->canApplyLocalCompositionDiff())
+            else
             {
-              std::vector<Node *> retainedChildren;
-              if (this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren)
-                  || this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
+              if (this->recomposeLocalComposition(
+                      context, event, LOCAL_RECOMPOSE_APPLY_DIFF_WITH_RETAIN_FAST_PATHS))
               {
-                this->promoteCurrentCompositionSnapshot();
-                for (size_t i = 0; i < retainedChildren.size(); ++i)
-                {
-                  if (retainedChildren[i])
-                  {
-                    this->composeTree(retainedChildren[i], context, event, this);
-                  }
-                }
                 return;
               }
+              composition = &this->composition();
             }
             this->promoteCurrentCompositionSnapshot();
             if (event == COMPOSE_EVENT_UPDATE)
@@ -701,8 +674,8 @@ namespace loka
               }
               this->retireOwnedNodeGeneration();
             }
-            context.setComposition(&composition);
-            Node *child = composition.createNodeTree();
+            context.setComposition(composition);
+            Node *child = composition->createNodeTree();
             if (child)
             {
               this->addChild(child);

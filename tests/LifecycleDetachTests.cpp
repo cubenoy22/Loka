@@ -10,6 +10,7 @@
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
+#include "support/RecomposingBoundary.hpp"
 
 namespace
 {
@@ -440,11 +441,13 @@ namespace
   RootReplacementArenaRetireBoundaryNode *g_rootReplacementArenaRetireBoundary = 0;
 
   class RootReplacementArenaRetireBoundaryNode
-      : public loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode>
+      : public SceneTestSupport::RecomposingBoundaryNode<RootReplacementArenaRetireBoundaryNode,
+                                                        RootReplacementArenaRetireBoundaryProps>
   {
   public:
     explicit RootReplacementArenaRetireBoundaryNode(const RootReplacementArenaRetireBoundaryProps &props)
-        : loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode>(props),
+        : SceneTestSupport::RecomposingBoundaryNode<RootReplacementArenaRetireBoundaryNode,
+                                                    RootReplacementArenaRetireBoundaryProps>(props),
           showReplacement_(),
           initialized_(false)
     {
@@ -453,38 +456,6 @@ namespace
     virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
     {
       return false;
-    }
-
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
-    {
-      typedef loka::app::scene::BoundaryNodeFor<RootReplacementArenaRetireBoundaryNode> BaseType;
-      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
-      {
-        BaseType::composeWithContext(context, event);
-        return;
-      }
-
-      loka::app::scene::NodeComposition &composition = this->beginComposition(context);
-      {
-        loka::app::scene::NodeComposition::CompositionScope scope(composition);
-        this->composeNode(composition);
-      }
-      this->captureCurrentCompositionSnapshot();
-      this->rebuildCurrentCompositionDiff();
-      std::vector<loka::app::scene::Node *> retainedChildren;
-      if (!this->rebuildCompositionRootFromCurrentSnapshot(context, retainedChildren))
-      {
-        return;
-      }
-      this->promoteCurrentCompositionSnapshot();
-      for (size_t i = 0; i < retainedChildren.size(); ++i)
-      {
-        if (retainedChildren[i])
-        {
-          this->composeSubtree(retainedChildren[i], context, event, this);
-        }
-      }
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &composition)
@@ -1149,11 +1120,13 @@ namespace
   ConditionalArenaRetireProbeNode *g_conditionalArenaRetireProbe = 0;
 
   class ConditionalArenaRetireProbeNode
-      : public loka::app::scene::BoundaryNodeFor<ConditionalArenaRetireProbeNode>
+      : public SceneTestSupport::RecomposingBoundaryNode<ConditionalArenaRetireProbeNode,
+                                                        ConditionalArenaRetireProbeProps>
   {
   public:
     explicit ConditionalArenaRetireProbeNode(const ConditionalArenaRetireProbeProps &props)
-        : loka::app::scene::BoundaryNodeFor<ConditionalArenaRetireProbeNode>(props),
+        : SceneTestSupport::RecomposingBoundaryNode<ConditionalArenaRetireProbeNode,
+                                                    ConditionalArenaRetireProbeProps>(props),
           showAlternate_(),
           initialized_(false)
     {
@@ -1162,38 +1135,6 @@ namespace
     virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
     {
       return false;
-    }
-
-    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
-                                    loka::app::scene::ComposeEvent event)
-    {
-      typedef loka::app::scene::BoundaryNodeFor<ConditionalArenaRetireProbeNode> BaseType;
-      if (event != loka::app::scene::COMPOSE_EVENT_UPDATE)
-      {
-        BaseType::composeWithContext(context, event);
-        return;
-      }
-
-      loka::app::scene::NodeComposition &composition = this->beginComposition(context);
-      {
-        loka::app::scene::NodeComposition::CompositionScope scope(composition);
-        this->composeNode(composition);
-      }
-      this->captureCurrentCompositionSnapshot();
-      this->rebuildCurrentCompositionDiff();
-      std::vector<loka::app::scene::Node *> retainedChildren;
-      if (!this->rebuildCompositionChildrenFromCurrentSnapshot(context, retainedChildren))
-      {
-        return;
-      }
-      this->promoteCurrentCompositionSnapshot();
-      for (size_t i = 0; i < retainedChildren.size(); ++i)
-      {
-        if (retainedChildren[i])
-        {
-          this->composeSubtree(retainedChildren[i], context, event, this);
-        }
-      }
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &composition)
