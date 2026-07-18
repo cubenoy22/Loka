@@ -149,6 +149,12 @@ namespace loka
         updateActiveNode();
       }
 
+      void ConditionalNode::applyRetainedProps(const ConditionalProps &nextProps)
+      {
+        this->props = nextProps;
+        this->bindCondition();
+      }
+
       Node *ConditionalNode::ensureBranchNode(bool cond, bool &created)
       {
         created = false;
@@ -328,6 +334,30 @@ namespace loka
         return copy;
       }
 
+      bool ConditionalDefinition::hasEquivalentProps(const NodeDefinitionBase &other) const
+      {
+        const PropsBase *otherProps = other.propsBase();
+        if (!otherProps || otherProps->propsTypeId() != this->props.propsTypeId())
+        {
+          return false;
+        }
+        const ConditionalProps &otherConditionalProps = static_cast<const ConditionalProps &>(*otherProps);
+        return this->props.condition == otherConditionalProps.condition;
+      }
+
+      bool ConditionalDefinition::applyPropsToNode(Node *node) const
+      {
+        if (!node || node->nodeTypeKey() != NodeTypeToken<ConditionalNode>())
+        {
+          return false;
+        }
+        ConditionalNode *conditional = static_cast<ConditionalNode *>(node);
+        conditional->applyRetainedProps(this->props);
+        conditional->setNodeTag(this->nodeTag());
+        conditional->setNativeLifetimeHint(this->nativeLifetimeHint());
+        return true;
+      }
+
       ConditionalDefinition::~ConditionalDefinition()
       {
         delete ownedTrueDef;
@@ -339,6 +369,7 @@ namespace loka
         Node *node = new ConditionalNode(props);
         if (node)
         {
+          node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
         return node;
@@ -349,6 +380,7 @@ namespace loka
         Node *node = new (mem) ConditionalNode(props);
         if (node)
         {
+          node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
         return node;

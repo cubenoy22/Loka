@@ -125,8 +125,18 @@ void testDefinitionAssignmentCarriesNativeLifetimeHint()
 void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
 {
   loka::core::MutableState<bool> condition(true);
+  loka::core::MutableState<bool> otherCondition(false);
+  HintProbeDefinition branchContents;
 
   loka::app::scene::ConditionalDefinition conditional(loka::app::scene::ConditionalProps(&condition, 0, 0));
+  loka::app::scene::ConditionalDefinition equivalentConditional(
+      loka::app::scene::ConditionalProps(&condition, &branchContents, 0));
+  loka::app::scene::ConditionalDefinition differentConditional(
+      loka::app::scene::ConditionalProps(&otherCondition, 0, 0));
+  assert(conditional.propsBase());
+  assert(conditional.propsBase()->propsTypeId() == equivalentConditional.propsBase()->propsTypeId());
+  assert(conditional.hasEquivalentProps(equivalentConditional));
+  assert(!conditional.hasEquivalentProps(differentConditional));
   conditional.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
   loka::app::scene::Node *conditionalNode = conditional.create();
   assert(conditionalNode);
@@ -134,10 +144,32 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
   delete conditionalNode;
 
   loka::app::ShowDefinition show(&condition);
+  loka::app::ShowDefinition equivalentShow(&condition);
+  loka::app::ShowDefinition updatedShow(&otherCondition);
+  show << branchContents;
+  assert(show.propsBase());
+  assert(show.propsBase()->propsTypeId() == equivalentShow.propsBase()->propsTypeId());
+  assert(show.hasEquivalentProps(equivalentShow) &&
+         "rebuilt Show branch contents do not participate in props equivalence");
+  assert(!show.hasEquivalentProps(updatedShow));
   show.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
   loka::app::scene::Node *showNode = show.create();
   assert(showNode);
   assert(showNode->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+  loka::app::scene::ConditionalNode *typedShowNode =
+      static_cast<loka::app::scene::ConditionalNode *>(showNode);
+  loka::app::scene::Node *activeBeforeRebind = typedShowNode->activeNode;
+  assert(updatedShow.applyPropsToNode(showNode));
+  assert(typedShowNode->props.condition == &otherCondition);
+  assert(typedShowNode->props.trueDef == updatedShow.props().trueDef);
+  assert(typedShowNode->props.falseDef == updatedShow.props().falseDef);
+  condition.set(false);
+  assert(typedShowNode->activeNode == activeBeforeRebind &&
+         "retained Show unbinds the previous condition source");
+  otherCondition.set(true);
+  otherCondition.set(false);
+  assert(typedShowNode->activeNode != activeBeforeRebind &&
+         "retained Show binds the replacement condition source");
   delete showNode;
 }
 
