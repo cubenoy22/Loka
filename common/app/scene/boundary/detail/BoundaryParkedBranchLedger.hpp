@@ -62,12 +62,11 @@ namespace loka
           }
         }
 
-        Node *take(const BoundaryParkedBranchKey &key, bool condition)
+        Node *take(const BoundaryParkedBranchKey &key)
         {
           for (size_t i = 0; i < this->entries_.size(); ++i)
           {
-            if (!this->entries_[i].key.matches(key) ||
-                this->entries_[i].condition != condition)
+            if (!this->entries_[i].key.matches(key))
             {
               continue;
             }

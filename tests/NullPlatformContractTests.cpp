@@ -2966,6 +2966,92 @@ namespace
   private:
     loka::app::scene::NodeState<bool> dialogShown_;
   };
+
+  loka::core::MutableState<bool> *g_rootSeatRebuildCondition = 0;
+
+  class RootSeatComposeOnceBranchBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootSeatComposeOnceBranchBoundaryNode>
+      RootSeatComposeOnceBranchProps;
+  class RootSeatComposeOnceBranchBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<RootSeatComposeOnceBranchProps>
+  {
+  public:
+    explicit RootSeatComposeOnceBranchBoundaryNode(
+        const RootSeatComposeOnceBranchProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<RootSeatComposeOnceBranchProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (g_rootSeatRebuildCondition && g_rootSeatRebuildCondition->get())
+      {
+        loka::app::EditTextDefinition edit;
+        composition.declare(edit);
+        return;
+      }
+      loka::app::ButtonDefinition button("root-seat-rebuild-false");
+      composition.declare(button);
+    }
+  };
+
+  class RootSeatRebuildBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootSeatRebuildBoundaryNode>
+      RootSeatRebuildProps;
+  class RootSeatRebuildBoundaryNode
+      : public PropsRecomposingBoundaryNode<RootSeatRebuildBoundaryNode,
+                                            RootSeatRebuildProps>
+  {
+  public:
+    explicit RootSeatRebuildBoundaryNode(const RootSeatRebuildProps &props)
+        : PropsRecomposingBoundaryNode<RootSeatRebuildBoundaryNode,
+                                       RootSeatRebuildProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::scene::BoundaryDefinition<RootSeatComposeOnceBranchProps,
+                                           RootSeatComposeOnceBranchBoundaryNode>
+          whenTrue;
+      loka::app::scene::BoundaryDefinition<RootSeatComposeOnceBranchProps,
+                                           RootSeatComposeOnceBranchBoundaryNode>
+          whenFalse;
+      loka::app::scene::ConditionalDefinition seat(
+          (loka::app::scene::ConditionalProps(g_rootSeatRebuildCondition,
+                                              &whenTrue,
+                                              &whenFalse)));
+      // The seat itself is the root definition. Snapshot-mode UPDATE must use
+      // the non-fast-path root rebuild resolver and attach the selected
+      // compose-once branch through the real boundary door.
+      composition.declare(seat);
+    }
+  };
+
+  class RootSeatRebuildHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootSeatRebuildHarnessBoundaryNode>
+      RootSeatRebuildHarnessProps;
+  class RootSeatRebuildHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<RootSeatRebuildHarnessBoundaryNode>
+  {
+  public:
+    explicit RootSeatRebuildHarnessBoundaryNode(
+        const RootSeatRebuildHarnessProps &props)
+        : loka::app::scene::BoundaryNodeFor<RootSeatRebuildHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<RootSeatRebuildBoundaryNode>());
+    }
+  };
 } // namespace
 
 void testStdCompositionBoundaryShowFlipPreservesSiblings()
@@ -2997,6 +3083,78 @@ void testStdCompositionBoundaryShowFlipPreservesSiblings()
          "siblings survive a Show flip inside a compose-once boundary");
   assert(dialog && dialog->visible &&
          "the shown branch materializes at the scheduled apply");
+  scene.unmount();
+}
+
+void testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild()
+{
+  loka::core::MutableState<bool> condition(false);
+  g_rootSeatRebuildCondition = &condition;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<RootSeatRebuildHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  const NullScenePlatformController::LedgerRow *button =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  assert(button && button->visible);
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  const NullScenePlatformController::LedgerRow *edit =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(edit && edit->visible &&
+         "root-seat rebuild attaches the selected compose-once branch");
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  button = platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  assert(button && button->visible &&
+         "root-seat rebuild reenters the retained compose-once branch");
+  scene.unmount();
+  g_rootSeatRebuildCondition = 0;
+}
+
+void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping()
+{
+  ParkedFactRecord record;
+  loka::core::MutableState<bool> condition(false);
+  bool useReplacement = false;
+  ParkedFactDefinition parked((ParkedFactProps(&record)));
+  loka::app::ButtonDefinition active("stale-map-active");
+  loka::app::scene::ConditionalDefinition conditional(
+      (loka::app::scene::ConditionalProps(&condition, &active, &parked)));
+  loka::app::FragmentDefinition conditionalRoot;
+  conditionalRoot << conditional;
+  loka::app::EditTextDefinition replacement;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      new FullRebuildLedgerDefinition(&useReplacement,
+                                      &conditionalRoot,
+                                      &replacement));
+  mountAndAttach(scene, platform);
+
+  condition.set(true);
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(record);
+
+  useReplacement = true;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assertParkedRetirementTransitionTable(record);
+
+  useReplacement = false;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  condition.set(false);
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assert(record.constructionCount == 2 && record.node &&
+         record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "post-generation flip resolves only the recreated seat mapping");
+
   scene.unmount();
 }
 

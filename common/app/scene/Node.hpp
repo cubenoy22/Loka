@@ -567,17 +567,6 @@ namespace loka
         }
 
       private:
-        /** Re-projects node-owned child selection during the scheduled walk. */
-        virtual void evaluateChildrenForScheduledApply(ComponentContext &, BoundaryNode *)
-        {
-        }
-
-        /** Lets a retained seat finish branch-closed reconciliation at reentry. */
-        virtual bool reconcileForScheduledBranchReentry(ComponentContext &, BoundaryNode *)
-        {
-          return false;
-        }
-
         /** The single door. Same-value writes are silent (including R->R);
             RETIRED is terminal, so R->A / R->D assert. The three writers are
             the compose door (composeTree ATTACH), the walk door

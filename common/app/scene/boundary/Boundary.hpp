@@ -355,7 +355,6 @@ namespace loka
             {
               continue;
             }
-            this->registerState(plans[i].condition);
             this->registerObservedState(
                 plans[i].condition,
                 static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
@@ -537,19 +536,9 @@ namespace loka
                boundary: its runtime children come from attach compose, not
                from the definition) has exactly one retained seat — the root
                itself. The live node being nestable is expected there. */
+            liveNode = liveRoot;
             definition = currentRoot;
-            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
-            if (seatPlan)
-            {
-              const BoundaryBranchSeatRuntimeEntry *runtime =
-                  this->branchSeats_.findRuntime(seatPlan->key);
-              liveNode = runtime ? runtime->active : 0;
-            }
-            else
-            {
-              liveNode = liveRoot;
-            }
-            return liveNode != 0;
+            return true;
           }
           if (!liveNestable)
           {
@@ -663,22 +652,6 @@ namespace loka
           {
             return false;
           }
-          const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(currentRoot);
-          if (seatPlan)
-          {
-            if (!this->applyBranchSeat(context, currentRoot, false))
-            {
-              return false;
-            }
-            BoundaryBranchSeatRuntimeEntry *runtime =
-                this->branchSeats_.findRuntime(seatPlan->key);
-            if (!runtime || !runtime->active)
-            {
-              return false;
-            }
-            retainedChildren.push_back(runtime->active);
-            return true;
-          }
           if (compositionRootNestable() || currentRoot->asNestableDefinition())
           {
             return false;
@@ -755,12 +728,6 @@ namespace loka
         }
 
       protected:
-        virtual void evaluateChildrenForScheduledApply(ComponentContext &context,
-                                                       BoundaryNode *)
-        {
-          this->applyCurrentBranchSeatPlan(context);
-        }
-
         enum LocalRecomposeMode
         {
           LOCAL_RECOMPOSE_APPLY_SNAPSHOT = 0,
@@ -965,27 +932,6 @@ namespace loka
                                    BoundaryLocalRebuildPlan &plan,
                                    std::vector<Node *> &retainedChildren)
         {
-          for (size_t i = 0; i < plan.entries.size(); ++i)
-          {
-            BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
-            if (entry.action != BoundaryLocalRebuildPlanEntry::ACTION_RETAIN ||
-                !entry.definition || !entry.definition->asBranchSeatDefinition())
-            {
-              continue;
-            }
-            if (!this->applyBranchSeat(context, entry.definition, false))
-            {
-              return false;
-            }
-            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(entry.definition);
-            BoundaryBranchSeatRuntimeEntry *runtime =
-                seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
-            if (!runtime || !runtime->active)
-            {
-              return false;
-            }
-            entry.node = runtime->active;
-          }
           std::vector<Node *> detachedChildren;
           root.detachChildrenTo(detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
@@ -1116,15 +1062,7 @@ namespace loka
                                    Node *node,
                                    NodeDefinitionBase *definition)
         {
-          if (!node || !definition)
-          {
-            return false;
-          }
-          if (definition->asBranchSeatDefinition())
-          {
-            return this->applyBranchSeat(context, definition, true);
-          }
-          if (!definition->applyPropsToNode(node))
+          if (!node || !definition || !definition->applyPropsToNode(node))
           {
             return false;
           }
@@ -1204,7 +1142,7 @@ namespace loka
           Node *runtimeParent = runtime.parent;
           Node *outgoing = runtime.active;
           const bool outgoingCondition = runtime.activeCondition;
-          Node *incoming = this->takeParkedBranch(plan.key, nextCondition);
+          Node *incoming = this->takeParkedBranch(plan.key);
           NodeDefinitionBase *definition = plan.branch(nextCondition).definition;
           if (incoming &&
               (!definition || !definition->isCompatibleWithNode(incoming) ||
@@ -1263,8 +1201,7 @@ namespace loka
         }
 
         bool applyBranchSeat(ComponentContext &context,
-                             NodeDefinitionBase *definition,
-                             bool allowDetached)
+                             NodeDefinitionBase *definition)
         {
           const BoundaryBranchSeatPlanEntry *plan = this->branchSeatPlan(definition);
           if (!plan || !plan->condition)
@@ -1276,7 +1213,7 @@ namespace loka
           {
             return false;
           }
-          if (!allowDetached && !this->branchSeats_.isLive(*runtime))
+          if (!this->branchSeats_.isLive(*runtime))
           {
             return true;
           }
@@ -1298,13 +1235,6 @@ namespace loka
             return true;
           }
           NodeDefinitionBase *branchDefinition = plan->branch(condition).definition;
-          const bool mayDeliver =
-              allowDetached || this->branchSeats_.isLive(*runtime) ||
-              plan->branch(condition).policies.deliverWhileDetached;
-          if (!mayDeliver)
-          {
-            return true;
-          }
           if (branchDefinition &&
               this->reconcileParkedBranch(context, runtime->active, branchDefinition))
           {
@@ -1329,7 +1259,7 @@ namespace loka
               continue;
             }
             NodeDefinitionBase *definition = this->findBranchSeatDefinition(plans[i].key);
-            if (!definition || !this->applyBranchSeat(context, definition, false))
+            if (!definition || !this->applyBranchSeat(context, definition))
             {
               return false;
             }
@@ -1570,11 +1500,6 @@ namespace loka
             nodeContext.setComposition(parentContext.composition());
           }
 
-          if (event == COMPOSE_EVENT_UPDATE)
-          {
-            node->evaluateChildrenForScheduledApply(nodeContext, nextBoundary);
-          }
-
           if (composable)
           {
             NodeComposition *composition = nodeContext.composition();
@@ -1723,9 +1648,9 @@ namespace loka
         {
           this->parkedBranches_.park(key, branch, condition);
         }
-        Node *takeParkedBranch(const BoundaryParkedBranchKey &key, bool condition)
+        Node *takeParkedBranch(const BoundaryParkedBranchKey &key)
         {
-          return this->parkedBranches_.take(key, condition);
+          return this->parkedBranches_.take(key);
         }
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
