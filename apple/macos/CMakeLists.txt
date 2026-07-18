@@ -95,6 +95,7 @@ if(NOT LOKA_MAC_OS_10_4)
   add_executable(LokaTestsMacOS
     ${LOKA_SHARED_TEST_SOURCES}
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
+    ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
 
@@ -106,6 +107,10 @@ if(NOT LOKA_MAC_OS_10_4)
   )
 
   target_compile_definitions(LokaTestsMacOS PRIVATE TEST_BUILD)
+  target_link_libraries(LokaTestsMacOS PRIVATE
+    "-framework Foundation"
+    "-framework CoreFoundation"
+  )
 
   enable_testing()
   add_test(NAME LokaTestsMacOS COMMAND LokaTestsMacOS)
