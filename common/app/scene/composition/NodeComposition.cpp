@@ -168,6 +168,33 @@ namespace loka
         return this->createNodeFromDefinition(root);
       }
 
+      static void assignDefinitionSeatSlots(NodeDefinitionBase *definition, int &nextSlot)
+      {
+        if (!definition)
+        {
+          return;
+        }
+        definition->setCompositionSeatSlot(nextSlot++);
+        INestableDefinition *nestable = definition->asNestableDefinition();
+        if (nestable)
+        {
+          for (NodeDefinitionBase *child = nestable->childrenHead(); child; child = child->nextInComposition)
+          {
+            assignDefinitionSeatSlots(child, nextSlot);
+          }
+        }
+        for (unsigned i = 0; NodeDefinitionBase *branch = definition->retainedDefinitionBranch(i); ++i)
+        {
+          assignDefinitionSeatSlots(branch, nextSlot);
+        }
+      }
+
+      void NodeComposition::assignCompositionSeatSlots()
+      {
+        int nextSlot = 0;
+        assignDefinitionSeatSlots(this->root_, nextSlot);
+      }
+
       Node *NodeComposition::createNodeFromDefinition(NodeDefinitionBase *root) const
       {
         if (!root)

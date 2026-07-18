@@ -270,12 +270,6 @@ namespace
     unsigned long hidden;
   };
 
-  void assertExpectedRedForT3(bool observableOutcome)
-  {
-    assert(!observableOutcome &&
-           "expected-red contract pin turned green; T3 must promote this outcome assertion");
-  }
-
   void assertExpectedRedForT4(bool observableOutcome)
   {
     assert(!observableOutcome &&
@@ -728,6 +722,109 @@ namespace
   private:
     ParkedFactRecord *liveRecord_;
     ParkedFactRecord *expiredRecord_;
+  };
+
+  struct NestedSeatReentryInputs
+  {
+    NestedSeatReentryInputs(loka::core::MutableState<bool> *outerConditionState,
+                            loka::core::MutableState<bool> *innerConditionState,
+                            loka::core::MutableState<int> *revisionState,
+                            ParkedFactRecord *oldRecord,
+                            ParkedFactRecord *currentRecord,
+                            ParkedFactRecord *expiredRecord)
+        : outerCondition(outerConditionState),
+          innerCondition(innerConditionState),
+          revision(revisionState),
+          oldSource(oldRecord),
+          currentSource(currentRecord),
+          expiredSource(expiredRecord)
+    {
+    }
+
+    loka::core::MutableState<bool> *outerCondition;
+    loka::core::MutableState<bool> *innerCondition;
+    loka::core::MutableState<int> *revision;
+    ParkedFactRecord *oldSource;
+    ParkedFactRecord *currentSource;
+    ParkedFactRecord *expiredSource;
+  };
+
+  NestedSeatReentryInputs *g_nestedSeatReentryInputs = 0;
+
+  class NestedSeatReentryBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedSeatReentryBoundaryNode>
+      NestedSeatReentryBoundaryProps;
+  class NestedSeatReentryBoundaryNode
+      : public PropsRecomposingBoundaryNode<NestedSeatReentryBoundaryNode,
+                                            NestedSeatReentryBoundaryProps>
+  {
+  public:
+    explicit NestedSeatReentryBoundaryNode(const NestedSeatReentryBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<NestedSeatReentryBoundaryNode,
+                                       NestedSeatReentryBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_nestedSeatReentryInputs && g_nestedSeatReentryInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_nestedSeatReentryInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      const bool revised =
+          g_nestedSeatReentryInputs && g_nestedSeatReentryInputs->revision &&
+          g_nestedSeatReentryInputs->revision->get() != 0;
+      DefinitionSourceProbeDefinition nestedShown(
+          revised ? g_nestedSeatReentryInputs->currentSource
+                  : g_nestedSeatReentryInputs->oldSource,
+          g_nestedSeatReentryInputs->expiredSource);
+      loka::app::EditTextDefinition nestedHidden;
+      loka::app::scene::ConditionalDefinition nested(
+          (loka::app::scene::ConditionalProps(
+              g_nestedSeatReentryInputs ? g_nestedSeatReentryInputs->innerCondition : 0,
+              &nestedShown,
+              &nestedHidden)));
+      loka::app::FragmentDefinition parkedBranch;
+      parkedBranch << nested;
+      loka::app::ButtonDefinition activeBranch("nested-seat-active");
+      loka::app::scene::ConditionalDefinition outer(
+          (loka::app::scene::ConditionalProps(
+              g_nestedSeatReentryInputs ? g_nestedSeatReentryInputs->outerCondition : 0,
+              &activeBranch,
+              &parkedBranch)));
+      loka::app::FragmentDefinition root;
+      root << outer;
+      composition.declare(root);
+    }
+  };
+
+  class NestedSeatReentryHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedSeatReentryHarnessBoundaryNode>
+      NestedSeatReentryHarnessBoundaryProps;
+  class NestedSeatReentryHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<NestedSeatReentryHarnessBoundaryNode>
+  {
+  public:
+    explicit NestedSeatReentryHarnessBoundaryNode(
+        const NestedSeatReentryHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<NestedSeatReentryHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::scene::Boundary<NestedSeatReentryBoundaryNode>());
+    }
   };
 
   struct TaggedPropsApplyInputs
@@ -1791,12 +1888,56 @@ void testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose()
   assert(seatRetained &&
          "the Conditional seat remains present through branch re-entry");
 
-  // Expected RED: T3 promotes this pin when the re-entered branch exposes the
-  // recomposed constant content after re-entry.
-  assertExpectedRedForT3(seatRetained && contentFresh);
+  assert(seatRetained && contentFresh &&
+         "the re-entered Conditional branch exposes current content in the same apply");
 
   scene.unmount();
   g_contentInputs = 0;
+}
+
+void testNestedConditionalSeatRepointsDefinitionsAtOuterReentry()
+{
+  ParkedFactRecord oldSourceRecord;
+  ParkedFactRecord currentSourceRecord;
+  ParkedFactRecord expiredSourceRecord;
+  loka::core::MutableState<bool> outerCondition(false);
+  loka::core::MutableState<bool> innerCondition(false);
+  loka::core::MutableState<int> revision(0);
+  NestedSeatReentryInputs inputs(&outerCondition,
+                                 &innerCondition,
+                                 &revision,
+                                 &oldSourceRecord,
+                                 &currentSourceRecord,
+                                 &expiredSourceRecord);
+  g_nestedSeatReentryInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<NestedSeatReentryHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  outerCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  outerCondition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  innerCondition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+
+  assert(oldSourceRecord.constructionCount == 0);
+  assert(expiredSourceRecord.constructionCount == 0);
+  assert(currentSourceRecord.constructionCount == 1 &&
+         "a nested seat flipped after re-entry reads the current definition generation");
+
+  scene.unmount();
+  g_nestedSeatReentryInputs = 0;
 }
 
 void testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition()

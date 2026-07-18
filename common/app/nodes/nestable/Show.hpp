@@ -44,6 +44,9 @@ namespace loka
         scene::Node *node = new scene::ConditionalNode(this->props());
         if (node)
         {
+          scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
+          conditional->setCompositionSeatSlot(this->compositionSeatSlot());
+          node->setPropsTypeId(scene::ConditionalProps::staticTypeId());
           node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
@@ -54,6 +57,9 @@ namespace loka
         scene::Node *node = new (mem) scene::ConditionalNode(this->props());
         if (node)
         {
+          scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
+          conditional->setCompositionSeatSlot(this->compositionSeatSlot());
+          node->setPropsTypeId(scene::ConditionalProps::staticTypeId());
           node->setNodeTag(this->nodeTag());
           node->setNativeLifetimeHint(this->nativeLifetimeHint());
         }
@@ -90,7 +96,7 @@ namespace loka
             static_cast<const scene::ConditionalProps &>(*otherProps);
         return this->props_.condition == otherConditionalProps.condition;
       }
-      virtual bool applyPropsToNode(scene::Node *node) const
+      virtual bool repointRetainedNodeDefinition(scene::Node *node) const
       {
         if (!node || node->nodeTypeKey() != scene::NodeTypeToken<scene::ConditionalNode>())
         {
@@ -98,9 +104,35 @@ namespace loka
         }
         scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
         conditional->applyRetainedProps(this->props_);
+        conditional->setCompositionSeatSlot(this->compositionSeatSlot());
+        return true;
+      }
+      virtual bool applyPropsToNode(scene::Node *node) const
+      {
+        if (!this->repointRetainedNodeDefinition(node))
+        {
+          return false;
+        }
+        scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
         conditional->setNodeTag(this->nodeTag());
         conditional->setNativeLifetimeHint(this->nativeLifetimeHint());
         return true;
+      }
+      virtual bool isCompatibleWithNode(const scene::Node *node) const
+      {
+        return node && node->nodeTypeKey() == scene::NodeTypeToken<scene::ConditionalNode>();
+      }
+      virtual scene::NodeDefinitionBase *retainedDefinitionBranch(unsigned index)
+      {
+        if (index == 0)
+        {
+          return &this->trueBranch_;
+        }
+        if (index == 1)
+        {
+          return &this->falseBranch_;
+        }
+        return 0;
       }
       ShowDefinition &operator<<(scene::NodeDefinitionBase &child)
       {

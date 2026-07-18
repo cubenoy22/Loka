@@ -502,7 +502,6 @@ namespace loka
 
         void composePendingRefreshCycle()
         {
-          Node::EvaluateChildrenForScheduledApplySubtree(rootNode_);
           notifyComposeEvent(COMPOSE_EVENT_UPDATE);
         }
 
@@ -672,7 +671,7 @@ namespace loka
                 this->composeTree(detached[i], context, COMPOSE_EVENT_DETACH, this);
                 this->retireDetachedNode(context, detached[i]);
               }
-              this->retireOwnedNodeGeneration();
+              this->retireOwnedNodeGeneration(context);
             }
             context.setComposition(composition);
             Node *child = composition->createNodeTree();

@@ -144,6 +144,7 @@ namespace loka
       struct IProjectedLayoutNode;
       class ComposableNode;
       class BoundaryNode;
+      class ComponentContext;
       class IStateOwner;
       struct DirtySourceRegistrar;
       namespace detail
@@ -315,6 +316,7 @@ namespace loka
         ComposeAttachLifecycle composeAttachLifecycle_;
         std::string testId_;
         NodeTag nodeTag_;
+        const void *propsTypeId_;
         NativeLifetimeHint nativeLifetimeHint_;
 
         Node()
@@ -325,6 +327,7 @@ namespace loka
               composeAttachLifecycle_(),
               testId_(),
               nodeTag_(NODE_TAG_NONE),
+              propsTypeId_(0),
               nativeLifetimeHint_(NATIVE_HINT_DEFAULT),
               lifecycleFact_(NODE_FACT_ATTACHED)
         {
@@ -370,9 +373,9 @@ namespace loka
         }
 
       public:
-        /** Nodes that park retained branches outside the live composition
-            (Conditional) expose them here so every lifecycle walk — fact
-            marking, delivery, and context release — descends into them.
+        /** Owners that park retained branches outside the live composition
+            expose them here so every lifecycle walk — fact marking, delivery,
+            and context release — descends into them.
             Returns the index-th parked branch root (compacted), 0 past the
             end. The retire door relies on this: a parked branch hands its
             native pair over at the door, never from the reclaim drain. */
@@ -541,6 +544,14 @@ namespace loka
         {
           return nodeTag_;
         }
+        void setPropsTypeId(const void *propsTypeId)
+        {
+          this->propsTypeId_ = propsTypeId;
+        }
+        const void *propsTypeId() const
+        {
+          return this->propsTypeId_;
+        }
         void setNativeLifetimeHint(NativeLifetimeHint hint)
         {
           nativeLifetimeHint_ = hint;
@@ -555,13 +566,20 @@ namespace loka
         }
 
       private:
-        /** Re-projects node-owned child selection for a reserved apply before
-            any compose or DETACH walk can replace its definition sources. */
-        virtual void evaluateChildrenForScheduledApply()
+        /** Re-projects node-owned child selection during the scheduled walk. */
+        virtual void evaluateChildrenForScheduledApply(ComponentContext &, BoundaryNode *)
         {
         }
 
+        /** Lets a retained seat finish branch-closed reconciliation at reentry. */
+        virtual bool reconcileForScheduledBranchReentry(ComponentContext &, BoundaryNode *)
+        {
+          return false;
+        }
+
+#if defined(TEST_BUILD)
         static void EvaluateChildrenForScheduledApplySubtree(Node *node);
+#endif
 
         /** The single door. Same-value writes are silent (including R->R);
             RETIRED is terminal, so R->A / R->D assert. The three writers are
@@ -690,6 +708,7 @@ namespace loka
               hasTestId_(false),
               autoTestId_(false),
               nodeTag_(NODE_TAG_NONE),
+              compositionSeatSlot_(-1),
               nativeLifetimeHint_(NATIVE_HINT_DEFAULT)
         {
         }
@@ -701,6 +720,7 @@ namespace loka
               hasTestId_(other.hasTestId_),
               autoTestId_(other.autoTestId_),
               nodeTag_(other.nodeTag_),
+              compositionSeatSlot_(other.compositionSeatSlot_),
               nativeLifetimeHint_(other.nativeLifetimeHint_)
         {
         }
@@ -713,6 +733,7 @@ namespace loka
           this->hasTestId_ = other.hasTestId_;
           this->autoTestId_ = other.autoTestId_;
           this->nodeTag_ = other.nodeTag_;
+          this->compositionSeatSlot_ = other.compositionSeatSlot_;
           this->nativeLifetimeHint_ = other.nativeLifetimeHint_;
           return *this;
         }
@@ -735,6 +756,12 @@ namespace loka
         virtual NodeKind nodeKind() const = 0;
         virtual const PropsBase *propsBase() const = 0;
         virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const = 0;
+        /** Refreshes definition-generation borrows for a retained runtime node
+            without applying changed prop values. */
+        virtual bool repointRetainedNodeDefinition(Node *node) const
+        {
+          return node != 0;
+        }
         virtual bool applyPropsToNode(Node *node) const = 0;
         virtual bool isCompatibleWithNode(const Node *node) const
         {
@@ -746,6 +773,11 @@ namespace loka
         }
         virtual INestableDefinition *asNestableDefinition()
         {
+          return 0;
+        }
+        virtual NodeDefinitionBase *retainedDefinitionBranch(unsigned index)
+        {
+          (void)index;
           return 0;
         }
         NodeDefinitionBase *nextInComposition;
@@ -799,6 +831,14 @@ namespace loka
         {
           return this->nodeTag_;
         }
+        void setCompositionSeatSlot(int slot)
+        {
+          this->compositionSeatSlot_ = slot;
+        }
+        int compositionSeatSlot() const
+        {
+          return this->compositionSeatSlot_;
+        }
         void setNativeLifetimeHint(NativeLifetimeHint hint)
         {
           this->nativeLifetimeHint_ = hint;
@@ -813,6 +853,7 @@ namespace loka
           this->hasTestId_ = other.hasTestId_;
           this->autoTestId_ = other.autoTestId_;
           this->nodeTag_ = other.nodeTag_;
+          this->compositionSeatSlot_ = other.compositionSeatSlot_;
           this->nativeLifetimeHint_ = other.nativeLifetimeHint_;
         }
 
@@ -837,6 +878,7 @@ namespace loka
         bool hasTestId_;
         bool autoTestId_;
         NodeTag nodeTag_;
+        int compositionSeatSlot_;
         NativeLifetimeHint nativeLifetimeHint_;
       };
 
@@ -906,6 +948,7 @@ namespace loka
           Node *node = new NodeT(props);
           if (node)
           {
+            node->setPropsTypeId(PropsT::staticTypeId());
             node->setNodeTag(this->nodeTag());
             node->setNativeLifetimeHint(this->nativeLifetimeHint());
           }
@@ -916,6 +959,7 @@ namespace loka
           Node *node = new (mem) NodeT(props);
           if (node)
           {
+            node->setPropsTypeId(PropsT::staticTypeId());
             node->setNodeTag(this->nodeTag());
             node->setNativeLifetimeHint(this->nativeLifetimeHint());
           }
@@ -932,6 +976,10 @@ namespace loka
         virtual NodeDefinitionBase *clone() const
         {
           return new NodeDefinition(*this);
+        }
+        virtual bool isCompatibleWithNode(const Node *node) const
+        {
+          return node && node->propsTypeId() == PropsT::staticTypeId();
         }
         virtual NodeKind nodeKind() const
         {
@@ -1355,24 +1403,6 @@ namespace loka
         for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
         {
           DeliverLifecycleFactsSubtree(child);
-        }
-      }
-
-      inline void Node::EvaluateChildrenForScheduledApplySubtree(Node *node)
-      {
-        if (!node)
-        {
-          return;
-        }
-        node->evaluateChildrenForScheduledApply();
-        INestable *nestable = node->asNestable();
-        if (!nestable)
-        {
-          return;
-        }
-        for (Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
-        {
-          EvaluateChildrenForScheduledApplySubtree(child);
         }
       }
 

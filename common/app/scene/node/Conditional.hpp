@@ -46,8 +46,6 @@ namespace loka
         typedef ConditionalTypeTag TypeTag;
         ConditionalProps props;
         Node *activeNode;
-        Node *trueNode_;
-        Node *falseNode_;
         ConditionalNode(const ConditionalProps &p);
         ~ConditionalNode();
         virtual void declareDirtySources(DirtySourceRegistrar &registrar)
@@ -58,26 +56,43 @@ namespace loka
                                         static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
           }
         }
-        void updateActiveNode();
-        virtual Node *retainedLifecycleBranch(unsigned index);
         virtual const void *nodeTypeKey() const
         {
           return NodeTypeToken<ConditionalNode>();
         }
+        virtual Node *retainedLifecycleBranch(unsigned index);
         /** Re-points borrowed branch definitions and the condition source for
             a retained seat. */
         void applyRetainedProps(const ConditionalProps &nextProps);
+        void setCompositionSeatSlot(int slot)
+        {
+          this->compositionSeatSlot_ = slot;
+        }
 
       protected:
-        virtual void evaluateChildrenForScheduledApply();
+        virtual void evaluateChildrenForScheduledApply(ComponentContext &context,
+                                                       BoundaryNode *boundary);
+        virtual bool reconcileForScheduledBranchReentry(ComponentContext &context,
+                                                        BoundaryNode *boundary);
 
       public:
-        Node *ensureBranchNode(bool cond, bool &created);
+        Node *createBranchNode(bool cond);
         void removeActiveNodeFromChildren();
         void render(IPlatformController *controller);
         short layout(IPlatformController *controller, LayoutState &state);
 
       private:
+        void initializeActiveNode();
+        bool updateActiveNode(ComponentContext &context,
+                              BoundaryNode *boundary,
+                              bool reconcileCurrentBranch);
+        NodeDefinitionBase *branchDefinition(bool cond) const;
+        int compositionSeatSlot_;
+        bool activeCondition_;
+        bool hasActiveCondition_;
+#if defined(TEST_BUILD)
+        BoundaryNode *testBoundaryOwner_;
+#endif
         bool retainedDetached() const
         {
           return this->lifecycleFact() == NODE_FACT_DETACHED_RETAINED;
@@ -107,7 +122,24 @@ namespace loka
           return &this->props;
         }
         virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const;
+        virtual bool repointRetainedNodeDefinition(Node *node) const;
         virtual bool applyPropsToNode(Node *node) const;
+        virtual bool isCompatibleWithNode(const Node *node) const
+        {
+          return node && node->nodeTypeKey() == NodeTypeToken<ConditionalNode>();
+        }
+        virtual NodeDefinitionBase *retainedDefinitionBranch(unsigned index)
+        {
+          if (index == 0)
+          {
+            return this->ownedTrueDef;
+          }
+          if (index == 1)
+          {
+            return this->ownedFalseDef;
+          }
+          return 0;
+        }
 
       private:
         bool assignFrom(const ConditionalProps &nextProps,
