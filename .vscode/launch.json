@@ -48,7 +48,8 @@
       "program": "${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.code.bin.gdb",
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb",
-      "miDebuggerPath": "gdb-multiarch",
+      // WSL-side debugger: use "WSL: Reopen Folder in WSL" for this configuration.
+      "miDebuggerPath": "/usr/bin/gdb-multiarch",
       "miDebuggerServerAddress": "localhost:23946",
       "setupCommands": [
         { "text": "set architecture m68k", "ignoreFailures": false },
