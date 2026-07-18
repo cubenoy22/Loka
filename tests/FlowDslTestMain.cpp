@@ -192,6 +192,9 @@ int main()
   LOKA_RUN_TEST(testNullPlatformContract_H5_taggedSeatAmongSiblingsSurvivesUnrelatedRecompose);
   LOKA_RUN_TEST(testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose);
   LOKA_RUN_TEST(testNestedConditionalSeatRepointsDefinitionsAtOuterReentry);
+  LOKA_RUN_TEST(testShowDslParkedBranchIsCurrentAtReentry);
+  LOKA_RUN_TEST(testDepth2NestedConditionalSeatRepointsDefinitionsAtOuterReentry);
+  LOKA_RUN_TEST(testFullRebuildSubsumesParkedBranchLedgerGeneration);
   LOKA_RUN_TEST(testNullPlatformContract_H7_reenteredBranchContentIsFreshAfterRecompose);
   LOKA_RUN_TEST(testNullPlatformContract_H8_taggedSeatBuildsBranchFromLiveDefinition);
   LOKA_RUN_TEST(testNullPlatformContract_H9_retainedSeatUsesReplacementCondition);
