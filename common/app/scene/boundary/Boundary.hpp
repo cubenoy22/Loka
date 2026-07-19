@@ -638,7 +638,7 @@ namespace loka
           }
 
           BoundaryLocalRebuildPlan plan;
-          if (!buildLocalRebuildPlan(*currentRoot, plan))
+          if (!buildLocalRebuildPlan(context, *currentRoot, plan))
           {
             return false;
           }
@@ -851,7 +851,9 @@ namespace loka
           this->applyPendingLocalPaint(plan);
         }
 
-        bool buildLocalRebuildPlan(const INestableDefinition &currentRoot, BoundaryLocalRebuildPlan &plan)
+        bool buildLocalRebuildPlan(ComponentContext &context,
+                                   const INestableDefinition &currentRoot,
+                                   BoundaryLocalRebuildPlan &plan)
         {
           // This translates the current desired child set into a concrete
           // boundary-local apply plan. It intentionally stays one level above
@@ -859,6 +861,13 @@ namespace loka
           // ownership details such as previousNode for replacement cleanup.
           plan.clear();
           plan.reserve(currentRoot.childrenCount());
+
+          INestable *root = compositionRootNestable();
+          Node *runtimeParent = compositionRootNode();
+          if (!root || !runtimeParent)
+          {
+            return false;
+          }
 
           const NodeCompositionDiff *diff = this->localCompositionDiff();
           NodeCompositionDiff::Entry *singleEntry = diff ? diff->entriesHead() : 0;
@@ -877,7 +886,6 @@ namespace loka
                 singleEntry->compatibleType && singleEntry->previousIndex == 0 &&
                 singleEntry->currentIndex == 0)
             {
-              INestable *root = compositionRootNestable();
               existing = root && root->childrenCount() == 1 ? root->childrenHead() : 0;
             }
             if (existing && (seatPlan || definition->isCompatibleWithNode(existing)))
@@ -887,11 +895,35 @@ namespace loka
             }
             else
             {
-              NodeComposition composition;
-              Node *created = composition.createNodeFromDefinition(definition);
-              if (!created)
+              Node *created = 0;
+              if (seatPlan)
               {
-                return false;
+                if (!seatPlan->condition)
+                {
+                  return false;
+                }
+                const bool condition = seatPlan->condition->get();
+                if (!this->createCurrentBranch(context,
+                                               *seatPlan,
+                                               condition,
+                                               runtimeParent,
+                                               created))
+                {
+                  return false;
+                }
+                this->registerMaterializedBranchSeat(*seatPlan,
+                                                     runtimeParent,
+                                                     created,
+                                                     condition);
+              }
+              else
+              {
+                NodeComposition composition;
+                created = composition.createNodeFromDefinition(definition);
+                if (!created)
+                {
+                  return false;
+                }
               }
               plan.entries.push_back(
                   existing ? BoundaryLocalRebuildPlanEntry::replace(
@@ -902,11 +934,6 @@ namespace loka
             definition = definition->nextInComposition;
           }
 
-          INestable *root = compositionRootNestable();
-          if (!root)
-          {
-            return false;
-          }
           loka::dsl::CompositionCursor<Node> it(root->childrenHead(), root->childrenCount());
           for (Node *liveChild = it.next(); liveChild; liveChild = it.next())
           {
@@ -968,6 +995,7 @@ namespace loka
             Node *detachedNode = entry.detachedNode();
             if (detachedNode)
             {
+              this->retireParkedBranchForRemovedSeat(context, detachedNode);
               this->composeTree(detachedNode, context, COMPOSE_EVENT_DETACH, this);
               this->retireDetachedNode(context, detachedNode);
             }
@@ -1110,15 +1138,21 @@ namespace loka
                                  Node *&created)
         {
           created = 0;
-          NodeDefinitionBase *definition = plan.branch(condition).definition;
-          if (!definition)
-          {
-            return true;
-          }
+          loka::app::FragmentDefinition emptyBranch;
+          NodeDefinitionBase *definition =
+              plan.materializedBranchDefinition(condition, emptyBranch);
           NodeComposition composition;
           composition.setContext(&context);
           created = composition.createNodeFromDefinition(definition);
           return created != 0;
+        }
+
+        bool isMaterializedEmptyBranch(Node *node) const
+        {
+          INestable *nestable = node ? node->asNestable() : 0;
+          return node &&
+                 node->propsTypeId() == loka::app::FragmentProps::staticTypeId() &&
+                 nestable && nestable->childrenCount() == 0;
         }
 
         void retireSeatBranch(ComponentContext &context,
@@ -1135,6 +1169,25 @@ namespace loka
           this->retireDetachedNode(context, branch);
         }
 
+        void retireParkedBranchForRemovedSeat(ComponentContext &context,
+                                              Node *activeBranch)
+        {
+          BoundaryParkedBranchKey key;
+          bool activeCondition = false;
+          if (!this->branchSeats_.eraseRuntimeForActive(activeBranch,
+                                                        key,
+                                                        activeCondition))
+          {
+            return;
+          }
+          bool parkedCondition = !activeCondition;
+          Node *parkedBranch = this->parkedBranches_.take(key, parkedCondition);
+          this->retireSeatBranch(context,
+                                 key,
+                                 parkedCondition,
+                                 parkedBranch);
+        }
+
         bool replaceSeatBranch(ComponentContext &context,
                                const BoundaryBranchSeatPlanEntry &plan,
                                BoundaryBranchSeatRuntimeEntry &runtime,
@@ -1148,8 +1201,10 @@ namespace loka
           Node *incoming = this->takeParkedBranch(plan.key);
           NodeDefinitionBase *definition = plan.branch(nextCondition).definition;
           if (incoming &&
-              (!definition || !definition->isCompatibleWithNode(incoming) ||
-               !this->reconcileParkedBranch(context, incoming, definition)))
+              ((!definition && !this->isMaterializedEmptyBranch(incoming)) ||
+               (definition &&
+                (!definition->isCompatibleWithNode(incoming) ||
+                 !this->reconcileParkedBranch(context, incoming, definition)))))
           {
             this->retireSeatBranch(context, plan.key, nextCondition, incoming);
             incoming = 0;
@@ -1238,6 +1293,12 @@ namespace loka
             return true;
           }
           NodeDefinitionBase *branchDefinition = plan->branch(condition).definition;
+          if (!branchDefinition &&
+              this->isMaterializedEmptyBranch(runtime->active))
+          {
+            runtime->appliedGeneration = this->branchSeats_.generation();
+            return true;
+          }
           if (branchDefinition &&
               this->reconcileParkedBranch(context, runtime->active, branchDefinition))
           {

@@ -42,6 +42,15 @@ namespace loka
           return value ? this->whenTrue : this->whenFalse;
         }
 
+        /** Canonicalizes a null branch to the caller-owned empty definition. */
+        NodeDefinitionBase *materializedBranchDefinition(
+            bool value,
+            NodeDefinitionBase &emptyDefinition) const
+        {
+          NodeDefinitionBase *definition = this->branch(value).definition;
+          return definition ? definition : &emptyDefinition;
+        }
+
         BoundaryParkedBranchKey key;
         loka::core::State<bool> *condition;
         BoundaryBranchPlanBranch whenFalse;
@@ -187,6 +196,28 @@ namespace loka
           }
           const BoundaryBranchSeatRuntimeEntry *owner = this->findRuntime(entry.ownerKey);
           return owner && owner->activeCondition == entry.ownerCondition && this->isLive(*owner);
+        }
+
+        /** Removes a seat mapping only when its active branch reaches the
+            structural detach/retire commit point. */
+        bool eraseRuntimeForActive(Node *active,
+                                   BoundaryParkedBranchKey &key,
+                                   bool &condition)
+        {
+          for (size_t i = 0; i < this->runtime_.size(); ++i)
+          {
+            if (this->runtime_[i].active != active)
+            {
+              continue;
+            }
+            key = this->runtime_[i].key;
+            condition = this->runtime_[i].activeCondition;
+            this->runtime_.erase(this->runtime_.begin() + i);
+            this->eraseOwnedBranch(key, false);
+            this->eraseOwnedBranch(key, true);
+            return true;
+          }
+          return false;
         }
 
         void eraseOwnedBranch(const BoundaryParkedBranchKey &ownerKey, bool ownerCondition)

@@ -3955,3 +3955,272 @@ void testStep4ShapeSettlesAfterShowFlip()
   }
   scene.unmount();
 }
+
+namespace
+{
+  struct RemovedConditionalSeatInputs
+  {
+    RemovedConditionalSeatInputs(loka::core::MutableState<bool> *conditionState,
+                                 loka::core::MutableState<int> *revisionState,
+                                 ParkedFactRecord *trueRecord,
+                                 ParkedFactRecord *falseRecord)
+        : condition(conditionState),
+          revision(revisionState),
+          whenTrue(trueRecord),
+          whenFalse(falseRecord)
+    {
+    }
+
+    loka::core::MutableState<bool> *condition;
+    loka::core::MutableState<int> *revision;
+    ParkedFactRecord *whenTrue;
+    ParkedFactRecord *whenFalse;
+  };
+
+  RemovedConditionalSeatInputs *g_removedConditionalSeatInputs = 0;
+
+  class RemovedConditionalSeatBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RemovedConditionalSeatBoundaryNode>
+      RemovedConditionalSeatBoundaryProps;
+  class RemovedConditionalSeatBoundaryNode
+      : public PropsRecomposingBoundaryNode<RemovedConditionalSeatBoundaryNode,
+                                            RemovedConditionalSeatBoundaryProps>
+  {
+  public:
+    explicit RemovedConditionalSeatBoundaryNode(
+        const RemovedConditionalSeatBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<RemovedConditionalSeatBoundaryNode,
+                                       RemovedConditionalSeatBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_removedConditionalSeatInputs &&
+          g_removedConditionalSeatInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_removedConditionalSeatInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      const bool seatPresent =
+          g_removedConditionalSeatInputs &&
+          g_removedConditionalSeatInputs->revision &&
+          g_removedConditionalSeatInputs->revision->get() != 1;
+      if (seatPresent)
+      {
+        ParkedFactDefinition whenTrue(
+            (ParkedFactProps(g_removedConditionalSeatInputs->whenTrue)));
+        ParkedFactDefinition whenFalse(
+            (ParkedFactProps(g_removedConditionalSeatInputs->whenFalse)));
+        loka::app::scene::ConditionalDefinition seat(
+            (loka::app::scene::ConditionalProps(
+                g_removedConditionalSeatInputs->condition,
+                &whenTrue,
+                &whenFalse)));
+        seat.setNodeTag(401);
+        root << seat;
+      }
+      composition.declare(root);
+    }
+  };
+
+  class RemovedConditionalSeatHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RemovedConditionalSeatHarnessBoundaryNode>
+      RemovedConditionalSeatHarnessBoundaryProps;
+  class RemovedConditionalSeatHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<RemovedConditionalSeatHarnessBoundaryNode>
+  {
+  public:
+    explicit RemovedConditionalSeatHarnessBoundaryNode(
+        const RemovedConditionalSeatHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<RemovedConditionalSeatHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<RemovedConditionalSeatBoundaryNode>());
+    }
+  };
+} // namespace
+
+void testRemovedConditionalSeatReaddsFreshRuntimeAndBranches()
+{
+  loka::core::MutableState<bool> condition(true);
+  loka::core::MutableState<int> revision(0);
+  ParkedFactRecord whenTrue;
+  ParkedFactRecord whenFalse;
+  RemovedConditionalSeatInputs inputs(&condition,
+                                      &revision,
+                                      &whenTrue,
+                                      &whenFalse);
+  g_removedConditionalSeatInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<RemovedConditionalSeatHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(whenTrue.constructionCount == 1 &&
+         whenFalse.constructionCount == 0);
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(whenTrue.constructionCount == 1 &&
+         whenFalse.constructionCount == 1 &&
+         "both pre-removal branches materialize exactly once");
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assert(!scene.hasPendingInvalidation() &&
+         "seat retirement drains before the same value key is re-added");
+
+  revision.set(2);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(whenTrue.constructionCount == 2 && whenTrue.node &&
+         whenTrue.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "re-adding a dead seat must materialize a fresh active branch");
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(whenFalse.constructionCount == 2 && whenFalse.node &&
+         whenFalse.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "seat death must also discard the old parked branch");
+
+  scene.unmount();
+  g_removedConditionalSeatInputs = 0;
+}
+
+namespace
+{
+  loka::core::MutableState<bool> *g_nullConditionalBranchCondition = 0;
+  ParkedFactRecord *g_nullConditionalBranchRecord = 0;
+
+  class NullConditionalBranchBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NullConditionalBranchBoundaryNode>
+      NullConditionalBranchBoundaryProps;
+  class NullConditionalBranchBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<NullConditionalBranchBoundaryNode>
+  {
+  public:
+    explicit NullConditionalBranchBoundaryNode(
+        const NullConditionalBranchBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<NullConditionalBranchBoundaryNode>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      ParkedFactDefinition shown(
+          (ParkedFactProps(g_nullConditionalBranchRecord)));
+      loka::app::scene::ConditionalDefinition seat(
+          (loka::app::scene::ConditionalProps(
+              g_nullConditionalBranchCondition,
+              &shown,
+              0)));
+      seat.setNodeTag(501);
+      loka::app::FragmentDefinition root;
+      root << seat;
+      composition.declare(root);
+    }
+  };
+
+  void clearNullConditionalBranchGlobals()
+  {
+    g_nullConditionalBranchCondition = 0;
+    g_nullConditionalBranchRecord = 0;
+  }
+} // namespace
+
+void testConditionalSeatInitiallyNullCanMaterialize()
+{
+  loka::core::MutableState<bool> condition(false);
+  ParkedFactRecord shown;
+  g_nullConditionalBranchCondition = &condition;
+  g_nullConditionalBranchRecord = &shown;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<NullConditionalBranchBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(shown.constructionCount == 0);
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.constructionCount == 1 && shown.node &&
+         shown.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "a seat mounted on its null side must materialize when shown");
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.node->lifecycleFact() ==
+             loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
+         "the materialized branch parks when returning to the null side");
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.constructionCount == 1 && shown.node->lifecycleFact() ==
+                                             loka::app::scene::NODE_FACT_ATTACHED &&
+         "the initially-null seat remains live across later flips");
+
+  scene.unmount();
+  clearNullConditionalBranchGlobals();
+}
+
+void testNullConditionalBranchParksAndReentersShownBranch()
+{
+  loka::core::MutableState<bool> condition(true);
+  ParkedFactRecord shown;
+  g_nullConditionalBranchCondition = &condition;
+  g_nullConditionalBranchRecord = &shown;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<NullConditionalBranchBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(shown.constructionCount == 1 && shown.node);
+  loka::app::scene::Node *original = shown.node;
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(original->lifecycleFact() ==
+             loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
+         "flipping to a null branch must park the shown branch");
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.constructionCount == 1 && shown.node == original &&
+         original->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "the shown branch must reenter from the null side without reconstruction");
+
+  scene.unmount();
+  clearNullConditionalBranchGlobals();
+}

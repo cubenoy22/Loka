@@ -118,7 +118,10 @@ namespace loka
             return 0;
           }
           const bool condition = plan->condition->get();
-          Node *active = createNodeWithArena(plan->branch(condition).definition,
+          loka::app::FragmentDefinition emptyBranch;
+          NodeDefinitionBase *branchDefinition =
+              plan->materializedBranchDefinition(condition, emptyBranch);
+          Node *active = createNodeWithArena(branchDefinition,
                                              arena,
                                              autoIdCounter,
                                              boundary,
@@ -197,7 +200,10 @@ namespace loka
             return 0;
           }
           const bool condition = plan->condition->get();
-          Node *active = createNodeRecursive(plan->branch(condition).definition,
+          loka::app::FragmentDefinition emptyBranch;
+          NodeDefinitionBase *branchDefinition =
+              plan->materializedBranchDefinition(condition, emptyBranch);
+          Node *active = createNodeRecursive(branchDefinition,
                                              autoIdCounter,
                                              boundary,
                                              runtimeParent);
