@@ -1,6 +1,10 @@
 // Contract tests in the execution order established by FlowDslTestMain.cpp.
 // The marker preserves the combined platform runner's historical scenario position.
 LOKA_TEST(testLifecycleAuditedCountsEveryConstructor)
+LOKA_TEST(testLokaAllocDefaultBackendRoundTrip)
+LOKA_TEST(testLokaNewReturnsNullWhenBackendRefusesNthAllocation)
+LOKA_TEST(testLokaAllocBackendResetRestoresDefault)
+LOKA_TEST(testLokaAllocAuditBalancedUseCountsToZero)
 LOKA_TEST(testStateNotify)
 LOKA_TEST(testDerivedStateCore)
 LOKA_TEST(testConditionalDefinitionCloneOwnership)
