@@ -481,11 +481,11 @@ namespace
   static void testStateArenaAllocation()
   {
     loka::app::scene::StateArena arena;
-    assert(!arena.hasCapacity());
+    assert(!arena.hasBlocks());
     assert(arena.allocate(4, 4) == 0);
 
     arena.reserve(32);
-    assert(arena.hasCapacity());
+    assert(arena.hasBlocks());
 
     void *first = arena.allocate(4, 4);
     assert(first != 0);
@@ -506,7 +506,7 @@ namespace
     assert(isAligned(grown, loka::app::scene::detail::NormalizeArenaAlign(4)));
 
     arena.clear();
-    assert(!arena.hasCapacity());
+    assert(!arena.hasBlocks());
     assert(arena.allocate(4, 4) == 0);
   }
 

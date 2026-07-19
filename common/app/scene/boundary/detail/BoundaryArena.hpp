@@ -245,6 +245,9 @@ namespace loka
           }
         }
 
+        /** Serves allocations from the tail block only. Leftover capacity in
+            earlier blocks is intentionally stranded, not tracked in a free
+            list, for locality and simplicity. */
         void *allocate(size_t size, size_t align)
         {
           if (size == 0)
@@ -310,7 +313,7 @@ namespace loka
           clearBlocks();
         }
 
-        bool hasCapacity() const
+        bool hasBlocks() const
         {
           return tail_ != 0;
         }
