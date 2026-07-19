@@ -1494,6 +1494,32 @@ namespace
     bool *failedOnce_;
   };
 
+  struct FlowTestPassThenFailAdapter
+  {
+    typedef int In;
+    typedef int Out;
+
+    explicit FlowTestPassThenFailAdapter(int *calls)
+        : calls_(calls)
+    {
+    }
+
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &error) const
+    {
+      ++(*this->calls_);
+      if (*this->calls_ > 1)
+      {
+        error.kind = 9;
+        error.code = 500;
+        return loka::dsl::FLOW_STEP_FAILED;
+      }
+      out = in + 7;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+
+    int *calls_;
+  };
+
   struct FlowTestCountedPassAdapter
   {
     typedef int In;
@@ -2614,6 +2640,37 @@ void testLokaFlowDslV1Core()
     assert(out == 21);
     assert(order.size() == 1);
     assert(order[0] == 999);
+  }
+
+  {
+    // Flow-level onSuccess with a VALID resume step id (issue #46 item F2):
+    // the flow-level finally must fire exactly once per logical run, at the
+    // resumed segment's terminal — not once before the jump and again at the
+    // end. The resume target fails on its rerun so the segment terminates.
+    int input = 30;
+    int out = 0;
+    int resumeCalls = 0;
+    bool loading = false;
+    std::vector<int> flowMarks;
+    FlowTestMarkerContext flowSuccess = {&flowMarks, 1};
+    std::vector<int> order;
+    FlowTestMarkerContext flowFinal = {&order, 1000};
+
+    loka::dsl::FlowChain<int, int> chain =
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&input)
+        | loka::dsl::Step(2, FlowTestPassThenFailAdapter(&resumeCalls)).onSuccess(&out);
+    chain.onSuccess(&FlowTestMarker::onFlowSuccess, &flowSuccess, 2);
+    chain.trackLoading(&loading);
+    chain.onFinally(&FlowTestMarker::onStepFinally, &flowFinal);
+
+    const loka::dsl::FlowRunResult result = chain.runResult();
+    assert(result == loka::dsl::FLOW_RUN_FAILED); // rerun of step 2 fails unhandled
+    assert(flowMarks.size() == 1);
+    assert(resumeCalls == 2);
+    assert(out == 38);
+    assert(loading == false);
+    assert(order.size() == 1); // flow-level finally fires once per logical run
+    assert(order[0] == 1000);
   }
 
   {
