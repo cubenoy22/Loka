@@ -197,6 +197,8 @@ int main()
   LOKA_RUN_TEST(testPolicyScopeDeliverWhileDetachedContrastsWithDefaultInRecomposingBoundary);
   LOKA_RUN_TEST(testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary);
   LOKA_RUN_TEST(testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary);
+  LOKA_RUN_TEST(testOpenFileDialogPresentationPoliciesInRecomposingBoundary);
+  LOKA_RUN_TEST(testOpenFileDialogPresentationPoliciesInComposeOnceBoundary);
   LOKA_RUN_TEST(testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild);
   LOKA_RUN_TEST(testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping);
   LOKA_RUN_TEST(testRemovedConditionalSeatReaddsFreshRuntimeAndBranches);

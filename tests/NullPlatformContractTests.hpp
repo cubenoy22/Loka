@@ -45,6 +45,8 @@ void testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary();
 void testPolicyScopeDeliverWhileDetachedContrastsWithDefaultInRecomposingBoundary();
 void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary();
 void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary();
+void testOpenFileDialogPresentationPoliciesInRecomposingBoundary();
+void testOpenFileDialogPresentationPoliciesInComposeOnceBoundary();
 void testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild();
 void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping();
 

@@ -3,6 +3,7 @@
 
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
@@ -118,7 +119,8 @@ namespace simpleviewer
                  .image(this->image_.state())
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
           << (Show(*this->isDialogShown_.state())
-              << OpenFileDialog().result(this->chooserResult_).closeState(this->isDialogShown_)));
+              << (PolicyScope().destroyOnDetach()
+                  << OpenFileDialog().result(this->chooserResult_).closeState(this->isDialogShown_))));
     }
 
   private:
