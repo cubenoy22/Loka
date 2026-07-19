@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20260719-0803-Experimental"
+	Name="(empty)"
+	Generator="ctest-3.28.3"
+	CompilerName=""
+	CompilerVersion=""
+	OSName="Linux"
+	Hostname="ZenbookSora"
+	OSRelease="5.15.167.4-microsoft-standard-WSL2"
+	OSVersion="#1 SMP Tue Nov 5 00:19:58 UTC 2024"
+	OSPlatform="aarch64"
+	Is64Bits="1"
+	VendorString=""
+	VendorID="Unknown Manufacturer"
+	FamilyID="8"
+	ModelID="0"
+	ProcessorCacheSize="0"
+	NumberOfLogicalCPU="12"
+	NumberOfPhysicalCPU="1"
+	TotalVirtualMemory="2048"
+	TotalPhysicalMemory="8018"
+	LogicalProcessorsPerPhysical="12"
+	ProcessorClockFrequency="0"
+	>
+	<Testing>
+		<StartDateTime>Jul 19 17:03 JST</StartDateTime>
+		<StartTestTime>1784448204</StartTestTime>
+		<TestList/>
+		<EndDateTime>Jul 19 17:03 JST</EndDateTime>
+		<EndTestTime>1784448204</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

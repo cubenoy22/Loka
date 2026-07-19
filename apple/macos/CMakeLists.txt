@@ -92,7 +92,10 @@ if(NOT LOKA_MAC_OS_10_4)
   file(GLOB_RECURSE LOKA_MACOS_TEST_COMMON_SOURCES CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/common/*.cpp
   )
-  add_executable(LokaTestsMacOS
+  # EXCLUDE_FROM_ALL: this target recompiles all common sources under
+  # TEST_BUILD, so keep it out of Build All (and generated Xcode projects);
+  # the macos-tests build preset builds it explicitly.
+  add_executable(LokaTestsMacOS EXCLUDE_FROM_ALL
     ${LOKA_SHARED_TEST_SOURCES}
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
