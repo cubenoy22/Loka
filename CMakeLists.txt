@@ -42,7 +42,10 @@ endif()
 # Top-level CTest wiring so `ctest --test-dir <build dir>` finds test targets
 # registered in subdirectories (e.g. LokaTestsMacOS) as well as the headless
 # suite below. include(CTest) rather than enable_testing() so ctest's
-# DartConfiguration.tcl exists (VS Code invokes ctest with -T test).
+# DartConfiguration.tcl exists (VS Code invokes ctest with -T test). The
+# property suppresses the CDash dashboard targets (Nightly/Continuous/...)
+# that would otherwise clutter generated Xcode/MSVC projects.
+set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
 include(CTest)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaTestSources.cmake)
