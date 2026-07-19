@@ -3832,3 +3832,126 @@ void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary()
   scene.unmount();
   clearPolicyGlobals();
 }
+
+namespace
+{
+  class Step4ShapeTypeTag
+  {
+  };
+  class Step4ShapeBoundaryNode;
+  struct Step4ShapeProps : public loka::app::scene::NodePropsBase<Step4ShapeProps>
+  {
+    typedef Step4ShapeTypeTag TypeTag;
+    typedef Step4ShapeBoundaryNode NodeType;
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+  Step4ShapeBoundaryNode *g_step4ShapeNode = 0;
+  /** Mirrors Tutorial Step 4 with the maintainer's repro edit: a compose-once
+      boundary whose Show branch holds anonymous mixed siblings (text, button)
+      plus nested conditional seats. The Toolbox roulette is this shape failing
+      to settle: every apply keeps churning structure. */
+  class Step4ShapeBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<Step4ShapeProps>
+  {
+  public:
+    explicit Step4ShapeBoundaryNode(const Step4ShapeProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<Step4ShapeProps>(props),
+          showSummary_(),
+          showItem1_(),
+          showItem2_()
+    {
+      this->state(this->showSummary_, false);
+      this->state(this->showItem1_, true);
+      this->state(this->showItem2_, false);
+      g_step4ShapeNode = this;
+    }
+    virtual ~Step4ShapeBoundaryNode()
+    {
+      if (g_step4ShapeNode == this)
+      {
+        g_step4ShapeNode = 0;
+      }
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      loka::app::ButtonDefinition addOutside("add");
+      loka::app::ButtonDefinition toggle("toggle");
+      loka::app::EditTextDefinition summaryText;
+      loka::app::ButtonDefinition addInside("add");
+      loka::app::EditTextDefinition item1;
+      loka::app::EditTextDefinition item2;
+      loka::app::ShowDefinition inner1 = loka::app::Show(*this->showItem1_.state());
+      inner1 << item1;
+      loka::app::ShowDefinition inner2 = loka::app::Show(*this->showItem2_.state());
+      inner2 << item2;
+      loka::app::ShowDefinition summary = loka::app::Show(*this->showSummary_.state());
+      summary << summaryText << addInside << inner1 << inner2;
+      loka::app::FragmentDefinition root;
+      root << addOutside << toggle << summary;
+      c.declare(root);
+    }
+    void toggleSummary(bool value)
+    {
+      this->showSummary_.set(value, true);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> showSummary_;
+    loka::app::scene::NodeState<bool> showItem1_;
+    loka::app::scene::NodeState<bool> showItem2_;
+  };
+} // namespace
+
+void testStep4ShapeSettlesAfterShowFlip()
+{
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<Step4ShapeProps, Step4ShapeBoundaryNode> *root =
+      new loka::app::scene::NodeDefinition<Step4ShapeProps, Step4ShapeBoundaryNode>(
+          Step4ShapeProps());
+  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
+  mountAndAttach(scene, platform);
+  assert(g_step4ShapeNode);
+
+  g_step4ShapeNode->toggleSummary(true);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  assert(!scene.hasPendingInvalidation() &&
+         "a single Show flip settles in one scheduled apply");
+
+  NativeContextCallCounts afterShow(platform);
+  for (int i = 0; i < 4; ++i)
+  {
+    requestChildPump(scene);
+    assert(!scene.hasPendingInvalidation() &&
+           "a re-pump with no state change must not re-arm invalidation");
+    NativeContextCallCounts rePumped(platform);
+    assert(rePumped == afterShow &&
+           "a re-pump with no state change must not churn native structure");
+  }
+
+  g_step4ShapeNode->toggleSummary(false);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  NativeContextCallCounts afterHide(platform);
+  for (int i = 0; i < 4; ++i)
+  {
+    requestChildPump(scene);
+    NativeContextCallCounts rePumped(platform);
+    assert(rePumped == afterHide &&
+           "re-pumps while hidden must not churn native structure");
+  }
+
+  g_step4ShapeNode->toggleSummary(true);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  scene.unmount();
+}

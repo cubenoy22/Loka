@@ -49,3 +49,4 @@ void testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild();
 void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping();
 
 #endif // LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
+void testStep4ShapeSettlesAfterShowFlip();

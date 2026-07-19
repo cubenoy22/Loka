@@ -1091,7 +1091,10 @@ namespace loka
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+            // A dissolved seat has no runtime node at this level. Its value-key
+            // plan owns nested branch reconciliation later in this same pass.
             if (entry.action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN &&
+                !entry.definition->asBranchSeatDefinition() &&
                 !this->reconcileParkedBranch(context, entry.node, entry.definition))
             {
               return false;

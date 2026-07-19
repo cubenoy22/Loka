@@ -189,6 +189,7 @@ int main()
   LOKA_RUN_TEST(testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose);
   LOKA_RUN_TEST(testNestedConditionalSeatRepointsDefinitionsAtOuterReentry);
   LOKA_RUN_TEST(testShowDslParkedBranchIsCurrentAtReentry);
+  LOKA_RUN_TEST(testStep4ShapeSettlesAfterShowFlip);
   LOKA_RUN_TEST(testStdCompositionBoundaryShowFlipPreservesSiblings);
   LOKA_RUN_TEST(testPolicyScopeIsDefinitionOnlyAndPreservesContentNativeHint);
   LOKA_RUN_TEST(testPolicyScopeRejectsNonBranchRootPlacement);
