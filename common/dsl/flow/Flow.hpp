@@ -528,7 +528,7 @@ namespace loka
       FlowRunResult runPinnedFromIndex(std::size_t startIndex) const
       {
         RunPinScope runPinScope(this);
-        return this->runCoreFromIndex(startIndex);
+        return this->runCoreFromIndex(startIndex, false);
       }
 
       FlowRunResult runPinnedFromStepId(int stepId) const
@@ -541,7 +541,12 @@ namespace loka
         return this->runPinnedFromIndex(start);
       }
 
-      FlowRunResult runCoreFromIndex(std::size_t startIndex) const
+      // `resumedSegment` is true only for the internal flow-level success
+      // resume: the segment continues the same logical run, so entry must not
+      // re-begin the tracker or re-raise the loading state — the run's single
+      // begin already happened and terminalCleanup() fires once, at the
+      // segment's own terminal.
+      FlowRunResult runCoreFromIndex(std::size_t startIndex, bool resumedSegment) const
       {
         // Snapshot the hook fields once: begin/end stay paired even if the
         // hooks are cleared mid-run (e.g. the owning FlowSlot disowns the
@@ -592,13 +597,16 @@ namespace loka
           current = this->steps_[startIndex - 1]->outputPtr();
         }
         FlowError error;
-        if (this->tracker_ != 0)
+        if (!resumedSegment)
         {
-          this->tracker_->begin();
-        }
-        if (this->loadingState_ != 0)
-        {
-          *this->loadingState_ = true;
+          if (this->tracker_ != 0)
+          {
+            this->tracker_->begin();
+          }
+          if (this->loadingState_ != 0)
+          {
+            *this->loadingState_ = true;
+          }
         }
 
         static const std::size_t MAX_ITERATIONS = 1024;
@@ -700,8 +708,10 @@ namespace loka
             this->terminalCleanup();
             return FLOW_RUN_FAILED;
           }
-          this->terminalCleanup();
-          return this->runCoreFromIndex(jumpIndex);
+          // No terminalCleanup() here: the resumed segment continues the same
+          // logical run, and its own terminal fires the flow-level finally,
+          // tracker end, and loading=false exactly once.
+          return this->runCoreFromIndex(jumpIndex, true);
         }
 
         this->terminalCleanup();
@@ -758,7 +768,7 @@ namespace loka
         // Trigger callbacks hold only the impl pointer, so lifetime still
         // needs pinning here; use the run pin rather than refs_ so callback
         // code can cancel the active impl without tripping copy-on-write.
-        FlowRunResult result = self->runCoreFromIndex(0);
+        FlowRunResult result = self->runCoreFromIndex(0, false);
         if (result != FLOW_RUN_PENDING)
         {
           self->triggerRunning_ = false;
