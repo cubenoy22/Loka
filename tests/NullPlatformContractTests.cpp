@@ -2,9 +2,17 @@
 
 #include <cassert>
 
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/Scene.hpp"
@@ -270,12 +278,6 @@ namespace
     unsigned long hidden;
   };
 
-  void assertExpectedRedForT4(bool observableOutcome)
-  {
-    assert(!observableOutcome &&
-           "expected-red contract pin turned green; T4 must promote this outcome assertion");
-  }
-
   struct FactTransition
   {
     FactTransition(loka::app::scene::NodeLifecycleFact previousFact,
@@ -294,12 +296,14 @@ namespace
     ParkedFactRecord()
         : constructionCount(0),
           attachReads(0),
+          node(0),
           transitions()
     {
     }
 
     int constructionCount;
     int attachReads;
+    loka::app::scene::Node *node;
     std::vector<FactTransition> transitions;
   };
 
@@ -368,6 +372,7 @@ namespace
       if (this->props.record)
       {
         ++this->props.record->constructionCount;
+        this->props.record->node = this;
       }
       ParkedFactContext *context = new ParkedFactContext(props.record);
       this->setContext(context);
@@ -762,6 +767,7 @@ namespace
       if (this->props.record)
       {
         ++this->props.record->attachReads;
+        this->props.record->node = node;
       }
       return BaseType::applyPropsToNode(node);
     }
@@ -2347,9 +2353,8 @@ void testNullPlatformContract_H6_activeBranchContentIsFreshAfterRecompose()
   assert(seatRetained &&
          "the Conditional seat remains present across active-branch content recompose");
 
-  // Expected RED: T4 promotes this pin when the active branch exposes the
-  // recomposed constant content after the pump settles.
-  assertExpectedRedForT4(seatRetained && contentFresh);
+  assert(seatRetained && contentFresh &&
+         "the active branch exposes recomposed constant content after the pump settles");
 
   scene.unmount();
   g_contentInputs = 0;
@@ -2480,19 +2485,13 @@ void testShowDslParkedBranchIsCurrentAtReentry()
       (loka::app::scene::Boundary<ShowReentryHarnessBoundaryNode>()));
   mountAndAttach(scene, platform);
 
-  loka::app::scene::INestable *showRoot =
-      g_showReentryBoundaryNode
-          ? g_showReentryBoundaryNode->compositionRootNestable()
-          : 0;
-  loka::app::scene::Node *showSeat = showRoot ? showRoot->childrenHead() : 0;
-  assert(showSeat &&
-         showSeat->propsTypeId() == loka::app::scene::ConditionalProps::staticTypeId() &&
-         "Show stamps its conditional seat identity at creation");
-
   revision.set(1);
   assert(scene.hasPendingInvalidation());
   assert(scene.flushInvalidation());
   assert(oldSourceRecord.constructionCount == 1);
+  loka::app::scene::Node *branchBeforeHide = currentSourceRecord.node;
+  assert(branchBeforeHide &&
+         "Show exposes its active branch before the ledger round-trip");
 
   condition.set(false);
   assert(scene.hasPendingInvalidation());
@@ -2512,6 +2511,8 @@ void testShowDslParkedBranchIsCurrentAtReentry()
   assert(oldSourceRecord.constructionCount == 1 &&
          !recordedTransitionTo(oldSourceRecord, loka::app::scene::NODE_FACT_RETIRED, 0) &&
          "Show retains its seat and branch across the ledger round-trip");
+  assert(currentSourceRecord.node == branchBeforeHide &&
+         "Show preserves branch identity across hide and reentry");
   assert(currentSourceRecord.attachReads > 0 &&
          expiredSourceRecord.attachReads == 0 &&
          "Show reentry applies the current definition generation");
@@ -2965,6 +2966,92 @@ namespace
   private:
     loka::app::scene::NodeState<bool> dialogShown_;
   };
+
+  loka::core::MutableState<bool> *g_rootSeatRebuildCondition = 0;
+
+  class RootSeatComposeOnceBranchBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootSeatComposeOnceBranchBoundaryNode>
+      RootSeatComposeOnceBranchProps;
+  class RootSeatComposeOnceBranchBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<RootSeatComposeOnceBranchProps>
+  {
+  public:
+    explicit RootSeatComposeOnceBranchBoundaryNode(
+        const RootSeatComposeOnceBranchProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<RootSeatComposeOnceBranchProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (g_rootSeatRebuildCondition && g_rootSeatRebuildCondition->get())
+      {
+        loka::app::EditTextDefinition edit;
+        composition.declare(edit);
+        return;
+      }
+      loka::app::ButtonDefinition button("root-seat-rebuild-false");
+      composition.declare(button);
+    }
+  };
+
+  class RootSeatRebuildBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootSeatRebuildBoundaryNode>
+      RootSeatRebuildProps;
+  class RootSeatRebuildBoundaryNode
+      : public PropsRecomposingBoundaryNode<RootSeatRebuildBoundaryNode,
+                                            RootSeatRebuildProps>
+  {
+  public:
+    explicit RootSeatRebuildBoundaryNode(const RootSeatRebuildProps &props)
+        : PropsRecomposingBoundaryNode<RootSeatRebuildBoundaryNode,
+                                       RootSeatRebuildProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::scene::BoundaryDefinition<RootSeatComposeOnceBranchProps,
+                                           RootSeatComposeOnceBranchBoundaryNode>
+          whenTrue;
+      loka::app::scene::BoundaryDefinition<RootSeatComposeOnceBranchProps,
+                                           RootSeatComposeOnceBranchBoundaryNode>
+          whenFalse;
+      loka::app::scene::ConditionalDefinition seat(
+          (loka::app::scene::ConditionalProps(g_rootSeatRebuildCondition,
+                                              &whenTrue,
+                                              &whenFalse)));
+      // The seat itself is the root definition. Snapshot-mode UPDATE must use
+      // the non-fast-path root rebuild resolver and attach the selected
+      // compose-once branch through the real boundary door.
+      composition.declare(seat);
+    }
+  };
+
+  class RootSeatRebuildHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RootSeatRebuildHarnessBoundaryNode>
+      RootSeatRebuildHarnessProps;
+  class RootSeatRebuildHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<RootSeatRebuildHarnessBoundaryNode>
+  {
+  public:
+    explicit RootSeatRebuildHarnessBoundaryNode(
+        const RootSeatRebuildHarnessProps &props)
+        : loka::app::scene::BoundaryNodeFor<RootSeatRebuildHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<RootSeatRebuildBoundaryNode>());
+    }
+  };
 } // namespace
 
 void testStdCompositionBoundaryShowFlipPreservesSiblings()
@@ -2997,4 +3084,1143 @@ void testStdCompositionBoundaryShowFlipPreservesSiblings()
   assert(dialog && dialog->visible &&
          "the shown branch materializes at the scheduled apply");
   scene.unmount();
+}
+
+void testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild()
+{
+  loka::core::MutableState<bool> condition(false);
+  g_rootSeatRebuildCondition = &condition;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<RootSeatRebuildHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  const NullScenePlatformController::LedgerRow *button =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  assert(button && button->visible);
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  const NullScenePlatformController::LedgerRow *edit =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(edit && edit->visible &&
+         "root-seat rebuild attaches the selected compose-once branch");
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  button = platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON);
+  assert(button && button->visible &&
+         "root-seat rebuild reenters the retained compose-once branch");
+  scene.unmount();
+  g_rootSeatRebuildCondition = 0;
+}
+
+void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping()
+{
+  ParkedFactRecord record;
+  loka::core::MutableState<bool> condition(false);
+  bool useReplacement = false;
+  ParkedFactDefinition parked((ParkedFactProps(&record)));
+  loka::app::ButtonDefinition active("stale-map-active");
+  loka::app::scene::ConditionalDefinition conditional(
+      (loka::app::scene::ConditionalProps(&condition, &active, &parked)));
+  loka::app::FragmentDefinition conditionalRoot;
+  conditionalRoot << conditional;
+  loka::app::EditTextDefinition replacement;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      new FullRebuildLedgerDefinition(&useReplacement,
+                                      &conditionalRoot,
+                                      &replacement));
+  mountAndAttach(scene, platform);
+
+  condition.set(true);
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(record);
+
+  useReplacement = true;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assertParkedRetirementTransitionTable(record);
+
+  useReplacement = false;
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  condition.set(false);
+  scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+  assert(scene.flushInvalidation());
+  assert(record.constructionCount == 2 && record.node &&
+         record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "post-generation flip resolves only the recreated seat mapping");
+
+  scene.unmount();
+}
+
+namespace
+{
+  struct PolicyDeliveryRecord
+  {
+    PolicyDeliveryRecord()
+        : constructions(0),
+          applies(0),
+          value(-1),
+          node(0)
+    {
+    }
+
+    int constructions;
+    int applies;
+    int value;
+    loka::app::scene::Node *node;
+  };
+
+  class PolicyDeliveryProbeNode;
+  struct PolicyDeliveryProbeTypeTag
+  {
+  };
+  struct PolicyDeliveryProbeProps
+      : public loka::app::scene::NodePropsBase<PolicyDeliveryProbeProps>
+  {
+    typedef PolicyDeliveryProbeTypeTag TypeTag;
+    typedef PolicyDeliveryProbeNode NodeType;
+
+    PolicyDeliveryProbeProps(PolicyDeliveryRecord *recordValue = 0,
+                             loka::core::State<int> *revisionValue = 0)
+        : record(recordValue),
+          revision(revisionValue)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const PolicyDeliveryProbeProps &other =
+          static_cast<const PolicyDeliveryProbeProps &>(rhs);
+      return this->record < other.record ||
+             (this->record == other.record && this->revision < other.revision);
+    }
+
+    PolicyDeliveryRecord *record;
+    loka::core::State<int> *revision;
+  };
+
+  class PolicyDeliveryProbeNode : public loka::app::scene::Node
+  {
+  public:
+    typedef PolicyDeliveryProbeTypeTag TypeTag;
+
+    explicit PolicyDeliveryProbeNode(const PolicyDeliveryProbeProps &propsValue)
+        : props(propsValue)
+    {
+      if (this->props.record)
+      {
+        ++this->props.record->constructions;
+        this->props.record->node = this;
+        this->props.record->value =
+            this->props.revision ? this->props.revision->get() : -1;
+      }
+    }
+
+    PolicyDeliveryProbeProps props;
+  };
+
+  class PolicyDeliveryProbeDefinition
+      : public loka::app::scene::NodeDefinition<PolicyDeliveryProbeProps,
+                                                PolicyDeliveryProbeNode>
+  {
+  public:
+    typedef loka::app::scene::NodeDefinition<PolicyDeliveryProbeProps,
+                                              PolicyDeliveryProbeNode>
+        BaseType;
+
+    PolicyDeliveryProbeDefinition(PolicyDeliveryRecord *record,
+                                  loka::core::State<int> *revision)
+        : BaseType(PolicyDeliveryProbeProps(record, revision))
+    {
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      PolicyDeliveryProbeDefinition *copy =
+          new PolicyDeliveryProbeDefinition(this->props.record, this->props.revision);
+      if (copy)
+      {
+        copy->copyTestIdPolicyFrom(*this);
+      }
+      return copy;
+    }
+
+    virtual bool applyPropsToNode(loka::app::scene::Node *node) const
+    {
+      if (!BaseType::applyPropsToNode(node))
+      {
+        return false;
+      }
+      PolicyDeliveryProbeNode *probe =
+          static_cast<PolicyDeliveryProbeNode *>(node);
+      if (probe->props.record)
+      {
+        ++probe->props.record->applies;
+        probe->props.record->node = probe;
+        probe->props.record->value =
+            probe->props.revision ? probe->props.revision->get() : -1;
+      }
+      return true;
+    }
+  };
+
+  loka::core::MutableState<bool> *g_policyDefaultCondition = 0;
+  loka::core::MutableState<bool> *g_policyScopedCondition = 0;
+  loka::core::MutableState<int> *g_policyRevision = 0;
+  ParkedFactRecord *g_policyDefaultFact = 0;
+  ParkedFactRecord *g_policyScopedFact = 0;
+  ParkedFactRecord *g_policyScopedCurrentFact = 0;
+  PolicyDeliveryRecord *g_policyDefaultDelivery = 0;
+  PolicyDeliveryRecord *g_policyScopedDelivery = 0;
+
+  class PolicyDestroyRecomposeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyDestroyRecomposeBoundaryNode>
+      PolicyDestroyRecomposeBoundaryProps;
+  class PolicyDestroyRecomposeBoundaryNode
+      : public PropsRecomposingBoundaryNode<PolicyDestroyRecomposeBoundaryNode,
+                                            PolicyDestroyRecomposeBoundaryProps>
+  {
+  public:
+    explicit PolicyDestroyRecomposeBoundaryNode(
+        const PolicyDestroyRecomposeBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<PolicyDestroyRecomposeBoundaryNode,
+                                       PolicyDestroyRecomposeBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_policyRevision)
+      {
+        registrar.markDirtyOnChange(g_policyRevision, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      ParkedFactDefinition defaultProbe((ParkedFactProps(g_policyDefaultFact)));
+      loka::app::ButtonDefinition defaultControl("policy-default-retain");
+      loka::app::FragmentDefinition defaultBranch;
+      defaultBranch << defaultProbe << defaultControl;
+
+      ParkedFactDefinition scopedProbe(
+          (ParkedFactProps(g_policyRevision && g_policyRevision->get() != 0
+                               ? g_policyScopedCurrentFact
+                               : g_policyScopedFact)));
+      loka::app::EditTextDefinition scopedControl;
+      loka::app::PolicyScopeDefinition destroyScope;
+      destroyScope.destroyOnDetach() << scopedProbe << scopedControl;
+
+      loka::app::FragmentDefinition defaultHidden;
+      loka::app::FragmentDefinition scopedHidden;
+      loka::app::scene::ConditionalDefinition defaultSeat(
+          (loka::app::scene::ConditionalProps(g_policyDefaultCondition,
+                                              &defaultBranch,
+                                              &defaultHidden)));
+      loka::app::scene::ConditionalDefinition scopedSeat(
+          (loka::app::scene::ConditionalProps(g_policyScopedCondition,
+                                              &destroyScope,
+                                              &scopedHidden)));
+      loka::app::FragmentDefinition root;
+      root << defaultSeat << scopedSeat;
+      composition.declare(root);
+    }
+  };
+
+  class PolicyDeliverRecomposeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyDeliverRecomposeBoundaryNode>
+      PolicyDeliverRecomposeBoundaryProps;
+  class PolicyDeliverRecomposeBoundaryNode
+      : public PropsRecomposingBoundaryNode<PolicyDeliverRecomposeBoundaryNode,
+                                            PolicyDeliverRecomposeBoundaryProps>
+  {
+  public:
+    explicit PolicyDeliverRecomposeBoundaryNode(
+        const PolicyDeliverRecomposeBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<PolicyDeliverRecomposeBoundaryNode,
+                                       PolicyDeliverRecomposeBoundaryProps>(props)
+    {
+    }
+
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_policyRevision)
+      {
+        registrar.markDirtyOnChange(g_policyRevision, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      PolicyDeliveryProbeDefinition defaultProbe(g_policyDefaultDelivery,
+                                                  g_policyRevision);
+      loka::app::FragmentDefinition defaultBranch;
+      defaultBranch << defaultProbe;
+
+      PolicyDeliveryProbeDefinition scopedProbe(g_policyScopedDelivery,
+                                                 g_policyRevision);
+      loka::app::PolicyScopeDefinition deliverScope;
+      deliverScope.deliverWhileDetached() << scopedProbe;
+
+      loka::app::FragmentDefinition defaultHidden;
+      loka::app::FragmentDefinition scopedHidden;
+      loka::app::scene::ConditionalDefinition defaultSeat(
+          (loka::app::scene::ConditionalProps(g_policyDefaultCondition,
+                                              &defaultBranch,
+                                              &defaultHidden)));
+      loka::app::scene::ConditionalDefinition scopedSeat(
+          (loka::app::scene::ConditionalProps(g_policyScopedCondition,
+                                              &deliverScope,
+                                              &scopedHidden)));
+      loka::app::FragmentDefinition root;
+      root << defaultSeat << scopedSeat;
+      composition.declare(root);
+    }
+  };
+
+  class PolicyDestroyHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyDestroyHarnessBoundaryNode>
+      PolicyDestroyHarnessBoundaryProps;
+  class PolicyDestroyHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<PolicyDestroyHarnessBoundaryNode>
+  {
+  public:
+    explicit PolicyDestroyHarnessBoundaryNode(const PolicyDestroyHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<PolicyDestroyHarnessBoundaryNode>(props)
+    {
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<PolicyDestroyRecomposeBoundaryNode>());
+    }
+  };
+
+  class PolicyDeliverHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyDeliverHarnessBoundaryNode>
+      PolicyDeliverHarnessBoundaryProps;
+  class PolicyDeliverHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<PolicyDeliverHarnessBoundaryNode>
+  {
+  public:
+    explicit PolicyDeliverHarnessBoundaryNode(const PolicyDeliverHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<PolicyDeliverHarnessBoundaryNode>(props)
+    {
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<PolicyDeliverRecomposeBoundaryNode>());
+    }
+  };
+
+  class PolicyDestroyStdBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyDestroyStdBoundaryNode>
+      PolicyDestroyStdBoundaryProps;
+  PolicyDestroyStdBoundaryNode *g_policyDestroyStdNode = 0;
+  class PolicyDestroyStdBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<PolicyDestroyStdBoundaryProps>
+  {
+  public:
+    explicit PolicyDestroyStdBoundaryNode(const PolicyDestroyStdBoundaryProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<PolicyDestroyStdBoundaryProps>(props),
+          defaultShown_(),
+          scopedShown_()
+    {
+      this->state(this->defaultShown_, true);
+      this->state(this->scopedShown_, true);
+      g_policyDestroyStdNode = this;
+    }
+    virtual ~PolicyDestroyStdBoundaryNode()
+    {
+      if (g_policyDestroyStdNode == this)
+      {
+        g_policyDestroyStdNode = 0;
+      }
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      ParkedFactDefinition defaultProbe((ParkedFactProps(g_policyDefaultFact)));
+      loka::app::ButtonDefinition defaultControl("policy-std-default");
+      loka::app::FragmentDefinition defaultBranch;
+      defaultBranch << defaultProbe << defaultControl;
+
+      ParkedFactDefinition scopedProbe((ParkedFactProps(g_policyScopedFact)));
+      loka::app::EditTextDefinition scopedControl;
+      loka::app::PolicyScopeDefinition destroyScope;
+      destroyScope.destroyOnDetach() << scopedProbe << scopedControl;
+
+      loka::app::FragmentDefinition defaultHidden;
+      loka::app::FragmentDefinition scopedHidden;
+      loka::app::scene::ConditionalDefinition defaultSeat(
+          (loka::app::scene::ConditionalProps(this->defaultShown_.state(),
+                                              &defaultBranch,
+                                              &defaultHidden)));
+      loka::app::scene::ConditionalDefinition scopedSeat(
+          (loka::app::scene::ConditionalProps(this->scopedShown_.state(),
+                                              &destroyScope,
+                                              &scopedHidden)));
+      loka::app::FragmentDefinition root;
+      root << defaultSeat << scopedSeat;
+      composition.declare(root);
+    }
+    void hideBoth()
+    {
+      this->defaultShown_.set(false, true);
+      this->scopedShown_.set(false, true);
+    }
+    void reshowScoped()
+    {
+      this->scopedShown_.set(true, true);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> defaultShown_;
+    loka::app::scene::NodeState<bool> scopedShown_;
+  };
+
+  class PolicyDeliverStdBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyDeliverStdBoundaryNode>
+      PolicyDeliverStdBoundaryProps;
+  PolicyDeliverStdBoundaryNode *g_policyDeliverStdNode = 0;
+  class PolicyDeliverStdBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<PolicyDeliverStdBoundaryProps>
+  {
+  public:
+    explicit PolicyDeliverStdBoundaryNode(const PolicyDeliverStdBoundaryProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<PolicyDeliverStdBoundaryProps>(props),
+          defaultShown_(),
+          scopedShown_(),
+          revision_()
+    {
+      this->state(this->defaultShown_, true);
+      this->state(this->scopedShown_, true);
+      this->state(this->revision_, 0);
+      g_policyDeliverStdNode = this;
+    }
+    virtual ~PolicyDeliverStdBoundaryNode()
+    {
+      if (g_policyDeliverStdNode == this)
+      {
+        g_policyDeliverStdNode = 0;
+      }
+    }
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      registrar.markDirtyOnChange(this->revision_.state(),
+                                  loka::app::scene::NODE_DIRTY_PROPS);
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      PolicyDeliveryProbeDefinition defaultProbe(g_policyDefaultDelivery,
+                                                  this->revision_.state());
+      loka::app::FragmentDefinition defaultBranch;
+      defaultBranch << defaultProbe;
+
+      PolicyDeliveryProbeDefinition scopedProbe(g_policyScopedDelivery,
+                                                 this->revision_.state());
+      loka::app::PolicyScopeDefinition deliverScope;
+      deliverScope.deliverWhileDetached() << scopedProbe;
+
+      loka::app::FragmentDefinition defaultHidden;
+      loka::app::FragmentDefinition scopedHidden;
+      loka::app::scene::ConditionalDefinition defaultSeat(
+          (loka::app::scene::ConditionalProps(this->defaultShown_.state(),
+                                              &defaultBranch,
+                                              &defaultHidden)));
+      loka::app::scene::ConditionalDefinition scopedSeat(
+          (loka::app::scene::ConditionalProps(this->scopedShown_.state(),
+                                              &deliverScope,
+                                              &scopedHidden)));
+      loka::app::FragmentDefinition root;
+      root << defaultSeat << scopedSeat;
+      composition.declare(root);
+    }
+    void hideBoth()
+    {
+      this->defaultShown_.set(false, true);
+      this->scopedShown_.set(false, true);
+    }
+    void revise()
+    {
+      this->revision_.set(1, true);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> defaultShown_;
+    loka::app::scene::NodeState<bool> scopedShown_;
+    loka::app::scene::NodeState<int> revision_;
+  };
+
+  class PolicyDefinitionOnlyBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyDefinitionOnlyBoundaryNode>
+      PolicyDefinitionOnlyBoundaryProps;
+  class PolicyDefinitionOnlyBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<PolicyDefinitionOnlyBoundaryNode>
+  {
+  public:
+    explicit PolicyDefinitionOnlyBoundaryNode(const PolicyDefinitionOnlyBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<PolicyDefinitionOnlyBoundaryNode>(props),
+          shown_()
+    {
+      this->state(this->shown_, true);
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::EditTextDefinition content;
+      content.lifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+      loka::app::PolicyScopeDefinition scope = loka::app::PolicyScope();
+      scope.deliverWhileDetached() << content;
+      loka::app::ShowDefinition seat = loka::app::Show(*this->shown_.state());
+      seat << scope;
+      loka::app::FragmentDefinition root;
+      root << seat;
+      composition.declare(root);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> shown_;
+  };
+
+  void clearPolicyGlobals()
+  {
+    g_policyDefaultCondition = 0;
+    g_policyScopedCondition = 0;
+    g_policyRevision = 0;
+    g_policyDefaultFact = 0;
+    g_policyScopedFact = 0;
+    g_policyScopedCurrentFact = 0;
+    g_policyDefaultDelivery = 0;
+    g_policyScopedDelivery = 0;
+  }
+} // namespace
+
+void testPolicyScopeIsDefinitionOnlyAndPreservesContentNativeHint()
+{
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<PolicyDefinitionOnlyBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  assert(scene.liveNodeCount() == 4 &&
+         "PolicyScope folds into the seat plan without a runtime node");
+  const NullScenePlatformController::LedgerRow *content =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(content && content->handle && content->handle->owner &&
+         content->handle->owner->lifetimeHint() ==
+             loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
+         "NativeLifetimeHint remains content-owned rather than scope payload");
+
+  loka::app::PolicyScopeDefinition policies;
+  assert(!policies.branchPolicies().destroyOnDetach &&
+         !policies.branchPolicies().deliverWhileDetached);
+  policies.destroyOnDetach().deliverWhileDetached();
+  assert(policies.branchPolicies().destroyOnDetach &&
+         policies.branchPolicies().deliverWhileDetached &&
+         "PolicyScope exposes only the branch lifecycle/diff policy payload");
+  scene.unmount();
+}
+
+void testPolicyScopeRejectsNonBranchRootPlacement()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  const pid_t child = fork();
+  assert(child >= 0);
+  if (child == 0)
+  {
+    loka::core::MutableState<bool> condition(true);
+    loka::app::EditTextDefinition content;
+    loka::app::PolicyScopeDefinition scope;
+    scope.destroyOnDetach() << content;
+    loka::app::FragmentDefinition misplacedBranch;
+    misplacedBranch << scope;
+    loka::app::FragmentDefinition hidden;
+    loka::app::scene::ConditionalDefinition seat(
+        (loka::app::scene::ConditionalProps(&condition, &misplacedBranch, &hidden)));
+    loka::app::FragmentDefinition *root = new loka::app::FragmentDefinition();
+    (*root) << seat;
+    NullScenePlatformController platform;
+    loka::app::scene::Scene scene(root);
+    mountAndAttach(scene, platform);
+    _exit(0);
+  }
+  int status = 0;
+  assert(waitpid(child, &status, 0) == child);
+  assert(WIFSIGNALED(status));
+  assert(WTERMSIG(status) == SIGABRT &&
+         "PolicyScope is legal only as the immediate branch root");
+#endif
+}
+
+void testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary()
+{
+  ParkedFactRecord defaultRecord;
+  ParkedFactRecord scopedRecord;
+  ParkedFactRecord scopedCurrentRecord;
+  loka::core::MutableState<bool> defaultCondition(true);
+  loka::core::MutableState<bool> scopedCondition(true);
+  loka::core::MutableState<int> revision(0);
+  g_policyDefaultCondition = &defaultCondition;
+  g_policyScopedCondition = &scopedCondition;
+  g_policyRevision = &revision;
+  g_policyDefaultFact = &defaultRecord;
+  g_policyScopedFact = &scopedRecord;
+  g_policyScopedCurrentFact = &scopedCurrentRecord;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<PolicyDestroyHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(platform.ledger().size() == 2);
+  const unsigned long rowsBefore = platform.teardownCounters().rowRemoved;
+
+  defaultCondition.set(false);
+  scopedCondition.set(false);
+  assert(scene.flushInvalidation());
+  assertParkedTransitionTable(defaultRecord);
+  assert(scopedRecord.constructionCount == 1 &&
+         recordedTransitionTo(scopedRecord, loka::app::scene::NODE_FACT_RETIRED, 0));
+  assert(platform.ledger().size() == 1 &&
+         platform.teardownCounters().rowRemoved == rowsBefore + 1 &&
+         "destroyOnDetach retires native ownership while default parks it");
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  scene.flushInvalidation();
+  scopedCondition.set(true);
+  assert(scene.flushInvalidation());
+  const NullScenePlatformController::LedgerRow *rebuilt =
+      platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT);
+  assert(scopedRecord.constructionCount == 1 &&
+         "destroyOnDetach does not reconstruct the expired branch definition");
+  assert(scopedCurrentRecord.constructionCount == 1 &&
+         "destroyOnDetach reshow constructs the current branch definition");
+  assert(rebuilt && rebuilt->visible && rebuilt->handle && rebuilt->handle->owner &&
+         "destroyOnDetach reshow projects the fresh branch");
+  scene.unmount();
+  clearPolicyGlobals();
+}
+
+void testPolicyScopeDeliverWhileDetachedContrastsWithDefaultInRecomposingBoundary()
+{
+  PolicyDeliveryRecord defaultRecord;
+  PolicyDeliveryRecord scopedRecord;
+  loka::core::MutableState<bool> defaultCondition(true);
+  loka::core::MutableState<bool> scopedCondition(true);
+  loka::core::MutableState<int> revision(0);
+  g_policyDefaultCondition = &defaultCondition;
+  g_policyScopedCondition = &scopedCondition;
+  g_policyRevision = &revision;
+  g_policyDefaultDelivery = &defaultRecord;
+  g_policyScopedDelivery = &scopedRecord;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<PolicyDeliverHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  defaultCondition.set(false);
+  scopedCondition.set(false);
+  assert(scene.flushInvalidation());
+  const int defaultAppliesBefore = defaultRecord.applies;
+  const int scopedAppliesBefore = scopedRecord.applies;
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  scene.flushInvalidation();
+  assert(defaultRecord.value == 0 &&
+         defaultRecord.applies == defaultAppliesBefore &&
+         "default policy defers parked-child reconciliation");
+  assert(scopedRecord.value == 1 &&
+         scopedRecord.applies > scopedAppliesBefore &&
+         "deliverWhileDetached brings parked children current while hidden");
+  scene.unmount();
+  clearPolicyGlobals();
+}
+
+void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary()
+{
+  ParkedFactRecord defaultRecord;
+  ParkedFactRecord scopedRecord;
+  g_policyDefaultFact = &defaultRecord;
+  g_policyScopedFact = &scopedRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<PolicyDestroyStdBoundaryProps,
+                                   PolicyDestroyStdBoundaryNode> *root =
+      new loka::app::scene::NodeDefinition<PolicyDestroyStdBoundaryProps,
+                                           PolicyDestroyStdBoundaryNode>(
+          PolicyDestroyStdBoundaryProps());
+  loka::app::scene::Scene scene(root);
+  mountAndAttach(scene, platform);
+  assert(g_policyDestroyStdNode);
+  const unsigned long rowsBefore = platform.teardownCounters().rowRemoved;
+
+  g_policyDestroyStdNode->hideBoth();
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assertParkedTransitionTable(defaultRecord);
+  assert(recordedTransitionTo(scopedRecord, loka::app::scene::NODE_FACT_RETIRED, 0));
+  assert(platform.ledger().size() == 1 &&
+         platform.teardownCounters().rowRemoved == rowsBefore + 1);
+
+  g_policyDestroyStdNode->reshowScoped();
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assert(scopedRecord.constructionCount == 2 &&
+         "compose-once destroyOnDetach reshow creates a fresh branch");
+  scene.unmount();
+  clearPolicyGlobals();
+}
+
+void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary()
+{
+  PolicyDeliveryRecord defaultRecord;
+  PolicyDeliveryRecord scopedRecord;
+  g_policyDefaultDelivery = &defaultRecord;
+  g_policyScopedDelivery = &scopedRecord;
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<PolicyDeliverStdBoundaryProps,
+                                   PolicyDeliverStdBoundaryNode> *root =
+      new loka::app::scene::NodeDefinition<PolicyDeliverStdBoundaryProps,
+                                           PolicyDeliverStdBoundaryNode>(
+          PolicyDeliverStdBoundaryProps());
+  loka::app::scene::Scene scene(root);
+  mountAndAttach(scene, platform);
+  assert(g_policyDeliverStdNode);
+  g_policyDeliverStdNode->hideBoth();
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  const int defaultAppliesBefore = defaultRecord.applies;
+  const int scopedAppliesBefore = scopedRecord.applies;
+
+  g_policyDeliverStdNode->revise();
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assert(defaultRecord.value == 0 &&
+         defaultRecord.applies == defaultAppliesBefore);
+  assert(scopedRecord.value == 1 &&
+         scopedRecord.applies > scopedAppliesBefore &&
+         "compose-once delivery reconciles the parked child at the door");
+  scene.unmount();
+  clearPolicyGlobals();
+}
+
+namespace
+{
+  class Step4ShapeTypeTag
+  {
+  };
+  class Step4ShapeBoundaryNode;
+  struct Step4ShapeProps : public loka::app::scene::NodePropsBase<Step4ShapeProps>
+  {
+    typedef Step4ShapeTypeTag TypeTag;
+    typedef Step4ShapeBoundaryNode NodeType;
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+  Step4ShapeBoundaryNode *g_step4ShapeNode = 0;
+  /** Mirrors Tutorial Step 4 with the maintainer's repro edit: a compose-once
+      boundary whose Show branch holds anonymous mixed siblings (text, button)
+      plus nested conditional seats. The Toolbox roulette is this shape failing
+      to settle: every apply keeps churning structure. */
+  class Step4ShapeBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<Step4ShapeProps>
+  {
+  public:
+    explicit Step4ShapeBoundaryNode(const Step4ShapeProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<Step4ShapeProps>(props),
+          showSummary_(),
+          showItem1_(),
+          showItem2_()
+    {
+      this->state(this->showSummary_, false);
+      this->state(this->showItem1_, true);
+      this->state(this->showItem2_, false);
+      g_step4ShapeNode = this;
+    }
+    virtual ~Step4ShapeBoundaryNode()
+    {
+      if (g_step4ShapeNode == this)
+      {
+        g_step4ShapeNode = 0;
+      }
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &c)
+    {
+      loka::app::ButtonDefinition addOutside("add");
+      loka::app::ButtonDefinition toggle("toggle");
+      loka::app::EditTextDefinition summaryText;
+      loka::app::ButtonDefinition addInside("add");
+      loka::app::EditTextDefinition item1;
+      loka::app::EditTextDefinition item2;
+      loka::app::ShowDefinition inner1 = loka::app::Show(*this->showItem1_.state());
+      inner1 << item1;
+      loka::app::ShowDefinition inner2 = loka::app::Show(*this->showItem2_.state());
+      inner2 << item2;
+      loka::app::ShowDefinition summary = loka::app::Show(*this->showSummary_.state());
+      summary << summaryText << addInside << inner1 << inner2;
+      loka::app::FragmentDefinition root;
+      root << addOutside << toggle << summary;
+      c.declare(root);
+    }
+    void toggleSummary(bool value)
+    {
+      this->showSummary_.set(value, true);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> showSummary_;
+    loka::app::scene::NodeState<bool> showItem1_;
+    loka::app::scene::NodeState<bool> showItem2_;
+  };
+} // namespace
+
+void testStep4ShapeSettlesAfterShowFlip()
+{
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<Step4ShapeProps, Step4ShapeBoundaryNode> *root =
+      new loka::app::scene::NodeDefinition<Step4ShapeProps, Step4ShapeBoundaryNode>(
+          Step4ShapeProps());
+  loka::app::scene::Scene scene(static_cast<loka::app::scene::NodeDefinitionBase *>(root));
+  mountAndAttach(scene, platform);
+  assert(g_step4ShapeNode);
+
+  g_step4ShapeNode->toggleSummary(true);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  assert(!scene.hasPendingInvalidation() &&
+         "a single Show flip settles in one scheduled apply");
+
+  NativeContextCallCounts afterShow(platform);
+  for (int i = 0; i < 4; ++i)
+  {
+    requestChildPump(scene);
+    assert(!scene.hasPendingInvalidation() &&
+           "a re-pump with no state change must not re-arm invalidation");
+    NativeContextCallCounts rePumped(platform);
+    assert(rePumped == afterShow &&
+           "a re-pump with no state change must not churn native structure");
+  }
+
+  g_step4ShapeNode->toggleSummary(false);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  NativeContextCallCounts afterHide(platform);
+  for (int i = 0; i < 4; ++i)
+  {
+    requestChildPump(scene);
+    NativeContextCallCounts rePumped(platform);
+    assert(rePumped == afterHide &&
+           "re-pumps while hidden must not churn native structure");
+  }
+
+  g_step4ShapeNode->toggleSummary(true);
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  scene.unmount();
+}
+
+namespace
+{
+  struct RemovedConditionalSeatInputs
+  {
+    RemovedConditionalSeatInputs(loka::core::MutableState<bool> *conditionState,
+                                 loka::core::MutableState<int> *revisionState,
+                                 ParkedFactRecord *trueRecord,
+                                 ParkedFactRecord *falseRecord)
+        : condition(conditionState),
+          revision(revisionState),
+          whenTrue(trueRecord),
+          whenFalse(falseRecord)
+    {
+    }
+
+    loka::core::MutableState<bool> *condition;
+    loka::core::MutableState<int> *revision;
+    ParkedFactRecord *whenTrue;
+    ParkedFactRecord *whenFalse;
+  };
+
+  RemovedConditionalSeatInputs *g_removedConditionalSeatInputs = 0;
+
+  class RemovedConditionalSeatBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RemovedConditionalSeatBoundaryNode>
+      RemovedConditionalSeatBoundaryProps;
+  class RemovedConditionalSeatBoundaryNode
+      : public PropsRecomposingBoundaryNode<RemovedConditionalSeatBoundaryNode,
+                                            RemovedConditionalSeatBoundaryProps>
+  {
+  public:
+    explicit RemovedConditionalSeatBoundaryNode(
+        const RemovedConditionalSeatBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<RemovedConditionalSeatBoundaryNode,
+                                       RemovedConditionalSeatBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_removedConditionalSeatInputs &&
+          g_removedConditionalSeatInputs->revision)
+      {
+        registrar.markDirtyOnChange(g_removedConditionalSeatInputs->revision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      const bool seatPresent =
+          g_removedConditionalSeatInputs &&
+          g_removedConditionalSeatInputs->revision &&
+          g_removedConditionalSeatInputs->revision->get() != 1;
+      if (seatPresent)
+      {
+        ParkedFactDefinition whenTrue(
+            (ParkedFactProps(g_removedConditionalSeatInputs->whenTrue)));
+        ParkedFactDefinition whenFalse(
+            (ParkedFactProps(g_removedConditionalSeatInputs->whenFalse)));
+        loka::app::scene::ConditionalDefinition seat(
+            (loka::app::scene::ConditionalProps(
+                g_removedConditionalSeatInputs->condition,
+                &whenTrue,
+                &whenFalse)));
+        seat.setNodeTag(401);
+        root << seat;
+      }
+      composition.declare(root);
+    }
+  };
+
+  class RemovedConditionalSeatHarnessBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<RemovedConditionalSeatHarnessBoundaryNode>
+      RemovedConditionalSeatHarnessBoundaryProps;
+  class RemovedConditionalSeatHarnessBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<RemovedConditionalSeatHarnessBoundaryNode>
+  {
+  public:
+    explicit RemovedConditionalSeatHarnessBoundaryNode(
+        const RemovedConditionalSeatHarnessBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<RemovedConditionalSeatHarnessBoundaryNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<RemovedConditionalSeatBoundaryNode>());
+    }
+  };
+} // namespace
+
+void testRemovedConditionalSeatReaddsFreshRuntimeAndBranches()
+{
+  loka::core::MutableState<bool> condition(true);
+  loka::core::MutableState<int> revision(0);
+  ParkedFactRecord whenTrue;
+  ParkedFactRecord whenFalse;
+  RemovedConditionalSeatInputs inputs(&condition,
+                                      &revision,
+                                      &whenTrue,
+                                      &whenFalse);
+  g_removedConditionalSeatInputs = &inputs;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<RemovedConditionalSeatHarnessBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(whenTrue.constructionCount == 1 &&
+         whenFalse.constructionCount == 0);
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(whenTrue.constructionCount == 1 &&
+         whenFalse.constructionCount == 1 &&
+         "both pre-removal branches materialize exactly once");
+
+  revision.set(1);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assert(!scene.hasPendingInvalidation() &&
+         "seat retirement drains before the same value key is re-added");
+
+  revision.set(2);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(whenTrue.constructionCount == 2 && whenTrue.node &&
+         whenTrue.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "re-adding a dead seat must materialize a fresh active branch");
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(whenFalse.constructionCount == 2 && whenFalse.node &&
+         whenFalse.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "seat death must also discard the old parked branch");
+
+  scene.unmount();
+  g_removedConditionalSeatInputs = 0;
+}
+
+namespace
+{
+  loka::core::MutableState<bool> *g_nullConditionalBranchCondition = 0;
+  ParkedFactRecord *g_nullConditionalBranchRecord = 0;
+
+  class NullConditionalBranchBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<NullConditionalBranchBoundaryNode>
+      NullConditionalBranchBoundaryProps;
+  class NullConditionalBranchBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<NullConditionalBranchBoundaryNode>
+  {
+  public:
+    explicit NullConditionalBranchBoundaryNode(
+        const NullConditionalBranchBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<NullConditionalBranchBoundaryNode>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      ParkedFactDefinition shown(
+          (ParkedFactProps(g_nullConditionalBranchRecord)));
+      loka::app::scene::ConditionalDefinition seat(
+          (loka::app::scene::ConditionalProps(
+              g_nullConditionalBranchCondition,
+              &shown,
+              0)));
+      seat.setNodeTag(501);
+      loka::app::FragmentDefinition root;
+      root << seat;
+      composition.declare(root);
+    }
+  };
+
+  void clearNullConditionalBranchGlobals()
+  {
+    g_nullConditionalBranchCondition = 0;
+    g_nullConditionalBranchRecord = 0;
+  }
+} // namespace
+
+void testConditionalSeatInitiallyNullCanMaterialize()
+{
+  loka::core::MutableState<bool> condition(false);
+  ParkedFactRecord shown;
+  g_nullConditionalBranchCondition = &condition;
+  g_nullConditionalBranchRecord = &shown;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<NullConditionalBranchBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(shown.constructionCount == 0);
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.constructionCount == 1 && shown.node &&
+         shown.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "a seat mounted on its null side must materialize when shown");
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.node->lifecycleFact() ==
+             loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
+         "the materialized branch parks when returning to the null side");
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.constructionCount == 1 && shown.node->lifecycleFact() ==
+                                             loka::app::scene::NODE_FACT_ATTACHED &&
+         "the initially-null seat remains live across later flips");
+
+  scene.unmount();
+  clearNullConditionalBranchGlobals();
+}
+
+void testNullConditionalBranchParksAndReentersShownBranch()
+{
+  loka::core::MutableState<bool> condition(true);
+  ParkedFactRecord shown;
+  g_nullConditionalBranchCondition = &condition;
+  g_nullConditionalBranchRecord = &shown;
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<NullConditionalBranchBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(shown.constructionCount == 1 && shown.node);
+  loka::app::scene::Node *original = shown.node;
+
+  condition.set(false);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(original->lifecycleFact() ==
+             loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
+         "flipping to a null branch must park the shown branch");
+
+  condition.set(true);
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(shown.constructionCount == 1 && shown.node == original &&
+         original->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
+         "the shown branch must reenter from the null side without reconstruction");
+
+  scene.unmount();
+  clearNullConditionalBranchGlobals();
 }

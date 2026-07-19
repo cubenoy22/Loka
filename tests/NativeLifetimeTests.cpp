@@ -138,10 +138,11 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
   assert(conditional.hasEquivalentProps(equivalentConditional));
   assert(!conditional.hasEquivalentProps(differentConditional));
   conditional.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
-  loka::app::scene::Node *conditionalNode = conditional.create();
-  assert(conditionalNode);
-  assert(conditionalNode->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
-  delete conditionalNode;
+  loka::app::scene::NodeDefinitionBase *conditionalCopy = conditional.clone();
+  assert(conditionalCopy);
+  assert(conditionalCopy->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE &&
+         "definition metadata survives even though a conditional seat has no runtime node");
+  delete conditionalCopy;
 
   loka::app::ShowDefinition show(&condition);
   loka::app::ShowDefinition equivalentShow(&condition);
@@ -152,28 +153,12 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
   assert(show.hasEquivalentProps(equivalentShow) &&
          "rebuilt Show branch contents do not participate in props equivalence");
   assert(!show.hasEquivalentProps(updatedShow));
-  show.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-  loka::app::scene::Node *showNode = show.create();
-  assert(showNode);
-  assert(showNode->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-  loka::app::scene::ConditionalNode *typedShowNode =
-      static_cast<loka::app::scene::ConditionalNode *>(showNode);
-  loka::app::scene::Node *activeBeforeRebind = typedShowNode->activeNode;
-  assert(updatedShow.applyPropsToNode(showNode));
-  assert(typedShowNode->props.condition == &otherCondition);
-  assert(typedShowNode->props.trueDef == updatedShow.props().trueDef);
-  assert(typedShowNode->props.falseDef == updatedShow.props().falseDef);
-  condition.set(false);
-  assert(typedShowNode->activeNode == activeBeforeRebind &&
-         "the previous condition no longer drives the retained Show seat");
-  otherCondition.set(true);
-  otherCondition.set(false);
-  assert(typedShowNode->activeNode == activeBeforeRebind &&
-         "the replacement condition waits for seat evaluation");
-  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(typedShowNode);
-  assert(typedShowNode->activeNode != activeBeforeRebind &&
-         "seat evaluation reads the replacement condition source");
-  delete showNode;
+  branchContents.setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
+  loka::app::scene::Node *contentNode = branchContents.create();
+  assert(contentNode);
+  assert(contentNode->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
+         "NativeLifetimeHint remains content-local when the seat has no runtime node");
+  delete contentNode;
 }
 
 void testNativeContextObservesLifetimeHint()

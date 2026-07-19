@@ -97,6 +97,10 @@ namespace loka
             NodeComposition::CompositionScope scope(composition);
             this->composeNode(composition);
           }
+          if (context.boundary())
+          {
+            context.boundary()->appendNestedBranchSeatPlan(composition);
+          }
           context.setComposition(&composition);
           Node *child = composition.createNodeTree();
           if (child)

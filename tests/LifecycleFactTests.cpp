@@ -164,6 +164,35 @@ namespace
     }
   };
 
+  class DeferredSwapProbeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<DeferredSwapProbeBoundaryNode>
+      DeferredSwapProbeBoundaryProps;
+  class DeferredSwapProbeBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<DeferredSwapProbeBoundaryNode>
+  {
+  public:
+    explicit DeferredSwapProbeBoundaryNode(const DeferredSwapProbeBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<DeferredSwapProbeBoundaryNode>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      FactProbeDefinition probe((FactProbeProps(g_swapRecord)));
+      loka::app::FragmentDefinition empty;
+      loka::app::scene::ConditionalDefinition conditional(
+          (loka::app::scene::ConditionalProps(g_swapCondition, &probe, &empty)));
+      loka::app::FragmentDefinition root;
+      root << conditional;
+      composition.declare(root);
+    }
+  };
+
   FactRecord *g_retireRecord = 0;
   loka::core::MutableState<bool> *g_retireVisible = 0;
 
@@ -320,36 +349,37 @@ void testLifecycleFactCompositionRetireObservesRetired()
 
 void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased()
 {
-  // Scene-less footing: no immediate flush, so the gap between the walk
-  // door and delivery is observable (G1's unit form), and a round trip
-  // sharing one delivery nets to silence (G2's unit form).
   FactRecord record;
   loka::core::MutableState<bool> condition(true);
-  FactProbeDefinition trueDef((FactProbeProps(&record)));
-  loka::app::FragmentDefinition empty;
-  loka::app::scene::ConditionalNode conditional(
-      (loka::app::scene::ConditionalProps(&condition, &trueDef, &empty)));
-  assert(record.attachFacts.size() == 1 && "construction announces through setContext");
+  g_swapRecord = &record;
+  g_swapCondition = &condition;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<DeferredSwapProbeBoundaryNode>()));
+  NoopPlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+  assert(record.node && record.attachFacts.size() == 1);
 
   condition.set(false);
+  assert(scene.hasPendingInvalidation());
   assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED &&
-         "the condition write does not run the seat-evaluation walk");
-  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
-  assert(record.node->lifecycleFact() == loka::app::scene::NODE_FACT_DETACHED_RETAINED);
-  assert(record.detachFacts.empty() &&
-         "the walk door never calls contexts synchronously (G1)");
+         record.detachFacts.empty() &&
+         "a condition write only marks the real boundary door");
 
   condition.set(true);
-  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
-  loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&conditional);
+  pumpChild(scene);
   assert(record.detachFacts.empty() && record.attachFacts.size() == 1 &&
-         "a round trip sharing one delivery nets to silence (G2)");
+         "a round trip before one real delivery remains silent");
 
   condition.set(false);
-  loka::app::scene::LifecycleFactTestAccess::EvaluateConditionalSeats(&conditional);
-  loka::app::scene::LifecycleFactTestAccess::DeliverFacts(&conditional);
+  pumpChild(scene);
   assert(record.detachFacts.size() == 1 &&
-         "a one-way swap still delivers exactly once");
+         record.detachFacts[0] == loka::app::scene::NODE_FACT_DETACHED_RETAINED &&
+         "a one-way scheduled apply delivers exactly once");
+
+  scene.unmount();
+  g_swapRecord = 0;
+  g_swapCondition = 0;
 }
 
 void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached()

@@ -804,6 +804,7 @@ namespace loka
           if (event != COMPOSE_EVENT_DETACH)
           {
             boundary->beginObservedStatePass();
+            boundary->registerBranchSeatConditionSources();
           }
           boundary->beginComposeResult(event, rootContext.dirtyFlags());
         }

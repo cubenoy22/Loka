@@ -317,7 +317,9 @@ void testConditionalDefinitionCloneOwnership()
     delete conditional;
 
     int createdBefore = g_probeNodesCreated;
-    loka::app::scene::Node *node = copy->create();
+    loka::app::scene::IBranchSeatDefinition *copiedSeat = copy->asBranchSeatDefinition();
+    assert(copiedSeat);
+    loka::app::scene::Node *node = copiedSeat->branchDefinition(true)->create();
     assert(node != 0);
     assert(g_probeNodesCreated > createdBefore); // true branch materialized from the owned clone
     delete node;
@@ -334,7 +336,7 @@ void testConditionalDefinitionCloneOwnership()
       second = first;
       second = second; // self-assignment must not free the owned branches
 
-      loka::app::scene::Node *node = second.create();
+      loka::app::scene::Node *node = second.branchDefinition(false)->create();
       assert(node != 0);
       delete node;
     }

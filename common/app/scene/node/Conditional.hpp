@@ -10,24 +10,42 @@ namespace loka
   {
     namespace scene
     {
-      // Forward declarations
-      class Node;
-      class ConditionalNode;
-      struct NodeDefinitionBase;
-
       struct ConditionalTypeTag
       {
       };
 
-      struct ConditionalProps : public NodePropsBase<ConditionalProps>
+      /** Compose-invariant description of one conditional seat. Both branch
+          definitions stay owned by the definition generation. */
+      struct ConditionalProps : public PropsBase
       {
         typedef ConditionalTypeTag TypeTag;
-        typedef ConditionalNode NodeType;
         loka::core::State<bool> *condition;
         NodeDefinitionBase *trueDef;
         NodeDefinitionBase *falseDef;
-        ConditionalProps(loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
-        ConditionalProps(const loka::core::State<bool> *cond, NodeDefinitionBase *tDef, NodeDefinitionBase *fDef);
+        ConditionalProps(loka::core::State<bool> *cond,
+                         NodeDefinitionBase *tDef,
+                         NodeDefinitionBase *fDef);
+        ConditionalProps(const loka::core::State<bool> *cond,
+                         NodeDefinitionBase *tDef,
+                         NodeDefinitionBase *fDef);
+        static Node *rejectRuntimeFactory(const PropsBase &)
+        {
+          assert(false && "conditional props have no runtime node factory");
+          return 0;
+        }
+        virtual NodeFactoryFunc nodeFactory() const
+        {
+          return &ConditionalProps::rejectRuntimeFactory;
+        }
+        static const void *staticTypeId()
+        {
+          static char id;
+          return &id;
+        }
+        virtual const void *propsTypeId() const
+        {
+          return staticTypeId();
+        }
         bool operator<(const PropsBase &rhs) const
         {
           if (rhs.propsTypeId() != this->propsTypeId())
@@ -39,71 +57,10 @@ namespace loka
         }
       };
 
-      // ConditionalNode: node that switches by condition
-      class ConditionalNode : public NestableNode
-      {
-      public:
-        typedef ConditionalTypeTag TypeTag;
-        ConditionalProps props;
-        Node *activeNode;
-        ConditionalNode(const ConditionalProps &p);
-        ~ConditionalNode();
-        virtual void declareDirtySources(DirtySourceRegistrar &registrar)
-        {
-          if (this->props.condition)
-          {
-            registrar.markDirtyOnChange(this->props.condition,
-                                        static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
-          }
-        }
-        virtual const void *nodeTypeKey() const
-        {
-          return NodeTypeToken<ConditionalNode>();
-        }
-        virtual Node *retainedLifecycleBranch(unsigned index);
-        /** Re-points borrowed branch definitions and the condition source for
-            a retained seat. */
-        void applyRetainedProps(const ConditionalProps &nextProps);
-        void setCompositionSeatSlot(int slot)
-        {
-          this->compositionSeatSlot_ = slot;
-        }
-
-      protected:
-        virtual void evaluateChildrenForScheduledApply(ComponentContext &context,
-                                                       BoundaryNode *boundary);
-        virtual bool reconcileForScheduledBranchReentry(ComponentContext &context,
-                                                        BoundaryNode *boundary);
-
-      public:
-        Node *createBranchNode(bool cond);
-        void removeActiveNodeFromChildren();
-        void render(IPlatformController *controller);
-        short layout(IPlatformController *controller, LayoutState &state);
-
-      private:
-        void initializeActiveNode();
-        bool updateActiveNode(ComponentContext &context,
-                              BoundaryNode *boundary,
-                              bool reconcileCurrentBranch);
-        void retireDetachedBranchForReplacement(ComponentContext &context,
-                                                BoundaryNode *boundary,
-                                                Node *branch);
-        void attachActiveBranchForScheduledApply(bool reentered);
-        NodeDefinitionBase *branchDefinition(bool cond) const;
-        int compositionSeatSlot_;
-        bool activeCondition_;
-        bool hasActiveCondition_;
-#if defined(TEST_BUILD)
-        BoundaryNode *testBoundaryOwner_;
-#endif
-        bool retainedDetached() const
-        {
-          return this->lifecycleFact() == NODE_FACT_DETACHED_RETAINED;
-        }
-      };
-
-      struct ConditionalDefinition : public NodeDefinitionBase
+      /** Definition-only conditional seat consumed by Boundary plan
+          application. It cannot materialize a runtime node. */
+      struct ConditionalDefinition : public NodeDefinitionBase,
+                                     public IBranchSeatDefinition
       {
         ConditionalProps props;
         NodeDefinitionBase *ownedTrueDef;
@@ -126,11 +83,33 @@ namespace loka
           return &this->props;
         }
         virtual bool hasEquivalentProps(const NodeDefinitionBase &other) const;
-        virtual bool repointRetainedNodeDefinition(Node *node) const;
-        virtual bool applyPropsToNode(Node *node) const;
-        virtual bool isCompatibleWithNode(const Node *node) const
+        virtual bool repointRetainedNodeDefinition(Node *) const
         {
-          return node && node->nodeTypeKey() == NodeTypeToken<ConditionalNode>();
+          return false;
+        }
+        virtual bool applyPropsToNode(Node *) const
+        {
+          return false;
+        }
+        virtual bool isCompatibleWithNode(const Node *) const
+        {
+          return false;
+        }
+        virtual IBranchSeatDefinition *asBranchSeatDefinition()
+        {
+          return this;
+        }
+        virtual loka::core::State<bool> *branchCondition() const
+        {
+          return this->props.condition;
+        }
+        virtual NodeDefinitionBase *branchDefinition(bool condition) const
+        {
+          return condition ? this->ownedTrueDef : this->ownedFalseDef;
+        }
+        virtual const void *branchSeatTypeId() const
+        {
+          return ConditionalProps::staticTypeId();
         }
         virtual NodeDefinitionBase *retainedDefinitionBranch(unsigned index)
         {

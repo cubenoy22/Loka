@@ -8,7 +8,8 @@ namespace loka
 {
   namespace app
   {
-    class ShowDefinition : public scene::NodeDefinitionBase
+    class ShowDefinition : public scene::NodeDefinitionBase,
+                           public scene::IBranchSeatDefinition
     {
     public:
       explicit ShowDefinition(loka::core::State<bool> *condition)
@@ -41,37 +42,21 @@ namespace loka
 
       virtual scene::Node *create() const
       {
-        scene::Node *node = new scene::ConditionalNode(this->props());
-        if (node)
-        {
-          scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
-          conditional->setCompositionSeatSlot(this->compositionSeatSlot());
-          node->setPropsTypeId(scene::ConditionalProps::staticTypeId());
-          node->setNodeTag(this->nodeTag());
-          node->setNativeLifetimeHint(this->nativeLifetimeHint());
-        }
-        return node;
+        assert(false && "Show seats materialize only through Boundary plan application");
+        return 0;
       }
-      virtual scene::Node *createInPlace(void *mem) const
+      virtual scene::Node *createInPlace(void *) const
       {
-        scene::Node *node = new (mem) scene::ConditionalNode(this->props());
-        if (node)
-        {
-          scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
-          conditional->setCompositionSeatSlot(this->compositionSeatSlot());
-          node->setPropsTypeId(scene::ConditionalProps::staticTypeId());
-          node->setNodeTag(this->nodeTag());
-          node->setNativeLifetimeHint(this->nativeLifetimeHint());
-        }
-        return node;
+        assert(false && "Show seats have no runtime node");
+        return 0;
       }
       virtual size_t nodeSize() const
       {
-        return scene::ConditionalDefinition(this->props()).nodeSize();
+        return 0;
       }
       virtual size_t nodeAlign() const
       {
-        return scene::ConditionalDefinition(this->props()).nodeAlign();
+        return 1;
       }
       virtual scene::NodeDefinitionBase *clone() const
       {
@@ -98,29 +83,41 @@ namespace loka
       }
       virtual bool repointRetainedNodeDefinition(scene::Node *node) const
       {
-        if (!node || node->nodeTypeKey() != scene::NodeTypeToken<scene::ConditionalNode>())
-        {
-          return false;
-        }
-        scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
-        conditional->applyRetainedProps(this->props_);
-        conditional->setCompositionSeatSlot(this->compositionSeatSlot());
-        return true;
+        (void)node;
+        return false;
       }
       virtual bool applyPropsToNode(scene::Node *node) const
       {
-        if (!this->repointRetainedNodeDefinition(node))
-        {
-          return false;
-        }
-        scene::ConditionalNode *conditional = static_cast<scene::ConditionalNode *>(node);
-        conditional->setNodeTag(this->nodeTag());
-        conditional->setNativeLifetimeHint(this->nativeLifetimeHint());
-        return true;
+        (void)node;
+        return false;
       }
       virtual bool isCompatibleWithNode(const scene::Node *node) const
       {
-        return node && node->nodeTypeKey() == scene::NodeTypeToken<scene::ConditionalNode>();
+        (void)node;
+        return false;
+      }
+      virtual scene::IBranchSeatDefinition *asBranchSeatDefinition()
+      {
+        return this;
+      }
+      virtual loka::core::State<bool> *branchCondition() const
+      {
+        return this->props_.condition;
+      }
+      virtual scene::NodeDefinitionBase *branchDefinition(bool condition) const
+      {
+        FragmentDefinition *branch =
+            condition ? const_cast<FragmentDefinition *>(&this->trueBranch_)
+                      : const_cast<FragmentDefinition *>(&this->falseBranch_);
+        scene::NodeDefinitionBase *onlyChild =
+            branch->childrenCount() == 1 ? branch->childrenHead() : 0;
+        return onlyChild && onlyChild->asBranchPolicyScopeDefinition()
+                   ? onlyChild
+                   : static_cast<scene::NodeDefinitionBase *>(branch);
+      }
+      virtual const void *branchSeatTypeId() const
+      {
+        return scene::ConditionalProps::staticTypeId();
       }
       virtual scene::NodeDefinitionBase *retainedDefinitionBranch(unsigned index)
       {
