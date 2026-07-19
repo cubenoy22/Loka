@@ -10,6 +10,11 @@ coverage_output="${coverage_build}/lcov.info"
 cd "${repo_root}"
 cmake --preset testing-coverage
 cmake --build --preset testing-coverage
+
+# Stale .gcda counters from a previous run would be captured as a union with
+# this run's execution, so removed coverage could still appear as hit.
+find "${coverage_build}" -name '*.gcda' -delete
+
 ctest --preset testing-coverage
 
 if command -v lcov >/dev/null 2>&1; then
