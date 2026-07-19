@@ -2,6 +2,7 @@
 #define LOKA_FLOW_DSL_TESTS_HPP
 
 void testLokaFlowDslV1Core();
+void testSimpleViewerClosesDialogFromChooserCompletion();
 void testFlowChainHandleCopiesShareImplementationLifetime();
 void testFlowChainRunPinDefersImplementationDeletion();
 void testFlowSlotClearDefersRunningFlowDeletion();

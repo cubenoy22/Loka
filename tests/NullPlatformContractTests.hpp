@@ -47,6 +47,7 @@ void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary();
 void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary();
 void testOpenFileDialogPresentationPoliciesInRecomposingBoundary();
 void testOpenFileDialogPresentationPoliciesInComposeOnceBoundary();
+void testOpenFileDialogRequiresCompletionBinding();
 void testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild();
 void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping();
 

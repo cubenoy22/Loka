@@ -4394,6 +4394,31 @@ void testOpenFileDialogPresentationPoliciesInComposeOnceBoundary()
   clearDialogPresentationGlobals();
 }
 
+void testOpenFileDialogRequiresCompletionBinding()
+{
+  loka::core::MutableState<loka::app::FileChooserResult> result;
+  loka::app::OpenFileDialogNode resultNode((loka::app::OpenFileDialogProps().result(&result)));
+  loka::core::EmitterState onResult;
+  loka::app::OpenFileDialogNode eventNode((loka::app::OpenFileDialogProps().onResult(&onResult)));
+  (void)resultNode;
+  (void)eventNode;
+
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  const pid_t child = fork();
+  assert(child >= 0);
+  if (child == 0)
+  {
+    loka::app::OpenFileDialogNode dialog((loka::app::OpenFileDialogProps()));
+    (void)dialog;
+    _exit(0);
+  }
+  int status = 0;
+  assert(waitpid(child, &status, 0) == child);
+  assert(WIFSIGNALED(status));
+  assert(WTERMSIG(status) == SIGABRT && "OpenFileDialog requires result or onResult completion delivery");
+#endif
+}
+
 namespace
 {
   class Step4ShapeTypeTag

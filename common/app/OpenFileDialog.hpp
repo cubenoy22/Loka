@@ -1,6 +1,8 @@
 #ifndef LOKA_APP_OPEN_FILE_DIALOG_HPP
 #define LOKA_APP_OPEN_FILE_DIALOG_HPP
 
+#include <cassert>
+
 #include "core/State.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/state/NodeState.hpp"
@@ -141,12 +143,10 @@ namespace loka
       typedef OpenFileDialogNode NodeType;
       loka::core::MutableState<FileChooserResult> *result_;
       loka::core::EmitterState *onResult_;
-      loka::core::MutableState<bool> *closeState_;
       void *windowToAttach_;
       OpenFileDialogProps()
           : result_(0),
             onResult_(0),
-            closeState_(0),
             windowToAttach_(0)
       {
       }
@@ -169,18 +169,6 @@ namespace loka
         return *this;
       }
 
-      OpenFileDialogProps &closeState(loka::core::MutableState<bool> *state)
-      {
-        this->closeState_ = state;
-        return *this;
-      }
-
-      OpenFileDialogProps &closeState(const loka::app::scene::NodeState<bool> &state)
-      {
-        this->closeState_ = state.dangerouslyMutableState();
-        return *this;
-      }
-
       OpenFileDialogProps &attachToWindow(void *window)
       {
         this->windowToAttach_ = window;
@@ -196,8 +184,6 @@ namespace loka
           return result_ < other.result_;
         if (onResult_ != other.onResult_)
           return onResult_ < other.onResult_;
-        if (closeState_ != other.closeState_)
-          return closeState_ < other.closeState_;
         return windowToAttach_ < other.windowToAttach_;
       }
     };
@@ -210,6 +196,9 @@ namespace loka
       OpenFileDialogNode(const OpenFileDialogProps &p)
           : props(p)
       {
+        assert((props.result_ || props.onResult_) &&
+               "OpenFileDialog delivers completion only through result/onResult; "
+               "bind one and close the owning Show from it");
       }
       virtual loka::app::scene::NodeKind kind() const
       {
@@ -282,17 +271,6 @@ namespace loka
         return *this;
       }
 
-      OpenFileDialogDefinition &closeState(loka::core::MutableState<bool> *state)
-      {
-        this->props.closeState_ = state;
-        return *this;
-      }
-
-      OpenFileDialogDefinition &closeState(const loka::app::scene::NodeState<bool> &state)
-      {
-        this->props.closeState(state);
-        return *this;
-      }
       using loka::app::scene::NodeDefinition<OpenFileDialogProps, OpenFileDialogNode>::create;
     };
 

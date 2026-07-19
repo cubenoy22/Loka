@@ -42,6 +42,15 @@ namespace simpleviewer
     return loka::dsl::FLOW_ERROR_HANDLED;
   }
 
+  inline void MainNode::OnChooserCompletion(const simpleviewer::ChooserContext &context, void *userData)
+  {
+    MainNode *self = static_cast<MainNode *>(userData);
+    if (self && context.result.kind != loka::app::FileChooserResult::RESULT_NONE && self->isDialogShown_.get())
+    {
+      self->isDialogShown_.set(false, true);
+    }
+  }
+
   inline void MainNode::OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData)
   {
     MainNode *self = static_cast<MainNode *>(userData);
@@ -66,7 +75,7 @@ namespace simpleviewer
   {
     ViewerFlowChain chain =
         loka::dsl::Flow() //
-        | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter())
+        | loka::dsl::Step(1, simpleviewer::ChooserToContextAdapter()).onSuccess(&MainNode::OnChooserCompletion, &self)
         | loka::dsl::Step(2, simpleviewer::ContextToProjectionAdapter())
               .onSuccess(&MainNode::OnChooserProjection, &self)
         | loka::dsl::Step(3, simpleviewer::ProjectionToBlobAdapter(self.props.platformContext_))
