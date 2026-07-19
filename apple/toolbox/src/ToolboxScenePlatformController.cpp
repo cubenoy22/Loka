@@ -934,7 +934,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       poolIntakeAuditFailCount_(0),
       clipRgn_(NewRgn()),
       hasClip_(false),
-      nextControlId_(kAutoControlBaseId),
+      controlIds_(kAutoControlBaseId),
       debugStats_(),
       activeLayoutBoundary_(0)
 {
@@ -982,13 +982,7 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
 
 short ToolboxScenePlatformController::allocateControlId()
 {
-  if (nextControlId_ < kAutoControlBaseId)
-  {
-    nextControlId_ = kAutoControlBaseId;
-  }
-  short id = nextControlId_;
-  ++nextControlId_;
-  return id;
+  return controlIds_.allocate();
 }
 
 void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode,
@@ -1152,12 +1146,11 @@ void ToolboxScenePlatformController::render()
     return;
   }
   {
-    short maxExplicit = MaxExplicitControlId(rootNode_);
-    if (maxExplicit < kAutoControlBaseId - 1)
-    {
-      maxExplicit = static_cast<short>(kAutoControlBaseId - 1);
-    }
-    nextControlId_ = static_cast<short>(maxExplicit + 1);
+    // Identity rule: an auto id stays with its context for the context's
+    // lifetime. Observed explicit tags only ever RAISE the auto range —
+    // resetting the counter here made lazily-allocating contexts collide
+    // after a Show reveal (issue #120).
+    controlIds_.raiseBaseAbove(MaxExplicitControlId(rootNode_));
   }
   {
     buttonHits_.clear();
@@ -2473,6 +2466,7 @@ void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
     binding.emitter = 0;
     binding.enabled = 0;
     buttonControls_.erase(buttonControls_.begin() + i);
+    controlIds_.release(resourceId);
     if (control)
     {
       // Context destruction can run inside an update pass; disposal waits for
