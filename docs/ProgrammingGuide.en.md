@@ -445,8 +445,9 @@ Three rules keep the policy surface small:
 - `PolicyScope` never materializes a runtime node — it is a definition-only
   annotation.
 - It is legal only as the immediate root of a conditional branch.
-- Policies do not travel: nothing propagates to the switch or to nested
-  branches.
+- A policy applies only to the branch it annotates. The switch itself
+  (`Show()`) behaves the same either way, and nested conditional branches do
+  not inherit it — annotate each nested branch that needs the policy.
 
 Modal nodes such as `OpenFileDialog` want the destroy side: the native dialog
 dismisses itself on completion, so there is nothing worth keeping in the
