@@ -15,7 +15,13 @@
     Explicit control tags live below the auto range by convention. When a
     larger explicit tag is observed, raiseBaseAbove() lifts the auto range
     above it; the base only ever rises, and freed ids below the current base
-    are discarded instead of reissued. */
+    are discarded instead of reissued.
+
+    Counters are kept wider than the issued short so an explicit tag at or
+    near SHRT_MAX cannot overflow them. When the fresh range is exhausted,
+    allocate() saturates to 0 — never issued as a live id (explicit tags are
+    positive by convention and the auto base only rises from its positive
+    construction value) — instead of wrapping back into the live range. */
 class ToolboxControlIdAllocator
 {
 public:
@@ -31,7 +37,7 @@ public:
   {
     if (explicitId >= base_)
     {
-      base_ = static_cast<short>(explicitId + 1);
+      base_ = static_cast<long>(explicitId) + 1;
       if (next_ < base_)
       {
         next_ = base_;
@@ -56,7 +62,11 @@ public:
     {
       next_ = base_;
     }
-    return next_++;
+    if (next_ > kMaxControlId)
+    {
+      return 0;
+    }
+    return static_cast<short>(next_++);
   }
 
   /** Returns an id to the pool. Only ids this allocator issued are accepted;
@@ -72,14 +82,19 @@ public:
     freeIds_.push_back(id);
   }
 
-  short peekNextForTest() const
+  long peekNextForTest() const
   {
     return next_;
   }
 
 private:
-  short base_;
-  short next_;
+  enum
+  {
+    kMaxControlId = 32767
+  };
+
+  long base_;
+  long next_;
   std::vector<short> freeIds_;
 };
 

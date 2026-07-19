@@ -267,3 +267,30 @@ void testToolboxAutoControlIdsNeverReissueLiveIds()
   ids.release(afterRaise);
   assert(ids.allocate() == afterRaise);
 }
+
+void testToolboxAutoControlIdsSaturateAtShortMax()
+{
+  // An explicit tag one below SHRT_MAX leaves exactly one fresh id.
+  ToolboxControlIdAllocator ids(128);
+  ids.raiseBaseAbove(32766);
+  const short last = ids.allocate();
+  assert(last == 32767 && "the last fresh id below SHRT_MAX is still issued");
+  const short exhausted = ids.allocate();
+  assert(exhausted == 0 &&
+         "an exhausted fresh range saturates to the never-live sentinel");
+  assert(ids.allocate() == 0 &&
+         "saturation never wraps the counter back into the live range");
+
+  // Recycling keeps working past exhaustion; the sentinel never enters the pool.
+  ids.release(exhausted);
+  ids.release(last);
+  assert(ids.allocate() == last && "released live ids are still recycled");
+  assert(ids.allocate() == 0 && "the sentinel is not recycled as an id");
+
+  // An explicit tag at SHRT_MAX exhausts immediately and never lowers the base.
+  ToolboxControlIdAllocator edge(128);
+  edge.raiseBaseAbove(32767);
+  assert(edge.allocate() == 0 && "no fresh ids above an explicit SHRT_MAX tag");
+  edge.raiseBaseAbove(32767);
+  assert(edge.allocate() == 0 && "re-announcing SHRT_MAX never lowers the base");
+}

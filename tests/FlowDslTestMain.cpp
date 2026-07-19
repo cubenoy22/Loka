@@ -159,6 +159,7 @@ int main()
   LOKA_RUN_TEST(testToolboxChildDirtyInvalidationPrefersFullRedraw);
   LOKA_RUN_TEST(testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw);
   LOKA_RUN_TEST(testToolboxAutoControlIdsNeverReissueLiveIds);
+  LOKA_RUN_TEST(testToolboxAutoControlIdsSaturateAtShortMax);
   LOKA_RUN_TEST(testNodeDefaultsToDefaultNativeLifetimeHint);
   LOKA_RUN_TEST(testDefinitionCarriesNativeLifetimeHintToCreatedNode);
   LOKA_RUN_TEST(testDefinitionCloneAndApplyPreserveNativeLifetimeHint);
