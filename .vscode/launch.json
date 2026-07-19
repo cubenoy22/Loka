@@ -42,14 +42,6 @@
       "preLaunchTask": "Build: macOS Tutorial"
     },
     {
-      "name": "Test (macOS)",
-      "type": "lldb-dap",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/macos/Debug/apple/macos/LokaTestsMacOS",
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Build: macOS Tests"
-    },
-    {
       "name": "Run (Windows HelloWorld)",
       "type": "cppvsdbg",
       "request": "launch",
@@ -93,15 +85,6 @@
       "cwd": "${workspaceFolder}",
       "stopAtEntry": false,
       "preLaunchTask": "Build: Win32 Tutorial"
-    },
-    {
-      "name": "Test (Windows)",
-      "type": "cppvsdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/win32/Debug/example/HelloWorld/LokaTestsWin32.exe",
-      "cwd": "${workspaceFolder}",
-      "stopAtEntry": false,
-      "preLaunchTask": "Build: Win32 Tests"
     }
   ]
 }

@@ -41,8 +41,12 @@ endif()
 
 # Top-level CTest wiring so `ctest --test-dir <build dir>` finds test targets
 # registered in subdirectories (e.g. LokaTestsMacOS) as well as the headless
-# suite below.
-enable_testing()
+# suite below. include(CTest) rather than enable_testing() so ctest's
+# DartConfiguration.tcl exists (VS Code invokes ctest with -T test). The
+# property suppresses the CDash dashboard targets (Nightly/Continuous/...)
+# that would otherwise clutter generated Xcode/MSVC projects.
+set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
+include(CTest)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaTestSources.cmake)
 
@@ -67,28 +71,96 @@ add_subdirectory(example/FloppyBird)
 add_subdirectory(example/Tutorial)
 endif()
 
-# Linux/WSL headless tests (Flow DSL focused).
+# Linux/WSL headless tests.
 if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   file(GLOB_RECURSE LOKA_COMMON_SOURCES CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/common/*.cpp
   )
 
-  add_executable(LokaFlowDslTests
-    ${LOKA_SHARED_TEST_SOURCES}
+  add_library(LokaCommonTesting STATIC
     ${LOKA_COMMON_SOURCES}
   )
-  target_include_directories(LokaFlowDslTests PRIVATE
+  target_include_directories(LokaCommonTesting PUBLIC
     ${PROJECT_SOURCE_DIR}/common
+  )
+  set_target_properties(LokaCommonTesting PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+  target_compile_definitions(LokaCommonTesting PRIVATE TEST_BUILD)
+
+  set(LOKA_CONTRACT_TEST_SOURCES ${LOKA_SHARED_TEST_SOURCES})
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/FlowDslTests\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/tests/FlowDslTestMain\\.cpp$")
+  list(FILTER LOKA_CONTRACT_TEST_SOURCES EXCLUDE REGEX "/example/HelloWorld/src/MainNode\\.cpp$")
+
+  add_executable(LokaContractTests
+    ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
+    ${LOKA_CONTRACT_TEST_SOURCES}
+  )
+  target_include_directories(LokaContractTests PRIVATE
+    ${PROJECT_SOURCE_DIR}/tests
+  )
+  set_target_properties(LokaContractTests PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+  target_compile_definitions(LokaContractTests PRIVATE TEST_BUILD)
+  target_link_libraries(LokaContractTests PRIVATE LokaCommonTesting)
+
+  add_executable(LokaScenarioTests
+    ${PROJECT_SOURCE_DIR}/tests/ScenarioTestMain.cpp
+    ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
+  )
+  target_include_directories(LokaScenarioTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/example/SimpleViewer/src
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
   )
-  set_target_properties(LokaFlowDslTests PROPERTIES
+  set_target_properties(LokaScenarioTests PROPERTIES
     CXX_STANDARD 98
     CXX_STANDARD_REQUIRED YES
   )
-  target_compile_definitions(LokaFlowDslTests PRIVATE TEST_BUILD)
+  target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
+  target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
 
-  enable_testing()
-  add_test(NAME LokaFlowDslTests COMMAND LokaFlowDslTests)
+  function(loka_add_registered_test test_line target)
+    string(REGEX REPLACE
+      "^[ \t]*LOKA_TEST\\(([A-Za-z_][A-Za-z0-9_:]*)\\)[ \t]*$"
+      "\\1" _loka_test_name "${test_line}")
+    string(REGEX REPLACE "[^A-Za-z0-9_.-]" "_"
+      _loka_test_work_name "${_loka_test_name}")
+    set(_loka_test_work_dir
+      "${CMAKE_CURRENT_BINARY_DIR}/test-work/${_loka_test_work_name}")
+    file(MAKE_DIRECTORY "${_loka_test_work_dir}")
+    add_test(NAME "${_loka_test_name}"
+      COMMAND "$<TARGET_FILE:${target}>" "${_loka_test_name}")
+    set_tests_properties("${_loka_test_name}" PROPERTIES
+      WORKING_DIRECTORY "${_loka_test_work_dir}")
+  endfunction()
+
+  # The registries are configure inputs: editing a LOKA_TEST line must
+  # regenerate CTestTestfile.cmake, not just rebuild the runner binaries.
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc
+    ${PROJECT_SOURCE_DIR}/tests/ScenarioTestRegistry.inc
+  )
+
+  file(STRINGS ${PROJECT_SOURCE_DIR}/tests/ContractTestRegistry.inc
+    _loka_contract_test_lines
+    REGEX "^[ \t]*(LOKA_TEST\\([A-Za-z_][A-Za-z0-9_:]*\\)|LOKA_SCENARIO_TESTS_HERE\\(\\))[ \t]*$")
+  file(STRINGS ${PROJECT_SOURCE_DIR}/tests/ScenarioTestRegistry.inc
+    _loka_scenario_test_lines
+    REGEX "^[ \t]*LOKA_TEST\\([A-Za-z_][A-Za-z0-9_:]*\\)[ \t]*$")
+
+  foreach(_loka_contract_test_line IN LISTS _loka_contract_test_lines)
+    if(_loka_contract_test_line MATCHES "LOKA_SCENARIO_TESTS_HERE")
+      foreach(_loka_scenario_test_line IN LISTS _loka_scenario_test_lines)
+        loka_add_registered_test("${_loka_scenario_test_line}" LokaScenarioTests)
+      endforeach()
+    else()
+      loka_add_registered_test("${_loka_contract_test_line}" LokaContractTests)
+    endif()
+  endforeach()
 endif()
