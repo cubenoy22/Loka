@@ -14,6 +14,11 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
       }
     },
     {
@@ -23,6 +28,11 @@
       "binaryDir": "build/macos/Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
       }
     },
     {
@@ -33,6 +43,11 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     },
     {
@@ -42,6 +57,11 @@
       "binaryDir": "build/win32/Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     },
     {
@@ -56,6 +76,11 @@
         "CMAKE_CXX_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS,5.01",
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     },
     {
@@ -69,6 +94,11 @@
         "CMAKE_CXX_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS,5.01",
         "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     },
     {
@@ -110,6 +140,11 @@
         "TEST_BUILD": "ON",
         "LOKA_LIFECYCLE_AUDIT": "ON",
         "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       }
     },
     {
@@ -120,6 +155,11 @@
       "cacheVariables": {
         "CMAKE_CXX_FLAGS": "--coverage -O0 -g",
         "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       }
     },
     {
@@ -133,45 +173,94 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       }
     }
   ],
   "buildPresets": [
     {
       "name": "macos-debug",
-      "configurePreset": "macos-debug"
+      "configurePreset": "macos-debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
     },
     {
       "name": "macos-release",
-      "configurePreset": "macos-release"
+      "configurePreset": "macos-release",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
     },
     {
       "name": "macos-tests",
       "configurePreset": "macos-debug",
-      "targets": ["LokaTestsMacOS"]
+      "targets": [
+        "LokaTestsMacOS"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
     },
     {
       "name": "win32-debug",
-      "configurePreset": "win32-debug"
+      "configurePreset": "win32-debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
     },
     {
       "name": "win32-release",
-      "configurePreset": "win32-release"
+      "configurePreset": "win32-release",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
     },
     {
       "name": "win32-tests",
       "configurePreset": "win32-debug",
-      "targets": ["LokaTestsWin32"]
+      "targets": [
+        "LokaTestsWin32"
+      ],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
     },
     {
       "name": "win32-xp-debug",
       "configurePreset": "win32-xp-debug",
-      "configuration": "Debug"
+      "configuration": "Debug",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
     },
     {
       "name": "win32-xp-release",
       "configurePreset": "win32-xp-release",
-      "configuration": "Release"
+      "configuration": "Release",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
     },
     {
       "name": "retro68-68k-release",
@@ -183,15 +272,30 @@
     },
     {
       "name": "testing",
-      "configurePreset": "testing"
+      "configurePreset": "testing",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
     },
     {
       "name": "testing-coverage",
-      "configurePreset": "testing-coverage"
+      "configurePreset": "testing-coverage",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
     },
     {
       "name": "testing-asan",
-      "configurePreset": "testing-asan"
+      "configurePreset": "testing-asan",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
     }
   ],
   "testPresets": [
@@ -200,6 +304,11 @@
       "configurePreset": "testing",
       "output": {
         "outputOnFailure": true
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       }
     },
     {
@@ -207,6 +316,11 @@
       "configurePreset": "testing-coverage",
       "output": {
         "outputOnFailure": true
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       }
     },
     {
@@ -214,6 +328,11 @@
       "configurePreset": "testing-asan",
       "output": {
         "outputOnFailure": true
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
       }
     },
     {
@@ -221,6 +340,11 @@
       "configurePreset": "macos-debug",
       "output": {
         "outputOnFailure": true
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
       }
     },
     {
@@ -228,6 +352,11 @@
       "configurePreset": "win32-debug",
       "output": {
         "outputOnFailure": true
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     }
   ]
