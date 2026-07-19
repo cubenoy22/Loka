@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/scene/projection/PlatformController.hpp"
+#include "ToolboxControlIdAllocator.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -234,7 +235,7 @@ private:
   int poolIntakeAuditFailCount_;
   RgnHandle clipRgn_;
   bool hasClip_;
-  short nextControlId_;
+  ToolboxControlIdAllocator controlIds_;
   ToolboxSceneDebugStats debugStats_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::BoundaryNode *activeLayoutBoundary_;
