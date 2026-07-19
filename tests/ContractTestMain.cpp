@@ -1,7 +1,6 @@
 #include "StateNotifyTests.hpp"
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
-#include "FlowDslTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "SceneTests.hpp"
@@ -17,6 +16,7 @@
 
 #include "ContractTestSupport.inc"
 
-#define LOKA_TEST_RUNNER_COMBINED
-#define LOKA_TEST_RUNNER_FINAL_CHECKPOINT "FlowDslTestMain final"
+#define LOKA_TEST_RUNNER_CONTRACT
+#define LOKA_TEST_RUNNER_FINAL_CHECKPOINT "ContractTestMain final"
 #include "TestRunnerMain.inc"
+

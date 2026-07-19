@@ -113,6 +113,16 @@
       }
     },
     {
+      "name": "testing-coverage",
+      "displayName": "Linux Headless Tests (Coverage, Ninja)",
+      "inherits": "testing",
+      "binaryDir": "build/Testing-Coverage",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "--coverage -O0 -g",
+        "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+      }
+    },
+    {
       "name": "testing-asan",
       "displayName": "Linux Headless Tests (AddressSanitizer, Ninja)",
       "generator": "Ninja",
@@ -176,6 +186,10 @@
       "configurePreset": "testing"
     },
     {
+      "name": "testing-coverage",
+      "configurePreset": "testing-coverage"
+    },
+    {
       "name": "testing-asan",
       "configurePreset": "testing-asan"
     }
@@ -184,6 +198,13 @@
     {
       "name": "testing",
       "configurePreset": "testing",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "testing-coverage",
+      "configurePreset": "testing-coverage",
       "output": {
         "outputOnFailure": true
       }

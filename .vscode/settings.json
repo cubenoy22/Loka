@@ -1,6 +1,10 @@
 {
   "cmake.copyCompileCommands": "${workspaceFolder}/compile_commands.json",
   "cmake.useCMakePresets": "always",
+  "cmake.ctest.testExplorerIntegration": true,
+  "cmake.coverageInfoFiles": [
+    "${workspaceFolder}/build/Testing-Coverage/lcov.info"
+  ],
   "[objective-cpp]": {
     "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
     "editor.formatOnSave": true
