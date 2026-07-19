@@ -11,11 +11,13 @@
 
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/EditText.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/node/ComposableNode.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "core/State.hpp"
 #include "platform/null/NullPlatformContext.hpp"
@@ -3160,6 +3162,458 @@ void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping()
 
 namespace
 {
+  class DialogPresentationProbeNode;
+
+  struct DialogPresentationRecord
+  {
+    DialogPresentationRecord()
+        : constructionCount(0),
+          destructionCount(0),
+          presentCount(0),
+          sessionDisposeCount(0),
+          nextInstanceId(0),
+          node(0),
+          transitions(),
+          attachPhaseInputs()
+    {
+    }
+
+    int constructionCount;
+    int destructionCount;
+    int presentCount;
+    int sessionDisposeCount;
+    int nextInstanceId;
+    DialogPresentationProbeNode *node;
+    std::vector<FactTransition> transitions;
+    std::vector<loka::app::OpenFileDialogPresentationState> attachPhaseInputs;
+  };
+
+  bool dialogRecordedTransitionTo(
+      const DialogPresentationRecord &record,
+      loka::app::scene::NodeLifecycleFact fact,
+      std::size_t begin)
+  {
+    for (std::size_t i = begin; i < record.transitions.size(); ++i)
+    {
+      if (record.transitions[i].next == fact)
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  class DialogPresentationProbeContext : public loka::app::scene::NodeContext
+  {
+  public:
+    explicit DialogPresentationProbeContext(DialogPresentationRecord *record)
+        : record_(record),
+          presentation_()
+    {
+    }
+
+    void applyInstalledFact()
+    {
+      if (this->owner() &&
+          this->owner()->lifecycleFact() == loka::app::scene::NODE_FACT_ATTACHED)
+      {
+        this->applyAttachedPresentation();
+      }
+    }
+
+    virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                               loka::app::scene::NodeLifecycleFact next)
+    {
+      if (this->record_)
+      {
+        this->record_->transitions.push_back(FactTransition(previous, next));
+      }
+      if (next == loka::app::scene::NODE_FACT_ATTACHED)
+      {
+        this->applyAttachedPresentation();
+        return;
+      }
+      this->presentation_.markDetached();
+      if (this->record_)
+      {
+        ++this->record_->sessionDisposeCount;
+      }
+    }
+
+  private:
+    void applyAttachedPresentation()
+    {
+      if (this->record_)
+      {
+        this->record_->attachPhaseInputs.push_back(this->presentation_.value);
+      }
+      if (!this->presentation_.beginPresent())
+      {
+        return;
+      }
+      if (this->record_)
+      {
+        ++this->record_->presentCount;
+      }
+      this->presentation_.markPresented();
+    }
+
+    DialogPresentationRecord *record_;
+    loka::app::OpenFileDialogPresentationPhase presentation_;
+  };
+
+  struct DialogPresentationProbeTypeTag
+  {
+  };
+
+  struct DialogPresentationProbeProps
+      : public loka::app::scene::NodePropsBase<DialogPresentationProbeProps>
+  {
+    typedef DialogPresentationProbeTypeTag TypeTag;
+    typedef DialogPresentationProbeNode NodeType;
+
+    explicit DialogPresentationProbeProps(DialogPresentationRecord *recordValue = 0)
+        : record(recordValue)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return false;
+      }
+      const DialogPresentationProbeProps &other =
+          static_cast<const DialogPresentationProbeProps &>(rhs);
+      return this->record < other.record;
+    }
+
+    DialogPresentationRecord *record;
+  };
+
+  class DialogPresentationProbeNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    typedef DialogPresentationProbeTypeTag TypeTag;
+
+    explicit DialogPresentationProbeNode(const DialogPresentationProbeProps &propsValue)
+        : props(propsValue),
+          branchValue_(),
+          instanceId_(0)
+    {
+      this->state(this->branchValue_, 17);
+      if (this->props.record)
+      {
+        ++this->props.record->constructionCount;
+        this->instanceId_ = ++this->props.record->nextInstanceId;
+        this->props.record->node = this;
+      }
+      DialogPresentationProbeContext *context =
+          new DialogPresentationProbeContext(this->props.record);
+      this->setContext(context);
+      context->applyInstalledFact();
+    }
+
+    virtual ~DialogPresentationProbeNode()
+    {
+      if (this->props.record)
+      {
+        ++this->props.record->destructionCount;
+        if (this->props.record->node == this)
+        {
+          this->props.record->node = 0;
+        }
+      }
+    }
+
+    int branchValue() const
+    {
+      return this->branchValue_.get();
+    }
+
+    void setBranchValue(int value)
+    {
+      this->branchValue_.set(value);
+    }
+
+    int instanceId() const
+    {
+      return this->instanceId_;
+    }
+
+    DialogPresentationProbeProps props;
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &context,
+                                    loka::app::scene::ComposeEvent event)
+    {
+      (void)context;
+      (void)event;
+    }
+
+  private:
+    loka::app::scene::NodeState<int> branchValue_;
+    int instanceId_;
+  };
+
+  class DialogPresentationProbeDefinition
+      : public loka::app::scene::NodeDefinition<DialogPresentationProbeProps,
+                                                DialogPresentationProbeNode>
+  {
+  public:
+    typedef loka::app::scene::NodeDefinition<DialogPresentationProbeProps,
+                                              DialogPresentationProbeNode>
+        BaseType;
+
+    explicit DialogPresentationProbeDefinition(DialogPresentationRecord *record)
+        : BaseType(DialogPresentationProbeProps(record))
+    {
+    }
+
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      DialogPresentationProbeDefinition *copy =
+          new DialogPresentationProbeDefinition(this->props.record);
+      if (copy)
+      {
+        copy->copyTestIdPolicyFrom(*this);
+      }
+      return copy;
+    }
+
+    virtual loka::app::scene::NodeKind nodeKind() const
+    {
+      return loka::app::scene::NODE_KIND_UNKNOWN;
+    }
+  };
+
+  loka::core::MutableState<bool> *g_dialogDefaultShown = 0;
+  loka::core::MutableState<bool> *g_dialogDestroyShown = 0;
+  DialogPresentationRecord *g_dialogDefaultRecord = 0;
+  DialogPresentationRecord *g_dialogDestroyRecord = 0;
+
+  void declareDialogPresentationPolicySeats(
+      loka::app::scene::NodeComposition &composition,
+      loka::core::State<bool> *defaultShown,
+      loka::core::State<bool> *destroyShown)
+  {
+    DialogPresentationProbeDefinition defaultProbe(g_dialogDefaultRecord);
+    loka::app::ShowDefinition defaultSeat = loka::app::Show(*defaultShown);
+    defaultSeat << defaultProbe;
+
+    DialogPresentationProbeDefinition destroyProbe(g_dialogDestroyRecord);
+    loka::app::PolicyScopeDefinition destroyScope;
+    destroyScope.destroyOnDetach() << destroyProbe;
+    loka::app::ShowDefinition destroySeat = loka::app::Show(*destroyShown);
+    destroySeat << destroyScope;
+
+    loka::app::FragmentDefinition root;
+    root << defaultSeat << destroySeat;
+    composition.declare(root);
+  }
+
+  class DialogPresentationRecomposeBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<DialogPresentationRecomposeBoundaryNode>
+      DialogPresentationRecomposeBoundaryProps;
+  class DialogPresentationRecomposeBoundaryNode
+      : public PropsRecomposingBoundaryNode<DialogPresentationRecomposeBoundaryNode,
+                                            DialogPresentationRecomposeBoundaryProps>
+  {
+  public:
+    explicit DialogPresentationRecomposeBoundaryNode(
+        const DialogPresentationRecomposeBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<DialogPresentationRecomposeBoundaryNode,
+                                       DialogPresentationRecomposeBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      declareDialogPresentationPolicySeats(composition,
+                                           g_dialogDefaultShown,
+                                           g_dialogDestroyShown);
+    }
+  };
+
+  class DialogPresentationRecomposeHarnessNode;
+  typedef loka::app::scene::BoundaryPropsFor<DialogPresentationRecomposeHarnessNode>
+      DialogPresentationRecomposeHarnessProps;
+  class DialogPresentationRecomposeHarnessNode
+      : public loka::app::scene::BoundaryNodeFor<DialogPresentationRecomposeHarnessNode>
+  {
+  public:
+    explicit DialogPresentationRecomposeHarnessNode(
+        const DialogPresentationRecomposeHarnessProps &props)
+        : loka::app::scene::BoundaryNodeFor<DialogPresentationRecomposeHarnessNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(
+          loka::app::scene::Boundary<DialogPresentationRecomposeBoundaryNode>());
+    }
+  };
+
+  class DialogPresentationComposeOnceBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<DialogPresentationComposeOnceBoundaryNode>
+      DialogPresentationComposeOnceBoundaryProps;
+  DialogPresentationComposeOnceBoundaryNode *g_dialogComposeOnceNode = 0;
+  class DialogPresentationComposeOnceBoundaryNode
+      : public loka::app::scene::StdCompositionBoundaryNodeBase<
+            DialogPresentationComposeOnceBoundaryProps>
+  {
+  public:
+    explicit DialogPresentationComposeOnceBoundaryNode(
+        const DialogPresentationComposeOnceBoundaryProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<
+              DialogPresentationComposeOnceBoundaryProps>(props),
+          defaultShown_(),
+          destroyShown_()
+    {
+      this->state(this->defaultShown_, false);
+      this->state(this->destroyShown_, false);
+      g_dialogComposeOnceNode = this;
+    }
+
+    virtual ~DialogPresentationComposeOnceBoundaryNode()
+    {
+      if (g_dialogComposeOnceNode == this)
+      {
+        g_dialogComposeOnceNode = 0;
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      declareDialogPresentationPolicySeats(composition,
+                                           this->defaultShown_.state(),
+                                           this->destroyShown_.state());
+    }
+
+    void showBoth()
+    {
+      this->defaultShown_.set(true, true);
+      this->destroyShown_.set(true, true);
+    }
+
+    void hideBoth()
+    {
+      this->defaultShown_.set(false, true);
+      this->destroyShown_.set(false, true);
+    }
+
+  private:
+    loka::app::scene::NodeState<bool> defaultShown_;
+    loka::app::scene::NodeState<bool> destroyShown_;
+  };
+
+  void assertDialogPresentationPolicyInitialShow(
+      const DialogPresentationRecord &defaultRecord,
+      const DialogPresentationRecord &destroyRecord)
+  {
+    assert(defaultRecord.constructionCount == 1 &&
+           defaultRecord.destructionCount == 0 &&
+           defaultRecord.presentCount == 1 &&
+           defaultRecord.sessionDisposeCount == 0 &&
+           defaultRecord.node &&
+           defaultRecord.node->branchValue() == 17 &&
+           "default Show constructs and presents one retained dialog instance");
+    assert(destroyRecord.constructionCount == 1 &&
+           destroyRecord.destructionCount == 0 &&
+           destroyRecord.presentCount == 1 &&
+           destroyRecord.sessionDisposeCount == 0 &&
+           destroyRecord.node &&
+           destroyRecord.node->branchValue() == 17 &&
+           "destroyOnDetach Show constructs and presents one dialog instance");
+    assert(defaultRecord.attachPhaseInputs.size() == 1 &&
+           defaultRecord.attachPhaseInputs[0] ==
+               loka::app::OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH &&
+           destroyRecord.attachPhaseInputs.size() == 1 &&
+           destroyRecord.attachPhaseInputs[0] ==
+               loka::app::OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH &&
+           "new dialog contexts begin from the real pending-attach phase");
+  }
+
+  void assertDialogPresentationPolicyDetached(
+      const DialogPresentationRecord &defaultRecord,
+      const DialogPresentationRecord &destroyRecord,
+      DialogPresentationProbeNode *defaultInstance)
+  {
+    assert(defaultRecord.sessionDisposeCount == 1 &&
+           defaultRecord.destructionCount == 0 &&
+           defaultRecord.node == defaultInstance &&
+           defaultRecord.node->branchValue() == 73 &&
+           dialogRecordedTransitionTo(defaultRecord,
+                                      loka::app::scene::NODE_FACT_DETACHED_RETAINED,
+                                      0) &&
+           "default Show disposes its native session but retains node, context, and state");
+    assert(destroyRecord.sessionDisposeCount == 1 &&
+           dialogRecordedTransitionTo(destroyRecord,
+                                      loka::app::scene::NODE_FACT_RETIRED,
+                                      0) &&
+           "destroyOnDetach disposes its session at the synchronous retire door");
+  }
+
+  void assertDialogPresentationPolicyReentered(
+      const DialogPresentationRecord &defaultRecord,
+      const DialogPresentationRecord &destroyRecord,
+      DialogPresentationProbeNode *defaultInstance,
+      int defaultInstanceId,
+      int destroyInstanceId)
+  {
+    assert(defaultRecord.constructionCount == 1 &&
+           defaultRecord.destructionCount == 0 &&
+           defaultRecord.presentCount == 2 &&
+           defaultRecord.sessionDisposeCount == 1 &&
+           defaultRecord.node == defaultInstance &&
+           defaultRecord.node->instanceId() == defaultInstanceId &&
+           defaultRecord.node->branchValue() == 73 &&
+           dialogRecordedTransitionTo(defaultRecord,
+                                      loka::app::scene::NODE_FACT_ATTACHED,
+                                      1) &&
+           "default Show reuses its retained instance and branch-local state");
+    assert(destroyRecord.constructionCount == 2 &&
+           destroyRecord.destructionCount == 1 &&
+           destroyRecord.presentCount == 2 &&
+           destroyRecord.sessionDisposeCount == 1 &&
+           destroyRecord.node &&
+           destroyRecord.node->instanceId() != destroyInstanceId &&
+           destroyRecord.node->branchValue() == 17 &&
+           "destroyOnDetach Show creates a fresh instance with fresh branch-local state");
+    assert(defaultRecord.attachPhaseInputs.size() == 2 &&
+           defaultRecord.attachPhaseInputs[1] ==
+               loka::app::OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH &&
+           destroyRecord.attachPhaseInputs.size() == 2 &&
+           destroyRecord.attachPhaseInputs[1] ==
+               loka::app::OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH &&
+           "retained and reconstructed dialog phases both re-arm before presentation");
+  }
+
+  void drainDialogRetirement(loka::app::scene::Scene &scene)
+  {
+    int remainingRuns = 8;
+    while (scene.hasPendingInvalidation() && remainingRuns-- > 0)
+    {
+      scene.flushInvalidation();
+    }
+    assert(!scene.hasPendingInvalidation() &&
+           "dialog retirement reclaim settles at a later tracker boundary");
+  }
+
+  void clearDialogPresentationGlobals()
+  {
+    g_dialogDefaultShown = 0;
+    g_dialogDestroyShown = 0;
+    g_dialogDefaultRecord = 0;
+    g_dialogDestroyRecord = 0;
+  }
+
   struct PolicyDeliveryRecord
   {
     PolicyDeliveryRecord()
@@ -3831,6 +4285,113 @@ void testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary()
          "compose-once delivery reconciles the parked child at the door");
   scene.unmount();
   clearPolicyGlobals();
+}
+
+void testOpenFileDialogPresentationPoliciesInRecomposingBoundary()
+{
+  DialogPresentationRecord defaultRecord;
+  DialogPresentationRecord destroyRecord;
+  loka::core::MutableState<bool> defaultShown(false);
+  loka::core::MutableState<bool> destroyShown(false);
+  g_dialogDefaultShown = &defaultShown;
+  g_dialogDestroyShown = &destroyShown;
+  g_dialogDefaultRecord = &defaultRecord;
+  g_dialogDestroyRecord = &destroyRecord;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<DialogPresentationRecomposeHarnessNode>()));
+  mountAndAttach(scene, platform);
+
+  defaultShown.set(true);
+  destroyShown.set(true);
+  assert(scene.flushInvalidation());
+  assertDialogPresentationPolicyInitialShow(defaultRecord, destroyRecord);
+  DialogPresentationProbeNode *defaultInstance = defaultRecord.node;
+  const int defaultInstanceId = defaultRecord.node->instanceId();
+  const int destroyInstanceId = destroyRecord.node->instanceId();
+  defaultRecord.node->setBranchValue(73);
+  destroyRecord.node->setBranchValue(73);
+
+  defaultShown.set(false);
+  destroyShown.set(false);
+  assert(scene.flushInvalidation());
+  assertDialogPresentationPolicyDetached(defaultRecord,
+                                         destroyRecord,
+                                         defaultInstance);
+  drainDialogRetirement(scene);
+  assert(destroyRecord.destructionCount == 1 &&
+         destroyRecord.node == 0 &&
+         "destroyOnDetach reclaims the retired dialog instance at the next clock boundary");
+
+  defaultShown.set(true);
+  destroyShown.set(true);
+  assert(scene.flushInvalidation());
+  assertDialogPresentationPolicyReentered(defaultRecord,
+                                          destroyRecord,
+                                          defaultInstance,
+                                          defaultInstanceId,
+                                          destroyInstanceId);
+
+  scene.unmount();
+  clearDialogPresentationGlobals();
+}
+
+void testOpenFileDialogPresentationPoliciesInComposeOnceBoundary()
+{
+  DialogPresentationRecord defaultRecord;
+  DialogPresentationRecord destroyRecord;
+  g_dialogDefaultRecord = &defaultRecord;
+  g_dialogDestroyRecord = &destroyRecord;
+
+  NullScenePlatformController platform;
+  loka::app::scene::NodeDefinition<DialogPresentationComposeOnceBoundaryProps,
+                                   DialogPresentationComposeOnceBoundaryNode> *root =
+      new loka::app::scene::NodeDefinition<DialogPresentationComposeOnceBoundaryProps,
+                                           DialogPresentationComposeOnceBoundaryNode>(
+          DialogPresentationComposeOnceBoundaryProps());
+  loka::app::scene::Scene scene(root);
+  mountAndAttach(scene, platform);
+  assert(g_dialogComposeOnceNode);
+
+  g_dialogComposeOnceNode->showBoth();
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assertDialogPresentationPolicyInitialShow(defaultRecord, destroyRecord);
+  DialogPresentationProbeNode *defaultInstance = defaultRecord.node;
+  const int defaultInstanceId = defaultRecord.node->instanceId();
+  const int destroyInstanceId = destroyRecord.node->instanceId();
+  defaultRecord.node->setBranchValue(73);
+  destroyRecord.node->setBranchValue(73);
+
+  g_dialogComposeOnceNode->hideBoth();
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assertDialogPresentationPolicyDetached(defaultRecord,
+                                         destroyRecord,
+                                         defaultInstance);
+  drainDialogRetirement(scene);
+  assert(destroyRecord.destructionCount == 1 &&
+         destroyRecord.node == 0 &&
+         "compose-once destroyOnDetach reclaims the retired dialog instance");
+
+  g_dialogComposeOnceNode->showBoth();
+  if (scene.hasPendingInvalidation())
+  {
+    scene.flushInvalidation();
+  }
+  assertDialogPresentationPolicyReentered(defaultRecord,
+                                          destroyRecord,
+                                          defaultInstance,
+                                          defaultInstanceId,
+                                          destroyInstanceId);
+
+  scene.unmount();
+  clearDialogPresentationGlobals();
 }
 
 namespace
