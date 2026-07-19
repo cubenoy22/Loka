@@ -1739,6 +1739,43 @@ native callback が state を更新すると、その直後に compose / detach 
 この方針により、`Show()` / dialog / Flow が絡むケースでも、
 「論理 UI の寿命」と「native callback の寿命」が混ざりにくくなります。
 
+### 枝の lifecycle policy を明示する: `PolicyScope`
+
+retained は既定であって、唯一の選択肢ではありません。
+条件枝のルートに `PolicyScope` を置くと、
+detach 時の扱いをその枝だけについて宣言できます。
+
+```cpp
+<< (Show(*this->isDialogShown_.state())
+    << (PolicyScope().destroyOnDetach()
+        << OpenFileDialog().result(this->chooserResult_)))
+```
+
+- 既定(scope なし): 隠れた枝は駐機されます。
+  node / native context / subtree-local state は保持され、
+  再表示では同じ identity がそのまま戻ります。
+- `PolicyScope().destroyOnDetach()`: 隠れた時点で枝は解体されます。
+  再表示は新規構築で、subtree-local state は初期値から始まります。
+
+規律は 3 つだけです。
+
+- `PolicyScope` は runtime node を作りません(定義専用の注釈です)
+- 置けるのは条件枝のルート直下だけです
+- policy が効くのは注釈したその枝だけです。
+  スイッチ側(`Show()` 自体)の挙動は変わらず、
+  枝の中に入れ子になった別の条件枝にも継承されません。
+  入れ子の枝にも destroy が欲しければ、そこにも `PolicyScope` を置きます
+
+`OpenFileDialog` のようなモーダルは destroy 側が自然です。
+native ダイアログは完了時に自分で消えるので、
+論理側の subtree を残しておく理由がないからです。
+
+完了は `result` / `onResult` だけで届きます。
+`Show()` の条件を false に戻すのはアプリの仕事です
+(SimpleViewer では chooser flow の完了ステップで閉じています)。
+どちらもバインドしていない場合は debug build の assert が
+この契約を教えてくれます。
+
 ## 16. DSL と Composition の考え方
 
 Loka の UI DSL は、宣言的にツリーを書くための表現です。
