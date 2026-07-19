@@ -1871,6 +1871,27 @@ namespace
       return out.captured;
     }
   };
+
+  loka::app::OpenFileDialogNode *findSimpleViewerOpenFileDialog(loka::app::scene::Scene &scene)
+  {
+    loka::app::scene::Scene *scenePtr = &scene;
+    loka::app::scene::Node *node = 0;
+    loka::dsl::FlowError error;
+    if (loka::dsl::testing::LookupNodeById<loka::app::scene::Node>(scenePtr, "SimpleViewerOpenFileDialog", node, error)
+        != loka::dsl::FLOW_STEP_SUCCEEDED)
+    {
+      return 0;
+    }
+    return node ? node->asOpenFileDialogNode() : 0;
+  }
+
+  void deliverSimpleViewerOpenFileDialogResult(loka::app::OpenFileDialogNode *dialog,
+                                               const loka::app::FileChooserResult &result)
+  {
+    assert(dialog && dialog->props.result_);
+    loka::core::StateTrackerGuard guard(dialog->props.result_->trackerOwner());
+    dialog->props.result_->set(result, true);
+  }
 } // namespace
 
 void testLokaFlowDslV1Core()
@@ -5406,6 +5427,70 @@ void testLokaFlowDslV1Core()
   }
 
   printf("==== [testLokaFlowDslV1Core] end ====\n");
+}
+
+void testSimpleViewerClosesDialogFromChooserCompletion()
+{
+  FlowTestPlatformContext platformContext;
+  loka::core::EmitterState openDialogEvent;
+  simpleviewer::MainProps props;
+  props.platformContext(&platformContext).openDialogEvent(&openDialogEvent);
+  loka::app::scene::Scene scene(
+      new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
+  FlowScenePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  loka::app::OpenFileDialogNode *dialog = findSimpleViewerOpenFileDialog(scene);
+  assert(!dialog);
+
+  openDialogEvent.emit();
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  dialog = findSimpleViewerOpenFileDialog(scene);
+  assert(dialog && dialog->props.result_);
+
+  deliverSimpleViewerOpenFileDialogResult(dialog, loka::app::FileChooserResult());
+  if (scene.hasPendingInvalidation())
+  {
+    assert(scene.flushInvalidation());
+  }
+  dialog = findSimpleViewerOpenFileDialog(scene);
+  assert(dialog && "RESULT_NONE is not a delivered completion and must leave the dialog shown");
+
+  loka::app::FileChooserResult delivered[4];
+  delivered[0] =
+      loka::app::FileChooserResult::File(loka::file::File::FromPath(loka::core::String::Literal("missing-file.png")));
+  delivered[1] =
+      loka::app::FileChooserResult::Folder(loka::file::File::FromPath(loka::core::String::Literal("missing-folder")));
+  delivered[2] = loka::app::FileChooserResult::Canceled();
+  delivered[3] = loka::app::FileChooserResult::Error(7);
+
+  for (int i = 0; i < 4; ++i)
+  {
+    if (i != 0)
+    {
+      openDialogEvent.emit();
+      if (scene.hasPendingInvalidation())
+      {
+        assert(scene.flushInvalidation());
+      }
+      dialog = findSimpleViewerOpenFileDialog(scene);
+      assert(dialog);
+    }
+
+    deliverSimpleViewerOpenFileDialogResult(dialog, delivered[i]);
+    if (scene.hasPendingInvalidation())
+    {
+      assert(scene.flushInvalidation());
+    }
+    dialog = findSimpleViewerOpenFileDialog(scene);
+    assert(!dialog && "every delivered chooser result closes SimpleViewer's owning Show");
+  }
+
+  scene.unmount();
 }
 
 namespace

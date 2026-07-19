@@ -40,7 +40,6 @@ private:
     DeferredResultDelivery()
         : resultState(0),
           onResult(0),
-          closeState(0),
           result(),
           owner(0),
           dialog(0)
@@ -51,7 +50,6 @@ private:
 
     loka::core::MutableState<loka::app::FileChooserResult> *resultState;
     loka::core::EmitterState *onResult;
-    loka::core::MutableState<bool> *closeState;
     loka::app::FileChooserResult result;
     Win32OpenFileDialogContext *owner;
     NativeDialogSession *dialog;
@@ -68,7 +66,6 @@ private:
   loka::app::OpenFileDialogNode *node_;
   loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
   loka::core::EmitterState *onResult_;
-  loka::core::MutableState<bool> *closeState_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
   NativeDialogSession *dialog_;
 };

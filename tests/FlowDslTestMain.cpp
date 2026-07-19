@@ -123,6 +123,7 @@ int main()
   LOKA_RUN_TEST(testSnapFormatV1);
   LOKA_RUN_TEST(testSnapFlowWriteAdapter);
   LOKA_RUN_TEST(testLokaFlowDslV1Core);
+  LOKA_RUN_TEST(testSimpleViewerClosesDialogFromChooserCompletion);
   LOKA_RUN_TEST(testFlowChainHandleCopiesShareImplementationLifetime);
   LOKA_RUN_TEST(testFlowChainRunPinDefersImplementationDeletion);
   LOKA_RUN_TEST(testFlowSlotClearDefersRunningFlowDeletion);
@@ -201,6 +202,7 @@ int main()
   LOKA_RUN_TEST(testPolicyScopeDeliverWhileDetachedWorksInComposeOnceBoundary);
   LOKA_RUN_TEST(testOpenFileDialogPresentationPoliciesInRecomposingBoundary);
   LOKA_RUN_TEST(testOpenFileDialogPresentationPoliciesInComposeOnceBoundary);
+  LOKA_RUN_TEST(testOpenFileDialogRequiresCompletionBinding);
   LOKA_RUN_TEST(testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild);
   LOKA_RUN_TEST(testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping);
   LOKA_RUN_TEST(testRemovedConditionalSeatReaddsFreshRuntimeAndBranches);

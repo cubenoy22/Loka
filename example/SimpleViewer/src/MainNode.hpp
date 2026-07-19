@@ -120,7 +120,7 @@ namespace simpleviewer
                  .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_FILL_PARENT).fit(IMAGE_FIT_CONTAIN))
           << (Show(*this->isDialogShown_.state())
               << (PolicyScope().destroyOnDetach()
-                  << OpenFileDialog().result(this->chooserResult_).closeState(this->isDialogShown_))));
+                  << OpenFileDialog().result(this->chooserResult_).testId("SimpleViewerOpenFileDialog"))));
     }
 
   private:
@@ -128,6 +128,7 @@ namespace simpleviewer
     static loka::dsl::FlowHandleResult OnBlobDecodeFailure(const loka::dsl::FlowError &error, void *userData);
     static loka::dsl::FlowHandleResult OnBlobLoadCanceled(const loka::dsl::FlowError &error, void *userData);
     static loka::dsl::FlowHandleResult OnBlobLoadFailure(const loka::dsl::FlowError &error, void *userData);
+    static void OnChooserCompletion(const simpleviewer::ChooserContext &context, void *userData);
     static void OnChooserProjection(const simpleviewer::ChooserProjection &projection, void *userData);
     static void OnImageDecoded(const loka::core::resource::Image &image, void *userData);
     static ViewerFlowChain buildFlow(MainNode &self);

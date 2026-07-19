@@ -19,11 +19,9 @@ namespace
 
   static void DeliverOpenFileDialogResult(loka::core::MutableState<loka::app::FileChooserResult> *resultState,
                                           loka::core::EmitterState *onResult,
-                                          loka::core::MutableState<bool> *closeState,
                                           const loka::app::FileChooserResult &result)
   {
     void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
-    void *closeStateToken = closeState ? closeState->retainExternalLifetimeToken() : 0;
     if (resultState)
     {
       resultState->set(result, true);
@@ -32,17 +30,9 @@ namespace
     {
       onResult->emit();
     }
-    if (closeState && loka::core::StateBase::isExternalLifetimeTokenAlive(closeStateToken) && closeState->get())
-    {
-      closeState->set(false, true);
-    }
     if (onResultToken)
     {
       loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
-    }
-    if (closeStateToken)
-    {
-      loka::core::StateBase::releaseExternalLifetimeToken(closeStateToken);
     }
   }
 
@@ -105,13 +95,11 @@ Win32OpenFileDialogContext::Win32OpenFileDialogContext(HWND parent, loka::app::O
       node_(node),
       resultState_(0),
       onResult_(0),
-      closeState_(0),
       presentation_(),
       dialog_(0)
 {
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
-  closeState_ = node_ ? node_->props.closeState_ : 0;
 }
 
 Win32OpenFileDialogContext::~Win32OpenFileDialogContext()
@@ -227,7 +215,6 @@ void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChoose
   DeferredResultDelivery *delivery = new DeferredResultDelivery();
   delivery->resultState = resultState_;
   delivery->onResult = onResult_;
-  delivery->closeState = closeState_;
   delivery->result = result;
   delivery->owner = this;
   delivery->dialog = dialogSession;
@@ -254,11 +241,6 @@ void Win32OpenFileDialogContext::queueDeferredResult(const loka::app::FileChoose
   {
     tracker = delivery->onResult->trackerOwner()->asPushTracker();
   }
-  if (!tracker && delivery->closeState && delivery->closeState->trackerOwner())
-  {
-    tracker = delivery->closeState->trackerOwner()->asPushTracker();
-  }
-
   if (!tracker)
   {
     DeliverDeferredResultThunk(delivery);
@@ -303,7 +285,7 @@ void Win32OpenFileDialogContext::DeliverDeferredResultThunk(void *userData)
     delivery->owner->dialog_ = 0;
     delivery->dialog->disposed = true;
   }
-  DeliverOpenFileDialogResult(delivery->resultState, delivery->onResult, delivery->closeState, delivery->result);
+  DeliverOpenFileDialogResult(delivery->resultState, delivery->onResult, delivery->result);
   delete delivery;
 }
 
