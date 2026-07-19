@@ -424,9 +424,35 @@ Projection reflects the logical result.
 `Show()` should be understood as an attach/detach mechanism rather than merely
 an `if` statement.
 
-For `0.0.1`, retained attach/detach behavior is still being stabilized. Future
-versions should define whether hidden subtrees keep state, release state, or use
-an explicit policy such as a Boundary section.
+Retained attach/detach is the default: a hidden branch is parked, its nodes,
+native contexts, and subtree-local state survive, and re-showing brings the
+same identity back.
+
+The other policy is explicit. Placing `PolicyScope` at the root of a
+conditional branch declares how that one branch behaves on detach:
+
+```cpp
+<< (Show(*this->isDialogShown_.state())
+    << (PolicyScope().destroyOnDetach()
+        << OpenFileDialog().result(this->chooserResult_)))
+```
+
+With `destroyOnDetach()`, hiding destroys the branch; re-showing constructs a
+fresh subtree whose local state starts from its initial values.
+
+Three rules keep the policy surface small:
+
+- `PolicyScope` never materializes a runtime node — it is a definition-only
+  annotation.
+- It is legal only as the immediate root of a conditional branch.
+- Policies do not travel: nothing propagates to the switch or to nested
+  branches.
+
+Modal nodes such as `OpenFileDialog` want the destroy side: the native dialog
+dismisses itself on completion, so there is nothing worth keeping in the
+logical subtree. Completion is delivered only through `result` / `onResult`,
+and flipping the owning `Show()` condition back to false is the app's job — a
+debug assert enforces that at least one completion binding exists.
 
 The design goal is that memory and lifecycle are visible from the DSL structure.
 
