@@ -26,6 +26,7 @@
 #include "core/util/OwnedDef.hpp"
 
 #include "core/State.hpp"
+#include "core/LokaAlloc.hpp"
 #include "core/Profiler.hpp"
 #include "app/scene/ability/CapturableBitmap.hpp"
 #include "app/scene/detail/ArenaMath.hpp"
@@ -330,7 +331,8 @@ namespace loka
               nodeTag_(NODE_TAG_NONE),
               propsTypeId_(0),
               nativeLifetimeHint_(NATIVE_HINT_DEFAULT),
-              lifecycleFact_(NODE_FACT_ATTACHED)
+              lifecycleFact_(NODE_FACT_ATTACHED),
+              gateAllocated_(false)
         {
         }
 
@@ -355,6 +357,21 @@ namespace loka
         bool isArenaAllocated() const
         {
           return arenaOwner_ != 0;
+        }
+        // Storage provenance for the allocation gate (LokaAlloc), mirroring
+        // StateBase::setGateAllocated: set only by the creation path that
+        // acquired this node's storage through LokaAllocRaw, so the destroy
+        // path (DestroyHeapNode) can return the storage through the same door.
+        // Never copied or assigned: provenance describes the storage, not the
+        // value. Mutually exclusive with arena residency (arena nodes are
+        // placement-constructed into slab storage the arena owns).
+        void setGateAllocated(bool v)
+        {
+          gateAllocated_ = v;
+        }
+        bool isGateAllocated() const
+        {
+          return gateAllocated_;
         }
         void markPendingAttachForCompose()
         {
@@ -591,6 +608,7 @@ namespace loka
         static void DeliverLifecycleFactsSubtree(Node *node);
 
         NodeLifecycleFact lifecycleFact_;
+        bool gateAllocated_;
 
         friend class BoundaryNode;
         friend class Scene;
@@ -618,6 +636,43 @@ namespace loka
           delete released;
         }
       };
+
+      /** The one gate site shared by heap-node creation
+          (NodeDefinition::create) and every heap-node free (DestroyHeapNode),
+          so the audit ledger balances. Runtime nodes acquired here through
+          LokaAllocRaw carry setGateAllocated(true). */
+      inline const loka::core::LokaAllocationSite &NodeHeapAllocationSite()
+      {
+        static const loka::core::LokaAllocationSite site("NodeDefinition", "Node");
+        return site;
+      }
+
+      /** Destroys one runtime node through the door its storage came from.
+          Gate-resident nodes (NodeDefinition::create) return to the backend
+          under NodeHeapAllocationSite(); every other node keeps `delete`,
+          which routes through Node::operator delete — arena nodes skip the
+          free (the slab owns their storage), plain-new nodes (RootBoundary
+          wrapper, test fixtures) hit ::operator delete. Null-safe.
+
+          The provenance bit is read before the destructor runs; on the gate
+          path the virtual destructor destroys the most-derived node and the
+          storage returns via LokaFreeRaw. The creation path asserts the Node
+          base subobject sits at the storage address, so freeing through the
+          Node* is address-correct. */
+      inline void DestroyHeapNode(Node *node)
+      {
+        if (!node)
+        {
+          return;
+        }
+        if (node->isGateAllocated())
+        {
+          node->~Node();
+          loka::core::LokaFreeRaw(node, NodeHeapAllocationSite());
+          return;
+        }
+        delete node;
+      }
 
       struct DirtySourceRegistrar
       {
@@ -972,13 +1027,24 @@ namespace loka
         }
         Node *create() const
         {
-          Node *node = new NodeT(props);
-          if (node)
+          // Heap-node production crosses the allocation gate (#132 S2b). A 0
+          // means the backend already gave up; callers treat it as
+          // allocation-style failure under the #70 nullable contract.
+          void *storage = loka::core::LokaAllocRaw(sizeof(NodeT), NodeHeapAllocationSite());
+          if (!storage)
           {
-            node->setPropsTypeId(PropsT::staticTypeId());
-            node->setNodeTag(this->nodeTag());
-            node->setNativeLifetimeHint(this->nativeLifetimeHint());
+            return 0;
           }
+          NodeT *typed = new (storage) NodeT(props);
+          Node *node = typed;
+          // DestroyHeapNode frees through the Node*, so the Node base
+          // subobject must sit at the storage address LokaAllocRaw returned.
+          assert(static_cast<void *>(node) == storage &&
+                 "Node base subobject must sit at the gate storage address");
+          node->setGateAllocated(true);
+          node->setPropsTypeId(PropsT::staticTypeId());
+          node->setNodeTag(this->nodeTag());
+          node->setNativeLifetimeHint(this->nativeLifetimeHint());
           return node;
         }
         Node *createInPlace(void *mem) const
@@ -1345,7 +1411,10 @@ namespace loka
             {
               continue;
             }
-            delete child;
+            // Children are arena- or gate-created (createNodeWithArena /
+            // createNodeRecursive); DestroyHeapNode frees gate storage through
+            // the gate and lets arena children skip via Node::operator delete.
+            DestroyHeapNode(child);
           }
         }
         loka::dsl::CompositionList<Node> children_;

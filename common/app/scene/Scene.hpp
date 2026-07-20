@@ -366,7 +366,10 @@ namespace loka
           clearMountedUpdateState();
           if (rootNode_)
           {
-            delete rootNode_;
+            // The root is gate-created (rootDefinition_->create()) or a
+            // plain-new RootBoundaryWrapper; DestroyHeapNode routes by
+            // provenance. Never arena-allocated.
+            DestroyHeapNode(rootNode_);
             rootNode_ = 0;
           }
         }
@@ -704,7 +707,14 @@ namespace loka
           {
             rootNode_ = new RootBoundaryWrapper(rootDefinition_.get());
           }
-          assert(rootNode_ && "Scene failed to create root node");
+          if (!rootNode_)
+          {
+            // create() returned 0: the allocation gate's backend gave up
+            // (#132 S2b). Leave the root unbuilt; mount()/composeIfNeeded()
+            // guard a null root under the #70 nullable-creation contract.
+            // Surfacing this as an app-visible failure is deferred to S3.
+            return;
+          }
           BoundaryNode *boundary = rootNode_->asBoundary();
           assert(boundary && "Scene root must be a Boundary node");
           boundary->setScene(this);
@@ -720,6 +730,13 @@ namespace loka
           if (!rootNode_)
           {
             ensureRootNode();
+          }
+          if (!rootNode_)
+          {
+            // Root creation refused at the gate (#132 S2b); nothing to
+            // compose. Stays uncomposed until the next externally-caused
+            // tick, per the #70 nullable contract (S3 surfaces the failure).
+            return;
           }
           BoundaryNode *boundary = rootNode_->asBoundary();
           assert(boundary && "Scene root must be a Boundary node");
@@ -874,7 +891,8 @@ namespace loka
           composed_ = false;
           if (rootNode_)
           {
-            delete rootNode_;
+            // Gate-created root or plain-new RootBoundaryWrapper; never arena.
+            DestroyHeapNode(rootNode_);
             rootNode_ = 0;
           }
         }

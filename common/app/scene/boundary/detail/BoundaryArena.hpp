@@ -154,7 +154,9 @@ namespace loka
             // reference is alive: their destructors skip arena children.
             for (size_t i = 0; i < gen.heapRoots.size(); ++i)
             {
-              delete gen.heapRoots[i];
+              // Heap roots are non-arena by construction; DestroyHeapNode
+              // routes gate storage back through the gate.
+              DestroyHeapNode(gen.heapRoots[i]);
             }
             gen.heapRoots.clear();
             // Sever every parent-to-child edge while the whole ledger is alive.
@@ -179,7 +181,8 @@ namespace loka
             }
             for (size_t i = 0; i < detachedHeapRoots.size(); ++i)
             {
-              delete detachedHeapRoots[i];
+              // detachedHeapRoots collected only non-arena children above.
+              DestroyHeapNode(detachedHeapRoots[i]);
             }
             // Creation is parent-first, so reverse order destroys children first.
             for (size_t i = gen.nodes.size(); i > 0; --i)

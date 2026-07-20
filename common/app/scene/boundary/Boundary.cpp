@@ -145,7 +145,9 @@ namespace loka
         }
         else
         {
-          delete node;
+          // Non-arena retired node: gate-created (composition heap fallback)
+          // or plain-new; DestroyHeapNode routes by provenance.
+          DestroyHeapNode(node);
         }
       }
 
