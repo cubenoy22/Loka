@@ -79,7 +79,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
 
   target_link_libraries(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE LokaAppleToolboxCore)
 
-  target_compile_definitions(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1 LOKA_PROFILE_FUNC_TICKS=1)
+  target_compile_definitions(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE LOKA_RETRO68=1)
 
   set_target_properties(${LOKA_TUTORIAL_CLASSIC_TARGET} PROPERTIES
     CXX_STANDARD 98
@@ -91,10 +91,18 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
     -ffunction-sections
     -fdata-sections
     -fno-exceptions
+    -fno-rtti
   )
   target_link_options(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE
     -Wl,--gc-sections
   )
+
+  # Compact shipping profile (#135): drop the MacsBug name sections from the
+  # CODE resources. Elf2Mac-only (68K); the DWARF .gdb ELF keeps full symbols
+  # for the MAME gdbstub workflow.
+  if(CMAKE_SYSTEM_NAME STREQUAL "Retro68" AND NOT LOKA_RETRO68_DIAGNOSTICS)
+    target_link_options(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE -Wl,--mac-strip-macsbug)
+  endif()
 
   option(LOKA_CLASSIC_STRIP "Strip Classic Mac binaries after link" ON)
   if(LOKA_CLASSIC_STRIP)

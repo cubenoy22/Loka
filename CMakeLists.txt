@@ -6,6 +6,8 @@ option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to mac
 option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS link settings" OFF)
 option(TEST_BUILD "Enable test build mode" OFF)
 option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
+option(LOKA_RETRO68_DIAGNOSTICS
+  "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
 
 macro(loka_suppress_arclite_link)
   if(LOKA_MACOS_SUPPRESS_ARCLITE_LINK)
@@ -22,6 +24,15 @@ endmacro()
 set(LOKA_CLASSIC_MAC OFF)
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_CLASSIC_MAC ON)
+endif()
+
+# Compact vs diagnostic Classic profile (#135). Compact (the default) ships
+# without the function-tick profiler and without the debug-stats dump chain;
+# the diagnostic profile keeps both plus MacsBug names. add_definitions so
+# the macros stay uniform across LokaAppleToolboxCore and the app targets
+# (PROFILE_FUNC expands inside shared headers).
+if(LOKA_CLASSIC_MAC AND LOKA_RETRO68_DIAGNOSTICS)
+  add_definitions(-DLOKA_RETRO68_DIAGNOSTICS=1 -DLOKA_PROFILE_FUNC_TICKS=1)
 endif()
 
 set(LOKA_CLASSIC_TARGET_SUFFIX "")

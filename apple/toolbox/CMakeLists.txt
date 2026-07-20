@@ -49,8 +49,9 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   if(LOKA_TOOLBOX_CLASSIC_6)
     target_compile_definitions(LokaAppleToolboxCore PRIVATE LOKA_TOOLBOX_CLASSIC_6=1)
   endif()
-  # Function profiler (set to 1 to enable)
-  target_compile_definitions(LokaAppleToolboxCore PRIVATE LOKA_PROFILE_FUNC_TICKS=1 LOKA_RETRO68=1)
+  # LOKA_PROFILE_FUNC_TICKS / LOKA_RETRO68_DIAGNOSTICS come from the
+  # top-level LOKA_RETRO68_DIAGNOSTICS option (#135).
+  target_compile_definitions(LokaAppleToolboxCore PRIVATE LOKA_RETRO68=1)
   target_link_options(LokaAppleToolboxCore PRIVATE
     -Wl,--gc-sections
   )

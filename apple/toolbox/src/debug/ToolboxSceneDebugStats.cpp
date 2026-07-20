@@ -1,6 +1,8 @@
 #include "debug/ToolboxSceneDebugStats.hpp"
 #include <cstdio>
+#if LOKA_RETRO68_DIAGNOSTICS
 #include <ctime>
+#endif
 
 namespace
 {
@@ -41,10 +43,12 @@ namespace
     return out;
   }
 
+#if LOKA_RETRO68_DIAGNOSTICS
   void BuildRedrawDumpFileName(char out[13], const std::tm &local)
   {
     std::sprintf(out, "%02d%02d%02d%02d.TXT", local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_sec);
   }
+#endif
 } // namespace
 
 ToolboxSceneDebugStats::ToolboxSceneDebugStats()
@@ -260,6 +264,7 @@ void ToolboxSceneDebugStats::reset()
   *this = ToolboxSceneDebugStats();
 }
 
+#if LOKA_RETRO68_DIAGNOSTICS
 bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
 {
   std::time_t now = std::time(0);
@@ -358,3 +363,4 @@ bool ToolboxSceneDebugStats::dumpToTimestampedFile() const
   std::fclose(fp);
   return true;
 }
+#endif // LOKA_RETRO68_DIAGNOSTICS

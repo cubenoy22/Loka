@@ -122,6 +122,15 @@
       }
     },
     {
+      "name": "retro68-68k-diag",
+      "displayName": "Retro68 68K Diagnostic (Ninja)",
+      "inherits": "retro68-68k-release",
+      "binaryDir": "build/retro68/68k/Diag",
+      "cacheVariables": {
+        "LOKA_RETRO68_DIAGNOSTICS": "ON"
+      }
+    },
+    {
       "name": "retro68-ppc-release",
       "displayName": "Retro68 PPC Release (Ninja)",
       "inherits": "retro68-release-base",
@@ -265,6 +274,10 @@
     {
       "name": "retro68-68k-release",
       "configurePreset": "retro68-68k-release"
+    },
+    {
+      "name": "retro68-68k-diag",
+      "configurePreset": "retro68-68k-diag"
     },
     {
       "name": "retro68-ppc-release",

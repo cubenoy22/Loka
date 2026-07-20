@@ -131,10 +131,14 @@ void ToolboxWindow::open()
   {
     title = "Loka";
   }
+#if LOKA_RETRO68_DIAGNOSTICS
+  // Diagnostic profile only (#135): the counter summary in the title bar is
+  // debug UI, and its formatting keeps sprintf resident in compact builds.
   if (this->scenePlatformController_)
   {
     title += this->scenePlatformController_->debugStatsSummary();
   }
+#endif
   Str255 titleStr;
   CopyToPascalString(title, titleStr);
 
