@@ -8,21 +8,39 @@
 
 resource 'SIZE' (-1) {
 	reserved,
+#if TARGET_API_MAC_CARBON
+	acceptSuspendResumeEvents,
+	reserved,
+	canBackground,
+	doesActivateOnFGSwitch,
+#else
 	ignoreSuspendResumeEvents,
 	reserved,
 	cannotBackground,
 	needsActivateOnFGSwitch,
+#endif
 	backgroundAndForeground,
 	dontGetFrontClicks,
 	ignoreChildDiedEvents,
 	is32BitCompatible,
+#if TARGET_API_MAC_CARBON
+	isHighLevelEventAware,
+#else
 	notHighLevelEventAware,
+#endif
 	onlyLocalHLEvents,
 	notStationeryAware,
 	dontUseTextEditServices,
 	reserved,
 	reserved,
 	reserved,
+#if TARGET_API_MAC_CARBON
+	/* Carbon partitions unmeasured: keep the RetroCarbonAPPL.r defaults so
+	   a Carbon build is flag- and size-identical to the template. */
+	1024 * 1024,
+	1024 * 1024
+#else
 	1024 * 1024,	/* preferred */
 	512 * 1024	/* minimum */
+#endif
 };
