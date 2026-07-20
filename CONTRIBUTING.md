@@ -42,6 +42,38 @@ For UI changes:
 - `scripts/macos/build-10_7.sh`: Lion and newer path.
 - `scripts/macos/build.sh`: shared internal driver.
 
+## Retro68 Toolchain Location
+
+The Retro68 toolchain is resolved in this order (cmake/toolchains/Retro68.cmake):
+
+1. `RETRO68_TOOLCHAIN_DIR` cache variable or environment variable
+2. Auto-detection under `$HOME/Retro68-build` and `$HOME/Retro68`
+
+If your toolchain lives elsewhere, do **not** copy or edit the repository
+presets. Put a local preset in `CMakeUserPresets.json` (gitignored, picked up
+automatically by CMake and VS Code) that **inherits** a repository preset and
+overrides only the location:
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "retro68-68k-local",
+      "inherits": "retro68-68k-release",
+      "cacheVariables": {
+        "RETRO68_TOOLCHAIN_DIR": "/path/to/Retro68-build/toolchain/m68k-apple-macos/cmake"
+      }
+    }
+  ]
+}
+```
+
+Inheriting matters: the repository presets carry the Classic size/flag policy
+(`-Os`, `-fno-exceptions`, `--gc-sections`, the compact/diagnostic split — see
+#135/#136/#137). A standalone local preset silently loses them and Classic
+binaries grow back by roughly 40%.
+
 ## Commit and Review Hygiene
 
 - Keep commits small and scoped.
