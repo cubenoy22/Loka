@@ -74,6 +74,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
 
   add_application(${LOKA_FLOPPYBIRD_CLASSIC_TARGET}
     src/main.cpp
+    Size.r
   )
 
   target_include_directories(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE

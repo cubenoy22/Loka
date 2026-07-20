@@ -111,6 +111,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(RETRO_SOURCES
     src/main.cpp
     src/MainNode.cpp
+    Size.r
   )
 
   add_application(${LOKA_HELLO_CLASSIC_TARGET} ${RETRO_SOURCES})

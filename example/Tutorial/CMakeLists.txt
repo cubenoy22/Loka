@@ -68,6 +68,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_TUTORIAL_CLASSIC_TARGET "LokaTutorial${LOKA_CLASSIC_TARGET_SUFFIX}")
   set(RETRO_SOURCES
     src/main.cpp
+    Size.r
   )
 
   add_application(${LOKA_TUTORIAL_CLASSIC_TARGET} ${RETRO_SOURCES})
