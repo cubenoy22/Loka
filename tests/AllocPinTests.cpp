@@ -124,6 +124,12 @@ namespace
       scene.flushInvalidation();
       ++flushes;
     }
+    // The interaction must drain fully inside the capture window: a bound hit
+    // with work still pending would measure a partial interaction and let the
+    // ratchet pass on an undercount. Steady-state HelloWorld settles in one or
+    // two flushes; the bound is only a runaway guard, never the exit path.
+    assert(!scene.hasPendingInvalidation() &&
+           "interaction did not drain within the flush bound; allocation count is partial");
     allocpin::SetPhase(allocpin::PHASE_OUTSIDE);
     return flushes;
   }
