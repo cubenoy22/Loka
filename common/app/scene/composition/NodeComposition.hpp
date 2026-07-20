@@ -575,14 +575,16 @@ namespace loka
 
         // Create node tree
         Node *createNodeTree() const;
-        // failureSink routes the allocation white flag when this composition
-        // has no ComponentContext (the contextless local-rebuild path): a
-        // refused create() at ANY depth reaches the owning boundary through it.
-        // It is a flag sink only -- the contextless fallback is the heap path
-        // (createNodeRecursive), which never touches the boundary's arena -- so
-        // passing it never changes arena selection or the with-context diff.
+        // refused is an optional out-parameter for the allocation white flag
+        // (#132 ruling 3): a refused create() at ANY depth of the materialized
+        // subtree sets *refused. It is set independently of the owning
+        // boundary, so the contextless local-rebuild path (which passes a null
+        // boundary) can catch a nested-child refusal without touching any
+        // boundary seat/arena state — the branch-seat path stays disabled
+        // exactly as on main. With-context callers still route via the
+        // boundary as well; the default 0 leaves existing callers unaffected.
         Node *createNodeFromDefinition(NodeDefinitionBase *definition,
-                                       BoundaryNode *failureSink = 0) const;
+                                       bool *refused = 0) const;
         void assignCompositionSeatSlots();
 
         NodeDefinitionBase *root() const

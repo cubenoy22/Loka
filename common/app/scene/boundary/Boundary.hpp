@@ -644,30 +644,26 @@ namespace loka
             boundary on its own, so a refused create() would return 0 with the
             flag dropped — completeComposeResult would then mark the compose
             successful and the scene would apply an incomplete rebuild instead
-            of deferring. We thread this boundary in as the createNodeFromDefinition
-            failure sink (this IS the owning boundary), so a refused create() at
-            ANY depth of the subtree — not just the root — routes the refusal
-            into the same #132-ruling-3 projection-failure terminal the
-            context-carrying paths use. The sink is flag routing only: the
-            contextless fallback is the heap path and never touches an arena. */
+            of deferring. We read the boundary-independent `refused` out-flag
+            instead: it is set at a refused create() at ANY depth of the
+            subtree — not just the root — and lets this boundary (this IS the
+            owning boundary) route the refusal into the same #132-ruling-3
+            projection-failure terminal the context-carrying paths use. The
+            composition still carries no ComponentContext and no boundary, so
+            the branch-seat plan lookup / materialized-seat registration inside
+            createNodeRecursive stay disabled exactly as on main — the only new
+            effect is the bool being set. */
         Node *materializeLocalRebuildNode(NodeDefinitionBase *definition)
         {
           NodeComposition composition;
-          // Thread this boundary in as the white-flag sink so a refused
-          // create() at ANY depth of the materialized subtree raises the flag
-          // (not just a refused root). The contextless composition still has no
-          // ComponentContext, so the sink only routes the flag -- it never gives
-          // the composition an arena, keeping the local-rebuild diff behaviour
-          // unchanged. Completes the Codex P2 fix one level deeper: a nested
-          // child refused below a non-null root would otherwise return a partial
-          // subtree with the flag dropped, and compose completion would mark the
-          // incomplete rebuild a success instead of deferring (#132 ruling 3).
-          Node *created = composition.createNodeFromDefinition(definition, this);
-          if (!created)
+          // `refused` is set independently of any boundary, so it catches both
+          // a refused subtree ROOT (!created) and a refused NESTED child
+          // (created non-null but partial) without the contextless composition
+          // ever touching this boundary's seat/arena state.
+          bool refused = false;
+          Node *created = composition.createNodeFromDefinition(definition, &refused);
+          if (!created || refused)
           {
-            // Belt-and-suspenders: a refused root is already raised by the sink,
-            // and noteComposeAllocationFailure just sets a bool, so raising it
-            // again here is idempotent.
             this->noteComposeAllocationFailure();
           }
           return created;

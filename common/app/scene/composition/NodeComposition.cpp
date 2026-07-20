@@ -99,7 +99,8 @@ namespace loka
                                        NodeArena *arena,
                                        long &autoIdCounter,
                                        BoundaryNode *boundary,
-                                       Node *runtimeParent)
+                                       Node *runtimeParent,
+                                       bool *refused)
       {
         if (!def)
         {
@@ -125,7 +126,8 @@ namespace loka
                                              arena,
                                              autoIdCounter,
                                              boundary,
-                                             runtimeParent);
+                                             runtimeParent,
+                                             refused);
           if (active)
           {
             boundary->registerMaterializedBranchSeat(*plan,
@@ -162,6 +164,14 @@ namespace loka
           {
             boundary->noteComposeAllocationFailure();
           }
+          // Boundary-independent white flag (#132 ruling 3): the contextless
+          // local-rebuild path passes a null boundary but a non-null refused,
+          // so a nested-child refusal is signalled without touching the
+          // boundary's seat/arena state.
+          if (refused)
+          {
+            *refused = true;
+          }
           return 0;
         }
         assignNodeTestId(node, def, autoIdCounter);
@@ -178,7 +188,8 @@ namespace loka
                                                   arena,
                                                   autoIdCounter,
                                                   boundary,
-                                                  node);
+                                                  node,
+                                                  refused);
             if (childNode)
             {
               nestableNode->addChild(childNode);
@@ -194,7 +205,8 @@ namespace loka
       static Node *createNodeRecursive(NodeDefinitionBase *def,
                                        long &autoIdCounter,
                                        BoundaryNode *boundary,
-                                       Node *runtimeParent)
+                                       Node *runtimeParent,
+                                       bool *refused)
       {
         if (!def)
         {
@@ -219,7 +231,8 @@ namespace loka
           Node *active = createNodeRecursive(branchDefinition,
                                              autoIdCounter,
                                              boundary,
-                                             runtimeParent);
+                                             runtimeParent,
+                                             refused);
           if (active)
           {
             boundary->registerMaterializedBranchSeat(*plan,
@@ -239,6 +252,14 @@ namespace loka
           {
             boundary->noteComposeAllocationFailure();
           }
+          // Boundary-independent white flag (#132 ruling 3): the contextless
+          // local-rebuild path passes a null boundary but a non-null refused,
+          // so a nested-child refusal is signalled without touching the
+          // boundary's seat/arena state.
+          if (refused)
+          {
+            *refused = true;
+          }
           return 0;
         }
         assignNodeTestId(node, def, autoIdCounter);
@@ -254,7 +275,8 @@ namespace loka
             Node *childNode = createNodeRecursive(child,
                                                   autoIdCounter,
                                                   boundary,
-                                                  node);
+                                                  node,
+                                                  refused);
             if (childNode)
             {
               nestableNode->addChild(childNode);
@@ -305,7 +327,7 @@ namespace loka
       }
 
       Node *NodeComposition::createNodeFromDefinition(NodeDefinitionBase *root,
-                                                      BoundaryNode *failureSink) const
+                                                      bool *refused) const
       {
         if (!root)
         {
@@ -329,20 +351,21 @@ namespace loka
               (void)arena->reserve(totalSize);
             }
             long autoIdCounter = 1;
-            return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd);
+            return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd, refused);
           }
         }
 
-        // Fallback without arena. This is the heap path (createNodeRecursive
-        // never touches the boundary's arena), so when there is no context the
-        // owning boundary is threaded in purely as the white-flag sink: a
-        // refused create() at ANY depth routes noteComposeAllocationFailure
-        // instead of silently returning a partial subtree (#132 ruling 3 --
-        // completes the Codex P2 fix below the root, where a contextless
-        // materialization dropped nested-child refusals).
+        // Fallback without arena. The boundary here is always null (the
+        // with-context arena path above returns whenever context_->boundary()
+        // is non-null), so this contextless path never touches a boundary's
+        // seat/arena state — the branch-seat plan lookup and materialized-seat
+        // registration in createNodeRecursive stay disabled exactly as on main.
+        // The refused out-parameter carries the allocation white flag instead
+        // (#132 ruling 3): a refused create() at ANY depth sets *refused
+        // without a boundary being involved.
         long autoIdCounter = 1;
-        BoundaryNode *boundary = context_ ? context_->boundary() : failureSink;
-        return createNodeRecursive(root, autoIdCounter, boundary, boundary);
+        BoundaryNode *boundary = context_ ? context_->boundary() : 0;
+        return createNodeRecursive(root, autoIdCounter, boundary, boundary, refused);
       }
 
       BoundaryNode *NodeComposition::boundary() const
