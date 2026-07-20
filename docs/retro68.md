@@ -51,7 +51,9 @@ cmake --build --preset retro68-68k-release
 
 If Retro68 is not under `~/Retro68-build` or `~/Retro68`, or if your editor does
 not inherit a shell `PATH` that can find `ninja`, create `CMakeUserPresets.json`
-in the project root:
+in the project root (always `"inherits"` a repository preset — a standalone
+local preset silently loses the Classic size/flag policy carried by
+`retro68-release-base` and binaries grow back by roughly 40%, see #135):
 
 ```json
 {
