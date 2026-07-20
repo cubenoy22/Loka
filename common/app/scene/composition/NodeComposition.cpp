@@ -304,7 +304,8 @@ namespace loka
         assignDefinitionSeatSlots(this->root_, nextSlot);
       }
 
-      Node *NodeComposition::createNodeFromDefinition(NodeDefinitionBase *root) const
+      Node *NodeComposition::createNodeFromDefinition(NodeDefinitionBase *root,
+                                                      BoundaryNode *failureSink) const
       {
         if (!root)
         {
@@ -332,9 +333,15 @@ namespace loka
           }
         }
 
-        // Fallback without arena
+        // Fallback without arena. This is the heap path (createNodeRecursive
+        // never touches the boundary's arena), so when there is no context the
+        // owning boundary is threaded in purely as the white-flag sink: a
+        // refused create() at ANY depth routes noteComposeAllocationFailure
+        // instead of silently returning a partial subtree (#132 ruling 3 --
+        // completes the Codex P2 fix below the root, where a contextless
+        // materialization dropped nested-child refusals).
         long autoIdCounter = 1;
-        BoundaryNode *boundary = context_ ? context_->boundary() : 0;
+        BoundaryNode *boundary = context_ ? context_->boundary() : failureSink;
         return createNodeRecursive(root, autoIdCounter, boundary, boundary);
       }
 

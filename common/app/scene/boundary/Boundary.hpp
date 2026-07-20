@@ -641,19 +641,33 @@ namespace loka
             contextless temporary composition (intentional: the diff must not
             re-enter the arena/context). Because that composition has no
             ComponentContext, createNodeFromDefinition cannot reach this
-            boundary to raise the allocation white flag itself, so a refused
-            create() would return 0 with the flag dropped — completeComposeResult
-            would then mark the compose successful and the scene would apply an
-            incomplete rebuild instead of deferring. Raising the owning
-            boundary's flag here (this IS the owning boundary) routes the refusal
+            boundary on its own, so a refused create() would return 0 with the
+            flag dropped — completeComposeResult would then mark the compose
+            successful and the scene would apply an incomplete rebuild instead
+            of deferring. We thread this boundary in as the createNodeFromDefinition
+            failure sink (this IS the owning boundary), so a refused create() at
+            ANY depth of the subtree — not just the root — routes the refusal
             into the same #132-ruling-3 projection-failure terminal the
-            context-carrying paths use. */
+            context-carrying paths use. The sink is flag routing only: the
+            contextless fallback is the heap path and never touches an arena. */
         Node *materializeLocalRebuildNode(NodeDefinitionBase *definition)
         {
           NodeComposition composition;
-          Node *created = composition.createNodeFromDefinition(definition);
+          // Thread this boundary in as the white-flag sink so a refused
+          // create() at ANY depth of the materialized subtree raises the flag
+          // (not just a refused root). The contextless composition still has no
+          // ComponentContext, so the sink only routes the flag -- it never gives
+          // the composition an arena, keeping the local-rebuild diff behaviour
+          // unchanged. Completes the Codex P2 fix one level deeper: a nested
+          // child refused below a non-null root would otherwise return a partial
+          // subtree with the flag dropped, and compose completion would mark the
+          // incomplete rebuild a success instead of deferring (#132 ruling 3).
+          Node *created = composition.createNodeFromDefinition(definition, this);
           if (!created)
           {
+            // Belt-and-suspenders: a refused root is already raised by the sink,
+            // and noteComposeAllocationFailure just sets a bool, so raising it
+            // again here is idempotent.
             this->noteComposeAllocationFailure();
           }
           return created;

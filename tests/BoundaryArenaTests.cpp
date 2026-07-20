@@ -916,6 +916,77 @@ namespace
     }
   };
 
+  // Nested-child local-rebuild refusal harness (#132 ruling 3, Codex P2 hole 1
+  // one level deeper). The root-of-subtree case above is already caught by
+  // materializeLocalRebuildNode's `if (!created)`. This harness exercises the
+  // residual: the local rebuild introduces a NESTABLE child (an inner Fragment)
+  // whose OWN grandchild create() is refused while the inner Fragment succeeds.
+  // The contextless createNodeFromDefinition then returns a NON-NULL partial
+  // subtree (the grandchild silently dropped), so `if (!created)` is false and
+  // -- without the depth-routing failure sink -- the flag stays down. The
+  // grandchild refusal is definition-driven (returns 0 on demand, standing in
+  // for the gate-routed create() #140/S2b will make return 0) so exactly the
+  // grandchild is refused, never the inner Fragment.
+  bool g_nestedGrandchildRefuse = false;
+
+  struct RefusableGrandchildDefinition
+      : public loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode>
+  {
+    typedef loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode> BaseType;
+    RefusableGrandchildDefinition() : BaseType() {}
+    RefusableGrandchildDefinition(const RefusableGrandchildDefinition &other) : BaseType(other) {}
+    virtual loka::app::scene::Node *create() const
+    {
+      if (g_nestedGrandchildRefuse)
+      {
+        return 0;
+      }
+      return BaseType::create();
+    }
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      return new RefusableGrandchildDefinition(*this);
+    }
+  };
+
+  // Whether the recomposing root declares its nested subtree (inner Fragment +
+  // grandchild) this pass. Toggling it and driving an external NODE_DIRTY_CHILD
+  // tick forces a LOCAL REBUILD in which the whole inner subtree is freshly
+  // materialized through one contextless materializeLocalRebuildNode call.
+  bool g_nestedShowChild = false;
+
+  class NestedLocalRebuildRefusalRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedLocalRebuildRefusalRootNode>
+      NestedLocalRebuildRefusalRootProps;
+
+  class NestedLocalRebuildRefusalRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<NestedLocalRebuildRefusalRootNode,
+                                                         NestedLocalRebuildRefusalRootProps>
+  {
+  public:
+    explicit NestedLocalRebuildRefusalRootNode(const NestedLocalRebuildRefusalRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<NestedLocalRebuildRefusalRootNode,
+                                                    NestedLocalRebuildRefusalRootProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_nestedShowChild)
+      {
+        // The introduced direct child is a nestable (inner Fragment) carrying a
+        // grandchild -- so the whole subtree is materialized by a single
+        // materializeLocalRebuildNode(innerFragment) call, with the grandchild
+        // created BELOW a non-null root: the exact nested residual.
+        loka::app::FragmentDefinition inner;
+        inner << RefusableGrandchildDefinition();
+        root << inner;
+      }
+      composition.declare(root);
+    }
+  };
+
   // Root-attach-refusal harness (#132 ruling 3, Codex P2 hole 2). The root
   // create() is refusable (to arm the initial white flag via a refused root),
   // and the attach compose declares a node-local state whose materialization
@@ -1384,6 +1455,92 @@ void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick");
+#endif
+}
+
+/** #132 ruling 3 / Codex P2 (hole 1, one level deeper): a LOCAL REBUILD that
+    freshly materializes a NESTABLE child whose OWN grandchild create() is
+    refused must still raise the boundary white flag. The prior fix routed a
+    refused SUBTREE ROOT through materializeLocalRebuildNode's `if (!created)`,
+    but a refused NESTED child returns a NON-NULL partial subtree (the
+    grandchild is silently dropped by createNodeRecursive's `if (childNode)`
+    skip), so `if (!created)` never fires. The depth-routing failure sink --
+    threading the owning boundary into the contextless createNodeFromDefinition
+    -- raises the flag at the grandchild's refused create(), converting the
+    compose into a projection failure at ANY depth. Red before the sink: the
+    partial subtree is diffed/applied, the compose completes as a success
+    (allocationFailed == false), and the incomplete rebuild reaches the
+    platform. Green: previous content stands, snapshots invalidate (#70),
+    nothing self-schedules, and the next external tick heals from a clean
+    slate. This is the CONTEXTLESS local-rebuild path (not the initial attach,
+    which already routes via context). */
+void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    g_nestedShowChild = false;
+    g_nestedGrandchildRefuse = false;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<NestedLocalRebuildRefusalRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    NestedLocalRebuildRefusalRootNode *root = static_cast<NestedLocalRebuildRefusalRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    assert(root->composeResult().composed);
+    const size_t appliedBefore = platform.changeCount();
+    assert(appliedBefore > 0);
+
+    // Externally driven recompose that introduces a nested subtree (inner
+    // Fragment + grandchild). The inner Fragment materializes fine but the
+    // grandchild create() -- created BELOW the non-null inner Fragment through
+    // the contextless composition -- is refused, so the subtree comes back a
+    // non-null partial. Without the depth-routing sink the flag would be
+    // dropped here.
+    g_nestedShowChild = true;
+    g_nestedGrandchildRefuse = true;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    g_nestedGrandchildRefuse = false;
+
+    // Red before the depth-routing sink: the nested refusal was dropped, the
+    // compose completed as a success, and the incomplete rebuild applied.
+    // Now the compose window records the projection failure ...
+    assert(!root->composeResult().composed);
+    assert(root->composeResult().allocationFailed);
+    // ... the composition snapshots are invalidated per the #70 mechanism ...
+    assert(root->previousCompositionSnapshot().empty());
+    assert(root->currentCompositionSnapshot().empty());
+    // ... the previously applied content still stands (nothing published) ...
+    assert(platform.changeCount() == appliedBefore);
+    // ... the scene recorded a deferred full rebuild ...
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    // ... and the failure path did not self-schedule a tick.
+    assert(!scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(platform.changeCount() == appliedBefore);
+
+    // One externally caused tick with the grandchild now creatable: the
+    // recorded full rebuild rides it, recomposes from a clean slate, and the
+    // healed content reaches the platform as a full-rebuild projection.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->composeResult().composed);
+    assert(!root->composeResult().allocationFailed);
+    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() > appliedBefore);
+    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
+  }
+  g_nestedShowChild = false;
+  g_nestedGrandchildRefuse = false;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick");
 #endif
 }
 

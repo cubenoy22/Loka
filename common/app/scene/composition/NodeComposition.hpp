@@ -575,7 +575,14 @@ namespace loka
 
         // Create node tree
         Node *createNodeTree() const;
-        Node *createNodeFromDefinition(NodeDefinitionBase *definition) const;
+        // failureSink routes the allocation white flag when this composition
+        // has no ComponentContext (the contextless local-rebuild path): a
+        // refused create() at ANY depth reaches the owning boundary through it.
+        // It is a flag sink only -- the contextless fallback is the heap path
+        // (createNodeRecursive), which never touches the boundary's arena -- so
+        // passing it never changes arena selection or the with-context diff.
+        Node *createNodeFromDefinition(NodeDefinitionBase *definition,
+                                       BoundaryNode *failureSink = 0) const;
         void assignCompositionSeatSlots();
 
         NodeDefinitionBase *root() const
