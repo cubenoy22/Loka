@@ -640,33 +640,26 @@ namespace loka
         /** Materializes a fresh node during a local rebuild through a
             contextless temporary composition (intentional: the diff must not
             re-enter the arena/context). Because that composition has no
-            ComponentContext, createNodeFromDefinition cannot reach this
-            boundary on its own, so a refused create() would return 0 with the
-            flag dropped — completeComposeResult would then mark the compose
-            successful and the scene would apply an incomplete rebuild instead
-            of deferring. We read the boundary-independent `refused` out-flag
-            instead: it is set at a refused create() at ANY depth of the
-            subtree — not just the root — and lets this boundary (this IS the
-            owning boundary) route the refusal into the same #132-ruling-3
-            projection-failure terminal the context-carrying paths use. The
+            ComponentContext, node materialization cannot reach this boundary
+            on its own. We consume the completed materialization result here:
+            its allocation flag is the monotonic OR across the whole subtree,
+            and lets this boundary (this IS the owning boundary) route a
+            refusal into the same #132-ruling-3 projection-failure terminal
+            the context-carrying paths use. The
             composition still carries no ComponentContext and no boundary, so
             the branch-seat plan lookup / materialized-seat registration inside
             createNodeRecursive stay disabled exactly as on main — the only new
-            effect is the bool being set. */
+            effect is the completed value being returned. */
         Node *materializeLocalRebuildNode(NodeDefinitionBase *definition)
         {
           NodeComposition composition;
-          // `refused` is set independently of any boundary, so it catches both
-          // a refused subtree ROOT (!created) and a refused NESTED child
-          // (created non-null but partial) without the contextless composition
-          // ever touching this boundary's seat/arena state.
-          bool refused = false;
-          Node *created = composition.createNodeFromDefinition(definition, &refused);
-          if (!created || refused)
+          NodeMaterializationResult result =
+              composition.createNodeFromDefinitionResult(definition);
+          if (!result.root || result.allocationFailed)
           {
             this->noteComposeAllocationFailure();
           }
-          return created;
+          return result.root;
         }
         bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context,
                                                            std::vector<Node *> &retainedChildren)
@@ -1185,7 +1178,14 @@ namespace loka
               plan.materializedBranchDefinition(condition, emptyBranch);
           NodeComposition composition;
           composition.setContext(&context);
-          created = composition.createNodeFromDefinition(definition);
+          assert(context.boundary() == this);
+          NodeMaterializationResult result =
+              composition.createNodeFromDefinitionResult(definition);
+          if (result.allocationFailed)
+          {
+            this->noteComposeAllocationFailure();
+          }
+          created = result.root;
           return created != 0;
         }
 

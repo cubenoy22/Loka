@@ -923,7 +923,7 @@ namespace
   // whose OWN grandchild create() is refused while the inner Fragment succeeds.
   // The contextless createNodeFromDefinition then returns a NON-NULL partial
   // subtree (the grandchild silently dropped), so `if (!created)` is false and
-  // -- without the depth-routing failure sink -- the flag stays down. The
+  // -- without the subtree result carrier -- the flag stays down. The
   // grandchild refusal is definition-driven (returns 0 on demand, standing in
   // for the gate-routed create() #140/S2b will make return 0) so exactly the
   // grandchild is refused, never the inner Fragment.
@@ -946,6 +946,15 @@ namespace
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return new RefusableGrandchildDefinition(*this);
+    }
+  };
+
+  class MaterializationResultProbeBoundary : public loka::app::scene::BoundaryNode
+  {
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &,
+                                    loka::app::scene::ComposeEvent)
+    {
     }
   };
 
@@ -1463,11 +1472,10 @@ void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick()
     refused must still raise the boundary white flag. The prior fix routed a
     refused SUBTREE ROOT through materializeLocalRebuildNode's `if (!created)`,
     but a refused NESTED child returns a NON-NULL partial subtree (the
-    grandchild is silently dropped by createNodeRecursive's `if (childNode)`
-    skip), so `if (!created)` never fires. The depth-routing failure sink --
-    threading the owning boundary into the contextless createNodeFromDefinition
-    -- raises the flag at the grandchild's refused create(), converting the
-    compose into a projection failure at ANY depth. Red before the sink: the
+    grandchild is silently dropped by createNodeRecursive's child-root check),
+    so `if (!created)` never fires. The subtree result carrier raises the flag
+    at the owner-side choke point, converting the compose into a projection
+    failure at ANY depth. Red before the carrier: the
     partial subtree is diffed/applied, the compose completes as a success
     (allocationFailed == false), and the incomplete rebuild reaches the
     platform. Green: previous content stands, snapshots invalidate (#70),
@@ -1479,6 +1487,30 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
 #ifdef LOKA_LIFECYCLE_AUDIT
   const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
 #endif
+  {
+    // Characterize the with-context arena recursion separately from the
+    // contextless local-rebuild recursion below. The root and inner Fragment
+    // materialize, while the grandchild's heap door refuses; the completed
+    // fact must retain that nested refusal through both parent child loops.
+    MaterializationResultProbeBoundary boundary;
+    loka::app::scene::ComponentContext context;
+    context.setBoundary(&boundary);
+    loka::app::scene::NodeComposition composition;
+    composition.setContext(&context);
+    loka::app::FragmentDefinition inner;
+    inner << RefusableGrandchildDefinition();
+    loka::app::FragmentDefinition definition;
+    definition << inner;
+    assert(boundary.nodeArena()->reserve(definition.nodeSize() +
+                                         definition.nodeAlign()));
+    g_nestedGrandchildRefuse = true;
+    loka::app::scene::NodeMaterializationResult result =
+        loka::app::scene::testing::NodeCompositionTestAccess::
+            createNodeFromDefinitionResult(composition, &definition);
+    g_nestedGrandchildRefuse = false;
+    assert(result.root != 0);
+    assert(result.allocationFailed);
+  }
   {
     SceneTestSupport::RecordingPlatformController platform;
     g_nestedShowChild = false;
@@ -1499,7 +1531,7 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
     // Fragment + grandchild). The inner Fragment materializes fine but the
     // grandchild create() -- created BELOW the non-null inner Fragment through
     // the contextless composition -- is refused, so the subtree comes back a
-    // non-null partial. Without the depth-routing sink the flag would be
+    // non-null partial. Without the subtree result carrier the flag would be
     // dropped here.
     g_nestedShowChild = true;
     g_nestedGrandchildRefuse = true;
@@ -1507,8 +1539,8 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
     scene.flushInvalidation();
     g_nestedGrandchildRefuse = false;
 
-    // Red before the depth-routing sink: the nested refusal was dropped, the
-    // compose completed as a success, and the incomplete rebuild applied.
+    // Red before the subtree result carrier: the nested refusal was dropped,
+    // the compose completed as a success, and the incomplete rebuild applied.
     // Now the compose window records the projection failure ...
     assert(!root->composeResult().composed);
     assert(root->composeResult().allocationFailed);

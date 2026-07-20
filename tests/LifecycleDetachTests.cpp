@@ -1364,7 +1364,11 @@ namespace
       replacement.tag(2);
       NodeComposition composition;
       composition.setContext(&context);
-      Node *created = composition.createNodeFromDefinition(&replacement);
+      NodeMaterializationResult result =
+          loka::app::scene::testing::NodeCompositionTestAccess::
+              createNodeFromDefinitionResult(composition, &replacement);
+      assert(!result.allocationFailed);
+      Node *created = result.root;
       assert(created != 0);
 
       BoundaryLocalRebuildPlan plan;
