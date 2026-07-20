@@ -136,6 +136,31 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
 
+  # Zero-allocation pin (probe/zero-alloc-pin). Its own binary because it
+  # replaces the global operator new/delete to census heap allocations;
+  # that replacement must not perturb the other test executables.
+  # EXPECTED RED while the steady-state interaction still allocates: the
+  # failing assert is the pin, the printed census is the deliverable.
+  add_executable(LokaAllocPinTests
+    ${PROJECT_SOURCE_DIR}/tests/AllocPinMain.cpp
+    ${PROJECT_SOURCE_DIR}/tests/AllocPinTests.cpp
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
+  )
+  target_include_directories(LokaAllocPinTests PRIVATE
+    ${PROJECT_SOURCE_DIR}/tests
+    ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
+  )
+  set_target_properties(LokaAllocPinTests PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+  target_compile_definitions(LokaAllocPinTests PRIVATE TEST_BUILD)
+  target_link_libraries(LokaAllocPinTests PRIVATE LokaCommonTesting)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # Export symbols so backtrace_symbols can attribute census stacks.
+    target_link_options(LokaAllocPinTests PRIVATE -rdynamic)
+  endif()
+
   function(loka_add_registered_test test_line target)
     string(REGEX REPLACE
       "^[ \t]*LOKA_TEST\\(([A-Za-z_][A-Za-z0-9_:]*)\\)[ \t]*$"
@@ -174,4 +199,14 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       loka_add_registered_test("${_loka_contract_test_line}" LokaContractTests)
     endif()
   endforeach()
+
+  # The pin binary runs whole (single scenario), matching the per-test
+  # working-directory convention of the registered suites.
+  set(_loka_allocpin_work_dir
+    "${CMAKE_CURRENT_BINARY_DIR}/test-work/testZeroAllocationPin")
+  file(MAKE_DIRECTORY "${_loka_allocpin_work_dir}")
+  add_test(NAME testZeroAllocationPin
+    COMMAND "$<TARGET_FILE:LokaAllocPinTests>")
+  set_tests_properties(testZeroAllocationPin PROPERTIES
+    WORKING_DIRECTORY "${_loka_allocpin_work_dir}")
 endif()
