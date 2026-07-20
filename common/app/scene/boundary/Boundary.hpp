@@ -637,6 +637,27 @@ namespace loka
           }
           return true;
         }
+        /** Materializes a fresh node during a local rebuild through a
+            contextless temporary composition (intentional: the diff must not
+            re-enter the arena/context). Because that composition has no
+            ComponentContext, createNodeFromDefinition cannot reach this
+            boundary to raise the allocation white flag itself, so a refused
+            create() would return 0 with the flag dropped — completeComposeResult
+            would then mark the compose successful and the scene would apply an
+            incomplete rebuild instead of deferring. Raising the owning
+            boundary's flag here (this IS the owning boundary) routes the refusal
+            into the same #132-ruling-3 projection-failure terminal the
+            context-carrying paths use. */
+        Node *materializeLocalRebuildNode(NodeDefinitionBase *definition)
+        {
+          NodeComposition composition;
+          Node *created = composition.createNodeFromDefinition(definition);
+          if (!created)
+          {
+            this->noteComposeAllocationFailure();
+          }
+          return created;
+        }
         bool rebuildCompositionChildrenFromCurrentSnapshot(ComponentContext &context,
                                                            std::vector<Node *> &retainedChildren)
         {
@@ -678,8 +699,7 @@ namespace loka
             return true;
           }
 
-          NodeComposition composition;
-          Node *created = composition.createNodeFromDefinition(currentRoot);
+          Node *created = this->materializeLocalRebuildNode(currentRoot);
           if (!created)
           {
             return false;
@@ -932,8 +952,7 @@ namespace loka
               }
               else
               {
-                NodeComposition composition;
-                created = composition.createNodeFromDefinition(definition);
+                created = this->materializeLocalRebuildNode(definition);
                 if (!created)
                 {
                   return false;
@@ -1063,8 +1082,7 @@ namespace loka
             }
             else
             {
-              NodeComposition composition;
-              Node *created = composition.createNodeFromDefinition(definition);
+              Node *created = this->materializeLocalRebuildNode(definition);
               if (!created)
               {
                 return false;

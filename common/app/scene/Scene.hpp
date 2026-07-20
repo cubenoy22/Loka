@@ -825,6 +825,20 @@ namespace loka
             prepareRootBoundaryCompose(boundary, rootContext, event);
             boundary->compose(rootContext, event);
             completeRootBoundaryCompose(boundary);
+            if (boundary->composeResult().allocationFailed)
+            {
+              // White flag (#132 ruling 3, Codex P2): root create() succeeded
+              // but the attach compose refused a state or child-node
+              // allocation, so completeRootBoundaryCompose already converted
+              // this window into a projection failure and (re-)armed the scene
+              // white flag via Scene::noteComposeAllocationFailure. Do not
+              // publish a partial root or mark the scene composed: leaving
+              // composed_ false keeps the armed flag alive (refreshComposition
+              // only clears it on a clean compose), so the next externally
+              // caused refresh retries the attach once the backend heals
+              // instead of stranding partial content and losing the retry.
+              return;
+            }
           }
           platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
           composed_ = true;
