@@ -691,6 +691,40 @@ namespace
 #endif
   }
 
+  // A minimal concrete node/definition to exercise heap-node creation
+  // through the allocation gate (#132 S2b). NodeDefinition::create() is the
+  // one real heap-node alloc site; this probe reaches it directly.
+  class GateProbeNode;
+  struct GateProbeTypeTag
+  {
+  };
+
+  struct GateProbeProps : public loka::app::scene::NodePropsBase<GateProbeProps>
+  {
+    typedef GateProbeTypeTag TypeTag;
+    typedef GateProbeNode NodeType;
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return rhs.propsTypeId() == this->propsTypeId() ? false
+                                                      : this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+
+  class GateProbeNode : public loka::app::scene::Node
+  {
+  public:
+    typedef GateProbeTypeTag TypeTag;
+    GateProbeProps props;
+    GateProbeNode(const GateProbeProps &p)
+        : props(p)
+    {
+    }
+  };
+
+  struct GateProbeDefinition : public loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode>
+  {
+  };
+
 } // namespace
 
 void testBoundaryArenaContracts()
@@ -782,5 +816,42 @@ void testNodeArenaSlabCrossesAllocationGate()
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditLiveCount(slabSite) == slabLiveBefore);
   loka::core::LokaAllocAuditCheckpoint("testNodeArenaSlabCrossesAllocationGate");
+#endif
+}
+
+void testHeapNodeCrossesAllocationGate()
+{
+  const loka::core::LokaAllocationSite nodeSite("NodeDefinition", "Node");
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int nodeLiveBefore = loka::core::LokaAllocAuditLiveCount(nodeSite);
+#endif
+  g_gateBackendAllocCalls = 0;
+  g_gateBackendFreeCalls = 0;
+  loka::core::LokaAllocSetBackend(&countingGateBackendAlloc, &countingGateBackendFree);
+  {
+    GateProbeDefinition definition;
+    loka::app::scene::Node *node = definition.create();
+    assert(node != 0);
+    // Red before #132 S2b: create() was a plain `new NodeT` that bypassed the
+    // gate, so the backend saw zero traffic and the node carried no gate
+    // provenance. One heap node crosses the gate now.
+    assert(node->isGateAllocated());
+    assert(!node->isArenaAllocated());
+    assert(g_gateBackendAllocCalls == 1);
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(loka::core::LokaAllocAuditLiveCount(nodeSite) == nodeLiveBefore + 1);
+#endif
+    // The heap node returns to the backend through the same gate site.
+    loka::app::scene::DestroyHeapNode(node);
+    assert(g_gateBackendFreeCalls == 1);
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(loka::core::LokaAllocAuditLiveCount(nodeSite) == nodeLiveBefore);
+#endif
+  }
+  assert(g_gateBackendFreeCalls == g_gateBackendAllocCalls);
+  loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // Full teardown balanced the ledger for the heap-node site.
+  loka::core::LokaAllocAuditCheckpoint("testHeapNodeCrossesAllocationGate");
 #endif
 }

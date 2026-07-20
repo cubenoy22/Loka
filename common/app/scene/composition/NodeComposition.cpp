@@ -151,6 +151,14 @@ namespace loka
           // Fallback to regular allocation
           node = def->create();
         }
+        if (!node)
+        {
+          // create() refused at the allocation gate (#132 S2b). Propagate 0
+          // up the #70 nullable-creation stairs; the recursive callers below
+          // skip a 0 child (`if (childNode)`), and createNodeFromDefinition's
+          // callers already treat 0 as allocation-style failure.
+          return 0;
+        }
         assignNodeTestId(node, def, autoIdCounter);
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
@@ -218,6 +226,12 @@ namespace loka
         }
 
         Node *node = def->create();
+        if (!node)
+        {
+          // create() refused at the allocation gate (#132 S2b); propagate 0
+          // (see createNodeWithArena).
+          return 0;
+        }
         assignNodeTestId(node, def, autoIdCounter);
 
         INestableDefinition *nestableDef = def->asNestableDefinition();

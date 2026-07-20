@@ -674,7 +674,9 @@ namespace loka
           }
           if (!this->replaceChild(liveRoot, created))
           {
-            delete created;
+            // Error unwind: `created` is arena- or gate-created; free through
+            // the door its storage came from.
+            DestroyHeapNode(created);
             return false;
           }
           this->composeTree(created, context, COMPOSE_EVENT_ATTACH, this);
