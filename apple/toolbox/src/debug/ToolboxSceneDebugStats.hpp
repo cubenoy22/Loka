@@ -23,7 +23,11 @@ public:
                                  int intakeAuditFails);
   std::string summary() const;
   void reset();
+#if LOKA_RETRO68_DIAGNOSTICS
+  // Diagnostic profile only (#135): the fprintf/localtime chain this pulls
+  // from newlib is compiled out of compact builds.
   bool dumpToTimestampedFile() const;
+#endif
 
   unsigned long changeSequence;
   unsigned long totalChanges;

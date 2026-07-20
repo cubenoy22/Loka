@@ -2022,7 +2022,12 @@ void ToolboxScenePlatformController::resetDebugStats()
 
 bool ToolboxScenePlatformController::dumpDebugStatsToTimestampedFile() const
 {
+#if LOKA_RETRO68_DIAGNOSTICS
   return debugStats_.dumpToTimestampedFile();
+#else
+  // Compact profile (#135): the dump chain is compiled out; report failure.
+  return false;
+#endif
 }
 
 void ToolboxScenePlatformController::redrawTextHit(TextHit &hit)
