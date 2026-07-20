@@ -39,6 +39,7 @@ namespace loka
       StateBase()
           : currentTracker(0),
             arenaAllocated_(false),
+            gateAllocated_(false),
             lifetimeToken_(new LifetimeToken()),
             handlersVersion_(0),
             deferredHandlersVersion_(0)
@@ -47,6 +48,7 @@ namespace loka
       StateBase(const StateBase &rhs)
           : currentTracker(0),
             arenaAllocated_(rhs.arenaAllocated_),
+            gateAllocated_(false),
             lifetimeToken_(new LifetimeToken()),
             handlersVersion_(0),
             deferredHandlersVersion_(0)
@@ -57,7 +59,8 @@ namespace loka
         if (this != &rhs)
         {
           // State identity, bindings, and lifetime tokens are not transferable.
-          // Assignment only preserves arena placement metadata.
+          // Assignment only preserves arena placement metadata; gate storage
+          // provenance stays with this object's own storage.
           currentTracker = 0;
           arenaAllocated_ = rhs.arenaAllocated_;
         }
@@ -227,6 +230,7 @@ namespace loka
       friend class PushStateTracker;
       StateTracker *currentTracker;
       bool arenaAllocated_;
+      bool gateAllocated_;
       mutable LifetimeToken *lifetimeToken_;
 
     public:
@@ -238,6 +242,19 @@ namespace loka
       bool isArenaAllocated() const
       {
         return arenaAllocated_;
+      }
+      // Storage provenance for the allocation gate (LokaAlloc): set only by
+      // the creation path that acquired this object's storage through
+      // LokaAllocRaw, so the destroy path can return the storage through the
+      // same door. Never copied or assigned: provenance describes the
+      // storage, not the value.
+      void setGateAllocated(bool v)
+      {
+        gateAllocated_ = v;
+      }
+      bool isGateAllocated() const
+      {
+        return gateAllocated_;
       }
       StateTracker *trackerOwner() const
       {

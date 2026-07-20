@@ -3,5 +3,7 @@
 
 void testBoundaryArenaContracts();
 void testNodeArenaRetiredGenerationContracts();
+void testStateArenaSlabsCrossAllocationGate();
+void testNodeArenaSlabCrossesAllocationGate();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

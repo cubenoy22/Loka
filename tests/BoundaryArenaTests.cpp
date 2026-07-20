@@ -2,15 +2,38 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
+#include <new>
 #include <vector>
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
+#include "core/LokaAlloc.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 
 namespace
 {
+
+  // Counting gate backend: proves which acquisitions cross the gate while
+  // still serving real storage. It is installed only around
+  // allocation-balanced regions so storage always returns through the
+  // backend that produced it.
+  int g_gateBackendAllocCalls = 0;
+  int g_gateBackendFreeCalls = 0;
+
+  void *countingGateBackendAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    (void)site;
+    ++g_gateBackendAllocCalls;
+    return new (std::nothrow) char[size];
+  }
+
+  void countingGateBackendFree(void *ptr, const loka::core::LokaAllocationSite &site)
+  {
+    (void)site;
+    ++g_gateBackendFreeCalls;
+    delete[] static_cast<char *>(ptr);
+  }
 
   static bool isPowerOfTwo(size_t value)
   {
@@ -111,7 +134,7 @@ namespace
       }
       else
       {
-        delete state;
+        loka::app::scene::DestroyAdoptedHeapState(state);
       }
     }
 
@@ -154,7 +177,7 @@ namespace
         tracker_.removeState(state);
         if (!state->isArenaAllocated())
         {
-          delete state;
+          loka::app::scene::DestroyAdoptedHeapState(state);
         }
       }
       ownedStates_.clear();
@@ -619,25 +642,53 @@ namespace
 
   static void testUnreservedStateFallsBackAfterReservedCapacityIsConsumed()
   {
-    TestStateOwner owner;
-    loka::app::scene::NodeState<LargeStateValue> reserved;
-    loka::app::scene::NodeState<LargeStateValue> unreserved;
-    loka::app::scene::NodeState<LargeStateValue> immediate;
-    LargeStateValue initial = {{0}};
+    const loka::core::LokaAllocationSite heapStateSite("StateOwner", "MutableState");
+#ifdef LOKA_LIFECYCLE_AUDIT
+    const int heapLiveBefore = loka::core::LokaAllocAuditLiveCount(heapStateSite);
+#endif
+    g_gateBackendAllocCalls = 0;
+    g_gateBackendFreeCalls = 0;
+    loka::core::LokaAllocSetBackend(&countingGateBackendAlloc, &countingGateBackendFree);
+    {
+      TestStateOwner owner;
+      loka::app::scene::NodeState<LargeStateValue> reserved;
+      loka::app::scene::NodeState<LargeStateValue> unreserved;
+      loka::app::scene::NodeState<LargeStateValue> immediate;
+      LargeStateValue initial = {{0}};
 
-    owner.reserveStateArena(
-        loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>());
-    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
-        &owner, reserved, initial);
-    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
-        &owner, unreserved, initial);
+      owner.reserveStateArena(
+          loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>());
+      loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+          &owner, reserved, initial);
+      loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+          &owner, unreserved, initial);
 
-    assert(reserved.dangerouslyMutableState()->isArenaAllocated());
-    assert(!unreserved.dangerouslyMutableState()->isArenaAllocated());
+      assert(reserved.dangerouslyMutableState()->isArenaAllocated());
+      assert(!unreserved.dangerouslyMutableState()->isArenaAllocated());
 
-    loka::app::scene::StateBatchBase::CreateImmediateState<LargeStateValue>(
-        &owner, immediate, initial);
-    assert(immediate.dangerouslyMutableState()->isArenaAllocated());
+      // Red before #132 S2: the heap fallback was a plain throwing new that
+      // bypassed the gate. Now it crosses the gate and carries provenance so
+      // release returns the storage through the backend that produced it.
+      assert(unreserved.dangerouslyMutableState()->isGateAllocated());
+      assert(!reserved.dangerouslyMutableState()->isGateAllocated());
+#ifdef LOKA_LIFECYCLE_AUDIT
+      assert(loka::core::LokaAllocAuditLiveCount(heapStateSite) == heapLiveBefore + 1);
+#endif
+
+      loka::app::scene::StateBatchBase::CreateImmediateState<LargeStateValue>(
+          &owner, immediate, initial);
+      assert(immediate.dangerouslyMutableState()->isArenaAllocated());
+    }
+    // Slabs, block headers, and the heap-fallback state all returned through
+    // the gate: the counting backend saw every acquisition come back.
+    assert(g_gateBackendAllocCalls >= 3);
+    assert(g_gateBackendFreeCalls == g_gateBackendAllocCalls);
+    loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(loka::core::LokaAllocAuditLiveCount(heapStateSite) == heapLiveBefore);
+    loka::core::LokaAllocAuditCheckpoint(
+        "testUnreservedStateFallsBackAfterReservedCapacityIsConsumed");
+#endif
   }
 
 } // namespace
@@ -663,4 +714,73 @@ void testNodeArenaRetiredGenerationContracts()
   printf("\n==== [testNodeArenaRetiredGenerationContracts] start ====\n");
   testNodeArenaDetachAndDestroyRetiredGeneration();
   printf("==== [testNodeArenaRetiredGenerationContracts] ok ====\n");
+}
+
+void testStateArenaSlabsCrossAllocationGate()
+{
+  const loka::core::LokaAllocationSite blockSite("StateArena", "Block");
+  const loka::core::LokaAllocationSite slabSite("StateArena", "slab");
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int blockLiveBefore = loka::core::LokaAllocAuditLiveCount(blockSite);
+  const int slabLiveBefore = loka::core::LokaAllocAuditLiveCount(slabSite);
+#endif
+  g_gateBackendAllocCalls = 0;
+  g_gateBackendFreeCalls = 0;
+  loka::core::LokaAllocSetBackend(&countingGateBackendAlloc, &countingGateBackendFree);
+  {
+    TestStateOwner owner;
+    loka::app::scene::NodeState<int> local;
+    {
+      loka::app::scene::NodeComposition::StateBatch batch(&owner);
+      batch.state(local, 42);
+    }
+    assert(local.isValid());
+    assert(local.dangerouslyMutableState()->isArenaAllocated());
+    assert(local.get() == 42);
+    // Red before #132 S2: slab acquisition bypassed the gate, so the backend
+    // saw zero traffic. One Block header plus one slab cross the gate now.
+    assert(g_gateBackendAllocCalls == 2);
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(loka::core::LokaAllocAuditLiveCount(blockSite) == blockLiveBefore + 1);
+    assert(loka::core::LokaAllocAuditLiveCount(slabSite) == slabLiveBefore + 1);
+#endif
+  }
+  assert(g_gateBackendFreeCalls == g_gateBackendAllocCalls);
+  loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // Full teardown balanced the ledger: the leak detector covers arena slabs.
+  assert(loka::core::LokaAllocAuditLiveCount(blockSite) == blockLiveBefore);
+  assert(loka::core::LokaAllocAuditLiveCount(slabSite) == slabLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint("testStateArenaSlabsCrossAllocationGate");
+#endif
+}
+
+void testNodeArenaSlabCrossesAllocationGate()
+{
+  const loka::core::LokaAllocationSite slabSite("NodeArena", "slab");
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int slabLiveBefore = loka::core::LokaAllocAuditLiveCount(slabSite);
+#endif
+  g_gateBackendAllocCalls = 0;
+  g_gateBackendFreeCalls = 0;
+  loka::core::LokaAllocSetBackend(&countingGateBackendAlloc, &countingGateBackendFree);
+  {
+    loka::app::scene::NodeArena arena;
+    arena.reserve(64);
+    assert(arena.hasCapacity());
+    // Red before #132 S2: the node slab was a plain new[] that bypassed the
+    // gate, so the backend saw zero traffic.
+    assert(g_gateBackendAllocCalls == 1);
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(loka::core::LokaAllocAuditLiveCount(slabSite) == slabLiveBefore + 1);
+#endif
+    arena.clear();
+    assert(!arena.hasCapacity());
+    assert(g_gateBackendFreeCalls == 1);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditLiveCount(slabSite) == slabLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint("testNodeArenaSlabCrossesAllocationGate");
+#endif
 }

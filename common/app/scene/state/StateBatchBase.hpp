@@ -1,10 +1,12 @@
 #ifndef LOKA_CORE2_SCENE_STATE_STATEBATCHBASE_HPP
 #define LOKA_CORE2_SCENE_STATE_STATEBATCHBASE_HPP
 
+#include <cassert>
 #include <new>
 #include "app/scene/detail/ArenaMath.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/StateOwner.hpp"
+#include "core/LokaAlloc.hpp"
 
 namespace loka
 {
@@ -78,7 +80,21 @@ namespace loka
           }
           else
           {
-            state = new loka::core::MutableState<T>(initial);
+            // Heap fallback rides the allocation gate: nothrow, tagged, and
+            // released by DestroyAdoptedHeapState under the same site so the
+            // ledger balances.
+            state = loka::core::LokaNew<loka::core::MutableState<T> >(HeapStateAllocationSite(), initial);
+            if (state)
+            {
+              assert(static_cast<void *>(static_cast<loka::core::StateBase *>(state)) ==
+                         static_cast<void *>(state) &&
+                     "gate frees through StateBase; its subobject must sit at the storage address");
+              state->setGateAllocated(true);
+            }
+            // A 0 from the gate means the backend already gave up. White-flag
+            // propagation to the caller is #132 S3; until then this degrades
+            // to an invalid NodeState through the same degenerate shape the
+            // null-owner path always had (adoption below is null-safe).
           }
           if (owner)
           {
