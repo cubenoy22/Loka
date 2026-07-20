@@ -175,7 +175,8 @@ namespace loka
             : event(COMPOSE_EVENT_ATTACH),
               dirtyFlagsSeen(NODE_DIRTY_NONE),
               composed(false),
-              preservedNativeContexts(false)
+              preservedNativeContexts(false),
+              allocationFailed(false)
         {
         }
 
@@ -185,12 +186,18 @@ namespace loka
           dirtyFlagsSeen = NODE_DIRTY_NONE;
           composed = false;
           preservedNativeContexts = false;
+          allocationFailed = false;
         }
 
         ComposeEvent event;
         NodeDirtyFlags dirtyFlagsSeen;
         bool composed;
         bool preservedNativeContexts;
+        /** Allocation white flag (#132 ruling 3): raised inside this compose
+            window when a state or node failed to materialize because the
+            backend gave up. Compose completion converts it into a projection
+            failure instead of completing normally. */
+        bool allocationFailed;
       };
 
       struct BoundaryUpdateResult

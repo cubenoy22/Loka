@@ -10,6 +10,14 @@
 #include "core/LokaAlloc.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
+#include <cstring>
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/scene/Scene.hpp"
+#include "support/RecomposingBoundary.hpp"
+#include "support/RecordingPlatformController.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 namespace
 {
@@ -144,9 +152,9 @@ namespace
       tracker_.reserveStates(count);
     }
 
-    virtual void reserveStateArena(size_t totalSize)
+    virtual bool reserveStateArena(size_t totalSize)
     {
-      arena_.reserve(totalSize);
+      return arena_.reserve(totalSize);
     }
 
     virtual void *allocateStateMemory(size_t size, size_t align)
@@ -725,7 +733,325 @@ namespace
   {
   };
 
+
+  // White-flag backend fakes (#132 S3). The refusing backend surrenders every
+  // acquisition, so a compose window under it exercises both storage doors:
+  // the slab append is refused first, then the gate-routed heap fallback. The
+  // selective backend refuses only the heap-fallback site so the arena path
+  // stays real. Frees delegate to the default-compatible delete[] because the
+  // window may release storage the default backend produced.
+  int g_refusingBackendRefusals = 0;
+
+  void *refusingBackendAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    (void)size;
+    (void)site;
+    ++g_refusingBackendRefusals;
+    return 0;
+  }
+
+  int g_heapStateRefusals = 0;
+
+  void *heapStateRefusingBackendAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "StateOwner") == 0)
+    {
+      ++g_heapStateRefusals;
+      return 0;
+    }
+    return new (std::nothrow) char[size];
+  }
+
+  void delegatingBackendFree(void *ptr, const loka::core::LokaAllocationSite &site)
+  {
+    (void)site;
+    delete[] static_cast<char *>(ptr);
+  }
+
+  // 32-byte payload: fits the StateBatch inline initializer storage while
+  // keeping sizeof(MutableState<T>) well above the alignment slack a consumed
+  // arena block can have left, so a redeclared batch always needs a new slab.
+  struct WhiteFlagStatePayload
+  {
+    char bytes[32];
+
+    bool operator!=(const WhiteFlagStatePayload &other) const
+    {
+      for (size_t i = 0; i < sizeof(bytes); ++i)
+      {
+        if (bytes[i] != other.bytes[i])
+        {
+          return true;
+        }
+      }
+      return false;
+    }
+  };
+
+  class WhiteFlagRecomposeRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<WhiteFlagRecomposeRootNode> WhiteFlagRecomposeRootProps;
+
+  /** Scene-root boundary that redeclares its node-local states on every
+      compose pass, so an externally driven recompose issues fresh gate
+      acquisitions: first the arena slab append, then the heap fallback. */
+  class WhiteFlagRecomposeRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<WhiteFlagRecomposeRootNode,
+                                                         WhiteFlagRecomposeRootProps>
+  {
+  public:
+    explicit WhiteFlagRecomposeRootNode(const WhiteFlagRecomposeRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<WhiteFlagRecomposeRootNode,
+                                                    WhiteFlagRecomposeRootProps>(props),
+          first_(),
+          second_()
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      WhiteFlagStatePayload initial = {{0}};
+      composition.declareStates().state(this->first_, initial).state(this->second_, initial);
+      composition.declare(loka::app::FragmentDefinition());
+    }
+
+    loka::app::scene::NodeState<WhiteFlagStatePayload> first_;
+    loka::app::scene::NodeState<WhiteFlagStatePayload> second_;
+  };
+
+  // Scene-root refusal harness (#132 ruling 3 / #140 P2). On this branch the
+  // root create() is still a plain `new NodeT` and cannot return 0 under the
+  // gate's refusing backend (S2b/#140 is not merged here), so the refusal is
+  // injected through a test-only root definition whose create() returns 0 on
+  // demand — standing in faithfully for the gate-routed root create() that
+  // #140 will make return 0. isBoundary() stays true; clone() preserves the
+  // refusal so the Scene's owned clone refuses too.
+  bool g_refuseRootCreate = false;
+
+  class RefusableRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<RefusableRootNode> RefusableRootProps;
+
+  class RefusableRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<RefusableRootNode, RefusableRootProps>
+  {
+  public:
+    explicit RefusableRootNode(const RefusableRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<RefusableRootNode, RefusableRootProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::FragmentDefinition());
+    }
+  };
+
+  struct RefusableRootDefinition
+      : public loka::app::scene::BoundaryDefinition<RefusableRootProps, RefusableRootNode>
+  {
+    typedef loka::app::scene::BoundaryDefinition<RefusableRootProps, RefusableRootNode> BaseType;
+    RefusableRootDefinition() : BaseType() {}
+    RefusableRootDefinition(const RefusableRootDefinition &other) : BaseType(other) {}
+    virtual loka::app::scene::Node *create() const
+    {
+      if (g_refuseRootCreate)
+      {
+        return 0;
+      }
+      return BaseType::create();
+    }
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      return new RefusableRootDefinition(*this);
+    }
+  };
+
+  // Local-rebuild node-refusal harness (#132 ruling 3, Codex P2 hole 1). A
+  // contextless local rebuild materializes a fresh child node through a
+  // temporary NodeComposition with no ComponentContext, so the boundary is
+  // unreachable inside createNodeFromDefinition. This backend refuses only the
+  // gate-routed heap node site so the initial mount and every other allocation
+  // succeed; the refusal is armed just around the child-introducing recompose.
+  bool g_localRebuildRefuseNode = false;
+  int g_localRebuildNodeRefusals = 0;
+
+  void *localRebuildNodeRefusingBackendAlloc(std::size_t size,
+                                             const loka::core::LokaAllocationSite &site)
+  {
+    if (g_localRebuildRefuseNode && std::strcmp(site.ownerTag, "NodeDefinition") == 0)
+    {
+      ++g_localRebuildNodeRefusals;
+      return 0;
+    }
+    return new (std::nothrow) char[size];
+  }
+
+  // Whether the recomposing root declares its child this pass. Toggling it and
+  // driving an external NODE_DIRTY_CHILD tick forces a LOCAL REBUILD (not an
+  // attach) in which the newly appearing child is freshly created through the
+  // contextless composition path.
+  bool g_localRebuildShowChild = false;
+
+  class LocalRebuildRefusalRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<LocalRebuildRefusalRootNode> LocalRebuildRefusalRootProps;
+
+  class LocalRebuildRefusalRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<LocalRebuildRefusalRootNode,
+                                                         LocalRebuildRefusalRootProps>
+  {
+  public:
+    explicit LocalRebuildRefusalRootNode(const LocalRebuildRefusalRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<LocalRebuildRefusalRootNode,
+                                                    LocalRebuildRefusalRootProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_localRebuildShowChild)
+      {
+        root << GateProbeDefinition();
+      }
+      composition.declare(root);
+    }
+  };
+
+  // Nested-child local-rebuild refusal harness (#132 ruling 3, Codex P2 hole 1
+  // one level deeper). The root-of-subtree case above is already caught by
+  // materializeLocalRebuildNode's `if (!created)`. This harness exercises the
+  // residual: the local rebuild introduces a NESTABLE child (an inner Fragment)
+  // whose OWN grandchild create() is refused while the inner Fragment succeeds.
+  // The contextless createNodeFromDefinition then returns a NON-NULL partial
+  // subtree (the grandchild silently dropped), so `if (!created)` is false and
+  // -- without the depth-routing failure sink -- the flag stays down. The
+  // grandchild refusal is definition-driven (returns 0 on demand, standing in
+  // for the gate-routed create() #140/S2b will make return 0) so exactly the
+  // grandchild is refused, never the inner Fragment.
+  bool g_nestedGrandchildRefuse = false;
+
+  struct RefusableGrandchildDefinition
+      : public loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode>
+  {
+    typedef loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode> BaseType;
+    RefusableGrandchildDefinition() : BaseType() {}
+    RefusableGrandchildDefinition(const RefusableGrandchildDefinition &other) : BaseType(other) {}
+    virtual loka::app::scene::Node *create() const
+    {
+      if (g_nestedGrandchildRefuse)
+      {
+        return 0;
+      }
+      return BaseType::create();
+    }
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      return new RefusableGrandchildDefinition(*this);
+    }
+  };
+
+  // Whether the recomposing root declares its nested subtree (inner Fragment +
+  // grandchild) this pass. Toggling it and driving an external NODE_DIRTY_CHILD
+  // tick forces a LOCAL REBUILD in which the whole inner subtree is freshly
+  // materialized through one contextless materializeLocalRebuildNode call.
+  bool g_nestedShowChild = false;
+
+  class NestedLocalRebuildRefusalRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<NestedLocalRebuildRefusalRootNode>
+      NestedLocalRebuildRefusalRootProps;
+
+  class NestedLocalRebuildRefusalRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<NestedLocalRebuildRefusalRootNode,
+                                                         NestedLocalRebuildRefusalRootProps>
+  {
+  public:
+    explicit NestedLocalRebuildRefusalRootNode(const NestedLocalRebuildRefusalRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<NestedLocalRebuildRefusalRootNode,
+                                                    NestedLocalRebuildRefusalRootProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_nestedShowChild)
+      {
+        // The introduced direct child is a nestable (inner Fragment) carrying a
+        // grandchild -- so the whole subtree is materialized by a single
+        // materializeLocalRebuildNode(innerFragment) call, with the grandchild
+        // created BELOW a non-null root: the exact nested residual.
+        loka::app::FragmentDefinition inner;
+        inner << RefusableGrandchildDefinition();
+        root << inner;
+      }
+      composition.declare(root);
+    }
+  };
+
+  // Root-attach-refusal harness (#132 ruling 3, Codex P2 hole 2). The root
+  // create() is refusable (to arm the initial white flag via a refused root),
+  // and the attach compose declares a node-local state whose materialization
+  // the state-refusing backend below can reject even though root create()
+  // succeeds — exercising "root retry gets past create() but the attach
+  // compose itself raises the allocation flag".
+  bool g_attachRefuseState = false;
+  int g_attachStateRefusals = 0;
+
+  void *attachStateRefusingBackendAlloc(std::size_t size,
+                                        const loka::core::LokaAllocationSite &site)
+  {
+    if (g_attachRefuseState && std::strncmp(site.ownerTag, "State", 5) == 0)
+    {
+      ++g_attachStateRefusals;
+      return 0;
+    }
+    return new (std::nothrow) char[size];
+  }
+
+  class AttachRefusalRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<AttachRefusalRootNode> AttachRefusalRootProps;
+
+  class AttachRefusalRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<AttachRefusalRootNode, AttachRefusalRootProps>
+  {
+  public:
+    explicit AttachRefusalRootNode(const AttachRefusalRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<AttachRefusalRootNode, AttachRefusalRootProps>(props),
+          state_()
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      WhiteFlagStatePayload initial = {{0}};
+      composition.declareStates().state(this->state_, initial);
+      composition.declare(loka::app::FragmentDefinition());
+    }
+
+    loka::app::scene::NodeState<WhiteFlagStatePayload> state_;
+  };
+
+  struct AttachRefusalRootDefinition
+      : public loka::app::scene::BoundaryDefinition<AttachRefusalRootProps, AttachRefusalRootNode>
+  {
+    typedef loka::app::scene::BoundaryDefinition<AttachRefusalRootProps, AttachRefusalRootNode> BaseType;
+    AttachRefusalRootDefinition() : BaseType() {}
+    AttachRefusalRootDefinition(const AttachRefusalRootDefinition &other) : BaseType(other) {}
+    virtual loka::app::scene::Node *create() const
+    {
+      if (g_refuseRootCreate)
+      {
+        return 0;
+      }
+      return BaseType::create();
+    }
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      return new AttachRefusalRootDefinition(*this);
+    }
+  };
+
 } // namespace
+
 
 void testBoundaryArenaContracts()
 {
@@ -853,5 +1179,448 @@ void testHeapNodeCrossesAllocationGate()
 #ifdef LOKA_LIFECYCLE_AUDIT
   // Full teardown balanced the ledger for the heap-node site.
   loka::core::LokaAllocAuditCheckpoint("testHeapNodeCrossesAllocationGate");
+#endif
+}
+
+
+/** #132 S3 red test (a): a driven recompose under a backend that refuses the
+    slab (and the heap door behind it) must convert into a projection failure
+    that waits for the next externally caused tick — previous platform content
+    stands, snapshots invalidate (#70), and nothing self-schedules a retry. */
+void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<WhiteFlagRecomposeRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    WhiteFlagRecomposeRootNode *root = static_cast<WhiteFlagRecomposeRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    assert(root->first_.isValid());
+    assert(root->second_.isValid());
+    const size_t appliedBefore = platform.changeCount();
+    assert(appliedBefore > 0);
+
+    // Externally driven recompose while the backend refuses every gate
+    // acquisition: the StateArena block append surrenders first, then the
+    // gate-routed heap fallback for each redeclared state.
+    g_refusingBackendRefusals = 0;
+    loka::core::LokaAllocSetBackend(&refusingBackendAlloc, &delegatingBackendFree);
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    loka::core::LokaAllocSetBackend(0, 0);
+    assert(g_refusingBackendRefusals > 0);
+
+    // No state materialized, and none is half-alive: the out handles are
+    // invalid instead of pointing at partially adopted storage.
+    assert(!root->first_.isValid());
+    assert(!root->second_.isValid());
+    // Red before #132 S3: the dead states were adopted silently, the compose
+    // completed as a success, and the half-alive cycle was projected (the
+    // recorded change count grew). Now the previously applied content is
+    // still the last thing the platform saw ...
+    assert(platform.changeCount() == appliedBefore);
+    // ... the compose window records the projection failure ...
+    assert(!root->composeResult().composed);
+    assert(root->composeResult().allocationFailed);
+    // ... the composition snapshots are invalidated per the #70 mechanism ...
+    assert(root->previousCompositionSnapshot().empty());
+    assert(root->currentCompositionSnapshot().empty());
+    // ... and the failure path did not self-schedule a tick. Without an
+    // external drive the tracker stays silent: no second refresh cycle runs.
+    assert(!scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(platform.changeCount() == appliedBefore);
+
+    // One externally caused tick with the default backend restored: the
+    // recorded full rebuild rides it, recomposes from a clean slate, and the
+    // healed content reaches the platform as a full-rebuild projection.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->first_.isValid());
+    assert(root->second_.isValid());
+    assert(root->composeResult().composed);
+    assert(!root->composeResult().allocationFailed);
+    assert(platform.changeCount() > appliedBefore);
+    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // Failure paths are where leaks nest: the whole scene lifetime, including
+  // the refused cycle, must leave the audit ledger balanced.
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick");
+#endif
+}
+
+/** #132 S3 red test (b): with the owner arena exhausted and the backend
+    refusing the gate-routed heap fallback, state creation must raise the
+    owner's white flag so the open compose window converts into a failure —
+    instead of completing as a success around a silent dead state. */
+void testHeapFallbackWhiteFlagFailsBoundaryCompose()
+{
+  const loka::core::LokaAllocationSite heapStateSite("StateOwner", "MutableState");
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int heapLiveBefore = loka::core::LokaAllocAuditLiveCount(heapStateSite);
+#endif
+  g_heapStateRefusals = 0;
+  loka::core::LokaAllocSetBackend(&heapStateRefusingBackendAlloc, &delegatingBackendFree);
+  {
+    loka::app::scene::StdCompositionBoundaryNode owner((loka::app::scene::StdCompositionProps()));
+    loka::app::scene::NodeState<LargeStateValue> reserved;
+    loka::app::scene::NodeState<LargeStateValue> unreserved;
+    LargeStateValue initial = {{0}};
+
+    // The arena door works normally under the selective backend.
+    assert(owner.reserveStateArena(
+        loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>()));
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, reserved, initial);
+    assert(reserved.isValid());
+    assert(reserved.dangerouslyMutableState()->isArenaAllocated());
+
+    // Reserved capacity is consumed; the next creation inside an open compose
+    // window must take the heap door, which the backend refuses.
+    owner.beginComposeResult(loka::app::scene::COMPOSE_EVENT_UPDATE,
+                             loka::app::scene::NODE_DIRTY_PROPS);
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, unreserved, initial);
+    owner.completeComposeResult(true);
+    assert(g_heapStateRefusals == 1);
+
+    // No half-alive state: the out handle is invalid, nothing was adopted.
+    assert(!unreserved.isValid());
+    // Red before #132 S3: the compose window completed as a success and the
+    // refusal was swallowed. Now the white flag converts it at completion.
+    assert(!owner.composeResult().composed);
+    assert(owner.composeResult().allocationFailed);
+    // The state created before the failure is untouched by the conversion.
+    assert(reserved.isValid());
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditLiveCount(heapStateSite) == heapLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint("testHeapFallbackWhiteFlagFailsBoundaryCompose");
+#endif
+}
+
+/** #132 ruling 3 / #140 P2 red test: a refused scene-root allocation must not
+    crash or leave a permanent blank. The refused mount arms the scene white
+    flag and leaves the scene uncomposed without self-scheduling a tick; the
+    next externally caused refresh retries root creation and, once the backend
+    has healed, builds the root, composes, and projects a full rebuild. Red
+    before the Scene.hpp guard+retry: the refused root asserted/null-deref'd in
+    ensureRootNode/composeIfNeeded, and (guarded) refreshComposition's
+    !composed_ early-return stranded the scene as a permanent blank. */
+void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    // Refuse the root allocation before the scene is mounted.
+    g_refuseRootCreate = true;
+    loka::app::scene::Scene scene((RefusableRootDefinition()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    // No crash, no assert. The root was never created, the scene stays
+    // uncomposed, and the white flag is armed for a later external retry.
+    assert(loka::dsl::testing::SceneTestAccess::rootBoundary(scene) == 0);
+    assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() == 0);
+
+    // The failure path did not self-schedule a tick: a driverless flush does
+    // nothing and the scene stays uncomposed, waiting for an external drive.
+    assert(!scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(platform.changeCount() == 0);
+
+    // Heal the backend and drive ONE externally caused refresh. The armed
+    // white flag rides it: root creation retries, the root builds and
+    // composes, and the healed content reaches the platform through the same
+    // onChange projection a healthy mount uses (a full rebuild of a root that
+    // never had prior platform state — so refreshComposition owes no diff
+    // cycle and reports no apply-cycle change).
+    g_refuseRootCreate = false;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    assert(loka::dsl::testing::SceneTestAccess::rootBoundary(scene) != 0);
+    assert(loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() > 0);
+    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
+    // The scene is fully healthy: a further external drive runs a normal
+    // update cycle through the now-existing root without re-arming the flag.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    assert(loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+  }
+  g_refuseRootCreate = false;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // The whole scene lifetime, including the refused mount, must leave the
+  // audit ledger balanced.
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh");
+#endif
+}
+
+/** #132 ruling 3 / Codex P2 (hole 1): a LOCAL REBUILD (not an attach) that
+    freshly materializes a child through the contextless composition path must
+    still raise the boundary white flag when that fresh create() is refused.
+    The contextless temporary NodeComposition has no ComponentContext, so
+    createNodeFromDefinition cannot reach the boundary to raise the flag itself
+    — the materializeLocalRebuildNode helper raises it at the boundary-member
+    call site. Without that raise the refused rebuild returns 0, the compose
+    completes as a success (allocationFailed == false), and the scene applies an
+    incomplete rebuild instead of deferring. With it, the compose converts into
+    a projection failure: previous content stands, snapshots invalidate (#70),
+    nothing self-schedules, and the next external tick heals from a clean slate. */
+void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    g_localRebuildShowChild = false;
+    g_localRebuildRefuseNode = false;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<LocalRebuildRefusalRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    LocalRebuildRefusalRootNode *root = static_cast<LocalRebuildRefusalRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    assert(root->composeResult().composed);
+    const size_t appliedBefore = platform.changeCount();
+    assert(appliedBefore > 0);
+
+    // Externally driven recompose that introduces a fresh child. The child's
+    // gate-routed create() is refused, so the contextless local-rebuild
+    // materialization returns 0.
+    g_localRebuildShowChild = true;
+    g_localRebuildRefuseNode = true;
+    g_localRebuildNodeRefusals = 0;
+    loka::core::LokaAllocSetBackend(&localRebuildNodeRefusingBackendAlloc, &delegatingBackendFree);
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    loka::core::LokaAllocSetBackend(0, 0);
+    g_localRebuildRefuseNode = false;
+    assert(g_localRebuildNodeRefusals > 0);
+
+    // Red before the hole-1 flag-raise: the contextless refusal was dropped,
+    // the compose completed as a success, and the incomplete rebuild applied.
+    // Now the compose window records the projection failure ...
+    assert(!root->composeResult().composed);
+    assert(root->composeResult().allocationFailed);
+    // ... the composition snapshots are invalidated per the #70 mechanism ...
+    assert(root->previousCompositionSnapshot().empty());
+    assert(root->currentCompositionSnapshot().empty());
+    // ... the previously applied content still stands (nothing published) ...
+    assert(platform.changeCount() == appliedBefore);
+    // ... the scene recorded a deferred full rebuild ...
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    // ... and the failure path did not self-schedule a tick.
+    assert(!scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(platform.changeCount() == appliedBefore);
+
+    // One externally caused tick with the child now creatable: the recorded
+    // full rebuild rides it, recomposes from a clean slate, and the healed
+    // content reaches the platform as a full-rebuild projection.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->composeResult().composed);
+    assert(!root->composeResult().allocationFailed);
+    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() > appliedBefore);
+    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+  g_localRebuildShowChild = false;
+  g_localRebuildRefuseNode = false;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick");
+#endif
+}
+
+/** #132 ruling 3 / Codex P2 (hole 1, one level deeper): a LOCAL REBUILD that
+    freshly materializes a NESTABLE child whose OWN grandchild create() is
+    refused must still raise the boundary white flag. The prior fix routed a
+    refused SUBTREE ROOT through materializeLocalRebuildNode's `if (!created)`,
+    but a refused NESTED child returns a NON-NULL partial subtree (the
+    grandchild is silently dropped by createNodeRecursive's `if (childNode)`
+    skip), so `if (!created)` never fires. The depth-routing failure sink --
+    threading the owning boundary into the contextless createNodeFromDefinition
+    -- raises the flag at the grandchild's refused create(), converting the
+    compose into a projection failure at ANY depth. Red before the sink: the
+    partial subtree is diffed/applied, the compose completes as a success
+    (allocationFailed == false), and the incomplete rebuild reaches the
+    platform. Green: previous content stands, snapshots invalidate (#70),
+    nothing self-schedules, and the next external tick heals from a clean
+    slate. This is the CONTEXTLESS local-rebuild path (not the initial attach,
+    which already routes via context). */
+void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    g_nestedShowChild = false;
+    g_nestedGrandchildRefuse = false;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<NestedLocalRebuildRefusalRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    NestedLocalRebuildRefusalRootNode *root = static_cast<NestedLocalRebuildRefusalRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    assert(root->composeResult().composed);
+    const size_t appliedBefore = platform.changeCount();
+    assert(appliedBefore > 0);
+
+    // Externally driven recompose that introduces a nested subtree (inner
+    // Fragment + grandchild). The inner Fragment materializes fine but the
+    // grandchild create() -- created BELOW the non-null inner Fragment through
+    // the contextless composition -- is refused, so the subtree comes back a
+    // non-null partial. Without the depth-routing sink the flag would be
+    // dropped here.
+    g_nestedShowChild = true;
+    g_nestedGrandchildRefuse = true;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    g_nestedGrandchildRefuse = false;
+
+    // Red before the depth-routing sink: the nested refusal was dropped, the
+    // compose completed as a success, and the incomplete rebuild applied.
+    // Now the compose window records the projection failure ...
+    assert(!root->composeResult().composed);
+    assert(root->composeResult().allocationFailed);
+    // ... the composition snapshots are invalidated per the #70 mechanism ...
+    assert(root->previousCompositionSnapshot().empty());
+    assert(root->currentCompositionSnapshot().empty());
+    // ... the previously applied content still stands (nothing published) ...
+    assert(platform.changeCount() == appliedBefore);
+    // ... the scene recorded a deferred full rebuild ...
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    // ... and the failure path did not self-schedule a tick.
+    assert(!scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(platform.changeCount() == appliedBefore);
+
+    // One externally caused tick with the grandchild now creatable: the
+    // recorded full rebuild rides it, recomposes from a clean slate, and the
+    // healed content reaches the platform as a full-rebuild projection.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->composeResult().composed);
+    assert(!root->composeResult().allocationFailed);
+    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() > appliedBefore);
+    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
+  }
+  g_nestedShowChild = false;
+  g_nestedGrandchildRefuse = false;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick");
+#endif
+}
+
+/** #132 ruling 3 / Codex P2 (hole 2): after a refused root create() arms the
+    scene white flag, an external refresh retries. If root create() now
+    succeeds but the attach compose itself refuses a node-local state, the
+    compose is again a projection failure. composeIfNeeded must NOT publish a
+    partial root or mark the scene composed: it must read the root boundary's
+    allocationFailed and stay uncomposed so the re-armed white flag survives
+    refreshComposition's `if (composed_) clear` block. Red before the hole-2
+    guard: the partial root is published, composed_ is set, and the flag is
+    cleared — losing the retry. A later fully-healed external tick composes
+    cleanly. */
+void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    // Arm the scene white flag with a refused root create(): the scene mounts
+    // uncomposed, exactly the state that drives refreshComposition's retry.
+    g_refuseRootCreate = true;
+    g_attachRefuseState = false;
+    loka::app::scene::Scene scene((AttachRefusalRootDefinition()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(loka::dsl::testing::SceneTestAccess::rootBoundary(scene) == 0);
+    assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() == 0);
+
+    // Retry: root create() now succeeds, but the attach compose refuses the
+    // node-local state allocation. The retry gets past create() yet the compose
+    // still raises the flag.
+    g_refuseRootCreate = false;
+    g_attachRefuseState = true;
+    g_attachStateRefusals = 0;
+    loka::core::LokaAllocSetBackend(&attachStateRefusingBackendAlloc, &delegatingBackendFree);
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    loka::core::LokaAllocSetBackend(0, 0);
+    g_attachRefuseState = false;
+    assert(g_attachStateRefusals > 0);
+
+    // Red before the hole-2 guard: composeIfNeeded published a partial root and
+    // set composed_, and refreshComposition then cleared the just-re-armed
+    // flag. Now the scene stays uncomposed, nothing was published, and the
+    // white flag is still armed for the next retry.
+    assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() == 0);
+    // No self-scheduled tick: a driverless flush does nothing.
+    assert(!scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(platform.changeCount() == 0);
+
+    // Heal the backend and drive one more external refresh: the retry now gets
+    // past the attach without raising the flag, the root composes, the flag is
+    // consumed, the refused node-local state materializes, and content reaches
+    // the platform.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    assert(loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    AttachRefusalRootNode *healedRoot = static_cast<AttachRefusalRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(healedRoot && healedRoot->composeResult().composed);
+    assert(!healedRoot->composeResult().allocationFailed);
+    // The previously refused state is now live: the content healed.
+    assert(healedRoot->state_.isValid());
+    assert(platform.changeCount() > 0);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+  g_refuseRootCreate = false;
+  g_attachRefuseState = false;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry");
 #endif
 }

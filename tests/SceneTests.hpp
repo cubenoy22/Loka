@@ -382,7 +382,10 @@ namespace SceneTests
       ++g_nodeLocalOwnerReleaseCount;
     }
     virtual void reserveStates(size_t) {}
-    virtual void reserveStateArena(size_t) {}
+    virtual bool reserveStateArena(size_t)
+    {
+      return true;
+    }
     virtual void *allocateStateMemory(size_t, size_t)
     {
       return 0;

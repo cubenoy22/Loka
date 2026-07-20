@@ -91,10 +91,17 @@ namespace loka
                      "gate frees through StateBase; its subobject must sit at the storage address");
               state->setGateAllocated(true);
             }
-            // A 0 from the gate means the backend already gave up. White-flag
-            // propagation to the caller is #132 S3; until then this degrades
-            // to an invalid NodeState through the same degenerate shape the
-            // null-owner path always had (adoption below is null-safe).
+            else if (owner)
+            {
+              // A 0 from the gate means the backend already gave up (#132
+              // ruling 3). Both storage doors refused, so raise the owner's
+              // white flag: the owning boundary converts it into a compose
+              // failure at compose completion instead of adopting a silent
+              // dead state. The out-parameter below still degrades to an
+              // invalid NodeState (adoption is null-safe), matching the
+              // null-owner degenerate shape.
+              owner->noteStateAllocationFailure();
+            }
           }
           if (owner)
           {
@@ -113,7 +120,10 @@ namespace loka
         {
           if (owner)
           {
-            owner->reserveStateArena(ArenaBytesForState<T>());
+            // A refused reservation is survivable here: the creation below
+            // still has the heap door, and a refusal there raises the
+            // owner's white flag itself (#132 ruling 3).
+            (void)owner->reserveStateArena(ArenaBytesForState<T>());
           }
           CreateStateFromInitial<T>(owner, out, initial);
         }

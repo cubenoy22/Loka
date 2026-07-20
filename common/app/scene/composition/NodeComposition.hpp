@@ -349,7 +349,11 @@ namespace loka
           {
             if (pages_.stateCount() != 0 && owner_)
             {
-              owner_->reserveStateArena(pages_.arenaBytes());
+              // A refused reservation is survivable: each creation below
+              // still has the heap door, and CreateStateFromInitial raises
+              // the owner's white flag when both doors refuse (#132 ruling
+              // 3). Reservation refusal alone is degradation, not failure.
+              (void)owner_->reserveStateArena(pages_.arenaBytes());
               owner_->reserveStates(pages_.stateCount());
             }
             for (Page *p = pages_.first(); p; p = p->next)
@@ -571,7 +575,16 @@ namespace loka
 
         // Create node tree
         Node *createNodeTree() const;
-        Node *createNodeFromDefinition(NodeDefinitionBase *definition) const;
+        // refused is an optional out-parameter for the allocation white flag
+        // (#132 ruling 3): a refused create() at ANY depth of the materialized
+        // subtree sets *refused. It is set independently of the owning
+        // boundary, so the contextless local-rebuild path (which passes a null
+        // boundary) can catch a nested-child refusal without touching any
+        // boundary seat/arena state — the branch-seat path stays disabled
+        // exactly as on main. With-context callers still route via the
+        // boundary as well; the default 0 leaves existing callers unaffected.
+        Node *createNodeFromDefinition(NodeDefinitionBase *definition,
+                                       bool *refused = 0) const;
         void assignCompositionSeatSlots();
 
         NodeDefinitionBase *root() const

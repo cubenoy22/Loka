@@ -6,5 +6,11 @@ void testNodeArenaRetiredGenerationContracts();
 void testStateArenaSlabsCrossAllocationGate();
 void testNodeArenaSlabCrossesAllocationGate();
 void testHeapNodeCrossesAllocationGate();
+void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick();
+void testHeapFallbackWhiteFlagFailsBoundaryCompose();
+void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh();
+void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick();
+void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick();
+void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

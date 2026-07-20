@@ -49,7 +49,11 @@ namespace loka
             clear();
           }
 
-          void reserve(size_t totalSize)
+          /** Returns false when the backend refused the slab (#132 ruling 3):
+              the arena stays empty, allocate() keeps returning 0, and node
+              creation falls to the heap door. A node that then fails to
+              materialize raises the boundary compose white flag. */
+          bool reserve(size_t totalSize)
           {
             clear();
             if (totalSize > 0)
@@ -60,10 +64,7 @@ namespace loka
               raw_ = static_cast<char *>(loka::core::LokaAllocRaw(rawSize, slabSite()));
               if (!raw_)
               {
-                // Backend white flag: the arena stays empty, allocate() keeps
-                // returning 0, and node creation stays on the heap path.
-                // Propagating the flag to callers is #132 S3.
-                return;
+                return false;
               }
               size_t rawAddr = reinterpret_cast<size_t>(raw_);
               size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
@@ -71,6 +72,7 @@ namespace loka
               size_ = rawSize - (alignedAddr - rawAddr);
               offset_ = 0;
             }
+            return true;
           }
 
           void *allocate(size_t size, size_t align)
@@ -247,22 +249,25 @@ namespace loka
 
         /** Ensures one owner-lifetime allocation batch has enough arena
             capacity. allocate() consumes existing capacity only; it never
-            grows implicitly for unreserved node-local state. */
-        void reserve(size_t totalSize)
+            grows implicitly for unreserved node-local state. Returns false
+            when growth was needed and the backend refused it (#132 ruling
+            3); callers convert that into their own failure unit instead of
+            swallowing it. */
+        bool reserve(size_t totalSize)
         {
           if (totalSize == 0)
           {
-            return;
+            return true;
           }
           if (!tail_)
           {
-            appendBlock(totalSize);
-            return;
+            return appendBlock(totalSize);
           }
           if (remainingCapacity(*tail_) < totalSize)
           {
-            appendBlock(totalSize);
+            return appendBlock(totalSize);
           }
+          return true;
         }
 
         /** Serves allocations from the tail block only. Leftover capacity in

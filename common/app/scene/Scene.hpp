@@ -237,7 +237,9 @@ namespace loka
               mounted_(false),
               composed_(false),
               director_(),
-              updateCycleState_()
+              updateCycleState_(),
+              whiteFlagFullRebuildPending_(false),
+              cycleWhiteFlagFullRebuild_(false)
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
@@ -254,7 +256,9 @@ namespace loka
               mounted_(false),
               composed_(false),
               director_(),
-              updateCycleState_()
+              updateCycleState_(),
+              whiteFlagFullRebuildPending_(false),
+              cycleWhiteFlagFullRebuild_(false)
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
@@ -272,7 +276,9 @@ namespace loka
               mounted_(false),
               composed_(false),
               director_(),
-              updateCycleState_()
+              updateCycleState_(),
+              whiteFlagFullRebuildPending_(false),
+              cycleWhiteFlagFullRebuild_(false)
         {
           director_.attach(this);
         }
@@ -427,6 +433,16 @@ namespace loka
           flushInvalidation();
         }
 
+        /** Records a compose allocation white flag (#132 ruling 3). The next
+            externally caused update cycle is upgraded to a full rebuild —
+            the retry starts from a clean slate instead of resuming a
+            half-applied transaction. Recording never requests a tick: a
+            starved machine must not busy-retry itself. */
+        void noteComposeAllocationFailure()
+        {
+          whiteFlagFullRebuildPending_ = true;
+        }
+
       protected:
         void setAttached(bool v)
         {
@@ -449,6 +465,13 @@ namespace loka
         loka::core::NextTickTracker nextTickTracker_;
         SceneDirector director_;
         SceneUpdateCycleState updateCycleState_;
+        /** White flag recorded by a failed compose (#132 ruling 3), armed
+            until the next externally caused refresh cycle consumes it. It
+            never schedules a tick by itself. */
+        bool whiteFlagFullRebuildPending_;
+        /** Latched at refresh begin for the cycle in flight: folds the full
+            rebuild into both request snapshot builds of that cycle. */
+        bool cycleWhiteFlagFullRebuild_;
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class SceneManager;
@@ -489,13 +512,45 @@ namespace loka
           {
             return false;
           }
-          updateCycleState_.beginRefresh(director_.buildRefreshRequestSnapshot(rootNode_));
+          // Consume the recorded white flag into this externally caused
+          // cycle. A compose failure during the cycle re-arms it, so a still
+          // starved machine keeps waiting for the next external drive
+          // instead of looping.
+          cycleWhiteFlagFullRebuild_ = whiteFlagFullRebuildPending_;
+          whiteFlagFullRebuildPending_ = false;
+          updateCycleState_.beginRefresh(
+              whiteFlagAdjustedRequestSnapshot(director_.buildRefreshRequestSnapshot(rootNode_)));
           return true;
+        }
+
+        /** Folds a consumed white flag into the cycle's request using the
+            existing full-rebuild vocabulary: NODE_DIRTY_CHILD drives the
+            recompose and the re-derived effective full rebuild wins over
+            relaxation, because stale platform content must be re-projected
+            from a clean slate. */
+        SceneDirector::SceneUpdateRequestSnapshot
+        whiteFlagAdjustedRequestSnapshot(const SceneDirector::SceneUpdateRequestSnapshot &request) const
+        {
+          if (!cycleWhiteFlagFullRebuild_)
+          {
+            return request;
+          }
+          SceneDirector::SceneUpdateRequestSnapshot adjusted = request;
+          adjusted.includeDirtyFlags(NODE_DIRTY_CHILD);
+          adjusted.deriveEffectiveFullRebuild();
+          return adjusted;
         }
 
         SceneDirector::SceneUpdateSnapshot buildPendingRefreshSnapshot() const
         {
-          return director_.buildUpdateSnapshot(rootNode_, this);
+          SceneDirector::SceneUpdateSnapshot snapshot = director_.buildUpdateSnapshot(rootNode_, this);
+          if (!cycleWhiteFlagFullRebuild_ || !snapshot.hasGeneration())
+          {
+            return snapshot;
+          }
+          return SceneDirector::SceneUpdateSnapshot(snapshot.generationValue(),
+                                                    whiteFlagAdjustedRequestSnapshot(snapshot.request()),
+                                                    snapshot.apply());
         }
 
         void capturePendingRefreshSnapshot()
@@ -571,6 +626,8 @@ namespace loka
         {
           updateCycleState_.discardRetainedState();
           director_.clearUpdateTransaction();
+          whiteFlagFullRebuildPending_ = false;
+          cycleWhiteFlagFullRebuild_ = false;
         }
 
         class RootBoundaryWrapper : public BoundaryNode
@@ -702,9 +759,22 @@ namespace loka
           if (rootDefinition_->isBoundary())
           {
             rootNode_ = rootDefinition_->create();
+            if (!rootNode_)
+            {
+              // The allocation gate refused the boundary root (#132 ruling 3 /
+              // #140 P2). Do not assert: arm the scene white flag and leave the
+              // scene uncomposed. The next externally caused refresh retries
+              // root creation once the backend heals. Recording never schedules
+              // a tick, so a starved machine waits instead of busy-retrying.
+              noteComposeAllocationFailure();
+              return;
+            }
           }
           else
           {
+            // A non-boundary root wraps in a plain-new RootBoundaryWrapper,
+            // which aborts on OOM via the #137 nothrow-abort operators (never
+            // returns 0), so the assert below stays a genuine invariant.
             rootNode_ = new RootBoundaryWrapper(rootDefinition_.get());
           }
           if (!rootNode_)
@@ -733,9 +803,10 @@ namespace loka
           }
           if (!rootNode_)
           {
-            // Root creation refused at the gate (#132 S2b); nothing to
-            // compose. Stays uncomposed until the next externally-caused
-            // tick, per the #70 nullable contract (S3 surfaces the failure).
+            // Root allocation was refused (#132 ruling 3 / #140 P2). The white
+            // flag is armed by ensureRootNode; stay uncomposed so nothing
+            // derefs a null root. A later externally caused refresh retries
+            // this path via refreshComposition once the backend heals.
             return;
           }
           BoundaryNode *boundary = rootNode_->asBoundary();
@@ -754,6 +825,20 @@ namespace loka
             prepareRootBoundaryCompose(boundary, rootContext, event);
             boundary->compose(rootContext, event);
             completeRootBoundaryCompose(boundary);
+            if (boundary->composeResult().allocationFailed)
+            {
+              // White flag (#132 ruling 3, Codex P2): root create() succeeded
+              // but the attach compose refused a state or child-node
+              // allocation, so completeRootBoundaryCompose already converted
+              // this window into a projection failure and (re-)armed the scene
+              // white flag via Scene::noteComposeAllocationFailure. Do not
+              // publish a partial root or mark the scene composed: leaving
+              // composed_ false keeps the armed flag alive (refreshComposition
+              // only clears it on a clean compose), so the next externally
+              // caused refresh retries the attach once the backend heals
+              // instead of stranding partial content and losing the retry.
+              return;
+            }
           }
           platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
           composed_ = true;
@@ -837,6 +922,26 @@ namespace loka
 
         bool refreshComposition()
         {
+          // Root allocation white-flag retry (#132 ruling 3 / #140 P2): an
+          // earlier refused root create() leaves the scene mounted but
+          // uncomposed, which the !composed_ guard below would strand forever
+          // (ordinary invalidations never re-enter root creation). This
+          // externally caused refresh retries it once. If the backend has
+          // healed, composeIfNeeded rebuilds the root and projects the initial
+          // content through onChange, exactly as a healthy mount does — there
+          // is no prior platform state for a root that never existed, so no
+          // diff cycle is owed and the flag is simply consumed. If it fails
+          // again, ensureRootNode re-arms the flag and the scene stays
+          // uncomposed, waiting for the next external drive. Nothing here
+          // self-schedules a tick, exactly like the boundary white flag.
+          if (!composed_ && mounted_ && platformController_ && whiteFlagFullRebuildPending_)
+          {
+            composeIfNeeded(COMPOSE_EVENT_ATTACH);
+            if (composed_)
+            {
+              whiteFlagFullRebuildPending_ = false;
+            }
+          }
           if (!mounted_ || !platformController_ || !composed_)
           {
             clearPendingRefreshCycle();
@@ -865,6 +970,18 @@ namespace loka
             return;
           }
           director_.beginApplyCycle();
+          if (whiteFlagFullRebuildPending_)
+          {
+            // A compose white flag surrendered this cycle (#132 ruling 3):
+            // the compose is a projection failure, so keep the platform on
+            // the previously applied content and discard the pending
+            // snapshot. The recorded full rebuild re-projects everything at
+            // the next externally caused update; requesting a tick here
+            // would busy-retry a starved machine.
+            updateCycleState_.discardPending();
+            director_.completeUpdateCycle();
+            return;
+          }
           platformController_->beginApplyCycle();
           // Living lifecycle transitions (A <-> D) reach contexts here, at
           // the head of apply — before projection, so the frame presents the
