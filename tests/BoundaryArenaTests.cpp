@@ -2,14 +2,22 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <new>
 #include <vector>
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/scene/Scene.hpp"
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
 #include "core/LokaAlloc.hpp"
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
+#include "support/RecomposingBoundary.hpp"
+#include "support/RecordingPlatformController.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
 
 namespace
 {
@@ -144,9 +152,9 @@ namespace
       tracker_.reserveStates(count);
     }
 
-    virtual void reserveStateArena(size_t totalSize)
+    virtual bool reserveStateArena(size_t totalSize)
     {
-      arena_.reserve(totalSize);
+      return arena_.reserve(totalSize);
     }
 
     virtual void *allocateStateMemory(size_t size, size_t align)
@@ -723,6 +731,88 @@ namespace
 
   struct GateProbeDefinition : public loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode>
   {
+  // White-flag backend fakes (#132 S3). The refusing backend surrenders every
+  // acquisition, so a compose window under it exercises both storage doors:
+  // the slab append is refused first, then the gate-routed heap fallback. The
+  // selective backend refuses only the heap-fallback site so the arena path
+  // stays real. Frees delegate to the default-compatible delete[] because the
+  // window may release storage the default backend produced.
+  int g_refusingBackendRefusals = 0;
+
+  void *refusingBackendAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    (void)size;
+    (void)site;
+    ++g_refusingBackendRefusals;
+    return 0;
+  }
+
+  int g_heapStateRefusals = 0;
+
+  void *heapStateRefusingBackendAlloc(std::size_t size, const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "StateOwner") == 0)
+    {
+      ++g_heapStateRefusals;
+      return 0;
+    }
+    return new (std::nothrow) char[size];
+  }
+
+  void delegatingBackendFree(void *ptr, const loka::core::LokaAllocationSite &site)
+  {
+    (void)site;
+    delete[] static_cast<char *>(ptr);
+  }
+
+  // 32-byte payload: fits the StateBatch inline initializer storage while
+  // keeping sizeof(MutableState<T>) well above the alignment slack a consumed
+  // arena block can have left, so a redeclared batch always needs a new slab.
+  struct WhiteFlagStatePayload
+  {
+    char bytes[32];
+
+    bool operator!=(const WhiteFlagStatePayload &other) const
+    {
+      for (size_t i = 0; i < sizeof(bytes); ++i)
+      {
+        if (bytes[i] != other.bytes[i])
+        {
+          return true;
+        }
+      }
+      return false;
+    }
+  };
+
+  class WhiteFlagRecomposeRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<WhiteFlagRecomposeRootNode> WhiteFlagRecomposeRootProps;
+
+  /** Scene-root boundary that redeclares its node-local states on every
+      compose pass, so an externally driven recompose issues fresh gate
+      acquisitions: first the arena slab append, then the heap fallback. */
+  class WhiteFlagRecomposeRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<WhiteFlagRecomposeRootNode,
+                                                         WhiteFlagRecomposeRootProps>
+  {
+  public:
+    explicit WhiteFlagRecomposeRootNode(const WhiteFlagRecomposeRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<WhiteFlagRecomposeRootNode,
+                                                    WhiteFlagRecomposeRootProps>(props),
+          first_(),
+          second_()
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      WhiteFlagStatePayload initial = {{0}};
+      composition.declareStates().state(this->first_, initial).state(this->second_, initial);
+      composition.declare(loka::app::FragmentDefinition());
+    }
+
+    loka::app::scene::NodeState<WhiteFlagStatePayload> first_;
+    loka::app::scene::NodeState<WhiteFlagStatePayload> second_;
   };
 
 } // namespace
@@ -853,5 +943,129 @@ void testHeapNodeCrossesAllocationGate()
 #ifdef LOKA_LIFECYCLE_AUDIT
   // Full teardown balanced the ledger for the heap-node site.
   loka::core::LokaAllocAuditCheckpoint("testHeapNodeCrossesAllocationGate");
+/** #132 S3 red test (a): a driven recompose under a backend that refuses the
+    slab (and the heap door behind it) must convert into a projection failure
+    that waits for the next externally caused tick — previous platform content
+    stands, snapshots invalidate (#70), and nothing self-schedules a retry. */
+void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<WhiteFlagRecomposeRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    WhiteFlagRecomposeRootNode *root = static_cast<WhiteFlagRecomposeRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    assert(root->first_.isValid());
+    assert(root->second_.isValid());
+    const size_t appliedBefore = platform.changeCount();
+    assert(appliedBefore > 0);
+
+    // Externally driven recompose while the backend refuses every gate
+    // acquisition: the StateArena block append surrenders first, then the
+    // gate-routed heap fallback for each redeclared state.
+    g_refusingBackendRefusals = 0;
+    loka::core::LokaAllocSetBackend(&refusingBackendAlloc, &delegatingBackendFree);
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    loka::core::LokaAllocSetBackend(0, 0);
+    assert(g_refusingBackendRefusals > 0);
+
+    // No state materialized, and none is half-alive: the out handles are
+    // invalid instead of pointing at partially adopted storage.
+    assert(!root->first_.isValid());
+    assert(!root->second_.isValid());
+    // Red before #132 S3: the dead states were adopted silently, the compose
+    // completed as a success, and the half-alive cycle was projected (the
+    // recorded change count grew). Now the previously applied content is
+    // still the last thing the platform saw ...
+    assert(platform.changeCount() == appliedBefore);
+    // ... the compose window records the projection failure ...
+    assert(!root->composeResult().composed);
+    assert(root->composeResult().allocationFailed);
+    // ... the composition snapshots are invalidated per the #70 mechanism ...
+    assert(root->previousCompositionSnapshot().empty());
+    assert(root->currentCompositionSnapshot().empty());
+    // ... and the failure path did not self-schedule a tick. Without an
+    // external drive the tracker stays silent: no second refresh cycle runs.
+    assert(!scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(platform.changeCount() == appliedBefore);
+
+    // One externally caused tick with the default backend restored: the
+    // recorded full rebuild rides it, recomposes from a clean slate, and the
+    // healed content reaches the platform as a full-rebuild projection.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->first_.isValid());
+    assert(root->second_.isValid());
+    assert(root->composeResult().composed);
+    assert(!root->composeResult().allocationFailed);
+    assert(platform.changeCount() > appliedBefore);
+    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // Failure paths are where leaks nest: the whole scene lifetime, including
+  // the refused cycle, must leave the audit ledger balanced.
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick");
+#endif
+}
+
+/** #132 S3 red test (b): with the owner arena exhausted and the backend
+    refusing the gate-routed heap fallback, state creation must raise the
+    owner's white flag so the open compose window converts into a failure —
+    instead of completing as a success around a silent dead state. */
+void testHeapFallbackWhiteFlagFailsBoundaryCompose()
+{
+  const loka::core::LokaAllocationSite heapStateSite("StateOwner", "MutableState");
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int heapLiveBefore = loka::core::LokaAllocAuditLiveCount(heapStateSite);
+#endif
+  g_heapStateRefusals = 0;
+  loka::core::LokaAllocSetBackend(&heapStateRefusingBackendAlloc, &delegatingBackendFree);
+  {
+    loka::app::scene::StdCompositionBoundaryNode owner((loka::app::scene::StdCompositionProps()));
+    loka::app::scene::NodeState<LargeStateValue> reserved;
+    loka::app::scene::NodeState<LargeStateValue> unreserved;
+    LargeStateValue initial = {{0}};
+
+    // The arena door works normally under the selective backend.
+    assert(owner.reserveStateArena(
+        loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>()));
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, reserved, initial);
+    assert(reserved.isValid());
+    assert(reserved.dangerouslyMutableState()->isArenaAllocated());
+
+    // Reserved capacity is consumed; the next creation inside an open compose
+    // window must take the heap door, which the backend refuses.
+    owner.beginComposeResult(loka::app::scene::COMPOSE_EVENT_UPDATE,
+                             loka::app::scene::NODE_DIRTY_PROPS);
+    loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
+        &owner, unreserved, initial);
+    owner.completeComposeResult(true);
+    assert(g_heapStateRefusals == 1);
+
+    // No half-alive state: the out handle is invalid, nothing was adopted.
+    assert(!unreserved.isValid());
+    // Red before #132 S3: the compose window completed as a success and the
+    // refusal was swallowed. Now the white flag converts it at completion.
+    assert(!owner.composeResult().composed);
+    assert(owner.composeResult().allocationFailed);
+    // The state created before the failure is untouched by the conversion.
+    assert(reserved.isValid());
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditLiveCount(heapStateSite) == heapLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint("testHeapFallbackWhiteFlagFailsBoundaryCompose");
 #endif
 }

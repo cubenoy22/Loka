@@ -158,12 +158,43 @@ namespace loka
           result.dirtyFlagsSeen = dirtyFlags;
           result.composed = false;
           result.preservedNativeContexts = false;
+          result.allocationFailed = false;
         }
 
         void completeCompose(bool preservedNativeContexts)
         {
           result.composed = true;
           result.preservedNativeContexts = preservedNativeContexts;
+        }
+
+        void noteAllocationFailure()
+        {
+          result.allocationFailed = true;
+        }
+
+        bool allocationFailedValue() const
+        {
+          return result.allocationFailed;
+        }
+
+        /** White-flag terminal half A (#132 ruling 3): the compose stays a
+            failure — composed remains false and nothing may treat the local
+            diff as applicable. allocationFailed stays visible. */
+        void failCompose()
+        {
+          result.composed = false;
+          result.preservedNativeContexts = false;
+        }
+
+        /** White-flag terminal half B — the #70 mechanism: a failed compose
+            must not leave snapshots that could seed a stale retain diff. An
+            empty previous snapshot forces the next compose onto the
+            clean-slate rebuild path. */
+        void invalidateSnapshots()
+        {
+          previousSnapshot.clear();
+          currentSnapshot.clear();
+          diff.clear();
         }
 
         BoundaryComposeResult &composeResult()

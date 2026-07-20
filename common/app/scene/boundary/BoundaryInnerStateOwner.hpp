@@ -90,9 +90,12 @@ namespace loka
           this->tracker_.reserveStates(count);
         }
 
-        virtual void reserveStateArena(size_t totalSize)
+        virtual bool reserveStateArena(size_t totalSize)
         {
           (void)totalSize;
+          // No arena here, so nothing can be refused: creation takes the
+          // heap door and a refusal there raises the white flag itself.
+          return true;
         }
 
         virtual void *allocateStateMemory(size_t size, size_t align)

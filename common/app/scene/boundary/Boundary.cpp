@@ -202,6 +202,30 @@ namespace loka
         this->nodeArena_.clear();
       }
 
+      void BoundaryNode::completeComposeResult(bool preservedNativeContexts)
+      {
+        if (this->compositionState_.allocationFailedValue())
+        {
+          // White-flag terminal (#132 ruling 3): an allocation failed inside
+          // this compose window, so the compose is a projection failure.
+          // Keep the failure visible in the result, invalidate the
+          // composition snapshots so no stale diff can seed the next compose
+          // (the #70 mechanism), and record the deferred full rebuild on the
+          // Scene. No tick is requested anywhere on this path: the rebuild
+          // rides the next externally caused update, because a starved
+          // machine must not busy-retry itself.
+          this->compositionState_.failCompose();
+          this->compositionState_.invalidateSnapshots();
+          Scene *scene = this->getScene();
+          if (scene)
+          {
+            scene->noteComposeAllocationFailure();
+          }
+          return;
+        }
+        this->compositionState_.completeCompose(preservedNativeContexts);
+      }
+
       void BoundaryNode::markViewDirty(NodeDirtyFlags flags)
       {
         if (this->isFrozen())

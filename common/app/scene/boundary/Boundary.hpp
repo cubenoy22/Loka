@@ -298,9 +298,21 @@ namespace loka
         {
           compositionState_.beginCompose(event, dirtyFlags);
         }
-        void completeComposeResult(bool preservedNativeContexts)
+        /** Completes the open compose window. With the allocation white flag
+            raised it converts the compose into a projection failure instead
+            (#132 ruling 3); the body lives in Boundary.cpp because the
+            conversion records the deferred full rebuild on the Scene. */
+        void completeComposeResult(bool preservedNativeContexts);
+        /** Allocation white flag (#132 ruling 3): a state or node failed to
+            materialize during this boundary's open compose window. The flag
+            only records; completeComposeResult() converts it. */
+        void noteComposeAllocationFailure()
         {
-          compositionState_.completeCompose(preservedNativeContexts);
+          compositionState_.noteAllocationFailure();
+        }
+        virtual void noteStateAllocationFailure()
+        {
+          this->noteComposeAllocationFailure();
         }
         void clearPhaseResults()
         {
@@ -418,9 +430,9 @@ namespace loka
         {
           stateArena_.registerState(state, destroy);
         }
-        virtual void reserveStateArena(size_t totalSize)
+        virtual bool reserveStateArena(size_t totalSize)
         {
-          stateArena_.reserve(totalSize);
+          return stateArena_.reserve(totalSize);
         }
 
         static void

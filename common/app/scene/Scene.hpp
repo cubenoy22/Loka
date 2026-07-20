@@ -237,7 +237,9 @@ namespace loka
               mounted_(false),
               composed_(false),
               director_(),
-              updateCycleState_()
+              updateCycleState_(),
+              whiteFlagFullRebuildPending_(false),
+              cycleWhiteFlagFullRebuild_(false)
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
@@ -254,7 +256,9 @@ namespace loka
               mounted_(false),
               composed_(false),
               director_(),
-              updateCycleState_()
+              updateCycleState_(),
+              whiteFlagFullRebuildPending_(false),
+              cycleWhiteFlagFullRebuild_(false)
         {
           assert(def && "Scene requires a root definition");
           director_.attach(this);
@@ -272,7 +276,9 @@ namespace loka
               mounted_(false),
               composed_(false),
               director_(),
-              updateCycleState_()
+              updateCycleState_(),
+              whiteFlagFullRebuildPending_(false),
+              cycleWhiteFlagFullRebuild_(false)
         {
           director_.attach(this);
         }
@@ -427,6 +433,16 @@ namespace loka
           flushInvalidation();
         }
 
+        /** Records a compose allocation white flag (#132 ruling 3). The next
+            externally caused update cycle is upgraded to a full rebuild —
+            the retry starts from a clean slate instead of resuming a
+            half-applied transaction. Recording never requests a tick: a
+            starved machine must not busy-retry itself. */
+        void noteComposeAllocationFailure()
+        {
+          whiteFlagFullRebuildPending_ = true;
+        }
+
       protected:
         void setAttached(bool v)
         {
@@ -449,6 +465,13 @@ namespace loka
         loka::core::NextTickTracker nextTickTracker_;
         SceneDirector director_;
         SceneUpdateCycleState updateCycleState_;
+        /** White flag recorded by a failed compose (#132 ruling 3), armed
+            until the next externally caused refresh cycle consumes it. It
+            never schedules a tick by itself. */
+        bool whiteFlagFullRebuildPending_;
+        /** Latched at refresh begin for the cycle in flight: folds the full
+            rebuild into both request snapshot builds of that cycle. */
+        bool cycleWhiteFlagFullRebuild_;
 
         // SceneManager owns lifecycle_/attached mutations.
         friend class SceneManager;
@@ -489,13 +512,45 @@ namespace loka
           {
             return false;
           }
-          updateCycleState_.beginRefresh(director_.buildRefreshRequestSnapshot(rootNode_));
+          // Consume the recorded white flag into this externally caused
+          // cycle. A compose failure during the cycle re-arms it, so a still
+          // starved machine keeps waiting for the next external drive
+          // instead of looping.
+          cycleWhiteFlagFullRebuild_ = whiteFlagFullRebuildPending_;
+          whiteFlagFullRebuildPending_ = false;
+          updateCycleState_.beginRefresh(
+              whiteFlagAdjustedRequestSnapshot(director_.buildRefreshRequestSnapshot(rootNode_)));
           return true;
+        }
+
+        /** Folds a consumed white flag into the cycle's request using the
+            existing full-rebuild vocabulary: NODE_DIRTY_CHILD drives the
+            recompose and the re-derived effective full rebuild wins over
+            relaxation, because stale platform content must be re-projected
+            from a clean slate. */
+        SceneDirector::SceneUpdateRequestSnapshot
+        whiteFlagAdjustedRequestSnapshot(const SceneDirector::SceneUpdateRequestSnapshot &request) const
+        {
+          if (!cycleWhiteFlagFullRebuild_)
+          {
+            return request;
+          }
+          SceneDirector::SceneUpdateRequestSnapshot adjusted = request;
+          adjusted.includeDirtyFlags(NODE_DIRTY_CHILD);
+          adjusted.deriveEffectiveFullRebuild();
+          return adjusted;
         }
 
         SceneDirector::SceneUpdateSnapshot buildPendingRefreshSnapshot() const
         {
-          return director_.buildUpdateSnapshot(rootNode_, this);
+          SceneDirector::SceneUpdateSnapshot snapshot = director_.buildUpdateSnapshot(rootNode_, this);
+          if (!cycleWhiteFlagFullRebuild_ || !snapshot.hasGeneration())
+          {
+            return snapshot;
+          }
+          return SceneDirector::SceneUpdateSnapshot(snapshot.generationValue(),
+                                                    whiteFlagAdjustedRequestSnapshot(snapshot.request()),
+                                                    snapshot.apply());
         }
 
         void capturePendingRefreshSnapshot()
@@ -571,6 +626,8 @@ namespace loka
         {
           updateCycleState_.discardRetainedState();
           director_.clearUpdateTransaction();
+          whiteFlagFullRebuildPending_ = false;
+          cycleWhiteFlagFullRebuild_ = false;
         }
 
         class RootBoundaryWrapper : public BoundaryNode
@@ -865,6 +922,18 @@ namespace loka
             return;
           }
           director_.beginApplyCycle();
+          if (whiteFlagFullRebuildPending_)
+          {
+            // A compose white flag surrendered this cycle (#132 ruling 3):
+            // the compose is a projection failure, so keep the platform on
+            // the previously applied content and discard the pending
+            // snapshot. The recorded full rebuild re-projects everything at
+            // the next externally caused update; requesting a tick here
+            // would busy-retry a starved machine.
+            updateCycleState_.discardPending();
+            director_.completeUpdateCycle();
+            return;
+          }
           platformController_->beginApplyCycle();
           // Living lifecycle transitions (A <-> D) reach contexts here, at
           // the head of apply — before projection, so the frame presents the

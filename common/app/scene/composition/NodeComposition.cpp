@@ -153,10 +153,15 @@ namespace loka
         }
         if (!node)
         {
-          // create() refused at the allocation gate (#132 S2b). Propagate 0
-          // up the #70 nullable-creation stairs; the recursive callers below
-          // skip a 0 child (`if (childNode)`), and createNodeFromDefinition's
-          // callers already treat 0 as allocation-style failure.
+          // White flag (#132 ruling 3, #140): the heap door refused too —
+          // today via the assert-and-return-0 create() overrides, later via
+          // gate-routed creation (S2b). Raise the boundary compose flag so
+          // the failure converts at compose completion instead of crashing
+          // on the null below.
+          if (boundary)
+          {
+            boundary->noteComposeAllocationFailure();
+          }
           return 0;
         }
         assignNodeTestId(node, def, autoIdCounter);
@@ -228,8 +233,12 @@ namespace loka
         Node *node = def->create();
         if (!node)
         {
-          // create() refused at the allocation gate (#132 S2b); propagate 0
-          // (see createNodeWithArena).
+          // White flag (#132 ruling 3, #140): same conversion as the arena
+          // path — record on the boundary and let compose completion convert.
+          if (boundary)
+          {
+            boundary->noteComposeAllocationFailure();
+          }
           return 0;
         }
         assignNodeTestId(node, def, autoIdCounter);
@@ -311,9 +320,12 @@ namespace loka
             NodeArena *arena = bnd->nodeArena();
             if (!arena->hasCapacity())
             {
-              // Calculate total size and reserve
+              // Calculate total size and reserve. A refused slab is
+              // survivable: creation below falls to the heap door, and a
+              // node that then fails to materialize raises the boundary
+              // white flag inside createNodeWithArena (#132 ruling 3).
               size_t totalSize = calculateTotalNodeSize(root, bnd);
-              arena->reserve(totalSize);
+              (void)arena->reserve(totalSize);
             }
             long autoIdCounter = 1;
             return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd);
