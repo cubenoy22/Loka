@@ -759,9 +759,22 @@ namespace loka
           if (rootDefinition_->isBoundary())
           {
             rootNode_ = rootDefinition_->create();
+            if (!rootNode_)
+            {
+              // The allocation gate refused the boundary root (#132 ruling 3 /
+              // #140 P2). Do not assert: arm the scene white flag and leave the
+              // scene uncomposed. The next externally caused refresh retries
+              // root creation once the backend heals. Recording never schedules
+              // a tick, so a starved machine waits instead of busy-retrying.
+              noteComposeAllocationFailure();
+              return;
+            }
           }
           else
           {
+            // A non-boundary root wraps in a plain-new RootBoundaryWrapper,
+            // which aborts on OOM via the #137 nothrow-abort operators (never
+            // returns 0), so the assert below stays a genuine invariant.
             rootNode_ = new RootBoundaryWrapper(rootDefinition_.get());
           }
           if (!rootNode_)
@@ -790,9 +803,10 @@ namespace loka
           }
           if (!rootNode_)
           {
-            // Root creation refused at the gate (#132 S2b); nothing to
-            // compose. Stays uncomposed until the next externally-caused
-            // tick, per the #70 nullable contract (S3 surfaces the failure).
+            // Root allocation was refused (#132 ruling 3 / #140 P2). The white
+            // flag is armed by ensureRootNode; stay uncomposed so nothing
+            // derefs a null root. A later externally caused refresh retries
+            // this path via refreshComposition once the backend heals.
             return;
           }
           BoundaryNode *boundary = rootNode_->asBoundary();
@@ -894,6 +908,26 @@ namespace loka
 
         bool refreshComposition()
         {
+          // Root allocation white-flag retry (#132 ruling 3 / #140 P2): an
+          // earlier refused root create() leaves the scene mounted but
+          // uncomposed, which the !composed_ guard below would strand forever
+          // (ordinary invalidations never re-enter root creation). This
+          // externally caused refresh retries it once. If the backend has
+          // healed, composeIfNeeded rebuilds the root and projects the initial
+          // content through onChange, exactly as a healthy mount does — there
+          // is no prior platform state for a root that never existed, so no
+          // diff cycle is owed and the flag is simply consumed. If it fails
+          // again, ensureRootNode re-arms the flag and the scene stays
+          // uncomposed, waiting for the next external drive. Nothing here
+          // self-schedules a tick, exactly like the boundary white flag.
+          if (!composed_ && mounted_ && platformController_ && whiteFlagFullRebuildPending_)
+          {
+            composeIfNeeded(COMPOSE_EVENT_ATTACH);
+            if (composed_)
+            {
+              whiteFlagFullRebuildPending_ = false;
+            }
+          }
           if (!mounted_ || !platformController_ || !composed_)
           {
             clearPendingRefreshCycle();

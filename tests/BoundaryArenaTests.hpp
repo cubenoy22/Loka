@@ -8,5 +8,6 @@ void testNodeArenaSlabCrossesAllocationGate();
 void testHeapNodeCrossesAllocationGate();
 void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick();
 void testHeapFallbackWhiteFlagFailsBoundaryCompose();
+void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

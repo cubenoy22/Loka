@@ -31,6 +31,16 @@ namespace loka
           return scene.rootNode_ ? scene.rootNode_->asBoundary() : 0;
         }
 
+        static bool composed(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.composed_;
+        }
+
+        static bool whiteFlagFullRebuildPending(const ::loka::app::scene::Scene &scene)
+        {
+          return scene.whiteFlagFullRebuildPending_;
+        }
+
         static ::loka::app::scene::SceneDirector &director(::loka::app::scene::Scene &scene)
         {
           return scene.director_;
