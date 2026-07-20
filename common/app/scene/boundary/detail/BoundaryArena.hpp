@@ -6,6 +6,7 @@
 #include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/detail/ArenaMath.hpp"
+#include "core/LokaAlloc.hpp"
 #include "core/State.hpp"
 
 namespace loka
@@ -56,7 +57,14 @@ namespace loka
               // Allocate with extra padding and align the base pointer.
               const size_t kArenaAlign = 16;
               size_t rawSize = totalSize + kArenaAlign;
-              raw_ = new char[rawSize];
+              raw_ = static_cast<char *>(loka::core::LokaAllocRaw(rawSize, slabSite()));
+              if (!raw_)
+              {
+                // Backend white flag: the arena stays empty, allocate() keeps
+                // returning 0, and node creation stays on the heap path.
+                // Propagating the flag to callers is #132 S3.
+                return;
+              }
               size_t rawAddr = reinterpret_cast<size_t>(raw_);
               size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
               buffer_ = reinterpret_cast<char *>(alignedAddr);
@@ -185,7 +193,7 @@ namespace loka
             gen.nodes.clear();
             if (gen.raw)
             {
-              delete[] gen.raw;
+              loka::core::LokaFreeRaw(gen.raw, slabSite());
             }
             else
             {
@@ -201,6 +209,15 @@ namespace loka
           }
 
         private:
+          /** One static gate site per slab kind: reserve() and
+              destroyRetiredGeneration() must free through the tags the
+              acquisition used so the audit ledger balances. */
+          static const loka::core::LokaAllocationSite &slabSite()
+          {
+            static const loka::core::LokaAllocationSite site("NodeArena", "slab");
+            return site;
+          }
+
           char *buffer_;
           char *raw_;
           size_t size_;
@@ -374,16 +391,16 @@ namespace loka
         bool appendBlock(size_t totalSize)
         {
           const size_t kArenaAlign = 16;
-          Block *block = new (std::nothrow) Block();
+          Block *block = loka::core::LokaNew<Block>(blockSite());
           if (!block)
           {
             return false;
           }
           size_t rawSize = totalSize + kArenaAlign;
-          block->raw = new (std::nothrow) char[rawSize];
+          block->raw = static_cast<char *>(loka::core::LokaAllocRaw(rawSize, slabSite()));
           if (!block->raw)
           {
-            delete block;
+            loka::core::LokaDelete(block, blockSite());
             return false;
           }
           size_t rawAddr = reinterpret_cast<size_t>(block->raw);
@@ -408,12 +425,27 @@ namespace loka
           while (block)
           {
             Block *next = block->next;
-            delete[] block->raw;
-            delete block;
+            loka::core::LokaFreeRaw(block->raw, slabSite());
+            loka::core::LokaDelete(block, blockSite());
             block = next;
           }
           first_ = 0;
           tail_ = 0;
+        }
+
+        /** One static gate site per acquisition kind: appendBlock() and
+            clearBlocks() must free through the tags the acquisition used so
+            the audit ledger balances. */
+        static const loka::core::LokaAllocationSite &blockSite()
+        {
+          static const loka::core::LokaAllocationSite site("StateArena", "Block");
+          return site;
+        }
+
+        static const loka::core::LokaAllocationSite &slabSite()
+        {
+          static const loka::core::LokaAllocationSite site("StateArena", "slab");
+          return site;
         }
 
         Block *first_;

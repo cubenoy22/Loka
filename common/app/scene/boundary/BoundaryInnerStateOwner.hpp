@@ -80,7 +80,7 @@ namespace loka
           assert(!state->isArenaAllocated() && "BoundaryInnerStateOwner does not own arena-allocated state");
           if (!state->isArenaAllocated())
           {
-            delete state;
+            DestroyAdoptedHeapState(state);
           }
         }
 
@@ -119,7 +119,7 @@ namespace loka
               assert(!state->isArenaAllocated() && "BoundaryInnerStateOwner does not own arena-allocated state");
               if (!state->isArenaAllocated())
               {
-                delete state;
+                DestroyAdoptedHeapState(state);
               }
             }
           }

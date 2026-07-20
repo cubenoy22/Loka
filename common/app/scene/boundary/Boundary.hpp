@@ -1434,7 +1434,7 @@ namespace loka
             stateArena_.releaseState(state);
             return;
           }
-          delete state;
+          DestroyAdoptedHeapState(state);
         }
 
         virtual void reserveStates(size_t count)
@@ -1689,7 +1689,7 @@ namespace loka
             {
               continue;
             }
-            delete state;
+            DestroyAdoptedHeapState(state);
           }
           ownedStates_.clear();
         }

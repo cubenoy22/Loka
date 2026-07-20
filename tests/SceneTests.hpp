@@ -376,7 +376,9 @@ namespace SceneTests
         }
       }
       tracker_.removeState(state);
-      delete state;
+      // Node-local states reach this owner through CreateStateFromInitial's
+      // gate-routed heap fallback; the helper frees through the same door.
+      loka::app::scene::DestroyAdoptedHeapState(state);
       ++g_nodeLocalOwnerReleaseCount;
     }
     virtual void reserveStates(size_t) {}
@@ -473,10 +475,11 @@ namespace SceneTests
       assert(states[i].isValid());
       assert(states[i].get() == 300 + i);
     }
-    // No owner: ownership never transferred, so the test reclaims the states.
+    // No owner: ownership never transferred, so the test reclaims the states
+    // through the same door their gate-routed heap fallback acquired them.
     for (int i = 0; i < 18; ++i)
     {
-      delete states[i].dangerouslyMutableState();
+      loka::app::scene::DestroyAdoptedHeapState(states[i].dangerouslyMutableState());
     }
   }
 

@@ -1,11 +1,13 @@
 #ifndef LOKA_CORE2_SCENE_STATE_STATEOWNER_HPP
 #define LOKA_CORE2_SCENE_STATE_STATEOWNER_HPP
 
+#include "core/LokaAlloc.hpp"
+#include "core/State.hpp"
+
 namespace loka
 {
   namespace core
   {
-    class StateBase;
     class StateTracker;
   } // namespace core
 
@@ -26,6 +28,37 @@ namespace loka
         virtual void registerStateMemory(core::StateBase *state, void (*destroy)(core::StateBase *)) = 0;
         virtual core::StateTracker *tracker() = 0;
       };
+
+      /** Static gate site for heap-fallback states adopted by an
+          IStateOwner. The allocation side (StateBatchBase) and every
+          release side must use this one site so the audit ledger balances. */
+      inline const loka::core::LokaAllocationSite &HeapStateAllocationSite()
+      {
+        static const loka::core::LokaAllocationSite site("StateOwner", "MutableState");
+        return site;
+      }
+
+      /** Destroys one adopted non-arena state through the door its storage
+          came from: gate-resident states return to the backend under
+          HeapStateAllocationSite(), plain-new states (dangerouslyUse*,
+          test fixtures) keep operator delete. Null-safe. */
+      inline void DestroyAdoptedHeapState(loka::core::StateBase *state)
+      {
+        if (!state)
+        {
+          return;
+        }
+        if (state->isGateAllocated())
+        {
+          // The virtual destructor destroys the most-derived state; the
+          // creation path asserts the StateBase subobject sits at the
+          // storage address LokaAllocRaw returned.
+          state->~StateBase();
+          loka::core::LokaFreeRaw(state, HeapStateAllocationSite());
+          return;
+        }
+        delete state;
+      }
     } // namespace scene
   } // namespace app
 } // namespace loka
