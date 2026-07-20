@@ -322,7 +322,7 @@ void testConditionalDefinitionCloneOwnership()
     loka::app::scene::Node *node = copiedSeat->branchDefinition(true)->create();
     assert(node != 0);
     assert(g_probeNodesCreated > createdBefore); // true branch materialized from the owned clone
-    delete node;
+    loka::app::scene::DestroyHeapNode(node);
     delete copy;
   }
 
@@ -338,7 +338,7 @@ void testConditionalDefinitionCloneOwnership()
 
       loka::app::scene::Node *node = second.branchDefinition(false)->create();
       assert(node != 0);
-      delete node;
+      loka::app::scene::DestroyHeapNode(node);
     }
   }
 

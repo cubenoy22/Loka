@@ -64,7 +64,7 @@ void testNodeDefaultsToDefaultNativeLifetimeHint()
   assert(node->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DEFAULT);
   node->setNativeLifetimeHint(loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
   assert(node->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_EAGER_RELEASE);
-  delete node;
+  loka::app::scene::DestroyHeapNode(node);
 }
 
 void testDefinitionCarriesNativeLifetimeHintToCreatedNode()
@@ -74,7 +74,7 @@ void testDefinitionCarriesNativeLifetimeHintToCreatedNode()
   loka::app::scene::Node *node = definition.create();
   assert(node);
   assert(node->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-  delete node;
+  loka::app::scene::DestroyHeapNode(node);
 }
 
 void testDefinitionCloneAndApplyPreserveNativeLifetimeHint()
@@ -98,7 +98,7 @@ void testDefinitionCloneAndApplyPreserveNativeLifetimeHint()
   assert(applied);
   assert(node->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
 
-  delete node;
+  loka::app::scene::DestroyHeapNode(node);
   delete clone;
 }
 
@@ -158,7 +158,7 @@ void testConditionalAndShowDefinitionsCarryNativeLifetimeHint()
   assert(contentNode);
   assert(contentNode->nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY &&
          "NativeLifetimeHint remains content-local when the seat has no runtime node");
-  delete contentNode;
+  loka::app::scene::DestroyHeapNode(contentNode);
 }
 
 void testNativeContextObservesLifetimeHint()
