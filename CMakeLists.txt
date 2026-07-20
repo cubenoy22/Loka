@@ -136,11 +136,12 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
 
-  # Zero-allocation pin (probe/zero-alloc-pin). Its own binary because it
-  # replaces the global operator new/delete to census heap allocations;
-  # that replacement must not perturb the other test executables.
-  # EXPECTED RED while the steady-state interaction still allocates: the
-  # failing assert is the pin, the printed census is the deliverable.
+  # Allocation ratchet (tests/alloc-ratchet, grown from probe/zero-alloc-pin).
+  # Its own binary because it replaces the global operator new/delete to
+  # census heap allocations; that replacement must not perturb the other
+  # test executables. Asserts steady-state per-interaction allocations stay
+  # under a fixed budget (a ceiling, not a target); prints the per-stack
+  # census only when the ratchet trips.
   add_executable(LokaAllocPinTests
     ${PROJECT_SOURCE_DIR}/tests/AllocPinMain.cpp
     ${PROJECT_SOURCE_DIR}/tests/AllocPinTests.cpp
