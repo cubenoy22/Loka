@@ -396,6 +396,10 @@ namespace
     }
     virtual void reserveStates(size_t) {}
     virtual void reserveStateArena(size_t) {}
+    virtual void noteStateAllocationFailure()
+    {
+      assert(false && "unexpected state OOM in this test fixture");
+    }
     virtual void *allocateStateMemory(size_t, size_t)
     {
       return 0;
@@ -5807,6 +5811,11 @@ namespace
     }
 
     virtual void reserveStateArena(size_t) {}
+
+    virtual void noteStateAllocationFailure()
+    {
+      assert(false && "unexpected state OOM in this test fixture");
+    }
 
     virtual void *allocateStateMemory(size_t, size_t)
     {

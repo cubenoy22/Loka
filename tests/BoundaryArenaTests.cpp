@@ -157,6 +157,11 @@ namespace
       arena_.reserve(totalSize);
     }
 
+    virtual void noteStateAllocationFailure()
+    {
+      assert(false && "unexpected state OOM in this test fixture");
+    }
+
     virtual void *allocateStateMemory(size_t size, size_t align)
     {
       return arena_.allocate(size, align);
