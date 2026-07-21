@@ -45,7 +45,11 @@ namespace loka
     /**
      * Acquires size bytes of raw storage from the current backend. Returns 0
      * when the backend already gave up; the caller converts 0 into its own
-     * failure unit and propagates it — no layer swallows the flag.
+     * failure unit and propagates it — no layer swallows the flag. An arena
+     * reservation refusal is storage-strategy degradation, not a logical
+     * materialization failure. Only a refusal to materialize at BOTH doors —
+     * the arena and the final heap door — becomes a compose failure (#132
+     * ruling 3).
      */
     void *LokaAllocRaw(std::size_t size, const LokaAllocationSite &site);
 

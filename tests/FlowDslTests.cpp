@@ -395,10 +395,7 @@ namespace
       delete state;
     }
     virtual void reserveStates(size_t) {}
-    virtual bool reserveStateArena(size_t)
-    {
-      return true;
-    }
+    virtual void reserveStateArena(size_t) {}
     virtual void *allocateStateMemory(size_t, size_t)
     {
       return 0;
@@ -5809,10 +5806,7 @@ namespace
       this->tracker_.reserveStates(count);
     }
 
-    virtual bool reserveStateArena(size_t)
-    {
-      return true;
-    }
+    virtual void reserveStateArena(size_t) {}
 
     virtual void *allocateStateMemory(size_t, size_t)
     {

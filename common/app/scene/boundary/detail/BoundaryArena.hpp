@@ -49,11 +49,11 @@ namespace loka
             clear();
           }
 
-          /** Returns false when the backend refused the slab (#132 ruling 3):
-              the arena stays empty, allocate() keeps returning 0, and node
-              creation falls to the heap door. A node that then fails to
-              materialize raises the boundary compose white flag. */
-          bool reserve(size_t totalSize)
+          /** An arena reservation refusal is storage-strategy degradation,
+              not a logical materialization failure. Only a refusal to
+              materialize at BOTH doors — the arena and the final heap door —
+              becomes a compose failure (#132 ruling 3). */
+          void reserve(size_t totalSize)
           {
             clear();
             if (totalSize > 0)
@@ -64,7 +64,7 @@ namespace loka
               raw_ = static_cast<char *>(loka::core::LokaAllocRaw(rawSize, slabSite()));
               if (!raw_)
               {
-                return false;
+                return;
               }
               size_t rawAddr = reinterpret_cast<size_t>(raw_);
               size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
@@ -72,7 +72,6 @@ namespace loka
               size_ = rawSize - (alignedAddr - rawAddr);
               offset_ = 0;
             }
-            return true;
           }
 
           void *allocate(size_t size, size_t align)
@@ -249,25 +248,27 @@ namespace loka
 
         /** Ensures one owner-lifetime allocation batch has enough arena
             capacity. allocate() consumes existing capacity only; it never
-            grows implicitly for unreserved node-local state. Returns false
-            when growth was needed and the backend refused it (#132 ruling
-            3); callers convert that into their own failure unit instead of
-            swallowing it. */
-        bool reserve(size_t totalSize)
+            grows implicitly for unreserved node-local state. An arena
+            reservation refusal is storage-strategy degradation, not a logical
+            materialization failure. Only a refusal to materialize at BOTH
+            doors — the arena and the final heap door — becomes a compose
+            failure (#132 ruling 3). */
+        void reserve(size_t totalSize)
         {
           if (totalSize == 0)
           {
-            return true;
+            return;
           }
           if (!tail_)
           {
-            return appendBlock(totalSize);
+            appendBlock(totalSize);
+            return;
           }
           if (remainingCapacity(*tail_) < totalSize)
           {
-            return appendBlock(totalSize);
+            appendBlock(totalSize);
+            return;
           }
-          return true;
         }
 
         /** Serves allocations from the tail block only. Leftover capacity in
@@ -396,20 +397,20 @@ namespace loka
           return ptr;
         }
 
-        bool appendBlock(size_t totalSize)
+        void appendBlock(size_t totalSize)
         {
           const size_t kArenaAlign = 16;
           Block *block = loka::core::LokaNew<Block>(blockSite());
           if (!block)
           {
-            return false;
+            return;
           }
           size_t rawSize = totalSize + kArenaAlign;
           block->raw = static_cast<char *>(loka::core::LokaAllocRaw(rawSize, slabSite()));
           if (!block->raw)
           {
             loka::core::LokaDelete(block, blockSite());
-            return false;
+            return;
           }
           size_t rawAddr = reinterpret_cast<size_t>(block->raw);
           size_t alignedAddr = (rawAddr + (kArenaAlign - 1)) & ~(kArenaAlign - 1);
@@ -424,7 +425,6 @@ namespace loka
             tail_->next = block;
           }
           tail_ = block;
-          return true;
         }
 
         void clearBlocks()

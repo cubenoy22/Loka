@@ -23,11 +23,12 @@ namespace loka
         virtual void adoptStateUnchecked(core::StateBase *state) = 0;
         virtual void releaseState(core::StateBase *state) = 0;
         virtual void reserveStates(size_t count) = 0;
-        /** Ensures arena capacity for one allocation batch. Returns false
-            only when growth was needed and the backend refused it (#132
-            ruling 3); creation below is still legal — it takes the heap
-            door, and a refusal there raises the white flag itself. */
-        virtual bool reserveStateArena(size_t totalSize) = 0;
+        /** Ensures arena capacity for one allocation batch. An arena
+            reservation refusal is storage-strategy degradation, not a logical
+            materialization failure. Only a refusal to materialize at BOTH
+            doors — the arena and the final heap door — becomes a compose
+            failure (#132 ruling 3). */
+        virtual void reserveStateArena(size_t totalSize) = 0;
         /** Allocation white flag (#132 ruling 3): the state creation path
             calls this when both storage doors — arena and gate-routed heap
             fallback — refused, so no state was materialized. The default
