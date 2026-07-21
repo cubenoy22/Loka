@@ -95,16 +95,16 @@ namespace loka
         }
       }
 
-      static Node *createNodeWithArena(NodeDefinitionBase *def,
-                                       NodeArena *arena,
-                                       long &autoIdCounter,
-                                       BoundaryNode *boundary,
-                                       Node *runtimeParent,
-                                       bool *refused)
+      static NodeMaterializationResult createNodeWithArena(NodeDefinitionBase *def,
+                                                           NodeArena *arena,
+                                                           long &autoIdCounter,
+                                                           BoundaryNode *boundary,
+                                                           Node *runtimeParent)
       {
         if (!def)
         {
-          return 0;
+          NodeMaterializationResult empty = {0, false};
+          return empty;
         }
 
         assert(!def->asBranchPolicyScopeDefinition() &&
@@ -116,23 +116,23 @@ namespace loka
           assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
           if (!plan || !plan->condition)
           {
-            return 0;
+            NodeMaterializationResult missingPlan = {0, false};
+            return missingPlan;
           }
           const bool condition = plan->condition->get();
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *branchDefinition =
               plan->materializedBranchDefinition(condition, emptyBranch);
-          Node *active = createNodeWithArena(branchDefinition,
-                                             arena,
-                                             autoIdCounter,
-                                             boundary,
-                                             runtimeParent,
-                                             refused);
-          if (active)
+          NodeMaterializationResult active = createNodeWithArena(branchDefinition,
+                                                                 arena,
+                                                                 autoIdCounter,
+                                                                 boundary,
+                                                                 runtimeParent);
+          if (active.root)
           {
             boundary->registerMaterializedBranchSeat(*plan,
                                                      runtimeParent,
-                                                     active,
+                                                     active.root,
                                                      condition);
           }
           return active;
@@ -155,26 +155,12 @@ namespace loka
         }
         if (!node)
         {
-          // White flag (#132 ruling 3, #140): the heap door refused too —
-          // today via the assert-and-return-0 create() overrides, later via
-          // gate-routed creation (S2b). Raise the boundary compose flag so
-          // the failure converts at compose completion instead of crashing
-          // on the null below.
-          if (boundary)
-          {
-            boundary->noteComposeAllocationFailure();
-          }
-          // Boundary-independent white flag (#132 ruling 3): the contextless
-          // local-rebuild path passes a null boundary but a non-null refused,
-          // so a nested-child refusal is signalled without touching the
-          // boundary's seat/arena state.
-          if (refused)
-          {
-            *refused = true;
-          }
-          return 0;
+          NodeMaterializationResult refused = {0, true};
+          return refused;
         }
         assignNodeTestId(node, def, autoIdCounter);
+
+        NodeMaterializationResult result = {node, false};
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
@@ -184,33 +170,33 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            Node *childNode = createNodeWithArena(child,
-                                                  arena,
-                                                  autoIdCounter,
-                                                  boundary,
-                                                  node,
-                                                  refused);
-            if (childNode)
+            NodeMaterializationResult childResult = createNodeWithArena(child,
+                                                                        arena,
+                                                                        autoIdCounter,
+                                                                        boundary,
+                                                                        node);
+            result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
+            if (childResult.root)
             {
-              nestableNode->addChild(childNode);
+              nestableNode->addChild(childResult.root);
             }
             child = child->nextInComposition;
           }
         }
 
-        return node;
+        return result;
       }
 
       // Fallback: create without arena
-      static Node *createNodeRecursive(NodeDefinitionBase *def,
-                                       long &autoIdCounter,
-                                       BoundaryNode *boundary,
-                                       Node *runtimeParent,
-                                       bool *refused)
+      static NodeMaterializationResult createNodeRecursive(NodeDefinitionBase *def,
+                                                           long &autoIdCounter,
+                                                           BoundaryNode *boundary,
+                                                           Node *runtimeParent)
       {
         if (!def)
         {
-          return 0;
+          NodeMaterializationResult empty = {0, false};
+          return empty;
         }
 
         assert(!def->asBranchPolicyScopeDefinition() &&
@@ -222,22 +208,22 @@ namespace loka
           assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
           if (!plan || !plan->condition)
           {
-            return 0;
+            NodeMaterializationResult missingPlan = {0, false};
+            return missingPlan;
           }
           const bool condition = plan->condition->get();
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *branchDefinition =
               plan->materializedBranchDefinition(condition, emptyBranch);
-          Node *active = createNodeRecursive(branchDefinition,
-                                             autoIdCounter,
-                                             boundary,
-                                             runtimeParent,
-                                             refused);
-          if (active)
+          NodeMaterializationResult active = createNodeRecursive(branchDefinition,
+                                                                 autoIdCounter,
+                                                                 boundary,
+                                                                 runtimeParent);
+          if (active.root)
           {
             boundary->registerMaterializedBranchSeat(*plan,
                                                      runtimeParent,
-                                                     active,
+                                                     active.root,
                                                      condition);
           }
           return active;
@@ -246,23 +232,12 @@ namespace loka
         Node *node = def->create();
         if (!node)
         {
-          // White flag (#132 ruling 3, #140): same conversion as the arena
-          // path — record on the boundary and let compose completion convert.
-          if (boundary)
-          {
-            boundary->noteComposeAllocationFailure();
-          }
-          // Boundary-independent white flag (#132 ruling 3): the contextless
-          // local-rebuild path passes a null boundary but a non-null refused,
-          // so a nested-child refusal is signalled without touching the
-          // boundary's seat/arena state.
-          if (refused)
-          {
-            *refused = true;
-          }
-          return 0;
+          NodeMaterializationResult refused = {0, true};
+          return refused;
         }
         assignNodeTestId(node, def, autoIdCounter);
+
+        NodeMaterializationResult result = {node, false};
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
@@ -272,31 +247,33 @@ namespace loka
           NodeDefinitionBase *child = nestableDef->childrenHead();
           while (child)
           {
-            Node *childNode = createNodeRecursive(child,
-                                                  autoIdCounter,
-                                                  boundary,
-                                                  node,
-                                                  refused);
-            if (childNode)
+            NodeMaterializationResult childResult = createNodeRecursive(child,
+                                                                        autoIdCounter,
+                                                                        boundary,
+                                                                        node);
+            result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
+            if (childResult.root)
             {
-              nestableNode->addChild(childNode);
+              nestableNode->addChild(childResult.root);
             }
             child = child->nextInComposition;
           }
         }
 
-        return node;
+        return result;
       }
 
       Node *NodeComposition::createNodeTree() const
       {
-        NodeDefinitionBase *root = this->root();
-        if (!root)
+        assert(context_ && context_->boundary() &&
+               "NodeComposition::createNodeTree requires BoundaryNode context");
+        NodeMaterializationResult result =
+            this->createNodeFromDefinitionResult(this->root());
+        if (result.allocationFailed)
         {
-          return 0;
+          context_->boundary()->noteComposeAllocationFailure();
         }
-
-        return this->createNodeFromDefinition(root);
+        return result.root;
       }
 
       static void assignDefinitionSeatSlots(NodeDefinitionBase *definition, int &nextSlot)
@@ -326,12 +303,13 @@ namespace loka
         assignDefinitionSeatSlots(this->root_, nextSlot);
       }
 
-      Node *NodeComposition::createNodeFromDefinition(NodeDefinitionBase *root,
-                                                      bool *refused) const
+      NodeMaterializationResult NodeComposition::createNodeFromDefinitionResult(
+          NodeDefinitionBase *root) const
       {
         if (!root)
         {
-          return 0;
+          NodeMaterializationResult empty = {0, false};
+          return empty;
         }
 
         // Try to use arena if boundary is available
@@ -345,13 +323,13 @@ namespace loka
             {
               // Calculate total size and reserve. A refused slab is
               // survivable: creation below falls to the heap door, and a
-              // node that then fails to materialize raises the boundary
-              // white flag inside createNodeWithArena (#132 ruling 3).
+              // node that then fails to materialize reports through the
+              // completed result (#132 ruling 3).
               size_t totalSize = calculateTotalNodeSize(root, bnd);
               (void)arena->reserve(totalSize);
             }
             long autoIdCounter = 1;
-            return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd, refused);
+            return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd);
           }
         }
 
@@ -360,12 +338,11 @@ namespace loka
         // is non-null), so this contextless path never touches a boundary's
         // seat/arena state — the branch-seat plan lookup and materialized-seat
         // registration in createNodeRecursive stay disabled exactly as on main.
-        // The refused out-parameter carries the allocation white flag instead
-        // (#132 ruling 3): a refused create() at ANY depth sets *refused
-        // without a boundary being involved.
+        // The completed result carries the allocation white flag instead
+        // (#132 ruling 3), without a boundary being involved.
         long autoIdCounter = 1;
         BoundaryNode *boundary = context_ ? context_->boundary() : 0;
-        return createNodeRecursive(root, autoIdCounter, boundary, boundary, refused);
+        return createNodeRecursive(root, autoIdCounter, boundary, boundary);
       }
 
       BoundaryNode *NodeComposition::boundary() const

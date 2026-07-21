@@ -24,6 +24,18 @@ namespace loka
     {
       class BoundaryNode;
       class Scene;
+      namespace testing
+      {
+        struct NodeCompositionTestAccess;
+      }
+
+      /** Completed node-materialization fact. allocationFailed is the
+          monotonic OR of allocation refusals across the whole subtree. */
+      struct NodeMaterializationResult
+      {
+        Node *root;
+        bool allocationFailed;
+      };
 
       struct NodeComposition
       {
@@ -575,16 +587,6 @@ namespace loka
 
         // Create node tree
         Node *createNodeTree() const;
-        // refused is an optional out-parameter for the allocation white flag
-        // (#132 ruling 3): a refused create() at ANY depth of the materialized
-        // subtree sets *refused. It is set independently of the owning
-        // boundary, so the contextless local-rebuild path (which passes a null
-        // boundary) can catch a nested-child refusal without touching any
-        // boundary seat/arena state — the branch-seat path stays disabled
-        // exactly as on main. With-context callers still route via the
-        // boundary as well; the default 0 leaves existing callers unaffected.
-        Node *createNodeFromDefinition(NodeDefinitionBase *definition,
-                                       bool *refused = 0) const;
         void assignCompositionSeatSlots();
 
         NodeDefinitionBase *root() const
@@ -673,8 +675,30 @@ namespace loka
         }
 
       private:
+        /** Internal materialization primitive. The returned allocation flag
+            must be consumed by the operation's owner-side choke point. */
+        NodeMaterializationResult createNodeFromDefinitionResult(
+            NodeDefinitionBase *definition) const;
+
+        friend class BoundaryNode;
+        friend struct testing::NodeCompositionTestAccess;
         static NodeComposition *current_;
       };
+
+#ifdef TEST_BUILD
+      namespace testing
+      {
+        struct NodeCompositionTestAccess
+        {
+          static NodeMaterializationResult createNodeFromDefinitionResult(
+              const NodeComposition &composition,
+              NodeDefinitionBase *definition)
+          {
+            return composition.createNodeFromDefinitionResult(definition);
+          }
+        };
+      }
+#endif
 
     } // namespace scene
   } // namespace app
