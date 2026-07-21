@@ -430,9 +430,9 @@ namespace loka
         {
           stateArena_.registerState(state, destroy);
         }
-        virtual bool reserveStateArena(size_t totalSize)
+        virtual void reserveStateArena(size_t totalSize)
         {
-          return stateArena_.reserve(totalSize);
+          stateArena_.reserve(totalSize);
         }
 
         static void

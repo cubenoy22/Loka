@@ -120,10 +120,11 @@ namespace loka
         {
           if (owner)
           {
-            // A refused reservation is survivable here: the creation below
-            // still has the heap door, and a refusal there raises the
-            // owner's white flag itself (#132 ruling 3).
-            (void)owner->reserveStateArena(ArenaBytesForState<T>());
+            // An arena reservation refusal is storage-strategy degradation,
+            // not a logical materialization failure. Only a refusal to
+            // materialize at BOTH doors — the arena and the final heap door —
+            // becomes a compose failure (#132 ruling 3).
+            owner->reserveStateArena(ArenaBytesForState<T>());
           }
           CreateStateFromInitial<T>(owner, out, initial);
         }

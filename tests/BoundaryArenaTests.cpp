@@ -152,9 +152,9 @@ namespace
       tracker_.reserveStates(count);
     }
 
-    virtual bool reserveStateArena(size_t totalSize)
+    virtual void reserveStateArena(size_t totalSize)
     {
-      return arena_.reserve(totalSize);
+      arena_.reserve(totalSize);
     }
 
     virtual void *allocateStateMemory(size_t size, size_t align)
@@ -1287,8 +1287,8 @@ void testHeapFallbackWhiteFlagFailsBoundaryCompose()
     LargeStateValue initial = {{0}};
 
     // The arena door works normally under the selective backend.
-    assert(owner.reserveStateArena(
-        loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>()));
+    owner.reserveStateArena(
+        loka::app::scene::StateBatchBase::ArenaBytesForState<LargeStateValue>());
     loka::app::scene::StateBatchBase::CreateStateFromInitial<LargeStateValue>(
         &owner, reserved, initial);
     assert(reserved.isValid());
@@ -1501,8 +1501,8 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
     inner << RefusableGrandchildDefinition();
     loka::app::FragmentDefinition definition;
     definition << inner;
-    assert(boundary.nodeArena()->reserve(definition.nodeSize() +
-                                         definition.nodeAlign()));
+    boundary.nodeArena()->reserve(definition.nodeSize() +
+                                  definition.nodeAlign());
     g_nestedGrandchildRefuse = true;
     loka::app::scene::NodeMaterializationResult result =
         loka::app::scene::testing::NodeCompositionTestAccess::

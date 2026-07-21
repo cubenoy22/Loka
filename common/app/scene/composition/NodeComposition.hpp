@@ -361,11 +361,11 @@ namespace loka
           {
             if (pages_.stateCount() != 0 && owner_)
             {
-              // A refused reservation is survivable: each creation below
-              // still has the heap door, and CreateStateFromInitial raises
-              // the owner's white flag when both doors refuse (#132 ruling
-              // 3). Reservation refusal alone is degradation, not failure.
-              (void)owner_->reserveStateArena(pages_.arenaBytes());
+              // An arena reservation refusal is storage-strategy degradation,
+              // not a logical materialization failure. Only a refusal to
+              // materialize at BOTH doors — the arena and the final heap door —
+              // becomes a compose failure (#132 ruling 3).
+              owner_->reserveStateArena(pages_.arenaBytes());
               owner_->reserveStates(pages_.stateCount());
             }
             for (Page *p = pages_.first(); p; p = p->next)

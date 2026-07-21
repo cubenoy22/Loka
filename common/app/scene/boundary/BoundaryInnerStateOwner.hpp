@@ -90,12 +90,13 @@ namespace loka
           this->tracker_.reserveStates(count);
         }
 
-        virtual bool reserveStateArena(size_t totalSize)
+        /** An arena reservation refusal is storage-strategy degradation,
+            not a logical materialization failure. Only a refusal to
+            materialize at BOTH doors — the arena and the final heap door —
+            becomes a compose failure (#132 ruling 3). */
+        virtual void reserveStateArena(size_t totalSize)
         {
           (void)totalSize;
-          // No arena here, so nothing can be refused: creation takes the
-          // heap door and a refusal there raises the white flag itself.
-          return true;
         }
 
         virtual void *allocateStateMemory(size_t size, size_t align)

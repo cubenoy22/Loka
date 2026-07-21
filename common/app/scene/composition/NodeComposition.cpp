@@ -321,12 +321,12 @@ namespace loka
             NodeArena *arena = bnd->nodeArena();
             if (!arena->hasCapacity())
             {
-              // Calculate total size and reserve. A refused slab is
-              // survivable: creation below falls to the heap door, and a
-              // node that then fails to materialize reports through the
-              // completed result (#132 ruling 3).
+              // An arena reservation refusal is storage-strategy degradation,
+              // not a logical materialization failure. Only a refusal to
+              // materialize at BOTH doors — the arena and the final heap door —
+              // becomes a compose failure (#132 ruling 3).
               size_t totalSize = calculateTotalNodeSize(root, bnd);
-              (void)arena->reserve(totalSize);
+              arena->reserve(totalSize);
             }
             long autoIdCounter = 1;
             return createNodeWithArena(root, arena, autoIdCounter, bnd, bnd);
