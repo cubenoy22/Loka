@@ -31,10 +31,10 @@ namespace loka
         virtual void reserveStateArena(size_t totalSize) = 0;
         /** Allocation white flag (#132 ruling 3): the state creation path
             calls this when both storage doors — arena and gate-routed heap
-            fallback — refused, so no state was materialized. The default
-            ignores the flag; boundary owners convert it into a compose
-            failure at compose completion. */
-        virtual void noteStateAllocationFailure() {}
+            fallback — refused, so no state was materialized. This is pure
+            virtual so omission cannot silently discard the failure; every
+            owner must state its failure policy explicitly. */
+        virtual void noteStateAllocationFailure() = 0;
         virtual void *allocateStateMemory(size_t size, size_t align) = 0;
         virtual void registerStateMemory(core::StateBase *state, void (*destroy)(core::StateBase *)) = 0;
         virtual core::StateTracker *tracker() = 0;

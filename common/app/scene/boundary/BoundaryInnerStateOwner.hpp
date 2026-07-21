@@ -13,9 +13,12 @@ namespace loka
   {
     namespace scene
     {
-      // Lightweight state owner for scopes that live inside a Boundary.
-      // Boundary remains the broad owner for ordinary component state; this
-      // owner is for explicit subtree-local lifecycle scopes.
+      /** Lightweight state owner for scopes that live inside a Boundary.
+          Boundary remains the broad owner for ordinary component state; this
+          owner is for explicit subtree-local lifecycle scopes. It is
+          intentionally abstract until a concrete production consumer with a
+          wired failure route exists (#145); production promotion must design
+          that route and its failure atomicity. */
       class BoundaryInnerStateOwner : public IStateOwner
       {
       public:

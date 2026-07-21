@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 #define LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 
+#include <cassert>
 #include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/boundary/Boundary.hpp"
@@ -27,6 +28,15 @@ namespace loka
             return false;
           }
           return false;
+        }
+      };
+
+      class HeadlessStateOwner : public BoundaryInnerStateOwner
+      {
+      public:
+        virtual void noteStateAllocationFailure()
+        {
+          assert(false && "unexpected state OOM in this test fixture");
         }
       };
 
@@ -136,7 +146,7 @@ namespace loka
           attached->boundary()->markViewDirty(NODE_DIRTY_CHILD);
         }
 
-        BoundaryInnerStateOwner stateOwner_;
+        HeadlessStateOwner stateOwner_;
         bool composed_;
       };
 
