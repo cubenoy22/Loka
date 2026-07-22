@@ -1009,24 +1009,38 @@ namespace loka
           NodeDefinitionBase *definition = currentRoot.childrenHead();
           while (definition)
           {
-            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
+            NodeDefinitionBase *effectiveDefinition = definition;
+            IBranchPolicyScopeDefinition *scope =
+                definition->asBranchPolicyScopeDefinition();
+            if (scope)
+            {
+              effectiveDefinition = scope->scopedBranchDefinition();
+            }
+            const BoundaryBranchSeatPlanEntry *seatPlan =
+                this->branchSeatPlan(effectiveDefinition);
             BoundaryBranchSeatRuntimeEntry *seatRuntime =
                 seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
             Node *existing = seatPlan
                                  ? (seatRuntime ? seatRuntime->active : 0)
-                                 : findCompositionChildByTag(definition->nodeTag());
-            if (!seatPlan && !existing && definition->nodeTag() == NODE_TAG_NONE &&
+                                 : findCompositionChildByTag(effectiveDefinition->nodeTag());
+            if (!seatPlan && !existing &&
+                effectiveDefinition->nodeTag() == NODE_TAG_NONE &&
                 diff && !diff->fullRebuild && diff->entryCount() == 1 && singleEntry &&
-                singleEntry->action == NodeCompositionDiff::ACTION_RETAIN &&
-                singleEntry->compatibleType && singleEntry->previousIndex == 0 &&
-                singleEntry->currentIndex == 0)
+                singleEntry->previousIndex == 0 && singleEntry->currentIndex == 0 &&
+                (scope ||
+                 (singleEntry->action == NodeCompositionDiff::ACTION_RETAIN &&
+                  singleEntry->compatibleType)))
             {
               existing = root && root->childrenCount() == 1 ? root->childrenHead() : 0;
             }
-            if (existing && (seatPlan || definition->isCompatibleWithNode(existing)))
+            if (existing &&
+                (seatPlan || effectiveDefinition->isCompatibleWithNode(existing)))
             {
               plan.entries.push_back(
-                  BoundaryLocalRebuildPlanEntry::retain(existing, definition, definition->nodeTag()));
+                  BoundaryLocalRebuildPlanEntry::retain(
+                      existing,
+                      effectiveDefinition,
+                      effectiveDefinition->nodeTag()));
             }
             else
             {
@@ -1053,7 +1067,7 @@ namespace loka
               }
               else
               {
-                created = this->materializeLocalRebuildNode(definition);
+                created = this->materializeLocalRebuildNode(effectiveDefinition);
                 if (!created)
                 {
                   return false;
@@ -1061,9 +1075,14 @@ namespace loka
               }
               plan.entries.push_back(
                   existing ? BoundaryLocalRebuildPlanEntry::replace(
-                                 created, existing, definition, definition->nodeTag())
+                                 created,
+                                 existing,
+                                 effectiveDefinition,
+                                 effectiveDefinition->nodeTag())
                            : BoundaryLocalRebuildPlanEntry::attach(
-                                 created, definition, definition->nodeTag()));
+                                 created,
+                                 effectiveDefinition,
+                                 effectiveDefinition->nodeTag()));
             }
             definition = definition->nextInComposition;
           }
@@ -1156,15 +1175,25 @@ namespace loka
           size_t slot = 0;
           while (definition)
           {
-            const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(definition);
+            NodeDefinitionBase *effectiveDefinition = definition;
+            IBranchPolicyScopeDefinition *scope =
+                definition->asBranchPolicyScopeDefinition();
+            if (scope)
+            {
+              effectiveDefinition = scope->scopedBranchDefinition();
+            }
+            const BoundaryBranchSeatPlanEntry *seatPlan =
+                this->branchSeatPlan(effectiveDefinition);
             BoundaryBranchSeatRuntimeEntry *seatRuntime =
                 seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
             Node *existing = seatRuntime ? seatRuntime->active : 0;
-            if (!seatPlan && !existing && definition->nodeTag() != NODE_TAG_NONE)
+            if (!seatPlan && !existing &&
+                effectiveDefinition->nodeTag() != NODE_TAG_NONE)
             {
               for (size_t i = 0; i < liveChildren.size(); ++i)
               {
-                if (liveChildren[i] && liveChildren[i]->nodeTag() == definition->nodeTag())
+                if (liveChildren[i] &&
+                    liveChildren[i]->nodeTag() == effectiveDefinition->nodeTag())
                 {
                   existing = liveChildren[i];
                   break;
@@ -1177,23 +1206,32 @@ namespace loka
               existing = liveChildren[slot];
             }
 
-            if (existing && (seatPlan || definition->isCompatibleWithNode(existing)))
+            if (existing &&
+                (seatPlan || effectiveDefinition->isCompatibleWithNode(existing)))
             {
               plan.entries.push_back(
-                  BoundaryLocalRebuildPlanEntry::retain(existing, definition, definition->nodeTag()));
+                  BoundaryLocalRebuildPlanEntry::retain(
+                      existing,
+                      effectiveDefinition,
+                      effectiveDefinition->nodeTag()));
             }
             else
             {
-              Node *created = this->materializeLocalRebuildNode(definition);
+              Node *created = this->materializeLocalRebuildNode(effectiveDefinition);
               if (!created)
               {
                 return false;
               }
               plan.entries.push_back(
                   existing ? BoundaryLocalRebuildPlanEntry::replace(
-                                 created, existing, definition, definition->nodeTag())
+                                 created,
+                                 existing,
+                                 effectiveDefinition,
+                                 effectiveDefinition->nodeTag())
                            : BoundaryLocalRebuildPlanEntry::attach(
-                                 created, definition, definition->nodeTag()));
+                                 created,
+                                 effectiveDefinition,
+                                 effectiveDefinition->nodeTag()));
             }
             definition = definition->nextInComposition;
             ++slot;

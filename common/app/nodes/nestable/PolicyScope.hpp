@@ -8,8 +8,9 @@ namespace loka
 {
   namespace app
   {
-    /** Definition-only annotation for one conditional branch root.
-        PolicyScope deliberately carries only lifecycle/diff policy. */
+    /** Deprecated definition-only annotation for one conditional branch root.
+        It will be replaced by branch-root policy modifiers such as
+        destroyOnDetach() and deliverWhileDetached(). */
     class PolicyScopeDefinition : public scene::NodeDefinitionBase,
                                   public scene::IBranchPolicyScopeDefinition
     {
@@ -122,6 +123,13 @@ namespace loka
       FragmentDefinition content_;
       scene::BranchPolicies policies_;
     };
+
+    inline PolicyScopeDefinition PolicyScope()
+#if defined(__GNUC__)
+        __attribute__((deprecated("PolicyScope is deprecated and will be replaced by a branch-root policy modifier (destroyOnDetach()/deliverWhileDetached() applied directly to the branch-root node); see issue #126. It remains valid only as the sole branch root of a Show/Conditional.")));
+#else
+        ;
+#endif
 
     inline PolicyScopeDefinition PolicyScope()
     {
