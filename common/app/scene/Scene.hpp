@@ -343,6 +343,12 @@ namespace loka
             {
               notifyComposeEvent(COMPOSE_EVENT_DETACH);
               teardownComposition();
+              // Teardown destroys the root boundary; drop any queued boundary
+              // update so a re-attach does not swap a transaction that still
+              // holds the freed boundary as its raw target (UAF on the next
+              // flush). unmount() already does this -- detach must match (#45
+              // item 1 / W1-1). Ported from PR #51 to the post-#63 update cycle.
+              clearMountedUpdateState();
             }
           }
         }
