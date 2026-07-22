@@ -381,6 +381,42 @@ namespace loka
                 static_cast<NodeDirtyFlags>(NODE_DIRTY_CHILD | NODE_DIRTY_LAYOUT));
           }
         }
+        /** Registers a node's declared external dirty sources against the owning
+            boundary, wiring each observed state so a later mutation marks that
+            boundary's view dirty. Shared by the generic composeTree walk and the
+            direct-root compose path (Scene::prepareRootBoundaryCompose, #127) so
+            both re-register on every non-DETACH compose window, paired with
+            beginObservedStatePass(). */
+        static void declareBoundaryDirtySources(Node *node, BoundaryNode *owner)
+        {
+          if (!node || !owner)
+          {
+            return;
+          }
+          class LocalDirtySourceRegistrar : public DirtySourceRegistrar
+          {
+          public:
+            explicit LocalDirtySourceRegistrar(BoundaryNode *boundary)
+                : boundary_(boundary)
+            {
+            }
+
+            virtual void markDirtyOnChange(loka::core::StateBase *state, NodeDirtyFlags flags)
+            {
+              if (!boundary_ || !state)
+              {
+                return;
+              }
+              boundary_->registerState(state);
+              boundary_->registerObservedState(state, flags);
+            }
+
+          private:
+            BoundaryNode *boundary_;
+          };
+          LocalDirtySourceRegistrar registrar(owner);
+          node->declareDirtySources(registrar);
+        }
         NodeDirtyFlags observedDirtyFlags() const
         {
           return observedState_.currentDirtyFlags();
@@ -1635,29 +1671,7 @@ namespace loka
           if (nextBoundary && event != COMPOSE_EVENT_DETACH)
           {
             nextBoundary->noteLocalPaintWork();
-            class LocalDirtySourceRegistrar : public DirtySourceRegistrar
-            {
-            public:
-              explicit LocalDirtySourceRegistrar(BoundaryNode *boundary)
-                  : boundary_(boundary)
-              {
-              }
-
-              virtual void markDirtyOnChange(loka::core::StateBase *state, NodeDirtyFlags flags)
-              {
-                if (!boundary_ || !state)
-                {
-                  return;
-                }
-                boundary_->registerState(state);
-                boundary_->registerObservedState(state, flags);
-              }
-
-            private:
-              BoundaryNode *boundary_;
-            };
-            LocalDirtySourceRegistrar registrar(nextBoundary);
-            node->declareDirtySources(registrar);
+            declareBoundaryDirtySources(node, nextBoundary);
           }
           ComponentContext *contextForChildren = &parentContext;
           ComponentContext nodeContext(&parentContext);
