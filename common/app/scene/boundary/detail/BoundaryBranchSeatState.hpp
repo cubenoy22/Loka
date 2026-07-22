@@ -2,6 +2,9 @@
 #define LOKA_CORE2_SCENE_BOUNDARY_DETAIL_BOUNDARYBRANCHSEATSTATE_HPP
 
 #include <cassert>
+#ifndef NDEBUG
+#include <cstdio>
+#endif
 #include <vector>
 #include "app/scene/Node.hpp"
 #include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
@@ -101,6 +104,9 @@ namespace loka
             : plans_(),
               runtime_(),
               generation_(0)
+#ifndef NDEBUG
+              , misplacementHintEmitted_(false)
+#endif
         {
         }
 
@@ -284,8 +290,25 @@ namespace loka
           {
             return;
           }
-          assert(!definition->asBranchPolicyScopeDefinition() &&
-                 "PolicyScope is legal only as the immediate branch root of a conditional seat");
+          IBranchPolicyScopeDefinition *scope =
+              definition->asBranchPolicyScopeDefinition();
+          if (scope)
+          {
+#ifndef NDEBUG
+            if (!this->misplacementHintEmitted_)
+            {
+              std::fprintf(stderr,
+                           "PolicyScope is not the sole branch root of its conditional seat; "
+                           "its park policies are ignored. Place PolicyScope directly as the "
+                           "branch root.\n");
+              this->misplacementHintEmitted_ = true;
+            }
+#endif
+            this->captureDefinition(scope->scopedBranchDefinition(),
+                                    ownerKey,
+                                    ownerCondition);
+            return;
+          }
 
           IBranchSeatDefinition *seat = definition->asBranchSeatDefinition();
           if (seat)
@@ -322,6 +345,9 @@ namespace loka
         std::vector<BoundaryBranchSeatPlanEntry> plans_;
         std::vector<BoundaryBranchSeatRuntimeEntry> runtime_;
         unsigned long generation_;
+#ifndef NDEBUG
+        bool misplacementHintEmitted_;
+#endif
       };
     } // namespace scene
   } // namespace app

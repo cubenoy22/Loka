@@ -19,9 +19,10 @@ namespace loka
         enum Action
         {
           ACTION_RETAIN = 0,
-          ACTION_ATTACH = 1,
-          ACTION_REPLACE = 2,
-          ACTION_RETIRE = 3
+          ACTION_RECONCILE = 1,
+          ACTION_ATTACH = 2,
+          ACTION_REPLACE = 3,
+          ACTION_RETIRE = 4
         };
 
         BoundaryLocalRebuildPlanEntry()
@@ -41,6 +42,16 @@ namespace loka
           entry.node = nodeValue;
           entry.definition = definitionValue;
           entry.tag = tagValue;
+          return entry;
+        }
+
+        static BoundaryLocalRebuildPlanEntry reconcile(Node *nodeValue,
+                                                       NodeDefinitionBase *definitionValue,
+                                                       NodeTag tagValue)
+        {
+          BoundaryLocalRebuildPlanEntry entry =
+              retain(nodeValue, definitionValue, tagValue);
+          entry.action = ACTION_RECONCILE;
           return entry;
         }
 

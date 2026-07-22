@@ -40,8 +40,11 @@ namespace loka
         {
           return 0;
         }
-        assert(!def->asBranchPolicyScopeDefinition() &&
-               "PolicyScope is legal only as the immediate branch root of a conditional seat");
+        IBranchPolicyScopeDefinition *scope = def->asBranchPolicyScopeDefinition();
+        if (scope)
+        {
+          return calculateTotalNodeSize(scope->scopedBranchDefinition(), boundary);
+        }
         IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
         if (seat)
         {
@@ -107,8 +110,15 @@ namespace loka
           return empty;
         }
 
-        assert(!def->asBranchPolicyScopeDefinition() &&
-               "PolicyScope is legal only as the immediate branch root of a conditional seat");
+        IBranchPolicyScopeDefinition *scope = def->asBranchPolicyScopeDefinition();
+        if (scope)
+        {
+          return createNodeWithArena(scope->scopedBranchDefinition(),
+                                     arena,
+                                     autoIdCounter,
+                                     boundary,
+                                     runtimeParent);
+        }
         IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
         if (seat)
         {
@@ -202,8 +212,14 @@ namespace loka
           return empty;
         }
 
-        assert(!def->asBranchPolicyScopeDefinition() &&
-               "PolicyScope is legal only as the immediate branch root of a conditional seat");
+        IBranchPolicyScopeDefinition *scope = def->asBranchPolicyScopeDefinition();
+        if (scope)
+        {
+          return createNodeRecursive(scope->scopedBranchDefinition(),
+                                     autoIdCounter,
+                                     boundary,
+                                     runtimeParent);
+        }
         IBranchSeatDefinition *seat = def->asBranchSeatDefinition();
         if (seat)
         {
