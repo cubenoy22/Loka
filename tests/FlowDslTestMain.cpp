@@ -9,6 +9,7 @@
 #include "BoundaryArenaTests.hpp"
 #include "ValueTests.hpp"
 #include "SceneOwnershipTests.hpp"
+#include "PhaseGuardTests.hpp"
 #include "LifecycleDetachTests.hpp"
 #include "NativeLifetimeTests.hpp"
 #include "NullPlatformContractTests.hpp"
