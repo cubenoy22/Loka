@@ -912,6 +912,55 @@ namespace loka
           plan.clear();
           plan.reserve(currentRoot.childrenCount());
 
+          // Own the non-seat nodes this pass materializes until the plan is
+          // handed off intact. A mid-build abort (a later child refuses)
+          // otherwise drops the raw-vector plan with earlier plain children's
+          // contextless heap nodes still live and unparented -- a leak the
+          // downstream full-rebuild fallback never reclaims, since those nodes
+          // are in no arena ledger (#150).
+          //
+          // Freed only when BOTH hold: arenaOwner()==0 (heap provenance; arena
+          // candidates stay ledger-owned and are reclaimed by the generation
+          // retire, so freeing them here would double-destruct), AND the entry
+          // is not a branch seat. arenaOwner()==0 is storage provenance, not
+          // exclusive ownership: under arena exhaustion createCurrentBranch also
+          // yields a heap node, but it is registered in branchSeats_.runtime_
+          // before entering the plan, so freeing one here would dangle
+          // runtime->active. Seat-candidate abort needs a transactional seat
+          // rollback (#144); this narrow guard leaves seats untouched.
+          struct UncommittedCandidateGuard
+          {
+            BoundaryLocalRebuildPlan &plan;
+            bool armed;
+            explicit UncommittedCandidateGuard(BoundaryLocalRebuildPlan &planRef)
+                : plan(planRef), armed(true)
+            {
+            }
+            void disarm() { armed = false; }
+            ~UncommittedCandidateGuard()
+            {
+              if (!armed)
+              {
+                return;
+              }
+              for (size_t i = 0; i < plan.entries.size(); ++i)
+              {
+                BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+                const bool materialized =
+                    entry.action == BoundaryLocalRebuildPlanEntry::ACTION_ATTACH ||
+                    entry.action == BoundaryLocalRebuildPlanEntry::ACTION_REPLACE;
+                const bool exclusivelyPlanOwned =
+                    entry.definition && !entry.definition->asBranchSeatDefinition();
+                if (materialized && exclusivelyPlanOwned && entry.node &&
+                    entry.node->arenaOwner() == 0)
+                {
+                  DestroyHeapNode(entry.node);
+                  entry.node = 0;
+                }
+              }
+            }
+          } uncommittedGuard(plan);
+
           INestable *root = compositionRootNestable();
           Node *runtimeParent = compositionRootNode();
           if (!root || !runtimeParent)
@@ -1001,6 +1050,7 @@ namespace loka
               plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retire(liveChild, liveChild->nodeTag()));
             }
           }
+          uncommittedGuard.disarm();
           return true;
         }
         bool applyLocalRebuildPlan(ComponentContext &context,

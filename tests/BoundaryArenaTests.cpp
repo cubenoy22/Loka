@@ -1068,6 +1068,68 @@ namespace
     }
   };
 
+  // #150 two-child local-rebuild abort harness. The recomposing root reveals
+  // two plain (non-seat) children at once; the first materializes through the
+  // contextless materializeLocalRebuildNode path (a gate-routed heap node with
+  // arenaOwner()==0), then the second child's create() is refused, so
+  // buildLocalRebuildPlan aborts AFTER the first child's node was created and
+  // stored in the raw-vector plan. Definition-driven refusal so exactly the
+  // second child fails, never the first. Before the abort-cleanup guard the
+  // first child's contextless heap node is dropped with the discarded plan and
+  // never freed -- a leak the full-rebuild fallback cannot reclaim (the node is
+  // in no arena ledger).
+  bool g_twoChildLocalRebuildShow = false;
+  bool g_twoChildLocalRebuildRefuseSecond = false;
+  int g_twoChildLocalRebuildSecondRefusals = 0;
+
+  struct RefusableSecondChildDefinition
+      : public loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode>
+  {
+    typedef loka::app::scene::NodeDefinition<GateProbeProps, GateProbeNode> BaseType;
+    RefusableSecondChildDefinition() : BaseType() {}
+    RefusableSecondChildDefinition(const RefusableSecondChildDefinition &other) : BaseType(other) {}
+    virtual loka::app::scene::Node *create() const
+    {
+      if (g_twoChildLocalRebuildRefuseSecond)
+      {
+        ++g_twoChildLocalRebuildSecondRefusals;
+        return 0;
+      }
+      return BaseType::create();
+    }
+    virtual loka::app::scene::NodeDefinitionBase *clone() const
+    {
+      return new RefusableSecondChildDefinition(*this);
+    }
+  };
+
+  class TwoChildLocalRebuildRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<TwoChildLocalRebuildRootNode>
+      TwoChildLocalRebuildRootProps;
+
+  class TwoChildLocalRebuildRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<TwoChildLocalRebuildRootNode,
+                                                         TwoChildLocalRebuildRootProps>
+  {
+  public:
+    explicit TwoChildLocalRebuildRootNode(const TwoChildLocalRebuildRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<TwoChildLocalRebuildRootNode,
+                                                    TwoChildLocalRebuildRootProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_twoChildLocalRebuildShow)
+      {
+        root << GateProbeDefinition();
+        root << RefusableSecondChildDefinition();
+      }
+      composition.declare(root);
+    }
+  };
+
 } // namespace
 
 
@@ -1473,6 +1535,71 @@ void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick");
+#endif
+}
+
+/** #150: aborting buildLocalRebuildPlan after an earlier child was already
+    materialized must not leak that child's contextless heap node. A local
+    rebuild reveals two plain children; the first materializes through the
+    contextless path (a gate-routed heap node, arenaOwner()==0), then the
+    second child's create() is refused, so buildLocalRebuildPlan returns false
+    with the first child's node still parked in the discarded raw-vector plan.
+    The downstream full-rebuild fallback never reclaims it (it is in no arena
+    ledger, not parked, not retired). Red before the abort-cleanup guard: the
+    node site's live count stays above the pre-test baseline. Green: the guard
+    retires the orphaned contextless candidate and the ledger balances. The
+    scene is healed on a following external tick so only the earlier abort's
+    orphan (if any) remains outstanding at scope end. */
+void testLocalRebuildLaterChildRefusalDoesNotLeakEarlierChild()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const loka::core::LokaAllocationSite nodeSite("NodeDefinition", "Node");
+  const int nodeLiveBefore = loka::core::LokaAllocAuditLiveCount(nodeSite);
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    g_twoChildLocalRebuildShow = false;
+    g_twoChildLocalRebuildRefuseSecond = false;
+    g_twoChildLocalRebuildSecondRefusals = 0;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<TwoChildLocalRebuildRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    TwoChildLocalRebuildRootNode *root = static_cast<TwoChildLocalRebuildRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    assert(root->composeResult().composed);
+
+    // Externally driven recompose introducing two fresh plain children. The
+    // first materializes; the second's create() is refused, aborting
+    // buildLocalRebuildPlan after the first child's contextless heap node was
+    // already created and stored in the raw-vector plan.
+    g_twoChildLocalRebuildShow = true;
+    g_twoChildLocalRebuildRefuseSecond = true;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    scene.flushInvalidation();
+    g_twoChildLocalRebuildRefuseSecond = false;
+    assert(g_twoChildLocalRebuildSecondRefusals > 0);
+
+    // The rebuild aborted (incomplete); nothing was published.
+    assert(!root->composeResult().composed);
+
+    // Heal on the next external tick with the second child now creatable, so
+    // the scene ends in a clean, ledger-balanced state and only the earlier
+    // abort's orphan (if any) remains outstanding.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->composeResult().composed);
+  }
+  g_twoChildLocalRebuildShow = false;
+  g_twoChildLocalRebuildRefuseSecond = false;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // The earlier child's contextless heap node must not have leaked.
+  assert(loka::core::LokaAllocAuditLiveCount(nodeSite) == nodeLiveBefore);
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testLocalRebuildLaterChildRefusalDoesNotLeakEarlierChild");
 #endif
 }
 
