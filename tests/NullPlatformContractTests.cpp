@@ -20,6 +20,7 @@
 #include "app/scene/node/ComposableNode.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "core/State.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullWindow.hpp"
@@ -4066,6 +4067,62 @@ namespace
     }
   };
 
+  class PolicyMisplacedReplacementBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<PolicyMisplacedReplacementBoundaryNode>
+      PolicyMisplacedReplacementBoundaryProps;
+  class PolicyMisplacedReplacementBoundaryNode
+      : public PropsRecomposingBoundaryNode<PolicyMisplacedReplacementBoundaryNode,
+                                            PolicyMisplacedReplacementBoundaryProps>
+  {
+  public:
+    explicit PolicyMisplacedReplacementBoundaryNode(
+        const PolicyMisplacedReplacementBoundaryProps &props)
+        : PropsRecomposingBoundaryNode<PolicyMisplacedReplacementBoundaryNode,
+                                       PolicyMisplacedReplacementBoundaryProps>(props)
+    {
+    }
+
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_policyRevision)
+      {
+        registrar.markDirtyOnChange(g_policyRevision,
+                                    loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      const int revision = g_policyRevision ? g_policyRevision->get() : 0;
+      if (revision == 0)
+      {
+        loka::app::ButtonDefinition button("plain-fragment-button");
+        loka::app::FragmentDefinition plainFragment;
+        plainFragment << button;
+        root << plainFragment;
+      }
+      else if (revision == 2)
+      {
+        loka::app::ButtonDefinition button("direct-button");
+        root << button;
+      }
+      else
+      {
+        loka::app::EditTextDefinition edit;
+        loka::app::PolicyScopeDefinition misplacedScope;
+        misplacedScope.destroyOnDetach() << edit;
+        root << misplacedScope;
+      }
+      composition.declare(root);
+    }
+  };
+
   void clearPolicyGlobals()
   {
     g_policyDefaultCondition = 0;
@@ -4118,12 +4175,18 @@ void testPolicyScopeHandlesNonBranchRootPlacementGracefully()
   assert(contentRecord.constructionCount == 1 && contentRecord.node &&
          "a misplaced PolicyScope preserves its inner content");
 
-  condition.set(false);
+  {
+    loka::core::StateTrackerGuard guard(condition.trackerOwner());
+    condition.set(false);
+  }
   assert(scene.hasPendingInvalidation());
   assert(scene.flushInvalidation());
   assertParkedTransitionTable(contentRecord);
 
-  condition.set(true);
+  {
+    loka::core::StateTrackerGuard guard(condition.trackerOwner());
+    condition.set(true);
+  }
   assert(scene.hasPendingInvalidation());
   assert(scene.flushInvalidation());
   assert(contentRecord.constructionCount == 1 &&
@@ -4147,13 +4210,19 @@ void testMisplacedPolicyScopeRetainsInnerContentAcrossRecomposes()
   assert(contentRecord.constructionCount == 1 && contentRecord.node);
   loka::app::scene::Node *const mountedNode = contentRecord.node;
 
-  revision.set(1);
+  {
+    loka::core::StateTrackerGuard guard(revision.trackerOwner());
+    revision.set(1);
+  }
   assert(scene.hasPendingInvalidation());
   assert(scene.flushInvalidation());
   const int constructionsAfterFirstRecompose = contentRecord.constructionCount;
   loka::app::scene::Node *const nodeAfterFirstRecompose = contentRecord.node;
 
-  revision.set(2);
+  {
+    loka::core::StateTrackerGuard guard(revision.trackerOwner());
+    revision.set(2);
+  }
   assert(scene.hasPendingInvalidation());
   assert(scene.flushInvalidation());
   const int constructionsAfterSecondRecompose = contentRecord.constructionCount;
@@ -4162,6 +4231,51 @@ void testMisplacedPolicyScopeRetainsInnerContentAcrossRecomposes()
          nodeAfterFirstRecompose == mountedNode &&
          contentRecord.node == mountedNode &&
          "misplaced PolicyScope content is retained across local recomposes");
+  scene.unmount();
+  clearPolicyGlobals();
+}
+
+void testMisplacedPolicyScopeReconcilesReplacedInnerContent()
+{
+  loka::core::MutableState<int> revision(0);
+  g_policyRevision = &revision;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene(
+      (loka::app::scene::Boundary<PolicyMisplacedReplacementBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON));
+  assert(!platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
+
+  {
+    loka::core::StateTrackerGuard guard(revision.trackerOwner());
+    revision.set(1);
+  }
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
+         !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
+         "a misplaced PolicyScope reconciles changed content inside a retained Fragment");
+
+  {
+    loka::core::StateTrackerGuard guard(revision.trackerOwner());
+    revision.set(2);
+  }
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
+         !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT));
+
+  {
+    loka::core::StateTrackerGuard guard(revision.trackerOwner());
+    revision.set(3);
+  }
+  assert(scene.hasPendingInvalidation());
+  assert(scene.flushInvalidation());
+  assert(platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT) &&
+         !platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_BUTTON) &&
+         "an incompatible node replaced by PolicyScope content retires exactly once");
+
   scene.unmount();
   clearPolicyGlobals();
 }

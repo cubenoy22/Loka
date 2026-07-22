@@ -42,6 +42,7 @@ void testStdCompositionBoundaryShowFlipPreservesSiblings();
 void testPolicyScopeIsDefinitionOnlyAndPreservesContentNativeHint();
 void testPolicyScopeHandlesNonBranchRootPlacementGracefully();
 void testMisplacedPolicyScopeRetainsInnerContentAcrossRecomposes();
+void testMisplacedPolicyScopeReconcilesReplacedInnerContent();
 void testPolicyScopeDestroyOnDetachContrastsWithDefaultInRecomposingBoundary();
 void testPolicyScopeDeliverWhileDetachedContrastsWithDefaultInRecomposingBoundary();
 void testPolicyScopeDestroyOnDetachWorksInComposeOnceBoundary();

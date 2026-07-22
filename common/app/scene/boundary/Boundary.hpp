@@ -1023,6 +1023,7 @@ namespace loka
             Node *existing = seatPlan
                                  ? (seatRuntime ? seatRuntime->active : 0)
                                  : findCompositionChildByTag(effectiveDefinition->nodeTag());
+            bool reconcileScopedAnonymous = false;
             if (!seatPlan && !existing &&
                 effectiveDefinition->nodeTag() == NODE_TAG_NONE &&
                 diff && !diff->fullRebuild && diff->entryCount() == 1 && singleEntry &&
@@ -1032,15 +1033,24 @@ namespace loka
                   singleEntry->compatibleType)))
             {
               existing = root && root->childrenCount() == 1 ? root->childrenHead() : 0;
+              // A misplaced scope dissolves into its Fragment. Reusing that
+              // runtime root is safe only when its desired subtree is also
+              // reconciled; applying Fragment props alone cannot update it.
+              reconcileScopedAnonymous = scope && existing;
             }
             if (existing &&
                 (seatPlan || effectiveDefinition->isCompatibleWithNode(existing)))
             {
               plan.entries.push_back(
-                  BoundaryLocalRebuildPlanEntry::retain(
-                      existing,
-                      effectiveDefinition,
-                      effectiveDefinition->nodeTag()));
+                  reconcileScopedAnonymous
+                      ? BoundaryLocalRebuildPlanEntry::reconcile(
+                            existing,
+                            effectiveDefinition,
+                            effectiveDefinition->nodeTag())
+                      : BoundaryLocalRebuildPlanEntry::retain(
+                            existing,
+                            effectiveDefinition,
+                            effectiveDefinition->nodeTag()));
             }
             else
             {
@@ -1090,17 +1100,21 @@ namespace loka
           loka::dsl::CompositionCursor<Node> it(root->childrenHead(), root->childrenCount());
           for (Node *liveChild = it.next(); liveChild; liveChild = it.next())
           {
-            bool retainedByPlan = false;
+            bool representedByPlan = false;
             for (size_t i = 0; i < plan.entries.size(); ++i)
             {
-              if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN &&
-                  plan.entries[i].node == liveChild)
+              BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
+              // A replacement's previous node already has one detach/retire
+              // path in the plan and must not be appended as a second retire.
+              if ((entry.keepsLiveNode() && entry.node == liveChild) ||
+                  entry.detachedNode() == liveChild)
               {
-                retainedByPlan = true;
+                representedByPlan = true;
                 break;
               }
             }
-            if (!retainedByPlan && findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
+            if (!representedByPlan &&
+                findCurrentCompositionDefinitionByTag(liveChild->nodeTag()) == 0)
             {
               plan.entries.push_back(BoundaryLocalRebuildPlanEntry::retire(liveChild, liveChild->nodeTag()));
             }
@@ -1121,12 +1135,18 @@ namespace loka
             {
               continue;
             }
-            if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN)
+            if (plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RETAIN ||
+                plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RECONCILE)
             {
               NodeDefinitionBase *retainedDefinition = plan.entries[i].definition;
+              const bool reconciled =
+                  plan.entries[i].action == BoundaryLocalRebuildPlanEntry::ACTION_RECONCILE;
               if (!retainedDefinition ||
-                  (!retainedDefinition->asBranchSeatDefinition() &&
-                   !retainedDefinition->applyPropsToNode(plan.entries[i].node)))
+                  (reconciled
+                       ? !this->reconcileParkedBranch(
+                             context, plan.entries[i].node, retainedDefinition)
+                       : (!retainedDefinition->asBranchSeatDefinition() &&
+                          !retainedDefinition->applyPropsToNode(plan.entries[i].node))))
               {
                 return false;
               }
