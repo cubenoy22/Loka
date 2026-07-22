@@ -913,6 +913,11 @@ namespace loka
           {
             boundary->beginObservedStatePass();
             boundary->registerBranchSeatConditionSources();
+            // #127: the generic composeTree walk registers a boundary's own
+            // declared dirty sources; the direct-root path bypasses composeTree,
+            // so without this the root boundary's ordinary observed state is
+            // never (re-)bound and a later write is silently dropped.
+            BoundaryNode::declareBoundaryDirtySources(boundary, boundary);
           }
           boundary->beginComposeResult(event, rootContext.dirtyFlags());
         }

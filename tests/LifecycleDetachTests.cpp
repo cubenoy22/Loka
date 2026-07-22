@@ -1305,6 +1305,58 @@ namespace
     }
   };
 
+  class DirectRootObservedBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<DirectRootObservedBoundaryNode> DirectRootObservedBoundaryProps;
+
+  loka::core::MutableState<int> *g_directRootObservedState = 0;
+  DirectRootObservedBoundaryNode *g_directRootObserved = 0;
+
+  // #127: a boundary mounted DIRECTLY at the scene root (rootDefinition_ is a
+  // Boundary) that observes external state via declareDirtySources. The
+  // direct-root compose path (Scene::prepareRootBoundaryCompose) must register
+  // these sources the same way the generic composeTree walk does for nested
+  // boundaries, on every non-DETACH compose window.
+  class DirectRootObservedBoundaryNode
+      : public loka::app::scene::BoundaryNodeFor<DirectRootObservedBoundaryNode>
+  {
+  public:
+    explicit DirectRootObservedBoundaryNode(const DirectRootObservedBoundaryProps &props)
+        : loka::app::scene::BoundaryNodeFor<DirectRootObservedBoundaryNode>(props)
+    {
+      g_directRootObserved = this;
+    }
+
+    virtual ~DirectRootObservedBoundaryNode()
+    {
+      if (g_directRootObserved == this)
+      {
+        g_directRootObserved = 0;
+      }
+    }
+
+    // Defer projection work (like ObservedCorpseBoundaryNode) so an observed-state
+    // write leaves a pending boundary update we can observe, rather than being
+    // consumed by an immediate synchronous re-compose.
+    virtual bool flushViewDirtyImmediately(loka::app::scene::NodeDirtyFlags) const
+    {
+      return false;
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_directRootObservedState)
+      {
+        registrar.markDirtyOnChange(g_directRootObservedState, loka::app::scene::NODE_DIRTY_PROPS);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      composition.declare(root);
+    }
+  };
+
   class CorpseRetireHarnessBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<CorpseRetireHarnessBoundaryNode> CorpseRetireHarnessBoundaryProps;
 
@@ -2350,6 +2402,49 @@ void testRetiredBoundaryIsQuiescentBeforeNextTrackerRun()
   g_observedCorpseExternalState = 0;
   g_observedCorpseDestructorCalls = 0;
   g_corpseRetireHarness = 0;
+}
+
+// #127: a direct root boundary's ordinary observed state must mark the root
+// dirty after a write, both on first attach and after a detach/re-attach cycle.
+// At HEAD the direct-root compose path never runs declareDirtySources for the
+// root boundary itself, so the binding is never created and the write is
+// silently dropped (no pending projection work).
+void testDirectRootBoundaryReRegistersObservedStateAcrossReattach()
+{
+  using namespace loka::app::scene;
+
+  loka::core::MutableState<int> externalState(0);
+  g_directRootObservedState = &externalState;
+
+  {
+    DetachProbePlatformController platform;
+    Scene scene((Boundary<DirectRootObservedBoundaryNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    assert(g_directRootObserved != 0);
+
+    // First attach: a write to the observed external state must schedule
+    // projection work for the direct root boundary.
+    externalState.set(1);
+    assert(scene.director().hasPendingBoundary(g_directRootObserved) &&
+           "direct-root boundary observed-state write must mark the root dirty on first attach");
+    scene.flushInvalidation();
+
+    // Re-attach (the stated #127 acceptance scenario): detach tears the root
+    // node down, re-attach builds a fresh instance that must re-register its
+    // observed state so a later write is still heard.
+    scene.updateAttached(false);
+    scene.updateAttached(true);
+    assert(g_directRootObserved != 0);
+
+    externalState.set(2);
+    assert(scene.director().hasPendingBoundary(g_directRootObserved) &&
+           "direct-root boundary must re-register observed state after ROOT re-attach");
+  }
+
+  g_directRootObservedState = 0;
+  g_directRootObserved = 0;
 }
 
 void testSceneTeardownReleasesBothConditionalBranchContextsOnce()

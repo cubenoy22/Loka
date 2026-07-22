@@ -25,6 +25,7 @@ void testRetiredGenerationSubsumesQueuedHeapSubtreeExactlyOnce();
 void testRetiredSubtreeDestroysNestedBoundaryArenaExactlyOnce();
 void testRetiredBoundaryOwnedStateMutationIsQuiescent();
 void testRetiredBoundaryIsQuiescentBeforeNextTrackerRun();
+void testDirectRootBoundaryReRegistersObservedStateAcrossReattach();
 void testSceneTeardownReleasesBothConditionalBranchContextsOnce();
 void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch();
 
