@@ -15,6 +15,8 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/Scene.hpp"
+#include "app/scene/node/Conditional.hpp"
+#include "support/FullRebuildLedgerDefinition.hpp"
 #include "support/RecomposingBoundary.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -919,6 +921,7 @@ namespace
       }
       composition.declare(root);
     }
+
   };
 
   // Nested-child local-rebuild refusal harness (#132 ruling 3, Codex P2 hole 1
@@ -999,6 +1002,7 @@ namespace
       }
       composition.declare(root);
     }
+
   };
 
   // Root-attach-refusal harness (#132 ruling 3, Codex P2 hole 2). The root
@@ -1578,6 +1582,128 @@ void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick");
+#endif
+}
+
+void testNestedConditionalSeatInContextlessMaterialization_Probe()
+{
+  loka::core::MutableState<bool> condition(true);
+  GateProbeDefinition trueBranch;
+  loka::app::FragmentDefinition falseBranch;
+  loka::app::scene::ConditionalDefinition conditional(
+      (loka::app::scene::ConditionalProps(&condition, &trueBranch, &falseBranch)));
+  loka::app::FragmentDefinition inner;
+  inner << conditional;
+  loka::app::FragmentDefinition definition;
+  definition << inner;
+
+  loka::app::scene::NodeComposition composition;
+  loka::app::scene::NodeMaterializationResult result =
+      loka::app::scene::testing::NodeCompositionTestAccess::
+          createNodeFromDefinitionResult(composition, &definition);
+
+  assert(result.root != 0);
+  assert(result.requiresBoundaryPlan);
+  assert(!result.allocationFailed);
+  loka::app::scene::DestroyHeapNode(result.root);
+}
+
+void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::core::MutableState<bool> condition(true);
+    bool useReplacement = false;
+
+    // The distinct direct-child tags force the local diff to replace the
+    // plain initial node with a freshly materialized nestable subtree.
+    GateProbeDefinition initialChild;
+    initialChild.tag(14301);
+    loka::app::FragmentDefinition initial;
+    initial << initialChild;
+
+    GateProbeDefinition trueBranch;
+    loka::app::FragmentDefinition falseBranch;
+    loka::app::scene::ConditionalDefinition conditional(
+        (loka::app::scene::ConditionalProps(&condition, &trueBranch, &falseBranch)));
+    loka::app::FragmentDefinition inner;
+    inner.tag(14302);
+    inner << conditional;
+    loka::app::FragmentDefinition replacement;
+    replacement << inner;
+
+    loka::app::scene::Scene scene(
+        new SceneTestSupport::FullRebuildLedgerDefinition(
+            &useReplacement, &initial, &replacement));
+    assert(!scene.getRootDefinition()->isBoundary());
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    loka::app::scene::BoundaryNode *root =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    assert(root);
+    assert(root->composeResult().composed);
+    assert(!root->composeResult().allocationFailed);
+    assert(!root->composeResult().boundaryPlanRequired);
+    const size_t appliedBefore = platform.changeCount();
+    assert(appliedBefore > 0);
+
+    useReplacement = true;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+
+    assert(!root->composeResult().composed);
+    assert(root->composeResult().boundaryPlanRequired);
+    assert(!root->composeResult().allocationFailed);
+    assert(root->previousCompositionSnapshot().empty());
+    assert(root->currentCompositionSnapshot().empty());
+    assert(platform.changeCount() == appliedBefore);
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+
+    // Replacing the initial child retires it at the failure tick. That queues
+    // one clock-boundary reclamation run, not a compose retry: draining it is
+    // silent, leaves the white flag armed, and publishes nothing.
+    assert(scene.hasPendingInvalidation());
+    assert(!scene.flushInvalidation());
+    assert(!scene.hasPendingInvalidation());
+    assert(!root->composeResult().composed);
+    assert(root->composeResult().boundaryPlanRequired);
+    assert(!root->composeResult().allocationFailed);
+    assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() == appliedBefore);
+
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->composeResult().composed);
+    assert(!root->composeResult().boundaryPlanRequired);
+    assert(!root->composeResult().allocationFailed);
+    assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+    assert(platform.changeCount() > appliedBefore);
+    assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
+
+    loka::app::scene::Node *compositionRoot = root->childrenHead();
+    loka::app::scene::INestable *rootFragment =
+        compositionRoot ? compositionRoot->asNestable() : 0;
+    loka::app::scene::Node *innerNode =
+        rootFragment ? rootFragment->childrenHead() : 0;
+    loka::app::scene::INestable *innerFragment =
+        innerNode ? innerNode->asNestable() : 0;
+    loka::app::scene::Node *activeBranch =
+        innerFragment ? innerFragment->childrenHead() : 0;
+    assert(rootFragment && rootFragment->childrenCount() == 1);
+    assert(innerFragment && innerFragment->childrenCount() == 1);
+    assert(activeBranch &&
+           activeBranch->propsTypeId() == GateProbeProps::staticTypeId());
+
+    scene.unmount();
+  }
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper");
 #endif
 }
 

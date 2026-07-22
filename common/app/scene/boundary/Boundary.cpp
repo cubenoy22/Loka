@@ -204,16 +204,17 @@ namespace loka
 
       void BoundaryNode::completeComposeResult(bool preservedNativeContexts)
       {
-        if (this->compositionState_.allocationFailedValue())
+        if (this->compositionState_.allocationFailedValue() ||
+            this->compositionState_.boundaryPlanRequiredValue())
         {
-          // White-flag terminal (#132 ruling 3): an allocation failed inside
-          // this compose window, so the compose is a projection failure.
-          // Keep the failure visible in the result, invalidate the
-          // composition snapshots so no stale diff can seed the next compose
-          // (the #70 mechanism), and record the deferred full rebuild on the
-          // Scene. No tick is requested anywhere on this path: the rebuild
-          // rides the next externally caused update, because a starved
-          // machine must not busy-retry itself.
+          // Projection-failure terminal: either allocation failed inside this
+          // compose window (#132 ruling 3), or a contextless materialization
+          // deterministically required a Boundary plan. Keep the distinct
+          // reason visible in the result, invalidate the composition snapshots
+          // so no stale diff can seed the next compose (the #70 mechanism),
+          // and record the deferred full rebuild on the Scene. No tick is
+          // requested anywhere on this path: the rebuild rides the next
+          // externally caused update.
           this->compositionState_.failCompose();
           this->compositionState_.invalidateSnapshots();
           Scene *scene = this->getScene();

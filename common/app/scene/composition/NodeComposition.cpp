@@ -103,7 +103,7 @@ namespace loka
       {
         if (!def)
         {
-          NodeMaterializationResult empty = {0, false};
+          NodeMaterializationResult empty = {0, false, false};
           return empty;
         }
 
@@ -113,10 +113,11 @@ namespace loka
         if (seat)
         {
           const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
-          assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
           if (!plan || !plan->condition)
           {
-            NodeMaterializationResult missingPlan = {0, false};
+            assert(boundary == 0 &&
+                   "a boundary-backed compose must have captured this seat's plan");
+            NodeMaterializationResult missingPlan = {0, false, true};
             return missingPlan;
           }
           const bool condition = plan->condition->get();
@@ -155,12 +156,12 @@ namespace loka
         }
         if (!node)
         {
-          NodeMaterializationResult refused = {0, true};
+          NodeMaterializationResult refused = {0, true, false};
           return refused;
         }
         assignNodeTestId(node, def, autoIdCounter);
 
-        NodeMaterializationResult result = {node, false};
+        NodeMaterializationResult result = {node, false, false};
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
@@ -176,6 +177,8 @@ namespace loka
                                                                         boundary,
                                                                         node);
             result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
+            result.requiresBoundaryPlan =
+                result.requiresBoundaryPlan || childResult.requiresBoundaryPlan;
             if (childResult.root)
             {
               nestableNode->addChild(childResult.root);
@@ -195,7 +198,7 @@ namespace loka
       {
         if (!def)
         {
-          NodeMaterializationResult empty = {0, false};
+          NodeMaterializationResult empty = {0, false, false};
           return empty;
         }
 
@@ -205,10 +208,11 @@ namespace loka
         if (seat)
         {
           const BoundaryBranchSeatPlanEntry *plan = boundary ? boundary->branchSeatPlan(def) : 0;
-          assert(plan && plan->condition && "conditional seat requires a captured Boundary plan");
           if (!plan || !plan->condition)
           {
-            NodeMaterializationResult missingPlan = {0, false};
+            assert(boundary == 0 &&
+                   "a boundary-backed compose must have captured this seat's plan");
+            NodeMaterializationResult missingPlan = {0, false, true};
             return missingPlan;
           }
           const bool condition = plan->condition->get();
@@ -232,12 +236,12 @@ namespace loka
         Node *node = def->create();
         if (!node)
         {
-          NodeMaterializationResult refused = {0, true};
+          NodeMaterializationResult refused = {0, true, false};
           return refused;
         }
         assignNodeTestId(node, def, autoIdCounter);
 
-        NodeMaterializationResult result = {node, false};
+        NodeMaterializationResult result = {node, false, false};
 
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
@@ -252,6 +256,8 @@ namespace loka
                                                                         boundary,
                                                                         node);
             result.allocationFailed = result.allocationFailed || childResult.allocationFailed;
+            result.requiresBoundaryPlan =
+                result.requiresBoundaryPlan || childResult.requiresBoundaryPlan;
             if (childResult.root)
             {
               nestableNode->addChild(childResult.root);
@@ -269,6 +275,10 @@ namespace loka
                "NodeComposition::createNodeTree requires BoundaryNode context");
         NodeMaterializationResult result =
             this->createNodeFromDefinitionResult(this->root());
+        if (result.requiresBoundaryPlan)
+        {
+          context_->boundary()->noteComposeBoundaryPlanRequired();
+        }
         if (result.allocationFailed)
         {
           context_->boundary()->noteComposeAllocationFailure();
@@ -308,7 +318,7 @@ namespace loka
       {
         if (!root)
         {
-          NodeMaterializationResult empty = {0, false};
+          NodeMaterializationResult empty = {0, false, false};
           return empty;
         }
 
@@ -338,8 +348,8 @@ namespace loka
         // is non-null), so this contextless path never touches a boundary's
         // seat/arena state — the branch-seat plan lookup and materialized-seat
         // registration in createNodeRecursive stay disabled exactly as on main.
-        // The completed result carries the allocation white flag instead
-        // (#132 ruling 3), without a boundary being involved.
+        // The completed result carries any allocation or boundary-plan
+        // refusal instead, without a boundary being involved.
         long autoIdCounter = 1;
         BoundaryNode *boundary = context_ ? context_->boundary() : 0;
         return createNodeRecursive(root, autoIdCounter, boundary, boundary);

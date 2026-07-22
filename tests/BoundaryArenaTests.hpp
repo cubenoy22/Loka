@@ -11,6 +11,8 @@ void testHeapFallbackWhiteFlagFailsBoundaryCompose();
 void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh();
 void testLocalRebuildNodeRefusalDefersFullRebuildToNextExternalTick();
 void testNestedLocalRebuildChildRefusalDefersFullRebuildToNextExternalTick();
+void testNestedConditionalSeatInContextlessMaterialization_Probe();
+void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper();
 void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP
