@@ -29,12 +29,14 @@ namespace loka
         struct NodeCompositionTestAccess;
       }
 
-      /** Completed node-materialization fact. allocationFailed is the
-          monotonic OR of allocation refusals across the whole subtree. */
+      /** Completed node-materialization fact. allocationFailed and
+          requiresBoundaryPlan are the monotonic OR of their respective
+          refusals across the whole subtree. */
       struct NodeMaterializationResult
       {
         Node *root;
         bool allocationFailed;
+        bool requiresBoundaryPlan;
       };
 
       struct NodeComposition

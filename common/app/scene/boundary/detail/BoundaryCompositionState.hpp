@@ -159,6 +159,7 @@ namespace loka
           result.composed = false;
           result.preservedNativeContexts = false;
           result.allocationFailed = false;
+          result.boundaryPlanRequired = false;
         }
 
         void completeCompose(bool preservedNativeContexts)
@@ -177,9 +178,19 @@ namespace loka
           return result.allocationFailed;
         }
 
+        void noteBoundaryPlanRequired()
+        {
+          result.boundaryPlanRequired = true;
+        }
+
+        bool boundaryPlanRequiredValue() const
+        {
+          return result.boundaryPlanRequired;
+        }
+
         /** White-flag terminal half A (#132 ruling 3): the compose stays a
             failure — composed remains false and nothing may treat the local
-            diff as applicable. allocationFailed stays visible. */
+            diff as applicable. The recorded failure reason stays visible. */
         void failCompose()
         {
           result.composed = false;

@@ -176,7 +176,8 @@ namespace loka
               dirtyFlagsSeen(NODE_DIRTY_NONE),
               composed(false),
               preservedNativeContexts(false),
-              allocationFailed(false)
+              allocationFailed(false),
+              boundaryPlanRequired(false)
         {
         }
 
@@ -187,6 +188,7 @@ namespace loka
           composed = false;
           preservedNativeContexts = false;
           allocationFailed = false;
+          boundaryPlanRequired = false;
         }
 
         ComposeEvent event;
@@ -198,6 +200,11 @@ namespace loka
             backend gave up. Compose completion converts it into a projection
             failure instead of completing normally. */
         bool allocationFailed;
+        /** Deterministic capability refusal: a contextless compose window
+            reached a branch seat that requires a captured Boundary plan.
+            Compose completion shares the projection-failure recovery path
+            while preserving this reason separately from allocation failure. */
+        bool boundaryPlanRequired;
       };
 
       struct BoundaryUpdateResult

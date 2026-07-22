@@ -298,10 +298,10 @@ namespace loka
         {
           compositionState_.beginCompose(event, dirtyFlags);
         }
-        /** Completes the open compose window. With the allocation white flag
-            raised it converts the compose into a projection failure instead
-            (#132 ruling 3); the body lives in Boundary.cpp because the
-            conversion records the deferred full rebuild on the Scene. */
+        /** Completes the open compose window. With an allocation failure or
+            boundary-plan refusal recorded, it converts the compose into a
+            projection failure instead; the body lives in Boundary.cpp because
+            the conversion records the deferred full rebuild on the Scene. */
         void completeComposeResult(bool preservedNativeContexts);
         /** Allocation white flag (#132 ruling 3): a state or node failed to
             materialize during this boundary's open compose window. The flag
@@ -309,6 +309,15 @@ namespace loka
         void noteComposeAllocationFailure()
         {
           compositionState_.noteAllocationFailure();
+        }
+        /** Deterministic capability refusal: a contextless compose window
+            reached a branch seat it cannot resolve without a boundary plan.
+            Distinct from the allocation white flag (which is transient);
+            shares the projection-failure recovery because both must defer a
+            full rebuild. */
+        void noteComposeBoundaryPlanRequired()
+        {
+          compositionState_.noteBoundaryPlanRequired();
         }
         virtual void noteStateAllocationFailure()
         {
@@ -642,11 +651,11 @@ namespace loka
             re-enter the arena/context). Because that composition has no
             ComponentContext, node materialization cannot reach this boundary
             on its own. We consume the completed materialization result here:
-            its allocation flag is the monotonic OR across the whole subtree,
-            and lets this boundary (this IS the owning boundary) route a
-            refusal into the same #132-ruling-3 projection-failure terminal
-            the context-carrying paths use. The
-            composition still carries no ComponentContext and no boundary, so
+            its refusal flags are the monotonic OR across the whole subtree,
+            and let this boundary (this IS the owning boundary) route a
+            refusal into the projection-failure terminal the context-carrying
+            paths use. The composition still carries no ComponentContext and
+            no boundary, so
             the branch-seat plan lookup / materialized-seat registration inside
             createNodeRecursive stay disabled exactly as on main — the only new
             effect is the completed value being returned. */
@@ -655,7 +664,11 @@ namespace loka
           NodeComposition composition;
           NodeMaterializationResult result =
               composition.createNodeFromDefinitionResult(definition);
-          if (!result.root || result.allocationFailed)
+          if (result.requiresBoundaryPlan)
+          {
+            this->noteComposeBoundaryPlanRequired();
+          }
+          else if (!result.root || result.allocationFailed)
           {
             this->noteComposeAllocationFailure();
           }
@@ -1181,6 +1194,10 @@ namespace loka
           assert(context.boundary() == this);
           NodeMaterializationResult result =
               composition.createNodeFromDefinitionResult(definition);
+          if (result.requiresBoundaryPlan)
+          {
+            this->noteComposeBoundaryPlanRequired();
+          }
           if (result.allocationFailed)
           {
             this->noteComposeAllocationFailure();
