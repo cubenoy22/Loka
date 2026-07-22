@@ -9,6 +9,7 @@
 #include "app/scene/context/ComponentContext.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/projection/PlatformController.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/RecomposingBoundary.hpp"
 
@@ -2426,7 +2427,11 @@ void testDirectRootBoundaryReRegistersObservedStateAcrossReattach()
 
     // First attach: a write to the observed external state must schedule
     // projection work for the direct root boundary.
-    externalState.set(1);
+    {
+      loka::core::StateTrackerGuard guard(g_directRootObserved->tracker());
+      assert(externalState.trackerOwner() == g_directRootObserved->tracker());
+      externalState.set(1);
+    }
     assert(scene.director().hasPendingBoundary(g_directRootObserved) &&
            "direct-root boundary observed-state write must mark the root dirty on first attach");
     scene.flushInvalidation();
@@ -2438,7 +2443,11 @@ void testDirectRootBoundaryReRegistersObservedStateAcrossReattach()
     scene.updateAttached(true);
     assert(g_directRootObserved != 0);
 
-    externalState.set(2);
+    {
+      loka::core::StateTrackerGuard guard(g_directRootObserved->tracker());
+      assert(externalState.trackerOwner() == g_directRootObserved->tracker());
+      externalState.set(2);
+    }
     assert(scene.director().hasPendingBoundary(g_directRootObserved) &&
            "direct-root boundary must re-register observed state after ROOT re-attach");
   }
