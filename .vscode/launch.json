@@ -49,6 +49,9 @@
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb-multiarch",
+      // cppdbg has no m68k enum. Use its 32-bit variable-length instruction
+      // model internally; GDB is configured for the real m68k target below.
+      "targetArchitecture": "x86",
       "preLaunchTask": "Build & Prepare MAME Debug: Tutorial (Diagnostic)",
       "debugServerPath": "${workspaceFolder}/scripts/mame-gdbstub-windows.sh",
       "debugServerArgs": "23946",
@@ -63,7 +66,7 @@
       "customLaunchSetupCommands": [
         {
           "description": "Connect WSL GDB to the Windows MAME gdbstub",
-          "text": "-target-select remote \"| '${workspaceFolder}/scripts/mame-gdbstub-transport.sh' 23946\"",
+          "text": "-target-select remote | '${workspaceFolder}/scripts/mame-gdbstub-transport.sh' 23946",
           "ignoreFailures": false
         }
       ],
