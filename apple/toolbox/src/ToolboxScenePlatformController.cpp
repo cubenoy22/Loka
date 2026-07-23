@@ -1224,17 +1224,14 @@ void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node 
           ++i;
         }
       }
-      if (focusedText_ == projectedText)
-      {
-        focusedText_ = 0;
-        hasFocusedRect_ = false;
-      }
-      // TODO(#45): edit-text TEHandle per-node retirement asymmetry - separate follow-up.
-      if (focusedEdit_ && focusedEdit_->text == projectedText)
-      {
-        focusedEdit_ = 0;
-        hasFocusedRect_ = false;
-      }
+      // Focus pointers (focusedText_/focusedEdit_) and the edit-text TEHandle are
+      // deliberately NOT retired here. focusedEdit_ indexes editControls_, which
+      // carries no node/control identity (only the shared text state), so clearing
+      // focus by state pointer would drop keyboard focus from a still-live control
+      // that shares the same State<String> (the mirror-label pattern, e.g. a focused
+      // EditText(&name) beside a conditional Text(&name)). Precise per-control focus
+      // and TEHandle retirement needs node/control identity on editControls_ and is
+      // the separate follow-up. TODO(#45): edit-text control/focus retirement.
     }
 
     for (size_t i = 0; i < retiredTextStates.size(); ++i)
