@@ -4,6 +4,7 @@
 void testLifecycleFactBornAttachedAndSwapWritesRetainedDetach();
 void testLifecycleFactTerminalDetachObservesRetired();
 void testLifecycleFactCompositionRetireObservesRetired();
+void testPlatformControllerReleaseDropsRetiredNodeHitEntriesAndBindings();
 void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased();
 void testLifecycleFactChildAdoptedUnderHiddenAncestorInheritsDetached();
 

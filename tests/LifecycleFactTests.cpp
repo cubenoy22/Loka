@@ -138,6 +138,284 @@ namespace
     virtual void destroy() {}
   };
 
+  class ReleaseTableProbeContext;
+
+  struct ReleaseTableRecord
+  {
+    ReleaseTableRecord()
+        : node(0),
+          context(0),
+          contextDestroyCount(0)
+    {
+    }
+
+    loka::app::scene::Node *node;
+    ReleaseTableProbeContext *context;
+    unsigned contextDestroyCount;
+  };
+
+  class ReleaseTableProbeContext : public loka::app::scene::NodeContext
+  {
+  public:
+    explicit ReleaseTableProbeContext(ReleaseTableRecord *record)
+        : record_(record),
+          marker_(47),
+          text_(loka::core::String::Literal("retiring text"))
+    {
+      if (record_)
+      {
+        record_->context = this;
+      }
+    }
+
+    virtual ~ReleaseTableProbeContext()
+    {
+      if (record_)
+      {
+        ++record_->contextDestroyCount;
+      }
+    }
+
+    int marker() const
+    {
+      return marker_;
+    }
+
+    virtual loka::core::State<loka::core::String> *projectedTextState()
+    {
+      return &text_;
+    }
+
+  private:
+    ReleaseTableRecord *record_;
+    int marker_;
+    loka::core::MutableState<loka::core::String> text_;
+  };
+
+  class ReleaseTableProbeNode;
+
+  struct ReleaseTableProbeTypeTag
+  {
+  };
+
+  struct ReleaseTableProbeProps : public loka::app::scene::NodePropsBase<ReleaseTableProbeProps>
+  {
+    typedef ReleaseTableProbeTypeTag TypeTag;
+    typedef ReleaseTableProbeNode NodeType;
+
+    explicit ReleaseTableProbeProps(ReleaseTableRecord *record = 0)
+        : record(record)
+    {
+    }
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return rhs.propsTypeId() == this->propsTypeId() ? false : this->propsTypeId() < rhs.propsTypeId();
+    }
+
+    ReleaseTableRecord *record;
+  };
+
+  class ReleaseTableProbeNode : public loka::app::scene::Node
+  {
+  public:
+    typedef ReleaseTableProbeTypeTag TypeTag;
+
+    explicit ReleaseTableProbeNode(const ReleaseTableProbeProps &props)
+        : props(props)
+    {
+      if (props.record)
+      {
+        props.record->node = this;
+      }
+      this->setContext(new ReleaseTableProbeContext(props.record));
+    }
+
+    ReleaseTableProbeProps props;
+  };
+
+  typedef loka::app::scene::NodeDefinition<ReleaseTableProbeProps, ReleaseTableProbeNode>
+      ReleaseTableProbeDefinition;
+
+  class ReleaseTablePlatformController : public loka::app::scene::IPlatformController
+  {
+  public:
+    struct Hit
+    {
+      explicit Hit(ReleaseTableProbeContext *nodeContext)
+          : context(nodeContext)
+      {
+      }
+
+      ReleaseTableProbeContext *context;
+    };
+
+    struct BoundCallback
+    {
+      explicit BoundCallback(loka::core::State<loka::core::String> *boundState)
+          : state(boundState)
+      {
+      }
+
+      loka::core::State<loka::core::String> *state;
+    };
+
+    ReleaseTablePlatformController()
+        : boundStateReadCount_(0),
+          hitReadTotal_(0)
+    {
+    }
+
+    virtual void onChange(loka::app::scene::Node *, loka::app::scene::NodeDirtyFlags, bool) {}
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const
+    {
+      return false;
+    }
+    virtual void destroy() {}
+
+    void record(ReleaseTableProbeContext *context)
+    {
+      assert(context);
+      hits_.push_back(Hit(context));
+      callbacks_.push_back(BoundCallback(context->projectedTextState()));
+    }
+
+    void dispatchSyntheticStateChange()
+    {
+      for (std::size_t i = 0; i < callbacks_.size(); ++i)
+      {
+        StateChangedThunk(&callbacks_[i], &boundStateReadCount_);
+      }
+    }
+
+    void dispatchSyntheticClick()
+    {
+      for (std::size_t i = 0; i < hits_.size(); ++i)
+      {
+        hitReadTotal_ += hits_[i].context->marker();
+      }
+    }
+
+    unsigned boundStateReadCount() const
+    {
+      return boundStateReadCount_;
+    }
+
+    int hitReadTotal() const
+    {
+      return hitReadTotal_;
+    }
+
+    std::size_t hitCount() const
+    {
+      return hits_.size();
+    }
+
+    std::size_t callbackCount() const
+    {
+      return callbacks_.size();
+    }
+
+    virtual void releaseNodeContexts(loka::app::scene::Node *node)
+    {
+      if (!node)
+      {
+        return;
+      }
+      for (unsigned i = 0; loka::app::scene::Node *branch = node->retainedLifecycleBranch(i); ++i)
+      {
+        this->releaseNodeContexts(branch);
+      }
+      loka::app::scene::INestable *nestable = node->asNestable();
+      if (nestable)
+      {
+        for (loka::app::scene::Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+        {
+          this->releaseNodeContexts(child);
+        }
+      }
+
+      loka::app::scene::NodeContext *context = node->getContext();
+      if (context)
+      {
+        for (std::size_t i = 0; i < hits_.size();)
+        {
+          if (static_cast<loka::app::scene::NodeContext *>(hits_[i].context) == context)
+          {
+            hits_.erase(hits_.begin() + i);
+          }
+          else
+          {
+            ++i;
+          }
+        }
+        loka::core::State<loka::core::String> *text = context->projectedTextState();
+        for (std::size_t i = 0; i < callbacks_.size();)
+        {
+          if (callbacks_[i].state == text)
+          {
+            callbacks_.erase(callbacks_.begin() + i);
+          }
+          else
+          {
+            ++i;
+          }
+        }
+      }
+      node->setContext(0);
+    }
+
+  private:
+    static void StateChangedThunk(BoundCallback *callback, unsigned *readCount)
+    {
+      assert(callback && callback->state && readCount);
+      if (!callback->state->get().empty())
+      {
+        ++*readCount;
+      }
+    }
+
+    std::vector<Hit> hits_;
+    std::vector<BoundCallback> callbacks_;
+    unsigned boundStateReadCount_;
+    int hitReadTotal_;
+  };
+
+  ReleaseTableRecord *g_releaseTableRecord = 0;
+  loka::core::MutableState<bool> *g_releaseTableVisible = 0;
+
+  class ReleaseTableBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ReleaseTableBoundaryNode> ReleaseTableBoundaryProps;
+
+  class ReleaseTableBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<ReleaseTableBoundaryNode, ReleaseTableBoundaryProps>
+  {
+  public:
+    explicit ReleaseTableBoundaryNode(const ReleaseTableBoundaryProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<ReleaseTableBoundaryNode, ReleaseTableBoundaryProps>(props)
+    {
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_releaseTableVisible)
+      {
+        registrar.markDirtyOnChange(g_releaseTableVisible, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_releaseTableVisible && g_releaseTableVisible->get())
+      {
+        root << ReleaseTableProbeDefinition((ReleaseTableProbeProps(g_releaseTableRecord)));
+      }
+      composition.declare(root);
+    }
+  };
+
   FactRecord *g_swapRecord = 0;
   loka::core::MutableState<bool> *g_swapCondition = 0;
 
@@ -345,6 +623,42 @@ void testLifecycleFactCompositionRetireObservesRetired()
   scene.unmount();
   g_retireRecord = 0;
   g_retireVisible = 0;
+}
+
+void testPlatformControllerReleaseDropsRetiredNodeHitEntriesAndBindings()
+{
+  // This is an isomorphic contract/algorithm pin. The real Toolbox controller
+  // needs Retro68 compile coverage and a MAME/Flow runtime follow-up.
+  ReleaseTableRecord record;
+  loka::core::MutableState<bool> visible(true);
+  g_releaseTableRecord = &record;
+  g_releaseTableVisible = &visible;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ReleaseTableBoundaryNode>()));
+  ReleaseTablePlatformController platform;
+  scene.mount(&platform);
+  scene.updateAttached(true);
+
+  assert(record.node && record.context);
+  platform.record(record.context);
+  assert(platform.hitCount() == 1 && platform.callbackCount() == 1);
+
+  visible.set(false);
+  pumpChild(scene);
+
+  assert(record.contextDestroyCount == 1 &&
+         "the real retirement path deletes the per-node context before the next render");
+  // Touch the recorded raw pointers after the per-node context was freed. With the
+  // override, releaseNodeContexts already dropped them so these loops are empty and
+  // safe; without it they read the freed context/state (ASan heap-use-after-free).
+  platform.dispatchSyntheticStateChange();
+  platform.dispatchSyntheticClick();
+  assert(platform.hitCount() == 0 && platform.callbackCount() == 0 &&
+         "releaseNodeContexts must drop controller-side raw pointers at the detach line");
+  assert(platform.boundStateReadCount() == 0 && platform.hitReadTotal() == 0);
+
+  scene.unmount();
+  g_releaseTableRecord = 0;
+  g_releaseTableVisible = 0;
 }
 
 void testLifecycleFactWalkIsSilentAndDeliveryIsDiffBased()

@@ -1136,6 +1136,124 @@ void ToolboxScenePlatformController::destroy()
   drainNativeHandleBuckets();
 }
 
+void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  for (unsigned i = 0; loka::app::scene::Node *branch = node->retainedLifecycleBranch(i); ++i)
+  {
+    this->releaseNodeContexts(branch);
+  }
+  loka::app::scene::INestable *nestable = node->asNestable();
+  if (nestable)
+  {
+    for (loka::app::scene::Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
+    {
+      this->releaseNodeContexts(child);
+    }
+  }
+
+  loka::app::scene::NodeContext *context = node->getContext();
+  if (context)
+  {
+    std::vector<loka::core::State<loka::core::String> *> retiredTextStates;
+    std::vector<loka::core::State<bool> *> retiredEnabledStates;
+
+    for (size_t i = 0; i < buttonHits_.size();)
+    {
+      if (static_cast<loka::app::scene::NodeContext *>(buttonHits_[i].context) == context)
+      {
+        retiredEnabledStates.push_back(buttonHits_[i].enabled);
+        buttonHits_.erase(buttonHits_.begin() + i);
+      }
+      else
+      {
+        ++i;
+      }
+    }
+    for (size_t i = 0; i < cellHits_.size();)
+    {
+      if (static_cast<loka::app::scene::NodeContext *>(cellHits_[i].context) == context)
+      {
+        retiredTextStates.push_back(cellHits_[i].text);
+        cellHits_.erase(cellHits_.begin() + i);
+      }
+      else
+      {
+        ++i;
+      }
+    }
+    for (size_t i = 0; i < popupHits_.size();)
+    {
+      if (static_cast<loka::app::scene::NodeContext *>(popupHits_[i].context) == context)
+      {
+        retiredEnabledStates.push_back(popupHits_[i].enabled);
+        popupHits_.erase(popupHits_.begin() + i);
+      }
+      else
+      {
+        ++i;
+      }
+    }
+
+    loka::core::State<loka::core::String> *projectedText = context->projectedTextState();
+    if (projectedText)
+    {
+      retiredTextStates.push_back(projectedText);
+      for (size_t i = 0; i < editHits_.size();)
+      {
+        if (editHits_[i].text == projectedText)
+        {
+          editHits_.erase(editHits_.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+      for (size_t i = 0; i < textHits_.size();)
+      {
+        if (textHits_[i].text == projectedText)
+        {
+          textHits_.erase(textHits_.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+      // Focus pointers (focusedText_/focusedEdit_) and the edit-text TEHandle are
+      // deliberately NOT retired here. focusedEdit_ indexes editControls_, which
+      // carries no node/control identity (only the shared text state), so clearing
+      // focus by state pointer would drop keyboard focus from a still-live control
+      // that shares the same State<String> (the mirror-label pattern, e.g. a focused
+      // EditText(&name) beside a conditional Text(&name)). Precise per-control focus
+      // and TEHandle retirement needs node/control identity on editControls_ and is
+      // the separate follow-up. TODO(#45): edit-text control/focus retirement.
+    }
+
+    for (size_t i = 0; i < retiredTextStates.size(); ++i)
+    {
+      loka::core::State<loka::core::String> *text = retiredTextStates[i];
+      if (text && !this->hasLiveBinding(text))
+      {
+        this->unbindTextState(text);
+      }
+    }
+    for (size_t i = 0; i < retiredEnabledStates.size(); ++i)
+    {
+      loka::core::State<bool> *enabled = retiredEnabledStates[i];
+      if (enabled && !this->hasLiveBinding(enabled))
+      {
+        this->unbindEnabledState(enabled);
+      }
+    }
+  }
+  node->setContext(0);
+}
+
 void ToolboxScenePlatformController::render()
 {
   PROFILE_FUNC();
@@ -1608,6 +1726,107 @@ void ToolboxScenePlatformController::bindEnabledState(loka::core::State<bool> *e
   binding->controller = this;
   enabledBindings_.push_back(binding);
   enabled->bind(&ToolboxScenePlatformController::EnabledStateChangedThunk, binding, false, false, 0);
+}
+
+void ToolboxScenePlatformController::unbindTextState(loka::core::State<loka::core::String> *text)
+{
+  for (size_t i = 0; i < boundTextStates_.size(); ++i)
+  {
+    if (boundTextStates_[i] != text)
+    {
+      continue;
+    }
+    TextBinding *binding = i < textBindings_.size() ? textBindings_[i] : 0;
+    if (binding)
+    {
+      if (binding->state)
+      {
+        binding->state->unbind(&ToolboxScenePlatformController::TextStateChangedThunk, binding);
+      }
+      binding->state = 0;
+      binding->controller = 0;
+      delete binding;
+    }
+    boundTextStates_.erase(boundTextStates_.begin() + i);
+    if (i < textBindings_.size())
+    {
+      textBindings_.erase(textBindings_.begin() + i);
+    }
+    return;
+  }
+}
+
+void ToolboxScenePlatformController::unbindEnabledState(loka::core::State<bool> *enabled)
+{
+  for (size_t i = 0; i < boundEnabledStates_.size(); ++i)
+  {
+    if (boundEnabledStates_[i] != enabled)
+    {
+      continue;
+    }
+    EnabledBinding *binding = i < enabledBindings_.size() ? enabledBindings_[i] : 0;
+    if (binding)
+    {
+      if (binding->state)
+      {
+        binding->state->unbind(&ToolboxScenePlatformController::EnabledStateChangedThunk, binding);
+      }
+      binding->state = 0;
+      binding->controller = 0;
+      delete binding;
+    }
+    boundEnabledStates_.erase(boundEnabledStates_.begin() + i);
+    if (i < enabledBindings_.size())
+    {
+      enabledBindings_.erase(enabledBindings_.begin() + i);
+    }
+    return;
+  }
+}
+
+bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<loka::core::String> *text) const
+{
+  for (size_t i = 0; i < cellHits_.size(); ++i)
+  {
+    if (cellHits_[i].text == text)
+    {
+      return true;
+    }
+  }
+  for (size_t i = 0; i < editHits_.size(); ++i)
+  {
+    if (editHits_[i].text == text)
+    {
+      return true;
+    }
+  }
+  for (size_t i = 0; i < textHits_.size(); ++i)
+  {
+    if (textHits_[i].text == text)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<bool> *enabled) const
+{
+  for (size_t i = 0; i < buttonHits_.size(); ++i)
+  {
+    if (buttonHits_[i].enabled == enabled)
+    {
+      return true;
+    }
+  }
+  for (size_t i = 0; i < popupHits_.size(); ++i)
+  {
+    if (popupHits_[i].enabled == enabled)
+    {
+      return true;
+    }
+  }
+  return false;
 }
 
 void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::core::String> *text)

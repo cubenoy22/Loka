@@ -39,6 +39,7 @@ public:
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
+  virtual void releaseNodeContexts(loka::app::scene::Node *node);
 
   void render();
   void renderDirty(const Rect &rect);
@@ -243,6 +244,10 @@ private:
   bool handleTextKey(char key);
   void bindTextState(loka::core::State<loka::core::String> *text);
   void bindEnabledState(loka::core::State<bool> *enabled);
+  void unbindTextState(loka::core::State<loka::core::String> *text);
+  void unbindEnabledState(loka::core::State<bool> *enabled);
+  bool hasLiveBinding(loka::core::State<loka::core::String> *text) const;
+  bool hasLiveBinding(loka::core::State<bool> *enabled) const;
   void handleTextChanged(loka::core::State<loka::core::String> *text);
   void handleEnabledChanged(loka::core::State<bool> *enabled);
   void beginBatchUpdate();
