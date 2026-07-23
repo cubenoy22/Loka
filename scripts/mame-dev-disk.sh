@@ -5,11 +5,65 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="${MAME_ENV_FILE:-$PROJECT_DIR/.env-mame}"
 
+trim_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+expand_environment_value() {
+  local value="$1"
+
+  # Preserve common path syntax from the previously sourced env file without
+  # evaluating arbitrary shell expressions.
+  if [ "$value" = "~" ]; then
+    value="$HOME"
+  elif [[ "$value" == \~/* ]]; then
+    value="$HOME/${value:2}"
+  fi
+  value="${value//\$\{HOME\}/$HOME}"
+  value="${value//\$HOME/$HOME}"
+  value="${value//\\ / }"
+  printf '%s' "$value"
+}
+
+import_mame_environment() {
+  local path="$1"
+  local line name value
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    line="$(trim_whitespace "$line")"
+    if [ -z "$line" ] || [[ "$line" == \#* ]]; then
+      continue
+    fi
+    if [[ ! "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+      echo "Error: invalid environment line in $path" >&2
+      exit 1
+    fi
+
+    name="${BASH_REMATCH[1]}"
+    value="$(trim_whitespace "${BASH_REMATCH[2]}")"
+    if [[ "$value" == \"*\" ]] || [[ "$value" == \'*\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+    value="$(expand_environment_value "$value")"
+    export "$name=$value"
+  done < "$path"
+}
+
+normalize_host_path() {
+  local path="$1"
+  if [[ "$path" =~ ^[A-Za-z]:\\ ]] && command -v wslpath >/dev/null 2>&1; then
+    wslpath -u "$path"
+  else
+    printf '%s' "$path"
+  fi
+}
+
 if [ -f "$ENV_FILE" ]; then
-  set -a
-  # shellcheck source=/dev/null
-  source "$ENV_FILE"
-  set +a
+  import_mame_environment "$ENV_FILE"
 fi
 
 if [ $# -ne 1 ]; then
@@ -22,6 +76,10 @@ MAME_HDA="${MAME_HDA:-}"
 MAME_HOMEPATH="${MAME_HOMEPATH:-$HOME/.mame}"
 MAME_CONTROL_DIR="${MAME_CONTROL_DIR:-$MAME_HOMEPATH/loka}"
 MAME_DEV_HDA="${MAME_DEV_HDA:-$PROJECT_DIR/build/mame-dev/LokaDev.hd}"
+MAME_HDA="$(normalize_host_path "$MAME_HDA")"
+MAME_HOMEPATH="$(normalize_host_path "$MAME_HOMEPATH")"
+MAME_CONTROL_DIR="$(normalize_host_path "$MAME_CONTROL_DIR")"
+MAME_DEV_HDA="$(normalize_host_path "$MAME_DEV_HDA")"
 
 if [ ! -f "$MACBINARY_PATH" ]; then
   echo "Error: Retro68 MacBinary file not found: $MACBINARY_PATH" >&2

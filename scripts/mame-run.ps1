@@ -1,11 +1,17 @@
+param(
+    [string]$EnvironmentFile
+)
+
 $ErrorActionPreference = "Stop"
 
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDirectory = Split-Path -Parent $ScriptDirectory
-$EnvironmentFile = if ($env:MAME_ENV_FILE) {
-    $env:MAME_ENV_FILE
-} else {
-    Join-Path $ProjectDirectory ".env-mame"
+if (-not $EnvironmentFile) {
+    $EnvironmentFile = if ($env:MAME_ENV_FILE) {
+        $env:MAME_ENV_FILE
+    } else {
+        Join-Path $ProjectDirectory ".env-mame"
+    }
 }
 
 function Import-MameEnvironment([string]$Path) {

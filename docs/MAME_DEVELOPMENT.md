@@ -22,6 +22,9 @@ remains available for live disk insertion without restarting MAME.
 The task configures and builds the Retro68 application, creates the generated
 `LokaDev` SCSI disk, and starts MAME. For the live floppy workflow, start
 `MAME: Start` first and then run an app-specific `Build & Mount in MAME` task.
+When VS Code is connected to WSL, the same tasks prepare the disk with the WSL
+Retro68 tools and delegate MAME startup to the Windows PowerShell launcher.
+Use Windows paths for the MAME executable, ROMs, and boot HDA in `.env-mame`.
 
 ## Configuration
 
@@ -61,5 +64,6 @@ tasks eject before rebuilding so Retro68 never rewrites a mounted `.dsk`.
 - macOS Tahoe: runtime-verified on Intel and Apple silicon (A18 Pro) with MAME
   0.288 on `maciici`, including live floppy insertion and the generated
   `LokaDev` SCSI volume.
-- Windows: outside the current experimental scope. The launchers and tasks are
-  provisional and have not been runtime-verified.
+- Windows through WSL: runtime-verified with MAME 0.287 on `maciix`, including
+  the combined Retro68 build, generated `LokaDev` SCSI disk, and host-side MAME
+  startup from a WSL-hosted VS Code window.

@@ -4,6 +4,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# VS Code connected to WSL sees Linux task definitions. Delegate to the
+# Windows launcher so the existing MAME tasks still use the host installation.
+if [ -n "${WSL_INTEROP:-}" ] && command -v powershell.exe >/dev/null 2>&1; then
+  POWERSHELL_SCRIPT="$(wslpath -w "$SCRIPT_DIR/mame-run.ps1")"
+  POWERSHELL_ARGS=(-NoProfile -ExecutionPolicy Bypass -File "$POWERSHELL_SCRIPT")
+  if [ -n "${MAME_ENV_FILE:-}" ]; then
+    WINDOWS_ENV_FILE="$MAME_ENV_FILE"
+    if [[ ! "$WINDOWS_ENV_FILE" =~ ^[A-Za-z]:\\ ]]; then
+      WINDOWS_ENV_FILE="$(wslpath -w "$WINDOWS_ENV_FILE")"
+    fi
+    POWERSHELL_ARGS+=(-EnvironmentFile "$WINDOWS_ENV_FILE")
+  fi
+  exec powershell.exe "${POWERSHELL_ARGS[@]}"
+fi
+
 # Load environment from .env-mame (project root or override via MAME_ENV_FILE)
 ENV_FILE="${MAME_ENV_FILE:-$PROJECT_DIR/.env-mame}"
 if [ -f "$ENV_FILE" ]; then
