@@ -12,6 +12,22 @@ trim_whitespace() {
   printf '%s' "$value"
 }
 
+expand_environment_value() {
+  local value="$1"
+
+  # Preserve common path syntax from the previously sourced env file without
+  # evaluating arbitrary shell expressions.
+  if [ "$value" = "~" ]; then
+    value="$HOME"
+  elif [[ "$value" == \~/* ]]; then
+    value="$HOME/${value:2}"
+  fi
+  value="${value//\$\{HOME\}/$HOME}"
+  value="${value//\$HOME/$HOME}"
+  value="${value//\\ / }"
+  printf '%s' "$value"
+}
+
 import_mame_environment() {
   local path="$1"
   local line name value
@@ -32,8 +48,7 @@ import_mame_environment() {
     if [[ "$value" == \"*\" ]] || [[ "$value" == \'*\' ]]; then
       value="${value:1:${#value}-2}"
     fi
-    value="${value//\$\{HOME\}/$HOME}"
-    value="${value//\$HOME/$HOME}"
+    value="$(expand_environment_value "$value")"
     export "$name=$value"
   done < "$path"
 }
