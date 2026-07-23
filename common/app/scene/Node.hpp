@@ -277,6 +277,12 @@ namespace loka
         {
           return 0;
         }
+        /** Returns the borrowed live text state represented by this projected
+            context, when the platform needs to retire state-indexed records. */
+        virtual loka::core::State<loka::core::String> *projectedTextState()
+        {
+          return 0;
+        }
         virtual void render(IPlatformController *) {}
         virtual short layout(IPlatformController *, LayoutState &)
         {
