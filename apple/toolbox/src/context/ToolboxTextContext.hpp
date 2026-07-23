@@ -42,6 +42,10 @@ public:
   void updateRect(const Rect &rect, short textX, short textY);
   short visibleWidth() const;
   void draw(ToolboxScenePlatformController *controller);
+  virtual loka::core::State<loka::core::String> *projectedTextState()
+  {
+    return text_;
+  }
   virtual void render(loka::app::scene::IPlatformController *controller);
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
