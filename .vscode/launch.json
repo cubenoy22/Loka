@@ -42,38 +42,6 @@
       "preLaunchTask": "Build: macOS Tutorial"
     },
     {
-      "name": "Launch (Windows MAME + WSL GDB, Tutorial)",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/retro68/68k/Diag/example/Tutorial/LokaTutorial68K.code.bin.gdb",
-      "cwd": "${workspaceFolder}",
-      "MIMode": "gdb",
-      "miDebuggerPath": "/usr/bin/gdb-multiarch",
-      // cppdbg has no m68k enum. Use its 32-bit variable-length instruction
-      // model internally; GDB is configured for the real m68k target below.
-      "targetArchitecture": "x86",
-      "preLaunchTask": "Build & Prepare MAME Debug: Tutorial (Diagnostic)",
-      "debugServerPath": "${workspaceFolder}/scripts/mame-gdbstub-windows.sh",
-      "debugServerArgs": "23946",
-      "serverStarted": "LOKA_MAME_GDBSTUB_READY localhost:23946",
-      "serverLaunchTimeout": 30000,
-      "filterStdout": true,
-      "filterStderr": true,
-      "setupCommands": [
-        { "text": "set architecture m68k", "ignoreFailures": false },
-        { "text": "set endian big", "ignoreFailures": false }
-      ],
-      "customLaunchSetupCommands": [
-        {
-          "description": "Connect WSL GDB to the Windows MAME gdbstub",
-          "text": "-target-select remote | '${workspaceFolder}/scripts/mame-gdbstub-transport.sh' 23946",
-          "ignoreFailures": false
-        }
-      ],
-      "launchCompleteCommand": "None",
-      "externalConsole": false
-    },
-    {
       "name": "Run (Windows HelloWorld)",
       "type": "cppvsdbg",
       "request": "launch",

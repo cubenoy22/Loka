@@ -1,11 +1,17 @@
+param(
+    [string]$EnvironmentFile
+)
+
 $ErrorActionPreference = "Stop"
 
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDirectory = Split-Path -Parent $ScriptDirectory
-$EnvironmentFile = if ($env:MAME_ENV_FILE) {
-    $env:MAME_ENV_FILE
-} else {
-    Join-Path $ProjectDirectory ".env-mame"
+if (-not $EnvironmentFile) {
+    $EnvironmentFile = if ($env:MAME_ENV_FILE) {
+        $env:MAME_ENV_FILE
+    } else {
+        Join-Path $ProjectDirectory ".env-mame"
+    }
 }
 
 function Import-MameEnvironment([string]$Path) {
@@ -81,13 +87,6 @@ if (Test-Path -LiteralPath $developmentDisk) {
 $mameArguments += @(
     "-autoboot_script", (Join-Path $ScriptDirectory "mame-floppy-service.lua")
 )
-
-# Mirrors mame-run.sh: MAME_DEBUG=1 halts at reset with the gdbstub listening
-# on MAME_DEBUG_PORT (default 23946) until a gdb connects and continues.
-if ($env:MAME_DEBUG) {
-    $debugPort = if ($env:MAME_DEBUG_PORT) { $env:MAME_DEBUG_PORT } else { "23946" }
-    $mameArguments += @("-debug", "-debugger", "gdbstub", "-debugger_port", $debugPort)
-}
 
 & $mameExecutable @mameArguments
 exit $LASTEXITCODE
