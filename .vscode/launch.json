@@ -42,21 +42,32 @@
       "preLaunchTask": "Build: macOS Tutorial"
     },
     {
-      "name": "Attach (MAME 68K gdbstub, Tutorial)",
+      "name": "Launch (Windows MAME + WSL GDB, Tutorial)",
       "type": "cppdbg",
       "request": "launch",
-      // First run "Build & Start MAME gdbstub: Tutorial (Diagnostic)" so the
-      // emulated app and this symbol file come from the same unstripped build.
       "program": "${workspaceFolder}/build/retro68/68k/Diag/example/Tutorial/LokaTutorial68K.code.bin.gdb",
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb",
-      // WSL-side debugger: use "WSL: Reopen Folder in WSL" for this configuration.
       "miDebuggerPath": "/usr/bin/gdb-multiarch",
-      "miDebuggerServerAddress": "localhost:23946",
+      "preLaunchTask": "Build & Prepare MAME Debug: Tutorial (Diagnostic)",
+      "debugServerPath": "${workspaceFolder}/scripts/mame-gdbstub-windows.sh",
+      "debugServerArgs": "23946",
+      "serverStarted": "LOKA_MAME_GDBSTUB_READY localhost:23946",
+      "serverLaunchTimeout": 30000,
+      "filterStdout": true,
+      "filterStderr": true,
       "setupCommands": [
         { "text": "set architecture m68k", "ignoreFailures": false },
         { "text": "set endian big", "ignoreFailures": false }
       ],
+      "customLaunchSetupCommands": [
+        {
+          "description": "Connect WSL GDB to the Windows MAME gdbstub",
+          "text": "-target-select remote \"| '${workspaceFolder}/scripts/mame-gdbstub-transport.sh' 23946\"",
+          "ignoreFailures": false
+        }
+      ],
+      "launchCompleteCommand": "None",
       "externalConsole": false
     },
     {

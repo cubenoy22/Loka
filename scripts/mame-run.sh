@@ -55,8 +55,8 @@ MAME_ARGS+=(
 )
 
 # MAME_DEBUG=1 exposes the CPU to gdb: MAME halts at reset and listens on
-# MAME_DEBUG_PORT until a gdb (e.g. gdb-multiarch via the "Attach (MAME 68K
-# gdbstub)" VS Code configuration) connects and continues.
+# MAME_DEBUG_PORT until a gdb (e.g. gdb-multiarch via the "Launch (Windows
+# MAME + WSL GDB, Tutorial)" VS Code configuration) connects and continues.
 if [ -n "${MAME_DEBUG:-}" ]; then
   MAME_ARGS+=(-debug -debugger gdbstub -debugger_port "${MAME_DEBUG_PORT:-23946}")
 fi

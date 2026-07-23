@@ -765,8 +765,8 @@
       "problemMatcher": []
     },
     {
-      "label": "Build & Start MAME gdbstub: Tutorial (Diagnostic)",
-      "dependsOn": ["Build: Retro68 68K Tutorial (Diagnostic)", "Prepare SCSI Dev Disk: Tutorial (Diagnostic)", "MAME: Start gdbstub"],
+      "label": "Build & Prepare MAME Debug: Tutorial (Diagnostic)",
+      "dependsOn": ["Build: Retro68 68K Tutorial (Diagnostic)", "Prepare SCSI Dev Disk: Tutorial (Diagnostic)"],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
