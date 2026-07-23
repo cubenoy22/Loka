@@ -45,7 +45,9 @@
       "name": "Attach (MAME 68K gdbstub, Tutorial)",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.code.bin.gdb",
+      // First run "Build & Start MAME gdbstub: Tutorial (Diagnostic)" so the
+      // emulated app and this symbol file come from the same unstripped build.
+      "program": "${workspaceFolder}/build/retro68/68k/Diag/example/Tutorial/LokaTutorial68K.code.bin.gdb",
       "cwd": "${workspaceFolder}",
       "MIMode": "gdb",
       // WSL-side debugger: use "WSL: Reopen Folder in WSL" for this configuration.

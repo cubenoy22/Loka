@@ -228,6 +228,17 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Configure: Retro68 68K Diagnostic",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "retro68-68k-diag"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: Retro68 68K",
       "type": "shell",
       "command": "cmake",
@@ -510,6 +521,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: Retro68 68K Tutorial (Diagnostic)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-diag",
+        "--target",
+        "LokaTutorial68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K Diagnostic"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Prepare SCSI Dev Disk: HelloWorld",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
@@ -565,9 +593,40 @@
       "problemMatcher": []
     },
     {
+      "label": "Prepare SCSI Dev Disk: Tutorial (Diagnostic)",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": ["${workspaceFolder}/build/retro68/68k/Diag/example/Tutorial/LokaTutorial68K.bin"],
+      "windows": {
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Diag/example/Tutorial/LokaTutorial68K.bin"]
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "MAME: Start",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-run.sh",
+      "windows": {
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-run.ps1"]
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "MAME: Start gdbstub",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-run.sh",
+      "options": {
+        "env": {
+          "MAME_DEBUG": "1"
+        }
+      },
       "windows": {
         "command": "powershell.exe",
         "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-run.ps1"]
@@ -702,6 +761,12 @@
     {
       "label": "Build & Start in MAME via SCSI: Tutorial",
       "dependsOn": ["Build: Retro68 68K Tutorial", "Prepare SCSI Dev Disk: Tutorial", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start MAME gdbstub: Tutorial (Diagnostic)",
+      "dependsOn": ["Build: Retro68 68K Tutorial (Diagnostic)", "Prepare SCSI Dev Disk: Tutorial (Diagnostic)", "MAME: Start gdbstub"],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },

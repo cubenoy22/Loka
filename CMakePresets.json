@@ -127,7 +127,8 @@
       "inherits": "retro68-68k-release",
       "binaryDir": "build/retro68/68k/Diag",
       "cacheVariables": {
-        "LOKA_RETRO68_DIAGNOSTICS": "ON"
+        "LOKA_RETRO68_DIAGNOSTICS": "ON",
+        "LOKA_CLASSIC_STRIP": "OFF"
       }
     },
     {
