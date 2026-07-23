@@ -1,4 +1,5 @@
 #include "StateNotifyTests.hpp"
+#include "StateTrackerCommitTests.hpp"
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "AttrDslTests.hpp"
@@ -21,4 +22,3 @@
 #define LOKA_TEST_RUNNER_CONTRACT
 #define LOKA_TEST_RUNNER_FINAL_CHECKPOINT "ContractTestMain final"
 #include "TestRunnerMain.inc"
-

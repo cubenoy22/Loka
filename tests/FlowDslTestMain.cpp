@@ -1,4 +1,5 @@
 #include "StateNotifyTests.hpp"
+#include "StateTrackerCommitTests.hpp"
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "FlowDslTests.hpp"

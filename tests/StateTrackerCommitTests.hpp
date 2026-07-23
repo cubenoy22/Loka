@@ -1,0 +1,8 @@
+#ifndef LOKA_STATE_TRACKER_COMMIT_TESTS_HPP
+#define LOKA_STATE_TRACKER_COMMIT_TESTS_HPP
+
+void testStateTrackerCommitQueuesNextTransaction();
+void testStateTrackerCommitWriteReachesNextSceneApply();
+void testStateTrackerCommitChainReportsIterationLimit();
+
+#endif // LOKA_STATE_TRACKER_COMMIT_TESTS_HPP

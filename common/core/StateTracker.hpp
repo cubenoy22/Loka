@@ -57,14 +57,17 @@ namespace loka
       void reserveStates(size_t count);
       bool end();
       /** Returns whether the current (or just-ended) transaction marked any state dirty. */
-      bool transactionDirty() const { return transactionDirty_; }
+      bool transactionDirty() const
+      {
+        return transaction_.anyDirty;
+      }
       /** Returns whether committed dirt is waiting to be acknowledged. */
       bool peekDirty() const;
       /** Returns and acknowledges committed dirt. */
       bool consumeDirty();
       const StateList &committedDirtyStates() const
       {
-        return committedDirtyStates_;
+        return transaction_.committedDirtyStates;
       }
       void setInvalidateCallback(InvalidateFn fn, void *userData)
       {
@@ -113,19 +116,56 @@ namespace loka
 
       // Typedefs to avoid nested template closers in C++98
       typedef std::pair<void (*)(void *), void *> DeferredEntry;
+      typedef std::vector<DeferredEntry> DeferredList;
       typedef std::map<StateBase *, StateList> DependencyMap;
-      /// dirtyStates: states marked dirty during the current transaction.
-      StateList dirtyStates;
-      /// committedDirtyStates_: snapshot of states dirtied by the most recent commit.
-      StateList committedDirtyStates_;
-      /// deferred: side-effect callbacks fired together during commit.
-      std::vector<DeferredEntry> deferred;
+
+      /** Mutable intake owned by one side of a tracker transaction. */
+      struct TransactionIntake
+      {
+        TransactionIntake()
+            : dirtyStates(),
+              deferred(),
+              dirty(false)
+        {
+        }
+
+        void clear();
+        bool hasWork() const;
+        void removeState(StateBase *state);
+        void swap(TransactionIntake &other);
+
+        StateList dirtyStates;
+        DeferredList deferred;
+        bool dirty;
+      };
+
+      /** Owns the current transaction, its snapshot, and next-commit intake. */
+      struct TrackerTransaction
+      {
+        TrackerTransaction()
+            : current(),
+              next(),
+              committedDirtyStates(),
+              anyDirty(false)
+        {
+        }
+
+        void begin();
+        TransactionIntake &intake(TrackerPhase phase);
+        void advance();
+        void removeState(StateBase *state);
+
+        TransactionIntake current;
+        TransactionIntake next;
+        StateList committedDirtyStates;
+        bool anyDirty;
+      };
+
+      TrackerTransaction transaction_;
       /// dependents: dependency graph from a source state to dependent states.
       DependencyMap dependents;
       /// phase_: current tracker transaction phase.
       TrackerPhase phase_;
-      /// transactionDirty_: whether this transaction marked any state dirty.
-      bool transactionDirty_;
       /// pendingDirty_: committed dirt waiting for owner acknowledgment.
       bool pendingDirty_;
       /// depth_: nested begin/end depth counter.
@@ -144,6 +184,7 @@ namespace loka
       StateEntry *allocateEntry(StateBase *state);
       void allocateEntries(size_t count);
       void releaseEntries();
+      bool settleCurrentTransaction(size_t &iterationsRemaining);
     };
 
   } // namespace core
