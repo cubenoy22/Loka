@@ -1,7 +1,7 @@
 #include "Win32PopupMenuContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 #include <string>
 #include <tchar.h>
 
@@ -46,18 +46,21 @@ Win32PopupMenuContext::Win32PopupMenuContext(
       baseHeight_(height),
       baseWidth_(width)
 {
-  hwnd_ = CreateWindowEx(0,
-                         TEXT("COMBOBOX"),
-                         TEXT(""),
-                         WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
-                         x,
-                         y,
-                         width,
-                         height,
-                         parent,
-                         0,
-                         GetModuleHandle(NULL),
-                         NULL);
+  // Unicode window: CB_ADDSTRING sent via SendMessageW would otherwise be
+  // thunked through the system ACP by an ANSI combo box, losing out-of-ACP
+  // characters.
+  hwnd_ = CreateWindowExW(0,
+                          L"COMBOBOX",
+                          L"",
+                          WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+                          x,
+                          y,
+                          width,
+                          height,
+                          parent,
+                          0,
+                          GetModuleHandle(NULL),
+                          NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
@@ -209,10 +212,9 @@ void Win32PopupMenuContext::applyItems()
   }
   for (std::size_t i = 0; i < items->size(); ++i)
   {
-    std::string utf8;
-    if (loka::platform::CollectUtf8((*items)[i], utf8))
+    std::wstring wide;
+    if (loka::win32::MaterializeWideString((*items)[i], wide))
     {
-      std::wstring wide(utf8.begin(), utf8.end());
       SendMessageW(hwnd_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wide.c_str()));
     }
   }

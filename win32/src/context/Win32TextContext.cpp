@@ -4,7 +4,7 @@
 #include "app/nodes/Text.hpp"
 #include "core/resource/Image.hpp"
 #include "core/State.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 
 namespace
 {
@@ -51,12 +51,12 @@ namespace
       return defaultHeight;
     }
 
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(text->props.text_->get(), utf8))
+    std::wstring wide;
+    if (!loka::win32::MaterializeWideString(text->props.text_->get(), wide))
     {
       return defaultHeight;
     }
-    if (utf8.empty())
+    if (wide.empty())
     {
       return defaultHeight;
     }
@@ -72,7 +72,7 @@ namespace
     rc.right = width;
     rc.bottom = 0;
     UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
-    DrawTextA(hdc, utf8.c_str(), -1, &rc, flags);
+    DrawTextW(hdc, wide.c_str(), -1, &rc, flags);
     ReleaseDC(hwnd, hdc);
 
     const int measured = rc.bottom - rc.top;
@@ -176,7 +176,9 @@ Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int hei
       style |= SS_ENDELLIPSIS;
     }
   }
-  hwnd_ = CreateWindowExA(0, "STATIC", "", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
+  // Unicode window: keeps WM_SETTEXT/paint in UTF-16 so the displayed text
+  // matches what MeasureTextHeightForWidth measures with DrawTextW.
+  hwnd_ = CreateWindowExW(0, L"STATIC", L"", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
   if (hwnd_)
   {
     HDC hdc = GetDC(hwnd_);
@@ -299,14 +301,14 @@ void Win32TextContext::applyText()
   {
     return;
   }
-  std::string utf8;
-  if (loka::platform::CollectUtf8(textState_->get(), utf8))
+  std::wstring wide;
+  if (loka::win32::MaterializeWideString(textState_->get(), wide))
   {
-    SetWindowTextA(hwnd_, utf8.c_str());
+    SetWindowTextW(hwnd_, wide.c_str());
   }
   else
   {
-    SetWindowTextA(hwnd_, "");
+    SetWindowTextW(hwnd_, L"");
   }
   HWND parent = GetParent(hwnd_);
   if (parent)
