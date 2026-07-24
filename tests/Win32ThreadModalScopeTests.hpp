@@ -1,0 +1,6 @@
+#ifndef LOKA_WIN32_THREAD_MODAL_SCOPE_TESTS_HPP
+#define LOKA_WIN32_THREAD_MODAL_SCOPE_TESTS_HPP
+
+void testWin32ThreadModalScopeHoldsSiblingsDisabled();
+
+#endif // LOKA_WIN32_THREAD_MODAL_SCOPE_TESTS_HPP

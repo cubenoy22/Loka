@@ -9,6 +9,12 @@ LOKA_TEST(testStateNotify)
 LOKA_TEST(testStateTrackerCommitQueuesNextTransaction)
 LOKA_TEST(testStateTrackerCommitWriteReachesNextSceneApply)
 LOKA_TEST(testStateTrackerCommitChainReportsIterationLimit)
+#ifdef _WIN32
+// Win32-only entries live in a nested registry: the CMake per-test
+// enumeration reads this file textually (preprocessor-blind), so a guarded
+// entry here would register a phantom test on non-Windows runners.
+#include "Win32ContractTestRegistry.inc"
+#endif
 LOKA_TEST(testDerivedStateCore)
 LOKA_TEST(testConditionalDefinitionCloneOwnership)
 LOKA_TEST(testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure)

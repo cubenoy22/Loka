@@ -2,6 +2,7 @@
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include <commdlg.h>
+#include "Win32ThreadModalDialogScope.hpp"
 
 namespace
 {
@@ -177,8 +178,14 @@ void Win32OpenFileDialogContext::presentDialog()
   ofn.nFilterIndex = 1;
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
+  BOOL accepted;
+  {
+    loka::win32::ThreadModalDialogScope threadModal(parent_);
+    accepted = GetOpenFileNameA(&ofn);
+  }
+
   loka::app::FileChooserResult result;
-  if (GetOpenFileNameA(&ofn))
+  if (accepted)
   {
     loka::file::File file = loka::file::File::FromPath(loka::core::String(buffer));
     file.setKind(loka::file::File::KIND_FILE);
