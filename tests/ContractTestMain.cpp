@@ -1,5 +1,8 @@
 #include "StateNotifyTests.hpp"
 #include "StateTrackerCommitTests.hpp"
+#ifdef _WIN32
+#include "Win32ThreadModalScopeTests.hpp"
+#endif
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "AttrDslTests.hpp"

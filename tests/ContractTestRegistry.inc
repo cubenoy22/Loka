@@ -9,6 +9,9 @@ LOKA_TEST(testStateNotify)
 LOKA_TEST(testStateTrackerCommitQueuesNextTransaction)
 LOKA_TEST(testStateTrackerCommitWriteReachesNextSceneApply)
 LOKA_TEST(testStateTrackerCommitChainReportsIterationLimit)
+#ifdef _WIN32
+LOKA_TEST(testWin32ThreadModalScopeHoldsSiblingsDisabled)
+#endif
 LOKA_TEST(testDerivedStateCore)
 LOKA_TEST(testConditionalDefinitionCloneOwnership)
 LOKA_TEST(testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure)
