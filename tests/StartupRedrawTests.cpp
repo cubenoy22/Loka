@@ -238,6 +238,20 @@ void testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw()
 // ---------------------------------------------------------------------------
 
 #include "../apple/toolbox/src/ToolboxControlIdAllocator.hpp"
+#include "../apple/toolbox/src/ToolboxFocusedEditIndex.hpp"
+
+namespace
+{
+  struct ToolboxEditBindingProbe
+  {
+    explicit ToolboxEditBindingProbe(int value)
+        : id(value)
+    {
+    }
+
+    int id;
+  };
+}
 
 void testToolboxAutoControlIdsNeverReissueLiveIds()
 {
@@ -293,4 +307,24 @@ void testToolboxAutoControlIdsSaturateAtShortMax()
   assert(edge.allocate() == 0 && "no fresh ids above an explicit SHRT_MAX tag");
   edge.raiseBaseAbove(32767);
   assert(edge.allocate() == 0 && "re-announcing SHRT_MAX never lowers the base");
+}
+
+void testToolboxFocusedEditSurvivesLowerBindingErase()
+{
+  std::vector<ToolboxEditBindingProbe> bindings;
+  bindings.push_back(ToolboxEditBindingProbe(1));
+  bindings.push_back(ToolboxEditBindingProbe(2));
+  ToolboxFocusedEditIndex focus;
+  focus.focus(1);
+  assert(focus.resolve(bindings) && focus.resolve(bindings)->id == 2);
+
+  focus.erase(0);
+  bindings.erase(bindings.begin());
+
+  assert(focus.resolve(bindings) && focus.resolve(bindings)->id == 2 &&
+         "erasing a lower edit binding must preserve focus on the surviving binding");
+
+  focus.erase(0);
+  bindings.erase(bindings.begin());
+  assert(!focus.resolve(bindings) && "erasing the focused binding must clear focus");
 }

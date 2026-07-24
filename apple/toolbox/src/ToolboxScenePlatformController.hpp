@@ -3,6 +3,7 @@
 
 #include "app/scene/projection/PlatformController.hpp"
 #include "ToolboxControlIdAllocator.hpp"
+#include "ToolboxFocusedEditIndex.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -215,7 +216,7 @@ private:
   std::vector<EditHit> editHits_;
   std::vector<PopupHit> popupHits_;
   loka::core::State<loka::core::String> *focusedText_;
-  EditTextControlBinding *focusedEdit_;
+  ToolboxFocusedEditIndex focusedEdit_;
   Rect focusedRect_;
   bool hasFocusedRect_;
   std::vector<TextHit> textHits_;
