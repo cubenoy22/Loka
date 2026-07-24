@@ -9,7 +9,6 @@ namespace loka
 
     PushStateTracker::PushStateTracker()
         : phase_(TRACKER_IDLE),
-          transactionDirty_(false),
           pendingDirty_(false),
           depth_(0),
           invalidateFn_(0),
@@ -23,7 +22,6 @@ namespace loka
 
     PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
         : phase_(TRACKER_IDLE),
-          transactionDirty_(false),
           pendingDirty_(false),
           depth_(0),
           invalidateFn_(0),
@@ -54,16 +52,13 @@ namespace loka
       ++depth_;
       for (StateEntry *e = statesHead_; e; e = e->next)
         e->state->currentTracker = this;
-      dirtyStates.clear();
-      committedDirtyStates_.clear();
-      deferred.clear();
-      transactionDirty_ = false;
+      transaction_.begin();
       phase_ = TRACKER_PRECOMMIT;
     }
 
     void PushStateTracker::defer(void (*fn)(void *), void *userData)
     {
-      deferred.push_back(std::make_pair(fn, userData));
+      transaction_.intake(phase_).deferred.push_back(std::make_pair(fn, userData));
     }
 
     void PushStateTracker::markDirty(StateBase *state)
@@ -72,7 +67,9 @@ namespace loka
       {
         return;
       }
-      transactionDirty_ = true;
+      TransactionIntake &intake = transaction_.intake(phase_);
+      intake.dirty = true;
+      transaction_.anyDirty = true;
       pendingDirty_ = true;
       if (visiting_.count(state))
       {
@@ -89,15 +86,15 @@ namespace loka
           markDirty(dependent);
         }
       }
-      for (size_t i = 0; i < dirtyStates.size(); ++i)
+      for (size_t i = 0; i < intake.dirtyStates.size(); ++i)
       {
-        if (dirtyStates[i] == state)
+        if (intake.dirtyStates[i] == state)
         {
           visiting_.erase(state);
           return;
         }
       }
-      dirtyStates.push_back(state);
+      intake.dirtyStates.push_back(state);
       visiting_.erase(state);
     }
 
@@ -209,28 +206,7 @@ namespace loka
         entry = entry->next;
       }
 
-      for (size_t i = 0; i < dirtyStates.size();)
-      {
-        if (dirtyStates[i] == state)
-        {
-          dirtyStates.erase(dirtyStates.begin() + i);
-        }
-        else
-        {
-          ++i;
-        }
-      }
-      for (size_t i = 0; i < committedDirtyStates_.size();)
-      {
-        if (committedDirtyStates_[i] == state)
-        {
-          committedDirtyStates_.erase(committedDirtyStates_.begin() + i);
-        }
-        else
-        {
-          ++i;
-        }
-      }
+      transaction_.removeState(state);
 
       dependents.erase(state);
       for (DependencyMap::iterator it = dependents.begin(); it != dependents.end(); ++it)
@@ -271,18 +247,68 @@ namespace loka
       --depth_;
       if (depth_ > 0)
         return true;
-      size_t maxIter = 1000;
-      while (!dirtyStates.empty() && maxIter--)
+      size_t stateIterationsRemaining = 1000;
+      size_t commitIterationsRemaining = 1000;
+      bool settled = true;
+      while (commitIterationsRemaining > 0)
       {
-        std::vector<StateBase *> current = dirtyStates;
-        dirtyStates.clear();
+        --commitIterationsRemaining;
+        phase_ = TRACKER_PRECOMMIT;
+        if (!settleCurrentTransaction(stateIterationsRemaining))
+        {
+          settled = false;
+          fprintf(stderr, "[Loka] StateTracker transaction did not settle before the iteration limit.\n");
+          break;
+        }
+
+        phase_ = TRACKER_COMMIT;
+        for (size_t i = 0; i < transaction_.current.deferred.size(); ++i)
+        {
+          transaction_.current.deferred[i].first(
+              transaction_.current.deferred[i].second);
+        }
+        transaction_.current.deferred.clear();
+        if (invalidateFn_ && transaction_.current.dirty)
+        {
+          invalidateFn_(invalidateUserData_);
+        }
+        if (!transaction_.next.hasWork())
+        {
+          break;
+        }
+        if (commitIterationsRemaining == 0)
+        {
+          break;
+        }
+        transaction_.advance();
+      }
+      if (settled && transaction_.next.hasWork())
+      {
+        settled = false;
+        fprintf(stderr, "[Loka] StateTracker commit chain did not settle before the iteration limit.\n");
+      }
+      phase_ = TRACKER_IDLE;
+      for (StateEntry *e = statesHead_; e; e = e->next)
+        e->state->currentTracker = 0;
+      return settled;
+    }
+
+    bool PushStateTracker::settleCurrentTransaction(size_t &iterationsRemaining)
+    {
+      while (!transaction_.current.dirtyStates.empty() && iterationsRemaining > 0)
+      {
+        --iterationsRemaining;
+        StateList current = transaction_.current.dirtyStates;
+        transaction_.current.dirtyStates.clear();
         for (size_t i = 0; i < current.size(); ++i)
         {
-          StateBase *s = current[i];
+          StateBase *state = current[i];
           bool alreadyCommitted = false;
-          for (size_t committedIndex = 0; committedIndex < committedDirtyStates_.size(); ++committedIndex)
+          for (size_t committedIndex = 0;
+               committedIndex < transaction_.committedDirtyStates.size();
+               ++committedIndex)
           {
-            if (committedDirtyStates_[committedIndex] == s)
+            if (transaction_.committedDirtyStates[committedIndex] == state)
             {
               alreadyCommitted = true;
               break;
@@ -290,48 +316,101 @@ namespace loka
           }
           if (!alreadyCommitted)
           {
-            committedDirtyStates_.push_back(s);
+            transaction_.committedDirtyStates.push_back(state);
           }
-          bool changed = s->recompute();
-          if (changed)
+          if (!state->recompute())
           {
-            // Mark dependent states dirty after a derived value changes.
-            DependencyMap::iterator it = dependents.find(s);
-            if (it != dependents.end())
-            {
-              for (size_t j = 0; j < it->second.size(); ++j)
-              {
-                StateBase *dependent = it->second[j];
-                markDirty(dependent);
-              }
-            }
+            continue;
+          }
+          DependencyMap::iterator it = dependents.find(state);
+          if (it == dependents.end())
+          {
+            continue;
+          }
+          for (size_t dependentIndex = 0;
+               dependentIndex < it->second.size();
+               ++dependentIndex)
+          {
+            markDirty(it->second[dependentIndex]);
           }
         }
       }
-      bool settled = dirtyStates.empty();
-      if (!settled)
-      {
-        fprintf(stderr, "[Loka] StateTracker transaction did not settle before the iteration limit.\n");
-      }
-      phase_ = TRACKER_COMMIT;
-      for (size_t i = 0; i < deferred.size(); ++i)
-      {
-        deferred[i].first(deferred[i].second);
-      }
-      if (settled && !dirtyStates.empty())
-      {
-        settled = false;
-        fprintf(stderr, "[Loka] StateTracker deferred callback marked state dirty during commit.\n");
-      }
-      if (settled && invalidateFn_ && transactionDirty_)
-      {
-        invalidateFn_(invalidateUserData_);
-      }
-      phase_ = TRACKER_IDLE;
-      for (StateEntry *e = statesHead_; e; e = e->next)
-        e->state->currentTracker = 0;
+      return transaction_.current.dirtyStates.empty();
+    }
+
+    void PushStateTracker::TransactionIntake::clear()
+    {
+      dirtyStates.clear();
       deferred.clear();
-      return settled;
+      dirty = false;
+    }
+
+    bool PushStateTracker::TransactionIntake::hasWork() const
+    {
+      return dirty || !dirtyStates.empty() || !deferred.empty();
+    }
+
+    void PushStateTracker::TransactionIntake::removeState(StateBase *state)
+    {
+      for (size_t i = 0; i < dirtyStates.size();)
+      {
+        if (dirtyStates[i] == state)
+        {
+          dirtyStates.erase(dirtyStates.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
+    }
+
+    void PushStateTracker::TransactionIntake::swap(TransactionIntake &other)
+    {
+      dirtyStates.swap(other.dirtyStates);
+      deferred.swap(other.deferred);
+      const bool otherDirty = other.dirty;
+      other.dirty = dirty;
+      dirty = otherDirty;
+    }
+
+    void PushStateTracker::TrackerTransaction::begin()
+    {
+      current.clear();
+      next.clear();
+      committedDirtyStates.clear();
+      anyDirty = false;
+    }
+
+    PushStateTracker::TransactionIntake &
+    PushStateTracker::TrackerTransaction::intake(TrackerPhase phase)
+    {
+      return phase == TRACKER_COMMIT ? next : current;
+    }
+
+    void PushStateTracker::TrackerTransaction::advance()
+    {
+      current.clear();
+      current.swap(next);
+      next.clear();
+      committedDirtyStates.clear();
+    }
+
+    void PushStateTracker::TrackerTransaction::removeState(StateBase *state)
+    {
+      current.removeState(state);
+      next.removeState(state);
+      for (size_t i = 0; i < committedDirtyStates.size();)
+      {
+        if (committedDirtyStates[i] == state)
+        {
+          committedDirtyStates.erase(committedDirtyStates.begin() + i);
+        }
+        else
+        {
+          ++i;
+        }
+      }
     }
 
     PushStateTracker::StateEntry *PushStateTracker::allocateEntry(StateBase *state)
