@@ -11,13 +11,12 @@
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "core/String.hpp"
-#include "platform/StringUTF8.hpp"
 #include "platform/Win32String.hpp"
 
 namespace
 {
   static bool g_classRegistered = false;
-  static const char *kWndClassName = "DevWndClass";
+  static const wchar_t *kWndClassName = L"DevWndClass";
 } // namespace
 
 Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
@@ -77,29 +76,14 @@ void Win32Window::TitleChangedThunk(void *userData)
   Win32Window *self = static_cast<Win32Window *>(userData);
   if (self && self->hwnd_)
   {
-    // Convert the logical UTF-8 title to the Win32 UTF-16 title when possible.
-    loka::core::String titleValue = self->titleState().get();
-    if (titleValue.empty())
+    std::wstring wide;
+    if (loka::win32::MaterializeWideString(self->titleState().get(), wide))
     {
-      SetWindowTextW(self->hwnd_, L"");
-      return;
+      SetWindowTextW(self->hwnd_, wide.c_str());
     }
-    loka::core::Managed<loka::platform::String> handle = loka::win32::CreateWin32String(titleValue);
-    loka::win32::Win32String *win32String =
-        handle.isValid() ? dynamic_cast<loka::win32::Win32String *>(handle.get()) : 0;
-    if (win32String)
-      SetWindowTextW(self->hwnd_, win32String->c_str());
     else
     {
-      std::string utf8;
-      if (loka::platform::CollectUtf8(titleValue, utf8))
-      {
-        SetWindowTextA(self->hwnd_, utf8.c_str());
-      }
-      else
-      {
-        SetWindowTextW(self->hwnd_, L"");
-      }
+      SetWindowTextW(self->hwnd_, L"");
     }
   }
 }
@@ -130,7 +114,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
   Win32Window *self = NULL;
   if (msg == WM_NCCREATE)
   {
-    CREATESTRUCT *cs = reinterpret_cast<CREATESTRUCT *>(lParam);
+    CREATESTRUCTW *cs = reinterpret_cast<CREATESTRUCTW *>(lParam);
     self = static_cast<Win32Window *>(cs->lpCreateParams);
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
     self->hwnd_ = hwnd;
@@ -192,7 +176,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     }
     case WM_ERASEBKGND:
       Win32ScenePlatformController::noteNativePaint(hwnd, Win32ScenePlatformController::NATIVE_PAINT_ROOT, true);
-      return DefWindowProc(hwnd, msg, wParam, lParam);
+      return DefWindowProcW(hwnd, msg, wParam, lParam);
     case WM_SIZE:
       if (self->scenePlatformController_)
       {
@@ -231,28 +215,30 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       }
       break;
     default:
-      return DefWindowProc(hwnd, msg, wParam, lParam);
+      return DefWindowProcW(hwnd, msg, wParam, lParam);
     }
     return 0;
   }
-  return DefWindowProc(hwnd, msg, wParam, lParam);
+  return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
 void Win32Window::createNativeWindow()
 {
   if (!g_classRegistered)
   {
-    WNDCLASSA wc;
+    // Unicode window class: the title and other text messages stay UTF-16;
+    // WndProc must pair with DefWindowProcW below.
+    WNDCLASSW wc;
     ZeroMemory(&wc, sizeof(wc));
     wc.lpfnWndProc = Win32Window::WndProc;
     wc.hInstance = GetModuleHandle(NULL);
     wc.lpszClassName = kWndClassName;
-    RegisterClassA(&wc);
+    RegisterClassW(&wc);
     g_classRegistered = true;
   }
-  HWND hwnd = CreateWindowExA(WS_EX_CONTROLPARENT,
+  HWND hwnd = CreateWindowExW(WS_EX_CONTROLPARENT,
                               kWndClassName,
-                              "",
+                              L"",
                               WS_OVERLAPPEDWINDOW,
                               this->hasPosition() ? this->positionX() : 50,
                               this->hasPosition() ? this->positionY() : 50,
