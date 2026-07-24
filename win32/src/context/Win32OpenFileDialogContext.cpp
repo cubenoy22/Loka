@@ -2,10 +2,55 @@
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include <commdlg.h>
+#include <vector>
 
 namespace
 {
   const UINT kWin32OpenFileDialogDeferredResultMessage = WM_APP + 41;
+
+  /** GetOpenFileNameA disables only its owner window; every other top-level
+      window on this thread keeps accepting input inside the dialog's nested
+      message loop, and a control click there can re-enter the suspended
+      update cycle (#152). Hold the rest of the thread's windows disabled for
+      the dialog's lifetime, restoring exactly the ones this scope disabled. */
+  class ThreadModalDialogScope
+  {
+  public:
+    explicit ThreadModalDialogScope(HWND owner)
+        : owner_(owner),
+          disabled_()
+    {
+      EnumThreadWindows(GetCurrentThreadId(),
+                        &ThreadModalDialogScope::DisableOtherWindowThunk,
+                        reinterpret_cast<LPARAM>(this));
+    }
+
+    ~ThreadModalDialogScope()
+    {
+      for (std::size_t i = disabled_.size(); i > 0; --i)
+      {
+        EnableWindow(disabled_[i - 1], TRUE);
+      }
+    }
+
+  private:
+    static BOOL CALLBACK DisableOtherWindowThunk(HWND hwnd, LPARAM lParam)
+    {
+      ThreadModalDialogScope *self = reinterpret_cast<ThreadModalDialogScope *>(lParam);
+      if (hwnd != self->owner_ && IsWindowEnabled(hwnd))
+      {
+        EnableWindow(hwnd, FALSE);
+        self->disabled_.push_back(hwnd);
+      }
+      return TRUE;
+    }
+
+    HWND owner_;
+    std::vector<HWND> disabled_;
+
+    ThreadModalDialogScope(const ThreadModalDialogScope &);
+    ThreadModalDialogScope &operator=(const ThreadModalDialogScope &);
+  };
 
   struct Win32OpenNativeDialogSession
   {
@@ -177,8 +222,14 @@ void Win32OpenFileDialogContext::presentDialog()
   ofn.nFilterIndex = 1;
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
+  BOOL accepted;
+  {
+    ThreadModalDialogScope threadModal(parent_);
+    accepted = GetOpenFileNameA(&ofn);
+  }
+
   loka::app::FileChooserResult result;
-  if (GetOpenFileNameA(&ofn))
+  if (accepted)
   {
     loka::file::File file = loka::file::File::FromPath(loka::core::String(buffer));
     file.setKind(loka::file::File::KIND_FILE);
