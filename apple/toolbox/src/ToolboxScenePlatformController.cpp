@@ -919,7 +919,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       rootNode_(0),
       pendingRootNode_(0),
       focusedText_(0),
-      focusedEdit_(0),
+      focusedEdit_(),
       focusedRect_(),
       hasFocusedRect_(false),
       inBatchUpdate_(false),
@@ -1224,7 +1224,7 @@ void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node 
           ++i;
         }
       }
-      // Focus pointers (focusedText_/focusedEdit_) and the edit-text TEHandle are
+      // Focus state (focusedText_/focusedEdit_) and the edit-text TEHandle are
       // deliberately NOT retired here. focusedEdit_ indexes editControls_, which
       // carries no node/control identity (only the shared text state), so clearing
       // focus by state pointer would drop keyboard focus from a still-live control
@@ -1328,13 +1328,13 @@ void ToolboxScenePlatformController::render()
     {
       if (!editControls_[i].usedThisFrame)
       {
-        if (&editControls_[i] == focusedEdit_)
+        EditTextControlBinding *focusedEdit = focusedEdit_.resolve(editControls_);
+        if (&editControls_[i] == focusedEdit)
         {
-          if (focusedEdit_->te)
+          if (focusedEdit->te)
           {
-            TEDeactivate(focusedEdit_->te);
+            TEDeactivate(focusedEdit->te);
           }
-          focusedEdit_ = 0;
         }
         if (editControls_[i].te)
         {
@@ -1342,6 +1342,7 @@ void ToolboxScenePlatformController::render()
           queueRetiredTextEdit(editControls_[i].te, editControls_[i].lifetimeHint);
         }
         editControls_[i].te = 0;
+        focusedEdit_.erase(i);
         editControls_.erase(editControls_.begin() + i);
         continue;
       }
@@ -1434,17 +1435,18 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   {
     return false;
   }
-  if (focusedEdit_ && focusedEdit_->te)
+  EditTextControlBinding *focusedEdit = focusedEdit_.resolve(editControls_);
+  if (focusedEdit && focusedEdit->te)
   {
-    TEDeactivate(focusedEdit_->te);
-    focusedEdit_ = 0;
+    TEDeactivate(focusedEdit->te);
+    focusedEdit_.clear();
   }
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
     EditTextControlBinding &binding = editControls_[i];
     if (binding.te && PtInRect(point, &binding.rect))
     {
-      focusedEdit_ = &binding;
+      focusedEdit_.focus(i);
       TEActivate(binding.te);
       TEClick(point, false, binding.te);
       return true;
@@ -1503,11 +1505,12 @@ void ToolboxScenePlatformController::emitHitEmitter(loka::core::EmitterState *em
 
 bool ToolboxScenePlatformController::handleKeyDown(char key)
 {
-  if (focusedEdit_ && focusedEdit_->te)
+  EditTextControlBinding *focusedEdit = focusedEdit_.resolve(editControls_);
+  if (focusedEdit && focusedEdit->te)
   {
     beginBatchUpdate();
-    TEKey(key, focusedEdit_->te);
-    updateStateFromEdit(*focusedEdit_);
+    TEKey(key, focusedEdit->te);
+    updateStateFromEdit(*focusedEdit);
     endBatchUpdate();
     return true;
   }
@@ -2421,7 +2424,7 @@ void ToolboxScenePlatformController::clearControls()
     }
   }
   editControls_.clear();
-  focusedEdit_ = 0;
+  focusedEdit_.clear();
 }
 
 template <typename HandleT>

@@ -9,3 +9,4 @@ void testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw();
 #endif // LOKA_STARTUP_REDRAW_TESTS_HPP
 void testToolboxAutoControlIdsNeverReissueLiveIds();
 void testToolboxAutoControlIdsSaturateAtShortMax();
+void testToolboxFocusedEditSurvivesLowerBindingErase();
