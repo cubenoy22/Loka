@@ -1,7 +1,7 @@
 #include "Win32PopupMenuContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 #include <string>
 #include <tchar.h>
 
@@ -209,10 +209,9 @@ void Win32PopupMenuContext::applyItems()
   }
   for (std::size_t i = 0; i < items->size(); ++i)
   {
-    std::string utf8;
-    if (loka::platform::CollectUtf8((*items)[i], utf8))
+    std::wstring wide;
+    if (loka::win32::MaterializeWideString((*items)[i], wide))
     {
-      std::wstring wide(utf8.begin(), utf8.end());
       SendMessageW(hwnd_, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(wide.c_str()));
     }
   }
