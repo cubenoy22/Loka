@@ -176,7 +176,9 @@ Win32TextContext::Win32TextContext(HWND parent, int x, int y, int width, int hei
       style |= SS_ENDELLIPSIS;
     }
   }
-  hwnd_ = CreateWindowExA(0, "STATIC", "", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
+  // Unicode window: keeps WM_SETTEXT/paint in UTF-16 so the displayed text
+  // matches what MeasureTextHeightForWidth measures with DrawTextW.
+  hwnd_ = CreateWindowExW(0, L"STATIC", L"", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
   if (hwnd_)
   {
     HDC hdc = GetDC(hwnd_);
