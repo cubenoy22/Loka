@@ -64,7 +64,7 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
   }
   if (controller)
   {
-    TEHandle te = controller->ensureEditTextControl(textRect_, text_, lifetimeHint());
+    TEHandle te = controller->ensureEditTextControl(this, textRect_, text_, lifetimeHint());
     if (te)
     {
       controller->beginClip(textRect_);
