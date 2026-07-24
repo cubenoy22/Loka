@@ -4,7 +4,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "core/resource/Image.hpp"
 #include "core/State.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 
 namespace
 {
@@ -107,9 +107,11 @@ Win32ButtonContext::Win32ButtonContext(HWND parent, int x, int y, int width, int
       enabledState_(0)
 {
   DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON;
-  hwnd_ = CreateWindowExA(0,
-                          "BUTTON",
-                          "",
+  // Unicode window: keeps the label UTF-16 end to end (an ANSI window would
+  // thunk SetWindowTextW through the system ACP and lose out-of-ACP chars).
+  hwnd_ = CreateWindowExW(0,
+                          L"BUTTON",
+                          L"",
                           style,
                           x,
                           y,
@@ -256,10 +258,10 @@ void Win32ButtonContext::applyText()
   {
     return;
   }
-  std::string utf8;
-  if (loka::platform::CollectUtf8(textState_->get(), utf8))
+  std::wstring wide;
+  if (loka::win32::MaterializeWideString(textState_->get(), wide))
   {
-    SetWindowTextA(hwnd_, utf8.c_str());
+    SetWindowTextW(hwnd_, wide.c_str());
   }
   Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
 }

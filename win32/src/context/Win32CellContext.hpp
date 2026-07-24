@@ -53,7 +53,7 @@ private:
   loka::app::CellNode *node_;
   HWND hwnd_;
   loka::core::State<loka::core::String> *textState_;
-  std::string text_;
+  std::wstring text_;
 };
 
 void RegisterWin32CellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);

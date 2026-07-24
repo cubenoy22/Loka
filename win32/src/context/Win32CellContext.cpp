@@ -3,7 +3,7 @@
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "core/State.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 
 namespace
 {
@@ -211,12 +211,7 @@ void Win32CellContext::applyText()
   {
     return;
   }
-  std::string utf8;
-  if (loka::platform::CollectUtf8(textState_->get(), utf8))
-  {
-    text_ = utf8;
-  }
-  else
+  if (!loka::win32::MaterializeWideString(textState_->get(), text_))
   {
     text_.clear();
   }
@@ -236,7 +231,7 @@ void Win32CellContext::drawCell(HDC hdc, const RECT &rect)
   {
     SetBkMode(hdc, TRANSPARENT);
     RECT textRect = rect;
-    DrawTextA(hdc,
+    DrawTextW(hdc,
               text_.c_str(),
               static_cast<int>(text_.size()),
               &textRect,

@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <commdlg.h>
 #include "app/core/App.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 
 Win32App::Win32App(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow)
     : App(config),
@@ -201,7 +201,7 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
   }
   if (itemDef->isSeparator)
   {
-    AppendMenuA(menu, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     return;
   }
   if (itemDef->action == loka::app::MENU_ACTION_SHOW_COLOR_PICKER)
@@ -209,8 +209,8 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
     return;
   }
 
-  std::string titleUtf8;
-  loka::platform::CollectUtf8(itemDef->title, titleUtf8);
+  std::wstring titleWide;
+  loka::win32::MaterializeWideString(itemDef->title, titleWide);
   UINT flags = MF_STRING;
   if (!itemDef->isEnabledInitial())
   {
@@ -226,12 +226,12 @@ void Win32App::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *it
       DestroyMenu(subMenu);
       return;
     }
-    AppendMenuA(menu, flags | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleUtf8.c_str());
+    AppendMenuW(menu, flags | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleWide.c_str());
     return;
   }
 
   int commandId = nextCommandId_++;
-  AppendMenuA(menu, flags, static_cast<UINT_PTR>(commandId), titleUtf8.c_str());
+  AppendMenuW(menu, flags, static_cast<UINT_PTR>(commandId), titleWide.c_str());
   Win32App::MenuCommand command;
   command.commandId = commandId;
   command.action = itemDef->action;
@@ -291,10 +291,10 @@ void Win32App::applyMenuBar(Window *activeWindow)
   {
     if (menuDef->isAppMenu)
       continue;
-    std::string titleUtf8;
-    loka::platform::CollectUtf8(menuDef->title, titleUtf8);
-    if (titleUtf8.empty())
-      titleUtf8 = "Menu";
+    std::wstring titleWide;
+    loka::win32::MaterializeWideString(menuDef->title, titleWide);
+    if (titleWide.empty())
+      titleWide = L"Menu";
     HMENU subMenu = CreatePopupMenu();
     buildMenuItems(subMenu, menuDef->itemsHead(), hwnd);
     if (GetMenuItemCount(subMenu) == 0)
@@ -302,7 +302,7 @@ void Win32App::applyMenuBar(Window *activeWindow)
       DestroyMenu(subMenu);
       continue;
     }
-    AppendMenuA(menuBarHandle, MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleUtf8.c_str());
+    AppendMenuW(menuBarHandle, MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleWide.c_str());
   }
 
   SetMenu(hwnd, menuBarHandle);
