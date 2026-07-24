@@ -238,6 +238,7 @@ void testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw()
 // ---------------------------------------------------------------------------
 
 #include "../apple/toolbox/src/ToolboxControlIdAllocator.hpp"
+#include "../apple/toolbox/src/ToolboxEditControlLedger.hpp"
 #include "../apple/toolbox/src/ToolboxFocusedEditIndex.hpp"
 
 namespace
@@ -250,6 +251,20 @@ namespace
     }
 
     int id;
+  };
+
+  struct ToolboxOwnedEditBindingProbe
+  {
+    ToolboxOwnedEditBindingProbe(void *context, void *state, int nativeHandle)
+        : ownerContext(context),
+          textState(state),
+          handle(nativeHandle)
+    {
+    }
+
+    void *ownerContext;
+    void *textState;
+    int handle;
   };
 }
 
@@ -327,4 +342,35 @@ void testToolboxFocusedEditSurvivesLowerBindingErase()
   focus.erase(0);
   bindings.erase(bindings.begin());
   assert(!focus.resolve(bindings) && "erasing the focused binding must clear focus");
+}
+
+void testToolboxEditControlDetachRetiresExactContext()
+{
+  // Portable/isomorphic pin for the controller-owned Toolbox ledger. Native
+  // TEDeactivate/queue behavior is covered by Retro68 build + MAME runtime.
+  int sharedTextState = 0;
+  int retiringContext = 0;
+  int survivingContext = 0;
+  ToolboxEditControlLedger<ToolboxOwnedEditBindingProbe, void> editControls;
+  editControls.add(ToolboxOwnedEditBindingProbe(&retiringContext, &sharedTextState, 101));
+  editControls.add(ToolboxOwnedEditBindingProbe(&survivingContext, &sharedTextState, 202));
+  editControls.focus(1);
+
+  std::size_t retiringIndex = 0;
+  const bool retiredExactContext = editControls.find(&retiringContext, retiringIndex);
+  assert(retiredExactContext && editControls[retiringIndex].handle == 101 &&
+         "detach must synchronously retire the exact context's native edit binding");
+  editControls.erase(retiringIndex);
+
+  assert(editControls.size() == 1 && editControls[0].ownerContext == &survivingContext &&
+         editControls[0].textState == &sharedTextState && editControls[0].handle == 202 &&
+         "a live EditText sharing the same State must retain its own binding");
+  assert(editControls.focused() && editControls.focused()->handle == 202 &&
+         "retiring a lower binding must preserve focus on the surviving control");
+
+  std::size_t survivingIndex = 0;
+  assert(editControls.find(&survivingContext, survivingIndex));
+  editControls.erase(survivingIndex);
+  assert(!editControls.focused() &&
+         "retiring the focused context must synchronously clear native edit focus");
 }

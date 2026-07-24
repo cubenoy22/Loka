@@ -3,7 +3,7 @@
 
 #include "app/scene/projection/PlatformController.hpp"
 #include "ToolboxControlIdAllocator.hpp"
-#include "ToolboxFocusedEditIndex.hpp"
+#include "ToolboxEditControlLedger.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "core/State.hpp"
@@ -91,7 +91,8 @@ public:
                            loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
   void destroyButtonControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void drawFallbackControl(const Rect &rect);
-  TEHandle ensureEditTextControl(const Rect &rect,
+  TEHandle ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
+                                 const Rect &rect,
                                  loka::core::State<loka::core::String> *text,
                                  loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
   void idleTextEdits();
@@ -188,6 +189,7 @@ private:
 
   struct EditTextControlBinding
   {
+    loka::app::scene::NodeContext *ownerContext;
     loka::core::State<loka::core::String> *text;
     TEHandle te;
     Rect rect;
@@ -212,11 +214,10 @@ private:
   std::vector<ButtonHit> buttonHits_;
   std::vector<CellHit> cellHits_;
   std::vector<ButtonControlBinding> buttonControls_;
-  std::vector<EditTextControlBinding> editControls_;
+  ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
   std::vector<EditHit> editHits_;
   std::vector<PopupHit> popupHits_;
   loka::core::State<loka::core::String> *focusedText_;
-  ToolboxFocusedEditIndex focusedEdit_;
   Rect focusedRect_;
   bool hasFocusedRect_;
   std::vector<TextHit> textHits_;
@@ -286,6 +287,9 @@ private:
   void syncNativePoolStats();
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
+  void retireEditTextControlAt(std::size_t index, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  void retireEditTextControl(loka::app::scene::NodeContext *ownerContext,
+                             loka::app::scene::NativeLifetimeHint lifetimeHint);
   static void TextStateChangedThunk(void *userData);
   static void EnabledStateChangedThunk(void *userData);
 

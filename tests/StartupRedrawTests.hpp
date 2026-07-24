@@ -10,3 +10,4 @@ void testToolboxManualInvalidateDoesNotSkipFollowupUpdateDraw();
 void testToolboxAutoControlIdsNeverReissueLiveIds();
 void testToolboxAutoControlIdsSaturateAtShortMax();
 void testToolboxFocusedEditSurvivesLowerBindingErase();
+void testToolboxEditControlDetachRetiresExactContext();
