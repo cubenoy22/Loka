@@ -257,14 +257,41 @@ namespace
   {
     ToolboxOwnedEditBindingProbe(void *context, void *state, int nativeHandle)
         : ownerContext(context),
-          textState(state),
+          text(state),
           handle(nativeHandle)
     {
     }
 
     void *ownerContext;
-    void *textState;
+    void *text;
     int handle;
+  };
+
+  struct ToolboxEditSyncProbe
+  {
+    ToolboxEditSyncProbe()
+        : count(0),
+          firstHandle(0),
+          secondHandle(0)
+    {
+    }
+
+    void synchronize(ToolboxOwnedEditBindingProbe &binding)
+    {
+      if (count == 0)
+      {
+        firstHandle = binding.handle;
+      }
+      else if (count == 1)
+      {
+        secondHandle = binding.handle;
+      }
+      ++count;
+    }
+
+    int count;
+    int firstHandle;
+    int secondHandle;
   };
 }
 
@@ -363,7 +390,7 @@ void testToolboxEditControlDetachRetiresExactContext()
   editControls.erase(retiringIndex);
 
   assert(editControls.size() == 1 && editControls[0].ownerContext == &survivingContext &&
-         editControls[0].textState == &sharedTextState && editControls[0].handle == 202 &&
+         editControls[0].text == &sharedTextState && editControls[0].handle == 202 &&
          "a live EditText sharing the same State must retain its own binding");
   assert(editControls.focused() && editControls.focused()->handle == 202 &&
          "retiring a lower binding must preserve focus on the surviving control");
@@ -373,4 +400,24 @@ void testToolboxEditControlDetachRetiresExactContext()
   editControls.erase(survivingIndex);
   assert(!editControls.focused() &&
          "retiring the focused context must synchronously clear native edit focus");
+}
+
+void testToolboxEditControlSharedStateChangeFansOut()
+{
+  int sharedTextState = 0;
+  int unrelatedTextState = 0;
+  int firstContext = 0;
+  int secondContext = 0;
+  int unrelatedContext = 0;
+  ToolboxEditControlLedger<ToolboxOwnedEditBindingProbe, void> editControls;
+  editControls.add(ToolboxOwnedEditBindingProbe(&firstContext, &sharedTextState, 101));
+  editControls.add(ToolboxOwnedEditBindingProbe(&secondContext, &sharedTextState, 202));
+  editControls.add(ToolboxOwnedEditBindingProbe(&unrelatedContext, &unrelatedTextState, 303));
+
+  ToolboxEditSyncProbe sync;
+  const std::size_t synchronizedCount = editControls.forEachTextBinding(
+      &sharedTextState, &sync, &ToolboxEditSyncProbe::synchronize);
+
+  assert(synchronizedCount == 2 && sync.count == 2 && sync.firstHandle == 101 && sync.secondHandle == 202 &&
+         "a shared text state change must synchronize every live native edit binding");
 }

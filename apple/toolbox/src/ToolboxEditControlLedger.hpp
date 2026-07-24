@@ -6,9 +6,9 @@
 #include <vector>
 
 /** Owns Toolbox edit-control bindings together with their focused position.
-    BindingT must expose an ownerContext field of ContextT*. The context is a
-    borrowed identity token; the controller remains the sole owner of both the
-    binding and its native handle. */
+    BindingT must expose ownerContext and text fields. The context is a borrowed
+    identity token; the controller remains the sole owner of both the binding
+    and its native handle. */
 template <typename BindingT, typename ContextT> class ToolboxEditControlLedger
 {
 public:
@@ -59,6 +59,23 @@ public:
   {
     std::size_t index = 0;
     return this->find(ownerContext, index);
+  }
+
+  template <typename TextT, typename ReceiverT>
+  std::size_t forEachTextBinding(TextT *text,
+                                 ReceiverT *receiver,
+                                 void (ReceiverT::*operation)(BindingT &))
+  {
+    std::size_t applied = 0;
+    for (std::size_t i = 0; i < bindings_.size(); ++i)
+    {
+      if (bindings_[i].text == text)
+      {
+        (receiver->*operation)(bindings_[i]);
+        ++applied;
+      }
+    }
+    return applied;
   }
 
   BindingT *focused()

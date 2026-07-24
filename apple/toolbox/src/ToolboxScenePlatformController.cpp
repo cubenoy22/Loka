@@ -1918,21 +1918,13 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       return;
     }
   }
-  for (size_t i = 0; i < editControls_.size(); ++i)
+  if (editControls_.forEachTextBinding(
+          text,
+          this,
+          &ToolboxScenePlatformController::refreshEditTextBindingForStateChange)
+      != 0)
   {
-    if (editControls_[i].text == text)
-    {
-      ++debugStats_.textChangedEditControlCount;
-      if (inBatchUpdate_)
-      {
-        addPendingDirty(editControls_[i].rect);
-        return;
-      }
-      syncEditTextFromState(editControls_[i]);
-      ++debugStats_.textChangedImmediateInvalidateCount;
-      window_->drawDirty(editControls_[i].rect);
-      return;
-    }
+    return;
   }
   // State not found in current textHits_/editHits_/editControls_.
   // Add to pending list; will be resolved after next render populates textHits_.
@@ -1946,6 +1938,19 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
     // State not found, but scene invalidation will handle it
     // through normal recompose cycle. No need for full redraw.
   }
+}
+
+void ToolboxScenePlatformController::refreshEditTextBindingForStateChange(EditTextControlBinding &binding)
+{
+  ++debugStats_.textChangedEditControlCount;
+  syncEditTextFromState(binding);
+  if (inBatchUpdate_)
+  {
+    addPendingDirty(binding.rect);
+    return;
+  }
+  ++debugStats_.textChangedImmediateInvalidateCount;
+  window_->drawDirty(binding.rect);
 }
 
 void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool> *enabled)
@@ -2833,8 +2838,10 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
     HUnlock(reinterpret_cast<Handle>(textHandle));
   }
   loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
-  mutableText->set(loka::core::String(utf8));
+  // State notification fans out to every binding. Mark the typing source
+  // current first so its sync is a no-op and preserves the active selection.
   binding.lastText = utf8;
+  mutableText->set(loka::core::String(utf8));
 }
 
 void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)

@@ -285,6 +285,7 @@ private:
                                loka::app::scene::ExactMatchHandleBucket<HandleT> &bucket);
   void drainNativeHandleBuckets();
   void syncNativePoolStats();
+  void refreshEditTextBindingForStateChange(EditTextControlBinding &binding);
   void syncEditTextFromState(EditTextControlBinding &binding);
   void updateStateFromEdit(EditTextControlBinding &binding);
   void retireEditTextControlAt(std::size_t index, loka::app::scene::NativeLifetimeHint lifetimeHint);
