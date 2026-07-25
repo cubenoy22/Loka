@@ -2093,7 +2093,7 @@ void testConditionalSeatRepointsBranchDefinitionsAfterUnrelatedRecompose()
   g_seatCurrentBranchRecord = 0;
 }
 
-void testNullPlatformContract_H3_conditionFlipIsReflectedAtNextScheduledApply()
+void testNullPlatformContract_H3_conditionFlipIsProjectedAtNextScheduledApply()
 {
   ParkedFactRecord trueRecord;
   ParkedFactRecord falseRecord;

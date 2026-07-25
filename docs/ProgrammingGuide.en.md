@@ -45,7 +45,7 @@ The central concepts are:
 - platform projection
 
 These concepts are reused across UI, events, async-style workflows, native
-reflection, and future resource management. The same vocabulary should explain
+projection, and future resource management. The same vocabulary should explain
 where a value lives, who updates it, who observes it, and who cleans it up.
 
 ## Who This Guide Is For
@@ -64,7 +64,7 @@ Start with this flow:
 1. `State` holds application facts.
 2. UI reads those facts.
 3. Events update `State`.
-4. Only affected areas are recomposed, reflected, laid out, or redrawn.
+4. Only affected areas are recomposed, projected, laid out, or redrawn.
 
 This is the core of Loka.
 
@@ -387,7 +387,7 @@ This keeps update loops and lifecycle relationships visible.
 Bidirectional UI can accidentally create loops:
 
 1. A control updates state.
-2. State reflection updates the control.
+2. State projection updates the control.
 3. The control emits another change.
 4. The same state changes again.
 
@@ -416,7 +416,7 @@ The important rule is:
 ```text
 Composition is owned by Boundary.
 State tracking is owned by Boundary.
-Projection reflects the logical result.
+Projection carries the logical result into native controls.
 ```
 
 ### `Show()`
@@ -501,7 +501,7 @@ This avoids turning every literal into a global or shared `State<T>`.
 
 ## 13. Events And Updates
 
-Prefer `deferBind` for UI reflection and lazy updates. Use `bind` only when
+Prefer `deferBind` for UI projection and lazy updates. Use `bind` only when
 immediate recompute is required.
 
 State updates should be treated as transactions. A mutation should not be a
@@ -524,7 +524,7 @@ The same logical structure should be able to target different platforms:
 
 Platform code should avoid re-deciding application semantics. It should consume
 the logical model, bind live states that were already classified as live, and
-reflect changes into native controls.
+project changes into native controls.
 
 This separation is what lets Loka keep one application model across many eras
 and platforms.

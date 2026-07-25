@@ -65,7 +65,7 @@ protected:
   }
   void clearMenuDiff();
 
-  void reflectInitialVisibilityChunks();
+  void projectInitialVisibilityChunks();
   void flushWindowInvalidations();
   /** Drains one queue snapshot; requests made during the drain wait for the next flush. */
   void flushPendingWindowClosures();

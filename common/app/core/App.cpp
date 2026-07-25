@@ -46,7 +46,7 @@ void App::run()
     menuController_.refreshDefaultMenuBar();
     group_ = new AppComponentGroup(composition.build());
   }
-  reflectInitialVisibilityChunks();
+  projectInitialVisibilityChunks();
 }
 
 loka::app::IdlePolicy App::idlePolicy() const
@@ -103,7 +103,7 @@ bool App::handleKeyPress(char key)
   return config_ ? config_->handleKeyPress(key) : false;
 }
 
-void App::reflectInitialVisibilityChunks()
+void App::projectInitialVisibilityChunks()
 {
   if (!group_)
     return;
