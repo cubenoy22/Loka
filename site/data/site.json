@@ -3,14 +3,20 @@
     "title": "Loka — Declarative UI in C++98",
     "description": "Loka is a declarative GUI framework with a modern statically typed DSL built in C++98, projecting one UI model onto native toolkits from System 7 to modern Windows and macOS.",
     "repoUrl": "https://github.com/cubenoy22/Loka",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "versionNote": "proof of concept"
   },
   "hero": {
     "title": "Declarative UI in C++98",
     "subtitle": "One declarative model, projected onto native toolkits — from System 7 and Mac OS X Tiger to modern Windows and macOS. Modern, explicit, and honest about ownership.",
-    "primaryCta": { "label": "Get Started", "href": "#get-started" },
-    "secondaryCta": { "label": "View on GitHub", "href": "https://github.com/cubenoy22/Loka" }
+    "primaryCta": {
+      "label": "Get Started",
+      "href": "#get-started"
+    },
+    "secondaryCta": {
+      "label": "View on GitHub",
+      "href": "https://github.com/cubenoy22/Loka"
+    }
   },
   "codeExample": {
     "heading": "Modern shape, ancient toolchains",
@@ -50,6 +56,13 @@
         "description": "An image viewer using Flow for long-lived async work.",
         "image": null,
         "source": "example/SimpleViewer"
+      },
+      {
+        "slug": "tutorial",
+        "name": "Tutorial",
+        "description": "A step-by-step walkthrough of composition, state, and events.",
+        "image": null,
+        "source": "example/Tutorial"
       }
     ]
   },
@@ -127,7 +140,7 @@
       {
         "name": "Linux / WSL",
         "status": "headless",
-        "notes": "Core and Flow DSL tests today. Native UI projection is planned, not part of 0.0.1."
+        "notes": "Core and Flow DSL tests today. Native UI projection is planned, not part of 0.0.2."
       },
       {
         "name": "iOS / iPadOS, Linux desktop UI, game-oriented backends",
@@ -157,11 +170,26 @@
   },
   "footer": {
     "links": [
-      { "label": "GitHub", "href": "https://github.com/cubenoy22/Loka" },
-      { "label": "Roadmap", "href": "https://github.com/cubenoy22/Loka/blob/main/ROADMAP.md" },
-      { "label": "Philosophy", "href": "https://github.com/cubenoy22/Loka/blob/main/PHILOSOPHY.md" },
-      { "label": "Origins", "href": "https://github.com/cubenoy22/Loka/blob/main/docs/ORIGINS.md" },
-      { "label": "Programming Guide", "href": "https://github.com/cubenoy22/Loka/blob/main/docs/ProgrammingGuide.en.md" }
+      {
+        "label": "GitHub",
+        "href": "https://github.com/cubenoy22/Loka"
+      },
+      {
+        "label": "Roadmap",
+        "href": "https://github.com/cubenoy22/Loka/blob/main/ROADMAP.md"
+      },
+      {
+        "label": "Philosophy",
+        "href": "https://github.com/cubenoy22/Loka/blob/main/PHILOSOPHY.md"
+      },
+      {
+        "label": "Origins",
+        "href": "https://github.com/cubenoy22/Loka/blob/main/docs/ORIGINS.md"
+      },
+      {
+        "label": "Programming Guide",
+        "href": "https://github.com/cubenoy22/Loka/blob/main/docs/ProgrammingGuide.en.md"
+      }
     ],
     "note": "Released under the MIT License."
   }
