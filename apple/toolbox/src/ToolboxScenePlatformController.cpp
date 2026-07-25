@@ -6,6 +6,7 @@
 #include <Quickdraw.h>
 #include <Controls.h>
 #include <cstring>
+#include <cassert>
 #include <cstdio>
 #include <string>
 #include <ctime>
@@ -919,7 +920,6 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       rootNode_(0),
       pendingRootNode_(0),
       focusedText_(0),
-      focusedEdit_(),
       focusedRect_(),
       hasFocusedRect_(false),
       inBatchUpdate_(false),
@@ -1161,6 +1161,10 @@ void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node 
     std::vector<loka::core::State<loka::core::String> *> retiredTextStates;
     std::vector<loka::core::State<bool> *> retiredEnabledStates;
 
+    this->retireEditTextControl(context, context->lifetimeHint());
+    assert(!editControls_.contains(context) &&
+           "detach must strip the context's native edit binding before context reclaim");
+
     for (size_t i = 0; i < buttonHits_.size();)
     {
       if (static_cast<loka::app::scene::NodeContext *>(buttonHits_[i].context) == context)
@@ -1224,14 +1228,6 @@ void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node 
           ++i;
         }
       }
-      // Focus state (focusedText_/focusedEdit_) and the edit-text TEHandle are
-      // deliberately NOT retired here. focusedEdit_ indexes editControls_, which
-      // carries no node/control identity (only the shared text state), so clearing
-      // focus by state pointer would drop keyboard focus from a still-live control
-      // that shares the same State<String> (the mirror-label pattern, e.g. a focused
-      // EditText(&name) beside a conditional Text(&name)). Precise per-control focus
-      // and TEHandle retirement needs node/control identity on editControls_ and is
-      // the separate follow-up. TODO(#45): edit-text control/focus retirement.
     }
 
     for (size_t i = 0; i < retiredTextStates.size(); ++i)
@@ -1328,22 +1324,7 @@ void ToolboxScenePlatformController::render()
     {
       if (!editControls_[i].usedThisFrame)
       {
-        EditTextControlBinding *focusedEdit = focusedEdit_.resolve(editControls_);
-        if (&editControls_[i] == focusedEdit)
-        {
-          if (focusedEdit->te)
-          {
-            TEDeactivate(focusedEdit->te);
-          }
-        }
-        if (editControls_[i].te)
-        {
-          TEDeactivate(editControls_[i].te);
-          queueRetiredTextEdit(editControls_[i].te, editControls_[i].lifetimeHint);
-        }
-        editControls_[i].te = 0;
-        focusedEdit_.erase(i);
-        editControls_.erase(editControls_.begin() + i);
+        this->retireEditTextControlAt(i, editControls_[i].lifetimeHint);
         continue;
       }
       ++i;
@@ -1435,18 +1416,18 @@ bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
   {
     return false;
   }
-  EditTextControlBinding *focusedEdit = focusedEdit_.resolve(editControls_);
+  EditTextControlBinding *focusedEdit = editControls_.focused();
   if (focusedEdit && focusedEdit->te)
   {
     TEDeactivate(focusedEdit->te);
-    focusedEdit_.clear();
+    editControls_.clearFocus();
   }
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
     EditTextControlBinding &binding = editControls_[i];
     if (binding.te && PtInRect(point, &binding.rect))
     {
-      focusedEdit_.focus(i);
+      editControls_.focus(i);
       TEActivate(binding.te);
       TEClick(point, false, binding.te);
       return true;
@@ -1505,7 +1486,7 @@ void ToolboxScenePlatformController::emitHitEmitter(loka::core::EmitterState *em
 
 bool ToolboxScenePlatformController::handleKeyDown(char key)
 {
-  EditTextControlBinding *focusedEdit = focusedEdit_.resolve(editControls_);
+  EditTextControlBinding *focusedEdit = editControls_.focused();
   if (focusedEdit && focusedEdit->te)
   {
     beginBatchUpdate();
@@ -1937,21 +1918,13 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
       return;
     }
   }
-  for (size_t i = 0; i < editControls_.size(); ++i)
+  if (editControls_.forEachTextBinding(
+          text,
+          this,
+          &ToolboxScenePlatformController::refreshEditTextBindingForStateChange)
+      != 0)
   {
-    if (editControls_[i].text == text)
-    {
-      ++debugStats_.textChangedEditControlCount;
-      if (inBatchUpdate_)
-      {
-        addPendingDirty(editControls_[i].rect);
-        return;
-      }
-      syncEditTextFromState(editControls_[i]);
-      ++debugStats_.textChangedImmediateInvalidateCount;
-      window_->drawDirty(editControls_[i].rect);
-      return;
-    }
+    return;
   }
   // State not found in current textHits_/editHits_/editControls_.
   // Add to pending list; will be resolved after next render populates textHits_.
@@ -1965,6 +1938,19 @@ void ToolboxScenePlatformController::handleTextChanged(loka::core::State<loka::c
     // State not found, but scene invalidation will handle it
     // through normal recompose cycle. No need for full redraw.
   }
+}
+
+void ToolboxScenePlatformController::refreshEditTextBindingForStateChange(EditTextControlBinding &binding)
+{
+  ++debugStats_.textChangedEditControlCount;
+  syncEditTextFromState(binding);
+  if (inBatchUpdate_)
+  {
+    addPendingDirty(binding.rect);
+    return;
+  }
+  ++debugStats_.textChangedImmediateInvalidateCount;
+  window_->drawDirty(binding.rect);
 }
 
 void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool> *enabled)
@@ -2424,7 +2410,6 @@ void ToolboxScenePlatformController::clearControls()
     }
   }
   editControls_.clear();
-  focusedEdit_.clear();
 }
 
 template <typename HandleT>
@@ -2714,22 +2699,21 @@ void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
   LineTo(rect.right - 2, rect.top + 2);
 }
 
-TEHandle ToolboxScenePlatformController::ensureEditTextControl(const Rect &rect,
+TEHandle ToolboxScenePlatformController::ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
+                                                               const Rect &rect,
                                                                loka::core::State<loka::core::String> *text,
                                                                loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
-  if (!text)
+  if (!text || !ownerContext)
   {
     return 0;
   }
   EditTextControlBinding *binding = 0;
-  for (size_t i = 0; i < editControls_.size(); ++i)
+  size_t bindingIndex = 0;
+  if (editControls_.find(ownerContext, bindingIndex))
   {
-    if (editControls_[i].text == text)
-    {
-      binding = &editControls_[i];
-      break;
-    }
+    binding = &editControls_[bindingIndex];
+    binding->text = text;
   }
   if (!binding)
   {
@@ -2752,13 +2736,14 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(const Rect &rect,
       }
     }
     EditTextControlBinding entry;
+    entry.ownerContext = ownerContext;
     entry.text = text;
     entry.te = te;
     entry.rect = rect;
     entry.usedThisFrame = true;
     entry.lastText = "";
     entry.lifetimeHint = lifetimeHint;
-    editControls_.push_back(entry);
+    editControls_.add(entry);
     binding = &editControls_.back();
     syncEditTextFromState(*binding);
     TEAutoView(true, binding->te);
@@ -2782,6 +2767,31 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(const Rect &rect,
     syncEditTextFromState(*binding);
   }
   return binding ? binding->te : 0;
+}
+
+void ToolboxScenePlatformController::retireEditTextControlAt(
+    std::size_t index,
+    loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  EditTextControlBinding &binding = editControls_[index];
+  if (binding.te)
+  {
+    TEDeactivate(binding.te);
+    queueRetiredTextEdit(binding.te, lifetimeHint);
+    binding.te = 0;
+  }
+  editControls_.erase(index);
+}
+
+void ToolboxScenePlatformController::retireEditTextControl(
+    loka::app::scene::NodeContext *ownerContext,
+    loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  std::size_t index = 0;
+  if (editControls_.find(ownerContext, index))
+  {
+    this->retireEditTextControlAt(index, lifetimeHint);
+  }
 }
 
 void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBinding &binding)
@@ -2828,8 +2838,10 @@ void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding 
     HUnlock(reinterpret_cast<Handle>(textHandle));
   }
   loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
-  mutableText->set(loka::core::String(utf8));
+  // State notification fans out to every binding. Mark the typing source
+  // current first so its sync is a no-op and preserves the active selection.
   binding.lastText = utf8;
+  mutableText->set(loka::core::String(utf8));
 }
 
 void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
