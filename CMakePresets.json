@@ -136,7 +136,8 @@
       "inherits": "retro68-68k-release",
       "binaryDir": "build/retro68/68k/DiagDwarf4",
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS_RELEASE": "-Os -g -gdwarf-4 -ffunction-sections -fdata-sections -fno-exceptions"
+        "CMAKE_CXX_FLAGS_RELEASE": "-Os -g -gdwarf-4 -ffunction-sections -fdata-sections -fno-exceptions",
+        "LOKA_CLASSIC_STRIP": "OFF"
       }
     },
     {

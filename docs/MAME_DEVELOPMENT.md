@@ -186,13 +186,32 @@ its range:
 
 ```sh
 ELF=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.code.bin.gdb
-# relocation offsets that apply to the main code section
-readelf -rW "$ELF" | awk '
-  /^Relocation section/ {inseg = ($0 ~ /rela\.code00002/); next}
+SECTION=.code00002   # the executable section holding application code
+
+# bounds of that section
+read -r SEC_ADDR SEC_SIZE < <(readelf -SW "$ELF" |
+  awk -v s="$SECTION" '$2==s {print strtonum("0x"$4), strtonum("0x"$6); exit}')
+
+# every relocation offset that applies to it
+readelf -rW "$ELF" | awk -v s="rela$SECTION" '
+  /^Relocation section/ {inseg = index($0, s) > 0; next}
   inseg && $1 ~ /^[0-9a-f]{8}$/ {print strtonum("0x"$1)}' | sort -n > /tmp/relocs
-# functions of a useful size, then keep those with no relocation inside
-readelf -sW "$ELF" | awk '$4=="FUNC" && $3+0>=64 {print strtonum("0x"$2), $3, $8}' | sort -n
+
+# functions inside the section with no relocation anywhere in their range
+readelf -sW "$ELF" | awk '$4=="FUNC" && $3+0>=64 {print strtonum("0x"$2), $3, $8}' |
+  awk -v lo="$SEC_ADDR" -v hi="$((SEC_ADDR+SEC_SIZE))" '
+    NR==FNR {r[++n]=$1; next}
+    { a=$1+0; sz=$2+0
+      if (a<lo || a>=hi) next
+      for (i=1; i<=n; i++) if (r[i]>=a && r[i]<a+sz) next
+      printf "0x%08x %6d %s\n", a, sz, $3 }
+  ' /tmp/relocs - | sort -k2 -nr | head -5
 ```
+
+Take the longest candidate; a longer function makes a false match vanishingly
+unlikely. For the Tutorial this reports
+`ToolboxRectSurfaceContext::dirtyRect` at `0x00029372`, chosen from 48
+relocation-free functions out of 645 candidates and 3224 relocations.
 
 Take the first eight bytes of a clean function and pass them, with its link
 address, to `scripts/mame-find-base.lua` as the autoboot script:
@@ -254,7 +273,8 @@ script aborts on the first `required()` call:
 ```sh
 export LOKA_PATTERN_WORD0=4feffefc LOKA_PATTERN_WORD1=48e71e30
 export LOKA_PATTERN_LINK=00029372 LOKA_GDB_LOG='C:\path\to\find-base.log'
-export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_LOG
+export LOKA_STAY_ALIVE=1   # only when attaching gdb in the same run
+export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_LOG:LOKA_STAY_ALIVE
 ```
 
 Paths handed to a Windows MAME stay in Windows form; do not add the `/p`

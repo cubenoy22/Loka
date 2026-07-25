@@ -16,6 +16,18 @@ if [ -n "${WSL_INTEROP:-}" ] && command -v powershell.exe >/dev/null 2>&1; then
     fi
     POWERSHELL_ARGS+=(-EnvironmentFile "$WINDOWS_ENV_FILE")
   fi
+  # WSL does not hand its environment to a Windows process unless the names
+  # are listed in WSLENV, so the debugger switch would silently do nothing
+  # here. Append rather than overwrite: the caller may be forwarding its own.
+  for name in MAME_DEBUG MAME_DEBUG_PORT; do
+    if [ -n "${!name:-}" ]; then
+      case ":${WSLENV:-}:" in
+        *":$name:"*) ;;
+        *) WSLENV="${WSLENV:+$WSLENV:}$name" ;;
+      esac
+    fi
+  done
+  export WSLENV
   exec powershell.exe "${POWERSHELL_ARGS[@]}"
 fi
 
