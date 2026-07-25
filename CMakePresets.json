@@ -131,6 +131,15 @@
       }
     },
     {
+      "name": "retro68-68k-dwarf",
+      "displayName": "Retro68 68K DWARF (Ninja)",
+      "inherits": "retro68-68k-release",
+      "binaryDir": "build/retro68/68k/DiagDwarf4",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS_RELEASE": "-Os -g -gdwarf-4 -ffunction-sections -fdata-sections -fno-exceptions"
+      }
+    },
+    {
       "name": "retro68-ppc-release",
       "displayName": "Retro68 PPC Release (Ninja)",
       "inherits": "retro68-release-base",
@@ -278,6 +287,10 @@
     {
       "name": "retro68-68k-diag",
       "configurePreset": "retro68-68k-diag"
+    },
+    {
+      "name": "retro68-68k-dwarf",
+      "configurePreset": "retro68-68k-dwarf"
     },
     {
       "name": "retro68-ppc-release",

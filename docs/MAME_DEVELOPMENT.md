@@ -151,6 +151,122 @@ merely prove that the example launched. A useful scenario states which control
 was focused, which structural change occurred, and which visible or state
 result proved that the surviving control remained functional.
 
+## Source-level debugging with gdb
+
+A Retro68 application running from the SCSI development disk can be debugged
+at source level: breakpoints by function or line, argument values, and a
+multi-frame backtrace. This was demonstrated on `maciix` with the Tutorial
+example, stopping in `App::idlePolicy` with `App::consumeIdle` and
+`ToolboxApp::run` resolved on the stack.
+
+Seven things all have to be right. Missing any one of them looks like the
+approach does not work at all, which is the trap this section exists to
+close.
+
+### 1. Build with debug information
+
+The ordinary Retro68 release profile has no `-g`, so the emitted
+`*.code.bin.gdb` carries symbols but no line table. Configure a separate
+build directory with DWARF:
+
+```sh
+cmake --preset retro68-68k-dwarf
+cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+```
+
+The result is an `MC68000 ELF32` file with DWARF 4 whose `DW_AT_name` entries
+point at the real source paths.
+
+### 2. Find the runtime load base
+
+The Segment Loader decides where the CODE resources land, so symbols have to
+be relocated to that address. Search memory for a function whose bytes cannot
+have been altered by startup fixups — one with no relocation entries across
+its range:
+
+```sh
+ELF=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.code.bin.gdb
+# relocation offsets that apply to the main code section
+readelf -rW "$ELF" | awk '
+  /^Relocation section/ {inseg = ($0 ~ /rela\.code00002/); next}
+  inseg && $1 ~ /^[0-9a-f]{8}$/ {print strtonum("0x"$1)}' | sort -n > /tmp/relocs
+# functions of a useful size, then keep those with no relocation inside
+readelf -sW "$ELF" | awk '$4=="FUNC" && $3+0>=64 {print strtonum("0x"$2), $3, $8}' | sort -n
+```
+
+Take the first eight bytes of a clean function and pass them, with its link
+address, to `scripts/mame-find-base.lua` as the autoboot script:
+
+```sh
+LOKA_PATTERN_WORD0=4feffefc LOKA_PATTERN_WORD1=48e71e30 \
+LOKA_PATTERN_LINK=00029372 LOKA_STAY_ALIVE=1 \
+  ...  -autoboot_script scripts/mame-find-base.lua
+```
+
+It bounds the search with `ApplZone` and `ApplLimit`, so it covers the
+application heap rather than all of RAM — a few hundred KB, and a match in
+seconds. The base was reproducible across independent runs for a given
+binary, but it moves when the binary changes, so read it rather than
+hardcoding it.
+
+### 3. Relocate every section with one offset
+
+Retro68 links the image contiguously from vaddr 0 (`.code00001` at `0x0`,
+`.code00002` at `0xbff4`, then `.data` and `.bss`), so a single offset is
+enough. There is no need to place sections individually:
+
+```
+add-symbol-file <elf> -o <base>
+```
+
+### 4. Use hardware breakpoints for the first stop
+
+MAME's gdbstub halts the machine at reset, long before the application is
+loaded. A software breakpoint planted then is overwritten when the CODE
+resources are read in. Use `hbreak` to reach the first stop.
+
+Once the application is loaded, ordinary software breakpoints work normally,
+so anything set after that first stop behaves as usual.
+
+### 5. One gdb session per MAME run
+
+The stub does not accept a second connection; a reconnect fails with
+`Connection reset by peer`. Even a bare TCP probe consumes the slot, so do not
+test reachability before attaching — connect with gdb directly.
+
+### 6. Reach the stub by host address, not loopback
+
+MAME listens on the Windows loopback interface. Under WSL2 that is a separate
+network namespace, so `localhost:23946` never connects. Use the host address:
+
+```sh
+gdb-multiarch -ex "set architecture m68k" -ex "set endian big" \
+  -ex "target remote $(ip route | awk '/default/{print $3}'):23946"
+```
+
+### 7. Forward the script's variables into the Windows process
+
+`scripts/mame-find-base.lua` is configured through environment variables. WSL
+does not pass its environment to a Windows executable unless the names are
+listed in `WSLENV`, so under WSL the launcher must export it as well or the
+script aborts on the first `required()` call:
+
+```sh
+export LOKA_PATTERN_WORD0=4feffefc LOKA_PATTERN_WORD1=48e71e30
+export LOKA_PATTERN_LINK=00029372 LOKA_GDB_LOG='C:\path\to\find-base.log'
+export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_LOG
+```
+
+Paths handed to a Windows MAME stay in Windows form; do not add the `/p`
+translation flag to them.
+
+### Known limits
+
+- `-Os` leaves no frame pointer, so unwinding past the platform entry point
+  produces a bogus outermost frame. The application frames are correct.
+- A5-relative globals are not covered by this; only code addresses are
+  relocated by the offset above.
+
 ## Verification status
 
 - macOS Tahoe: runtime-verified on Intel and Apple silicon (A18 Pro) with MAME
