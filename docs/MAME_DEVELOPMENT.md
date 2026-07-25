@@ -252,14 +252,27 @@ enough. There is no need to place sections individually:
 add-symbol-file <elf> -o <base>
 ```
 
-### 4. Use hardware breakpoints for the first stop
+### 4. Wait for the listener before attaching, without probing it
 
-MAME's gdbstub halts the machine at reset, long before the application is
-loaded. A software breakpoint planted then is overwritten when the CODE
-resources are read in. Use `hbreak` to reach the first stop.
+MAME holds the machine at reset until a debugger connects, so the autoboot
+script does not begin until gdb continues. Attaching too early instead fails
+with `Connection reset by peer`, and the window is narrow enough that
+launching MAME and gdb back to back is not reliable.
 
-Once the application is loaded, ordinary software breakpoints work normally,
-so anything set after that first stop behaves as usual.
+Wait for the listener with a tool that reads socket state rather than opening
+a connection. `netstat` does; a TCP probe does not, and would consume the
+stub's single slot (see the next point):
+
+```sh
+until netstat.exe -an | grep -q "23946.*LISTENING"; do sleep 1; done
+sleep 4
+```
+
+Ordinary breakpoints are what to use once attached. `hbreak` is rejected --
+`No hardware breakpoint support in the target` -- and is not needed: MAME
+implements a software breakpoint as an emulator-side check rather than by
+writing a trap instruction into memory, so one planted before the application
+is loaded survives its CODE resources being read in over that address.
 
 ### 5. One gdb session per MAME run
 
@@ -293,6 +306,76 @@ export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_L
 
 Paths handed to a Windows MAME stay in Windows form; do not add the `/p`
 translation flag to them.
+
+### Worked example, start to finish
+
+Two phases, because the base has to be known before gdb attaches: the stub
+does not hold the machine at reset, so there is no opportunity to look it up
+after connecting. Phase one costs one boot; phase two is the debugging
+session. Re-run phase one whenever the application binary changes.
+
+Assumes `.env-mame` is configured and a scenario directory exists, following
+"Isolate the emulator state" above. `$MAME` is the emulator, `$SCEN` the
+scenario directory, `$APP` the built `_APPL`, and `$ELF` its `.code.bin.gdb`
+sibling.
+
+**Phase 0 — build with debug information and stage the disk**
+
+```sh
+cmake --preset retro68-68k-dwarf
+cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+ELF=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.code.bin.gdb
+MAME_DEV_HDA="$SCEN/LokaDev.hd" \
+  ./scripts/mame-dev-disk.sh build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.bin
+```
+
+**Phase 1 — find the load base**
+
+Pick a relocation-free function with the recipe above, then:
+
+```sh
+export LOKA_PATTERN_WORD0=4feffefc LOKA_PATTERN_WORD1=48e71e30
+export LOKA_PATTERN_LINK=0002aac4
+export LOKA_GDB_LOG="$(wslpath -w "$SCEN/find-base.log")"      # WSL: Windows path
+export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_LOG
+
+"$MAME" maciix -ramsize 8M ... \
+  -video none -sound none -nothrottle -natural -skip_gameinfo \
+  -autoboot_delay 1 -autoboot_script scripts/mame-find-base.lua
+grep BASE "$SCEN/find-base.log"
+```
+
+**Phase 2 — launch and attach**
+
+Add `LOKA_STAY_ALIVE=1` (and to `WSLENV`) so the script keeps the machine
+running instead of exiting once it reports. Start MAME in the background with
+the debugger enabled, then attach immediately:
+
+```sh
+"$MAME" maciix -ramsize 8M ... \
+  -video none -sound none -nothrottle -natural -skip_gameinfo \
+  -debug -debugger gdbstub -debugger_port 23946 \
+  -autoboot_delay 1 -autoboot_script scripts/mame-find-base.lua &
+
+LOKA_ELF="$PWD/$ELF" LOKA_BASE=0x0070e2a4 LOKA_BREAK=App::idlePolicy \
+  gdb-multiarch -q -x scripts/mame-attach.gdb
+```
+
+```sh
+until netstat.exe -an | grep -q "23946.*LISTENING"; do sleep 1; done
+sleep 4
+```
+
+`scripts/mame-attach.gdb` sets the architecture, resolves the host address,
+loads the symbols at the offset, and plants a breakpoint. Then `continue` in
+gdb: it stops at the first hit once the application is up, after which further
+breakpoints, `bt`, `info args`, and `list` behave as usual.
+
+Two path notes for WSL. MAME is a Windows binary and cannot read an autoboot
+script through `\\wsl.localhost\...`; copy the script to a native Windows
+path first, or the machine boots with no script and nothing explains why. The
+ELF passed to gdb is the opposite -- gdb runs under WSL, so give it the Linux
+path.
 
 ### Why this does not carry over to PPC
 
