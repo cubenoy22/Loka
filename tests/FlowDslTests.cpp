@@ -32,6 +32,11 @@
 
 namespace
 {
+  static void incrementNotificationCount(void *user)
+  {
+    ++(*static_cast<int *>(user));
+  }
+
   static loka::app::HStack buildTypedHStack()
   {
     return loka::app::HStack().alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM)
@@ -4909,13 +4914,16 @@ void testLokaFlowDslV1Core()
 
   {
     int input = 5;
+    int resultNotifications = 0;
     loka::core::MutableState<int> result;
+    result.bind(&incrementNotificationCount, &resultNotifications, false);
 
     loka::dsl::FlowChain<int, int> chain =
         loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result);
 
     assert(chain.run());
     assert(result.get() == 10);
+    assert(resultNotifications == 1);
   }
 
   {
@@ -5547,7 +5555,9 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
     deliverSimpleViewerOpenFileDialogResult(dialog, delivered[i]);
     if (scene.hasPendingInvalidation())
     {
-      assert(scene.flushInvalidation());
+      // Closing the Show may apply synchronously. A remaining request can be
+      // the silent retire-drain tick rather than another visible update.
+      (void)scene.flushInvalidation();
     }
     dialog = findSimpleViewerOpenFileDialog(scene);
     assert(!dialog && "every delivered chooser result closes SimpleViewer's owning Show");

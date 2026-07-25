@@ -214,38 +214,34 @@ void testStateNotify()
     assert(count == 1); // callOnce already fired at bind
   }
 
-  // --- MutableState: same value does not trigger notification ---
+  // --- MutableState: one set call produces at most one notification ---
   {
-    int count = 0;
-    loka::core::MutableState<int> s(5);
-    s.bind(&increment, &count, false);
-    s.set(5); // same value
-    assert(count == 0);
-    s.set(6);
-    assert(count == 1);
-  }
+    int changedCount = 0;
+    loka::core::MutableState<int> changed(5);
+    changed.bind(&increment, &changedCount, false);
+    changed.set(6);
+    assert(changedCount == 1);
 
-  // --- MutableState: forceUpdate notifies even on same value ---
-  {
-    int count = 0;
-    loka::core::MutableState<int> s(5);
-    s.bind(&increment, &count, false);
-    s.set(5, true); // forceUpdate=true
-    assert(count == 1);
-  }
+    int changedForcedCount = 0;
+    int changedForcedDeferredCount = 0;
+    loka::core::MutableState<int> changedForced(5);
+    changedForced.bind(&increment, &changedForcedCount, false);
+    changedForced.deferBind(&increment, &changedForcedDeferredCount);
+    changedForced.set(6, true);
+    assert(changedForcedCount == 1);
+    assert(changedForcedDeferredCount == 1);
 
-  // --- MutableState: forceUpdate on a *changed* value currently notifies twice ---
-  // Pins today's behavior: State<T>::set() notifies on the change, then
-  // MutableState::set(v, true) calls notifyStateChanged() unconditionally
-  // (State.hpp MutableState::set). This is the double-notify tracked as
-  // #45 item 3 (state notification contract); that fix must flip this
-  // expectation to exactly one notification, deliberately.
-  {
-    int count = 0;
-    loka::core::MutableState<int> s(5);
-    s.bind(&increment, &count, false);
-    s.set(6, true); // forceUpdate on a changed value
-    assert(count == 2);
+    int unchangedCount = 0;
+    loka::core::MutableState<int> unchanged(5);
+    unchanged.bind(&increment, &unchangedCount, false);
+    unchanged.set(5);
+    assert(unchangedCount == 0);
+
+    int unchangedForcedCount = 0;
+    loka::core::MutableState<int> unchangedForced(5);
+    unchangedForced.bind(&increment, &unchangedForcedCount, false);
+    unchangedForced.set(5, true);
+    assert(unchangedForcedCount == 1);
   }
 
   // --- deferBind: deferred handler fires after regular handlers ---

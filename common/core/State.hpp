@@ -387,12 +387,21 @@ namespace loka
     protected:
       typedef StateBase::Handler Handler;
 
+      bool assignValueIfChanged(const T &v)
+      {
+        if (stateValuesEqual(this->value, v))
+        {
+          return false;
+        }
+        this->value = v;
+        return true;
+      }
+
       virtual void setStoredValue(const T &v)
       {
-        if (!stateValuesEqual(value, v))
+        if (this->assignValueIfChanged(v))
         {
-          value = v;
-          notifyStateChanged();
+          this->notifyStateChanged();
         }
       }
       virtual void setValue(const T &v)
@@ -530,6 +539,8 @@ namespace loka
         return this;
       }
       using State<T>::setValue;
+      /** Store a value and notify observers exactly once when it changes, or
+          once for an unchanged value when forceUpdate is true. */
       void set(const T &v)
       {
         this->set(v, false);
@@ -539,13 +550,8 @@ namespace loka
         StateBase::LifetimeToken *token = this->retainNotifyToken();
         if (forceUpdate)
         {
-          State<T>::setStoredValue(v);
-          if (!StateBase::isNotifyTokenAlive(token))
-          {
-            StateBase::releaseNotifyToken(token);
-            return;
-          }
-          this->notifyStateChanged(); // Always notify even when the value is unchanged.
+          this->assignValueIfChanged(v);
+          this->notifyStateChanged();
           if (!StateBase::isNotifyTokenAlive(token))
           {
             StateBase::releaseNotifyToken(token);
