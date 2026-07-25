@@ -130,7 +130,7 @@
       {
         "name": "macOS / Cocoa",
         "status": "active",
-        "notes": "Mac OS X 10.4 Tiger or newer, PowerPC G3 or newer."
+        "notes": "Runtime-verified on modern macOS (Apple silicon): the test suite plus all five examples. Mac OS X 10.4 Tiger and PowerPC G3 are intended targets, not yet verified."
       },
       {
         "name": "Classic Mac OS / Toolbox",
@@ -159,7 +159,7 @@
       {
         "title": "Build and run the core tests",
         "body": "A quick headless build on Linux, WSL, or macOS. You need CMake 3.19+, Ninja, and any C++98-capable compiler.",
-        "code": "cmake -S . -B build/Testing -DTEST_BUILD=ON\ncmake --build build/Testing\nctest --test-dir build/Testing"
+        "code": "cmake -S . -B build/Testing -G Ninja -DTEST_BUILD=ON\ncmake --build build/Testing\nctest --test-dir build/Testing"
       },
       {
         "title": "Explore the examples",
