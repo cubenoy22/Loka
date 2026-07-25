@@ -68,6 +68,7 @@ add_library(LokaMacOSCore STATIC
   ${COMMON_HEADERS}
   ${LOKA_MACOS_CORE_HEADERS}
 )
+loka_enable_warnings(LokaMacOSCore)
 
 target_include_directories(LokaMacOSCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
@@ -101,6 +102,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
+  loka_enable_warnings(LokaTestsMacOS)
 
   target_include_directories(LokaTestsMacOS PRIVATE
     ${PROJECT_SOURCE_DIR}/common

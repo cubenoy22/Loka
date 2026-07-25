@@ -606,6 +606,7 @@ namespace
 
     virtual void applyPendingLocalPaintInfo(const LocalApplyInfo &info, const loka::app::scene::PlatformApplyPlan &plan)
     {
+      (void)plan;
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);
@@ -619,6 +620,7 @@ namespace
     virtual void applyPendingOpaquePaintInfo(const LocalApplyInfo &info,
                                              const loka::app::scene::PlatformApplyPlan &plan)
     {
+      (void)plan;
       assert(info.hasPaintWork());
       assert(info.hasBoundsHint());
       assert(info.hasPaintSpecificBoundsHint);

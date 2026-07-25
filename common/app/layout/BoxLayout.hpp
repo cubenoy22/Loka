@@ -2,6 +2,7 @@
 #define LOKA_APP_LAYOUT_BOX_LAYOUT_HPP
 
 #include "app/nodes/nestable/Box.hpp"
+#include "app/layout/LayoutHeuristics.hpp"
 #include "dsl/composition/CompositionList.hpp"
 
 namespace loka
@@ -23,14 +24,14 @@ namespace loka
 
         const int padding = box->props.padding;
         LayoutStateT childState = state;
-        childState.x = state.x + padding;
-        childState.y = state.y + padding;
-        childState.width = state.width - padding * 2;
+        childState.x = layoutCoordinate<LayoutStateT>(state.x + padding);
+        childState.y = layoutCoordinate<LayoutStateT>(state.y + padding);
+        childState.width = layoutCoordinate<LayoutStateT>(state.width - padding * 2);
         if (childState.width < 0)
         {
           childState.width = 0;
         }
-        childState.height = state.height - padding * 2;
+        childState.height = layoutCoordinate<LayoutStateT>(state.height - padding * 2);
         if (childState.height < 0)
         {
           childState.height = 0;
@@ -42,7 +43,7 @@ namespace loka
           loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
           for (loka::app::scene::Node *child = it.next(); child; child = it.next())
           {
-            childState.y = layoutChild(context, child, childState);
+            childState.y = layoutCoordinate<LayoutStateT>(layoutChild(context, child, childState));
           }
           resultY = childState.y + padding;
         }

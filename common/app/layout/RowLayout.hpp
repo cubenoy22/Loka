@@ -97,9 +97,9 @@ namespace loka
             childWidth += 1;
             remainder -= 1;
           }
-          childState.x = currentX;
+          childState.x = layoutCoordinate<LayoutStateT>(currentX);
           childState.y = state.y;
-          childState.width = childWidth;
+          childState.width = layoutCoordinate<LayoutStateT>(childWidth);
           if (row->props.hasVerticalAlignment_)
           {
             const int childHeight = loka::app::layout::preferredChildHeightForRow(child,
@@ -122,8 +122,8 @@ namespace loka
                 offset = remain;
               }
             }
-            childState.y = state.y + offset;
-            childState.height = childHeight;
+            childState.y = layoutCoordinate<LayoutStateT>(state.y + offset);
+            childState.height = layoutCoordinate<LayoutStateT>(childHeight);
           }
           const int childY = layoutChild(context, child, childState);
           if (childY > maxY)

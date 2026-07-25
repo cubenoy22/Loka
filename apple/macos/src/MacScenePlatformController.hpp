@@ -43,6 +43,8 @@ class MacScenePlatformController : public loka::app::scene::IPlatformController
 public:
   struct LayoutState
   {
+    typedef int Coordinate;
+
     int x;
     int y;
     int width;

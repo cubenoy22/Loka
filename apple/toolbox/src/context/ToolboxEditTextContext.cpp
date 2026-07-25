@@ -85,6 +85,7 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
 short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *controller,
                                      loka::app::scene::LayoutState &state)
 {
+  (void)controller;
   if (!node_)
   {
     return 0;

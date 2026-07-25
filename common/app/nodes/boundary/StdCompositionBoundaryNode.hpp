@@ -26,7 +26,10 @@ namespace loka
 
         // Build node definitions into composition container (default: no children)
         // Making this non-pure allows instantiation via NodeDefinition<StdCompositionProps, StdCompositionNode>
-        virtual void composeNode(NodeComposition &c) {}
+        virtual void composeNode(NodeComposition &c)
+        {
+          (void)c;
+        }
 
         virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
         {

@@ -30,6 +30,7 @@ set(LOKA_TOOLBOX_SOURCES
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/common/*.cpp)
 
 add_library(LokaAppleToolboxCore STATIC ${LOKA_TOOLBOX_SOURCES} ${COMMON_SOURCES})
+loka_enable_warnings(LokaAppleToolboxCore)
 set_target_properties(LokaAppleToolboxCore PROPERTIES
   CXX_STANDARD 98
   CXX_STANDARD_REQUIRED YES

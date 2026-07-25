@@ -102,6 +102,7 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *controller,
                                    loka::app::scene::LayoutState &state)
 {
+  (void)controller;
   if (!node_)
   {
     return 0;

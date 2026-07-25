@@ -599,7 +599,8 @@ namespace loka
       }
 
       MenuBarDefinition(const MenuBarDefinition &other)
-          : menus_()
+          : LOKA_AUDITED_COPY(MenuBarDefinition, other)
+            menus_()
       {
         const MenuDefinition *cur = other.menus_.head();
         while (cur)

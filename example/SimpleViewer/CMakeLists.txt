@@ -29,6 +29,7 @@ if(WIN32)
   else()
     add_executable(LokaSimpleViewerWin32 WIN32 ${SIMPLEVIEWER_SOURCES})
   endif()
+  loka_enable_warnings(LokaSimpleViewerWin32)
 
   target_include_directories(LokaSimpleViewerWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
@@ -49,6 +50,7 @@ if(APPLE)
   file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
 
   add_executable(LokaSimpleViewerMacOS ${MACOS_SOURCES} ${MACOS_HEADERS})
+  loka_enable_warnings(LokaSimpleViewerMacOS)
 
   target_include_directories(LokaSimpleViewerMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
@@ -71,6 +73,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   )
 
   add_application(${LOKA_SIMPLEVIEWER_CLASSIC_TARGET} ${RETRO_SOURCES})
+  loka_enable_warnings(${LOKA_SIMPLEVIEWER_CLASSIC_TARGET})
 
   target_include_directories(${LOKA_SIMPLEVIEWER_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

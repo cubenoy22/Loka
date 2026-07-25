@@ -1612,6 +1612,7 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
                                                                loka::core::EmitterState *onChange,
                                                                int newIndex)
 {
+  (void)boundary;
   if (!selectedIndex)
   {
     return;

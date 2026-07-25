@@ -95,6 +95,8 @@ LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(SceneManager)
 // Root and additional-base forms both vanish completely when auditing is off.
 #define LOKA_AUDITED(Tag) : private ::loka::core::LifecycleAudited< ::loka::core::LifecycleAuditTag_##Tag >
 #define LOKA_AUDITED_AS(Tag) , private ::loka::core::LifecycleAudited< ::loka::core::LifecycleAuditTag_##Tag >
+#define LOKA_AUDITED_COPY(Tag, other)                                                                                 \
+  ::loka::core::LifecycleAudited< ::loka::core::LifecycleAuditTag_##Tag >(other),
 
 /** Manual escape hatches for types that cannot use an inherited audit base. */
 #define LOKA_AUDIT_ALIVE_INC(Tag) ::loka::core::LifecycleAuditAliveIncrement(#Tag)
@@ -109,6 +111,7 @@ LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(SceneManager)
 #define LOKA_DECLARE_LIFECYCLE_AUDIT_TAG(Tag)
 #define LOKA_AUDITED(Tag)
 #define LOKA_AUDITED_AS(Tag)
+#define LOKA_AUDITED_COPY(Tag, other)
 #define LOKA_AUDIT_ALIVE_INC(Tag)
 #define LOKA_AUDIT_ALIVE_DEC(Tag)
 #define LOKA_AUDIT_PROCESS_GLOBAL(Tag)

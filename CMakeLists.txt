@@ -9,6 +9,8 @@ option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 option(LOKA_RETRO68_DIAGNOSTICS
   "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaWarnings.cmake)
+
 macro(loka_suppress_arclite_link)
   if(LOKA_MACOS_SUPPRESS_ARCLITE_LINK)
     foreach(_loka_implicit_link_var
@@ -91,6 +93,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_library(LokaCommonTesting STATIC
     ${LOKA_COMMON_SOURCES}
   )
+  loka_enable_warnings(LokaCommonTesting)
   target_include_directories(LokaCommonTesting PUBLIC
     ${PROJECT_SOURCE_DIR}/common
   )
@@ -109,6 +112,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/ContractTestMain.cpp
     ${LOKA_CONTRACT_TEST_SOURCES}
   )
+  loka_enable_warnings(LokaContractTests)
   target_include_directories(LokaContractTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
   )
@@ -124,6 +128,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/FlowDslTests.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
+  loka_enable_warnings(LokaScenarioTests)
   target_include_directories(LokaScenarioTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/example/SimpleViewer/src
@@ -147,6 +152,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests/AllocPinTests.cpp
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src/MainNode.cpp
   )
+  loka_enable_warnings(LokaAllocPinTests)
   target_include_directories(LokaAllocPinTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
@@ -211,3 +217,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_tests_properties(testZeroAllocationPin PROPERTIES
     WORKING_DIRECTORY "${_loka_allocpin_work_dir}")
 endif()
+
+# Pin the target-local warning contract after every platform/example target
+# has been declared. New Loka targets must opt in explicitly.
+loka_verify_warning_floor()

@@ -25,6 +25,7 @@ set(SOURCES
 )
 
 add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})
+loka_enable_warnings(LokaWin32Core)
 target_include_directories(LokaWin32Core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/../common
 )

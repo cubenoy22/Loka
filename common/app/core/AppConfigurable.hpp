@@ -62,7 +62,10 @@ public:
   {
   }
   virtual void compose(AppComposition &c) = 0;
-  virtual void composeMenu(loka::app::MenuComposition &c) {}
+  virtual void composeMenu(loka::app::MenuComposition &c)
+  {
+    (void)c;
+  }
   virtual loka::app::IdlePolicy idlePolicy() const
   {
     return loka::app::IdlePolicy::none();

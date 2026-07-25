@@ -29,6 +29,7 @@ if(WIN32)
   else()
     add_executable(LokaTutorialWin32 WIN32 ${TUTORIAL_SOURCES})
   endif()
+  loka_enable_warnings(LokaTutorialWin32)
 
   target_include_directories(LokaTutorialWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
@@ -50,6 +51,7 @@ if(APPLE)
   file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
 
   add_executable(LokaTutorialMacOS ${MACOS_SOURCES} ${MACOS_HEADERS})
+  loka_enable_warnings(LokaTutorialMacOS)
 
   target_include_directories(LokaTutorialMacOS PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
@@ -72,6 +74,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   )
 
   add_application(${LOKA_TUTORIAL_CLASSIC_TARGET} ${RETRO_SOURCES})
+  loka_enable_warnings(${LOKA_TUTORIAL_CLASSIC_TARGET})
 
   target_include_directories(${LOKA_TUTORIAL_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

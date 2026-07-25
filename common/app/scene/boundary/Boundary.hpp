@@ -1329,6 +1329,7 @@ namespace loka
                                  Node *parent,
                                  Node *&created)
         {
+          (void)parent;
           created = 0;
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *definition =

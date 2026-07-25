@@ -265,7 +265,9 @@ namespace helloworld
   void MainNode::composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
-    ZStack &root = c.declare(ZStack().TEST_ID("HelloWorld.Root"));
+    ZStack rootDefinition;
+    rootDefinition.TEST_ID("HelloWorld.Root");
+    ZStack &root = c.declare(rootDefinition);
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
     c.declare(HStack().TEST_ID("HelloWorld.MainPanels")
               << this->mainLeftPanel()
