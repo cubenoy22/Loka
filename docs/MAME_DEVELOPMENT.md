@@ -156,8 +156,8 @@ result proved that the surviving control remained functional.
 
 A Retro68 application running from the SCSI development disk can be debugged
 at source level: breakpoints by function or line, argument values, and a
-multi-frame backtrace. This was demonstrated on `maciix` with the Tutorial
-example, stopping in `App::idlePolicy` with `App::consumeIdle` and
+multi-frame backtrace. This was demonstrated under MAME on a 68030 machine
+(e.g. `maciix`) with the Tutorial example, stopping in `App::idlePolicy` with `App::consumeIdle` and
 `ToolboxApp::run` resolved on the stack.
 
 Seven things all have to be right. Missing any one of them looks like the
@@ -325,7 +325,7 @@ different jobs; expecting the second to provide the first will disappoint.
 - A5-relative globals are not covered by this; only code addresses are
   relocated by the offset above.
 - **A wild pointer write does not necessarily bomb.** Writing through an
-  unmapped address (`0xDEADBEEE` was tried) on `maciix` neither faults nor
+  unmapped address (`0xDEADBEEE` was tried) on a 68030 machine neither faults nor
   logs; the application keeps running as if nothing happened. The 68030 also
   permits misaligned word and long accesses, so the address errors a 68000
   would raise are not available either. Memory-lifetime defects on Classic can
@@ -341,6 +341,6 @@ different jobs; expecting the second to provide the first will disappoint.
   the combined Retro68 build, generated `LokaDev` SCSI disk, and host-side MAME
   startup from a WSL-hosted VS Code window.
 - Source-level gdb debugging: runtime-verified on Windows on ARM through WSL,
-  with a native Aarch64 MAME 0.287 on `maciix`. The emulated machine ran at
+  with a native Aarch64 MAME 0.287 on a 68030 machine. The emulated machine ran at
   roughly 6.7x real time, so a full boot-and-launch cycle takes about two
   minutes.
