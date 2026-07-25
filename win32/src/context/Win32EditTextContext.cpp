@@ -4,7 +4,7 @@
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
 #include "core/State.hpp"
-#include "platform/StringUTF8.hpp"
+#include "Win32EditTextBridge.hpp"
 
 namespace
 {
@@ -44,9 +44,7 @@ Win32EditTextContext::Win32EditTextContext(
       applyingFromState_(false),
       updatingFromControl_(false)
 {
-  DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;
-  hwnd_ = CreateWindowExA(
-      WS_EX_CLIENTEDGE, "EDIT", "", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
+  hwnd_ = loka::win32::CreateEditTextControl(parent, x, y, width, height);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
@@ -167,19 +165,10 @@ void Win32EditTextContext::applyText()
   {
     return;
   }
-  int currentLen = GetWindowTextLengthA(hwnd_);
-  std::vector<char> buffer(currentLen + 1);
-  if (currentLen >= 0)
-  {
-    GetWindowTextA(hwnd_, &buffer[0], currentLen + 1);
-  }
-  else
-  {
-    buffer.assign(1, '\0');
-  }
-  std::string currentText(&buffer[0]);
-  std::string desired;
-  if (!loka::platform::CollectUtf8(textState_->get(), desired))
+  std::wstring currentText;
+  loka::win32::ReadEditTextWide(hwnd_, currentText);
+  std::wstring desired;
+  if (!loka::win32::MaterializeWideString(textState_->get(), desired))
   {
     desired.clear();
   }
@@ -189,10 +178,10 @@ void Win32EditTextContext::applyText()
   }
   DWORD selStart = 0;
   DWORD selEnd = 0;
-  SendMessageA(hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&selStart), reinterpret_cast<LPARAM>(&selEnd));
+  SendMessageW(hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&selStart), reinterpret_cast<LPARAM>(&selEnd));
   applyingFromState_ = true;
-  SetWindowTextA(hwnd_, desired.c_str());
-  SendMessageA(hwnd_, EM_SETSEL, selStart, selEnd);
+  loka::win32::WriteEditTextString(hwnd_, textState_->get());
+  SendMessageW(hwnd_, EM_SETSEL, selStart, selEnd);
   applyingFromState_ = false;
 }
 
@@ -209,14 +198,7 @@ void Win32EditTextContext::syncStateFromControl()
     return;
   }
   updatingFromControl_ = true;
-  int length = GetWindowTextLengthA(hwnd_);
-  if (length < 0)
-  {
-    length = 0;
-  }
-  std::vector<char> buffer(length + 1);
-  GetWindowTextA(hwnd_, &buffer[0], length + 1);
-  mutableState->set(loka::core::String(std::string(&buffer[0])), true);
+  mutableState->set(loka::win32::ReadEditTextString(hwnd_), true);
   updatingFromControl_ = false;
 }
 

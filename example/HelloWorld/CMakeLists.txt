@@ -65,6 +65,7 @@ if(WIN32)
     ${LOKA_WIN32_TEST_COMMON_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32String.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ThreadModalScopeTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32EditTextBridgeTests.cpp
   )
 
   target_include_directories(LokaTestsWin32 PRIVATE

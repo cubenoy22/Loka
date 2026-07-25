@@ -2,6 +2,7 @@
 #include "StateTrackerCommitTests.hpp"
 #ifdef _WIN32
 #include "Win32ThreadModalScopeTests.hpp"
+#include "Win32EditTextBridgeTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
