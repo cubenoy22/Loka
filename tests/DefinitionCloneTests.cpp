@@ -334,7 +334,8 @@ void testConditionalDefinitionCloneOwnership()
       ConditionalDefinition first(ConditionalProps(&cond, 0, &falseBranch));
       ConditionalDefinition second(ConditionalProps(&cond, 0, 0));
       second = first;
-      second = second; // self-assignment must not free the owned branches
+      ConditionalDefinition *same = &second;
+      second = *same; // self-assignment must not free the owned branches
 
       loka::app::scene::Node *node = second.branchDefinition(false)->create();
       assert(node != 0);

@@ -387,7 +387,7 @@ namespace loka
     protected:
       typedef StateBase::Handler Handler;
 
-      virtual void set(const T &v)
+      virtual void setStoredValue(const T &v)
       {
         if (!stateValuesEqual(value, v))
         {
@@ -397,7 +397,7 @@ namespace loka
       }
       virtual void setValue(const T &v)
       {
-        set(v);
+        setStoredValue(v);
       }
       // setValue(const ValueHolderBase&) removed as no longer needed
       void notifyStateChanged()
@@ -530,12 +530,16 @@ namespace loka
         return this;
       }
       using State<T>::setValue;
-      void set(const T &v, bool forceUpdate = false)
+      void set(const T &v)
+      {
+        this->set(v, false);
+      }
+      void set(const T &v, bool forceUpdate)
       {
         StateBase::LifetimeToken *token = this->retainNotifyToken();
         if (forceUpdate)
         {
-          State<T>::set(v);
+          State<T>::setStoredValue(v);
           if (!StateBase::isNotifyTokenAlive(token))
           {
             StateBase::releaseNotifyToken(token);
@@ -550,7 +554,7 @@ namespace loka
         }
         else
         {
-          State<T>::set(v);
+          State<T>::setStoredValue(v);
           if (!StateBase::isNotifyTokenAlive(token))
           {
             StateBase::releaseNotifyToken(token);
@@ -611,10 +615,6 @@ namespace loka
       }
 
     private:
-      void set(const T &v)
-      {
-        (void)v;
-      }
       void setValue(const T &v)
       {
         (void)v;

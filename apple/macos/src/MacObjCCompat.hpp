@@ -32,6 +32,37 @@ typedef float CGFloat;
 #define NSRunLoopCommonModes ((NSString *)kCFRunLoopCommonModes)
 #endif
 
+// AppKit's modern constant names are enum values, not preprocessor macros.
+// Select by SDK version so current SDKs stay warning-clean while the legacy
+// 10.5 SDK used for the 10.4 deployment target keeps the original spellings.
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101400)
+#define LOKA_MAC_BUTTON_BEZEL_STYLE NSBezelStylePush
+#define LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN NSButtonTypeMomentaryPushIn
+#else
+#define LOKA_MAC_BUTTON_BEZEL_STYLE NSRoundedBezelStyle
+#define LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN NSMomentaryPushInButton
+#endif
+
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101200)
+#define LOKA_MAC_WINDOW_STYLE_TITLED NSWindowStyleMaskTitled
+#define LOKA_MAC_WINDOW_STYLE_CLOSABLE NSWindowStyleMaskClosable
+#define LOKA_MAC_WINDOW_STYLE_RESIZABLE NSWindowStyleMaskResizable
+#define LOKA_MAC_WINDOW_STYLE_MINIATURIZABLE NSWindowStyleMaskMiniaturizable
+#define LOKA_MAC_COMPOSITING_SOURCE_OVER NSCompositingOperationSourceOver
+#else
+#define LOKA_MAC_WINDOW_STYLE_TITLED NSTitledWindowMask
+#define LOKA_MAC_WINDOW_STYLE_CLOSABLE NSClosableWindowMask
+#define LOKA_MAC_WINDOW_STYLE_RESIZABLE NSResizableWindowMask
+#define LOKA_MAC_WINDOW_STYLE_MINIATURIZABLE NSMiniaturizableWindowMask
+#define LOKA_MAC_COMPOSITING_SOURCE_OVER NSCompositeSourceOver
+#endif
+
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101000)
+#define LOKA_MAC_MODAL_RESPONSE_OK NSModalResponseOK
+#else
+#define LOKA_MAC_MODAL_RESPONSE_OK NSOKButton
+#endif
+
 #if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1050)
 @interface NSString (LokaTigerStringDrawingCompat)
 - (NSSize)sizeWithFont:(NSFont *)font;

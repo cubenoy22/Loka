@@ -39,7 +39,6 @@ private:
   void disposeDialog();
   NativeDialogSession *detachDialogIfActive(NativeDialogSession *dialog);
 
-  void *parentView_;
   loka::app::OpenFileDialogNode *node_;
   loka::core::MutableState<loka::app::FileChooserResult> *resultState_;
   loka::core::EmitterState *onResult_;

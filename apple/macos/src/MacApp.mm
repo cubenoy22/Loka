@@ -22,7 +22,7 @@
   if (self.owner)
   {
     NSInteger tag = [sender tag];
-    self.owner->handleMenuCommand(static_cast<int>(tag));
+    self.owner->dispatchNativeMenuCommand(static_cast<int>(tag));
   }
 }
 @end
@@ -105,7 +105,9 @@ void MacApp::run()
 {
   ProcessSerialNumber psn = {0, kCurrentProcess};
   TransformProcessType(&psn, kProcessTransformToForegroundApplication);
+#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1090)
   SetFrontProcess(&psn);
+#endif
 
   [NSApplication sharedApplication];
   if ([NSApp respondsToSelector:@selector(setActivationPolicy:)])
@@ -227,7 +229,7 @@ void MacApp::stopInvalidationFlushTimer()
   }
 }
 
-void MacApp::handleMenuCommand(int commandId)
+void MacApp::dispatchNativeMenuCommand(int commandId)
 {
   for (size_t i = 0; i < commands_.size(); ++i)
   {

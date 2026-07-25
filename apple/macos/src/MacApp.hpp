@@ -15,7 +15,7 @@ public:
 
   virtual void run();
   virtual void quit();
-  void handleMenuCommand(int commandId);
+  void dispatchNativeMenuCommand(int commandId);
   void flushInvalidationsTick();
 
   struct MenuCommand

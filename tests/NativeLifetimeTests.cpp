@@ -114,7 +114,8 @@ void testDefinitionAssignmentCarriesNativeLifetimeHint()
   assigned = source;
   assert(assigned.nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
 
-  assigned = assigned;
+  HintProbeDefinition *same = &assigned;
+  assigned = *same;
   assert(assigned.nativeLifetimeHint() == loka::app::scene::NATIVE_HINT_DESIRE_STAY);
 
   HintProbeDefinition policyTarget;

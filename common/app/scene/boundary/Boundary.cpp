@@ -142,6 +142,7 @@ namespace loka
                  "retired arena node must belong to the retiring Boundary arena");
           const bool released = this->nodeArena_.releaseNode(node);
           assert(released && "retired arena node must belong to the retiring Boundary ledger");
+          (void)released;
         }
         else
         {

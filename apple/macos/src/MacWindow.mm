@@ -48,8 +48,6 @@
 }
 @end
 
-@class LokaWindowDelegate;
-
 @interface LokaWindowDelegate : NSObject
 {
   MacWindow *owner_;
@@ -265,12 +263,8 @@ void MacWindow::createNativeWindow()
   CGFloat y = this->hasPosition() ? this->positionY() : 50;
   CGFloat width = this->hasSize() ? this->width() : 300;
   CGFloat height = this->hasSize() ? this->height() : 300;
-#if defined(NSWindowStyleMaskTitled)
-  NSUInteger style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
-                     | NSWindowStyleMaskMiniaturizable;
-#else
-  NSUInteger style = NSTitledWindowMask | NSClosableWindowMask | NSResizableWindowMask | NSMiniaturizableWindowMask;
-#endif
+  NSUInteger style = LOKA_MAC_WINDOW_STYLE_TITLED | LOKA_MAC_WINDOW_STYLE_CLOSABLE
+                     | LOKA_MAC_WINDOW_STYLE_RESIZABLE | LOKA_MAC_WINDOW_STYLE_MINIATURIZABLE;
   NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0.0, 0.0, width, height)
                                                  styleMask:style
                                                    backing:NSBackingStoreBuffered
@@ -295,7 +289,7 @@ void MacWindow::createNativeWindow()
 
   LokaWindowDelegate *delegate = [[LokaWindowDelegate alloc] init];
   delegate.owner = this;
-  [window setDelegate:delegate];
+  [window setDelegate:(id)delegate];
 
   window_ = (void *)window;
   contentView_ = (void *)contentView;

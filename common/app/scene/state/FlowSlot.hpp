@@ -263,6 +263,7 @@ namespace loka
           assert(state != 0 && "FlowSlot::onFlowRunEnd requires run state");
           assert(state->runningDepth_ > 0 && "FlowSlot::onFlowRunEnd underflow");
           assert(state->runningFlow_ == runningFlow && "FlowSlot::onFlowRunEnd running flow mismatch");
+          (void)runningFlow;
           --state->runningDepth_;
           if (state->runningDepth_ == 0)
           {
