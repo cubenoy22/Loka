@@ -100,25 +100,29 @@ Emulation and hardware do different jobs. An emulator that exposes the
 machine — MAME does, on 68K — is where an application can be inspected from
 the inside; that is where the gdb workflow in
 [MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md) applies, and being scriptable it
-carries the automated scenarios. Hardware answers a different question:
-whether the result behaves on a machine someone actually has. Neither
-substitutes for the other.
+carries the automated scenarios. Hardware answers whether the result behaves
+on a real machine. Neither substitutes for the other.
 
 | Target | Status |
 | --- | --- |
-| Classic Mac OS, 68K | Runtime-verified under emulation on a 68030-class machine, and on a PowerBook 180c. This is the primary leg and the only one that can be debugged at source level. |
-| Classic Mac OS, PowerPC | Build-verified. Not yet runtime-verified; see the note below. |
+| Classic Mac OS, 68030 | Runtime-verified, under emulation and on hardware. The primary leg, and the only one that can be debugged at source level. |
+| Classic Mac OS, 68020 / 68040 | Emulation only. No hardware, so timing observations are not measurements. |
+| Classic Mac OS, PowerPC | Build-verified. Hardware is available for the runtime check; it has not been done yet. |
+| Mac OS X, PowerPC era | Not verified. Hardware is available. |
 | Modern macOS | Runtime-verified on Apple silicon. |
-| Mac OS X, PowerPC era | Not verified. |
 | Windows, current | Runtime-verified on Windows 11 for ARM64 with ACP=932. |
 | Windows XP class | Build target. Not runtime-verified. |
 | Linux / WSL | Runtime-verified for the headless test suites. |
 
-The PowerPC Classic gap is the notable one: the 68K leg carries automated
-runtime scenarios while PowerPC has only ever been built. Closing it needs a
-machine to run on, and the source-level debugging available on 68K will not
-transfer — see "Why this does not carry over to PPC" in
+Hardware coverage is uneven, and the gaps shape what a result can mean. The
+68K side rests on a single 68030 PowerBook, so 68020 and 68040 behaviour can
+only be observed under emulation — useful for "does it still work", not for
+"is it fast enough". PowerPC is the reverse: a 603e machine and a good supply
+of G3-and-later hardware exist, but the automated runtime scenarios are 68K
+only, so PowerPC has never been exercised beyond building. That gap will not
+be closed by the 68K tooling — the source-level debugging does not transfer;
+see "Why this does not carry over to PPC" in
 [MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md).
 
-Emulator machine names appearing in this repository are examples of a
-configuration that works, not a statement about hardware anyone owns.
+Emulator machine names elsewhere in this repository are examples of a working
+configuration, not a statement about hardware.
