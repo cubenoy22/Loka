@@ -58,7 +58,7 @@ clear boundaries, and small reusable concepts.
 ## DSL And Composition
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
-- Prefer `deferBind` for UI reflection or lazy updates; use `bind` only when immediate recompute is required.
+- Prefer `deferBind` for UI projection or lazy updates; use `bind` only when immediate recompute is required.
 - DSL design: keep composition owned by Boundary; avoid extra compose layers unless needed. Use `Fragment` or helper functions returning node definitions to inline into the parent composition when you don't need an independent lifecycle.
 - UI props constant-value policy: do not route DSL constant props through shared static `State<T>` helpers. For values such as button/cell text or menu enabled flags, props/definitions should own the constant value directly and only use `State<T>*` when live updates are actually required.
 - Native binding policy: `PlatformController`/`NativeContext` code should bind only states that the logical node layer has classified as live. Avoid re-deciding liveness in platform code except for defensive guards.

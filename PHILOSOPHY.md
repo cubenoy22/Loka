@@ -250,7 +250,7 @@ A good Loka abstraction should make it possible to answer:
 - Which lifecycle cleans it up?
 - Which boundary sees changes?
 - What becomes dirty when it changes?
-- Which platform layer is allowed to reflect it?
+- Which platform layer is allowed to project it?
 
 If those answers are not visible in the type or API shape, the abstraction is
 not ready to become a framework-facing surface.
