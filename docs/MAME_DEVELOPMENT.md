@@ -335,11 +335,11 @@ different jobs; expecting the second to provide the first will disappoint.
 ## Verification status
 
 - macOS Tahoe: runtime-verified on Intel and Apple silicon (A18 Pro) with MAME
-  0.288 on `maciici`, including live floppy insertion and the generated
+  0.288 on a 68030 machine, including live floppy insertion and the generated
   `LokaDev` SCSI volume.
-- Windows through WSL: runtime-verified with MAME 0.287 on `maciix`, including
-  the combined Retro68 build, generated `LokaDev` SCSI disk, and host-side MAME
-  startup from a WSL-hosted VS Code window.
+- Windows through WSL: runtime-verified with MAME 0.287 on a 68030 machine,
+  including the combined Retro68 build, generated `LokaDev` SCSI disk, and
+  host-side MAME startup from a WSL-hosted VS Code window.
 - Source-level gdb debugging: runtime-verified on Windows on ARM through WSL,
   with a native Aarch64 MAME 0.287 on a 68030 machine. The emulated machine ran at
   roughly 6.7x real time, so a full boot-and-launch cycle takes about two
