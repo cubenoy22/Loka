@@ -13,7 +13,8 @@
       "binaryDir": "build/macos/Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",
@@ -27,7 +28,8 @@
       "generator": "Ninja",
       "binaryDir": "build/macos/Release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",
@@ -42,7 +44,8 @@
       "binaryDir": "build/win32/Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",
@@ -56,7 +59,8 @@
       "generator": "Ninja",
       "binaryDir": "build/win32/Release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",
@@ -75,7 +79,8 @@
         "CMAKE_C_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_CXX_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS,5.01",
-        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",
@@ -93,7 +98,8 @@
         "CMAKE_C_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_CXX_FLAGS": "/D_WIN32_WINNT=0x0501 /DWINVER=0x0501",
         "CMAKE_EXE_LINKER_FLAGS": "/SUBSYSTEM:WINDOWS,5.01",
-        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",
@@ -109,7 +115,8 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/Retro68.cmake",
         "CMAKE_CXX_FLAGS_RELEASE": "-Os -ffunction-sections -fdata-sections -fno-exceptions",
-        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-Wl,--gc-sections"
+        "CMAKE_EXE_LINKER_FLAGS_RELEASE": "-Wl,--gc-sections",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       }
     },
     {
@@ -148,7 +155,8 @@
       "cacheVariables": {
         "TEST_BUILD": "ON",
         "LOKA_LIFECYCLE_AUDIT": "ON",
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",
@@ -181,7 +189,8 @@
         "LOKA_LIFECYCLE_AUDIT": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer -g",
-        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address"
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address",
+        "LOKA_WARNINGS_AS_ERRORS": "ON"
       },
       "condition": {
         "type": "equals",

@@ -605,6 +605,8 @@ namespace loka
               static_cast<unsigned int>(flags),
               static_cast<unsigned int>(updateCycleState_.aggregateTransactionDirtyFlags()),
               updateCycleState_.refreshFullRebuild() ? 1 : 0);
+#else
+          (void)flags;
 #endif
         }
 
@@ -1315,6 +1317,9 @@ namespace loka
 
       inline SceneDirector::SceneUpdateApplySnapshot SceneDirector::buildApplySnapshot(const Scene *scene) const
       {
+#if !defined(LOKA_DEBUG_SCENE_UPDATE) || defined(LOKA_RETRO68)
+        (void)scene;
+#endif
         struct ApplySnapshotAccumulator
         {
           ApplySnapshotAccumulator()
@@ -1433,9 +1438,9 @@ namespace loka
           const NodeDirtyFlags effectiveDirtyFlags =
               static_cast<NodeDirtyFlags>(pendingDirtyFlagsForBoundary(root) | composeResult.dirtyFlagsSeen);
           const RootStructureDecision structureDecision(composeResult, diff, effectiveDirtyFlags);
+#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           const INestable *rootNestable = root->asNestable();
           const Node *firstChild = rootNestable ? rootNestable->childrenHead() : 0;
-#if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
           loka::platform::DebugLogSceneRootIdentity(
               static_cast<void *>(root->scene()),
               static_cast<void *>(root),

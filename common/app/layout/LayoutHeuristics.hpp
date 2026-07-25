@@ -10,6 +10,14 @@ namespace loka
   {
     namespace layout
     {
+      /** Converts an intermediate layout calculation to the target's
+          declared coordinate width at the assignment boundary. */
+      template <typename LayoutStateT>
+      inline typename LayoutStateT::Coordinate layoutCoordinate(int value)
+      {
+        return static_cast<typename LayoutStateT::Coordinate>(value);
+      }
+
       inline int clampToAvailable(int value, int available)
       {
         if (value < 0)

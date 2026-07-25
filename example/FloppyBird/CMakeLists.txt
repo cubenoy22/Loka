@@ -20,6 +20,7 @@ if(WIN32)
   add_executable(LokaFloppyBirdWin32 WIN32
     src/main.cpp
   )
+  loka_enable_warnings(LokaFloppyBirdWin32)
 
   set_target_properties(LokaFloppyBirdWin32 PROPERTIES
     CXX_STANDARD 98
@@ -47,6 +48,7 @@ if(APPLE)
     src/MacOSMain.mm
     ${MACOS_HEADERS}
   )
+  loka_enable_warnings(LokaFloppyBirdMacOS)
 
   set_target_properties(LokaFloppyBirdMacOS PROPERTIES
     CXX_STANDARD 98
@@ -76,6 +78,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
     src/main.cpp
     Size.r
   )
+  loka_enable_warnings(${LOKA_FLOPPYBIRD_CLASSIC_TARGET})
 
   target_include_directories(${LOKA_FLOPPYBIRD_CLASSIC_TARGET} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common

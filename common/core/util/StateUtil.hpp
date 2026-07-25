@@ -13,7 +13,7 @@ namespace loka
     typedef StateBase StateBaseType;
     typedef std::vector<StateBaseType *> StateVector;
 
-    static StateVector makeStateVector(StateBaseType *first, ...)
+    inline StateVector makeStateVector(StateBaseType *first, ...)
     {
       StateVector v;
       va_list args;

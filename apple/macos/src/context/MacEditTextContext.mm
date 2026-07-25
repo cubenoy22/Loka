@@ -79,7 +79,7 @@ MacEditTextContext::MacEditTextContext(
 
   LokaTextFieldDelegate *delegate = [[LokaTextFieldDelegate alloc] init];
   delegate.owner = this;
-  [field setDelegate:delegate];
+  [field setDelegate:(id)delegate];
 
   if (parent)
   {

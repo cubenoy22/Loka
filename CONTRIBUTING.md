@@ -28,6 +28,42 @@ For UI changes:
 - Implement an autopilot/test-driving path for the changed flow (timer/state/event-driven is acceptable).
 - Attach visual evidence (capture or recording) showing the expected result.
 
+## Compiler Warning Policy
+
+Every repository-owned compiled target uses the warning floor defined by
+`cmake/LokaWarnings.cmake`:
+
+- GCC, Clang, AppleClang, and both Retro68 GCC toolchains: `-Wall -Wextra`.
+- MSVC: `/W4`.
+
+Warnings stay target-local so platform SDK and future third-party targets do
+not inherit Loka's policy. Repository configure presets additionally enable
+`LOKA_WARNINGS_AS_ERRORS`, producing `-Werror` or `/WX`; an ad hoc CMake
+configuration defaults to warning-only unless that option is enabled. The
+presets are the required entry points for the checks tracked by #172, so those
+checks inherit the same warning floor and cannot pass with new warnings.
+
+One narrow waiver remains for GCC 11 and newer:
+`-Wmismatched-new-delete` is disabled on Loka targets because
+`Node::operator delete` intentionally serves arena and plain-new storage while
+the allocation-gate path uses `DestroyHeapNode`. The compiler cannot prove the
+current call-site discipline. Issue #175 owns the provenance fix and removal of
+this waiver; no other GCC/Clang warning category is disabled.
+
+MSVC C4458 is disabled on Loka targets. Its current sites are the repeated
+`Node::context`, `BoundaryCompositionState::diff`, and
+`WindowProps::width`/`height` vocabulary used by parameters or short-lived
+locals. Those names make the cross-layer contracts consistent, member access
+is already explicit, and renaming them would not strengthen correctness.
+
+MSVC C4996 is also disabled for the portable `fopen`/C stdio sites in
+`BlobLoader`, `SimpleViewerFlowAdapters`, and their tests. Replacing them with
+MSVC-only secure CRT calls would break the shared C++98/Classic implementation;
+Classic paths intentionally avoid iostreams for binary size.
+
+Retro68 68K and PPC accept `-Wall`, `-Wextra`, and `-Werror`; no baseline flag
+is dropped for either Classic compiler.
+
 ## Objective-C Rules (Library/Core)
 
 - Library/core Objective-C(++) code is non-ARC.

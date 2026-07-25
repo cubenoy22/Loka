@@ -2,6 +2,7 @@
 #define LOKA_APP_LAYOUT_GRID_LAYOUT_HPP
 
 #include "app/nodes/nestable/Grid.hpp"
+#include "app/layout/LayoutHeuristics.hpp"
 #include "dsl/composition/CompositionList.hpp"
 
 namespace loka
@@ -53,10 +54,10 @@ namespace loka
             const int rowIndex = static_cast<int>(index / cols);
             const int colIndex = static_cast<int>(index % cols);
             LayoutStateT childState = state;
-            childState.x = state.x + colIndex * (cellWidth + metrics.gapX);
-            childState.y = state.y + rowIndex * (cellHeight + metrics.gapY);
-            childState.width = cellWidth;
-            childState.height = cellHeight;
+            childState.x = layoutCoordinate<LayoutStateT>(state.x + colIndex * (cellWidth + metrics.gapX));
+            childState.y = layoutCoordinate<LayoutStateT>(state.y + rowIndex * (cellHeight + metrics.gapY));
+            childState.width = layoutCoordinate<LayoutStateT>(cellWidth);
+            childState.height = layoutCoordinate<LayoutStateT>(cellHeight);
             const int childY = layoutChild(context, child, childState);
             if (childY > maxY)
             {

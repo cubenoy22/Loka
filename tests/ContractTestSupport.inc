@@ -18,6 +18,11 @@ namespace
     }
 #endif
 
+    int value() const
+    {
+      return value_;
+    }
+
   private:
     int value_;
   };
@@ -27,10 +32,11 @@ namespace
     LifecycleAuditedConstructorProbe original(1);
     LifecycleAuditedConstructorProbe copy(original);
     copy = original;
+    assert(original.value() == 1);
+    assert(copy.value() == 1);
     LOKA_AUDIT_RECLASSIFY_ALIVE(original, LifecycleAuditedConstructorProbeVerified,
                                 loka::core::LIFECYCLE_AUDIT_CHAIN_RESIDENT);
     LOKA_AUDIT_RECLASSIFY_ALIVE(copy, LifecycleAuditedConstructorProbeVerified,
                                 loka::core::LIFECYCLE_AUDIT_CHAIN_RESIDENT);
   }
 } // namespace
-

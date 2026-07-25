@@ -68,6 +68,7 @@ add_library(LokaMacOSCore STATIC
   ${COMMON_HEADERS}
   ${LOKA_MACOS_CORE_HEADERS}
 )
+loka_enable_warnings(LokaMacOSCore)
 
 target_include_directories(LokaMacOSCore PUBLIC
   ${PROJECT_SOURCE_DIR}/common
@@ -92,15 +93,21 @@ if(NOT LOKA_MAC_OS_10_4)
   file(GLOB_RECURSE LOKA_MACOS_TEST_COMMON_SOURCES CONFIGURE_DEPENDS
     ${PROJECT_SOURCE_DIR}/common/*.cpp
   )
-  # EXCLUDE_FROM_ALL: this target recompiles all common sources under
-  # TEST_BUILD, so keep it out of Build All (and generated Xcode projects);
-  # the macos-tests build preset builds it explicitly.
-  add_executable(LokaTestsMacOS EXCLUDE_FROM_ALL
+  # Debug Build All must include this executable so VSCode CMake Tools can
+  # build it before Test Explorer invokes ctest. Keep it excluded in Release
+  # and multi-config projects: these assert-based tests require Debug, and the
+  # macos-tests preset still builds the target explicitly when needed.
+  set(LOKA_MACOS_TEST_EXCLUDE_OPTION EXCLUDE_FROM_ALL)
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(LOKA_MACOS_TEST_EXCLUDE_OPTION)
+  endif()
+  add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_EXCLUDE_OPTION}
     ${LOKA_SHARED_TEST_SOURCES}
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
+  loka_enable_warnings(LokaTestsMacOS)
 
   target_include_directories(LokaTestsMacOS PRIVATE
     ${PROJECT_SOURCE_DIR}/common

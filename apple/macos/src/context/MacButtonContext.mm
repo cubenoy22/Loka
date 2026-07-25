@@ -1,5 +1,6 @@
 #include "MacButtonContext.hpp"
 #include "../MacScenePlatformController.hpp"
+#include "../MacObjCCompat.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
@@ -105,16 +106,8 @@ MacButtonContext::MacButtonContext(void *parentView, int x, int y, int width, in
 {
   NSView *parent = (NSView *)parentView;
   NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(x, y, width, height)];
-#if defined(NSBezelStyleRounded)
-  [button setBezelStyle:NSBezelStyleRounded];
-#else
-  [button setBezelStyle:NSRoundedBezelStyle];
-#endif
-#if defined(NSButtonTypeMomentaryPushIn)
-  [button setButtonType:NSButtonTypeMomentaryPushIn];
-#else
-  [button setButtonType:NSMomentaryPushInButton];
-#endif
+  [button setBezelStyle:LOKA_MAC_BUTTON_BEZEL_STYLE];
+  [button setButtonType:LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN];
 
   LokaButtonTarget *target = [[LokaButtonTarget alloc] init];
   target.owner = this;

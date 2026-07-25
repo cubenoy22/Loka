@@ -31,6 +31,8 @@ namespace loka
       class ComposableNode : public NestableNode
       {
       public:
+        using Node::compose;
+
         ComposableNode()
             : currentContext_(0),
               nodeStateOwner_(0),

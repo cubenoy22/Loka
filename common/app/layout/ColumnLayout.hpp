@@ -27,10 +27,11 @@ namespace loka
         for (loka::app::scene::Node *child = it.next(); child; child = it.next())
         {
           LayoutStateT childState = state;
-          childState.y = currentY;
+          childState.y = layoutCoordinate<LayoutStateT>(currentY);
           if (state.height > 0)
           {
-            childState.height = loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY);
+            childState.height = layoutCoordinate<LayoutStateT>(
+                loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
           }
 
           int childWidth = state.width;
@@ -51,8 +52,8 @@ namespace loka
               }
             }
           }
-          childState.x = state.x + childOffset;
-          childState.width = childWidth;
+          childState.x = layoutCoordinate<LayoutStateT>(state.x + childOffset);
+          childState.width = layoutCoordinate<LayoutStateT>(childWidth);
           currentY = layoutChild(context, child, childState);
         }
         return currentY;

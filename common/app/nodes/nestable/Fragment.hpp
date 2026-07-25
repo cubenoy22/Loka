@@ -74,6 +74,11 @@ namespace loka
           : BaseType(other)
       {
       }
+      FragmentDefinition &operator=(const FragmentDefinition &other)
+      {
+        BaseType::operator=(other);
+        return *this;
+      }
     };
 
     typedef FragmentDefinition Fragment;

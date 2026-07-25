@@ -136,14 +136,14 @@ struct MacOpenFileDialogContext::NativeDialogSession : public MacOpenNativeDialo
 };
 
 MacOpenFileDialogContext::MacOpenFileDialogContext(void *parentView, loka::app::OpenFileDialogNode *node)
-    : parentView_(parentView),
-      node_(node),
+    : node_(node),
       resultState_(0),
       onResult_(0),
       presentation_(),
       deferredPresenter_(0),
       dialog_(0)
 {
+  (void)parentView;
   resultState_ = node_ ? node_->props.result_ : 0;
   onResult_ = node_ ? node_->props.onResult_ : 0;
   deferredPresenter_ = [[LokaMacOpenFileDialogDeferredPresenter alloc] initWithOwner:this];
@@ -251,11 +251,7 @@ void MacOpenFileDialogContext::presentDialog()
   [panel setCanChooseFiles:YES];
   NSInteger response = [panel runModal];
   loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
-#if defined(NSModalResponseOK)
-  if (response == NSModalResponseOK)
-#else
-  if (response == NSOKButton)
-#endif
+  if (response == LOKA_MAC_MODAL_RESPONSE_OK)
   {
     NSURL *url = [panel URL];
     if (url)

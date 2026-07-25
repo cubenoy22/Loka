@@ -72,6 +72,7 @@ These items address recurring bug patterns and structural risks identified durin
 - C++98: down-port tests/SceneTests.hpp (no lambda/auto/override) or exclude for legacy builds.
 - C++98: reintroduce NodeComposition map/filter via C++98-friendly adapters.
 - Toolchain matrix: validate oldest MSVC/GCC and record gaps.
+- **macOS test target `ALL_BUILD` policy**: Replace the current Debug-versus-Release/multi-config proxy with an explicit legacy/retro build profile. Modern macOS builds should include `LokaTestsMacOS` in `ALL_BUILD` once the test target keeps assertions active in optimized configurations; Xcode 3.2.6 and legacy SDK builds may exclude it to avoid unnecessary rebuild cost and unsupported test-toolchain surface.
 - Legacy Mac build automation idea: document or prototype developer-side remote build workflows for old macOS hosts. Keep this outside Loka's runtime/core responsibilities: a modern development machine or AI assistant could sync the repository to a Snow Leopard build node over SSH, run `scripts/macos/build-10_4.sh` / `build-10_5.sh`, collect `lipo -info` output and logs, and leave Xcode 3.2.6 UI workflows as a manual or semi-automated verification path.
 - Classic Toolbox profile split: keep app-facing String/Asset APIs neutral, but plan build-time profiles such as `ToolboxEN`, `ToolboxJP`, and an `iToolbox` Mac OS 8.5+ profile rather than forcing pre-8.5 Classic localization through a single Unicode-first path.
 - Docs/tests: document C++98 constraints and add checks for accidental C++11 usage.

@@ -222,11 +222,7 @@ namespace
       }
     }
 
-#if defined(NSCompositingOperationSourceOver)
-    NSCompositingOperation op = NSCompositingOperationSourceOver;
-#else
-    NSCompositingOperation op = NSCompositeSourceOver;
-#endif
+    NSCompositingOperation op = LOKA_MAC_COMPOSITING_SOURCE_OVER;
     // The newer respectFlipped/hints variant crashes with some PDF-backed
     // images on older runtimes/compatibility builds. Keep the classic draw
     // path for broadest compatibility.

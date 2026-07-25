@@ -3979,7 +3979,7 @@ namespace
     {
       loka::app::EditTextDefinition content;
       content.lifetimeHint(loka::app::scene::NATIVE_HINT_DESIRE_STAY);
-      loka::app::PolicyScopeDefinition scope = loka::app::PolicyScope();
+      loka::app::PolicyScopeDefinition scope;
       scope.deliverWhileDetached() << content;
       loka::app::ShowDefinition seat = loka::app::Show(*this->shown_.state());
       seat << scope;

@@ -264,6 +264,7 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controller,
                                  loka::app::scene::LayoutState &state)
 {
+  (void)controller;
   if (!node_ || !node_->props.text_)
   {
     return 0;

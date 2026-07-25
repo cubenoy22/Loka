@@ -37,21 +37,26 @@ namespace loka
     {
     public:
       StateBase()
-          : currentTracker(0),
+          : handlers(),
+            deferredHandlers(),
+            handlersVersion_(0),
+            deferredHandlersVersion_(0),
+            currentTracker(0),
             arenaAllocated_(false),
             gateAllocated_(false),
-            lifetimeToken_(new LifetimeToken()),
-            handlersVersion_(0),
-            deferredHandlersVersion_(0)
+            lifetimeToken_(new LifetimeToken())
       {
       }
       StateBase(const StateBase &rhs)
-          : currentTracker(0),
+          : LOKA_AUDITED_COPY(StateBase, rhs)
+            handlers(),
+            deferredHandlers(),
+            handlersVersion_(0),
+            deferredHandlersVersion_(0),
+            currentTracker(0),
             arenaAllocated_(rhs.arenaAllocated_),
             gateAllocated_(false),
-            lifetimeToken_(new LifetimeToken()),
-            handlersVersion_(0),
-            deferredHandlersVersion_(0)
+            lifetimeToken_(new LifetimeToken())
       {
       }
       StateBase &operator=(const StateBase &rhs)
@@ -91,10 +96,28 @@ namespace loka
       virtual void
       bind(OnChangeFn cb, void *userData, bool callImmediately = true, bool callOnce = false, int priority = 0)
       {
+        (void)cb;
+        (void)userData;
+        (void)callImmediately;
+        (void)callOnce;
+        (void)priority;
       }
-      virtual void unbind(OnChangeFn cb, void *userData) {}
-      virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const {}
-      virtual void deferUnbind(OnChangeFn cb, void *userData) const {}
+      virtual void unbind(OnChangeFn cb, void *userData)
+      {
+        (void)cb;
+        (void)userData;
+      }
+      virtual void deferBind(OnChangeFn cb, void *userData, int priority = 0) const
+      {
+        (void)cb;
+        (void)userData;
+        (void)priority;
+      }
+      virtual void deferUnbind(OnChangeFn cb, void *userData) const
+      {
+        (void)cb;
+        (void)userData;
+      }
       // Recompute (overridden by DerivedState)
       virtual bool recompute()
       {
@@ -364,7 +387,7 @@ namespace loka
     protected:
       typedef StateBase::Handler Handler;
 
-      virtual void set(const T &v)
+      virtual void setStoredValue(const T &v)
       {
         if (!stateValuesEqual(value, v))
         {
@@ -374,7 +397,7 @@ namespace loka
       }
       virtual void setValue(const T &v)
       {
-        set(v);
+        setStoredValue(v);
       }
       // setValue(const ValueHolderBase&) removed as no longer needed
       void notifyStateChanged()
@@ -507,12 +530,16 @@ namespace loka
         return this;
       }
       using State<T>::setValue;
-      void set(const T &v, bool forceUpdate = false)
+      void set(const T &v)
+      {
+        this->set(v, false);
+      }
+      void set(const T &v, bool forceUpdate)
       {
         StateBase::LifetimeToken *token = this->retainNotifyToken();
         if (forceUpdate)
         {
-          State<T>::set(v);
+          State<T>::setStoredValue(v);
           if (!StateBase::isNotifyTokenAlive(token))
           {
             StateBase::releaseNotifyToken(token);
@@ -527,7 +554,7 @@ namespace loka
         }
         else
         {
-          State<T>::set(v);
+          State<T>::setStoredValue(v);
           if (!StateBase::isNotifyTokenAlive(token))
           {
             StateBase::releaseNotifyToken(token);
@@ -588,8 +615,10 @@ namespace loka
       }
 
     private:
-      void set(const T &v) {}
-      void setValue(const T &v) {}
+      void setValue(const T &v)
+      {
+        (void)v;
+      }
       bool recompute()
       {
         if (!evalFn)

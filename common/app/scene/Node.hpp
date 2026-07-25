@@ -16,7 +16,11 @@
     static_assert_##msg = 1                                                                                            \
   }
 #else
-#define LOKA_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
+#define LOKA_STATIC_ASSERT(expr, msg)                                                                                  \
+  enum                                                                                                                 \
+  {                                                                                                                    \
+    static_assert_##msg = sizeof(char[(expr) ? 1 : -1])                                                               \
+  }
 #endif
 
 #include <cstddef>
@@ -193,6 +197,8 @@ namespace loka
 
       struct LayoutState
       {
+        typedef short Coordinate;
+
         short x;
         short y;
         short width;
@@ -781,9 +787,9 @@ namespace loka
         typedef void (*CleanupHook)(NodeDefinitionBase *, void *);
 
         NodeDefinitionBase()
-            : cleanupHook_(0),
+            : nextInComposition(0),
+              cleanupHook_(0),
               cleanupContext_(0),
-              nextInComposition(0),
               testId_(),
               hasTestId_(false),
               autoTestId_(false),
@@ -793,9 +799,10 @@ namespace loka
         {
         }
         NodeDefinitionBase(const NodeDefinitionBase &other)
-            : cleanupHook_(0),
-              cleanupContext_(0),
+            : LOKA_AUDITED_COPY(NodeDefinitionBase, other)
               nextInComposition(0),
+              cleanupHook_(0),
+              cleanupContext_(0),
               testId_(other.testId_),
               hasTestId_(other.hasTestId_),
               autoTestId_(other.autoTestId_),

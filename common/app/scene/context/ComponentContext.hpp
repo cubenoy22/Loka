@@ -17,7 +17,7 @@ namespace loka
       class IStateOwner;
       class IPlatformController;
       class Scene;
-      class NodeComposition;
+      struct NodeComposition;
 
       /**
        * Borrowed traversal context for compose/update work.
