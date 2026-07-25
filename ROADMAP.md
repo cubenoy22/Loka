@@ -13,7 +13,27 @@ Versioning follows a pragmatic pre-1.0 scheme:
 
 ---
 
-## v0.0.1 (current)
+## v0.0.2 (current)
+
+Reliability milestone — 88 pull requests focused on lifecycle and ownership
+contracts. See the [release notes](https://github.com/cubenoy22/Loka/releases/tag/v0.0.2).
+
+Delivered:
+
+* Window-owned Scene lifecycle with two-phase retire pools
+* Single lifecycle fact channel; clock-based retirement of detached subtrees
+* Gated allocation backend with value-carried failure and audit trail
+* Win32 text UTF-16 end to end, including lossless Japanese IME input
+* Verification infrastructure: 192-test suite (headless + ASan), MAME Lua
+  runtime scenarios, mutation-backed evidence discipline
+
+Deferred with rationale (tracked in the release notes): re-entrant teardown
+kernel (#144/#152), notification contract (#45), char-wrap measurement parity
+(#45), conditional seat-shift orphaning (#125).
+
+---
+
+## v0.0.1
 
 Initial public milestone.
 
