@@ -1,6 +1,11 @@
 set(CMAKE_CXX_STANDARD 98)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Standalone example projects add this platform directory without the root.
+if(NOT COMMAND loka_enable_warnings)
+  include("${CMAKE_CURRENT_LIST_DIR}/../cmake/LokaWarnings.cmake")
+endif()
+
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ../common/*.cpp)
 list(REMOVE_DUPLICATES COMMON_SOURCES)
 set(SOURCES
