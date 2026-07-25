@@ -131,7 +131,7 @@ flowchart LR
     E --> D
 ```
 
-## 7. Flow from `markDirty` to Reflection
+## 7. Flow from `markDirty` to Projection
 
 ```mermaid
 sequenceDiagram
@@ -242,7 +242,7 @@ flowchart LR
 
     C --> D[callback / result]
     D --> E{is the request / generation<br/>still valid?}
-    E -->|yes| F[reflect into logical UI]
+    E -->|yes| F[apply into logical UI]
     E -->|no| G[discard stale result]
 ```
 
@@ -307,7 +307,7 @@ sequenceDiagram
     L->>P: build an image from current truth
     P->>H: it arrives late
     H-->>P: sometimes an old result comes back
-    P->>L: reflect it if the generation matches
+    P->>L: apply it if the generation matches
     P->>L: discard it if the generation does not match
 
     Note over L,H: the host always sees a slightly delayed image<br/>truth lives only in the logical UI

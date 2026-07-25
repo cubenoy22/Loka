@@ -25,7 +25,7 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
       app_(NULL),
       scenePlatformController_(0)
 {
-  // Track window-owned states and reflect them into native Win32 state.
+  // Track window-owned states and project them into native Win32 state.
   this->visibilityState().deferBind(&Win32Window::VisibilityChangedThunk, this);
   this->titleState().deferBind(&Win32Window::TitleChangedThunk, this);
   this->frameState().deferBind(&Win32Window::FrameChangedThunk, this);

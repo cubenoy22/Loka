@@ -46,7 +46,7 @@ namespace tutorial
                 << TutorialTitle("Step 2")        //
                 << Text(this->countText_.state()) //
                 << Button("Increment", &this->incrementEvent_)
-                << TutorialHint("A button can update state and reflected text."));
+                << TutorialHint("A button can update state, and bound text follows it."));
     }
 
   private:

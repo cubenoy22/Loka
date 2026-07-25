@@ -426,7 +426,7 @@ Loka では、mutable state を「どこからでも触れるもの」として�
 - 誰が state を所有しているか追いやすい
 - lifecycle の向きが崩れにくい
 - 子が親を暗黙に安定化する設計を避けやすい
-- redraw / compose / native reflection の責務を Boundary 単位で考えやすい
+- redraw / compose / native projection の責務を Boundary 単位で考えやすい
 
 小規模なうちは自由な参照の方が楽に見えることがあります。
 しかし規模が大きくなるほど、
@@ -956,7 +956,7 @@ private:
 ```
 
 この例で見てほしいのは、
-`state -> event -> state update -> UI reflect` の流れです。
+`state -> event -> state update -> UI projection` の流れです。
 Loka では、この流れがすべての基本になります。
 
 あわせて、
@@ -1242,7 +1242,7 @@ Loka では、UI event が直接すべての仕事を抱え込む必要はあり
 5. UI が結果を反映する
 
 つまり、
-`UI event -> Flow -> state update -> UI reflect`
+`UI event -> Flow -> state update -> UI projection`
 という流れです。
 
 この構造にすると、

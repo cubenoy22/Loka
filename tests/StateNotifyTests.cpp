@@ -415,7 +415,7 @@ void testStateNotify()
   }
 
   // --- PushStateTracker: a dirty guard invalidates once ---
-  // The guard callback reflects dirt produced by its own transaction.
+  // The guard callback observes dirt produced by its own transaction.
   {
     loka::core::MutableState<int> state(0);
     loka::core::PushStateTracker tracker;

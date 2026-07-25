@@ -25,7 +25,7 @@ namespace loka
       public:
         virtual ~IPlatformController() {}
 
-        // Reflect a changed node tree into native UI.
+        // Project a changed node tree into native UI.
         virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild) = 0;
 
         // Optional boundary-local apply seam. Default is no-op to preserve existing controllers.
