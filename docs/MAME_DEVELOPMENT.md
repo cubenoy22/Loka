@@ -151,7 +151,8 @@ merely prove that the example launched. A useful scenario states which control
 was focused, which structural change occurred, and which visible or state
 result proved that the surviving control remained functional.
 
-## Source-level debugging with gdb
+## Source-level debugging with gdb (68K only)
+
 
 A Retro68 application running from the SCSI development disk can be debugged
 at source level: breakpoints by function or line, argument values, and a
@@ -293,12 +294,43 @@ export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_L
 Paths handed to a Windows MAME stay in Windows form; do not add the `/p`
 translation flag to them.
 
+### Why this does not carry over to PPC
+
+Two properties of the 68K output make the method above work, and the PowerPC
+path has neither.
+
+The 68K toolchain runs `Elf2Mac`, producing CODE resources from an image
+linked contiguously from vaddr 0, so a single `-o` offset relocates every
+section. The PowerPC toolchain runs `MakePEF`, producing a PEF container
+loaded by the Code Fragment Manager: code and data are separate fragments
+with their own loader relocations, a TOC register, and transition vectors.
+One offset cannot express that mapping.
+
+The base is recovered here by finding bytes that startup cannot have
+rewritten. CFM applies its own relocations when it prepares a fragment, so
+"identical in the file and in memory" is not a property one can rely on the
+same way.
+
+Nothing available understands PEF well enough to close the gap: gdb handles
+the PowerPC instruction set but not the CFM container.
+
+Treat MAME plus 68K as the rig for looking **inside** a running application,
+and PowerPC as a leg for confirming that an application **runs**. Those are
+different jobs; expecting the second to provide the first will disappoint.
+
 ### Known limits
 
 - `-Os` leaves no frame pointer, so unwinding past the platform entry point
   produces a bogus outermost frame. The application frames are correct.
 - A5-relative globals are not covered by this; only code addresses are
   relocated by the offset above.
+- **A wild pointer write does not necessarily bomb.** Writing through an
+  unmapped address (`0xDEADBEEE` was tried) on `maciix` neither faults nor
+  logs; the application keeps running as if nothing happened. The 68030 also
+  permits misaligned word and long accesses, so the address errors a 68000
+  would raise are not available either. Memory-lifetime defects on Classic can
+  therefore corrupt silently rather than announce themselves, which is an
+  argument for watchpoints (`wpset`) over waiting for a crash to locate them.
 
 ## Verification status
 
