@@ -163,6 +163,19 @@ Seven things all have to be right. Missing any one of them looks like the
 approach does not work at all, which is the trap this section exists to
 close.
 
+### Host requirements
+
+This workflow needs a gdb that understands m68k. **Retro68 does not ship
+one.** On Linux and WSL the distribution's `gdb-multiarch` works and is what
+this was developed and verified against. macOS has no equivalent package, and
+Retro68 builds there run inside a Linux container while MAME runs on the host,
+so the debugger would have to be built or placed deliberately; that
+combination is untested.
+
+Linux/WSL is therefore the practical host: the Retro68 toolchain, the build
+output, and the debugger all sit in the same environment, and only MAME is
+reached across the boundary.
+
 ### 1. Build with debug information
 
 The ordinary Retro68 release profile has no `-g`, so the emitted
@@ -295,3 +308,7 @@ translation flag to them.
 - Windows through WSL: runtime-verified with MAME 0.287 on `maciix`, including
   the combined Retro68 build, generated `LokaDev` SCSI disk, and host-side MAME
   startup from a WSL-hosted VS Code window.
+- Source-level gdb debugging: runtime-verified on Windows on ARM through WSL,
+  with a native Aarch64 MAME 0.287 on `maciix`. The emulated machine ran at
+  roughly 6.7x real time, so a full boot-and-launch cycle takes about two
+  minutes.
