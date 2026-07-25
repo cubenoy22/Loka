@@ -4,7 +4,7 @@
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
 #include "core/State.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/Win32String.hpp"
 
 namespace
 {
@@ -45,8 +45,10 @@ Win32EditTextContext::Win32EditTextContext(
       updatingFromControl_(false)
 {
   DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL;
-  hwnd_ = CreateWindowExA(
-      WS_EX_CLIENTEDGE, "EDIT", "", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
+  // Unicode window: an ANSI EDIT control stores IME input in the system
+  // codepage, and reading that back as UTF-8 destroys any out-of-ASCII text.
+  hwnd_ = CreateWindowExW(
+      WS_EX_CLIENTEDGE, L"EDIT", L"", style, x, y, width, height, parent, NULL, GetModuleHandle(NULL), NULL);
   if (hwnd_)
   {
     SetWindowLongPtr(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
@@ -167,19 +169,19 @@ void Win32EditTextContext::applyText()
   {
     return;
   }
-  int currentLen = GetWindowTextLengthA(hwnd_);
-  std::vector<char> buffer(currentLen + 1);
-  if (currentLen >= 0)
+  int currentLen = GetWindowTextLengthW(hwnd_);
+  if (currentLen < 0)
   {
-    GetWindowTextA(hwnd_, &buffer[0], currentLen + 1);
+    currentLen = 0;
   }
-  else
+  std::vector<wchar_t> buffer(currentLen + 1, L'\0');
+  if (currentLen > 0)
   {
-    buffer.assign(1, '\0');
+    GetWindowTextW(hwnd_, &buffer[0], currentLen + 1);
   }
-  std::string currentText(&buffer[0]);
-  std::string desired;
-  if (!loka::platform::CollectUtf8(textState_->get(), desired))
+  std::wstring currentText(&buffer[0]);
+  std::wstring desired;
+  if (!loka::win32::MaterializeWideString(textState_->get(), desired))
   {
     desired.clear();
   }
@@ -189,10 +191,10 @@ void Win32EditTextContext::applyText()
   }
   DWORD selStart = 0;
   DWORD selEnd = 0;
-  SendMessageA(hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&selStart), reinterpret_cast<LPARAM>(&selEnd));
+  SendMessageW(hwnd_, EM_GETSEL, reinterpret_cast<WPARAM>(&selStart), reinterpret_cast<LPARAM>(&selEnd));
   applyingFromState_ = true;
-  SetWindowTextA(hwnd_, desired.c_str());
-  SendMessageA(hwnd_, EM_SETSEL, selStart, selEnd);
+  SetWindowTextW(hwnd_, desired.c_str());
+  SendMessageW(hwnd_, EM_SETSEL, selStart, selEnd);
   applyingFromState_ = false;
 }
 
@@ -209,14 +211,21 @@ void Win32EditTextContext::syncStateFromControl()
     return;
   }
   updatingFromControl_ = true;
-  int length = GetWindowTextLengthA(hwnd_);
+  int length = GetWindowTextLengthW(hwnd_);
   if (length < 0)
   {
     length = 0;
   }
-  std::vector<char> buffer(length + 1);
-  GetWindowTextA(hwnd_, &buffer[0], length + 1);
-  mutableState->set(loka::core::String(std::string(&buffer[0])), true);
+  std::vector<wchar_t> buffer(length + 1, L'\0');
+  if (length > 0)
+  {
+    GetWindowTextW(hwnd_, &buffer[0], length + 1);
+  }
+  // Keep the readback UTF-16 end to end: wrap the native buffer as a
+  // Win32String instead of pretending the bytes were UTF-8.
+  mutableState->set(
+      loka::core::String(loka::win32::CreateWin32StringFromUtf16(&buffer[0], static_cast<std::size_t>(length))),
+      true);
   updatingFromControl_ = false;
 }
 
