@@ -23,13 +23,16 @@ Delivered:
 * Window-owned Scene lifecycle with two-phase retire pools
 * Single lifecycle fact channel; clock-based retirement of detached subtrees
 * Gated allocation backend with value-carried failure and audit trail
-* Win32 text UTF-16 end to end, including lossless Japanese IME input
+* Win32 UI text UTF-16 end to end, including lossless Japanese IME input
+  (file paths still travel through narrow APIs — #15)
 * Verification infrastructure: 192-test suite (headless + ASan), MAME Lua
   runtime scenarios, mutation-backed evidence discipline
 
-Deferred with rationale (tracked in the release notes): re-entrant teardown
-kernel (#144/#152), notification contract (#45), char-wrap measurement parity
-(#45), conditional seat-shift orphaning (#125).
+Deferred with rationale (tracked in the release notes): the in-flight teardown
+mechanism (#152 — the confirmed Win32 trigger is mitigated by #165, the
+mechanism is not), partially materialized conditional seats (#144),
+notification contract (#45), char-wrap measurement parity (#45, structural
+cause #174), conditional seat-shift orphaning (#125).
 
 ---
 
