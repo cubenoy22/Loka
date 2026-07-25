@@ -87,42 +87,38 @@ Typical examples:
 - modern MacBook systems
 - ARM-based Windows devices
 
-## Verification Hardware
+## Verification Status by Target
 
-The sections above describe where Loka is meant to run. This one records the
-machines actually used to check that it does, so a claim can be traced to a
-machine rather than to an intention.
+The sections above describe where Loka is meant to run. This one records how
+far each target has actually been checked, so a claim can be traced to
+evidence rather than to an intention. Use the terms from
+[MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md): **build-verified** means it
+compiled and linked, **runtime-verified** means it was launched and
+exercised.
 
-Emulation and hardware do different jobs here. MAME on `maciix` is the rig for
-looking inside a running application — it is where the 68K gdb workflow in
-[MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md) applies, and it is scriptable, so
-it carries the automated runtime scenarios. Real machines answer a different
-question: whether the result behaves on the hardware people have.
+Emulation and hardware do different jobs. An emulator that exposes the
+machine — MAME does, on 68K — is where an application can be inspected from
+the inside; that is where the gdb workflow in
+[MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md) applies, and being scriptable it
+carries the automated scenarios. Hardware answers a different question:
+whether the result behaves on a machine someone actually has. Neither
+substitutes for the other.
 
-### Classic Mac OS
+| Target | Status |
+| --- | --- |
+| Classic Mac OS, 68K | Runtime-verified under emulation on a 68030-class machine, and on a PowerBook 180c. This is the primary leg and the only one that can be debugged at source level. |
+| Classic Mac OS, PowerPC | Build-verified. Not yet runtime-verified; see the note below. |
+| Modern macOS | Runtime-verified on Apple silicon. |
+| Mac OS X, PowerPC era | Not verified. |
+| Windows, current | Runtime-verified on Windows 11 for ARM64 with ACP=932. |
+| Windows XP class | Build target. Not runtime-verified. |
+| Linux / WSL | Runtime-verified for the headless test suites. |
 
-- 68K is the primary leg and the only one that can be debugged at source
-  level. Baseline is a 68030 with an FPU; `maciix` and `maciici` under MAME,
-  with a PowerBook 180c as the hardware counterpart.
-- PowerPC under Mac OS 8 and 9 is checked on real hardware at release time,
-  on one of a PowerBook 1400c, a PowerBook G3 (PDQ or Pismo), or a
-  PowerBook G4 (Titanium). PowerPC has been build-verified rather than
-  runtime-verified so far; this is the path that closes that gap.
+The PowerPC Classic gap is the notable one: the 68K leg carries automated
+runtime scenarios while PowerPC has only ever been built. Closing it needs a
+machine to run on, and the source-level debugging available on 68K will not
+transfer — see "Why this does not carry over to PPC" in
+[MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md).
 
-### Mac OS X
-
-- Tiger and Leopard are checked on an iBook G4, an aluminium PowerBook G4, or
-  a Core 2 Duo MacBook.
-- Current macOS is checked on Apple silicon, which is what the v0.0.2 sweep
-  ran on.
-
-### Windows
-
-- Windows 11 on ARM64 with ACP=932, which is also the host for the WSL-side
-  Retro68 builds and for MAME.
-- Windows XP-class compatibility is a build target; it has not been
-  runtime-verified.
-
-Keep the distinction from [MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md) when
-recording results: **build-verified** means it compiled and linked,
-**runtime-verified** means it was launched and exercised.
+Emulator machine names appearing in this repository are examples of a
+configuration that works, not a statement about hardware anyone owns.
