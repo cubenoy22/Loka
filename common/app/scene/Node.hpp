@@ -419,10 +419,22 @@ namespace loka
           return composeAttachLifecycle_.resolveChildComposeEvent(parentEvent);
         }
 
-        // Custom operator delete - skip deallocation for arena nodes
+        /** Node storage has three allocation doors but only one Node* comes
+            out: arena slabs set arenaOwner_, allocation-gate storage sets
+            gateAllocated_, and plain global new sets neither. DestroyHeapNode
+            reads the gate bit before destruction and returns that storage via
+            LokaFreeRaw; plain delete reaches this function after destruction,
+            where the gate bit must be clear and the arena bit decides whether
+            the slab retains the storage or ::operator delete frees it.
+
+            Reading both bits here after ~Node is intentional and matches the
+            pre-existing arenaOwner_ read. Making the two free doors symmetric
+            on the pre-destructor side is deliberately left for a follow-up. */
         static void operator delete(void *ptr)
         {
           Node *node = static_cast<Node *>(ptr);
+          assert((!node || !node->isGateAllocated()) &&
+                 "gate-allocated Node storage requires DestroyHeapNode");
           if (node && node->arenaOwner_)
           {
             // Arena handles memory, don't free

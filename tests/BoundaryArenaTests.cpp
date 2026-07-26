@@ -4,6 +4,12 @@
 #include <cstdio>
 #include <new>
 #include <vector>
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
@@ -1262,6 +1268,28 @@ void testHeapNodeCrossesAllocationGate()
 #endif
 }
 
+void testGateAllocatedNodeRejectsPlainDelete()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  const pid_t child = fork();
+  assert(child >= 0);
+  if (child == 0)
+  {
+    loka::core::LokaAllocSetBackend(&countingGateBackendAlloc, &countingGateBackendFree);
+    GateProbeDefinition definition;
+    loka::app::scene::Node *node = definition.create();
+    assert(node != 0);
+    assert(node->isGateAllocated());
+    delete node;
+    _exit(0);
+  }
+
+  int status = 0;
+  assert(waitpid(child, &status, 0) == child);
+  assert(WIFSIGNALED(status));
+  assert(WTERMSIG(status) == SIGABRT);
+#endif
+}
 
 /** #132 S3 red test (a): a driven recompose under a backend that refuses the
     slab (and the heap door behind it) must convert into a projection failure
