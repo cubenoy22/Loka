@@ -79,36 +79,53 @@ local applZone = space:read_u32(0x02AA)
 local applLimit = space:read_u32(0x0130)
 say("ApplZone 0x%08x  ApplLimit 0x%08x", applZone, applLimit)
 
+-- Collect every match rather than taking the first. The pattern is only eight
+-- bytes of a compiler prologue, so a second function can begin identically;
+-- accepting the first hit would silently compute a base that is off by the
+-- distance between them and shift every symbol. A duplicate is a signal to
+-- pick a different function, not something to resolve by guessing.
 local function scan(from, to)
+    local hits = {}
     local address = from - (from % 2)
     while address < to - 8 do
         if space:read_u32(address) == WORD0 and space:read_u32(address + 4) == WORD1 then
-            return address
+            hits[#hits + 1] = address
         end
         address = address + 2
     end
-    return nil
+    return hits
 end
 
-local found
+local hits = {}
 if applZone > 0x1000 and applLimit > applZone and applLimit < 0x00800000 then
     say("searching the application heap (%d KB)", (applLimit - applZone) // 1024)
-    found = scan(applZone, applLimit)
+    hits = scan(applZone, applLimit)
 end
-if not found then
+if #hits == 0 then
     say("falling back to a full RAM sweep")
-    found = scan(0x00001000, 0x007ffff0)
+    hits = scan(0x00001000, 0x007ffff0)
 end
 
-if not found then
+if #hits == 0 then
     say("pattern NOT found; check that the pattern matches this build")
     log:close()
     manager.machine:exit()
     return
 end
+if #hits > 1 then
+    say("pattern is NOT unique: %d matches, so the base cannot be derived", #hits)
+    for i = 1, #hits do
+        say("  match %d at 0x%08x", i, hits[i])
+    end
+    say("pick a different relocation-free function and try again")
+    log:close()
+    manager.machine:exit()
+    return
+end
 
+local found = hits[1]
 local base = found - LINK_ADDRESS
-say("found at 0x%08x", found)
+say("found at 0x%08x (unique)", found)
 say("BASE 0x%08x", base)
 say("gdb: add-symbol-file <elf> -o 0x%08x", base)
 
