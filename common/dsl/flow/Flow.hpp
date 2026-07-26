@@ -76,27 +76,45 @@ namespace loka
     struct MutableStateBinding
     {
       void *statePtr;
-      void (*setter)(void *statePtr, const void *valuePtr);
+      loka::core::PushStateTracker *tracker;
+      void (*setter)(void *statePtr, const void *valuePtr, loka::core::PushStateTracker *tracker);
     };
 
-    template <typename T> static void MutableStateSetter(void *ptr, const void *val)
+    template <typename T>
+    static void ApplyMutableStateValue(void *statePtr, const T &value, loka::core::PushStateTracker *tracker)
     {
-      static_cast<loka::core::MutableState<T> *>(ptr)->set(*static_cast<const T *>(val), true);
+      assert(statePtr != 0 && "ApplyMutableStateValue requires a target state");
+      assert(tracker != 0 && "ApplyMutableStateValue requires a tracker");
+      loka::core::StateTrackerGuard guard(tracker);
+      static_cast<loka::core::MutableState<T> *>(statePtr)->set(value, true);
+    }
+
+    template <typename T>
+    static void MutableStateSetter(void *statePtr, const void *valuePtr, loka::core::PushStateTracker *tracker)
+    {
+      ApplyMutableStateValue<T>(statePtr, *static_cast<const T *>(valuePtr), tracker);
     }
 
     struct MutableStateFieldBinding
     {
       void *statePtr;
-      void (*setter)(void *statePtr, const void *outputPtr, std::size_t offset);
+      loka::core::PushStateTracker *tracker;
+      void (*setter)(void *statePtr,
+                     const void *outputPtr,
+                     std::size_t offset,
+                     loka::core::PushStateTracker *tracker);
       std::size_t offset;
     };
 
     template <typename FieldT>
-    static void MutableStateFieldSetter(void *statePtr, const void *outputPtr, std::size_t offset)
+    static void MutableStateFieldSetter(void *statePtr,
+                                        const void *outputPtr,
+                                        std::size_t offset,
+                                        loka::core::PushStateTracker *tracker)
     {
       const char *base = static_cast<const char *>(outputPtr);
       const FieldT *field = reinterpret_cast<const FieldT *>(base + offset);
-      static_cast<loka::core::MutableState<FieldT> *>(statePtr)->set(*field, true);
+      ApplyMutableStateValue<FieldT>(statePtr, *field, tracker);
     }
 
     template <typename AdapterT> class StepSpec
@@ -177,22 +195,32 @@ namespace loka
         return *this;
       }
 
-      StepSpec &onSuccess(loka::core::MutableState<Out> *state)
+      /** Applies a successful output to borrowed State within its owner's
+          borrowed tracker transaction. Both must outlive Flow execution. */
+      StepSpec &onSuccess(loka::core::MutableState<Out> *state, loka::core::PushStateTracker *tracker)
       {
+        assert(state != 0 && "StepSpec::onSuccess requires a target state");
+        assert(tracker != 0 && "StepSpec::onSuccess requires a tracker");
         MutableStateBinding binding;
         binding.statePtr = state;
+        binding.tracker = tracker;
         binding.setter = &MutableStateSetter<Out>;
         this->mutableStateBindings_.push_back(binding);
         return *this;
       }
 
       template <typename FieldT, typename ClassT>
-      StepSpec &onSuccess(loka::core::MutableState<FieldT> *state, FieldT ClassT::*member)
+      StepSpec &onSuccess(loka::core::MutableState<FieldT> *state,
+                          loka::core::PushStateTracker *tracker,
+                          FieldT ClassT::*member)
       {
         typedef char LokaFieldBindingTypeMismatch[(flow_detail::IsSame<Out, ClassT>::value) ? 1 : -1];
         (void)sizeof(LokaFieldBindingTypeMismatch);
+        assert(state != 0 && "StepSpec::onSuccess requires a target state");
+        assert(tracker != 0 && "StepSpec::onSuccess requires a tracker");
         MutableStateFieldBinding binding;
         binding.statePtr = state;
+        binding.tracker = tracker;
         binding.setter = &MutableStateFieldSetter<FieldT>;
         Out temp = Out();
         binding.offset = static_cast<std::size_t>(reinterpret_cast<const char *>(&(temp.*member))
@@ -884,13 +912,13 @@ namespace loka
           const std::vector<MutableStateBinding> &bindings = this->spec_.mutableStateBindings();
           for (std::size_t i = 0; i < bindings.size(); ++i)
           {
-            bindings[i].setter(bindings[i].statePtr, &this->out_);
+            bindings[i].setter(bindings[i].statePtr, &this->out_, bindings[i].tracker);
           }
 
           const std::vector<MutableStateFieldBinding> &fields = this->spec_.fieldBindings();
           for (std::size_t i = 0; i < fields.size(); ++i)
           {
-            fields[i].setter(fields[i].statePtr, &this->out_, fields[i].offset);
+            fields[i].setter(fields[i].statePtr, &this->out_, fields[i].offset, fields[i].tracker);
           }
 
           if (this->spec_.finallyFn() != 0)

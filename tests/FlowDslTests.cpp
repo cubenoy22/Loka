@@ -37,6 +37,27 @@ namespace
     ++(*static_cast<int *>(user));
   }
 
+  struct FlowResultTrackerObservation
+  {
+    FlowResultTrackerObservation(loka::core::StateTracker *tracker)
+        : tracker(tracker),
+          phase(loka::core::TRACKER_IDLE),
+          calls(0)
+    {
+    }
+
+    loka::core::StateTracker *tracker;
+    loka::core::TrackerPhase phase;
+    int calls;
+  };
+
+  static void captureFlowResultTrackerPhase(void *user)
+  {
+    FlowResultTrackerObservation *observation = static_cast<FlowResultTrackerObservation *>(user);
+    observation->phase = observation->tracker->phase();
+    ++observation->calls;
+  }
+
   static loka::app::HStack buildTypedHStack()
   {
     return loka::app::HStack().alignVertical(loka::app::VERTICAL_ALIGNMENT_BOTTOM)
@@ -4916,10 +4937,12 @@ void testLokaFlowDslV1Core()
     int input = 5;
     int resultNotifications = 0;
     loka::core::MutableState<int> result;
+    loka::core::PushStateTracker tracker;
+    tracker.addState(&result);
     result.bind(&incrementNotificationCount, &resultNotifications, false);
 
     loka::dsl::FlowChain<int, int> chain =
-        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, &tracker);
 
     assert(chain.run());
     assert(result.get() == 10);
@@ -4930,14 +4953,18 @@ void testLokaFlowDslV1Core()
     int input = 7;
     loka::core::MutableState<int> result;
     loka::core::PushStateTracker tracker;
+    FlowResultTrackerObservation observation(&tracker);
     tracker.addState(&result);
+    result.bind(&captureFlowResultTrackerPhase, &observation, false);
 
     loka::dsl::FlowChain<int, int> chain =
-        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result);
-    chain.withTracker(&tracker);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result, &tracker);
 
     assert(chain.run());
     assert(result.get() == 14);
+    assert(observation.calls == 1);
+    assert(observation.phase == loka::core::TRACKER_PRECOMMIT);
+    assert(tracker.transactionDirty());
   }
 
   {
@@ -5108,25 +5135,38 @@ void testLokaFlowDslV1Core()
     int input = 5;
     loka::core::MutableState<int> valueState;
     loka::core::MutableState<int> extraState;
+    loka::core::PushStateTracker tracker;
+    FlowResultTrackerObservation observation(&tracker);
+    tracker.addState(&valueState);
+    tracker.addState(&extraState);
+    valueState.bind(&captureFlowResultTrackerPhase, &observation, false);
 
     loka::dsl::FlowChain<int, FlowTestFieldOutput> chain = loka::dsl::Flow()
                                                            | loka::dsl::Step(1, FlowTestFieldAdapter())
                                                                  .input(&input)
-                                                                 .onSuccess(&valueState, &FlowTestFieldOutput::value)
-                                                                 .onSuccess(&extraState, &FlowTestFieldOutput::extra);
+                                                                 .onSuccess(&valueState,
+                                                                            &tracker,
+                                                                            &FlowTestFieldOutput::value)
+                                                                 .onSuccess(&extraState,
+                                                                            &tracker,
+                                                                            &FlowTestFieldOutput::extra);
 
     assert(chain.run());
     assert(valueState.get() == 50); // 5 * 10
     assert(extraState.get() == 6);  // 5 + 1
+    assert(observation.calls == 1);
+    assert(observation.phase == loka::core::TRACKER_PRECOMMIT);
   }
 
   // --- bindTrigger: auto-execute flow on state change ---
   {
     loka::core::MutableState<int> trigger;
     loka::core::MutableState<int> result;
+    loka::core::PushStateTracker tracker;
+    tracker.addState(&result);
 
     loka::dsl::FlowChain<int, int> chain =
-        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).onSuccess(&result);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).onSuccess(&result, &tracker);
     chain.bindTrigger(&trigger);
 
     trigger.set(7, true);
@@ -5154,8 +5194,10 @@ void testLokaFlowDslV1Core()
 
     loka::core::MutableState<int> trigger;
     loka::core::MutableState<int> triggerResult;
+    loka::core::PushStateTracker tracker;
+    tracker.addState(&triggerResult);
     SlotFlowChain triggerChain =
-        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).onSuccess(&triggerResult);
+        loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).onSuccess(&triggerResult, &tracker);
 
     slot.set(triggerChain).bindTrigger(&trigger);
     trigger.set(41, true);
