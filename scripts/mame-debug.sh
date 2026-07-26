@@ -14,6 +14,25 @@
 #
 # Everything mutable lands under build/mame-debug/ so the configured boot disk
 # is never used as writable runtime state.
+#
+# Early and deliberately narrow. What it does not do, and why, so anyone
+# extending it knows which parts are decisions and which are simply absent:
+#
+#   - 68K only. The method itself does not carry to PowerPC; see "Why this
+#     does not carry over to PPC" in docs/MAME_DEVELOPMENT.md.
+#   - Two phases rather than one. gdb needs the base before it can place a
+#     breakpoint by symbol, and the base is only discoverable once the
+#     application has loaded. Collapsing this would need the stub to survive
+#     a reconnect, which it does not (#182).
+#   - Overlaps mame-run.sh in loading .env-mame and normalising paths. That
+#     launcher delegates to PowerShell under WSL and does no scenario
+#     isolation, so it is not reusable here; only the idiom is shared. Worth
+#     merging if a third launcher ever appears.
+#   - Leaves build/mame-debug/ in place between runs, so the boot disk copy
+#     and generated development disk are reused. Delete the directory to
+#     start clean.
+#   - Drives no input. Reaching a control that needs a click is blocked on
+#     #182; keyboard-driven navigation is what the Lua scenarios use.
 
 set -euo pipefail
 
