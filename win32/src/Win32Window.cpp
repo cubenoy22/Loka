@@ -312,6 +312,118 @@ bool Win32Window::hasPendingScenePlatformSync() const
   return scenePlatformController_ ? scenePlatformController_->hasPendingSync() : false;
 }
 
+namespace
+{
+  /** Per-monitor DPI is the correct answer where it exists, but GetDpiForWindow
+      is Windows 10 1607 and later while the supported baseline reaches back to
+      XP. Resolved through the export table rather than a version check, so the
+      path is capability-based with no OS-name fork (docs/TODO.md:97). */
+  typedef UINT(WINAPI *GetDpiForWindowFn)(HWND);
+
+  GetDpiForWindowFn ResolveGetDpiForWindow()
+  {
+    // user32.dll is already loaded in any process that owns a window, so this
+    // takes a reference to the existing module rather than mapping it again.
+    static bool resolved = false;
+    static GetDpiForWindowFn fn = 0;
+    if (!resolved)
+    {
+      resolved = true;
+      HMODULE user32 = GetModuleHandleW(L"user32.dll");
+      if (user32)
+      {
+        fn = reinterpret_cast<GetDpiForWindowFn>(GetProcAddress(user32, "GetDpiForWindow"));
+      }
+    }
+    return fn;
+  }
+} // namespace
+
+bool Win32Window::queryDisplayScalePercent(int &out) const
+{
+  if (!hwnd_)
+  {
+    return false;
+  }
+  int dpi = 0;
+  const GetDpiForWindowFn getDpiForWindow = ResolveGetDpiForWindow();
+  if (getDpiForWindow)
+  {
+    dpi = static_cast<int>(getDpiForWindow(hwnd_));
+  }
+  if (dpi <= 0)
+  {
+    // Pre-1607 the window's own DC still reports the density Windows is
+    // scaling it to, which is the fact being asked for.
+    HDC dc = GetDC(hwnd_);
+    if (!dc)
+    {
+      return false;
+    }
+    dpi = GetDeviceCaps(dc, LOGPIXELSX);
+    ReleaseDC(hwnd_, dc);
+  }
+  if (dpi <= 0)
+  {
+    return false;
+  }
+  // Windows' unscaled density is 96, not 72, which is exactly why the seam
+  // reports a percentage: 144 dpi is 150% here and 200% on the Apple targets.
+  // Every scale Windows offers is a multiple of 25%, and 96 * 25 / 100 is a
+  // whole number, so the conversion is exact in integers.
+  out = dpi * 100 / 96;
+  return true;
+}
+
+bool Win32Window::queryDisplayDepth(int &out) const
+{
+  if (!hwnd_)
+  {
+    return false;
+  }
+  HDC dc = GetDC(hwnd_);
+  if (!dc)
+  {
+    return false;
+  }
+  const int bitsPerPixel = GetDeviceCaps(dc, BITSPIXEL) * GetDeviceCaps(dc, PLANES);
+  ReleaseDC(hwnd_, dc);
+  if (bitsPerPixel <= 0)
+  {
+    return false;
+  }
+  out = bitsPerPixel;
+  return true;
+}
+
+bool Win32Window::queryDisplayAppearance(DisplayAppearance &out) const
+{
+  // AppsUseLightTheme arrived with Windows 10. On an older system the value is
+  // absent, and absent is the honest answer: those systems have no light/dark
+  // distinction to report, so declining is not a failure path.
+  HKEY key = 0;
+  if (RegOpenKeyExW(HKEY_CURRENT_USER,
+                    L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                    0,
+                    KEY_QUERY_VALUE,
+                    &key)
+      != ERROR_SUCCESS)
+  {
+    return false;
+  }
+  DWORD value = 0;
+  DWORD size = sizeof(value);
+  DWORD type = 0;
+  const LONG status = RegQueryValueExW(key, L"AppsUseLightTheme", 0, &type, reinterpret_cast<LPBYTE>(&value), &size);
+  RegCloseKey(key);
+  if (status != ERROR_SUCCESS || type != REG_DWORD)
+  {
+    return false;
+  }
+  out = value == 0 ? DISPLAY_APPEARANCE_DARK : DISPLAY_APPEARANCE_LIGHT;
+  return true;
+}
+
 void Win32Window::mountScene()
 {
   if (scenePlatformController_ || !this->hwnd_)

@@ -1,5 +1,6 @@
 #include "MacWindow.hpp"
 #include "MacApp.hpp"
+#include "MacDisplayAppearance.hpp"
 #include "MacObjCCompat.hpp"
 #include "MacScenePlatformController.hpp"
 #include "Utf8String.hpp"
@@ -313,6 +314,77 @@ void MacWindow::destroyNativeWindow()
     return;
   }
   [window close];
+}
+
+bool MacWindow::queryDisplayScalePercent(int &out) const
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (!window)
+  {
+    return false;
+  }
+  // backingScaleFactor is 10.7 and later, while library/core targets Tiger
+  // through Snow Leopard. Asked by selector rather than by OS version so the
+  // path is capability-based (docs/TODO.md:97); MacObjCCompat.hpp declares the
+  // selector under older SDKs so this stays one code path rather than two.
+  // On the systems that lack it there is no HiDPI to report, and unscaled is
+  // the density, not a fallback.
+  double scale = 1.0;
+  if ([window respondsToSelector:@selector(backingScaleFactor)])
+  {
+    scale = (double)[window backingScaleFactor];
+  }
+  if (scale <= 0.0)
+  {
+    return false;
+  }
+  // The float stops here: the seam carries an integer percentage so no other
+  // target has to deal with one.
+  out = (int)(scale * 100.0 + 0.5);
+  return true;
+}
+
+bool MacWindow::queryDisplayDepth(int &out) const
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (!window)
+  {
+    return false;
+  }
+  // The window reports the screen it overlaps most, which is the same rule the
+  // other backends follow. A window that is offscreen has no screen at all, so
+  // there is nothing to report rather than something to guess.
+  NSScreen *screen = [window screen];
+  if (!screen)
+  {
+    return false;
+  }
+  const NSInteger bitsPerPixel = NSBitsPerPixelFromDepth([screen depth]);
+  if (bitsPerPixel <= 0)
+  {
+    return false;
+  }
+  out = (int)bitsPerPixel;
+  return true;
+}
+
+bool MacWindow::queryDisplayAppearance(DisplayAppearance &out) const
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (!window)
+  {
+    return false;
+  }
+  // effectiveAppearance is 10.9 and later. Appearance is per-window, which is
+  // the reason this is asked of a window rather than of the application. The
+  // borrowed appearance decides whether it has the later light/dark matching
+  // capability; on older systems the honest answer is absent.
+  if (![window respondsToSelector:@selector(effectiveAppearance)])
+  {
+    return false;
+  }
+  id appearance = [window effectiveAppearance];
+  return loka::macos::TryReadDisplayAppearance((void *)appearance, out);
 }
 
 void MacWindow::onCreate()

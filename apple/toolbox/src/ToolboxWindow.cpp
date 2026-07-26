@@ -512,6 +512,73 @@ void ToolboxWindow::flushDeferredDebugDump()
   }
 }
 
+bool ToolboxWindow::queryDisplayScalePercent(int &out) const
+{
+  // Classic QuickDraw has exactly one density, and unscaled is a real answer
+  // rather than a stand-in: 72 dpi is the coordinate system itself, not a guess
+  // about the attached hardware.
+  out = 100;
+  return true;
+}
+
+bool ToolboxWindow::queryDisplayDepth(int &out) const
+{
+  if (!window_)
+  {
+    return false;
+  }
+
+  // A Classic window may straddle several screens, and depth genuinely differs
+  // between them, so the answer is the depth of the device the window overlaps
+  // most. That is the same rule the other backends follow, which is why the
+  // choice lives here rather than in a resolver: the destination already knows
+  // what it is drawn into.
+  Rect globalBounds = window_->portRect;
+  GrafPtr oldPort;
+  GetPort(&oldPort);
+  SetPort(window_);
+  LocalToGlobal(reinterpret_cast<Point *>(&globalBounds.top));
+  LocalToGlobal(reinterpret_cast<Point *>(&globalBounds.bottom));
+  SetPort(oldPort);
+
+  GDHandle best = 0;
+  long bestArea = 0;
+  // Only screenActive is worth filtering on: the Universal Interfaces mark
+  // screenDevice itself as "1 if screen device [not used]" (Quickdraw.h:151).
+  for (GDHandle device = GetDeviceList(); device; device = GetNextDevice(device))
+  {
+    if (!TestDeviceAttribute(device, screenActive))
+    {
+      continue;
+    }
+    Rect intersection;
+    if (!SectRect(&globalBounds, &(*device)->gdRect, &intersection))
+    {
+      continue;
+    }
+    const long area = static_cast<long>(intersection.right - intersection.left)
+                      * static_cast<long>(intersection.bottom - intersection.top);
+    if (area > bestArea)
+    {
+      bestArea = area;
+      best = device;
+    }
+  }
+  if (!best)
+  {
+    // Dragged fully off the edge, or a screen was just detached. The main
+    // device is where this window will be drawn next, so it is the answer, not
+    // a substitute for one.
+    best = GetMainDevice();
+  }
+  if (!best || !(*best)->gdPMap || !*(*best)->gdPMap)
+  {
+    return false;
+  }
+  out = (*(*best)->gdPMap)->pixelSize;
+  return true;
+}
+
 void ToolboxWindow::teardownScene()
 {
   if (scenePlatformController_)

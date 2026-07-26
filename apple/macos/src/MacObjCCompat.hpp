@@ -75,4 +75,21 @@ typedef float CGFloat;
 @end
 #endif
 
+// backingScaleFactor arrived in 10.7, so the legacy SDK does not declare it and
+// Objective-C++ would infer an id return and reject the conversion to a number.
+// Declared and never implemented: this supplies a return type so the call
+// type-checks, while respondsToSelector: still decides at runtime whether the
+// call happens at all -- and on anything this SDK can target, it does not. The
+// CGFloat typedef above matches the 32-bit ABI the declaration would need.
+//
+// Note the difference from the Tiger blocks above: those methods do exist on the
+// old system and are only missing from current SDKs, so their declarations
+// enable a real call. This one enables compilation of a call that the runtime
+// guard will decline.
+#if !defined(MAC_OS_X_VERSION_MAX_ALLOWED) || (MAC_OS_X_VERSION_MAX_ALLOWED < 1070)
+@interface NSWindow (LokaBackingScaleCompat)
+- (CGFloat)backingScaleFactor;
+@end
+#endif
+
 #endif // LOKA_MAC_OBJC_COMPAT_HPP

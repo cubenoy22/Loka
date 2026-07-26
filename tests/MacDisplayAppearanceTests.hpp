@@ -1,0 +1,7 @@
+#ifndef LOKA_MAC_DISPLAY_APPEARANCE_TESTS_HPP
+#define LOKA_MAC_DISPLAY_APPEARANCE_TESTS_HPP
+
+void testMacDisplayAppearanceDeclinesWithoutMatchingCapability();
+void testMacDisplayAppearanceUsesNativeBestMatch();
+
+#endif // LOKA_MAC_DISPLAY_APPEARANCE_TESTS_HPP

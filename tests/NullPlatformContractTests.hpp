@@ -52,6 +52,8 @@ void testOpenFileDialogPresentationPoliciesInComposeOnceBoundary();
 void testOpenFileDialogRequiresCompletionBinding();
 void testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild();
 void testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping();
+void testWindowWithoutDisplayFactsDeclinesEveryAxis();
+void testDisplayFeatureAvailabilityFollowsTheQueriesThatAnswer();
 
 #endif // LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
 void testStep4ShapeSettlesAfterShowFlip();

@@ -564,6 +564,97 @@ public:
   {
     return 0;
   }
+
+  /** The axes of the display a window is drawn into, for tests and
+      diagnostics that need to state which ones a platform answers. Retrieval
+      is per-axis and typed (see queryDisplayScalePercent and friends); this
+      enumeration exists to describe the family, not to fetch through. New axes
+      go before DISPLAY_FEATURE_COUNT. */
+  enum DisplayFeature
+  {
+    DISPLAY_FEATURE_SCALE,
+    DISPLAY_FEATURE_DEPTH,
+    DISPLAY_FEATURE_APPEARANCE,
+    DISPLAY_FEATURE_COUNT
+  };
+
+  /** There is deliberately no unknown member. A platform that cannot tell
+      light from dark declines the query instead, so "we cannot tell" can never
+      be mistaken for "the user chose light" (PHILOSOPHY "Absent Is Not A
+      Value"). */
+  enum DisplayAppearance
+  {
+    DISPLAY_APPEARANCE_LIGHT,
+    DISPLAY_APPEARANCE_DARK
+  };
+
+  /** Facts about what this window is drawing into. Each reports presence and
+      value together, so the two cannot disagree: a platform that cannot answer
+      an axis leaves the base implementation in place and declines, and `out`
+      is untouched. A caller must not supply a fallback of its own and treat it
+      as a reading.
+
+      Density is an integer percentage of the platform's own natural density,
+      not physical DPI. DPI is not comparable across targets: 144 dpi is 2x on
+      macOS and Classic, whose reference is 72, and 1.5x on Windows, whose
+      reference is 96 -- so an asset cannot pick a representation from a dpi
+      number. A percentage says the same thing everywhere (100 is unscaled, 200
+      is double), stays exact in integers for every scale these platforms
+      report, and keeps software floating point off 68k entirely.
+
+      These are plain values, not State. Making them observable would wire
+      display facts into the recompose graph and re-import the invalidation that
+      draw-time selection removes; an application that must react does so
+      through its own State, set from its own callback (#194). */
+  virtual bool queryDisplayScalePercent(int &out) const
+  {
+    (void)out;
+    return false;
+  }
+  virtual bool queryDisplayDepth(int &out) const
+  {
+    (void)out;
+    return false;
+  }
+  virtual bool queryDisplayAppearance(DisplayAppearance &out) const
+  {
+    (void)out;
+    return false;
+  }
+
+  /** Whether this window can answer one axis, derived from the queries
+      themselves rather than maintained beside them. Deliberately not virtual:
+      a platform that overrode this separately could contradict its own
+      getters.
+
+      The switch has no default label on purpose, so adding an axis without
+      wiring it here fails the build -- `-Wswitch` is part of the
+      `-Wall -Wextra` floor in cmake/LokaWarnings.cmake. */
+  bool hasDisplayFeature(DisplayFeature feature) const
+  {
+    switch (feature)
+    {
+    case DISPLAY_FEATURE_SCALE:
+    {
+      int scalePercent;
+      return this->queryDisplayScalePercent(scalePercent);
+    }
+    case DISPLAY_FEATURE_DEPTH:
+    {
+      int depth;
+      return this->queryDisplayDepth(depth);
+    }
+    case DISPLAY_FEATURE_APPEARANCE:
+    {
+      DisplayAppearance appearance;
+      return this->queryDisplayAppearance(appearance);
+    }
+    case DISPLAY_FEATURE_COUNT:
+      break;
+    }
+    return false;
+  }
+
   bool hasPosition() const
   {
     return frameStatePtr_->get().hasPosition();

@@ -15,6 +15,9 @@ LOKA_TEST(testStateTrackerCommitChainReportsIterationLimit)
 // entry here would register a phantom test on non-Windows runners.
 #include "Win32ContractTestRegistry.inc"
 #endif
+#ifdef __APPLE__
+#include "MacOSContractTestRegistry.inc"
+#endif
 LOKA_TEST(testDerivedStateCore)
 LOKA_TEST(testConditionalDefinitionCloneOwnership)
 LOKA_TEST(testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure)
@@ -166,6 +169,8 @@ LOKA_TEST(testOpenFileDialogPresentationPoliciesInComposeOnceBoundary)
 LOKA_TEST(testOpenFileDialogRequiresCompletionBinding)
 LOKA_TEST(testComposeOnceBranchAtRootSeatSurvivesSnapshotRebuild)
 LOKA_TEST(testGenerationRetirementDoesNotLeaveStaleConditionalSeatMapping)
+LOKA_TEST(testWindowWithoutDisplayFactsDeclinesEveryAxis)
+LOKA_TEST(testDisplayFeatureAvailabilityFollowsTheQueriesThatAnswer)
 LOKA_TEST(testRemovedConditionalSeatReaddsFreshRuntimeAndBranches)
 LOKA_TEST(testConditionalSeatInitiallyNullCanMaterialize)
 LOKA_TEST(testNullConditionalBranchParksAndReentersShownBranch)
