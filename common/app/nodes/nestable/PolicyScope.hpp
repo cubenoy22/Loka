@@ -125,8 +125,16 @@ namespace loka
     };
 
     inline PolicyScopeDefinition PolicyScope()
-#if defined(__GNUC__)
+// The message form of the deprecated attribute is GCC 4.5 and later. Apple's
+// gcc-4.0 and gcc-4.2 -- the compilers the 10.4u and Leopard SDK paths use --
+// define __GNUC__ as 4 but reject it outright, so the version has to be part of
+// the condition. Clang accepts the message form while reporting __GNUC__ 4.2,
+// hence the separate arm.
+#if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
         __attribute__((deprecated("PolicyScope is deprecated and will be replaced by a branch-root policy modifier (destroyOnDetach()/deliverWhileDetached() applied directly to the branch-root node); see issue #126. It remains valid only as the sole branch root of a Show/Conditional.")));
+#elif defined(__GNUC__)
+        // Still deprecated on the legacy compilers, just without the reason.
+        __attribute__((deprecated));
 #else
         ;
 #endif
