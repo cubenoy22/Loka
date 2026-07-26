@@ -16,6 +16,18 @@ if [ -n "${WSL_INTEROP:-}" ] && command -v powershell.exe >/dev/null 2>&1; then
     fi
     POWERSHELL_ARGS+=(-EnvironmentFile "$WINDOWS_ENV_FILE")
   fi
+  # WSL does not hand its environment to a Windows process unless the names
+  # are listed in WSLENV, so the debugger switch would silently do nothing
+  # here. Append rather than overwrite: the caller may be forwarding its own.
+  for name in MAME_DEBUG MAME_DEBUG_PORT; do
+    if [ -n "${!name:-}" ]; then
+      case ":${WSLENV:-}:" in
+        *":$name:"*) ;;
+        *) WSLENV="${WSLENV:+$WSLENV:}$name" ;;
+      esac
+    fi
+  done
+  export WSLENV
   exec powershell.exe "${POWERSHELL_ARGS[@]}"
 fi
 
@@ -68,5 +80,12 @@ fi
 MAME_ARGS+=(
   -autoboot_script "$SCRIPT_DIR/mame-floppy-service.lua"
 )
+
+# MAME_DEBUG=1 exposes the CPU to gdb: MAME halts at reset and listens on
+# MAME_DEBUG_PORT until a gdb (e.g. gdb-multiarch via the "Attach (MAME 68K
+# gdbstub)" VS Code configuration) connects and continues.
+if [ -n "${MAME_DEBUG:-}" ]; then
+  MAME_ARGS+=(-debug -debugger gdbstub -debugger_port "${MAME_DEBUG_PORT:-23946}")
+fi
 
 exec "$MAME_EXECUTABLE" "${MAME_ARGS[@]}"

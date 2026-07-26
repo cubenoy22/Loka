@@ -151,11 +151,256 @@ merely prove that the example launched. A useful scenario states which control
 was focused, which structural change occurred, and which visible or state
 result proved that the surviving control remained functional.
 
+## Source-level debugging with gdb (68K only)
+
+
+A Retro68 application running from the SCSI development disk can be debugged
+at source level: breakpoints by function or line, argument values, and a
+multi-frame backtrace. This was demonstrated under MAME on a 68030 machine
+(e.g. `maciix`) with the Tutorial example, stopping in `App::idlePolicy` with `App::consumeIdle` and
+`ToolboxApp::run` resolved on the stack.
+
+Seven things all have to be right. Missing any one of them looks like the
+approach does not work at all, which is the trap this section exists to
+close.
+
+### Host requirements
+
+This workflow needs a gdb that understands m68k. **Retro68 does not ship
+one.** On Linux and WSL the distribution's `gdb-multiarch` works and is what
+this was developed and verified against. macOS has no equivalent package, and
+Retro68 builds there run inside a Linux container while MAME runs on the host,
+so the debugger would have to be built or placed deliberately; that
+combination is untested.
+
+Linux/WSL is therefore the practical host: the Retro68 toolchain, the build
+output, and the debugger all sit in the same environment, and only MAME is
+reached across the boundary.
+
+### 1. Build with debug information
+
+The ordinary Retro68 release profile has no `-g`, so the emitted
+`*.code.bin.gdb` carries symbols but no line table. Configure a separate
+build directory with DWARF:
+
+```sh
+cmake --preset retro68-68k-dwarf
+cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+```
+
+The result is an `MC68000 ELF32` file with DWARF 4 whose `DW_AT_name` entries
+point at the real source paths.
+
+### 2. Find the runtime load base
+
+The Segment Loader decides where the CODE resources land, so symbols have to
+be relocated to that address. Search memory for a function whose bytes cannot
+have been altered by startup fixups — one with no relocation entries across
+its range:
+
+```sh
+ELF=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.code.bin.gdb
+SECTION=.code00002   # the executable section holding application code
+
+# bounds of that section
+read -r SEC_ADDR SEC_SIZE < <(readelf -SW "$ELF" |
+  awk -v s="$SECTION" '$2==s {print strtonum("0x"$4), strtonum("0x"$6); exit}')
+
+# every relocation offset that applies to it
+readelf -rW "$ELF" | awk -v s="rela$SECTION" '
+  /^Relocation section/ {inseg = index($0, s) > 0; next}
+  inseg && $1 ~ /^[0-9a-f]{8}$/ {print strtonum("0x"$1)}' | sort -n > /tmp/relocs
+
+# functions inside the section with no relocation anywhere in their range
+readelf -sW "$ELF" | awk '$4=="FUNC" && $3+0>=64 {print strtonum("0x"$2), $3, $8}' |
+  awk -v lo="$SEC_ADDR" -v hi="$((SEC_ADDR+SEC_SIZE))" '
+    NR==FNR {r[++n]=$1; next}
+    { a=$1+0; sz=$2+0
+      if (a<lo || a>=hi) next
+      for (i=1; i<=n; i++) if (r[i]>=a && r[i]<a+sz) next
+      printf "0x%08x %6d %s\n", a, sz, $3 }
+  ' /tmp/relocs - | sort -k2 -nr | head -5
+```
+
+Take the longest candidate; a longer function makes a false match vanishingly
+unlikely. For the Tutorial this reports
+`ToolboxRectSurfaceContext::dirtyRect` at `0x00029372`, chosen from 48
+relocation-free functions out of 645 candidates and 3224 relocations.
+
+Take the first eight bytes of a clean function and pass them, with its link
+address, to `scripts/mame-find-base.lua` as the autoboot script:
+
+```sh
+LOKA_PATTERN_WORD0=4feffefc LOKA_PATTERN_WORD1=48e71e30 \
+LOKA_PATTERN_LINK=00029372 LOKA_STAY_ALIVE=1 \
+  ...  -autoboot_script scripts/mame-find-base.lua
+```
+
+It bounds the search with `ApplZone` and `ApplLimit`, so it covers the
+application heap rather than all of RAM — a few hundred KB, and a match in
+seconds. The base was reproducible across independent runs for a given
+binary, but it moves when the binary changes, so read it rather than
+hardcoding it.
+
+### 3. Relocate every section with one offset
+
+Retro68 links the image contiguously from vaddr 0 (`.code00001` at `0x0`,
+`.code00002` at `0xbff4`, then `.data` and `.bss`), so a single offset is
+enough. There is no need to place sections individually:
+
+```
+add-symbol-file <elf> -o <base>
+```
+
+### 4. Wait for the listener before attaching, without probing it
+
+MAME holds the machine at reset until a debugger connects, so the autoboot
+script does not begin until gdb continues. Attaching too early instead fails
+with `Connection reset by peer`, and the window is narrow enough that
+launching MAME and gdb back to back is not reliable.
+
+Wait for the listener with a tool that reads socket state rather than opening
+a connection. `netstat` does; a TCP probe does not, and would consume the
+stub's single slot (see the next point):
+
+```sh
+until netstat.exe -an | grep -q "23946.*LISTENING"; do sleep 1; done
+sleep 4
+```
+
+Ordinary breakpoints are what to use once attached. `hbreak` is rejected --
+`No hardware breakpoint support in the target` -- and is not needed: MAME
+implements a software breakpoint as an emulator-side check rather than by
+writing a trap instruction into memory, so one planted before the application
+is loaded survives its CODE resources being read in over that address.
+
+### 5. One gdb session per MAME run
+
+The stub does not accept a second connection; a reconnect fails with
+`Connection reset by peer`. Even a bare TCP probe consumes the slot, so do not
+test reachability before attaching — connect with gdb directly.
+
+### 6. Reach the stub by host address, not loopback
+
+MAME listens on the Windows loopback interface. Under WSL2 that is a separate
+network namespace, so `localhost:23946` never connects. Use the host address:
+
+```sh
+gdb-multiarch -ex "set architecture m68k" -ex "set endian big" \
+  -ex "target remote $(ip route | awk '/default/{print $3}'):23946"
+```
+
+### 7. Forward the script's variables into the Windows process
+
+`scripts/mame-find-base.lua` is configured through environment variables. WSL
+does not pass its environment to a Windows executable unless the names are
+listed in `WSLENV`, so under WSL the launcher must export it as well or the
+script aborts on the first `required()` call:
+
+```sh
+export LOKA_PATTERN_WORD0=4feffefc LOKA_PATTERN_WORD1=48e71e30
+export LOKA_PATTERN_LINK=00029372 LOKA_GDB_LOG='C:\path\to\find-base.log'
+export LOKA_STAY_ALIVE=1   # only when attaching gdb in the same run
+export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_LOG:LOKA_STAY_ALIVE
+```
+
+Paths handed to a Windows MAME stay in Windows form; do not add the `/p`
+translation flag to them.
+
+### Worked example, start to finish
+
+`scripts/mame-debug.sh` assembles the launch: it stages a scenario-local copy
+of the boot disk, generates the development disk, forwards the variables the
+Lua needs, waits for the listener, and hands over to gdb with symbols already
+relocated. Everything mutable lands under `build/mame-debug/`, so the
+configured boot disk stays an input.
+
+**1. Build with debug information**
+
+```sh
+cmake --preset retro68-68k-dwarf
+cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
+APPL=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.bin
+```
+
+**2. Find the load base**
+
+Pick a relocation-free function with the recipe above and pass its first eight
+bytes and link address. This boots the application once and exits:
+
+```sh
+./scripts/mame-debug.sh find "$APPL" 4feffefc 48e71e30 00029372
+# LOKA-BASE: BASE 0x0070e2a4
+```
+
+Re-run this whenever the application binary changes; the base moves with it.
+
+**3. Attach**
+
+Same arguments plus the base. The machine is left running and gdb takes over:
+
+```sh
+./scripts/mame-debug.sh attach "$APPL" 4feffefc 48e71e30 00029372 0x0070e2a4
+```
+
+Symbols are loaded at the offset and a breakpoint is set on `App::idlePolicy`,
+which runs continuously once the application is up and so makes a convenient
+first stop. Set `LOKA_BREAK` to choose a different one. Then `continue`: after
+the first stop, further breakpoints, `bt`, `info args`, and `list` behave as
+usual.
+
+Two phases rather than one because gdb needs the base before it can place a
+breakpoint by symbol, and the base is only discoverable once the application
+has been loaded — which cannot happen while gdb is holding the machine at
+reset waiting to be told to continue.
+
+### Why this does not carry over to PPC
+
+Two properties of the 68K output make the method above work, and the PowerPC
+path has neither.
+
+The 68K toolchain runs `Elf2Mac`, producing CODE resources from an image
+linked contiguously from vaddr 0, so a single `-o` offset relocates every
+section. The PowerPC toolchain runs `MakePEF`, producing a PEF container
+loaded by the Code Fragment Manager: code and data are separate fragments
+with their own loader relocations, a TOC register, and transition vectors.
+One offset cannot express that mapping.
+
+The base is recovered here by finding bytes that startup cannot have
+rewritten. CFM applies its own relocations when it prepares a fragment, so
+"identical in the file and in memory" is not a property one can rely on the
+same way.
+
+Nothing available understands PEF well enough to close the gap: gdb handles
+the PowerPC instruction set but not the CFM container.
+
+Treat MAME plus 68K as the rig for looking **inside** a running application,
+and PowerPC as a leg for confirming that an application **runs**. Those are
+different jobs; expecting the second to provide the first will disappoint.
+
+### Known limits
+
+- `-Os` leaves no frame pointer, so unwinding past the platform entry point
+  produces a bogus outermost frame. The application frames are correct.
+- A5-relative globals are not covered by this; only code addresses are
+  relocated by the offset above.
+- **A wild pointer write does not necessarily bomb.** Writing through an
+  unmapped address (`0xDEADBEEE` was tried) on a 68030 machine neither faults nor
+  logs; the application keeps running as if nothing happened. The 68030 also
+  permits misaligned word and long accesses, so the address errors a 68000
+  would raise are not available either. Memory-lifetime defects on Classic can
+  therefore corrupt silently rather than announce themselves, which is an
+  argument for watchpoints (`wpset`) over waiting for a crash to locate them.
+
 ## Verification status
 
 - macOS Tahoe: runtime-verified on Intel and Apple silicon (A18 Pro) with MAME
-  0.288 on `maciici`, including live floppy insertion and the generated
+  0.288 on a 68030 machine, including live floppy insertion and the generated
   `LokaDev` SCSI volume.
-- Windows through WSL: runtime-verified with MAME 0.287 on `maciix`, including
-  the combined Retro68 build, generated `LokaDev` SCSI disk, and host-side MAME
-  startup from a WSL-hosted VS Code window.
+- Windows through WSL: runtime-verified with MAME 0.287 on a 68030 machine,
+  including the combined Retro68 build, generated `LokaDev` SCSI disk, and
+  host-side MAME startup from a WSL-hosted VS Code window.
+- Source-level gdb debugging: runtime-verified on Windows on ARM through WSL,
+  with a native Aarch64 MAME 0.287 on a 68030 machine. The emulated machine ran at
+  roughly 6.7x real time, so a full boot-and-launch cycle takes about two
+  minutes.
