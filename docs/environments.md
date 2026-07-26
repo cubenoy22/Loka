@@ -108,8 +108,10 @@ on a real machine. Neither substitutes for the other.
 | Classic Mac OS, 68030 | Runtime-verified, under emulation and on hardware. The primary leg, and the only one that can be debugged at source level. |
 | Classic Mac OS, 68020 / 68040 | Emulation only. No hardware, so timing observations are not measurements. |
 | Classic Mac OS, PowerPC | Build-verified. Hardware is available for the runtime check; it has not been done yet. |
-| Mac OS X, PowerPC era | Not verified. Hardware is available. |
-| Mac OS X, Snow Leopard / Xcode 3.2.6 | Build-verified, including UB1 (`ppc/i386` and `ppc7400/i386/x86_64`). |
+| Mac OS X, Tiger 10.4 | Runtime-verified for generated Universal Binary 1 samples. |
+| Mac OS X, Leopard 10.5 | Build-verified through Xcode 3.x, with native debugging verified on that host. |
+| Mac OS X, Snow Leopard 10.6 | Build-verified, including UB1 (`ppc/i386` and `ppc7400/i386/x86_64`). The bridge host for legacy builds. |
+| Mac OS X on PowerPC hardware | Runtime-verified on an iBook, from bridge output that was also four-architecture `lipo`-verified. |
 | Modern macOS | Runtime-verified on Apple silicon. |
 | Windows, current | Runtime-verified on Windows 11 for ARM64 with ACP=932. |
 | Windows XP class | Build target. Not runtime-verified. |
@@ -118,9 +120,13 @@ on a real machine. Neither substitutes for the other.
 Hardware coverage is uneven, and the gaps shape what a result can mean. The
 68K side rests on a single 68030 PowerBook, so 68020 and 68040 behaviour can
 only be observed under emulation — useful for "does it still work", not for
-"is it fast enough". PowerPC is the reverse: a 603e machine and a good supply
-of G3-and-later hardware exist, but the automated runtime scenarios are 68K
-only, so PowerPC has never been exercised beyond building. That gap will not
+"is it fast enough".
+
+PowerPC divides by operating system rather than by hardware. Mac OS X on
+PowerPC has been reached, including a runtime check on an iBook. **Classic**
+Mac OS on PowerPC has not: the automated runtime scenarios are 68K only, so
+that leg has never been exercised beyond building, even though the hardware
+for it exists. That gap will not
 be closed by the 68K tooling — the source-level debugging does not transfer;
 see "Why this does not carry over to PPC" in
 [MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md).
