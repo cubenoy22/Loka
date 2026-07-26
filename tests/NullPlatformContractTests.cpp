@@ -4963,3 +4963,78 @@ void testNullConditionalBranchParksAndReentersShownBranch()
   scene.unmount();
   clearNullConditionalBranchGlobals();
 }
+
+namespace
+{
+  /** A window that answers some axes and not others, which is the ordinary
+      case rather than a contrived one: Classic has no appearance to report,
+      and a pre-Windows-10 system has no light/dark setting. Used to pin that
+      the availability view reports exactly what the queries answer. */
+  class PartialDisplayFactsWindow : public NullWindow
+  {
+  public:
+    PartialDisplayFactsWindow(PlatformContext *context, const WindowProps &props)
+        : NullWindow(context, props)
+    {
+    }
+    virtual bool queryDisplayDpi(int &out) const
+    {
+      out = 144;
+      return true;
+    }
+    virtual bool queryDisplayDepth(int &out) const
+    {
+      out = 8;
+      return true;
+    }
+    // queryDisplayAppearance is deliberately left declining.
+  };
+} // namespace
+
+void testWindowWithoutDisplayFactsDeclinesEveryAxis()
+{
+  NullPlatformContext platformContext;
+  WindowProps props;
+  NullWindow window(&platformContext, props);
+
+  // The sentinels must survive a declined query. A caller that ignored the
+  // return value would otherwise read a value the platform never supplied,
+  // which is the failure this shape exists to prevent.
+  int dpi = -1;
+  assert(!window.queryDisplayDpi(dpi));
+  assert(dpi == -1);
+  int depth = -1;
+  assert(!window.queryDisplayDepth(depth));
+  assert(depth == -1);
+  Window::DisplayAppearance appearance = Window::DISPLAY_APPEARANCE_DARK;
+  assert(!window.queryDisplayAppearance(appearance));
+  assert(appearance == Window::DISPLAY_APPEARANCE_DARK && "a declined appearance query must not be answered as light");
+
+  for (int i = 0; i < Window::DISPLAY_FEATURE_COUNT; ++i)
+  {
+    assert(!window.hasDisplayFeature(static_cast<Window::DisplayFeature>(i)));
+  }
+}
+
+void testDisplayFeatureAvailabilityFollowsTheQueriesThatAnswer()
+{
+  NullPlatformContext platformContext;
+  WindowProps props;
+  PartialDisplayFactsWindow window(&platformContext, props);
+
+  // Availability is derived from the queries, so a platform that answers two
+  // of three axes reports exactly those two without maintaining a second list.
+  assert(window.hasDisplayFeature(Window::DISPLAY_FEATURE_DPI));
+  assert(window.hasDisplayFeature(Window::DISPLAY_FEATURE_DEPTH));
+  assert(!window.hasDisplayFeature(Window::DISPLAY_FEATURE_APPEARANCE));
+
+  int dpi = 0;
+  assert(window.queryDisplayDpi(dpi));
+  assert(dpi == 144);
+  int depth = 0;
+  assert(window.queryDisplayDepth(depth));
+  assert(depth == 8);
+
+  // The sentinel is not an axis and must not report as one.
+  assert(!window.hasDisplayFeature(Window::DISPLAY_FEATURE_COUNT));
+}

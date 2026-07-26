@@ -44,6 +44,13 @@ public:
   virtual void requestDeferredDebugDump();
   virtual void requestDeferredDebugDumpWithCompletion(DeferredDumpCompletion completion, void *userData);
   virtual void flushDeferredDebugDump();
+  virtual bool queryDisplayDpi(int &out) const;
+  virtual bool queryDisplayDepth(int &out) const;
+  // queryDisplayAppearance is deliberately not overridden: Classic has no way
+  // to report light versus dark. The Appearance Manager and extensions such as
+  // Kaleidoscope patch the standard definition procedures, so themes apply to
+  // this backend already -- it draws through the standard CDEF and bakes no
+  // colours -- but that is inheritance, not a fact anything can query.
   WindowPtr window() const
   {
     return window_;

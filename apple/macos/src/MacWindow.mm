@@ -315,6 +315,88 @@ void MacWindow::destroyNativeWindow()
   [window close];
 }
 
+bool MacWindow::queryDisplayDpi(int &out) const
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (!window)
+  {
+    return false;
+  }
+  // backingScaleFactor is 10.7 and later, while library/core targets Tiger
+  // through Snow Leopard. Asked by selector rather than by OS version so the
+  // path is capability-based (docs/TODO.md:97). On the systems that lack it
+  // there is no HiDPI to report, and 72 is the density, not a fallback.
+  double scale = 1.0;
+  if ([window respondsToSelector:@selector(backingScaleFactor)])
+  {
+    scale = (double)[window backingScaleFactor];
+  }
+  if (scale <= 0.0)
+  {
+    return false;
+  }
+  // Reported as integer DPI so no target has to carry a float through the
+  // seam; every scale AppKit reports is a whole multiple of 72.
+  out = (int)(72.0 * scale + 0.5);
+  return true;
+}
+
+bool MacWindow::queryDisplayDepth(int &out) const
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (!window)
+  {
+    return false;
+  }
+  // The window reports the screen it overlaps most, which is the same rule the
+  // other backends follow. A window that is offscreen has no screen at all, so
+  // there is nothing to report rather than something to guess.
+  NSScreen *screen = [window screen];
+  if (!screen)
+  {
+    return false;
+  }
+  const NSInteger bitsPerPixel = NSBitsPerPixelFromDepth([screen depth]);
+  if (bitsPerPixel <= 0)
+  {
+    return false;
+  }
+  out = (int)bitsPerPixel;
+  return true;
+}
+
+bool MacWindow::queryDisplayAppearance(DisplayAppearance &out) const
+{
+  NSWindow *window = (NSWindow *)window_;
+  if (!window)
+  {
+    return false;
+  }
+  // effectiveAppearance is 10.14 and later. Before Mojave there is no
+  // light/dark distinction to report, so declining is the honest answer and
+  // not an error path. Appearance is also per-window, which is the reason this
+  // is asked of a window rather than of the application.
+  if (![window respondsToSelector:@selector(effectiveAppearance)])
+  {
+    return false;
+  }
+  id appearance = [window effectiveAppearance];
+  if (!appearance || ![appearance respondsToSelector:@selector(name)])
+  {
+    return false;
+  }
+  NSString *name = (NSString *)[appearance name];
+  if (!name)
+  {
+    return false;
+  }
+  // Matched by substring rather than against the exact named appearances so
+  // the high-contrast and vibrant dark variants are not read as light.
+  const BOOL dark = [name rangeOfString:@"Dark"].location != NSNotFound;
+  out = dark ? DISPLAY_APPEARANCE_DARK : DISPLAY_APPEARANCE_LIGHT;
+  return true;
+}
+
 void MacWindow::onCreate()
 {
   Window::onCreate();
