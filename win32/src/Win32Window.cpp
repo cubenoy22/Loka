@@ -339,36 +339,39 @@ namespace
   }
 } // namespace
 
-bool Win32Window::queryDisplayDpi(int &out) const
+bool Win32Window::queryDisplayScalePercent(int &out) const
 {
   if (!hwnd_)
   {
     return false;
   }
+  int dpi = 0;
   const GetDpiForWindowFn getDpiForWindow = ResolveGetDpiForWindow();
   if (getDpiForWindow)
   {
-    const UINT dpi = getDpiForWindow(hwnd_);
-    if (dpi != 0)
-    {
-      out = static_cast<int>(dpi);
-      return true;
-    }
+    dpi = static_cast<int>(getDpiForWindow(hwnd_));
   }
-  // Pre-1607 the window's own DC still reports the density Windows is scaling
-  // it to, which is the fact being asked for.
-  HDC dc = GetDC(hwnd_);
-  if (!dc)
+  if (dpi <= 0)
   {
-    return false;
+    // Pre-1607 the window's own DC still reports the density Windows is
+    // scaling it to, which is the fact being asked for.
+    HDC dc = GetDC(hwnd_);
+    if (!dc)
+    {
+      return false;
+    }
+    dpi = GetDeviceCaps(dc, LOGPIXELSX);
+    ReleaseDC(hwnd_, dc);
   }
-  const int dpi = GetDeviceCaps(dc, LOGPIXELSX);
-  ReleaseDC(hwnd_, dc);
   if (dpi <= 0)
   {
     return false;
   }
-  out = dpi;
+  // Windows' unscaled density is 96, not 72, which is exactly why the seam
+  // reports a percentage: 144 dpi is 150% here and 200% on the Apple targets.
+  // Every scale Windows offers is a multiple of 25%, and 96 * 25 / 100 is a
+  // whole number, so the conversion is exact in integers.
+  out = dpi * 100 / 96;
   return true;
 }
 

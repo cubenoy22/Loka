@@ -315,7 +315,7 @@ void MacWindow::destroyNativeWindow()
   [window close];
 }
 
-bool MacWindow::queryDisplayDpi(int &out) const
+bool MacWindow::queryDisplayScalePercent(int &out) const
 {
   NSWindow *window = (NSWindow *)window_;
   if (!window)
@@ -325,7 +325,7 @@ bool MacWindow::queryDisplayDpi(int &out) const
   // backingScaleFactor is 10.7 and later, while library/core targets Tiger
   // through Snow Leopard. Asked by selector rather than by OS version so the
   // path is capability-based (docs/TODO.md:97). On the systems that lack it
-  // there is no HiDPI to report, and 72 is the density, not a fallback.
+  // there is no HiDPI to report, and unscaled is the density, not a fallback.
   double scale = 1.0;
   if ([window respondsToSelector:@selector(backingScaleFactor)])
   {
@@ -335,9 +335,9 @@ bool MacWindow::queryDisplayDpi(int &out) const
   {
     return false;
   }
-  // Reported as integer DPI so no target has to carry a float through the
-  // seam; every scale AppKit reports is a whole multiple of 72.
-  out = (int)(72.0 * scale + 0.5);
+  // The float stops here: the seam carries an integer percentage so no other
+  // target has to deal with one.
+  out = (int)(scale * 100.0 + 0.5);
   return true;
 }
 

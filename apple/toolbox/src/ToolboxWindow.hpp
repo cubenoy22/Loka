@@ -44,7 +44,7 @@ public:
   virtual void requestDeferredDebugDump();
   virtual void requestDeferredDebugDumpWithCompletion(DeferredDumpCompletion completion, void *userData);
   virtual void flushDeferredDebugDump();
-  virtual bool queryDisplayDpi(int &out) const;
+  virtual bool queryDisplayScalePercent(int &out) const;
   virtual bool queryDisplayDepth(int &out) const;
   // queryDisplayAppearance is deliberately not overridden: Classic has no way
   // to report light versus dark. The Appearance Manager and extensions such as

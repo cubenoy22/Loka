@@ -512,12 +512,12 @@ void ToolboxWindow::flushDeferredDebugDump()
   }
 }
 
-bool ToolboxWindow::queryDisplayDpi(int &out) const
+bool ToolboxWindow::queryDisplayScalePercent(int &out) const
 {
-  // Classic QuickDraw has exactly one density, and 72 is a real answer rather
-  // than a stand-in: it is the coordinate system itself, not a guess about the
-  // attached hardware.
-  out = 72;
+  // Classic QuickDraw has exactly one density, and unscaled is a real answer
+  // rather than a stand-in: 72 dpi is the coordinate system itself, not a guess
+  // about the attached hardware.
+  out = 100;
   return true;
 }
 

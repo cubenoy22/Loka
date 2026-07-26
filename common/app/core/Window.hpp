@@ -567,12 +567,12 @@ public:
 
   /** The axes of the display a window is drawn into, for tests and
       diagnostics that need to state which ones a platform answers. Retrieval
-      is per-axis and typed (see queryDisplayDpi and friends); this enumeration
-      exists to describe the family, not to fetch through. New axes go before
-      DISPLAY_FEATURE_COUNT. */
+      is per-axis and typed (see queryDisplayScalePercent and friends); this
+      enumeration exists to describe the family, not to fetch through. New axes
+      go before DISPLAY_FEATURE_COUNT. */
   enum DisplayFeature
   {
-    DISPLAY_FEATURE_DPI,
+    DISPLAY_FEATURE_SCALE,
     DISPLAY_FEATURE_DEPTH,
     DISPLAY_FEATURE_APPEARANCE,
     DISPLAY_FEATURE_COUNT
@@ -594,17 +594,19 @@ public:
       is untouched. A caller must not supply a fallback of its own and treat it
       as a reading.
 
-      Density is integer DPI rather than a floating-point scale: Toolbox is 72,
-      Win32 reports 96/144/192, and macOS multiplies out from its backing scale,
-      so no target needs software floating point to report it. A caller that
-      wants a scale divides by 72, and only ever on hardware that can afford
-      the division.
+      Density is an integer percentage of the platform's own natural density,
+      not physical DPI. DPI is not comparable across targets: 144 dpi is 2x on
+      macOS and Classic, whose reference is 72, and 1.5x on Windows, whose
+      reference is 96 -- so an asset cannot pick a representation from a dpi
+      number. A percentage says the same thing everywhere (100 is unscaled, 200
+      is double), stays exact in integers for every scale these platforms
+      report, and keeps software floating point off 68k entirely.
 
       These are plain values, not State. Making them observable would wire
       display facts into the recompose graph and re-import the invalidation that
       draw-time selection removes; an application that must react does so
       through its own State, set from its own callback (#194). */
-  virtual bool queryDisplayDpi(int &out) const
+  virtual bool queryDisplayScalePercent(int &out) const
   {
     (void)out;
     return false;
@@ -632,10 +634,10 @@ public:
   {
     switch (feature)
     {
-    case DISPLAY_FEATURE_DPI:
+    case DISPLAY_FEATURE_SCALE:
     {
-      int dpi;
-      return this->queryDisplayDpi(dpi);
+      int scalePercent;
+      return this->queryDisplayScalePercent(scalePercent);
     }
     case DISPLAY_FEATURE_DEPTH:
     {

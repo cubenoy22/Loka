@@ -44,7 +44,7 @@ public:
   virtual void onHide();
   virtual bool hasPendingScenePlatformSync() const;
   virtual void synchronizeScenePlatform();
-  virtual bool queryDisplayDpi(int &out) const;
+  virtual bool queryDisplayScalePercent(int &out) const;
   virtual bool queryDisplayDepth(int &out) const;
   virtual bool queryDisplayAppearance(DisplayAppearance &out) const;
 

@@ -4977,9 +4977,9 @@ namespace
         : NullWindow(context, props)
     {
     }
-    virtual bool queryDisplayDpi(int &out) const
+    virtual bool queryDisplayScalePercent(int &out) const
     {
-      out = 144;
+      out = 200;
       return true;
     }
     virtual bool queryDisplayDepth(int &out) const
@@ -5000,9 +5000,9 @@ void testWindowWithoutDisplayFactsDeclinesEveryAxis()
   // The sentinels must survive a declined query. A caller that ignored the
   // return value would otherwise read a value the platform never supplied,
   // which is the failure this shape exists to prevent.
-  int dpi = -1;
-  assert(!window.queryDisplayDpi(dpi));
-  assert(dpi == -1);
+  int scalePercent = -1;
+  assert(!window.queryDisplayScalePercent(scalePercent));
+  assert(scalePercent == -1);
   int depth = -1;
   assert(!window.queryDisplayDepth(depth));
   assert(depth == -1);
@@ -5024,13 +5024,13 @@ void testDisplayFeatureAvailabilityFollowsTheQueriesThatAnswer()
 
   // Availability is derived from the queries, so a platform that answers two
   // of three axes reports exactly those two without maintaining a second list.
-  assert(window.hasDisplayFeature(Window::DISPLAY_FEATURE_DPI));
+  assert(window.hasDisplayFeature(Window::DISPLAY_FEATURE_SCALE));
   assert(window.hasDisplayFeature(Window::DISPLAY_FEATURE_DEPTH));
   assert(!window.hasDisplayFeature(Window::DISPLAY_FEATURE_APPEARANCE));
 
-  int dpi = 0;
-  assert(window.queryDisplayDpi(dpi));
-  assert(dpi == 144);
+  int scalePercent = 0;
+  assert(window.queryDisplayScalePercent(scalePercent));
+  assert(scalePercent == 200);
   int depth = 0;
   assert(window.queryDisplayDepth(depth));
   assert(depth == 8);
