@@ -325,8 +325,10 @@ bool MacWindow::queryDisplayScalePercent(int &out) const
   }
   // backingScaleFactor is 10.7 and later, while library/core targets Tiger
   // through Snow Leopard. Asked by selector rather than by OS version so the
-  // path is capability-based (docs/TODO.md:97). On the systems that lack it
-  // there is no HiDPI to report, and unscaled is the density, not a fallback.
+  // path is capability-based (docs/TODO.md:97); MacObjCCompat.hpp declares the
+  // selector under older SDKs so this stays one code path rather than two.
+  // On the systems that lack it there is no HiDPI to report, and unscaled is
+  // the density, not a fallback.
   double scale = 1.0;
   if ([window respondsToSelector:@selector(backingScaleFactor)])
   {
