@@ -46,6 +46,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/MacBootstrap.mm
   src/MacApp.mm
   src/MacBuiltInSupport.mm
+  src/MacDisplayAppearance.mm
   src/MacPlatformContext.mm
   src/MacProfiler.cpp
   src/MacScenePlatformController.mm
@@ -104,7 +105,9 @@ if(NOT LOKA_MAC_OS_10_4)
   add_executable(LokaTestsMacOS ${LOKA_MACOS_TEST_EXCLUDE_OPTION}
     ${LOKA_SHARED_TEST_SOURCES}
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
+    ${PROJECT_SOURCE_DIR}/tests/MacDisplayAppearanceTests.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
   loka_enable_warnings(LokaTestsMacOS)

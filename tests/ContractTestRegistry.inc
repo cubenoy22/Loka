@@ -15,6 +15,9 @@ LOKA_TEST(testStateTrackerCommitChainReportsIterationLimit)
 // entry here would register a phantom test on non-Windows runners.
 #include "Win32ContractTestRegistry.inc"
 #endif
+#ifdef __APPLE__
+#include "MacOSContractTestRegistry.inc"
+#endif
 LOKA_TEST(testDerivedStateCore)
 LOKA_TEST(testConditionalDefinitionCloneOwnership)
 LOKA_TEST(testConditionalDefinitionAssignmentPreservesPairOnSecondCloneFailure)

@@ -4,6 +4,9 @@
 #include "Win32ThreadModalScopeTests.hpp"
 #include "Win32EditTextBridgeTests.hpp"
 #endif
+#ifdef __APPLE__
+#include "MacDisplayAppearanceTests.hpp"
+#endif
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "FlowDslTests.hpp"

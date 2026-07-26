@@ -1,5 +1,6 @@
 #include "MacWindow.hpp"
 #include "MacApp.hpp"
+#include "MacDisplayAppearance.hpp"
 #include "MacObjCCompat.hpp"
 #include "MacScenePlatformController.hpp"
 #include "Utf8String.hpp"
@@ -372,29 +373,16 @@ bool MacWindow::queryDisplayAppearance(DisplayAppearance &out) const
   {
     return false;
   }
-  // effectiveAppearance is 10.14 and later. Before Mojave there is no
-  // light/dark distinction to report, so declining is the honest answer and
-  // not an error path. Appearance is also per-window, which is the reason this
-  // is asked of a window rather than of the application.
+  // effectiveAppearance is 10.9 and later. Appearance is per-window, which is
+  // the reason this is asked of a window rather than of the application. The
+  // borrowed appearance decides whether it has the later light/dark matching
+  // capability; on older systems the honest answer is absent.
   if (![window respondsToSelector:@selector(effectiveAppearance)])
   {
     return false;
   }
   id appearance = [window effectiveAppearance];
-  if (!appearance || ![appearance respondsToSelector:@selector(name)])
-  {
-    return false;
-  }
-  NSString *name = (NSString *)[appearance name];
-  if (!name)
-  {
-    return false;
-  }
-  // Matched by substring rather than against the exact named appearances so
-  // the high-contrast and vibrant dark variants are not read as light.
-  const BOOL dark = [name rangeOfString:@"Dark"].location != NSNotFound;
-  out = dark ? DISPLAY_APPEARANCE_DARK : DISPLAY_APPEARANCE_LIGHT;
-  return true;
+  return loka::macos::TryReadDisplayAppearance((void *)appearance, out);
 }
 
 void MacWindow::onCreate()
