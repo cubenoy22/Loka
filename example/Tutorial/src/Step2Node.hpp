@@ -37,9 +37,6 @@ namespace tutorial
       }
       this->bindActionForUi(this->incrementEvent_, &Step2Node::increment);
       this->initialized_ = true;
-      // TEMPORARY probe (never commit): does MAME's gdbstub relay a CPU
-      // exception to gdb? __builtin_trap emits ILLEGAL (0x4afc) on m68k.
-      __builtin_trap();
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)

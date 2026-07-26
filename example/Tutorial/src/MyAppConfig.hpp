@@ -22,9 +22,9 @@ public:
 
   virtual void compose(AppComposition &c)
   {
-    // typedef tutorial::DoItYourselfNode TutorialNode;
+    typedef tutorial::DoItYourselfNode TutorialNode;
     // typedef tutorial::Step1Node TutorialNode;
-    typedef tutorial::Step2Node TutorialNode;
+    // typedef tutorial::Step2Node TutorialNode;
     // typedef tutorial::Step3Node TutorialNode;
     // typedef tutorial::Step4Node TutorialNode;
 
