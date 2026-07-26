@@ -46,7 +46,11 @@ namespace
 #if LOKA_RETRO68_DIAGNOSTICS
   void BuildRedrawDumpFileName(char out[13], const std::tm &local)
   {
-    std::sprintf(out, "%02d%02d%02d%02d.TXT", local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_sec);
+    const unsigned int month = (static_cast<unsigned int>(local.tm_mon) + 1U) % 100U;
+    const unsigned int day = static_cast<unsigned int>(local.tm_mday) % 100U;
+    const unsigned int hour = static_cast<unsigned int>(local.tm_hour) % 100U;
+    const unsigned int second = static_cast<unsigned int>(local.tm_sec) % 100U;
+    std::sprintf(out, "%02u%02u%02u%02u.TXT", month, day, hour, second);
   }
 #endif
 } // namespace
