@@ -168,17 +168,23 @@ namespace loka
     }
 
 #if LOKA_PROFILE_FUNC_TICKS
+// The registration ints exist only for the side effect of their initializer:
+// RegisterProfileSlot runs once and nothing reads the returned index. Discard
+// each one explicitly so -Wunused-variable stays enabled for real cases.
 #define PROFILE_FUNC()                                                                                                 \
   static ::loka::core::FuncProfileSlot _pslot_ = {__FILE__, __func__, __LINE__, 0, 0};                                 \
   static int _pslot_reg_ = ::loka::core::RegisterProfileSlot(&_pslot_);                                                \
+  (void)_pslot_reg_;                                                                                                   \
   ::loka::core::FuncProfileScope _pscope_(&_pslot_)
 #define PROFILE_SECTION(name)                                                                                          \
   static ::loka::core::FuncProfileSlot _psec_##__LINE__ = {__FILE__, name, __LINE__, 0, 0};                            \
   static int _psec_reg_##__LINE__ = ::loka::core::RegisterProfileSlot(&_psec_##__LINE__);                              \
+  (void)_psec_reg_##__LINE__;                                                                                          \
   ::loka::core::FuncProfileScope _pscope_##__LINE__(&_psec_##__LINE__)
 #define PROFILE_SECTION_ID(name, id)                                                                                   \
   static ::loka::core::FuncProfileSlot _psec_##id = {__FILE__, name, __LINE__, 0, 0};                                  \
   static int _psec_reg_##id = ::loka::core::RegisterProfileSlot(&_psec_##id);                                          \
+  (void)_psec_reg_##id;                                                                                                \
   ::loka::core::FuncProfileScope _pscope_##id(&_psec_##id)
 #else
 #define PROFILE_FUNC()
