@@ -109,6 +109,7 @@ on a real machine. Neither substitutes for the other.
 | Classic Mac OS, 68020 / 68040 | Emulation only. No hardware, so timing observations are not measurements. |
 | Classic Mac OS, PowerPC | Build-verified. Hardware is available for the runtime check; it has not been done yet. |
 | Mac OS X, PowerPC era | Not verified. Hardware is available. |
+| Mac OS X, Snow Leopard / Xcode 3.2.6 | Build-verified, including UB1 (`ppc/i386` and `ppc7400/i386/x86_64`). |
 | Modern macOS | Runtime-verified on Apple silicon. |
 | Windows, current | Runtime-verified on Windows 11 for ARM64 with ACP=932. |
 | Windows XP class | Build target. Not runtime-verified. |
@@ -123,6 +124,12 @@ only, so PowerPC has never been exercised beyond building. That gap will not
 be closed by the 68K tooling — the source-level debugging does not transfer;
 see "Why this does not carry over to PPC" in
 [MAME_DEVELOPMENT.md](MAME_DEVELOPMENT.md).
+
+The legacy macOS toolchain matrix is recorded in more detail in
+[../scripts/macos/README.md](../scripts/macos/README.md) — which host OS can
+generate projects, debug, and drive Xcode 3.2.6 for Universal Binary builds.
+That file is the detailed record for those rows; this table is the summary, so
+add a leg there first and reflect it here rather than the other way round.
 
 Emulator machine names elsewhere in this repository are examples of a working
 configuration, not a statement about hardware.
