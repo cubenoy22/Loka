@@ -6,6 +6,7 @@ void testNodeArenaRetiredGenerationContracts();
 void testStateArenaSlabsCrossAllocationGate();
 void testNodeArenaSlabCrossesAllocationGate();
 void testHeapNodeCrossesAllocationGate();
+void testGateAllocatedNodeRejectsUnauthorizedDestruction();
 void testComposeAllocationWhiteFlagDefersFullRebuildToNextExternalTick();
 void testHeapFallbackWhiteFlagFailsBoundaryCompose();
 void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh();

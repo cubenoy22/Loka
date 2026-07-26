@@ -354,6 +354,15 @@ namespace loka
           // so a node that skipped the explicit retire/teardown doors (dying
           // with its parent) still turns RETIRED before its context hears
           // the terminal. Already-retired nodes are a silent same-value set.
+          //
+          // Because it is the one door, it is also where gate provenance is
+          // checked. DestroyHeapNode lowers the bit on its way in, so a bit
+          // that is still raised here means the storage came from LokaAllocRaw
+          // and something else is destroying it -- the storage is about to go
+          // back to the wrong allocator. The base subobject is still alive in
+          // this body, so unlike a check in operator delete the read is
+          // well-defined and cannot be optimised away.
+          assert(!gateAllocated_ && "gate-allocated Node storage requires DestroyHeapNode");
           this->applyLifecycleFact(NODE_FACT_RETIRED);
           this->releaseContext();
         }
@@ -419,7 +428,12 @@ namespace loka
           return composeAttachLifecycle_.resolveChildComposeEvent(parentEvent);
         }
 
-        // Custom operator delete - skip deallocation for arena nodes
+        /** Node storage has three allocation doors but only one Node* comes
+            out: arena slabs set arenaOwner_, allocation-gate storage sets
+            gateAllocated_, and plain global new sets neither. Gate storage
+            never reaches this function -- DestroyHeapNode returns it through
+            LokaFreeRaw, and ~Node asserts on anything that tries to leave by
+            another route -- so only the arena bit is decided here. */
         static void operator delete(void *ptr)
         {
           Node *node = static_cast<Node *>(ptr);
@@ -666,11 +680,15 @@ namespace loka
           free (the slab owns their storage), plain-new nodes (RootBoundary
           wrapper, test fixtures) hit ::operator delete. Null-safe.
 
-          The provenance bit is read before the destructor runs; on the gate
-          path the virtual destructor destroys the most-derived node and the
-          storage returns via LokaFreeRaw. The creation path asserts the Node
-          base subobject sits at the storage address, so freeing through the
-          Node* is address-correct. */
+          The provenance bit is read before the destructor runs, and then
+          lowered: past that point this function is the only thing that can
+          free the storage, so the bit has said everything it has to say. That
+          is what lets ~Node treat a raised bit as proof that some other door
+          is destroying gate storage. On the gate path the virtual destructor
+          destroys the most-derived node and the storage returns via
+          LokaFreeRaw. The creation path asserts the Node base subobject sits
+          at the storage address, so freeing through the Node* is
+          address-correct. */
       inline void DestroyHeapNode(Node *node)
       {
         if (!node)
@@ -679,6 +697,7 @@ namespace loka
         }
         if (node->isGateAllocated())
         {
+          node->setGateAllocated(false);
           node->~Node();
           loka::core::LokaFreeRaw(node, NodeHeapAllocationSite());
           return;

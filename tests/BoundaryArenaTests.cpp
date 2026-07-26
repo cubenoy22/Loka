@@ -4,6 +4,12 @@
 #include <cstdio>
 #include <new>
 #include <vector>
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 #include "app/scene/boundary/detail/BoundaryArena.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
@@ -1262,6 +1268,57 @@ void testHeapNodeCrossesAllocationGate()
 #endif
 }
 
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+namespace
+{
+  enum GateDestructionDoor
+  {
+    GATE_DOOR_PLAIN_DELETE,
+    GATE_DOOR_EXPLICIT_DESTRUCTOR
+  };
+
+  /** Forks and requires the child to abort. The child installs the counting
+      backend so the node's storage really comes from LokaAllocRaw, then ends
+      the node's lifetime through a door that is not DestroyHeapNode. Both
+      doors exist in the tree today -- BoundaryArena tears its slabs down with
+      an explicit ~Node() -- so both have to be walled. */
+  void requireAbortOnGateDestruction(GateDestructionDoor door)
+  {
+    const pid_t child = fork();
+    assert(child >= 0);
+    if (child == 0)
+    {
+      loka::core::LokaAllocSetBackend(&countingGateBackendAlloc, &countingGateBackendFree);
+      GateProbeDefinition definition;
+      loka::app::scene::Node *node = definition.create();
+      assert(node != 0);
+      assert(node->isGateAllocated());
+      if (door == GATE_DOOR_PLAIN_DELETE)
+      {
+        delete node;
+      }
+      else
+      {
+        node->~Node();
+      }
+      _exit(0);
+    }
+
+    int status = 0;
+    assert(waitpid(child, &status, 0) == child);
+    assert(WIFSIGNALED(status));
+    assert(WTERMSIG(status) == SIGABRT);
+  }
+} // namespace
+#endif
+
+void testGateAllocatedNodeRejectsUnauthorizedDestruction()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  requireAbortOnGateDestruction(GATE_DOOR_PLAIN_DELETE);
+  requireAbortOnGateDestruction(GATE_DOOR_EXPLICIT_DESTRUCTOR);
+#endif
+}
 
 /** #132 S3 red test (a): a driven recompose under a backend that refuses the
     slab (and the heap door behind it) must convert into a projection failure
