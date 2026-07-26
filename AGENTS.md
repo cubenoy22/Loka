@@ -7,6 +7,7 @@ clear boundaries, and small reusable concepts.
 
 ## Core Constraints
 - Loka repository code should remain compatible with the project's target platform constraints; treat C++98 as the baseline unless a narrower file- or platform-specific rule explicitly allows otherwise.
+- The C++98 baseline binds code that ships, not tooling that only inspects it. For static checking, reach for the newest compiler and tools available and use them aggressively: extra `-W` probes over `compile_commands.json`, modern-only diagnostics the Retro68 toolchain cannot produce (`cmake/LokaWarnings.cmake` already records `-Wmismatched-new-delete` as one), sanitizers, static analyzers, `clang-tidy`, `clang-format`, and `static_assert` behind a C++11+ gate. A check that finds a real defect is worth running even if no supported target could ever run it. Three limits keep this free: the check must not become a prerequisite for building or running Loka on any target, it must not change what ships, and its invocation and result belong in the PR so the next person can repeat it rather than rediscover it.
 - Prefer compile-time errors over runtime checks; leverage templates, inheritance constraints, and SFINAE to catch misuse at build time.
 - Use TypeTag static checks automatically when the compiler supports `static_assert` (C++11+). In C++98 builds, keep optional TypeTag checks behind explicit `LOKA_*_CHECK_TYPETAG` gates so classic/release builds stay lightweight.
 - C++ exceptions are disabled; do not add `try`/`catch` or rely on throwing.

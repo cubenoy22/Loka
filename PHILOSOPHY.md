@@ -540,6 +540,14 @@ checks such as `static_assert`, Loka should benefit automatically. When a
 classic compiler cannot provide the same check, the API should still be shaped
 so misuse is difficult, reviewable, and easy to test.
 
+The baseline constrains what Loka ships, not what may examine it. Anything that
+only inspects the code — an extra warning pass, a sanitizer, a static analyzer,
+a modern diagnostic no supported target's compiler can even produce — should be
+reached for eagerly and used at full strength. Such a tool cannot cost a retro
+target anything, because nothing it produces is shipped there; declining to run
+it buys nothing and leaves real defects standing. What it finds still has to be
+fixed within the baseline, which is where the design work actually is.
+
 The goal is not to imitate modern language features for their own sake. The
 goal is to give application authors the same confidence: if code compiles, its
 ownership, state direction, boundary crossing, and platform capability
