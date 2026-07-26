@@ -211,6 +211,28 @@ rest of the model.
 Abstractions are welcome when they reduce accidental decisions. They are not
 welcome when they make the framework impossible to reason about.
 
+## Describe Generically, Fetch Specifically
+
+Wanting to inspect a whole family of facts is not the same as wanting to read
+them through one generic call. Inspection wants every member of the family, in
+order, rendered as text. Retrieval wants one member, as its own type, for a
+purpose the other members do not share: a resource picker needs density and
+appearance to choose a representation, a compositor needs the refresh rate to
+pace frames. The types differ because the uses differ, so no useful loop exists
+over "each fact, fetched and then handled the same way".
+
+Designing for the loop that does not exist is expensive. A uniform getter must
+either erase the type and re-discover it at runtime, which trades a compile-time
+check for a silent one, or recover it through a type map, which introduces a
+second table that must agree with the first. Both pay for freedom the call sites
+never asked for.
+
+So give the family a generic surface for enumerating and describing it, and keep
+retrieval specific and typed. The generic surface should be derived from the
+specific answers rather than implemented alongside them, so that adding a member
+cannot leave the two out of step. This keeps the family inspectable, which is
+what the impulse toward a generic getter is usually reaching for.
+
 ## Escape Hatches Must Look Like Escape Hatches
 
 Loka should provide ways to cross boundaries, integrate unusual platform
@@ -276,6 +298,29 @@ arguments, diff/result objects, builders, and small state machines over
 permanently adding fields to a long-lived object. Paying a small cost to keep
 facts immutable-like and lifecycle-aware is usually better than making cleanup,
 ownership, and update routing implicit.
+
+## Absent Is Not A Value
+
+Some facts cannot be answered on every target. Classic Mac has no notion of a
+dark appearance; on modern Windows the colour depth of a monitor does not
+meaningfully vary. When an API answers such a question with a substitute value,
+it merges two different statements into one: "the answer is X" and "there is no
+answer here". A caller cannot tell them apart afterwards, and the wrong branch
+is taken silently.
+
+Prefer an answer that carries its own availability. A query that reports
+presence and value together cannot disagree with itself, and a target that
+cannot answer simply does not answer. An accessor taking a fallback
+(`asInt(defaultValue)`) is convenient for genuinely optional data, but it is the
+wrong shape for a capability, because the fallback is indistinguishable from a
+real reading. Reporting availability through a second, independent query is the
+same mistake one step removed: the two can then drift. Derive that view from the
+answer instead of maintaining it beside the answer.
+
+This deserves more care than corruption detection. A stale or damaged value
+usually announces itself loudly and rarely. A substituted value passes every
+type check and every validation, and the only symptom is that the screen is
+quietly wrong.
 
 ## State Ownership Is Explicit, Not Ambient
 
