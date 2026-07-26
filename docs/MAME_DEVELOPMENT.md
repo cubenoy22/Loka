@@ -309,73 +309,50 @@ translation flag to them.
 
 ### Worked example, start to finish
 
-Two phases, because the base has to be known before gdb attaches: the stub
-does not hold the machine at reset, so there is no opportunity to look it up
-after connecting. Phase one costs one boot; phase two is the debugging
-session. Re-run phase one whenever the application binary changes.
+`scripts/mame-debug.sh` assembles the launch: it stages a scenario-local copy
+of the boot disk, generates the development disk, forwards the variables the
+Lua needs, waits for the listener, and hands over to gdb with symbols already
+relocated. Everything mutable lands under `build/mame-debug/`, so the
+configured boot disk stays an input.
 
-Assumes `.env-mame` is configured and a scenario directory exists, following
-"Isolate the emulator state" above. `$MAME` is the emulator, `$SCEN` the
-scenario directory, `$APP` the built `_APPL`, and `$ELF` its `.code.bin.gdb`
-sibling.
-
-**Phase 0 — build with debug information and stage the disk**
+**1. Build with debug information**
 
 ```sh
 cmake --preset retro68-68k-dwarf
 cmake --build --preset retro68-68k-dwarf --target LokaTutorial68K_APPL
-ELF=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.code.bin.gdb
-MAME_DEV_HDA="$SCEN/LokaDev.hd" \
-  ./scripts/mame-dev-disk.sh build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.bin
+APPL=build/retro68/68k/DiagDwarf4/example/Tutorial/LokaTutorial68K.bin
 ```
 
-**Phase 1 — find the load base**
+**2. Find the load base**
 
-Pick a relocation-free function with the recipe above, then:
+Pick a relocation-free function with the recipe above and pass its first eight
+bytes and link address. This boots the application once and exits:
 
 ```sh
-export LOKA_PATTERN_WORD0=4feffefc LOKA_PATTERN_WORD1=48e71e30
-export LOKA_PATTERN_LINK=0002aac4
-export LOKA_GDB_LOG="$(wslpath -w "$SCEN/find-base.log")"      # WSL: Windows path
-export WSLENV=LOKA_PATTERN_WORD0:LOKA_PATTERN_WORD1:LOKA_PATTERN_LINK:LOKA_GDB_LOG
-
-"$MAME" maciix -ramsize 8M ... \
-  -video none -sound none -nothrottle -natural -skip_gameinfo \
-  -autoboot_delay 1 -autoboot_script scripts/mame-find-base.lua
-grep BASE "$SCEN/find-base.log"
+./scripts/mame-debug.sh find "$APPL" 4feffefc 48e71e30 00029372
+# LOKA-BASE: BASE 0x0070e2a4
 ```
 
-**Phase 2 — launch and attach**
+Re-run this whenever the application binary changes; the base moves with it.
 
-Add `LOKA_STAY_ALIVE=1` (and to `WSLENV`) so the script keeps the machine
-running instead of exiting once it reports. Start MAME in the background with
-the debugger enabled, then attach immediately:
+**3. Attach**
+
+Same arguments plus the base. The machine is left running and gdb takes over:
 
 ```sh
-"$MAME" maciix -ramsize 8M ... \
-  -video none -sound none -nothrottle -natural -skip_gameinfo \
-  -debug -debugger gdbstub -debugger_port 23946 \
-  -autoboot_delay 1 -autoboot_script scripts/mame-find-base.lua &
-
-LOKA_ELF="$PWD/$ELF" LOKA_BASE=0x0070e2a4 LOKA_BREAK=App::idlePolicy \
-  gdb-multiarch -q -x scripts/mame-attach.gdb
+./scripts/mame-debug.sh attach "$APPL" 4feffefc 48e71e30 00029372 0x0070e2a4
 ```
 
-```sh
-until netstat.exe -an | grep -q "23946.*LISTENING"; do sleep 1; done
-sleep 4
-```
+Symbols are loaded at the offset and a breakpoint is set on `App::idlePolicy`,
+which runs continuously once the application is up and so makes a convenient
+first stop. Set `LOKA_BREAK` to choose a different one. Then `continue`: after
+the first stop, further breakpoints, `bt`, `info args`, and `list` behave as
+usual.
 
-`scripts/mame-attach.gdb` sets the architecture, resolves the host address,
-loads the symbols at the offset, and plants a breakpoint. Then `continue` in
-gdb: it stops at the first hit once the application is up, after which further
-breakpoints, `bt`, `info args`, and `list` behave as usual.
-
-Two path notes for WSL. MAME is a Windows binary and cannot read an autoboot
-script through `\\wsl.localhost\...`; copy the script to a native Windows
-path first, or the machine boots with no script and nothing explains why. The
-ELF passed to gdb is the opposite -- gdb runs under WSL, so give it the Linux
-path.
+Two phases rather than one because gdb needs the base before it can place a
+breakpoint by symbol, and the base is only discoverable once the application
+has been loaded — which cannot happen while gdb is holding the machine at
+reset waiting to be told to continue.
 
 ### Why this does not carry over to PPC
 
