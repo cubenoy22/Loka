@@ -415,3 +415,115 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
 
   printf("==== [testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds] end ====\n");
 }
+
+void testLrpkRefusesForgedCountsAndUnsortedRows()
+{
+  printf("\n==== [testLrpkRefusesForgedCountsAndUnsortedRows] start ====\n");
+
+  // The arithmetic rule itself, pinned independently of host word size.
+  //
+  // A forged package can only demonstrate the wrap on a target whose size_t is
+  // 32 bits, so on a 64-bit host the package-level cases below pass with or
+  // without the fix and prove nothing about it. These do: each pair of values
+  // is one the naive form (`offset + length`, `count * width`) accepts and the
+  // subtraction/division form rejects, at any width.
+  {
+    const std::size_t kMax = ~static_cast<std::size_t>(0);
+    assert(!ExtentFits(100, kMax, 2) && "offset + length wraps to 1 here, which a naive bound accepts");
+    assert(!ExtentFits(100, 2, kMax));
+    assert(ExtentFits(100, 40, 60) && "an extent that exactly fills the space is still inside it");
+    assert(!ExtentFits(100, 40, 61));
+    assert(!ProductFits(100, (kMax / 16) + 1, 16) && "count * width wraps to 0 here");
+    assert(ProductFits(100, 6, 16));
+    assert(!ProductFits(100, 7, 16));
+    assert(ProductFits(0, 0, 16));
+  }
+
+  std::vector<unsigned char> good;
+  assert(BuildStandardPackage(good, false) == Writer::BUILD_OK);
+  std::size_t indexSize = 0;
+  const std::size_t indexAt = FindChunkPayload(good, FourCC('I', 'N', 'D', 'X'), indexSize);
+  assert(indexSize > 0);
+
+  Reader reader;
+
+  // A forged assetCount whose product with the 16-byte row width wraps to
+  // zero. Sizing the table by multiplication would accept this and then read
+  // far outside the buffer on the first lookup.
+  {
+    std::vector<unsigned char> bad(good);
+    // The count is stated twice -- in HEAD and in INDX -- and the reader
+    // requires them to agree, so a forgery has to change both.
+    WriteU32BE(&bad[indexAt + 4], 0x10000000UL);
+    WriteU32BE(&bad[16 + 20], 0x10000000UL);
+    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX &&
+           "a declared count must be checked by division, never by multiplying it out first");
+  }
+
+  // Ascending id is an invariant get() depends on. An unsorted table would
+  // make the binary search answer GET_NO_SUCH_ID for an id that is present,
+  // which is a lie rather than a refusal.
+  {
+    std::vector<unsigned char> bad(good);
+    const std::size_t rowsAt = indexAt + 8 + 1 * kBagRowBytes;
+    // The standard package has ids 42 x4 then 43. Make the last row sort before
+    // the first without changing anything else.
+    WriteU32BE(&bad[rowsAt + 4 * kAssetRowBytes], 1);
+    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX);
+  }
+
+  printf("==== [testLrpkRefusesForgedCountsAndUnsortedRows] end ====\n");
+}
+
+void testLrpcValidatesBeforeItPacks()
+{
+  printf("\n==== [testLrpcValidatesBeforeItPacks] start ====\n");
+
+  U32 plain[kMaxAxes] = {0, 0, 0, 0};
+  std::vector<unsigned char> out;
+
+  // An out-of-range axis index must be refused, not masked. Masking 16 to 0
+  // would turn a specialized row into something indistinguishable from the
+  // default row, defeating the wall that keeps selection total.
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    const std::size_t bag = writer.addBag();
+    U32 outOfRange[kMaxAxes] = {16, 0, 0, 0};
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kLogoDefault, sizeof(kLogoDefault));
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, outOfRange, kLogoBw, sizeof(kLogoBw));
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_BAD_AXIS_REFERENCE);
+  }
+
+  // A declared axis value that does not fit the encoded field must be refused
+  // rather than truncated: 65536 would become 0 and select the wrong row.
+  {
+    Writer writer;
+    const U32 huge[1] = {65536};
+    writer.declareAxis(AXIS_KIND_SCALAR, 100, huge, 1);
+    const std::size_t bag = writer.addBag();
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kLogoDefault, sizeof(kLogoDefault));
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_AXIS_VALUE_OUT_OF_RANGE);
+  }
+
+  // build() is failure-atomic: a refusal must not destroy a good package the
+  // caller already had in the destination vector.
+  {
+    std::vector<unsigned char> reused;
+    assert(BuildStandardPackage(reused, true) == Writer::BUILD_OK);
+    const std::size_t goodSize = reused.size();
+
+    Writer writer;
+    DeclareStandardAxes(writer);
+    writer.addBag();
+    writer.addAsset(7, 9, ASSET_KIND_IMAGE, plain, kLogoDefault, sizeof(kLogoDefault));
+    assert(writer.build(kStamp, true, reused) == Writer::BUILD_BAD_BAG_REFERENCE);
+    assert(reused.size() == goodSize && "a refusal must leave the destination untouched");
+
+    Reader reader;
+    assert(reader.openFromMemory(&reused[0], reused.size(), kStamp) == Reader::OPEN_OK &&
+           "the package that was already there must still open");
+  }
+
+  printf("==== [testLrpcValidatesBeforeItPacks] end ====\n");
+}

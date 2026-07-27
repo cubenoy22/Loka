@@ -215,14 +215,36 @@ namespace loka
           {
             return OPEN_MALFORMED_INDEX;
           }
-          const std::size_t needed = 8 + bagCount_ * kBagRowBytes + assetCount_ * kAssetRowBytes;
-          if (indexPayloadSize < needed)
+          // Sized by division, never by multiplying a declared count: a forged
+          // assetCount of 0x10000000 makes `count * 16` wrap to zero, and an
+          // eight-byte payload would then satisfy a naive comparison while
+          // every later binary search reads far outside the buffer.
+          const std::size_t rowSpace = indexPayloadSize - 8;
+          if (indexPayloadSize < 8 || !ProductFits(rowSpace, bagCount_, kBagRowBytes))
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          const std::size_t assetSpace = rowSpace - bagCount_ * kBagRowBytes;
+          if (!ProductFits(assetSpace, assetCount_, kAssetRowBytes))
           {
             return OPEN_MALFORMED_INDEX;
           }
 
           bagRows_ = indexPayload + 8;
           assetRows_ = bagRows_ + bagCount_ * kBagRowBytes;
+
+          // Ascending id is a format invariant, and get() relies on it: an
+          // unsorted table would make the binary search report GET_NO_SUCH_ID
+          // for an id that is present, which is a lie rather than a refusal.
+          // A reader may not assume its input honours an invariant it depends
+          // on, so it is checked here rather than trusted.
+          for (std::size_t i = 1; i < assetCount_; ++i)
+          {
+            if (ReadU32BE(assetRow(i - 1) + kRowId) > ReadU32BE(assetRow(i) + kRowId))
+            {
+              return OPEN_MALFORMED_INDEX;
+            }
+          }
 
           for (std::size_t b = 0; b < bagCount_; ++b)
           {
@@ -238,7 +260,7 @@ namespace loka
             // value and pass a naive comparison.
             const std::size_t offset = static_cast<std::size_t>(bags_[b].dataOffset);
             const std::size_t stored = static_cast<std::size_t>(bags_[b].storedSize);
-            if (!dataPayload_ || offset > dataPayloadSize_ || stored > dataPayloadSize_ - offset)
+            if (!dataPayload_ || !ExtentFits(dataPayloadSize_, offset, stored))
             {
               return OPEN_MALFORMED_INDEX;
             }
@@ -478,7 +500,7 @@ namespace loka
           const std::size_t offset = static_cast<std::size_t>(ReadU32BE(best + kRowOffset));
           const std::size_t length = static_cast<std::size_t>(ReadU32BE(best + kRowLength));
           const std::size_t expanded = static_cast<std::size_t>(bags_[bag].expandedSize);
-          if (offset > expanded || length > expanded - offset)
+          if (!ExtentFits(expanded, offset, length))
           {
             return GET_NO_MATCHING_REP;
           }

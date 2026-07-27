@@ -40,7 +40,11 @@ namespace loka
         BUILD_TOO_MANY_AXES,
         BUILD_TOO_MANY_AXIS_VALUES,
         BUILD_TOO_MANY_BAGS,
-        BUILD_BAD_AXIS_REFERENCE
+        BUILD_BAD_AXIS_REFERENCE,
+        /** A declared axis value does not fit the 16-bit encoded field.
+            Silently truncating would let 65536 become 0 and select the
+            wrong representation from a package that built cleanly. */
+        BUILD_AXIS_VALUE_OUT_OF_RANGE
       };
 
       Writer();
@@ -89,15 +93,22 @@ namespace loka
             : id(0),
               bag(0),
               kind(core::resource::lrpk::ASSET_KIND_UNKNOWN),
-              axes(0),
               bytes()
         {
+          for (std::size_t i = 0; i < core::resource::lrpk::kMaxAxes; ++i)
+          {
+            axisIndex[i] = 0;
+          }
         }
 
         core::resource::lrpk::U32 id;
         std::size_t bag;
         core::resource::lrpk::AssetKind kind;
-        core::resource::lrpk::U32 axes;
+        /** Raw, unmasked indices as the caller supplied them. Packing into
+            the 16-bit field happens in build(), after validation: masking on
+            the way in turned an out-of-range 16 into 0, which reads as "this
+            row writes no axis" and would be mistaken for the default row. */
+        core::resource::lrpk::U32 axisIndex[core::resource::lrpk::kMaxAxes];
         std::vector<unsigned char> bytes;
       };
 

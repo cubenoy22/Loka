@@ -132,6 +132,27 @@ namespace loka
           p[3] = static_cast<unsigned char>(value & 0xFFUL);
         }
 
+        /** Overflow-safe extent checks. Every bound in the reader goes through
+            these rather than computing `offset + length` or `count * width`
+            first: on a 32-bit target those arithmetic results wrap, and a
+            forged index can pick values whose wrapped result passes a naive
+            comparison. Having one place for the rule is the point -- the
+            alternative is applying it by hand to whichever site someone
+            happened to name. */
+        inline bool ExtentFits(std::size_t total, std::size_t offset, std::size_t length)
+        {
+          return offset <= total && length <= total - offset;
+        }
+
+        inline bool ProductFits(std::size_t total, std::size_t count, std::size_t width)
+        {
+          if (width == 0)
+          {
+            return true;
+          }
+          return count <= total / width;
+        }
+
         inline std::size_t AlignUp(std::size_t value, std::size_t alignment)
         {
           const std::size_t remainder = value % alignment;

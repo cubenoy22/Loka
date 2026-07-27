@@ -88,11 +88,9 @@ namespace loka
       row.id = id;
       row.bag = bag;
       row.kind = kind;
-      row.axes = 0;
-      for (std::size_t a = 0; a < axes_.size(); ++a)
+      for (std::size_t a = 0; a < kMaxAxes; ++a)
       {
-        const U32 index = axisValueIndex ? axisValueIndex[a] : 0;
-        row.axes |= (index & 0xFUL) << (4 * a);
+        row.axisIndex[a] = axisValueIndex && a < axes_.size() ? axisValueIndex[a] : 0;
       }
       if (bytes && length > 0)
       {
@@ -103,7 +101,10 @@ namespace loka
 
     Writer::BuildResult Writer::build(U32 idSpaceStamp, bool withCrc, std::vector<unsigned char> &out) const
     {
-      out.clear();
+      // Built into a temporary and swapped in only on success: a caller that
+      // reuses a vector holding a good package must not lose it to a
+      // validation refusal. Failure leaves the destination untouched.
+      std::vector<unsigned char> built;
       if (axes_.size() > kMaxAxes)
       {
         return BUILD_TOO_MANY_AXES;
@@ -117,6 +118,13 @@ namespace loka
         if (axes_[a].values.size() > kMaxAxisValues)
         {
           return BUILD_TOO_MANY_AXIS_VALUES;
+        }
+        for (std::size_t v = 0; v < axes_[a].values.size(); ++v)
+        {
+          if (axes_[a].values[v] > 0xFFFFUL)
+          {
+            return BUILD_AXIS_VALUE_OUT_OF_RANGE;
+          }
         }
       }
 
@@ -132,13 +140,24 @@ namespace loka
         }
         for (std::size_t a = 0; a < axes_.size(); ++a)
         {
-          const U32 index = (rows_[i].axes >> (4 * a)) & 0xFUL;
-          if (index > axes_[a].values.size())
+          // Validated against the value the caller passed, not against a
+          // masked copy of it.
+          if (rows_[i].axisIndex[a] > axes_[a].values.size() || rows_[i].axisIndex[a] > kMaxAxisValues)
           {
             return BUILD_BAD_AXIS_REFERENCE;
           }
         }
         order.push_back(i);
+      }
+
+      // Packed only now, with every index already validated against its axis.
+      std::vector<U32> packed(rows_.size(), 0);
+      for (std::size_t i = 0; i < rows_.size(); ++i)
+      {
+        for (std::size_t a = 0; a < axes_.size(); ++a)
+        {
+          packed[i] |= (rows_[i].axisIndex[a] & 0xFUL) << (4 * a);
+        }
       }
 
       // Selection sort by (id, axes, bag) keeps this dependency-free and the
@@ -150,9 +169,11 @@ namespace loka
         {
           const Row &candidate = rows_[order[j]];
           const Row &current = rows_[order[best]];
+          const U32 candidateAxes = packed[order[j]];
+          const U32 currentAxes = packed[order[best]];
           if (candidate.id < current.id ||
               (candidate.id == current.id &&
-               (candidate.axes < current.axes || (candidate.axes == current.axes && candidate.bag < current.bag))))
+               (candidateAxes < currentAxes || (candidateAxes == currentAxes && candidate.bag < current.bag))))
           {
             best = j;
           }
@@ -168,7 +189,7 @@ namespace loka
       {
         const Row &a = rows_[order[i]];
         const Row &b = rows_[order[i + 1]];
-        if (a.id == b.id && a.axes == b.axes && a.bag == b.bag)
+        if (a.id == b.id && packed[order[i]] == packed[order[i + 1]] && a.bag == b.bag)
         {
           return BUILD_DUPLICATE_ROW;
         }
@@ -185,7 +206,7 @@ namespace loka
         bool hasDefault = false;
         for (std::size_t j = 0; j < order.size(); ++j)
         {
-          if (rows_[order[j]].id == id && rows_[order[j]].bag == bag && rows_[order[j]].axes == 0)
+          if (rows_[order[j]].id == id && rows_[order[j]].bag == bag && packed[order[j]] == 0)
           {
             hasDefault = true;
             break;
@@ -282,7 +303,7 @@ namespace loka
         AppendU32(indexPayload, static_cast<U32>(row.bytes.size()));
         indexPayload.push_back(static_cast<unsigned char>(row.bag));
         indexPayload.push_back(static_cast<unsigned char>(row.kind));
-        AppendU16(indexPayload, row.axes);
+        AppendU16(indexPayload, packed[order[i]]);
       }
 
       const std::size_t axesChunk = kChunkHeaderBytes + AlignUp(axesPayload.size(), kPayloadAlign);
@@ -290,38 +311,39 @@ namespace loka
       const std::size_t dataChunk = kChunkHeaderBytes + AlignUp(data.size(), kPayloadAlign);
       const std::size_t totalBytes = kFixedHeadBytes + axesChunk + indexChunk + dataChunk;
 
-      out.reserve(totalBytes);
-      AppendU32(out, FourCC('L', 'R', 'P', 'K'));
-      AppendU32(out, static_cast<U32>(totalBytes - kFormHeaderBytes));
-      AppendU32(out, FourCC('H', 'E', 'A', 'D'));
-      AppendU32(out, static_cast<U32>(kHeadPayloadBytes));
-      AppendU32(out, kFormatVersion);
-      AppendU32(out, static_cast<U32>(totalBytes));
-      AppendU32(out, idSpaceStamp);
-      AppendU32(out, withCrc ? Crc32::Of(indexPayload.empty() ? 0 : &indexPayload[0], indexPayload.size()) : 0);
-      AppendU32(out, withCrc ? kFlagHasCrc : 0);
-      AppendU32(out, static_cast<U32>(order.size()));
-      AppendU32(out, static_cast<U32>(bagCount_));
-      while (out.size() < kFixedHeadBytes)
+      built.reserve(totalBytes);
+      AppendU32(built, FourCC('L', 'R', 'P', 'K'));
+      AppendU32(built, static_cast<U32>(totalBytes - kFormHeaderBytes));
+      AppendU32(built, FourCC('H', 'E', 'A', 'D'));
+      AppendU32(built, static_cast<U32>(kHeadPayloadBytes));
+      AppendU32(built, kFormatVersion);
+      AppendU32(built, static_cast<U32>(totalBytes));
+      AppendU32(built, idSpaceStamp);
+      AppendU32(built, withCrc ? Crc32::Of(indexPayload.empty() ? 0 : &indexPayload[0], indexPayload.size()) : 0);
+      AppendU32(built, withCrc ? kFlagHasCrc : 0);
+      AppendU32(built, static_cast<U32>(order.size()));
+      AppendU32(built, static_cast<U32>(bagCount_));
+      while (built.size() < kFixedHeadBytes)
       {
-        out.push_back(0);
+        built.push_back(0);
       }
 
-      AppendU32(out, FourCC('A', 'X', 'E', 'S'));
-      AppendU32(out, static_cast<U32>(axesPayload.size()));
-      out.insert(out.end(), axesPayload.begin(), axesPayload.end());
-      PadTo(out, kPayloadAlign);
+      AppendU32(built, FourCC('A', 'X', 'E', 'S'));
+      AppendU32(built, static_cast<U32>(axesPayload.size()));
+      built.insert(built.end(), axesPayload.begin(), axesPayload.end());
+      PadTo(built, kPayloadAlign);
 
-      AppendU32(out, FourCC('I', 'N', 'D', 'X'));
-      AppendU32(out, static_cast<U32>(indexPayload.size()));
-      out.insert(out.end(), indexPayload.begin(), indexPayload.end());
-      PadTo(out, kPayloadAlign);
+      AppendU32(built, FourCC('I', 'N', 'D', 'X'));
+      AppendU32(built, static_cast<U32>(indexPayload.size()));
+      built.insert(built.end(), indexPayload.begin(), indexPayload.end());
+      PadTo(built, kPayloadAlign);
 
-      AppendU32(out, FourCC('D', 'A', 'T', 'A'));
-      AppendU32(out, static_cast<U32>(data.size()));
-      out.insert(out.end(), data.begin(), data.end());
-      PadTo(out, kPayloadAlign);
+      AppendU32(built, FourCC('D', 'A', 'T', 'A'));
+      AppendU32(built, static_cast<U32>(data.size()));
+      built.insert(built.end(), data.begin(), data.end());
+      PadTo(built, kPayloadAlign);
 
+      out.swap(built);
       return BUILD_OK;
     }
   } // namespace lrpc
