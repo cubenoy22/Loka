@@ -155,7 +155,6 @@ namespace loka
                 return OPEN_MALFORMED_INDEX;
               }
               dataChunk = chunk;
-              next.dataChunkHeader = chunk;
               next.dataPayload = chunk + kChunkHeaderBytes;
               next.dataPayloadSize = payloadSize;
             }
@@ -207,16 +206,16 @@ namespace loka
             Axis &axis = next.axes[a];
             axis.kind = entry[kAxisKind];
             axis.valueCount = entry[kAxisValueCount];
-            axis.precedenceRank = entry[kAxisPrecedenceRank];
+            const unsigned char precedenceRank = entry[kAxisPrecedenceRank];
             if ((axis.kind != AXIS_KIND_ENUM && axis.kind != AXIS_KIND_SCALAR) ||
                 axis.valueCount > kMaxAxisValues ||
-                axis.precedenceRank >= next.axisCount ||
-                rankSeen[axis.precedenceRank])
+                precedenceRank >= next.axisCount ||
+                rankSeen[precedenceRank])
             {
               return OPEN_MALFORMED_INDEX;
             }
-            rankSeen[axis.precedenceRank] = true;
-            next.precedenceSlots[axis.precedenceRank] = static_cast<unsigned char>(a);
+            rankSeen[precedenceRank] = true;
+            next.precedenceSlots[precedenceRank] = static_cast<unsigned char>(a);
             axis.baseline = ReadU32BE(entry + kAxisBaseline);
             for (std::size_t v = 0; v < axis.valueCount; ++v)
             {
@@ -262,12 +261,12 @@ namespace loka
             return OPEN_MALFORMED_INDEX;
           }
 
-          next.bagRows = indexPayload + 8;
-          next.assetRows = next.bagRows + bagBytes;
+          const unsigned char *bagRows = indexPayload + 8;
+          next.assetRows = bagRows + bagBytes;
 
           for (std::size_t b = 0; b < next.bagCount; ++b)
           {
-            const unsigned char *row = next.bagRows + b * kBagRowBytes;
+            const unsigned char *row = bagRows + b * kBagRowBytes;
             Bag &bag = next.bags[b];
             bag.dataOffset = ReadU32BE(row + kBagDataOffset);
             bag.storedSize = ReadU32BE(row + kBagStoredSize);
@@ -510,8 +509,7 @@ namespace loka
             }
             else
             {
-              bool written = false;
-              if (rowScalarValue(row, a, written) != scalarValues[a])
+              if (rowScalarValue(row, a) != scalarValues[a])
               {
                 return false;
               }
@@ -521,16 +519,13 @@ namespace loka
         }
 
         U32 Reader::rowScalarValue(const unsigned char *row,
-                                   std::size_t axis,
-                                   bool &written) const
+                                   std::size_t axis) const
         {
           const U32 index = RowAxisIndex(row, axis);
           if (index == 0)
           {
-            written = false;
             return state_.axes[axis].baseline;
           }
-          written = true;
           return state_.axes[axis].values[index - 1];
         }
 
@@ -620,8 +615,7 @@ namespace loka
                 {
                   continue;
                 }
-                bool written = false;
-                const U32 value = rowScalarValue(row, axis, written);
+                const U32 value = rowScalarValue(row, axis);
                 const U32 wanted = facts.present[axis]
                                        ? facts.value[axis]
                                        : state_.axes[axis].baseline;

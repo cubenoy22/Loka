@@ -239,9 +239,9 @@ void testLrpkRoundTripsThroughTheIndex()
   printf("==== [testLrpkRoundTripsThroughTheIndex] end ====\n");
 }
 
-void testLrpkSelectsRepresentationByAxisKind()
+void testLrpkSelectsByPackagePrecedence()
 {
-  printf("\n==== [testLrpkSelectsRepresentationByAxisKind] start ====\n");
+  printf("\n==== [testLrpkSelectsByPackagePrecedence] start ====\n");
 
   std::vector<unsigned char> depthFirst;
   std::vector<unsigned char> scaleFirst;
@@ -342,7 +342,7 @@ void testLrpkSelectsRepresentationByAxisKind()
     } while (std::next_permutation(order, order + 4));
   }
 
-  printf("==== [testLrpkSelectsRepresentationByAxisKind] end ====\n");
+  printf("==== [testLrpkSelectsByPackagePrecedence] end ====\n");
 }
 
 void testLrpkRefusesEveryCheckValueFailure()

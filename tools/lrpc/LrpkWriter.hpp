@@ -24,10 +24,6 @@ namespace loka
       enum BuildResult
       {
         BUILD_OK = 0,
-        /** Legacy result retained for source compatibility. Exact duplicate
-            rows are now reported by BUILD_SELECTOR_AMBIGUOUS, the broader
-            ruled construction error. */
-        BUILD_DUPLICATE_ROW,
         /** An asset with no axis-free row. This is the wall that makes
             selection total: the default row survives every enum rule and is
             picked up by the scalar rule's "if none is at or above, the

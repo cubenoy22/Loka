@@ -197,7 +197,6 @@ namespace loka
             Axis()
                 : kind(AXIS_KIND_ENUM),
                   valueCount(0),
-                  precedenceRank(0),
                   baseline(0)
             {
               for (std::size_t i = 0; i < kMaxAxisValues; ++i)
@@ -208,7 +207,6 @@ namespace loka
 
             unsigned char kind;
             unsigned char valueCount;
-            unsigned char precedenceRank;
             U32 baseline;
             U32 values[kMaxAxisValues];
           };
@@ -224,7 +222,7 @@ namespace loka
                                  const bool *filtered,
                                  const bool *enumRequiresWritten,
                                  const U32 *scalarValues) const;
-          U32 rowScalarValue(const unsigned char *row, std::size_t axis, bool &written) const;
+          U32 rowScalarValue(const unsigned char *row, std::size_t axis) const;
           static U32 RowAxisIndex(const unsigned char *row, std::size_t axis);
           std::size_t rowWrittenAxisCount(const unsigned char *row) const;
 
@@ -238,10 +236,8 @@ namespace loka
                   size(0),
                   verifyIntegrity(false),
                   idSpaceStamp(0),
-                  dataChunkHeader(0),
                   dataPayload(0),
                   dataPayloadSize(0),
-                  bagRows(0),
                   assetRows(0),
                   bagCount(0),
                   assetCount(0),
@@ -257,10 +253,8 @@ namespace loka
             std::size_t size;
             bool verifyIntegrity;
             U32 idSpaceStamp;
-            const unsigned char *dataChunkHeader;
             const unsigned char *dataPayload;
             std::size_t dataPayloadSize;
-            const unsigned char *bagRows;
             const unsigned char *assetRows;
             std::size_t bagCount;
             std::size_t assetCount;

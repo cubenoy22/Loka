@@ -246,16 +246,6 @@ namespace loka
         order[best] = swap;
       }
 
-      for (std::size_t i = 0; i + 1 < order.size(); ++i)
-      {
-        const Row &a = rows_[order[i]];
-        const Row &b = rows_[order[i + 1]];
-        if (a.id == b.id && a.bag == b.bag && packed[order[i]] == packed[order[i + 1]])
-        {
-          return BUILD_SELECTOR_AMBIGUOUS;
-        }
-      }
-
       // A pair with equal effective values on every selector axis can only be
       // distinguished by row order, which is forbidden. This deliberately
       // compares selector meaning rather than packed representation.
