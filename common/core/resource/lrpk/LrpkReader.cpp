@@ -428,19 +428,6 @@ namespace loka
           return (packed >> (4 * axis)) & 0xFUL;
         }
 
-        std::size_t Reader::rowWrittenAxisCount(const unsigned char *row) const
-        {
-          std::size_t count = 0;
-          for (std::size_t a = 0; a < state_.axisCount; ++a)
-          {
-            if (RowAxisIndex(row, a) != 0)
-            {
-              ++count;
-            }
-          }
-          return count;
-        }
-
         std::size_t Reader::findFirstRow(U32 id) const
         {
           std::size_t low = 0;
@@ -479,10 +466,22 @@ namespace loka
             {
               return false;
             }
-            if (state_.axes[a].kind == AXIS_KIND_ENUM &&
-                facts.value[a] != written)
+            if (state_.axes[a].kind == AXIS_KIND_ENUM)
             {
-              return false;
+              bool matchesDeclaredValue = false;
+              for (std::size_t v = 0; v < state_.axes[a].valueCount; ++v)
+              {
+                if (state_.axes[a].values[v] == facts.value[a])
+                {
+                  matchesDeclaredValue =
+                      written == static_cast<U32>(v + 1);
+                  break;
+                }
+              }
+              if (!matchesDeclaredValue)
+              {
+                return false;
+              }
             }
           }
           return true;
@@ -599,6 +598,13 @@ namespace loka
             }
             else
             {
+              // Phase A already removed every row that writes an absent
+              // scalar axis. Its surviving rows all omit this axis, so there
+              // is deliberately no second absent-value rule here.
+              if (!facts.present[axis])
+              {
+                continue;
+              }
               U32 selected = 0;
               bool selectedAtOrAbove = false;
               for (std::size_t i = first; i < end; ++i)
@@ -616,9 +622,7 @@ namespace loka
                   continue;
                 }
                 const U32 value = rowScalarValue(row, axis);
-                const U32 wanted = facts.present[axis]
-                                       ? facts.value[axis]
-                                       : state_.axes[axis].baseline;
+                const U32 wanted = facts.value[axis];
                 const bool atOrAbove = value >= wanted;
                 if (!foundCandidate ||
                     (atOrAbove && !selectedAtOrAbove) ||
@@ -640,11 +644,10 @@ namespace loka
             }
           }
 
-          // Phase C: specificity is the final structural preference. A tie is
-          // refused rather than settled by whichever row happened to be first.
+          // After Phase B there must be exactly one survivor. A forged
+          // package can bypass lrpc's ambiguity wall; physical row order is
+          // never a winner rule.
           const unsigned char *best = 0;
-          std::size_t bestWritten = 0;
-          bool ambiguous = false;
           for (std::size_t i = first; i < end; ++i)
           {
             const unsigned char *row = assetRow(i);
@@ -659,19 +662,13 @@ namespace loka
             {
               continue;
             }
-            const std::size_t written = rowWrittenAxisCount(row);
-            if (!best || written > bestWritten)
+            if (best)
             {
-              best = row;
-              bestWritten = written;
-              ambiguous = false;
+              return GET_NO_MATCHING_REP;
             }
-            else if (written == bestWritten)
-            {
-              ambiguous = true;
-            }
+            best = row;
           }
-          if (!best || ambiguous)
+          if (!best)
           {
             return GET_NO_MATCHING_REP;
           }

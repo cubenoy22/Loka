@@ -78,6 +78,24 @@ namespace
     return writer.build(kStamp, out);
   }
 
+  Writer::BuildResult BuildEnumVocabularyPackage(std::vector<unsigned char> &out,
+                                                 bool selectedValueFirst)
+  {
+    Writer writer;
+    const U32 valuesForward[2] = {10, 20};
+    const U32 valuesReverse[2] = {20, 10};
+    writer.declareAxis(AXIS_KIND_ENUM,
+                       0,
+                       selectedValueFirst ? valuesForward : valuesReverse,
+                       2);
+    const std::size_t bag = writer.addBag();
+    U32 axes[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(81, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
+    axes[0] = selectedValueFirst ? 1 : 2;
+    writer.addAsset(81, bag, ASSET_KIND_IMAGE, axes, kDark, sizeof(kDark));
+    return writer.build(kStamp, out);
+  }
+
   bool AssetEquals(const Asset &asset,
                    const unsigned char *expected,
                    std::size_t length)
@@ -142,6 +160,38 @@ namespace
     WriteU32BE(&bytes[kHeadPayloadOffset + headCrcField],
                Crc32::Of(&bytes[header], kChunkHeaderBytes + payloadSize));
     RestampHead(bytes);
+  }
+
+  void DuplicateFirstAssetRow(std::vector<unsigned char> &bytes)
+  {
+    std::size_t indexSize = 0;
+    const std::size_t indexHeader =
+        FindChunkHeader(bytes, FourCC('I', 'N', 'D', 'X'), indexSize);
+    const std::size_t indexPayload = indexHeader + kChunkHeaderBytes;
+    const std::size_t bagCount =
+        static_cast<std::size_t>(ReadU32BE(&bytes[indexPayload]));
+    const std::size_t rowsAt =
+        indexPayload + 8 + bagCount * kBagRowBytes;
+    std::vector<unsigned char> duplicate(
+        bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(rowsAt),
+        bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(rowsAt +
+                                                                                 kAssetRowBytes));
+    bytes.insert(bytes.begin() +
+                     static_cast<std::vector<unsigned char>::difference_type>(rowsAt +
+                                                                              kAssetRowBytes),
+                 duplicate.begin(),
+                 duplicate.end());
+    WriteU32BE(&bytes[indexHeader + 4],
+               static_cast<U32>(indexSize + kAssetRowBytes));
+    WriteU32BE(&bytes[indexPayload + 4],
+               ReadU32BE(&bytes[indexPayload + 4]) + 1);
+    WriteU32BE(&bytes[kHeadPayloadOffset + kHeadAssetCount],
+               ReadU32BE(&bytes[kHeadPayloadOffset + kHeadAssetCount]) + 1);
+    WriteU32BE(&bytes[4],
+               static_cast<U32>(bytes.size() - kFormHeaderBytes));
+    WriteU32BE(&bytes[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bytes.size()));
+    RestampChunk(bytes, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
   }
 
   void OpenOneBag(Reader &reader,
@@ -279,6 +329,10 @@ void testLrpkSelectsByPackagePrecedence()
   Facts absent;
   ExpectSelection(depthFirst, absent, kDefault, sizeof(kDefault));
 
+  Facts staleAbsent;
+  staleAbsent.value[kAxisScale] = 200;
+  ExpectSelection(depthFirst, staleAbsent, kDefault, sizeof(kDefault));
+
   // Scalar-only rows: ceiling tier, largest fallback, and the baseline.
   Facts scale250;
   scale250.present[kAxisScale] = true;
@@ -318,6 +372,26 @@ void testLrpkSelectsByPackagePrecedence()
     assert(AssetEquals(asset, k2x, sizeof(k2x)));
   }
 
+  // Enum facts carry declared vocabulary values, not their physical slots.
+  // Reordering the vocabulary must not change the meaning of a caller fact.
+  {
+    std::vector<unsigned char> selectedValueFirst;
+    std::vector<unsigned char> selectedValueSecond;
+    assert(BuildEnumVocabularyPackage(selectedValueFirst, true) == Writer::BUILD_OK);
+    assert(BuildEnumVocabularyPackage(selectedValueSecond, false) == Writer::BUILD_OK);
+    Facts declaredTen;
+    declaredTen.present[0] = true;
+    declaredTen.value[0] = 10;
+    Reader reader;
+    OpenOneBag(reader, selectedValueFirst);
+    Asset asset;
+    assert(reader.get(81, declaredTen, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDark, sizeof(kDark)));
+    OpenOneBag(reader, selectedValueSecond);
+    assert(reader.get(81, declaredTen, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDark, sizeof(kDark)));
+  }
+
   // Physical row order is not semantic. Exercise all 4! orders of this id's
   // representation run, re-stamp each chunk, and require the same answer.
   {
@@ -340,6 +414,18 @@ void testLrpkSelectsByPackagePrecedence()
       RestampChunk(permuted, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
       ExpectSelection(permuted, bw150, kBw, sizeof(kBw));
     } while (std::next_permutation(order, order + 4));
+  }
+
+  // A forged package can bypass lrpc's ambiguity wall. Byte-identical rows
+  // remain indistinguishable after Phase B and must be a typed refusal.
+  {
+    std::vector<unsigned char> duplicateRows(depthFirst);
+    DuplicateFirstAssetRow(duplicateRows);
+    Reader reader;
+    OpenOneBag(reader, duplicateRows);
+    Asset asset;
+    Facts noFacts;
+    assert(reader.get(42, noFacts, asset) == Reader::GET_NO_MATCHING_REP);
   }
 
   printf("==== [testLrpkSelectsByPackagePrecedence] end ====\n");

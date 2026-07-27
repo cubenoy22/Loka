@@ -31,8 +31,9 @@ namespace loka
           }
 
           bool present[kMaxAxes];
-          /** Enum axis: the declared value index, 1..15. Scalar axis: the
-              measured number itself, for example a scale percentage. */
+          /** Enum axis: the declared vocabulary value; the reader maps it to
+              the package's physical slot. Scalar axis: the measured number
+              itself, for example a scale percentage. */
           U32 value[kMaxAxes];
         };
 
@@ -224,7 +225,6 @@ namespace loka
                                  const U32 *scalarValues) const;
           U32 rowScalarValue(const unsigned char *row, std::size_t axis) const;
           static U32 RowAxisIndex(const unsigned char *row, std::size_t axis);
-          std::size_t rowWrittenAxisCount(const unsigned char *row) const;
 
           /** Everything parsing produces. Held as one value so a refused
               reload cannot leave the reader half-updated: `openBorrowedBytes`
