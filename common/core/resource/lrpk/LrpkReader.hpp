@@ -103,7 +103,10 @@ namespace loka
                 its symptom is silent
                 (#185 §10). */
             OPEN_ID_SPACE_MISMATCH,
-            OPEN_MALFORMED_INDEX
+            OPEN_MALFORMED_INDEX,
+            /** The borrowed base address cannot preserve the format's payload
+                alignment guarantee. */
+            OPEN_MISALIGNED_BUFFER
           };
 
           enum GetResult
@@ -146,7 +149,8 @@ namespace loka
               separate state which is committed only on `OPEN_OK`.
 
               @param bytes The whole package. **Borrowed** -- it must outlive
-                           this reader and every `Asset` obtained from it.
+                           this reader and every `Asset` obtained from it, and
+                           its address must be `kPayloadAlign`-aligned.
               @param integrityMode Whether CRC values are verified. The
                                    package always carries them and cannot
                                    disable its own inspection. */

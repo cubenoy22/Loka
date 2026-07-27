@@ -1324,3 +1324,121 @@ void testLrpkChecksTheChunkThatDecidesSelection()
 
   printf("==== [testLrpkChecksTheChunkThatDecidesSelection] end ====\n");
 }
+
+void testLrpkEnforcesPayloadAlignment()
+{
+  printf("\n==== [testLrpkEnforcesPayloadAlignment] start ====\n");
+
+  std::vector<unsigned char> good;
+  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+  assert(reinterpret_cast<std::size_t>(&good[0]) % kPayloadAlign == 0);
+
+  {
+    std::vector<unsigned char> shifted(good.size() + 1);
+    assert(reinterpret_cast<std::size_t>(&shifted[0]) % kPayloadAlign == 0);
+    std::copy(good.begin(), good.end(), shifted.begin() + 1);
+    Reader verified;
+    assert(verified.openBorrowedBytes(&shifted[1],
+                                      good.size(),
+                                      kStamp,
+                                      Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_MISALIGNED_BUFFER);
+    Reader unchecked;
+    assert(unchecked.openBorrowedBytes(&shifted[1],
+                                       good.size(),
+                                       kStamp,
+                                       Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MISALIGNED_BUFFER);
+  }
+
+  Writer writer;
+  const std::size_t bag = writer.addBag();
+  U32 plain[kMaxAxes] = {0, 0, 0, 0};
+  writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+  std::vector<unsigned char> single;
+  assert(writer.build(kStamp, single) == Writer::BUILD_OK);
+  std::size_t indexSize = 0;
+  const std::size_t indexAt =
+      FindChunkPayload(single, FourCC('I', 'N', 'D', 'X'), indexSize);
+
+  {
+    std::vector<unsigned char> oddBag(single);
+    const std::size_t stored =
+        static_cast<std::size_t>(ReadU32BE(&oddBag[indexAt + 8 + kBagStoredSize]));
+    assert(stored > 0);
+    std::size_t dataSize = 0;
+    const std::size_t dataAt =
+        FindChunkPayload(oddBag, FourCC('D', 'A', 'T', 'A'), dataSize);
+    assert(stored == dataSize);
+    WriteU32BE(&oddBag[indexAt + 8 + kBagDataOffset], 1);
+    WriteU32BE(&oddBag[indexAt + 8 + kBagStoredSize],
+               static_cast<U32>(stored - 1));
+    WriteU32BE(&oddBag[indexAt + 8 + kBagExpandedSize],
+               static_cast<U32>(stored - 1));
+    WriteU32BE(&oddBag[indexAt + 8 + kBagCrc],
+               Crc32::Of(&oddBag[dataAt + 1], stored - 1));
+    RestampChunk(oddBag, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+    ExpectOpenResultInBothModes(oddBag, Reader::OPEN_MALFORMED_INDEX);
+  }
+
+  {
+    std::vector<unsigned char> oddRow(single);
+    const std::size_t rowsAt = indexAt + 8 + kBagRowBytes;
+    WriteU32BE(&oddRow[rowsAt + kRowOffset], 1);
+    RestampChunk(oddRow, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+    ExpectOpenResultInBothModes(oddRow, Reader::OPEN_MALFORMED_INDEX);
+  }
+
+  Reader reader;
+  assert(reader.openBorrowedBytes(&good[0],
+                                  good.size(),
+                                  kStamp,
+                                  Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
+  assert(reader.openBag(0) == Reader::BAG_OK);
+  Facts cases[4];
+  cases[1].present[kAxisDepth] = true;
+  cases[1].value[kAxisDepth] = 1;
+  cases[2].present[kAxisScale] = true;
+  cases[2].value[kAxisScale] = 150;
+  cases[3].present[kAxisScale] = true;
+  cases[3].value[kAxisScale] = 250;
+  const unsigned char *expected[4] = {kDefault, kBw, k2x, k3x};
+  const std::size_t expectedLength[4] = {
+      sizeof(kDefault), sizeof(kBw), sizeof(k2x), sizeof(k3x)};
+  for (std::size_t i = 0; i < 4; ++i)
+  {
+    Asset asset;
+    assert(reader.get(42, cases[i], asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, expected[i], expectedLength[i]));
+    assert(reinterpret_cast<std::size_t>(asset.bytes) % kPayloadAlign == 0);
+  }
+  Asset file;
+  assert(reader.get(43, cases[0], file) == Reader::GET_OK);
+  assert(AssetEquals(file, kFile, sizeof(kFile)));
+  assert(reinterpret_cast<std::size_t>(file.bytes) % kPayloadAlign == 0);
+
+  printf("==== [testLrpkEnforcesPayloadAlignment] end ====\n");
+}
+
+void testLrpcPreservesNullPayloadFailure()
+{
+  printf("\n==== [testLrpcPreservesNullPayloadFailure] start ====\n");
+
+  U32 plain[kMaxAxes] = {0, 0, 0, 0};
+  {
+    Writer writer;
+    const std::size_t bag = writer.addBag();
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, 0, 1);
+    std::vector<unsigned char> out;
+    assert(writer.build(kStamp, out) == Writer::BUILD_NULL_PAYLOAD);
+  }
+  {
+    Writer writer;
+    const std::size_t bag = writer.addBag();
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, 0, 0);
+    std::vector<unsigned char> out;
+    assert(writer.build(kStamp, out) == Writer::BUILD_OK);
+  }
+
+  printf("==== [testLrpcPreservesNullPayloadFailure] end ====\n");
+}

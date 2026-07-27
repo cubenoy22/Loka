@@ -98,6 +98,7 @@ namespace loka
       row.id = id;
       row.bag = bag;
       row.kind = kind;
+      row.nullPayload = bytes == 0 && length > 0;
       for (std::size_t a = 0; a < kMaxAxes; ++a)
       {
         // Retain every caller-supplied slot. A non-zero value in a slot the
@@ -200,6 +201,10 @@ namespace loka
       std::vector<U32> packed(rows_.size(), 0);
       for (std::size_t i = 0; i < rows_.size(); ++i)
       {
+        if (rows_[i].nullPayload)
+        {
+          return BUILD_NULL_PAYLOAD;
+        }
         if (rows_[i].kind != ASSET_KIND_UNKNOWN &&
             rows_[i].kind != ASSET_KIND_IMAGE &&
             rows_[i].kind != ASSET_KIND_STRING &&

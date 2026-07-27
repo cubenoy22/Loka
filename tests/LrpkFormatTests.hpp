@@ -12,5 +12,7 @@ void testLrpkRefusesForgedCountsAndUnsortedRows();
 void testLrpcValidatesBeforeItPacks();
 void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused();
 void testLrpkChecksTheChunkThatDecidesSelection();
+void testLrpkEnforcesPayloadAlignment();
+void testLrpcPreservesNullPayloadFailure();
 
 #endif // LOKA_LRPK_FORMAT_TESTS_HPP

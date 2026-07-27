@@ -45,6 +45,10 @@ namespace loka
           {
             return OPEN_NOT_A_PACKAGE;
           }
+          if (reinterpret_cast<std::size_t>(bytes) % kPayloadAlign != 0)
+          {
+            return OPEN_MISALIGNED_BUFFER;
+          }
           if (!SizeFitsU32(size))
           {
             return OPEN_SIZE_OUT_OF_RANGE;
@@ -147,6 +151,10 @@ namespace loka
             else if (tag == FourCC('D', 'A', 'T', 'A'))
             {
               if (dataChunk)
+              {
+                return OPEN_MALFORMED_INDEX;
+              }
+              if (payloadAt % kPayloadAlign != 0)
               {
                 return OPEN_MALFORMED_INDEX;
               }
@@ -277,7 +285,8 @@ namespace loka
             bag.open = false;
             const std::size_t offset = static_cast<std::size_t>(bag.dataOffset);
             const std::size_t stored = static_cast<std::size_t>(bag.storedSize);
-            if (!ExtentFits(next.dataPayloadSize, offset, stored) ||
+            if (offset % kPayloadAlign != 0 ||
+                !ExtentFits(next.dataPayloadSize, offset, stored) ||
                 (bag.codec == CODEC_NONE && bag.expandedSize != bag.storedSize))
             {
               return OPEN_MALFORMED_INDEX;
@@ -340,7 +349,8 @@ namespace loka
                 static_cast<std::size_t>(ReadU32BE(row + kRowOffset));
             const std::size_t length =
                 static_cast<std::size_t>(ReadU32BE(row + kRowLength));
-            if (!ExtentFits(static_cast<std::size_t>(next.bags[bagIndex].expandedSize),
+            if (offset % kPayloadAlign != 0 ||
+                !ExtentFits(static_cast<std::size_t>(next.bags[bagIndex].expandedSize),
                             offset,
                             length))
             {

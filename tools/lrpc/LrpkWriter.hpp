@@ -55,7 +55,9 @@ namespace loka
         BUILD_AXIS_VALUE_OUT_OF_RANGE,
         /** A host-side size or U32 API value cannot be represented in a
             32-bit on-disk field. */
-        BUILD_SIZE_OUT_OF_RANGE
+        BUILD_SIZE_OUT_OF_RANGE,
+        /** A non-empty asset was supplied without payload bytes. */
+        BUILD_NULL_PAYLOAD
       };
 
       Writer();
@@ -76,7 +78,8 @@ namespace loka
       std::size_t addBag();
 
       /** `axisValueIndex` holds one 1-based index per declared axis, or 0 for
-          "this row does not write that axis". */
+          "this row does not write that axis". `bytes` may be null only when
+          `length` is zero. */
       void addAsset(core::resource::lrpk::U32 id,
                     std::size_t bag,
                     core::resource::lrpk::AssetKind kind,
@@ -110,6 +113,7 @@ namespace loka
             : id(0),
               bag(0),
               kind(core::resource::lrpk::ASSET_KIND_UNKNOWN),
+              nullPayload(false),
               bytes()
         {
           for (std::size_t i = 0; i < core::resource::lrpk::kMaxAxes; ++i)
@@ -121,6 +125,8 @@ namespace loka
         core::resource::lrpk::U32 id;
         std::size_t bag;
         core::resource::lrpk::AssetKind kind;
+        /** Preserves the invalid null/non-empty input until build reports it. */
+        bool nullPayload;
         /** Raw, unmasked indices as the caller supplied them. Packing into
             the 16-bit field happens in build(), after validation: masking on
             the way in turned an out-of-range 16 into 0, which reads as "this
