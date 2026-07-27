@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-headless:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: cmake --preset testing
+      - run: cmake --build --preset testing
+      - run: ctest --preset testing --output-on-failure
+
+  linux-asan:
+    runs-on: ubuntu-latest
+    env:
+      ASAN_OPTIONS: detect_leaks=1
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - run: cmake --preset testing-asan
+      - run: cmake --build --preset testing-asan
+      - run: ctest --preset testing-asan --output-on-failure
+
+  win32:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+      - name: Verify Ninja
+        run: ninja --version
+      - run: cmake --preset win32-debug
+      - run: cmake --build --preset win32-tests
+      # Hosted CI does not cover the local rig's ARM64 build or ACP=932
+      # full-width-path behavior; those remain manually verified per #172.
+      - run: build/win32/Debug/example/HelloWorld/LokaTestsWin32.exe
