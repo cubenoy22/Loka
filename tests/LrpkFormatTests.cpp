@@ -21,6 +21,7 @@ namespace
 
   const unsigned char kDefault[] = {'D', 'E', 'F', 'A', 'U', 'L', 'T'};
   const unsigned char kBw[] = {'B', 'W'};
+  const unsigned char kFourBit[] = {'F', 'O', 'U', 'R', 'B', 'I', 'T'};
   const unsigned char k2x[] = {'T', 'W', 'O', 'X'};
   const unsigned char k3x[] = {'T', 'H', 'R', 'E', 'E', 'X'};
   const unsigned char kDark[] = {'D', 'A', 'R', 'K'};
@@ -461,6 +462,43 @@ void testLrpkSelectsByPackagePrecedence()
     OpenOneBag(reader, selectedValueSecond);
     assert(reader.get(81, declaredTen, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDark, sizeof(kDark)));
+  }
+  {
+    // Two written slots in one package pin value-to-slot correspondence.
+    Writer writer;
+    const U32 depthValues[2] = {1, 4};
+    writer.declareAxis(AXIS_KIND_ENUM, 0, depthValues, 2);
+    const std::size_t bag = writer.addBag();
+    U32 axes[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(82, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
+    axes[kAxisDepth] = 1;
+    writer.addAsset(82, bag, ASSET_KIND_IMAGE, axes, kBw, sizeof(kBw));
+    axes[kAxisDepth] = 2;
+    writer.addAsset(82, bag, ASSET_KIND_IMAGE, axes, kFourBit, sizeof(kFourBit));
+    std::vector<unsigned char> package;
+    assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+
+    Reader reader;
+    OpenOneBag(reader, package);
+    Asset asset;
+    Facts depth1;
+    depth1.present[kAxisDepth] = true;
+    depth1.value[kAxisDepth] = 1;
+    assert(reader.get(82, depth1, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kBw, sizeof(kBw)));
+    Facts depth4;
+    depth4.present[kAxisDepth] = true;
+    depth4.value[kAxisDepth] = 4;
+    assert(reader.get(82, depth4, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kFourBit, sizeof(kFourBit)));
+    Facts depth2;
+    depth2.present[kAxisDepth] = true;
+    depth2.value[kAxisDepth] = 2;
+    assert(reader.get(82, depth2, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
+    Facts absent;
+    assert(reader.get(82, absent, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
   }
 
   // Physical row order is not semantic. Exercise all 4! orders of this id's
@@ -967,6 +1005,16 @@ void testLrpcValidatesBeforeItPacks()
   }
   {
     Writer writer;
+    AssetKind invalidKind = ASSET_KIND_UNKNOWN;
+    const int invalidKindBits = 255;
+    assert(sizeof(invalidKind) == sizeof(invalidKindBits));
+    std::memcpy(&invalidKind, &invalidKindBits, sizeof(invalidKind));
+    const std::size_t bag = writer.addBag();
+    writer.addAsset(7, bag, invalidKind, plain, kDefault, sizeof(kDefault));
+    assert(writer.build(kStamp, out) == Writer::BUILD_BAD_ASSET_KIND);
+  }
+  {
+    Writer writer;
     const U32 one[1] = {1};
     for (std::size_t i = 0; i < kMaxAxes + 1; ++i)
     {
@@ -1160,6 +1208,24 @@ void testLrpkChecksTheChunkThatDecidesSelection()
         axesAt + 4 + kAxisEntryBytes;
     WriteU16BE(&bad[scalar + kAxisValues], 300);
     WriteU16BE(&bad[scalar + kAxisValues + 2], 200);
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    // Forge an unused scalar vocabulary entry to the baseline. AXES is
+    // structurally malformed even when no row later exposes the collision.
+    Writer writer;
+    const U32 scale[1] = {200};
+    writer.declareAxis(AXIS_KIND_SCALAR, 100, scale, 1);
+    const std::size_t bag = writer.addBag();
+    U32 plain[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    std::vector<unsigned char> bad;
+    assert(writer.build(kStamp, bad) == Writer::BUILD_OK);
+    std::size_t axesPayloadSize = 0;
+    const std::size_t axesPayload =
+        FindChunkPayload(bad, FourCC('A', 'X', 'E', 'S'), axesPayloadSize);
+    WriteU16BE(&bad[axesPayload + 4 + kAxisValues], 100);
     RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
     ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
   }

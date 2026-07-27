@@ -200,6 +200,13 @@ namespace loka
       std::vector<U32> packed(rows_.size(), 0);
       for (std::size_t i = 0; i < rows_.size(); ++i)
       {
+        if (rows_[i].kind != ASSET_KIND_UNKNOWN &&
+            rows_[i].kind != ASSET_KIND_IMAGE &&
+            rows_[i].kind != ASSET_KIND_STRING &&
+            rows_[i].kind != ASSET_KIND_AUDIO)
+        {
+          return BUILD_BAD_ASSET_KIND;
+        }
         if (!U32ValueFits(rows_[i].id))
         {
           return BUILD_SIZE_OUT_OF_RANGE;

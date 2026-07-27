@@ -38,6 +38,8 @@ namespace loka
         BUILD_TOO_MANY_BAGS,
         BUILD_BAD_AXIS_REFERENCE,
         BUILD_BAD_AXIS_KIND,
+        /** A row carries an `AssetKind` outside the format's closed set. */
+        BUILD_BAD_ASSET_KIND,
         BUILD_BAD_AXIS_VOCABULARY,
         /** The package policy is not an exact permutation of every declared
             axis. Required for two or more axes; normalized for zero or one. */

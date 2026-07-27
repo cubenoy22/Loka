@@ -228,6 +228,11 @@ namespace loka
               {
                 return OPEN_MALFORMED_INDEX;
               }
+              if (axis.kind == AXIS_KIND_SCALAR &&
+                  axis.values[v] == axis.baseline)
+              {
+                return OPEN_MALFORMED_INDEX;
+              }
             }
           }
 
