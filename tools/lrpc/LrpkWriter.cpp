@@ -1,5 +1,7 @@
 #include "lrpc/LrpkWriter.hpp"
 
+#include <algorithm>
+
 namespace loka
 {
   namespace lrpc
@@ -51,6 +53,38 @@ namespace loka
         WriteU32BE(header + 4, static_cast<U32>(payloadSize));
         return Crc32::Of(header, kChunkHeaderBytes);
       }
+
+      struct CanonicalRow
+      {
+        CanonicalRow(std::size_t rowIndex, U32 rowId, U32 rowAxes, std::size_t rowBag)
+            : index(rowIndex),
+              id(rowId),
+              axes(rowAxes),
+              bag(rowBag)
+        {
+        }
+
+        std::size_t index;
+        U32 id;
+        U32 axes;
+        std::size_t bag;
+      };
+
+      struct CanonicalRowLess
+      {
+        bool operator()(const CanonicalRow &left, const CanonicalRow &right) const
+        {
+          if (left.id != right.id)
+          {
+            return left.id < right.id;
+          }
+          if (left.axes != right.axes)
+          {
+            return left.axes < right.axes;
+          }
+          return left.bag < right.bag;
+        }
+      };
     } // namespace
 
     Writer::Writer()
@@ -197,7 +231,8 @@ namespace loka
         }
       }
 
-      std::vector<std::size_t> order;
+      std::vector<CanonicalRow> canonicalRows;
+      canonicalRows.reserve(rows_.size());
       std::vector<U32> packed(rows_.size(), 0);
       for (std::size_t i = 0; i < rows_.size(); ++i)
       {
@@ -244,89 +279,61 @@ namespace loka
             packed[i] |= (rows_[i].axisIndex[a] & 0xFUL) << (4 * a);
           }
         }
-        order.push_back(i);
+        canonicalRows.push_back(CanonicalRow(i, rows_[i].id, packed[i], rows_[i].bag));
       }
 
       // Canonical bytes are sorted by id, then encoded axes, then bag.
-      for (std::size_t i = 0; i + 1 < order.size(); ++i)
+      std::sort(canonicalRows.begin(), canonicalRows.end(), CanonicalRowLess());
+      std::vector<std::size_t> order;
+      order.reserve(canonicalRows.size());
+      for (std::size_t i = 0; i < canonicalRows.size(); ++i)
       {
-        std::size_t best = i;
-        for (std::size_t j = i + 1; j < order.size(); ++j)
-        {
-          const Row &candidate = rows_[order[j]];
-          const Row &current = rows_[order[best]];
-          const U32 candidateAxes = packed[order[j]];
-          const U32 currentAxes = packed[order[best]];
-          if (candidate.id < current.id ||
-              (candidate.id == current.id &&
-               (candidateAxes < currentAxes ||
-                (candidateAxes == currentAxes && candidate.bag < current.bag))))
-          {
-            best = j;
-          }
-        }
-        const std::size_t swap = order[i];
-        order[i] = order[best];
-        order[best] = swap;
+        order.push_back(canonicalRows[i].index);
       }
 
-      // A pair with equal effective values on every selector axis can only be
-      // distinguished by row order, which is forbidden. This deliberately
-      // compares selector meaning rather than packed representation.
-      for (std::size_t i = 0; i < order.size(); ++i)
+      // Vocabulary validation makes packed-axis equality equivalent to equal
+      // selector meaning: enum indices are the meaning, while scalar values
+      // are unique and may not repeat the baseline. Thus ambiguous same-bag
+      // pairs are adjacent after the canonical sort. Equal sort keys are
+      // exactly these invalid pairs, so std::sort instability cannot affect a
+      // successful build and either relative order reaches this refusal.
+      for (std::size_t i = 1; i < canonicalRows.size(); ++i)
       {
-        for (std::size_t j = i + 1; j < order.size(); ++j)
+        if (canonicalRows[i - 1].id == canonicalRows[i].id &&
+            canonicalRows[i - 1].axes == canonicalRows[i].axes &&
+            canonicalRows[i - 1].bag == canonicalRows[i].bag)
         {
-          const Row &a = rows_[order[i]];
-          const Row &b = rows_[order[j]];
-          if (a.id != b.id || a.bag != b.bag)
-          {
-            continue;
-          }
-          bool same = true;
-          for (std::size_t axis = 0; axis < axes_.size(); ++axis)
-          {
-            const U32 ai = a.axisIndex[axis];
-            const U32 bi = b.axisIndex[axis];
-            if (axes_[axis].kind == AXIS_KIND_ENUM)
-            {
-              same = same && ai == bi;
-            }
-            else
-            {
-              const U32 av = ai == 0 ? axes_[axis].baseline
-                                     : axes_[axis].values[static_cast<std::size_t>(ai - 1)];
-              const U32 bv = bi == 0 ? axes_[axis].baseline
-                                     : axes_[axis].values[static_cast<std::size_t>(bi - 1)];
-              same = same && av == bv;
-            }
-          }
-          if (same)
-          {
-            return BUILD_SELECTOR_AMBIGUOUS;
-          }
+          return BUILD_SELECTOR_AMBIGUOUS;
         }
       }
 
       // Every (id, bag) needs an axis-free row so Phase A always has a
-      // fallback when the bag is open.
-      for (std::size_t i = 0; i < order.size(); ++i)
+      // fallback when the bag is open. Canonical order makes each id a run;
+      // fixed-size bag state keeps all of its (id, bag) checks in one pass.
+      for (std::size_t groupStart = 0; groupStart < canonicalRows.size();)
       {
-        const U32 id = rows_[order[i]].id;
-        const std::size_t bag = rows_[order[i]].bag;
-        bool hasDefault = false;
-        for (std::size_t j = 0; j < order.size(); ++j)
+        bool seenBag[kMaxBags] = {false};
+        bool hasDefault[kMaxBags] = {false};
+        std::size_t groupEnd = groupStart;
+        while (groupEnd < canonicalRows.size() &&
+               canonicalRows[groupEnd].id == canonicalRows[groupStart].id)
         {
-          if (rows_[order[j]].id == id && rows_[order[j]].bag == bag && packed[order[j]] == 0)
+          const std::size_t bag = canonicalRows[groupEnd].bag;
+          seenBag[bag] = true;
+          if (canonicalRows[groupEnd].axes == 0)
           {
-            hasDefault = true;
-            break;
+            hasDefault[bag] = true;
+          }
+          ++groupEnd;
+        }
+        for (std::size_t bag = 0; bag < bagCount_; ++bag)
+        {
+          if (seenBag[bag] && !hasDefault[bag])
+          {
+            return BUILD_ASSET_WITHOUT_DEFAULT_ROW;
           }
         }
-        if (!hasDefault)
-        {
-          return BUILD_ASSET_WITHOUT_DEFAULT_ROW;
-        }
+        groupStart = groupEnd;
       }
 
       for (std::size_t i = 0; i + 1 < order.size(); ++i)

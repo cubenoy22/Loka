@@ -1442,3 +1442,87 @@ void testLrpcPreservesNullPayloadFailure()
 
   printf("==== [testLrpcPreservesNullPayloadFailure] end ====\n");
 }
+
+void testLrpcCanonicalBuildBytesStayStable()
+{
+  printf("\n==== [testLrpcCanonicalBuildBytesStayStable] start ====\n");
+
+  Writer writer;
+  const U32 appearances[2] = {10, 20};
+  const U32 scales[2] = {200, 300};
+  writer.declareAxis(AXIS_KIND_ENUM, 0, appearances, 2);
+  writer.declareAxis(AXIS_KIND_SCALAR, 100, scales, 2);
+  const std::size_t precedence[2] = {1, 0};
+  writer.setRepresentationPrecedence(precedence, 2);
+  const std::size_t bag0 = writer.addBag();
+  const std::size_t bag1 = writer.addBag();
+
+  const U32 plain[kMaxAxes] = {0, 0, 0, 0};
+  const U32 appearance2[kMaxAxes] = {2, 0, 0, 0};
+  const U32 appearance1Scale2[kMaxAxes] = {1, 2, 0, 0};
+  const U32 scale1[kMaxAxes] = {0, 1, 0, 0};
+  const U32 scale2[kMaxAxes] = {0, 2, 0, 0};
+  const unsigned char id200Bag1Default[] = "id200-b1-default";
+  const unsigned char id100Bag0Appearance2[] = "id100-b0-appearance2";
+  const unsigned char id100Bag1Scale2[] = "id100-b1-scale2";
+  const unsigned char id100Bag0Default[] = "id100-b0-default";
+  const unsigned char id300Bag0Default[] = "id300-b0-default";
+  const unsigned char id100Bag1Default[] = "id100-b1-default";
+  const unsigned char id100Bag0Appearance1Scale2[] =
+      "id100-b0-appearance1-scale2";
+  const unsigned char id200Bag1Scale1[] = "id200-b1-scale1";
+
+  // Scrambled insertion plus the same id in both bags pins the specified
+  // id/axes/bag order, DATA layout, every embedded CRC, and final padding.
+  writer.addAsset(200, bag1, ASSET_KIND_IMAGE, plain,
+                  id200Bag1Default, sizeof(id200Bag1Default) - 1);
+  writer.addAsset(100, bag0, ASSET_KIND_IMAGE, appearance2,
+                  id100Bag0Appearance2, sizeof(id100Bag0Appearance2) - 1);
+  writer.addAsset(100, bag1, ASSET_KIND_IMAGE, scale2,
+                  id100Bag1Scale2, sizeof(id100Bag1Scale2) - 1);
+  writer.addAsset(100, bag0, ASSET_KIND_IMAGE, plain,
+                  id100Bag0Default, sizeof(id100Bag0Default) - 1);
+  writer.addAsset(300, bag0, ASSET_KIND_IMAGE, plain,
+                  id300Bag0Default, sizeof(id300Bag0Default) - 1);
+  writer.addAsset(100, bag1, ASSET_KIND_IMAGE, plain,
+                  id100Bag1Default, sizeof(id100Bag1Default) - 1);
+  writer.addAsset(100, bag0, ASSET_KIND_IMAGE, appearance1Scale2,
+                  id100Bag0Appearance1Scale2,
+                  sizeof(id100Bag0Appearance1Scale2) - 1);
+  writer.addAsset(200, bag1, ASSET_KIND_IMAGE, scale1,
+                  id200Bag1Scale1, sizeof(id200Bag1Scale1) - 1);
+
+  std::vector<unsigned char> package;
+  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+  assert(package.size() == 940);
+  assert(Crc32::Of(&package[0], package.size()) == 0xB0EE89E7UL);
+
+  printf("==== [testLrpcCanonicalBuildBytesStayStable] end ====\n");
+}
+
+void testLrpcBuildHandlesFiftyThousandAssets()
+{
+  printf("\n==== [testLrpcBuildHandlesFiftyThousandAssets] start ====\n");
+
+  Writer writer;
+  const std::size_t bag = writer.addBag();
+  const U32 plain[kMaxAxes] = {0, 0, 0, 0};
+  const unsigned char payload = 0x5A;
+  const std::size_t assetCount = 50000;
+  for (std::size_t i = 0; i < assetCount; ++i)
+  {
+    writer.addAsset(static_cast<U32>(assetCount - i),
+                    bag,
+                    ASSET_KIND_IMAGE,
+                    plain,
+                    &payload,
+                    1);
+  }
+
+  std::vector<unsigned char> package;
+  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+  assert(ReadU32BE(&package[kHeadPayloadOffset + kHeadAssetCount]) ==
+         static_cast<U32>(assetCount));
+
+  printf("==== [testLrpcBuildHandlesFiftyThousandAssets] end ====\n");
+}
