@@ -193,6 +193,19 @@ namespace loka
           return highWord == 0 && lowWord <= kU32Mask;
         }
 
+        /** True when a value held in the Classic-compatible U32 host type can
+            be serialized without narrowing. `unsigned long` is wider than the
+            format field on LP64 pack hosts. */
+        inline bool U32ValueFits(U32 value)
+        {
+          U32 remaining = value;
+          for (std::size_t byte = 0; byte < 4; ++byte)
+          {
+            remaining >>= 8;
+          }
+          return remaining == 0;
+        }
+
         /** True when a host size can be represented without narrowing in a
             32-bit on-disk field. Bytewise splitting avoids assuming that the
             host's size_t is itself wider than 16 bits. */

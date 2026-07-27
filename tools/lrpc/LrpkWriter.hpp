@@ -42,17 +42,17 @@ namespace loka
         /** The package policy is not an exact permutation of every declared
             axis. Required for two or more axes; normalized for zero or one. */
         BUILD_BAD_PRECEDENCE,
-        /** A scalar row writes the baseline explicitly even though omission
-            already has exactly that meaning. */
-        BUILD_SCALAR_BASELINE_EXPLICIT,
         /** Two rows cannot be distinguished by the selector after all phases.
-            Physical row order is never a winner rule. */
+            Physical row order is never a winner rule. This build-time wall is
+            same-bag only; the reader completes it across bags by refusing an
+            overlapping second `openBag()` as `BAG_ASSET_ID_CONFLICT`. */
         BUILD_SELECTOR_AMBIGUOUS,
         /** A declared axis value does not fit the 16-bit encoded field.
             Silently truncating would let 65536 become 0 and select the
             wrong representation from a package that built cleanly. */
         BUILD_AXIS_VALUE_OUT_OF_RANGE,
-        /** A host-side size cannot be represented in a 32-bit on-disk field. */
+        /** A host-side size or U32 API value cannot be represented in a
+            32-bit on-disk field. */
         BUILD_SIZE_OUT_OF_RANGE
       };
 

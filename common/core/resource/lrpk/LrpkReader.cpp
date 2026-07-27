@@ -93,10 +93,6 @@ namespace loka
               static_cast<std::size_t>(ReadU32BE(head + kHeadAssetCount));
           const std::size_t declaredBags =
               static_cast<std::size_t>(ReadU32BE(head + kHeadBagCount));
-          if (declaredBags > kMaxBags)
-          {
-            return OPEN_MALFORMED_INDEX;
-          }
 
           const unsigned char *axesChunk = 0;
           const unsigned char *axesPayload = 0;
@@ -295,6 +291,11 @@ namespace loka
             }
             const std::size_t bagIndex = static_cast<std::size_t>(row[kRowBag]);
             if (bagIndex >= next.bagCount)
+            {
+              return OPEN_MALFORMED_INDEX;
+            }
+            if (row[kRowKind] >
+                static_cast<unsigned char>(ASSET_KIND_AUDIO))
             {
               return OPEN_MALFORMED_INDEX;
             }

@@ -13,8 +13,8 @@ namespace loka
     {
       namespace lrpk
       {
-        /** What the destination context can answer about itself, in the form
-            the row encoding uses. One entry per declared axis.
+        /** What the destination context can answer about itself. One entry per
+            declared axis.
             `present[a] == false` means the target cannot answer that axis at
             all, which is not the same as any value it could hold — a row that
             writes an axis the target cannot answer is dropped rather than
@@ -115,10 +115,11 @@ namespace loka
                 a different failure and must not be shown as the same one
                 (#185 §14). */
             GET_BAG_NOT_OPEN,
-            /** No row survived selection. Well-formed packages cannot reach
-                this: `lrpc` fails the build for an asset with no axis-free
-                default row. Kept because a reader may not assume its input is
-                well formed. */
+            /** Selection did not end with exactly one row. Well-formed
+                packages cannot reach this: `lrpc` requires an axis-free
+                default and refuses same-bag ambiguity, while `openBag()`
+                refuses cross-bag overlap. Kept because a reader may not
+                assume its input is well formed. */
             GET_NO_MATCHING_REP
           };
 

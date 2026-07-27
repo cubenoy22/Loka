@@ -194,6 +194,73 @@ namespace
     RestampChunk(bytes, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
   }
 
+  void AppendUnindexedDataWord(std::vector<unsigned char> &bytes)
+  {
+    std::size_t dataSize = 0;
+    const std::size_t dataHeader =
+        FindChunkHeader(bytes, FourCC('D', 'A', 'T', 'A'), dataSize);
+    assert(dataHeader + kChunkHeaderBytes +
+               AlignUp(dataSize, kPayloadAlign) ==
+           bytes.size());
+    bytes.push_back(0);
+    bytes.push_back(0);
+    bytes.push_back(0);
+    bytes.push_back(0);
+    WriteU32BE(&bytes[dataHeader + 4],
+               static_cast<U32>(dataSize + kPayloadAlign));
+    WriteU32BE(&bytes[4],
+               static_cast<U32>(bytes.size() - kFormHeaderBytes));
+    WriteU32BE(&bytes[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bytes.size()));
+    // Deliberately leave kHeadDataHeaderCrc stale. This is the multi-bit
+    // corruption shape that remains structurally well formed.
+    RestampHead(bytes);
+  }
+
+  void InsertEmptyBagRows(std::vector<unsigned char> &bytes,
+                          std::size_t additionalBags)
+  {
+    std::size_t indexSize = 0;
+    const std::size_t indexHeader =
+        FindChunkHeader(bytes, FourCC('I', 'N', 'D', 'X'), indexSize);
+    const std::size_t indexPayload = indexHeader + kChunkHeaderBytes;
+    const std::size_t oldBagCount =
+        static_cast<std::size_t>(ReadU32BE(&bytes[indexPayload]));
+    const std::size_t rowsAt =
+        indexPayload + 8 + oldBagCount * kBagRowBytes;
+    std::vector<unsigned char> emptyRows(additionalBags * kBagRowBytes, 0);
+    bytes.insert(bytes.begin() +
+                     static_cast<std::vector<unsigned char>::difference_type>(rowsAt),
+                 emptyRows.begin(),
+                 emptyRows.end());
+    const std::size_t newBagCount = oldBagCount + additionalBags;
+    WriteU32BE(&bytes[indexHeader + 4],
+               static_cast<U32>(indexSize + emptyRows.size()));
+    WriteU32BE(&bytes[indexPayload], static_cast<U32>(newBagCount));
+    WriteU32BE(&bytes[kHeadPayloadOffset + kHeadBagCount],
+               static_cast<U32>(newBagCount));
+    WriteU32BE(&bytes[4],
+               static_cast<U32>(bytes.size() - kFormHeaderBytes));
+    WriteU32BE(&bytes[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bytes.size()));
+    RestampChunk(bytes, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+  }
+
+  void ExpectOpenResultInBothModes(const std::vector<unsigned char> &package,
+                                   Reader::OpenResult expected)
+  {
+    Reader verified;
+    assert(verified.openBorrowedBytes(&package[0],
+                                      package.size(),
+                                      kStamp,
+                                      Reader::VERIFY_INTEGRITY) == expected);
+    Reader unchecked;
+    assert(unchecked.openBorrowedBytes(&package[0],
+                                       package.size(),
+                                       kStamp,
+                                       Reader::SKIP_INTEGRITY) == expected);
+  }
+
   void OpenOneBag(Reader &reader,
                   const std::vector<unsigned char> &package)
   {
@@ -307,7 +374,8 @@ void testLrpkSelectsByPackagePrecedence()
   ExpectSelection(depthFirst, bw150, kBw, sizeof(kBw));
   ExpectSelection(scaleFirst, bw150, k2x, sizeof(k2x));
 
-  // depth=4 removes @bw during eligibility before precedence runs.
+  // The declared depth vocabulary is {1}; depth=4 is a genuine non-member
+  // value and removes @bw during eligibility before precedence runs.
   Facts depth4Scale150;
   depth4Scale150.present[kAxisDepth] = true;
   depth4Scale150.value[kAxisDepth] = 4;
@@ -331,6 +399,8 @@ void testLrpkSelectsByPackagePrecedence()
 
   Facts staleAbsent;
   staleAbsent.value[kAxisScale] = 200;
+  // Presence is authoritative: stale storage must not resurrect a row that
+  // writes the absent scalar axis.
   ExpectSelection(depthFirst, staleAbsent, kDefault, sizeof(kDefault));
 
   // Scalar-only rows: ceiling tier, largest fallback, and the baseline.
@@ -479,6 +549,28 @@ void testLrpkRefusesEveryCheckValueFailure()
     assert(reader.openBag(0) == Reader::BAG_CONTENTS_CORRUPT);
   }
   {
+    std::vector<unsigned char> badHeader(good);
+    AppendUnindexedDataWord(badHeader);
+    assert(reader.openBorrowedBytes(&badHeader[0],
+                                    badHeader.size(),
+                                    kStamp,
+                                    Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_INDEX_CORRUPT);
+    assert(reader.openBorrowedBytes(&badHeader[0],
+                                    badHeader.size(),
+                                    kStamp,
+                                    Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_OK);
+  }
+  {
+    std::vector<unsigned char> unsupported(good);
+    WriteU32BE(&unsupported[kHeadPayloadOffset + kHeadVersion],
+               kFormatVersion + 1);
+    RestampHead(unsupported);
+    ExpectOpenResultInBothModes(unsupported,
+                                Reader::OPEN_UNSUPPORTED_VERSION);
+  }
+  {
     std::vector<unsigned char> junk(kFixedHeadBytes, 0);
     assert(reader.openBorrowedBytes(&junk[0],
                                     junk.size(),
@@ -517,6 +609,26 @@ void testLrpkOpenControlsIntegrityVerification()
                                       kStamp + 1,
                                       Reader::SKIP_INTEGRITY) ==
          Reader::OPEN_ID_SPACE_MISMATCH);
+
+  {
+    std::vector<unsigned char> unsupportedCodec(package);
+    std::size_t indexSize = 0;
+    const std::size_t indexAt =
+        FindChunkPayload(unsupportedCodec, FourCC('I', 'N', 'D', 'X'), indexSize);
+    unsupportedCodec[indexAt + 8 + kBagCodec] =
+        static_cast<unsigned char>(CODEC_RLE);
+    RestampChunk(unsupportedCodec, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+    Reader reader;
+    assert(reader.openBorrowedBytes(&unsupportedCodec[0],
+                                    unsupportedCodec.size(),
+                                    kStamp,
+                                    Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_OK);
+    assert(reader.openBag(0) == Reader::BAG_UNSUPPORTED_CODEC);
+  }
+
+  Reader noBag;
+  assert(noBag.openBag(0) == Reader::BAG_NO_SUCH_BAG);
 
   printf("==== [testLrpkOpenControlsIntegrityVerification] end ====\n");
 }
@@ -564,6 +676,11 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
            Reader::OPEN_OK);
     assert(reader.openBag(ja) == Reader::BAG_OK);
     assert(reader.openBag(en) == Reader::BAG_ASSET_ID_CONFLICT);
+    assert(!reader.isBagOpen(en));
+    Facts facts;
+    Asset asset;
+    assert(reader.get(100, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kFile, sizeof(kFile)));
   }
 
   printf("==== [testLrpcRefusesPackagesThatWouldMakeSelectionPartial] end ====\n");
@@ -619,10 +736,8 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     writer.declareAxis(AXIS_KIND_SCALAR, 100, scale, 1);
     const std::size_t bag = writer.addBag();
     writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    U32 explicitBaseline[kMaxAxes] = {1, 0, 0, 0};
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, explicitBaseline, k2x, sizeof(k2x));
     assert(writer.build(kStamp, out) ==
-           Writer::BUILD_SCALAR_BASELINE_EXPLICIT);
+           Writer::BUILD_BAD_AXIS_VOCABULARY);
   }
 
   // Two or more axes require an exact package policy permutation.
@@ -718,12 +833,34 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
     assert(!ExtentFits(100, maximum, 2));
     assert(!ProductFits(100, (maximum / 16) + 1, 16));
 
-    // Pin the narrowing rule as two exact U32 words. This is independent of
-    // host word size; it does not claim that a 64-bit run exercised a 32-bit
-    // size_t implementation.
+    // Pin the word-level rule on every host and the actual host-size gate
+    // whenever size_t can represent the negative case.
     assert(U32WordsFit(0, kU32Mask));
     assert(!U32WordsFit(1, 0));
+    assert(U32ValueFits(kU32Mask));
     assert(SizeFitsU32(65535));
+    if (sizeof(U32) > 4)
+    {
+      U32 tooLargeU32 = kU32Mask;
+      ++tooLargeU32;
+      assert(!U32ValueFits(tooLargeU32));
+    }
+    if (sizeof(std::size_t) > 4)
+    {
+      std::size_t tooLarge = 1;
+      for (std::size_t byte = 0; byte < 4; ++byte)
+      {
+        tooLarge <<= 8;
+      }
+      assert(!SizeFitsU32(tooLarge));
+      const unsigned char borrowedByte = 0;
+      Reader oversized;
+      assert(oversized.openBorrowedBytes(&borrowedByte,
+                                         tooLarge,
+                                         kStamp,
+                                         Reader::VERIFY_INTEGRITY) ==
+             Reader::OPEN_SIZE_OUT_OF_RANGE);
+    }
   }
 
   std::vector<unsigned char> good;
@@ -732,6 +869,32 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
   const std::size_t indexAt =
       FindChunkPayload(good, FourCC('I', 'N', 'D', 'X'), indexSize);
   Reader reader;
+
+  {
+    std::vector<unsigned char> bad(good);
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bad.size() + kPayloadAlign));
+    RestampHead(bad);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_TRUNCATED);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadBagCount], 2);
+    RestampHead(bad);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadAssetCount],
+               ReadU32BE(&bad[kHeadPayloadOffset + kHeadAssetCount]) + 1);
+    RestampHead(bad);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    InsertEmptyBagRows(bad, kMaxBags);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
 
   {
     std::vector<unsigned char> bad(good);
@@ -791,12 +954,76 @@ void testLrpcValidatesBeforeItPacks()
   }
   {
     Writer writer;
+    const U32 one[1] = {1};
+    writer.declareAxis(static_cast<AxisKind>(255), 0, one, 1);
+    const std::size_t bag = writer.addBag();
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    assert(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_KIND);
+  }
+  {
+    Writer writer;
+    const U32 one[1] = {1};
+    for (std::size_t i = 0; i < kMaxAxes + 1; ++i)
+    {
+      writer.declareAxis(AXIS_KIND_ENUM, 0, one, 1);
+    }
+    assert(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_AXES);
+  }
+  {
+    Writer writer;
+    U32 values[kMaxAxisValues + 1];
+    for (std::size_t i = 0; i < kMaxAxisValues + 1; ++i)
+    {
+      values[i] = static_cast<U32>(i + 1);
+    }
+    writer.declareAxis(AXIS_KIND_ENUM, 0, values, kMaxAxisValues + 1);
+    assert(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_AXIS_VALUES);
+  }
+  {
+    Writer writer;
     const U32 huge[1] = {65536};
     writer.declareAxis(AXIS_KIND_SCALAR, 100, huge, 1);
     const std::size_t bag = writer.addBag();
     writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_AXIS_VALUE_OUT_OF_RANGE);
+  }
+  if (sizeof(U32) > 4)
+  {
+    U32 tooLarge = kU32Mask;
+    ++tooLarge;
+
+    Writer badStamp;
+    const std::size_t stampBag = badStamp.addBag();
+    badStamp.addAsset(7,
+                      stampBag,
+                      ASSET_KIND_IMAGE,
+                      plain,
+                      kDefault,
+                      sizeof(kDefault));
+    assert(badStamp.build(tooLarge, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
+
+    Writer badId;
+    const std::size_t idBag = badId.addBag();
+    badId.addAsset(tooLarge,
+                   idBag,
+                   ASSET_KIND_IMAGE,
+                   plain,
+                   kDefault,
+                   sizeof(kDefault));
+    assert(badId.build(kStamp, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
+
+    Writer badBaseline;
+    const U32 scale[1] = {200};
+    badBaseline.declareAxis(AXIS_KIND_SCALAR, tooLarge, scale, 1);
+    const std::size_t baselineBag = badBaseline.addBag();
+    badBaseline.addAsset(7,
+                         baselineBag,
+                         ASSET_KIND_IMAGE,
+                         plain,
+                         kDefault,
+                         sizeof(kDefault));
+    assert(badBaseline.build(kStamp, out) == Writer::BUILD_SIZE_OUT_OF_RANGE);
   }
   // A trailing empty bag used to form &data[data.size()] while computing its
   // zero-length CRC. The package must build and the empty bag must verify.
@@ -897,11 +1124,8 @@ void testLrpkChecksTheChunkThatDecidesSelection()
   {
     std::vector<unsigned char> bad(good);
     bad[axesAt + 4 + kAxisKind] = 9;
-    assert(reader.openBorrowedBytes(&bad[0],
-                                    bad.size(),
-                                    kStamp,
-                                    Reader::SKIP_INTEGRITY) ==
-           Reader::OPEN_MALFORMED_INDEX);
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);
@@ -912,6 +1136,63 @@ void testLrpkChecksTheChunkThatDecidesSelection()
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX &&
            "precedence is structural even when CRC verification is skipped");
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    bad[axesAt + 4 + kAxisPrecedenceRank] = 255;
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    bad[axesAt + 4 + kAxisPrecedenceRank] = 2;
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    const std::size_t scalar =
+        axesAt + 4 + kAxisEntryBytes;
+    WriteU16BE(&bad[scalar + kAxisValues], 300);
+    WriteU16BE(&bad[scalar + kAxisValues + 2], 200);
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    const std::size_t depth = axesAt + 4;
+    bad[depth + kAxisValueCount] = 2;
+    WriteU16BE(&bad[depth + kAxisValues + 2], 1);
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    const std::size_t scalar =
+        axesAt + 4 + kAxisEntryBytes;
+    WriteU16BE(&bad[scalar + kAxisValues], 100);
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    std::size_t indexSize = 0;
+    const std::size_t indexAt =
+        FindChunkPayload(bad, FourCC('I', 'N', 'D', 'X'), indexSize);
+    const std::size_t rowsAt = indexAt + 8 + kBagRowBytes;
+    WriteU16BE(&bad[rowsAt + kRowAxes], 2);
+    RestampChunk(bad, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    std::vector<unsigned char> bad(good);
+    std::size_t indexSize = 0;
+    const std::size_t indexAt =
+        FindChunkPayload(bad, FourCC('I', 'N', 'D', 'X'), indexSize);
+    const std::size_t rowsAt = indexAt + 8 + kBagRowBytes;
+    bad[rowsAt + 4 * kAssetRowBytes + kRowKind] = 255;
+    RestampChunk(bad, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);

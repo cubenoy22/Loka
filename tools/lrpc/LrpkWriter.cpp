@@ -116,6 +116,10 @@ namespace loka
       // Build into a completed temporary. A refusal leaves the caller's
       // previously good package untouched.
       std::vector<unsigned char> built;
+      if (!U32ValueFits(idSpaceStamp))
+      {
+        return BUILD_SIZE_OUT_OF_RANGE;
+      }
       if (axes_.size() > kMaxAxes)
       {
         return BUILD_TOO_MANY_AXES;
@@ -162,6 +166,10 @@ namespace loka
         {
           return BUILD_TOO_MANY_AXIS_VALUES;
         }
+        if (!U32ValueFits(axes_[a].baseline))
+        {
+          return BUILD_SIZE_OUT_OF_RANGE;
+        }
         for (std::size_t v = 0; v < axes_[a].values.size(); ++v)
         {
           if (axes_[a].values[v] > 0xFFFFUL)
@@ -180,6 +188,11 @@ namespace loka
           {
             return BUILD_BAD_AXIS_VOCABULARY;
           }
+          if (axes_[a].kind == AXIS_KIND_SCALAR &&
+              axes_[a].values[v] == axes_[a].baseline)
+          {
+            return BUILD_BAD_AXIS_VOCABULARY;
+          }
         }
       }
 
@@ -187,6 +200,10 @@ namespace loka
       std::vector<U32> packed(rows_.size(), 0);
       for (std::size_t i = 0; i < rows_.size(); ++i)
       {
+        if (!U32ValueFits(rows_[i].id))
+        {
+          return BUILD_SIZE_OUT_OF_RANGE;
+        }
         if (rows_[i].bag >= bagCount_)
         {
           return BUILD_BAD_BAG_REFERENCE;
@@ -212,11 +229,6 @@ namespace loka
           }
           if (rows_[i].axisIndex[a] != 0)
           {
-            const U32 value = axes_[a].values[static_cast<std::size_t>(rows_[i].axisIndex[a] - 1)];
-            if (axes_[a].kind == AXIS_KIND_SCALAR && value == axes_[a].baseline)
-            {
-              return BUILD_SCALAR_BASELINE_EXPLICIT;
-            }
             packed[i] |= (rows_[i].axisIndex[a] & 0xFUL) << (4 * a);
           }
         }
