@@ -496,8 +496,8 @@ void testLrpkSelectsByPackagePrecedence()
     depth2.value[kAxisDepth] = 2;
     assert(reader.get(82, depth2, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
-    Facts absent;
-    assert(reader.get(82, absent, asset) == Reader::GET_OK);
+    Facts noDepthFact;
+    assert(reader.get(82, noDepthFact, asset) == Reader::GET_OK);
     assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
   }
 
@@ -878,13 +878,15 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
     assert(!U32WordsFit(1, 0));
     assert(U32ValueFits(kU32Mask));
     assert(SizeFitsU32(65535));
-    if (sizeof(U32) > 4)
+    const bool hostU32Wider = sizeof(U32) > 4;
+    if (hostU32Wider)
     {
       U32 tooLargeU32 = kU32Mask;
       ++tooLargeU32;
       assert(!U32ValueFits(tooLargeU32));
     }
-    if (sizeof(std::size_t) > 4)
+    const bool hostSizeWider = sizeof(std::size_t) > 4;
+    if (hostSizeWider)
     {
       std::size_t tooLarge = 1;
       for (std::size_t byte = 0; byte < 4; ++byte)
@@ -1041,7 +1043,8 @@ void testLrpcValidatesBeforeItPacks()
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_AXIS_VALUE_OUT_OF_RANGE);
   }
-  if (sizeof(U32) > 4)
+  const bool hostU32Wider = sizeof(U32) > 4;
+  if (hostU32Wider)
   {
     U32 tooLarge = kU32Mask;
     ++tooLarge;
