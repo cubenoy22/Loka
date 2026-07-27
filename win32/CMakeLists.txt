@@ -27,6 +27,7 @@ set(SOURCES
   src/platform/Win32DebugLog.cpp
   src/platform/Win32Profiler.cpp
   src/platform/Win32String.cpp
+  src/platform/Win32FileIO.cpp
 )
 
 add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})

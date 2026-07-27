@@ -10,8 +10,8 @@
 #include "core/resource/Image.hpp"
 #include "dsl/flow/Flow.hpp"
 #include "core/String.hpp"
-#include "platform/StringUTF8.hpp"
 #include "platform/file/FileHandle.hpp"
+#include "platform/file/FileIO.hpp"
 #if defined(LOKA_RETRO68)
 #include <Files.h>
 #endif
@@ -31,7 +31,6 @@ namespace simpleviewer
     SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_DECODE_FAILED = 1002,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED = 1003,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_NO_FILE_SELECTED = 1004,
-    SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED = 1005,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED = 1006,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_NO_FSSPEC = 1007,
     SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_OPEN_DF_FAILED = 1008,
@@ -159,16 +158,10 @@ namespace simpleviewer
 
       if (projection.request.source == BLOB_SOURCE_FILE)
       {
-        std::string utf8Path;
-        if (!loka::platform::CollectUtf8(projection.request.filePath, utf8Path))
-        {
-          error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
-          error.code = SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED;
-          return loka::dsl::FLOW_STEP_FAILED;
-        }
         std::vector<unsigned char> bytes;
         int detailCode = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
-        if (!readBytesViaPlatform(projection, bytes, detailCode) && !readFileBytes(utf8Path.c_str(), bytes, detailCode))
+        if (!readBytesViaPlatform(projection, bytes, detailCode) &&
+            !readFileBytes(projection.request.filePath, bytes, detailCode))
         {
           error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
           error.code = detailCode;
@@ -188,15 +181,13 @@ namespace simpleviewer
     }
 
   private:
-    static bool readFileBytes(const char *path, std::vector<unsigned char> &out, int &detailCodeOut)
+    // Takes the logical path, not bytes: on Win32 the narrow open decodes its
+    // argument in the ANSI code page, so flattening here would lose a
+    // full-width path (#15). loka::platform::file::OpenRead owns that choice.
+    static bool readFileBytes(const loka::core::String &path, std::vector<unsigned char> &out, int &detailCodeOut)
     {
       out.clear();
-      if (!path || !*path)
-      {
-        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED;
-        return false;
-      }
-      FILE *file = std::fopen(path, "rb");
+      FILE *file = loka::platform::file::OpenRead(path);
       if (!file)
       {
         detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED;
@@ -330,13 +321,7 @@ namespace simpleviewer
         return true;
       }
 #endif
-      std::string path;
-      if (!loka::platform::CollectUtf8(handle.displayPath, path))
-      {
-        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED;
-        return false;
-      }
-      return readFileBytes(path.c_str(), out, detailCodeOut);
+      return readFileBytes(handle.displayPath, out, detailCodeOut);
     }
 
     PlatformContext *ctx_;
