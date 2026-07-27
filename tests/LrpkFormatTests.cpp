@@ -1,0 +1,335 @@
+#include "LrpkFormatTests.hpp"
+
+#include <cassert>
+#include <cstdio>
+#include <vector>
+
+#include "core/resource/lrpk/LrpkReader.hpp"
+#include "lrpc/LrpkWriter.hpp"
+
+using namespace loka::core::resource::lrpk;
+using loka::lrpc::Writer;
+
+namespace
+{
+  const U32 kStamp = 0xC0FFEE01UL;
+
+  // Axis 0: depth, enum, one declared value (`@bw`).
+  // Axis 1: scale, scalar, baseline 100, declared 200 and 300.
+  const std::size_t kAxisDepth = 0;
+  const std::size_t kAxisScale = 1;
+
+  void DeclareStandardAxes(Writer &writer)
+  {
+    const U32 depthValues[1] = {1};
+    writer.declareAxis(AXIS_KIND_ENUM, 0, depthValues, 1);
+    const U32 scaleValues[2] = {200, 300};
+    writer.declareAxis(AXIS_KIND_SCALAR, 100, scaleValues, 2);
+  }
+
+  const unsigned char kLogoDefault[] = {'D', 'E', 'F', 'A', 'U', 'L', 'T'};
+  const unsigned char kLogoBw[] = {'B', 'W'};
+  const unsigned char kLogo2x[] = {'T', 'W', 'O', 'X'};
+  const unsigned char kLogo3x[] = {'T', 'H', 'R', 'E', 'E', 'X'};
+  const unsigned char kMenuFile[] = {'F', 'i', 'l', 'e'};
+
+  Writer::BuildResult BuildStandardPackage(std::vector<unsigned char> &out, bool withCrc)
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    const std::size_t bag = writer.addBag();
+
+    U32 axes[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, kLogoDefault, sizeof(kLogoDefault));
+    axes[kAxisDepth] = 1;
+    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, kLogoBw, sizeof(kLogoBw));
+    axes[kAxisDepth] = 0;
+    axes[kAxisScale] = 1; // 200
+    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, kLogo2x, sizeof(kLogo2x));
+    axes[kAxisScale] = 2; // 300
+    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, kLogo3x, sizeof(kLogo3x));
+
+    U32 plain[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(43, bag, ASSET_KIND_STRING, plain, kMenuFile, sizeof(kMenuFile));
+
+    return writer.build(kStamp, withCrc, out);
+  }
+
+  bool AssetEquals(const Asset &asset, const unsigned char *expected, std::size_t length)
+  {
+    if (asset.length != length || !asset.bytes)
+    {
+      return false;
+    }
+    for (std::size_t i = 0; i < length; ++i)
+    {
+      if (asset.bytes[i] != expected[i])
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Finds the INDX payload so a test can rot exactly one byte of it.
+  std::size_t FindChunkPayload(const std::vector<unsigned char> &bytes, U32 fourCC, std::size_t &sizeOut)
+  {
+    std::size_t cursor = kFixedHeadBytes;
+    while (cursor + 8 <= bytes.size())
+    {
+      const U32 tag = ReadU32BE(&bytes[cursor]);
+      const std::size_t payloadSize = static_cast<std::size_t>(ReadU32BE(&bytes[cursor + 4]));
+      if (tag == fourCC)
+      {
+        sizeOut = payloadSize;
+        return cursor + 8;
+      }
+      cursor += 8 + AlignUp(payloadSize, kPayloadAlign);
+    }
+    sizeOut = 0;
+    return bytes.size();
+  }
+} // namespace
+
+void testLrpkRoundTripsThroughTheIndex()
+{
+  printf("\n==== [testLrpkRoundTripsThroughTheIndex] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildStandardPackage(package, true) == Writer::BUILD_OK);
+  assert(package.size() >= kFixedHeadBytes);
+  assert(package.size() % kPayloadAlign == 0 && "payloads align to 4: the 68000 faults on odd-address word access");
+
+  Reader reader;
+  assert(reader.openFromMemory(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
+  assert(reader.hasCrc());
+  assert(reader.bagCount() == 1);
+  assert(reader.assetCount() == 5);
+
+  // The bag is not open yet. That is a different failure from "no such id",
+  // and the two must not be shown as the same one.
+  Facts facts;
+  Asset asset;
+  assert(reader.get(42, facts, asset) == Reader::GET_BAG_NOT_OPEN);
+  assert(reader.get(999, facts, asset) == Reader::GET_NO_SUCH_ID);
+
+  assert(reader.openBag(0) == Reader::BAG_OK);
+  assert(reader.isBagOpen(0));
+
+  // No facts at all: every axis is absent, so only the default row survives.
+  assert(reader.get(42, facts, asset) == Reader::GET_OK);
+  assert(AssetEquals(asset, kLogoDefault, sizeof(kLogoDefault)));
+  assert(asset.kind == ASSET_KIND_IMAGE);
+
+  assert(reader.get(43, facts, asset) == Reader::GET_OK);
+  assert(AssetEquals(asset, kMenuFile, sizeof(kMenuFile)));
+  assert(asset.kind == ASSET_KIND_STRING);
+
+  // The bytes are served from inside the loaded bag rather than copied out.
+  assert(asset.bytes > &package[0] && asset.bytes < &package[0] + package.size());
+
+  reader.closeBag(0);
+  assert(reader.get(42, facts, asset) == Reader::GET_BAG_NOT_OPEN);
+
+  printf("==== [testLrpkRoundTripsThroughTheIndex] end ====\n");
+}
+
+void testLrpkSelectsRepresentationByAxisKind()
+{
+  printf("\n==== [testLrpkSelectsRepresentationByAxisKind] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildStandardPackage(package, true) == Writer::BUILD_OK);
+  Reader reader;
+  assert(reader.openFromMemory(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
+  assert(reader.openBag(0) == Reader::BAG_OK);
+
+  Asset asset;
+
+  // Enum axis, fact present and matching: the more specific row wins the tie.
+  {
+    Facts facts;
+    facts.present[kAxisDepth] = true;
+    facts.value[kAxisDepth] = 1;
+    assert(reader.get(42, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kLogoBw, sizeof(kLogoBw)) && "a 1-bit destination must reach the hand-drawn row");
+  }
+
+  // Enum axis, fact absent: a row that writes it cannot be confirmed, so it is
+  // dropped rather than matched. This is #189's absent rule as a table rule.
+  {
+    Facts facts;
+    facts.present[kAxisScale] = true;
+    facts.value[kAxisScale] = 100;
+    assert(reader.get(42, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kLogoDefault, sizeof(kLogoDefault)) &&
+           "depth is absent here, so the @bw row must not be selected");
+  }
+
+  // Scalar axis: smallest at or above the request. 150% takes the 200 row
+  // rather than stretching the 100 baseline, which is what both OSes do.
+  {
+    Facts facts;
+    facts.present[kAxisScale] = true;
+    facts.value[kAxisScale] = 150;
+    assert(reader.get(42, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kLogo2x, sizeof(kLogo2x)));
+  }
+
+  // Exactly 300 takes 300, not 200.
+  {
+    Facts facts;
+    facts.present[kAxisScale] = true;
+    facts.value[kAxisScale] = 300;
+    assert(reader.get(42, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kLogo3x, sizeof(kLogo3x)));
+  }
+
+  // Above every declared value: nothing is at or above, so the largest wins.
+  // This clause is what makes selection total.
+  {
+    Facts facts;
+    facts.present[kAxisScale] = true;
+    facts.value[kAxisScale] = 400;
+    assert(reader.get(42, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kLogo3x, sizeof(kLogo3x)));
+  }
+
+  printf("==== [testLrpkSelectsRepresentationByAxisKind] end ====\n");
+}
+
+void testLrpkRefusesEveryCheckValueFailure()
+{
+  printf("\n==== [testLrpkRefusesEveryCheckValueFailure] start ====\n");
+
+  std::vector<unsigned char> good;
+  assert(BuildStandardPackage(good, true) == Writer::BUILD_OK);
+
+  Reader reader;
+
+  // Holding another build's package: never waived, because it happens daily
+  // and its symptom is silent -- the types still pass, only the screen is wrong.
+  assert(reader.openFromMemory(&good[0], good.size(), kStamp + 1) == Reader::OPEN_ID_SPACE_MISMATCH);
+
+  // Truncated or appended: one comparison against the recorded total.
+  {
+    std::vector<unsigned char> shortened(good.begin(), good.end() - kPayloadAlign);
+    assert(reader.openFromMemory(&shortened[0], shortened.size(), kStamp) == Reader::OPEN_TRUNCATED);
+  }
+
+  // Index rotted.
+  {
+    std::vector<unsigned char> rotted(good);
+    std::size_t indexSize = 0;
+    const std::size_t indexAt = FindChunkPayload(rotted, FourCC('I', 'N', 'D', 'X'), indexSize);
+    assert(indexSize > 0);
+    rotted[indexAt + indexSize - 1] ^= 0xFF;
+    assert(reader.openFromMemory(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_INDEX_CORRUPT);
+  }
+
+  // Bag contents rotted: caught when the bag is opened, not at open time,
+  // because the check rides along with the read that was happening anyway.
+  {
+    std::vector<unsigned char> rotted(good);
+    std::size_t dataSize = 0;
+    const std::size_t dataAt = FindChunkPayload(rotted, FourCC('D', 'A', 'T', 'A'), dataSize);
+    assert(dataSize > 0);
+    rotted[dataAt] ^= 0xFF;
+    assert(reader.openFromMemory(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_OK);
+    assert(reader.openBag(0) == Reader::BAG_CONTENTS_CORRUPT);
+  }
+
+  // Not a package at all.
+  {
+    std::vector<unsigned char> junk(kFixedHeadBytes, 0);
+    assert(reader.openFromMemory(&junk[0], junk.size(), kStamp) == Reader::OPEN_NOT_A_PACKAGE);
+  }
+
+  printf("==== [testLrpkRefusesEveryCheckValueFailure] end ====\n");
+}
+
+void testLrpkUnsafeModeOmitsRotButNotIdentity()
+{
+  printf("\n==== [testLrpkUnsafeModeOmitsRotButNotIdentity] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildStandardPackage(package, false) == Writer::BUILD_OK);
+
+  Reader reader;
+  assert(reader.openFromMemory(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
+  assert(!reader.hasCrc());
+  assert(reader.openBag(0) == Reader::BAG_OK);
+
+  // Rot detection is omitted, so a flipped byte in the bag now passes.
+  {
+    std::vector<unsigned char> rotted(package);
+    std::size_t dataSize = 0;
+    const std::size_t dataAt = FindChunkPayload(rotted, FourCC('D', 'A', 'T', 'A'), dataSize);
+    rotted[dataAt] ^= 0xFF;
+    Reader unsafeReader;
+    assert(unsafeReader.openFromMemory(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_OK);
+    assert(unsafeReader.openBag(0) == Reader::BAG_OK && "unsafe mode may skip rot detection");
+  }
+
+  // Mistaken identity is not omittable, even here.
+  {
+    Reader unsafeReader;
+    assert(unsafeReader.openFromMemory(&package[0], package.size(), kStamp + 1) == Reader::OPEN_ID_SPACE_MISMATCH &&
+           "\"might be corrupt\" is allowed; \"might be a different build\" is not");
+  }
+
+  printf("==== [testLrpkUnsafeModeOmitsRotButNotIdentity] end ====\n");
+}
+
+void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
+{
+  printf("\n==== [testLrpcRefusesPackagesThatWouldMakeSelectionPartial] start ====\n");
+
+  // An asset with no axis-free row would make get() able to come up empty.
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    const std::size_t bag = writer.addBag();
+    U32 axes[kMaxAxes] = {1, 0, 0, 0};
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, axes, kLogoBw, sizeof(kLogoBw));
+    std::vector<unsigned char> out;
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_ASSET_WITHOUT_DEFAULT_ROW);
+  }
+
+  // Two rows with the same (id, bag, axes).
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    const std::size_t bag = writer.addBag();
+    U32 axes[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, axes, kLogoDefault, sizeof(kLogoDefault));
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, axes, kLogo2x, sizeof(kLogo2x));
+    std::vector<unsigned char> out;
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_DUPLICATE_ROW);
+  }
+
+  // The same id in two different bags is legitimate: that is how an exclusive
+  // group such as ja/en carries one string id.
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    const std::size_t ja = writer.addBag();
+    const std::size_t en = writer.addBag();
+    U32 axes[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(100, ja, ASSET_KIND_STRING, axes, kMenuFile, sizeof(kMenuFile));
+    writer.addAsset(100, en, ASSET_KIND_STRING, axes, kLogoDefault, sizeof(kLogoDefault));
+    std::vector<unsigned char> out;
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_OK);
+
+    // Only the open bag's row is a candidate.
+    Reader reader;
+    assert(reader.openFromMemory(&out[0], out.size(), kStamp) == Reader::OPEN_OK);
+    assert(reader.openBag(en) == Reader::BAG_OK);
+    Facts facts;
+    Asset asset;
+    assert(reader.get(100, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kLogoDefault, sizeof(kLogoDefault)) && "the open bag decides which row is served");
+  }
+
+  printf("==== [testLrpcRefusesPackagesThatWouldMakeSelectionPartial] end ====\n");
+}
