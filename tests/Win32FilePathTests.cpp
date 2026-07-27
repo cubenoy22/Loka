@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "core/String.hpp"
+#include "core/io/File.hpp"
+#include "platform/Win32PathBridge.hpp"
 #include "platform/StringUTF8.hpp"
 #include "platform/file/FileIO.hpp"
 
@@ -19,6 +21,21 @@ namespace
   const wchar_t kFileNameWide[] = {0x753B, 0x50CF, L'.', L'b', L'i', L'n', 0};      // 画像.bin
 
   const unsigned char kPayload[] = {0x4C, 0x4F, 0x4B, 0x41};
+
+  bool WideToAcp(const std::wstring &wide, std::string &out)
+  {
+    out.clear();
+    if (wide.empty())
+      return true;
+    const int needed =
+        WideCharToMultiByte(CP_ACP, 0, wide.c_str(), static_cast<int>(wide.length()), NULL, 0, NULL, NULL);
+    if (needed <= 0)
+      return false;
+    out.resize(static_cast<std::size_t>(needed));
+    const int written =
+        WideCharToMultiByte(CP_ACP, 0, wide.c_str(), static_cast<int>(wide.length()), &out[0], needed, NULL, NULL);
+    return written == needed;
+  }
 
   bool WideToUtf8(const std::wstring &wide, std::string &out)
   {
@@ -100,4 +117,70 @@ void testWin32OpenReadAcceptsFullWidthPath()
   RemoveDirectoryW(dirWide.c_str());
 
   printf("==== [testWin32OpenReadAcceptsFullWidthPath] end ====\n");
+}
+
+void testWin32FileFromWidePathSurvivesToOpen()
+{
+  printf("\n==== [testWin32FileFromWidePathSurvivesToOpen] start ====\n");
+
+  wchar_t tempDir[MAX_PATH];
+  const DWORD tempLen = GetTempPathW(MAX_PATH, tempDir);
+  assert(tempLen > 0 && tempLen < MAX_PATH);
+
+  std::wstring dirWide(tempDir, tempDir + tempLen);
+  dirWide += L"loka-bridge-";
+  dirWide += kDirNameWide;
+  RemoveDirectoryW(dirWide.c_str());
+  const BOOL made = CreateDirectoryW(dirWide.c_str(), NULL);
+  assert((made || GetLastError() == ERROR_ALREADY_EXISTS));
+
+  std::wstring fileWide = dirWide;
+  fileWide += L"\\";
+  fileWide += kFileNameWide;
+
+  FILE *seed = _wfopen(fileWide.c_str(), L"wb");
+  assert(seed);
+  assert(fwrite(kPayload, 1, sizeof(kPayload), seed) == sizeof(kPayload));
+  fclose(seed);
+
+  // The producer under test: what a `W` Win32 entry point hands us must reach
+  // an open unchanged. This covers everything between "the OS gave us UTF-16"
+  // and "the file is open" -- every line of it is ours, and it is where #15
+  // was lost.
+  const loka::file::File item = loka::win32::FileFromWidePath(fileWide.c_str(), fileWide.size());
+  assert(item.kind() == loka::file::File::KIND_FILE);
+  FILE *opened = loka::platform::file::OpenRead(item.toString());
+  assert(opened && "a File built from a UTF-16 path must still name that path at the open");
+  unsigned char read[sizeof(kPayload)] = {0};
+  assert(fread(read, 1, sizeof(read), opened) == sizeof(read));
+  fclose(opened);
+  for (std::size_t i = 0; i < sizeof(kPayload); ++i)
+  {
+    assert(read[i] == kPayload[i]);
+  }
+
+  // Contrast pin: the ANSI producer. GetOpenFileNameA would have handed us
+  // these bytes, and loka::core::String reads them as UTF-8, so the path
+  // becomes different text and the open cannot find the file. If this ever
+  // succeeds, either the machine runs the UTF-8 code page (excluded) or the
+  // dialog has been switched back to the `A` variant and this pin is stale.
+  if (GetACP() != CP_UTF8)
+  {
+    std::string acpBytes;
+    assert(WideToAcp(fileWide, acpBytes));
+    const loka::core::String fromAcp((std::string(acpBytes)));
+    FILE *viaAcp = loka::platform::file::OpenRead(fromAcp);
+    assert(!viaAcp && "ANSI bytes read as UTF-8 must not name the same file; that is the #15 mechanism");
+    if (viaAcp)
+      fclose(viaAcp);
+  }
+  else
+  {
+    printf("  [skip] ACP is UTF-8, so the ANSI-producer contrast pin cannot discriminate on this machine\n");
+  }
+
+  DeleteFileW(fileWide.c_str());
+  RemoveDirectoryW(dirWide.c_str());
+
+  printf("==== [testWin32FileFromWidePathSurvivesToOpen] end ====\n");
 }

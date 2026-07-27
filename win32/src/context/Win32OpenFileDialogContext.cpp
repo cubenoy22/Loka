@@ -4,7 +4,7 @@
 #include <commdlg.h>
 #include <string>
 #include "Win32ThreadModalDialogScope.hpp"
-#include "platform/Win32String.hpp"
+#include "platform/Win32PathBridge.hpp"
 
 namespace
 {
@@ -195,9 +195,7 @@ void Win32OpenFileDialogContext::presentDialog()
   if (accepted)
   {
     const std::wstring selected(buffer);
-    loka::file::File file = loka::file::File::FromPath(
-        loka::core::String(loka::win32::CreateWin32StringFromUtf16(selected.c_str(), selected.size())));
-    file.setKind(loka::file::File::KIND_FILE);
+    loka::file::File file = loka::win32::FileFromWidePath(selected.c_str(), selected.size());
     result = loka::app::FileChooserResult::File(file);
   }
   else
