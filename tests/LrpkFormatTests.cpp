@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 #include "core/resource/lrpk/LrpkReader.hpp"
@@ -955,7 +956,11 @@ void testLrpcValidatesBeforeItPacks()
   {
     Writer writer;
     const U32 one[1] = {1};
-    writer.declareAxis(static_cast<AxisKind>(255), 0, one, 1);
+    AxisKind invalidKind = AXIS_KIND_ENUM;
+    const int invalidKindBits = 255;
+    assert(sizeof(invalidKind) == sizeof(invalidKindBits));
+    std::memcpy(&invalidKind, &invalidKindBits, sizeof(invalidKind));
+    writer.declareAxis(invalidKind, 0, one, 1);
     const std::size_t bag = writer.addBag();
     writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_KIND);
