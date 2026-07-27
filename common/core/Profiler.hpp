@@ -171,25 +171,28 @@ namespace loka
 // The registration ints exist only for the side effect of their initializer:
 // RegisterProfileSlot runs once and nothing reads the returned index. Discard
 // each one explicitly so -Wunused-variable stays enabled for real cases.
+//
+// PROFILE_SECTION needs its generated identifiers to include the *expanded*
+// value of __LINE__, not the literal token. `##` never expands its operands,
+// so pasting __LINE__ directly would produce the same identifier at every
+// call site. The standard fix is two-level concatenation: the outer macro
+// forces expansion of its arguments before the inner macro pastes them.
+#define LOKA_PROFILE_CONCAT_IMPL(a, b) a##b
+#define LOKA_PROFILE_CONCAT(a, b) LOKA_PROFILE_CONCAT_IMPL(a, b)
 #define PROFILE_FUNC()                                                                                                 \
   static ::loka::core::FuncProfileSlot _pslot_ = {__FILE__, __func__, __LINE__, 0, 0};                                 \
   static int _pslot_reg_ = ::loka::core::RegisterProfileSlot(&_pslot_);                                                \
   (void)_pslot_reg_;                                                                                                   \
   ::loka::core::FuncProfileScope _pscope_(&_pslot_)
 #define PROFILE_SECTION(name)                                                                                          \
-  static ::loka::core::FuncProfileSlot _psec_##__LINE__ = {__FILE__, name, __LINE__, 0, 0};                            \
-  static int _psec_reg_##__LINE__ = ::loka::core::RegisterProfileSlot(&_psec_##__LINE__);                              \
-  (void)_psec_reg_##__LINE__;                                                                                          \
-  ::loka::core::FuncProfileScope _pscope_##__LINE__(&_psec_##__LINE__)
-#define PROFILE_SECTION_ID(name, id)                                                                                   \
-  static ::loka::core::FuncProfileSlot _psec_##id = {__FILE__, name, __LINE__, 0, 0};                                  \
-  static int _psec_reg_##id = ::loka::core::RegisterProfileSlot(&_psec_##id);                                          \
-  (void)_psec_reg_##id;                                                                                                \
-  ::loka::core::FuncProfileScope _pscope_##id(&_psec_##id)
+  static ::loka::core::FuncProfileSlot LOKA_PROFILE_CONCAT(_psec_, __LINE__) = {__FILE__, name, __LINE__, 0, 0};       \
+  static int LOKA_PROFILE_CONCAT(_psec_reg_, __LINE__) =                                                               \
+      ::loka::core::RegisterProfileSlot(&LOKA_PROFILE_CONCAT(_psec_, __LINE__));                                       \
+  (void)LOKA_PROFILE_CONCAT(_psec_reg_, __LINE__);                                                                     \
+  ::loka::core::FuncProfileScope LOKA_PROFILE_CONCAT(_pscope_, __LINE__)(&LOKA_PROFILE_CONCAT(_psec_, __LINE__))
 #else
 #define PROFILE_FUNC()
 #define PROFILE_SECTION(name)
-#define PROFILE_SECTION_ID(name, id)
 #endif
 
   } // namespace core
