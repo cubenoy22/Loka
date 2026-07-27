@@ -115,6 +115,7 @@ if(NOT LOKA_MAC_OS_10_4)
   target_include_directories(LokaTestsMacOS PRIVATE
     ${PROJECT_SOURCE_DIR}/common
     ${PROJECT_SOURCE_DIR}/tests
+    ${PROJECT_SOURCE_DIR}/tools
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
     ${CMAKE_CURRENT_LIST_DIR}/src
   )

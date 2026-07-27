@@ -96,6 +96,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaCommonTesting)
   target_include_directories(LokaCommonTesting PUBLIC
     ${PROJECT_SOURCE_DIR}/common
+    ${PROJECT_SOURCE_DIR}/tools
   )
   set_target_properties(LokaCommonTesting PROPERTIES
     CXX_STANDARD 98
@@ -115,6 +116,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaContractTests)
   target_include_directories(LokaContractTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
+    ${PROJECT_SOURCE_DIR}/tools
   )
   set_target_properties(LokaContractTests PROPERTIES
     CXX_STANDARD 98
@@ -133,6 +135,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/example/SimpleViewer/src
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
+    ${PROJECT_SOURCE_DIR}/tools
   )
   set_target_properties(LokaScenarioTests PROPERTIES
     CXX_STANDARD 98
@@ -156,6 +159,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_include_directories(LokaAllocPinTests PRIVATE
     ${PROJECT_SOURCE_DIR}/tests
     ${PROJECT_SOURCE_DIR}/example/HelloWorld/src
+    ${PROJECT_SOURCE_DIR}/tools
   )
   set_target_properties(LokaAllocPinTests PROPERTIES
     CXX_STANDARD 98

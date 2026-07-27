@@ -9,6 +9,7 @@
 #include "DefinitionCloneTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
+#include "LrpkFormatTests.hpp"
 #include "SceneTests.hpp"
 #include "StartupRedrawTests.hpp"
 #include "BoundaryArenaTests.hpp"

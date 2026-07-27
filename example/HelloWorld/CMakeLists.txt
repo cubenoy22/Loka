@@ -74,6 +74,7 @@ if(WIN32)
 
   target_include_directories(LokaTestsWin32 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tools
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests
     ${CMAKE_CURRENT_SOURCE_DIR}/src
