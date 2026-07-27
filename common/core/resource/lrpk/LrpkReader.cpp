@@ -233,9 +233,20 @@ namespace loka
             bags_[b].crc = ReadU32BE(row + kBagCrc);
             bags_[b].codec = row[kBagCodec];
             bags_[b].open = false;
-            const std::size_t end =
-                static_cast<std::size_t>(bags_[b].dataOffset) + static_cast<std::size_t>(bags_[b].storedSize);
-            if (!dataPayload_ || end > dataPayloadSize_)
+            // Bounds are checked by subtraction, never by adding two untrusted
+            // 32-bit fields: on a 32-bit target their sum can wrap to a small
+            // value and pass a naive comparison.
+            const std::size_t offset = static_cast<std::size_t>(bags_[b].dataOffset);
+            const std::size_t stored = static_cast<std::size_t>(bags_[b].storedSize);
+            if (!dataPayload_ || offset > dataPayloadSize_ || stored > dataPayloadSize_ - offset)
+            {
+              return OPEN_MALFORMED_INDEX;
+            }
+            // While the codec is none the bag is not expanded, so a larger
+            // expanded size would let a row be bounded against bytes that were
+            // never stored -- and get() hands back a pointer into the stored
+            // payload, so those bytes belong to the next bag or to nothing.
+            if (bags_[b].codec == CODEC_NONE && bags_[b].expandedSize != bags_[b].storedSize)
             {
               return OPEN_MALFORMED_INDEX;
             }
@@ -466,7 +477,8 @@ namespace loka
           const std::size_t bag = static_cast<std::size_t>(best[kRowBag]);
           const std::size_t offset = static_cast<std::size_t>(ReadU32BE(best + kRowOffset));
           const std::size_t length = static_cast<std::size_t>(ReadU32BE(best + kRowLength));
-          if (offset + length > static_cast<std::size_t>(bags_[bag].expandedSize))
+          const std::size_t expanded = static_cast<std::size_t>(bags_[bag].expandedSize);
+          if (offset > expanded || length > expanded - offset)
           {
             return GET_NO_MATCHING_REP;
           }

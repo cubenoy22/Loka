@@ -333,3 +333,85 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
 
   printf("==== [testLrpcRefusesPackagesThatWouldMakeSelectionPartial] end ====\n");
 }
+
+void testLrpcRefusesRowsThatWouldNotBeReachable()
+{
+  printf("\n==== [testLrpcRefusesRowsThatWouldNotBeReachable] start ====\n");
+
+  U32 plain[kMaxAxes] = {0, 0, 0, 0};
+  U32 specialized[kMaxAxes] = {1, 0, 0, 0};
+  std::vector<unsigned char> out;
+
+  // A default row in one bag does not keep selection total for another bag:
+  // only rows in an open bag are candidates, so the specialized-only bag would
+  // have nothing to fall back to.
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    const std::size_t ja = writer.addBag();
+    const std::size_t en = writer.addBag();
+    writer.addAsset(100, ja, ASSET_KIND_STRING, plain, kMenuFile, sizeof(kMenuFile));
+    writer.addAsset(100, en, ASSET_KIND_STRING, specialized, kLogoBw, sizeof(kLogoBw));
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_ASSET_WITHOUT_DEFAULT_ROW &&
+           "the default row has to be in the same bag to be reachable");
+  }
+
+  // One id, one kind: the row's kind is a redundant field the reader trusts.
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    const std::size_t bag = writer.addBag();
+    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kLogoDefault, sizeof(kLogoDefault));
+    writer.addAsset(7, bag, ASSET_KIND_STRING, specialized, kLogoBw, sizeof(kLogoBw));
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_ASSET_KIND_MISMATCH);
+  }
+
+  // A bag index nobody handed out would produce a row in no bag at all, which
+  // the reader can only ever report as "the bag is not open".
+  {
+    Writer writer;
+    DeclareStandardAxes(writer);
+    writer.addBag();
+    writer.addAsset(7, 4, ASSET_KIND_IMAGE, plain, kLogoDefault, sizeof(kLogoDefault));
+    assert(writer.build(kStamp, true, out) == Writer::BUILD_BAD_BAG_REFERENCE);
+  }
+
+  printf("==== [testLrpcRefusesRowsThatWouldNotBeReachable] end ====\n");
+}
+
+void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
+{
+  printf("\n==== [testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds] start ====\n");
+
+  std::vector<unsigned char> good;
+  assert(BuildStandardPackage(good, false) == Writer::BUILD_OK);
+  std::size_t indexSize = 0;
+  const std::size_t indexAt = FindChunkPayload(good, FourCC('I', 'N', 'D', 'X'), indexSize);
+  assert(indexSize > 0);
+  // First bag row starts after bagCount(4) + assetCount(4).
+  const std::size_t bagRow = indexAt + 8;
+
+  Reader reader;
+
+  // While the codec is none the bag is not expanded, so a larger expanded size
+  // would let a row be bounded against bytes that were never stored -- and the
+  // pointer handed back points into the stored payload.
+  {
+    std::vector<unsigned char> bad(good);
+    WriteU32BE(&bad[bagRow + 8], ReadU32BE(&bad[bagRow + 8]) + 4096);
+    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX);
+  }
+
+  // Offset and size chosen so that their 32-bit sum wraps. Checking by addition
+  // would let this through and then CRC an arbitrary region.
+  {
+    std::vector<unsigned char> bad(good);
+    WriteU32BE(&bad[bagRow + 0], 0xFFFFFF00UL);
+    WriteU32BE(&bad[bagRow + 4], 0x00000200UL);
+    WriteU32BE(&bad[bagRow + 8], 0x00000200UL);
+    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX &&
+           "bounds must be checked by subtraction, never by adding two untrusted 32-bit fields");
+  }
+
+  printf("==== [testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds] end ====\n");
+}

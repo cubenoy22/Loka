@@ -123,6 +123,13 @@ namespace loka
       std::vector<std::size_t> order;
       for (std::size_t i = 0; i < rows_.size(); ++i)
       {
+        // A row naming a bag that was never added would be serialized into no
+        // bag at all, and the reader would report it as "the bag is not open"
+        // forever.
+        if (rows_[i].bag >= bagCount_)
+        {
+          return BUILD_BAD_BAG_REFERENCE;
+        }
         for (std::size_t a = 0; a < axes_.size(); ++a)
         {
           const U32 index = (rows_[i].axes >> (4 * a)) & 0xFUL;
@@ -167,14 +174,18 @@ namespace loka
         }
       }
 
-      // The wall that makes selection total.
+      // The wall that makes selection total. Checked per (id, bag), not per
+      // id: selection only ever considers rows in an open bag, so a default
+      // row sitting in a bag nobody opened does not keep get() total for the
+      // bag that is open.
       for (std::size_t i = 0; i < order.size(); ++i)
       {
         const U32 id = rows_[order[i]].id;
+        const std::size_t bag = rows_[order[i]].bag;
         bool hasDefault = false;
         for (std::size_t j = 0; j < order.size(); ++j)
         {
-          if (rows_[order[j]].id == id && rows_[order[j]].axes == 0)
+          if (rows_[order[j]].id == id && rows_[order[j]].bag == bag && rows_[order[j]].axes == 0)
           {
             hasDefault = true;
             break;
@@ -183,6 +194,18 @@ namespace loka
         if (!hasDefault)
         {
           return BUILD_ASSET_WITHOUT_DEFAULT_ROW;
+        }
+      }
+
+      // (5) One id, one kind. The row's kind is a redundant field the reader
+      // trusts to keep scanning cheap, so the writer has to be the thing that
+      // makes it true -- otherwise selection could change the declared type of
+      // an id according to facts, and a call site would decode the wrong bytes.
+      for (std::size_t i = 0; i + 1 < order.size(); ++i)
+      {
+        if (rows_[order[i]].id == rows_[order[i + 1]].id && rows_[order[i]].kind != rows_[order[i + 1]].kind)
+        {
+          return BUILD_ASSET_KIND_MISMATCH;
         }
       }
 

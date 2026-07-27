@@ -33,6 +33,10 @@ namespace loka
             picked up by the scalar rule's "if none is at or above, the
             largest", so `get()` can never come up empty (#185 §14). */
         BUILD_ASSET_WITHOUT_DEFAULT_ROW,
+        /** Two rows for one id disagree on `AssetKind`. */
+        BUILD_ASSET_KIND_MISMATCH,
+        /** A row names a bag index that `addBag()` never returned. */
+        BUILD_BAD_BAG_REFERENCE,
         BUILD_TOO_MANY_AXES,
         BUILD_TOO_MANY_AXIS_VALUES,
         BUILD_TOO_MANY_BAGS,
