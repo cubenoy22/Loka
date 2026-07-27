@@ -218,8 +218,12 @@ win32/DesktopApp/*.suo
 win32/DesktopApp/*.VC.db
 win32/DesktopApp/*.VC.VC.opendb
 
-# Local Claude Code settings
-.claude/settings.local.json
+# Claude Code working directory. Ignored wholesale rather than per-file:
+# alongside settings.local.json it also collects settings.json and runtime
+# scratch such as scheduled_tasks.lock, none of which describe this project.
+# If a team-shared permission set is ever wanted, un-ignore that one file
+# deliberately rather than letting whatever lands here follow a git add -A.
+.claude/
 
 # End of https://www.toptal.com/developers/gitignore/api/node,macos,linux
 /Testing/
