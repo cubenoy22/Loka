@@ -4,7 +4,7 @@
 void testLrpkRoundTripsThroughTheIndex();
 void testLrpkSelectsRepresentationByAxisKind();
 void testLrpkRefusesEveryCheckValueFailure();
-void testLrpkUnsafeModeOmitsRotButNotIdentity();
+void testLrpkOpenControlsIntegrityVerification();
 void testLrpcRefusesPackagesThatWouldMakeSelectionPartial();
 void testLrpcRefusesRowsThatWouldNotBeReachable();
 void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds();

@@ -24,9 +24,9 @@ namespace loka
       enum BuildResult
       {
         BUILD_OK = 0,
-        /** Two rows with the same `(id, bag, axes)`. The filename-level form of
-            this error is `lrpc` rejecting two files with the same axis set
-            (#185 §6). */
+        /** Legacy result retained for source compatibility. Exact duplicate
+            rows are now reported by BUILD_SELECTOR_AMBIGUOUS, the broader
+            ruled construction error. */
         BUILD_DUPLICATE_ROW,
         /** An asset with no axis-free row. This is the wall that makes
             selection total: the default row survives every enum rule and is
@@ -41,10 +41,23 @@ namespace loka
         BUILD_TOO_MANY_AXIS_VALUES,
         BUILD_TOO_MANY_BAGS,
         BUILD_BAD_AXIS_REFERENCE,
+        BUILD_BAD_AXIS_KIND,
+        BUILD_BAD_AXIS_VOCABULARY,
+        /** The package policy is not an exact permutation of every declared
+            axis. Required for two or more axes; normalized for zero or one. */
+        BUILD_BAD_PRECEDENCE,
+        /** A scalar row writes the baseline explicitly even though omission
+            already has exactly that meaning. */
+        BUILD_SCALAR_BASELINE_EXPLICIT,
+        /** Two rows cannot be distinguished by the selector after all phases.
+            Physical row order is never a winner rule. */
+        BUILD_SELECTOR_AMBIGUOUS,
         /** A declared axis value does not fit the 16-bit encoded field.
             Silently truncating would let 65536 become 0 and select the
             wrong representation from a package that built cleanly. */
-        BUILD_AXIS_VALUE_OUT_OF_RANGE
+        BUILD_AXIS_VALUE_OUT_OF_RANGE,
+        /** A host-side size cannot be represented in a 32-bit on-disk field. */
+        BUILD_SIZE_OUT_OF_RANGE
       };
 
       Writer();
@@ -55,6 +68,12 @@ namespace loka
                        core::resource::lrpk::U32 baseline,
                        const core::resource::lrpk::U32 *values,
                        std::size_t valueCount);
+
+      /** Declares package-owned representation precedence as axis slots in
+          highest-to-lowest order. Slot identity remains the declaration
+          position used by row nibbles; changing this order does not rewrite
+          those nibbles. For zero or one axis this may be omitted. */
+      void setRepresentationPrecedence(const std::size_t *axisSlots, std::size_t axisCount);
 
       std::size_t addBag();
 
@@ -70,7 +89,7 @@ namespace loka
       /** Emits the package. Rows are sorted by id and then by canonical axis
           order, both specified rather than left to the implementation
           (#185 §14). */
-      BuildResult build(core::resource::lrpk::U32 idSpaceStamp, bool withCrc, std::vector<unsigned char> &out) const;
+      BuildResult build(core::resource::lrpk::U32 idSpaceStamp, std::vector<unsigned char> &out) const;
 
     private:
       struct Axis
@@ -113,6 +132,7 @@ namespace loka
       };
 
       std::vector<Axis> axes_;
+      std::vector<std::size_t> precedence_;
       std::vector<Row> rows_;
       std::size_t bagCount_;
     };

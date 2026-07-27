@@ -49,6 +49,52 @@ namespace loka
             count of one normally and at most about four (#185 §14). */
         const std::size_t kMaxAxes = 4;
         const std::size_t kMaxAxisValues = 15;
+        const std::size_t kMaxBags = 16;
+
+        /** V1 layout facts shared by the writer, reader, and byte-level pins.
+            Keeping these in one place prevents the two sides of the format
+            from silently assigning different meanings to the same byte. */
+        const std::size_t kFormHeaderBytes = 8;
+        const std::size_t kChunkHeaderBytes = 8;
+        const std::size_t kHeadPayloadBytes = kFixedHeadBytes - kFormHeaderBytes - kChunkHeaderBytes;
+        const std::size_t kHeadPayloadOffset = kFormHeaderBytes + kChunkHeaderBytes;
+
+        // HEAD payload. headCrc is first and covers the HEAD chunk header plus
+        // every payload byte after the check value.
+        const std::size_t kHeadCrc = 0;
+        const std::size_t kHeadAxesCrc = 4;
+        const std::size_t kHeadIndexCrc = 8;
+        const std::size_t kHeadDataHeaderCrc = 12;
+        const std::size_t kHeadVersion = 16;
+        const std::size_t kHeadTotalBytes = 20;
+        const std::size_t kHeadIdSpaceStamp = 24;
+        const std::size_t kHeadFlags = 28;
+        const std::size_t kHeadAssetCount = 32;
+        const std::size_t kHeadBagCount = 36;
+
+        // One fixed-width AXES entry. Slot is its physical position; rank is
+        // the independent package-owned precedence policy.
+        const std::size_t kAxisEntryBytes = 40;
+        const std::size_t kAxisKind = 0;
+        const std::size_t kAxisValueCount = 1;
+        const std::size_t kAxisPrecedenceRank = 2;
+        const std::size_t kAxisBaseline = 4;
+        const std::size_t kAxisValues = 8;
+
+        // INDX bag row.
+        const std::size_t kBagDataOffset = 0;
+        const std::size_t kBagStoredSize = 4;
+        const std::size_t kBagExpandedSize = 8;
+        const std::size_t kBagCrc = 12;
+        const std::size_t kBagCodec = 16;
+
+        // INDX representation row.
+        const std::size_t kRowId = 0;
+        const std::size_t kRowOffset = 4;
+        const std::size_t kRowLength = 8;
+        const std::size_t kRowBag = 12;
+        const std::size_t kRowKind = 13;
+        const std::size_t kRowAxes = 14;
 
         /** Axis kinds. The selection rule has exactly one rule per kind, which
             is why the kind travels in the package rather than being inferred
@@ -78,27 +124,12 @@ namespace loka
           CODEC_RLE = 1
         };
 
-        /** Bit 0 of the HEAD flags word. Clear means the package carries no
-            CRCs and opens in unsafe mode: rot detection may be omitted,
-            mistaken-identity detection may not (#185 §10). */
-        const U32 kFlagHasCrc = 0x1UL;
-
         inline U32 FourCC(char a, char b, char c, char d)
         {
           return ((static_cast<U32>(static_cast<unsigned char>(a)) << 24) |
                   (static_cast<U32>(static_cast<unsigned char>(b)) << 16) |
                   (static_cast<U32>(static_cast<unsigned char>(c)) << 8) |
                   static_cast<U32>(static_cast<unsigned char>(d)));
-        }
-
-        /** A chunk whose 4CC starts with an uppercase letter is critical:
-            refuse to open if it is unknown. Lowercase is ancillary and may be
-            skipped, which is how the diagnostic name table costs nothing on a
-            4 MB build (#185 §14). */
-        inline bool IsCriticalChunk(U32 fourCC)
-        {
-          const unsigned char first = static_cast<unsigned char>((fourCC >> 24) & 0xFFUL);
-          return first >= 'A' && first <= 'Z';
         }
 
         /** Big-endian readers. Written bytewise rather than by casting to a
@@ -151,6 +182,31 @@ namespace loka
             return true;
           }
           return count <= total / width;
+        }
+
+        /** Tests a value expressed as two 32-bit words without depending on
+            the host width. This is the directly pinnable rule behind
+            SizeFitsU32: a non-zero high word cannot be serialized in a V1
+            length field. */
+        inline bool U32WordsFit(U32 highWord, U32 lowWord)
+        {
+          return highWord == 0 && lowWord <= kU32Mask;
+        }
+
+        /** True when a host size can be represented without narrowing in a
+            32-bit on-disk field. Bytewise splitting avoids assuming that the
+            host's size_t is itself wider than 16 bits. */
+        inline bool SizeFitsU32(std::size_t value)
+        {
+          std::size_t remaining = value;
+          U32 lowWord = 0;
+          for (std::size_t byte = 0; byte < 4; ++byte)
+          {
+            lowWord |= static_cast<U32>(remaining & static_cast<std::size_t>(0xFFUL)) << (byte * 8);
+            remaining >>= 8;
+          }
+          const U32 highWord = static_cast<U32>(remaining);
+          return U32WordsFit(highWord, lowWord);
         }
 
         inline std::size_t AlignUp(std::size_t value, std::size_t alignment)

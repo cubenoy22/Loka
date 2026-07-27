@@ -10,44 +10,18 @@ namespace loka
       {
         namespace
         {
-          const std::size_t kFormHeaderBytes = 8;
-          const std::size_t kChunkHeaderBytes = 8;
-          const std::size_t kHeadPayloadBytes = kFixedHeadBytes - kFormHeaderBytes - kChunkHeaderBytes;
+          U32 HeadCrc(const unsigned char *bytes)
+          {
+            Crc32 crc;
+            crc.update(bytes + kFormHeaderBytes, kChunkHeaderBytes);
+            crc.update(bytes + kHeadPayloadOffset + 4, kHeadPayloadBytes - 4);
+            return crc.value();
+          }
 
-          // HEAD payload field offsets.
-          const std::size_t kHeadVersion = 0;
-          const std::size_t kHeadTotalBytes = 4;
-          const std::size_t kHeadIdSpaceStamp = 8;
-          const std::size_t kHeadIndexCrc = 12;
-          const std::size_t kHeadFlags = 16;
-          const std::size_t kHeadAssetCount = 20;
-          const std::size_t kHeadBagCount = 24;
-          const std::size_t kHeadAxesCrc = 28;
-
-          // One AXES entry is fixed width so the reader does no arithmetic on
-          // untrusted lengths to find the next one.
-          const std::size_t kAxisEntryBytes = 40;
-          const std::size_t kAxisKind = 0;
-          const std::size_t kAxisValueCount = 1;
-          const std::size_t kAxisBaseline = 4;
-          const std::size_t kAxisValues = 8;
-
-          // Bag row field offsets.
-          const std::size_t kBagDataOffset = 0;
-          const std::size_t kBagStoredSize = 4;
-          const std::size_t kBagExpandedSize = 8;
-          const std::size_t kBagCrc = 12;
-          const std::size_t kBagCodec = 16;
-
-          // Asset row field offsets.
-          const std::size_t kRowId = 0;
-          const std::size_t kRowOffset = 4;
-          const std::size_t kRowLength = 8;
-          const std::size_t kRowBag = 12;
-          const std::size_t kRowKind = 13;
-          const std::size_t kRowAxes = 14;
-
-          const std::size_t kMaxBags = 16;
+          U32 ChunkCrc(const unsigned char *chunkHeader, std::size_t payloadSize)
+          {
+            return Crc32::Of(chunkHeader, kChunkHeaderBytes + payloadSize);
+          }
         } // namespace
 
         Reader::Reader()
@@ -60,137 +34,206 @@ namespace loka
           state_ = State();
         }
 
-        Reader::OpenResult Reader::openBorrowedBytes(const unsigned char *bytes, std::size_t size, U32 expectedIdSpaceStamp)
+        Reader::OpenResult Reader::openBorrowedBytes(const unsigned char *bytes,
+                                                     std::size_t size,
+                                                     U32 expectedIdSpaceStamp,
+                                                     IntegrityMode integrityMode)
         {
-          // Parsed into `next` and committed only on success, so a refused
-          // reload leaves a reader that already held a good package untouched,
-          // open bags included.
+          // Parse into one completed value and commit only after every check.
           State next;
           if (!bytes || size < kFixedHeadBytes)
           {
             return OPEN_NOT_A_PACKAGE;
           }
+          if (!SizeFitsU32(size))
+          {
+            return OPEN_SIZE_OUT_OF_RANGE;
+          }
           if (ReadU32BE(bytes) != FourCC('L', 'R', 'P', 'K'))
           {
             return OPEN_NOT_A_PACKAGE;
           }
-          if (ReadU32BE(bytes + kFormHeaderBytes) != FourCC('H', 'E', 'A', 'D'))
+          if (ReadU32BE(bytes + 4) != static_cast<U32>(size - kFormHeaderBytes))
           {
-            return OPEN_NOT_A_PACKAGE;
+            return OPEN_TRUNCATED;
           }
-          if (ReadU32BE(bytes + kFormHeaderBytes + 4) != static_cast<U32>(kHeadPayloadBytes))
+          if (ReadU32BE(bytes + kFormHeaderBytes) != FourCC('H', 'E', 'A', 'D') ||
+              ReadU32BE(bytes + kFormHeaderBytes + 4) != static_cast<U32>(kHeadPayloadBytes))
           {
             return OPEN_NOT_A_PACKAGE;
           }
 
-          const unsigned char *head = bytes + kFixedHeadBytes - kHeadPayloadBytes;
+          const unsigned char *head = bytes + kHeadPayloadOffset;
+          const bool verify = integrityMode == VERIFY_INTEGRITY;
+          if (verify && HeadCrc(bytes) != ReadU32BE(head + kHeadCrc))
+          {
+            return OPEN_HEAD_CORRUPT;
+          }
           if (ReadU32BE(head + kHeadVersion) != kFormatVersion)
           {
             return OPEN_UNSUPPORTED_VERSION;
           }
-          // Cheapest and most effective check: the recorded total against the
-          // actual size catches truncation and appending with one comparison.
           if (ReadU32BE(head + kHeadTotalBytes) != static_cast<U32>(size))
           {
             return OPEN_TRUNCATED;
           }
-          // Checked before any CRC: holding another build's package is the
-          // failure that happens daily and whose symptom is silent.
           const U32 stamp = ReadU32BE(head + kHeadIdSpaceStamp);
           if (stamp != expectedIdSpaceStamp)
           {
             return OPEN_ID_SPACE_MISMATCH;
           }
+          // V1 has no data-controlled verification switch. Any future meaning
+          // for a flag requires a version that knows how to interpret it.
+          if (ReadU32BE(head + kHeadFlags) != 0)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
 
-          const U32 indexCrc = ReadU32BE(head + kHeadIndexCrc);
-          next.flags = ReadU32BE(head + kHeadFlags);
-          const std::size_t declaredAssets = static_cast<std::size_t>(ReadU32BE(head + kHeadAssetCount));
-          const std::size_t declaredBags = static_cast<std::size_t>(ReadU32BE(head + kHeadBagCount));
+          const std::size_t declaredAssets =
+              static_cast<std::size_t>(ReadU32BE(head + kHeadAssetCount));
+          const std::size_t declaredBags =
+              static_cast<std::size_t>(ReadU32BE(head + kHeadBagCount));
           if (declaredBags > kMaxBags)
           {
             return OPEN_MALFORMED_INDEX;
           }
 
-          const unsigned char *indexPayload = 0;
-          std::size_t indexPayloadSize = 0;
+          const unsigned char *axesChunk = 0;
           const unsigned char *axesPayload = 0;
           std::size_t axesPayloadSize = 0;
+          const unsigned char *indexChunk = 0;
+          const unsigned char *indexPayload = 0;
+          std::size_t indexPayloadSize = 0;
+          const unsigned char *dataChunk = 0;
 
           std::size_t cursor = kFixedHeadBytes;
-          while (cursor + kChunkHeaderBytes <= size)
+          while (cursor < size)
           {
-            const U32 fourCC = ReadU32BE(bytes + cursor);
-            const std::size_t payloadSize = static_cast<std::size_t>(ReadU32BE(bytes + cursor + 4));
-            const unsigned char *payload = bytes + cursor + kChunkHeaderBytes;
-            if (payloadSize > size - (cursor + kChunkHeaderBytes))
+            if (size - cursor < kChunkHeaderBytes)
+            {
+              return OPEN_TRUNCATED;
+            }
+            const unsigned char *chunk = bytes + cursor;
+            const U32 tag = ReadU32BE(chunk);
+            const std::size_t payloadSize =
+                static_cast<std::size_t>(ReadU32BE(chunk + 4));
+            const std::size_t payloadAt = cursor + kChunkHeaderBytes;
+            if (!ExtentFits(size, payloadAt, payloadSize))
+            {
+              return OPEN_TRUNCATED;
+            }
+            const std::size_t paddedSize = AlignUp(payloadSize, kPayloadAlign);
+            if (paddedSize < payloadSize || !ExtentFits(size, payloadAt, paddedSize))
             {
               return OPEN_TRUNCATED;
             }
 
-            if (fourCC == FourCC('A', 'X', 'E', 'S'))
+            if (tag == FourCC('A', 'X', 'E', 'S'))
             {
-              if (payloadSize < 4)
+              if (axesChunk)
               {
                 return OPEN_MALFORMED_INDEX;
               }
-              axesPayload = payload;
+              axesChunk = chunk;
+              axesPayload = chunk + kChunkHeaderBytes;
               axesPayloadSize = payloadSize;
-              next.axisCount = static_cast<std::size_t>(payload[0]);
-              if (next.axisCount > kMaxAxes || payloadSize < 4 + next.axisCount * kAxisEntryBytes)
+            }
+            else if (tag == FourCC('I', 'N', 'D', 'X'))
+            {
+              if (indexChunk)
               {
                 return OPEN_MALFORMED_INDEX;
               }
-              for (std::size_t a = 0; a < next.axisCount; ++a)
-              {
-                const unsigned char *entry = payload + 4 + a * kAxisEntryBytes;
-                next.axes[a].kind = entry[kAxisKind];
-                // An unknown kind would be skipped by both the enum filter and
-                // the scalar ranking, letting a row that matches nothing win on
-                // the specificity tie-break alone.
-                if (next.axes[a].kind != AXIS_KIND_ENUM && next.axes[a].kind != AXIS_KIND_SCALAR)
-                {
-                  return OPEN_MALFORMED_INDEX;
-                }
-                next.axes[a].valueCount = entry[kAxisValueCount];
-                if (next.axes[a].valueCount > kMaxAxisValues)
-                {
-                  return OPEN_MALFORMED_INDEX;
-                }
-                next.axes[a].baseline = ReadU32BE(entry + kAxisBaseline);
-                for (std::size_t v = 0; v < next.axes[a].valueCount; ++v)
-                {
-                  next.axes[a].values[v] = ReadU16BE(entry + kAxisValues + v * 2);
-                }
-              }
-            }
-            else if (fourCC == FourCC('I', 'N', 'D', 'X'))
-            {
-              indexPayload = payload;
+              indexChunk = chunk;
+              indexPayload = chunk + kChunkHeaderBytes;
               indexPayloadSize = payloadSize;
             }
-            else if (fourCC == FourCC('D', 'A', 'T', 'A'))
+            else if (tag == FourCC('D', 'A', 'T', 'A'))
             {
-              next.dataPayload = payload;
+              if (dataChunk)
+              {
+                return OPEN_MALFORMED_INDEX;
+              }
+              dataChunk = chunk;
+              next.dataChunkHeader = chunk;
+              next.dataPayload = chunk + kChunkHeaderBytes;
               next.dataPayloadSize = payloadSize;
             }
-            else if (IsCriticalChunk(fourCC))
+            else
             {
-              // Uppercase and unknown. Skipping unconditionally would let a
-              // required chunk go silently missing.
-              return OPEN_UNKNOWN_CRITICAL_CHUNK;
+              // V1's chunk set is closed. Changing one bit of a required tag
+              // cannot demote it through letter case.
+              return OPEN_UNKNOWN_CHUNK;
             }
 
-            cursor += kChunkHeaderBytes + AlignUp(payloadSize, kPayloadAlign);
+            cursor = payloadAt + paddedSize;
           }
 
-          if (!indexPayload)
+          // V1's required set is fixed by the version, including empty AXES.
+          if (!axesChunk || !indexChunk || !dataChunk)
           {
             return OPEN_MALFORMED_INDEX;
           }
-          const bool crcPresent = (next.flags & kFlagHasCrc) != 0;
-          if (crcPresent && Crc32::Of(indexPayload, indexPayloadSize) != indexCrc)
+          if (verify)
           {
-            return OPEN_INDEX_CORRUPT;
+            if (ChunkCrc(axesChunk, axesPayloadSize) != ReadU32BE(head + kHeadAxesCrc) ||
+                ChunkCrc(indexChunk, indexPayloadSize) != ReadU32BE(head + kHeadIndexCrc))
+            {
+              return OPEN_INDEX_CORRUPT;
+            }
+            if (Crc32::Of(dataChunk, kChunkHeaderBytes) !=
+                ReadU32BE(head + kHeadDataHeaderCrc))
+            {
+              return OPEN_INDEX_CORRUPT;
+            }
+          }
+
+          if (axesPayloadSize < 4)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          next.axisCount = static_cast<std::size_t>(axesPayload[0]);
+          if (next.axisCount > kMaxAxes ||
+              axesPayloadSize != 4 + next.axisCount * kAxisEntryBytes ||
+              axesPayload[1] != 0 || axesPayload[2] != 0 || axesPayload[3] != 0)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+
+          bool rankSeen[kMaxAxes] = {false, false, false, false};
+          for (std::size_t a = 0; a < next.axisCount; ++a)
+          {
+            const unsigned char *entry = axesPayload + 4 + a * kAxisEntryBytes;
+            Axis &axis = next.axes[a];
+            axis.kind = entry[kAxisKind];
+            axis.valueCount = entry[kAxisValueCount];
+            axis.precedenceRank = entry[kAxisPrecedenceRank];
+            if ((axis.kind != AXIS_KIND_ENUM && axis.kind != AXIS_KIND_SCALAR) ||
+                axis.valueCount > kMaxAxisValues ||
+                axis.precedenceRank >= next.axisCount ||
+                rankSeen[axis.precedenceRank])
+            {
+              return OPEN_MALFORMED_INDEX;
+            }
+            rankSeen[axis.precedenceRank] = true;
+            next.precedenceSlots[axis.precedenceRank] = static_cast<unsigned char>(a);
+            axis.baseline = ReadU32BE(entry + kAxisBaseline);
+            for (std::size_t v = 0; v < axis.valueCount; ++v)
+            {
+              axis.values[v] = ReadU16BE(entry + kAxisValues + v * 2);
+              for (std::size_t earlier = 0; earlier < v; ++earlier)
+              {
+                if (axis.values[earlier] == axis.values[v])
+                {
+                  return OPEN_MALFORMED_INDEX;
+                }
+              }
+              if (axis.kind == AXIS_KIND_SCALAR && v > 0 &&
+                  axis.values[v - 1] >= axis.values[v])
+              {
+                return OPEN_MALFORMED_INDEX;
+              }
+            }
           }
 
           if (indexPayloadSize < 8)
@@ -199,84 +242,110 @@ namespace loka
           }
           next.bagCount = static_cast<std::size_t>(ReadU32BE(indexPayload));
           next.assetCount = static_cast<std::size_t>(ReadU32BE(indexPayload + 4));
-          if (next.bagCount != declaredBags || next.assetCount != declaredAssets || next.bagCount > kMaxBags)
+          if (next.bagCount != declaredBags ||
+              next.assetCount != declaredAssets ||
+              next.bagCount > kMaxBags)
           {
             return OPEN_MALFORMED_INDEX;
           }
-          // Sized by division, never by multiplying a declared count: a forged
-          // assetCount of 0x10000000 makes `count * 16` wrap to zero, and an
-          // eight-byte payload would then satisfy a naive comparison while
-          // every later binary search reads far outside the buffer.
+
           const std::size_t rowSpace = indexPayloadSize - 8;
-          if (indexPayloadSize < 8 || !ProductFits(rowSpace, next.bagCount, kBagRowBytes))
+          if (!ProductFits(rowSpace, next.bagCount, kBagRowBytes))
           {
             return OPEN_MALFORMED_INDEX;
           }
-          const std::size_t assetSpace = rowSpace - next.bagCount * kBagRowBytes;
-          if (!ProductFits(assetSpace, next.assetCount, kAssetRowBytes))
+          const std::size_t bagBytes = next.bagCount * kBagRowBytes;
+          const std::size_t assetSpace = rowSpace - bagBytes;
+          if (!ProductFits(assetSpace, next.assetCount, kAssetRowBytes) ||
+              next.assetCount * kAssetRowBytes != assetSpace)
           {
             return OPEN_MALFORMED_INDEX;
           }
 
           next.bagRows = indexPayload + 8;
-          next.assetRows = next.bagRows + next.bagCount * kBagRowBytes;
-
-          // Ascending id is a format invariant, and get() relies on it: an
-          // unsorted table would make the binary search report GET_NO_SUCH_ID
-          // for an id that is present, which is a lie rather than a refusal.
-          // A reader may not assume its input honours an invariant it depends
-          // on, so it is checked here rather than trusted.
-          for (std::size_t i = 1; i < next.assetCount; ++i)
-          {
-            if (ReadU32BE(next.assetRows + (i - 1) * kAssetRowBytes + kRowId) >
-                ReadU32BE(next.assetRows + i * kAssetRowBytes + kRowId))
-            {
-              return OPEN_MALFORMED_INDEX;
-            }
-          }
+          next.assetRows = next.bagRows + bagBytes;
 
           for (std::size_t b = 0; b < next.bagCount; ++b)
           {
             const unsigned char *row = next.bagRows + b * kBagRowBytes;
-            next.bags[b].dataOffset = ReadU32BE(row + kBagDataOffset);
-            next.bags[b].storedSize = ReadU32BE(row + kBagStoredSize);
-            next.bags[b].expandedSize = ReadU32BE(row + kBagExpandedSize);
-            next.bags[b].crc = ReadU32BE(row + kBagCrc);
-            next.bags[b].codec = row[kBagCodec];
-            next.bags[b].open = false;
-            // Bounds are checked by subtraction, never by adding two untrusted
-            // 32-bit fields: on a 32-bit target their sum can wrap to a small
-            // value and pass a naive comparison.
-            const std::size_t offset = static_cast<std::size_t>(next.bags[b].dataOffset);
-            const std::size_t stored = static_cast<std::size_t>(next.bags[b].storedSize);
-            if (!next.dataPayload || !ExtentFits(next.dataPayloadSize, offset, stored))
-            {
-              return OPEN_MALFORMED_INDEX;
-            }
-            // While the codec is none the bag is not expanded, so a larger
-            // expanded size would let a row be bounded against bytes that were
-            // never stored -- and get() hands back a pointer into the stored
-            // payload, so those bytes belong to the next bag or to nothing.
-            if (next.bags[b].codec == CODEC_NONE && next.bags[b].expandedSize != next.bags[b].storedSize)
+            Bag &bag = next.bags[b];
+            bag.dataOffset = ReadU32BE(row + kBagDataOffset);
+            bag.storedSize = ReadU32BE(row + kBagStoredSize);
+            bag.expandedSize = ReadU32BE(row + kBagExpandedSize);
+            bag.crc = ReadU32BE(row + kBagCrc);
+            bag.codec = row[kBagCodec];
+            bag.open = false;
+            const std::size_t offset = static_cast<std::size_t>(bag.dataOffset);
+            const std::size_t stored = static_cast<std::size_t>(bag.storedSize);
+            if (!ExtentFits(next.dataPayloadSize, offset, stored) ||
+                (bag.codec == CODEC_NONE && bag.expandedSize != bag.storedSize))
             {
               return OPEN_MALFORMED_INDEX;
             }
           }
 
-          // AXES decides which representation is served, so leaving it out of
-          // the checked metadata would let a bit flip there change the picture
-          // silently while every recorded CRC still matched.
-          if (crcPresent)
+          // Validate every invariant later lookup and selection depend on.
+          for (std::size_t i = 0; i < next.assetCount; ++i)
           {
-            const U32 axesCrc = ReadU32BE(head + kHeadAxesCrc);
-            if (Crc32::Of(axesPayload, axesPayloadSize) != axesCrc)
+            const unsigned char *row = next.assetRows + i * kAssetRowBytes;
+            if (i > 0 &&
+                ReadU32BE(next.assetRows + (i - 1) * kAssetRowBytes + kRowId) >
+                    ReadU32BE(row + kRowId))
             {
-              return OPEN_INDEX_CORRUPT;
+              return OPEN_MALFORMED_INDEX;
+            }
+            const std::size_t bagIndex = static_cast<std::size_t>(row[kRowBag]);
+            if (bagIndex >= next.bagCount)
+            {
+              return OPEN_MALFORMED_INDEX;
+            }
+            if (i > 0 &&
+                ReadU32BE(next.assetRows + (i - 1) * kAssetRowBytes + kRowId) ==
+                    ReadU32BE(row + kRowId) &&
+                next.assetRows[(i - 1) * kAssetRowBytes + kRowKind] != row[kRowKind])
+            {
+              return OPEN_MALFORMED_INDEX;
+            }
+
+            const U32 packed = ReadU16BE(row + kRowAxes);
+            for (std::size_t a = 0; a < kMaxAxes; ++a)
+            {
+              const U32 index = (packed >> (4 * a)) & 0xFUL;
+              if (a >= next.axisCount)
+              {
+                if (index != 0)
+                {
+                  return OPEN_MALFORMED_INDEX;
+                }
+                continue;
+              }
+              if (index > next.axes[a].valueCount)
+              {
+                return OPEN_MALFORMED_INDEX;
+              }
+              if (index != 0 && next.axes[a].kind == AXIS_KIND_SCALAR &&
+                  next.axes[a].values[static_cast<std::size_t>(index - 1)] ==
+                      next.axes[a].baseline)
+              {
+                return OPEN_MALFORMED_INDEX;
+              }
+            }
+
+            const std::size_t offset =
+                static_cast<std::size_t>(ReadU32BE(row + kRowOffset));
+            const std::size_t length =
+                static_cast<std::size_t>(ReadU32BE(row + kRowLength));
+            if (!ExtentFits(static_cast<std::size_t>(next.bags[bagIndex].expandedSize),
+                            offset,
+                            length))
+            {
+              return OPEN_MALFORMED_INDEX;
             }
           }
 
           next.bytes = bytes;
           next.size = size;
+          next.verifyIntegrity = verify;
           next.idSpaceStamp = stamp;
           state_ = next;
           return OPEN_OK;
@@ -288,13 +357,45 @@ namespace loka
           {
             return BAG_NO_SUCH_BAG;
           }
+          if (state_.bags[bagIndex].open)
+          {
+            return BAG_OK;
+          }
+
+          // Refuse ambiguity before doing any bag work. Rows are grouped by id,
+          // so each run can answer whether the candidate and an open bag both
+          // carry it without allocating an auxiliary set.
+          std::size_t i = 0;
+          while (i < state_.assetCount)
+          {
+            const U32 id = ReadU32BE(assetRow(i) + kRowId);
+            bool inCandidate = false;
+            bool inOpenBag = false;
+            do
+            {
+              const std::size_t rowBag =
+                  static_cast<std::size_t>(assetRow(i)[kRowBag]);
+              inCandidate = inCandidate || rowBag == bagIndex;
+              inOpenBag = inOpenBag ||
+                          (rowBag != bagIndex && state_.bags[rowBag].open);
+              ++i;
+            } while (i < state_.assetCount &&
+                     ReadU32BE(assetRow(i) + kRowId) == id);
+            if (inCandidate && inOpenBag)
+            {
+              return BAG_ASSET_ID_CONFLICT;
+            }
+          }
+
           Bag &bag = state_.bags[bagIndex];
           if (bag.codec != CODEC_NONE)
           {
             return BAG_UNSUPPORTED_CODEC;
           }
-          const unsigned char *payload = state_.dataPayload + bag.dataOffset;
-          if (hasCrc() && Crc32::Of(payload, static_cast<std::size_t>(bag.storedSize)) != bag.crc)
+          const unsigned char *payload =
+              state_.dataPayload + static_cast<std::size_t>(bag.dataOffset);
+          if (state_.verifyIntegrity &&
+              Crc32::Of(payload, static_cast<std::size_t>(bag.storedSize)) != bag.crc)
           {
             return BAG_CONTENTS_CORRUPT;
           }
@@ -312,7 +413,9 @@ namespace loka
 
         bool Reader::isBagOpen(std::size_t bagIndex) const
         {
-          return isOpen() && bagIndex < state_.bagCount && state_.bags[bagIndex].open;
+          return isOpen() &&
+                 bagIndex < state_.bagCount &&
+                 state_.bags[bagIndex].open;
         }
 
         const unsigned char *Reader::assetRow(std::size_t index) const
@@ -326,10 +429,10 @@ namespace loka
           return (packed >> (4 * axis)) & 0xFUL;
         }
 
-        std::size_t Reader::RowWrittenAxisCount(const unsigned char *row)
+        std::size_t Reader::rowWrittenAxisCount(const unsigned char *row) const
         {
           std::size_t count = 0;
-          for (std::size_t a = 0; a < kMaxAxes; ++a)
+          for (std::size_t a = 0; a < state_.axisCount; ++a)
           {
             if (RowAxisIndex(row, a) != 0)
             {
@@ -355,29 +458,30 @@ namespace loka
               high = mid;
             }
           }
-          if (low < state_.assetCount && ReadU32BE(assetRow(low) + kRowId) == id)
+          if (low < state_.assetCount &&
+              ReadU32BE(assetRow(low) + kRowId) == id)
           {
             return low;
           }
           return state_.assetCount;
         }
 
-        bool Reader::rowSurvivesEnumAxes(const unsigned char *row, const Facts &facts) const
+        bool Reader::rowIsEligible(const unsigned char *row,
+                                   const Facts &facts) const
         {
           for (std::size_t a = 0; a < state_.axisCount; ++a)
           {
             const U32 written = RowAxisIndex(row, a);
             if (written == 0)
             {
-              // The row says nothing about this axis, so it cannot disagree.
               continue;
             }
             if (!facts.present[a])
             {
-              // What cannot be decided is not a match.
               return false;
             }
-            if (state_.axes[a].kind == AXIS_KIND_ENUM && facts.value[a] != written)
+            if (state_.axes[a].kind == AXIS_KIND_ENUM &&
+                facts.value[a] != written)
             {
               return false;
             }
@@ -385,10 +489,43 @@ namespace loka
           return true;
         }
 
-        U32 Reader::rowScalarValue(const unsigned char *row, std::size_t axis, bool &written) const
+        bool Reader::rowMatchesFilters(const unsigned char *row,
+                                       const bool *filtered,
+                                       const bool *enumRequiresWritten,
+                                       const U32 *scalarValues) const
+        {
+          for (std::size_t a = 0; a < state_.axisCount; ++a)
+          {
+            if (!filtered[a])
+            {
+              continue;
+            }
+            if (state_.axes[a].kind == AXIS_KIND_ENUM)
+            {
+              const bool written = RowAxisIndex(row, a) != 0;
+              if (written != enumRequiresWritten[a])
+              {
+                return false;
+              }
+            }
+            else
+            {
+              bool written = false;
+              if (rowScalarValue(row, a, written) != scalarValues[a])
+              {
+                return false;
+              }
+            }
+          }
+          return true;
+        }
+
+        U32 Reader::rowScalarValue(const unsigned char *row,
+                                   std::size_t axis,
+                                   bool &written) const
         {
           const U32 index = RowAxisIndex(row, axis);
-          if (index == 0 || index > state_.axes[axis].valueCount)
+          if (index == 0)
           {
             written = false;
             return state_.axes[axis].baseline;
@@ -397,12 +534,14 @@ namespace loka
           return state_.axes[axis].values[index - 1];
         }
 
-        Reader::GetResult Reader::get(U32 id, const Facts &facts, Asset &out) const
+        Reader::GetResult Reader::get(U32 id,
+                                      const Facts &facts,
+                                      Asset &out) const
         {
           out = Asset();
           if (!isOpen())
           {
-            return GET_NO_SUCH_ID;
+            return GET_BAG_NOT_OPEN;
           }
           const std::size_t first = findFirstRow(id);
           if (first == state_.assetCount)
@@ -410,104 +549,148 @@ namespace loka
             return GET_NO_SUCH_ID;
           }
 
-          const unsigned char *best = 0;
-          bool sawRowInClosedBag = false;
+          std::size_t end = first;
+          bool hasOpenBagRow = false;
+          while (end < state_.assetCount &&
+                 ReadU32BE(assetRow(end) + kRowId) == id)
+          {
+            const std::size_t bag =
+                static_cast<std::size_t>(assetRow(end)[kRowBag]);
+            hasOpenBagRow = hasOpenBagRow || state_.bags[bag].open;
+            ++end;
+          }
+          if (!hasOpenBagRow)
+          {
+            return GET_BAG_NOT_OPEN;
+          }
 
-          for (std::size_t i = first; i < state_.assetCount; ++i)
+          bool filtered[kMaxAxes] = {false, false, false, false};
+          bool enumRequiresWritten[kMaxAxes] = {false, false, false, false};
+          U32 scalarValues[kMaxAxes] = {0, 0, 0, 0};
+
+          // Phase B: visit package precedence ranks, each time scanning only
+          // survivors of Phase A and every earlier axis.
+          for (std::size_t rank = 0; rank < state_.axisCount; ++rank)
+          {
+            const std::size_t axis =
+                static_cast<std::size_t>(state_.precedenceSlots[rank]);
+            bool foundCandidate = false;
+            if (state_.axes[axis].kind == AXIS_KIND_ENUM)
+            {
+              bool anyWritten = false;
+              for (std::size_t i = first; i < end; ++i)
+              {
+                const unsigned char *row = assetRow(i);
+                const std::size_t bag =
+                    static_cast<std::size_t>(row[kRowBag]);
+                if (!state_.bags[bag].open ||
+                    !rowIsEligible(row, facts) ||
+                    !rowMatchesFilters(row,
+                                       filtered,
+                                       enumRequiresWritten,
+                                       scalarValues))
+                {
+                  continue;
+                }
+                foundCandidate = true;
+                anyWritten = anyWritten || RowAxisIndex(row, axis) != 0;
+              }
+              if (!foundCandidate)
+              {
+                return GET_NO_MATCHING_REP;
+              }
+              filtered[axis] = true;
+              enumRequiresWritten[axis] = anyWritten;
+            }
+            else
+            {
+              U32 selected = 0;
+              bool selectedAtOrAbove = false;
+              for (std::size_t i = first; i < end; ++i)
+              {
+                const unsigned char *row = assetRow(i);
+                const std::size_t bag =
+                    static_cast<std::size_t>(row[kRowBag]);
+                if (!state_.bags[bag].open ||
+                    !rowIsEligible(row, facts) ||
+                    !rowMatchesFilters(row,
+                                       filtered,
+                                       enumRequiresWritten,
+                                       scalarValues))
+                {
+                  continue;
+                }
+                bool written = false;
+                const U32 value = rowScalarValue(row, axis, written);
+                const U32 wanted = facts.present[axis]
+                                       ? facts.value[axis]
+                                       : state_.axes[axis].baseline;
+                const bool atOrAbove = value >= wanted;
+                if (!foundCandidate ||
+                    (atOrAbove && !selectedAtOrAbove) ||
+                    (atOrAbove == selectedAtOrAbove &&
+                     ((atOrAbove && value < selected) ||
+                      (!atOrAbove && value > selected))))
+                {
+                  selected = value;
+                  selectedAtOrAbove = atOrAbove;
+                }
+                foundCandidate = true;
+              }
+              if (!foundCandidate)
+              {
+                return GET_NO_MATCHING_REP;
+              }
+              filtered[axis] = true;
+              scalarValues[axis] = selected;
+            }
+          }
+
+          // Phase C: specificity is the final structural preference. A tie is
+          // refused rather than settled by whichever row happened to be first.
+          const unsigned char *best = 0;
+          std::size_t bestWritten = 0;
+          bool ambiguous = false;
+          for (std::size_t i = first; i < end; ++i)
           {
             const unsigned char *row = assetRow(i);
-            if (ReadU32BE(row + kRowId) != id)
-            {
-              break;
-            }
-            // First filter: only rows in an open bag are candidates.
-            const std::size_t bag = static_cast<std::size_t>(row[kRowBag]);
-            if (bag >= state_.bagCount || !state_.bags[bag].open)
-            {
-              sawRowInClosedBag = true;
-              continue;
-            }
-            if (!rowSurvivesEnumAxes(row, facts))
+            const std::size_t bag =
+                static_cast<std::size_t>(row[kRowBag]);
+            if (!state_.bags[bag].open ||
+                !rowIsEligible(row, facts) ||
+                !rowMatchesFilters(row,
+                                   filtered,
+                                   enumRequiresWritten,
+                                   scalarValues))
             {
               continue;
             }
-            if (!best)
+            const std::size_t written = rowWrittenAxisCount(row);
+            if (!best || written > bestWritten)
             {
               best = row;
-              continue;
+              bestWritten = written;
+              ambiguous = false;
             }
-
-            // Scalar axes decide between survivors: the smallest at or above
-            // the requested value, and if none is at or above it, the largest.
-            bool decided = false;
-            for (std::size_t a = 0; a < state_.axisCount && !decided; ++a)
+            else if (written == bestWritten)
             {
-              if (state_.axes[a].kind != AXIS_KIND_SCALAR)
-              {
-                continue;
-              }
-              bool bestWritten = false;
-              bool rowWritten = false;
-              const U32 bestValue = rowScalarValue(best, a, bestWritten);
-              const U32 rowValue = rowScalarValue(row, a, rowWritten);
-              if (bestValue == rowValue)
-              {
-                continue;
-              }
-              const U32 want = facts.present[a] ? facts.value[a] : state_.axes[a].baseline;
-              const bool bestAtOrAbove = bestValue >= want;
-              const bool rowAtOrAbove = rowValue >= want;
-              if (bestAtOrAbove != rowAtOrAbove)
-              {
-                if (rowAtOrAbove)
-                {
-                  best = row;
-                }
-                decided = true;
-              }
-              else if (bestAtOrAbove)
-              {
-                if (rowValue < bestValue)
-                {
-                  best = row;
-                }
-                decided = true;
-              }
-              else
-              {
-                if (rowValue > bestValue)
-                {
-                  best = row;
-                }
-                decided = true;
-              }
-            }
-            if (decided)
-            {
-              continue;
-            }
-            // Tie: the more specific row wins.
-            if (RowWrittenAxisCount(row) > RowWrittenAxisCount(best))
-            {
-              best = row;
+              ambiguous = true;
             }
           }
-
-          if (!best)
-          {
-            return sawRowInClosedBag ? GET_BAG_NOT_OPEN : GET_NO_MATCHING_REP;
-          }
-
-          const std::size_t bag = static_cast<std::size_t>(best[kRowBag]);
-          const std::size_t offset = static_cast<std::size_t>(ReadU32BE(best + kRowOffset));
-          const std::size_t length = static_cast<std::size_t>(ReadU32BE(best + kRowLength));
-          const std::size_t expanded = static_cast<std::size_t>(state_.bags[bag].expandedSize);
-          if (!ExtentFits(expanded, offset, length))
+          if (!best || ambiguous)
           {
             return GET_NO_MATCHING_REP;
           }
-          out.bytes = state_.dataPayload + state_.bags[bag].dataOffset + offset;
-          out.length = length;
+
+          const std::size_t bag =
+              static_cast<std::size_t>(best[kRowBag]);
+          const std::size_t offset =
+              static_cast<std::size_t>(ReadU32BE(best + kRowOffset));
+          out.bytes = state_.dataPayload +
+                      static_cast<std::size_t>(state_.bags[bag].dataOffset) +
+                      offset;
+          out.length =
+              static_cast<std::size_t>(ReadU32BE(best + kRowLength));
           out.kind = static_cast<AssetKind>(best[kRowKind]);
           return GET_OK;
         }

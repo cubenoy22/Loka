@@ -1,7 +1,5 @@
 #include "lrpc/LrpkWriter.hpp"
 
-#include <algorithm>
-
 namespace loka
 {
   namespace lrpc
@@ -10,26 +8,6 @@ namespace loka
 
     namespace
     {
-      const std::size_t kFormHeaderBytes = 8;
-      const std::size_t kChunkHeaderBytes = 8;
-      const std::size_t kHeadPayloadBytes = kFixedHeadBytes - kFormHeaderBytes - kChunkHeaderBytes;
-      const std::size_t kAxisEntryBytes = 40;
-      const std::size_t kMaxBags = 16;
-
-      struct RowLess
-      {
-        // Ascending id, then canonical axis order within one id. Both are
-        // specified by the format so a package is reproducible.
-        bool operator()(const std::pair<U32, U32> &lhs, const std::pair<U32, U32> &rhs) const
-        {
-          if (lhs.first != rhs.first)
-          {
-            return lhs.first < rhs.first;
-          }
-          return lhs.second < rhs.second;
-        }
-      };
-
       void AppendU16(std::vector<unsigned char> &out, U32 value)
       {
         out.push_back(static_cast<unsigned char>((value >> 8) & 0xFFUL));
@@ -51,10 +29,33 @@ namespace loka
           out.push_back(0);
         }
       }
+
+      U32 ChunkCrc(U32 tag, const std::vector<unsigned char> &payload)
+      {
+        unsigned char header[kChunkHeaderBytes];
+        WriteU32BE(header, tag);
+        WriteU32BE(header + 4, static_cast<U32>(payload.size()));
+        Crc32 crc;
+        crc.update(header, kChunkHeaderBytes);
+        if (!payload.empty())
+        {
+          crc.update(&payload[0], payload.size());
+        }
+        return crc.value();
+      }
+
+      U32 ChunkHeaderCrc(U32 tag, std::size_t payloadSize)
+      {
+        unsigned char header[kChunkHeaderBytes];
+        WriteU32BE(header, tag);
+        WriteU32BE(header + 4, static_cast<U32>(payloadSize));
+        return Crc32::Of(header, kChunkHeaderBytes);
+      }
     } // namespace
 
     Writer::Writer()
         : axes_(),
+          precedence_(),
           rows_(),
           bagCount_(0)
     {
@@ -70,6 +71,15 @@ namespace loka
         axis.values.push_back(values[i]);
       }
       axes_.push_back(axis);
+    }
+
+    void Writer::setRepresentationPrecedence(const std::size_t *axisSlots, std::size_t axisCount)
+    {
+      precedence_.clear();
+      for (std::size_t i = 0; axisSlots && i < axisCount; ++i)
+      {
+        precedence_.push_back(axisSlots[i]);
+      }
     }
 
     std::size_t Writer::addBag()
@@ -90,7 +100,9 @@ namespace loka
       row.kind = kind;
       for (std::size_t a = 0; a < kMaxAxes; ++a)
       {
-        row.axisIndex[a] = axisValueIndex && a < axes_.size() ? axisValueIndex[a] : 0;
+        // Retain every caller-supplied slot. A non-zero value in a slot the
+        // package never declared is an error, not a value to silently drop.
+        row.axisIndex[a] = axisValueIndex ? axisValueIndex[a] : 0;
       }
       if (bytes && length > 0)
       {
@@ -99,11 +111,10 @@ namespace loka
       rows_.push_back(row);
     }
 
-    Writer::BuildResult Writer::build(U32 idSpaceStamp, bool withCrc, std::vector<unsigned char> &out) const
+    Writer::BuildResult Writer::build(U32 idSpaceStamp, std::vector<unsigned char> &out) const
     {
-      // Built into a temporary and swapped in only on success: a caller that
-      // reuses a vector holding a good package must not lose it to a
-      // validation refusal. Failure leaves the destination untouched.
+      // Build into a completed temporary. A refusal leaves the caller's
+      // previously good package untouched.
       std::vector<unsigned char> built;
       if (axes_.size() > kMaxAxes)
       {
@@ -113,8 +124,40 @@ namespace loka
       {
         return BUILD_TOO_MANY_BAGS;
       }
+
+      unsigned char rankBySlot[kMaxAxes] = {0, 0, 0, 0};
+      if (precedence_.empty())
+      {
+        if (axes_.size() > 1)
+        {
+          return BUILD_BAD_PRECEDENCE;
+        }
+      }
+      else
+      {
+        if (precedence_.size() != axes_.size())
+        {
+          return BUILD_BAD_PRECEDENCE;
+        }
+        bool seen[kMaxAxes] = {false, false, false, false};
+        for (std::size_t rank = 0; rank < precedence_.size(); ++rank)
+        {
+          const std::size_t slot = precedence_[rank];
+          if (slot >= axes_.size() || seen[slot])
+          {
+            return BUILD_BAD_PRECEDENCE;
+          }
+          seen[slot] = true;
+          rankBySlot[slot] = static_cast<unsigned char>(rank);
+        }
+      }
+
       for (std::size_t a = 0; a < axes_.size(); ++a)
       {
+        if (axes_[a].kind != AXIS_KIND_ENUM && axes_[a].kind != AXIS_KIND_SCALAR)
+        {
+          return BUILD_BAD_AXIS_KIND;
+        }
         if (axes_[a].values.size() > kMaxAxisValues)
         {
           return BUILD_TOO_MANY_AXIS_VALUES;
@@ -125,43 +168,62 @@ namespace loka
           {
             return BUILD_AXIS_VALUE_OUT_OF_RANGE;
           }
+          for (std::size_t earlier = 0; earlier < v; ++earlier)
+          {
+            if (axes_[a].values[earlier] == axes_[a].values[v])
+            {
+              return BUILD_BAD_AXIS_VOCABULARY;
+            }
+          }
+          if (axes_[a].kind == AXIS_KIND_SCALAR && v > 0 &&
+              axes_[a].values[v - 1] >= axes_[a].values[v])
+          {
+            return BUILD_BAD_AXIS_VOCABULARY;
+          }
         }
       }
 
       std::vector<std::size_t> order;
+      std::vector<U32> packed(rows_.size(), 0);
       for (std::size_t i = 0; i < rows_.size(); ++i)
       {
-        // A row naming a bag that was never added would be serialized into no
-        // bag at all, and the reader would report it as "the bag is not open"
-        // forever.
         if (rows_[i].bag >= bagCount_)
         {
           return BUILD_BAD_BAG_REFERENCE;
         }
-        for (std::size_t a = 0; a < axes_.size(); ++a)
+        if (!SizeFitsU32(rows_[i].bytes.size()))
         {
-          // Validated against the value the caller passed, not against a
-          // masked copy of it.
-          if (rows_[i].axisIndex[a] > axes_[a].values.size() || rows_[i].axisIndex[a] > kMaxAxisValues)
+          return BUILD_SIZE_OUT_OF_RANGE;
+        }
+        for (std::size_t a = 0; a < kMaxAxes; ++a)
+        {
+          if (a >= axes_.size())
+          {
+            if (rows_[i].axisIndex[a] != 0)
+            {
+              return BUILD_BAD_AXIS_REFERENCE;
+            }
+            continue;
+          }
+          if (rows_[i].axisIndex[a] > axes_[a].values.size() ||
+              rows_[i].axisIndex[a] > kMaxAxisValues)
           {
             return BUILD_BAD_AXIS_REFERENCE;
+          }
+          if (rows_[i].axisIndex[a] != 0)
+          {
+            const U32 value = axes_[a].values[static_cast<std::size_t>(rows_[i].axisIndex[a] - 1)];
+            if (axes_[a].kind == AXIS_KIND_SCALAR && value == axes_[a].baseline)
+            {
+              return BUILD_SCALAR_BASELINE_EXPLICIT;
+            }
+            packed[i] |= (rows_[i].axisIndex[a] & 0xFUL) << (4 * a);
           }
         }
         order.push_back(i);
       }
 
-      // Packed only now, with every index already validated against its axis.
-      std::vector<U32> packed(rows_.size(), 0);
-      for (std::size_t i = 0; i < rows_.size(); ++i)
-      {
-        for (std::size_t a = 0; a < axes_.size(); ++a)
-        {
-          packed[i] |= (rows_[i].axisIndex[a] & 0xFUL) << (4 * a);
-        }
-      }
-
-      // Selection sort by (id, axes, bag) keeps this dependency-free and the
-      // row counts are small by design -- one rep normally, at most about four.
+      // Canonical bytes are sorted by id, then encoded axes, then bag.
       for (std::size_t i = 0; i + 1 < order.size(); ++i)
       {
         std::size_t best = i;
@@ -173,7 +235,8 @@ namespace loka
           const U32 currentAxes = packed[order[best]];
           if (candidate.id < current.id ||
               (candidate.id == current.id &&
-               (candidateAxes < currentAxes || (candidateAxes == currentAxes && candidate.bag < current.bag))))
+               (candidateAxes < currentAxes ||
+                (candidateAxes == currentAxes && candidate.bag < current.bag))))
           {
             best = j;
           }
@@ -183,22 +246,56 @@ namespace loka
         order[best] = swap;
       }
 
-      // Uniqueness is on (id, bag, axes): the same id legitimately appears in
-      // several bags when those bags are an exclusive group such as ja/en.
       for (std::size_t i = 0; i + 1 < order.size(); ++i)
       {
         const Row &a = rows_[order[i]];
         const Row &b = rows_[order[i + 1]];
-        if (a.id == b.id && packed[order[i]] == packed[order[i + 1]] && a.bag == b.bag)
+        if (a.id == b.id && a.bag == b.bag && packed[order[i]] == packed[order[i + 1]])
         {
-          return BUILD_DUPLICATE_ROW;
+          return BUILD_SELECTOR_AMBIGUOUS;
         }
       }
 
-      // The wall that makes selection total. Checked per (id, bag), not per
-      // id: selection only ever considers rows in an open bag, so a default
-      // row sitting in a bag nobody opened does not keep get() total for the
-      // bag that is open.
+      // A pair with equal effective values on every selector axis can only be
+      // distinguished by row order, which is forbidden. This deliberately
+      // compares selector meaning rather than packed representation.
+      for (std::size_t i = 0; i < order.size(); ++i)
+      {
+        for (std::size_t j = i + 1; j < order.size(); ++j)
+        {
+          const Row &a = rows_[order[i]];
+          const Row &b = rows_[order[j]];
+          if (a.id != b.id || a.bag != b.bag)
+          {
+            continue;
+          }
+          bool same = true;
+          for (std::size_t axis = 0; axis < axes_.size(); ++axis)
+          {
+            const U32 ai = a.axisIndex[axis];
+            const U32 bi = b.axisIndex[axis];
+            if (axes_[axis].kind == AXIS_KIND_ENUM)
+            {
+              same = same && ai == bi;
+            }
+            else
+            {
+              const U32 av = ai == 0 ? axes_[axis].baseline
+                                     : axes_[axis].values[static_cast<std::size_t>(ai - 1)];
+              const U32 bv = bi == 0 ? axes_[axis].baseline
+                                     : axes_[axis].values[static_cast<std::size_t>(bi - 1)];
+              same = same && av == bv;
+            }
+          }
+          if (same)
+          {
+            return BUILD_SELECTOR_AMBIGUOUS;
+          }
+        }
+      }
+
+      // Every (id, bag) needs an axis-free row so Phase A always has a
+      // fallback when the bag is open.
       for (std::size_t i = 0; i < order.size(); ++i)
       {
         const U32 id = rows_[order[i]].id;
@@ -218,25 +315,27 @@ namespace loka
         }
       }
 
-      // (5) One id, one kind. The row's kind is a redundant field the reader
-      // trusts to keep scanning cheap, so the writer has to be the thing that
-      // makes it true -- otherwise selection could change the declared type of
-      // an id according to facts, and a call site would decode the wrong bytes.
       for (std::size_t i = 0; i + 1 < order.size(); ++i)
       {
-        if (rows_[order[i]].id == rows_[order[i + 1]].id && rows_[order[i]].kind != rows_[order[i + 1]].kind)
+        if (rows_[order[i]].id == rows_[order[i + 1]].id &&
+            rows_[order[i]].kind != rows_[order[i + 1]].kind)
         {
           return BUILD_ASSET_KIND_MISMATCH;
         }
       }
 
-      // Lay the bags out in DATA, recording each row's offset within its bag.
+      // Lay bags out in DATA and keep all on-disk geometry within U32.
+      const std::size_t u32MaxSize = static_cast<std::size_t>(kU32Mask);
       std::vector<unsigned char> data;
       std::vector<U32> bagOffset(bagCount_, 0);
       std::vector<U32> bagSize(bagCount_, 0);
       std::vector<U32> rowOffset(rows_.size(), 0);
       for (std::size_t b = 0; b < bagCount_; ++b)
       {
+        if (!SizeFitsU32(data.size()))
+        {
+          return BUILD_SIZE_OUT_OF_RANGE;
+        }
         bagOffset[b] = static_cast<U32>(data.size());
         for (std::size_t i = 0; i < order.size(); ++i)
         {
@@ -245,17 +344,25 @@ namespace loka
           {
             continue;
           }
-          rowOffset[order[i]] = static_cast<U32>(data.size() - bagOffset[b]);
-          data.insert(data.end(), row.bytes.begin(), row.bytes.end());
-          while ((data.size() - bagOffset[b]) % kPayloadAlign != 0)
+          if (!ExtentFits(u32MaxSize, data.size(), row.bytes.size()))
           {
+            return BUILD_SIZE_OUT_OF_RANGE;
+          }
+          rowOffset[order[i]] = static_cast<U32>(data.size() - static_cast<std::size_t>(bagOffset[b]));
+          data.insert(data.end(), row.bytes.begin(), row.bytes.end());
+          while ((data.size() - static_cast<std::size_t>(bagOffset[b])) % kPayloadAlign != 0)
+          {
+            if (data.size() == u32MaxSize)
+            {
+              return BUILD_SIZE_OUT_OF_RANGE;
+            }
             data.push_back(0);
           }
         }
-        bagSize[b] = static_cast<U32>(data.size() - bagOffset[b]);
+        bagSize[b] = static_cast<U32>(data.size() - static_cast<std::size_t>(bagOffset[b]));
       }
 
-      // AXES.
+      // AXES keeps slot identity and precedence rank separate.
       std::vector<unsigned char> axesPayload;
       axesPayload.push_back(static_cast<unsigned char>(axes_.size()));
       axesPayload.push_back(0);
@@ -266,7 +373,7 @@ namespace loka
         const std::size_t entryStart = axesPayload.size();
         axesPayload.push_back(static_cast<unsigned char>(axes_[a].kind));
         axesPayload.push_back(static_cast<unsigned char>(axes_[a].values.size()));
-        axesPayload.push_back(0);
+        axesPayload.push_back(rankBySlot[a]);
         axesPayload.push_back(0);
         AppendU32(axesPayload, axes_[a].baseline);
         for (std::size_t v = 0; v < axes_[a].values.size(); ++v)
@@ -279,7 +386,11 @@ namespace loka
         }
       }
 
-      // INDX.
+      const U32 dataHeaderCrc = ChunkHeaderCrc(FourCC('D', 'A', 'T', 'A'), data.size());
+
+      // INDX. Bag CRCs cover stored bag bytes; DATA identity and extent have
+      // the separate header check above so an empty bag never needs a
+      // one-past vector subscript.
       std::vector<unsigned char> indexPayload;
       AppendU32(indexPayload, static_cast<U32>(bagCount_));
       AppendU32(indexPayload, static_cast<U32>(order.size()));
@@ -287,9 +398,14 @@ namespace loka
       {
         AppendU32(indexPayload, bagOffset[b]);
         AppendU32(indexPayload, bagSize[b]);
-        AppendU32(indexPayload, bagSize[b]); // expanded == stored while the codec is none
-        AppendU32(indexPayload,
-                  withCrc ? Crc32::Of(data.empty() ? 0 : &data[bagOffset[b]], static_cast<std::size_t>(bagSize[b])) : 0);
+        AppendU32(indexPayload, bagSize[b]);
+        Crc32 bagCrc;
+        if (bagSize[b] != 0)
+        {
+          bagCrc.update(&data[static_cast<std::size_t>(bagOffset[b])],
+                        static_cast<std::size_t>(bagSize[b]));
+        }
+        AppendU32(indexPayload, bagCrc.value());
         indexPayload.push_back(static_cast<unsigned char>(CODEC_NONE));
         indexPayload.push_back(0);
         indexPayload.push_back(0);
@@ -309,28 +425,45 @@ namespace loka
       const std::size_t axesChunk = kChunkHeaderBytes + AlignUp(axesPayload.size(), kPayloadAlign);
       const std::size_t indexChunk = kChunkHeaderBytes + AlignUp(indexPayload.size(), kPayloadAlign);
       const std::size_t dataChunk = kChunkHeaderBytes + AlignUp(data.size(), kPayloadAlign);
+      if (!ExtentFits(u32MaxSize, kFixedHeadBytes, axesChunk) ||
+          !ExtentFits(u32MaxSize - kFixedHeadBytes, axesChunk, indexChunk) ||
+          !ExtentFits(u32MaxSize - kFixedHeadBytes - axesChunk, indexChunk, dataChunk))
+      {
+        return BUILD_SIZE_OUT_OF_RANGE;
+      }
       const std::size_t totalBytes = kFixedHeadBytes + axesChunk + indexChunk + dataChunk;
+      if (!SizeFitsU32(totalBytes))
+      {
+        return BUILD_SIZE_OUT_OF_RANGE;
+      }
+
+      const U32 axesCrc = ChunkCrc(FourCC('A', 'X', 'E', 'S'), axesPayload);
+      const U32 indexCrc = ChunkCrc(FourCC('I', 'N', 'D', 'X'), indexPayload);
 
       built.reserve(totalBytes);
       AppendU32(built, FourCC('L', 'R', 'P', 'K'));
       AppendU32(built, static_cast<U32>(totalBytes - kFormHeaderBytes));
       AppendU32(built, FourCC('H', 'E', 'A', 'D'));
       AppendU32(built, static_cast<U32>(kHeadPayloadBytes));
+      AppendU32(built, 0); // headCrc, filled after the whole fixed HEAD exists
+      AppendU32(built, axesCrc);
+      AppendU32(built, indexCrc);
+      AppendU32(built, dataHeaderCrc);
       AppendU32(built, kFormatVersion);
       AppendU32(built, static_cast<U32>(totalBytes));
       AppendU32(built, idSpaceStamp);
-      AppendU32(built, withCrc ? Crc32::Of(indexPayload.empty() ? 0 : &indexPayload[0], indexPayload.size()) : 0);
-      AppendU32(built, withCrc ? kFlagHasCrc : 0);
+      AppendU32(built, 0); // flags: V1 has no data-controlled CRC switch
       AppendU32(built, static_cast<U32>(order.size()));
       AppendU32(built, static_cast<U32>(bagCount_));
-      // AXES gets its own check value: it decides which representation is
-      // served, so it belongs in the checked metadata rather than only DATA
-      // and INDX being covered.
-      AppendU32(built, withCrc ? Crc32::Of(axesPayload.empty() ? 0 : &axesPayload[0], axesPayload.size()) : 0);
       while (built.size() < kFixedHeadBytes)
       {
         built.push_back(0);
       }
+
+      Crc32 headCrc;
+      headCrc.update(&built[kFormHeaderBytes], kChunkHeaderBytes);
+      headCrc.update(&built[kHeadPayloadOffset + 4], kHeadPayloadBytes - 4);
+      WriteU32BE(&built[kHeadPayloadOffset + kHeadCrc], headCrc.value());
 
       AppendU32(built, FourCC('A', 'X', 'E', 'S'));
       AppendU32(built, static_cast<U32>(axesPayload.size()));

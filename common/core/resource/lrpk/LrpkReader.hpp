@@ -72,6 +72,12 @@ namespace loka
         class Reader
         {
         public:
+          enum IntegrityMode
+          {
+            VERIFY_INTEGRITY = 0,
+            SKIP_INTEGRITY
+          };
+
           enum OpenResult
           {
             OPEN_OK = 0,
@@ -79,17 +85,21 @@ namespace loka
                 hold the fixed head. */
             OPEN_NOT_A_PACKAGE,
             OPEN_UNSUPPORTED_VERSION,
+            /** The borrowed host buffer cannot be represented by the
+                format's 32-bit total-length field. */
+            OPEN_SIZE_OUT_OF_RANGE,
             /** The size recorded in HEAD disagrees with the buffer -- the
                 cheapest and most effective check there is (#185 §10). */
             OPEN_TRUNCATED,
+            OPEN_HEAD_CORRUPT,
             OPEN_INDEX_CORRUPT,
-            /** An unknown chunk whose 4CC begins with an uppercase letter.
-                Skipping it unconditionally would let a required chunk go
-                silently missing (#185 §14). */
-            OPEN_UNKNOWN_CRITICAL_CHUNK,
+            /** V1 knows the exact required and optional chunk set. Case does
+                not demote an unknown chunk to ignorable. */
+            OPEN_UNKNOWN_CHUNK,
             /** The package was built against a different id space than the
                 header the application compiled against. Never waived, not even
-                in unsafe mode: it happens daily and its symptom is silent
+                when integrity verification is skipped: it happens daily and
+                its symptom is silent
                 (#185 §10). */
             OPEN_ID_SPACE_MISMATCH,
             OPEN_MALFORMED_INDEX
@@ -116,12 +126,17 @@ namespace loka
             BAG_OK = 0,
             BAG_NO_SUCH_BAG,
             BAG_CONTENTS_CORRUPT,
-            BAG_UNSUPPORTED_CODEC
+            BAG_UNSUPPORTED_CODEC,
+            /** This bag shares an asset id with a bag already open. Selection
+                never chooses between bags, so the second open is refused. */
+            BAG_ASSET_ID_CONFLICT
           };
 
           Reader();
 
-          /** Validates the head, the index and every critical chunk. Nothing is
+          /** Validates the head, the version-required chunk set, and every
+              structural invariant. CRC verification follows `integrityMode`;
+              format validation and id-space identity never do. Nothing is
               decoded and no bag is loaded.
 
               Failure-atomic: a reader already holding a good package keeps it,
@@ -129,13 +144,19 @@ namespace loka
               separate state which is committed only on `OPEN_OK`.
 
               @param bytes The whole package. **Borrowed** -- it must outlive
-                           this reader and every `Asset` obtained from it. */
-          OpenResult openBorrowedBytes(const unsigned char *bytes, std::size_t size, U32 expectedIdSpaceStamp);
+                           this reader and every `Asset` obtained from it.
+              @param integrityMode Whether CRC values are verified. The
+                                   package always carries them and cannot
+                                   disable its own inspection. */
+          OpenResult openBorrowedBytes(const unsigned char *bytes,
+                                       std::size_t size,
+                                       U32 expectedIdSpaceStamp,
+                                       IntegrityMode integrityMode);
 
           void close();
 
           bool isOpen() const { return state_.bytes != 0; }
-          bool hasCrc() const { return (state_.flags & kFlagHasCrc) != 0; }
+          bool verifiesIntegrity() const { return state_.verifyIntegrity; }
           std::size_t bagCount() const { return state_.bagCount; }
           std::size_t assetCount() const { return state_.assetCount; }
           U32 idSpaceStamp() const { return state_.idSpaceStamp; }
@@ -176,6 +197,7 @@ namespace loka
             Axis()
                 : kind(AXIS_KIND_ENUM),
                   valueCount(0),
+                  precedenceRank(0),
                   baseline(0)
             {
               for (std::size_t i = 0; i < kMaxAxisValues; ++i)
@@ -186,6 +208,7 @@ namespace loka
 
             unsigned char kind;
             unsigned char valueCount;
+            unsigned char precedenceRank;
             U32 baseline;
             U32 values[kMaxAxisValues];
           };
@@ -196,10 +219,14 @@ namespace loka
               (#185 §14). */
           std::size_t findFirstRow(U32 id) const;
           const unsigned char *assetRow(std::size_t index) const;
-          bool rowSurvivesEnumAxes(const unsigned char *row, const Facts &facts) const;
+          bool rowIsEligible(const unsigned char *row, const Facts &facts) const;
+          bool rowMatchesFilters(const unsigned char *row,
+                                 const bool *filtered,
+                                 const bool *enumRequiresWritten,
+                                 const U32 *scalarValues) const;
           U32 rowScalarValue(const unsigned char *row, std::size_t axis, bool &written) const;
           static U32 RowAxisIndex(const unsigned char *row, std::size_t axis);
-          static std::size_t RowWrittenAxisCount(const unsigned char *row);
+          std::size_t rowWrittenAxisCount(const unsigned char *row) const;
 
           /** Everything parsing produces. Held as one value so a refused
               reload cannot leave the reader half-updated: `openBorrowedBytes`
@@ -209,8 +236,9 @@ namespace loka
             State()
                 : bytes(0),
                   size(0),
-                  flags(0),
+                  verifyIntegrity(false),
                   idSpaceStamp(0),
+                  dataChunkHeader(0),
                   dataPayload(0),
                   dataPayloadSize(0),
                   bagRows(0),
@@ -219,12 +247,17 @@ namespace loka
                   assetCount(0),
                   axisCount(0)
             {
+              for (std::size_t i = 0; i < kMaxAxes; ++i)
+              {
+                precedenceSlots[i] = 0;
+              }
             }
 
             const unsigned char *bytes;
             std::size_t size;
-            U32 flags;
+            bool verifyIntegrity;
             U32 idSpaceStamp;
+            const unsigned char *dataChunkHeader;
             const unsigned char *dataPayload;
             std::size_t dataPayloadSize;
             const unsigned char *bagRows;
@@ -232,8 +265,9 @@ namespace loka
             std::size_t bagCount;
             std::size_t assetCount;
             std::size_t axisCount;
+            unsigned char precedenceSlots[kMaxAxes];
             Axis axes[kMaxAxes];
-            Bag bags[16];
+            Bag bags[kMaxBags];
           };
 
           State state_;
