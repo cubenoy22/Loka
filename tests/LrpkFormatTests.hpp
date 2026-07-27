@@ -10,5 +10,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable();
 void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds();
 void testLrpkRefusesForgedCountsAndUnsortedRows();
 void testLrpcValidatesBeforeItPacks();
+void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused();
+void testLrpkChecksTheChunkThatDecidesSelection();
 
 #endif // LOKA_LRPK_FORMAT_TESTS_HPP

@@ -22,6 +22,7 @@ namespace loka
           const std::size_t kHeadFlags = 16;
           const std::size_t kHeadAssetCount = 20;
           const std::size_t kHeadBagCount = 24;
+          const std::size_t kHeadAxesCrc = 28;
 
           // One AXES entry is fixed width so the reader does no arithmetic on
           // untrusted lengths to find the next one.
@@ -50,46 +51,21 @@ namespace loka
         } // namespace
 
         Reader::Reader()
-            : bytes_(0),
-              size_(0),
-              flags_(0),
-              idSpaceStamp_(0),
-              dataPayload_(0),
-              dataPayloadSize_(0),
-              bagRows_(0),
-              assetRows_(0),
-              bagCount_(0),
-              assetCount_(0),
-              axisCount_(0)
+            : state_()
         {
         }
 
         void Reader::close()
         {
-          bytes_ = 0;
-          size_ = 0;
-          flags_ = 0;
-          idSpaceStamp_ = 0;
-          dataPayload_ = 0;
-          dataPayloadSize_ = 0;
-          bagRows_ = 0;
-          assetRows_ = 0;
-          bagCount_ = 0;
-          assetCount_ = 0;
-          axisCount_ = 0;
-          for (std::size_t i = 0; i < kMaxBags; ++i)
-          {
-            bags_[i] = Bag();
-          }
-          for (std::size_t i = 0; i < kMaxAxes; ++i)
-          {
-            axes_[i] = Axis();
-          }
+          state_ = State();
         }
 
-        Reader::OpenResult Reader::openFromMemory(const unsigned char *bytes, std::size_t size, U32 expectedIdSpaceStamp)
+        Reader::OpenResult Reader::openBorrowedBytes(const unsigned char *bytes, std::size_t size, U32 expectedIdSpaceStamp)
         {
-          close();
+          // Parsed into `next` and committed only on success, so a refused
+          // reload leaves a reader that already held a good package untouched,
+          // open bags included.
+          State next;
           if (!bytes || size < kFixedHeadBytes)
           {
             return OPEN_NOT_A_PACKAGE;
@@ -127,7 +103,7 @@ namespace loka
           }
 
           const U32 indexCrc = ReadU32BE(head + kHeadIndexCrc);
-          flags_ = ReadU32BE(head + kHeadFlags);
+          next.flags = ReadU32BE(head + kHeadFlags);
           const std::size_t declaredAssets = static_cast<std::size_t>(ReadU32BE(head + kHeadAssetCount));
           const std::size_t declaredBags = static_cast<std::size_t>(ReadU32BE(head + kHeadBagCount));
           if (declaredBags > kMaxBags)
@@ -137,6 +113,8 @@ namespace loka
 
           const unsigned char *indexPayload = 0;
           std::size_t indexPayloadSize = 0;
+          const unsigned char *axesPayload = 0;
+          std::size_t axesPayloadSize = 0;
 
           std::size_t cursor = kFixedHeadBytes;
           while (cursor + kChunkHeaderBytes <= size)
@@ -155,24 +133,33 @@ namespace loka
               {
                 return OPEN_MALFORMED_INDEX;
               }
-              axisCount_ = static_cast<std::size_t>(payload[0]);
-              if (axisCount_ > kMaxAxes || payloadSize < 4 + axisCount_ * kAxisEntryBytes)
+              axesPayload = payload;
+              axesPayloadSize = payloadSize;
+              next.axisCount = static_cast<std::size_t>(payload[0]);
+              if (next.axisCount > kMaxAxes || payloadSize < 4 + next.axisCount * kAxisEntryBytes)
               {
                 return OPEN_MALFORMED_INDEX;
               }
-              for (std::size_t a = 0; a < axisCount_; ++a)
+              for (std::size_t a = 0; a < next.axisCount; ++a)
               {
                 const unsigned char *entry = payload + 4 + a * kAxisEntryBytes;
-                axes_[a].kind = entry[kAxisKind];
-                axes_[a].valueCount = entry[kAxisValueCount];
-                if (axes_[a].valueCount > kMaxAxisValues)
+                next.axes[a].kind = entry[kAxisKind];
+                // An unknown kind would be skipped by both the enum filter and
+                // the scalar ranking, letting a row that matches nothing win on
+                // the specificity tie-break alone.
+                if (next.axes[a].kind != AXIS_KIND_ENUM && next.axes[a].kind != AXIS_KIND_SCALAR)
                 {
                   return OPEN_MALFORMED_INDEX;
                 }
-                axes_[a].baseline = ReadU32BE(entry + kAxisBaseline);
-                for (std::size_t v = 0; v < axes_[a].valueCount; ++v)
+                next.axes[a].valueCount = entry[kAxisValueCount];
+                if (next.axes[a].valueCount > kMaxAxisValues)
                 {
-                  axes_[a].values[v] = ReadU16BE(entry + kAxisValues + v * 2);
+                  return OPEN_MALFORMED_INDEX;
+                }
+                next.axes[a].baseline = ReadU32BE(entry + kAxisBaseline);
+                for (std::size_t v = 0; v < next.axes[a].valueCount; ++v)
+                {
+                  next.axes[a].values[v] = ReadU16BE(entry + kAxisValues + v * 2);
                 }
               }
             }
@@ -183,8 +170,8 @@ namespace loka
             }
             else if (fourCC == FourCC('D', 'A', 'T', 'A'))
             {
-              dataPayload_ = payload;
-              dataPayloadSize_ = payloadSize;
+              next.dataPayload = payload;
+              next.dataPayloadSize = payloadSize;
             }
             else if (IsCriticalChunk(fourCC))
             {
@@ -200,7 +187,8 @@ namespace loka
           {
             return OPEN_MALFORMED_INDEX;
           }
-          if (hasCrc() && Crc32::Of(indexPayload, indexPayloadSize) != indexCrc)
+          const bool crcPresent = (next.flags & kFlagHasCrc) != 0;
+          if (crcPresent && Crc32::Of(indexPayload, indexPayloadSize) != indexCrc)
           {
             return OPEN_INDEX_CORRUPT;
           }
@@ -209,9 +197,9 @@ namespace loka
           {
             return OPEN_MALFORMED_INDEX;
           }
-          bagCount_ = static_cast<std::size_t>(ReadU32BE(indexPayload));
-          assetCount_ = static_cast<std::size_t>(ReadU32BE(indexPayload + 4));
-          if (bagCount_ != declaredBags || assetCount_ != declaredAssets || bagCount_ > kMaxBags)
+          next.bagCount = static_cast<std::size_t>(ReadU32BE(indexPayload));
+          next.assetCount = static_cast<std::size_t>(ReadU32BE(indexPayload + 4));
+          if (next.bagCount != declaredBags || next.assetCount != declaredAssets || next.bagCount > kMaxBags)
           {
             return OPEN_MALFORMED_INDEX;
           }
@@ -220,47 +208,48 @@ namespace loka
           // eight-byte payload would then satisfy a naive comparison while
           // every later binary search reads far outside the buffer.
           const std::size_t rowSpace = indexPayloadSize - 8;
-          if (indexPayloadSize < 8 || !ProductFits(rowSpace, bagCount_, kBagRowBytes))
+          if (indexPayloadSize < 8 || !ProductFits(rowSpace, next.bagCount, kBagRowBytes))
           {
             return OPEN_MALFORMED_INDEX;
           }
-          const std::size_t assetSpace = rowSpace - bagCount_ * kBagRowBytes;
-          if (!ProductFits(assetSpace, assetCount_, kAssetRowBytes))
+          const std::size_t assetSpace = rowSpace - next.bagCount * kBagRowBytes;
+          if (!ProductFits(assetSpace, next.assetCount, kAssetRowBytes))
           {
             return OPEN_MALFORMED_INDEX;
           }
 
-          bagRows_ = indexPayload + 8;
-          assetRows_ = bagRows_ + bagCount_ * kBagRowBytes;
+          next.bagRows = indexPayload + 8;
+          next.assetRows = next.bagRows + next.bagCount * kBagRowBytes;
 
           // Ascending id is a format invariant, and get() relies on it: an
           // unsorted table would make the binary search report GET_NO_SUCH_ID
           // for an id that is present, which is a lie rather than a refusal.
           // A reader may not assume its input honours an invariant it depends
           // on, so it is checked here rather than trusted.
-          for (std::size_t i = 1; i < assetCount_; ++i)
+          for (std::size_t i = 1; i < next.assetCount; ++i)
           {
-            if (ReadU32BE(assetRow(i - 1) + kRowId) > ReadU32BE(assetRow(i) + kRowId))
+            if (ReadU32BE(next.assetRows + (i - 1) * kAssetRowBytes + kRowId) >
+                ReadU32BE(next.assetRows + i * kAssetRowBytes + kRowId))
             {
               return OPEN_MALFORMED_INDEX;
             }
           }
 
-          for (std::size_t b = 0; b < bagCount_; ++b)
+          for (std::size_t b = 0; b < next.bagCount; ++b)
           {
-            const unsigned char *row = bagRows_ + b * kBagRowBytes;
-            bags_[b].dataOffset = ReadU32BE(row + kBagDataOffset);
-            bags_[b].storedSize = ReadU32BE(row + kBagStoredSize);
-            bags_[b].expandedSize = ReadU32BE(row + kBagExpandedSize);
-            bags_[b].crc = ReadU32BE(row + kBagCrc);
-            bags_[b].codec = row[kBagCodec];
-            bags_[b].open = false;
+            const unsigned char *row = next.bagRows + b * kBagRowBytes;
+            next.bags[b].dataOffset = ReadU32BE(row + kBagDataOffset);
+            next.bags[b].storedSize = ReadU32BE(row + kBagStoredSize);
+            next.bags[b].expandedSize = ReadU32BE(row + kBagExpandedSize);
+            next.bags[b].crc = ReadU32BE(row + kBagCrc);
+            next.bags[b].codec = row[kBagCodec];
+            next.bags[b].open = false;
             // Bounds are checked by subtraction, never by adding two untrusted
             // 32-bit fields: on a 32-bit target their sum can wrap to a small
             // value and pass a naive comparison.
-            const std::size_t offset = static_cast<std::size_t>(bags_[b].dataOffset);
-            const std::size_t stored = static_cast<std::size_t>(bags_[b].storedSize);
-            if (!dataPayload_ || !ExtentFits(dataPayloadSize_, offset, stored))
+            const std::size_t offset = static_cast<std::size_t>(next.bags[b].dataOffset);
+            const std::size_t stored = static_cast<std::size_t>(next.bags[b].storedSize);
+            if (!next.dataPayload || !ExtentFits(next.dataPayloadSize, offset, stored))
             {
               return OPEN_MALFORMED_INDEX;
             }
@@ -268,30 +257,43 @@ namespace loka
             // expanded size would let a row be bounded against bytes that were
             // never stored -- and get() hands back a pointer into the stored
             // payload, so those bytes belong to the next bag or to nothing.
-            if (bags_[b].codec == CODEC_NONE && bags_[b].expandedSize != bags_[b].storedSize)
+            if (next.bags[b].codec == CODEC_NONE && next.bags[b].expandedSize != next.bags[b].storedSize)
             {
               return OPEN_MALFORMED_INDEX;
             }
           }
 
-          bytes_ = bytes;
-          size_ = size;
-          idSpaceStamp_ = stamp;
+          // AXES decides which representation is served, so leaving it out of
+          // the checked metadata would let a bit flip there change the picture
+          // silently while every recorded CRC still matched.
+          if (crcPresent)
+          {
+            const U32 axesCrc = ReadU32BE(head + kHeadAxesCrc);
+            if (Crc32::Of(axesPayload, axesPayloadSize) != axesCrc)
+            {
+              return OPEN_INDEX_CORRUPT;
+            }
+          }
+
+          next.bytes = bytes;
+          next.size = size;
+          next.idSpaceStamp = stamp;
+          state_ = next;
           return OPEN_OK;
         }
 
         Reader::BagResult Reader::openBag(std::size_t bagIndex)
         {
-          if (!isOpen() || bagIndex >= bagCount_)
+          if (!isOpen() || bagIndex >= state_.bagCount)
           {
             return BAG_NO_SUCH_BAG;
           }
-          Bag &bag = bags_[bagIndex];
+          Bag &bag = state_.bags[bagIndex];
           if (bag.codec != CODEC_NONE)
           {
             return BAG_UNSUPPORTED_CODEC;
           }
-          const unsigned char *payload = dataPayload_ + bag.dataOffset;
+          const unsigned char *payload = state_.dataPayload + bag.dataOffset;
           if (hasCrc() && Crc32::Of(payload, static_cast<std::size_t>(bag.storedSize)) != bag.crc)
           {
             return BAG_CONTENTS_CORRUPT;
@@ -302,20 +304,20 @@ namespace loka
 
         void Reader::closeBag(std::size_t bagIndex)
         {
-          if (isOpen() && bagIndex < bagCount_)
+          if (isOpen() && bagIndex < state_.bagCount)
           {
-            bags_[bagIndex].open = false;
+            state_.bags[bagIndex].open = false;
           }
         }
 
         bool Reader::isBagOpen(std::size_t bagIndex) const
         {
-          return isOpen() && bagIndex < bagCount_ && bags_[bagIndex].open;
+          return isOpen() && bagIndex < state_.bagCount && state_.bags[bagIndex].open;
         }
 
         const unsigned char *Reader::assetRow(std::size_t index) const
         {
-          return assetRows_ + index * kAssetRowBytes;
+          return state_.assetRows + index * kAssetRowBytes;
         }
 
         U32 Reader::RowAxisIndex(const unsigned char *row, std::size_t axis)
@@ -340,7 +342,7 @@ namespace loka
         std::size_t Reader::findFirstRow(U32 id) const
         {
           std::size_t low = 0;
-          std::size_t high = assetCount_;
+          std::size_t high = state_.assetCount;
           while (low < high)
           {
             const std::size_t mid = low + (high - low) / 2;
@@ -353,16 +355,16 @@ namespace loka
               high = mid;
             }
           }
-          if (low < assetCount_ && ReadU32BE(assetRow(low) + kRowId) == id)
+          if (low < state_.assetCount && ReadU32BE(assetRow(low) + kRowId) == id)
           {
             return low;
           }
-          return assetCount_;
+          return state_.assetCount;
         }
 
         bool Reader::rowSurvivesEnumAxes(const unsigned char *row, const Facts &facts) const
         {
-          for (std::size_t a = 0; a < axisCount_; ++a)
+          for (std::size_t a = 0; a < state_.axisCount; ++a)
           {
             const U32 written = RowAxisIndex(row, a);
             if (written == 0)
@@ -375,7 +377,7 @@ namespace loka
               // What cannot be decided is not a match.
               return false;
             }
-            if (axes_[a].kind == AXIS_KIND_ENUM && facts.value[a] != written)
+            if (state_.axes[a].kind == AXIS_KIND_ENUM && facts.value[a] != written)
             {
               return false;
             }
@@ -386,13 +388,13 @@ namespace loka
         U32 Reader::rowScalarValue(const unsigned char *row, std::size_t axis, bool &written) const
         {
           const U32 index = RowAxisIndex(row, axis);
-          if (index == 0 || index > axes_[axis].valueCount)
+          if (index == 0 || index > state_.axes[axis].valueCount)
           {
             written = false;
-            return axes_[axis].baseline;
+            return state_.axes[axis].baseline;
           }
           written = true;
-          return axes_[axis].values[index - 1];
+          return state_.axes[axis].values[index - 1];
         }
 
         Reader::GetResult Reader::get(U32 id, const Facts &facts, Asset &out) const
@@ -403,7 +405,7 @@ namespace loka
             return GET_NO_SUCH_ID;
           }
           const std::size_t first = findFirstRow(id);
-          if (first == assetCount_)
+          if (first == state_.assetCount)
           {
             return GET_NO_SUCH_ID;
           }
@@ -411,7 +413,7 @@ namespace loka
           const unsigned char *best = 0;
           bool sawRowInClosedBag = false;
 
-          for (std::size_t i = first; i < assetCount_; ++i)
+          for (std::size_t i = first; i < state_.assetCount; ++i)
           {
             const unsigned char *row = assetRow(i);
             if (ReadU32BE(row + kRowId) != id)
@@ -420,7 +422,7 @@ namespace loka
             }
             // First filter: only rows in an open bag are candidates.
             const std::size_t bag = static_cast<std::size_t>(row[kRowBag]);
-            if (bag >= bagCount_ || !bags_[bag].open)
+            if (bag >= state_.bagCount || !state_.bags[bag].open)
             {
               sawRowInClosedBag = true;
               continue;
@@ -438,9 +440,9 @@ namespace loka
             // Scalar axes decide between survivors: the smallest at or above
             // the requested value, and if none is at or above it, the largest.
             bool decided = false;
-            for (std::size_t a = 0; a < axisCount_ && !decided; ++a)
+            for (std::size_t a = 0; a < state_.axisCount && !decided; ++a)
             {
-              if (axes_[a].kind != AXIS_KIND_SCALAR)
+              if (state_.axes[a].kind != AXIS_KIND_SCALAR)
               {
                 continue;
               }
@@ -452,7 +454,7 @@ namespace loka
               {
                 continue;
               }
-              const U32 want = facts.present[a] ? facts.value[a] : axes_[a].baseline;
+              const U32 want = facts.present[a] ? facts.value[a] : state_.axes[a].baseline;
               const bool bestAtOrAbove = bestValue >= want;
               const bool rowAtOrAbove = rowValue >= want;
               if (bestAtOrAbove != rowAtOrAbove)
@@ -499,12 +501,12 @@ namespace loka
           const std::size_t bag = static_cast<std::size_t>(best[kRowBag]);
           const std::size_t offset = static_cast<std::size_t>(ReadU32BE(best + kRowOffset));
           const std::size_t length = static_cast<std::size_t>(ReadU32BE(best + kRowLength));
-          const std::size_t expanded = static_cast<std::size_t>(bags_[bag].expandedSize);
+          const std::size_t expanded = static_cast<std::size_t>(state_.bags[bag].expandedSize);
           if (!ExtentFits(expanded, offset, length))
           {
             return GET_NO_MATCHING_REP;
           }
-          out.bytes = dataPayload_ + bags_[bag].dataOffset + offset;
+          out.bytes = state_.dataPayload + state_.bags[bag].dataOffset + offset;
           out.length = length;
           out.kind = static_cast<AssetKind>(best[kRowKind]);
           return GET_OK;

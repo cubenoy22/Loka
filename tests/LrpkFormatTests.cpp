@@ -101,7 +101,7 @@ void testLrpkRoundTripsThroughTheIndex()
   assert(package.size() % kPayloadAlign == 0 && "payloads align to 4: the 68000 faults on odd-address word access");
 
   Reader reader;
-  assert(reader.openFromMemory(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
+  assert(reader.openBorrowedBytes(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
   assert(reader.hasCrc());
   assert(reader.bagCount() == 1);
   assert(reader.assetCount() == 5);
@@ -141,7 +141,7 @@ void testLrpkSelectsRepresentationByAxisKind()
   std::vector<unsigned char> package;
   assert(BuildStandardPackage(package, true) == Writer::BUILD_OK);
   Reader reader;
-  assert(reader.openFromMemory(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
+  assert(reader.openBorrowedBytes(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
   assert(reader.openBag(0) == Reader::BAG_OK);
 
   Asset asset;
@@ -209,12 +209,12 @@ void testLrpkRefusesEveryCheckValueFailure()
 
   // Holding another build's package: never waived, because it happens daily
   // and its symptom is silent -- the types still pass, only the screen is wrong.
-  assert(reader.openFromMemory(&good[0], good.size(), kStamp + 1) == Reader::OPEN_ID_SPACE_MISMATCH);
+  assert(reader.openBorrowedBytes(&good[0], good.size(), kStamp + 1) == Reader::OPEN_ID_SPACE_MISMATCH);
 
   // Truncated or appended: one comparison against the recorded total.
   {
     std::vector<unsigned char> shortened(good.begin(), good.end() - kPayloadAlign);
-    assert(reader.openFromMemory(&shortened[0], shortened.size(), kStamp) == Reader::OPEN_TRUNCATED);
+    assert(reader.openBorrowedBytes(&shortened[0], shortened.size(), kStamp) == Reader::OPEN_TRUNCATED);
   }
 
   // Index rotted.
@@ -224,7 +224,7 @@ void testLrpkRefusesEveryCheckValueFailure()
     const std::size_t indexAt = FindChunkPayload(rotted, FourCC('I', 'N', 'D', 'X'), indexSize);
     assert(indexSize > 0);
     rotted[indexAt + indexSize - 1] ^= 0xFF;
-    assert(reader.openFromMemory(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_INDEX_CORRUPT);
+    assert(reader.openBorrowedBytes(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_INDEX_CORRUPT);
   }
 
   // Bag contents rotted: caught when the bag is opened, not at open time,
@@ -235,14 +235,14 @@ void testLrpkRefusesEveryCheckValueFailure()
     const std::size_t dataAt = FindChunkPayload(rotted, FourCC('D', 'A', 'T', 'A'), dataSize);
     assert(dataSize > 0);
     rotted[dataAt] ^= 0xFF;
-    assert(reader.openFromMemory(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_OK);
+    assert(reader.openBorrowedBytes(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_OK);
     assert(reader.openBag(0) == Reader::BAG_CONTENTS_CORRUPT);
   }
 
   // Not a package at all.
   {
     std::vector<unsigned char> junk(kFixedHeadBytes, 0);
-    assert(reader.openFromMemory(&junk[0], junk.size(), kStamp) == Reader::OPEN_NOT_A_PACKAGE);
+    assert(reader.openBorrowedBytes(&junk[0], junk.size(), kStamp) == Reader::OPEN_NOT_A_PACKAGE);
   }
 
   printf("==== [testLrpkRefusesEveryCheckValueFailure] end ====\n");
@@ -256,7 +256,7 @@ void testLrpkUnsafeModeOmitsRotButNotIdentity()
   assert(BuildStandardPackage(package, false) == Writer::BUILD_OK);
 
   Reader reader;
-  assert(reader.openFromMemory(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
+  assert(reader.openBorrowedBytes(&package[0], package.size(), kStamp) == Reader::OPEN_OK);
   assert(!reader.hasCrc());
   assert(reader.openBag(0) == Reader::BAG_OK);
 
@@ -267,14 +267,14 @@ void testLrpkUnsafeModeOmitsRotButNotIdentity()
     const std::size_t dataAt = FindChunkPayload(rotted, FourCC('D', 'A', 'T', 'A'), dataSize);
     rotted[dataAt] ^= 0xFF;
     Reader unsafeReader;
-    assert(unsafeReader.openFromMemory(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_OK);
+    assert(unsafeReader.openBorrowedBytes(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_OK);
     assert(unsafeReader.openBag(0) == Reader::BAG_OK && "unsafe mode may skip rot detection");
   }
 
   // Mistaken identity is not omittable, even here.
   {
     Reader unsafeReader;
-    assert(unsafeReader.openFromMemory(&package[0], package.size(), kStamp + 1) == Reader::OPEN_ID_SPACE_MISMATCH &&
+    assert(unsafeReader.openBorrowedBytes(&package[0], package.size(), kStamp + 1) == Reader::OPEN_ID_SPACE_MISMATCH &&
            "\"might be corrupt\" is allowed; \"might be a different build\" is not");
   }
 
@@ -323,7 +323,7 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
 
     // Only the open bag's row is a candidate.
     Reader reader;
-    assert(reader.openFromMemory(&out[0], out.size(), kStamp) == Reader::OPEN_OK);
+    assert(reader.openBorrowedBytes(&out[0], out.size(), kStamp) == Reader::OPEN_OK);
     assert(reader.openBag(en) == Reader::BAG_OK);
     Facts facts;
     Asset asset;
@@ -399,7 +399,7 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
   {
     std::vector<unsigned char> bad(good);
     WriteU32BE(&bad[bagRow + 8], ReadU32BE(&bad[bagRow + 8]) + 4096);
-    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX);
+    assert(reader.openBorrowedBytes(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX);
   }
 
   // Offset and size chosen so that their 32-bit sum wraps. Checking by addition
@@ -409,7 +409,7 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
     WriteU32BE(&bad[bagRow + 0], 0xFFFFFF00UL);
     WriteU32BE(&bad[bagRow + 4], 0x00000200UL);
     WriteU32BE(&bad[bagRow + 8], 0x00000200UL);
-    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX &&
+    assert(reader.openBorrowedBytes(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX &&
            "bounds must be checked by subtraction, never by adding two untrusted 32-bit fields");
   }
 
@@ -456,7 +456,7 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
     // requires them to agree, so a forgery has to change both.
     WriteU32BE(&bad[indexAt + 4], 0x10000000UL);
     WriteU32BE(&bad[16 + 20], 0x10000000UL);
-    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX &&
+    assert(reader.openBorrowedBytes(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX &&
            "a declared count must be checked by division, never by multiplying it out first");
   }
 
@@ -469,7 +469,7 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
     // The standard package has ids 42 x4 then 43. Make the last row sort before
     // the first without changing anything else.
     WriteU32BE(&bad[rowsAt + 4 * kAssetRowBytes], 1);
-    assert(reader.openFromMemory(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX);
+    assert(reader.openBorrowedBytes(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX);
   }
 
   printf("==== [testLrpkRefusesForgedCountsAndUnsortedRows] end ====\n");
@@ -521,9 +521,80 @@ void testLrpcValidatesBeforeItPacks()
     assert(reused.size() == goodSize && "a refusal must leave the destination untouched");
 
     Reader reader;
-    assert(reader.openFromMemory(&reused[0], reused.size(), kStamp) == Reader::OPEN_OK &&
+    assert(reader.openBorrowedBytes(&reused[0], reused.size(), kStamp) == Reader::OPEN_OK &&
            "the package that was already there must still open");
   }
 
   printf("==== [testLrpcValidatesBeforeItPacks] end ====\n");
+}
+
+void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused()
+{
+  printf("\n==== [testLrpkReaderKeepsItsPackageWhenAReloadIsRefused] start ====\n");
+
+  std::vector<unsigned char> good;
+  assert(BuildStandardPackage(good, true) == Writer::BUILD_OK);
+
+  Reader reader;
+  assert(reader.openBorrowedBytes(&good[0], good.size(), kStamp) == Reader::OPEN_OK);
+  assert(reader.openBag(0) == Reader::BAG_OK);
+
+  // A refused reload must leave the live package alone -- including which bags
+  // are open, which is state the caller cannot reconstruct.
+  std::vector<unsigned char> junk(kFixedHeadBytes, 0);
+  assert(reader.openBorrowedBytes(&junk[0], junk.size(), kStamp) == Reader::OPEN_NOT_A_PACKAGE);
+  assert(reader.isOpen() && "a refused reload must not close the reader");
+  assert(reader.isBagOpen(0) && "nor silently close its bags");
+
+  Facts facts;
+  Asset asset;
+  assert(reader.get(42, facts, asset) == Reader::GET_OK);
+  assert(AssetEquals(asset, kLogoDefault, sizeof(kLogoDefault)));
+
+  // And a refusal that happens late in validation behaves the same way.
+  std::vector<unsigned char> wrongStamp(good);
+  assert(reader.openBorrowedBytes(&wrongStamp[0], wrongStamp.size(), kStamp + 1) == Reader::OPEN_ID_SPACE_MISMATCH);
+  assert(reader.isBagOpen(0));
+  assert(reader.get(42, facts, asset) == Reader::GET_OK);
+
+  printf("==== [testLrpkReaderKeepsItsPackageWhenAReloadIsRefused] end ====\n");
+}
+
+void testLrpkChecksTheChunkThatDecidesSelection()
+{
+  printf("\n==== [testLrpkChecksTheChunkThatDecidesSelection] start ====\n");
+
+  std::vector<unsigned char> good;
+  assert(BuildStandardPackage(good, true) == Writer::BUILD_OK);
+  std::size_t axesSize = 0;
+  const std::size_t axesAt = FindChunkPayload(good, FourCC('A', 'X', 'E', 'S'), axesSize);
+  assert(axesSize > 0);
+
+  Reader reader;
+
+  // AXES carries the kinds, baselines and scalar thresholds that decide which
+  // representation is served. Leaving it outside the checked metadata would let
+  // a bit flip there change the picture while every recorded CRC still matched
+  // -- the silent class of failure the check values exist to prevent.
+  {
+    std::vector<unsigned char> rotted(good);
+    rotted[axesAt + 8] ^= 0xFF; // a scalar baseline
+    assert(reader.openBorrowedBytes(&rotted[0], rotted.size(), kStamp) == Reader::OPEN_INDEX_CORRUPT);
+  }
+
+  // An axis kind this version does not know is refused rather than carried.
+  // Both the enum filter and the scalar ranking skip an unknown kind, so a row
+  // writing that axis could win on the specificity tie-break alone while
+  // matching nothing.
+  {
+    std::vector<unsigned char> bad(good);
+    bad[axesAt + 4] = 9; // first axis entry, kind byte
+    // Re-stamp the AXES CRC so the kind check is what refuses this, not the CRC.
+    Crc32 crc;
+    crc.update(&bad[axesAt], axesSize);
+    WriteU32BE(&bad[16 + 28], crc.value());
+    assert(reader.openBorrowedBytes(&bad[0], bad.size(), kStamp) == Reader::OPEN_MALFORMED_INDEX);
+  }
+
+  printf("==== [testLrpkChecksTheChunkThatDecidesSelection] end ====\n");
 }

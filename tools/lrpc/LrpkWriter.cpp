@@ -323,6 +323,10 @@ namespace loka
       AppendU32(built, withCrc ? kFlagHasCrc : 0);
       AppendU32(built, static_cast<U32>(order.size()));
       AppendU32(built, static_cast<U32>(bagCount_));
+      // AXES gets its own check value: it decides which representation is
+      // served, so it belongs in the checked metadata rather than only DATA
+      // and INDX being covered.
+      AppendU32(built, withCrc ? Crc32::Of(axesPayload.empty() ? 0 : &axesPayload[0], axesPayload.size()) : 0);
       while (built.size() < kFixedHeadBytes)
       {
         built.push_back(0);

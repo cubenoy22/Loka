@@ -57,9 +57,18 @@ namespace loka
             validates, loads a bag, and serves `get(id, facts)` from memory
             (#185 §1, §7).
 
-            This overload takes the whole package as bytes. The file-backed
-            entry point, which seeks once to a bag head and reads forward, is
-            stage 2 of the vertical slice and needs the locator from #199. */
+            **The reader borrows; it never owns.** `openBorrowedBytes` keeps the
+            caller's pointer and hands out pointers into it, because §7's whole
+            point is that a loaded bag is served without a copy -- a 4 MB target
+            cannot afford the alternative. That makes the buffer's lifetime part
+            of the contract rather than an implementation detail: the bytes
+            passed to `openBorrowedBytes` must outlive the reader and everything
+            it returned. The name says "borrowed" so no call site has to infer
+            it.
+
+            The file-backed entry point, which seeks once to a bag head and
+            reads forward, is stage 2 of the vertical slice and needs the
+            locator from #199. */
         class Reader
         {
         public:
@@ -113,16 +122,23 @@ namespace loka
           Reader();
 
           /** Validates the head, the index and every critical chunk. Nothing is
-              decoded and no bag is loaded. */
-          OpenResult openFromMemory(const unsigned char *bytes, std::size_t size, U32 expectedIdSpaceStamp);
+              decoded and no bag is loaded.
+
+              Failure-atomic: a reader already holding a good package keeps it,
+              open bags and all, if a reload is refused. Parsing happens into a
+              separate state which is committed only on `OPEN_OK`.
+
+              @param bytes The whole package. **Borrowed** -- it must outlive
+                           this reader and every `Asset` obtained from it. */
+          OpenResult openBorrowedBytes(const unsigned char *bytes, std::size_t size, U32 expectedIdSpaceStamp);
 
           void close();
 
-          bool isOpen() const { return bytes_ != 0; }
-          bool hasCrc() const { return (flags_ & kFlagHasCrc) != 0; }
-          std::size_t bagCount() const { return bagCount_; }
-          std::size_t assetCount() const { return assetCount_; }
-          U32 idSpaceStamp() const { return idSpaceStamp_; }
+          bool isOpen() const { return state_.bytes != 0; }
+          bool hasCrc() const { return (state_.flags & kFlagHasCrc) != 0; }
+          std::size_t bagCount() const { return state_.bagCount; }
+          std::size_t assetCount() const { return state_.assetCount; }
+          U32 idSpaceStamp() const { return state_.idSpaceStamp; }
 
           /** Verifies the bag against its recorded CRC and makes its rows
               addressable. Memory-backed, so this costs one pass over the bag
@@ -185,22 +201,42 @@ namespace loka
           static U32 RowAxisIndex(const unsigned char *row, std::size_t axis);
           static std::size_t RowWrittenAxisCount(const unsigned char *row);
 
-          const unsigned char *bytes_;
-          std::size_t size_;
-          U32 flags_;
-          U32 idSpaceStamp_;
+          /** Everything parsing produces. Held as one value so a refused
+              reload cannot leave the reader half-updated: `openBorrowedBytes`
+              fills a local State and assigns it only after every check passes. */
+          struct State
+          {
+            State()
+                : bytes(0),
+                  size(0),
+                  flags(0),
+                  idSpaceStamp(0),
+                  dataPayload(0),
+                  dataPayloadSize(0),
+                  bagRows(0),
+                  assetRows(0),
+                  bagCount(0),
+                  assetCount(0),
+                  axisCount(0)
+            {
+            }
 
-          const unsigned char *dataPayload_;
-          std::size_t dataPayloadSize_;
+            const unsigned char *bytes;
+            std::size_t size;
+            U32 flags;
+            U32 idSpaceStamp;
+            const unsigned char *dataPayload;
+            std::size_t dataPayloadSize;
+            const unsigned char *bagRows;
+            const unsigned char *assetRows;
+            std::size_t bagCount;
+            std::size_t assetCount;
+            std::size_t axisCount;
+            Axis axes[kMaxAxes];
+            Bag bags[16];
+          };
 
-          const unsigned char *bagRows_;
-          const unsigned char *assetRows_;
-          std::size_t bagCount_;
-          std::size_t assetCount_;
-
-          std::size_t axisCount_;
-          Axis axes_[kMaxAxes];
-          Bag bags_[16];
+          State state_;
         };
       } // namespace lrpk
     } // namespace resource
