@@ -2,7 +2,9 @@
 #include "../Win32ScenePlatformController.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include <commdlg.h>
+#include <string>
 #include "Win32ThreadModalDialogScope.hpp"
+#include "platform/Win32String.hpp"
 
 namespace
 {
@@ -165,29 +167,36 @@ void Win32OpenFileDialogContext::presentDialog()
   }
   NativeDialogSession *dialogSession = dialog_;
 
-  char buffer[MAX_PATH];
-  buffer[0] = '\0';
+  // The W dialog, not the A one: GetOpenFileNameA returns the path in the
+  // process ANSI code page, and handing those bytes to loka::core::String --
+  // which reads them as UTF-8 -- destroys a full-width path before anything
+  // tries to open it (#15). Same failure family as the ANSI EDIT control in
+  // #160: the logical String must be built from UTF-16, never from ANSI bytes.
+  wchar_t buffer[MAX_PATH];
+  buffer[0] = L'\0';
 
-  OPENFILENAMEA ofn;
+  OPENFILENAMEW ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
   ofn.hwndOwner = parent_;
   ofn.lpstrFile = buffer;
   ofn.nMaxFile = MAX_PATH;
-  ofn.lpstrFilter = "Images\0*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff\0All Files\0*.*\0";
+  ofn.lpstrFilter = L"Images\0*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff\0All Files\0*.*\0";
   ofn.nFilterIndex = 1;
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
   BOOL accepted;
   {
     loka::win32::ThreadModalDialogScope threadModal(parent_);
-    accepted = GetOpenFileNameA(&ofn);
+    accepted = GetOpenFileNameW(&ofn);
   }
 
   loka::app::FileChooserResult result;
   if (accepted)
   {
-    loka::file::File file = loka::file::File::FromPath(loka::core::String(buffer));
+    const std::wstring selected(buffer);
+    loka::file::File file = loka::file::File::FromPath(
+        loka::core::String(loka::win32::CreateWin32StringFromUtf16(selected.c_str(), selected.size())));
     file.setKind(loka::file::File::KIND_FILE);
     result = loka::app::FileChooserResult::File(file);
   }

@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(python3 *)",
+      "Bash(cmake:*)",
+      "Bash(ctest:*)",
+      "Bash(codex exec *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh api *)",
+      "Bash(gh search *)",
+      "Bash(~/.local/bin/gh pr *)",
+      "Bash(~/.local/bin/gh issue *)",
+      "Bash(~/.local/bin/gh api *)",
+      "Bash(grep:*)",
+      "Bash(xxd:*)",
+      "Bash(./LokaFlowDslTests:*)",
+      "Bash(./LokaAttrTests:*)",
+      "Bash(./build/Testing/LokaContractTests)",
+      "Bash(./build/Testing/LokaScenarioTests)",
+      "Bash(./build/Testing/LokaFlowDslTests)",
+      "Bash(./build/Testing-ASan/LokaContractTests)",
+      "Bash(./build/Testing-ASan/LokaScenarioTests)",
+      "Bash(./build/Testing-ASan/LokaFlowDslTests)",
+      "Bash(ASAN_OPTIONS=detect_leaks=0 ctest --preset testing-asan)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Skill(code-review)",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude_ai_Notion__notion-search",
+      "mcp__claude_ai_Notion__notion-query-data-sources",
+      "mcp__claude_ai_Notion__notion-update-page",
+      "mcp__claude_ai_Notion__notion-create-pages",
+      "mcp__claude_ai_Notion__notion-create-comment",
+      "mcp__claude_ai_Notion__notion-update-data-source"
+    ]
+  }
+}
