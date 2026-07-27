@@ -63,6 +63,25 @@ include(CTest)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/LokaTestSources.cmake)
 
+# Compile-only regression pins are built by the headless test profile and by
+# the Classic diagnostic profile, but are never linked into shipped binaries.
+if(TEST_BUILD OR (LOKA_CLASSIC_MAC AND LOKA_RETRO68_DIAGNOSTICS))
+  add_library(LokaProfilerCompileTest OBJECT
+    ${PROJECT_SOURCE_DIR}/tests/ProfilerCompileTest.cpp
+  )
+  loka_enable_warnings(LokaProfilerCompileTest)
+  target_include_directories(LokaProfilerCompileTest PRIVATE
+    ${PROJECT_SOURCE_DIR}/common
+  )
+  target_compile_definitions(LokaProfilerCompileTest PRIVATE
+    LOKA_PROFILE_FUNC_TICKS=1
+  )
+  set_target_properties(LokaProfilerCompileTest PROPERTIES
+    CXX_STANDARD 98
+    CXX_STANDARD_REQUIRED YES
+  )
+endif()
+
 if(WIN32)
   add_subdirectory(win32)
 endif()
