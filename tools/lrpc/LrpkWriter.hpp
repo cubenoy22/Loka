@@ -36,6 +36,8 @@ namespace loka
         BUILD_TOO_MANY_AXES,
         BUILD_TOO_MANY_AXIS_VALUES,
         BUILD_TOO_MANY_BAGS,
+        /** A declared selector index exceeds that axis's value count. Slots
+            beyond the declared axis count cannot enter through `addAsset()`. */
         BUILD_BAD_AXIS_REFERENCE,
         BUILD_BAD_AXIS_KIND,
         /** A row carries an `AssetKind` outside the format's closed set. */
@@ -57,13 +59,19 @@ namespace loka
             32-bit on-disk field. */
         BUILD_SIZE_OUT_OF_RANGE,
         /** A non-empty asset was supplied without payload bytes. */
-        BUILD_NULL_PAYLOAD
+        BUILD_NULL_PAYLOAD,
+        /** An axis declaration followed the first asset row. Axis count is part
+            of `addAsset()`'s selector-width contract and is immutable once rows
+            exist. */
+        BUILD_AXIS_AFTER_ASSET
       };
 
       Writer();
 
       /** Declares one axis. Order matters: an axis's position is its nibble
-          position in every row's packed `axes` field. */
+          position in every row's packed `axes` field. All axes must be declared
+          before the first `addAsset()`; a later declaration is recorded and
+          reported by `build()` as `BUILD_AXIS_AFTER_ASSET`. */
       void declareAxis(core::resource::lrpk::AxisKind kind,
                        core::resource::lrpk::U32 baseline,
                        const core::resource::lrpk::U32 *values,
@@ -77,9 +85,10 @@ namespace loka
 
       std::size_t addBag();
 
-      /** `axisValueIndex` holds one 1-based index per declared axis, or 0 for
-          "this row does not write that axis". `bytes` may be null only when
-          `length` is zero. */
+      /** When non-null, `axisValueIndex` holds exactly `axes_.size()` entries at
+          call time: one 1-based index per declared axis, or 0 for "this row
+          does not write that axis". Null writes no axis. `bytes` may be null
+          only when `length` is zero. */
       void addAsset(core::resource::lrpk::U32 id,
                     std::size_t bag,
                     core::resource::lrpk::AssetKind kind,
@@ -139,6 +148,7 @@ namespace loka
       std::vector<std::size_t> precedence_;
       std::vector<Row> rows_;
       std::size_t bagCount_;
+      BuildResult constructionError_;
     };
   } // namespace lrpc
 } // namespace loka

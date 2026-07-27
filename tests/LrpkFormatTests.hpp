@@ -10,6 +10,8 @@ void testLrpcRefusesRowsThatWouldNotBeReachable();
 void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds();
 void testLrpkRefusesForgedCountsAndUnsortedRows();
 void testLrpcValidatesBeforeItPacks();
+void testLrpcRoundTripsExactlySizedSelectors();
+void testLrpcRefusesAxisDeclarationAfterAsset();
 void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused();
 void testLrpkChecksTheChunkThatDecidesSelection();
 void testLrpkEnforcesPayloadAlignment();

@@ -761,16 +761,6 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
   }
   {
     Writer writer;
-    const U32 depth[1] = {1};
-    writer.declareAxis(AXIS_KIND_ENUM, 0, depth, 1);
-    const std::size_t bag = writer.addBag();
-    U32 undeclared[kMaxAxes] = {0, 1, 0, 0};
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, undeclared, kDefault, sizeof(kDefault));
-    assert(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_REFERENCE &&
-           "an index for an undeclared axis must not be dropped");
-  }
-  {
-    Writer writer;
     const U32 scale[1] = {100};
     writer.declareAxis(AXIS_KIND_SCALAR, 100, scale, 1);
     const std::size_t bag = writer.addBag();
@@ -1123,6 +1113,73 @@ void testLrpcValidatesBeforeItPacks()
   }
 
   printf("==== [testLrpcValidatesBeforeItPacks] end ====\n");
+}
+
+void testLrpcRoundTripsExactlySizedSelectors()
+{
+  printf("\n==== [testLrpcRoundTripsExactlySizedSelectors] start ====\n");
+
+  Writer writer;
+  DeclareDepthScale(writer, true);
+  const std::size_t bag = writer.addBag();
+  writer.addAsset(42,
+                  bag,
+                  ASSET_KIND_IMAGE,
+                  0,
+                  kDefault,
+                  sizeof(kDefault));
+
+  U32 *selector = new U32[2];
+  selector[kAxisDepth] = 1;
+  selector[kAxisScale] = 2;
+  writer.addAsset(42,
+                  bag,
+                  ASSET_KIND_IMAGE,
+                  selector,
+                  k3x,
+                  sizeof(k3x));
+  delete[] selector;
+
+  std::vector<unsigned char> package;
+  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+
+  Reader reader;
+  assert(reader.openBorrowedBytes(&package[0],
+                                  package.size(),
+                                  kStamp,
+                                  Reader::VERIFY_INTEGRITY) ==
+         Reader::OPEN_OK);
+  assert(reader.openBag(bag) == Reader::BAG_OK);
+  Facts facts;
+  facts.present[kAxisDepth] = true;
+  facts.value[kAxisDepth] = 1;
+  facts.present[kAxisScale] = true;
+  facts.value[kAxisScale] = 300;
+  Asset asset;
+  assert(reader.get(42, facts, asset) == Reader::GET_OK);
+  assert(AssetEquals(asset, k3x, sizeof(k3x)));
+
+  printf("==== [testLrpcRoundTripsExactlySizedSelectors] end ====\n");
+}
+
+void testLrpcRefusesAxisDeclarationAfterAsset()
+{
+  printf("\n==== [testLrpcRefusesAxisDeclarationAfterAsset] start ====\n");
+
+  Writer writer;
+  const std::size_t bag = writer.addBag();
+  writer.addAsset(7,
+                  bag,
+                  ASSET_KIND_IMAGE,
+                  0,
+                  kDefault,
+                  sizeof(kDefault));
+  const U32 depth[1] = {1};
+  writer.declareAxis(AXIS_KIND_ENUM, 0, depth, 1);
+  std::vector<unsigned char> out;
+  assert(writer.build(kStamp, out) == Writer::BUILD_AXIS_AFTER_ASSET);
+
+  printf("==== [testLrpcRefusesAxisDeclarationAfterAsset] end ====\n");
 }
 
 void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused()

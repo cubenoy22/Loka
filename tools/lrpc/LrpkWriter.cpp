@@ -91,12 +91,29 @@ namespace loka
         : axes_(),
           precedence_(),
           rows_(),
-          bagCount_(0)
+          bagCount_(0),
+          constructionError_(BUILD_OK)
     {
     }
 
     void Writer::declareAxis(AxisKind kind, U32 baseline, const U32 *values, std::size_t valueCount)
     {
+      if (!rows_.empty())
+      {
+        if (constructionError_ == BUILD_OK)
+        {
+          constructionError_ = BUILD_AXIS_AFTER_ASSET;
+        }
+        return;
+      }
+      if (axes_.size() == kMaxAxes)
+      {
+        if (constructionError_ == BUILD_OK)
+        {
+          constructionError_ = BUILD_TOO_MANY_AXES;
+        }
+        return;
+      }
       Axis axis;
       axis.kind = kind;
       axis.baseline = baseline;
@@ -133,11 +150,14 @@ namespace loka
       row.bag = bag;
       row.kind = kind;
       row.nullPayload = bytes == 0 && length > 0;
-      for (std::size_t a = 0; a < kMaxAxes; ++a)
+      if (axisValueIndex)
       {
-        // Retain every caller-supplied slot. A non-zero value in a slot the
-        // package never declared is an error, not a value to silently drop.
-        row.axisIndex[a] = axisValueIndex ? axisValueIndex[a] : 0;
+        // The documented contract: one entry per axis declared at call time.
+        // Reading kMaxAxes here would overrun an exactly sized caller array.
+        for (std::size_t a = 0; a < axes_.size(); ++a)
+        {
+          row.axisIndex[a] = axisValueIndex[a];
+        }
       }
       if (bytes && length > 0)
       {
@@ -151,13 +171,13 @@ namespace loka
       // Build into a completed temporary. A refusal leaves the caller's
       // previously good package untouched.
       std::vector<unsigned char> built;
+      if (constructionError_ != BUILD_OK)
+      {
+        return constructionError_;
+      }
       if (!U32ValueFits(idSpaceStamp))
       {
         return BUILD_SIZE_OUT_OF_RANGE;
-      }
-      if (axes_.size() > kMaxAxes)
-      {
-        return BUILD_TOO_MANY_AXES;
       }
       if (bagCount_ > kMaxBags)
       {
@@ -259,16 +279,10 @@ namespace loka
         {
           return BUILD_SIZE_OUT_OF_RANGE;
         }
-        for (std::size_t a = 0; a < kMaxAxes; ++a)
+        // Slots beyond the declared axis count cannot enter through
+        // addAsset(), so only declared axes need validation here.
+        for (std::size_t a = 0; a < axes_.size(); ++a)
         {
-          if (a >= axes_.size())
-          {
-            if (rows_[i].axisIndex[a] != 0)
-            {
-              return BUILD_BAD_AXIS_REFERENCE;
-            }
-            continue;
-          }
           if (rows_[i].axisIndex[a] > axes_[a].values.size() ||
               rows_[i].axisIndex[a] > kMaxAxisValues)
           {
