@@ -98,10 +98,6 @@ namespace simpleviewer
     {
       return loka::core::String::Literal("Failed to read file.");
     }
-    if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_PATH_UTF8_CONVERT_FAILED)
-    {
-      return loka::core::String::Literal("Read failed: path UTF-8 conversion.");
-    }
     if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED)
     {
       return loka::core::String::Literal("Read failed: platform openFile failed.");

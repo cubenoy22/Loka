@@ -3,6 +3,7 @@
 #ifdef _WIN32
 #include "Win32ThreadModalScopeTests.hpp"
 #include "Win32EditTextBridgeTests.hpp"
+#include "Win32FilePathTests.hpp"
 #endif
 #ifdef __APPLE__
 #include "MacDisplayAppearanceTests.hpp"

@@ -8,7 +8,7 @@
 #include "core/State.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/String.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/file/FileIO.hpp"
 
 namespace loka
 {
@@ -233,10 +233,7 @@ namespace loka
         {
           if (!blob)
             return false;
-          std::string utf8Path;
-          if (!loka::platform::CollectUtf8(path, utf8Path))
-            return false;
-          FILE *file = std::fopen(utf8Path.c_str(), "rb");
+          FILE *file = loka::platform::file::OpenRead(path);
           if (!file)
             return false;
 
