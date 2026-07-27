@@ -115,16 +115,16 @@ namespace loka
 
       template <typename Mapper> StateStream<typename Mapper::Result> map(const Mapper &mapper) const
       {
-        PROFILE_SECTION_ID("sMap", 1);
+        PROFILE_SECTION("sMap");
         if (!this->state_)
         {
           return StateStream<typename Mapper::Result>(0, this->tracker_, this->owner_);
         }
         assert(this->owner_ && "StateStream::map requires IStateOwner");
-        PROFILE_SECTION_ID("sMapEvalNew", 2);
+        PROFILE_SECTION("sMapEvalNew");
         MapEval<T, typename Mapper::Result, Mapper> *eval =
             new MapEval<T, typename Mapper::Result, Mapper>(this->state_, mapper);
-        PROFILE_SECTION_ID("sMapDerNew", 3);
+        PROFILE_SECTION("sMapDerNew");
         ::loka::core::DerivedState<typename Mapper::Result> *derived =
             new ::loka::core::DerivedState<typename Mapper::Result>(this->state_, eval);
         this->adoptDerived(derived);
@@ -136,7 +136,7 @@ namespace loka
 
       template <typename R, typename ExprT> StateStream<R> map(const Expr<R, ExprT> &expr) const
       {
-        PROFILE_SECTION_ID("sMapExpr", 11);
+        PROFILE_SECTION("sMapExpr");
         if (!this->state_)
         {
           return StateStream<R>(0, this->tracker_, this->owner_);
@@ -154,16 +154,16 @@ namespace loka
       template <typename U, typename Combiner>
       StateStream<typename Combiner::Result> combine(const StateStream<U> &other, const Combiner &combiner) const
       {
-        PROFILE_SECTION_ID("sComb", 4);
+        PROFILE_SECTION("sComb");
         if (!this->state_ || !other.state_)
         {
           return StateStream<typename Combiner::Result>(0, this->tracker_, this->owner_);
         }
         assert(this->owner_ && this->owner_ == other.owner_ && "StateStream::combine requires same IStateOwner");
-        PROFILE_SECTION_ID("sCombEvalNew", 5);
+        PROFILE_SECTION("sCombEvalNew");
         CombineEval<T, U, typename Combiner::Result, Combiner> *eval =
             new CombineEval<T, U, typename Combiner::Result, Combiner>(this->state_, other.state_, combiner);
-        PROFILE_SECTION_ID("sCombDerNew", 6);
+        PROFILE_SECTION("sCombDerNew");
         ::loka::core::DerivedState<typename Combiner::Result> *derived =
             new ::loka::core::DerivedState<typename Combiner::Result>(this->state_, other.state_, eval);
         this->adoptDerived(derived);
@@ -177,16 +177,16 @@ namespace loka
 
       void set(::loka::app::scene::NodeState<T> &target, bool forceUpdate = false) const
       {
-        PROFILE_SECTION_ID("sSet", 7);
+        PROFILE_SECTION("sSet");
         if (!this->state_)
         {
           return;
         }
-        PROFILE_SECTION_ID("sSetNew", 8);
+        PROFILE_SECTION("sSetNew");
         SetBinding *binding = new SetBinding(this->state_, &target, forceUpdate);
-        PROFILE_SECTION_ID("sSetApply", 9);
+        PROFILE_SECTION("sSetApply");
         binding->apply();
-        PROFILE_SECTION_ID("sSetBind", 10);
+        PROFILE_SECTION("sSetBind");
         this->state_->deferBind(&SetBinding::ApplyThunk, binding);
         this->addBinding(this->state_, &SetBinding::ApplyThunk, binding, &SetBinding::Destroy);
       }
