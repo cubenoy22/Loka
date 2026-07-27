@@ -39,10 +39,13 @@ jobs:
       - name: Verify Ninja
         run: ninja --version
       - run: cmake --preset win32-debug
-      # Build every Win32 target, not just the test executable: the test
-      # binary compiles only a slice of the platform layer, so a green here
-      # must also mean the production targets still build.
+      # Two builds, because neither target set implies the other: win32-debug
+      # builds the production targets (the test executable compiles only a
+      # slice of the platform layer, so a green test run alone would not mean
+      # the app still builds), while win32-tests builds LokaTestsWin32, which
+      # win32-debug does not.
       - run: cmake --build --preset win32-debug
+      - run: cmake --build --preset win32-tests
       # Hosted CI does not cover the local rig's ARM64 build or ACP=932
       # full-width-path behavior; those remain manually verified per #172.
       - run: build/win32/Debug/example/HelloWorld/LokaTestsWin32.exe
