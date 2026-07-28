@@ -83,6 +83,62 @@ namespace
     return std::rename(temporary.c_str(), target.c_str()) == 0;
   }
 
+  /** Collapses a path to a comparable spelling: separators unified, `.` and
+      empty components dropped, `..` resolved against what precedes it.
+
+      This is lexical only. It settles `./a` against `a`, `a//b` against `a/b`
+      and `d/../a` against `a` -- spellings a build script produces on its own,
+      which is what made the previous textual compare inadequate. It does not
+      see through symlinks, hard links or a case-insensitive volume; those need
+      filesystem identity, which needs the same native path handling as #215
+      and is tracked there rather than half-built here. */
+  std::string NormalizeForCompare(const std::string &path)
+  {
+    std::string unified = path;
+    for (std::size_t i = 0; i < unified.size(); ++i)
+    {
+      if (unified[i] == '\\')
+      {
+        unified[i] = '/';
+      }
+    }
+
+    const bool rooted = !unified.empty() && unified[0] == '/';
+    std::vector<std::string> parts;
+    std::string part;
+    for (std::size_t i = 0; i <= unified.size(); ++i)
+    {
+      if (i < unified.size() && unified[i] != '/')
+      {
+        part.push_back(unified[i]);
+        continue;
+      }
+      if (!part.empty() && part != ".")
+      {
+        if (part == ".." && !parts.empty() && parts.back() != "..")
+        {
+          parts.pop_back();
+        }
+        else
+        {
+          parts.push_back(part);
+        }
+      }
+      part.clear();
+    }
+
+    std::string result = rooted ? "/" : "";
+    for (std::size_t i = 0; i < parts.size(); ++i)
+    {
+      if (i > 0)
+      {
+        result += "/";
+      }
+      result += parts[i];
+    }
+    return result;
+  }
+
   std::string DirectoryOf(const std::string &path)
   {
     const std::string::size_type slash = path.find_last_of("/\\");
@@ -236,23 +292,29 @@ int main(int argc, char **argv)
   const std::string base = DirectoryOf(manifestPath);
   {
     std::vector<std::string> inputs;
-    inputs.push_back(manifestPath);
+    inputs.push_back(NormalizeForCompare(manifestPath));
     for (std::size_t i = 0; i < manifest.assets.size(); ++i)
     {
-      inputs.push_back(base + manifest.assets[i].source);
+      inputs.push_back(NormalizeForCompare(base + manifest.assets[i].source));
     }
+    const std::string outputKey = NormalizeForCompare(outputPath);
+    const std::string stampKey =
+        stampPath.empty() ? std::string() : NormalizeForCompare(stampPath);
+    // The temporary is a third output and can collide too, so it is compared
+    // rather than assumed free.
+    const std::string temporaryKey = NormalizeForCompare(outputPath + ".tmp");
     for (std::size_t i = 0; i < inputs.size(); ++i)
     {
-      if (outputPath == inputs[i])
+      if (outputKey == inputs[i] || temporaryKey == inputs[i])
       {
         return FailAt("package output would overwrite an input", outputPath);
       }
-      if (!stampPath.empty() && stampPath == inputs[i])
+      if (!stampKey.empty() && stampKey == inputs[i])
       {
         return FailAt("stamp output would overwrite an input", stampPath);
       }
     }
-    if (!stampPath.empty() && stampPath == outputPath)
+    if (!stampKey.empty() && (stampKey == outputKey || stampKey == temporaryKey))
     {
       return FailAt("stamp and package name the same file", stampPath);
     }
@@ -292,27 +354,55 @@ int main(int argc, char **argv)
     return Fail(BuildMessage(built));
   }
 
+  // Both artifacts describe one id space, so neither may replace its previous
+  // version until the other is known to be writable. Committing the package
+  // first and then failing on an unwritable stamp destination left a new
+  // package beside an old or missing stamp -- two artifacts describing
+  // different id spaces, which is the state the stamp exists to make
+  // impossible. AGENTS.md's failure-atomicity policy states the general form:
+  // never destroy the old value before its replacement exists.
   const std::string temporary = outputPath + ".tmp";
+  const std::string stampTemporary = stampPath.empty() ? std::string() : stampPath + ".tmp";
+
   if (!WriteWholeFile(temporary, package.empty() ? 0 : &package[0], package.size()))
   {
     return FailAt("cannot write package", temporary);
   }
-  if (!CommitByRename(temporary, outputPath))
-  {
-    std::remove(temporary.c_str());
-    return FailAt("cannot commit package", outputPath);
-  }
-
   if (!stampPath.empty())
   {
     char line[32];
     const int printed = std::sprintf(line, "%lu\n", static_cast<unsigned long>(stamp));
     if (printed <= 0 ||
-        !WriteWholeFile(stampPath, reinterpret_cast<const unsigned char *>(line),
+        !WriteWholeFile(stampTemporary, reinterpret_cast<const unsigned char *>(line),
                         static_cast<std::size_t>(printed)))
     {
-      return FailAt("cannot write stamp", stampPath);
+      std::remove(temporary.c_str());
+      return FailAt("cannot write stamp", stampTemporary);
     }
+  }
+
+  if (!CommitByRename(temporary, outputPath))
+  {
+    std::remove(temporary.c_str());
+    if (!stampTemporary.empty())
+    {
+      std::remove(stampTemporary.c_str());
+    }
+    return FailAt("cannot commit package", outputPath);
+  }
+  if (!stampTemporary.empty() && !CommitByRename(stampTemporary, stampPath))
+  {
+    // Staging removed every failure that can be seen in advance, so reaching
+    // here means the second rename failed on its own. Two files cannot be
+    // renamed atomically, so the honest thing is to name both as suspect
+    // rather than report a tidy failure.
+    std::remove(stampTemporary.c_str());
+    std::fprintf(stderr,
+                 "lrpc: cannot commit stamp: %s\n"
+                 "lrpc: %s is new while the stamp is not -- treat both as out of step\n",
+                 stampPath.c_str(),
+                 outputPath.c_str());
+    return 1;
   }
 
   std::printf("lrpc: %s (%lu bytes, %lu assets, %lu bags, stamp %lu)\n",
