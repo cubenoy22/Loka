@@ -1,9 +1,11 @@
 #include "StateNotifyTests.hpp"
 #include "StateTrackerCommitTests.hpp"
+#include "ApplicationFileTests.hpp"
 #ifdef _WIN32
 #include "Win32ThreadModalScopeTests.hpp"
 #include "Win32EditTextBridgeTests.hpp"
 #include "Win32FilePathTests.hpp"
+#include "Win32AppLocationTests.hpp"
 #endif
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"

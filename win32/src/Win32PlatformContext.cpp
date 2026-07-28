@@ -1,5 +1,6 @@
 #include "Win32PlatformContext.hpp"
 #include "Win32Window.hpp"
+#include "platform/file/AppLocation.hpp"
 #include "platform/file/FileHandle.hpp"
 #include "app/core/Window.hpp"
 #include "app/core/AppConfigurable.hpp"
@@ -35,6 +36,10 @@ loka::app::scene::NodeContext *Win32PlatformContext::createNodeContext(loka::app
 
 bool Win32PlatformContext::openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const
 {
+  if (item.base() == loka::file::File::BASE_APPLICATION)
+  {
+    return loka::platform::file::ResolveApplicationItem(item, out);
+  }
   out.displayPath = item.toString();
   out.kind = item.kind();
   return !out.displayPath.empty();

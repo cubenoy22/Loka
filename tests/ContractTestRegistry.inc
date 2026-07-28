@@ -26,6 +26,9 @@ LOKA_TEST(testStateNotify)
 LOKA_TEST(testStateTrackerCommitQueuesNextTransaction)
 LOKA_TEST(testStateTrackerCommitWriteReachesNextSceneApply)
 LOKA_TEST(testStateTrackerCommitChainReportsIterationLimit)
+LOKA_TEST(testApplicationFileCompositionKeepsExplicitBase)
+LOKA_TEST(testApplicationRelativePredicateEnforcesSingleSegment)
+LOKA_TEST(testNullApplicationFileUsesOnlyInjectedDirectory)
 #ifdef _WIN32
 // Win32-only entries live in a nested registry: the CMake per-test
 // enumeration reads this file textually (preprocessor-blind), so a guarded

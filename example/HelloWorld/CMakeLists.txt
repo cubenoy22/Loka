@@ -66,9 +66,11 @@ if(WIN32)
     ${LOKA_WIN32_TEST_COMMON_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32String.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32FileIO.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32AppLocation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ThreadModalScopeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32EditTextBridgeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32AppLocationTests.cpp
   )
   loka_enable_warnings(LokaTestsWin32)
 
