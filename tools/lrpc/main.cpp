@@ -11,6 +11,12 @@
 #include <string>
 #include <vector>
 
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <unistd.h>
+#endif
+
 #include "lrpc/LrpkWriter.hpp"
 #include "lrpc/PackManifest.hpp"
 
@@ -137,6 +143,50 @@ namespace
       result += parts[i];
     }
     return result;
+  }
+
+  /** True when the path already names a place, rather than a place relative to
+      wherever the process happens to be. Covers the POSIX root, and on Windows
+      a drive-qualified path and a UNC share. */
+  bool IsRooted(const std::string &path)
+  {
+    if (path.empty())
+    {
+      return false;
+    }
+    if (path[0] == '/' || path[0] == '\\')
+    {
+      return true;
+    }
+    return path.size() >= 2 && path[1] == ':';
+  }
+
+  /** Resolves a path into one namespace so two spellings of a file compare
+      equal. A relative and an absolute spelling normalize to different strings
+      otherwise, which let `-o sub/data.bin` overwrite the asset the manifest
+      names as `data.bin` beside itself.
+
+      Still lexical. Symlinks, hard links and case-insensitive volumes need
+      filesystem identity, tracked with the rest of this tool's native path
+      handling in #215. If the working directory cannot be read the key falls
+      back to the normalized spelling, which is weaker but never wrong in the
+      direction of allowing a collision it would otherwise have caught. */
+  std::string AbsoluteKey(const std::string &path)
+  {
+    if (IsRooted(path))
+    {
+      return NormalizeForCompare(path);
+    }
+    char buffer[4096];
+#if defined(_WIN32)
+    if (_getcwd(buffer, static_cast<int>(sizeof(buffer))) == 0)
+#else
+    if (getcwd(buffer, sizeof(buffer)) == 0)
+#endif
+    {
+      return NormalizeForCompare(path);
+    }
+    return NormalizeForCompare(std::string(buffer) + "/" + path);
   }
 
   std::string DirectoryOf(const std::string &path)
@@ -289,34 +339,70 @@ int main(int argc, char **argv)
   // symlink, a case-insensitive volume) are not detected. That is the cheap
   // half of the check, and it catches the collision a build script actually
   // produces, which is the same variable used twice.
+  // Every path the run touches, checked as two complete lists rather than as a
+  // handful of pairwise comparisons.
+  //
+  // The pairwise form was wrong three times in a row -- it compared spellings
+  // without a common base, and it knew about the package's staging path but
+  // not the stamp's. Each miss let an output silently replace an input and
+  // still exit zero. The defect was never the individual comparison; it was
+  // that "did I remember every path" lived in the reader's head instead of in
+  // one place. So the sets are built once and crossed once, and adding an
+  // output later means adding it to a list that is already checked against
+  // everything.
   const std::string base = DirectoryOf(manifestPath);
   {
     std::vector<std::string> inputs;
-    inputs.push_back(NormalizeForCompare(manifestPath));
+    std::vector<std::string> inputNames;
+    inputs.push_back(AbsoluteKey(manifestPath));
+    inputNames.push_back(manifestPath);
     for (std::size_t i = 0; i < manifest.assets.size(); ++i)
     {
-      inputs.push_back(NormalizeForCompare(base + manifest.assets[i].source));
+      inputs.push_back(AbsoluteKey(base + manifest.assets[i].source));
+      inputNames.push_back(base + manifest.assets[i].source);
     }
-    const std::string outputKey = NormalizeForCompare(outputPath);
-    const std::string stampKey =
-        stampPath.empty() ? std::string() : NormalizeForCompare(stampPath);
-    // The temporary is a third output and can collide too, so it is compared
-    // rather than assumed free.
-    const std::string temporaryKey = NormalizeForCompare(outputPath + ".tmp");
-    for (std::size_t i = 0; i < inputs.size(); ++i)
+
+    std::vector<std::string> outputs;
+    std::vector<std::string> outputNames;
+    // Named by role as well as by path: two outputs that collide often share
+    // a spelling, and "Z.tmp and Z.tmp name the same file" tells the author
+    // nothing about which two things met there.
+    outputs.push_back(AbsoluteKey(outputPath));
+    outputNames.push_back("the package (" + outputPath + ")");
+    outputs.push_back(AbsoluteKey(outputPath + ".tmp"));
+    outputNames.push_back("the package staging file (" + outputPath + ".tmp)");
+    if (!stampPath.empty())
     {
-      if (outputKey == inputs[i] || temporaryKey == inputs[i])
-      {
-        return FailAt("package output would overwrite an input", outputPath);
-      }
-      if (!stampKey.empty() && stampKey == inputs[i])
-      {
-        return FailAt("stamp output would overwrite an input", stampPath);
-      }
+      outputs.push_back(AbsoluteKey(stampPath));
+      outputNames.push_back("the stamp (" + stampPath + ")");
+      outputs.push_back(AbsoluteKey(stampPath + ".tmp"));
+      outputNames.push_back("the stamp staging file (" + stampPath + ".tmp)");
     }
-    if (!stampKey.empty() && (stampKey == outputKey || stampKey == temporaryKey))
+
+    for (std::size_t o = 0; o < outputs.size(); ++o)
     {
-      return FailAt("stamp and package name the same file", stampPath);
+      for (std::size_t i = 0; i < inputs.size(); ++i)
+      {
+        if (outputs[o] == inputs[i])
+        {
+          std::fprintf(stderr,
+                       "lrpc: %s would overwrite the input %s\n",
+                       outputNames[o].c_str(),
+                       inputNames[i].c_str());
+          return 1;
+        }
+      }
+      for (std::size_t p = o + 1; p < outputs.size(); ++p)
+      {
+        if (outputs[o] == outputs[p])
+        {
+          std::fprintf(stderr,
+                       "lrpc: %s and %s name the same file\n",
+                       outputNames[o].c_str(),
+                       outputNames[p].c_str());
+          return 1;
+        }
+      }
     }
   }
 
