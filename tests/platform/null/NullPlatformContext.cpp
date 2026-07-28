@@ -3,13 +3,27 @@
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
+#include "platform/StringUTF8.hpp"
+#include "platform/file/AppLocation.hpp"
 #include "platform/file/FileHandle.hpp"
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullWindow.hpp"
 
-NullPlatformContext::NullPlatformContext() {}
+NullPlatformContext::NullPlatformContext()
+    : applicationDirectory_(),
+      hasApplicationDirectory_(false)
+{
+}
 
 NullPlatformContext::~NullPlatformContext() {}
+
+void NullPlatformContext::setApplicationDirectory(const loka::core::String &dir)
+{
+  std::string bytes;
+  this->applicationDirectory_ = dir;
+  this->hasApplicationDirectory_ =
+      loka::platform::CollectUtf8(this->applicationDirectory_, bytes) && !bytes.empty();
+}
 
 App *NullPlatformContext::createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const
 {
@@ -37,9 +51,20 @@ NullPlatformContext::createNodeContext(loka::app::scene::Node *node) const
 bool NullPlatformContext::openFile(const loka::file::File &item,
                                    loka::platform::file::FileHandle &out) const
 {
-  (void)item;
   out = loka::platform::file::FileHandle();
-  return false;
+  if (item.base() != loka::file::File::BASE_APPLICATION)
+  {
+    return false;
+  }
+  if (!loka::platform::file::ApplicationRelativeIsOpenable(item)
+      || !this->hasApplicationDirectory_)
+  {
+    return false;
+  }
+  out.displayPath =
+      this->applicationDirectory_ + loka::core::String::Literal("/") + item.relativePath();
+  out.kind = item.kind();
+  return true;
 }
 
 bool NullPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,

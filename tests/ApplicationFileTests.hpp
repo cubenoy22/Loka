@@ -1,0 +1,8 @@
+#ifndef LOKA_APPLICATION_FILE_TESTS_HPP
+#define LOKA_APPLICATION_FILE_TESTS_HPP
+
+void testApplicationFileCompositionKeepsExplicitBase();
+void testApplicationRelativePredicateEnforcesSingleSegment();
+void testNullApplicationFileUsesOnlyInjectedDirectory();
+
+#endif // LOKA_APPLICATION_FILE_TESTS_HPP

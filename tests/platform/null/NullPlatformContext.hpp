@@ -2,12 +2,15 @@
 #define LOKA_TESTS_PLATFORM_NULL_PLATFORM_CONTEXT_HPP
 
 #include "app/PlatformContext.hpp"
+#include "core/String.hpp"
 
 class NullPlatformContext : public PlatformContext
 {
 public:
   NullPlatformContext();
   virtual ~NullPlatformContext();
+
+  void setApplicationDirectory(const loka::core::String &dir);
 
   virtual App *createApp(AppConfigurable *config, HINSTANCE hInstance, int nCmdShow) const;
   virtual Window *createWindow(const WindowProps &props);
@@ -16,6 +19,10 @@ public:
                         loka::platform::file::FileHandle &out) const;
   virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
                                    loka::core::resource::Image &out) const;
+
+private:
+  loka::core::String applicationDirectory_;
+  bool hasApplicationDirectory_;
 };
 
 #endif // LOKA_TESTS_PLATFORM_NULL_PLATFORM_CONTEXT_HPP

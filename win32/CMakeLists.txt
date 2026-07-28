@@ -28,6 +28,7 @@ set(SOURCES
   src/platform/Win32Profiler.cpp
   src/platform/Win32String.cpp
   src/platform/Win32FileIO.cpp
+  src/platform/Win32AppLocation.cpp
 )
 
 add_library(LokaWin32Core STATIC ${SOURCES} ${COMMON_SOURCES})

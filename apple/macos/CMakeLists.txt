@@ -51,6 +51,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/MacProfiler.cpp
   src/MacScenePlatformController.mm
   src/MacWindow.mm
+  src/platform/MacAppLocation.mm
   src/context/MacButtonContext.mm
   src/context/MacCellContext.mm
   src/context/MacEditTextContext.mm
@@ -106,8 +107,10 @@ if(NOT LOKA_MAC_OS_10_4)
     ${LOKA_SHARED_TEST_SOURCES}
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
     ${PROJECT_SOURCE_DIR}/tests/MacDisplayAppearanceTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
     ${LOKA_MACOS_TEST_HEADERS}
   )
   loka_enable_warnings(LokaTestsMacOS)

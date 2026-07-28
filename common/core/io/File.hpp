@@ -1,6 +1,8 @@
 #ifndef LOKA_CORE_IO_FILE_HPP
 #define LOKA_CORE_IO_FILE_HPP
 
+#include <cassert>
+
 #include "core/String.hpp"
 
 namespace loka
@@ -19,7 +21,10 @@ namespace loka
       enum BaseKind
       {
         BASE_NONE = 0,
+#if !defined(LOKA_RETRO68)
         BASE_PATH,
+#endif
+        BASE_APPLICATION,
         BASE_DESKTOP,
         BASE_DOCUMENTS,
         BASE_ROOT
@@ -53,6 +58,13 @@ namespace loka
       {
         File item;
         item.base_ = BASE_DESKTOP;
+        return item;
+      }
+
+      static File Application()
+      {
+        File item;
+        item.base_ = BASE_APPLICATION;
         return item;
       }
 
@@ -105,6 +117,16 @@ namespace loka
         return this->kind_;
       }
 
+      BaseKind base() const
+      {
+        return this->base_;
+      }
+
+      const loka::core::String &relativePath() const
+      {
+        return this->relative_;
+      }
+
       void setKind(Kind kind)
       {
         this->kind_ = kind;
@@ -112,6 +134,11 @@ namespace loka
 
       loka::core::String toString() const
       {
+        if (this->base_ == BASE_APPLICATION)
+        {
+          assert(false && "Application-relative File must be resolved through PlatformContext::openFile");
+          return loka::core::String();
+        }
         if (this->base_ == BASE_ROOT)
         {
           if (this->relative_.empty())
@@ -156,10 +183,12 @@ namespace loka
 
       loka::core::String baseString() const
       {
+#if !defined(LOKA_RETRO68)
         if (this->base_ == BASE_PATH)
         {
           return this->basePath_;
         }
+#endif
 #if defined(LOKA_RETRO68)
         if (this->base_ == BASE_DESKTOP)
         {

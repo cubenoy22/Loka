@@ -25,6 +25,8 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxWindow.cpp
   src/ToolboxWindowContext.cpp
   src/ToolboxPlatformContext.cpp
+  src/platform/ToolboxAppLocation.cpp
+  src/platform/ToolboxHfsName.cpp
 )
 
 file(GLOB_RECURSE COMMON_SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/common/*.cpp)
