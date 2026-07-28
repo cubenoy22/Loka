@@ -224,7 +224,40 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  // Both outputs are written after the package is committed, so an output that
+  // names an input destroys it, and an output that names the other output
+  // truncates whichever landed first -- while the command still prints success
+  // and exits zero. Refuse before anything is written.
+  //
+  // The comparison is textual: two spellings of one file (`./a` and `a`, a
+  // symlink, a case-insensitive volume) are not detected. That is the cheap
+  // half of the check, and it catches the collision a build script actually
+  // produces, which is the same variable used twice.
   const std::string base = DirectoryOf(manifestPath);
+  {
+    std::vector<std::string> inputs;
+    inputs.push_back(manifestPath);
+    for (std::size_t i = 0; i < manifest.assets.size(); ++i)
+    {
+      inputs.push_back(base + manifest.assets[i].source);
+    }
+    for (std::size_t i = 0; i < inputs.size(); ++i)
+    {
+      if (outputPath == inputs[i])
+      {
+        return FailAt("package output would overwrite an input", outputPath);
+      }
+      if (!stampPath.empty() && stampPath == inputs[i])
+      {
+        return FailAt("stamp output would overwrite an input", stampPath);
+      }
+    }
+    if (!stampPath.empty() && stampPath == outputPath)
+    {
+      return FailAt("stamp and package name the same file", stampPath);
+    }
+  }
+
   loka::lrpc::Writer writer;
   for (std::size_t i = 0; i < manifest.bags.size(); ++i)
   {

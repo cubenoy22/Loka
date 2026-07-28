@@ -103,12 +103,14 @@ namespace loka
       {
         StampRow()
             : id(0),
-              kind(0)
+              kind(0),
+              name()
         {
         }
 
         U32 id;
         unsigned char kind;
+        std::string name;
 
         bool operator<(const StampRow &other) const
         {
@@ -116,7 +118,11 @@ namespace loka
           {
             return id < other.id;
           }
-          return kind < other.kind;
+          if (kind != other.kind)
+          {
+            return kind < other.kind;
+          }
+          return name < other.name;
         }
       };
     } // namespace
@@ -242,6 +248,7 @@ namespace loka
         StampRow row;
         row.id = manifest.assets[i].id;
         row.kind = static_cast<unsigned char>(manifest.assets[i].kind);
+        row.name = manifest.assets[i].name;
         rows.push_back(row);
       }
       // Sorted so the stamp describes the id space itself rather than the
@@ -252,10 +259,25 @@ namespace loka
       core::resource::lrpk::Crc32 crc;
       for (std::size_t i = 0; i < rows.size(); ++i)
       {
-        unsigned char encoded[5];
+        // The name is part of the association, not decoration. Hashing only
+        // `(id, kind)` leaves two same-kind symbols free to exchange ids
+        // without moving the stamp: the row multiset is unchanged while the
+        // generated header now points each symbol at the other's bytes, so an
+        // old package passes the check and draws the wrong asset. That is the
+        // silent mismatch the stamp exists to catch.
+        unsigned char encoded[9];
         core::resource::lrpk::WriteU32BE(encoded, rows[i].id);
         encoded[4] = rows[i].kind;
+        // Length-prefixed so that adjacent names cannot be re-cut into the
+        // same byte stream ("AB" + "C" must not hash as "A" + "BC").
+        core::resource::lrpk::WriteU32BE(encoded + 5,
+                                         static_cast<U32>(rows[i].name.size()));
         crc.update(encoded, sizeof(encoded));
+        if (!rows[i].name.empty())
+        {
+          crc.update(reinterpret_cast<const unsigned char *>(rows[i].name.data()),
+                     rows[i].name.size());
+        }
       }
       return crc.value();
     }

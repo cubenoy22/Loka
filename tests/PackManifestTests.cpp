@@ -113,13 +113,45 @@ void testPackManifestStampFollowsTheIdSpaceNotTheListing()
          loka::lrpc::MANIFEST_OK);
   assert(DeriveIdSpaceStamp(retyped) != DeriveIdSpaceStamp(listedOneWay));
 
-  // Names and sources are build-side bookkeeping, not the id space. Renaming a
-  // source file must not force every application header to be rebuilt.
+  // Source paths are build-side bookkeeping and never reach the application,
+  // so renaming a file on disk must not invalidate every header.
+  PackManifest resourced;
+  assert(Parse("bag Main\nasset 1001 image A other.pict\nasset 2001 string B b\n",
+               resourced,
+               line) == loka::lrpc::MANIFEST_OK);
+  assert(DeriveIdSpaceStamp(resourced) == DeriveIdSpaceStamp(listedOneWay));
+
+  // The symbolic name is part of the association the stamp guards, so renaming
+  // a symbol restamps.
   PackManifest renamed;
-  assert(Parse("bag Main\nasset 1001 image Other other.pict\nasset 2001 string B b\n",
+  assert(Parse("bag Main\nasset 1001 image Renamed a\nasset 2001 string B b\n",
                renamed,
                line) == loka::lrpc::MANIFEST_OK);
-  assert(DeriveIdSpaceStamp(renamed) == DeriveIdSpaceStamp(listedOneWay));
+  assert(DeriveIdSpaceStamp(renamed) != DeriveIdSpaceStamp(listedOneWay));
+
+  // The case that makes hashing the name load-bearing rather than tidy: two
+  // same-kind symbols exchange ids. The sorted `(id, kind)` multiset is
+  // identical, so a stamp over ids alone does not move -- while the generated
+  // header now points each symbol at the other's bytes and an old package
+  // passes every check and draws the wrong asset.
+  PackManifest straight;
+  PackManifest swapped;
+  assert(Parse("bag Main\nasset 1001 image Splash/Logo l.pict\nasset 2001 image Icons/Gear g.pict\n",
+               straight,
+               line) == loka::lrpc::MANIFEST_OK);
+  assert(Parse("bag Main\nasset 2001 image Splash/Logo l.pict\nasset 1001 image Icons/Gear g.pict\n",
+               swapped,
+               line) == loka::lrpc::MANIFEST_OK);
+  assert(DeriveIdSpaceStamp(straight) != DeriveIdSpaceStamp(swapped));
+
+  // Length-prefixing, so two names cannot be re-cut into the same byte stream.
+  PackManifest cutOneWay;
+  PackManifest cutTheOther;
+  assert(Parse("bag Main\nasset 1 image AB a\nasset 2 image C b\n", cutOneWay, line) ==
+         loka::lrpc::MANIFEST_OK);
+  assert(Parse("bag Main\nasset 1 image A a\nasset 2 image BC b\n", cutTheOther, line) ==
+         loka::lrpc::MANIFEST_OK);
+  assert(DeriveIdSpaceStamp(cutOneWay) != DeriveIdSpaceStamp(cutTheOther));
 
   std::printf("testPackManifestStampFollowsTheIdSpaceNotTheListing passed\n");
 }

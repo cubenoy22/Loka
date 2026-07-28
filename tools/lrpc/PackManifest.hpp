@@ -90,12 +90,19 @@ namespace loka
         "happens daily and whose symptom is silent". A stamp typed by hand into
         both the manifest and the application header cannot do that job -- it
         only catches a literal mismatch, so renumbering an asset leaves the
-        stamp agreeing while every lookup has moved. Deriving it from the
-        sorted `(id, kind)` rows makes any change to the id space change the
-        stamp.
+        stamp agreeing while every lookup has moved.
 
-        Emits no names, so this stays clear of the deferred string-shape rally
-        that gates `R.hpp`. */
+        It covers the **symbol-to-id association**, as sorted `(id, kind, name)`
+        rows, not just the set of ids. Hashing `(id, kind)` alone would let two
+        same-kind symbols exchange ids without moving the stamp -- the row
+        multiset is identical while the header now points each symbol at the
+        other's bytes, which is exactly the silent mismatch being guarded
+        against.
+
+        Source paths are excluded: they are build-side bookkeeping and never
+        reach the application, so renaming a file on disk must not invalidate
+        every header. Hashing a name is not the deferred string-shape rally,
+        which is about how `lrpc` *discovers* names in its input. */
     core::resource::lrpk::U32 DeriveIdSpaceStamp(const PackManifest &manifest);
   } // namespace lrpc
 } // namespace loka
