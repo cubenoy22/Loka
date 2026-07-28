@@ -135,6 +135,17 @@ namespace loka
       errorLine = 0;
       PackManifest parsed;
 
+      // Refused for the whole file rather than per field: the danger is that a
+      // NUL survives into a path, and the cheapest place to be sure it cannot
+      // is before anything is split.
+      for (std::size_t i = 0; i < length; ++i)
+      {
+        if (text[i] == '\0')
+        {
+          return MANIFEST_EMBEDDED_NUL;
+        }
+      }
+
       std::string line;
       std::vector<std::string> fields;
       std::size_t lineNumber = 0;
@@ -211,6 +222,11 @@ namespace loka
             {
               errorLine = lineNumber;
               return MANIFEST_DUPLICATE_ID;
+            }
+            if (parsed.assets[i].name == fields[3])
+            {
+              errorLine = lineNumber;
+              return MANIFEST_DUPLICATE_NAME;
             }
           }
           asset.bag = parsed.bags.size() - 1;

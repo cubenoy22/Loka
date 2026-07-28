@@ -14,6 +14,8 @@
 #if defined(_WIN32)
 #include <direct.h>
 #else
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #endif
 
@@ -101,6 +103,11 @@ namespace
   std::string NormalizeForCompare(const std::string &path)
   {
     std::string unified = path;
+#if defined(_WIN32)
+    // Only where the filesystem agrees. On POSIX a backslash is an ordinary
+    // filename character, so folding it here would make `a\b` and `a/b` --
+    // two different, legal files -- refuse each other. A false refusal blocks
+    // valid work, which is as much a defect as a missed collision.
     for (std::size_t i = 0; i < unified.size(); ++i)
     {
       if (unified[i] == '\\')
@@ -108,6 +115,7 @@ namespace
         unified[i] = '/';
       }
     }
+#endif
 
     const bool rooted = !unified.empty() && unified[0] == '/';
     std::vector<std::string> parts;
@@ -124,6 +132,11 @@ namespace
         if (part == ".." && !parts.empty() && parts.back() != "..")
         {
           parts.pop_back();
+        }
+        else if (part == ".." && rooted)
+        {
+          // The filesystem clamps `..` at the root, so `/../a` and `/a` are
+          // one file. Keeping the component would leave two keys for it.
         }
         else
         {
@@ -189,6 +202,50 @@ namespace
     return NormalizeForCompare(std::string(buffer) + "/" + path);
   }
 
+#if !defined(_WIN32)
+  /** Identity of an existing file as the filesystem sees it, so a symlink or a
+      hard link cannot present one file under two keys.
+    
+      Only existing files have one, which is exactly the case that matters: an
+      output that does not exist yet cannot already be an input. Returns false
+      when the path does not resolve, and the caller falls back to the lexical
+      key.
+    
+      POSIX only. The Windows equivalent is `GetFileInformationByHandle`, which
+      needs the same native path handling as the rest of #215 and lands with
+      it. Having it on the hosts where the tool runs today is strictly better
+      than having it nowhere; the lexical key remains underneath on both. */
+  bool IdentityKey(const std::string &path, std::string &out)
+  {
+    struct stat info;
+    if (stat(path.c_str(), &info) != 0)
+    {
+      return false;
+    }
+    char buffer[64];
+    std::sprintf(buffer,
+                 "dev:%lu ino:%lu",
+                 static_cast<unsigned long>(info.st_dev),
+                 static_cast<unsigned long>(info.st_ino));
+    out = buffer;
+    return true;
+  }
+#endif
+
+  /** The key a path is compared under: filesystem identity when the file
+      exists and the host can report it, the lexical spelling otherwise. */
+  std::string CollisionKey(const std::string &path)
+  {
+#if !defined(_WIN32)
+    std::string identity;
+    if (IdentityKey(path, identity))
+    {
+      return identity;
+    }
+#endif
+    return AbsoluteKey(path);
+  }
+
   std::string DirectoryOf(const std::string &path)
   {
     const std::string::size_type slash = path.find_last_of("/\\");
@@ -215,6 +272,10 @@ namespace
         return "asset declared before any bag";
       case loka::lrpc::MANIFEST_DUPLICATE_ID:
         return "asset id declared twice";
+      case loka::lrpc::MANIFEST_DUPLICATE_NAME:
+        return "symbolic name declared twice";
+      case loka::lrpc::MANIFEST_EMBEDDED_NUL:
+        return "the manifest contains a NUL byte";
       case loka::lrpc::MANIFEST_DUPLICATE_BAG:
         return "bag name declared twice";
       case loka::lrpc::MANIFEST_EMPTY:
@@ -354,11 +415,11 @@ int main(int argc, char **argv)
   {
     std::vector<std::string> inputs;
     std::vector<std::string> inputNames;
-    inputs.push_back(AbsoluteKey(manifestPath));
+    inputs.push_back(CollisionKey(manifestPath));
     inputNames.push_back(manifestPath);
     for (std::size_t i = 0; i < manifest.assets.size(); ++i)
     {
-      inputs.push_back(AbsoluteKey(base + manifest.assets[i].source));
+      inputs.push_back(CollisionKey(base + manifest.assets[i].source));
       inputNames.push_back(base + manifest.assets[i].source);
     }
 
@@ -367,15 +428,15 @@ int main(int argc, char **argv)
     // Named by role as well as by path: two outputs that collide often share
     // a spelling, and "Z.tmp and Z.tmp name the same file" tells the author
     // nothing about which two things met there.
-    outputs.push_back(AbsoluteKey(outputPath));
+    outputs.push_back(CollisionKey(outputPath));
     outputNames.push_back("the package (" + outputPath + ")");
-    outputs.push_back(AbsoluteKey(outputPath + ".tmp"));
+    outputs.push_back(CollisionKey(outputPath + ".tmp"));
     outputNames.push_back("the package staging file (" + outputPath + ".tmp)");
     if (!stampPath.empty())
     {
-      outputs.push_back(AbsoluteKey(stampPath));
+      outputs.push_back(CollisionKey(stampPath));
       outputNames.push_back("the stamp (" + stampPath + ")");
-      outputs.push_back(AbsoluteKey(stampPath + ".tmp"));
+      outputs.push_back(CollisionKey(stampPath + ".tmp"));
       outputNames.push_back("the stamp staging file (" + stampPath + ".tmp)");
     }
 
@@ -480,14 +541,22 @@ int main(int argc, char **argv)
   {
     // Staging removed every failure that can be seen in advance, so reaching
     // here means the second rename failed on its own. Two files cannot be
-    // renamed atomically, so the honest thing is to name both as suspect
-    // rather than report a tidy failure.
+    // renamed atomically, so the remaining choice is which inconsistent state
+    // to leave behind -- and a stale stamp beside a new package is the worse
+    // one, because it agrees with a package that no longer exists and the
+    // build reads it as truth. Removing it leaves the stamp absent instead,
+    // which the consuming build cannot mistake for an answer. The package
+    // still carries its own stamp in HEAD, so nothing is lost that cannot be
+    // read back out of the artifact itself.
     std::remove(stampTemporary.c_str());
+    const bool staleRemoved = std::remove(stampPath.c_str()) == 0;
     std::fprintf(stderr,
                  "lrpc: cannot commit stamp: %s\n"
-                 "lrpc: %s is new while the stamp is not -- treat both as out of step\n",
+                 "lrpc: %s was written; the stamp file is %s -- read the stamp "
+                 "from the package rather than trusting a stale one\n",
                  stampPath.c_str(),
-                 outputPath.c_str());
+                 outputPath.c_str(),
+                 staleRemoved ? "removed" : "possibly stale and could not be removed");
     return 1;
   }
 

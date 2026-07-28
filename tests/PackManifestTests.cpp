@@ -80,6 +80,26 @@ void testPackManifestParsesRecordsAndRefusesMalformedLines()
   assert(Refusal("bag Main\n", line) == loka::lrpc::MANIFEST_EMPTY);
   assert(Refusal("", line) == loka::lrpc::MANIFEST_EMPTY);
 
+  // Two rows cannot share a symbolic name: the name-to-id association has to
+  // be a function for a header to be generated from it, and the stamp hashes
+  // that association.
+  assert(Refusal("bag Main\nasset 1 image Same a\nasset 2 image Same b\n", line) ==
+         loka::lrpc::MANIFEST_DUPLICATE_NAME);
+  assert(line == 3);
+
+  // A NUL is refused for the whole file rather than per field. Carried into a
+  // source path it is not inert: every comparison in the tool sees the full
+  // string while `fopen` stops at the NUL, so `payload\0suffix` is read from
+  // `payload` while the collision guard believes another file was named --
+  // which is how an output silently replaces an input it never noticed.
+  {
+    const char nulManifest[] = "bag Main\nasset 1 image A payload\0suffix\n";
+    PackManifest ignored;
+    std::size_t nulLine = 0;
+    assert(ParseManifest(nulManifest, sizeof(nulManifest) - 1, ignored, nulLine) ==
+           loka::lrpc::MANIFEST_EMBEDDED_NUL);
+  }
+
   std::printf("testPackManifestParsesRecordsAndRefusesMalformedLines passed\n");
 }
 

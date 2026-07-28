@@ -60,7 +60,19 @@ namespace loka
           declared bag, so the first bag has to exist. */
       MANIFEST_ASSET_BEFORE_BAG,
       MANIFEST_DUPLICATE_ID,
+      /** Two rows share a symbolic name. The name-to-id association has to be
+          a function for a header to be generated from it, and the stamp hashes
+          that association, so an ambiguous name is refused rather than packed
+          into something no `R.hpp` could express. */
+      MANIFEST_DUPLICATE_NAME,
       MANIFEST_DUPLICATE_BAG,
+      /** A NUL byte anywhere in the manifest. A text manifest has no use for
+          one, and carrying it into a field is not harmless: a path holding a
+          NUL compares as its full length everywhere in this tool while
+          `fopen` sees only the part before it, so a source spelled
+          `payload\0suffix` is read from `payload` while every collision check
+          believes a different file was named. */
+      MANIFEST_EMBEDDED_NUL,
       MANIFEST_EMPTY
     };
 
