@@ -13,6 +13,7 @@
 #include "SnapFormatTests.hpp"
 #include "LrpkFormatTests.hpp"
 #include "PackManifestTests.hpp"
+#include "LrpkGoldenBytesTests.hpp"
 #include "SceneTests.hpp"
 #include "StartupRedrawTests.hpp"
 #include "BoundaryArenaTests.hpp"
