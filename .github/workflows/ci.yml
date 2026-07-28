@@ -31,6 +31,10 @@ jobs:
 
   win32:
     runs-on: windows-latest
+    # A failing assert in an MSVC Debug build raises an abort dialog, which on
+    # a hosted runner waits forever instead of failing. Without this bound a
+    # red Win32 test hangs the job for the workflow's maximum duration.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
