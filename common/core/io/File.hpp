@@ -61,6 +61,14 @@ namespace loka
         return item;
       }
 
+      /** The place where files shipped with the application land, per platform
+          convention — not literally the executable's directory everywhere:
+          Win32 resolves the directory containing the .exe, Classic the folder
+          containing the application file, but macOS resolves the bundle's
+          resource directory (Contents/Resources), because that is where a
+          bundle carries its shipped files. The null test platform answers
+          from an injected directory. Resolution happens only in
+          PlatformContext::openFile; see #199. */
       static File Application()
       {
         File item;

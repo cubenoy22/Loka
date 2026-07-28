@@ -10,7 +10,7 @@
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
 
-void testMacApplicationItemNamesExecutableDirectory()
+void testMacApplicationItemNamesResourceDirectory()
 {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   NSString *executablePath = [[NSBundle mainBundle] executablePath];

@@ -1,6 +1,6 @@
 #ifndef LOKA_MAC_APP_LOCATION_TESTS_HPP
 #define LOKA_MAC_APP_LOCATION_TESTS_HPP
 
-void testMacApplicationItemNamesExecutableDirectory();
+void testMacApplicationItemNamesResourceDirectory();
 
 #endif // LOKA_MAC_APP_LOCATION_TESTS_HPP
