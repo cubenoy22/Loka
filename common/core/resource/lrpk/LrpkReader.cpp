@@ -1,5 +1,7 @@
 #include "core/resource/lrpk/LrpkReader.hpp"
 
+#include <cassert>
+
 namespace loka
 {
   namespace core
@@ -154,10 +156,17 @@ namespace loka
               {
                 return OPEN_MALFORMED_INDEX;
               }
-              if (payloadAt % kPayloadAlign != 0)
-              {
-                return OPEN_MALFORMED_INDEX;
-              }
+              // Checked, not refused: unlike its three siblings, this one
+              // inspects our own arithmetic rather than a value the file
+              // claims. The scan starts at kFixedHeadBytes and every step
+              // adds kChunkHeaderBytes plus a kPayloadAlign-rounded payload,
+              // all multiples of kPayloadAlign, so no package -- forged or
+              // rotted -- can reach a misaligned payload start. A typed
+              // refusal here would be a rule the format does not have. The
+              // reachable alignment gates stay where the file gets a say: the
+              // borrowed base, a bag's dataOffset, and a row's offset.
+              assert(payloadAt % kPayloadAlign == 0
+                     && "DATA payload start is aligned by the scan's own arithmetic");
               dataChunk = chunk;
               next.dataPayload = chunk + kChunkHeaderBytes;
               next.dataPayloadSize = payloadSize;
