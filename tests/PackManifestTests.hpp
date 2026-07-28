@@ -1,0 +1,7 @@
+#ifndef LOKA_TESTS_PACKMANIFESTTESTS_HPP
+#define LOKA_TESTS_PACKMANIFESTTESTS_HPP
+
+void testPackManifestParsesRecordsAndRefusesMalformedLines();
+void testPackManifestStampFollowsTheIdSpaceNotTheListing();
+
+#endif // LOKA_TESTS_PACKMANIFESTTESTS_HPP

@@ -23,6 +23,8 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SnapFormatTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkFormatTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/LrpkWriter.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/PackManifest.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/PackManifestTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/FlowDslTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/AttrDslTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BoundaryArenaTests.cpp
