@@ -53,7 +53,6 @@ namespace
     // PICT end opcode is 0x00FF on word boundary. The scan stops at the range's
     // end rather than the buffer's, so a picture inside a bag cannot be given
     // an extent that runs into the asset stored after it.
-    (void)bytes;
     if (offset + 12 > limit)
     {
       return 0;
