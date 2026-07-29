@@ -1858,6 +1858,13 @@ bool ToolboxScenePlatformController::hasLiveBinding(loka::core::State<bool> *ena
       return true;
     }
   }
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    if (scrollBarControls_[i].enabled == enabled)
+    {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -2932,12 +2939,21 @@ void ToolboxScenePlatformController::destroyScrollBarControl(short resourceId,
       continue;
     }
     ControlRef control = binding.control;
+    loka::core::State<bool> *enabled = binding.enabled;
     binding.control = 0;
     binding.value = 0;
     binding.onChange = 0;
     binding.enabled = 0;
     scrollBarControls_.erase(scrollBarControls_.begin() + i);
     controlIds_.release(resourceId);
+    // The scroll bar is not hit-list based, so the enabled unbind that
+    // releaseNodeContexts performs for buttons and popups happens here
+    // instead -- same rule: the observer goes only when no live binding of
+    // any kind still needs it.
+    if (enabled && !hasLiveBinding(enabled))
+    {
+      unbindEnabledState(enabled);
+    }
     if (control)
     {
       // Context destruction can run inside an update pass; disposal waits for
@@ -2982,13 +2998,19 @@ void ToolboxScenePlatformController::commitScrollBarValueAt(std::size_t index)
 
   beginBatchUpdate();
   addPendingDirty(rect);
-  // Order is the contract (ruling 1), and the same order
-  // applyPopupSelectionChange uses: the binding holds the settled value
-  // before any handler runs.
-  mutableValue->set(settled, true);
-  if (onChange)
+  // The write enters the window tracker's transaction the way handleTextKey
+  // already does for typing: a settled value is scene input, and dependent
+  // state resolves in the same transaction rather than at whatever tick
+  // happens next.
   {
-    onChange->emit();
+    loka::core::StateTrackerGuard _(window_ ? window_->getTracker() : 0);
+    // Order is the contract (ruling 1): the binding holds the settled value
+    // before any handler runs.
+    mutableValue->set(settled, true);
+    if (onChange)
+    {
+      onChange->emit();
+    }
   }
   endBatchUpdate();
 }
