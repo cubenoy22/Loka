@@ -4,6 +4,7 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxOpenFileDialogContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
+#include "context/ToolboxScrollBarContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "context/ToolboxImageViewContext.hpp"
 #include "context/ToolboxRectSurfaceContext.hpp"
@@ -65,6 +66,17 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
   {
     ensurePopupMenuContext(popup);
     ToolboxPopupMenuContext *ctx = static_cast<ToolboxPopupMenuContext *>(popup->getContext());
+    if (!ctx)
+    {
+      return false;
+    }
+    ctx->setBoundary(boundary);
+    return true;
+  }
+  if (loka::app::ScrollBarNode *scrollBar = node->asScrollBarNode())
+  {
+    ensureScrollBarContext(scrollBar, controller);
+    ToolboxScrollBarContext *ctx = static_cast<ToolboxScrollBarContext *>(scrollBar->getContext());
     if (!ctx)
     {
       return false;
@@ -178,6 +190,21 @@ void ToolboxNodeContextMapper::ensurePopupMenuContext(loka::app::PopupMenuNode *
   if (!ctx)
   {
     ctx = new ToolboxPopupMenuContext(node);
+    node->setContext(ctx);
+  }
+}
+
+void ToolboxNodeContextMapper::ensureScrollBarContext(loka::app::ScrollBarNode *node,
+                                                      ToolboxScenePlatformController *controller)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxScrollBarContext *ctx = static_cast<ToolboxScrollBarContext *>(node->getContext());
+  if (!ctx)
+  {
+    ctx = new ToolboxScrollBarContext(node, controller);
     node->setContext(ctx);
   }
 }

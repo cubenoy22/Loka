@@ -11,6 +11,7 @@
 
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/EditText.hpp"
+#include "app/nodes/controls/ScrollBar.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/PolicyScope.hpp"
@@ -24,6 +25,7 @@
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/NullWindow.hpp"
+#include "platform/null/context/NullScrollBarContext.hpp"
 #include "support/FullRebuildLedgerDefinition.hpp"
 #include "support/RecomposingBoundary.hpp"
 
@@ -5037,4 +5039,522 @@ void testDisplayFeatureAvailabilityFollowsTheQueriesThatAnswer()
 
   // The sentinel is not an axis and must not report as one.
   assert(!window.hasDisplayFeature(Window::DISPLAY_FEATURE_COUNT));
+}
+
+namespace
+{
+  // ScrollBar contract fixtures. The declaration is rebuilt from these
+  // globals on every recompose so a test can change the *static* props
+  // (range, orientation, steps) and observe the projection follow.
+  loka::core::MutableState<int> *g_scrollBarValue = 0;
+  loka::core::MutableState<bool> *g_scrollBarEnabled = 0;
+  loka::core::EmitterState *g_scrollBarOnChange = 0;
+  loka::core::MutableState<int> *g_scrollBarRevision = 0;
+  bool g_scrollBarPresent = true;
+  int g_scrollBarMin = 0;
+  int g_scrollBarMax = 0;
+  loka::app::ScrollBarOrientation g_scrollBarOrientation = loka::app::SCROLL_BAR_VERTICAL;
+  int g_scrollBarLineStep = 1;
+  int g_scrollBarPageStep = 1;
+  /** When false the declaration calls no step setter at all, so a test can
+      pin the constructor defaults rather than the fixture's re-statement of
+      them. */
+  bool g_scrollBarDeclareSteps = true;
+
+  class ScrollBarBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<ScrollBarBoundaryNode> ScrollBarBoundaryProps;
+
+  class ScrollBarBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<ScrollBarBoundaryNode, ScrollBarBoundaryProps>
+  {
+  public:
+    explicit ScrollBarBoundaryNode(const ScrollBarBoundaryProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<ScrollBarBoundaryNode, ScrollBarBoundaryProps>(props)
+    {
+    }
+
+    virtual void declareDirtySources(loka::app::scene::DirtySourceRegistrar &registrar)
+    {
+      if (g_scrollBarRevision)
+      {
+        registrar.markDirtyOnChange(g_scrollBarRevision, loka::app::scene::NODE_DIRTY_CHILD);
+      }
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::FragmentDefinition root;
+      if (g_scrollBarPresent)
+      {
+        loka::app::ScrollBarDefinition bar(g_scrollBarValue);
+        bar.range(g_scrollBarMin, g_scrollBarMax)
+            .orientation(g_scrollBarOrientation)
+            .enabled(g_scrollBarEnabled)
+            .onChange(g_scrollBarOnChange);
+        if (g_scrollBarDeclareSteps)
+        {
+          bar.lineStep(g_scrollBarLineStep).pageStep(g_scrollBarPageStep);
+        }
+        root << bar;
+      }
+      composition.declare(root);
+    }
+  };
+
+  void resetScrollBarFixture()
+  {
+    g_scrollBarValue = 0;
+    g_scrollBarEnabled = 0;
+    g_scrollBarOnChange = 0;
+    g_scrollBarRevision = 0;
+    g_scrollBarPresent = true;
+    g_scrollBarMin = 0;
+    g_scrollBarMax = 0;
+    g_scrollBarOrientation = loka::app::SCROLL_BAR_VERTICAL;
+    g_scrollBarLineStep = 1;
+    g_scrollBarPageStep = 1;
+    g_scrollBarDeclareSteps = true;
+  }
+
+  NullScrollBarContext *findScrollBarContext(const NullScenePlatformController &platform)
+  {
+    const NullScenePlatformController::LedgerRow *row =
+        platform.findLedgerRow(NullScenePlatformController::CONTROL_RECIPE_SCROLL_BAR);
+    if (!row || !row->handle)
+    {
+      return 0;
+    }
+    return static_cast<NullScrollBarContext *>(row->handle->owner);
+  }
+
+  // Witness for the settle order: reads the bound value at the instant
+  // onChange fires. If the emit ran before the write, this records the old
+  // value and the assertion fails.
+  struct ScrollBarChangeWitness
+  {
+    ScrollBarChangeWitness()
+        : emitCount(0),
+          valueSeenAtEmit(-1)
+    {
+    }
+
+    unsigned long emitCount;
+    int valueSeenAtEmit;
+
+    static void Thunk(void *userData)
+    {
+      ScrollBarChangeWitness *self = static_cast<ScrollBarChangeWitness *>(userData);
+      if (!self)
+      {
+        return;
+      }
+      ++self->emitCount;
+      self->valueSeenAtEmit = g_scrollBarValue ? g_scrollBarValue->get() : -1;
+    }
+  };
+} // namespace
+
+void testNullPlatformContract_S1_scrollBarProjectsAndRetiresIntoItsOwnBucket()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(0);
+  loka::core::MutableState<int> revision(0);
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarMax = 4;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+
+  assert(platform.ledger().size() == 1);
+  assert(platform.ledger()[0].recipe == NullScenePlatformController::CONTROL_RECIPE_SCROLL_BAR);
+  assert(platform.ledger()[0].visible);
+  assert(platform.eventCount(NullScenePlatformController::EVENT_CONTROL_SHOWN) == 1);
+
+  g_scrollBarPresent = false;
+  revision.set(1);
+  requestChildPump(scene);
+
+  // A retired scroll bar must not be paid back out as a button or an edit
+  // field: the recipe is the exact-match key.
+  assert(platform.ledger().empty());
+  assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_SCROLL_BAR).depth == 1);
+  assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_BUTTON).depth == 0);
+  assert(platform.bucketStats(NullScenePlatformController::CONTROL_RECIPE_EDIT_TEXT).depth == 0);
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S2_heldArrowSettlesExactlyOnceAfterTheStateWrite()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::EmitterState onChange;
+  ScrollBarChangeWitness witness;
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarOnChange = &onChange;
+  g_scrollBarMax = 4;
+  onChange.bind(&ScrollBarChangeWitness::Thunk, &witness, false);
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+
+  // App -> control: a write to the binding moves what the control shows.
+  value.set(3);
+  requestChildPump(scene);
+  assert(context->displayedValue() == 3);
+  assert(witness.emitCount == 0 && "an app-side write is not a user change");
+
+  // Control -> app: three action-proc ticks of one held arrow settle once.
+  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 3);
+  assert(context->displayedValue() == 4 && "the hold clamps at max, it does not wrap");
+  assert(value.get() == 4);
+  assert(context->stateWriteCount() == 1);
+  assert(witness.emitCount == 1);
+  assert(witness.valueSeenAtEmit == 4 && "onChange must observe the value already written");
+
+  onChange.unbind(&ScrollBarChangeWitness::Thunk, &witness);
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S3_declaredOrientationAndStepsDriveTheControl()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(6);
+  loka::core::MutableState<int> revision(0);
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarMax = 20;
+  g_scrollBarOrientation = loka::app::SCROLL_BAR_HORIZONTAL;
+  g_scrollBarLineStep = 2;
+  g_scrollBarPageStep = 5;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+
+  // Orientation is carried, never inferred from the projected geometry.
+  assert(context->orientation() == loka::app::SCROLL_BAR_HORIZONTAL);
+  assert(loka::app::ScrollBarDefinition(&value).props.orientation_ == loka::app::SCROLL_BAR_VERTICAL &&
+         "vertical is the default; horizontal must be asked for");
+
+  context->simulatePress(NullScrollBarContext::PART_LINE_UP, 1);
+  assert(value.get() == 4);
+  requestChildPump(scene);
+
+  context->simulatePress(NullScrollBarContext::PART_PAGE_DOWN, 1);
+  assert(value.get() == 9);
+  requestChildPump(scene);
+
+  context->simulateThumbDragTo(17);
+  assert(value.get() == 17);
+  assert(context->stateWriteCount() == 3 && "one settle per release, whichever part was pressed");
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S4_unscrollableAndDisabledBarsAreInactive()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::MutableState<bool> enabled(true);
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarEnabled = &enabled;
+  // min == max: a scroll bar over an empty document. Legal scene, inactive
+  // presentation -- not a refusal.
+  g_scrollBarMin = 0;
+  g_scrollBarMax = 0;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+  assert(platform.ledger().size() == 1 && "an unscrollable bar still exists");
+  assert(!context->active());
+
+  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  assert(value.get() == 0);
+  assert(context->stateWriteCount() == 0);
+
+  // Widening the range revives it through the same recompose path.
+  g_scrollBarMax = 4;
+  revision.set(1);
+  requestChildPump(scene);
+  context = findScrollBarContext(platform);
+  assert(context && context->active());
+
+  // enabled is the other reason for the same inactive presentation.
+  enabled.set(false);
+  requestChildPump(scene);
+  assert(!context->active());
+  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  assert(value.get() == 0);
+  assert(context->stateWriteCount() == 0);
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S5_recomposedRangeClampsTheDisplayWithoutWritingBack()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(9);
+  loka::core::MutableState<int> revision(0);
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarMax = 20;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+  assert(context->maximum() == 20);
+  assert(context->displayedValue() == 9);
+
+  // range() is static prop data, so a narrower range arrives by recompose.
+  g_scrollBarMax = 4;
+  revision.set(1);
+  requestChildPump(scene);
+  context = findScrollBarContext(platform);
+  assert(context);
+  assert(context->maximum() == 4);
+
+  // Out-of-range bound value: the view clamps, the binding is left alone --
+  // the same shape PopupMenu uses for an out-of-range selectedIndex.
+  // Composing a scene must not mutate application state.
+  assert(context->displayedValue() == 4);
+  assert(value.get() == 9);
+  assert(context->stateWriteCount() == 0);
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S6_gestureSettlingWhereItStartedPublishesNothing()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(2);
+  loka::core::MutableState<int> revision(0);
+  loka::core::EmitterState onChange;
+  ScrollBarChangeWitness witness;
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarOnChange = &onChange;
+  g_scrollBarMax = 4;
+  onChange.bind(&ScrollBarChangeWitness::Thunk, &witness, false);
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+
+  // A drag that lands back on its origin is Classic's cancelled outline
+  // drag: a gesture the user abandoned, not a decision. Publishing it would
+  // fire a page re-read for nothing (both arms carry the appliedValue gate).
+  context->simulateThumbDragTo(2);
+  assert(context->stateWriteCount() == 0);
+  assert(witness.emitCount == 0);
+  assert(value.get() == 2);
+
+  // A real move still publishes -- the gate is about "unchanged", not about
+  // suppressing commits generally.
+  context->simulateThumbDragTo(4);
+  assert(context->stateWriteCount() == 1);
+  assert(witness.emitCount == 1);
+
+  // An arrow held against the end of the range settles where it started.
+  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 5);
+  assert(context->displayedValue() == 4);
+  assert(context->stateWriteCount() == 1 &&
+         "a hold clamped at the end publishes nothing");
+  assert(witness.emitCount == 1);
+
+  onChange.unbind(&ScrollBarChangeWitness::Thunk, &witness);
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S7_nothingCrossesIntoLokaBeforeTheRelease()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(0);
+  loka::core::MutableState<int> revision(0);
+  loka::core::EmitterState onChange;
+  ScrollBarChangeWitness witness;
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarOnChange = &onChange;
+  g_scrollBarMax = 40;
+  g_scrollBarLineStep = 2;
+  g_scrollBarPageStep = 10;
+  onChange.bind(&ScrollBarChangeWitness::Thunk, &witness, false);
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+
+  // The ruling, observed at the joint the completed-gesture seams hide:
+  // ticks move only what the user sees, and the binding does not hear a
+  // word of it until the release. Every part, same sentence.
+
+  // Line arrows.
+  context->pressTick(NullScrollBarContext::PART_LINE_DOWN);
+  context->pressTick(NullScrollBarContext::PART_LINE_DOWN);
+  assert(context->displayedValue() == 4);
+  assert(value.get() == 0 && context->stateWriteCount() == 0 &&
+         "tracking is visual only");
+  assert(witness.emitCount == 0);
+  context->release();
+  assert(value.get() == 4 && context->stateWriteCount() == 1);
+  assert(witness.emitCount == 1 && witness.valueSeenAtEmit == 4 &&
+         "the write precedes the emit on the arrow path");
+
+  // Page areas.
+  context->pressTick(NullScrollBarContext::PART_PAGE_DOWN);
+  assert(context->displayedValue() == 14);
+  assert(value.get() == 4 && context->stateWriteCount() == 1);
+  assert(witness.emitCount == 1);
+  context->release();
+  assert(value.get() == 14 && context->stateWriteCount() == 2);
+  assert(witness.emitCount == 2 && witness.valueSeenAtEmit == 14 &&
+         "the write precedes the emit on the page path");
+
+  // The thumb.
+  context->dragThumbTo(33);
+  assert(context->displayedValue() == 33);
+  assert(value.get() == 14 && context->stateWriteCount() == 2 &&
+         "the outline drag publishes nothing");
+  assert(witness.emitCount == 2);
+  context->release();
+  assert(value.get() == 33 && context->stateWriteCount() == 3);
+  assert(witness.emitCount == 3 && witness.valueSeenAtEmit == 33 &&
+         "the write precedes the emit on the thumb path");
+
+  onChange.unbind(&ScrollBarChangeWitness::Thunk, &witness);
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S8_rangeEdgesClampTheDisplayAndOnlyTheDisplay()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(2);
+  loka::core::MutableState<int> revision(0);
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarMin = 5;
+  g_scrollBarMax = 20;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+
+  // Below the floor: the S5 rule from the other side. The view shows the
+  // floor, the binding keeps what the application put there.
+  assert(context->displayedValue() == 5);
+  assert(value.get() == 2);
+  assert(context->stateWriteCount() == 0);
+
+  // An arrow pressed against the floor settles where it started -- the S6
+  // gate at the lower edge.
+  context->simulatePress(NullScrollBarContext::PART_LINE_UP, 3);
+  assert(context->displayedValue() == 5);
+  assert(context->stateWriteCount() == 0);
+
+  // A negative range is a range like any other; stepping is arithmetic on
+  // values, not on distances from zero.
+  g_scrollBarMin = -10;
+  g_scrollBarMax = -2;
+  revision.set(1);
+  requestChildPump(scene);
+  context = findScrollBarContext(platform);
+  assert(context);
+  assert(context->displayedValue() == -2 && "2 clamps to the negative ceiling");
+  context->simulatePress(NullScrollBarContext::PART_LINE_UP, 1);
+  assert(context->displayedValue() == -3);
+  assert(value.get() == -3 && context->stateWriteCount() == 1);
+
+  // A reversed range has nowhere to go: the inactive presentation, the same
+  // one min == max earns, and a gesture publishes nothing.
+  g_scrollBarMin = 5;
+  g_scrollBarMax = 2;
+  revision.set(2);
+  requestChildPump(scene);
+  context = findScrollBarContext(platform);
+  assert(context);
+  assert(!context->active());
+  assert(context->displayedValue() == 5 && "a reversed range presents its min");
+  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  assert(context->stateWriteCount() == 1 && "no publish through a reversed range");
+  assert(value.get() == -3);
+
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S9_absentBindingsKeepGesturesLocal()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> revision(0);
+  loka::core::EmitterState onChange;
+  ScrollBarChangeWitness witness;
+  g_scrollBarValue = 0;
+  g_scrollBarRevision = &revision;
+  g_scrollBarOnChange = &onChange;
+  g_scrollBarMax = 4;
+  onChange.bind(&ScrollBarChangeWitness::Thunk, &witness, false);
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+
+  // No value binding: the bar still tracks visually -- it is a control, not
+  // a refusal -- but there is no settled place for a value to land, so
+  // nothing is published and onChange stays silent with it. An emitter
+  // without a binding has no settled value for its handler to read, which
+  // is the order the whole contract is built on.
+  assert(context->displayedValue() == 0 && "an unbound bar rests on its min");
+  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 2);
+  assert(context->displayedValue() == 2);
+  assert(context->stateWriteCount() == 0);
+  assert(witness.emitCount == 0 && "onChange without a value binding never fires");
+
+  onChange.unbind(&ScrollBarChangeWitness::Thunk, &witness);
+  resetScrollBarFixture();
+}
+
+void testNullPlatformContract_S10_stepDefaultsAreOneWithoutBeingRestated()
+{
+  resetScrollBarFixture();
+  loka::core::MutableState<int> value(0);
+  loka::core::MutableState<int> revision(0);
+  g_scrollBarValue = &value;
+  g_scrollBarRevision = &revision;
+  g_scrollBarMax = 10;
+  // The declaration names no step at all, so what moves is the constructor
+  // default -- the fixture restating 1 would make this test a tautology.
+  g_scrollBarDeclareSteps = false;
+
+  NullScenePlatformController platform;
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<ScrollBarBoundaryNode>()));
+  mountAndAttach(scene, platform);
+  NullScrollBarContext *context = findScrollBarContext(platform);
+  assert(context);
+
+  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  assert(value.get() == 1 && "the default line step is one");
+  context->simulatePress(NullScrollBarContext::PART_PAGE_DOWN, 1);
+  assert(value.get() == 2 && "the default page step is one");
+
+  resetScrollBarFixture();
 }
