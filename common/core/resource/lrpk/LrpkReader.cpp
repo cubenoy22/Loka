@@ -108,31 +108,47 @@ namespace loka
           std::size_t indexPayloadSize = 0;
           const unsigned char *dataChunk = 0;
 
-          std::size_t cursor = kFixedHeadBytes;
-          while (cursor < size)
+          // The chunk scan walks the rebased domain -- offsets counted from
+          // the end of the fixed head -- against two bounds that happen to
+          // coincide here and diverge for the file-backed open:
+          //
+          //   resident  how many chunk-stream bytes are actually in memory
+          //   logical   how many the format says the stream has in total
+          //
+          // Memory-backed packages hold everything, so resident == logical.
+          // The file-backed path holds only the slice through the DATA chunk
+          // header; existence checks (headers, AXES/INDX payloads) go against
+          // resident, while extent checks -- does the payload fit the file the
+          // format describes -- go against logical.
+          const unsigned char *scanBase = bytes + kFixedHeadBytes;
+          const std::size_t resident = size - kFixedHeadBytes;
+          const std::size_t logical = resident;
+
+          std::size_t cursor = 0;
+          while (cursor < logical)
           {
-            if (size - cursor < kChunkHeaderBytes)
+            if (resident - cursor < kChunkHeaderBytes)
             {
               return OPEN_TRUNCATED;
             }
-            const unsigned char *chunk = bytes + cursor;
+            const unsigned char *chunk = scanBase + cursor;
             const U32 tag = ReadU32BE(chunk);
             const std::size_t payloadSize =
                 static_cast<std::size_t>(ReadU32BE(chunk + 4));
             const std::size_t payloadAt = cursor + kChunkHeaderBytes;
-            if (!ExtentFits(size, payloadAt, payloadSize))
+            if (!ExtentFits(logical, payloadAt, payloadSize))
             {
               return OPEN_TRUNCATED;
             }
             const std::size_t paddedSize = AlignUp(payloadSize, kPayloadAlign);
-            if (paddedSize < payloadSize || !ExtentFits(size, payloadAt, paddedSize))
+            if (paddedSize < payloadSize || !ExtentFits(logical, payloadAt, paddedSize))
             {
               return OPEN_TRUNCATED;
             }
 
             if (tag == FourCC('A', 'X', 'E', 'S'))
             {
-              if (axesChunk)
+              if (axesChunk || !ExtentFits(resident, payloadAt, payloadSize))
               {
                 return OPEN_MALFORMED_INDEX;
               }
@@ -142,7 +158,7 @@ namespace loka
             }
             else if (tag == FourCC('I', 'N', 'D', 'X'))
             {
-              if (indexChunk)
+              if (indexChunk || !ExtentFits(resident, payloadAt, payloadSize))
               {
                 return OPEN_MALFORMED_INDEX;
               }
@@ -158,17 +174,20 @@ namespace loka
               }
               // Checked, not refused: unlike its three siblings, this one
               // inspects our own arithmetic rather than a value the file
-              // claims. The scan starts at kFixedHeadBytes and every step
-              // adds kChunkHeaderBytes plus a kPayloadAlign-rounded payload,
-              // all multiples of kPayloadAlign, so no package -- forged or
-              // rotted -- can reach a misaligned payload start. A typed
-              // refusal here would be a rule the format does not have. The
-              // reachable alignment gates stay where the file gets a say: the
-              // borrowed base, a bag's dataOffset, and a row's offset.
+              // claims. The scan starts at a kPayloadAlign-aligned origin and
+              // every step adds kChunkHeaderBytes plus a kPayloadAlign-rounded
+              // payload, all multiples of kPayloadAlign, so no package --
+              // forged or rotted -- can reach a misaligned payload start. A
+              // typed refusal here would be a rule the format does not have.
+              // The reachable alignment gates stay where the file gets a say:
+              // the borrowed base, a bag's dataOffset, and a row's offset.
               assert(payloadAt % kPayloadAlign == 0
                      && "DATA payload start is aligned by the scan's own arithmetic");
               dataChunk = chunk;
-              next.dataPayload = chunk + kChunkHeaderBytes;
+              if (ExtentFits(resident, payloadAt, payloadSize))
+              {
+                next.dataPayload = chunk + kChunkHeaderBytes;
+              }
               next.dataPayloadSize = payloadSize;
             }
             else
@@ -423,6 +442,7 @@ namespace loka
           {
             return BAG_CONTENTS_CORRUPT;
           }
+          state_.bagBase[bagIndex] = payload;
           bag.open = true;
           return BAG_OK;
         }
@@ -432,6 +452,7 @@ namespace loka
           if (isOpen() && bagIndex < state_.bagCount)
           {
             state_.bags[bagIndex].open = false;
+            state_.bagBase[bagIndex] = 0;
           }
         }
 
@@ -702,11 +723,12 @@ namespace loka
               static_cast<std::size_t>(best[kRowBag]);
           const std::size_t offset =
               static_cast<std::size_t>(ReadU32BE(best + kRowOffset));
-          out.bytes = state_.dataPayload +
-                      static_cast<std::size_t>(state_.bags[bag].dataOffset) +
-                      offset;
           out.length =
               static_cast<std::size_t>(ReadU32BE(best + kRowLength));
+          // One resolution path for every backing: the bag's installed base.
+          // Null arithmetic is not performed for a zero-length asset -- an
+          // empty bag installs a null base, and zero-length rows are legal.
+          out.bytes = out.length == 0 ? 0 : state_.bagBase[bag] + offset;
           out.kind = static_cast<AssetKind>(best[kRowKind]);
           return GET_OK;
         }

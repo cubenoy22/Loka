@@ -252,6 +252,10 @@ namespace loka
               {
                 precedenceSlots[i] = 0;
               }
+              for (std::size_t i = 0; i < kMaxBags; ++i)
+              {
+                bagBase[i] = 0;
+              }
             }
 
             const unsigned char *bytes;
@@ -265,6 +269,13 @@ namespace loka
             std::size_t assetCount;
             std::size_t axisCount;
             unsigned char precedenceSlots[kMaxAxes];
+            /** Where each open bag's expanded bytes live. Installed by the
+                open that loaded the bag and cleared by closeBag, so `get()`
+                has exactly one address-resolution path whichever backing the
+                package came from: memory-backed installs a pointer into the
+                DATA payload, the file-backed open installs the caller's bag
+                buffer. Null while a bag is closed. */
+            const unsigned char *bagBase[kMaxBags];
             Axis axes[kMaxAxes];
             Bag bags[kMaxBags];
           };
