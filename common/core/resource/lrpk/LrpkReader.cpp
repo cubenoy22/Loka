@@ -724,6 +724,23 @@ namespace loka
                   indexBuffer + indexBufferSize <= state_.indexBase ||
                   state_.indexBase + state_.indexSize <= indexBuffer) &&
                  "the index buffer must not overlap the committed package's index");
+          // The same aliasing rule for every other range the committed
+          // package still serves bytes from: a bag buffer handed to
+          // readBagInto stays live until closeBag, and the slice read below
+          // would corrupt served assets even when the reload is then refused
+          // (#221). Memory-backed bags live inside the index range the
+          // assert above already covers; stream-backed bags are external
+          // application buffers and need their own walls.
+          for (std::size_t bagWall = 0; bagWall < state_.bagCount; ++bagWall)
+          {
+            assert((indexBufferSize == 0 || !state_.bags[bagWall].open ||
+                    state_.bagBase[bagWall] == 0 ||
+                    indexBuffer + indexBufferSize <= state_.bagBase[bagWall] ||
+                    state_.bagBase[bagWall] +
+                            static_cast<std::size_t>(state_.bags[bagWall].storedSize) <=
+                        indexBuffer) &&
+                   "the index buffer must not overlap a bag the committed package serves");
+          }
 
           if (!pending.source->readAt(kFixedHeadBytes,
                                       indexBuffer,
