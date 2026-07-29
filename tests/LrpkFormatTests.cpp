@@ -2123,12 +2123,12 @@ void testLrpkStreamOpenMatchesMemoryOpen()
       MemoryByteSource lying(package);
       lying.reportSize(tooLarge);
       Reader reader;
-      std::size_t need = 0;
+      std::size_t lyingNeed = 0;
       assert(reader.beginOpen(lying,
                               kStamp,
                               Reader::VERIFY_INTEGRITY,
-                              need) == Reader::OPEN_SIZE_OUT_OF_RANGE);
-      assert(need == 0);
+                              lyingNeed) == Reader::OPEN_SIZE_OUT_OF_RANGE);
+      assert(lyingNeed == 0);
     }
   }
 
@@ -2622,13 +2622,13 @@ void testLrpkStreamOpensEmptyAndZeroLengthBags()
   // mean "usually inspected".
   {
     std::vector<unsigned char> forged(package);
-    std::size_t indexSize = 0;
-    const std::size_t indexAt =
-        FindChunkPayload(forged, FourCC('I', 'N', 'D', 'X'), indexSize);
-    const std::size_t emptyBagRow = indexAt + 8 + kBagRowBytes;
-    assert(ReadU32BE(&forged[emptyBagRow + kBagStoredSize]) == 0);
-    WriteU32BE(&forged[emptyBagRow + kBagCrc],
-               ReadU32BE(&forged[emptyBagRow + kBagCrc]) ^ 0xFFFFFFFFUL);
+    std::size_t forgedIndexSize = 0;
+    const std::size_t forgedIndexAt =
+        FindChunkPayload(forged, FourCC('I', 'N', 'D', 'X'), forgedIndexSize);
+    const std::size_t forgedEmptyBagRow = forgedIndexAt + 8 + kBagRowBytes;
+    assert(ReadU32BE(&forged[forgedEmptyBagRow + kBagStoredSize]) == 0);
+    WriteU32BE(&forged[forgedEmptyBagRow + kBagCrc],
+               ReadU32BE(&forged[forgedEmptyBagRow + kBagCrc]) ^ 0xFFFFFFFFUL);
     RestampChunk(forged, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
 
     Reader forgedMemory;
