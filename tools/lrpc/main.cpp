@@ -488,7 +488,29 @@ int main(int argc, char **argv)
   // symlink, a case-insensitive volume) are not detected. That is the cheap
   // half of the check, and it catches the collision a build script actually
   // produces, which is the same variable used twice.
-  // Every path the run touches, checked as two complete lists rather than as a
+  // What this guard is for, and where it stops.
+  //
+  // It is not a correctness property of the package. Every input is read into
+  // memory before any output is created, so the bytes written are right no
+  // matter what the paths turn out to alias. What the guard protects is the
+  // author's source files, from a build script that pointed an output at one
+  // of them.
+  //
+  // That is worth catching cheaply and is not worth chasing to the bottom.
+  // Path aliasing has no floor -- case-insensitive volumes, Unicode
+  // normalisation, bind mounts, a race between the check and the write -- and
+  // this is a build tool invoked with paths a build system generated. The line
+  // is drawn deliberately at:
+  //
+  //   * lexical keys resolved into one namespace, so spellings of one path agree
+  //   * filesystem identity for files that exist, so links do not present two
+  //   * exclusive creation of the staging files, so they cannot be aliases at all
+  //
+  // and no further. A case beyond that line is a decided limit, not an
+  // oversight; the Windows half of identity is the one piece still owed, and it
+  // travels with the rest of the native path work in #215.
+  //
+  // Every path the run touches is checked as two complete lists rather than as a
   // handful of pairwise comparisons.
   //
   // The pairwise form was wrong three times in a row -- it compared spellings
