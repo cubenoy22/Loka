@@ -68,21 +68,27 @@ namespace loka
       if (blob.isCompleted() && !blob.isMutable())
       {
         payload->blob = blob;
+        payload->pictureOffset = pictureOffset;
+        payload->pictureEnd = pictureEnd;
       }
       else
       {
-        // The whole blob, not just the picture: the offsets above are absolute
-        // within it, and re-basing them here is the double-count this design
-        // avoids by keeping one coordinate system. A blob large enough for that
-        // copy to matter is an LRPK bag, which is completed and immutable and
-        // therefore takes the sharing branch above.
+        // Only the picture's range. The API's contract is that no
+        // implementation reads outside the supplied range, and a bag-sized
+        // mutable blob copied whole per image would be the doubling this
+        // seam exists to avoid. The snapshot is its own coordinate system --
+        // rebasing to zero here is not the cross-boundary double-count the
+        // design guards against, because the payload stores blob and offsets
+        // as one consistent pair.
+        const std::vector<unsigned char> &source = blob.bytes();
         loka::core::resource::Blob snapshot = loka::core::resource::Blob::Create();
-        snapshot.setBytes(blob.bytes());
+        snapshot.setBytes(std::vector<unsigned char>(source.begin() + pictureOffset,
+                                                     source.begin() + pictureEnd));
         snapshot.setCompleted(true);
         payload->blob = snapshot;
+        payload->pictureOffset = 0;
+        payload->pictureEnd = pictureEnd - pictureOffset;
       }
-      payload->pictureOffset = pictureOffset;
-      payload->pictureEnd = pictureEnd;
 
       ToolboxNativeImage *native = new ToolboxNativeImage();
       native->magic = kToolboxNativeImageMagic;
