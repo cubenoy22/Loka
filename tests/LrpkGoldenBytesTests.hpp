@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_LRPKGOLDENBYTESTESTS_HPP
+#define LOKA_TESTS_LRPKGOLDENBYTESTESTS_HPP
+
+void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage();
+
+#endif // LOKA_TESTS_LRPKGOLDENBYTESTESTS_HPP
