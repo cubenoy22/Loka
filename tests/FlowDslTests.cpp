@@ -1679,7 +1679,10 @@ namespace
     {
       return false;
     }
-    virtual bool createImageFromBlob(const loka::core::resource::Blob &, loka::core::resource::Image &out) const
+    virtual bool createImageFromBlob(const loka::core::resource::Blob &,
+                                     std::size_t,
+                                     std::size_t,
+                                     loka::core::resource::Image &out) const
     {
       ++createImageCalls_;
       if (!createImageResult_)

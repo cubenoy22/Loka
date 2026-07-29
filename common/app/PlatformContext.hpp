@@ -1,5 +1,8 @@
 #ifndef LOKA_PLATFORMCONTEXT_HPP
 #define LOKA_PLATFORMCONTEXT_HPP
+
+#include <cstddef>
+
 #if defined(_WIN32) || defined(WIN32)
 #include <windows.h>
 #else
@@ -61,7 +64,15 @@ public:
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const = 0;
   virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const = 0;
-  virtual bool createImageFromBlob(const loka::core::resource::Blob &blob, loka::core::resource::Image &out) const = 0;
+  /** Builds an image from `[offset, offset + length)` of `blob`.
+      A range rather than the whole buffer, because an LRPK asset is a range
+      inside its bag's blob and copying it out to be decoded would put the
+      bytes in memory twice -- once in the bag and once per asset drawn.
+      Implementations must not read outside the supplied range. */
+  virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
+                                   std::size_t offset,
+                                   std::size_t length,
+                                   loka::core::resource::Image &out) const = 0;
 };
 
 #endif // LOKA_PLATFORMCONTEXT_HPP

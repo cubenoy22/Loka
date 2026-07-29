@@ -1,4 +1,6 @@
 #include "ToolboxPlatformContext.hpp"
+
+#include "core/resource/BlobRange.hpp"
 #include "ToolboxApp.hpp"
 #include "ToolboxWindow.hpp"
 #include "platform/file/AppLocation.hpp"
@@ -44,15 +46,19 @@ namespace
     return static_cast<short>(ReadU16BE(p));
   }
 
-  static std::size_t FindPictSizeByTerminator(const std::vector<unsigned char> &bytes, std::size_t offset)
+  static std::size_t FindPictSizeByTerminator(const std::vector<unsigned char> &bytes,
+                                              std::size_t offset,
+                                              std::size_t limit)
   {
-    // PICT end opcode is 0x00FF on word boundary.
-    if (offset + 12 > bytes.size())
+    // PICT end opcode is 0x00FF on word boundary. The scan stops at the range's
+    // end rather than the buffer's, so a picture inside a bag cannot be given
+    // an extent that runs into the asset stored after it.
+    if (offset + 12 > limit)
     {
       return 0;
     }
     std::size_t last = 0;
-    for (std::size_t pos = offset + 10; pos + 1 < bytes.size(); pos += 2)
+    for (std::size_t pos = offset + 10; pos + 1 < limit; pos += 2)
     {
       if (bytes[pos] == 0x00 && bytes[pos + 1] == 0xFF)
       {
@@ -63,6 +69,7 @@ namespace
   }
 
   static bool TryParsePictAt(const std::vector<unsigned char> &bytes,
+                             std::size_t limit,
                              std::size_t offset,
                              std::size_t &pictureOffsetOut,
                              std::size_t &pictureSizeOut,
@@ -71,7 +78,7 @@ namespace
                              bool &sizeFieldFallbackOut,
                              bool &zeroSizeFieldOut)
   {
-    if (offset + 10 > bytes.size())
+    if (offset + 10 > limit)
     {
       return false;
     }
@@ -103,18 +110,20 @@ namespace
       return false;
     }
 
-    if (!(pictureSize >= 10 && offset + pictureSize <= bytes.size()))
+    if (!(pictureSize >= 10 && pictureSize <= limit - offset))
     {
-      pictureSize = FindPictSizeByTerminator(bytes, offset);
-      if (pictureSize >= 10 && offset + pictureSize <= bytes.size())
+      pictureSize = FindPictSizeByTerminator(bytes, offset, limit);
+      if (pictureSize >= 10 && pictureSize <= limit - offset)
       {
         sizeFieldFallbackOut = true;
       }
       else
       {
         // Keep stream path permissive: if size field/terminator are unreliable,
-        // draw from the remaining bytes like SimpleText's file-backed path.
-        pictureSize = bytes.size() - offset;
+        // draw from the rest of the RANGE like SimpleText's file-backed path.
+        // Bounded by the range and not the buffer, so a permissive extent still
+        // cannot cross into the next asset in a bag.
+        pictureSize = limit - offset;
         if (pictureSize < 10)
         {
           return false;
@@ -131,6 +140,8 @@ namespace
   }
 
   static bool ParsePict(const std::vector<unsigned char> &bytes,
+                        std::size_t base,
+                        std::size_t limit,
                         std::size_t &pictureOffsetOut,
                         std::size_t &pictureSizeOut,
                         int &widthOut,
@@ -140,16 +151,33 @@ namespace
   {
     sizeFieldFallbackOut = false;
     zeroSizeFieldOut = false;
+    // Offsets stay absolute within the blob -- `base` is where the range
+    // starts, not a new origin. One coordinate system end to end is what keeps
+    // the payload from having to add a base back on and double-count it.
     // 1) Raw PICT stream
-    if (TryParsePictAt(
-            bytes, 0, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
+    if (TryParsePictAt(bytes,
+                       limit,
+                       base,
+                       pictureOffsetOut,
+                       pictureSizeOut,
+                       widthOut,
+                       heightOut,
+                       sizeFieldFallbackOut,
+                       zeroSizeFieldOut))
     {
       return true;
     }
     // 2) Classic file format with 512-byte header
-    if (bytes.size() > 522
-        && TryParsePictAt(
-            bytes, 512, pictureOffsetOut, pictureSizeOut, widthOut, heightOut, sizeFieldFallbackOut, zeroSizeFieldOut))
+    if (limit - base > 522
+        && TryParsePictAt(bytes,
+                          limit,
+                          base + 512,
+                          pictureOffsetOut,
+                          pictureSizeOut,
+                          widthOut,
+                          heightOut,
+                          sizeFieldFallbackOut,
+                          zeroSizeFieldOut))
     {
       return true;
     }
@@ -201,14 +229,17 @@ bool ToolboxPlatformContext::openFile(const loka::file::File &item, loka::platfo
 }
 
 bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
+                                                 std::size_t offset,
+                                                 std::size_t length,
                                                  loka::core::resource::Image &out) const
 {
   const std::vector<unsigned char> &bytes = blob.bytes();
   out = loka::core::resource::Image::Empty();
-  if (bytes.empty())
+  if (!loka::core::resource::BlobRangeIsUsable(bytes.size(), offset, length))
   {
     return false;
   }
+  const std::size_t limit = offset + length;
 
   std::size_t pictureOffset = 0;
   std::size_t pictureSize = 0;
@@ -216,7 +247,8 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
   int height = 0;
   bool usedSizeFallback = false;
   bool zeroSizeField = false;
-  if (!ParsePict(bytes, pictureOffset, pictureSize, width, height, usedSizeFallback, zeroSizeField))
+  if (!ParsePict(
+          bytes, offset, limit, pictureOffset, pictureSize, width, height, usedSizeFallback, zeroSizeField))
   {
     return false;
   }
@@ -226,7 +258,21 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
     return false;
   }
 
-  out = loka::toolbox::MakeImageFromPictBlob(blob, pictureOffset, width, height);
+  // The picture's end is the RANGE's end, not `pictureOffset + pictureSize`.
+  //
+  // The size word is 16-bit and is only meaningful for a version 1 picture; a
+  // version 2 picture larger than 65535 bytes carries a truncated one. Deriving
+  // the stream's end from it therefore cuts a large picture short. Before this
+  // change the parsed size was discarded and the draw path ran to the end of
+  // the blob, so such pictures rendered -- clamping to the size word would have
+  // been a regression dressed up as a bounds fix.
+  //
+  // What the clamp is actually for is that a blob may hold a whole LRPK bag, so
+  // one asset's picture must not stream into the asset stored after it. The
+  // range already says exactly that. Trailing bytes *within* one asset's range
+  // are still streamed, as they always were; excluding them needs a real
+  // version 2 parse, not a field that cannot describe them.
+  out = loka::toolbox::MakeImageFromPictBlob(blob, pictureOffset, limit, width, height);
   return out.isValid();
 }
 

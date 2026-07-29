@@ -1,4 +1,6 @@
 #include "Win32PlatformContext.hpp"
+
+#include "core/resource/BlobRange.hpp"
 #include "Win32Window.hpp"
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileHandle.hpp"
@@ -57,6 +59,8 @@ namespace
 } // namespace
 
 bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
+                                               std::size_t offset,
+                                               std::size_t length,
                                                loka::core::resource::Image &out) const
 {
   out = loka::core::resource::Image::Empty();
@@ -65,7 +69,14 @@ bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob 
     return false;
   }
   const std::vector<unsigned char> &bytes = blob.bytes();
-  if (bytes.empty())
+  if (!loka::core::resource::BlobRangeIsUsable(bytes.size(), offset, length))
+  {
+    return false;
+  }
+  // WIC's memory stream takes a DWORD extent, so a range this host could
+  // describe but that API could not is refused here rather than silently
+  // narrowed into a shorter image.
+  if (length > static_cast<std::size_t>(0xFFFFFFFFul))
   {
     return false;
   }
@@ -98,7 +109,7 @@ bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob 
     return false;
   }
 
-  hr = stream->InitializeFromMemory(const_cast<BYTE *>(&bytes[0]), static_cast<DWORD>(bytes.size()));
+  hr = stream->InitializeFromMemory(const_cast<BYTE *>(&bytes[offset]), static_cast<DWORD>(length));
   if (FAILED(hr))
   {
     stream->Release();
