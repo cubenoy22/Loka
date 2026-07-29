@@ -47,9 +47,13 @@ namespace loka
     }
 
     loka::core::resource::Image
-    MakeImageFromPictBlob(const loka::core::resource::Blob &blob, std::size_t pictureOffset, int width, int height)
+    MakeImageFromPictBlob(const loka::core::resource::Blob &blob,
+                          std::size_t pictureOffset,
+                          std::size_t pictureEnd,
+                          int width,
+                          int height)
     {
-      if (pictureOffset >= blob.bytes().size() || width <= 0 || height <= 0)
+      if (pictureOffset >= pictureEnd || pictureEnd > blob.bytes().size() || width <= 0 || height <= 0)
       {
         return loka::core::resource::Image::Empty();
       }
@@ -67,12 +71,18 @@ namespace loka
       }
       else
       {
+        // The whole blob, not just the picture: the offsets above are absolute
+        // within it, and re-basing them here is the double-count this design
+        // avoids by keeping one coordinate system. A blob large enough for that
+        // copy to matter is an LRPK bag, which is completed and immutable and
+        // therefore takes the sharing branch above.
         loka::core::resource::Blob snapshot = loka::core::resource::Blob::Create();
         snapshot.setBytes(blob.bytes());
         snapshot.setCompleted(true);
         payload->blob = snapshot;
       }
       payload->pictureOffset = pictureOffset;
+      payload->pictureEnd = pictureEnd;
 
       ToolboxNativeImage *native = new ToolboxNativeImage();
       native->magic = kToolboxNativeImageMagic;

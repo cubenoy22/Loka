@@ -359,7 +359,8 @@ namespace simpleviewer
         return loka::dsl::FLOW_STEP_FAILED;
       }
 
-      if (this->ctx_->createImageFromBlob(blob, attempt.image))
+      // The whole blob is this file's one picture, so the range is all of it.
+      if (this->ctx_->createImageFromBlob(blob, 0, blob.bytes().size(), attempt.image))
       {
         attempt.decoded = true;
         return loka::dsl::FLOW_STEP_SUCCEEDED;

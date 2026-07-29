@@ -1,4 +1,6 @@
 #include "MacPlatformContext.hpp"
+
+#include "core/resource/BlobRange.hpp"
 #include "MacApp.hpp"
 #include "MacWindow.hpp"
 #include "platform/file/AppLocation.hpp"
@@ -56,6 +58,8 @@ namespace
 } // namespace
 
 bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
+                                             std::size_t offset,
+                                             std::size_t length,
                                              loka::core::resource::Image &out) const
 {
   out = loka::core::resource::Image::Empty();
@@ -64,12 +68,12 @@ bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &b
     return false;
   }
   const std::vector<unsigned char> &bytes = blob.bytes();
-  if (bytes.empty())
+  if (!loka::core::resource::BlobRangeIsUsable(bytes.size(), offset, length))
   {
     return false;
   }
 
-  NSData *data = [NSData dataWithBytes:&bytes[0] length:bytes.size()];
+  NSData *data = [NSData dataWithBytes:&bytes[offset] length:length];
   if (!data)
   {
     return false;

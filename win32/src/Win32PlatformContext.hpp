@@ -18,7 +18,10 @@ public:
 
   virtual loka::app::scene::NodeContext *createNodeContext(loka::app::scene::Node *node) const;
   virtual bool openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const;
-  virtual bool createImageFromBlob(const loka::core::resource::Blob &blob, loka::core::resource::Image &out) const;
+  virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
+                              std::size_t offset,
+                              std::size_t length,
+                              loka::core::resource::Image &out) const;
 };
 
 #endif // LOKA_WIN32PLATFORMCONTEXT_HPP
