@@ -258,10 +258,21 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
     return false;
   }
 
-  // The extent travels with the offset. It was already computed here and
-  // thrown away, which left the draw path clamping to the end of the whole
-  // blob -- fine when a blob held one picture, wrong the moment it holds a bag.
-  out = loka::toolbox::MakeImageFromPictBlob(blob, pictureOffset, pictureOffset + pictureSize, width, height);
+  // The picture's end is the RANGE's end, not `pictureOffset + pictureSize`.
+  //
+  // The size word is 16-bit and is only meaningful for a version 1 picture; a
+  // version 2 picture larger than 65535 bytes carries a truncated one. Deriving
+  // the stream's end from it therefore cuts a large picture short. Before this
+  // change the parsed size was discarded and the draw path ran to the end of
+  // the blob, so such pictures rendered -- clamping to the size word would have
+  // been a regression dressed up as a bounds fix.
+  //
+  // What the clamp is actually for is that a blob may hold a whole LRPK bag, so
+  // one asset's picture must not stream into the asset stored after it. The
+  // range already says exactly that. Trailing bytes *within* one asset's range
+  // are still streamed, as they always were; excluding them needs a real
+  // version 2 parse, not a field that cannot describe them.
+  out = loka::toolbox::MakeImageFromPictBlob(blob, pictureOffset, limit, width, height);
   return out.isValid();
 }
 
