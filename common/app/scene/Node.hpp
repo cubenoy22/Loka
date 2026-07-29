@@ -112,7 +112,8 @@ namespace loka
         NODE_KIND_POPUP_MENU,
         NODE_KIND_OPEN_FILE_DIALOG,
         NODE_KIND_IMAGE_VIEW,
-        NODE_KIND_RECT_SURFACE
+        NODE_KIND_RECT_SURFACE,
+        NODE_KIND_SCROLL_BAR
       };
 
       typedef unsigned short NodeTag;
@@ -185,6 +186,7 @@ namespace loka
     class ButtonNode;
     class EditTextNode;
     class PopupMenuNode;
+    class ScrollBarNode;
     class OpenFileDialogNode;
     class ImageViewNode;
     class RectSurfaceNode;
@@ -511,6 +513,10 @@ namespace loka
           return 0;
         }
         virtual ::loka::app::PopupMenuNode *asPopupMenuNode()
+        {
+          return 0;
+        }
+        virtual ::loka::app::ScrollBarNode *asScrollBarNode()
         {
           return 0;
         }

@@ -21,6 +21,14 @@ class ToolboxPopupMenuContext;
 class ToolboxNodeContextMapper;
 class ToolboxCellContext;
 
+namespace loka
+{
+  namespace app
+  {
+    struct ScrollBarProps;
+  }
+} // namespace loka
+
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
@@ -90,6 +98,15 @@ public:
                            loka::core::State<bool> *enabled,
                            loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
   void destroyButtonControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  /** Creates or refreshes the scrollBarProc control for one ScrollBar node.
+      The declared range and the bound value are pushed on every projection,
+      which is how a recomposed range reaches the CDEF. */
+  bool ensureScrollBarControl(short resourceId,
+                              const Rect &rect,
+                              const loka::app::ScrollBarProps &props,
+                              loka::app::scene::NativeLifetimeHint lifetimeHint =
+                                  loka::app::scene::NATIVE_HINT_DEFAULT);
+  void destroyScrollBarControl(short resourceId, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void drawFallbackControl(const Rect &rect);
   TEHandle ensureEditTextControl(loka::app::scene::NodeContext *ownerContext,
                                  const Rect &rect,
@@ -187,6 +204,29 @@ private:
     loka::app::scene::NativeLifetimeHint lifetimeHint;
   };
 
+  /** One live scrollBarProc control. The props are copied out by value
+      rather than kept as a node pointer: the binding outlives nothing, but
+      a value copy removes the question entirely, the way PopupHit does. */
+  struct ScrollBarControlBinding
+  {
+    short resourceId;
+    ControlRef control;
+    loka::core::State<int> *value;
+    loka::core::EmitterState *onChange;
+    loka::core::State<bool> *enabled;
+    int minimum;
+    int maximum;
+    int lineStep;
+    int pageStep;
+    /** The value this side last pushed into the CDEF. A tracking loop that
+        ends back here changed nothing, so no settle is published. */
+    int appliedValue;
+    bool active;
+    bool usedThisFrame;
+    Rect rect;
+    loka::app::scene::NativeLifetimeHint lifetimeHint;
+  };
+
   struct EditTextControlBinding
   {
     loka::app::scene::NodeContext *ownerContext;
@@ -214,6 +254,7 @@ private:
   std::vector<ButtonHit> buttonHits_;
   std::vector<CellHit> cellHits_;
   std::vector<ButtonControlBinding> buttonControls_;
+  std::vector<ScrollBarControlBinding> scrollBarControls_;
   ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
   std::vector<EditHit> editHits_;
   std::vector<PopupHit> popupHits_;
@@ -232,8 +273,13 @@ private:
   std::vector<Rect> pendingDirtyRects_;
   std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
   std::vector<RetiredNativeEntry<ControlRef> > retiredControls_;
+  // A retired scroll bar keeps its own queue and bucket: NewControl bakes the
+  // CDEF into the handle, so paying one back out as a push button would hand
+  // the caller a control that draws and tracks as the wrong kind.
+  std::vector<RetiredNativeEntry<ControlRef> > retiredScrollBarControls_;
   std::vector<RetiredNativeEntry<TEHandle> > retiredTextEdits_;
   loka::app::scene::ExactMatchHandleBucket<ControlRef> pushButtonBucket_;
+  loka::app::scene::ExactMatchHandleBucket<ControlRef> scrollBarBucket_;
   loka::app::scene::ExactMatchHandleBucket<TEHandle> textEditBucket_;
   int poolIntakeAuditFailCount_;
   RgnHandle clipRgn_;
@@ -267,6 +313,10 @@ private:
   void clearEnabledBindings();
   void clearControls();
   void queueRetiredControl(ControlRef control, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  void queueRetiredScrollBarControl(ControlRef control, loka::app::scene::NativeLifetimeHint lifetimeHint);
+  /** Publishes the value a finished tracking loop settled on, in the order
+      the ruling fixes: binding first, then onChange. */
+  void commitScrollBarValueAt(std::size_t index);
   void queueRetiredTextEdit(TEHandle te, loka::app::scene::NativeLifetimeHint lifetimeHint);
   bool hasLiveBinding(ControlRef control) const;
   bool hasLiveBinding(TEHandle te) const;

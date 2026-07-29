@@ -8,6 +8,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/NullScenePlatformController.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullButtonContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullEditTextContext.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullScrollBarContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullPlatformContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LifecycleFactTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StateNotifyTests.cpp

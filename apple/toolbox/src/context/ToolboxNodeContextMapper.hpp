@@ -6,6 +6,7 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
+#include "app/nodes/controls/ScrollBar.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/RectSurface.hpp"
@@ -46,6 +47,7 @@ public:
   void ensureEditTextContext(loka::app::EditTextNode *node);
   void ensureOpenFileDialogContext(loka::app::OpenFileDialogNode *node);
   void ensurePopupMenuContext(loka::app::PopupMenuNode *node);
+  void ensureScrollBarContext(loka::app::ScrollBarNode *node, ToolboxScenePlatformController *controller);
   void ensureImageViewContext(loka::app::ImageViewNode *node);
   void ensureRectSurfaceContext(loka::app::RectSurfaceNode *node);
 

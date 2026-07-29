@@ -10,6 +10,7 @@
 
 class NullButtonContext;
 class NullEditTextContext;
+class NullScrollBarContext;
 class NullWindow;
 
 class NullScenePlatformController : public loka::app::scene::IPlatformController
@@ -18,7 +19,8 @@ public:
   enum ControlRecipe
   {
     CONTROL_RECIPE_BUTTON,
-    CONTROL_RECIPE_EDIT_TEXT
+    CONTROL_RECIPE_EDIT_TEXT,
+    CONTROL_RECIPE_SCROLL_BAR
   };
 
   struct FakeControlHandle
@@ -176,6 +178,12 @@ private:
     NullScenePlatformController *controller_;
   };
 
+  /** The single place that maps a recipe to its pool bucket. Adding a
+      recipe without a bucket here is a compile-visible omission instead of
+      a control that silently pools with the wrong kind. */
+  loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> &bucketFor(ControlRecipe recipe);
+  const loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> &bucketFor(ControlRecipe recipe) const;
+
   FakeControlHandle *createLedgerRow(ControlRecipe recipe,
                                      loka::app::scene::NodeContext *owner,
                                      loka::app::scene::NativeLifetimeHint hint);
@@ -197,6 +205,7 @@ private:
   std::vector<FakeControlHandle *> allHandles_;
   loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> buttonBucket_;
   loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> editTextBucket_;
+  loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> scrollBarBucket_;
   TeardownCounters teardownCounters_;
   unsigned long intakeCheckFailCount_;
   unsigned long createdCount_;
@@ -213,6 +222,7 @@ private:
 
   friend class NullButtonContext;
   friend class NullEditTextContext;
+  friend class NullScrollBarContext;
   friend class NullWindow;
 };
 

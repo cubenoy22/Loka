@@ -22,6 +22,7 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
+#include "app/nodes/controls/ScrollBar.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/RectSurface.hpp"
 #include "app/nodes/nestable/Box.hpp"
@@ -47,6 +48,26 @@ namespace
   enum
   {
     pushButProc = 0
+  };
+#endif
+
+  // The CDEF id and its part codes live in ControlDefinitions.h, which this
+  // toolchain's Controls.h does not pull in and which cannot be added here
+  // without making the pushButProc fallback above ambiguous. Same idiom,
+  // same Universal Interfaces values.
+#if !defined(scrollBarProc)
+  enum
+  {
+    scrollBarProc = 16
+  };
+#endif
+#if !defined(kControlUpButtonPart)
+  enum
+  {
+    kControlUpButtonPart = 20,
+    kControlDownButtonPart = 21,
+    kControlPageUpPart = 22,
+    kControlPageDownPart = 23
   };
 #endif
 
@@ -208,6 +229,18 @@ namespace
       if (popup->props.controlTag_ > 0 && popup->props.controlTag_ <= 32767)
       {
         id = static_cast<short>(popup->props.controlTag_);
+      }
+      if (id > maxId)
+      {
+        maxId = id;
+      }
+    }
+    if (loka::app::ScrollBarNode *scrollBar = node->asScrollBarNode())
+    {
+      short id = 0;
+      if (scrollBar->props.controlTag_ > 0 && scrollBar->props.controlTag_ <= 32767)
+      {
+        id = static_cast<short>(scrollBar->props.controlTag_);
       }
       if (id > maxId)
       {
@@ -928,8 +961,10 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       forceFullRedraw_(false),
       pendingDirtyRects_(),
       retiredControls_(),
+      retiredScrollBarControls_(),
       retiredTextEdits_(),
       pushButtonBucket_(kNativePoolBucketDepthCap),
+      scrollBarBucket_(kNativePoolBucketDepthCap),
       textEditBucket_(kNativePoolBucketDepthCap),
       poolIntakeAuditFailCount_(0),
       clipRgn_(NewRgn()),
@@ -1273,6 +1308,10 @@ void ToolboxScenePlatformController::render()
     {
       buttonControls_[i].usedThisFrame = false;
     }
+    for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+    {
+      scrollBarControls_[i].usedThisFrame = false;
+    }
     editHits_.clear();
     for (size_t i = 0; i < editControls_.size(); ++i)
     {
@@ -1320,6 +1359,13 @@ void ToolboxScenePlatformController::render()
         HideControl(buttonControls_[i].control);
       }
     }
+    for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+    {
+      if (!scrollBarControls_[i].usedThisFrame && scrollBarControls_[i].control)
+      {
+        HideControl(scrollBarControls_[i].control);
+      }
+    }
     for (size_t i = 0; i < editControls_.size();)
     {
       if (!editControls_[i].usedThisFrame)
@@ -1346,7 +1392,8 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  if (textHits_.empty() && popupHits_.empty() && buttonControls_.empty() && editControls_.empty())
+  if (textHits_.empty() && popupHits_.empty() && buttonControls_.empty() && scrollBarControls_.empty()
+      && editControls_.empty())
   {
     if (HasRectSurfaceNode(rootNode_))
     {
@@ -1995,6 +2042,22 @@ void ToolboxScenePlatformController::handleEnabledChanged(loka::core::State<bool
       return;
     }
   }
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    ScrollBarControlBinding &binding = scrollBarControls_[i];
+    if (binding.enabled != enabled)
+    {
+      continue;
+    }
+    // A disabled bar and an unscrollable one share the inactive
+    // presentation, so re-derive from both rather than from enabled alone.
+    binding.active = enabled->get() && loka::app::ScrollBarIsScrollable(binding.minimum, binding.maximum);
+    if (binding.control)
+    {
+      HiliteControl(binding.control, binding.active ? 0 : 255);
+    }
+    return;
+  }
   for (size_t i = 0; i < buttonHits_.size(); ++i)
   {
     ButtonHit &hit = buttonHits_[i];
@@ -2401,6 +2464,16 @@ void ToolboxScenePlatformController::clearControls()
     }
   }
   buttonControls_.clear();
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    if (scrollBarControls_[i].control)
+    {
+      HideControl(scrollBarControls_[i].control);
+      queueRetiredScrollBarControl(scrollBarControls_[i].control, scrollBarControls_[i].lifetimeHint);
+      scrollBarControls_[i].control = 0;
+    }
+  }
+  scrollBarControls_.clear();
   for (size_t i = 0; i < editControls_.size(); ++i)
   {
     if (editControls_[i].te)
@@ -2441,6 +2514,12 @@ void ToolboxScenePlatformController::queueRetiredControl(ControlRef control,
   queueRetiredNativeHandle(retiredControls_, control, lifetimeHint);
 }
 
+void ToolboxScenePlatformController::queueRetiredScrollBarControl(ControlRef control,
+                                                                   loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  queueRetiredNativeHandle(retiredScrollBarControls_, control, lifetimeHint);
+}
+
 void ToolboxScenePlatformController::queueRetiredTextEdit(TEHandle te,
                                                           loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
@@ -2452,6 +2531,13 @@ bool ToolboxScenePlatformController::hasLiveBinding(ControlRef control) const
   for (size_t i = 0; i < buttonControls_.size(); ++i)
   {
     if (buttonControls_[i].control == control)
+    {
+      return true;
+    }
+  }
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    if (scrollBarControls_[i].control == control)
     {
       return true;
     }
@@ -2525,6 +2611,7 @@ void ToolboxScenePlatformController::flushRetiredEntriesInto(
 void ToolboxScenePlatformController::flushRetiredNativeHandles()
 {
   flushRetiredEntriesInto(retiredControls_, pushButtonBucket_);
+  flushRetiredEntriesInto(retiredScrollBarControls_, scrollBarBucket_);
   flushRetiredEntriesInto(retiredTextEdits_, textEditBucket_);
   syncNativePoolStats();
 }
@@ -2551,6 +2638,7 @@ namespace
 void ToolboxScenePlatformController::drainNativeHandleBuckets()
 {
   pushButtonBucket_.drainWith(DisposePooledControl);
+  scrollBarBucket_.drainWith(DisposePooledControl);
   textEditBucket_.drainWith(DisposePooledTextEdit);
   syncNativePoolStats();
 }
@@ -2689,6 +2777,220 @@ void ToolboxScenePlatformController::destroyButtonControl(short resourceId,
     }
     return;
   }
+}
+
+namespace
+{
+  // The action proc runs inside TrackControl and has no user-data slot, so
+  // the step sizes of the bar being tracked are parked here for the duration
+  // of the loop. Classic is single-threaded and TrackControl does not nest,
+  // so exactly one bar is ever being tracked.
+  int gActiveScrollBarLineStep = 1;
+  int gActiveScrollBarPageStep = 1;
+  ControlActionUPP gScrollBarActionUPP = 0;
+
+  static pascal void ScrollBarActionProc(ControlRef control, ControlPartCode part)
+  {
+    if (!control)
+    {
+      return;
+    }
+    const int minimum = static_cast<int>(GetControlMinimum(control));
+    const int maximum = static_cast<int>(GetControlMaximum(control));
+    int value = static_cast<int>(GetControlValue(control));
+    switch (part)
+    {
+    case kControlUpButtonPart:
+      value -= gActiveScrollBarLineStep;
+      break;
+    case kControlDownButtonPart:
+      value += gActiveScrollBarLineStep;
+      break;
+    case kControlPageUpPart:
+      value -= gActiveScrollBarPageStep;
+      break;
+    case kControlPageDownPart:
+      value += gActiveScrollBarPageStep;
+      break;
+    default:
+      return;
+    }
+    value = loka::app::ScrollBarClampValue(value, minimum, maximum);
+    // Visual only. Nothing crosses into Loka from inside the loop: a held
+    // arrow must not publish one value per tick (ruling 1).
+    SetControlValue(control, static_cast<short>(value));
+  }
+
+  ControlActionUPP ScrollBarActionUPP()
+  {
+    if (!gScrollBarActionUPP)
+    {
+      gScrollBarActionUPP = NewControlActionUPP(ScrollBarActionProc);
+    }
+    return gScrollBarActionUPP;
+  }
+} // namespace
+
+bool ToolboxScenePlatformController::ensureScrollBarControl(short resourceId,
+                                                             const Rect &rect,
+                                                             const loka::app::ScrollBarProps &props,
+                                                             loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  if (!window_ || !window_->window() || resourceId <= 0)
+  {
+    return false;
+  }
+  ScrollBarControlBinding *binding = 0;
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    if (scrollBarControls_[i].resourceId == resourceId)
+    {
+      binding = &scrollBarControls_[i];
+      break;
+    }
+  }
+  bool created = false;
+  if (!binding)
+  {
+    ControlRef control = 0;
+    if (!scrollBarBucket_.tryAcquire(control))
+    {
+      Rect rectCopy = rect;
+      Str255 title;
+      title[0] = 0;
+      // scrollBarProc is the pre-Appearance standard CDEF: available on
+      // every system this arm targets, and the one the Classic look expects.
+      control = NewControl(window_->window(), &rectCopy, title, false, 0, 0, 1, scrollBarProc, 0);
+      if (!control)
+      {
+        return false;
+      }
+      HideControl(control);
+    }
+    ScrollBarControlBinding entry;
+    entry.resourceId = resourceId;
+    entry.control = control;
+    entry.value = 0;
+    entry.onChange = 0;
+    entry.enabled = 0;
+    entry.minimum = 0;
+    entry.maximum = 0;
+    entry.lineStep = 1;
+    entry.pageStep = 1;
+    entry.appliedValue = 0;
+    entry.active = false;
+    entry.usedThisFrame = true;
+    entry.rect = rect;
+    entry.lifetimeHint = lifetimeHint;
+    scrollBarControls_.push_back(entry);
+    binding = &scrollBarControls_.back();
+    created = true;
+  }
+  binding->value = props.value_;
+  binding->onChange = props.onChange_;
+  binding->enabled = props.enabled_;
+  binding->minimum = props.min_;
+  binding->maximum = props.max_;
+  binding->lineStep = props.lineStep_;
+  binding->pageStep = props.pageStep_;
+  binding->lifetimeHint = lifetimeHint;
+  binding->usedThisFrame = true;
+  bindEnabledState(props.enabled_);
+  if (created || binding->rect.left != rect.left || binding->rect.top != rect.top
+      || binding->rect.right != rect.right || binding->rect.bottom != rect.bottom)
+  {
+    MoveControl(binding->control, rect.left, rect.top);
+    SizeControl(binding->control, rect.right - rect.left, rect.bottom - rect.top);
+    binding->rect = rect;
+  }
+  // The range is static prop data, so a recompose is the only way it moves.
+  // Push it before the value: the CDEF clamps against the range it holds.
+  SetControlMinimum(binding->control, static_cast<short>(props.min_));
+  SetControlMaximum(binding->control, static_cast<short>(props.max_));
+  const int bound = props.value_ ? props.value_->get() : props.min_;
+  const int shown = loka::app::ScrollBarClampValue(bound, props.min_, props.max_);
+  SetControlValue(binding->control, static_cast<short>(shown));
+  binding->appliedValue = shown;
+
+  const bool enabledNow = !props.enabled_ || props.enabled_->get();
+  binding->active = enabledNow && loka::app::ScrollBarIsScrollable(props.min_, props.max_);
+  // Classic's one presentation for "cannot be used right now", whether the
+  // reason is a disabled binding or a range with nowhere to go.
+  HiliteControl(binding->control, binding->active ? 0 : 255);
+  ShowControl(binding->control);
+  return true;
+}
+
+void ToolboxScenePlatformController::destroyScrollBarControl(short resourceId,
+                                                              loka::app::scene::NativeLifetimeHint lifetimeHint)
+{
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    ScrollBarControlBinding &binding = scrollBarControls_[i];
+    if (binding.resourceId != resourceId)
+    {
+      continue;
+    }
+    ControlRef control = binding.control;
+    binding.control = 0;
+    binding.value = 0;
+    binding.onChange = 0;
+    binding.enabled = 0;
+    scrollBarControls_.erase(scrollBarControls_.begin() + i);
+    controlIds_.release(resourceId);
+    if (control)
+    {
+      // Context destruction can run inside an update pass; disposal waits for
+      // the platform safe point like every other retired native handle.
+      HideControl(control);
+      queueRetiredScrollBarControl(control, lifetimeHint);
+    }
+    return;
+  }
+}
+
+void ToolboxScenePlatformController::commitScrollBarValueAt(std::size_t index)
+{
+  if (index >= scrollBarControls_.size())
+  {
+    return;
+  }
+  ScrollBarControlBinding &binding = scrollBarControls_[index];
+  if (!binding.control || !binding.value)
+  {
+    return;
+  }
+  const int settled = static_cast<int>(GetControlValue(binding.control));
+  if (settled == binding.appliedValue)
+  {
+    // A cancelled thumb drag lands back on the value the CDEF started from.
+    // Publishing it anyway would fire onChange for a gesture the user
+    // deliberately abandoned.
+    return;
+  }
+  loka::core::MutableState<int> *mutableValue =
+      static_cast<loka::core::MutableState<int> *>(binding.value->asMutableState());
+  if (!mutableValue)
+  {
+    return;
+  }
+  // Copy out before the batch: publishing re-enters projection, which can
+  // reallocate scrollBarControls_ underneath this reference.
+  const Rect rect = binding.rect;
+  loka::core::EmitterState *onChange = binding.onChange;
+  binding.appliedValue = settled;
+
+  beginBatchUpdate();
+  addPendingDirty(rect);
+  // Order is the contract (ruling 1), and the same order
+  // applyPopupSelectionChange uses: the binding holds the settled value
+  // before any handler runs.
+  mutableValue->set(settled, true);
+  if (onChange)
+  {
+    onChange->emit();
+  }
+  endBatchUpdate();
 }
 
 void ToolboxScenePlatformController::drawFallbackControl(const Rect &rect)
@@ -2864,6 +3166,22 @@ void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
     ++debugStats_.totalControlDrawCount;
     binding.needsDraw = false;
   }
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    ScrollBarControlBinding &binding = scrollBarControls_[i];
+    if (!binding.control || !binding.usedThisFrame)
+    {
+      continue;
+    }
+    if (rect.right < binding.rect.left || rect.left > binding.rect.right || rect.bottom < binding.rect.top
+        || rect.top > binding.rect.bottom)
+    {
+      continue;
+    }
+    Draw1Control(binding.control);
+    ++debugStats_.controlDrawCount;
+    ++debugStats_.totalControlDrawCount;
+  }
 }
 
 void ToolboxScenePlatformController::idleTextEdits()
@@ -2947,6 +3265,32 @@ bool ToolboxScenePlatformController::handleControlClick(const Point &point)
       endBatchUpdate();
       return true;
     }
+  }
+  for (size_t i = 0; i < scrollBarControls_.size(); ++i)
+  {
+    if (scrollBarControls_[i].control != control)
+    {
+      continue;
+    }
+    if (!scrollBarControls_[i].active)
+    {
+      // An inactive bar still owns its rect; swallowing the click keeps the
+      // hit from falling through to whatever is drawn beneath it.
+      return true;
+    }
+    gActiveScrollBarLineStep = scrollBarControls_[i].lineStep;
+    gActiveScrollBarPageStep = scrollBarControls_[i].pageStep;
+    // The thumb gets no action proc: the CDEF's own outline drag is the
+    // Classic gesture. Arrows and page areas need one so a held press keeps
+    // moving instead of stepping once.
+    ControlActionUPP action = (part == kControlIndicatorPart) ? 0 : ScrollBarActionUPP();
+    TrackControl(control, point, action);
+    // Read after the loop has ended, never during it (ruling 1). The return
+    // code is deliberately ignored: releasing off an arrow ends the scroll
+    // but keeps what already scrolled, and commitScrollBarValueAt is the one
+    // place that decides whether anything actually changed.
+    commitScrollBarValueAt(i);
+    return true;
   }
   return false;
 }

@@ -18,6 +18,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/context/ToolboxOpenFileDialogContext.cpp
   src/context/ToolboxNodeContextMapper.cpp
   src/context/ToolboxPopupMenuContext.cpp
+  src/context/ToolboxScrollBarContext.cpp
   src/context/ToolboxTextContext.cpp
   src/context/ToolboxImageViewContext.cpp
   src/context/ToolboxRectSurfaceContext.cpp

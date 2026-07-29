@@ -2,6 +2,7 @@
 
 #include "platform/null/context/NullButtonContext.hpp"
 #include "platform/null/context/NullEditTextContext.hpp"
+#include "platform/null/context/NullScrollBarContext.hpp"
 
 NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap)
     : nodeHandlers_(),
@@ -11,6 +12,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       allHandles_(),
       buttonBucket_(bucketDepthCap),
       editTextBucket_(bucketDepthCap),
+      scrollBarBucket_(bucketDepthCap),
       teardownCounters_(),
       intakeCheckFailCount_(0),
       createdCount_(0),
@@ -24,6 +26,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
 {
   RegisterNullButtonNodeHandler(*this);
   RegisterNullEditTextNodeHandler(*this);
+  RegisterNullScrollBarNodeHandler(*this);
 }
 
 NullScenePlatformController::~NullScenePlatformController()
@@ -148,20 +151,31 @@ unsigned long NullScenePlatformController::disposedCount() const
   return this->disposedCount_;
 }
 
-NullScenePlatformController::BucketStats
-NullScenePlatformController::bucketStats(ControlRecipe recipe) const
+loka::app::scene::ExactMatchHandleBucket<NullScenePlatformController::FakeControlHandle *> &
+NullScenePlatformController::bucketFor(ControlRecipe recipe)
 {
   if (recipe == CONTROL_RECIPE_BUTTON)
   {
-    return BucketStats(this->buttonBucket_.hitCount(),
-                       this->buttonBucket_.missCount(),
-                       this->buttonBucket_.evictCount(),
-                       this->buttonBucket_.depth());
+    return this->buttonBucket_;
   }
-  return BucketStats(this->editTextBucket_.hitCount(),
-                     this->editTextBucket_.missCount(),
-                     this->editTextBucket_.evictCount(),
-                     this->editTextBucket_.depth());
+  if (recipe == CONTROL_RECIPE_SCROLL_BAR)
+  {
+    return this->scrollBarBucket_;
+  }
+  return this->editTextBucket_;
+}
+
+const loka::app::scene::ExactMatchHandleBucket<NullScenePlatformController::FakeControlHandle *> &
+NullScenePlatformController::bucketFor(ControlRecipe recipe) const
+{
+  return const_cast<NullScenePlatformController *>(this)->bucketFor(recipe);
+}
+
+NullScenePlatformController::BucketStats
+NullScenePlatformController::bucketStats(ControlRecipe recipe) const
+{
+  const loka::app::scene::ExactMatchHandleBucket<FakeControlHandle *> &bucket = this->bucketFor(recipe);
+  return BucketStats(bucket.hitCount(), bucket.missCount(), bucket.evictCount(), bucket.depth());
 }
 
 unsigned long NullScenePlatformController::eventCount(EventKind kind) const
@@ -206,9 +220,7 @@ NullScenePlatformController::createLedgerRow(ControlRecipe recipe,
                                              loka::app::scene::NativeLifetimeHint hint)
 {
   FakeControlHandle *handle = 0;
-  const bool acquired = recipe == CONTROL_RECIPE_BUTTON
-                            ? this->buttonBucket_.tryAcquire(handle)
-                            : this->editTextBucket_.tryAcquire(handle);
+  const bool acquired = this->bucketFor(recipe).tryAcquire(handle);
   if (!acquired)
   {
     handle = new FakeControlHandle(this->nextHandleId_++, owner);
@@ -353,9 +365,7 @@ void NullScenePlatformController::flushRetired()
       handle->leakedDeliberately = true;
       continue;
     }
-    const bool accepted = entry.recipe == CONTROL_RECIPE_BUTTON
-                              ? this->buttonBucket_.offer(handle)
-                              : this->editTextBucket_.offer(handle);
+    const bool accepted = this->bucketFor(entry.recipe).offer(handle);
     if (!accepted)
     {
       this->disposeHandle(handle);
@@ -369,6 +379,7 @@ void NullScenePlatformController::drainBuckets()
   DisposePooledHandle dispose(this);
   this->buttonBucket_.drainWith(dispose);
   this->editTextBucket_.drainWith(dispose);
+  this->scrollBarBucket_.drainWith(dispose);
 }
 
 void NullScenePlatformController::disposeHandle(FakeControlHandle *handle)
