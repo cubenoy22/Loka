@@ -14,6 +14,7 @@
 #if defined(_WIN32)
 #include <direct.h>
 #else
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -76,6 +77,62 @@ namespace
     return written && closed;
   }
 
+  /** Creates a file that did not exist, and fails if anything is already
+      there -- including a dangling symlink, which is the case that made this
+      necessary. `fopen("wb")` follows such a link and writes through it, so a
+      staging path planted as `pkg.tmp -> pkg` had the tool create `pkg` behind
+      its own guard and then rename the link over it, leaving a self-referential
+      symlink where the package should be, reported as success.
+
+      Creating exclusively removes the whole class rather than that instance:
+      the staging file is one this run made, so it cannot be an alias for
+      anything. POSIX only for now -- `fopen` has no portable exclusive mode in
+      C++98 -- with the Windows half belonging to #215 along with the rest of
+      this tool's native file handling. */
+  bool WriteNewFile(const std::string &path, const unsigned char *bytes, std::size_t length)
+  {
+#if defined(_WIN32)
+    return WriteWholeFile(path, bytes, length);
+#else
+    const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0666);
+    if (fd < 0)
+    {
+      return false;
+    }
+    bool ok = true;
+    std::size_t written = 0;
+    while (ok && written < length)
+    {
+      const ssize_t got = write(fd, bytes + written, length - written);
+      if (got <= 0)
+      {
+        ok = false;
+        break;
+      }
+      written += static_cast<std::size_t>(got);
+    }
+    if (close(fd) != 0)
+    {
+      ok = false;
+    }
+    return ok;
+#endif
+  }
+
+  /** True when the path exists and is a directory. An output that names one is
+      refused: `--stamp stamps/` staged into `stamps/.tmp`, and the cleanup path
+      then removed the emptied directory the caller had made. */
+  bool PathIsDirectory(const std::string &path)
+  {
+#if defined(_WIN32)
+    (void)path;
+    return false;
+#else
+    struct stat info;
+    return stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+#endif
+  }
+
   /** #185 §13: pack always rewrites the whole file, so overwriting in place
       can leave a half-written `.LRP` behind. Write beside the target and
       rename. POSIX renames over an existing file atomically; Windows refuses,
@@ -117,14 +174,25 @@ namespace
     }
 #endif
 
-    const bool rooted = !unified.empty() && unified[0] == '/';
+    // A drive or share prefix is part of the root, not a component. Treating
+    // `C:` as one let `C:/../x` pop it and compare unequal to `C:/x` -- the
+    // same file, two keys, and an output free to overwrite an input.
+    std::string prefix;
+    std::string rest = unified;
+    if (rest.size() >= 2 && rest[1] == ':')
+    {
+      prefix = rest.substr(0, 2);
+      rest = rest.substr(2);
+    }
+    const bool rooted = !rest.empty() && rest[0] == '/';
+
     std::vector<std::string> parts;
     std::string part;
-    for (std::size_t i = 0; i <= unified.size(); ++i)
+    for (std::size_t i = 0; i <= rest.size(); ++i)
     {
-      if (i < unified.size() && unified[i] != '/')
+      if (i < rest.size() && rest[i] != '/')
       {
-        part.push_back(unified[i]);
+        part.push_back(rest[i]);
         continue;
       }
       if (!part.empty() && part != ".")
@@ -133,10 +201,10 @@ namespace
         {
           parts.pop_back();
         }
-        else if (part == ".." && rooted)
+        else if (part == ".." && (rooted || !prefix.empty()))
         {
-          // The filesystem clamps `..` at the root, so `/../a` and `/a` are
-          // one file. Keeping the component would leave two keys for it.
+          // A root clamps `..`, the way the filesystem does. Keeping the
+          // component would leave one file with two keys.
         }
         else
         {
@@ -146,7 +214,7 @@ namespace
       part.clear();
     }
 
-    std::string result = rooted ? "/" : "";
+    std::string result = prefix + (rooted ? "/" : "");
     for (std::size_t i = 0; i < parts.size(); ++i)
     {
       if (i > 0)
@@ -158,6 +226,19 @@ namespace
     return result;
   }
 
+  /** What the host counts as a path separator, in one place. Normalization,
+      rootedness and the manifest's base directory all have to agree; when they
+      did not, a manifest named `m\file` on POSIX gave the base `m\`, so a
+      source `payload` was read from `m\payload` instead. */
+  bool IsSeparator(char c)
+  {
+#if defined(_WIN32)
+    return c == '/' || c == '\\';
+#else
+    return c == '/';
+#endif
+  }
+
   /** True when the path already names a place, rather than a place relative to
       wherever the process happens to be. Covers the POSIX root, and on Windows
       a drive-qualified path and a UNC share. */
@@ -167,7 +248,7 @@ namespace
     {
       return false;
     }
-    if (path[0] == '/' || path[0] == '\\')
+    if (IsSeparator(path[0]))
     {
       return true;
     }
@@ -248,7 +329,14 @@ namespace
 
   std::string DirectoryOf(const std::string &path)
   {
-    const std::string::size_type slash = path.find_last_of("/\\");
+    const std::string::size_type slash =
+        path.find_last_of(
+#if defined(_WIN32)
+            "/\\"
+#else
+            "/"
+#endif
+        );
     if (slash == std::string::npos)
     {
       return std::string();
@@ -424,24 +512,37 @@ int main(int argc, char **argv)
     }
 
     std::vector<std::string> outputs;
+    std::vector<std::string> outputPaths;
     std::vector<std::string> outputNames;
     // Named by role as well as by path: two outputs that collide often share
     // a spelling, and "Z.tmp and Z.tmp name the same file" tells the author
     // nothing about which two things met there.
-    outputs.push_back(CollisionKey(outputPath));
+    outputPaths.push_back(outputPath);
     outputNames.push_back("the package (" + outputPath + ")");
-    outputs.push_back(CollisionKey(outputPath + ".tmp"));
+    outputPaths.push_back(outputPath + ".tmp");
     outputNames.push_back("the package staging file (" + outputPath + ".tmp)");
     if (!stampPath.empty())
     {
-      outputs.push_back(CollisionKey(stampPath));
+      outputPaths.push_back(stampPath);
       outputNames.push_back("the stamp (" + stampPath + ")");
-      outputs.push_back(CollisionKey(stampPath + ".tmp"));
+      outputPaths.push_back(stampPath + ".tmp");
       outputNames.push_back("the stamp staging file (" + stampPath + ".tmp)");
+    }
+    for (std::size_t i = 0; i < outputPaths.size(); ++i)
+    {
+      outputs.push_back(CollisionKey(outputPaths[i]));
     }
 
     for (std::size_t o = 0; o < outputs.size(); ++o)
     {
+      // A directory is not a file this run can replace, and treating it as one
+      // is destructive: `--stamp stamps/` staged into `stamps/.tmp`, and the
+      // cleanup path then removed the emptied directory the caller had made.
+      if (PathIsDirectory(outputPaths[o]))
+      {
+        std::fprintf(stderr, "lrpc: %s is a directory\n", outputNames[o].c_str());
+        return 1;
+      }
       for (std::size_t i = 0; i < inputs.size(); ++i)
       {
         if (outputs[o] == inputs[i])
@@ -511,17 +612,17 @@ int main(int argc, char **argv)
   const std::string temporary = outputPath + ".tmp";
   const std::string stampTemporary = stampPath.empty() ? std::string() : stampPath + ".tmp";
 
-  if (!WriteWholeFile(temporary, package.empty() ? 0 : &package[0], package.size()))
+  if (!WriteNewFile(temporary, package.empty() ? 0 : &package[0], package.size()))
   {
-    return FailAt("cannot write package", temporary);
+    return FailAt("cannot create package staging file", temporary);
   }
   if (!stampPath.empty())
   {
     char line[32];
     const int printed = std::sprintf(line, "%lu\n", static_cast<unsigned long>(stamp));
     if (printed <= 0 ||
-        !WriteWholeFile(stampTemporary, reinterpret_cast<const unsigned char *>(line),
-                        static_cast<std::size_t>(printed)))
+        !WriteNewFile(stampTemporary, reinterpret_cast<const unsigned char *>(line),
+                      static_cast<std::size_t>(printed)))
     {
       std::remove(temporary.c_str());
       return FailAt("cannot write stamp", stampTemporary);
@@ -549,7 +650,7 @@ int main(int argc, char **argv)
     // still carries its own stamp in HEAD, so nothing is lost that cannot be
     // read back out of the artifact itself.
     std::remove(stampTemporary.c_str());
-    const bool staleRemoved = std::remove(stampPath.c_str()) == 0;
+    const bool staleRemoved = !PathIsDirectory(stampPath) && std::remove(stampPath.c_str()) == 0;
     std::fprintf(stderr,
                  "lrpc: cannot commit stamp: %s\n"
                  "lrpc: %s was written; the stamp file is %s -- read the stamp "
