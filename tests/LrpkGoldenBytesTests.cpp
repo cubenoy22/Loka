@@ -5,11 +5,14 @@
 #include <cstring>
 #include <vector>
 
+#include "LrpkTestByteSource.hpp"
 #include "core/resource/lrpk/LrpkReader.hpp"
+#include "core/resource/lrpk/LrpkStdioByteSource.hpp"
 #include "lrpc/LrpkWriter.hpp"
 
 using namespace loka::core::resource::lrpk;
 using loka::lrpc::Writer;
+using loka::lrpktests::MemoryByteSource;
 
 // Every other LRPK test builds its package with the writer and reads it back
 // with the reader, which cannot tell the two apart if they share one misreading
@@ -169,6 +172,91 @@ namespace
     std::memcpy(&backing[at], &source[0], source.size());
     return &backing[at];
   }
+
+  /** The three assets the golden package carries, as the reader must report
+      them whatever door they came through. */
+  struct ExpectedAsset
+  {
+    U32 id;
+    const unsigned char *bytes;
+    std::size_t length;
+    std::size_t bag;
+    std::size_t offsetInBag;
+    AssetKind kind;
+  };
+
+  const ExpectedAsset kExpected[3] = {
+      {1, kGold, sizeof(kGold), 0, 0, ASSET_KIND_IMAGE},
+      {2, kSilver, sizeof(kSilver), 0, 4, ASSET_KIND_STRING},
+      {3, kBronze, sizeof(kBronze), 1, 0, ASSET_KIND_IMAGE},
+  };
+
+  /** Everything a caller can observe about an opened golden package, checked
+      the same way for every transport so a divergence is one failed assert
+      rather than three near-identical bodies that drifted apart. */
+  void ExpectGoldenContents(Reader &reader)
+  {
+    assert(reader.isOpen());
+    assert(reader.bagCount() == 2);
+    assert(reader.assetCount() == 3);
+    assert(reader.idSpaceStamp() == kStamp);
+
+    Facts facts;
+    for (std::size_t i = 0; i < 3; ++i)
+    {
+      Asset asset;
+      assert(reader.get(kExpected[i].id, facts, asset) == Reader::GET_OK);
+      assert(asset.kind == kExpected[i].kind);
+      assert(asset.length == kExpected[i].length);
+      assert(asset.bag == kExpected[i].bag);
+      assert(asset.offsetInBag == kExpected[i].offsetInBag);
+      assert(std::memcmp(asset.bytes,
+                         kExpected[i].bytes,
+                         kExpected[i].length) == 0);
+    }
+  }
+
+  /** Opens the golden bytes out of `source` and loads both bags into the
+      caller's vectors, which must outlive `reader`. */
+  void OpenGoldenFromSource(Reader &reader,
+                            ByteSource &source,
+                            std::vector<unsigned char> &index,
+                            std::vector<unsigned char> &firstBag,
+                            std::vector<unsigned char> &secondBag)
+  {
+    std::size_t need = 0;
+    assert(reader.beginOpen(source, kStamp, Reader::VERIFY_INTEGRITY, need) ==
+           Reader::OPEN_OK);
+    // 512 + 8 + alignUp(4) + 8 + alignUp(56) + 8 = 636, the DATA payload
+    // start. The spec's worked example, pinned as a number rather than as a
+    // recomputation of the same formula.
+    assert(need == 124);
+    index.assign(need, 0);
+    assert(reader.finishOpen(&index[0], need) == Reader::OPEN_OK);
+
+    std::size_t stored = 0;
+    assert(reader.bagStoredSize(0, stored) && stored == kFirstBagBytes);
+    firstBag.assign(stored, 0);
+    assert(reinterpret_cast<std::size_t>(&firstBag[0]) % kPayloadAlign == 0);
+    assert(reader.readBagInto(0, &firstBag[0], stored) == Reader::BAG_OK);
+
+    assert(reader.bagStoredSize(1, stored) && stored == kSecondBagBytes);
+    secondBag.assign(stored, 0);
+    assert(reinterpret_cast<std::size_t>(&secondBag[0]) % kPayloadAlign == 0);
+    assert(reader.readBagInto(1, &secondBag[0], stored) == Reader::BAG_OK);
+  }
+
+  bool WriteWholeFile(const char *path, const std::vector<unsigned char> &bytes)
+  {
+    std::FILE *file = std::fopen(path, "wb");
+    if (!file)
+    {
+      return false;
+    }
+    const std::size_t written =
+        bytes.empty() ? 0 : std::fwrite(&bytes[0], 1, bytes.size(), file);
+    return std::fclose(file) == 0 && written == bytes.size();
+  }
 } // namespace
 
 void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage()
@@ -223,4 +311,72 @@ void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage()
   assert(std::memcmp(asset.bytes, kBronze, sizeof(kBronze)) == 0);
 
   std::printf("testLrpkWireFormatMatchesAnIndependentlyAssembledPackage passed\n");
+}
+
+// The round-trip pin above proves the reader and the writer agree about these
+// bytes through one door. This one proves the reader agrees with itself
+// through all three -- a borrowed buffer, an arbitrary `ByteSource`, and a
+// real file on the host's filesystem. The fixture is the same 656 bytes, so a
+// difference in the answers can only come from the transport, which is the
+// only thing that is allowed to differ.
+void testLrpkGoldenBytesReadTheSameThroughEveryTransport()
+{
+  std::vector<unsigned char> golden;
+  AssembleGolden(golden);
+
+  std::vector<unsigned char> backing;
+  const unsigned char *bytes = AlignedCopy(golden, backing);
+  Reader memory;
+  assert(memory.openBorrowedBytes(bytes,
+                                  golden.size(),
+                                  kStamp,
+                                  Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
+  assert(memory.openBag(0) == Reader::BAG_OK);
+  assert(memory.openBag(1) == Reader::BAG_OK);
+  ExpectGoldenContents(memory);
+
+  // The source and every buffer are declared ahead of the reader that
+  // borrows them, which is the lifetime contract stated as code.
+  MemoryByteSource source(golden);
+  std::vector<unsigned char> index;
+  std::vector<unsigned char> firstBag;
+  std::vector<unsigned char> secondBag;
+  Reader stream;
+  OpenGoldenFromSource(stream, source, index, firstBag, secondBag);
+  ExpectGoldenContents(stream);
+
+  // The bag buffers hold the file's bag bytes, not a re-derivation of them.
+  assert(std::memcmp(&firstBag[0], &golden[636], kFirstBagBytes) == 0);
+  assert(std::memcmp(&secondBag[0], &golden[648], kSecondBagBytes) == 0);
+
+  // And the same, over stdio, against bytes that made a round trip through
+  // the filesystem -- the transport the shipped reader will actually use.
+  // Each registered test runs in its own working directory, so a bare
+  // relative name cannot collide with another test's fixture.
+  const char *path = "golden.lrpk";
+  assert(WriteWholeFile(path, golden));
+  StdioByteSource file;
+  assert(file.open(path));
+  assert(file.isOpen());
+  std::size_t fileSize = 0;
+  assert(file.size(fileSize) && fileSize == golden.size());
+
+  std::vector<unsigned char> fileIndex;
+  std::vector<unsigned char> fileFirstBag;
+  std::vector<unsigned char> fileSecondBag;
+  Reader fromFile;
+  OpenGoldenFromSource(fromFile, file, fileIndex, fileFirstBag, fileSecondBag);
+  ExpectGoldenContents(fromFile);
+  assert(fileIndex == index);
+  assert(fileFirstBag == firstBag);
+  assert(fileSecondBag == secondBag);
+
+  // A source asked for bytes past the end of the file answers false rather
+  // than short, because the reader has no partial-read concept to receive.
+  unsigned char past[4];
+  assert(!file.readAt(golden.size() - 2, past, sizeof(past)));
+  file.close();
+  assert(!file.isOpen());
+
+  std::printf("testLrpkGoldenBytesReadTheSameThroughEveryTransport passed\n");
 }

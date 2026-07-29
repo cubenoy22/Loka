@@ -8,6 +8,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxOperatorNew.cpp
   src/ToolboxString.cpp
   src/ToolboxApp.cpp
+  src/ToolboxByteSource.cpp
   src/ToolboxNativeImage.cpp
   src/ToolboxProfiler.cpp
   src/debug/ToolboxSceneDebugStats.cpp
