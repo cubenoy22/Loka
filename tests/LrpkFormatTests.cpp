@@ -6,11 +6,17 @@
 #include <cstring>
 #include <vector>
 
+#include "LrpkTestByteSource.hpp"
+#include "core/resource/Blob.hpp"
+#include "core/resource/BlobRange.hpp"
 #include "core/resource/lrpk/LrpkReader.hpp"
 #include "lrpc/LrpkWriter.hpp"
 
 using namespace loka::core::resource::lrpk;
+using loka::core::resource::Blob;
+using loka::core::resource::BlobRangeIsUsable;
 using loka::lrpc::Writer;
+using loka::lrpktests::MemoryByteSource;
 
 namespace
 {
@@ -248,6 +254,65 @@ namespace
     RestampChunk(bytes, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
   }
 
+  void ReorderChunks(std::vector<unsigned char> &bytes,
+                     U32 firstTag,
+                     U32 secondTag,
+                     U32 thirdTag)
+  {
+    // A pure permutation: every chunk moves with its header and padding
+    // intact, and no stored CRC covers a chunk's position, so nothing is
+    // restamped. A refusal of the result therefore pins the order rule
+    // itself, not a stale checksum.
+    const U32 order[3] = {firstTag, secondTag, thirdTag};
+    std::vector<unsigned char> stream;
+    for (std::size_t i = 0; i < 3; ++i)
+    {
+      std::size_t payloadSize = 0;
+      const std::size_t header = FindChunkHeader(bytes, order[i], payloadSize);
+      assert(header < bytes.size());
+      const std::size_t span =
+          kChunkHeaderBytes + AlignUp(payloadSize, kPayloadAlign);
+      stream.insert(stream.end(),
+                    bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(header),
+                    bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(header + span));
+    }
+    assert(stream.size() == bytes.size() - kFixedHeadBytes);
+    std::copy(stream.begin(),
+              stream.end(),
+              bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(kFixedHeadBytes));
+  }
+
+  /** Runs the two-call file-backed open the way an application would, and
+      reports whichever half refused. `indexBuffer` is the application's
+      allocation and must outlive the reader whenever this answers OPEN_OK.
+
+      A refusal from `beginOpen` ends it: calling `finishOpen` anyway would
+      answer OPEN_NO_PENDING and mask the reason the open was refused. */
+  Reader::OpenResult OpenThroughStream(Reader &reader,
+                                       ByteSource &source,
+                                       U32 expectedIdSpaceStamp,
+                                       Reader::IntegrityMode integrityMode,
+                                       std::vector<unsigned char> &indexBuffer)
+  {
+    std::size_t need = 0;
+    const Reader::OpenResult begun =
+        reader.beginOpen(source, expectedIdSpaceStamp, integrityMode, need);
+    if (begun != Reader::OPEN_OK)
+    {
+      assert(need == 0 && "a refused beginOpen asks for nothing");
+      return begun;
+    }
+    indexBuffer.assign(need, 0);
+    return reader.finishOpen(need > 0 ? &indexBuffer[0] : 0, need);
+  }
+
+  /** The corpus gate: one package, four answers that must agree -- two
+      integrity modes crossed with two transports.
+
+      The transport half is what makes this worth doing. A refusal only the
+      resident scanner knows how to produce, or one only the file-backed probe
+      reaches, is a second grammar for one format; the cheapest way to find
+      one is to make every malformed fixture in the suite answer twice. */
   void ExpectOpenResultInBothModes(const std::vector<unsigned char> &package,
                                    Reader::OpenResult expected)
   {
@@ -261,6 +326,155 @@ namespace
                                        package.size(),
                                        kStamp,
                                        Reader::SKIP_INTEGRITY) == expected);
+
+    MemoryByteSource verifiedSource(package);
+    std::vector<unsigned char> verifiedIndex;
+    Reader verifiedStream;
+    assert(OpenThroughStream(verifiedStream,
+                             verifiedSource,
+                             kStamp,
+                             Reader::VERIFY_INTEGRITY,
+                             verifiedIndex) == expected);
+    MemoryByteSource uncheckedSource(package);
+    std::vector<unsigned char> uncheckedIndex;
+    Reader uncheckedStream;
+    assert(OpenThroughStream(uncheckedStream,
+                             uncheckedSource,
+                             kStamp,
+                             Reader::SKIP_INTEGRITY,
+                             uncheckedIndex) == expected);
+  }
+
+  /** The file-backed answer for one package and one integrity mode, for the
+      corpus entries whose two modes disagree and so cannot go through
+      `ExpectOpenResultInBothModes`. Returning after the reader and its index
+      buffer have both gone is safe precisely because a refusal commits
+      nothing and an acceptance is not inspected here. */
+  Reader::OpenResult StreamOpenResult(const std::vector<unsigned char> &package,
+                                      Reader::IntegrityMode integrityMode)
+  {
+    MemoryByteSource source(package);
+    std::vector<unsigned char> index;
+    Reader reader;
+    return OpenThroughStream(reader, source, kStamp, integrityMode, index);
+  }
+
+  /** Where `beginOpen`'s slice ends and the DATA payload begins, read out of
+      the package bytes rather than out of the reader, so a test can arm a
+      lying source before the reader has been asked anything. */
+  void LocateDataChunk(const std::vector<unsigned char> &package,
+                       std::size_t &headerAt,
+                       std::size_t &payloadAt)
+  {
+    std::size_t payloadSize = 0;
+    headerAt = FindChunkHeader(package, FourCC('D', 'A', 'T', 'A'), payloadSize);
+    assert(headerAt < package.size());
+    payloadAt = headerAt + kChunkHeaderBytes;
+  }
+
+  /** Cuts a package short and re-declares the two lengths that describe it,
+      so the only thing wrong with the result is that bytes the chunk stream
+      needs are missing. */
+  void TruncateTo(std::vector<unsigned char> &bytes, std::size_t size)
+  {
+    assert(size >= kFixedHeadBytes && size <= bytes.size());
+    bytes.resize(size);
+    WriteU32BE(&bytes[4], static_cast<U32>(bytes.size() - kFormHeaderBytes));
+    WriteU32BE(&bytes[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bytes.size()));
+    RestampHead(bytes);
+  }
+
+  /** A source that answers `beginOpen`'s probes from one package and
+      `finishOpen`'s slice read from another -- the inconsistent liar the
+      one-opaque-read interface cannot rule out. The slice read is the one
+      read that starts at the end of the fixed head and is larger than a
+      chunk header; everything else is a probe or the head. */
+  class TwoFacedByteSource : public ByteSource
+  {
+  public:
+    TwoFacedByteSource(const std::vector<unsigned char> &probeFace,
+                       const std::vector<unsigned char> &sliceFace)
+        : probeFace_(probeFace),
+          sliceFace_(sliceFace)
+    {
+    }
+
+    virtual bool readAt(std::size_t at, unsigned char *dst, std::size_t n)
+    {
+      const std::vector<unsigned char> &face =
+          at == kFixedHeadBytes && n > kChunkHeaderBytes ? sliceFace_
+                                                         : probeFace_;
+      if (at > face.size() || face.size() - at < n)
+      {
+        return false;
+      }
+      if (n > 0)
+      {
+        std::memcpy(dst, &face[at], n);
+      }
+      return true;
+    }
+
+    virtual bool size(std::size_t &out)
+    {
+      out = probeFace_.size();
+      return true;
+    }
+
+  private:
+    TwoFacedByteSource(const TwoFacedByteSource &);
+    TwoFacedByteSource &operator=(const TwoFacedByteSource &);
+
+    const std::vector<unsigned char> &probeFace_;
+    const std::vector<unsigned char> &sliceFace_;
+  };
+
+  /** Two non-empty bags with distinct ids, so both can be open at once and a
+      test can leave one of them unread. */
+  Writer::BuildResult BuildTwoBagPackage(std::vector<unsigned char> &out)
+  {
+    Writer writer;
+    const std::size_t first = writer.addBag();
+    const std::size_t second = writer.addBag();
+    U32 plain[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(11, first, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(22, second, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
+    return writer.build(kStamp, out);
+  }
+
+  /** A bag with a zero-length asset beside a normal one, and a second bag
+      with nothing in it at all. Both legal shapes the golden fixture does not
+      contain, and both the ones where a null base or a zero-length read is
+      the difference between a pointer and a lie. */
+  Writer::BuildResult BuildEmptyBagPackage(std::vector<unsigned char> &out)
+  {
+    Writer writer;
+    const std::size_t full = writer.addBag();
+    writer.addBag();
+    U32 plain[kMaxAxes] = {0, 0, 0, 0};
+    writer.addAsset(11, full, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(12, full, ASSET_KIND_STRING, plain, 0, 0);
+    return writer.build(kStamp, out);
+  }
+
+  /** Reads a bag the way the application is meant to: ask the size, provide
+      exactly that, hand it over. */
+  Reader::BagResult ReadBagIntoVector(Reader &reader,
+                                      std::size_t bagIndex,
+                                      std::vector<unsigned char> &buffer)
+  {
+    std::size_t stored = 0;
+    assert(reader.bagStoredSize(bagIndex, stored));
+    buffer.assign(stored, 0);
+    if (stored == 0)
+    {
+      return reader.readBagInto(bagIndex, 0, 0);
+    }
+    // A vector's storage comes from operator new, which is aligned for every
+    // fundamental type, so kPayloadAlign is satisfied without arranging it.
+    assert(reinterpret_cast<std::size_t>(&buffer[0]) % kPayloadAlign == 0);
+    return reader.readBagInto(bagIndex, &buffer[0], stored);
   }
 
   void OpenOneBag(Reader &reader,
@@ -561,6 +775,8 @@ void testLrpkRefusesEveryCheckValueFailure()
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_TRUNCATED);
+    assert(StreamOpenResult(shortened, Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_TRUNCATED);
   }
   {
     std::vector<unsigned char> rotted(good);
@@ -572,6 +788,8 @@ void testLrpkRefusesEveryCheckValueFailure()
                                     rotted.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_INDEX_CORRUPT);
+    assert(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
   }
   {
@@ -586,6 +804,10 @@ void testLrpkRefusesEveryCheckValueFailure()
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_OK);
     assert(reader.openBag(0) == Reader::BAG_CONTENTS_CORRUPT);
+    // A rotted payload is past the file-backed slice, so the open agrees and
+    // the disagreement waits for the bag read.
+    assert(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_OK);
   }
   {
     std::vector<unsigned char> badHeader(good);
@@ -599,6 +821,10 @@ void testLrpkRefusesEveryCheckValueFailure()
                                     badHeader.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_OK);
+    assert(StreamOpenResult(badHeader, Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_INDEX_CORRUPT);
+    assert(StreamOpenResult(badHeader, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_OK);
   }
   {
@@ -615,6 +841,8 @@ void testLrpkRefusesEveryCheckValueFailure()
                                     junk.size(),
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_NOT_A_PACKAGE);
+    assert(StreamOpenResult(junk, Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_NOT_A_PACKAGE);
   }
 
@@ -837,6 +1065,8 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);
@@ -847,6 +1077,8 @@ void testLrpkRefusesIndexGeometryThatWouldReadOutOfBounds()
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
 
@@ -936,6 +1168,8 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);
@@ -945,6 +1179,8 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
                                     bad.size(),
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
   }
   {
@@ -957,6 +1193,8 @@ void testLrpkRefusesForgedCountsAndUnsortedRows()
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX &&
            "a nonexistent bag is malformed data, not GET_BAG_NOT_OPEN");
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
   }
 
   Reader unopened;
@@ -1233,6 +1471,8 @@ void testLrpkChecksTheChunkThatDecidesSelection()
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_INDEX_CORRUPT);
+    assert(StreamOpenResult(rotted, Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_INDEX_CORRUPT);
   }
   {
     std::vector<unsigned char> bad(good);
@@ -1249,6 +1489,8 @@ void testLrpkChecksTheChunkThatDecidesSelection()
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX &&
            "precedence is structural even when CRC verification is skipped");
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);
@@ -1338,6 +1580,10 @@ void testLrpkChecksTheChunkThatDecidesSelection()
                                     kStamp,
                                     Reader::SKIP_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
+    assert(StreamOpenResult(bad, Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_HEAD_CORRUPT);
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
   }
   {
     std::vector<unsigned char> bad(good);
@@ -1377,9 +1623,59 @@ void testLrpkChecksTheChunkThatDecidesSelection()
                                     kStamp,
                                     Reader::VERIFY_INTEGRITY) ==
            Reader::OPEN_MALFORMED_INDEX);
+    assert(StreamOpenResult(noAxes, Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_MALFORMED_INDEX);
   }
 
   printf("==== [testLrpkChecksTheChunkThatDecidesSelection] end ====\n");
+}
+
+void testLrpkRequiresCanonicalChunkOrder()
+{
+  printf("\n==== [testLrpkRequiresCanonicalChunkOrder] start ====\n");
+
+  const U32 axes = FourCC('A', 'X', 'E', 'S');
+  const U32 indx = FourCC('I', 'N', 'D', 'X');
+  const U32 data = FourCC('D', 'A', 'T', 'A');
+
+  std::vector<unsigned char> good;
+  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+
+  // Control: reassembling in the canonical order reproduces the writer's
+  // bytes exactly, so the refusals below can only come from the order rule.
+  {
+    std::vector<unsigned char> canonical(good);
+    ReorderChunks(canonical, axes, indx, data);
+    assert(canonical == good &&
+           "the writer already emits the canonical order");
+    Reader reader;
+    assert(reader.openBorrowedBytes(&canonical[0],
+                                    canonical.size(),
+                                    kStamp,
+                                    Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_OK);
+  }
+
+  // Every other permutation of the three required chunks is refused, in
+  // both integrity modes.
+  const U32 permutations[5][3] = {
+      {indx, axes, data},
+      {axes, data, indx},
+      {indx, data, axes},
+      {data, axes, indx},
+      {data, indx, axes},
+  };
+  for (std::size_t p = 0; p < 5; ++p)
+  {
+    std::vector<unsigned char> permuted(good);
+    ReorderChunks(permuted,
+                  permutations[p][0],
+                  permutations[p][1],
+                  permutations[p][2]);
+    ExpectOpenResultInBothModes(permuted, Reader::OPEN_MALFORMED_INDEX);
+  }
+
+  printf("==== [testLrpkRequiresCanonicalChunkOrder] end ====\n");
 }
 
 void testLrpkEnforcesPayloadAlignment()
@@ -1582,4 +1878,856 @@ void testLrpcBuildHandlesFiftyThousandAssets()
          static_cast<U32>(assetCount));
 
   printf("==== [testLrpcBuildHandlesFiftyThousandAssets] end ====\n");
+}
+
+void testLrpkStreamOpenMatchesMemoryOpen()
+{
+  printf("\n==== [testLrpkStreamOpenMatchesMemoryOpen] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+
+  Reader memory;
+  assert(memory.openBorrowedBytes(&package[0],
+                                  package.size(),
+                                  kStamp,
+                                  Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
+  assert(memory.openBag(0) == Reader::BAG_OK);
+  assert(memory.openBag(1) == Reader::BAG_OK);
+
+  // Declared before the reader that borrows them: the source and the index
+  // buffer must outlive it, and a test that gets that backwards is not
+  // demonstrating the contract it exists to show.
+  MemoryByteSource source(package);
+  std::vector<unsigned char> index;
+  std::vector<unsigned char> firstBag;
+  std::vector<unsigned char> secondBag;
+  Reader stream;
+  std::size_t need = 0;
+  assert(stream.beginOpen(source,
+                          kStamp,
+                          Reader::VERIFY_INTEGRITY,
+                          need) == Reader::OPEN_OK);
+  // The measured slice is exactly the file's [512, DATA payload start): chunk
+  // headers included, DATA's header included, DATA's payload excluded. This
+  // is the arithmetic the canonical chunk order was ruled for.
+  std::size_t dataHeaderAt = 0;
+  std::size_t dataPayloadAt = 0;
+  LocateDataChunk(package, dataHeaderAt, dataPayloadAt);
+  assert(need == dataPayloadAt - kFixedHeadBytes);
+
+  // Nothing is observable between the two calls: an unopened reader still
+  // answers as an unopened reader.
+  assert(!stream.isOpen());
+  assert(stream.bagCount() == 0);
+
+  index.assign(need, 0);
+  assert(stream.finishOpen(&index[0], need) == Reader::OPEN_OK);
+  assert(stream.isOpen());
+  assert(stream.verifiesIntegrity());
+  assert(stream.bagCount() == memory.bagCount());
+  assert(stream.assetCount() == memory.assetCount());
+  assert(stream.idSpaceStamp() == memory.idSpaceStamp());
+
+  std::size_t storedFirst = 0;
+  std::size_t storedSecond = 0;
+  assert(memory.bagStoredSize(0, storedFirst));
+  assert(memory.bagStoredSize(1, storedSecond));
+  assert(ReadBagIntoVector(stream, 0, firstBag) == Reader::BAG_OK);
+  assert(ReadBagIntoVector(stream, 1, secondBag) == Reader::BAG_OK);
+  assert(firstBag.size() == storedFirst && secondBag.size() == storedSecond);
+
+  // Same assets, same truth (bag, offsetInBag, length), same bytes -- from
+  // two different addresses, which is what makes the byte comparison mean
+  // something.
+  const U32 ids[2] = {11, 22};
+  Facts facts;
+  for (std::size_t i = 0; i < 2; ++i)
+  {
+    Asset fromMemory;
+    Asset fromStream;
+    assert(memory.get(ids[i], facts, fromMemory) == Reader::GET_OK);
+    assert(stream.get(ids[i], facts, fromStream) == Reader::GET_OK);
+    assert(fromStream.kind == fromMemory.kind);
+    assert(fromStream.length == fromMemory.length);
+    assert(fromStream.bag == fromMemory.bag);
+    assert(fromStream.offsetInBag == fromMemory.offsetInBag);
+    assert(fromStream.bytes != fromMemory.bytes &&
+           "the file-backed reader serves the application's buffer");
+    assert(std::memcmp(fromStream.bytes,
+                       fromMemory.bytes,
+                       fromMemory.length) == 0);
+  }
+
+  // The probe's mirror of the scanner. A tag V1 does not know, in the place
+  // AXES must occupy, is an unknown chunk to both transports; a tag it does
+  // know, out of turn, is an order violation to both. The existing corpus
+  // pins the permutations; these two pin the shapes the probe alone sees
+  // first.
+  {
+    std::vector<unsigned char> bad(package);
+    std::size_t ignored = 0;
+    const std::size_t axesHeader =
+        FindChunkHeader(bad, FourCC('A', 'X', 'E', 'S'), ignored);
+    bad[axesHeader] = 'a';
+    Reader reader;
+    assert(reader.openBorrowedBytes(&bad[0],
+                                    bad.size(),
+                                    kStamp,
+                                    Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_UNKNOWN_CHUNK);
+    assert(StreamOpenResult(bad, Reader::SKIP_INTEGRITY) ==
+           Reader::OPEN_UNKNOWN_CHUNK);
+  }
+  {
+    // The head fixes the row geometry before the application allocates the
+    // stream index. Give INDX one aligned word beyond those rows while
+    // keeping the package's chunk stream structurally complete.
+    std::vector<unsigned char> bad(package);
+    std::size_t indexSize = 0;
+    const std::size_t indexHeader =
+        FindChunkHeader(bad, FourCC('I', 'N', 'D', 'X'), indexSize);
+    std::size_t dataSize = 0;
+    const std::size_t oldDataHeader =
+        FindChunkHeader(bad, FourCC('D', 'A', 'T', 'A'), dataSize);
+    bad.insert(bad.begin() +
+                   static_cast<std::vector<unsigned char>::difference_type>(
+                       oldDataHeader),
+               kPayloadAlign,
+               0);
+    WriteU32BE(&bad[indexHeader + 4],
+               static_cast<U32>(indexSize + kPayloadAlign));
+    WriteU32BE(&bad[4],
+               static_cast<U32>(bad.size() - kFormHeaderBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bad.size()));
+    RestampChunk(bad, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+
+    MemoryByteSource badSource(bad);
+    Reader reader;
+    std::size_t badNeed = 1;
+    assert(reader.beginOpen(badSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            badNeed) == Reader::OPEN_MALFORMED_INDEX);
+    assert(badNeed == 0 &&
+           "contradicted row geometry cannot extract an allocation");
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    // Five payload bytes cannot encode any whole AXES vocabulary. Preserve
+    // the following chunk boundary so both parsers reach that same fact.
+    std::vector<unsigned char> bad(package);
+    std::size_t axesSize = 0;
+    const std::size_t axesHeader =
+        FindChunkHeader(bad, FourCC('A', 'X', 'E', 'S'), axesSize);
+    const std::size_t oldAxesSpan =
+        kChunkHeaderBytes + AlignUp(axesSize, kPayloadAlign);
+    bad.insert(bad.begin() +
+                   static_cast<std::vector<unsigned char>::difference_type>(
+                       axesHeader + oldAxesSpan),
+               kPayloadAlign,
+               0);
+    WriteU32BE(&bad[axesHeader + 4], 5);
+    WriteU32BE(&bad[4],
+               static_cast<U32>(bad.size() - kFormHeaderBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bad.size()));
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+
+    MemoryByteSource badSource(bad);
+    Reader reader;
+    std::size_t badNeed = 1;
+    assert(reader.beginOpen(badSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            badNeed) == Reader::OPEN_MALFORMED_INDEX);
+    assert(badNeed == 0);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    // This is the original allocation-amplification shape: a normal package
+    // is stretched until INDX claims nearly the whole file, while its forged
+    // head declares that there are no rows at all.
+    std::vector<unsigned char> bad(package);
+    std::size_t indexSize = 0;
+    const std::size_t indexHeader =
+        FindChunkHeader(bad, FourCC('I', 'N', 'D', 'X'), indexSize);
+    std::size_t dataSize = 0;
+    const std::size_t oldDataHeader =
+        FindChunkHeader(bad, FourCC('D', 'A', 'T', 'A'), dataSize);
+    const std::size_t inflatedBytes = 1024 * 1024;
+    bad.insert(bad.begin() +
+                   static_cast<std::vector<unsigned char>::difference_type>(
+                       oldDataHeader),
+               inflatedBytes,
+               0);
+    WriteU32BE(&bad[indexHeader + 4],
+               static_cast<U32>(indexSize + inflatedBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadAssetCount], 0);
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadBagCount], 0);
+    WriteU32BE(&bad[4],
+               static_cast<U32>(bad.size() - kFormHeaderBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bad.size()));
+    RestampChunk(bad, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+
+    MemoryByteSource badSource(bad);
+    Reader reader;
+    std::size_t badNeed = 1;
+    assert(reader.beginOpen(badSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            badNeed) == Reader::OPEN_MALFORMED_INDEX);
+    assert(badNeed == 0 &&
+           "a zero-row head cannot extract the file-sized INDX allocation");
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    // A head and no chunk stream at all. The scanner's loop never runs and
+    // finds AXES missing; the probe is asked to read at the end of a
+    // zero-length stream. Both call that a malformed index rather than
+    // truncation, which is reserved for a chunk that starts and does not
+    // finish -- the next two cases.
+    std::vector<unsigned char> bad(package);
+    TruncateTo(bad, kFixedHeadBytes);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    // Half of the AXES header.
+    std::vector<unsigned char> bad(package);
+    TruncateTo(bad, kFixedHeadBytes + 4);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_TRUNCATED);
+  }
+  {
+    // Half of the DATA header: the slice the file-backed open measures is
+    // short of its last chunk header, and the resident scan runs out at the
+    // same byte.
+    std::vector<unsigned char> bad(package);
+    TruncateTo(bad, dataHeaderAt + 4);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_TRUNCATED);
+  }
+  {
+    // The mirror of the memory path's own range gate: a source claiming a
+    // total the format's 32-bit length field cannot hold is refused before
+    // any of its bytes are believed. Only reachable where std::size_t is
+    // wider than the field.
+    const bool hostSizeWider = sizeof(std::size_t) > 4;
+    if (hostSizeWider)
+    {
+      std::size_t tooLarge = 1;
+      for (std::size_t byte = 0; byte < 4; ++byte)
+      {
+        tooLarge <<= 8;
+      }
+      MemoryByteSource lying(package);
+      lying.reportSize(tooLarge);
+      Reader reader;
+      std::size_t lyingNeed = 0;
+      assert(reader.beginOpen(lying,
+                              kStamp,
+                              Reader::VERIFY_INTEGRITY,
+                              lyingNeed) == Reader::OPEN_SIZE_OUT_OF_RANGE);
+      assert(lyingNeed == 0);
+    }
+  }
+
+  printf("==== [testLrpkStreamOpenMatchesMemoryOpen] end ====\n");
+}
+
+void testLrpkStreamOpenIsFailureAtomic()
+{
+  printf("\n==== [testLrpkStreamOpenIsFailureAtomic] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+  std::size_t dataHeaderAt = 0;
+  std::size_t dataPayloadAt = 0;
+  LocateDataChunk(package, dataHeaderAt, dataPayloadAt);
+
+  MemoryByteSource committedSource(package);
+  std::vector<unsigned char> committedIndex;
+  std::vector<unsigned char> firstBag;
+  std::vector<unsigned char> secondBag;
+  Reader reader;
+  assert(OpenThroughStream(reader,
+                           committedSource,
+                           kStamp,
+                           Reader::VERIFY_INTEGRITY,
+                           committedIndex) == Reader::OPEN_OK);
+  // Bag 1 is deliberately left unread: it is the thing a source swap would
+  // destroy, and destroying it is the v2 hole this whole test exists for.
+  assert(ReadBagIntoVector(reader, 0, firstBag) == Reader::BAG_OK);
+
+  Facts facts;
+  Asset asset;
+  assert(reader.get(11, facts, asset) == Reader::GET_OK);
+  assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
+
+  // A reload refused in the first half.
+  {
+    std::vector<unsigned char> corrupt(package);
+    corrupt[kHeadPayloadOffset + kHeadVersion + 3] ^= 0xFF;
+    MemoryByteSource badSource(corrupt);
+    std::size_t need = 0;
+    assert(reader.beginOpen(badSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            need) == Reader::OPEN_HEAD_CORRUPT);
+    assert(need == 0);
+    assert(reader.isOpen() && reader.bagCount() == 2 && reader.isBagOpen(0));
+    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
+  }
+
+  // A reload refused in the second half, by a source that delivers the head
+  // and both chunk headers and then fails on the slice. The window covers
+  // the DATA chunk header, which beginOpen never reads and finishOpen always
+  // does, so the failure lands in the second call without depending on how
+  // many reads the first one made.
+  {
+    MemoryByteSource halfLyingSource(package);
+    halfLyingSource.failReadsOver(dataHeaderAt, dataHeaderAt + kChunkHeaderBytes);
+    std::size_t need = 0;
+    assert(reader.beginOpen(halfLyingSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            need) == Reader::OPEN_OK);
+    // Mid-window: the committed package is still the only one observable.
+    assert(reader.isOpen() && reader.bagCount() == 2 && reader.isBagOpen(0));
+    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
+
+    std::vector<unsigned char> index(need, 0);
+    assert(reader.finishOpen(&index[0], need) == Reader::OPEN_SOURCE_FAILED);
+    assert(reader.isOpen() && reader.bagCount() == 2 && reader.isBagOpen(0));
+    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
+
+    // One shot: the pending was consumed by the refusal, so the retry is not
+    // a second finishOpen.
+    assert(reader.finishOpen(&index[0], need) == Reader::OPEN_NO_PENDING);
+  }
+
+  // The buffer is not a hint. A size the reader did not ask for is refused
+  // before anything is read, and the committed package is untouched.
+  {
+    MemoryByteSource source(package);
+    std::size_t need = 0;
+    assert(reader.beginOpen(source,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            need) == Reader::OPEN_OK);
+    std::vector<unsigned char> tooBig(need + 1, 0);
+    assert(reader.finishOpen(&tooBig[0], need + 1) ==
+           Reader::OPEN_INDEX_BUFFER_SIZE_MISMATCH);
+    assert(reader.isOpen() && reader.isBagOpen(0));
+
+    assert(reader.beginOpen(source,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            need) == Reader::OPEN_OK);
+    std::vector<unsigned char> tooSmall(need - 1, 0);
+    assert(reader.finishOpen(&tooSmall[0], need - 1) ==
+           Reader::OPEN_INDEX_BUFFER_SIZE_MISMATCH);
+    assert(reader.isOpen() && reader.isBagOpen(0));
+  }
+
+  // A finishOpen with nothing to finish, and a second one after a consumed
+  // pending, are the same answer.
+  {
+    Reader fresh;
+    std::vector<unsigned char> nothing(8, 0);
+    assert(fresh.finishOpen(&nothing[0], nothing.size()) ==
+           Reader::OPEN_NO_PENDING);
+    assert(!fresh.isOpen());
+  }
+
+  // The point of all of it: the surviving package can still reach the bytes
+  // it never loaded. A reader that had handed its source to a refused reload
+  // would fail here.
+  assert(ReadBagIntoVector(reader, 1, secondBag) == Reader::BAG_OK);
+  assert(reader.get(22, facts, asset) == Reader::GET_OK);
+  assert(AssetEquals(asset, kFile, sizeof(kFile)));
+
+  printf("==== [testLrpkStreamOpenIsFailureAtomic] end ====\n");
+}
+
+void testLrpkStreamRefusesSourceLies()
+{
+  printf("\n==== [testLrpkStreamRefusesSourceLies] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+  std::size_t dataHeaderAt = 0;
+  std::size_t dataPayloadAt = 0;
+  LocateDataChunk(package, dataHeaderAt, dataPayloadAt);
+
+  // A source that cannot say how big it is -- the 32-bit host with a file it
+  // cannot describe, and the disconnected volume, arriving as the same
+  // typed answer.
+  {
+    MemoryByteSource source(package);
+    source.failSize();
+    Reader reader;
+    std::size_t need = 0;
+    assert(reader.beginOpen(source,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            need) == Reader::OPEN_SOURCE_FAILED);
+    assert(need == 0);
+  }
+  // A source that cannot deliver the fixed head.
+  {
+    MemoryByteSource source(package);
+    source.failReadsOver(0, kFixedHeadBytes);
+    Reader reader;
+    std::size_t need = 0;
+    assert(reader.beginOpen(source,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            need) == Reader::OPEN_SOURCE_FAILED);
+  }
+  // A source too short to hold a head at all is not a transport failure: it
+  // is the memory path's OPEN_NOT_A_PACKAGE, mirrored.
+  {
+    std::vector<unsigned char> stub(kFixedHeadBytes - 1, 0);
+    MemoryByteSource source(stub);
+    Reader reader;
+    std::size_t need = 0;
+    assert(reader.beginOpen(source,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            need) == Reader::OPEN_NOT_A_PACKAGE);
+  }
+
+  // The file disagreeing with its own declared length is a fact about the
+  // package, not about the transport, so it is truncation in both doors --
+  // whether the extra bytes are there or the missing ones are not.
+  {
+    std::vector<unsigned char> longer(package);
+    longer.resize(longer.size() + kPayloadAlign, 0);
+    ExpectOpenResultInBothModes(longer, Reader::OPEN_TRUNCATED);
+  }
+  {
+    std::vector<unsigned char> shorter(package);
+    shorter.resize(shorter.size() - kPayloadAlign);
+    ExpectOpenResultInBothModes(shorter, Reader::OPEN_TRUNCATED);
+  }
+
+  // A source that opens fine and fails on the payload. Opening cannot see it
+  // -- the slice stops at the DATA header -- so the refusal belongs to the
+  // bag read, and the bag stays closed.
+  {
+    MemoryByteSource source(package);
+    source.failReadsOver(dataPayloadAt, package.size());
+    std::vector<unsigned char> index;
+    std::vector<unsigned char> bag;
+    Reader reader;
+    assert(OpenThroughStream(reader,
+                             source,
+                             kStamp,
+                             Reader::VERIFY_INTEGRITY,
+                             index) == Reader::OPEN_OK);
+    assert(ReadBagIntoVector(reader, 0, bag) == Reader::BAG_SOURCE_FAILED);
+    assert(!reader.isBagOpen(0));
+    Facts facts;
+    Asset asset;
+    assert(reader.get(11, facts, asset) == Reader::GET_BAG_NOT_OPEN);
+
+    // The same buffer may simply be retried once the source stops lying,
+    // because success rewrites every byte of it.
+    source.failReadsOver(0, 0);
+    assert(reader.readBagInto(0, &bag[0], bag.size()) == Reader::BAG_OK);
+    assert(reader.isBagOpen(0));
+    assert(reader.get(11, facts, asset) == Reader::GET_OK);
+    assert(AssetEquals(asset, kDefault, sizeof(kDefault)));
+  }
+
+  // A source that answers the probes honestly and then hands finishOpen a
+  // slice whose INDX claims a payload past the measured span. The parse
+  // trusts nothing the probes concluded except the buffer's size, so the lie
+  // runs into the same resident bound the scanner applies to any package --
+  // and, under the sanitized build, provably without reading past the buffer
+  // the probes sized.
+  {
+    std::vector<unsigned char> lyingSlice(package);
+    std::size_t indexSize = 0;
+    const std::size_t indexHeader =
+        FindChunkHeader(lyingSlice, FourCC('I', 'N', 'D', 'X'), indexSize);
+    const std::size_t resident = dataPayloadAt - kFixedHeadBytes;
+    const std::size_t indexPayloadRebased =
+        indexHeader + kChunkHeaderBytes - kFixedHeadBytes;
+    // One byte past the slice, still far inside the file's logical length.
+    WriteU32BE(&lyingSlice[indexHeader + 4],
+               static_cast<U32>(resident - indexPayloadRebased + 1));
+
+    TwoFacedByteSource source(package, lyingSlice);
+    std::vector<unsigned char> index;
+    Reader reader;
+    assert(OpenThroughStream(reader,
+                             source,
+                             kStamp,
+                             Reader::SKIP_INTEGRITY,
+                             index) == Reader::OPEN_MALFORMED_INDEX);
+    assert(!reader.isOpen());
+  }
+
+  printf("==== [testLrpkStreamRefusesSourceLies] end ====\n");
+}
+
+void testLrpkReadBagIntoWalksTheSameRefusalOrder()
+{
+  printf("\n==== [testLrpkReadBagIntoWalksTheSameRefusalOrder] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildTwoBagPackage(package) == Writer::BUILD_OK);
+
+  // The wrong door, from either side.
+  {
+    Reader memory;
+    assert(memory.openBorrowedBytes(&package[0],
+                                    package.size(),
+                                    kStamp,
+                                    Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_OK);
+    std::size_t stored = 0;
+    assert(memory.bagStoredSize(0, stored) && stored > 0);
+    std::vector<unsigned char> buffer(stored, 0);
+    assert(memory.readBagInto(0, &buffer[0], stored) ==
+           Reader::BAG_WRONG_BACKING);
+  }
+
+  MemoryByteSource source(package);
+  std::vector<unsigned char> index;
+  std::vector<unsigned char> bag;
+  Reader reader;
+  assert(OpenThroughStream(reader,
+                           source,
+                           kStamp,
+                           Reader::VERIFY_INTEGRITY,
+                           index) == Reader::OPEN_OK);
+  assert(reader.openBag(0) == Reader::BAG_WRONG_BACKING);
+
+  std::size_t stored = 0;
+  assert(reader.bagStoredSize(0, stored) && stored > 0);
+  std::size_t missing = 0;
+  assert(!reader.bagStoredSize(2, missing) && missing == 0 &&
+         "the size query doubles as existence");
+
+  // Refusal 2: an index no bag has, and a reader with no package at all.
+  {
+    std::vector<unsigned char> buffer(stored, 0);
+    assert(reader.readBagInto(2, &buffer[0], stored) ==
+           Reader::BAG_NO_SUCH_BAG);
+    Reader unopened;
+    assert(unopened.readBagInto(0, &buffer[0], stored) ==
+           Reader::BAG_NO_SUCH_BAG);
+  }
+
+  // Refusal 6, from both sides, before any read happens.
+  {
+    std::vector<unsigned char> tooBig(stored + 1, 0);
+    assert(reader.readBagInto(0, &tooBig[0], stored + 1) ==
+           Reader::BAG_BUFFER_SIZE_MISMATCH);
+    std::vector<unsigned char> tooSmall(stored - 1, 0);
+    assert(reader.readBagInto(0, &tooSmall[0], stored - 1) ==
+           Reader::BAG_BUFFER_SIZE_MISMATCH);
+    assert(!reader.isBagOpen(0));
+  }
+
+  // Refusal 7. The size is right, so this cannot be refusal 6 wearing a
+  // different name: only the address is wrong.
+  {
+    std::vector<unsigned char> shifted(stored + 1, 0);
+    assert(reinterpret_cast<std::size_t>(&shifted[0]) % kPayloadAlign == 0);
+    assert(reader.readBagInto(0, &shifted[1], stored) ==
+           Reader::BAG_MISALIGNED_BUFFER);
+    assert(!reader.isBagOpen(0));
+  }
+
+  // Refusal 3, and the way out of it. A second read into another buffer would
+  // swap the bag's base under every pointer already handed out, so it is
+  // refused; closing the bag withdraws those pointers and lets the same
+  // buffer be used again.
+  assert(ReadBagIntoVector(reader, 0, bag) == Reader::BAG_OK);
+  {
+    std::vector<unsigned char> other(stored, 0);
+    assert(reader.readBagInto(0, &other[0], stored) ==
+           Reader::BAG_ALREADY_OPEN);
+  }
+  reader.closeBag(0);
+  assert(!reader.isBagOpen(0));
+  assert(reader.readBagInto(0, &bag[0], bag.size()) == Reader::BAG_OK);
+  assert(reader.isBagOpen(0));
+
+  // Refusal 9: the bytes arrive and disagree with the check value.
+  {
+    std::vector<unsigned char> rotted(package);
+    std::size_t dataSize = 0;
+    rotted[FindChunkPayload(rotted, FourCC('D', 'A', 'T', 'A'), dataSize)] ^= 0xFF;
+    MemoryByteSource rottedSource(rotted);
+    std::vector<unsigned char> rottedIndex;
+    std::vector<unsigned char> buffer;
+    Reader rottedReader;
+    assert(OpenThroughStream(rottedReader,
+                             rottedSource,
+                             kStamp,
+                             Reader::VERIFY_INTEGRITY,
+                             rottedIndex) == Reader::OPEN_OK);
+    assert(ReadBagIntoVector(rottedReader, 0, buffer) ==
+           Reader::BAG_CONTENTS_CORRUPT);
+    assert(!rottedReader.isBagOpen(0));
+
+    // And skipping verification is the reader's decision, not the package's:
+    // the same bytes load.
+    MemoryByteSource uncheckedSource(rotted);
+    std::vector<unsigned char> uncheckedIndex;
+    std::vector<unsigned char> loaded;
+    Reader unchecked;
+    assert(OpenThroughStream(unchecked,
+                             uncheckedSource,
+                             kStamp,
+                             Reader::SKIP_INTEGRITY,
+                             uncheckedIndex) == Reader::OPEN_OK);
+    assert(ReadBagIntoVector(unchecked, 0, loaded) == Reader::BAG_OK);
+  }
+
+  // Refusals 4 and 5, the two the shared commit-time helper owns, reached
+  // through the file-backed door.
+  {
+    U32 plain[kMaxAxes] = {0, 0, 0, 0};
+    Writer writer;
+    const std::size_t ja = writer.addBag();
+    const std::size_t en = writer.addBag();
+    writer.addAsset(100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
+    writer.addAsset(100, en, ASSET_KIND_STRING, plain, kDefault, sizeof(kDefault));
+    std::vector<unsigned char> shared;
+    assert(writer.build(kStamp, shared) == Writer::BUILD_OK);
+
+    MemoryByteSource sharedSource(shared);
+    std::vector<unsigned char> sharedIndex;
+    std::vector<unsigned char> first;
+    std::vector<unsigned char> second;
+    Reader sharedReader;
+    assert(OpenThroughStream(sharedReader,
+                             sharedSource,
+                             kStamp,
+                             Reader::VERIFY_INTEGRITY,
+                             sharedIndex) == Reader::OPEN_OK);
+    assert(ReadBagIntoVector(sharedReader, ja, first) == Reader::BAG_OK);
+    assert(ReadBagIntoVector(sharedReader, en, second) ==
+           Reader::BAG_ASSET_ID_CONFLICT);
+    assert(!sharedReader.isBagOpen(en));
+  }
+  {
+    std::vector<unsigned char> codec(package);
+    std::size_t indexSize = 0;
+    const std::size_t indexAt =
+        FindChunkPayload(codec, FourCC('I', 'N', 'D', 'X'), indexSize);
+    codec[indexAt + 8 + kBagCodec] = static_cast<unsigned char>(CODEC_RLE);
+    RestampChunk(codec, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+
+    MemoryByteSource codecSource(codec);
+    std::vector<unsigned char> codecIndex;
+    std::vector<unsigned char> buffer;
+    Reader codecReader;
+    assert(OpenThroughStream(codecReader,
+                             codecSource,
+                             kStamp,
+                             Reader::VERIFY_INTEGRITY,
+                             codecIndex) == Reader::OPEN_OK);
+    assert(ReadBagIntoVector(codecReader, 0, buffer) ==
+           Reader::BAG_UNSUPPORTED_CODEC);
+  }
+
+  // The size query follows the package, not the bag: closing the reader
+  // takes it away.
+  reader.close();
+  std::size_t afterClose = 1;
+  assert(!reader.bagStoredSize(0, afterClose) && afterClose == 0);
+  assert(!reader.isOpen());
+
+  printf("==== [testLrpkReadBagIntoWalksTheSameRefusalOrder] end ====\n");
+}
+
+void testLrpkStreamOpensEmptyAndZeroLengthBags()
+{
+  printf("\n==== [testLrpkStreamOpensEmptyAndZeroLengthBags] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildEmptyBagPackage(package) == Writer::BUILD_OK);
+
+  Reader memory;
+  assert(memory.openBorrowedBytes(&package[0],
+                                  package.size(),
+                                  kStamp,
+                                  Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
+  assert(memory.bagCount() == 2);
+  assert(memory.openBag(0) == Reader::BAG_OK);
+  assert(memory.openBag(1) == Reader::BAG_OK);
+
+  MemoryByteSource source(package);
+  std::vector<unsigned char> index;
+  std::vector<unsigned char> full;
+  Reader stream;
+  assert(OpenThroughStream(stream,
+                           source,
+                           kStamp,
+                           Reader::VERIFY_INTEGRITY,
+                           index) == Reader::OPEN_OK);
+  std::size_t emptyStored = 1;
+  assert(stream.bagStoredSize(1, emptyStored) && emptyStored == 0 &&
+         "a zero-sized bag is a bag, not a missing one");
+
+  assert(ReadBagIntoVector(stream, 0, full) == Reader::BAG_OK);
+  // The empty bag's whole call is (0, 0): there is no buffer to align and
+  // none to size-check, but its transport read is still a refusal step.
+  std::size_t indexSize = 0;
+  const std::size_t indexAt =
+      FindChunkPayload(package, FourCC('I', 'N', 'D', 'X'), indexSize);
+  const std::size_t emptyBagRow = indexAt + 8 + 1 * kBagRowBytes;
+  std::size_t dataHeaderAt = 0;
+  std::size_t dataPayloadAt = 0;
+  LocateDataChunk(package, dataHeaderAt, dataPayloadAt);
+  const std::size_t emptyBagFileOffset =
+      dataPayloadAt +
+      static_cast<std::size_t>(
+          ReadU32BE(&package[emptyBagRow + kBagDataOffset]));
+  source.failReadsOver(emptyBagFileOffset, emptyBagFileOffset + 1);
+  assert(stream.readBagInto(1, 0, 0) == Reader::BAG_SOURCE_FAILED);
+  assert(!stream.isBagOpen(1));
+  source.failReadsOver(0, 0);
+  assert(stream.readBagInto(1, 0, 0) == Reader::BAG_OK);
+  assert(stream.isBagOpen(1));
+
+  // A zero-length asset is a legal row the writer emits, and it reports no
+  // address rather than an address into nothing.
+  Facts facts;
+  for (std::size_t transport = 0; transport < 2; ++transport)
+  {
+    Reader &reader = transport == 0 ? memory : stream;
+    Asset present;
+    assert(reader.get(11, facts, present) == Reader::GET_OK);
+    assert(AssetEquals(present, kDefault, sizeof(kDefault)));
+    Asset zeroLength;
+    assert(reader.get(12, facts, zeroLength) == Reader::GET_OK);
+    assert(zeroLength.length == 0 && zeroLength.bytes == 0 &&
+           "a zero-length asset does no arithmetic on a base it has none of");
+    assert(zeroLength.bag == 0);
+  }
+
+  // The empty bag is CRC'd like any other, so a forged check value on it is
+  // refused by both doors. Skipping it would make the format's check value
+  // mean "usually inspected".
+  {
+    std::vector<unsigned char> forged(package);
+    std::size_t forgedIndexSize = 0;
+    const std::size_t forgedIndexAt =
+        FindChunkPayload(forged, FourCC('I', 'N', 'D', 'X'), forgedIndexSize);
+    const std::size_t forgedEmptyBagRow = forgedIndexAt + 8 + kBagRowBytes;
+    assert(ReadU32BE(&forged[forgedEmptyBagRow + kBagStoredSize]) == 0);
+    WriteU32BE(&forged[forgedEmptyBagRow + kBagCrc],
+               ReadU32BE(&forged[forgedEmptyBagRow + kBagCrc]) ^ 0xFFFFFFFFUL);
+    RestampChunk(forged, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+
+    Reader forgedMemory;
+    assert(forgedMemory.openBorrowedBytes(&forged[0],
+                                          forged.size(),
+                                          kStamp,
+                                          Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_OK);
+    assert(forgedMemory.openBag(1) == Reader::BAG_CONTENTS_CORRUPT);
+
+    MemoryByteSource forgedSource(forged);
+    std::vector<unsigned char> forgedIndex;
+    Reader forgedStream;
+    assert(OpenThroughStream(forgedStream,
+                             forgedSource,
+                             kStamp,
+                             Reader::VERIFY_INTEGRITY,
+                             forgedIndex) == Reader::OPEN_OK);
+    assert(forgedStream.readBagInto(1, 0, 0) == Reader::BAG_CONTENTS_CORRUPT);
+    assert(!forgedStream.isBagOpen(1));
+  }
+
+  printf("==== [testLrpkStreamOpensEmptyAndZeroLengthBags] end ====\n");
+}
+
+void testBlobSealBytesFreezesSizeAndCompletion()
+{
+  printf("\n==== [testBlobSealBytesFreezesSizeAndCompletion] start ====\n");
+
+  std::vector<unsigned char> package;
+  assert(BuildEmptyBagPackage(package) == Writer::BUILD_OK);
+
+  MemoryByteSource source(package);
+  std::vector<unsigned char> index;
+  // The blobs hold the bag bytes the reader points at, so they are declared
+  // ahead of it for the same reason the index buffer is.
+  Blob loaded = Blob::Create();
+  Blob empty = Blob::Create();
+  Reader reader;
+  assert(OpenThroughStream(reader,
+                           source,
+                           kStamp,
+                           Reader::VERIFY_INTEGRITY,
+                           index) == Reader::OPEN_OK);
+
+  // The application's whole sequence: create, size, fill in place, seal.
+  // Nothing is copied -- the reason sealBytes exists rather than setBytes.
+  std::size_t stored = 0;
+  assert(reader.bagStoredSize(0, stored) && stored > 0);
+  // Mutable while it is being filled, so the seal's withdrawal of that is a
+  // transition and not a value that happened to already be there.
+  loaded.setMutable(true);
+  assert(loaded.isMutable() && !loaded.isCompleted());
+  loaded.mutableBytes().resize(stored);
+  assert(reinterpret_cast<std::size_t>(&loaded.mutableBytes()[0]) %
+             kPayloadAlign ==
+         0);
+  assert(reader.readBagInto(0, &loaded.mutableBytes()[0], stored) ==
+         Reader::BAG_OK);
+  assert(loaded.size() == 0 && "the size is announced by the seal, not the fill");
+  loaded.sealBytes();
+  assert(loaded.size() == loaded.bytes().size());
+  assert(loaded.size() == stored);
+  assert(loaded.isCompleted());
+  assert(!loaded.isMutable());
+
+  // The condition the image side actually asks about: a valid blob whose
+  // asset range lies inside the bytes it now reports.
+  Facts facts;
+  Asset asset;
+  assert(reader.get(11, facts, asset) == Reader::GET_OK);
+  assert(loaded.isValid());
+  assert(BlobRangeIsUsable(loaded.bytes().size(),
+                           asset.offsetInBag,
+                           asset.length));
+  assert(std::memcmp(&loaded.bytes()[asset.offsetInBag],
+                     kDefault,
+                     sizeof(kDefault)) == 0);
+
+  // The empty bag takes the same path with nothing in it, and seals to a
+  // completed, immutable, zero-length blob rather than to an invalid one.
+  std::size_t emptyStored = 1;
+  assert(reader.bagStoredSize(1, emptyStored) && emptyStored == 0);
+  empty.setMutable(true);
+  assert(empty.isMutable() && !empty.isCompleted());
+  empty.mutableBytes().resize(emptyStored);
+  assert(reader.readBagInto(1, 0, 0) == Reader::BAG_OK);
+  empty.sealBytes();
+  assert(empty.isValid());
+  assert(empty.size() == 0 && empty.bytes().size() == 0);
+  assert(empty.isCompleted());
+  assert(!empty.isMutable());
+  // A zero-length asset is not a decodable range, which is the image seam's
+  // own rule and not a defect in the bag that carries it.
+  Asset zeroLength;
+  assert(reader.get(12, facts, zeroLength) == Reader::GET_OK);
+  assert(!BlobRangeIsUsable(loaded.bytes().size(),
+                            zeroLength.offsetInBag,
+                            zeroLength.length));
+
+  printf("==== [testBlobSealBytesFreezesSizeAndCompletion] end ====\n");
 }

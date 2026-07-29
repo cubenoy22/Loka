@@ -2,5 +2,6 @@
 #define LOKA_TESTS_LRPKGOLDENBYTESTESTS_HPP
 
 void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage();
+void testLrpkGoldenBytesReadTheSameThroughEveryTransport();
 
 #endif // LOKA_TESTS_LRPKGOLDENBYTESTESTS_HPP

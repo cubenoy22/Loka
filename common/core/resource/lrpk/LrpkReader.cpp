@@ -33,45 +33,40 @@ namespace loka
 
         void Reader::close()
         {
+          discardPending();
           state_ = State();
         }
 
-        Reader::OpenResult Reader::openBorrowedBytes(const unsigned char *bytes,
-                                                     std::size_t size,
-                                                     U32 expectedIdSpaceStamp,
-                                                     IntegrityMode integrityMode)
+        Reader::OpenResult Reader::ValidateHead(const unsigned char *head512,
+                                                std::size_t totalSize,
+                                                U32 expectedIdSpaceStamp,
+                                                bool verify,
+                                                U32 &stamp,
+                                                std::size_t &declaredAssets,
+                                                std::size_t &declaredBags)
         {
-          // Parse into one completed value and commit only after every check.
-          State next;
-          if (!bytes || size < kFixedHeadBytes)
+          stamp = 0;
+          declaredAssets = 0;
+          declaredBags = 0;
+
+          if (ReadU32BE(head512) != FourCC('L', 'R', 'P', 'K'))
           {
             return OPEN_NOT_A_PACKAGE;
           }
-          if (reinterpret_cast<std::size_t>(bytes) % kPayloadAlign != 0)
-          {
-            return OPEN_MISALIGNED_BUFFER;
-          }
-          if (!SizeFitsU32(size))
-          {
-            return OPEN_SIZE_OUT_OF_RANGE;
-          }
-          if (ReadU32BE(bytes) != FourCC('L', 'R', 'P', 'K'))
-          {
-            return OPEN_NOT_A_PACKAGE;
-          }
-          if (ReadU32BE(bytes + 4) != static_cast<U32>(size - kFormHeaderBytes))
+          if (ReadU32BE(head512 + 4) !=
+              static_cast<U32>(totalSize - kFormHeaderBytes))
           {
             return OPEN_TRUNCATED;
           }
-          if (ReadU32BE(bytes + kFormHeaderBytes) != FourCC('H', 'E', 'A', 'D') ||
-              ReadU32BE(bytes + kFormHeaderBytes + 4) != static_cast<U32>(kHeadPayloadBytes))
+          if (ReadU32BE(head512 + kFormHeaderBytes) != FourCC('H', 'E', 'A', 'D') ||
+              ReadU32BE(head512 + kFormHeaderBytes + 4) !=
+                  static_cast<U32>(kHeadPayloadBytes))
           {
             return OPEN_NOT_A_PACKAGE;
           }
 
-          const unsigned char *head = bytes + kHeadPayloadOffset;
-          const bool verify = integrityMode == VERIFY_INTEGRITY;
-          if (verify && HeadCrc(bytes) != ReadU32BE(head + kHeadCrc))
+          const unsigned char *head = head512 + kHeadPayloadOffset;
+          if (verify && HeadCrc(head512) != ReadU32BE(head + kHeadCrc))
           {
             return OPEN_HEAD_CORRUPT;
           }
@@ -79,11 +74,11 @@ namespace loka
           {
             return OPEN_UNSUPPORTED_VERSION;
           }
-          if (ReadU32BE(head + kHeadTotalBytes) != static_cast<U32>(size))
+          if (ReadU32BE(head + kHeadTotalBytes) != static_cast<U32>(totalSize))
           {
             return OPEN_TRUNCATED;
           }
-          const U32 stamp = ReadU32BE(head + kHeadIdSpaceStamp);
+          stamp = ReadU32BE(head + kHeadIdSpaceStamp);
           if (stamp != expectedIdSpaceStamp)
           {
             return OPEN_ID_SPACE_MISMATCH;
@@ -95,11 +90,22 @@ namespace loka
             return OPEN_MALFORMED_INDEX;
           }
 
-          const std::size_t declaredAssets =
+          declaredAssets =
               static_cast<std::size_t>(ReadU32BE(head + kHeadAssetCount));
-          const std::size_t declaredBags =
+          declaredBags =
               static_cast<std::size_t>(ReadU32BE(head + kHeadBagCount));
+          return OPEN_OK;
+        }
 
+        Reader::OpenResult Reader::ParseChunkStream(State &next,
+                                                    const unsigned char *base,
+                                                    std::size_t resident,
+                                                    std::size_t logical,
+                                                    const unsigned char *headPayload,
+                                                    bool verify,
+                                                    std::size_t declaredAssets,
+                                                    std::size_t declaredBags)
+        {
           const unsigned char *axesChunk = 0;
           const unsigned char *axesPayload = 0;
           std::size_t axesPayloadSize = 0;
@@ -108,31 +114,39 @@ namespace loka
           std::size_t indexPayloadSize = 0;
           const unsigned char *dataChunk = 0;
 
-          std::size_t cursor = kFixedHeadBytes;
-          while (cursor < size)
+          // Chunk order is canonical: AXES, then INDX, then DATA. The
+          // file-backed open depends on it -- everything before the DATA
+          // payload must exist as one contiguous prefix of the file, which a
+          // permuted package cannot provide without a second grammar. Two
+          // checks pin the whole order: INDX refuses when AXES has not been
+          // established, DATA refuses when INDX has not, and DATA closes the
+          // stream. With duplicates refused and the tag set closed, no other
+          // out-of-turn shape is reachable.
+          std::size_t cursor = 0;
+          while (cursor < logical)
           {
-            if (size - cursor < kChunkHeaderBytes)
+            if (resident - cursor < kChunkHeaderBytes)
             {
               return OPEN_TRUNCATED;
             }
-            const unsigned char *chunk = bytes + cursor;
+            const unsigned char *chunk = base + cursor;
             const U32 tag = ReadU32BE(chunk);
             const std::size_t payloadSize =
                 static_cast<std::size_t>(ReadU32BE(chunk + 4));
             const std::size_t payloadAt = cursor + kChunkHeaderBytes;
-            if (!ExtentFits(size, payloadAt, payloadSize))
+            if (!ExtentFits(logical, payloadAt, payloadSize))
             {
               return OPEN_TRUNCATED;
             }
             const std::size_t paddedSize = AlignUp(payloadSize, kPayloadAlign);
-            if (paddedSize < payloadSize || !ExtentFits(size, payloadAt, paddedSize))
+            if (paddedSize < payloadSize || !ExtentFits(logical, payloadAt, paddedSize))
             {
               return OPEN_TRUNCATED;
             }
 
             if (tag == FourCC('A', 'X', 'E', 'S'))
             {
-              if (axesChunk)
+              if (axesChunk || !ExtentFits(resident, payloadAt, payloadSize))
               {
                 return OPEN_MALFORMED_INDEX;
               }
@@ -142,7 +156,8 @@ namespace loka
             }
             else if (tag == FourCC('I', 'N', 'D', 'X'))
             {
-              if (indexChunk)
+              if (!axesChunk || indexChunk ||
+                  !ExtentFits(resident, payloadAt, payloadSize))
               {
                 return OPEN_MALFORMED_INDEX;
               }
@@ -152,24 +167,44 @@ namespace loka
             }
             else if (tag == FourCC('D', 'A', 'T', 'A'))
             {
-              if (dataChunk)
+              // No duplicate test here, unlike AXES and INDX: DATA closes the
+              // chunk stream, so the loop cannot reach a second one. The test
+              // that used to be here was unreachable code pretending to be a
+              // rule.
+              if (!indexChunk)
               {
                 return OPEN_MALFORMED_INDEX;
               }
               // Checked, not refused: unlike its three siblings, this one
               // inspects our own arithmetic rather than a value the file
-              // claims. The scan starts at kFixedHeadBytes and every step
-              // adds kChunkHeaderBytes plus a kPayloadAlign-rounded payload,
-              // all multiples of kPayloadAlign, so no package -- forged or
-              // rotted -- can reach a misaligned payload start. A typed
-              // refusal here would be a rule the format does not have. The
-              // reachable alignment gates stay where the file gets a say: the
-              // borrowed base, a bag's dataOffset, and a row's offset.
+              // claims. The scan starts at a kPayloadAlign-aligned origin and
+              // every step adds kChunkHeaderBytes plus a kPayloadAlign-rounded
+              // payload, all multiples of kPayloadAlign, so no package --
+              // forged or rotted -- can reach a misaligned payload start. A
+              // typed refusal here would be a rule the format does not have.
+              // The reachable alignment gates stay where the file gets a say:
+              // the borrowed base, a bag's dataOffset, and a row's offset.
               assert(payloadAt % kPayloadAlign == 0
                      && "DATA payload start is aligned by the scan's own arithmetic");
               dataChunk = chunk;
-              next.dataPayload = chunk + kChunkHeaderBytes;
+              // Always recorded, resident or not: the stream-backed reader
+              // never holds the payload and still has to seek to it.
+              next.dataPayloadFileOffset = kFixedHeadBytes + payloadAt;
+              if (ExtentFits(resident, payloadAt, payloadSize))
+              {
+                next.dataPayload = chunk + kChunkHeaderBytes;
+              }
               next.dataPayloadSize = payloadSize;
+              // DATA is terminal, so its end is the stream's end -- an
+              // equality, refusing a short DATA and trailing bytes alike.
+              // Whichever transport is walking, everything after this point
+              // is unread, which is exactly what lets the file-backed open
+              // stop its slice at the DATA header.
+              if (payloadAt + paddedSize != logical)
+              {
+                return OPEN_MALFORMED_INDEX;
+              }
+              break;
             }
             else
             {
@@ -178,6 +213,19 @@ namespace loka
               return OPEN_UNKNOWN_CHUNK;
             }
 
+            // Checked, not refused: the next turn dereferences `base +
+            // cursor`, so the step has to land inside what is actually there
+            // -- and no input, not even a source that answers the probes and
+            // the slice read differently, can make it miss. Memory-backed,
+            // the two bounds are one value and the loop's own extent check
+            // already bounded the padded span. Stream-backed, each branch
+            // above bounded its payload by resident before reaching here,
+            // and resident and payloadAt are both kPayloadAlign-aligned
+            // (resident is a sum of aligned chunk spans), so the padding
+            // cannot cross a boundary the payload did not. A typed refusal
+            // here would be a rule the format does not have.
+            assert(ExtentFits(resident, payloadAt, paddedSize) &&
+                   "the scan's own bounds keep every step inside the resident bytes");
             cursor = payloadAt + paddedSize;
           }
 
@@ -188,13 +236,15 @@ namespace loka
           }
           if (verify)
           {
-            if (ChunkCrc(axesChunk, axesPayloadSize) != ReadU32BE(head + kHeadAxesCrc) ||
-                ChunkCrc(indexChunk, indexPayloadSize) != ReadU32BE(head + kHeadIndexCrc))
+            if (ChunkCrc(axesChunk, axesPayloadSize) !=
+                    ReadU32BE(headPayload + kHeadAxesCrc) ||
+                ChunkCrc(indexChunk, indexPayloadSize) !=
+                    ReadU32BE(headPayload + kHeadIndexCrc))
             {
               return OPEN_INDEX_CORRUPT;
             }
             if (Crc32::Of(dataChunk, kChunkHeaderBytes) !=
-                ReadU32BE(head + kHeadDataHeaderCrc))
+                ReadU32BE(headPayload + kHeadDataHeaderCrc))
             {
               return OPEN_INDEX_CORRUPT;
             }
@@ -367,25 +417,368 @@ namespace loka
             }
           }
 
+          return OPEN_OK;
+        }
+
+        Reader::OpenResult Reader::openBorrowedBytes(const unsigned char *bytes,
+                                                     std::size_t size,
+                                                     U32 expectedIdSpaceStamp,
+                                                     IntegrityMode integrityMode)
+        {
+          // Starting any open leaves at most one pending, and this is not it.
+          discardPending();
+
+          // Parse into one completed value and commit only after every check.
+          State next;
+          if (!bytes || size < kFixedHeadBytes)
+          {
+            return OPEN_NOT_A_PACKAGE;
+          }
+          if (reinterpret_cast<std::size_t>(bytes) % kPayloadAlign != 0)
+          {
+            return OPEN_MISALIGNED_BUFFER;
+          }
+          if (!SizeFitsU32(size))
+          {
+            return OPEN_SIZE_OUT_OF_RANGE;
+          }
+
+          const bool verify = integrityMode == VERIFY_INTEGRITY;
+          U32 stamp = 0;
+          std::size_t declaredAssets = 0;
+          std::size_t declaredBags = 0;
+          const OpenResult headResult = ValidateHead(bytes,
+                                                     size,
+                                                     expectedIdSpaceStamp,
+                                                     verify,
+                                                     stamp,
+                                                     declaredAssets,
+                                                     declaredBags);
+          if (headResult != OPEN_OK)
+          {
+            return headResult;
+          }
+
+          // Everything is here, so the two bounds coincide.
+          const std::size_t resident = size - kFixedHeadBytes;
+          const OpenResult parsed = ParseChunkStream(next,
+                                                     bytes + kFixedHeadBytes,
+                                                     resident,
+                                                     resident,
+                                                     bytes + kHeadPayloadOffset,
+                                                     verify,
+                                                     declaredAssets,
+                                                     declaredBags);
+          if (parsed != OPEN_OK)
+          {
+            return parsed;
+          }
+
+          next.backing = BACKING_MEMORY;
           next.bytes = bytes;
           next.size = size;
+          next.indexBase = bytes + kFixedHeadBytes;
+          next.indexSize = resident;
           next.verifyIntegrity = verify;
           next.idSpaceStamp = stamp;
           state_ = next;
           return OPEN_OK;
         }
 
-        Reader::BagResult Reader::openBag(std::size_t bagIndex)
+        Reader::OpenResult Reader::ProbeChunkHeader(ByteSource &src,
+                                                    std::size_t at,
+                                                    std::size_t logical,
+                                                    U32 expectedTag,
+                                                    std::size_t &spanOut,
+                                                    std::size_t &payloadSizeOut)
         {
-          if (!isOpen() || bagIndex >= state_.bagCount)
+          spanOut = 0;
+          payloadSizeOut = 0;
+          // The resident scanner stops looping at `cursor == logical` and then
+          // finds a required chunk missing, so that is what "the stream ended
+          // here" has to answer -- not truncation, which is the case just
+          // below where a header is started but not finished.
+          if (at >= logical)
           {
-            return BAG_NO_SUCH_BAG;
+            return OPEN_MALFORMED_INDEX;
           }
-          if (state_.bags[bagIndex].open)
+          if (logical - at < kChunkHeaderBytes)
           {
-            return BAG_OK;
+            return OPEN_TRUNCATED;
           }
 
+          unsigned char header[kChunkHeaderBytes];
+          if (!src.readAt(kFixedHeadBytes + at, header, kChunkHeaderBytes))
+          {
+            return OPEN_SOURCE_FAILED;
+          }
+
+          const U32 tag = ReadU32BE(header);
+          if (tag != expectedTag)
+          {
+            // A tag V1 knows, in the wrong place, is an order violation; the
+            // scanner reaches the same verdict through its established-so-far
+            // tests. Anything else is a chunk this version does not have.
+            if (tag == FourCC('A', 'X', 'E', 'S') ||
+                tag == FourCC('I', 'N', 'D', 'X') ||
+                tag == FourCC('D', 'A', 'T', 'A'))
+            {
+              return OPEN_MALFORMED_INDEX;
+            }
+            return OPEN_UNKNOWN_CHUNK;
+          }
+
+          const std::size_t payloadSize =
+              static_cast<std::size_t>(ReadU32BE(header + 4));
+          const std::size_t payloadAt = at + kChunkHeaderBytes;
+          if (!ExtentFits(logical, payloadAt, payloadSize))
+          {
+            return OPEN_TRUNCATED;
+          }
+          const std::size_t paddedSize = AlignUp(payloadSize, kPayloadAlign);
+          if (paddedSize < payloadSize || !ExtentFits(logical, payloadAt, paddedSize))
+          {
+            return OPEN_TRUNCATED;
+          }
+          // Bounded by the extent test above, so the caller can add spans
+          // without a second overflow rule: at + spanOut <= logical.
+          spanOut = kChunkHeaderBytes + paddedSize;
+          payloadSizeOut = payloadSize;
+          return OPEN_OK;
+        }
+
+        Reader::OpenResult Reader::beginOpen(ByteSource &src,
+                                             U32 expectedIdSpaceStamp,
+                                             IntegrityMode integrityMode,
+                                             std::size_t &indexBytesNeeded)
+        {
+          discardPending();
+          indexBytesNeeded = 0;
+
+          std::size_t srcSize = 0;
+          if (!src.size(srcSize))
+          {
+            return OPEN_SOURCE_FAILED;
+          }
+          // The two bounds the memory path applies to a borrowed buffer,
+          // applied to a file, so the same package gets the same answer
+          // whichever door it comes through.
+          if (srcSize < kFixedHeadBytes)
+          {
+            return OPEN_NOT_A_PACKAGE;
+          }
+          if (!SizeFitsU32(srcSize))
+          {
+            return OPEN_SIZE_OUT_OF_RANGE;
+          }
+
+          unsigned char head[kFixedHeadBytes];
+          if (!src.readAt(0, head, kFixedHeadBytes))
+          {
+            return OPEN_SOURCE_FAILED;
+          }
+
+          const bool verify = integrityMode == VERIFY_INTEGRITY;
+          U32 stamp = 0;
+          std::size_t declaredAssets = 0;
+          std::size_t declaredBags = 0;
+          const OpenResult headResult = ValidateHead(head,
+                                                     srcSize,
+                                                     expectedIdSpaceStamp,
+                                                     verify,
+                                                     stamp,
+                                                     declaredAssets,
+                                                     declaredBags);
+          if (headResult != OPEN_OK)
+          {
+            return headResult;
+          }
+
+          // Measure, do not trust: the sizes probed here decide how big a
+          // buffer to ask for and nothing else. finishOpen re-derives every
+          // structural fact from the bytes it actually receives, so a source
+          // that answers differently the second time can only make itself
+          // refused.
+          const std::size_t logical = srcSize - kFixedHeadBytes;
+          std::size_t axesSpan = 0;
+          std::size_t axesPayloadSize = 0;
+          OpenResult probed = ProbeChunkHeader(src,
+                                               0,
+                                               logical,
+                                               FourCC('A', 'X', 'E', 'S'),
+                                               axesSpan,
+                                               axesPayloadSize);
+          if (probed != OPEN_OK)
+          {
+            return probed;
+          }
+          std::size_t indexSpan = 0;
+          std::size_t indexPayloadSize = 0;
+          probed = ProbeChunkHeader(src,
+                                    axesSpan,
+                                    logical,
+                                    FourCC('I', 'N', 'D', 'X'),
+                                    indexSpan,
+                                    indexPayloadSize);
+          if (probed != OPEN_OK)
+          {
+            return probed;
+          }
+
+          // Two-phase open exists so the application controls the index
+          // allocation. A chunk-size claim the validated head already
+          // contradicts is therefore refused before it can extract that
+          // allocation; the resident parse refuses the same bytes with the
+          // same code, but only after all bytes are resident.
+          //
+          // This mirror deliberately stops at facts the probes have read. A
+          // package malformed in several ways at once may receive a different
+          // refusing code from the two doors because a probe cannot CRC chunks
+          // it has not read.
+          if (declaredBags > kMaxBags ||
+              axesPayloadSize < 4 ||
+              (axesPayloadSize - 4) % kAxisEntryBytes != 0 ||
+              (axesPayloadSize - 4) / kAxisEntryBytes > kMaxAxes)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          if (!ProductFits(logical, declaredBags, kBagRowBytes))
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          const std::size_t bagBytes = declaredBags * kBagRowBytes;
+          if (!ProductFits(logical, declaredAssets, kAssetRowBytes))
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          const std::size_t assetBytes = declaredAssets * kAssetRowBytes;
+          if (bagBytes > logical - 8)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          if (assetBytes > logical - 8 - bagBytes)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          if (8 + bagBytes + assetBytes != indexPayloadSize)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+
+          // The slice ends at the DATA payload, so it needs DATA's header and
+          // not one byte more. Each span is bounded by logical, so these sums
+          // cannot wrap.
+          const std::size_t dataAt = axesSpan + indexSpan;
+          if (dataAt >= logical)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          if (logical - dataAt < kChunkHeaderBytes)
+          {
+            return OPEN_TRUNCATED;
+          }
+
+          pending_.source = &src;
+          pending_.verify = verify;
+          pending_.stamp = stamp;
+          pending_.totalBytes = srcSize;
+          pending_.indexBytesNeeded = dataAt + kChunkHeaderBytes;
+          pending_.declaredAssets = declaredAssets;
+          pending_.declaredBags = declaredBags;
+          for (std::size_t i = 0; i < kFixedHeadBytes; ++i)
+          {
+            pending_.head[i] = head[i];
+          }
+          indexBytesNeeded = pending_.indexBytesNeeded;
+          return OPEN_OK;
+        }
+
+        Reader::OpenResult Reader::finishOpen(unsigned char *indexBuffer,
+                                              std::size_t indexBufferSize)
+        {
+          if (!pending_.source)
+          {
+            return OPEN_NO_PENDING;
+          }
+          // One shot. Consuming the pending before any check means a refused
+          // finish cannot be retried against a head that was read a while ago
+          // and may no longer describe the file; the retry starts at
+          // beginOpen, which reads it again.
+          const Pending pending = pending_;
+          discardPending();
+
+          if (indexBufferSize != pending.indexBytesNeeded)
+          {
+            return OPEN_INDEX_BUFFER_SIZE_MISMATCH;
+          }
+          // An asserted contract, not a refusal: the size came from this
+          // reader one call ago, so a missing buffer is an application bug
+          // and the file has no say in it.
+          assert((pending.indexBytesNeeded == 0 || indexBuffer != 0) &&
+                 "finishOpen needs the buffer beginOpen asked for");
+          // Parsing into the live package's own index would overwrite the
+          // bytes the committed state points at -- and a refused reload is
+          // supposed to leave that state untouched.
+          assert((indexBufferSize == 0 || state_.indexSize == 0 ||
+                  state_.indexBase == 0 ||
+                  indexBuffer + indexBufferSize <= state_.indexBase ||
+                  state_.indexBase + state_.indexSize <= indexBuffer) &&
+                 "the index buffer must not overlap the committed package's index");
+          // The same aliasing rule for every other range the committed
+          // package still serves bytes from: a bag buffer handed to
+          // readBagInto stays live until closeBag, and the slice read below
+          // would corrupt served assets even when the reload is then refused
+          // (#221). Memory-backed bags live inside the index range the
+          // assert above already covers; stream-backed bags are external
+          // application buffers and need their own walls.
+          for (std::size_t bagWall = 0; bagWall < state_.bagCount; ++bagWall)
+          {
+            assert((indexBufferSize == 0 || !state_.bags[bagWall].open ||
+                    state_.bagBase[bagWall] == 0 ||
+                    indexBuffer + indexBufferSize <= state_.bagBase[bagWall] ||
+                    state_.bagBase[bagWall] +
+                            static_cast<std::size_t>(state_.bags[bagWall].storedSize) <=
+                        indexBuffer) &&
+                   "the index buffer must not overlap a bag the committed package serves");
+          }
+
+          if (!pending.source->readAt(kFixedHeadBytes,
+                                      indexBuffer,
+                                      pending.indexBytesNeeded))
+          {
+            return OPEN_SOURCE_FAILED;
+          }
+
+          State next;
+          const OpenResult parsed =
+              ParseChunkStream(next,
+                               indexBuffer,
+                               pending.indexBytesNeeded,
+                               pending.totalBytes - kFixedHeadBytes,
+                               pending.head + kHeadPayloadOffset,
+                               pending.verify,
+                               pending.declaredAssets,
+                               pending.declaredBags);
+          if (parsed != OPEN_OK)
+          {
+            return parsed;
+          }
+
+          next.backing = BACKING_STREAM;
+          next.source = pending.source;
+          next.bytes = 0;
+          next.size = pending.totalBytes;
+          next.indexBase = indexBuffer;
+          next.indexSize = pending.indexBytesNeeded;
+          next.verifyIntegrity = pending.verify;
+          next.idSpaceStamp = pending.stamp;
+          state_ = next;
+          return OPEN_OK;
+        }
+
+        Reader::BagResult Reader::refuseBagConflictOrCodec(
+            std::size_t bagIndex) const
+        {
           // Refuse ambiguity before doing any bag work. Rows are grouped by id,
           // so each run can answer whether the candidate and an open bag both
           // carry it without allocating an auxiliary set.
@@ -411,11 +804,34 @@ namespace loka
             }
           }
 
-          Bag &bag = state_.bags[bagIndex];
-          if (bag.codec != CODEC_NONE)
+          if (state_.bags[bagIndex].codec != CODEC_NONE)
           {
             return BAG_UNSUPPORTED_CODEC;
           }
+          return BAG_OK;
+        }
+
+        Reader::BagResult Reader::openBag(std::size_t bagIndex)
+        {
+          if (state_.backing == BACKING_STREAM)
+          {
+            return BAG_WRONG_BACKING;
+          }
+          if (!isOpen() || bagIndex >= state_.bagCount)
+          {
+            return BAG_NO_SUCH_BAG;
+          }
+          if (state_.bags[bagIndex].open)
+          {
+            return BAG_OK;
+          }
+          const BagResult shared = refuseBagConflictOrCodec(bagIndex);
+          if (shared != BAG_OK)
+          {
+            return shared;
+          }
+
+          Bag &bag = state_.bags[bagIndex];
           const unsigned char *payload =
               state_.dataPayload + static_cast<std::size_t>(bag.dataOffset);
           if (state_.verifyIntegrity &&
@@ -423,8 +839,86 @@ namespace loka
           {
             return BAG_CONTENTS_CORRUPT;
           }
+          state_.bagBase[bagIndex] = payload;
           bag.open = true;
           return BAG_OK;
+        }
+
+        Reader::BagResult Reader::readBagInto(std::size_t bagIndex,
+                                              unsigned char *dst,
+                                              std::size_t dstSize)
+        {
+          if (state_.backing == BACKING_MEMORY)
+          {
+            return BAG_WRONG_BACKING;
+          }
+          if (!isOpen() || bagIndex >= state_.bagCount)
+          {
+            return BAG_NO_SUCH_BAG;
+          }
+          if (state_.bags[bagIndex].open)
+          {
+            return BAG_ALREADY_OPEN;
+          }
+          const BagResult shared = refuseBagConflictOrCodec(bagIndex);
+          if (shared != BAG_OK)
+          {
+            return shared;
+          }
+
+          Bag &bag = state_.bags[bagIndex];
+          const std::size_t stored = static_cast<std::size_t>(bag.storedSize);
+          if (dstSize != stored)
+          {
+            return BAG_BUFFER_SIZE_MISMATCH;
+          }
+          if (stored > 0)
+          {
+            assert(dst != 0 &&
+                   "a non-empty bag needs the buffer bagStoredSize asked for");
+            if (reinterpret_cast<std::size_t>(dst) % kPayloadAlign != 0)
+            {
+              return BAG_MISALIGNED_BUFFER;
+            }
+          }
+          assert(state_.source &&
+                 "a stream-backed package holds the source it committed with");
+          // Bounded by the parse: dataPayloadFileOffset + dataOffset + stored
+          // is at most the package's total length, which fits std::size_t
+          // because opening checked it does. Even an empty bag reaches the
+          // transport: one that cannot answer a zero-length read is failed,
+          // while an honest source answers true because there is nothing to
+          // deliver and nothing can fail.
+          if (!state_.source->readAt(state_.dataPayloadFileOffset +
+                                         static_cast<std::size_t>(bag.dataOffset),
+                                     dst,
+                                     stored))
+          {
+            return BAG_SOURCE_FAILED;
+          }
+          // Empty bags are verified too. Crc32 of nothing is a defined value
+          // the writer records like any other, and skipping it would make the
+          // check value mean "usually inspected".
+          if (state_.verifyIntegrity && Crc32::Of(dst, stored) != bag.crc)
+          {
+            return BAG_CONTENTS_CORRUPT;
+          }
+          // An empty bag installs a null base: there is no address to hand
+          // out, and get() knows not to do arithmetic on one.
+          state_.bagBase[bagIndex] = stored > 0 ? dst : 0;
+          bag.open = true;
+          return BAG_OK;
+        }
+
+        bool Reader::bagStoredSize(std::size_t bagIndex, std::size_t &out) const
+        {
+          out = 0;
+          if (!isOpen() || bagIndex >= state_.bagCount)
+          {
+            return false;
+          }
+          out = static_cast<std::size_t>(state_.bags[bagIndex].storedSize);
+          return true;
         }
 
         void Reader::closeBag(std::size_t bagIndex)
@@ -432,6 +926,7 @@ namespace loka
           if (isOpen() && bagIndex < state_.bagCount)
           {
             state_.bags[bagIndex].open = false;
+            state_.bagBase[bagIndex] = 0;
           }
         }
 
@@ -702,11 +1197,17 @@ namespace loka
               static_cast<std::size_t>(best[kRowBag]);
           const std::size_t offset =
               static_cast<std::size_t>(ReadU32BE(best + kRowOffset));
-          out.bytes = state_.dataPayload +
-                      static_cast<std::size_t>(state_.bags[bag].dataOffset) +
-                      offset;
           out.length =
               static_cast<std::size_t>(ReadU32BE(best + kRowLength));
+          // The truth the caller can hold on to across a reload of its own
+          // ledger: which bag, and where inside it.
+          out.bag = bag;
+          out.offsetInBag = offset;
+          // The derived view. One resolution path for every backing: the
+          // bag's installed base. Null arithmetic is not performed for a
+          // zero-length asset -- an empty bag installs a null base, and
+          // zero-length rows are legal.
+          out.bytes = out.length == 0 ? 0 : state_.bagBase[bag] + offset;
           out.kind = static_cast<AssetKind>(best[kRowKind]);
           return GET_OK;
         }

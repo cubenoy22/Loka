@@ -136,6 +136,24 @@ namespace loka
           handle_->sizeState.set(handle_->data.size());
         }
 
+        /** Seals bytes that were written in place through `mutableBytes()`:
+            synchronizes `sizeState` with what is actually there, marks the
+            blob completed, and takes mutability away. This exists because the
+            fill-then-publish path never goes through `setBytes` -- copying a
+            multi-megabyte bag to announce it would defeat the reason it was
+            read into the caller's buffer in the first place.
+
+            Precondition: a blob that has not been shared yet, sealed exactly
+            once. Resealing, or writing after a seal, is #186's one-way
+            territory and deliberately not this seam's business. */
+        void sealBytes()
+        {
+          ensureHandle();
+          handle_->sizeState.set(handle_->data.size());
+          handle_->mutableState.set(false);
+          handle_->completedState.set(true);
+        }
+
         void setLoading(bool value)
         {
           ensureHandle();
