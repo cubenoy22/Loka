@@ -261,7 +261,14 @@ namespace loka
 
               @param src **Borrowed.** If this open commits, the source must
                          outlive the reader or the open that replaces it,
-                         because bags are read from it long afterwards.
+                         because bags are read from it long afterwards. The
+                         borrow covers the bytes, not just the object: while
+                         the open is committed, the source must keep
+                         answering with the committed package's bytes.
+                         Rebinding it -- reopening a `StdioByteSource` on
+                         another file, say -- is the same misuse as
+                         overwriting a borrowed buffer, and just as
+                         unobservable from here (#220's ruling).
               @param indexBytesNeeded Set on `OPEN_OK`; zeroed otherwise. */
           OpenResult beginOpen(ByteSource &src,
                                U32 expectedIdSpaceStamp,

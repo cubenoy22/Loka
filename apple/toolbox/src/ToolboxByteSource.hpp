@@ -29,7 +29,12 @@ namespace loka
 
       /** Opens for reading via `FSpOpenDF`. Any previously open file is
           closed first, so reopening cannot leak the old reference number.
-          False leaves the source closed. */
+          False leaves the source closed.
+
+          Not while lent: reopening a source a committed `Reader` still reads
+          bags from swaps the bytes behind its borrow -- the misuse
+          `beginOpen`'s contract names (#220). Close the reader, or let a new
+          open commit, first. */
       bool open(const FSSpec &spec);
       void close();
       bool isOpen() const { return open_; }

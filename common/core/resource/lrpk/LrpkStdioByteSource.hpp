@@ -36,7 +36,12 @@ namespace loka
               ANSI code page and lose full-width characters (#15); Classic
               deliberately keeps `fopen` behind the same seam. Any previously
               open file is closed first, so reopening cannot leak the old
-              handle. False leaves the source closed. */
+              handle. False leaves the source closed.
+
+              Not while lent: reopening a source a committed `Reader` still
+              reads bags from swaps the bytes behind its borrow -- the misuse
+              `beginOpen`'s contract names (#220). Close the reader, or let a
+              new open commit, first. */
           bool open(const loka::core::String &path);
           void close();
           bool isOpen() const { return file_ != 0; }
