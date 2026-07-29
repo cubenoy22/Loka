@@ -356,7 +356,7 @@ void testLrpkGoldenBytesReadTheSameThroughEveryTransport()
   const char *path = "golden.lrpk";
   assert(WriteWholeFile(path, golden));
   StdioByteSource file;
-  assert(file.open(path));
+  assert(file.open(loka::core::String::Literal(path)));
   assert(file.isOpen());
   std::size_t fileSize = 0;
   assert(file.size(fileSize) && fileSize == golden.size());

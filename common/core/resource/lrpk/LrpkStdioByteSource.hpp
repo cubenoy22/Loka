@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdio>
 
+#include "core/String.hpp"
 #include "core/resource/lrpk/LrpkReader.hpp"
 
 namespace loka
@@ -29,10 +30,14 @@ namespace loka
           StdioByteSource();
           virtual ~StdioByteSource();
 
-          /** Opens for reading. Any previously open file is closed first, so
-              reopening cannot leak the old handle. False leaves the source
-              closed. */
-          bool open(const char *path);
+          /** Opens for reading through the platform file seam, which
+              materializes the logical String in the platform's native path
+              form. A raw `fopen` would decode a Win32 path in the process
+              ANSI code page and lose full-width characters (#15); Classic
+              deliberately keeps `fopen` behind the same seam. Any previously
+              open file is closed first, so reopening cannot leak the old
+              handle. False leaves the source closed. */
+          bool open(const loka::core::String &path);
           void close();
           bool isOpen() const { return file_ != 0; }
 

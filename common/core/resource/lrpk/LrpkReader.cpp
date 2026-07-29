@@ -489,9 +489,11 @@ namespace loka
                                                     std::size_t at,
                                                     std::size_t logical,
                                                     U32 expectedTag,
-                                                    std::size_t &spanOut)
+                                                    std::size_t &spanOut,
+                                                    std::size_t &payloadSizeOut)
         {
           spanOut = 0;
+          payloadSizeOut = 0;
           // The resident scanner stops looping at `cursor == logical` and then
           // finds a required chunk missing, so that is what "the stream ended
           // here" has to answer -- not truncation, which is the case just
@@ -541,6 +543,7 @@ namespace loka
           // Bounded by the extent test above, so the caller can add spans
           // without a second overflow rule: at + spanOut <= logical.
           spanOut = kChunkHeaderBytes + paddedSize;
+          payloadSizeOut = payloadSize;
           return OPEN_OK;
         }
 
@@ -598,24 +601,68 @@ namespace loka
           // refused.
           const std::size_t logical = srcSize - kFixedHeadBytes;
           std::size_t axesSpan = 0;
+          std::size_t axesPayloadSize = 0;
           OpenResult probed = ProbeChunkHeader(src,
                                                0,
                                                logical,
                                                FourCC('A', 'X', 'E', 'S'),
-                                               axesSpan);
+                                               axesSpan,
+                                               axesPayloadSize);
           if (probed != OPEN_OK)
           {
             return probed;
           }
           std::size_t indexSpan = 0;
+          std::size_t indexPayloadSize = 0;
           probed = ProbeChunkHeader(src,
                                     axesSpan,
                                     logical,
                                     FourCC('I', 'N', 'D', 'X'),
-                                    indexSpan);
+                                    indexSpan,
+                                    indexPayloadSize);
           if (probed != OPEN_OK)
           {
             return probed;
+          }
+
+          // Two-phase open exists so the application controls the index
+          // allocation. A chunk-size claim the validated head already
+          // contradicts is therefore refused before it can extract that
+          // allocation; the resident parse refuses the same bytes with the
+          // same code, but only after all bytes are resident.
+          //
+          // This mirror deliberately stops at facts the probes have read. A
+          // package malformed in several ways at once may receive a different
+          // refusing code from the two doors because a probe cannot CRC chunks
+          // it has not read.
+          if (declaredBags > kMaxBags ||
+              axesPayloadSize < 4 ||
+              (axesPayloadSize - 4) % kAxisEntryBytes != 0 ||
+              (axesPayloadSize - 4) / kAxisEntryBytes > kMaxAxes)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          if (!ProductFits(logical, declaredBags, kBagRowBytes))
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          const std::size_t bagBytes = declaredBags * kBagRowBytes;
+          if (!ProductFits(logical, declaredAssets, kAssetRowBytes))
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          const std::size_t assetBytes = declaredAssets * kAssetRowBytes;
+          if (bagBytes > logical - 8)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          if (assetBytes > logical - 8 - bagBytes)
+          {
+            return OPEN_MALFORMED_INDEX;
+          }
+          if (8 + bagBytes + assetBytes != indexPayloadSize)
+          {
+            return OPEN_MALFORMED_INDEX;
           }
 
           // The slice ends at the DATA payload, so it needs DATA's header and
@@ -816,18 +863,21 @@ namespace loka
             {
               return BAG_MISALIGNED_BUFFER;
             }
-            assert(state_.source &&
-                   "a stream-backed package holds the source it committed with");
-            // Bounded by the parse: dataPayloadFileOffset + dataOffset +
-            // stored is at most the package's total length, which fits
-            // std::size_t because opening checked it does.
-            if (!state_.source->readAt(state_.dataPayloadFileOffset +
-                                           static_cast<std::size_t>(bag.dataOffset),
-                                       dst,
-                                       stored))
-            {
-              return BAG_SOURCE_FAILED;
-            }
+          }
+          assert(state_.source &&
+                 "a stream-backed package holds the source it committed with");
+          // Bounded by the parse: dataPayloadFileOffset + dataOffset + stored
+          // is at most the package's total length, which fits std::size_t
+          // because opening checked it does. Even an empty bag reaches the
+          // transport: one that cannot answer a zero-length read is failed,
+          // while an honest source answers true because there is nothing to
+          // deliver and nothing can fail.
+          if (!state_.source->readAt(state_.dataPayloadFileOffset +
+                                         static_cast<std::size_t>(bag.dataOffset),
+                                     dst,
+                                     stored))
+          {
+            return BAG_SOURCE_FAILED;
           }
           // Empty bags are verified too. Crc32 of nothing is a defined value
           // the writer records like any other, and skipping it would make the

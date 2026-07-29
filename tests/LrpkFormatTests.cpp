@@ -1980,6 +1980,110 @@ void testLrpkStreamOpenMatchesMemoryOpen()
            Reader::OPEN_UNKNOWN_CHUNK);
   }
   {
+    // The head fixes the row geometry before the application allocates the
+    // stream index. Give INDX one aligned word beyond those rows while
+    // keeping the package's chunk stream structurally complete.
+    std::vector<unsigned char> bad(package);
+    std::size_t indexSize = 0;
+    const std::size_t indexHeader =
+        FindChunkHeader(bad, FourCC('I', 'N', 'D', 'X'), indexSize);
+    std::size_t dataSize = 0;
+    const std::size_t oldDataHeader =
+        FindChunkHeader(bad, FourCC('D', 'A', 'T', 'A'), dataSize);
+    bad.insert(bad.begin() +
+                   static_cast<std::vector<unsigned char>::difference_type>(
+                       oldDataHeader),
+               kPayloadAlign,
+               0);
+    WriteU32BE(&bad[indexHeader + 4],
+               static_cast<U32>(indexSize + kPayloadAlign));
+    WriteU32BE(&bad[4],
+               static_cast<U32>(bad.size() - kFormHeaderBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bad.size()));
+    RestampChunk(bad, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+
+    MemoryByteSource badSource(bad);
+    Reader reader;
+    std::size_t badNeed = 1;
+    assert(reader.beginOpen(badSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            badNeed) == Reader::OPEN_MALFORMED_INDEX);
+    assert(badNeed == 0 &&
+           "contradicted row geometry cannot extract an allocation");
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    // Five payload bytes cannot encode any whole AXES vocabulary. Preserve
+    // the following chunk boundary so both parsers reach that same fact.
+    std::vector<unsigned char> bad(package);
+    std::size_t axesSize = 0;
+    const std::size_t axesHeader =
+        FindChunkHeader(bad, FourCC('A', 'X', 'E', 'S'), axesSize);
+    const std::size_t oldAxesSpan =
+        kChunkHeaderBytes + AlignUp(axesSize, kPayloadAlign);
+    bad.insert(bad.begin() +
+                   static_cast<std::vector<unsigned char>::difference_type>(
+                       axesHeader + oldAxesSpan),
+               kPayloadAlign,
+               0);
+    WriteU32BE(&bad[axesHeader + 4], 5);
+    WriteU32BE(&bad[4],
+               static_cast<U32>(bad.size() - kFormHeaderBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bad.size()));
+    RestampChunk(bad, FourCC('A', 'X', 'E', 'S'), kHeadAxesCrc);
+
+    MemoryByteSource badSource(bad);
+    Reader reader;
+    std::size_t badNeed = 1;
+    assert(reader.beginOpen(badSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            badNeed) == Reader::OPEN_MALFORMED_INDEX);
+    assert(badNeed == 0);
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
+    // This is the original allocation-amplification shape: a normal package
+    // is stretched until INDX claims nearly the whole file, while its forged
+    // head declares that there are no rows at all.
+    std::vector<unsigned char> bad(package);
+    std::size_t indexSize = 0;
+    const std::size_t indexHeader =
+        FindChunkHeader(bad, FourCC('I', 'N', 'D', 'X'), indexSize);
+    std::size_t dataSize = 0;
+    const std::size_t oldDataHeader =
+        FindChunkHeader(bad, FourCC('D', 'A', 'T', 'A'), dataSize);
+    const std::size_t inflatedBytes = 1024 * 1024;
+    bad.insert(bad.begin() +
+                   static_cast<std::vector<unsigned char>::difference_type>(
+                       oldDataHeader),
+               inflatedBytes,
+               0);
+    WriteU32BE(&bad[indexHeader + 4],
+               static_cast<U32>(indexSize + inflatedBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadAssetCount], 0);
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadBagCount], 0);
+    WriteU32BE(&bad[4],
+               static_cast<U32>(bad.size() - kFormHeaderBytes));
+    WriteU32BE(&bad[kHeadPayloadOffset + kHeadTotalBytes],
+               static_cast<U32>(bad.size()));
+    RestampChunk(bad, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
+
+    MemoryByteSource badSource(bad);
+    Reader reader;
+    std::size_t badNeed = 1;
+    assert(reader.beginOpen(badSource,
+                            kStamp,
+                            Reader::VERIFY_INTEGRITY,
+                            badNeed) == Reader::OPEN_MALFORMED_INDEX);
+    assert(badNeed == 0 &&
+           "a zero-row head cannot extract the file-sized INDX allocation");
+    ExpectOpenResultInBothModes(bad, Reader::OPEN_MALFORMED_INDEX);
+  }
+  {
     // A head and no chunk stream at all. The scanner's loop never runs and
     // finds AXES missing; the probe is asked to read at the end of a
     // zero-length stream. Both call that a malformed index rather than
@@ -2478,7 +2582,22 @@ void testLrpkStreamOpensEmptyAndZeroLengthBags()
 
   assert(ReadBagIntoVector(stream, 0, full) == Reader::BAG_OK);
   // The empty bag's whole call is (0, 0): there is no buffer to align and
-  // none to size-check.
+  // none to size-check, but its transport read is still a refusal step.
+  std::size_t indexSize = 0;
+  const std::size_t indexAt =
+      FindChunkPayload(package, FourCC('I', 'N', 'D', 'X'), indexSize);
+  const std::size_t emptyBagRow = indexAt + 8 + 1 * kBagRowBytes;
+  std::size_t dataHeaderAt = 0;
+  std::size_t dataPayloadAt = 0;
+  LocateDataChunk(package, dataHeaderAt, dataPayloadAt);
+  const std::size_t emptyBagFileOffset =
+      dataPayloadAt +
+      static_cast<std::size_t>(
+          ReadU32BE(&package[emptyBagRow + kBagDataOffset]));
+  source.failReadsOver(emptyBagFileOffset, emptyBagFileOffset + 1);
+  assert(stream.readBagInto(1, 0, 0) == Reader::BAG_SOURCE_FAILED);
+  assert(!stream.isBagOpen(1));
+  source.failReadsOver(0, 0);
   assert(stream.readBagInto(1, 0, 0) == Reader::BAG_OK);
   assert(stream.isBagOpen(1));
 

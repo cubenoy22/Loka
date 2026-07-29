@@ -2,6 +2,8 @@
 
 #include <climits>
 
+#include "platform/file/FileIO.hpp"
+
 namespace loka
 {
   namespace core
@@ -20,16 +22,10 @@ namespace loka
           close();
         }
 
-        bool StdioByteSource::open(const char *path)
+        bool StdioByteSource::open(const loka::core::String &path)
         {
           close();
-          if (!path)
-          {
-            return false;
-          }
-          // Binary: a package is bytes, and a text-mode host would rewrite
-          // some of them on the way in.
-          file_ = std::fopen(path, "rb");
+          file_ = loka::platform::file::OpenRead(path);
           return file_ != 0;
         }
 

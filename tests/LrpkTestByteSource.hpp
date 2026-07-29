@@ -20,6 +20,8 @@ namespace loka
         table exists to be independent of; "these bytes cannot be delivered"
         names the fault instead and survives any reshuffling of the reads.
 
+        A zero-length read fails when its position is inside the window; that
+        pins the transport answer even though there are no bytes to overlap.
         Reading past the end answers false as well, so a source that is asked
         for bytes the format promised but the file does not have behaves like
         a real one rather than like a buffer overrun. */
@@ -49,8 +51,9 @@ namespace loka
         hasReportedSize_ = true;
       }
 
-      /** Every `readAt` overlapping `[begin, end)` answers false. An empty
-          window disarms the knob. */
+      /** Every non-empty `readAt` overlapping `[begin, end)` answers false,
+          and a zero-length read fails when its position lies inside the
+          window. An empty window disarms the knob. */
       void failReadsOver(std::size_t begin, std::size_t end)
       {
         failBegin_ = begin;
@@ -63,7 +66,9 @@ namespace loka
         {
           return false;
         }
-        if (n > 0 && failEnd_ > failBegin_ && at < failEnd_ && failBegin_ < at + n)
+        if (failEnd_ > failBegin_ &&
+            ((n == 0 && failBegin_ <= at && at < failEnd_) ||
+             (n > 0 && at < failEnd_ && failBegin_ < at + n)))
         {
           return false;
         }

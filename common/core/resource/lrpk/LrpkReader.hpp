@@ -432,17 +432,19 @@ namespace loka
                                              std::size_t declaredBags);
 
           /** Reads one chunk header at the rebased offset `at` and reports
-              the whole chunk's span. Mirrors, one chunk at a time, what
-              `ParseChunkStream` would conclude about the same bytes, so a
-              package refused by one transport is refused by the other for the
-              same reason. Bounds are tested before the read: a false from
-              `readAt` may only ever mean "bytes the format promised could not
-              be delivered", never "we asked past the end". */
+              the whole chunk's span and its claimed payload size before
+              padding. Mirrors, one chunk at a time, what `ParseChunkStream`
+              would conclude about the same bytes, so a package refused by one
+              transport is refused by the other for the same reason. Bounds
+              are tested before the read: a false from `readAt` may only ever
+              mean "bytes the format promised could not be delivered", never
+              "we asked past the end". Both outputs are zero on refusal. */
           static OpenResult ProbeChunkHeader(ByteSource &src,
                                              std::size_t at,
                                              std::size_t logical,
                                              U32 expectedTag,
-                                             std::size_t &spanOut);
+                                             std::size_t &spanOut,
+                                             std::size_t &payloadSizeOut);
 
           /** The commit-time refusals a bag has regardless of how its bytes
               arrive: an id it shares with an open bag, and a codec this
