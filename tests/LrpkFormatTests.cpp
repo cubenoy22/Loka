@@ -248,6 +248,34 @@ namespace
     RestampChunk(bytes, FourCC('I', 'N', 'D', 'X'), kHeadIndexCrc);
   }
 
+  void ReorderChunks(std::vector<unsigned char> &bytes,
+                     U32 firstTag,
+                     U32 secondTag,
+                     U32 thirdTag)
+  {
+    // A pure permutation: every chunk moves with its header and padding
+    // intact, and no stored CRC covers a chunk's position, so nothing is
+    // restamped. A refusal of the result therefore pins the order rule
+    // itself, not a stale checksum.
+    const U32 order[3] = {firstTag, secondTag, thirdTag};
+    std::vector<unsigned char> stream;
+    for (std::size_t i = 0; i < 3; ++i)
+    {
+      std::size_t payloadSize = 0;
+      const std::size_t header = FindChunkHeader(bytes, order[i], payloadSize);
+      assert(header < bytes.size());
+      const std::size_t span =
+          kChunkHeaderBytes + AlignUp(payloadSize, kPayloadAlign);
+      stream.insert(stream.end(),
+                    bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(header),
+                    bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(header + span));
+    }
+    assert(stream.size() == bytes.size() - kFixedHeadBytes);
+    std::copy(stream.begin(),
+              stream.end(),
+              bytes.begin() + static_cast<std::vector<unsigned char>::difference_type>(kFixedHeadBytes));
+  }
+
   void ExpectOpenResultInBothModes(const std::vector<unsigned char> &package,
                                    Reader::OpenResult expected)
   {
@@ -1380,6 +1408,54 @@ void testLrpkChecksTheChunkThatDecidesSelection()
   }
 
   printf("==== [testLrpkChecksTheChunkThatDecidesSelection] end ====\n");
+}
+
+void testLrpkRequiresCanonicalChunkOrder()
+{
+  printf("\n==== [testLrpkRequiresCanonicalChunkOrder] start ====\n");
+
+  const U32 axes = FourCC('A', 'X', 'E', 'S');
+  const U32 indx = FourCC('I', 'N', 'D', 'X');
+  const U32 data = FourCC('D', 'A', 'T', 'A');
+
+  std::vector<unsigned char> good;
+  assert(BuildDepthScalePackage(good, true) == Writer::BUILD_OK);
+
+  // Control: reassembling in the canonical order reproduces the writer's
+  // bytes exactly, so the refusals below can only come from the order rule.
+  {
+    std::vector<unsigned char> canonical(good);
+    ReorderChunks(canonical, axes, indx, data);
+    assert(canonical == good &&
+           "the writer already emits the canonical order");
+    Reader reader;
+    assert(reader.openBorrowedBytes(&canonical[0],
+                                    canonical.size(),
+                                    kStamp,
+                                    Reader::VERIFY_INTEGRITY) ==
+           Reader::OPEN_OK);
+  }
+
+  // Every other permutation of the three required chunks is refused, in
+  // both integrity modes.
+  const U32 permutations[5][3] = {
+      {indx, axes, data},
+      {axes, data, indx},
+      {indx, data, axes},
+      {data, axes, indx},
+      {data, indx, axes},
+  };
+  for (std::size_t p = 0; p < 5; ++p)
+  {
+    std::vector<unsigned char> permuted(good);
+    ReorderChunks(permuted,
+                  permutations[p][0],
+                  permutations[p][1],
+                  permutations[p][2]);
+    ExpectOpenResultInBothModes(permuted, Reader::OPEN_MALFORMED_INDEX);
+  }
+
+  printf("==== [testLrpkRequiresCanonicalChunkOrder] end ====\n");
 }
 
 void testLrpkEnforcesPayloadAlignment()

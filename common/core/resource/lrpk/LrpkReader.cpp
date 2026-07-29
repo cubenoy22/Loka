@@ -120,6 +120,15 @@ namespace loka
           // header; existence checks (headers, AXES/INDX payloads) go against
           // resident, while extent checks -- does the payload fit the file the
           // format describes -- go against logical.
+          //
+          // Chunk order is canonical: AXES, then INDX, then DATA. The
+          // file-backed open depends on it -- everything before the DATA
+          // payload must exist as one contiguous prefix of the file, which a
+          // permuted package cannot provide without a second grammar. Two
+          // checks pin the whole order: INDX refuses when AXES has not been
+          // established, DATA refuses when INDX has not. With duplicates
+          // refused and the tag set closed, no other out-of-turn shape is
+          // reachable.
           const unsigned char *scanBase = bytes + kFixedHeadBytes;
           const std::size_t resident = size - kFixedHeadBytes;
           const std::size_t logical = resident;
@@ -158,7 +167,8 @@ namespace loka
             }
             else if (tag == FourCC('I', 'N', 'D', 'X'))
             {
-              if (indexChunk || !ExtentFits(resident, payloadAt, payloadSize))
+              if (!axesChunk || indexChunk ||
+                  !ExtentFits(resident, payloadAt, payloadSize))
               {
                 return OPEN_MALFORMED_INDEX;
               }
@@ -168,7 +178,7 @@ namespace loka
             }
             else if (tag == FourCC('D', 'A', 'T', 'A'))
             {
-              if (dataChunk)
+              if (!indexChunk || dataChunk)
               {
                 return OPEN_MALFORMED_INDEX;
               }

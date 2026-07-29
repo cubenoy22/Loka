@@ -14,6 +14,7 @@ void testLrpcRoundTripsExactlySizedSelectors();
 void testLrpcRefusesAxisDeclarationAfterAsset();
 void testLrpkReaderKeepsItsPackageWhenAReloadIsRefused();
 void testLrpkChecksTheChunkThatDecidesSelection();
+void testLrpkRequiresCanonicalChunkOrder();
 void testLrpkEnforcesPayloadAlignment();
 void testLrpcPreservesNullPayloadFailure();
 void testLrpcCanonicalBuildBytesStayStable();
