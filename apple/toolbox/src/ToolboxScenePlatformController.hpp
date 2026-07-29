@@ -197,6 +197,12 @@ private:
     ControlRef control;
     loka::core::EmitterState *emitter;
     loka::core::State<bool> *enabled;
+    /** The render pass's mark-and-sweep bit, one contract for every control
+        binding in this file: render() clears it, the ensure* call that
+        projects the node sets it, and whatever is still false at the end of
+        the frame gets hidden -- the scene no longer declares that control.
+        Three sites in one dance, which is why the bit gets a sentence the
+        name alone cannot carry. */
     bool usedThisFrame;
     bool needsDraw;
     Rect rect;
