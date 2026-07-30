@@ -132,7 +132,7 @@ clear boundaries, and small reusable concepts.
 
 ## Licensing
 - Never commit an artifact whose license is not clear. Everything in the tree must be original to this repository or carry an explicit license that permits redistribution here; "probably fine" is not a license.
-- Third-party content (sprites, images, fonts, sounds, sample data) may be fetched and used at development time, but pipelines that consume it must keep their outputs under `build/` (ignored) and must not offer a way to write into tracked paths. Committed assets are the ones reproducible from in-repo generators.
+- Third-party content (sprites, images, fonts, sounds, sample data) may be fetched and used at development time, but pipelines that consume it must keep their outputs under `build/` (ignored) and must not offer a way to write into tracked paths. Original hand-authored assets are committable as themselves; the reproducible-from-an-in-repo-generator bar applies to pipeline outputs, not to source artwork.
 - This covers indirect embedding too: a package, disk image, screenshot fixture, or test resource that *contains* unlicensed content is itself unlicensed content.
 - When licensing is uncertain, stop and ask the human instead of committing.
 
