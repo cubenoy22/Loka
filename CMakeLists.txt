@@ -208,8 +208,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   endfunction()
 
   if(NOT WIN32)
-    add_test(NAME scriptMameDebugReap
-      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugReapTest.sh)
+    add_test(NAME scriptMameDebugLaunch
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
   endif()
 
   # The registries are configure inputs: editing a LOKA_TEST line must
