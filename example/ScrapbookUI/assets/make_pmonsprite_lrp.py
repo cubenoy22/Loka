@@ -2,6 +2,7 @@
 """Build a development-only PMonSprite scrapbook package from palette PNGs."""
 
 import argparse
+from collections import namedtuple
 from pathlib import Path
 import re
 import struct
@@ -16,12 +17,17 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 SPRITE_COUNT = 12
 SPRITE_SIZE = 96
 ROW_BYTES = SPRITE_SIZE // 8
+INDEXED_ROW_BYTES = SPRITE_SIZE
 FRAME = (0, 0, 150, 200)
 BITMAP_BOUNDS = (0, 0, SPRITE_SIZE, SPRITE_SIZE)
 DESTINATION = (27, 52, 123, 148)
+PACK_BITS_RECT_OFFSET = 564
 SPRITE_URL = (
     "https://raw.githubusercontent.com/PokeAPI/sprites/master/"
     "sprites/pokemon/{index}.png"
+)
+DecodedSprite = namedtuple(
+    "DecodedSprite", ("palette", "transparency", "indices", "luminance")
 )
 
 
@@ -172,8 +178,10 @@ def decode_palette_png(path):
         raise ValueError("{} has invalid compressed PNG data: {}".format(path, error))
     rows = reverse_filters(filtered, height, stride)
 
+    indices = []
     luminance = []
     for row in rows:
+        index_row = bytearray()
         output_row = []
         for horizontal in range(width):
             if bit_depth == 8:
@@ -185,6 +193,7 @@ def decode_palette_png(path):
                 )
             if palette_index >= len(palette):
                 raise ValueError("{} uses an undefined palette entry".format(path))
+            index_row.append(palette_index)
             red, green, blue = palette[palette_index]
             alpha = (
                 transparency[palette_index]
@@ -195,8 +204,11 @@ def decode_palette_png(path):
             green = (green * alpha + 255 * (255 - alpha) + 127) // 255
             blue = (blue * alpha + 255 * (255 - alpha) + 127) // 255
             output_row.append((299 * red + 587 * green + 114 * blue + 500) // 1000)
+        indices.append(bytes(index_row))
         luminance.append(output_row)
-    return luminance
+    return DecodedSprite(
+        tuple(palette), bytes(transparency), tuple(indices), luminance
+    )
 
 
 def dither_to_bitmap(luminance):
@@ -254,10 +266,29 @@ def pack_bits(row):
     return bytes(out)
 
 
-def build_picture(bitmap):
-    if len(bitmap) != SPRITE_SIZE * ROW_BYTES:
-        raise ValueError("1-bit sprite data has the wrong size")
+def unpack_pack_bits(packed):
+    """Reference PackBits decoder used by the indexed PICT self-check."""
+    out = bytearray()
+    cursor = 0
+    while cursor < len(packed):
+        control = packed[cursor]
+        cursor += 1
+        if control <= 127:
+            count = control + 1
+            if cursor + count > len(packed):
+                raise ValueError("truncated PackBits literal")
+            out += packed[cursor : cursor + count]
+            cursor += count
+        elif control >= 129:
+            count = 257 - control
+            if cursor >= len(packed):
+                raise ValueError("truncated PackBits repeat")
+            out.extend([packed[cursor]] * count)
+            cursor += 1
+    return bytes(out)
 
+
+def assemble_picture(pack_bits_rect):
     operations = bytearray()
     operations += word(0x0011)
     operations += word(0x02FF)
@@ -282,6 +313,19 @@ def build_picture(bitmap):
     # itself. Region data: 2-byte region size (10) + bounding rect.
     operations += padded_op(0x0001, word(10) + rect(FRAME))  # Clip
 
+    operations += padded_op(0x0098, pack_bits_rect)
+    operations += word(0x00FF)  # OpEndPic
+
+    picture = word(10 + len(operations)) + rect(FRAME) + operations
+    if len(picture) & 1:
+        raise AssertionError("version 2 picture must remain word-aligned")
+    return bytes(512) + picture
+
+
+def build_picture(bitmap):
+    if len(bitmap) != SPRITE_SIZE * ROW_BYTES:
+        raise ValueError("1-bit sprite data has the wrong size")
+
     # PackBitsRect, not BitsRect: QuickDraw's picture player keys its "is the
     # data packed" decision on rowBytes, not on the opcode -- recording never
     # emits an unpacked bitmap once rowBytes reaches 8, so playback assumes
@@ -295,24 +339,107 @@ def build_picture(bitmap):
             raise AssertionError("packed scanline exceeds a 1-byte length")
         packed_rows.append(len(packed))
         packed_rows += packed
-    operations += padded_op(
-        0x0098,
+    return assemble_picture(
         word(ROW_BYTES)
         + rect(BITMAP_BOUNDS)
         + rect(BITMAP_BOUNDS)
         + rect(DESTINATION)
         + word(0)
-        + packed_rows,
-    )  # PackBitsRect
-    operations += word(0x00FF)  # OpEndPic
-
-    picture = word(10 + len(operations)) + rect(FRAME) + operations
-    if len(picture) & 1:
-        raise AssertionError("version 2 picture must remain word-aligned")
-    return bytes(512) + picture
+        + packed_rows
+    )
 
 
-def check_picture(picture):
+def indexed_sprite(decoded):
+    palette = list(decoded.palette)
+    transparent_indices = {
+        index
+        for index, alpha in enumerate(decoded.transparency)
+        if alpha != 255
+    }
+    if not transparent_indices:
+        return tuple(palette), decoded.indices
+
+    white = (255, 255, 255)
+    try:
+        white_index = palette.index(white)
+    except ValueError:
+        if len(palette) == 256:
+            raise ValueError("transparent pixels need a white palette entry")
+        white_index = len(palette)
+        palette.append(white)
+
+    remapped_rows = []
+    for row in decoded.indices:
+        remapped_rows.append(
+            bytes(
+                white_index
+                if palette_index in transparent_indices
+                else palette_index
+                for palette_index in row
+            )
+        )
+    return tuple(palette), tuple(remapped_rows)
+
+
+def build_indexed_picture(palette, rows):
+    if not 1 <= len(palette) <= 256:
+        raise ValueError("indexed sprite palette must have 1 through 256 entries")
+    if len(rows) != SPRITE_SIZE or any(
+        len(row) != INDEXED_ROW_BYTES for row in rows
+    ):
+        raise ValueError("8-bit sprite data has the wrong size")
+
+    color_table = bytearray()
+    color_table += struct.pack(">IHH", 0, 0x0000, len(palette) - 1)
+    for index, (red, green, blue) in enumerate(palette):
+        color_table += struct.pack(
+            ">HHHH",
+            index,
+            red * 0x0101,
+            green * 0x0101,
+            blue * 0x0101,
+        )
+
+    packed_rows = bytearray()
+    for row in rows:
+        packed = pack_bits(row)
+        if len(packed) > 255:
+            raise AssertionError("packed scanline exceeds a 1-byte length")
+        packed_rows.append(len(packed))
+        packed_rows += packed
+
+    # DirectBitsRect carries a baseAddr before rowBytes; PackBitsRect's PixMap
+    # variant starts at rowBytes, so this record deliberately omits baseAddr.
+    pixmap = (
+        word(0x8000 | INDEXED_ROW_BYTES)
+        + rect(BITMAP_BOUNDS)
+        + struct.pack(
+            ">HHIIIHHHHIII",
+            0,          # pmVersion
+            0,          # packType
+            0,          # packSize
+            72 << 16,   # hRes
+            72 << 16,   # vRes
+            0,          # pixelType: chunky
+            8,          # pixelSize
+            1,          # cmpCount
+            8,          # cmpSize
+            0,          # planeBytes
+            0,          # pmTable
+            0,          # pmReserved
+        )
+    )
+    return assemble_picture(
+        pixmap
+        + color_table
+        + rect(BITMAP_BOUNDS)
+        + rect(DESTINATION)
+        + word(0)
+        + packed_rows
+    )
+
+
+def check_picture(picture, depth, color_count=None, indexed_rows=None):
     if picture[:512] != bytes(512):
         raise AssertionError("PICT file header must be 512 zero bytes")
     picture_size = struct.unpack(">H", picture[512:514])[0]
@@ -324,6 +451,59 @@ def check_picture(picture):
         raise AssertionError("PICT version opcode is incorrect")
     if picture[552:564] != word(0x0001) + word(10) + rect(FRAME):
         raise AssertionError("PICT initial clip opcode is missing or malformed")
+    if depth == 1:
+        expected = word(0x0098) + word(ROW_BYTES) + rect(BITMAP_BOUNDS)
+        actual = picture[
+            PACK_BITS_RECT_OFFSET : PACK_BITS_RECT_OFFSET + len(expected)
+        ]
+        if actual != expected:
+            raise AssertionError("1-bit PackBitsRect header is malformed")
+    elif depth == 256:
+        if color_count is None or indexed_rows is None:
+            raise AssertionError("indexed PICT check needs palette and source rows")
+        expected = (
+            word(0x0098)
+            + word(0x8000 | INDEXED_ROW_BYTES)
+            + rect(BITMAP_BOUNDS)
+        )
+        actual = picture[
+            PACK_BITS_RECT_OFFSET : PACK_BITS_RECT_OFFSET + len(expected)
+        ]
+        if actual != expected:
+            raise AssertionError("8-bit PackBitsRect PixMap header is malformed")
+
+        pixel_fields_offset = PACK_BITS_RECT_OFFSET + 28
+        if picture[pixel_fields_offset : pixel_fields_offset + 8] != (
+            word(0) + word(8) + word(1) + word(8)
+        ):
+            raise AssertionError("8-bit PixMap pixel fields are malformed")
+
+        color_table_offset = PACK_BITS_RECT_OFFSET + 48
+        expected_table_header = struct.pack(">IHH", 0, 0x0000, color_count - 1)
+        actual_table_header = picture[
+            color_table_offset : color_table_offset + 8
+        ]
+        if actual_table_header != expected_table_header:
+            raise AssertionError("8-bit PixMap ColorTable header is malformed")
+
+        row_data_offset = color_table_offset + 8 + color_count * 8 + 18
+        checked_row = max(
+            range(len(indexed_rows)),
+            key=lambda index: len(set(indexed_rows[index])),
+        )
+        packed_row_offset = row_data_offset
+        for _ in range(checked_row):
+            packed_row_offset += 1 + picture[packed_row_offset]
+        packed_length = picture[packed_row_offset]
+        packed_row = picture[
+            packed_row_offset + 1 : packed_row_offset + 1 + packed_length
+        ]
+        if unpack_pack_bits(packed_row) != indexed_rows[checked_row]:
+            raise AssertionError(
+                "8-bit PackBits scanline does not round-trip to source indices"
+            )
+    else:
+        raise AssertionError("unsupported PICT check depth")
     if len(picture) & 1:
         raise AssertionError("PICT file is not word-aligned")
 
@@ -346,7 +526,9 @@ def ensure_sprite(path, index):
         )
 
 
-def write_manifest(path):
+def manifest_contents(depth):
+    if depth not in (1, 256):
+        raise ValueError("unsupported manifest depth")
     lines = [
         "# One sprite per bag: a page flip reads exactly one independently verifiable bag."
     ]
@@ -360,7 +542,11 @@ def write_manifest(path):
                 ),
             ]
         )
-    path.write_text("\n".join(lines) + "\n", encoding="ascii")
+    return "\n".join(lines) + "\n"
+
+
+def write_manifest(path, depth):
+    path.write_text(manifest_contents(depth), encoding="ascii")
 
 
 def pack_assets(lrpc, manifest, package, stamp_path):
@@ -398,7 +584,16 @@ def pack_assets(lrpc, manifest, package, stamp_path):
 
 def parse_arguments(repo_root):
     parser = argparse.ArgumentParser(
-        description="Build the development-only PMonSprite ScrapbookUI package."
+        description="Build the development-only PMonSprite ScrapbookUI package.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Depth 1 (the default) emits the current dithered 1-bit BitMap package\n"
+            "under build/pmonsprite-lrp/. Depth 256 emits an 8-bit indexed PixMap\n"
+            "package under build/pmonsprite-lrp-256/ without dithering.\n\n"
+            "On the current black-and-white window, a 256-color picture degrades to\n"
+            "QuickDraw's basic-port color mapping. Full fidelity waits for the\n"
+            "color-window arm."
+        ),
     )
     parser.add_argument(
         "--sprites-dir",
@@ -413,6 +608,16 @@ def parse_arguments(repo_root):
         help="path to the host lrpc executable",
     )
     parser.add_argument(
+        "--depth",
+        type=int,
+        choices=(1, 256),
+        default=1,
+        help=(
+            "sprite depth: dithered 1-bit BitMap or indexed 8-bit PixMap "
+            "(default: 1)"
+        ),
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="report the built-in PICT header self-check",
@@ -423,27 +628,77 @@ def parse_arguments(repo_root):
 def main():
     repo_root = Path(__file__).resolve().parents[3]
     arguments = parse_arguments(repo_root)
-    output_dir = repo_root / "build" / "pmonsprite-lrp"
+    output_dir_name = (
+        "pmonsprite-lrp" if arguments.depth == 1 else "pmonsprite-lrp-256"
+    )
+    output_dir = repo_root / "build" / output_dir_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for index in range(1, SPRITE_COUNT + 1):
         sprite_path = arguments.sprites_dir / "{}.png".format(index)
         ensure_sprite(sprite_path, index)
-        luminance = decode_palette_png(sprite_path)
-        picture = build_picture(dither_to_bitmap(luminance))
-        check_picture(picture)
+        decoded = decode_palette_png(sprite_path)
+        if arguments.depth == 1:
+            picture = build_picture(dither_to_bitmap(decoded.luminance))
+            check_picture(picture, arguments.depth)
+        else:
+            palette, indexed_rows = indexed_sprite(decoded)
+            picture = build_indexed_picture(palette, indexed_rows)
+            check_picture(
+                picture,
+                arguments.depth,
+                color_count=len(palette),
+                indexed_rows=indexed_rows,
+            )
         output_path = output_dir / "pmon-{}.pict".format(index)
         output_path.write_bytes(picture)
         print("{}: {} bytes".format(output_path, len(picture)))
 
     if arguments.check:
-        print("PICT header self-check: OK (picSize, frame, version, initial clip)")
+        if manifest_contents(1) != manifest_contents(256):
+            raise AssertionError("depth-specific manifests must remain identical")
+        if arguments.depth == 1:
+            detail = "1-bit PackBitsRect rowBytes/bounds"
+        else:
+            detail = (
+                "8-bit PixMap rowBytes/pixelSize/ColorTable and PackBits round-trip"
+            )
+        print(
+            "PICT byte-level self-check: OK "
+            "(picSize, frame, version, initial clip, {})".format(detail)
+        )
 
     manifest = output_dir / "manifest.txt"
     package = output_dir / "ASSETS.LRP"
     stamp_path = output_dir / "stamp.txt"
-    write_manifest(manifest)
+    write_manifest(manifest, arguments.depth)
     stamp = pack_assets(arguments.lrpc, manifest, package, stamp_path)
+
+    if arguments.check:
+        other_depth = 256 if arguments.depth == 1 else 1
+        if manifest.read_text(encoding="ascii") != manifest_contents(other_depth):
+            raise AssertionError("written manifests differ between depths")
+        other_output = repo_root / "build" / (
+            "pmonsprite-lrp-256" if arguments.depth == 1 else "pmonsprite-lrp"
+        )
+        other_manifest_path = other_output / "manifest.txt"
+        if (
+            other_manifest_path.is_file()
+            and other_manifest_path.read_text(encoding="ascii")
+            != manifest.read_text(encoding="ascii")
+        ):
+            raise AssertionError("generated manifests differ between depths")
+        other_stamp_path = other_output / "stamp.txt"
+        if other_stamp_path.is_file():
+            other_stamp = other_stamp_path.read_text(encoding="ascii").strip()
+            if other_stamp != stamp:
+                raise AssertionError(
+                    "depth stamps differ: {} versus {}".format(stamp, other_stamp)
+                )
+        print(
+            "Depth-independent manifest/stamp self-check: OK "
+            "(depth 1 = depth 256 = {})".format(stamp)
+        )
 
     print("Package: {}".format(package))
     print("Stamp: {}".format(stamp))
