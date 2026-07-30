@@ -389,10 +389,10 @@ usual.
 
 Two optional environment variables extend the launcher for scripted use:
 
-- `LOKA_DEV_DATA` — space-separated plain data files copied onto the
-  development disk beside the application, the same contract as
-  `mame-dev-disk.sh`'s trailing arguments. A data-driven application such as
-  ScrapbookUI refuses at startup without its `ASSETS.LRP`, before ever
+- `LOKA_DEV_DATA` — newline-separated plain data files (one path per line)
+  copied onto the development disk beside the application. Each path is passed
+  as its own trailing argument to `mame-dev-disk.sh`. A data-driven application
+  such as ScrapbookUI refuses at startup without its `ASSETS.LRP`, before ever
   reaching the code under debug.
 - `LOKA_GDB_SCRIPT` — a second gdb command file executed after the attach
   script, so an unattended session can plant its own breakpoints, log what it

@@ -102,12 +102,18 @@ BOOT="$WORK/Boot.hd"
 [ -f "$BOOT" ] || cp -f "$MAME_HDA" "$BOOT"
 
 DEV="$WORK/LokaDev.hd"
-# LOKA_DEV_DATA carries plain data files the application reads from beside
-# itself (ScrapbookUI's ASSETS.LRP); without them a data-driven app refuses
-# before reaching the code under debug. Space-separated, same contract as
-# mame-dev-disk.sh's trailing arguments.
-# shellcheck disable=SC2086
-MAME_DEV_HDA="$DEV" "$SCRIPT_DIR/mame-dev-disk.sh" "$APPL" ${LOKA_DEV_DATA:-} >/dev/null
+# LOKA_DEV_DATA carries one plain data file per non-empty line. Each path
+# reaches mame-dev-disk.sh as its own argument even with spaces or glob
+# characters. Data-driven apps read these files from beside themselves
+# (ScrapbookUI's ASSETS.LRP) and refuse before the code under debug without them.
+DEV_DATA=()
+if [ -n "${LOKA_DEV_DATA:-}" ]; then
+  while IFS= read -r f; do
+    [ -n "$f" ] && DEV_DATA+=("$f")
+  done <<< "$LOKA_DEV_DATA"
+fi
+MAME_DEV_HDA="$DEV" "$SCRIPT_DIR/mame-dev-disk.sh" "$APPL" \
+  ${DEV_DATA[@]+"${DEV_DATA[@]}"} >/dev/null
 
 LOG="$WORK/find-base.log"
 rm -f "$LOG"
