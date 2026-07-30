@@ -102,13 +102,24 @@ namespace loka
           }
 
           const size_t eq = entry.find('=');
-          if (eq == std::string::npos)
+          const size_t separator = eq == std::string::npos ? entry.find_first_of(" \t") : eq;
+          if (separator == std::string::npos)
           {
             continue;
           }
 
-          const std::string key = trim(entry.substr(0, eq));
-          const std::string value = trim(entry.substr(eq + 1));
+          const std::string key = trim(entry.substr(0, separator));
+          const std::string value = trim(entry.substr(separator + 1));
+
+          if (key == "scenario")
+          {
+            if (!value.empty())
+            {
+              out.scenario = value;
+              out.hasScenario = true;
+            }
+            continue;
+          }
 
           if (key == "capture_dir")
           {

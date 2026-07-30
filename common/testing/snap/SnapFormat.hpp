@@ -83,7 +83,9 @@ namespace loka
       struct Settings
       {
         Settings()
-            : captureDir(),
+            : scenario(),
+              hasScenario(false),
+              captureDir(),
               hasCaptureDir(false),
               maxFiles(0),
               hasMaxFiles(false),
@@ -93,6 +95,8 @@ namespace loka
         {
         }
 
+        std::string scenario;
+        bool hasScenario;
         std::string captureDir;
         bool hasCaptureDir;
         long maxFiles;
