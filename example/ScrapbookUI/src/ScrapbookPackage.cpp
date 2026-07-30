@@ -172,6 +172,16 @@ namespace scrapbook
     this->currentBag_ = nextBag;
   }
 
+  bool ScrapbookPackage::hasCurrentPage() const
+  {
+    return this->open_ && this->currentBag_ >= 0;
+  }
+
+  int ScrapbookPackage::currentPage() const
+  {
+    return this->currentBag_;
+  }
+
   void ScrapbookPackage::rollbackPreparedBag(std::size_t bag, bool openedNew)
   {
     if (openedNew)

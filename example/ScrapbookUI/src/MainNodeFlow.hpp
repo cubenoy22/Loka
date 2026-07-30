@@ -17,7 +17,19 @@ namespace scrapbook
     MainNode *self = static_cast<MainNode *>(userData);
     if (self)
     {
-      self->publishRefusal();
+      if (self->package_.hasCurrentPage())
+      {
+        // preparePage rolled the refused bag back and the committed one is
+        // still open, so the shown page is whole; put the selector back on it
+        // rather than replacing good content with a refusal card. How a kept
+        // page should surface the refusal is design work tracked in #230.
+        self->selectedPage_ = self->package_.currentPage();
+        self->page_.set(self->selectedPage_);
+      }
+      else
+      {
+        self->publishRefusal();
+      }
     }
     return loka::dsl::FLOW_ERROR_HANDLED;
   }

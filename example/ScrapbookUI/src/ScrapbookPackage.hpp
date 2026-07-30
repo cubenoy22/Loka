@@ -80,6 +80,11 @@ namespace scrapbook
     void commitPage(const PagePresentation &page);
     void close();
 
+    /** True once a page has been committed; the committed bag stays open
+        through a refused prepare, so the shown page remains presentable. */
+    bool hasCurrentPage() const;
+    int currentPage() const;
+
   private:
     ScrapbookPackage(const ScrapbookPackage &);
     ScrapbookPackage &operator=(const ScrapbookPackage &);
