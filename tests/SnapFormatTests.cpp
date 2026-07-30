@@ -401,13 +401,16 @@ void testSnapFlowWriteAdapter()
     const char *cfgOutputPath = "snap_cfg_adapter.tmp";
 
     assert(writeFileBinary(cfgPath,
-                           std::string("# Loka test config\n") + "capture_dir = " + captureDir + "\n"
-                               + "max_files = 120\n" + "max_total_bytes = 4096\n" + "max_files_bad = x\n"));
+                           std::string("# Loka test config\n") + "scenario open-first-page\n"
+                               + "capture_dir = " + captureDir + "\n" + "max_files = 120\n" + "max_total_bytes = 4096\n"
+                               + "max_files_bad = x\n"));
 
     (void)createDirectoryIfMissing(captureDir);
 
     loka::dsl::SnapTestConfig::Settings settings;
     assert(loka::dsl::SnapTestConfig::load(cfgPath, settings));
+    assert(settings.hasScenario);
+    assert(settings.scenario == std::string("open-first-page"));
     assert(settings.hasCaptureDir);
     assert(settings.captureDir == std::string(captureDir));
     assert(settings.hasMaxFiles);

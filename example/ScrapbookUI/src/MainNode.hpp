@@ -89,6 +89,30 @@ namespace scrapbook
       this->state(this->pageBackdrop_, loka::app::RectSurfaceModel());
     }
 
+    /** Reports presence and index together so a refused presentation cannot
+        be mistaken for page zero. */
+    bool queryCurrentPageIndex(int &out) const
+    {
+      if (!this->package_.hasCurrentPage())
+      {
+        return false;
+      }
+      out = this->package_.currentPage();
+      return true;
+    }
+
+    /** Returns the caption currently published by the presentation owner. */
+    loka::core::String displayedCaption() const
+    {
+      return this->caption_.get();
+    }
+
+    /** Returns the text currently published by the presentation owner. */
+    loka::core::String displayedPageText() const
+    {
+      return this->pageText_.get();
+    }
+
     virtual void attachNode(loka::app::scene::NodeComposition &composition)
     {
       if (this->initialized_)

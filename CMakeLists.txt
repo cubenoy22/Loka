@@ -104,6 +104,8 @@ add_subdirectory(example/FloppyBird)
 add_subdirectory(example/Tutorial)
 endif()
 
+add_subdirectory(tests/toolbox)
+
 # Linux/WSL headless tests.
 if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   file(GLOB_RECURSE LOKA_COMMON_SOURCES CONFIGURE_DEPENDS
