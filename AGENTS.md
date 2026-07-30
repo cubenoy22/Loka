@@ -130,6 +130,12 @@ clear boundaries, and small reusable concepts.
 - For Classic targets, prefer building a test executable and running it in Mini vMac or on real hardware; scenario automation through Flow (state emit plus output capture) is the intended long-term harness for this.
 - If a discriminating test is impossible in the current fixture, state that explicitly in the PR and name the tracked follow-up issue or branch that will deliver it.
 
+## Licensing
+- Never commit an artifact whose license is not clear. Everything in the tree must be original to this repository or carry an explicit license that permits redistribution here; "probably fine" is not a license.
+- Third-party content (sprites, images, fonts, sounds, sample data) may be fetched and used at development time, but pipelines that consume it must keep their outputs under `build/` (ignored) and must not offer a way to write into tracked paths. Committed assets are the ones reproducible from in-repo generators.
+- This covers indirect embedding too: a package, disk image, screenshot fixture, or test resource that *contains* unlicensed content is itself unlicensed content.
+- When licensing is uncertain, stop and ask the human instead of committing.
+
 ## Build, Test, And Commit
 - Retro68 workflow policy: if `.dsk` is mounted (emulator/host), unmount it before rebuild. Building while mounted can leave stale artifacts or produce corruption-like runtime issues; when users report corrupted/unchanged Classic output, first retry with `.dsk` unmounted, then rebuild.
 - Keep commits scoped; split large refactors into small, reviewable commits with verification between steps.
