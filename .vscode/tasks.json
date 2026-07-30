@@ -510,6 +510,23 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: Retro68 68K ScrapbookUI",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "ScrapbookUI68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Prepare SCSI Dev Disk: HelloWorld",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
@@ -561,6 +578,20 @@
       "windows": {
         "command": "powershell.exe",
         "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"]
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Prepare SCSI Dev Disk: ScrapbookUI",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin",
+        "${workspaceFolder}/build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"
+      ],
+      "windows": {
+        "command": "powershell.exe",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin", "build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"]
       },
       "problemMatcher": []
     },
@@ -702,6 +733,12 @@
     {
       "label": "Build & Start in MAME via SCSI: Tutorial",
       "dependsOn": ["Build: Retro68 68K Tutorial", "Prepare SCSI Dev Disk: Tutorial", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build & Start in MAME via SCSI: ScrapbookUI",
+      "dependsOn": ["Build: Retro68 68K ScrapbookUI", "Prepare SCSI Dev Disk: ScrapbookUI", "MAME: Start"],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },

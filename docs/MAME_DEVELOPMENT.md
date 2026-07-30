@@ -46,11 +46,24 @@ Run `Build & Start in MAME via SCSI: <App>`. The task:
 2. copies the configured boot HDA to a temporary generated image;
 3. preserves its Apple partition map and SCSI driver partition;
 4. reformats only the first HFS partition as `LokaDev`;
-5. copies the Retro68 MacBinary app into that partition; and
+5. copies the Retro68 MacBinary app and any requested plain data files into
+   that partition; and
 6. starts MAME with the boot disk as `hard1` and `LokaDev` as `hard2`.
 
 Stop MAME before rebuilding the SCSI development disk. A fixed SCSI disk is
 not safe to rewrite while the emulator has it open.
+
+The development-disk scripts keep their original one-argument form and accept
+additional plain data files after the app. For example, ScrapbookUI ships its
+LRPK package beside the application:
+
+```sh
+./scripts/mame-dev-disk.sh \
+  build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin \
+  example/ScrapbookUI/ASSETS.LRP
+```
+
+The PowerShell twin accepts the same positional arguments.
 
 ## Floppy workflow
 

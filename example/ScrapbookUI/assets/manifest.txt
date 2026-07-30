@@ -1,0 +1,16 @@
+# One page per bag: a page flip reads exactly one independently verifiable bag.
+# Derived id-space stamp: 1585384077 (also scrapbook::kIdSpaceStamp).
+bag page-1
+asset 1001 image SCRAPBOOK_PAGE_1 page1.pict
+
+bag page-2
+asset 1002 image SCRAPBOOK_PAGE_2 page2.pict
+
+bag page-3
+asset 1003 image SCRAPBOOK_PAGE_3 page3.pict
+
+bag page-4
+asset 1004 image SCRAPBOOK_PAGE_4 page4.pict
+
+bag page-5
+asset 1005 string SCRAPBOOK_PAGE_5_TEXT page5.txt

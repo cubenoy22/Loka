@@ -1,6 +1,9 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [string]$MacBinaryPath
+    [string]$MacBinaryPath,
+
+    [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
+    [string[]]$PlainDataPaths = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,6 +70,11 @@ if (-not $env:MAME_HDA -or -not (Test-Path -LiteralPath $env:MAME_HDA)) {
 }
 
 $resolvedMacBinary = (Resolve-Path -LiteralPath $MacBinaryPath).Path
+$resolvedPlainData = @(
+    foreach ($path in $PlainDataPaths) {
+        (Resolve-Path -LiteralPath $path).Path
+    }
+)
 $mameHome = if ($env:MAME_HOMEPATH) { $env:MAME_HOMEPATH } else {
     Join-Path $HOME ".mame"
 }
@@ -93,6 +101,10 @@ try {
     if ($LASTEXITCODE) { throw "hformat failed with exit code $LASTEXITCODE" }
     & $hcopy -m $resolvedMacBinary ":"
     if ($LASTEXITCODE) { throw "hcopy failed with exit code $LASTEXITCODE" }
+    foreach ($path in $resolvedPlainData) {
+        & $hcopy -r $path ":"
+        if ($LASTEXITCODE) { throw "hcopy failed with exit code $LASTEXITCODE" }
+    }
     & $humount
     if ($LASTEXITCODE) { throw "humount failed with exit code $LASTEXITCODE" }
     Move-Item -LiteralPath $temporaryDisk -Destination $developmentDisk -Force
