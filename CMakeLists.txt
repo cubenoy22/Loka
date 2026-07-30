@@ -207,6 +207,11 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       WORKING_DIRECTORY "${_loka_test_work_dir}")
   endfunction()
 
+  if(NOT WIN32)
+    add_test(NAME scriptMameDebugReap
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugReapTest.sh)
+  endif()
+
   # The registries are configure inputs: editing a LOKA_TEST line must
   # regenerate CTestTestfile.cmake, not just rebuild the runner binaries.
   set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
