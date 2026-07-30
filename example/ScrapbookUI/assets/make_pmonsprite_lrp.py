@@ -578,7 +578,9 @@ def pack_assets(lrpc, manifest, package, stamp_path):
                 printed_stamp, written_stamp
             )
         )
-    stamp_path.write_text(printed_stamp + "\n", encoding="ascii")
+    # lrpc staged and atomically committed that file itself; rewriting the
+    # same bytes here could only make things worse (a failed rewrite leaves a
+    # truncated stamp beside a good package).
     return printed_stamp
 
 
@@ -673,6 +675,12 @@ def main():
     stamp_path = output_dir / "stamp.txt"
     write_manifest(manifest, arguments.depth)
     stamp = pack_assets(arguments.lrpc, manifest, package, stamp_path)
+    # The build step reads these instead of hardcoding the values, so a
+    # changed sprite roster cannot leave the app compiled against a package
+    # its open() checks are guaranteed to reject.
+    (output_dir / "page-count.txt").write_text(
+        "{}\n".format(SPRITE_COUNT), encoding="ascii"
+    )
 
     if arguments.check:
         other_depth = 256 if arguments.depth == 1 else 1

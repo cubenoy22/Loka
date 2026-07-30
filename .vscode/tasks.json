@@ -530,10 +530,19 @@
       "label": "Prepare SCSI Dev Disk: HelloWorld",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.bin"
+        ]
       },
       "problemMatcher": []
     },
@@ -541,10 +550,19 @@
       "label": "Prepare SCSI Dev Disk: MineSweeper",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.bin"
+        ]
       },
       "problemMatcher": []
     },
@@ -552,10 +570,19 @@
       "label": "Prepare SCSI Dev Disk: SimpleViewer",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.bin"
+        ]
       },
       "problemMatcher": []
     },
@@ -563,10 +590,19 @@
       "label": "Prepare SCSI Dev Disk: FloppyBird",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.bin"
+        ]
       },
       "problemMatcher": []
     },
@@ -574,10 +610,19 @@
       "label": "Prepare SCSI Dev Disk: Tutorial",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.bin"
+        ]
       },
       "problemMatcher": []
     },
@@ -591,7 +636,15 @@
       ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-dev-disk.ps1", "build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin", "build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-dev-disk.ps1",
+          "build/retro68/68k/Release/example/ScrapbookUI/ScrapbookUI68K.bin",
+          "build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"
+        ]
       },
       "problemMatcher": []
     },
@@ -601,7 +654,13 @@
       "command": "${workspaceFolder}/scripts/mame-run.sh",
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-run.ps1"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-run.ps1"
+        ]
       },
       "presentation": {
         "reveal": "always",
@@ -614,10 +673,19 @@
       "label": "MAME: Eject Floppy",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["--eject"],
+      "args": [
+        "--eject"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "eject"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "eject"
+        ]
       },
       "problemMatcher": []
     },
@@ -625,10 +693,19 @@
       "label": "MAME: Mount HelloWorld",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "build/retro68/68k/Release/example/HelloWorld/LokaHello68K.dsk"
+        ]
       },
       "problemMatcher": []
     },
@@ -636,10 +713,19 @@
       "label": "MAME: Mount MineSweeper",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "build/retro68/68k/Release/example/MineSweeper/LokaMine68K.dsk"
+        ]
       },
       "problemMatcher": []
     },
@@ -647,10 +733,19 @@
       "label": "MAME: Mount SimpleViewer",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "build/retro68/68k/Release/example/SimpleViewer/LokaSimpleViewer68K.dsk"
+        ]
       },
       "problemMatcher": []
     },
@@ -658,10 +753,19 @@
       "label": "MAME: Mount FloppyBird",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "build/retro68/68k/Release/example/FloppyBird/LokaFloppyBird68K.dsk"
+        ]
       },
       "problemMatcher": []
     },
@@ -669,76 +773,129 @@
       "label": "MAME: Mount Tutorial",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"],
+      "args": [
+        "${workspaceFolder}/build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "build/retro68/68k/Release/example/Tutorial/LokaTutorial68K.dsk"
+        ]
       },
       "problemMatcher": []
     },
     {
       "label": "Build & Mount in MAME: HelloWorld",
-      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K HelloWorld", "MAME: Mount HelloWorld"],
+      "dependsOn": [
+        "MAME: Eject Floppy",
+        "Build: Retro68 68K HelloWorld",
+        "MAME: Mount HelloWorld"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Mount in MAME: MineSweeper",
-      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K MineSweeper", "MAME: Mount MineSweeper"],
+      "dependsOn": [
+        "MAME: Eject Floppy",
+        "Build: Retro68 68K MineSweeper",
+        "MAME: Mount MineSweeper"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Mount in MAME: SimpleViewer",
-      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K SimpleViewer", "MAME: Mount SimpleViewer"],
+      "dependsOn": [
+        "MAME: Eject Floppy",
+        "Build: Retro68 68K SimpleViewer",
+        "MAME: Mount SimpleViewer"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Mount in MAME: FloppyBird",
-      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K FloppyBird", "MAME: Mount FloppyBird"],
+      "dependsOn": [
+        "MAME: Eject Floppy",
+        "Build: Retro68 68K FloppyBird",
+        "MAME: Mount FloppyBird"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Mount in MAME: Tutorial",
-      "dependsOn": ["MAME: Eject Floppy", "Build: Retro68 68K Tutorial", "MAME: Mount Tutorial"],
+      "dependsOn": [
+        "MAME: Eject Floppy",
+        "Build: Retro68 68K Tutorial",
+        "MAME: Mount Tutorial"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Start in MAME via SCSI: HelloWorld",
-      "dependsOn": ["Build: Retro68 68K HelloWorld", "Prepare SCSI Dev Disk: HelloWorld", "MAME: Start"],
+      "dependsOn": [
+        "Build: Retro68 68K HelloWorld",
+        "Prepare SCSI Dev Disk: HelloWorld",
+        "MAME: Start"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Start in MAME via SCSI: MineSweeper",
-      "dependsOn": ["Build: Retro68 68K MineSweeper", "Prepare SCSI Dev Disk: MineSweeper", "MAME: Start"],
+      "dependsOn": [
+        "Build: Retro68 68K MineSweeper",
+        "Prepare SCSI Dev Disk: MineSweeper",
+        "MAME: Start"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Start in MAME via SCSI: SimpleViewer",
-      "dependsOn": ["Build: Retro68 68K SimpleViewer", "Prepare SCSI Dev Disk: SimpleViewer", "MAME: Start"],
+      "dependsOn": [
+        "Build: Retro68 68K SimpleViewer",
+        "Prepare SCSI Dev Disk: SimpleViewer",
+        "MAME: Start"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Start in MAME via SCSI: FloppyBird",
-      "dependsOn": ["Build: Retro68 68K FloppyBird", "Prepare SCSI Dev Disk: FloppyBird", "MAME: Start"],
+      "dependsOn": [
+        "Build: Retro68 68K FloppyBird",
+        "Prepare SCSI Dev Disk: FloppyBird",
+        "MAME: Start"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Start in MAME via SCSI: Tutorial",
-      "dependsOn": ["Build: Retro68 68K Tutorial", "Prepare SCSI Dev Disk: Tutorial", "MAME: Start"],
+      "dependsOn": [
+        "Build: Retro68 68K Tutorial",
+        "Prepare SCSI Dev Disk: Tutorial",
+        "MAME: Start"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
       "label": "Build & Start in MAME via SCSI: ScrapbookUI",
-      "dependsOn": ["Build: Retro68 68K ScrapbookUI", "Prepare SCSI Dev Disk: ScrapbookUI", "MAME: Start"],
+      "dependsOn": [
+        "Build: Retro68 68K ScrapbookUI",
+        "Prepare SCSI Dev Disk: ScrapbookUI",
+        "MAME: Start"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
@@ -753,35 +910,38 @@
       "label": "PMonSprite: Generate LRP",
       "type": "shell",
       "command": "python3",
-      "args": ["example/ScrapbookUI/assets/make_pmonsprite_lrp.py"],
-      "dependsOn": ["Build: Host lrpc"],
+      "args": [
+        "example/ScrapbookUI/assets/make_pmonsprite_lrp.py"
+      ],
+      "dependsOn": [
+        "Build: Host lrpc"
+      ],
       "detail": "Downloads sprites when missing; output stays under build/pmonsprite-lrp (never committed)",
       "problemMatcher": []
     },
     {
-      "label": "PMonSprite: Configure ScrapbookUI (12 pages)",
+      "label": "PMonSprite: Configure ScrapbookUI",
+      "type": "shell",
+      "command": "cmake -S . -B build/retro68-pmon -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake -DRETRO68_CPU=m68k -DLOKA_WARNINGS_AS_ERRORS=ON -DLOKA_SCRAPBOOK_PAGE_COUNT=$(cat build/pmonsprite-lrp/page-count.txt) -DLOKA_SCRAPBOOK_ID_SPACE_STAMP=$(cat build/pmonsprite-lrp/stamp.txt)",
+      "detail": "Page count and stamp come from the generated package metadata, not hardcoded values",
+      "problemMatcher": "$gcc",
+      "dependsOn": [
+        "PMonSprite: Generate LRP"
+      ]
+    },
+    {
+      "label": "PMonSprite: Build ScrapbookUI",
       "type": "shell",
       "command": "cmake",
       "args": [
-        "-S", ".",
-        "-B", "build/retro68-pmon",
-        "-G", "Ninja",
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake",
-        "-DRETRO68_CPU=m68k",
-        "-DLOKA_WARNINGS_AS_ERRORS=ON",
-        "-DLOKA_SCRAPBOOK_PAGE_COUNT=12",
-        "-DLOKA_SCRAPBOOK_ID_SPACE_STAMP=766016484"
+        "--build",
+        "build/retro68-pmon",
+        "--target",
+        "ScrapbookUI68K_APPL"
       ],
-      "detail": "Stamp must match build/pmonsprite-lrp/stamp.txt (constant while the script's id table is unchanged)",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "PMonSprite: Build ScrapbookUI (12 pages)",
-      "type": "shell",
-      "command": "cmake",
-      "args": ["--build", "build/retro68-pmon", "--target", "ScrapbookUI68K_APPL"],
-      "dependsOn": ["PMonSprite: Configure ScrapbookUI (12 pages)"],
+      "dependsOn": [
+        "PMonSprite: Configure ScrapbookUI"
+      ],
       "group": "build",
       "problemMatcher": "$gcc"
     },
@@ -797,7 +957,12 @@
     },
     {
       "label": "PMonSprite: Build & Start in MAME via SCSI",
-      "dependsOn": ["PMonSprite: Generate LRP", "PMonSprite: Build ScrapbookUI (12 pages)", "PMonSprite: Prepare SCSI Dev Disk", "MAME: Start"],
+      "dependsOn": [
+        "PMonSprite: Generate LRP",
+        "PMonSprite: Build ScrapbookUI",
+        "PMonSprite: Prepare SCSI Dev Disk",
+        "MAME: Start"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
@@ -805,10 +970,19 @@
       "label": "MAME: Mount .dsk (pick app)",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
-      "args": ["${workspaceFolder}/${input:retro68DskPath}"],
+      "args": [
+        "${workspaceFolder}/${input:retro68DskPath}"
+      ],
       "windows": {
         "command": "powershell.exe",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/mame-mount.ps1", "${input:retro68DskPath}"]
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "scripts/mame-mount.ps1",
+          "${input:retro68DskPath}"
+        ]
       },
       "problemMatcher": []
     }
