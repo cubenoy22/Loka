@@ -123,18 +123,18 @@ namespace scrapbook
       return false;
     }
 
-    const bool imagePage = page < 4;
-    const loka::core::resource::lrpk::AssetKind expectedKind =
-        imagePage ? loka::core::resource::lrpk::ASSET_KIND_IMAGE : loka::core::resource::lrpk::ASSET_KIND_STRING;
-    if (asset.kind != expectedKind)
+    if (asset.kind != loka::core::resource::lrpk::ASSET_KIND_IMAGE
+        && asset.kind != loka::core::resource::lrpk::ASSET_KIND_STRING)
     {
       return false;
     }
+    const bool imagePage = asset.kind == loka::core::resource::lrpk::ASSET_KIND_IMAGE;
 
     PagePresentation next;
     next.bag = asset.bag;
     next.bagBlob = blob;
-    next.caption = loka::core::String::FromInt(page + 1) + loka::core::String::Literal(" / 5");
+    next.caption = loka::core::String::FromInt(page + 1) + loka::core::String::Literal(" / ")
+                   + loka::core::String::FromInt(static_cast<int>(kPageCount));
     next.badge = loka::core::String::Literal(imagePage ? "PICT" : "TEXT");
     next.isImage = imagePage;
 

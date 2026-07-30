@@ -743,6 +743,65 @@
       "problemMatcher": []
     },
     {
+      "label": "Build: Host lrpc",
+      "type": "shell",
+      "command": "cmake -S tools/lrpc -B build/host/lrpc -DCMAKE_BUILD_TYPE=Release && cmake --build build/host/lrpc",
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "PMonSprite: Generate LRP",
+      "type": "shell",
+      "command": "python3",
+      "args": ["example/ScrapbookUI/assets/make_pmonsprite_lrp.py"],
+      "dependsOn": ["Build: Host lrpc"],
+      "detail": "Downloads sprites when missing; output stays under build/pmonsprite-lrp (never committed)",
+      "problemMatcher": []
+    },
+    {
+      "label": "PMonSprite: Configure ScrapbookUI (12 pages)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "-S", ".",
+        "-B", "build/retro68-pmon",
+        "-G", "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/Retro68.cmake",
+        "-DRETRO68_CPU=m68k",
+        "-DLOKA_WARNINGS_AS_ERRORS=ON",
+        "-DLOKA_SCRAPBOOK_PAGE_COUNT=12",
+        "-DLOKA_SCRAPBOOK_ID_SPACE_STAMP=766016484"
+      ],
+      "detail": "Stamp must match build/pmonsprite-lrp/stamp.txt (constant while the script's id table is unchanged)",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "PMonSprite: Build ScrapbookUI (12 pages)",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "build/retro68-pmon", "--target", "ScrapbookUI68K_APPL"],
+      "dependsOn": ["PMonSprite: Configure ScrapbookUI (12 pages)"],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
+      "label": "PMonSprite: Prepare SCSI Dev Disk",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/mame-dev-disk.sh",
+      "args": [
+        "${workspaceFolder}/build/retro68-pmon/example/ScrapbookUI/ScrapbookUI68K.bin",
+        "${workspaceFolder}/build/pmonsprite-lrp/ASSETS.LRP"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "PMonSprite: Build & Start in MAME via SCSI",
+      "dependsOn": ["PMonSprite: Generate LRP", "PMonSprite: Build ScrapbookUI (12 pages)", "PMonSprite: Prepare SCSI Dev Disk", "MAME: Start"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
       "label": "MAME: Mount .dsk (pick app)",
       "type": "shell",
       "command": "${workspaceFolder}/scripts/mame-mount.sh",
