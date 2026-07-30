@@ -139,6 +139,22 @@ under `:macadb:KEY*` and `:macadb:MOUSE*`. Direct field control is especially
 useful for Command-key combinations that the natural-keyboard coded-text API
 does not express.
 
+Three Lua behaviors cost real time to rediscover:
+
+- Device enumerators such as `manager.machine.screens` are not plain tables;
+  generic iteration with `next()` fails on them. Index by tag
+  (`manager.machine.screens[":screen"]`) instead.
+- An error thrown inside the autoboot script does not stop MAME. A headless
+  run then sits forever with nothing on the console. Wrap the scenario body
+  in `pcall` and call `manager.machine:exit()` on both the success and the
+  failure path, so a broken scenario terminates and reports instead of
+  hanging the harness.
+- Relative mouse deltas pass through the Mac's pointer-tracking curve, which
+  is non-linear, so a computed delta does not land the pointer at a
+  predictable position. Treat mouse positioning as approximate: aim at large
+  targets and confirm the hit from snapshot pixels, or prefer the keyboard
+  paths above.
+
 Finder name selection plus an emulated `Command+O` is more repeatable than
 host-coordinate mouse automation for opening `LokaDev` and its application.
 Once the app is running, prefer input through the real Toolbox event path. If
@@ -287,6 +303,13 @@ implements a software breakpoint as an emulator-side check rather than by
 writing a trap instruction into memory, so one planted before the application
 is loaded survives its CODE resources being read in over that address.
 
+Place breakpoints by symbol, not by file:line. Support-library objects link
+DWARF 5 compilation units in beside the application's DWARF 4 ones, and
+resolving a file:line location walks the mixed line tables and killed
+gdb-multiarch in practice. Symbol breakpoints (`break App::idlePolicy`) do
+not consult the line table and are unaffected; `list` and source display
+still work once stopped.
+
 ### 5. One gdb session per MAME run
 
 The stub does not accept a second connection; a reconnect fails with
@@ -362,6 +385,25 @@ first stop. Set `LOKA_BREAK` to choose a different one. Then `continue`: after
 the first stop, further breakpoints, `bt`, `info args`, and `list` behave as
 usual.
 
+**4. Batch sessions without a human at the prompt**
+
+Two optional environment variables extend the launcher for scripted use:
+
+- `LOKA_DEV_DATA` — space-separated plain data files copied onto the
+  development disk beside the application, the same contract as
+  `mame-dev-disk.sh`'s trailing arguments. A data-driven application such as
+  ScrapbookUI refuses at startup without its `ASSETS.LRP`, before ever
+  reaching the code under debug.
+- `LOKA_GDB_SCRIPT` — a second gdb command file executed after the attach
+  script, so an unattended session can plant its own breakpoints, log what it
+  needs, and quit.
+
+```sh
+LOKA_DEV_DATA=example/ScrapbookUI/ASSETS.LRP \
+LOKA_GDB_SCRIPT=build/mame-debug/trace.gdb \
+  ./scripts/mame-debug.sh attach "$APPL" 4feffefc 48e71e30 00029372 0x0070e2a4
+```
+
 Two phases rather than one because gdb needs the base before it can place a
 breakpoint by symbol, and the base is only discoverable once the application
 has been loaded — which cannot happen while gdb is holding the machine at
@@ -396,7 +438,10 @@ different jobs; expecting the second to provide the first will disappoint.
 - `-Os` leaves no frame pointer, so unwinding past the platform entry point
   produces a bogus outermost frame. The application frames are correct.
 - A5-relative globals are not covered by this; only code addresses are
-  relocated by the offset above.
+  relocated by the offset above. Reading such a global through gdb therefore
+  returns the wrong memory. Function arguments and locals are frame-relative
+  and read correctly, so when a global's value has to be observed, break in a
+  function that receives it (or a value derived from it) as an argument.
 - **A wild pointer write does not necessarily bomb.** Writing through an
   unmapped address (`0xDEADBEEE` was tried) on a 68030 machine neither faults nor
   logs; the application keeps running as if nothing happened. The 68030 also

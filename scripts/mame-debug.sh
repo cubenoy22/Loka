@@ -102,7 +102,12 @@ BOOT="$WORK/Boot.hd"
 [ -f "$BOOT" ] || cp -f "$MAME_HDA" "$BOOT"
 
 DEV="$WORK/LokaDev.hd"
-MAME_DEV_HDA="$DEV" "$SCRIPT_DIR/mame-dev-disk.sh" "$APPL" >/dev/null
+# LOKA_DEV_DATA carries plain data files the application reads from beside
+# itself (ScrapbookUI's ASSETS.LRP); without them a data-driven app refuses
+# before reaching the code under debug. Space-separated, same contract as
+# mame-dev-disk.sh's trailing arguments.
+# shellcheck disable=SC2086
+MAME_DEV_HDA="$DEV" "$SCRIPT_DIR/mame-dev-disk.sh" "$APPL" ${LOKA_DEV_DATA:-} >/dev/null
 
 LOG="$WORK/find-base.log"
 rm -f "$LOG"
@@ -158,5 +163,7 @@ ELF="${APPL%.bin}.code.bin.gdb"
 [ -f "$ELF" ] || { echo "no debug ELF beside $APPL (build with the retro68-68k-dwarf preset)" >&2; exit 1; }
 
 echo "attaching gdb; symbols at $BASE" >&2
+# LOKA_GDB_SCRIPT appends a second command file after the attach script, so
+# a scripted (non-interactive) session can plant its own breakpoints and quit.
 LOKA_ELF="$ELF" LOKA_BASE="$BASE" LOKA_GDB_PORT="$PORT" \
-  exec gdb-multiarch -q -x "$SCRIPT_DIR/mame-attach.gdb"
+  exec gdb-multiarch -q -x "$SCRIPT_DIR/mame-attach.gdb" ${LOKA_GDB_SCRIPT:+-x "$LOKA_GDB_SCRIPT"}
