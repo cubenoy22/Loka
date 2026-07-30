@@ -398,6 +398,10 @@ Two optional environment variables extend the launcher for scripted use:
   script, so an unattended session can plant its own breakpoints, log what it
   needs, and quit.
 
+When gdb exits — from a scripted quit or an interactive one — the launcher
+terminates the MAME it started. The stub refuses reconnects, so a leftover
+emulator could only squat on the debug port and break the next run.
+
 ```sh
 LOKA_DEV_DATA=example/ScrapbookUI/ASSETS.LRP \
 LOKA_GDB_SCRIPT=build/mame-debug/trace.gdb \

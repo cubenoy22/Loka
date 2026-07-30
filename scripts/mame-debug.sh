@@ -144,6 +144,13 @@ fi
 
 ARGS+=(-debug -debugger gdbstub -debugger_port "$PORT")
 "$MAME_EXECUTABLE" "${ARGS[@]}" >"$WORK/mame.out" 2>&1 &
+MAME_PID=$!
+# The stub refuses a second connection (#182), so a MAME that outlives its
+# gdb session can only squat on the debug port and break the next run. Reap
+# it on every exit path: a scripted quit, an interactive quit, and the
+# missing-ELF bail-out below.
+cleanup() { kill "$MAME_PID" 2>/dev/null || true; wait "$MAME_PID" 2>/dev/null || true; }
+trap cleanup EXIT
 
 # Wait for the listener by reading socket state. Opening a connection here
 # would consume the stub's single slot; attaching before it is up fails with
@@ -165,5 +172,6 @@ ELF="${APPL%.bin}.code.bin.gdb"
 echo "attaching gdb; symbols at $BASE" >&2
 # LOKA_GDB_SCRIPT appends a second command file after the attach script, so
 # a scripted (non-interactive) session can plant its own breakpoints and quit.
+# Not exec: this shell must survive gdb to reap the emulator it started.
 LOKA_ELF="$ELF" LOKA_BASE="$BASE" LOKA_GDB_PORT="$PORT" \
-  exec gdb-multiarch -q -x "$SCRIPT_DIR/mame-attach.gdb" ${LOKA_GDB_SCRIPT:+-x "$LOKA_GDB_SCRIPT"}
+  gdb-multiarch -q -x "$SCRIPT_DIR/mame-attach.gdb" ${LOKA_GDB_SCRIPT:+-x "$LOKA_GDB_SCRIPT"}
