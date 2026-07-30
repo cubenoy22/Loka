@@ -102,7 +102,18 @@ BOOT="$WORK/Boot.hd"
 [ -f "$BOOT" ] || cp -f "$MAME_HDA" "$BOOT"
 
 DEV="$WORK/LokaDev.hd"
-MAME_DEV_HDA="$DEV" "$SCRIPT_DIR/mame-dev-disk.sh" "$APPL" >/dev/null
+# LOKA_DEV_DATA carries one plain data file per non-empty line. Each path
+# reaches mame-dev-disk.sh as its own argument even with spaces or glob
+# characters. Data-driven apps read these files from beside themselves
+# (ScrapbookUI's ASSETS.LRP) and refuse before the code under debug without them.
+DEV_DATA=()
+if [ -n "${LOKA_DEV_DATA:-}" ]; then
+  while IFS= read -r f; do
+    [ -n "$f" ] && DEV_DATA+=("$f")
+  done <<< "$LOKA_DEV_DATA"
+fi
+MAME_DEV_HDA="$DEV" "$SCRIPT_DIR/mame-dev-disk.sh" "$APPL" \
+  ${DEV_DATA[@]+"${DEV_DATA[@]}"} >/dev/null
 
 LOG="$WORK/find-base.log"
 rm -f "$LOG"
@@ -139,6 +150,13 @@ fi
 
 ARGS+=(-debug -debugger gdbstub -debugger_port "$PORT")
 "$MAME_EXECUTABLE" "${ARGS[@]}" >"$WORK/mame.out" 2>&1 &
+MAME_PID=$!
+# The stub refuses a second connection (#182), so a MAME that outlives its
+# gdb session can only squat on the debug port and break the next run. Reap
+# it on every exit path: a scripted quit, an interactive quit, and the
+# missing-ELF bail-out below.
+cleanup() { kill "$MAME_PID" 2>/dev/null || true; wait "$MAME_PID" 2>/dev/null || true; }
+trap cleanup EXIT
 
 # Wait for the listener by reading socket state. Opening a connection here
 # would consume the stub's single slot; attaching before it is up fails with
@@ -158,5 +176,8 @@ ELF="${APPL%.bin}.code.bin.gdb"
 [ -f "$ELF" ] || { echo "no debug ELF beside $APPL (build with the retro68-68k-dwarf preset)" >&2; exit 1; }
 
 echo "attaching gdb; symbols at $BASE" >&2
+# LOKA_GDB_SCRIPT appends a second command file after the attach script, so
+# a scripted (non-interactive) session can plant its own breakpoints and quit.
+# Not exec: this shell must survive gdb to reap the emulator it started.
 LOKA_ELF="$ELF" LOKA_BASE="$BASE" LOKA_GDB_PORT="$PORT" \
-  exec gdb-multiarch -q -x "$SCRIPT_DIR/mame-attach.gdb"
+  gdb-multiarch -q -x "$SCRIPT_DIR/mame-attach.gdb" ${LOKA_GDB_SCRIPT:+-x "$LOKA_GDB_SCRIPT"}
