@@ -59,6 +59,14 @@ def build_picture(number, label, pattern):
         ),
     )
 
+    # An initial clip is not optional decoration: DrawPicture maps the
+    # playback clip to the destination, and without a clip opcode the wide-open
+    # default overflows 16-bit coordinates as soon as the picture is drawn
+    # scaled, clipping every op to nothing. OpenPicture-recorded pictures get
+    # this opcode from the recording port; a generated stream must carry it
+    # itself. Region data: 2-byte region size (10) + bounding rect.
+    operations += padded_op(0x0001, word(10) + rect(FRAME))  # Clip
+
     operations += padded_op(0x000A, pattern)  # FillPat
     operations += padded_op(0x0034, rect((5, 5, 145, 195)))  # FillRect
     operations += padded_op(0x0030, rect(FRAME))  # FrameRect
