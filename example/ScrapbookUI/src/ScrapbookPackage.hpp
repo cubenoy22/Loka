@@ -15,31 +15,23 @@ namespace scrapbook
 {
   typedef loka::core::resource::lrpk::U32 AssetId;
 
+#if defined(LOKA_SCRAPBOOK_PAGE_COUNT)
+  const std::size_t kPageCount = LOKA_SCRAPBOOK_PAGE_COUNT;
+#else
   const std::size_t kPageCount = 5;
-  const AssetId kPageOneAssetId = 1001UL;
-  const AssetId kPageTwoAssetId = 1002UL;
-  const AssetId kPageThreeAssetId = 1003UL;
-  const AssetId kPageFourAssetId = 1004UL;
-  const AssetId kPageTextAssetId = 1005UL;
+#endif
+
+  const AssetId kFirstPageAssetId = 1001UL;
+
+#if defined(LOKA_SCRAPBOOK_ID_SPACE_STAMP)
+  const AssetId kIdSpaceStamp = LOKA_SCRAPBOOK_ID_SPACE_STAMP;
+#else
   const AssetId kIdSpaceStamp = 1585384077UL;
+#endif
 
   inline AssetId PageAssetId(std::size_t page)
   {
-    switch (page)
-    {
-    case 0:
-      return kPageOneAssetId;
-    case 1:
-      return kPageTwoAssetId;
-    case 2:
-      return kPageThreeAssetId;
-    case 3:
-      return kPageFourAssetId;
-    case 4:
-      return kPageTextAssetId;
-    default:
-      return 0;
-    }
+    return kFirstPageAssetId + static_cast<AssetId>(page);
   }
 
   /** A page that has been fully read and decoded but not yet installed as the
