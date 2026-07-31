@@ -169,6 +169,9 @@ fi
 if [ -n "${LOKA_SETTLE_WAIT:-}" ]; then
   FORWARD="$FORWARD:LOKA_SETTLE_WAIT"
 fi
+if [ -n "${LOKA_TAB_COUNT:-}" ]; then
+  FORWARD="$FORWARD:LOKA_TAB_COUNT"
+fi
 # WSL hands nothing to a Windows process unless it is named here.
 export WSLENV="${WSLENV:+$WSLENV:}$FORWARD"
 
