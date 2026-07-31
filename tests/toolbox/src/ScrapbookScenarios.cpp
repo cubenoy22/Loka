@@ -13,7 +13,13 @@ namespace loka
       const char *kOpenFirstPageRefused = "open-first-page-refused";
       const char *kFlipForwardBack = "flip-forward-back";
       const char *kRefusedFlipKeepsPage = "refused-flip-keeps-page";
+      const char *kOpenTextPage = "open-text-page";
       const long kStepSpacingTicks = 30;
+
+      // The exact bytes of Assets/page5.txt as lrpc packed them, trailing
+      // newline included. Matching against this pins that the on-screen text
+      // is the package's string asset, not a literal that happens to agree.
+      const char *kPage5Text = "The Scrapbook keeps each page in its own LRPK bag.\n";
 
       dsl::SnapRecord MakeBaseRecord(const char *scenario, long tick)
       {
@@ -94,6 +100,10 @@ namespace loka
       {
         this->kind_ = KIND_REFUSED_FLIP_KEEPS_PAGE;
       }
+      else if (name == kOpenTextPage)
+      {
+        this->kind_ = KIND_OPEN_TEXT_PAGE;
+      }
     }
 
     bool
@@ -111,6 +121,8 @@ namespace loka
         return this->runFlipForwardBack(tick, mainNode, bounds, out);
       case KIND_REFUSED_FLIP_KEEPS_PAGE:
         return this->runRefusedFlipKeepsPage(tick, mainNode, bounds, out);
+      case KIND_OPEN_TEXT_PAGE:
+        return this->runOpenTextPage(tick, mainNode, bounds, out);
       }
       return false;
     }
@@ -266,10 +278,46 @@ namespace loka
       return true;
     }
 
+    bool ScrapbookScenario::runOpenTextPage(long tick,
+                                            scrapbook::MainNode &mainNode,
+                                            const ContentBounds &bounds,
+                                            dsl::SnapRecord &out)
+    {
+      if (this->stage_ == 0)
+      {
+        this->step1_ = observePage(mainNode);
+        mainNode.selectPage(4);
+        this->stage_ = 1;
+        return false;
+      }
+      if (tick < 1 + kStepSpacingTicks)
+      {
+        return false;
+      }
+
+      const PageObservation textPage = observePage(mainNode);
+      std::string text;
+      const bool textAvailable = platform::CollectUtf8(mainNode.displayedPageText(), text);
+      const bool textMatches = textAvailable && text == kPage5Text;
+      out = MakeBaseRecord(this->name_.c_str(), tick);
+      setPageObservation(out, "step1_page", "step1_caption", this->step1_);
+      setPageObservation(out, "text_page", "text_caption", textPage);
+      // The text itself holds a newline, which a snap value cannot carry;
+      // record the comparison verdict and the observed length instead.
+      SetBool(out, "text_matches_package_asset", textMatches);
+      out.setInt("text_length", textAvailable ? static_cast<long>(text.size()) : -1);
+      SetContentBounds(out, bounds);
+      const bool ok = bounds.available && this->step1_.published && this->step1_.page == 0
+                      && this->step1_.caption == "1 / 5" && textPage.published && textPage.page == 4
+                      && textPage.caption == "5 / 5" && textMatches;
+      SetVerdict(out, ok);
+      return true;
+    }
+
     bool IsRegisteredScenario(const std::string &name)
     {
       return name == kOpenFirstPage || name == kOpenFirstPageRefused || name == kFlipForwardBack
-             || name == kRefusedFlipKeepsPage;
+             || name == kRefusedFlipKeepsPage || name == kOpenTextPage;
     }
 
     dsl::SnapRecord MakeDriverErrorRecord(const char *scenario, long errorCode, const char *message)

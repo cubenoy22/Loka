@@ -49,7 +49,8 @@ namespace loka
         KIND_OPEN_FIRST_PAGE,
         KIND_OPEN_FIRST_PAGE_REFUSED,
         KIND_FLIP_FORWARD_BACK,
-        KIND_REFUSED_FLIP_KEEPS_PAGE
+        KIND_REFUSED_FLIP_KEEPS_PAGE,
+        KIND_OPEN_TEXT_PAGE
       };
 
       struct PageObservation
@@ -78,6 +79,8 @@ namespace loka
                                    scrapbook::MainNode &mainNode,
                                    const ContentBounds &bounds,
                                    dsl::SnapRecord &out);
+      bool
+      runOpenTextPage(long tick, scrapbook::MainNode &mainNode, const ContentBounds &bounds, dsl::SnapRecord &out);
       static PageObservation observePage(const scrapbook::MainNode &mainNode);
       static void setPageObservation(dsl::SnapRecord &record,
                                      const char *pageKey,

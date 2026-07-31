@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 usage() {
-  echo "Usage: $0 <open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page> [--update-golden]" >&2
+  echo "Usage: $0 <open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page> [--update-golden]" >&2
 }
 
 fail_stage() {
@@ -25,7 +25,7 @@ fi
 SCENARIO="$1"
 UPDATE_GOLDEN=0
 case "$SCENARIO" in
-  open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page)
+  open-first-page|open-first-page-refused|flip-forward-back|refused-flip-keeps-page|open-text-page)
     ;;
   *)
     usage
