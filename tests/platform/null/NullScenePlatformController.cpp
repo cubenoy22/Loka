@@ -4,8 +4,46 @@
 #include "platform/null/context/NullEditTextContext.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
 
+class NullScenePlatformController::LayoutTraversal
+    : public loka::app::scene::IPlatformLayoutTraversal
+{
+public:
+  explicit LayoutTraversal(NullScenePlatformController *controller)
+      : controller_(controller),
+        resultY_(0)
+  {
+  }
+
+  virtual int layoutChild(loka::app::scene::Node *child,
+                          const loka::app::scene::LayoutState &state)
+  {
+    if (!this->controller_)
+    {
+      return state.y;
+    }
+    const int result = this->controller_->layoutNode(child, state);
+    this->resultY_ = static_cast<short>(result);
+    return result;
+  }
+
+  virtual void setLayoutResultY(short y)
+  {
+    this->resultY_ = y;
+  }
+
+  virtual short layoutResultY() const
+  {
+    return this->resultY_;
+  }
+
+private:
+  NullScenePlatformController *controller_;
+  short resultY_;
+};
+
 NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap)
-    : nodeHandlers_(),
+    : layoutHandlers_(),
+      nodeHandlers_(),
       rootNode_(0),
       ledger_(),
       retired_(),
@@ -57,7 +95,11 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
     this->skipNextProjection_ = false;
     return;
   }
-  this->projectNode(rootNode);
+  loka::app::scene::LayoutState state;
+  state.width = 100;
+  state.height = 20;
+  state.lineHeight = 20;
+  this->layoutNode(rootNode, state);
 }
 
 void NullScenePlatformController::synchronize()
@@ -108,6 +150,13 @@ bool NullScenePlatformController::prepareProjectedLayout(loka::app::scene::Node 
 bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
   return this->nodeHandlers_.registerHandler(handler);
+}
+
+int NullScenePlatformController::projectLayoutForTesting(
+    loka::app::scene::Node *node,
+    const loka::app::scene::LayoutState &state)
+{
+  return this->layoutNode(node, state);
 }
 
 const std::vector<NullScenePlatformController::LedgerRow> &NullScenePlatformController::ledger() const
@@ -311,33 +360,37 @@ NullScenePlatformController::findLedgerRow(FakeControlHandle *handle)
   return 0;
 }
 
-void NullScenePlatformController::projectNode(loka::app::scene::Node *node)
+int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
+                                            const loka::app::scene::LayoutState &state)
 {
   if (!node)
   {
-    return;
+    return state.y;
   }
-  loka::app::scene::LayoutState state;
-  state.x = 0;
-  state.y = 0;
-  state.width = 100;
-  state.height = 20;
-  state.lineHeight = 20;
-  state.spacing = 0;
-  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlers_.find(node);
-  if (handler)
+
+  loka::app::scene::IPlatformLayoutHandler *layoutHandler = this->layoutHandlers_.find(node);
+  if (layoutHandler)
   {
-    handler->ensureContext(node, this, state);
+    LayoutTraversal traversal(this);
+    return layoutHandler->layoutNode(node, state, &traversal);
   }
+
+  if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
+  {
+    loka::app::scene::LayoutState projectedState = state;
+    return projected->layoutProjected(this, projectedState);
+  }
+
   loka::app::scene::INestable *nestable = node->asNestable();
   if (!nestable)
   {
-    return;
+    return state.y;
   }
   for (loka::app::scene::Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
   {
-    this->projectNode(child);
+    this->layoutNode(child, state);
   }
+  return state.y;
 }
 
 void NullScenePlatformController::flushRetired()

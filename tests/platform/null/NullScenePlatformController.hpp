@@ -6,6 +6,7 @@
 
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "app/scene/projection/PlatformController.hpp"
+#include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 
 class NullButtonContext;
@@ -127,6 +128,11 @@ public:
                                       loka::app::scene::LayoutState &state);
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
 
+  /** Runs the same deterministic projection traversal as onChange with
+      caller-supplied bounds so geometry contracts can use fixed fixtures. */
+  int projectLayoutForTesting(loka::app::scene::Node *node,
+                              const loka::app::scene::LayoutState &state);
+
   const std::vector<LedgerRow> &ledger() const;
   const std::vector<FakeControlHandle *> &allHandles() const;
   const std::vector<EventRecord> &eventLog() const;
@@ -148,6 +154,8 @@ public:
   void skipNextProjectionForTesting();
 
 private:
+  class LayoutTraversal;
+
   struct RetiredEntry
   {
     RetiredEntry(FakeControlHandle *nativeHandle,
@@ -191,13 +199,15 @@ private:
   void setVisible(FakeControlHandle *handle, bool visible);
   void observeHint(FakeControlHandle *handle, loka::app::scene::NativeLifetimeHint hint);
   LedgerRow *findLedgerRow(FakeControlHandle *handle);
-  void projectNode(loka::app::scene::Node *node);
+  int layoutNode(loka::app::scene::Node *node,
+                 const loka::app::scene::LayoutState &state);
   void flushRetired();
   void drainBuckets();
   void disposeHandle(FakeControlHandle *handle);
   void appendEvent(EventKind kind, int handleId);
   void recordWindowDisposed();
 
+  loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlers_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlers_;
   loka::app::scene::Node *rootNode_;
   std::vector<LedgerRow> ledger_;

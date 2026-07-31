@@ -1,0 +1,12 @@
+#ifndef LOKA_TESTS_NULL_LAYOUT_TESTS_HPP
+#define LOKA_TESTS_NULL_LAYOUT_TESTS_HPP
+
+void testNullLayoutRowProducesFixedChildGeometry();
+void testNullLayoutColumnProducesFixedChildGeometry();
+void testNullLayoutBoxProducesFixedChildGeometry();
+void testNullLayoutGridProducesFixedChildGeometry();
+void testNullLayoutZStackProducesFixedChildGeometry();
+void testNullLayoutNestedBoxAndRowProduceFixedChildGeometry();
+void testNullLayoutOnChangeUsesRegisteredTraversal();
+
+#endif // LOKA_TESTS_NULL_LAYOUT_TESTS_HPP
