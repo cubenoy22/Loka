@@ -93,3 +93,18 @@ void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords()
   assert(measurementFor(longWordText).width() == 16);
   assert(measurementFor(longWordText).lineCount() == 2);
 }
+
+void testNullTextLayoutUsesFixedAdvancePerCodePoint()
+{
+  const char utf8[] = "\xC3\xA9\xC3\xA9\xC3\xA9";
+  loka::app::TextProps props(loka::core::String::Utf8(utf8, 6));
+  loka::app::TextNode text(props);
+  loka::app::scene::LayoutState state;
+  state.width = 100;
+  NullScenePlatformController platform;
+
+  platform.projectLayoutForTesting(&text, state);
+
+  assert(measurementFor(text).width() == 12);
+  assert(measurementFor(text).lineCount() == 1);
+}

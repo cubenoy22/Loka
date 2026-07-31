@@ -4,5 +4,6 @@
 void testNullTextLayoutWordAndCharacterWrapProduceDifferentGeometry();
 void testNullTextLayoutTruncationModesProduceDifferentWidths();
 void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords();
+void testNullTextLayoutUsesFixedAdvancePerCodePoint();
 
 #endif // LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
