@@ -104,11 +104,17 @@ namespace
     return geometry;
   }
 
-  void PlaceWord(int wordLength, int pendingSpaces, int capacity, int &columns, LineGeometry &geometry)
+  void PlaceWord(int wordLength, int capacity, int &columns, LineGeometry &geometry)
   {
-    if (columns > 0 && columns + pendingSpaces + wordLength <= capacity)
+    if (wordLength <= capacity)
     {
-      columns += pendingSpaces + wordLength;
+      if (columns > 0 && columns + wordLength > capacity)
+      {
+        FinishLine(columns, geometry);
+        ++geometry.lineCount;
+        columns = 0;
+      }
+      columns += wordLength;
       return;
     }
     if (columns > 0)
@@ -135,7 +141,6 @@ namespace
 
     LineGeometry geometry;
     int columns = 0;
-    int pendingSpaces = 0;
     std::size_t index = 0;
     while (index < text.length())
     {
@@ -145,17 +150,19 @@ namespace
         FinishLine(columns, geometry);
         ++geometry.lineCount;
         columns = 0;
-        pendingSpaces = 0;
         SkipLineFeedAfterCarriageReturn(text, index);
         ++index;
         continue;
       }
       if (IsWordSpace(value))
       {
-        if (columns > 0)
+        if (columns == capacity)
         {
-          ++pendingSpaces;
+          FinishLine(columns, geometry);
+          ++geometry.lineCount;
+          columns = 0;
         }
+        ++columns;
         ++index;
         continue;
       }
@@ -171,14 +178,13 @@ namespace
         ++wordLength;
         ++index;
       }
-      PlaceWord(wordLength, pendingSpaces, capacity, columns, geometry);
-      pendingSpaces = 0;
+      PlaceWord(wordLength, capacity, columns, geometry);
     }
     FinishLine(columns, geometry);
     return geometry;
   }
 
-  short ClampToShort(int value)
+  short ClampExtentToShort(int value)
   {
     if (value <= 0)
     {
@@ -189,6 +195,29 @@ namespace
       return SHRT_MAX;
     }
     return static_cast<short>(value);
+  }
+
+  short ClampCoordinateToShort(int value)
+  {
+    if (value < SHRT_MIN)
+    {
+      return SHRT_MIN;
+    }
+    if (value > SHRT_MAX)
+    {
+      return SHRT_MAX;
+    }
+    return static_cast<short>(value);
+  }
+
+  int WrapCapacityForWidth(short width)
+  {
+    if (width <= 0)
+    {
+      return 0;
+    }
+    const int capacity = width / kFixedAdvance;
+    return capacity > 0 ? capacity : 1;
   }
 
   loka::app::TextWrap ResolveWrap(const loka::app::TextNode *node)
@@ -214,11 +243,11 @@ namespace
     const int lineHeight = state.lineHeight > 0 ? state.lineHeight : kDefaultLineHeight;
     if (!node || !node->props.text_)
     {
-      return NullTextMeasurement(0, ClampToShort(lineHeight), 1);
+      return NullTextMeasurement(0, ClampExtentToShort(lineHeight), 1);
     }
 
     const loka::core::StringBuffer text = node->props.text_->get().bufferWithEncoding(loka::core::StringEncodingUtf32);
-    const int capacity = state.width > 0 ? state.width / kFixedAdvance : 0;
+    const int capacity = WrapCapacityForWidth(state.width);
     const loka::app::TextWrap wrap = ResolveWrap(node);
     LineGeometry lines;
     switch (wrap)
@@ -249,7 +278,9 @@ namespace
     }
     const int measuredHeight = lines.lineCount * lineHeight;
     return NullTextMeasurement(
-        ClampToShort(measuredWidth), ClampToShort(measuredHeight), ClampToShort(lines.lineCount));
+        ClampExtentToShort(measuredWidth),
+        ClampExtentToShort(measuredHeight),
+        ClampExtentToShort(lines.lineCount));
   }
 
   class NullTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
@@ -333,7 +364,7 @@ short NullTextContext::layout(loka::app::scene::IPlatformController *, loka::app
 {
   this->measurement_ = MeasureText(this->node_, state);
   state.height = this->measurement_.height();
-  return ClampToShort(state.y + state.height + state.spacing);
+  return ClampCoordinateToShort(state.y + state.height + state.spacing);
 }
 
 const NullTextMeasurement &NullTextContext::measurement() const

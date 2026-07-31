@@ -108,3 +108,59 @@ void testNullTextLayoutUsesFixedAdvancePerCodePoint()
   assert(measurementFor(text).width() == 12);
   assert(measurementFor(text).lineCount() == 1);
 }
+
+void testNullTextLayoutPreservesNegativeStartY()
+{
+  loka::app::TextNode text((loka::app::TextProps("a")));
+  loka::app::scene::LayoutState state;
+  state.y = -20;
+  state.width = 100;
+  state.lineHeight = 10;
+  NullScenePlatformController platform;
+
+  const int resultY = platform.projectLayoutForTesting(&text, state);
+
+  assert(resultY == -10);
+  assert(measurementFor(text).height() == 10);
+}
+
+void testNullTextLayoutWrapsAtPositiveSubGlyphWidth()
+{
+  loka::app::TextProps wordProps("ab");
+  wordProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD));
+  loka::app::TextNode wordText(wordProps);
+  loka::app::TextProps characterProps("ab");
+  characterProps.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_CHAR));
+  loka::app::TextNode characterText(characterProps);
+  loka::app::scene::LayoutState state;
+  state.width = 2;
+  state.lineHeight = 10;
+  NullScenePlatformController platform;
+
+  const int wordResultY = platform.projectLayoutForTesting(&wordText, state);
+  const int characterResultY = platform.projectLayoutForTesting(&characterText, state);
+
+  assert(wordResultY == 20);
+  assert(characterResultY == 20);
+  assert(measurementFor(wordText).width() == 4);
+  assert(measurementFor(characterText).width() == 4);
+  assert(measurementFor(wordText).lineCount() == 2);
+  assert(measurementFor(characterText).lineCount() == 2);
+}
+
+void testNullTextLayoutWordWrapMeasuresStandaloneSpaces()
+{
+  loka::app::TextProps props("    ");
+  props.attr(loka::app::TextAttr().wrap(loka::app::TEXT_WRAP_WORD));
+  loka::app::TextNode text(props);
+  loka::app::scene::LayoutState state;
+  state.width = 8;
+  state.lineHeight = 10;
+  NullScenePlatformController platform;
+
+  const int resultY = platform.projectLayoutForTesting(&text, state);
+
+  assert(resultY == 20);
+  assert(measurementFor(text).width() == 8);
+  assert(measurementFor(text).lineCount() == 2);
+}
