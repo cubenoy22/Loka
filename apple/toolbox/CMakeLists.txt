@@ -10,6 +10,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxApp.cpp
   src/ToolboxByteSource.cpp
   src/ToolboxNativeImage.cpp
+  src/PictParser.cpp
   src/ToolboxProfiler.cpp
   src/debug/ToolboxSceneDebugStats.cpp
   src/context/ToolboxButtonContext.cpp

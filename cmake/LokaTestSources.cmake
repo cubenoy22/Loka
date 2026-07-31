@@ -28,6 +28,8 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PackManifestTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkGoldenBytesTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BlobRangeTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/apple/toolbox/src/PictParser.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/PictParserTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/FlowDslTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/AttrDslTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BoundaryArenaTests.cpp
