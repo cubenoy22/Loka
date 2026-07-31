@@ -50,7 +50,8 @@ namespace loka
         KIND_OPEN_FIRST_PAGE_REFUSED,
         KIND_FLIP_FORWARD_BACK,
         KIND_REFUSED_FLIP_KEEPS_PAGE,
-        KIND_OPEN_TEXT_PAGE
+        KIND_OPEN_TEXT_PAGE,
+        KIND_OPEN_TEXT_PAGE_REFUSED
       };
 
       struct PageObservation

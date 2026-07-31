@@ -14,6 +14,7 @@ namespace loka
       const char *kFlipForwardBack = "flip-forward-back";
       const char *kRefusedFlipKeepsPage = "refused-flip-keeps-page";
       const char *kOpenTextPage = "open-text-page";
+      const char *kOpenTextPageRefused = "open-text-page-refused";
       const long kStepSpacingTicks = 30;
 
       // The exact bytes of Assets/page5.txt as lrpc packed them, trailing
@@ -104,6 +105,10 @@ namespace loka
       {
         this->kind_ = KIND_OPEN_TEXT_PAGE;
       }
+      else if (name == kOpenTextPageRefused)
+      {
+        this->kind_ = KIND_OPEN_TEXT_PAGE_REFUSED;
+      }
     }
 
     bool
@@ -122,6 +127,7 @@ namespace loka
       case KIND_REFUSED_FLIP_KEEPS_PAGE:
         return this->runRefusedFlipKeepsPage(tick, mainNode, bounds, out);
       case KIND_OPEN_TEXT_PAGE:
+      case KIND_OPEN_TEXT_PAGE_REFUSED:
         return this->runOpenTextPage(tick, mainNode, bounds, out);
       }
       return false;
@@ -299,6 +305,8 @@ namespace loka
       std::string text;
       const bool textAvailable = platform::CollectUtf8(mainNode.displayedPageText(), text);
       const bool textMatches = textAvailable && text == kPage5Text;
+      const int refusedPage = mainNode.refusedPage();
+      const bool badgeVisible = mainNode.isRefusedBadgeVisible();
       out = MakeBaseRecord(this->name_.c_str(), tick);
       setPageObservation(out, "step1_page", "step1_caption", this->step1_);
       setPageObservation(out, "text_page", "text_caption", textPage);
@@ -306,10 +314,26 @@ namespace loka
       // record the comparison verdict and the observed length instead.
       SetBool(out, "text_matches_package_asset", textMatches);
       out.setInt("text_length", textAvailable ? static_cast<long>(text.size()) : -1);
+      out.setInt("refused_page", refusedPage);
+      SetBool(out, "badge_visible", badgeVisible);
       SetContentBounds(out, bounds);
-      const bool ok = bounds.available && this->step1_.published && this->step1_.page == 0
-                      && this->step1_.caption == "1 / 5" && textPage.published && textPage.page == 4
-                      && textPage.caption == "5 / 5" && textMatches;
+      bool ok = false;
+      if (this->kind_ == KIND_OPEN_TEXT_PAGE)
+      {
+        ok = bounds.available && this->step1_.published && this->step1_.page == 0
+             && this->step1_.caption == "1 / 5" && textPage.published && textPage.page == 4
+             && textPage.caption == "5 / 5" && textMatches;
+      }
+      else
+      {
+        // The runner corrupted the page-5 bag on disk, so the flip must be
+        // refused and the text must not appear. This is the discrimination
+        // that the accepted text really is the package's bytes: a compiled
+        // literal would have survived the corruption.
+        ok = bounds.available && this->step1_.published && this->step1_.page == 0
+             && this->step1_.caption == "1 / 5" && textPage.published && textPage.page == 0
+             && textPage.caption == "1 / 5" && refusedPage == 4 && badgeVisible && !textMatches;
+      }
       SetVerdict(out, ok);
       return true;
     }
@@ -317,7 +341,7 @@ namespace loka
     bool IsRegisteredScenario(const std::string &name)
     {
       return name == kOpenFirstPage || name == kOpenFirstPageRefused || name == kFlipForwardBack
-             || name == kRefusedFlipKeepsPage || name == kOpenTextPage;
+             || name == kRefusedFlipKeepsPage || name == kOpenTextPage || name == kOpenTextPageRefused;
     }
 
     dsl::SnapRecord MakeDriverErrorRecord(const char *scenario, long errorCode, const char *message)
