@@ -103,7 +103,9 @@ namespace loka
             : AppConfigurable(context),
               settings_(settings),
               borrowedApp_(0),
-              borrowedMainNode_(0)
+              borrowedMainNode_(0),
+              recorded_(false),
+              lingerRemaining_(settings.hasLingerSeconds ? static_cast<double>(settings.lingerSeconds) : 0.0)
         {
         }
 
@@ -128,15 +130,31 @@ namespace loka
       private:
         static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData)
         {
-          (void)elapsedSeconds;
           ScenarioAppConfig *self = static_cast<ScenarioAppConfig *>(userData);
           if (self)
           {
-            self->finish(window);
+            self->tick(window, elapsedSeconds);
           }
         }
 
-        void finish(Window *window)
+        void tick(Window *window, double elapsedSeconds)
+        {
+          if (!this->recorded_)
+          {
+            this->recorded_ = true;
+            this->record(window);
+          }
+          // The record is already on disk, but an emulator-side snapshot
+          // arrives on emulated wall-clock time; linger_seconds keeps the
+          // scene on screen until then. Zero (the default) quits at once.
+          this->lingerRemaining_ -= elapsedSeconds;
+          if (this->lingerRemaining_ <= 0.0 && this->borrowedApp_)
+          {
+            this->borrowedApp_->quit();
+          }
+        }
+
+        void record(Window *window)
         {
           dsl::SnapRecord record;
           if (!this->borrowedMainNode_)
@@ -149,15 +167,13 @@ namespace loka
                 RunRegisteredScenario(this->settings_.scenario, *this->borrowedMainNode_, QueryContentBounds(window));
           }
           (void)WriteRecord(this->settings_, record);
-          if (this->borrowedApp_)
-          {
-            this->borrowedApp_->quit();
-          }
         }
 
         const dsl::SnapTestConfig::Settings settings_;
         App *borrowedApp_;
         scrapbook::MainNode *borrowedMainNode_;
+        bool recorded_;
+        double lingerRemaining_;
       };
     } // namespace
 

@@ -160,6 +160,21 @@ namespace loka
             }
             continue;
           }
+
+          if (key == "linger_seconds")
+          {
+            long parsed = 0;
+            if (parseLong(value, parsed) && parsed >= 0)
+            {
+              out.lingerSeconds = parsed;
+              out.hasLingerSeconds = true;
+            }
+            else
+            {
+              out.hasParseError = true;
+            }
+            continue;
+          }
         }
 
         std::fclose(fp);

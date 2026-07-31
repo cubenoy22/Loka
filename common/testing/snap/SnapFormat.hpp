@@ -91,6 +91,8 @@ namespace loka
               hasMaxFiles(false),
               maxTotalBytes(0),
               hasMaxTotalBytes(false),
+              lingerSeconds(0),
+              hasLingerSeconds(false),
               hasParseError(false)
         {
         }
@@ -103,6 +105,8 @@ namespace loka
         bool hasMaxFiles;
         long maxTotalBytes;
         bool hasMaxTotalBytes;
+        long lingerSeconds;
+        bool hasLingerSeconds;
         bool hasParseError;
       };
 

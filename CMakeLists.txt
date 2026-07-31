@@ -5,6 +5,7 @@ option(LOKA_ENABLE_APPLE "Enable Apple platform targets" ON)
 option(LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS "Add explicit -fno-objc-arc flags to macOS example targets" ON)
 option(LOKA_MACOS_SUPPRESS_ARCLITE_LINK "Remove libarclite from generated macOS link settings" OFF)
 option(TEST_BUILD "Enable test build mode" OFF)
+option(LOKA_MAME_SCENARIOS "Register the MAME-backed scenario tests" OFF)
 option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 option(LOKA_RETRO68_DIAGNOSTICS
   "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
@@ -212,6 +213,20 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   if(NOT WIN32)
     add_test(NAME scriptMameDebugLaunch
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
+    add_test(NAME scriptPngCropSelftest
+      COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/toolbox/pngcrop.py selftest)
+
+    if(LOKA_MAME_SCENARIOS)
+      foreach(_loka_mame_scenario
+          open-first-page
+          open-first-page-refused)
+        add_test(NAME "mameScenario-${_loka_mame_scenario}"
+          COMMAND bash ${PROJECT_SOURCE_DIR}/tests/toolbox/run-scenario.sh
+            "${_loka_mame_scenario}")
+        set_tests_properties("mameScenario-${_loka_mame_scenario}"
+          PROPERTIES LABELS "mame")
+      endforeach()
+    endif()
   endif()
 
   # The registries are configure inputs: editing a LOKA_TEST line must
