@@ -20,6 +20,7 @@
 #include "PackManifestTests.hpp"
 #include "LrpkGoldenBytesTests.hpp"
 #include "BlobRangeTests.hpp"
+#include "PictParserTests.hpp"
 #include "SceneTests.hpp"
 #include "StartupRedrawTests.hpp"
 #include "BoundaryArenaTests.hpp"
