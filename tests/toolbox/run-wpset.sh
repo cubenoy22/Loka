@@ -138,34 +138,31 @@ delete
 break scrapbook::ScrapbookPackage::close if this->open_ && this->currentBag_ >= 0
 continue
 echo LOKA-WPSET: close hit\n
-set \$ui = (this->reader_.state_.bags[0].open ? this->reader_.state_.bagBase[0] : 0)
-set \$cur = (this->currentBag_ >= 0 ? this->reader_.state_.bagBase[this->currentBag_] : 0)
-set \$idx = this->indexBytes_._M_impl._M_start
-printf "LOKA-WPSET: ui=%p cur=%p idx=%p\n", \$ui, \$cur, \$idx
+set \$ui = (this->reader_.state_.bags[0].open ? (unsigned long)this->reader_.state_.bagBase[0] : 0)
+set \$uisize = (this->reader_.state_.bags[0].open ? (unsigned long)this->reader_.state_.bags[0].storedSize : 0)
+set \$cur = (this->currentBag_ >= 0 ? (unsigned long)this->reader_.state_.bagBase[this->currentBag_] : 0)
+set \$cursize = (this->currentBag_ >= 0 ? (unsigned long)this->reader_.state_.bags[this->currentBag_].storedSize : 0)
+set \$idx = (unsigned long)this->indexBytes_._M_impl._M_start
+set \$idxsize = (unsigned long)(this->indexBytes_._M_impl._M_finish - this->indexBytes_._M_impl._M_start)
+printf "LOKA-WPSET: ui=0x%lx+%lu cur=0x%lx+%lu idx=0x%lx+%lu\n", \$ui, \$uisize, \$cur, \$cursize, \$idx, \$idxsize
 finish
-echo LOKA-WPSET: close returned, arming\n
-if \$ui != 0
-  awatch *(int*)\$ui
+echo LOKA-WPSET: close returned, arming full freed ranges\n
+if \$ui != 0 && \$uisize != 0
+  eval "awatch *(char(*)[%lu])0x%lx", \$uisize, \$ui
 end
-if \$cur != 0
-  awatch *(int*)\$cur
+if \$cur != 0 && \$cursize != 0
+  eval "awatch *(char(*)[%lu])0x%lx", \$cursize, \$cur
 end
-if \$idx != 0
-  awatch *(int*)\$idx
+if \$idx != 0 && \$idxsize != 0
+  eval "awatch *(char(*)[%lu])0x%lx", \$idxsize, \$idx
 end
 echo LOKA-WPSET: ARMED\n
 info watchpoints
 echo LOKA-WPSET: ARMED-END\n
-finish
-finish
-finish
-finish
-finish
-finish
-finish
-finish
-finish
-finish
+# The definitive teardown-complete marker: reached only after the App and
+# PlatformContext are destroyed (no fixed frame-count unwinding).
+break loka::toolbox_tests::ScenarioTeardownComplete
+continue
 delete
 echo LOKA-WPSET: CLEAN\n
 quit
@@ -179,11 +176,14 @@ delete
 break scrapbook::ScrapbookPackage::commitPage
 continue
 echo LOKA-WPSET: commitPage hit\n
-set \$live = this->reader_.state_.bagBase[page.bag]
-printf "LOKA-WPSET: live=%p\n", \$live
+set \$live = (unsigned long)this->reader_.state_.bagBase[page.bag]
+set \$livesize = (unsigned long)this->reader_.state_.bags[page.bag].storedSize
+printf "LOKA-WPSET: live=0x%lx+%lu\n", \$live, \$livesize
 finish
-rwatch *(char*)\$live
+eval "rwatch *(char(*)[%lu])0x%lx", \$livesize, \$live
 echo LOKA-WPSET: ARMED\n
+info watchpoints
+echo LOKA-WPSET: ARMED-END\n
 continue
 delete
 echo LOKA-WPSET: CONTROL-DONE\n
@@ -201,6 +201,9 @@ FIRED=0
 if grep -qE "Old value|New value|^Value = " "$GDB_LOG"; then
   FIRED=1
 fi
+if grep -q "Could not insert" "$GDB_LOG"; then
+  fail_stage verdict "the stub rejected a watchpoint; see $GDB_LOG"
+fi
 
 if [ "$MODE" = "clean" ]; then
   grep -q "LOKA-WPSET: ARMED" "$GDB_LOG" || fail_stage verdict "watches never armed; see $GDB_LOG"
@@ -211,6 +214,8 @@ if [ "$MODE" = "clean" ]; then
   if [ "$FIRED" -eq 1 ]; then
     fail_stage verdict "a watchpoint fired on freed memory during teardown; see $GDB_LOG"
   fi
+  grep -q "ScenarioTeardownComplete" "$GDB_LOG" && grep -qE "Breakpoint [0-9]+, loka::toolbox_tests::ScenarioTeardownComplete" "$GDB_LOG" \
+    || fail_stage verdict "the teardown-complete anchor was never reached; see $GDB_LOG"
   grep -q "LOKA-WPSET: CLEAN" "$GDB_LOG" || fail_stage verdict "teardown did not complete under watch; see $GDB_LOG"
   echo "wpset clean: teardown touched no freed bag memory"
 else

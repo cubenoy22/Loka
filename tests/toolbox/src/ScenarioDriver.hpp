@@ -6,6 +6,10 @@ namespace loka
   namespace toolbox_tests
   {
     int RunScenarioApplication();
+
+    /** Reached only after the App and PlatformContext are destroyed; the
+        watchpoint harness breaks here to bound its teardown watch window. */
+    void ScenarioTeardownComplete();
   }
 } // namespace loka
 
