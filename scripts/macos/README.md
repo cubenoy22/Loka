@@ -145,7 +145,8 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
 
     ```sh
     export PATH=/opt/local/bin:$PATH        # cmake and ninja live here, not on the default PATH
-    unset DEVELOPER_DIR                     # must stay unset: Xcode 3.2.6 has no xcrun (the script refuses otherwise)
+    unset DEVELOPER_DIR                     # must stay unset: Xcode 3.2.6 has no xcrun (the script refuses otherwise;
+                                            # ALLOW_DEVELOPER_DIR_WITHOUT_XCRUN=1 overrides on a host known to tolerate it)
     export MAC_OS_10_4_SYSROOT=/Developer/SDKs/MacOSX10.4u.sdk
     export CC=/Developer/usr/bin/gcc-4.0
     export CXX=/Developer/usr/bin/g++-4.0

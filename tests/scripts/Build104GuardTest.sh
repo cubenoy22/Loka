@@ -40,6 +40,21 @@ grep -q "has no usr/bin/xcrun" "$SANDBOX/refuse.out" \
 grep -q "ppc toolchain check failed" "$SANDBOX/refuse.out" \
   && fail "refusal leg reached the toolchain check; the guard did not fire"
 
+# Escape-hatch leg: same xcrun-less DEVELOPER_DIR, but the operator vouches
+# for the host (ALLOW_DEVELOPER_DIR_WITHOUT_XCRUN=1) -- the guard must warn
+# and step aside, reaching the toolchain check like any pass-through.
+set +e
+DEVELOPER_DIR="$SANDBOX/no-xcrun" ALLOW_DEVELOPER_DIR_WITHOUT_XCRUN=1 \
+  CC=/bin/false CXX=/bin/false ARCHS=ppc \
+  bash "$SUBJECT" > "$SANDBOX/allow.out" 2>&1
+ALLOW_EXIT=$?
+set -e
+[ "$ALLOW_EXIT" -ne 0 ] || fail "escape-hatch leg exited 0 with /bin/false compilers"
+grep -q "warning: proceeding with DEVELOPER_DIR" "$SANDBOX/allow.out" \
+  || fail "escape-hatch leg did not warn: $(cat "$SANDBOX/allow.out")"
+grep -q "ppc toolchain check failed" "$SANDBOX/allow.out" \
+  || fail "escape-hatch leg did not reach the toolchain check: $(cat "$SANDBOX/allow.out")"
+
 # Pass-through leg: xcrun present, so the guard must step aside and the
 # script must die later, at the pinned-to-/bin/false toolchain check.
 set +e
