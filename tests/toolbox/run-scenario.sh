@@ -100,7 +100,12 @@ LAUNCHER="$WORK/mame-launch.lua"
 MAME_OUT="$WORK/mame.out"
 RECORD="$WORK/LokaTestsToolbox.snap"
 CROPPED="$WORK/$SCENARIO.png"
-GOLDEN="$PROJECT_DIR/tests/golden/scrapbook/$SCENARIO.png"
+# Goldens are rig-local, not tracked: the pixels depend on the local boot
+# image's System resources (fonts, control chrome) and contain Apple-rendered
+# glyphs, which the licensing rule keeps out of the tree. They survive work
+# directory wipes and regenerate with --update-golden; reviewers see the
+# captures through the pr-assets evidence branch instead.
+GOLDEN="$PROJECT_DIR/build/mame-scenario/golden/$SCENARIO.png"
 HOME_DIR="$WORK/home"
 CFG_DIR="$WORK/cfg"
 NVRAM_DIR="$WORK/nvram"

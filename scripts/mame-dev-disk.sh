@@ -62,8 +62,16 @@ normalize_host_path() {
   fi
 }
 
+# A caller-provided destination outranks the one in .env-mame: launchers
+# (mame-debug.sh, tests/toolbox/run-scenario.sh) pass a scenario-local
+# MAME_DEV_HDA in the environment, and re-importing the file must not
+# redirect the build onto the developer's configured disk.
+PRESET_DEV_HDA="${MAME_DEV_HDA:-}"
 if [ -f "$ENV_FILE" ]; then
   import_mame_environment "$ENV_FILE"
+fi
+if [ -n "$PRESET_DEV_HDA" ]; then
+  MAME_DEV_HDA="$PRESET_DEV_HDA"
 fi
 
 if [ $# -lt 1 ]; then
