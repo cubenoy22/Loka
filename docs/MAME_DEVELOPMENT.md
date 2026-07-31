@@ -456,9 +456,16 @@ condition (`this->open_ && this->currentBag_ >= 0`) skips the defensive
 close inside `open()`, which otherwise makes the whole leg pass vacuously
 with nothing armed. At the stop it reads the ui-bag, current-bag, and index
 buffer addresses through `this` (DWARF member navigation works at symbol
-breakpoints), lets `close` return, arms access watchpoints on all three
-freed regions, and unwinds with `finish` until the application exits — any
-touch of freed bag memory during teardown fires in the log. The `control`
+breakpoints), arms full-range access watchpoints on all three regions
+*before* the close body executes — the releases happen inside `close`, so
+arming afterwards would leave the rest of the function unobserved (close
+touches no payload bytes itself, so the live-at-entry watches do not
+false-positive) — and then continues to the driver's noinline
+`ScenarioTeardownComplete()` beacon, which is reached only after the App
+and PlatformContext are destroyed. Any touch of freed bag memory anywhere
+in that window fires in the log, and the verdict requires both the armed
+watchpoint listing and the beacon's breakpoint hit, so neither a vacuous
+arm nor an early exit can pass silently. The `control`
 mode proves the mechanism can fire at all: a read watchpoint on a *live*
 committed bag buffer must trip on the next redraw. The MAME gdbstub
 implements gdb's Z2/Z3/Z4 packets as hardware watchpoints (wpset), so
