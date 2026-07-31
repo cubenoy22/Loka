@@ -25,7 +25,9 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkFormatTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/LrpkWriter.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/PackManifest.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tools/lrpc/Utf8Path.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PackManifestTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpcPathTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LrpkGoldenBytesTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BlobRangeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/FlowDslTests.cpp

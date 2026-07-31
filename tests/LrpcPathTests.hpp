@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_LRPCPATHTESTS_HPP
+#define LOKA_TESTS_LRPCPATHTESTS_HPP
+
+void testLrpcConvertsManifestUtf8PathsToWide();
+
+#endif // LOKA_TESTS_LRPCPATHTESTS_HPP
