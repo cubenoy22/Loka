@@ -41,7 +41,7 @@ local function tap(key)
     emu.wait(0.20)
 end
 
-say("booting (%d emulated seconds)", BOOT_WAIT)
+say("booting (%s emulated seconds)", BOOT_WAIT)
 emu.wait(BOOT_WAIT)
 tap(lKey)
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
@@ -62,7 +62,7 @@ for _ = 1, tabCount do
 end
 emu.wait(1)
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
-say("application opened; settling %d emulated seconds", SETTLE_WAIT)
+say("application opened; settling %s emulated seconds", SETTLE_WAIT)
 emu.wait(SETTLE_WAIT)
 
 -- manager.machine.screens is a device enumerator, not a Lua table: index it
