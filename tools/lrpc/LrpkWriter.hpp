@@ -2,6 +2,7 @@
 #define LOKA_TOOLS_LRPC_LRPKWRITER_HPP
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include "core/resource/lrpk/LrpkFormat.hpp"
@@ -10,6 +11,38 @@ namespace loka
 {
   namespace lrpc
   {
+    /** The source-side facts that decide one row's physical position in DATA.
+
+        A declaration-owned order is stronger than the source path. Rows not
+        named by such a declaration fall back to bytewise lexicographic path
+        order, so package bytes do not depend on host locale or encoding. */
+    class AssetLayoutKey
+    {
+    public:
+      explicit AssetLayoutKey(const std::string &sourcePath)
+          : hasDeclaredOrder_(false),
+            declaredOrder_(0),
+            path_(sourcePath)
+      {
+      }
+
+      AssetLayoutKey(std::size_t order, const std::string &sourcePath)
+          : hasDeclaredOrder_(true),
+            declaredOrder_(order),
+            path_(sourcePath)
+      {
+      }
+
+      bool hasDeclaredOrder() const { return hasDeclaredOrder_; }
+      std::size_t declaredOrder() const { return declaredOrder_; }
+      const std::string &path() const { return path_; }
+
+    private:
+      bool hasDeclaredOrder_;
+      std::size_t declaredOrder_;
+      std::string path_;
+    };
+
     /** Build-time writer for a package. Deliberately not in `common/`: the
         runtime is a reader and nothing an application links should be able to
         produce a package (#185 §1).
@@ -85,20 +118,23 @@ namespace loka
 
       std::size_t addBag();
 
-      /** When non-null, `axisValueIndex` holds exactly `axes_.size()` entries at
+      /** `layoutKey` controls only physical DATA placement; the index remains
+          sorted by id, axes and bag. When non-null, `axisValueIndex` holds
+          exactly `axes_.size()` entries at
           call time: one 1-based index per declared axis, or 0 for "this row
           does not write that axis". Null writes no axis. `bytes` may be null
           only when `length` is zero. */
-      void addAsset(core::resource::lrpk::U32 id,
+      void addAsset(const AssetLayoutKey &layoutKey,
+                    core::resource::lrpk::U32 id,
                     std::size_t bag,
                     core::resource::lrpk::AssetKind kind,
                     const core::resource::lrpk::U32 *axisValueIndex,
                     const unsigned char *bytes,
                     std::size_t length);
 
-      /** Emits the package. Rows are sorted by id and then by canonical axis
-          order, both specified rather than left to the implementation
-          (#185 §14). */
+      /** Emits the package. Index rows are sorted by id and then by canonical
+          axis order (#185 §14); DATA follows each row's layout key (#185
+          §7). Both are specified rather than left to the implementation. */
       BuildResult build(core::resource::lrpk::U32 idSpaceStamp, std::vector<unsigned char> &out) const;
 
     private:
@@ -119,7 +155,8 @@ namespace loka
       struct Row
       {
         Row()
-            : id(0),
+            : layoutKey(""),
+              id(0),
               bag(0),
               kind(core::resource::lrpk::ASSET_KIND_UNKNOWN),
               nullPayload(false),
@@ -131,6 +168,7 @@ namespace loka
           }
         }
 
+        AssetLayoutKey layoutKey;
         core::resource::lrpk::U32 id;
         std::size_t bag;
         core::resource::lrpk::AssetKind kind;

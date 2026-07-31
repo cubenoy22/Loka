@@ -608,7 +608,8 @@ int main(int argc, char **argv)
     {
       return FailAt("cannot read asset payload", base + asset.source);
     }
-    writer.addAsset(asset.id,
+    writer.addAsset(loka::lrpc::AssetLayoutKey(asset.source),
+                    asset.id,
                     asset.bag,
                     asset.kind,
                     0,

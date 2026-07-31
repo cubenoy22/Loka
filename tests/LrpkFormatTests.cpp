@@ -15,6 +15,7 @@
 using namespace loka::core::resource::lrpk;
 using loka::core::resource::Blob;
 using loka::core::resource::BlobRangeIsUsable;
+using loka::lrpc::AssetLayoutKey;
 using loka::lrpc::Writer;
 using loka::lrpktests::MemoryByteSource;
 
@@ -51,16 +52,16 @@ namespace
     DeclareDepthScale(writer, depthFirst);
     const std::size_t bag = writer.addBag();
     U32 axes[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 42, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
     axes[kAxisDepth] = 1;
-    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, kBw, sizeof(kBw));
+    writer.addAsset(AssetLayoutKey(""), 42, bag, ASSET_KIND_IMAGE, axes, kBw, sizeof(kBw));
     axes[kAxisDepth] = 0;
     axes[kAxisScale] = 1;
-    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, k2x, sizeof(k2x));
+    writer.addAsset(AssetLayoutKey(""), 42, bag, ASSET_KIND_IMAGE, axes, k2x, sizeof(k2x));
     axes[kAxisScale] = 2;
-    writer.addAsset(42, bag, ASSET_KIND_IMAGE, axes, k3x, sizeof(k3x));
+    writer.addAsset(AssetLayoutKey(""), 42, bag, ASSET_KIND_IMAGE, axes, k3x, sizeof(k3x));
     U32 plain[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(43, bag, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
+    writer.addAsset(AssetLayoutKey(""), 43, bag, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
     return writer.build(kStamp, out);
   }
 
@@ -77,12 +78,12 @@ namespace
     writer.setRepresentationPrecedence(appearanceFirst ? appearanceThenScale : scaleThenAppearance, 2);
     const std::size_t bag = writer.addBag();
     U32 axes[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
     axes[kAxisAppearance] = 1;
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, axes, kDark, sizeof(kDark));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, axes, kDark, sizeof(kDark));
     axes[kAxisAppearance] = 0;
     axes[kAxisScale] = 1;
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, axes, k2x, sizeof(k2x));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, axes, k2x, sizeof(k2x));
     return writer.build(kStamp, out);
   }
 
@@ -98,9 +99,9 @@ namespace
                        2);
     const std::size_t bag = writer.addBag();
     U32 axes[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(81, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 81, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
     axes[0] = selectedValueFirst ? 1 : 2;
-    writer.addAsset(81, bag, ASSET_KIND_IMAGE, axes, kDark, sizeof(kDark));
+    writer.addAsset(AssetLayoutKey(""), 81, bag, ASSET_KIND_IMAGE, axes, kDark, sizeof(kDark));
     return writer.build(kStamp, out);
   }
 
@@ -438,8 +439,8 @@ namespace
     const std::size_t first = writer.addBag();
     const std::size_t second = writer.addBag();
     U32 plain[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(11, first, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    writer.addAsset(22, second, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
+    writer.addAsset(AssetLayoutKey(""), 11, first, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 22, second, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
     return writer.build(kStamp, out);
   }
 
@@ -453,8 +454,8 @@ namespace
     const std::size_t full = writer.addBag();
     writer.addBag();
     U32 plain[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(11, full, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    writer.addAsset(12, full, ASSET_KIND_STRING, plain, 0, 0);
+    writer.addAsset(AssetLayoutKey(""), 11, full, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 12, full, ASSET_KIND_STRING, plain, 0, 0);
     return writer.build(kStamp, out);
   }
 
@@ -684,11 +685,11 @@ void testLrpkSelectsByPackagePrecedence()
     writer.declareAxis(AXIS_KIND_ENUM, 0, depthValues, 2);
     const std::size_t bag = writer.addBag();
     U32 axes[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(82, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 82, bag, ASSET_KIND_IMAGE, axes, kDefault, sizeof(kDefault));
     axes[kAxisDepth] = 1;
-    writer.addAsset(82, bag, ASSET_KIND_IMAGE, axes, kBw, sizeof(kBw));
+    writer.addAsset(AssetLayoutKey(""), 82, bag, ASSET_KIND_IMAGE, axes, kBw, sizeof(kBw));
     axes[kAxisDepth] = 2;
-    writer.addAsset(82, bag, ASSET_KIND_IMAGE, axes, kFourBit, sizeof(kFourBit));
+    writer.addAsset(AssetLayoutKey(""), 82, bag, ASSET_KIND_IMAGE, axes, kFourBit, sizeof(kFourBit));
     std::vector<unsigned char> package;
     assert(writer.build(kStamp, package) == Writer::BUILD_OK);
 
@@ -912,7 +913,7 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
     Writer writer;
     DeclareDepthScale(writer, true);
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, specialized, kBw, sizeof(kBw));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, specialized, kBw, sizeof(kBw));
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_ASSET_WITHOUT_DEFAULT_ROW);
   }
@@ -920,8 +921,8 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
     Writer writer;
     DeclareDepthScale(writer, true);
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, k2x, sizeof(k2x));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, k2x, sizeof(k2x));
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_SELECTOR_AMBIGUOUS);
   }
@@ -932,8 +933,8 @@ void testLrpcRefusesPackagesThatWouldMakeSelectionPartial()
     Writer writer;
     const std::size_t ja = writer.addBag();
     const std::size_t en = writer.addBag();
-    writer.addAsset(100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
-    writer.addAsset(100, en, ASSET_KIND_STRING, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
+    writer.addAsset(AssetLayoutKey(""), 100, en, ASSET_KIND_STRING, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) == Writer::BUILD_OK);
     Reader reader;
     assert(reader.openBorrowedBytes(&out[0],
@@ -966,8 +967,8 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     DeclareDepthScale(writer, true);
     const std::size_t ja = writer.addBag();
     const std::size_t en = writer.addBag();
-    writer.addAsset(100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
-    writer.addAsset(100, en, ASSET_KIND_STRING, specialized, kBw, sizeof(kBw));
+    writer.addAsset(AssetLayoutKey(""), 100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
+    writer.addAsset(AssetLayoutKey(""), 100, en, ASSET_KIND_STRING, specialized, kBw, sizeof(kBw));
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_ASSET_WITHOUT_DEFAULT_ROW);
   }
@@ -975,8 +976,8 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     Writer writer;
     DeclareDepthScale(writer, true);
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    writer.addAsset(7, bag, ASSET_KIND_STRING, specialized, kBw, sizeof(kBw));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_STRING, specialized, kBw, sizeof(kBw));
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_ASSET_KIND_MISMATCH);
   }
@@ -984,7 +985,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     Writer writer;
     DeclareDepthScale(writer, true);
     writer.addBag();
-    writer.addAsset(7, 4, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, 4, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) == Writer::BUILD_BAD_BAG_REFERENCE);
   }
   {
@@ -992,7 +993,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     const U32 scale[1] = {100};
     writer.declareAxis(AXIS_KIND_SCALAR, 100, scale, 1);
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_BAD_AXIS_VOCABULARY);
   }
@@ -1004,7 +1005,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     missing.declareAxis(AXIS_KIND_ENUM, 0, one, 1);
     missing.declareAxis(AXIS_KIND_ENUM, 0, one, 1);
     const std::size_t bag = missing.addBag();
-    missing.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    missing.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(missing.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
   {
@@ -1015,7 +1016,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     const std::size_t bad[2] = {0, 0};
     duplicate.setRepresentationPrecedence(bad, 2);
     const std::size_t bag = duplicate.addBag();
-    duplicate.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    duplicate.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(duplicate.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
   {
@@ -1026,7 +1027,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     const std::size_t onlyOne[1] = {0};
     incomplete.setRepresentationPrecedence(onlyOne, 1);
     const std::size_t bag = incomplete.addBag();
-    incomplete.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    incomplete.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(incomplete.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
   {
@@ -1037,7 +1038,7 @@ void testLrpcRefusesRowsThatWouldNotBeReachable()
     const std::size_t bad[2] = {0, 2};
     unknown.setRepresentationPrecedence(bad, 2);
     const std::size_t bag = unknown.addBag();
-    unknown.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    unknown.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(unknown.build(kStamp, out) == Writer::BUILD_BAD_PRECEDENCE);
   }
 
@@ -1217,8 +1218,8 @@ void testLrpcValidatesBeforeItPacks()
     DeclareDepthScale(writer, true);
     const std::size_t bag = writer.addBag();
     U32 outOfRange[kMaxAxes] = {16, 0, 0, 0};
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, outOfRange, kBw, sizeof(kBw));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, outOfRange, kBw, sizeof(kBw));
     assert(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_REFERENCE);
   }
   {
@@ -1230,7 +1231,7 @@ void testLrpcValidatesBeforeItPacks()
     std::memcpy(&invalidKind, &invalidKindBits, sizeof(invalidKind));
     writer.declareAxis(invalidKind, 0, one, 1);
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_KIND);
   }
   {
@@ -1240,7 +1241,7 @@ void testLrpcValidatesBeforeItPacks()
     assert(sizeof(invalidKind) == sizeof(invalidKindBits));
     std::memcpy(&invalidKind, &invalidKindBits, sizeof(invalidKind));
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, invalidKind, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, invalidKind, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) == Writer::BUILD_BAD_ASSET_KIND);
   }
   {
@@ -1267,7 +1268,7 @@ void testLrpcValidatesBeforeItPacks()
     const U32 huge[1] = {65536};
     writer.declareAxis(AXIS_KIND_SCALAR, 100, huge, 1);
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) ==
            Writer::BUILD_AXIS_VALUE_OUT_OF_RANGE);
   }
@@ -1279,7 +1280,7 @@ void testLrpcValidatesBeforeItPacks()
 
     Writer badStamp;
     const std::size_t stampBag = badStamp.addBag();
-    badStamp.addAsset(7,
+    badStamp.addAsset(AssetLayoutKey(""), 7,
                       stampBag,
                       ASSET_KIND_IMAGE,
                       plain,
@@ -1289,7 +1290,7 @@ void testLrpcValidatesBeforeItPacks()
 
     Writer badId;
     const std::size_t idBag = badId.addBag();
-    badId.addAsset(tooLarge,
+    badId.addAsset(AssetLayoutKey(""), tooLarge,
                    idBag,
                    ASSET_KIND_IMAGE,
                    plain,
@@ -1301,7 +1302,7 @@ void testLrpcValidatesBeforeItPacks()
     const U32 scale[1] = {200};
     badBaseline.declareAxis(AXIS_KIND_SCALAR, tooLarge, scale, 1);
     const std::size_t baselineBag = badBaseline.addBag();
-    badBaseline.addAsset(7,
+    badBaseline.addAsset(AssetLayoutKey(""), 7,
                          baselineBag,
                          ASSET_KIND_IMAGE,
                          plain,
@@ -1315,7 +1316,7 @@ void testLrpcValidatesBeforeItPacks()
     Writer writer;
     const std::size_t full = writer.addBag();
     const std::size_t empty = writer.addBag();
-    writer.addAsset(7, full, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, full, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) == Writer::BUILD_OK);
     Reader reader;
     assert(reader.openBorrowedBytes(&out[0],
@@ -1333,7 +1334,7 @@ void testLrpcValidatesBeforeItPacks()
     {
       writer.addBag();
     }
-    writer.addAsset(7, 0, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, 0, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, out) == Writer::BUILD_OK);
     writer.addBag();
     assert(writer.build(kStamp, out) == Writer::BUILD_TOO_MANY_BAGS);
@@ -1345,7 +1346,7 @@ void testLrpcValidatesBeforeItPacks()
     const std::vector<unsigned char> before(reused);
     Writer writer;
     writer.addBag();
-    writer.addAsset(7, 9, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, 9, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     assert(writer.build(kStamp, reused) == Writer::BUILD_BAD_BAG_REFERENCE);
     assert(reused == before);
   }
@@ -1360,7 +1361,7 @@ void testLrpcRoundTripsExactlySizedSelectors()
   Writer writer;
   DeclareDepthScale(writer, true);
   const std::size_t bag = writer.addBag();
-  writer.addAsset(42,
+  writer.addAsset(AssetLayoutKey(""), 42,
                   bag,
                   ASSET_KIND_IMAGE,
                   0,
@@ -1370,7 +1371,7 @@ void testLrpcRoundTripsExactlySizedSelectors()
   U32 *selector = new U32[2];
   selector[kAxisDepth] = 1;
   selector[kAxisScale] = 2;
-  writer.addAsset(42,
+  writer.addAsset(AssetLayoutKey(""), 42,
                   bag,
                   ASSET_KIND_IMAGE,
                   selector,
@@ -1406,7 +1407,7 @@ void testLrpcRefusesAxisDeclarationAfterAsset()
 
   Writer writer;
   const std::size_t bag = writer.addBag();
-  writer.addAsset(7,
+  writer.addAsset(AssetLayoutKey(""), 7,
                   bag,
                   ASSET_KIND_IMAGE,
                   0,
@@ -1521,7 +1522,7 @@ void testLrpkChecksTheChunkThatDecidesSelection()
     writer.declareAxis(AXIS_KIND_SCALAR, 100, scale, 1);
     const std::size_t bag = writer.addBag();
     U32 plain[kMaxAxes] = {0, 0, 0, 0};
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     std::vector<unsigned char> bad;
     assert(writer.build(kStamp, bad) == Writer::BUILD_OK);
     std::size_t axesPayloadSize = 0;
@@ -1603,7 +1604,7 @@ void testLrpkChecksTheChunkThatDecidesSelection()
     Writer writer;
     U32 plain[kMaxAxes] = {0, 0, 0, 0};
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
     std::vector<unsigned char> noAxes;
     assert(writer.build(kStamp, noAxes) == Writer::BUILD_OK);
     std::size_t payloadSize = 0;
@@ -1707,7 +1708,7 @@ void testLrpkEnforcesPayloadAlignment()
   Writer writer;
   const std::size_t bag = writer.addBag();
   U32 plain[kMaxAxes] = {0, 0, 0, 0};
-  writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
+  writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
   std::vector<unsigned char> single;
   assert(writer.build(kStamp, single) == Writer::BUILD_OK);
   std::size_t indexSize = 0;
@@ -1781,14 +1782,14 @@ void testLrpcPreservesNullPayloadFailure()
   {
     Writer writer;
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, 0, 1);
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, 0, 1);
     std::vector<unsigned char> out;
     assert(writer.build(kStamp, out) == Writer::BUILD_NULL_PAYLOAD);
   }
   {
     Writer writer;
     const std::size_t bag = writer.addBag();
-    writer.addAsset(7, bag, ASSET_KIND_IMAGE, plain, 0, 0);
+    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, 0, 0);
     std::vector<unsigned char> out;
     assert(writer.build(kStamp, out) == Writer::BUILD_OK);
   }
@@ -1827,22 +1828,22 @@ void testLrpcCanonicalBuildBytesStayStable()
 
   // Scrambled insertion plus the same id in both bags pins the specified
   // id/axes/bag order, DATA layout, every embedded CRC, and final padding.
-  writer.addAsset(200, bag1, ASSET_KIND_IMAGE, plain,
+  writer.addAsset(AssetLayoutKey(""), 200, bag1, ASSET_KIND_IMAGE, plain,
                   id200Bag1Default, sizeof(id200Bag1Default) - 1);
-  writer.addAsset(100, bag0, ASSET_KIND_IMAGE, appearance2,
+  writer.addAsset(AssetLayoutKey(""), 100, bag0, ASSET_KIND_IMAGE, appearance2,
                   id100Bag0Appearance2, sizeof(id100Bag0Appearance2) - 1);
-  writer.addAsset(100, bag1, ASSET_KIND_IMAGE, scale2,
+  writer.addAsset(AssetLayoutKey(""), 100, bag1, ASSET_KIND_IMAGE, scale2,
                   id100Bag1Scale2, sizeof(id100Bag1Scale2) - 1);
-  writer.addAsset(100, bag0, ASSET_KIND_IMAGE, plain,
+  writer.addAsset(AssetLayoutKey(""), 100, bag0, ASSET_KIND_IMAGE, plain,
                   id100Bag0Default, sizeof(id100Bag0Default) - 1);
-  writer.addAsset(300, bag0, ASSET_KIND_IMAGE, plain,
+  writer.addAsset(AssetLayoutKey(""), 300, bag0, ASSET_KIND_IMAGE, plain,
                   id300Bag0Default, sizeof(id300Bag0Default) - 1);
-  writer.addAsset(100, bag1, ASSET_KIND_IMAGE, plain,
+  writer.addAsset(AssetLayoutKey(""), 100, bag1, ASSET_KIND_IMAGE, plain,
                   id100Bag1Default, sizeof(id100Bag1Default) - 1);
-  writer.addAsset(100, bag0, ASSET_KIND_IMAGE, appearance1Scale2,
+  writer.addAsset(AssetLayoutKey(""), 100, bag0, ASSET_KIND_IMAGE, appearance1Scale2,
                   id100Bag0Appearance1Scale2,
                   sizeof(id100Bag0Appearance1Scale2) - 1);
-  writer.addAsset(200, bag1, ASSET_KIND_IMAGE, scale1,
+  writer.addAsset(AssetLayoutKey(""), 200, bag1, ASSET_KIND_IMAGE, scale1,
                   id200Bag1Scale1, sizeof(id200Bag1Scale1) - 1);
 
   std::vector<unsigned char> package;
@@ -1864,7 +1865,7 @@ void testLrpcBuildHandlesFiftyThousandAssets()
   const std::size_t assetCount = 50000;
   for (std::size_t i = 0; i < assetCount; ++i)
   {
-    writer.addAsset(static_cast<U32>(assetCount - i),
+    writer.addAsset(AssetLayoutKey(""), static_cast<U32>(assetCount - i),
                     bag,
                     ASSET_KIND_IMAGE,
                     plain,
@@ -2500,8 +2501,8 @@ void testLrpkReadBagIntoWalksTheSameRefusalOrder()
     Writer writer;
     const std::size_t ja = writer.addBag();
     const std::size_t en = writer.addBag();
-    writer.addAsset(100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
-    writer.addAsset(100, en, ASSET_KIND_STRING, plain, kDefault, sizeof(kDefault));
+    writer.addAsset(AssetLayoutKey(""), 100, ja, ASSET_KIND_STRING, plain, kFile, sizeof(kFile));
+    writer.addAsset(AssetLayoutKey(""), 100, en, ASSET_KIND_STRING, plain, kDefault, sizeof(kDefault));
     std::vector<unsigned char> shared;
     assert(writer.build(kStamp, shared) == Writer::BUILD_OK);
 

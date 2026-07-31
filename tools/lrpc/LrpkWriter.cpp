@@ -85,6 +85,57 @@ namespace loka
           return left.bag < right.bag;
         }
       };
+
+      struct DataLayoutRow
+      {
+        DataLayoutRow(std::size_t rowIndex,
+                      std::size_t rowBag,
+                      const AssetLayoutKey &rowLayoutKey,
+                      U32 rowId,
+                      U32 rowAxes)
+            : index(rowIndex),
+              bag(rowBag),
+              layoutKey(rowLayoutKey),
+              id(rowId),
+              axes(rowAxes)
+        {
+        }
+
+        std::size_t index;
+        std::size_t bag;
+        AssetLayoutKey layoutKey;
+        U32 id;
+        U32 axes;
+      };
+
+      struct DataLayoutRowLess
+      {
+        bool operator()(const DataLayoutRow &left, const DataLayoutRow &right) const
+        {
+          if (left.bag != right.bag)
+          {
+            return left.bag < right.bag;
+          }
+          if (left.layoutKey.hasDeclaredOrder() != right.layoutKey.hasDeclaredOrder())
+          {
+            return left.layoutKey.hasDeclaredOrder();
+          }
+          if (left.layoutKey.hasDeclaredOrder() &&
+              left.layoutKey.declaredOrder() != right.layoutKey.declaredOrder())
+          {
+            return left.layoutKey.declaredOrder() < right.layoutKey.declaredOrder();
+          }
+          if (left.layoutKey.path() != right.layoutKey.path())
+          {
+            return left.layoutKey.path() < right.layoutKey.path();
+          }
+          if (left.id != right.id)
+          {
+            return left.id < right.id;
+          }
+          return left.axes < right.axes;
+        }
+      };
     } // namespace
 
     Writer::Writer()
@@ -138,7 +189,8 @@ namespace loka
       return bagCount_++;
     }
 
-    void Writer::addAsset(U32 id,
+    void Writer::addAsset(const AssetLayoutKey &layoutKey,
+                          U32 id,
                           std::size_t bag,
                           AssetKind kind,
                           const U32 *axisValueIndex,
@@ -146,6 +198,7 @@ namespace loka
                           std::size_t length)
     {
       Row row;
+      row.layoutKey = layoutKey;
       row.id = id;
       row.bag = bag;
       row.kind = kind;
@@ -253,6 +306,8 @@ namespace loka
 
       std::vector<CanonicalRow> canonicalRows;
       canonicalRows.reserve(rows_.size());
+      std::vector<DataLayoutRow> dataLayoutRows;
+      dataLayoutRows.reserve(rows_.size());
       std::vector<U32> packed(rows_.size(), 0);
       for (std::size_t i = 0; i < rows_.size(); ++i)
       {
@@ -294,6 +349,11 @@ namespace loka
           }
         }
         canonicalRows.push_back(CanonicalRow(i, rows_[i].id, packed[i], rows_[i].bag));
+        dataLayoutRows.push_back(DataLayoutRow(i,
+                                               rows_[i].bag,
+                                               rows_[i].layoutKey,
+                                               rows_[i].id,
+                                               packed[i]));
       }
 
       // Canonical bytes are sorted by id, then encoded axes, then bag.
@@ -304,6 +364,12 @@ namespace loka
       {
         order.push_back(canonicalRows[i].index);
       }
+
+      // DATA follows #185 §7 independently of the ID-sorted index: a
+      // declaration's explicit order first, then bytewise source-path order.
+      // Canonical row facts break equal layout keys without making them a
+      // second semantic ordering rule.
+      std::sort(dataLayoutRows.begin(), dataLayoutRows.end(), DataLayoutRowLess());
 
       // Vocabulary validation makes packed-axis equality equivalent to equal
       // selector meaning: enum indices are the meaning, while scalar values
@@ -372,9 +438,10 @@ namespace loka
           return BUILD_SIZE_OUT_OF_RANGE;
         }
         bagOffset[b] = static_cast<U32>(data.size());
-        for (std::size_t i = 0; i < order.size(); ++i)
+        for (std::size_t i = 0; i < dataLayoutRows.size(); ++i)
         {
-          const Row &row = rows_[order[i]];
+          const std::size_t rowIndex = dataLayoutRows[i].index;
+          const Row &row = rows_[rowIndex];
           if (row.bag != b)
           {
             continue;
@@ -383,7 +450,7 @@ namespace loka
           {
             return BUILD_SIZE_OUT_OF_RANGE;
           }
-          rowOffset[order[i]] = static_cast<U32>(data.size() - static_cast<std::size_t>(bagOffset[b]));
+          rowOffset[rowIndex] = static_cast<U32>(data.size() - static_cast<std::size_t>(bagOffset[b]));
           data.insert(data.end(), row.bytes.begin(), row.bytes.end());
           while ((data.size() - static_cast<std::size_t>(bagOffset[b])) % kPayloadAlign != 0)
           {
