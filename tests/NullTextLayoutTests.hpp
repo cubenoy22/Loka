@@ -2,5 +2,7 @@
 #define LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
 
 void testNullTextLayoutWordAndCharacterWrapProduceDifferentGeometry();
+void testNullTextLayoutTruncationModesProduceDifferentWidths();
+void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords();
 
 #endif // LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
