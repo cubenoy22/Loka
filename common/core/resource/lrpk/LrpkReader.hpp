@@ -286,6 +286,16 @@ namespace loka
               alignment gates live where addresses do leave the reader (the
               borrowed base and `readBagInto`'s destination).
 
+              The buffer must not overlap any buffer the committed package
+              serves bytes from: the committed index region, and every open
+              bag's buffer (`[bagBase, bagBase + storedSize)`). The slice
+              read fills the buffer before parsing can refuse, so a refused
+              finish would already have overwritten bytes live assets are
+              served from -- the corruption failure atomicity promises cannot
+              happen (#221's ruling). A contract violation, asserted in
+              debug against both regions; memory-backed bags live inside the
+              committed index range, so the same assert covers them.
+
               One shot: the pending is consumed whether this succeeds or
               fails, so a refused finish is retried from `beginOpen`, never by
               calling this again with a different buffer. A second call
