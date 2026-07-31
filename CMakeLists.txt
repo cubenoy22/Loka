@@ -221,7 +221,9 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
           open-first-page
           open-first-page-refused
           flip-forward-back
-          refused-flip-keeps-page)
+          refused-flip-keeps-page
+          open-text-page
+          open-text-page-refused)
         add_test(NAME "mameScenario-${_loka_mame_scenario}"
           COMMAND bash ${PROJECT_SOURCE_DIR}/tests/toolbox/run-scenario.sh
             "${_loka_mame_scenario}")
