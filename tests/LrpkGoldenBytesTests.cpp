@@ -11,6 +11,7 @@
 #include "lrpc/LrpkWriter.hpp"
 
 using namespace loka::core::resource::lrpk;
+using loka::lrpc::AssetLayoutKey;
 using loka::lrpc::Writer;
 using loka::lrpktests::MemoryByteSource;
 
@@ -269,9 +270,9 @@ void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage()
   Writer writer;
   const std::size_t first = writer.addBag();
   const std::size_t second = writer.addBag();
-  writer.addAsset(1, first, ASSET_KIND_IMAGE, 0, kGold, sizeof(kGold));
-  writer.addAsset(2, first, ASSET_KIND_STRING, 0, kSilver, sizeof(kSilver));
-  writer.addAsset(3, second, ASSET_KIND_IMAGE, 0, kBronze, sizeof(kBronze));
+  writer.addAsset(AssetLayoutKey(""), 1, first, ASSET_KIND_IMAGE, 0, kGold, sizeof(kGold));
+  writer.addAsset(AssetLayoutKey(""), 2, first, ASSET_KIND_STRING, 0, kSilver, sizeof(kSilver));
+  writer.addAsset(AssetLayoutKey(""), 3, second, ASSET_KIND_IMAGE, 0, kBronze, sizeof(kBronze));
   std::vector<unsigned char> built;
   assert(writer.build(kStamp, built) == Writer::BUILD_OK);
   assert(built.size() == golden.size());
@@ -311,6 +312,62 @@ void testLrpkWireFormatMatchesAnIndependentlyAssembledPackage()
   assert(std::memcmp(asset.bytes, kBronze, sizeof(kBronze)) == 0);
 
   std::printf("testLrpkWireFormatMatchesAnIndependentlyAssembledPackage passed\n");
+}
+
+void testLrpkDataLayoutFollowsSourcePathInsteadOfId()
+{
+  const unsigned char aPayload = 'A';
+  const unsigned char zPayload = 'Z';
+
+  Writer writer;
+  const std::size_t bag = writer.addBag();
+  writer.addAsset(AssetLayoutKey("Assets/A.bin"),
+                  2, bag, ASSET_KIND_IMAGE, 0, &aPayload, 1);
+  writer.addAsset(AssetLayoutKey("Assets/Z.bin"),
+                  1, bag, ASSET_KIND_IMAGE, 0, &zPayload, 1);
+
+  std::vector<unsigned char> package;
+  assert(writer.build(kStamp, package) == Writer::BUILD_OK);
+  std::vector<unsigned char> backing;
+  const unsigned char *bytes = AlignedCopy(package, backing);
+
+  Reader reader;
+  assert(reader.openBorrowedBytes(bytes,
+                                  package.size(),
+                                  kStamp,
+                                  Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
+  assert(reader.openBag(bag) == Reader::BAG_OK);
+
+  Facts facts;
+  Asset asset;
+  assert(reader.get(2, facts, asset) == Reader::GET_OK);
+  assert(asset.offsetInBag == 0);
+  assert(reader.get(1, facts, asset) == Reader::GET_OK);
+  assert(asset.offsetInBag == kPayloadAlign);
+
+  // An explicit declaration order is stronger than the path fallback.
+  Writer orderedWriter;
+  const std::size_t orderedBag = orderedWriter.addBag();
+  orderedWriter.addAsset(AssetLayoutKey(1, "Assets/A.bin"),
+                         2, orderedBag, ASSET_KIND_IMAGE, 0, &aPayload, 1);
+  orderedWriter.addAsset(AssetLayoutKey(0, "Assets/Z.bin"),
+                         1, orderedBag, ASSET_KIND_IMAGE, 0, &zPayload, 1);
+  std::vector<unsigned char> orderedPackage;
+  assert(orderedWriter.build(kStamp, orderedPackage) == Writer::BUILD_OK);
+  std::vector<unsigned char> orderedBacking;
+  const unsigned char *orderedBytes = AlignedCopy(orderedPackage, orderedBacking);
+  Reader orderedReader;
+  assert(orderedReader.openBorrowedBytes(orderedBytes,
+                                         orderedPackage.size(),
+                                         kStamp,
+                                         Reader::VERIFY_INTEGRITY) == Reader::OPEN_OK);
+  assert(orderedReader.openBag(orderedBag) == Reader::BAG_OK);
+  assert(orderedReader.get(1, facts, asset) == Reader::GET_OK);
+  assert(asset.offsetInBag == 0);
+  assert(orderedReader.get(2, facts, asset) == Reader::GET_OK);
+  assert(asset.offsetInBag == kPayloadAlign);
+
+  std::printf("testLrpkDataLayoutFollowsSourcePathInsteadOfId passed\n");
 }
 
 // The round-trip pin above proves the reader and the writer agree about these
