@@ -186,6 +186,14 @@ namespace loka
       };
     } // namespace
 
+    __attribute__((noinline)) void ScenarioTeardownComplete()
+    {
+      // noinline plus a store the optimizer must keep: -Os would otherwise
+      // inline the call and drop the symbol the debugger breaks on.
+      static volatile long teardownCompleteBeacon = 0;
+      teardownCompleteBeacon = teardownCompleteBeacon + 1;
+    }
+
     int RunScenarioApplication()
     {
       dsl::SnapTestConfig::Settings settings;
@@ -207,13 +215,20 @@ namespace loka
       }
 
       platform::InitPlatformRuntime();
-      core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
-      assert(platformContext.get() && "PlatformContext is required");
-      ScenarioAppConfig config(platformContext.get(), settings);
-      core::ScopedPtr<App> app(platformContext->createApp(&config, 0, 0));
-      assert(app.get() && "App is required");
-      config.setApp(app.get());
-      app->run();
+      {
+        core::ScopedPtr<PlatformContext> platformContext(platform::CreatePlatformContext());
+        assert(platformContext.get() && "PlatformContext is required");
+        ScenarioAppConfig config(platformContext.get(), settings);
+        core::ScopedPtr<App> app(platformContext->createApp(&config, 0, 0));
+        assert(app.get() && "App is required");
+        config.setApp(app.get());
+        app->run();
+      }
+      // The App and PlatformContext are destroyed above, so a debugger break
+      // planted here is the definitive teardown-complete marker: the
+      // watchpoint leg (run-wpset.sh) keeps its freed-memory watches armed
+      // until this function is reached rather than counting stack frames.
+      ScenarioTeardownComplete();
       return 0;
     }
   } // namespace toolbox_tests

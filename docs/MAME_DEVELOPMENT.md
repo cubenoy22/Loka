@@ -446,6 +446,31 @@ different jobs; expecting the second to provide the first will disappoint.
   returns the wrong memory. Function arguments and locals are frame-relative
   and read correctly, so when a global's value has to be observed, break in a
   function that receives it (or a value derived from it) as an argument.
+### The watchpoint leg: freed-memory checks for real teardown
+
+`tests/toolbox/run-wpset.sh` turns the wpset idea above into an automated
+scenario leg. It derives the pattern words with the readelf recipe, runs the
+find phase (caching the base per ELF content), and attaches with a batch gdb
+script that stops at the *teardown* `ScrapbookPackage::close` — a breakpoint
+condition (`this->open_ && this->currentBag_ >= 0`) skips the defensive
+close inside `open()`, which otherwise makes the whole leg pass vacuously
+with nothing armed. At the stop it reads the ui-bag, current-bag, and index
+buffer addresses through `this` (DWARF member navigation works at symbol
+breakpoints), arms full-range access watchpoints on all three regions
+*before* the close body executes — the releases happen inside `close`, so
+arming afterwards would leave the rest of the function unobserved (close
+touches no payload bytes itself, so the live-at-entry watches do not
+false-positive) — and then continues to the driver's noinline
+`ScenarioTeardownComplete()` beacon, which is reached only after the App
+and PlatformContext are destroyed. Any touch of freed bag memory anywhere
+in that window fires in the log, and the verdict requires both the armed
+watchpoint listing and the beacon's breakpoint hit, so neither a vacuous
+arm nor an early exit can pass silently. The `control`
+mode proves the mechanism can fire at all: a read watchpoint on a *live*
+committed bag buffer must trip on the next redraw. The MAME gdbstub
+implements gdb's Z2/Z3/Z4 packets as hardware watchpoints (wpset), so
+neither mode pays the single-step penalty.
+
 - **A wild pointer write does not necessarily bomb.** Writing through an
   unmapped address (`0xDEADBEEE` was tried) on a 68030 machine neither faults nor
   logs; the application keeps running as if nothing happened. The 68030 also
