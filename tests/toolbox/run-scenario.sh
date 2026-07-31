@@ -114,7 +114,10 @@ fi
 if ! cp -f "$MAME_HDA" "$BOOT"; then
   fail_stage mame "could not copy the boot hard disk template"
 fi
-if ! printf 'scenario %s\n' "$SCENARIO" >"$CONFIG"; then
+# linger_seconds keeps the scenario window alive after the record is written,
+# so the emulator-side snapshot captures the scene instead of the desktop the
+# application would otherwise have quit back to.
+if ! printf 'scenario %s\nlinger_seconds 120\n' "$SCENARIO" >"$CONFIG"; then
   fail_stage mame "could not write LokaTest.cfg"
 fi
 if ! cp -f "$SCRIPT_DIR/mame-launch.lua" "$LAUNCHER"; then

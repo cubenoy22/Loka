@@ -18,10 +18,21 @@ local function field(portTag, name)
 end
 
 local lKey = field(":macadb:KEY2", "l  L")
-local aKey = field(":macadb:KEY0", "a  A")
 local oKey = field(":macadb:KEY1", "o  O")
-local escapeKey = field(":macadb:KEY3", "Esc")
 local commandKey = field(":macadb:KEY3", "Command / Open Apple")
+
+-- Keys live spread across the :macadb:KEY* ports; find one by field name.
+local function keyByName(name)
+    for tag, port in pairs(manager.machine.ioport.ports) do
+        if tag:find("^:macadb:KEY") then
+            local found = port.fields[name]
+            if found then
+                return found
+            end
+        end
+    end
+    error("no key field named " .. name)
+end
 
 local function tap(key)
     key:set_value(1)
@@ -35,8 +46,20 @@ emu.wait(BOOT_WAIT)
 tap(lKey)
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
 emu.wait(5)
-tap(escapeKey)
-commandKey:set_value(1); tap(aKey); commandKey:clear_value()
+-- Select only the application. A select-all would also open the plain data
+-- files beside it, and their "application not found" alerts land on top of
+-- the scene the snapshot is supposed to capture. Letter type-selection is
+-- unusable here: on a KanjiTalk system the input method swallows typed
+-- romaji into its kana window and the Finder never sees it. Tab is immune;
+-- it cycles the Finder selection. Empirically (per-tab snapshot diagnostics,
+-- 2026-07-31) the first Tab in the freshly opened LokaDev window lands on
+-- LokaTestsToolbox68K, then cycles ASSETS.LRP -> LokaTest.cfg -> app again,
+-- so the default is one press with run-scenario.sh's three-item staging.
+local tabKey = keyByName("Tab")
+local tabCount = tonumber(os.getenv("LOKA_TAB_COUNT") or "1")
+for _ = 1, tabCount do
+    tap(tabKey)
+end
 emu.wait(1)
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
 say("application opened; settling %d emulated seconds", SETTLE_WAIT)
