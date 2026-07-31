@@ -62,16 +62,21 @@ normalize_host_path() {
   fi
 }
 
-# A caller-provided destination outranks the one in .env-mame: launchers
+# Caller-provided values outrank the ones in .env-mame: launchers
 # (mame-debug.sh, tests/toolbox/run-scenario.sh) pass a scenario-local
-# MAME_DEV_HDA in the environment, and re-importing the file must not
-# redirect the build onto the developer's configured disk.
+# MAME_DEV_HDA -- and a scenario-local MAME_CONTROL_DIR, whose hfsutils
+# subdirectory holds the mounted-volume state that concurrent builders
+# must not share -- and re-importing the file must not redirect either.
 PRESET_DEV_HDA="${MAME_DEV_HDA:-}"
+PRESET_CONTROL_DIR="${MAME_CONTROL_DIR:-}"
 if [ -f "$ENV_FILE" ]; then
   import_mame_environment "$ENV_FILE"
 fi
 if [ -n "$PRESET_DEV_HDA" ]; then
   MAME_DEV_HDA="$PRESET_DEV_HDA"
+fi
+if [ -n "$PRESET_CONTROL_DIR" ]; then
+  MAME_CONTROL_DIR="$PRESET_CONTROL_DIR"
 fi
 
 if [ $# -lt 1 ]; then

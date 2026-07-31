@@ -161,7 +161,11 @@ PY
   fi
 fi
 
-if ! MAME_DEV_HDA="$DEV" "$PROJECT_DIR/scripts/mame-dev-disk.sh" \
+# A scenario-local control dir keeps mame-dev-disk.sh's hfsutils state
+# (current mounted volume) isolated, so parallel ctest runs of the two
+# scenarios cannot cross-mount each other's development disks.
+if ! MAME_DEV_HDA="$DEV" MAME_CONTROL_DIR="$WORK/hfs-ctl" \
+    "$PROJECT_DIR/scripts/mame-dev-disk.sh" \
     "$APPL" "$STAGED_ASSETS" "$CONFIG" >"$WORK/dev-disk.out" 2>&1; then
   fail_stage mame "development disk creation failed; see $WORK/dev-disk.out"
 fi
