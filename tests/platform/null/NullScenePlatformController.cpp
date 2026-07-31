@@ -1,5 +1,6 @@
 #include "platform/null/NullScenePlatformController.hpp"
 
+#include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
 #include "platform/null/context/NullButtonContext.hpp"
 #include "platform/null/context/NullEditTextContext.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
@@ -62,6 +63,19 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
       destroyed_(false),
       eventLog_()
 {
+  loka::app::layout::RowLayoutMetrics rowMetrics;
+  rowMetrics.gap = 4;
+  rowMetrics.fallbackHeight = 10;
+  rowMetrics.buttonHeight = 10;
+  rowMetrics.editTextHeight = 10;
+  rowMetrics.popupMenuHeight = 10;
+  rowMetrics.textHeight = 10;
+  rowMetrics.imageFallbackHeight = 10;
+  loka::app::layout::GridLayoutMetrics gridMetrics;
+  gridMetrics.gapX = 2;
+  gridMetrics.gapY = 4;
+  loka::app::layout::RegisterBuiltinPlatformLayoutHandlers(
+      this->layoutHandlers_, &rowMetrics, &gridMetrics);
   RegisterNullButtonNodeHandler(*this);
   RegisterNullEditTextNodeHandler(*this);
   RegisterNullScrollBarNodeHandler(*this);

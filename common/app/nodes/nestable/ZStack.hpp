@@ -40,6 +40,10 @@ namespace loka
       {
         return scene::NODE_KIND_ZSTACK;
       }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<ZStackNode>();
+      }
       virtual ZStackNode *asZStackNode()
       {
         return this;

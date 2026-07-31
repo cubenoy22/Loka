@@ -54,6 +54,10 @@ namespace loka
       {
         return scene::NODE_KIND_BOX;
       }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<BoxNode>();
+      }
       virtual BoxNode *asBoxNode()
       {
         return this;

@@ -68,6 +68,10 @@ namespace loka
       {
         return scene::NODE_KIND_COLUMN;
       }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<ColumnNode>();
+      }
       virtual ColumnNode *asColumnNode()
       {
         return this;
@@ -144,6 +148,10 @@ namespace loka
       virtual scene::NodeKind kind() const
       {
         return scene::NODE_KIND_ROW;
+      }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<RowNode>();
       }
       virtual RowNode *asRowNode()
       {
