@@ -400,11 +400,12 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
   {
     return state.y;
   }
+  loka::app::scene::LayoutState childState = state;
   for (loka::app::scene::Node *child = nestable->childrenHead(); child; child = child->nextInComposition)
   {
-    this->layoutNode(child, state);
+    childState.y = static_cast<short>(this->layoutNode(child, childState));
   }
-  return state.y;
+  return childState.y;
 }
 
 void NullScenePlatformController::flushRetired()

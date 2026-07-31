@@ -3,6 +3,7 @@
 
 void testNullLayoutRowProducesFixedChildGeometry();
 void testNullLayoutColumnProducesFixedChildGeometry();
+void testNullLayoutFragmentAdvancesAcrossChildren();
 void testNullLayoutBoxProducesFixedChildGeometry();
 void testNullLayoutGridProducesFixedChildGeometry();
 void testNullLayoutZStackProducesFixedChildGeometry();

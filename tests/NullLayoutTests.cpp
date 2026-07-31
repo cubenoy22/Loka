@@ -3,6 +3,7 @@
 #include <cassert>
 
 #include "app/nodes/nestable/Box.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
@@ -108,6 +109,22 @@ void testNullLayoutColumnProducesFixedChildGeometry()
 
   assertGeometry(first, 10, 20, 80, 40);
   assertGeometry(second, 10, 27, 80, 33);
+  assert(resultY == 38);
+}
+
+void testNullLayoutFragmentAdvancesAcrossChildren()
+{
+  loka::app::FragmentNode fragment((loka::app::FragmentProps()));
+  FixedLayoutProbeNode *first = new FixedLayoutProbeNode(7);
+  FixedLayoutProbeNode *second = new FixedLayoutProbeNode(11);
+  fragment.addChild(first);
+  fragment.addChild(second);
+  NullScenePlatformController platform;
+
+  const int resultY = platform.projectLayoutForTesting(&fragment, makeState(10, 20, 80, 40));
+
+  assertGeometry(first, 10, 20, 80, 40);
+  assertGeometry(second, 10, 27, 80, 40);
   assert(resultY == 38);
 }
 
