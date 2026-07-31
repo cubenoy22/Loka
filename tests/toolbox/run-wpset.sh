@@ -145,8 +145,12 @@ set \$cursize = (this->currentBag_ >= 0 ? (unsigned long)this->reader_.state_.ba
 set \$idx = (unsigned long)this->indexBytes_._M_impl._M_start
 set \$idxsize = (unsigned long)(this->indexBytes_._M_impl._M_finish - this->indexBytes_._M_impl._M_start)
 printf "LOKA-WPSET: ui=0x%lx+%lu cur=0x%lx+%lu idx=0x%lx+%lu\n", \$ui, \$uisize, \$cur, \$cursize, \$idx, \$idxsize
-finish
-echo LOKA-WPSET: close returned, arming full freed ranges\n
+# Arm BEFORE close() runs: the releases happen inside close (releaseUiBag,
+# the current blob reset, the reader/index teardown), so arming after a
+# finish would leave the rest of close's own body unobserved. Verified on
+# the rig that close touches no payload bytes itself, so live-at-entry
+# watches do not false-positive.
+echo LOKA-WPSET: arming full ranges before close runs\n
 if \$ui != 0 && \$uisize != 0
   eval "awatch *(char(*)[%lu])0x%lx", \$uisize, \$ui
 end
