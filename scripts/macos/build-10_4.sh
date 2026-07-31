@@ -4,6 +4,20 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/scripts/macos/lib-common.sh"
 
+# A DEVELOPER_DIR that has no xcrun (Xcode 3.2.6 predates it) compiles all the
+# way to linking and then dies in an auxiliary xcrun step with a confusing
+# error (#198). Refuse up front with the fix spelled out; a DEVELOPER_DIR that
+# does carry xcrun is left alone.
+if [[ -n "${DEVELOPER_DIR:-}" && ! -x "${DEVELOPER_DIR}/usr/bin/xcrun" ]]; then
+  echo "error: DEVELOPER_DIR=${DEVELOPER_DIR} has no usr/bin/xcrun (Xcode 3.2.6 predates xcrun)." >&2
+  echo "The build would fail at link time. unset DEVELOPER_DIR and select the legacy tools" >&2
+  echo "directly instead, e.g.:" >&2
+  echo "  unset DEVELOPER_DIR" >&2
+  echo "  export MAC_OS_10_4_SYSROOT=/Developer/SDKs/MacOSX10.4u.sdk" >&2
+  echo "  export CC=/Developer/usr/bin/gcc-4.0 CXX=/Developer/usr/bin/g++-4.0" >&2
+  exit 1
+fi
+
 export MAC_OS_10_4=1
 export DEPLOYMENT_TARGET=10.4
 export ARCHS="${ARCHS:-ppc;i386}"

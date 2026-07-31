@@ -137,7 +137,18 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Intended for Snow Leopard environments with CMake/Ninja and the 10.4u SDK installed.
   - Build-verified on Snow Leopard with Xcode 3.2.6; expected merged slices are `ppc i386`.
   - Xcode UI builds using a Snow Leopard-partition Xcode 3.2.6 install have also been build-verified from Lion/Mountain Lion hosts.
-  - Lion/Mountain Lion CLI builds through that Xcode 3.2.6 install are not supported because `xcode-select` cannot select it there.
+  - CLI builds through an Xcode 3.2.6 install on a newer host (`xcode-select` cannot select it there) work by bypassing `xcode-select`/`xcrun` rather than fighting them — verified end to end on Mavericks 10.9.5 (all five example targets, `ppc i386` fat binaries):
+
+    ```sh
+    export PATH=/opt/local/bin:$PATH        # cmake and ninja live here, not on the default PATH
+    unset DEVELOPER_DIR                     # must stay unset: Xcode 3.2.6 has no xcrun (the script refuses otherwise)
+    export MAC_OS_10_4_SYSROOT=/Developer/SDKs/MacOSX10.4u.sdk
+    export CC=/Developer/usr/bin/gcc-4.0
+    export CXX=/Developer/usr/bin/g++-4.0
+    ./scripts/macos/build-10_4.sh
+    ```
+
+    Use the universal `gcc-4.0` driver, not the `powerpc-` prefixed one: CMake passes `-arch ppc -arch i386` to a single driver. Without the `CC`/`CXX` override, tool resolution falls through `xcrun` to `PATH` and picks the modern PPC-less `/usr/bin/g++`.
   - `MAC_OS_10_4_SYSROOT` is auto-resolved from `DEVELOPER_DIR` / `xcode-select` when unset.
   - Prefers `gcc-4.0` / `g++-4.0` resolved through `xcrun` from the selected Xcode, then falls back to `gcc-4.2` / `g++-4.2` and `PATH`.
   - `ppc` builds require a working PPC-capable compiler/toolchain (validated by a compile check).
