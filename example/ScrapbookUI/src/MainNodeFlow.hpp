@@ -21,8 +21,8 @@ namespace scrapbook
       {
         // preparePage rolled the refused bag back and the committed one is
         // still open, so the shown page is whole; put the selector back on it
-        // rather than replacing good content with a refusal card. How a kept
-        // page should surface the refusal is design work tracked in #230.
+        // rather than replacing good content with a refusal card.
+        self->setRefusedPage(self->selectedPage_);
         self->selectedPage_ = self->package_.currentPage();
         self->page_.set(self->selectedPage_);
       }

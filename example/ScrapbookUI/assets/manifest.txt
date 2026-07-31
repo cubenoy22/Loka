@@ -1,5 +1,8 @@
-# One page per bag: a page flip reads exactly one independently verifiable bag.
-# Derived id-space stamp: 1585384077 (also scrapbook::kIdSpaceStamp).
+# The UI bag stays resident; each page bag remains independently verifiable.
+# Derived id-space stamp: 3579051217 (also scrapbook::kIdSpaceStamp).
+bag ui
+asset 9001 image UI/RefusedBadge ngbadge.pict
+
 bag page-1
 asset 1001 image SCRAPBOOK_PAGE_1 page1.pict
 
