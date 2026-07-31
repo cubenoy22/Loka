@@ -32,9 +32,66 @@ namespace loka
       long bottom;
     };
 
+    /** Owns one step-driven scenario's observations between idle ticks. */
+    class ScrapbookScenario
+    {
+    public:
+      explicit ScrapbookScenario(const std::string &name);
+
+      /** Drives one scenario step. Returns true only when out contains the
+          final record and the driver may begin its post-record linger. */
+      bool step(long tick, scrapbook::MainNode &mainNode, const ContentBounds &bounds, dsl::SnapRecord &out);
+
+    private:
+      enum Kind
+      {
+        KIND_INVALID = 0,
+        KIND_OPEN_FIRST_PAGE,
+        KIND_OPEN_FIRST_PAGE_REFUSED,
+        KIND_FLIP_FORWARD_BACK,
+        KIND_REFUSED_FLIP_KEEPS_PAGE
+      };
+
+      struct PageObservation
+      {
+        PageObservation()
+            : published(false),
+              page(-1),
+              captionAvailable(false),
+              caption()
+        {
+        }
+
+        bool published;
+        int page;
+        bool captionAvailable;
+        std::string caption;
+      };
+
+      bool runOpenScenario(long tick,
+                           const scrapbook::MainNode &mainNode,
+                           const ContentBounds &bounds,
+                           dsl::SnapRecord &out);
+      bool
+      runFlipForwardBack(long tick, scrapbook::MainNode &mainNode, const ContentBounds &bounds, dsl::SnapRecord &out);
+      bool runRefusedFlipKeepsPage(long tick,
+                                   scrapbook::MainNode &mainNode,
+                                   const ContentBounds &bounds,
+                                   dsl::SnapRecord &out);
+      static PageObservation observePage(const scrapbook::MainNode &mainNode);
+      static void setPageObservation(dsl::SnapRecord &record,
+                                     const char *pageKey,
+                                     const char *captionKey,
+                                     const PageObservation &observation);
+
+      Kind kind_;
+      std::string name_;
+      int stage_;
+      PageObservation step1_;
+      PageObservation step2_;
+    };
+
     bool IsRegisteredScenario(const std::string &name);
-    dsl::SnapRecord
-    RunRegisteredScenario(const std::string &name, const scrapbook::MainNode &mainNode, const ContentBounds &bounds);
     dsl::SnapRecord MakeDriverErrorRecord(const char *scenario, long errorCode, const char *message);
   } // namespace toolbox_tests
 } // namespace loka

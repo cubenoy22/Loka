@@ -102,9 +102,11 @@ namespace loka
         ScenarioAppConfig(PlatformContext *context, const dsl::SnapTestConfig::Settings &settings)
             : AppConfigurable(context),
               settings_(settings),
+              scenario_(settings.scenario),
               borrowedApp_(0),
               borrowedMainNode_(0),
               recorded_(false),
+              tickCount_(0),
               lingerRemaining_(settings.hasLingerSeconds ? static_cast<double>(settings.lingerSeconds) : 0.0)
         {
         }
@@ -139,10 +141,30 @@ namespace loka
 
         void tick(Window *window, double elapsedSeconds)
         {
+          ++this->tickCount_;
           if (!this->recorded_)
           {
-            this->recorded_ = true;
-            this->record(window);
+            dsl::SnapRecord record;
+            bool done = false;
+            if (!this->borrowedMainNode_)
+            {
+              record = MakeDriverErrorRecord(this->settings_.scenario.c_str(), 2303, "MainNode was not mounted");
+              done = true;
+            }
+            else
+            {
+              done =
+                  this->scenario_.step(this->tickCount_, *this->borrowedMainNode_, QueryContentBounds(window), record);
+            }
+            if (done)
+            {
+              (void)WriteRecord(this->settings_, record);
+              this->recorded_ = true;
+            }
+          }
+          if (!this->recorded_)
+          {
+            return;
           }
           // The record is already on disk, but an emulator-side snapshot
           // arrives on emulated wall-clock time; linger_seconds keeps the
@@ -154,25 +176,12 @@ namespace loka
           }
         }
 
-        void record(Window *window)
-        {
-          dsl::SnapRecord record;
-          if (!this->borrowedMainNode_)
-          {
-            record = MakeDriverErrorRecord(this->settings_.scenario.c_str(), 2303, "MainNode was not mounted");
-          }
-          else
-          {
-            record =
-                RunRegisteredScenario(this->settings_.scenario, *this->borrowedMainNode_, QueryContentBounds(window));
-          }
-          (void)WriteRecord(this->settings_, record);
-        }
-
         const dsl::SnapTestConfig::Settings settings_;
+        ScrapbookScenario scenario_;
         App *borrowedApp_;
         scrapbook::MainNode *borrowedMainNode_;
         bool recorded_;
+        long tickCount_;
         double lingerRemaining_;
       };
     } // namespace

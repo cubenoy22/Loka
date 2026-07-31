@@ -69,6 +69,10 @@ namespace scrapbook
           selectedPage_(0),
           package_(),
           page_(),
+          refusedPage_(),
+          refusedBadgeVisible_(),
+          refusedPageNumber_(),
+          refusedBadgeImage_(),
           showImage_(),
           showText_(),
           image_(),
@@ -80,6 +84,10 @@ namespace scrapbook
           pageFlow_()
     {
       this->state(this->page_, 0);
+      this->state(this->refusedPage_, -1);
+      this->state(this->refusedBadgeVisible_, false);
+      this->state(this->refusedPageNumber_, loka::core::String());
+      this->state(this->refusedBadgeImage_, loka::core::resource::Image::Empty());
       this->state(this->showImage_, false);
       this->state(this->showText_, true);
       this->state(this->image_, loka::core::resource::Image::Empty());
@@ -113,6 +121,44 @@ namespace scrapbook
       return this->pageText_.get();
     }
 
+    /** Programmatically selects and loads a page through the same path as the
+        page scrollbar. Values outside the package range clamp to an endpoint. */
+    void selectPage(int page)
+    {
+      if (page < 0)
+      {
+        page = 0;
+      }
+      else if (page >= static_cast<int>(kPageCount))
+      {
+        page = static_cast<int>(kPageCount - 1);
+      }
+      this->page_.set(page);
+      if (this->initialized_)
+      {
+        this->loadSelectedPage();
+      }
+    }
+
+    /** Returns the selector's current zero-based page. */
+    int selectedPage() const
+    {
+      return this->page_.get();
+    }
+
+    /** Returns the last refused zero-based page, or -1 when none is shown. */
+    int refusedPage() const
+    {
+      return this->refusedPage_.get();
+    }
+
+    /** True while the persistent refusal badge section is selected into the
+        caption row. */
+    bool isRefusedBadgeVisible() const
+    {
+      return this->refusedPage_.get() >= 0;
+    }
+
     virtual void attachNode(loka::app::scene::NodeComposition &composition)
     {
       if (this->initialized_)
@@ -122,6 +168,7 @@ namespace scrapbook
       (void)composition;
       this->props.assertInitialized();
       this->package_.open(this->props.platformContext_);
+      this->refusedBadgeImage_.set(this->package_.refusedBadgeImage());
       this->pageFlow_.set(buildFlow(*this)).withTracker(static_cast<loka::core::PushStateTracker *>(this->tracker()));
       this->bindActionForUi(this->pageFlip_, &MainNode::loadSelectedPage);
       this->initialized_ = true;
@@ -152,7 +199,13 @@ namespace scrapbook
                            << Text(this->pageText_.state())
                                   .attr(TextAttr().fontSize(18).wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_NONE))))
           << (HStack().alignVertical(VERTICAL_ALIGNMENT_CENTER)
-              << Text(this->caption_.state()) << Text(this->badge_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD)))
+              << Text(this->caption_.state()) << Text(this->badge_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))
+              << (Show(*this->refusedBadgeVisible_.state())
+                  << ImageView()
+                         .image(this->refusedBadgeImage_.state())
+                         .size(16, 16)
+                         .attr(ImageViewAttr().sizePolicy(IMAGE_VIEW_SIZE_INTRINSIC).fit(IMAGE_FIT_CONTAIN))
+                  << Text(this->refusedPageNumber_.state()).attr(TextAttr().weight(TEXT_WEIGHT_BOLD))))
           << ScrollBar(this->page_.state())
                  .horizontal()
                  .range(0, static_cast<int>(kPageCount - 1))
@@ -181,6 +234,17 @@ namespace scrapbook
       // The logical display now owns the new Image. Only after that handoff
       // does the package owner close and release the previous bag ledger.
       this->package_.commitPage(page);
+      if (this->refusedPage_.get() == page.page)
+      {
+        this->setRefusedPage(-1);
+      }
+    }
+
+    void setRefusedPage(int page)
+    {
+      this->refusedPage_.set(page);
+      this->refusedBadgeVisible_.set(page >= 0);
+      this->refusedPageNumber_.set(page >= 0 ? loka::core::String::FromInt(page + 1) : loka::core::String());
     }
 
     void publishRefusal()
@@ -197,6 +261,10 @@ namespace scrapbook
     int selectedPage_;
     ScrapbookPackage package_;
     loka::app::scene::NodeState<int> page_;
+    loka::app::scene::NodeState<int> refusedPage_;
+    loka::app::scene::NodeState<bool> refusedBadgeVisible_;
+    loka::app::scene::NodeState<loka::core::String> refusedPageNumber_;
+    loka::app::scene::NodeState<loka::core::resource::Image> refusedBadgeImage_;
     loka::app::scene::NodeState<bool> showImage_;
     loka::app::scene::NodeState<bool> showText_;
     loka::app::scene::NodeState<loka::core::resource::Image> image_;
