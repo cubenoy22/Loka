@@ -228,6 +228,16 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
         set_tests_properties("mameScenario-${_loka_mame_scenario}"
           PROPERTIES LABELS "mame")
       endforeach()
+
+      # The watchpoint legs share the fixed build/mame-debug staging area of
+      # scripts/mame-debug.sh, so they must not run concurrently.
+      foreach(_loka_wpset_mode clean control)
+        add_test(NAME "mameScenarioWpset-${_loka_wpset_mode}"
+          COMMAND bash ${PROJECT_SOURCE_DIR}/tests/toolbox/run-wpset.sh
+            "${_loka_wpset_mode}")
+        set_tests_properties("mameScenarioWpset-${_loka_wpset_mode}"
+          PROPERTIES LABELS "mame" RUN_SERIAL TRUE)
+      endforeach()
     endif()
   endif()
 
