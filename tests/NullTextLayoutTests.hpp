@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
+#define LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
+
+void testNullTextLayoutWordAndCharacterWrapProduceDifferentGeometry();
+
+#endif // LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
