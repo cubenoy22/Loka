@@ -17,6 +17,7 @@ add_executable(lrpc
   main.cpp
   PackManifest.cpp
   LrpkWriter.cpp
+  Utf8Path.cpp
 )
 
 # tools/ is the include root: LrpkWriter.cpp already spells its own header as

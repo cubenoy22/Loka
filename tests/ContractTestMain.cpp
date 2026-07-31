@@ -13,6 +13,7 @@
 #include "SnapFormatTests.hpp"
 #include "LrpkFormatTests.hpp"
 #include "PackManifestTests.hpp"
+#include "LrpcPathTests.hpp"
 #include "LrpkGoldenBytesTests.hpp"
 #include "BlobRangeTests.hpp"
 #include "PictParserTests.hpp"
