@@ -31,6 +31,7 @@
 #include "LifecycleDetachTests.hpp"
 #include "NativeLifetimeTests.hpp"
 #include "NullLayoutTests.hpp"
+#include "NullTextLayoutTests.hpp"
 #include "NullPlatformContractTests.hpp"
 #include "LifecycleFactTests.hpp"
 #include "LokaAllocTests.hpp"
