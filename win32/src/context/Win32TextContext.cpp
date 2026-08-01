@@ -29,7 +29,16 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureTextContext(text, state.x, state.y, state.width, state.height);
+      Win32TextContext *ctx = static_cast<Win32TextContext *>(text->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new Win32TextContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, text);
+      text->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

@@ -6,7 +6,6 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
-#include "context/Win32NodeContextMapper.hpp"
 
 class Win32ButtonContext;
 class Win32EditTextContext;
@@ -110,10 +109,7 @@ public:
 
   bool handleCommand(WPARAM wParam, LPARAM lParam);
   void relayout(int clientWidth, int clientHeight);
-  Win32NodeContextMapper *contextMapper()
-  {
-    return &contextMapper_;
-  }
+  HWND rootHwnd() const { return rootHwnd_; }
 
 private:
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
@@ -319,7 +315,6 @@ private:
   void dumpRedrawStatsIfNeeded();
 
   HWND rootHwnd_;
-  Win32NodeContextMapper contextMapper_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;

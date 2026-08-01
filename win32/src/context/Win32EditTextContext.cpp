@@ -29,7 +29,16 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureEditTextContext(edit, state.x, state.y, state.width, state.height);
+      Win32EditTextContext *ctx = static_cast<Win32EditTextContext *>(edit->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new Win32EditTextContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, edit);
+      edit->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

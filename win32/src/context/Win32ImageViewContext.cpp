@@ -25,7 +25,16 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureImageViewContext(image, state.x, state.y, state.width, state.height);
+      Win32ImageViewContext *ctx = static_cast<Win32ImageViewContext *>(image->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new Win32ImageViewContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, image);
+      image->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 
