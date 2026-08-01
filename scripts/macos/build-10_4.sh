@@ -4,6 +4,30 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT_DIR}/scripts/macos/lib-common.sh"
 
+# A DEVELOPER_DIR that has no xcrun (Xcode 3.2.6 predates it) compiles all the
+# way to linking and then dies in an auxiliary xcrun step with a confusing
+# error (#198) -- demonstrated on Mavericks, whose modern xcrun requires
+# $DEVELOPER_DIR/usr/bin/xcrun to exist. Refuse up front with the fix spelled
+# out; a DEVELOPER_DIR that does carry xcrun is left alone. Whether an old
+# host's own xcrun tolerates such a DEVELOPER_DIR is unverified (no Snow
+# Leopard run yet), so the refusal has the same escape hatch shape as
+# ALLOW_PPC_FALLBACK for a host where the configuration is known to work.
+if [[ -n "${DEVELOPER_DIR:-}" && ! -x "${DEVELOPER_DIR}/usr/bin/xcrun" ]]; then
+  if [[ "${ALLOW_DEVELOPER_DIR_WITHOUT_XCRUN:-0}" != "1" ]]; then
+    echo "error: DEVELOPER_DIR=${DEVELOPER_DIR} has no usr/bin/xcrun (Xcode 3.2.6 predates xcrun)." >&2
+    echo "On hosts with a modern xcrun the build fails at link time. unset DEVELOPER_DIR and" >&2
+    echo "select the legacy tools directly instead, e.g.:" >&2
+    echo "  unset DEVELOPER_DIR" >&2
+    echo "  export MAC_OS_10_4_SYSROOT=/Developer/SDKs/MacOSX10.4u.sdk" >&2
+    echo "  export CC=/Developer/usr/bin/gcc-4.0 CXX=/Developer/usr/bin/g++-4.0" >&2
+    echo "If this configuration is known to work on this host, set" >&2
+    echo "ALLOW_DEVELOPER_DIR_WITHOUT_XCRUN=1 to proceed." >&2
+    exit 1
+  fi
+  echo "warning: proceeding with DEVELOPER_DIR=${DEVELOPER_DIR} despite missing usr/bin/xcrun" >&2
+  echo "(ALLOW_DEVELOPER_DIR_WITHOUT_XCRUN=1); a modern xcrun would fail at link time." >&2
+fi
+
 export MAC_OS_10_4=1
 export DEPLOYMENT_TARGET=10.4
 export ARCHS="${ARCHS:-ppc;i386}"

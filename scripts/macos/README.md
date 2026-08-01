@@ -15,7 +15,7 @@ Legend: `:white_check_mark:` verified, `△` verified with caveats (see Notes),
 | Snow Leopard 10.6 / Xcode 3.2.6 | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | Main UB1 bridge; copied projects and `build-10_4.sh` / `build-10_5.sh` are build-verified (`ppc/i386` and `ppc7400/i386/x86_64`). |
 | Lion 10.7 + final Xcode | - | :white_check_mark: | :white_check_mark: | - | :x: | Final Xcode can debug native builds; cross-partition Xcode 3.2.6 can build UB1 through the UI, but CLI wrappers cannot select it with `xcode-select`. |
 | Mountain Lion 10.8 + final Xcode | :white_check_mark: | :white_check_mark: | :white_check_mark: | - | :x: | Can generate projects from source, debug with the final Xcode, and run cross-partition Xcode 3.2.6 for UB1 UI builds. CLI wrappers cannot select that Xcode through `xcode-select`. |
-| Mavericks 10.9 / Xcode 6.2 | :white_check_mark: | - | :white_check_mark: | - | - | Legacy project generation works; Xcode 3.2.6 can launch there and build Leopard-facing four-architecture UB1 outputs from the UI. |
+| Mavericks 10.9 / Xcode 6.2 | :white_check_mark: | - | :white_check_mark: | - | :white_check_mark: | Legacy project generation works; Xcode 3.2.6 can launch there and build Leopard-facing four-architecture UB1 outputs from the UI. CLI `build-10_4.sh` verified with the explicit `CC`/`CXX` recipe (see Which Script To Run). |
 | Yosemite 10.10 | :white_check_mark: | :white_check_mark: | :x: | :x: | - | Project generation and native debugging work, but Xcode 3.2.6 cannot launch there. |
 | El Capitan 10.11 through Sierra 10.12 / Xcode 9.2 | :white_check_mark: | :white_check_mark: | - | - | - | Leopard-facing Xcode project generation has been verified on Sierra with Xcode 9.2; generated projects have been copied back to Snow Leopard and build-verified there. |
 | High Sierra 10.13 | △ | :white_check_mark: | - | - | - | Depends on the selected Xcode version; Xcode 9.4.1-era setups are expected to work, while Xcode 10.1 fails legacy UB1 generation. |
@@ -29,9 +29,12 @@ Legend: `:white_check_mark:` verified, `△` verified with caveats (see Notes),
 There are two separate legacy routes to keep in mind. Building UB1 outputs
 directly requires a host that can launch Xcode 3.2.6; this has been verified on
 Snow Leopard 10.6 through Mavericks 10.9 and is not available on Yosemite or
-newer. CLI wrapper builds through Xcode 3.2.6 are Snow Leopard-only: Xcode
-3.2.6 is an old `/Developer`-style install that `xcode-select` on Lion and
-newer cannot select.
+newer. CLI wrapper builds through Xcode 3.2.6 auto-resolve tools on Snow
+Leopard only: Xcode 3.2.6 is an old `/Developer`-style install that
+`xcode-select` on Lion and newer cannot select. On those newer hosts the CLI
+path still works by naming the legacy tools explicitly with `CC`/`CXX` and
+keeping `DEVELOPER_DIR` unset — verified on Mavericks; recipe under Which
+Script To Run.
 
 Generating bridge projects has two paths. The legacy UB1 generator scripts need
 an Xcode 9-series or earlier host; Sierra with Xcode 9.2 is verified and Xcode
@@ -80,8 +83,9 @@ Leopard-facing UB1. The command-line wrappers are a secondary path there: they
 prefer tools resolved through `xcrun` / the selected developer directory before
 falling back to `PATH`, but Xcode 3.2.6 is an old `/Developer`-style install
 rather than a modern `Xcode.app/Contents/Developer` bundle and cannot be
-selected with `xcode-select` from those hosts. Direct Xcode UI verification is
-therefore the supported route for that setup.
+selected with `xcode-select` from those hosts. Auto-resolution therefore picks
+the modern PPC-less compiler; bypass it with the explicit `CC`/`CXX` recipe
+(verified on Mavericks) or use the Xcode UI.
 
 Leopard can open copied projects when a newer Xcode has saved them with Xcode
 3.1 compatibility. If the copied project reports the original Base SDK as
@@ -137,7 +141,19 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Intended for Snow Leopard environments with CMake/Ninja and the 10.4u SDK installed.
   - Build-verified on Snow Leopard with Xcode 3.2.6; expected merged slices are `ppc i386`.
   - Xcode UI builds using a Snow Leopard-partition Xcode 3.2.6 install have also been build-verified from Lion/Mountain Lion hosts.
-  - Lion/Mountain Lion CLI builds through that Xcode 3.2.6 install are not supported because `xcode-select` cannot select it there.
+  - CLI builds through an Xcode 3.2.6 install on a newer host (`xcode-select` cannot select it there) work by bypassing `xcode-select`/`xcrun` rather than fighting them — verified end to end on Mavericks 10.9.5 (all five example targets, `ppc i386` fat binaries):
+
+    ```sh
+    export PATH=/opt/local/bin:$PATH        # cmake and ninja live here, not on the default PATH
+    unset DEVELOPER_DIR                     # must stay unset: Xcode 3.2.6 has no xcrun (the script refuses otherwise;
+                                            # ALLOW_DEVELOPER_DIR_WITHOUT_XCRUN=1 overrides on a host known to tolerate it)
+    export MAC_OS_10_4_SYSROOT=/Developer/SDKs/MacOSX10.4u.sdk
+    export CC=/Developer/usr/bin/gcc-4.0
+    export CXX=/Developer/usr/bin/g++-4.0
+    ./scripts/macos/build-10_4.sh
+    ```
+
+    Use the universal `gcc-4.0` driver, not the `powerpc-` prefixed one: CMake passes `-arch ppc -arch i386` to a single driver. Without the `CC`/`CXX` override, tool resolution falls through `xcrun` to `PATH` and picks the modern PPC-less `/usr/bin/g++`.
   - `MAC_OS_10_4_SYSROOT` is auto-resolved from `DEVELOPER_DIR` / `xcode-select` when unset.
   - Prefers `gcc-4.0` / `g++-4.0` resolved through `xcrun` from the selected Xcode, then falls back to `gcc-4.2` / `g++-4.2` and `PATH`.
   - `ppc` builds require a working PPC-capable compiler/toolchain (validated by a compile check).

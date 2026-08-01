@@ -215,6 +215,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
     add_test(NAME scriptPngCropSelftest
       COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/toolbox/pngcrop.py selftest)
+    add_test(NAME scriptBuild104Guard
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Build104GuardTest.sh)
 
     if(LOKA_MAME_SCENARIOS)
       foreach(_loka_mame_scenario
