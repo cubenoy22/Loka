@@ -1,6 +1,6 @@
 #include "Win32EditTextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <vector>
 #include "app/nodes/controls/EditText.hpp"
 #include "core/State.hpp"
@@ -11,34 +11,28 @@ namespace
   const int kEditTextHeight = 24;
   const int kVerticalSpacing = 12;
 
-  class Win32EditTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class Win32EditTextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<Win32EditTextNodeHandler,
+                                                     loka::app::EditTextNode,
+                                                     Win32EditTextContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::EditTextNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+      return node ? node->asEditTextNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static Win32EditTextContext *create(loka::app::EditTextNode *edit,
+                                        loka::app::scene::IPlatformController *controller,
+                                        const loka::app::scene::LayoutState &state)
     {
-      loka::app::EditTextNode *edit = node ? node->asEditTextNode() : 0;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!edit || !win32)
-      {
-        return 0;
-      }
-      Win32EditTextContext *ctx = static_cast<Win32EditTextContext *>(edit->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new Win32EditTextContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, edit);
-      edit->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new Win32EditTextContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, edit);
+    }
+
+    static void refresh(Win32EditTextContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

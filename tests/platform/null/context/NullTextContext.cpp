@@ -3,7 +3,7 @@
 #include <climits>
 
 #include "app/nodes/Text.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "core/StringBuffer.hpp"
 
 namespace
@@ -283,36 +283,25 @@ namespace
         ClampExtentToShort(lines.lineCount));
   }
 
-  class NullTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class NullTextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<NullTextNodeHandler,
+                                                     loka::app::TextNode,
+                                                     NullTextContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::TextNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+      return node ? node->asTextNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static NullTextContext *create(loka::app::TextNode *text,
+                                   loka::app::scene::IPlatformController *controller,
+                                   const loka::app::scene::LayoutState &state)
     {
       (void)state;
-      loka::app::TextNode *text = node ? node->asTextNode() : 0;
       NullScenePlatformController *nullPlatform = static_cast<NullScenePlatformController *>(controller);
-      if (!text || !nullPlatform)
-      {
-        return 0;
-      }
-      NullTextContext *context = static_cast<NullTextContext *>(text->getContext());
-      if (!context)
-      {
-        context = new NullTextContext(text);
-        if (!context)
-        {
-          return 0;
-        }
-        text->setContext(context);
-      }
-      return context;
+      (void)nullPlatform;
+      return new NullTextContext(text);
     }
   };
 
@@ -358,6 +347,12 @@ NullTextContext::NullTextContext(loka::app::TextNode *node)
 NullTextContext::~NullTextContext()
 {
   this->node_ = 0;
+}
+
+void NullTextContext::readLifecycleFactOnAttach()
+{
+  // No native presentation on the null text context; the method exists so the
+  // shared ensure ritual stays uniform.
 }
 
 short NullTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)

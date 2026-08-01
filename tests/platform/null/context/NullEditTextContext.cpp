@@ -1,42 +1,29 @@
 #include "platform/null/context/NullEditTextContext.hpp"
 
 #include "app/nodes/controls/EditText.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 
 namespace
 {
-  class NullEditTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class NullEditTextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<NullEditTextNodeHandler,
+                                                     loka::app::EditTextNode,
+                                                     NullEditTextContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::EditTextNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+      return node ? node->asEditTextNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static NullEditTextContext *create(loka::app::EditTextNode *editText,
+                                       loka::app::scene::IPlatformController *controller,
+                                       const loka::app::scene::LayoutState &state)
     {
       (void)state;
-      loka::app::EditTextNode *editText = node ? node->asEditTextNode() : 0;
       NullScenePlatformController *nullPlatform =
           static_cast<NullScenePlatformController *>(controller);
-      if (!editText || !nullPlatform)
-      {
-        return 0;
-      }
-      NullEditTextContext *context = static_cast<NullEditTextContext *>(editText->getContext());
-      if (!context)
-      {
-        context = new NullEditTextContext(editText, nullPlatform);
-        if (!context)
-        {
-          return 0;
-        }
-        editText->setContext(context);
-        context->readLifecycleFactOnAttach();
-      }
-      return context;
+      return new NullEditTextContext(editText, nullPlatform);
     }
   };
 

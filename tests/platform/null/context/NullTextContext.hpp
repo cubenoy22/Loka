@@ -35,6 +35,8 @@ public:
   explicit NullTextContext(loka::app::TextNode *node);
   virtual ~NullTextContext();
 
+  void readLifecycleFactOnAttach();
+
   virtual short layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state);
 
   const NullTextMeasurement &measurement() const;

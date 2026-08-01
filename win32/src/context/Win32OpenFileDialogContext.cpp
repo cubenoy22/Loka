@@ -1,6 +1,6 @@
 #include "Win32OpenFileDialogContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <commdlg.h>
 #include <string>
 #include "Win32ThreadModalDialogScope.hpp"
@@ -39,38 +39,30 @@ namespace
     }
   }
 
-  class Win32OpenFileDialogNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class Win32OpenFileDialogNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<Win32OpenFileDialogNodeHandler,
+                                                     loka::app::OpenFileDialogNode,
+                                                     Win32OpenFileDialogContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::OpenFileDialogNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>();
+      return node ? node->asOpenFileDialogNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static Win32OpenFileDialogContext *create(loka::app::OpenFileDialogNode *dialog,
+                                              loka::app::scene::IPlatformController *controller,
+                                              const loka::app::scene::LayoutState &state)
     {
       (void)state;
-      loka::app::OpenFileDialogNode *dialog = node ? node->asOpenFileDialogNode() : 0;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!dialog || !win32)
-      {
-        return 0;
-      }
-      Win32OpenFileDialogContext *ctx = static_cast<Win32OpenFileDialogContext *>(dialog->getContext());
-      if (ctx)
-      {
-        return ctx;
-      }
-      ctx = new Win32OpenFileDialogContext(win32->rootHwnd(), dialog);
-      dialog->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      // Boundary compose may already consume pendingAttach to convert the child
-      // compose event to ATTACH, so a freshly created dialog context should
-      // present immediately even when pendingAttach is no longer visible here.
+      return new Win32OpenFileDialogContext(win32->rootHwnd(), dialog);
+    }
+
+    static void afterAttach(Win32OpenFileDialogContext *ctx)
+    {
+      // Keep presentation in the shared after-attach slot; see RetainedNodeHandler.
       ctx->presentIfNeeded();
-      return ctx;
     }
   };
 

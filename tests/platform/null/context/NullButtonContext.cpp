@@ -1,42 +1,29 @@
 #include "platform/null/context/NullButtonContext.hpp"
 
 #include "app/nodes/controls/Button.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 
 namespace
 {
-  class NullButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class NullButtonNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<NullButtonNodeHandler,
+                                                     loka::app::ButtonNode,
+                                                     NullButtonContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::ButtonNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+      return node ? node->asButtonNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static NullButtonContext *create(loka::app::ButtonNode *button,
+                                     loka::app::scene::IPlatformController *controller,
+                                     const loka::app::scene::LayoutState &state)
     {
       (void)state;
-      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
       NullScenePlatformController *nullPlatform =
           static_cast<NullScenePlatformController *>(controller);
-      if (!button || !nullPlatform)
-      {
-        return 0;
-      }
-      NullButtonContext *context = static_cast<NullButtonContext *>(button->getContext());
-      if (!context)
-      {
-        context = new NullButtonContext(button, nullPlatform);
-        if (!context)
-        {
-          return 0;
-        }
-        button->setContext(context);
-        context->readLifecycleFactOnAttach();
-      }
-      return context;
+      return new NullButtonContext(button, nullPlatform);
     }
   };
 

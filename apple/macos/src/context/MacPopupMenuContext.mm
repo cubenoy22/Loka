@@ -1,7 +1,7 @@
 #include "MacPopupMenuContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "platform/StringUTF8.hpp"
@@ -11,34 +11,28 @@ namespace
   const int kPopupMenuHeight = 26;
   const int kVerticalSpacing = 12;
 
-  class MacPopupMenuNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class MacPopupMenuNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<MacPopupMenuNodeHandler,
+                                                     loka::app::PopupMenuNode,
+                                                     MacPopupMenuContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::PopupMenuNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
+      return node ? node->asPopupMenuNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static MacPopupMenuContext *create(loka::app::PopupMenuNode *popup,
+                                       loka::app::scene::IPlatformController *controller,
+                                       const loka::app::scene::LayoutState &state)
     {
-      loka::app::PopupMenuNode *popup = node ? node->asPopupMenuNode() : 0;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!popup || !mac)
-      {
-        return 0;
-      }
-      MacPopupMenuContext *ctx = static_cast<MacPopupMenuContext *>(popup->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new MacPopupMenuContext(mac->rootView(), state.x, state.y, state.width, state.height, popup);
-      popup->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new MacPopupMenuContext(mac->rootView(), state.x, state.y, state.width, state.height, popup);
+    }
+
+    static void refresh(MacPopupMenuContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

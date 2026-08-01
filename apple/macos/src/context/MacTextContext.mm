@@ -1,7 +1,7 @@
 #include "MacTextContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/nodes/Text.hpp"
@@ -114,34 +114,28 @@ namespace
     return true;
   }
 
-  class MacTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class MacTextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<MacTextNodeHandler,
+                                                     loka::app::TextNode,
+                                                     MacTextContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::TextNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+      return node ? node->asTextNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static MacTextContext *create(loka::app::TextNode *text,
+                                  loka::app::scene::IPlatformController *controller,
+                                  const loka::app::scene::LayoutState &state)
     {
-      loka::app::TextNode *text = node ? node->asTextNode() : 0;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!text || !mac)
-      {
-        return 0;
-      }
-      MacTextContext *ctx = static_cast<MacTextContext *>(text->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new MacTextContext(mac->rootView(), state.x, state.y, state.width, state.height, text);
-      text->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new MacTextContext(mac->rootView(), state.x, state.y, state.width, state.height, text);
+    }
+
+    static void refresh(MacTextContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 
