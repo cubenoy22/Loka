@@ -14,6 +14,9 @@
 #include "app/core/AppConfigurable.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/scene/boundary/Boundary.hpp"
+#include "app/nodes/Text.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
+#include "dsl/composition/CompositionList.hpp"
 #include "core/util/ScopedPtr.hpp"
 
 namespace loka
@@ -24,6 +27,61 @@ namespace loka
     {
       const char *kConfigPath = "LokaTest.cfg";
       const char *kCaptureFile = "LokaTestsToolbox.snap";
+
+      struct BoundaryAuditCounts
+      {
+        int tagged;
+        int untagged;
+        BoundaryAuditCounts()
+            : tagged(0),
+              untagged(0)
+        {
+        }
+      };
+
+      /** Discriminating observer for the wall-side boundary hookup
+          (ToolboxScenePlatformController::prepareProjectedLayout): every
+          projected text context under a boundary must carry that boundary,
+          or hit/text-run ledger entries would be attributed to the wrong
+          window. Text is the representative projected kind; the hookup is
+          one kind-agnostic line, so one kind discriminates its removal. */
+      void AuditProjectedTextBoundaries(app::scene::Node *node,
+                                        app::scene::BoundaryNode *expected,
+                                        BoundaryAuditCounts &counts)
+      {
+        if (!node)
+        {
+          return;
+        }
+        if (app::TextNode *text = node->asTextNode())
+        {
+          if (app::scene::NodeContext *raw = text->getContext())
+          {
+            ToolboxProjectedNodeContext *projected = static_cast<ToolboxProjectedNodeContext *>(raw);
+            if (projected->boundary() == expected)
+            {
+              ++counts.tagged;
+            }
+            else
+            {
+              ++counts.untagged;
+            }
+          }
+        }
+        if (app::scene::BoundaryNode *boundary = node->asBoundary())
+        {
+          AuditProjectedTextBoundaries(boundary->compositionRootNode(), boundary, counts);
+          return;
+        }
+        if (app::scene::INestable *nestable = node->asNestable())
+        {
+          dsl::CompositionCursor<app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
+          for (app::scene::Node *child = it.next(); child; child = it.next())
+          {
+            AuditProjectedTextBoundaries(child, expected, counts);
+          }
+        }
+      }
 
       typedef app::scene::BoundaryDefinition<scrapbook::MainProps, scrapbook::MainNode> MainDefinitionBase;
 
@@ -155,6 +213,16 @@ namespace loka
             {
               done =
                   this->scenario_.step(this->tickCount_, *this->borrowedMainNode_, QueryContentBounds(window), record);
+            }
+            if (done && this->borrowedMainNode_)
+            {
+              BoundaryAuditCounts counts;
+              AuditProjectedTextBoundaries(this->borrowedMainNode_, 0, counts);
+              if (counts.untagged != 0 || counts.tagged == 0)
+              {
+                record = MakeDriverErrorRecord(this->settings_.scenario.c_str(), 2304,
+                                               "projected text context lost its boundary tag");
+              }
             }
             if (done)
             {
