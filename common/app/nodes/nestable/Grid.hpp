@@ -56,6 +56,10 @@ namespace loka
       {
         return scene::NODE_KIND_GRID;
       }
+      virtual const void *nodeTypeKey() const
+      {
+        return scene::NodeTypeToken<GridNode>();
+      }
       virtual GridNode *asGridNode()
       {
         return this;
