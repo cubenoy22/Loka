@@ -1,0 +1,12 @@
+#ifndef LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
+#define LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP
+
+void testNullTextLayoutWordAndCharacterWrapProduceDifferentGeometry();
+void testNullTextLayoutTruncationModesProduceDifferentWidths();
+void testNullTextLayoutHonorsExplicitBreaksAndForceBreaksLongWords();
+void testNullTextLayoutUsesFixedAdvancePerCodePoint();
+void testNullTextLayoutPreservesNegativeStartY();
+void testNullTextLayoutWrapsAtPositiveSubGlyphWidth();
+void testNullTextLayoutWordWrapMeasuresStandaloneSpaces();
+
+#endif // LOKA_TESTS_NULL_TEXT_LAYOUT_TESTS_HPP

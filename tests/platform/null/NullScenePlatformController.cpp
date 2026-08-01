@@ -4,6 +4,7 @@
 #include "platform/null/context/NullButtonContext.hpp"
 #include "platform/null/context/NullEditTextContext.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
+#include "platform/null/context/NullTextContext.hpp"
 
 class NullScenePlatformController::LayoutTraversal
     : public loka::app::scene::IPlatformLayoutTraversal
@@ -79,6 +80,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
   RegisterNullButtonNodeHandler(*this);
   RegisterNullEditTextNodeHandler(*this);
   RegisterNullScrollBarNodeHandler(*this);
+  RegisterNullTextNodeHandler(*this);
 }
 
 NullScenePlatformController::~NullScenePlatformController()
