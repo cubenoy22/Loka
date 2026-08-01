@@ -33,7 +33,6 @@ namespace
 ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node,
                                            ToolboxScenePlatformController *controller)
     : node_(node),
-      boundary_(0),
       rect_(),
       label_(loka::core::String::Literal("Button")),
       emitter_(0),

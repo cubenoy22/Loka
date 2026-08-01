@@ -4,7 +4,6 @@
 ToolboxScrollBarContext::ToolboxScrollBarContext(loka::app::ScrollBarNode *node,
                                                  ToolboxScenePlatformController *controller)
     : node_(node),
-      boundary_(0),
       rect_(),
       resourceId_(0),
       controller_(controller)

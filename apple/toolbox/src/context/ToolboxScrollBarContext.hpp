@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP
 #define LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include <Quickdraw.h>
 
@@ -21,16 +21,12 @@ namespace loka
     itself lives in the controller's binding table, keyed by the auto control
     id this context holds for its whole lifetime; the context owns only the
     rect and the retire ritual, exactly like ToolboxButtonContext. */
-class ToolboxScrollBarContext : public loka::app::scene::NativeNodeContext
+class ToolboxScrollBarContext : public ToolboxProjectedNodeContext
 {
 public:
   ToolboxScrollBarContext(loka::app::ScrollBarNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxScrollBarContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary)
-  {
-    boundary_ = boundary;
-  }
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
   virtual void render(loka::app::scene::IPlatformController *controller);
@@ -43,7 +39,6 @@ public:
 
 private:
   loka::app::ScrollBarNode *node_;
-  loka::app::scene::BoundaryNode *boundary_;
   Rect rect_;
   short resourceId_;
   ToolboxScenePlatformController *controller_;

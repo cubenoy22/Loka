@@ -39,7 +39,6 @@ public:
   }
 
   bool ensureProjectedContext(loka::app::scene::Node *node,
-                              loka::app::scene::BoundaryNode *boundary,
                               ToolboxScenePlatformController *controller);
   void ensureTextContext(loka::app::TextNode *node);
   void ensureCellContext(loka::app::CellNode *node);

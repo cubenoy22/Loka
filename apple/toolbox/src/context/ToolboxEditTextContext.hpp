@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP
 #define LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "core/String.hpp"
 #include <Quickdraw.h>
@@ -28,16 +28,12 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-class ToolboxEditTextContext : public loka::app::scene::NativeNodeContext
+class ToolboxEditTextContext : public ToolboxProjectedNodeContext
 {
 public:
   explicit ToolboxEditTextContext(loka::app::EditTextNode *node);
   virtual ~ToolboxEditTextContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary)
-  {
-    boundary_ = boundary;
-  }
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY);
   void draw(ToolboxScenePlatformController *controller);
@@ -50,7 +46,6 @@ public:
 
 private:
   loka::app::EditTextNode *node_;
-  loka::app::scene::BoundaryNode *boundary_;
   Rect rect_;
   Rect textRect_;
   short textX_;

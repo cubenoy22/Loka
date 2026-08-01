@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_TEXT_CONTEXT_HPP
 #define LOKA_TOOLBOX_TEXT_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/Text.hpp"
 #include "core/String.hpp"
 #include <Quickdraw.h>
@@ -28,16 +28,12 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-class ToolboxTextContext : public loka::app::scene::NativeNodeContext
+class ToolboxTextContext : public ToolboxProjectedNodeContext
 {
 public:
   explicit ToolboxTextContext(loka::app::TextNode *node);
   virtual ~ToolboxTextContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary)
-  {
-    boundary_ = boundary;
-  }
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
   short visibleWidth() const;
@@ -51,7 +47,6 @@ public:
 
 private:
   loka::app::TextNode *node_;
-  loka::app::scene::BoundaryNode *boundary_;
   Rect rect_;
   short textX_;
   short textY_;

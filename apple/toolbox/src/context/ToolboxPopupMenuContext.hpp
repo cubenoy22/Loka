@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP
 #define LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "core/Vector.hpp"
 #include <Quickdraw.h>
@@ -29,16 +29,12 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-class ToolboxPopupMenuContext : public loka::app::scene::NativeNodeContext
+class ToolboxPopupMenuContext : public ToolboxProjectedNodeContext
 {
 public:
   explicit ToolboxPopupMenuContext(loka::app::PopupMenuNode *node);
   virtual ~ToolboxPopupMenuContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary)
-  {
-    boundary_ = boundary;
-  }
   void updateData(const loka::Vector<loka::core::String> *items,
                   loka::core::State<int> *selectedIndex,
                   loka::core::EmitterState *onChange,
@@ -60,7 +56,6 @@ private:
   short menuId() const;
 
   loka::app::PopupMenuNode *node_;
-  loka::app::scene::BoundaryNode *boundary_;
   Rect rect_;
   short lineHeight_;
   const loka::Vector<loka::core::String> *items_;
