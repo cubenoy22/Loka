@@ -1,6 +1,6 @@
 #include "Win32ButtonContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "core/resource/Image.hpp"
 #include "core/State.hpp"
@@ -11,34 +11,28 @@ namespace
   const int kButtonHeight = 32;
   const int kVerticalSpacing = 12;
 
-  class Win32ButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class Win32ButtonNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<Win32ButtonNodeHandler,
+                                                     loka::app::ButtonNode,
+                                                     Win32ButtonContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::ButtonNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+      return node ? node->asButtonNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static Win32ButtonContext *create(loka::app::ButtonNode *button,
+                                      loka::app::scene::IPlatformController *controller,
+                                      const loka::app::scene::LayoutState &state)
     {
-      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!button || !win32)
-      {
-        return 0;
-      }
-      Win32ButtonContext *ctx = static_cast<Win32ButtonContext *>(button->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new Win32ButtonContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, button);
-      button->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new Win32ButtonContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, button);
+    }
+
+    static void refresh(Win32ButtonContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

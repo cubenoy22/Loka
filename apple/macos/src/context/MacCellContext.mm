@@ -1,6 +1,6 @@
 #include "MacCellContext.hpp"
 #include "../MacScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/nodes/controls/Cell.hpp"
@@ -14,34 +14,28 @@ namespace
   const int kDefaultCellHeight = 20;
   const int kVerticalSpacing = 12;
 
-  class MacCellNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class MacCellNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<MacCellNodeHandler,
+                                                     loka::app::CellNode,
+                                                     MacCellContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::CellNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::CellNode>();
+      return node ? node->asCellNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static MacCellContext *create(loka::app::CellNode *cell,
+                                  loka::app::scene::IPlatformController *controller,
+                                  const loka::app::scene::LayoutState &state)
     {
-      loka::app::CellNode *cell = node ? node->asCellNode() : 0;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!cell || !mac)
-      {
-        return 0;
-      }
-      MacCellContext *ctx = static_cast<MacCellContext *>(cell->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new MacCellContext(mac->rootView(), state.x, state.y, state.width, state.height, cell);
-      cell->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new MacCellContext(mac->rootView(), state.x, state.y, state.width, state.height, cell);
+    }
+
+    static void refresh(MacCellContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

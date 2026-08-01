@@ -1,40 +1,34 @@
 #include "Win32ImageViewContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 
 namespace
 {
   const char *kImageViewClassName = "LOKA_IMAGE_VIEW";
   const int kVerticalSpacing = 12;
 
-  class Win32ImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class Win32ImageViewNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<Win32ImageViewNodeHandler,
+                                                     loka::app::ImageViewNode,
+                                                     Win32ImageViewContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::ImageViewNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
+      return node ? node->asImageViewNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static Win32ImageViewContext *create(loka::app::ImageViewNode *image,
+                                         loka::app::scene::IPlatformController *controller,
+                                         const loka::app::scene::LayoutState &state)
     {
-      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!image || !win32)
-      {
-        return 0;
-      }
-      Win32ImageViewContext *ctx = static_cast<Win32ImageViewContext *>(image->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new Win32ImageViewContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, image);
-      image->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new Win32ImageViewContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, image);
+    }
+
+    static void refresh(Win32ImageViewContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

@@ -1,7 +1,7 @@
 #include "MacButtonContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/nodes/controls/Button.hpp"
@@ -51,34 +51,28 @@ namespace
     return true;
   }
 
-  class MacButtonNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class MacButtonNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<MacButtonNodeHandler,
+                                                     loka::app::ButtonNode,
+                                                     MacButtonContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::ButtonNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::ButtonNode>();
+      return node ? node->asButtonNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static MacButtonContext *create(loka::app::ButtonNode *button,
+                                    loka::app::scene::IPlatformController *controller,
+                                    const loka::app::scene::LayoutState &state)
     {
-      loka::app::ButtonNode *button = node ? node->asButtonNode() : 0;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!button || !mac)
-      {
-        return 0;
-      }
-      MacButtonContext *ctx = static_cast<MacButtonContext *>(button->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new MacButtonContext(mac->rootView(), state.x, state.y, state.width, state.height, button);
-      button->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new MacButtonContext(mac->rootView(), state.x, state.y, state.width, state.height, button);
+    }
+
+    static void refresh(MacButtonContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

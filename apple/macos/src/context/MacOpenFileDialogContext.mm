@@ -1,7 +1,7 @@
 #include "MacOpenFileDialogContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #import <AppKit/AppKit.h>
 
@@ -105,38 +105,30 @@ namespace
     }
   }
 
-  class MacOpenFileDialogNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class MacOpenFileDialogNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<MacOpenFileDialogNodeHandler,
+                                                     loka::app::OpenFileDialogNode,
+                                                     MacOpenFileDialogContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::OpenFileDialogNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>();
+      return node ? node->asOpenFileDialogNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static MacOpenFileDialogContext *create(loka::app::OpenFileDialogNode *dialog,
+                                            loka::app::scene::IPlatformController *controller,
+                                            const loka::app::scene::LayoutState &state)
     {
       (void)state;
-      loka::app::OpenFileDialogNode *dialog = node ? node->asOpenFileDialogNode() : 0;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!dialog || !mac)
-      {
-        return 0;
-      }
-      MacOpenFileDialogContext *ctx = static_cast<MacOpenFileDialogContext *>(dialog->getContext());
-      if (ctx)
-      {
-        return ctx;
-      }
-      ctx = new MacOpenFileDialogContext(mac->rootView(), dialog);
-      dialog->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      // Boundary compose may already consume pendingAttach to convert the child
-      // compose event to ATTACH, so a freshly created dialog context should
-      // present immediately even when pendingAttach is no longer visible here.
+      return new MacOpenFileDialogContext(mac->rootView(), dialog);
+    }
+
+    static void afterAttach(MacOpenFileDialogContext *ctx)
+    {
+      // Keep presentation in the shared after-attach slot; see RetainedNodeHandler.
       ctx->presentIfNeeded();
-      return ctx;
     }
   };
 

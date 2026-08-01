@@ -1,7 +1,7 @@
 #include "MacImageViewContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <AppKit/AppKit.h>
 
 @interface LokaImageView : NSView
@@ -93,34 +93,28 @@ namespace
     return 160;
   }
 
-  class MacImageViewNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class MacImageViewNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<MacImageViewNodeHandler,
+                                                     loka::app::ImageViewNode,
+                                                     MacImageViewContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::ImageViewNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>();
+      return node ? node->asImageViewNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static MacImageViewContext *create(loka::app::ImageViewNode *image,
+                                       loka::app::scene::IPlatformController *controller,
+                                       const loka::app::scene::LayoutState &state)
     {
-      loka::app::ImageViewNode *image = node ? node->asImageViewNode() : 0;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!image || !mac)
-      {
-        return 0;
-      }
-      MacImageViewContext *ctx = static_cast<MacImageViewContext *>(image->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new MacImageViewContext(mac->rootView(), state.x, state.y, state.width, state.height, image);
-      image->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new MacImageViewContext(mac->rootView(), state.x, state.y, state.width, state.height, image);
+    }
+
+    static void refresh(MacImageViewContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

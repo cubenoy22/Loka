@@ -1,46 +1,37 @@
 #include "platform/null/context/NullScrollBarContext.hpp"
 
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 
 namespace
 {
-  class NullScrollBarNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class NullScrollBarNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<NullScrollBarNodeHandler,
+                                                     loka::app::ScrollBarNode,
+                                                     NullScrollBarContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::ScrollBarNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::ScrollBarNode>();
+      return node ? node->asScrollBarNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static NullScrollBarContext *create(loka::app::ScrollBarNode *scrollBar,
+                                        loka::app::scene::IPlatformController *controller,
+                                        const loka::app::scene::LayoutState &state)
     {
       (void)state;
-      loka::app::ScrollBarNode *scrollBar = node ? node->asScrollBarNode() : 0;
       NullScenePlatformController *nullPlatform =
           static_cast<NullScenePlatformController *>(controller);
-      if (!scrollBar || !nullPlatform)
-      {
-        return 0;
-      }
-      NullScrollBarContext *context = static_cast<NullScrollBarContext *>(scrollBar->getContext());
-      if (!context)
-      {
-        context = new NullScrollBarContext(scrollBar, nullPlatform);
-        if (!context)
-        {
-          return 0;
-        }
-        scrollBar->setContext(context);
-        context->readLifecycleFactOnAttach();
-        return context;
-      }
+      return new NullScrollBarContext(scrollBar, nullPlatform);
+    }
+
+    static void refresh(NullScrollBarContext *context, const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
       // Range and value are re-applied on every projection, not only at
       // creation: `range()` is static prop data, so a recomposed range only
       // reaches the native side through a projection sweep.
       context->syncFromNode();
-      return context;
     }
   };
 

@@ -1,6 +1,6 @@
 #include "Win32TextContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/Text.hpp"
 #include "core/resource/Image.hpp"
 #include "core/State.hpp"
@@ -11,34 +11,28 @@ namespace
   const int kDefaultTextHeight = 20;
   const int kVerticalSpacing = 12;
 
-  class Win32TextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class Win32TextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<Win32TextNodeHandler,
+                                                     loka::app::TextNode,
+                                                     Win32TextContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::TextNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::TextNode>();
+      return node ? node->asTextNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static Win32TextContext *create(loka::app::TextNode *text,
+                                    loka::app::scene::IPlatformController *controller,
+                                    const loka::app::scene::LayoutState &state)
     {
-      loka::app::TextNode *text = node ? node->asTextNode() : 0;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!text || !win32)
-      {
-        return 0;
-      }
-      Win32TextContext *ctx = static_cast<Win32TextContext *>(text->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new Win32TextContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, text);
-      text->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new Win32TextContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, text);
+    }
+
+    static void refresh(Win32TextContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

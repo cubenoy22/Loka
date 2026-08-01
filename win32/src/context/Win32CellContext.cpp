@@ -1,6 +1,6 @@
 #include "Win32CellContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "core/State.hpp"
 #include "platform/Win32String.hpp"
@@ -11,34 +11,28 @@ namespace
   const int kDefaultCellHeight = 20;
   const int kVerticalSpacing = 12;
 
-  class Win32CellNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class Win32CellNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<Win32CellNodeHandler,
+                                                     loka::app::CellNode,
+                                                     Win32CellContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::CellNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::CellNode>();
+      return node ? node->asCellNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static Win32CellContext *create(loka::app::CellNode *cell,
+                                    loka::app::scene::IPlatformController *controller,
+                                    const loka::app::scene::LayoutState &state)
     {
-      loka::app::CellNode *cell = node ? node->asCellNode() : 0;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!cell || !win32)
-      {
-        return 0;
-      }
-      Win32CellContext *ctx = static_cast<Win32CellContext *>(cell->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new Win32CellContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, cell);
-      cell->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new Win32CellContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, cell);
+    }
+
+    static void refresh(Win32CellContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

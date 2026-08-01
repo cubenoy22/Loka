@@ -1,7 +1,7 @@
 #include "MacEditTextContext.hpp"
 #include "../MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #include <AppKit/AppKit.h>
 #include "app/nodes/controls/EditText.hpp"
@@ -13,34 +13,28 @@ namespace
   const int kEditTextHeight = 24;
   const int kVerticalSpacing = 12;
 
-  class MacEditTextNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class MacEditTextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<MacEditTextNodeHandler,
+                                                     loka::app::EditTextNode,
+                                                     MacEditTextContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::EditTextNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::EditTextNode>();
+      return node ? node->asEditTextNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static MacEditTextContext *create(loka::app::EditTextNode *edit,
+                                      loka::app::scene::IPlatformController *controller,
+                                      const loka::app::scene::LayoutState &state)
     {
-      loka::app::EditTextNode *edit = node ? node->asEditTextNode() : 0;
       MacScenePlatformController *mac = static_cast<MacScenePlatformController *>(controller);
-      if (!edit || !mac)
-      {
-        return 0;
-      }
-      MacEditTextContext *ctx = static_cast<MacEditTextContext *>(edit->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new MacEditTextContext(mac->rootView(), state.x, state.y, state.width, state.height, edit);
-      edit->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new MacEditTextContext(mac->rootView(), state.x, state.y, state.width, state.height, edit);
+    }
+
+    static void refresh(MacEditTextContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 

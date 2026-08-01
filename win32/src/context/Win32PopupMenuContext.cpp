@@ -1,6 +1,6 @@
 #include "Win32PopupMenuContext.hpp"
 #include "../Win32ScenePlatformController.hpp"
-#include "app/scene/projection/PlatformNodeHandler.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/Win32String.hpp"
 #include <string>
 #include <tchar.h>
@@ -10,34 +10,28 @@ namespace
   const int kPopupMenuHeight = 26;
   const int kVerticalSpacing = 12;
 
-  class Win32PopupMenuNodeHandler : public loka::app::scene::IPlatformNodeHandler
+  class Win32PopupMenuNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<Win32PopupMenuNodeHandler,
+                                                     loka::app::PopupMenuNode,
+                                                     Win32PopupMenuContext>
   {
   public:
-    virtual const void *nodeTypeKey() const
+    static loka::app::PopupMenuNode *cast(loka::app::scene::Node *node)
     {
-      return loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>();
+      return node ? node->asPopupMenuNode() : 0;
     }
 
-    virtual loka::app::scene::NodeContext *ensureContext(loka::app::scene::Node *node,
-                                                         loka::app::scene::IPlatformController *controller,
-                                                         const loka::app::scene::LayoutState &state)
+    static Win32PopupMenuContext *create(loka::app::PopupMenuNode *popup,
+                                         loka::app::scene::IPlatformController *controller,
+                                         const loka::app::scene::LayoutState &state)
     {
-      loka::app::PopupMenuNode *popup = node ? node->asPopupMenuNode() : 0;
       Win32ScenePlatformController *win32 = static_cast<Win32ScenePlatformController *>(controller);
-      if (!popup || !win32)
-      {
-        return 0;
-      }
-      Win32PopupMenuContext *ctx = static_cast<Win32PopupMenuContext *>(popup->getContext());
-      if (ctx)
-      {
-        ctx->relayout(state.x, state.y, state.width, state.height);
-        return ctx;
-      }
-      ctx = new Win32PopupMenuContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, popup);
-      popup->setContext(ctx);
-      ctx->readLifecycleFactOnAttach();
-      return ctx;
+      return new Win32PopupMenuContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, popup);
+    }
+
+    static void refresh(Win32PopupMenuContext *ctx, const loka::app::scene::LayoutState &state)
+    {
+      ctx->relayout(state.x, state.y, state.width, state.height);
     }
   };
 
