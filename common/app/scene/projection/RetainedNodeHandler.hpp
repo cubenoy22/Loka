@@ -49,7 +49,12 @@ namespace loka
           typed->setContext(ctx);
           ctx->readLifecycleFactOnAttach();
           Derived::afterAttach(ctx);
-          return ctx;
+          // The attach read / after-attach hook can run arbitrary reentrant
+          // app code (a modal file dialog delivers its result synchronously,
+          // and that delivery may recompose and retire this very node's
+          // context). Hand the caller what the node holds now — not the
+          // pre-reentrancy local, which may already be freed.
+          return static_cast<CtxT *>(typed->getContext());
         }
 
         static void afterAttach(CtxT *)
