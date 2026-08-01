@@ -88,7 +88,6 @@ namespace loka
 
 Win32ScenePlatformController::Win32ScenePlatformController(HWND rootHwnd)
     : rootHwnd_(rootHwnd),
-      contextMapper_(rootHwnd),
       rootNode_(0),
       clientWidth_(0),
       clientHeight_(0)

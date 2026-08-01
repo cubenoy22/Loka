@@ -1,4 +1,5 @@
 LOKA_TEST(testWin32ThreadModalScopeHoldsSiblingsDisabled)
+LOKA_TEST(testWin32NodeHandlerEnsureContract)
 LOKA_TEST(testWin32EditTextBridgeRoundTripsUtf16)
 LOKA_TEST(testWin32OpenReadAcceptsFullWidthPath)
 LOKA_TEST(testWin32FileFromWidePathSurvivesToOpen)

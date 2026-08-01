@@ -28,7 +28,16 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensurePopupMenuContext(popup, state.x, state.y, state.width, state.height);
+      Win32PopupMenuContext *ctx = static_cast<Win32PopupMenuContext *>(popup->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new Win32PopupMenuContext(win32->rootHwnd(), state.x, state.y, state.width, state.height, popup);
+      popup->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

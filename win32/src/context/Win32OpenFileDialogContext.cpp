@@ -58,7 +58,19 @@ namespace
       {
         return 0;
       }
-      return win32->contextMapper()->ensureOpenFileDialogContext(dialog);
+      Win32OpenFileDialogContext *ctx = static_cast<Win32OpenFileDialogContext *>(dialog->getContext());
+      if (ctx)
+      {
+        return ctx;
+      }
+      ctx = new Win32OpenFileDialogContext(win32->rootHwnd(), dialog);
+      dialog->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      // Boundary compose may already consume pendingAttach to convert the child
+      // compose event to ATTACH, so a freshly created dialog context should
+      // present immediately even when pendingAttach is no longer visible here.
+      ctx->presentIfNeeded();
+      return ctx;
     }
   };
 
