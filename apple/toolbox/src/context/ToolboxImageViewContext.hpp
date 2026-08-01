@@ -7,6 +7,17 @@
 #include "core/State.hpp"
 #include <Quickdraw.h>
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
+
 class ToolboxImageViewContext : public ToolboxProjectedNodeContext
 {
 public:
@@ -24,5 +35,7 @@ private:
   Rect rect_;
   loka::core::resource::Image image_;
 };
+
+bool RegisterToolboxImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_IMAGE_VIEW_CONTEXT_HPP

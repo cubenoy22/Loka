@@ -12,12 +12,12 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxNativeImage.cpp
   src/PictParser.cpp
   src/ToolboxProfiler.cpp
+  src/ToolboxBuiltInSupport.cpp
   src/debug/ToolboxSceneDebugStats.cpp
   src/context/ToolboxButtonContext.cpp
   src/context/ToolboxCellContext.cpp
   src/context/ToolboxEditTextContext.cpp
   src/context/ToolboxOpenFileDialogContext.cpp
-  src/context/ToolboxNodeContextMapper.cpp
   src/context/ToolboxPopupMenuContext.cpp
   src/context/ToolboxScrollBarContext.cpp
   src/context/ToolboxTextContext.cpp

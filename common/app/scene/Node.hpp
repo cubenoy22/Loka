@@ -227,6 +227,18 @@ namespace loka
 
       bool PrepareProjectedLayout(IPlatformController *controller, Node *node, LayoutState &state);
 
+      /** Opt-in seam for platforms that tag projected contexts with their
+          owning boundary (the "which window/root am I in" routing tag).
+          The platform wall applies the tag only through asBoundaryTagged, so
+          a context that does not opt in can never be written through a
+          mistyped downcast. */
+      struct IBoundaryTaggedContext
+      {
+        virtual ~IBoundaryTaggedContext() {}
+        virtual void setBoundary(BoundaryNode *boundary) = 0;
+        virtual BoundaryNode *boundary() const = 0;
+      };
+
       // Minimal NodeContext implementation
       struct NodeContext
       {
@@ -282,6 +294,10 @@ namespace loka
           return 0;
         }
         virtual const ICapturableBitmap *asCapturableBitmap() const
+        {
+          return 0;
+        }
+        virtual IBoundaryTaggedContext *asBoundaryTagged()
         {
           return 0;
         }

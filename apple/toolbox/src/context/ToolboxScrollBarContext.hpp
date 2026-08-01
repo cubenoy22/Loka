@@ -12,6 +12,16 @@ namespace loka
   {
     namespace scene
     {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
       class BoundaryNode;
     }
   } // namespace app
@@ -43,5 +53,7 @@ private:
   short resourceId_;
   ToolboxScenePlatformController *controller_;
 };
+
+bool RegisterToolboxScrollBarNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP

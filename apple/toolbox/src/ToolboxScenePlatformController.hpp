@@ -18,7 +18,6 @@
 class ToolboxWindow;
 class ToolboxButtonContext;
 class ToolboxPopupMenuContext;
-class ToolboxNodeContextMapper;
 class ToolboxCellContext;
 
 namespace loka
@@ -45,6 +44,7 @@ public:
     return true;
   }
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
+  virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void destroy();
@@ -117,7 +117,6 @@ public:
   short allocateControlId();
   void beginClip(const Rect &rect);
   void endClip();
-  ToolboxNodeContextMapper *contextMapper() const;
   loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry()
   {
     return &layoutHandlerRegistry_;
@@ -132,6 +131,8 @@ public:
   }
 
 private:
+  friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
+
   struct ButtonHit
   {
     Rect rect;
@@ -293,6 +294,7 @@ private:
   ToolboxControlIdAllocator controlIds_;
   ToolboxSceneDebugStats debugStats_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
+  loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   loka::app::scene::BoundaryNode *activeLayoutBoundary_;
 
   bool handleTextKey(char key);

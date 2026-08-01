@@ -1,5 +1,31 @@
 #include "context/ToolboxScrollBarContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
+
+namespace
+{
+  class ToolboxScrollBarNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxScrollBarNodeHandler,
+                                                     loka::app::ScrollBarNode,
+                                                     ToolboxScrollBarContext>
+  {
+  public:
+    static loka::app::ScrollBarNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asScrollBarNode() : 0;
+    }
+
+    static ToolboxScrollBarContext *create(loka::app::ScrollBarNode *node,
+                                           loka::app::scene::IPlatformController *controller,
+                                           const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      return new ToolboxScrollBarContext(node, static_cast<ToolboxScenePlatformController *>(controller));
+    }
+  };
+
+  ToolboxScrollBarNodeHandler gToolboxScrollBarNodeHandler;
+} // namespace
 
 ToolboxScrollBarContext::ToolboxScrollBarContext(loka::app::ScrollBarNode *node,
                                                  ToolboxScenePlatformController *controller)
@@ -92,4 +118,9 @@ void ToolboxScrollBarContext::render(loka::app::scene::IPlatformController *cont
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);
+}
+
+bool RegisterToolboxScrollBarNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  return registry.registerHandler(&gToolboxScrollBarNodeHandler);
 }

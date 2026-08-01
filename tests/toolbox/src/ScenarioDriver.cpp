@@ -57,8 +57,8 @@ namespace loka
         {
           if (app::scene::NodeContext *raw = text->getContext())
           {
-            ToolboxProjectedNodeContext *projected = static_cast<ToolboxProjectedNodeContext *>(raw);
-            if (projected->boundary() == expected)
+            app::scene::IBoundaryTaggedContext *projected = raw->asBoundaryTagged();
+            if (projected && projected->boundary() == expected)
             {
               ++counts.tagged;
             }

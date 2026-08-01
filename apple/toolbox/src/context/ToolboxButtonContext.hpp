@@ -9,6 +9,16 @@
 class ToolboxScenePlatformController;
 namespace loka
 {
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
+namespace loka
+{
   namespace core
   {
     namespace scene
@@ -54,5 +64,7 @@ private:
   short resourceId_;
   ToolboxScenePlatformController *controller_;
 };
+
+bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_BUTTON_CONTEXT_HPP

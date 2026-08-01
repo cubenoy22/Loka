@@ -9,6 +9,16 @@
 class ToolboxScenePlatformController;
 namespace loka
 {
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
+namespace loka
+{
   namespace core
   {
     namespace scene
@@ -52,5 +62,7 @@ private:
   short textY_;
   loka::core::State<loka::core::String> *text_;
 };
+
+bool RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP

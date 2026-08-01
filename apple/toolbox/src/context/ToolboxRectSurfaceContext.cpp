@@ -1,5 +1,19 @@
 #include "context/ToolboxRectSurfaceContext.hpp"
 
+void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
+{
+  if (!node)
+  {
+    return;
+  }
+  ToolboxRectSurfaceContext *ctx = static_cast<ToolboxRectSurfaceContext *>(node->getContext());
+  if (!ctx)
+  {
+    ctx = new ToolboxRectSurfaceContext(node);
+    node->setContext(ctx);
+  }
+}
+
 ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
     : node_(node),
       rect_(),

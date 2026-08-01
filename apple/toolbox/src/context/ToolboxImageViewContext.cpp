@@ -1,6 +1,7 @@
 #include "context/ToolboxImageViewContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxNativeImage.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstdio>
 #include <cstring>
@@ -9,6 +10,29 @@
 
 namespace
 {
+  class ToolboxImageViewNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxImageViewNodeHandler,
+                                                     loka::app::ImageViewNode,
+                                                     ToolboxImageViewContext>
+  {
+  public:
+    static loka::app::ImageViewNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asImageViewNode() : 0;
+    }
+
+    static ToolboxImageViewContext *create(loka::app::ImageViewNode *node,
+                                           loka::app::scene::IPlatformController *controller,
+                                           const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      (void)state;
+      return new ToolboxImageViewContext(node);
+    }
+  };
+
+  ToolboxImageViewNodeHandler gToolboxImageViewNodeHandler;
+
   static const loka::toolbox::ToolboxPictBytesPayload *gActivePictBytes = 0;
   static std::size_t gActivePictReadPos = 0;
   static QDGetPicUPP gReadPictFromBytesUPP = 0;
@@ -372,4 +396,9 @@ void ToolboxImageViewContext::draw()
   char label[64];
   ::snprintf(label, sizeof(label), "Image(native?): %dx%d", image_.width(), image_.height());
   DrawPascalStringAt(static_cast<short>(rect_.left + 6), static_cast<short>(rect_.top + 14), label);
+}
+
+bool RegisterToolboxImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  return registry.registerHandler(&gToolboxImageViewNodeHandler);
 }

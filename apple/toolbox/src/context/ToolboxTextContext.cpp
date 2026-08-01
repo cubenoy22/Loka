@@ -1,12 +1,36 @@
 #include "context/ToolboxTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstring>
 #include <string>
 
 namespace
 {
+  class ToolboxTextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxTextNodeHandler,
+                                                     loka::app::TextNode,
+                                                     ToolboxTextContext>
+  {
+  public:
+    static loka::app::TextNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asTextNode() : 0;
+    }
+
+    static ToolboxTextContext *create(loka::app::TextNode *node,
+                                      loka::app::scene::IPlatformController *controller,
+                                      const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      (void)state;
+      return new ToolboxTextContext(node);
+    }
+  };
+
+  ToolboxTextNodeHandler gToolboxTextNodeHandler;
+
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
@@ -314,4 +338,9 @@ void ToolboxTextContext::render(loka::app::scene::IPlatformController *controlle
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);
+}
+
+bool RegisterToolboxTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  return registry.registerHandler(&gToolboxTextNodeHandler);
 }

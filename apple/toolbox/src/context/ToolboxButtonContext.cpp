@@ -1,12 +1,35 @@
 #include "context/ToolboxButtonContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstring>
 #include <string>
 
 namespace
 {
+  class ToolboxButtonNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxButtonNodeHandler,
+                                                     loka::app::ButtonNode,
+                                                     ToolboxButtonContext>
+  {
+  public:
+    static loka::app::ButtonNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asButtonNode() : 0;
+    }
+
+    static ToolboxButtonContext *create(loka::app::ButtonNode *node,
+                                        loka::app::scene::IPlatformController *controller,
+                                        const loka::app::scene::LayoutState &state)
+    {
+      (void)state;
+      return new ToolboxButtonContext(node, static_cast<ToolboxScenePlatformController *>(controller));
+    }
+  };
+
+  ToolboxButtonNodeHandler gToolboxButtonNodeHandler;
+
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
@@ -148,4 +171,9 @@ bool ToolboxButtonContext::handleMouseDown(const Point &point, ToolboxScenePlatf
     controller->emitHitEmitter(emitter_);
   }
   return true;
+}
+
+bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  return registry.registerHandler(&gToolboxButtonNodeHandler);
 }

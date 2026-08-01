@@ -1,21 +1,30 @@
 #ifndef LOKA_TOOLBOX_WINDOW_CONTEXT_HPP
 #define LOKA_TOOLBOX_WINDOW_CONTEXT_HPP
 
-class ToolboxNodeContextMapper;
-
 class ToolboxWindowContext
 {
 public:
+  enum Capability
+  {
+    CAP_NONE = 0,
+    CAP_CONTROL_MANAGER = 1 << 0,
+    CAP_TEXT_EDIT = 1 << 1
+  };
+
   explicit ToolboxWindowContext(int capabilities);
   ~ToolboxWindowContext();
 
-  ToolboxNodeContextMapper *contextMapper() const
+  int capabilities() const
   {
-    return contextMapper_;
+    return capabilities_;
+  }
+  bool hasCapability(Capability cap) const
+  {
+    return (capabilities_ & cap) != 0;
   }
 
 private:
-  ToolboxNodeContextMapper *contextMapper_;
+  int capabilities_;
 };
 
 #endif // LOKA_TOOLBOX_WINDOW_CONTEXT_HPP
