@@ -446,6 +446,25 @@ different jobs; expecting the second to provide the first will disappoint.
   returns the wrong memory. Function arguments and locals are frame-relative
   and read correctly, so when a global's value has to be observed, break in a
   function that receives it (or a value derived from it) as an argument.
+- **The stub does not relay guest CPU exceptions.** Probed on #182 with a
+  planted `__builtin_trap()` (ILLEGAL, vector 4): without gdb the same build
+  bombs on screen (System Error type 11) at exactly that point, while an
+  attached session with no breakpoint armed sees no stop at all — the 68k
+  vectors into the system error handler and keeps running, which to the stub
+  is ordinary guest control flow. A Classic bomb therefore cannot be caught
+  at the faulting instruction through the stub. If exception catching is ever
+  needed, read the exception vectors at runtime (`0x08` bus error, `0x0C`
+  address error, `0x10` illegal instruction) and plant an ordinary breakpoint
+  on the handler.
+- **Avoid `delete` in scripted stub sessions.** Across the #182 probe runs,
+  "Cannot execute this command while the target is running" appeared
+  deterministically whenever the batch script executed `delete` — refused
+  outright after a breakpoint stop, or poisoning the next `continue` when
+  issued at attach time — and never blocked a session without it. To replace
+  the attach-time breakpoint, override it with `LOKA_BREAK` instead of
+  deleting it; after a stop, observation commands (`info registers`, `x`,
+  `bt`) work. `run-wpset.sh` does use `delete` and has run green, so the
+  trigger may be probabilistic — treat `delete` as hazardous, not banned.
 ### The watchpoint leg: freed-memory checks for real teardown
 
 `tests/toolbox/run-wpset.sh` turns the wpset idea above into an automated
