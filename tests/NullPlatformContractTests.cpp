@@ -10,6 +10,7 @@
 #endif
 
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -35,6 +36,16 @@ namespace
 
   loka::core::MutableState<bool> *g_toggleVisible = 0;
   loka::app::scene::NativeLifetimeHint g_toggleHint = loka::app::scene::NATIVE_HINT_DEFAULT;
+
+  class UnregisteredProjectionNode : public loka::app::scene::Node
+  {
+  public:
+    virtual const void *nodeTypeKey() const
+    {
+      static const char key = 0;
+      return &key;
+    }
+  };
 
   class ToggleControlBoundaryNode;
   typedef loka::app::scene::BoundaryPropsFor<ToggleControlBoundaryNode> ToggleControlBoundaryProps;
@@ -1539,6 +1550,52 @@ namespace
     assert(safePointDepth == 0);
   }
 } // namespace
+
+void testNullNodeHandlerRefusalIsTypedObservableAndContextless()
+{
+  NullScenePlatformController platform;
+  loka::app::CellNode cell((loka::app::CellProps()));
+  loka::app::scene::LayoutState state;
+  state.width = 100;
+  state.height = 20;
+
+  assert(!platform.prepareProjectedLayout(&cell, state));
+  assert(!cell.getContext());
+  assert(platform.cellRefusalCount() == 1);
+}
+
+void testNullNodeHandlerRealKindStillProjects()
+{
+  NullScenePlatformController platform;
+  loka::app::ButtonNode button((loka::app::ButtonProps()));
+  loka::app::scene::LayoutState state;
+  state.width = 100;
+  state.height = 20;
+
+  assert(platform.prepareProjectedLayout(&button, state));
+  assert(button.getContext());
+}
+
+void testNullNodeHandlerRegistryMissEducatesInDiagnosticBuilds()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  const pid_t child = fork();
+  assert(child >= 0);
+  if (child == 0)
+  {
+    NullScenePlatformController platform;
+    UnregisteredProjectionNode node;
+    loka::app::scene::LayoutState state;
+    platform.prepareProjectedLayout(&node, state);
+    _exit(0);
+  }
+  int status = 0;
+  assert(waitpid(child, &status, 0) == child);
+  assert(WIFSIGNALED(status));
+  assert(WTERMSIG(status) == SIGABRT &&
+         "a registry miss must educate instead of sharing the typed-refusal path");
+#endif
+}
 
 void testNullPlatformContract_A1_contextDestructorRunsTeardownSequence()
 {

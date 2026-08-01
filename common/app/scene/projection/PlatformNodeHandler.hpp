@@ -20,6 +20,44 @@ namespace loka
         virtual NodeContext *ensureContext(Node *node, IPlatformController *controller, const LayoutState &state) = 0;
       };
 
+      /** Registering a refusal is the platform saying "this kind exists but
+          cannot be projected here"; a registry miss, by contrast, is an
+          accident. */
+      class RefusedNodeHandler : public IPlatformNodeHandler
+      {
+      public:
+        explicit RefusedNodeHandler(const void *refusedTypeKey)
+            : refusedTypeKey_(refusedTypeKey),
+              refusalCount_(0)
+        {
+        }
+
+        virtual const void *nodeTypeKey() const
+        {
+          return this->refusedTypeKey_;
+        }
+
+        virtual NodeContext *ensureContext(Node *node,
+                                           IPlatformController *controller,
+                                           const LayoutState &state)
+        {
+          (void)node;
+          (void)controller;
+          (void)state;
+          ++this->refusalCount_;
+          return 0;
+        }
+
+        unsigned refusalCount() const
+        {
+          return this->refusalCount_;
+        }
+
+      private:
+        const void *refusedTypeKey_;
+        unsigned refusalCount_;
+      };
+
       class PlatformNodeHandlerRegistry
       {
       public:

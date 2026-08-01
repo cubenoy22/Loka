@@ -1,6 +1,12 @@
 #include "platform/null/NullScenePlatformController.hpp"
 
+#include <cassert>
+
 #include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
+#include "app/OpenFileDialog.hpp"
+#include "app/nodes/ImageView.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
 #include "platform/null/context/NullButtonContext.hpp"
 #include "platform/null/context/NullEditTextContext.hpp"
 #include "platform/null/context/NullScrollBarContext.hpp"
@@ -43,8 +49,31 @@ private:
   short resultY_;
 };
 
+NullScenePlatformController::RefusedProjectedNodeHandlers::RefusedProjectedNodeHandlers()
+    : cell_(loka::app::scene::NodeTypeToken<loka::app::CellNode>()),
+      popupMenu_(loka::app::scene::NodeTypeToken<loka::app::PopupMenuNode>()),
+      imageView_(loka::app::scene::NodeTypeToken<loka::app::ImageViewNode>()),
+      openFileDialog_(loka::app::scene::NodeTypeToken<loka::app::OpenFileDialogNode>())
+{
+}
+
+void NullScenePlatformController::RefusedProjectedNodeHandlers::registerWith(
+    NullScenePlatformController &controller)
+{
+  controller.registerNodeHandler(&this->cell_);
+  controller.registerNodeHandler(&this->popupMenu_);
+  controller.registerNodeHandler(&this->imageView_);
+  controller.registerNodeHandler(&this->openFileDialog_);
+}
+
+unsigned NullScenePlatformController::RefusedProjectedNodeHandlers::cellCount() const
+{
+  return this->cell_.refusalCount();
+}
+
 NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap)
     : layoutHandlers_(),
+      refusedProjectedNodeHandlers_(),
       nodeHandlers_(),
       rootNode_(0),
       ledger_(),
@@ -81,6 +110,7 @@ NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepth
   RegisterNullEditTextNodeHandler(*this);
   RegisterNullScrollBarNodeHandler(*this);
   RegisterNullTextNodeHandler(*this);
+  this->refusedProjectedNodeHandlers_.registerWith(*this);
 }
 
 NullScenePlatformController::~NullScenePlatformController()
@@ -160,7 +190,12 @@ bool NullScenePlatformController::prepareProjectedLayout(loka::app::scene::Node 
     return false;
   }
   loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlers_.find(node);
-  return handler && handler->ensureContext(node, this, state) != 0;
+  if (!handler)
+  {
+    assert(false && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
+    return false;
+  }
+  return handler->ensureContext(node, this, state) != 0;
 }
 
 bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
@@ -214,6 +249,11 @@ unsigned long NullScenePlatformController::createdCount() const
 unsigned long NullScenePlatformController::disposedCount() const
 {
   return this->disposedCount_;
+}
+
+unsigned NullScenePlatformController::cellRefusalCount() const
+{
+  return this->refusedProjectedNodeHandlers_.cellCount();
 }
 
 loka::app::scene::ExactMatchHandleBucket<NullScenePlatformController::FakeControlHandle *> &

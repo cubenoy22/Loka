@@ -141,6 +141,7 @@ public:
   unsigned long intakeCheckFailCount() const;
   unsigned long createdCount() const;
   unsigned long disposedCount() const;
+  unsigned cellRefusalCount() const;
   BucketStats bucketStats(ControlRecipe recipe) const;
   unsigned long eventCount(EventKind kind) const;
   const LedgerRow *findLedgerRow(ControlRecipe recipe) const;
@@ -155,6 +156,20 @@ public:
 
 private:
   class LayoutTraversal;
+
+  class RefusedProjectedNodeHandlers
+  {
+  public:
+    RefusedProjectedNodeHandlers();
+    void registerWith(NullScenePlatformController &controller);
+    unsigned cellCount() const;
+
+  private:
+    loka::app::scene::RefusedNodeHandler cell_;
+    loka::app::scene::RefusedNodeHandler popupMenu_;
+    loka::app::scene::RefusedNodeHandler imageView_;
+    loka::app::scene::RefusedNodeHandler openFileDialog_;
+  };
 
   struct RetiredEntry
   {
@@ -208,6 +223,7 @@ private:
   void recordWindowDisposed();
 
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlers_;
+  RefusedProjectedNodeHandlers refusedProjectedNodeHandlers_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlers_;
   loka::app::scene::Node *rootNode_;
   std::vector<LedgerRow> ledger_;
