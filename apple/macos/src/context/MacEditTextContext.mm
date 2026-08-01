@@ -31,7 +31,16 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureEditTextContext(edit, state.x, state.y, state.width, state.height);
+      MacEditTextContext *ctx = static_cast<MacEditTextContext *>(edit->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new MacEditTextContext(mac->rootView(), state.x, state.y, state.width, state.height, edit);
+      edit->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

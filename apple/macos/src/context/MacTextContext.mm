@@ -132,7 +132,16 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureTextContext(text, state.x, state.y, state.width, state.height);
+      MacTextContext *ctx = static_cast<MacTextContext *>(text->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new MacTextContext(mac->rootView(), state.x, state.y, state.width, state.height, text);
+      text->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

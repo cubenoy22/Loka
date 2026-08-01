@@ -32,7 +32,16 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureCellContext(cell, state.x, state.y, state.width, state.height);
+      MacCellContext *ctx = static_cast<MacCellContext *>(cell->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new MacCellContext(mac->rootView(), state.x, state.y, state.width, state.height, cell);
+      cell->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

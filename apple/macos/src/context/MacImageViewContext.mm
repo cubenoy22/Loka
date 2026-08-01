@@ -111,7 +111,16 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureImageViewContext(image, state.x, state.y, state.width, state.height);
+      MacImageViewContext *ctx = static_cast<MacImageViewContext *>(image->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new MacImageViewContext(mac->rootView(), state.x, state.y, state.width, state.height, image);
+      image->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

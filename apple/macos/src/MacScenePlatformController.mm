@@ -84,7 +84,6 @@ namespace loka
 
 MacScenePlatformController::MacScenePlatformController(void *rootView)
     : rootView_(rootView),
-      contextMapper_(rootView),
       rootNode_(0),
       lastChangeFlags_(loka::app::scene::NODE_DIRTY_NONE),
       clientWidth_(0),

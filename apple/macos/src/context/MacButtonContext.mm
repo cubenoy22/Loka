@@ -69,7 +69,16 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureButtonContext(button, state.x, state.y, state.width, state.height);
+      MacButtonContext *ctx = static_cast<MacButtonContext *>(button->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new MacButtonContext(mac->rootView(), state.x, state.y, state.width, state.height, button);
+      button->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 
