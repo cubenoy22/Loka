@@ -31,7 +31,6 @@ namespace
 
 ToolboxPopupMenuContext::ToolboxPopupMenuContext(loka::app::PopupMenuNode *node)
     : node_(node),
-      boundary_(0),
       rect_(),
       lineHeight_(0),
       items_(0),

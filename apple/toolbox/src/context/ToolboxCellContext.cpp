@@ -30,7 +30,6 @@ namespace
 
 ToolboxCellContext::ToolboxCellContext(loka::app::CellNode *node)
     : node_(node),
-      boundary_(0),
       rect_(),
       text_(0)
 {

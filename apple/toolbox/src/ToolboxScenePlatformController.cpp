@@ -31,6 +31,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "context/ToolboxNodeContextMapper.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxButtonContext.hpp"
 #include "context/ToolboxCellContext.hpp"
@@ -1011,8 +1012,17 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
   {
     return false;
   }
-  loka::app::scene::BoundaryNode *boundary = this->activeLayoutBoundary();
-  return mapper->ensureProjectedContext(node, boundary, this);
+  if (!mapper->ensureProjectedContext(node, this))
+  {
+    return false;
+  }
+  if (!node->asOpenFileDialogNode())
+  {
+    ToolboxProjectedNodeContext *context =
+        static_cast<ToolboxProjectedNodeContext *>(node->getContext());
+    context->setBoundary(this->activeLayoutBoundary());
+  }
+  return true;
 }
 
 short ToolboxScenePlatformController::allocateControlId()

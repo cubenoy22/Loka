@@ -2,7 +2,6 @@
 
 ToolboxRectSurfaceContext::ToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node)
     : node_(node),
-      boundary_(0),
       rect_(),
       previousModel_(),
       hasPreviousModel_(false),

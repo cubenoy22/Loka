@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
 #define LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "core/String.hpp"
 #include <Quickdraw.h>
@@ -28,16 +28,12 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-class ToolboxButtonContext : public loka::app::scene::NativeNodeContext
+class ToolboxButtonContext : public ToolboxProjectedNodeContext
 {
 public:
   ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxButtonContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary)
-  {
-    boundary_ = boundary;
-  }
   void updateData(const loka::core::String &label,
                   loka::core::EmitterState *emitter,
                   loka::core::State<bool> *enabled,
@@ -51,7 +47,6 @@ public:
 
 private:
   loka::app::ButtonNode *node_;
-  loka::app::scene::BoundaryNode *boundary_;
   Rect rect_;
   loka::core::String label_;
   loka::core::EmitterState *emitter_;

@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_CELL_CONTEXT_HPP
 #define LOKA_TOOLBOX_CELL_CONTEXT_HPP
 
-#include "app/scene/projection/NativeNodeContext.hpp"
+#include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include <Quickdraw.h>
 
@@ -19,16 +19,12 @@ namespace loka
   } // namespace core
 } // namespace loka
 
-class ToolboxCellContext : public loka::app::scene::NativeNodeContext
+class ToolboxCellContext : public ToolboxProjectedNodeContext
 {
 public:
   explicit ToolboxCellContext(loka::app::CellNode *node);
   virtual ~ToolboxCellContext();
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary)
-  {
-    boundary_ = boundary;
-  }
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect);
   void draw(ToolboxScenePlatformController *controller);
@@ -38,7 +34,6 @@ public:
 
 private:
   loka::app::CellNode *node_;
-  loka::app::scene::BoundaryNode *boundary_;
   Rect rect_;
   loka::core::State<loka::core::String> *text_;
 };

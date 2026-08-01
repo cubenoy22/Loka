@@ -176,7 +176,6 @@ namespace
 
 ToolboxTextContext::ToolboxTextContext(loka::app::TextNode *node)
     : node_(node),
-      boundary_(0),
       rect_(),
       textX_(0),
       textY_(0),

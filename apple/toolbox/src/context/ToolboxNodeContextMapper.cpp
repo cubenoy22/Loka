@@ -11,7 +11,6 @@
 #include "ToolboxScenePlatformController.hpp"
 
 bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *node,
-                                                      loka::app::scene::BoundaryNode *boundary,
                                                       ToolboxScenePlatformController *controller)
 {
   if (!node)
@@ -26,7 +25,6 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
     {
       return false;
     }
-    ctx->setBoundary(boundary);
     return true;
   }
   if (loka::app::CellNode *cell = node->asCellNode())
@@ -37,7 +35,6 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
     {
       return false;
     }
-    ctx->setBoundary(boundary);
     return true;
   }
   if (loka::app::ButtonNode *button = node->asButtonNode())
@@ -48,7 +45,6 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
     {
       return false;
     }
-    ctx->setBoundary(boundary);
     return true;
   }
   if (loka::app::EditTextNode *edit = node->asEditTextNode())
@@ -59,7 +55,6 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
     {
       return false;
     }
-    ctx->setBoundary(boundary);
     return true;
   }
   if (loka::app::PopupMenuNode *popup = node->asPopupMenuNode())
@@ -70,7 +65,6 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
     {
       return false;
     }
-    ctx->setBoundary(boundary);
     return true;
   }
   if (loka::app::ScrollBarNode *scrollBar = node->asScrollBarNode())
@@ -81,7 +75,6 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
     {
       return false;
     }
-    ctx->setBoundary(boundary);
     return true;
   }
   if (loka::app::ImageViewNode *image = node->asImageViewNode())
@@ -92,7 +85,6 @@ bool ToolboxNodeContextMapper::ensureProjectedContext(loka::app::scene::Node *no
     {
       return false;
     }
-    ctx->setBoundary(boundary);
     return true;
   }
   if (loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode())

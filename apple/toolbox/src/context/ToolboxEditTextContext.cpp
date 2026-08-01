@@ -31,7 +31,6 @@ namespace
 
 ToolboxEditTextContext::ToolboxEditTextContext(loka::app::EditTextNode *node)
     : node_(node),
-      boundary_(0),
       rect_(),
       textRect_(),
       textX_(0),

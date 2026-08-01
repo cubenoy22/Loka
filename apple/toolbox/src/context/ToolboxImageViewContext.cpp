@@ -210,7 +210,6 @@ namespace
 
 ToolboxImageViewContext::ToolboxImageViewContext(loka::app::ImageViewNode *node)
     : node_(node),
-      boundary_(0),
       rect_(),
       image_()
 {
