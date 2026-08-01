@@ -29,7 +29,16 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensurePopupMenuContext(popup, state.x, state.y, state.width, state.height);
+      MacPopupMenuContext *ctx = static_cast<MacPopupMenuContext *>(popup->getContext());
+      if (ctx)
+      {
+        ctx->relayout(state.x, state.y, state.width, state.height);
+        return ctx;
+      }
+      ctx = new MacPopupMenuContext(mac->rootView(), state.x, state.y, state.width, state.height, popup);
+      popup->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      return ctx;
     }
   };
 

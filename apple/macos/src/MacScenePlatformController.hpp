@@ -4,7 +4,6 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
-#include "context/MacNodeContextMapper.hpp"
 
 namespace loka
 {
@@ -95,10 +94,7 @@ public:
   }
   static MacScenePlatformController *findForRootView(void *rootView);
   static void flushPendingRelayouts();
-  MacNodeContextMapper *contextMapper()
-  {
-    return &contextMapper_;
-  }
+  void *rootView() const { return rootView_; }
 
 private:
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
@@ -216,7 +212,6 @@ private:
   void *findFieldForFocusedEdit(loka::app::scene::Node *node) const;
 
   void *rootView_;
-  MacNodeContextMapper contextMapper_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;
   loka::app::scene::PlatformNodeHandlerRegistry nodeHandlerRegistry_;
   LeafLayoutHandlerRegistry leafLayoutHandlerRegistry_;

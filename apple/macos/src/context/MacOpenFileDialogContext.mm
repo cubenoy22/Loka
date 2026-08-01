@@ -124,7 +124,19 @@ namespace
       {
         return 0;
       }
-      return mac->contextMapper()->ensureOpenFileDialogContext(dialog);
+      MacOpenFileDialogContext *ctx = static_cast<MacOpenFileDialogContext *>(dialog->getContext());
+      if (ctx)
+      {
+        return ctx;
+      }
+      ctx = new MacOpenFileDialogContext(mac->rootView(), dialog);
+      dialog->setContext(ctx);
+      ctx->readLifecycleFactOnAttach();
+      // Boundary compose may already consume pendingAttach to convert the child
+      // compose event to ATTACH, so a freshly created dialog context should
+      // present immediately even when pendingAttach is no longer visible here.
+      ctx->presentIfNeeded();
+      return ctx;
     }
   };
 
