@@ -1,7 +1,7 @@
 #include "ToolboxScenePlatformController.hpp"
+#include "ToolboxBuiltInSupport.hpp"
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "ToolboxWindow.hpp"
-#include "ToolboxWindowContext.hpp"
 #include "core/Profiler.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
@@ -30,7 +30,6 @@
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
-#include "context/ToolboxNodeContextMapper.hpp"
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "context/ToolboxButtonContext.hpp"
@@ -862,9 +861,9 @@ namespace
     case loka::app::scene::NODE_KIND_RECT_SURFACE:
     {
       loka::app::RectSurfaceNode *surface = static_cast<loka::app::RectSurfaceNode *>(node);
-      if (controller && controller->contextMapper())
+      if (controller)
       {
-        controller->contextMapper()->ensureRectSurfaceContext(surface);
+        EnsureToolboxRectSurfaceContext(surface);
       }
       if (surface->getContext())
       {
@@ -975,6 +974,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       activeLayoutBoundary_(0)
 {
   RegisterToolboxPlatformLayoutHandlers(this->layoutHandlerRegistry_);
+  RegisterToolboxBuiltInSupport(*this);
 }
 
 ToolboxScenePlatformController::~ToolboxScenePlatformController()
@@ -990,37 +990,32 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
   }
 }
 
-ToolboxNodeContextMapper *ToolboxScenePlatformController::contextMapper() const
+bool ToolboxScenePlatformController::registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler)
 {
-  if (!window_ || !window_->context())
-  {
-    return 0;
-  }
-  return window_->context()->contextMapper();
+  return this->nodeHandlerRegistry_.registerHandler(handler);
 }
 
 bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::Node *node,
                                                             loka::app::scene::LayoutState &state)
 {
-  (void)state;
   if (!node)
   {
     return false;
   }
-  ToolboxNodeContextMapper *mapper = this->contextMapper();
-  if (!mapper)
+  loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
+  if (!handler)
   {
     return false;
   }
-  if (!mapper->ensureProjectedContext(node, this))
+  loka::app::scene::NodeContext *context = handler->ensureContext(node, this, state);
+  if (!context)
   {
     return false;
   }
   if (!node->asOpenFileDialogNode())
   {
-    ToolboxProjectedNodeContext *context =
-        static_cast<ToolboxProjectedNodeContext *>(node->getContext());
-    context->setBoundary(this->activeLayoutBoundary());
+    ToolboxProjectedNodeContext *projected = static_cast<ToolboxProjectedNodeContext *>(context);
+    projected->setBoundary(this->activeLayoutBoundary());
   }
   return true;
 }

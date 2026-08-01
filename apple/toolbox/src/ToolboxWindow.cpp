@@ -8,7 +8,6 @@
 #include "app/scene/Scene.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindowContext.hpp"
-#include "context/ToolboxNodeContextMapper.hpp"
 #include "core/String.hpp"
 #include "platform/StringUTF8.hpp"
 
@@ -57,9 +56,9 @@ ToolboxWindow::ToolboxWindow(PlatformContext *context, const WindowProps &props)
   window_ = 0;
   context_ = new ToolboxWindowContext(
 #if !defined(LOKA_TOOLBOX_CLASSIC_6)
-      ToolboxNodeContextMapper::CAP_CONTROL_MANAGER | ToolboxNodeContextMapper::CAP_TEXT_EDIT
+      ToolboxWindowContext::CAP_CONTROL_MANAGER | ToolboxWindowContext::CAP_TEXT_EDIT
 #else
-      ToolboxNodeContextMapper::CAP_NONE
+      ToolboxWindowContext::CAP_NONE
 #endif
   );
   this->titleState().deferBind(&ToolboxWindow::TitleChangedThunk, this);

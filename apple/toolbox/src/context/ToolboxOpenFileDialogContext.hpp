@@ -4,6 +4,17 @@
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
 
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
+
 class ToolboxOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -32,5 +43,7 @@ private:
   loka::app::OpenFileDialogPresentationPhase presentation_;
   NativeDialogSession *dialog_;
 };
+
+void RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP

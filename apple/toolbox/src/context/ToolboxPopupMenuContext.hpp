@@ -10,6 +10,16 @@
 class ToolboxScenePlatformController;
 namespace loka
 {
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
+namespace loka
+{
   namespace core
   {
     namespace scene
@@ -63,5 +73,7 @@ private:
   loka::core::EmitterState *onChange_;
   loka::core::State<bool> *enabled_;
 };
+
+void RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP

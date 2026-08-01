@@ -1,11 +1,35 @@
 #include "context/ToolboxPopupMenuContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstring>
 #include <string>
 
 namespace
 {
+  class ToolboxPopupMenuNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxPopupMenuNodeHandler,
+                                                     loka::app::PopupMenuNode,
+                                                     ToolboxPopupMenuContext>
+  {
+  public:
+    static loka::app::PopupMenuNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asPopupMenuNode() : 0;
+    }
+
+    static ToolboxPopupMenuContext *create(loka::app::PopupMenuNode *node,
+                                           loka::app::scene::IPlatformController *controller,
+                                           const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      (void)state;
+      return new ToolboxPopupMenuContext(node);
+    }
+  };
+
+  ToolboxPopupMenuNodeHandler gToolboxPopupMenuNodeHandler;
+
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
@@ -223,4 +247,9 @@ short ToolboxPopupMenuContext::menuId() const
     return static_cast<short>(node_->props.controlTag_);
   }
   return 2000;
+}
+
+void RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gToolboxPopupMenuNodeHandler);
 }

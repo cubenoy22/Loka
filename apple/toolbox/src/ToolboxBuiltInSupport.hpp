@@ -1,0 +1,8 @@
+#ifndef LOKA_TOOLBOX_BUILT_IN_SUPPORT_HPP
+#define LOKA_TOOLBOX_BUILT_IN_SUPPORT_HPP
+
+class ToolboxScenePlatformController;
+
+void RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
+
+#endif // LOKA_TOOLBOX_BUILT_IN_SUPPORT_HPP

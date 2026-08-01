@@ -1,11 +1,35 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstring>
 #include <string>
 
 namespace
 {
+  class ToolboxEditTextNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxEditTextNodeHandler,
+                                                     loka::app::EditTextNode,
+                                                     ToolboxEditTextContext>
+  {
+  public:
+    static loka::app::EditTextNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asEditTextNode() : 0;
+    }
+
+    static ToolboxEditTextContext *create(loka::app::EditTextNode *node,
+                                          loka::app::scene::IPlatformController *controller,
+                                          const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      (void)state;
+      return new ToolboxEditTextContext(node);
+    }
+  };
+
+  ToolboxEditTextNodeHandler gToolboxEditTextNodeHandler;
+
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     std::string utf8;
@@ -110,4 +134,9 @@ void ToolboxEditTextContext::render(loka::app::scene::IPlatformController *contr
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);
+}
+
+void RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gToolboxEditTextNodeHandler);
 }

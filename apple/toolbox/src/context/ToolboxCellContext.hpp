@@ -6,6 +6,16 @@
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      class PlatformNodeHandlerRegistry;
+    }
+  } // namespace app
+} // namespace loka
 
 namespace loka
 {
@@ -37,5 +47,7 @@ private:
   Rect rect_;
   loka::core::State<loka::core::String> *text_;
 };
+
+void RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_CELL_CONTEXT_HPP

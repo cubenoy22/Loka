@@ -39,4 +39,6 @@ private:
   RgnHandle savedClipRgn_;
 };
 
+void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *node);
+
 #endif

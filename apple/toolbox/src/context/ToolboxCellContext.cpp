@@ -1,12 +1,36 @@
 #include "context/ToolboxCellContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
 #include <cstring>
 #include <string>
 
 namespace
 {
+  class ToolboxCellNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxCellNodeHandler,
+                                                     loka::app::CellNode,
+                                                     ToolboxCellContext>
+  {
+  public:
+    static loka::app::CellNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asCellNode() : 0;
+    }
+
+    static ToolboxCellContext *create(loka::app::CellNode *node,
+                                      loka::app::scene::IPlatformController *controller,
+                                      const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      (void)state;
+      return new ToolboxCellContext(node);
+    }
+  };
+
+  ToolboxCellNodeHandler gToolboxCellNodeHandler;
+
   void BuildPascalString(const loka::core::String &value, Str255 text)
   {
     std::string utf8;
@@ -130,4 +154,9 @@ bool ToolboxCellContext::handleMouseDown(const Point &point, ToolboxScenePlatfor
     controller->emitHitEmitter(node_->props.onClick_);
   }
   return true;
+}
+
+void RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gToolboxCellNodeHandler);
 }

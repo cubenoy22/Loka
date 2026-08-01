@@ -17,6 +17,13 @@ public:
   {
   }
 
+  void readLifecycleFactOnAttach()
+  {
+    // No per-context native presentation on Toolbox; the ledgers repaint from
+    // projection sweeps — the method exists so the shared ensure ritual stays
+    // uniform.
+  }
+
   void setBoundary(loka::app::scene::BoundaryNode *boundary)
   {
     this->boundary_ = boundary;

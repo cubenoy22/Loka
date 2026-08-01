@@ -1,5 +1,6 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
 #include "ToolboxPlatformContext.hpp"
+#include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <StandardFile.h>
 #include <string>
 
@@ -33,6 +34,30 @@ namespace
       loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
     }
   }
+
+  class ToolboxOpenFileDialogNodeHandler
+      : public loka::app::scene::RetainedNodeHandler<ToolboxOpenFileDialogNodeHandler,
+                                                     loka::app::OpenFileDialogNode,
+                                                     ToolboxOpenFileDialogContext>
+  {
+  public:
+    static loka::app::OpenFileDialogNode *cast(loka::app::scene::Node *node)
+    {
+      return node ? node->asOpenFileDialogNode() : 0;
+    }
+
+    static ToolboxOpenFileDialogContext *create(loka::app::OpenFileDialogNode *node,
+                                                loka::app::scene::IPlatformController *controller,
+                                                const loka::app::scene::LayoutState &state)
+    {
+      (void)controller;
+      (void)state;
+      // Keep the installation ordering at the shared ritual; see RetainedNodeHandler.
+      return new ToolboxOpenFileDialogContext(node);
+    }
+  };
+
+  ToolboxOpenFileDialogNodeHandler gToolboxOpenFileDialogNodeHandler;
 } // namespace
 
 struct ToolboxOpenFileDialogContext::NativeDialogSession : public ToolboxOpenNativeDialogSession
@@ -178,4 +203,9 @@ ToolboxOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
   dialog_ = 0;
   dialog->disposed = true;
   return dialog;
+}
+
+void RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+{
+  registry.registerHandler(&gToolboxOpenFileDialogNodeHandler);
 }
