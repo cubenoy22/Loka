@@ -63,6 +63,6 @@ private:
   loka::core::State<loka::core::String> *text_;
 };
 
-void RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP

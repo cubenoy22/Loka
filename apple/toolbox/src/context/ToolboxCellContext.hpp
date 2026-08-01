@@ -48,6 +48,6 @@ private:
   loka::core::State<loka::core::String> *text_;
 };
 
-void RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_CELL_CONTEXT_HPP

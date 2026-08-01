@@ -44,6 +44,6 @@ private:
   NativeDialogSession *dialog_;
 };
 
-void RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP

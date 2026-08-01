@@ -131,7 +131,7 @@ public:
   }
 
 private:
-  friend void RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
+  friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
 
   struct ButtonHit
   {

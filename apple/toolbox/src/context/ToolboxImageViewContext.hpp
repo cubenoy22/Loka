@@ -36,6 +36,6 @@ private:
   loka::core::resource::Image image_;
 };
 
-void RegisterToolboxImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_IMAGE_VIEW_CONTEXT_HPP

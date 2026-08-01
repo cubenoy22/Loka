@@ -8,7 +8,8 @@
     into the controller ledgers. The wall
     (ToolboxScenePlatformController::prepareProjectedLayout) re-applies it on
     every projection sweep, so cells never touch it. */
-class ToolboxProjectedNodeContext : public loka::app::scene::NativeNodeContext
+class ToolboxProjectedNodeContext : public loka::app::scene::NativeNodeContext,
+                                    public loka::app::scene::IBoundaryTaggedContext
 {
 public:
   ToolboxProjectedNodeContext()
@@ -24,12 +25,17 @@ public:
     // uniform.
   }
 
-  void setBoundary(loka::app::scene::BoundaryNode *boundary)
+  virtual loka::app::scene::IBoundaryTaggedContext *asBoundaryTagged()
+  {
+    return this;
+  }
+
+  virtual void setBoundary(loka::app::scene::BoundaryNode *boundary)
   {
     this->boundary_ = boundary;
   }
 
-  loka::app::scene::BoundaryNode *boundary() const
+  virtual loka::app::scene::BoundaryNode *boundary() const
   {
     return this->boundary_;
   }

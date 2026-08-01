@@ -205,7 +205,7 @@ ToolboxOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
   return dialog;
 }
 
-void RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxOpenFileDialogNodeHandler);
+  return registry.registerHandler(&gToolboxOpenFileDialogNodeHandler);
 }

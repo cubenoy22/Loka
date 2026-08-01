@@ -974,7 +974,11 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       activeLayoutBoundary_(0)
 {
   RegisterToolboxPlatformLayoutHandlers(this->layoutHandlerRegistry_);
-  RegisterToolboxBuiltInSupport(*this);
+  const bool builtInsRegistered = RegisterToolboxBuiltInSupport(*this);
+  (void)builtInsRegistered;
+  // A refused HandlerEntry allocation would leave that node kind silently
+  // unprojectable for this controller's lifetime; surface it at boot.
+  assert(builtInsRegistered && "Toolbox built-in node handler registration failed at boot");
 }
 
 ToolboxScenePlatformController::~ToolboxScenePlatformController()
@@ -1012,10 +1016,13 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
   {
     return false;
   }
-  if (!node->asOpenFileDialogNode())
+  // Type-safe hookup: only contexts that opt in through asBoundaryTagged
+  // receive the tag, so a foreign handler returning a plain NodeContext (the
+  // registry is public API) can never be written through a wrong downcast.
+  // The OpenFileDialog context simply does not opt in.
+  if (loka::app::scene::IBoundaryTaggedContext *tagged = context->asBoundaryTagged())
   {
-    ToolboxProjectedNodeContext *projected = static_cast<ToolboxProjectedNodeContext *>(context);
-    projected->setBoundary(this->activeLayoutBoundary());
+    tagged->setBoundary(this->activeLayoutBoundary());
   }
   return true;
 }

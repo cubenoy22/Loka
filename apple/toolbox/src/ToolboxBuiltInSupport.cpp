@@ -9,14 +9,16 @@
 #include "context/ToolboxScrollBarContext.hpp"
 #include "context/ToolboxTextContext.hpp"
 
-void RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
+bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller)
 {
-  RegisterToolboxButtonNodeHandler(controller.nodeHandlerRegistry_);
-  RegisterToolboxTextNodeHandler(controller.nodeHandlerRegistry_);
-  RegisterToolboxImageViewNodeHandler(controller.nodeHandlerRegistry_);
-  RegisterToolboxEditTextNodeHandler(controller.nodeHandlerRegistry_);
-  RegisterToolboxPopupMenuNodeHandler(controller.nodeHandlerRegistry_);
-  RegisterToolboxCellNodeHandler(controller.nodeHandlerRegistry_);
-  RegisterToolboxScrollBarNodeHandler(controller.nodeHandlerRegistry_);
-  RegisterToolboxOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_);
+  bool ok = true;
+  ok = RegisterToolboxButtonNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = RegisterToolboxTextNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = RegisterToolboxImageViewNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = RegisterToolboxEditTextNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = RegisterToolboxPopupMenuNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = RegisterToolboxCellNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = RegisterToolboxScrollBarNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  ok = RegisterToolboxOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_) && ok;
+  return ok;
 }

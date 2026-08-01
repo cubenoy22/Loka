@@ -398,7 +398,7 @@ void ToolboxImageViewContext::draw()
   DrawPascalStringAt(static_cast<short>(rect_.left + 6), static_cast<short>(rect_.top + 14), label);
 }
 
-void RegisterToolboxImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxImageViewNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxImageViewNodeHandler);
+  return registry.registerHandler(&gToolboxImageViewNodeHandler);
 }

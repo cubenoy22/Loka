@@ -340,7 +340,7 @@ void ToolboxTextContext::render(loka::app::scene::IPlatformController *controlle
   draw(toolbox);
 }
 
-void RegisterToolboxTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxTextNodeHandler);
+  return registry.registerHandler(&gToolboxTextNodeHandler);
 }

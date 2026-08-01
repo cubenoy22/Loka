@@ -65,6 +65,6 @@ private:
   ToolboxScenePlatformController *controller_;
 };
 
-void RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_BUTTON_CONTEXT_HPP

@@ -74,6 +74,6 @@ private:
   loka::core::State<bool> *enabled_;
 };
 
-void RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP

@@ -173,7 +173,7 @@ bool ToolboxButtonContext::handleMouseDown(const Point &point, ToolboxScenePlatf
   return true;
 }
 
-void RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxButtonNodeHandler);
+  return registry.registerHandler(&gToolboxButtonNodeHandler);
 }

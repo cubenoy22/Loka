@@ -156,7 +156,7 @@ bool ToolboxCellContext::handleMouseDown(const Point &point, ToolboxScenePlatfor
   return true;
 }
 
-void RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxCellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxCellNodeHandler);
+  return registry.registerHandler(&gToolboxCellNodeHandler);
 }

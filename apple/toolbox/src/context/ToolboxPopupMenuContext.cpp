@@ -249,7 +249,7 @@ short ToolboxPopupMenuContext::menuId() const
   return 2000;
 }
 
-void RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxPopupMenuNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxPopupMenuNodeHandler);
+  return registry.registerHandler(&gToolboxPopupMenuNodeHandler);
 }

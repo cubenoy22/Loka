@@ -120,7 +120,7 @@ void ToolboxScrollBarContext::render(loka::app::scene::IPlatformController *cont
   draw(toolbox);
 }
 
-void RegisterToolboxScrollBarNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxScrollBarNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxScrollBarNodeHandler);
+  return registry.registerHandler(&gToolboxScrollBarNodeHandler);
 }

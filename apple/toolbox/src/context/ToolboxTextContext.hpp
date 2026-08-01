@@ -66,6 +66,6 @@ private:
   loka::core::State<loka::core::String> *text_;
 };
 
-void RegisterToolboxTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_TEXT_CONTEXT_HPP

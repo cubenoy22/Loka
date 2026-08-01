@@ -54,6 +54,6 @@ private:
   ToolboxScenePlatformController *controller_;
 };
 
-void RegisterToolboxScrollBarNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
+bool RegisterToolboxScrollBarNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
 
 #endif // LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP

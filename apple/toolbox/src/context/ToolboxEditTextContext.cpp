@@ -136,7 +136,7 @@ void ToolboxEditTextContext::render(loka::app::scene::IPlatformController *contr
   draw(toolbox);
 }
 
-void RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
+bool RegisterToolboxEditTextNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
-  registry.registerHandler(&gToolboxEditTextNodeHandler);
+  return registry.registerHandler(&gToolboxEditTextNodeHandler);
 }
