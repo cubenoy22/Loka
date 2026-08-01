@@ -3,6 +3,7 @@
 #include "ApplicationFileTests.hpp"
 #ifdef _WIN32
 #include "Win32ThreadModalScopeTests.hpp"
+#include "Win32NodeHandlerEnsureTests.hpp"
 #include "Win32EditTextBridgeTests.hpp"
 #include "Win32FilePathTests.hpp"
 #include "Win32AppLocationTests.hpp"

@@ -67,6 +67,19 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32String.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32FileIO.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32AppLocation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32DebugLog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/platform/Win32Profiler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32ScenePlatformController.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BuiltInSupport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32ButtonContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32CellContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32TextContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32EditTextContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32OpenFileDialogContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32PopupMenuContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32ImageViewContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32RectSurfaceContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32NodeHandlerEnsureTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ThreadModalScopeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32EditTextBridgeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
