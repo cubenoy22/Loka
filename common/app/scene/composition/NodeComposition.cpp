@@ -312,6 +312,9 @@ namespace loka
         INestableDefinition *nestable = definition->asNestableDefinition();
         if (nestable)
         {
+#ifndef NDEBUG
+          // Misuse detection only: the duplicate-key assert is this scan's
+          // sole effect, so release builds skip the quadratic walk entirely.
           for (NodeDefinitionBase *candidate = nestable->childrenHead();
                candidate;
                candidate = candidate->nextInComposition)
@@ -332,6 +335,7 @@ namespace loka
               }
             }
           }
+#endif
           for (NodeDefinitionBase *child = nestable->childrenHead(); child; child = child->nextInComposition)
           {
             assignDefinitionSeatSlots(child, nextSlot);
