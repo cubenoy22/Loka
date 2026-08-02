@@ -1037,8 +1037,10 @@ namespace loka
             if (existing &&
                 (seatPlan || effectiveDefinition->isCompatibleWithNode(existing)))
             {
+              const bool reconcileRetainedSubtree =
+                  reconcileScopedAnonymous || existing->asBoundarySectionNode();
               plan.entries.push_back(
-                  reconcileScopedAnonymous
+                  reconcileRetainedSubtree
                       ? BoundaryLocalRebuildPlanEntry::reconcile(
                             existing,
                             effectiveDefinition,

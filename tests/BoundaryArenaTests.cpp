@@ -1188,14 +1188,32 @@ namespace
     typedef SectionOrderingChildTypeTag TypeTag;
     typedef SectionOrderingChildNode NodeType;
 
+    SectionOrderingChildProps()
+        : revision(0)
+    {
+    }
+
+    explicit SectionOrderingChildProps(int revisionValue)
+        : revision(revisionValue)
+    {
+    }
+
     bool operator<(const loka::app::scene::PropsBase &rhs) const
     {
-      return rhs.propsTypeId() == this->propsTypeId() ? false
-                                                      : this->propsTypeId() < rhs.propsTypeId();
+      if (rhs.propsTypeId() != this->propsTypeId())
+      {
+        return this->propsTypeId() < rhs.propsTypeId();
+      }
+      const SectionOrderingChildProps &other =
+          static_cast<const SectionOrderingChildProps &>(rhs);
+      return this->revision < other.revision;
     }
+
+    int revision;
   };
 
   int g_sectionOrderingChildDestructions = 0;
+  int g_sectionOrderingChildDetaches = 0;
 
   class SectionOrderingChildNode : public loka::app::scene::ComposableNode
   {
@@ -1232,8 +1250,12 @@ namespace
 
   protected:
     virtual void composeWithContext(loka::app::scene::ComponentContext &,
-                                    loka::app::scene::ComposeEvent)
+                                    loka::app::scene::ComposeEvent event)
     {
+      if (event == loka::app::scene::COMPOSE_EVENT_DETACH)
+      {
+        ++g_sectionOrderingChildDetaches;
+      }
     }
 
   private:
@@ -1261,7 +1283,9 @@ namespace
         : SceneTestSupport::RecomposingBoundaryNode<KeyedSectionRootNode,
                                                     KeyedSectionRootProps>(props),
           reverse_(false),
-          replacementKey_(1101)
+          replacementKey_(1101),
+          replaceChild_(false),
+          childRevision_(0)
     {
     }
 
@@ -1269,7 +1293,15 @@ namespace
     {
       loka::app::Fragment root;
       loka::app::Section first(this->replacementKey_);
-      first << SectionOrderingChildDefinition();
+      if (this->replaceChild_)
+      {
+        first << GateProbeDefinition();
+      }
+      else
+      {
+        first << SectionOrderingChildDefinition(
+            SectionOrderingChildProps(this->childRevision_));
+      }
       loka::app::Section second(1102);
       if (this->reverse_)
       {
@@ -1311,9 +1343,21 @@ namespace
       this->replacementKey_ = 1103;
     }
 
+    void replaceFirstChild()
+    {
+      this->replaceChild_ = true;
+    }
+
+    void setFirstChildRevision(int revision)
+    {
+      this->childRevision_ = revision;
+    }
+
   private:
     bool reverse_;
     loka::app::scene::NodeTag replacementKey_;
+    bool replaceChild_;
+    int childRevision_;
   };
 
   class SectionGridRootNode;
@@ -2479,6 +2523,115 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement");
+#endif
+}
+
+void testBoundarySectionRetainedKeyReconcilesReplacedChild()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  int stateValueAlive = 0;
+  g_sectionOrderingChildDestructions = 0;
+  g_sectionOrderingChildDetaches = 0;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<KeyedSectionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    KeyedSectionRootNode *root = static_cast<KeyedSectionRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    loka::app::BoundarySectionNode *section = root->section(1101);
+    assert(section);
+    loka::app::scene::Node *originalChild = section->childrenHead();
+    assert(originalChild &&
+           originalChild->propsTypeId() == SectionOrderingChildProps::staticTypeId());
+
+    loka::app::scene::NodeState<SectionTrackedValue> ownedState;
+    {
+      SectionTrackedValue initial(&stateValueAlive, 41);
+      loka::app::scene::NodeComposition::StateBatch states(section);
+      states.state(ownedState, initial);
+    }
+    assert(ownedState.isValid());
+    assert(stateValueAlive == 1);
+
+    root->replaceFirstChild();
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+
+    assert(root->section(1101) == section &&
+           "the keyed Section instance must survive child replacement");
+    assert(ownedState.isValid() &&
+           ownedState.dangerouslyMutableState()->get().value == 41 &&
+           "the retained Section must preserve its adopted state value");
+    loka::app::scene::Node *replacementChild = section->childrenHead();
+    assert(replacementChild && replacementChild != originalChild &&
+           replacementChild->propsTypeId() == GateProbeProps::staticTypeId() &&
+           "the retained Section must install the replacement child");
+    assert(g_sectionOrderingChildDetaches == 1 &&
+           "the old child must cross the synchronous detach line");
+    assert(g_sectionOrderingChildDestructions == 0 &&
+           "the old child must remain allocated until the reclaim drain");
+    assert(scene.hasPendingInvalidation());
+
+    assert(!scene.flushInvalidation() &&
+           "child reclamation must be a silent drain-only tracker run");
+    assert(g_sectionOrderingChildDestructions == 1 &&
+           "the old child must reclaim at the owning clock boundary");
+    assert(stateValueAlive == 1);
+  }
+  assert(stateValueAlive == 0);
+  assert(g_sectionOrderingChildDestructions == 1);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testBoundarySectionRetainedKeyReconcilesReplacedChild");
+#endif
+}
+
+void testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  g_sectionOrderingChildDestructions = 0;
+  g_sectionOrderingChildDetaches = 0;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<KeyedSectionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    KeyedSectionRootNode *root = static_cast<KeyedSectionRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    loka::app::BoundarySectionNode *section = root->section(1101);
+    SectionOrderingChildNode *child = static_cast<SectionOrderingChildNode *>(
+        section ? section->childrenHead() : 0);
+    assert(section && child && child->props.revision == 0);
+
+    root->setFirstChildRevision(7);
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+
+    assert(root->section(1101) == section);
+    assert(section->childrenHead() == child &&
+           "compatible child props must update the existing child in place");
+    assert(child->props.revision == 7 &&
+           "the retained child must receive the current definition props");
+    assert(g_sectionOrderingChildDetaches == 0);
+    assert(g_sectionOrderingChildDestructions == 0);
+  }
+  assert(g_sectionOrderingChildDestructions == 1);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace");
 #endif
 }
 

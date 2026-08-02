@@ -17,6 +17,8 @@ void testNestedConditionalSeatInContextlessMaterialization_Probe();
 void testNestedConditionalSeatDefersProjectionAndRecoversThroughRootBoundaryWrapper();
 void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry();
 void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement();
+void testBoundarySectionRetainedKeyReconcilesReplacedChild();
+void testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace();
 void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys();
 void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic();
 void testBoundarySectionGridUsesEnclosingStateArenaEconomically();
