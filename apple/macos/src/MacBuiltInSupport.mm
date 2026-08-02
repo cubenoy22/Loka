@@ -2,6 +2,7 @@
 #include "MacScenePlatformController.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/ScrollBar.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -105,6 +106,14 @@ namespace
   }
 } // namespace
 
+namespace
+{
+  // Mac has no ScrollBar context yet: a known unsupported kind must take the
+  // typed-refusal path, not trip the accidental-miss education assert.
+  loka::app::scene::RefusedNodeHandler gRefusedMacScrollBar(
+      loka::app::scene::NodeTypeToken<loka::app::ScrollBarNode>());
+} // namespace
+
 void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
 {
   loka::app::layout::RowLayoutMetrics rowMetrics;
@@ -141,4 +150,5 @@ void RegisterMacBuiltInSupport(MacScenePlatformController &controller)
   RegisterMacPopupMenuNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacCellNodeHandler(controller.nodeHandlerRegistry_);
   RegisterMacOpenFileDialogNodeHandler(controller.nodeHandlerRegistry_);
+  controller.nodeHandlerRegistry_.registerHandler(&gRefusedMacScrollBar);
 }
