@@ -2084,21 +2084,22 @@ void testLokaFlowDslV1Core()
   {
     PendingLayoutBoundaryProps::assertAllowedValueType<int>();
     PendingLayoutBoundaryProps::assertAllowedValueType<loka::core::State<int> *>();
-    PendingLayoutBoundaryProps::assertAllowedValueType<loka::core::Managed<loka::core::MutableState<int> > >();
 
     assert((loka::app::scene::BoundaryPropValueRules<int>::kAllowed));
     assert((loka::app::scene::BoundaryPropValueRules<loka::core::State<int> *>::kAllowed));
-    assert((loka::app::scene::BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<int> > >::kAllowed));
+    LOKA_STATIC_ASSERT(
+        !(loka::app::scene::BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<int> > >::kAllowed),
+        boundary_props_reject_managed_mutable_state);
     assert(!(loka::app::scene::BoundaryPropValueRules<loka::app::scene::NodeState<int> >::kAllowed));
     assert(!(loka::app::scene::BoundaryPropValueRules<loka::core::MutableState<int> *>::kAllowed));
     loka::core::MutableState<int> countState(21);
+    loka::core::MutableState<int> sharedCountState(34);
     loka::app::scene::BorrowedState<int> borrowedCount = PendingLayoutBoundaryProps::borrowed<int>(&countState);
-    loka::core::Managed<loka::core::MutableState<int> > sharedCount = PendingLayoutBoundaryProps::shared(
-        loka::core::Managed<loka::core::MutableState<int> >::Wrap(new loka::core::MutableState<int>(34)));
+    loka::app::scene::BorrowedState<int> sharedCount = PendingLayoutBoundaryProps::borrowed<int>(&sharedCountState);
     assert(borrowedCount.isValid());
     assert(borrowedCount.get() == 21);
-    assert(sharedCount.get() != 0);
-    assert(sharedCount.get()->get() == 34);
+    assert(sharedCount.isValid());
+    assert(sharedCount.get() == 34);
   }
 
   {

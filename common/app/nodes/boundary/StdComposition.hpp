@@ -3,6 +3,7 @@
 
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/nodes/boundary/StdCompositionBoundaryNode.hpp"
+#include "core/Managed.hpp"
 
 namespace loka
 {
@@ -47,6 +48,14 @@ namespace loka
       };
 
       template <typename T> struct BoundaryPropValueRules<const loka::core::MutableState<T> *>
+      {
+        enum
+        {
+          kAllowed = 0
+        };
+      };
+
+      template <typename T> struct BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<T> > >
       {
         enum
         {
@@ -106,12 +115,6 @@ namespace loka
         {
           AssertBoundaryPropValueAllowed<loka::core::State<T> *>();
           return BorrowedState<T>(state);
-        }
-
-        template <typename T> static loka::core::Managed<T> shared(const loka::core::Managed<T> &value)
-        {
-          AssertBoundaryPropValueAllowed<loka::core::Managed<T> >();
-          return value;
         }
 
         bool operator<(const PropsBase &rhs) const
