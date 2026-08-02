@@ -1009,6 +1009,7 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
   loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
   if (!handler)
   {
+    assert(false && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
     return false;
   }
   loka::app::scene::NodeContext *context = handler->ensureContext(node, this, state);

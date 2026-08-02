@@ -6,6 +6,7 @@
 #include "Win32ScenePlatformController.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/controls/ScrollBar.hpp"
 #include "context/Win32ButtonContext.hpp"
 
 namespace
@@ -105,8 +106,25 @@ void testWin32NodeHandlerEnsureContract()
     assert(text.getContext() == textCtx);
     assert(countChildWindows(root) == childrenWithText);
 
-    printf("  button ctx=%p reused, children stable at %d; text ctx reused\n", static_cast<void *>(ctx),
-           childrenWithText);
+    // -- ScrollBar: Win32 has no native context for it; the registered
+    // refusal stub must answer (false, no context) without tripping the
+    // registry-miss education assert -- a known unsupported kind is a typed
+    // refusal, not an accident. Reaching this line in a Debug build IS the
+    // no-abort discrimination.
+    loka::app::ScrollBarProps scrollProps;
+    loka::app::ScrollBarNode scrollBar(scrollProps);
+    state.x = 5;
+    state.y = 130;
+    state.width = 120;
+    state.height = 16;
+    assert(!controller.prepareProjectedLayout(&scrollBar, state) &&
+           "an unsupported kind must refuse, not project");
+    assert(!scrollBar.getContext());
+    assert(countChildWindows(root) == childrenWithText &&
+           "a refusal must not materialize a native window");
+
+    printf("  button ctx=%p reused, children stable at %d; text ctx reused; scrollbar refused\n",
+           static_cast<void *>(ctx), childrenWithText);
     // Nodes leave scope before the controller: ~Node retires and releases the
     // contexts, which destroys their child windows while root is still alive.
   }

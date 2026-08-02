@@ -1,6 +1,7 @@
 #include "Win32ScenePlatformController.hpp"
 #include "Win32BuiltInSupport.hpp"
 #include "app/scene/boundary/Boundary.hpp"
+#include <cassert>
 #include <windows.h>
 #include <cstdio>
 #include <map>
@@ -152,6 +153,7 @@ bool Win32ScenePlatformController::prepareProjectedLayout(loka::app::scene::Node
   loka::app::scene::IPlatformNodeHandler *handler = this->nodeHandlerRegistry_.find(node);
   if (!handler)
   {
+    assert(false && "no node handler registered for this node type -- register the handler or an explicit RefusedNodeHandler");
     return false;
   }
   return handler->ensureContext(node, this, handlerState) != 0;

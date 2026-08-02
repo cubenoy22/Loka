@@ -1,6 +1,9 @@
 #ifndef LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
 #define LOKA_TESTS_NULL_PLATFORM_CONTRACT_TESTS_HPP
 
+void testNullNodeHandlerRefusalIsTypedObservableAndContextless();
+void testNullNodeHandlerRealKindStillProjects();
+void testNullNodeHandlerRegistryMissEducatesInDiagnosticBuilds();
 void testNullPlatformContract_A1_contextDestructorRunsTeardownSequence();
 void testNullPlatformContract_A2_retainedDetachRunsNoTeardown();
 void testNullPlatformContract_A3_intakeConsistencyFailureLeaksWithoutPooling();

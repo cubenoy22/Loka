@@ -6,6 +6,7 @@
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/ScrollBar.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -111,6 +112,14 @@ namespace
   }
 } // namespace
 
+namespace
+{
+  // Win32 has no ScrollBar context yet: a known unsupported kind must take the
+  // typed-refusal path, not trip the accidental-miss education assert.
+  loka::app::scene::RefusedNodeHandler gRefusedWin32ScrollBar(
+      loka::app::scene::NodeTypeToken<loka::app::ScrollBarNode>());
+} // namespace
+
 void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
 {
   loka::app::layout::RowLayoutMetrics rowMetrics;
@@ -147,4 +156,5 @@ void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller)
   RegisterWin32PopupMenuNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32CellNodeHandler(controller.nodeHandlerRegistry_);
   RegisterWin32OpenFileDialogNodeHandler(controller.nodeHandlerRegistry_);
+  controller.nodeHandlerRegistry_.registerHandler(&gRefusedWin32ScrollBar);
 }
