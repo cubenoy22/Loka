@@ -3,6 +3,7 @@
 
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/nodes/boundary/StdCompositionBoundaryNode.hpp"
+#include "core/Managed.hpp"
 
 namespace loka
 {
@@ -54,10 +55,22 @@ namespace loka
         };
       };
 
+      template <typename T> struct BoundaryPropValueRules<loka::core::Managed<loka::core::MutableState<T> > >
+      {
+        enum
+        {
+          kAllowed = 0
+        };
+      };
+
       template <typename T> inline void AssertBoundaryPropValueAllowed()
       {
-        LOKA_STATIC_ASSERT(BoundaryPropValueRules<T>::kAllowed,
-                           boundary_props_must_not_hold_owned_or_raw_mutable_state);
+        // The prop-value ban must bind in every build. LOKA_STATIC_ASSERT is
+        // deliberately empty for C++98 NDEBUG (the Retro68 release presets),
+        // which is exactly where a banned prop must still fail to compile, so
+        // this check carries its own always-on negative-size-array guard.
+        typedef char BoundaryPropValueMustBeAllowed[BoundaryPropValueRules<T>::kAllowed ? 1 : -1];
+        (void)sizeof(BoundaryPropValueMustBeAllowed);
       }
 
       struct StdCompositionProps : public NodePropsBase<StdCompositionProps>
@@ -106,12 +119,6 @@ namespace loka
         {
           AssertBoundaryPropValueAllowed<loka::core::State<T> *>();
           return BorrowedState<T>(state);
-        }
-
-        template <typename T> static loka::core::Managed<T> shared(const loka::core::Managed<T> &value)
-        {
-          AssertBoundaryPropValueAllowed<loka::core::Managed<T> >();
-          return value;
         }
 
         bool operator<(const PropsBase &rhs) const

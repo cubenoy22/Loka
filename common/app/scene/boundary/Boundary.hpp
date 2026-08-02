@@ -18,7 +18,6 @@
 #include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
 #include "app/scene/boundary/detail/BoundaryBranchSeatState.hpp"
 #include "app/scene/boundary/BoundaryStateTypes.hpp"
-#include "core/Managed.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateUtil.hpp"
 #include "core/Profiler.hpp"
@@ -65,7 +64,6 @@ namespace loka
           this->releaseOwnedNodeStorage();
           releaseNodeStateRegistrations();
           clearOwnedStates();
-          clearOwnedStateHandles();
           stateArena_.clear();
         }
 
@@ -498,17 +496,6 @@ namespace loka
         template <class T> NodeState<T> dangerouslyUseState(const T &initial)
         {
           return dangerouslyUseStateWithValue(initial);
-        }
-
-        template <class T> loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedState()
-        {
-          return dangerouslyUseManagedStateWithValue(T());
-        }
-
-        template <class T>
-        loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedState(const T &initial)
-        {
-          return dangerouslyUseManagedStateWithValue(initial);
         }
 
         bool hasCompositionDiffState() const
@@ -1821,41 +1808,11 @@ namespace loka
         }
 
       private:
-        struct StateHandleBase
-        {
-          virtual ~StateHandleBase() {}
-          virtual loka::core::StateBase *state() const = 0;
-        };
-
-        template <class T> struct StateHandle : public StateHandleBase
-        {
-          loka::core::Managed<loka::core::MutableState<T> > handle;
-          explicit StateHandle(const loka::core::Managed<loka::core::MutableState<T> > &h)
-              : handle(h)
-          {
-          }
-          loka::core::StateBase *state() const
-          {
-            return handle.get();
-          }
-        };
-
         template <class T> NodeState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
           adoptState(state);
           return NodeState<T>(state, this->tracker(), this);
-        }
-
-        template <class T>
-        loka::core::Managed<loka::core::MutableState<T> > dangerouslyUseManagedStateWithValue(const T &initial)
-        {
-          loka::core::Managed<loka::core::MutableState<T> > handle =
-              loka::core::Managed<loka::core::MutableState<T> >::Wrap(new loka::core::MutableState<T>(initial));
-          StateHandleBase *entry = new StateHandle<T>(handle);
-          ownedStateHandles_.push_back(entry);
-          tracker_.addState(entry->state());
-          return handle;
         }
 
         void clearOwnedStates()
@@ -1876,15 +1833,6 @@ namespace loka
           ownedStates_.clear();
         }
 
-        void clearOwnedStateHandles()
-        {
-          for (size_t i = 0; i < ownedStateHandles_.size(); ++i)
-          {
-            delete ownedStateHandles_[i];
-          }
-          ownedStateHandles_.clear();
-        }
-
         void retireSubtree(Node *node);
         void destroyRetiredSubtree(Node *node);
         void drainAllRetiredSubtrees();
@@ -1900,7 +1848,6 @@ namespace loka
         }
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
-        std::vector<StateHandleBase *> ownedStateHandles_;
         BoundaryRuntimeState runtimeState_;
         BoundaryUpdateState updateState_;
         BoundaryCompositionState compositionState_;
