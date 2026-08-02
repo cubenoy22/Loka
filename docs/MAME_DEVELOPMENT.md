@@ -151,9 +151,12 @@ Three Lua behaviors cost real time to rediscover:
   hanging the harness.
 - Relative mouse deltas pass through the Mac's pointer-tracking curve, which
   is non-linear, so a computed delta does not land the pointer at a
-  predictable position. Treat mouse positioning as approximate: aim at large
-  targets and confirm the hit from snapshot pixels, or prefer the keyboard
-  paths above.
+  predictable position. Do not use the `:macadb:MOUSE1`/`MOUSE2` axes for
+  positioning at all; warp the cursor through the low-memory globals instead
+  (next section). The axes are also the only pointer inputs available:
+  `maciix` has no ADB slot (`-listslots`), so no absolute pointing device can
+  be attached, and an ioport dump shows no lightgun or positional field
+  anywhere on the machine.
 
 Finder name selection plus an emulated `Command+O` is more repeatable than
 host-coordinate mouse automation for opening `LokaDev` and its application.
@@ -163,6 +166,45 @@ small application-side event probe may be used in a temporary verification
 build. Such a probe is evidence, not production code: remove it immediately,
 rebuild the ordinary `_APPL` target, and regenerate the development disk after
 capturing the result.
+
+### Click at absolute coordinates: warp the cursor through low-memory globals
+
+Positioning does not need the ADB mouse at all. Classic Mac OS keeps the
+pointer state in low-memory globals, and the cursor task re-reads them at VBL
+when told to; writing them from Lua warps the pointer to an exact coordinate:
+
+```lua
+local mem = manager.machine.devices[":maincpu"].spaces["program"]
+local couple = mem:read_u8(0x8CF)          -- CrsrCouple
+local function warp(h, v)
+    mem:write_u16(0x828, v)                -- MTemp.v
+    mem:write_u16(0x82A, h)                -- MTemp.h
+    mem:write_u16(0x82C, v)                -- RawMouse.v
+    mem:write_u16(0x82E, h)                -- RawMouse.h
+    mem:write_u8(0x8CE, couple ~= 0 and couple or 1)  -- CrsrNew := CrsrCouple
+    emu.wait(1)                            -- cursor task picks it up at VBL
+end
+
+local btn = manager.machine.ioport.ports[":macadb:MOUSE0"].fields["Mouse Button 0"]
+local function clickAt(h, v)
+    warp(h, v)
+    btn:set_value(1)
+    emu.wait(0.3)
+    btn:clear_value()
+    emu.wait(0.3)
+end
+```
+
+The button still goes through the ADB ioport field, which is reliable; only
+the axes were ever the problem. Verified on `maciix` under KanjiTalk 7
+(#182): `warp(200, 150)` puts the arrow at exactly that pixel in the snapshot,
+and `warp(16, 8)` plus a held button opens the Apple menu — the click lands
+where the warp pointed. Points are stored v-first (`RawMouse` at `$82C`,
+`MTemp` at `$828`); allow about one emulated second after the warp before
+pressing the button. The addresses are universal 68K low-memory globals, but
+other machines and System versions are unverified. Applications observe the
+warped position through the normal `GetMouse`/event path, so this is the tool
+for reaching a control that keyboard navigation cannot.
 
 ### Record the verification claim
 
