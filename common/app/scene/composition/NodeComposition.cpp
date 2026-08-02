@@ -312,6 +312,26 @@ namespace loka
         INestableDefinition *nestable = definition->asNestableDefinition();
         if (nestable)
         {
+          for (NodeDefinitionBase *candidate = nestable->childrenHead();
+               candidate;
+               candidate = candidate->nextInComposition)
+          {
+            if (candidate->nodeTag() == NODE_TAG_NONE)
+            {
+              continue;
+            }
+            for (NodeDefinitionBase *sibling = candidate->nextInComposition;
+                 sibling;
+                 sibling = sibling->nextInComposition)
+            {
+              if (candidate->nodeTag() == sibling->nodeTag() &&
+                  (candidate->requiresUniqueSiblingTag() || sibling->requiresUniqueSiblingTag()))
+              {
+                assert(false &&
+                       "sibling BoundarySections require unique value keys");
+              }
+            }
+          }
           for (NodeDefinitionBase *child = nestable->childrenHead(); child; child = child->nextInComposition)
           {
             assignDefinitionSeatSlots(child, nextSlot);

@@ -15,6 +15,8 @@ namespace loka
   {
     namespace scene
     {
+      class BoundaryNode;
+
       class IStateOwner
       {
       public:
@@ -38,6 +40,13 @@ namespace loka
         virtual void *allocateStateMemory(size_t size, size_t align) = 0;
         virtual void registerStateMemory(core::StateBase *state, void (*destroy)(core::StateBase *)) = 0;
         virtual core::StateTracker *tracker() = 0;
+        /** Connects an owner nested inside a Boundary to the arena and
+            compose-failure route that enclose it. Broad owners and test
+            doubles have no attachment work. */
+        virtual void attachEnclosingBoundary(BoundaryNode *boundary)
+        {
+          (void)boundary;
+        }
       };
 
       /** Static gate site for heap-fallback states adopted by an

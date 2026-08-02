@@ -473,6 +473,15 @@ namespace loka
         {
           stateArena_.registerState(state, destroy);
         }
+        /** Releases only the enclosing arena's storage row. The logical
+            ownership row belongs to a Boundary-inner owner and must already
+            be detached there. */
+        void releaseInnerArenaStateMemory(loka::core::StateBase *state)
+        {
+          assert(state && state->isArenaAllocated() &&
+                 "inner arena release requires an arena state");
+          stateArena_.releaseState(state);
+        }
         virtual void reserveStateArena(size_t totalSize)
         {
           stateArena_.reserve(totalSize);
@@ -1649,6 +1658,12 @@ namespace loka
             boundary = node->asBoundary();
             composable = node->asComposable();
             nestable = node->asNestable();
+          }
+
+          IStateOwner *nodeStateOwner = node->asStateOwner();
+          if (nodeStateOwner && nodeStateOwner != boundary)
+          {
+            nodeStateOwner->attachEnclosingBoundary(currentBoundary);
           }
 
           if (boundary && event == COMPOSE_EVENT_DETACH)

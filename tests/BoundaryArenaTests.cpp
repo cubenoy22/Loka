@@ -19,6 +19,7 @@
 #include <cstring>
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/Button.hpp"
+#include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/node/Conditional.hpp"
@@ -1136,6 +1137,425 @@ namespace
     }
   };
 
+  struct SectionTrackedValue
+  {
+    SectionTrackedValue(int *aliveCount, int v)
+        : alive(aliveCount),
+          value(v)
+    {
+      if (this->alive)
+      {
+        ++*this->alive;
+      }
+    }
+
+    SectionTrackedValue(const SectionTrackedValue &other)
+        : alive(other.alive),
+          value(other.value)
+    {
+      if (this->alive)
+      {
+        ++*this->alive;
+      }
+    }
+
+    ~SectionTrackedValue()
+    {
+      if (this->alive)
+      {
+        --*this->alive;
+      }
+    }
+
+    bool operator!=(const SectionTrackedValue &other) const
+    {
+      return this->alive != other.alive || this->value != other.value;
+    }
+
+    int *alive;
+    int value;
+  };
+
+  struct SectionOrderingChildTypeTag
+  {
+  };
+
+  class SectionOrderingChildNode;
+
+  struct SectionOrderingChildProps
+      : public loka::app::scene::NodePropsBase<SectionOrderingChildProps>
+  {
+    typedef SectionOrderingChildTypeTag TypeTag;
+    typedef SectionOrderingChildNode NodeType;
+
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return rhs.propsTypeId() == this->propsTypeId() ? false
+                                                      : this->propsTypeId() < rhs.propsTypeId();
+    }
+  };
+
+  int g_sectionOrderingChildDestructions = 0;
+
+  class SectionOrderingChildNode : public loka::app::scene::ComposableNode
+  {
+  public:
+    typedef SectionOrderingChildTypeTag TypeTag;
+    SectionOrderingChildProps props;
+
+    explicit SectionOrderingChildNode(const SectionOrderingChildProps &p)
+        : loka::app::scene::ComposableNode(),
+          props(p),
+          observed_(0)
+    {
+    }
+
+    virtual ~SectionOrderingChildNode()
+    {
+      if (this->observed_)
+      {
+        assert(this->observed_->get().value == 41 &&
+               "Section child observations must detach before owner storage");
+      }
+      ++g_sectionOrderingChildDestructions;
+    }
+
+    void observe(loka::core::MutableState<SectionTrackedValue> *state)
+    {
+      assert(state);
+      this->observed_ = state;
+      this->watchStateForUi(*state,
+                            this,
+                            &SectionOrderingChildNode::onObserved,
+                            false);
+    }
+
+  protected:
+    virtual void composeWithContext(loka::app::scene::ComponentContext &,
+                                    loka::app::scene::ComposeEvent)
+    {
+    }
+
+  private:
+    void onObserved()
+    {
+    }
+
+    loka::core::MutableState<SectionTrackedValue> *observed_;
+  };
+
+  typedef loka::app::scene::NodeDefinition<SectionOrderingChildProps,
+                                           SectionOrderingChildNode>
+      SectionOrderingChildDefinition;
+
+  class KeyedSectionRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<KeyedSectionRootNode>
+      KeyedSectionRootProps;
+
+  class KeyedSectionRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<KeyedSectionRootNode,
+                                                         KeyedSectionRootProps>
+  {
+  public:
+    explicit KeyedSectionRootNode(const KeyedSectionRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<KeyedSectionRootNode,
+                                                    KeyedSectionRootProps>(props),
+          reverse_(false),
+          replacementKey_(1101)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      loka::app::Section first(this->replacementKey_);
+      first << SectionOrderingChildDefinition();
+      loka::app::Section second(1102);
+      if (this->reverse_)
+      {
+        root << second;
+        root << first;
+      }
+      else
+      {
+        root << first;
+        root << second;
+      }
+      composition.declare(root);
+    }
+
+    loka::app::BoundarySectionNode *section(loka::app::scene::NodeTag key) const
+    {
+      loka::app::scene::Node *root = this->compositionRootNode();
+      loka::app::scene::INestable *nestable = root ? root->asNestable() : 0;
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(
+          nestable ? nestable->childrenHead() : 0,
+          nestable ? nestable->childrenCount() : 0);
+      for (loka::app::scene::Node *node = it.next(); node; node = it.next())
+      {
+        if (node->nodeTag() == key)
+        {
+          return node->asBoundarySectionNode();
+        }
+      }
+      return 0;
+    }
+
+    void reverseSections()
+    {
+      this->reverse_ = true;
+    }
+
+    void replaceFirstSection()
+    {
+      this->replacementKey_ = 1103;
+    }
+
+  private:
+    bool reverse_;
+    loka::app::scene::NodeTag replacementKey_;
+  };
+
+  class SectionGridRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<SectionGridRootNode>
+      SectionGridRootProps;
+
+  class SectionGridRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<SectionGridRootNode,
+                                                         SectionGridRootProps>
+  {
+  public:
+    enum
+    {
+      kSectionCount = 100
+    };
+
+    explicit SectionGridRootNode(const SectionGridRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<SectionGridRootNode,
+                                                    SectionGridRootProps>(props),
+          populateOnCompose_(false),
+          populatedSections_(0)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->populateOnCompose_)
+      {
+        this->populateSectionStates();
+        this->populateOnCompose_ = false;
+      }
+
+      loka::app::Fragment root;
+      for (int i = 0; i < kSectionCount; ++i)
+      {
+        loka::app::Section section(
+            static_cast<loka::app::scene::NodeTag>(2000 + i));
+        root << section;
+      }
+      composition.declare(root);
+    }
+
+    void populateOnNextCompose()
+    {
+      this->populateOnCompose_ = true;
+    }
+
+    int populatedSections() const
+    {
+      return this->populatedSections_;
+    }
+
+  private:
+    void populateSectionStates()
+    {
+      this->populatedSections_ = 0;
+      loka::app::scene::Node *root = this->compositionRootNode();
+      loka::app::scene::INestable *nestable = root ? root->asNestable() : 0;
+      loka::dsl::CompositionCursor<loka::app::scene::Node> it(
+          nestable ? nestable->childrenHead() : 0,
+          nestable ? nestable->childrenCount() : 0);
+      for (loka::app::scene::Node *node = it.next(); node; node = it.next())
+      {
+        loka::app::BoundarySectionNode *section = node->asBoundarySectionNode();
+        assert(section);
+        loka::app::scene::NodeState<int> first;
+        loka::app::scene::NodeState<int> second;
+        {
+          loka::app::scene::NodeComposition::StateBatch states(section);
+          states.state(first, this->populatedSections_)
+              .state(second, this->populatedSections_ + 1);
+        }
+        assert(first.isValid() && second.isValid());
+        assert(first.dangerouslyMutableState()->isArenaAllocated());
+        assert(second.dangerouslyMutableState()->isArenaAllocated());
+        ++this->populatedSections_;
+      }
+    }
+
+    bool populateOnCompose_;
+    int populatedSections_;
+  };
+
+  int g_sectionStateArenaBlockAllocs = 0;
+  int g_sectionStateArenaSlabAllocs = 0;
+  int g_sectionHeapStateAllocs = 0;
+  int g_sectionStateArenaBlockFrees = 0;
+  int g_sectionStateArenaSlabFrees = 0;
+  int g_sectionHeapStateFrees = 0;
+
+  void resetSectionAllocationCounts()
+  {
+    g_sectionStateArenaBlockAllocs = 0;
+    g_sectionStateArenaSlabAllocs = 0;
+    g_sectionHeapStateAllocs = 0;
+    g_sectionStateArenaBlockFrees = 0;
+    g_sectionStateArenaSlabFrees = 0;
+    g_sectionHeapStateFrees = 0;
+  }
+
+  void *sectionCountingBackendAlloc(std::size_t size,
+                                    const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "StateArena") == 0 &&
+        std::strcmp(site.typeTag, "Block") == 0)
+    {
+      ++g_sectionStateArenaBlockAllocs;
+    }
+    else if (std::strcmp(site.ownerTag, "StateArena") == 0 &&
+             std::strcmp(site.typeTag, "slab") == 0)
+    {
+      ++g_sectionStateArenaSlabAllocs;
+    }
+    else if (std::strcmp(site.ownerTag, "StateOwner") == 0)
+    {
+      ++g_sectionHeapStateAllocs;
+    }
+    return new (std::nothrow) char[size];
+  }
+
+  void sectionCountingBackendFree(void *ptr,
+                                  const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "StateArena") == 0 &&
+        std::strcmp(site.typeTag, "Block") == 0)
+    {
+      ++g_sectionStateArenaBlockFrees;
+    }
+    else if (std::strcmp(site.ownerTag, "StateArena") == 0 &&
+             std::strcmp(site.typeTag, "slab") == 0)
+    {
+      ++g_sectionStateArenaSlabFrees;
+    }
+    else if (std::strcmp(site.ownerTag, "StateOwner") == 0)
+    {
+      ++g_sectionHeapStateFrees;
+    }
+    delete[] static_cast<char *>(ptr);
+  }
+
+  int g_sectionFailureHeapPosition = 0;
+  int g_sectionFailureHeapCalls = 0;
+
+  void *sectionFailureBackendAlloc(std::size_t size,
+                                   const loka::core::LokaAllocationSite &site)
+  {
+    if (std::strcmp(site.ownerTag, "StateArena") == 0)
+    {
+      return 0;
+    }
+    if (std::strcmp(site.ownerTag, "StateOwner") == 0)
+    {
+      ++g_sectionFailureHeapCalls;
+      if (g_sectionFailureHeapCalls == g_sectionFailureHeapPosition)
+      {
+        return 0;
+      }
+    }
+    return new (std::nothrow) char[size];
+  }
+
+  class SectionFailureRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<SectionFailureRootNode>
+      SectionFailureRootProps;
+
+  class SectionFailureRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<SectionFailureRootNode,
+                                                         SectionFailureRootProps>
+  {
+  public:
+    explicit SectionFailureRootNode(const SectionFailureRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<SectionFailureRootNode,
+                                                    SectionFailureRootProps>(props),
+          injectStates_(false)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      if (this->injectStates_)
+      {
+        loka::app::BoundarySectionNode *section = this->liveSection();
+        assert(section);
+        WhiteFlagStatePayload initial = {{0}};
+        loka::app::scene::NodeState<WhiteFlagStatePayload> first;
+        loka::app::scene::NodeState<WhiteFlagStatePayload> second;
+        {
+          loka::app::scene::NodeComposition::StateBatch states(section);
+          states.state(first, initial).state(second, initial);
+        }
+        this->injectStates_ = false;
+      }
+
+      loka::app::Fragment root;
+      loka::app::Section first(3101);
+      loka::app::Section second(3102);
+      root << first;
+      root << second;
+      composition.declare(root);
+    }
+
+    void injectStatesOnNextCompose()
+    {
+      this->injectStates_ = true;
+    }
+
+  private:
+    loka::app::BoundarySectionNode *liveSection() const
+    {
+      loka::app::scene::Node *root = this->compositionRootNode();
+      loka::app::scene::INestable *nestable = root ? root->asNestable() : 0;
+      loka::app::scene::Node *first = nestable ? nestable->childrenHead() : 0;
+      return first ? first->asBoundarySectionNode() : 0;
+    }
+
+    bool injectStates_;
+  };
+
+  class DuplicateSectionRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<DuplicateSectionRootNode>
+      DuplicateSectionRootProps;
+
+  class DuplicateSectionRootNode
+      : public loka::app::scene::BoundaryNodeFor<DuplicateSectionRootNode>
+  {
+  public:
+    explicit DuplicateSectionRootNode(const DuplicateSectionRootProps &props)
+        : loka::app::scene::BoundaryNodeFor<DuplicateSectionRootNode>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      loka::app::Section first(4101);
+      loka::app::Section duplicate(4101);
+      root << first;
+      root << duplicate;
+      composition.declare(root);
+    }
+  };
+
 } // namespace
 
 
@@ -1969,5 +2389,222 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
   loka::core::LokaAllocAuditCheckpoint(
       "testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry");
+#endif
+}
+
+void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  int oldValueAlive = 0;
+  int freshValueAlive = 0;
+  g_sectionOrderingChildDestructions = 0;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<KeyedSectionRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+
+    KeyedSectionRootNode *root = static_cast<KeyedSectionRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+    loka::app::BoundarySectionNode *original = root->section(1101);
+    assert(original && original->isArenaAllocated());
+    SectionOrderingChildNode *orderingChild =
+        static_cast<SectionOrderingChildNode *>(original->childrenHead());
+    assert(orderingChild);
+
+    loka::app::scene::NodeState<SectionTrackedValue> oldState;
+    {
+      SectionTrackedValue initial(&oldValueAlive, 41);
+      loka::app::scene::NodeComposition::StateBatch states(original);
+      states.state(oldState, initial);
+    }
+    assert(oldValueAlive == 1);
+    assert(oldState.isValid());
+    assert(oldState.dangerouslyMutableState()->isArenaAllocated());
+    orderingChild->observe(oldState.dangerouslyMutableState());
+
+    // Same key retains the runtime seat and its adopted state.
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->section(1101) == original);
+    assert(oldValueAlive == 1);
+    assert(oldState.dangerouslyMutableState()->get().value == 41);
+
+    // The existing tag diff also retains keyed Sections across sibling reorder.
+    root->reverseSections();
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->section(1101) == original);
+    assert(oldValueAlive == 1);
+
+    // A different value key creates a fresh Section and retires the old one.
+    root->replaceFirstSection();
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    loka::app::BoundarySectionNode *fresh = root->section(1103);
+    assert(fresh && fresh != original);
+    assert(root->section(1101) == 0);
+    assert(scene.hasPendingInvalidation());
+    assert(oldValueAlive == 1 &&
+           "retired Section state must remain touchable until the drain");
+    assert(oldState.dangerouslyMutableState()->get().value == 41);
+    assert(g_sectionOrderingChildDestructions == 0);
+
+    loka::app::scene::NodeState<SectionTrackedValue> freshState;
+    {
+      SectionTrackedValue initial(&freshValueAlive, 73);
+      loka::app::scene::NodeComposition::StateBatch states(fresh);
+      states.state(freshState, initial);
+    }
+    assert(freshValueAlive == 1);
+    assert(freshState.dangerouslyMutableState() !=
+           oldState.dangerouslyMutableState());
+
+    assert(!scene.flushInvalidation() &&
+           "Section reclamation must be a silent drain-only tracker run");
+    assert(oldValueAlive == 0 &&
+           "the retired Section must release its state at the drain");
+    assert(freshValueAlive == 1);
+    assert(g_sectionOrderingChildDestructions == 1 &&
+           "children must release observations before Section owner storage");
+  }
+  assert(oldValueAlive == 0);
+  assert(freshValueAlive == 0);
+  assert(g_sectionOrderingChildDestructions == 2);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement");
+#endif
+}
+
+void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  for (int misuse = 0; misuse < 2; ++misuse)
+  {
+    const pid_t child = fork();
+    assert(child >= 0);
+    if (child == 0)
+    {
+      if (misuse == 0)
+      {
+        loka::app::Section missing;
+        (void)missing;
+      }
+      else
+      {
+        SceneTestSupport::RecordingPlatformController platform;
+        loka::app::scene::Scene scene(
+            (loka::app::scene::Boundary<DuplicateSectionRootNode>()));
+        scene.mount(&platform);
+        scene.updateAttached(true);
+      }
+      _exit(0);
+    }
+
+    int status = 0;
+    assert(waitpid(child, &status, 0) == child);
+    assert(WIFSIGNALED(status));
+    assert(WTERMSIG(status) == SIGABRT);
+  }
+#endif
+}
+
+void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  for (int refusalPosition = 1; refusalPosition <= 2; ++refusalPosition)
+  {
+    g_sectionFailureHeapPosition = refusalPosition;
+    g_sectionFailureHeapCalls = 0;
+    loka::core::LokaAllocSetBackend(&sectionFailureBackendAlloc,
+                                    &delegatingBackendFree);
+    {
+      SceneTestSupport::RecordingPlatformController platform;
+      loka::app::scene::Scene scene(
+          (loka::app::scene::Boundary<SectionFailureRootNode>()));
+      scene.mount(&platform);
+      scene.updateAttached(true);
+      SectionFailureRootNode *root = static_cast<SectionFailureRootNode *>(
+          loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+      assert(root && root->composeResult().composed);
+      const size_t appliedBefore = platform.changeCount();
+
+      root->injectStatesOnNextCompose();
+      scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+      scene.flushInvalidation();
+
+      assert(g_sectionFailureHeapCalls == 2);
+      assert(!root->composeResult().composed);
+      assert(root->composeResult().allocationFailed);
+      assert(root->previousCompositionSnapshot().empty());
+      assert(root->currentCompositionSnapshot().empty());
+      assert(platform.changeCount() == appliedBefore &&
+             "Section-local allocation failure must refuse boundary publish");
+      assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
+      assert(!scene.hasPendingInvalidation() &&
+             "allocation refusal must wait for an external retry");
+    }
+    loka::core::LokaAllocSetBackend(0, 0);
+  }
+  g_sectionFailureHeapPosition = 0;
+  g_sectionFailureHeapCalls = 0;
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic");
+#endif
+}
+
+void testBoundarySectionGridUsesEnclosingStateArenaEconomically()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
+#endif
+  resetSectionAllocationCounts();
+  loka::core::LokaAllocSetBackend(&sectionCountingBackendAlloc,
+                                  &sectionCountingBackendFree);
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<SectionGridRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    SectionGridRootNode *root = static_cast<SectionGridRootNode *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(root);
+
+    root->populateOnNextCompose();
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(root->populatedSections() == SectionGridRootNode::kSectionCount);
+    assert(g_sectionHeapStateAllocs == 0);
+    assert(g_sectionStateArenaSlabAllocs > 0);
+    const int stateStorageAllocations =
+        g_sectionStateArenaSlabAllocs + g_sectionHeapStateAllocs;
+    assert(stateStorageAllocations < 150 &&
+           "200 Section states must use far fewer than 200 storage allocations");
+    std::printf("BoundarySection grid: sections=%d states=%d arena-blocks=%d arena-slabs=%d heap-states=%d\n",
+                SectionGridRootNode::kSectionCount,
+                SectionGridRootNode::kSectionCount * 2,
+                g_sectionStateArenaBlockAllocs,
+                g_sectionStateArenaSlabAllocs,
+                g_sectionHeapStateAllocs);
+  }
+  loka::core::LokaAllocSetBackend(0, 0);
+  assert(g_sectionStateArenaBlockFrees == g_sectionStateArenaBlockAllocs);
+  assert(g_sectionStateArenaSlabFrees == g_sectionStateArenaSlabAllocs);
+  assert(g_sectionHeapStateFrees == g_sectionHeapStateAllocs);
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
+  loka::core::LokaAllocAuditCheckpoint(
+      "testBoundarySectionGridUsesEnclosingStateArenaEconomically");
 #endif
 }

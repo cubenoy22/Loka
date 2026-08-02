@@ -15,16 +15,17 @@ namespace loka
     {
       /** Lightweight state owner for scopes that live inside a Boundary.
           Boundary remains the broad owner for ordinary component state; this
-          owner is for explicit subtree-local lifecycle scopes. It is
-          intentionally abstract until a concrete production consumer with a
-          wired failure route exists (#145); production promotion must design
-          that route and its failure atomicity. */
+          owner is for explicit subtree-local lifecycle scopes. Heap release is
+          the default storage door; concrete owners such as BoundarySection may
+          override that door while keeping these ownership rows and tracker
+          teardown symmetric. Allocation failure policy remains mandatory. */
       class BoundaryInnerStateOwner : public IStateOwner
       {
       public:
         BoundaryInnerStateOwner()
             : tracker_(),
-              ownedStates_()
+              ownedStates_(),
+              enclosingBoundary_(0)
         {
         }
         virtual ~BoundaryInnerStateOwner()
@@ -40,6 +41,17 @@ namespace loka
         virtual loka::core::StateTracker *tracker()
         {
           return &this->tracker_;
+        }
+
+        virtual void attachEnclosingBoundary(BoundaryNode *boundary)
+        {
+          if (!boundary)
+          {
+            return;
+          }
+          assert((!this->enclosingBoundary_ || this->enclosingBoundary_ == boundary) &&
+                 "a Boundary-inner state owner cannot move between Boundaries");
+          this->enclosingBoundary_ = boundary;
         }
 
         virtual void adoptState(loka::core::StateBase *state)
@@ -80,11 +92,7 @@ namespace loka
             }
           }
           this->tracker_.removeState(state);
-          assert(!state->isArenaAllocated() && "BoundaryInnerStateOwner does not own arena-allocated state");
-          if (!state->isArenaAllocated())
-          {
-            DestroyAdoptedHeapState(state);
-          }
+          this->destroyOwnedStateStorage(state);
         }
 
         virtual void reserveStates(size_t count)
@@ -123,14 +131,29 @@ namespace loka
             if (state)
             {
               this->tracker_.removeState(state);
-              assert(!state->isArenaAllocated() && "BoundaryInnerStateOwner does not own arena-allocated state");
-              if (!state->isArenaAllocated())
-              {
-                DestroyAdoptedHeapState(state);
-              }
+              this->destroyOwnedStateStorage(state);
             }
           }
           this->ownedStates_.clear();
+        }
+
+      protected:
+        BoundaryNode *enclosingBoundary() const
+        {
+          return this->enclosingBoundary_;
+        }
+
+        /** Storage door for one state after this owner's row and tracker edge
+            have been removed. Heap-only inner owners keep the original door;
+            BoundarySection overrides it for enclosing-arena residents. */
+        virtual void destroyOwnedStateStorage(loka::core::StateBase *state)
+        {
+          assert(!state->isArenaAllocated() &&
+                 "this BoundaryInnerStateOwner has no arena release door");
+          if (!state->isArenaAllocated())
+          {
+            DestroyAdoptedHeapState(state);
+          }
         }
 
       private:
@@ -139,6 +162,7 @@ namespace loka
 
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
+        BoundaryNode *enclosingBoundary_;
       };
     } // namespace scene
   } // namespace app
