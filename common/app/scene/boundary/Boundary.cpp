@@ -290,6 +290,9 @@ namespace loka
           return;
         }
         loka::core::StateTracker *ownerTracker = binding->state ? binding->state->trackerOwner() : 0;
+        // Same suppression as the own-tracker line above, one hop wider: an
+        // inner owner's transaction commits into this Boundary, so its commit
+        // is already the invalidation. Marking here too would apply twice.
         loka::core::PushStateTracker *pushOwner =
             ownerTracker ? ownerTracker->asPushTracker() : 0;
         if (pushOwner && pushOwner->invalidatesTarget(binding->boundary))

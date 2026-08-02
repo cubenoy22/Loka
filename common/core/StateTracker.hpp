@@ -74,6 +74,13 @@ namespace loka
         invalidateFn_ = fn;
         invalidateUserData_ = userData;
       }
+      /**
+       * Names who this tracker's invalidate callback ends up notifying, as an
+       * opaque identity that is compared and never dereferenced. A notified
+       * party that also observes states directly uses it to recognize the
+       * transactions whose commit already reaches it, so one mutation stays
+       * one invalidation.
+       */
       void setInvalidateTarget(const void *target)
       {
         invalidateTarget_ = target;
