@@ -176,6 +176,7 @@ namespace loka
   // Forward declarations for app nodes (for asXxx() methods)
   namespace app
   {
+    class BoundarySectionNode;
     class BoxNode;
     class ZStackNode;
     class GridNode;
@@ -480,6 +481,10 @@ namespace loka
           return 0;
         }
         virtual IStateOwner *asStateOwner()
+        {
+          return 0;
+        }
+        virtual ::loka::app::BoundarySectionNode *asBoundarySectionNode()
         {
           return 0;
         }
@@ -896,6 +901,12 @@ namespace loka
           return node && node->kind() == this->nodeKind();
         }
         virtual bool isBoundary() const
+        {
+          return false;
+        }
+        /** Definitions whose value tag is an owner-seat identity require
+            sibling uniqueness at the seat-assignment seam. */
+        virtual bool requiresUniqueSiblingTag() const
         {
           return false;
         }

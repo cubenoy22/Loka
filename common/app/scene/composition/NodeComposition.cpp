@@ -312,6 +312,30 @@ namespace loka
         INestableDefinition *nestable = definition->asNestableDefinition();
         if (nestable)
         {
+#ifndef NDEBUG
+          // Misuse detection only: the duplicate-key assert is this scan's
+          // sole effect, so release builds skip the quadratic walk entirely.
+          for (NodeDefinitionBase *candidate = nestable->childrenHead();
+               candidate;
+               candidate = candidate->nextInComposition)
+          {
+            if (candidate->nodeTag() == NODE_TAG_NONE)
+            {
+              continue;
+            }
+            for (NodeDefinitionBase *sibling = candidate->nextInComposition;
+                 sibling;
+                 sibling = sibling->nextInComposition)
+            {
+              if (candidate->nodeTag() == sibling->nodeTag() &&
+                  (candidate->requiresUniqueSiblingTag() || sibling->requiresUniqueSiblingTag()))
+              {
+                assert(false &&
+                       "sibling BoundarySections require unique value keys");
+              }
+            }
+          }
+#endif
           for (NodeDefinitionBase *child = nestable->childrenHead(); child; child = child->nextInComposition)
           {
             assignDefinitionSeatSlots(child, nextSlot);
