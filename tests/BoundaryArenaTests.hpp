@@ -22,5 +22,12 @@ void testBoundarySectionRetainedKeyAppliesChangedChildPropsInPlace();
 void testBoundarySectionRejectsMissingAndDuplicateSiblingKeys();
 void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic();
 void testBoundarySectionGridUsesEnclosingStateArenaEconomically();
+void testNodeCompositionFallsBackToBoundaryOwnerWithoutSection();
+void testNodeCompositionResolvesNearestSectionOwner();
+void testNodeCompositionResolvesInnermostSectionOwner();
+void testBoundarySectionOwnedStateInvalidatesEnclosingBoundary();
+void testBoundarySectionRetireWhileDirtySourceDeregistersAncestorEdges();
+void testConditionalBranchFlipInsideSectionKeepsSectionOwner();
+void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections();
 
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP

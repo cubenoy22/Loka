@@ -74,6 +74,14 @@ namespace loka
         invalidateFn_ = fn;
         invalidateUserData_ = userData;
       }
+      void setInvalidateTarget(const void *target)
+      {
+        invalidateTarget_ = target;
+      }
+      bool invalidatesTarget(const void *target) const
+      {
+        return target && invalidateTarget_ == target;
+      }
       /**
        * Registers a dependency edge used for derived-state propagation.
        * Usually built from DerivedState dependencies.
@@ -173,6 +181,7 @@ namespace loka
       /// invalidate callback (optional)
       InvalidateFn invalidateFn_;
       void *invalidateUserData_;
+      const void *invalidateTarget_;
       /// visiting_: temporary set used to detect cycles during recursive propagation.
       std::set<StateBase *> visiting_;
       /// states: linked list (head/tail for O(1) append)

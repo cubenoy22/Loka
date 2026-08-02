@@ -151,25 +151,28 @@ namespace loka
         {
           for (size_t i = 0; i < entries.size(); ++i)
           {
-            BoundaryObservedStateEntry &entry = entries[i];
-            if (entry.state && entry.binding)
-            {
-              if (entry.binding->stateLifetimeToken
-                  && loka::core::StateBase::isExternalLifetimeTokenAlive(entry.binding->stateLifetimeToken))
-              {
-                entry.state->unbind(changedThunk, entry.binding);
-              }
-              entry.binding->boundary = 0;
-              entry.binding->state = 0;
-              entry.binding->flags = NODE_DIRTY_NONE;
-              if (entry.binding->release())
-              {
-                delete entry.binding;
-              }
-              entry.binding = 0;
-            }
+            releaseEntry(entries[i], changedThunk);
           }
           entries.clear();
+        }
+
+        void forgetState(loka::core::StateBase *state,
+                         void (*changedThunk)(void *))
+        {
+          if (!state)
+          {
+            return;
+          }
+          for (size_t i = 0; i < entries.size(); ++i)
+          {
+            if (entries[i].state != state)
+            {
+              continue;
+            }
+            releaseEntry(entries[i], changedThunk);
+            entries.erase(entries.begin() + i);
+            return;
+          }
         }
 
         void beginPass()
@@ -255,6 +258,34 @@ namespace loka
         }
 
       private:
+        static void releaseEntry(BoundaryObservedStateEntry &entry,
+                                 void (*changedThunk)(void *))
+        {
+          if (entry.state && entry.binding)
+          {
+            if (entry.binding->stateLifetimeToken &&
+                loka::core::StateBase::isExternalLifetimeTokenAlive(
+                    entry.binding->stateLifetimeToken))
+            {
+              entry.state->unbind(changedThunk, entry.binding);
+            }
+          }
+          if (entry.binding)
+          {
+            entry.binding->boundary = 0;
+            entry.binding->state = 0;
+            entry.binding->flags = NODE_DIRTY_NONE;
+            if (entry.binding->release())
+            {
+              delete entry.binding;
+            }
+          }
+          entry.state = 0;
+          entry.flags = NODE_DIRTY_NONE;
+          entry.observedGeneration = 0;
+          entry.binding = 0;
+        }
+
         ObservedPassState pass;
         ObservedDirtyState dirty;
         std::vector<BoundaryObservedStateEntry> entries;

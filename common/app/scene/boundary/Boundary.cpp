@@ -290,6 +290,12 @@ namespace loka
           return;
         }
         loka::core::StateTracker *ownerTracker = binding->state ? binding->state->trackerOwner() : 0;
+        loka::core::PushStateTracker *pushOwner =
+            ownerTracker ? ownerTracker->asPushTracker() : 0;
+        if (pushOwner && pushOwner->invalidatesTarget(binding->boundary))
+        {
+          return;
+        }
         if (ownerTracker && ownerTracker->phase() != loka::core::TRACKER_IDLE)
         {
           binding->retain();
