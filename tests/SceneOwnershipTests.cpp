@@ -373,31 +373,18 @@ namespace
     void install(Window *first, Window *second)
     {
       this->install(first);
-      std::vector<AppComponent *> &components =
-          const_cast<std::vector<AppComponent *> &>(group_->getComponents());
-      components.push_back(second);
+      group_->adopt(second);
     }
 
     void install(Window *first, Window *second, Window *third)
     {
       this->install(first, second);
-      std::vector<AppComponent *> &components =
-          const_cast<std::vector<AppComponent *> &>(group_->getComponents());
-      components.push_back(third);
+      group_->adopt(third);
     }
 
     void detachWithoutReselectForMisuseTest(Window *window)
     {
-      std::vector<AppComponent *> &components =
-          const_cast<std::vector<AppComponent *> &>(group_->getComponents());
-      for (std::vector<AppComponent *>::iterator it = components.begin(); it != components.end(); ++it)
-      {
-        if ((*it)->asWindow() == window)
-        {
-          components.erase(it);
-          return;
-        }
-      }
+      group_->remove(window);
     }
 
     void flush()

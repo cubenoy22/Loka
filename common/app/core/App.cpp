@@ -181,15 +181,15 @@ void App::requestWindowClose(Window *window)
     }
   }
 
-  std::vector<AppComponent *> &comps = const_cast<std::vector<AppComponent *> &>(group_->getComponents());
-  std::vector<AppComponent *>::iterator eraseIt = comps.end();
+  const std::vector<AppComponent *> &comps = group_->getComponents();
+  bool found = false;
   Window *nextActive = 0;
-  for (std::vector<AppComponent *>::iterator it = comps.begin(); it != comps.end(); ++it)
+  for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
   {
     Window *candidate = (*it) ? (*it)->asWindow() : 0;
     if (candidate == window)
     {
-      eraseIt = it;
+      found = true;
       continue;
     }
     if (!nextActive && candidate)
@@ -197,7 +197,7 @@ void App::requestWindowClose(Window *window)
       nextActive = candidate;
     }
   }
-  if (eraseIt == comps.end())
+  if (!found)
   {
     return;
   }
@@ -205,14 +205,17 @@ void App::requestWindowClose(Window *window)
   // Reserve before changing ownership so an allocation failure cannot leave
   // a detached Window without a queue owner.
   pendingWindowClosures_.reserve(pendingWindowClosures_.size() + 1);
-  comps.erase(eraseIt);
+  if (!group_->remove(window))
+  {
+    return;
+  }
   if (activeWindow_ == window)
   {
     this->setActiveWindow(nextActive);
   }
   pendingWindowClosures_.push_back(window);
 
-  if (quitWhenLastWindowClosed_ && comps.empty())
+  if (quitWhenLastWindowClosed_ && group_->getComponents().empty())
   {
     this->quit();
   }
