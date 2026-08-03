@@ -191,6 +191,21 @@
       }
     },
     {
+      "name": "testing-release",
+      "displayName": "Linux Headless Tests (Release, no audit, Ninja)",
+      "inherits": "testing",
+      "binaryDir": "build/Testing-Release",
+      "cacheVariables": {
+        "LOKA_LIFECYCLE_AUDIT": "OFF",
+        "CMAKE_BUILD_TYPE": "Release"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
       "name": "testing-asan",
       "displayName": "Linux Headless Tests (AddressSanitizer, Ninja)",
       "generator": "Ninja",
@@ -326,6 +341,15 @@
       }
     },
     {
+      "name": "testing-release",
+      "configurePreset": "testing-release",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
       "name": "testing-asan",
       "configurePreset": "testing-asan",
       "condition": {
@@ -351,6 +375,18 @@
     {
       "name": "testing-coverage",
       "configurePreset": "testing-coverage",
+      "output": {
+        "outputOnFailure": true
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "testing-release",
+      "configurePreset": "testing-release",
       "output": {
         "outputOnFailure": true
       },

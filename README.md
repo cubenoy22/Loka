@@ -120,6 +120,17 @@ cmake --build --preset testing-asan
 ctest --preset testing-asan
 ```
 
+The suite also has to survive the configuration the framework actually ships
+in, where `assert` and the lifecycle audit are both gone. That is a separate
+preset because it discriminates differently, not because it is a faster
+`testing`:
+
+```sh
+cmake --preset testing-release
+cmake --build --preset testing-release
+ctest --preset testing-release
+```
+
 On macOS and Windows the same suite runs as the `LokaTestsMacOS` /
 `LokaTestsWin32` targets:
 
