@@ -27,72 +27,8 @@
 #include "support/FullRebuildLedgerDefinition.hpp"
 #include "support/RecomposingBoundary.hpp"
 #include "support/RecordingPlatformController.hpp"
+#include "testing/core/HeldTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
-
-namespace loka
-{
-  namespace core
-  {
-    namespace testing
-    {
-      struct HeldTestAccess
-      {
-        template <typename T>
-        static unsigned slotCount(const loka::core::Held<T> &held)
-        {
-          return held.block_ ? held.block_->activeSlotCount() : 0;
-        }
-
-        template <typename T>
-        static unsigned holdCountForOwner(
-            const loka::core::Held<T> &held,
-            loka::app::scene::IStateOwner *owner)
-        {
-          if (!held.block_)
-          {
-            return 0;
-          }
-          for (unsigned i = 0;
-               i < loka::core::detail::HeldBlockBase::kSlotCapacity;
-               ++i)
-          {
-            if (held.block_->slotOwner(i) == owner)
-            {
-              return held.block_->slotHoldCount(i);
-            }
-          }
-          return 0;
-        }
-
-        template <typename T>
-        static unsigned slotHoldCount(const loka::core::Held<T> &held,
-                                      unsigned index)
-        {
-          return held.block_ ? held.block_->slotHoldCount(index) : 0;
-        }
-
-        template <typename T>
-        static loka::app::scene::IStateOwner *creator(
-            const loka::core::Held<T> &held)
-        {
-          return held.block_ ? held.block_->creator() : 0;
-        }
-
-        template <typename T>
-        static const void *blockAddress(const loka::core::Held<T> &held)
-        {
-          return held.block_;
-        }
-
-        template <typename T>
-        static bool released(const loka::core::Held<T> &held)
-        {
-          return held.block_ && held.block_->released();
-        }
-      };
-    } // namespace testing
-  } // namespace core
-} // namespace loka
 
 namespace
 {

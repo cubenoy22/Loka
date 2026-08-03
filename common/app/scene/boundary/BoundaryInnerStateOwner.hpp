@@ -9,6 +9,14 @@
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class OwnershipDump;
+    }
+  } // namespace dsl
+
   namespace app
   {
     namespace scene
@@ -194,6 +202,8 @@ namespace loka
         std::vector<loka::core::StateBase *> ownedStates_;
         BoundaryNode *enclosingBoundary_;
         loka::core::HoldLedger holdLedger_;
+
+        friend class ::loka::dsl::testing::OwnershipDump;
       };
     } // namespace scene
   } // namespace app

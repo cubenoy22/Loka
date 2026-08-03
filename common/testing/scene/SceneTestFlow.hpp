@@ -221,6 +221,12 @@ namespace loka
       class BoundaryObservedStateTestAccess
       {
       public:
+        static size_t entryCount(
+            const ::loka::app::scene::BoundaryObservedState &observedState)
+        {
+          return observedState.entries.size();
+        }
+
         static void appendObservedEntry(::loka::app::scene::BoundaryObservedState &observedState,
                                         ::loka::core::StateBase *state,
                                         ::loka::app::scene::NodeDirtyFlags flags)

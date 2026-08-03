@@ -15,6 +15,7 @@
 #include "DerivedStateTests.hpp"
 #include "DefinitionCloneTests.hpp"
 #include "FlowDslTests.hpp"
+#include "OwnershipDumpTests.hpp"
 #include "AttrDslTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "LrpkFormatTests.hpp"

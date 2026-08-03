@@ -11,6 +11,17 @@
 class Window;
 class AppComposition;
 
+namespace loka
+{
+  namespace dsl
+  {
+    namespace testing
+    {
+      class OwnershipDump;
+    }
+  } // namespace dsl
+} // namespace loka
+
 // App is owned by the platform/application layer. Code that needs an App
 // instance should reach it through an owner-side path such as Window, not
 // through a global current-App accessor.
@@ -75,6 +86,8 @@ private:
   bool flushingPendingWindowClosures_;
 
   static void ApplyMenuBarThunk(void *userData, Window *activeWindow);
+
+  friend class loka::dsl::testing::OwnershipDump;
 };
 
 #endif // LOKA_APP_HPP

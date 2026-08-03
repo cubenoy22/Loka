@@ -176,6 +176,7 @@ namespace loka
 
       private:
         friend class loka::core::HoldLedger;
+        friend struct loka::core::testing::HeldTestAccess;
 
         loka::app::scene::IStateOwner *creator_;
         ReleaseThunk release_;
@@ -244,6 +245,8 @@ namespace loka
       void attachEnclosingOwner(loka::app::scene::IStateOwner *owner);
 
     private:
+      friend struct testing::HeldTestAccess;
+
       HoldLedger(const HoldLedger &);
       HoldLedger &operator=(const HoldLedger &);
 
