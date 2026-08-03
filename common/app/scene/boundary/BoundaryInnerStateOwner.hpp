@@ -25,11 +25,13 @@ namespace loka
         BoundaryInnerStateOwner()
             : tracker_(),
               ownedStates_(),
-              enclosingBoundary_(0)
+              enclosingBoundary_(0),
+              holdLedger_(this)
         {
         }
         virtual ~BoundaryInnerStateOwner()
         {
+          this->holdLedger_.auditEmptyBeforeReclaim();
           this->clearOwnedStates();
         }
 
@@ -129,6 +131,18 @@ namespace loka
           (void)destroy;
         }
 
+        virtual loka::core::HoldLedger *holdLedger()
+        {
+          return &this->holdLedger_;
+        }
+
+        virtual void reserveHeldArena(size_t totalSize);
+        virtual void *allocateHeldMemory(size_t size, size_t align);
+        virtual void registerHeldMemory(
+            loka::core::detail::HeldBlockBase *block);
+        virtual void retireHeldBlock(
+            loka::core::detail::HeldBlockBase *block);
+
         void clearOwnedStates()
         {
           for (size_t i = 0; i < this->ownedStates_.size(); ++i)
@@ -179,6 +193,7 @@ namespace loka
         loka::core::PushStateTracker tracker_;
         std::vector<loka::core::StateBase *> ownedStates_;
         BoundaryNode *enclosingBoundary_;
+        loka::core::HoldLedger holdLedger_;
       };
     } // namespace scene
   } // namespace app

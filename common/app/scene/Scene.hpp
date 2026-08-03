@@ -884,6 +884,10 @@ namespace loka
               {
                 BoundaryNode::composeSubtree(child, rootContext, event, boundary);
               }
+              // The direct-root path bypasses composeTree for the Boundary
+              // itself. Its owner slots still cross the same synchronous
+              // detach line, after descendant owners have dropped theirs.
+              boundary->detachHeldResources();
             }
             completeRootBoundaryCompose(boundary);
           }
