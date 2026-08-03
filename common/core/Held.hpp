@@ -247,15 +247,12 @@ namespace loka
       HoldLedger(const HoldLedger &);
       HoldLedger &operator=(const HoldLedger &);
 
-#ifdef LOKA_LIFECYCLE_AUDIT
       bool ownerIsInsideCreatorSubtree(
           loka::app::scene::IStateOwner *creator) const;
-#endif
+
       loka::app::scene::IStateOwner *owner_;
       detail::HoldSlot *head_;
-#ifdef LOKA_LIFECYCLE_AUDIT
       loka::app::scene::IStateOwner *enclosingOwner_;
-#endif
     };
 
     /** Read-only view of a passive payload held by explicit owner scopes.

@@ -128,10 +128,8 @@ namespace loka
   {
     inline HoldLedger::HoldLedger(loka::app::scene::IStateOwner *owner)
         : owner_(owner),
-          head_(0)
-#ifdef LOKA_LIFECYCLE_AUDIT
-          , enclosingOwner_(0)
-#endif
+          head_(0),
+          enclosingOwner_(0)
     {
       assert(this->owner_ && "HoldLedger requires an owner scope");
     }
@@ -157,7 +155,6 @@ namespace loka
     inline void HoldLedger::attachEnclosingOwner(
         loka::app::scene::IStateOwner *owner)
     {
-#ifdef LOKA_LIFECYCLE_AUDIT
       if (!owner || owner == this->owner_)
       {
         return;
@@ -165,12 +162,8 @@ namespace loka
       assert((!this->enclosingOwner_ || this->enclosingOwner_ == owner) &&
              "an owner scope cannot move between Held ownership subtrees");
       this->enclosingOwner_ = owner;
-#else
-      (void)owner;
-#endif
     }
 
-#ifdef LOKA_LIFECYCLE_AUDIT
     inline bool HoldLedger::ownerIsInsideCreatorSubtree(
         loka::app::scene::IStateOwner *creator) const
     {
@@ -186,7 +179,6 @@ namespace loka
       }
       return false;
     }
-#endif
 
     inline detail::HoldAttempt HoldLedger::tryHold(
         detail::HeldBlockBase *block)
@@ -217,12 +209,14 @@ namespace loka
       {
         return detail::HOLD_ATTEMPT_SLOT_OVERFLOW;
       }
-#ifdef LOKA_LIFECYCLE_AUDIT
+      // Shipping builds keep this walk. A hold from outside the creator's
+      // subtree does not merely break a rule: the block's bytes belong to the
+      // creator's arena landlord, so a foreign holder would be left pointing
+      // into freed storage and would write through it at its own detach.
       if (!this->ownerIsInsideCreatorSubtree(block->creator_))
       {
         return detail::HOLD_ATTEMPT_OUTSIDE_CREATOR_SUBTREE;
       }
-#endif
 
       emptySlot->ownerKey = this->owner_;
       emptySlot->count = 1;

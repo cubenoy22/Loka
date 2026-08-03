@@ -64,6 +64,10 @@ namespace loka
         virtual ~BoundaryNode()
         {
           this->holdLedger_.auditEmptyBeforeReclaim();
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(!this->pendingHeldReleasesHead_ &&
+                 "a Boundary must drain its Held releasers before reclamation");
+#endif
           clearObservedStateEntries();
           this->releaseOwnedNodeStorage();
           releaseNodeStateRegistrations();
@@ -494,6 +498,10 @@ namespace loka
             the next tracker run. Retirees added while draining wait for a
             later tracker run. */
         void drainRetiredSubtreesAtNextTrackerRun();
+        /** Runs the queued releasers of blocks this Boundary is the last
+            dropping owner for. Reclamation paths call it before destroying
+            the Boundary so no releaser ever runs from a destructor. */
+        void drainPendingHeldReleases();
         virtual loka::core::HoldLedger *holdLedger()
         {
           return &this->holdLedger_;

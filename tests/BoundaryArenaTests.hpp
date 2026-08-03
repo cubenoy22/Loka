@@ -35,8 +35,9 @@ void testHeldDescendantDetachDropsOnlyItsOwnerSlot();
 void testHeldLastDropDefersReleaserToRetirePoolDrain();
 void testHeldLastDropCannotReleaseInsideInFlightCallback();
 void testHeldFifthOwnerRefusalIsFailureAtomic();
-void testHeldCrossBranchHoldIsRefusedByAuditSubtreeWall();
+void testHeldCrossBranchHoldIsRefusedBySubtreeWall();
 void testHeldHandleCopiesDoNotChangeOwnerSlots();
+void testHeldNestedBoundaryRetireReleasesAtParentDrain();
 void testHeldStorageRefusalReleasesPayloadInsteadOfLeaking();
 void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock();
 

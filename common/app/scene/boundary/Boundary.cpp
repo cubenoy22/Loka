@@ -149,6 +149,15 @@ namespace loka
         }
 
         BoundaryNode *nestedBoundary = node->asBoundary();
+        if (nestedBoundary && nestedBoundary != this)
+        {
+          // This drain runs at the retiring parent's tick boundary, which is
+          // the clock the deferral was queued for. A retired Boundary is no
+          // longer in the live tree, so nothing else will reach its queue —
+          // and running the releaser from its destructor instead would put
+          // observable app code on the reclaim path.
+          nestedBoundary->drainPendingHeldReleases();
+        }
         if (!nestedBoundary || nestedBoundary == this)
         {
           INestable *nestable = node->asNestable();
@@ -220,6 +229,21 @@ namespace loka
           heldSnapshot = next;
         }
         this->drainingRetiredSubtrees_ = false;
+      }
+
+      void BoundaryNode::drainPendingHeldReleases()
+      {
+        loka::core::detail::HeldBlockBase *snapshot =
+            this->pendingHeldReleasesHead_;
+        this->pendingHeldReleasesHead_ = 0;
+        this->pendingHeldReleasesTail_ = 0;
+        while (snapshot)
+        {
+          loka::core::detail::HeldBlockBase *next = snapshot->retireNext();
+          snapshot->setRetireNext(0);
+          snapshot->runReleaser();
+          snapshot = next;
+        }
       }
 
       void BoundaryNode::drainAllRetiredSubtrees()

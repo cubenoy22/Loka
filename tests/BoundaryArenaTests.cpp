@@ -3658,6 +3658,101 @@ void testCurrentBoundaryStateRequiresResolvedOwnerMatchBothDirections()
   g_sectionOwnerResolutionScenario = 0;
 }
 
+namespace
+{
+  bool g_heldNestedBoundaryVisible = true;
+
+  class HeldNestedBoundaryNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeldNestedBoundaryNode>
+      HeldNestedBoundaryProps;
+
+  class HeldNestedBoundaryNode
+      : public SceneTestSupport::RecomposingBoundaryNode<HeldNestedBoundaryNode,
+                                                         HeldNestedBoundaryProps>
+  {
+  public:
+    explicit HeldNestedBoundaryNode(const HeldNestedBoundaryProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<HeldNestedBoundaryNode,
+                                                    HeldNestedBoundaryProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      root << HeldOwnerSlotProbeDefinition(
+          HeldOwnerSlotProbeProps(HeldOwnerSlotProbeProps::ROLE_CREATE));
+      composition.declare(root);
+    }
+  };
+
+  class HeldNestedRootNode;
+  typedef loka::app::scene::BoundaryPropsFor<HeldNestedRootNode>
+      HeldNestedRootProps;
+
+  class HeldNestedRootNode
+      : public SceneTestSupport::RecomposingBoundaryNode<HeldNestedRootNode,
+                                                         HeldNestedRootProps>
+  {
+  public:
+    explicit HeldNestedRootNode(const HeldNestedRootProps &props)
+        : SceneTestSupport::RecomposingBoundaryNode<HeldNestedRootNode,
+                                                    HeldNestedRootProps>(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      loka::app::Fragment root;
+      if (g_heldNestedBoundaryVisible)
+      {
+        loka::app::scene::BoundaryDefinition<HeldNestedBoundaryProps,
+                                             HeldNestedBoundaryNode>
+            nested = loka::app::scene::Boundary<HeldNestedBoundaryNode>();
+        root << nested;
+      }
+      composition.declare(root);
+    }
+  };
+} // namespace
+
+void testHeldNestedBoundaryRetireReleasesAtParentDrain()
+{
+  HeldOwnerSlotScenario scenario;
+  g_heldOwnerSlotScenario = &scenario;
+  g_heldNestedBoundaryVisible = true;
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<HeldNestedRootNode>()));
+    scene.mount(&platform);
+    scene.updateAttached(true);
+    assert(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    assert(scenario.held.isValid());
+    assert(scenario.releaseCount == 0);
+
+    // A retired Boundary leaves the live tree carrying its own queue. The
+    // releaser must still ride a tick boundary — the retiring parent's drain —
+    // and never run from the retired Boundary's destructor.
+    g_heldNestedBoundaryVisible = false;
+    scene.requestInvalidate(loka::app::scene::NODE_DIRTY_CHILD);
+    assert(scene.flushInvalidation());
+    assert(scenario.releaseCount == 0 &&
+           "retiring a Boundary must only queue its Held releasers");
+    assert(scene.hasPendingInvalidation());
+
+    assert(!scene.flushInvalidation());
+    assert(scenario.releaseCount == 1);
+    // The handle is only a view into the creator's storage. This creator was
+    // the retired Boundary itself, so its arena went with it; only the
+    // observer's own record is readable now. Reading the block here is the
+    // upward-borrow rule broken from the test side (ASan sees it).
+  }
+  assert(scenario.releaseCount == 1);
+  g_heldOwnerSlotScenario = 0;
+  g_heldNestedBoundaryVisible = true;
+}
+
 void testHeldCreationStartsWithSectionOwnerSlot()
 {
   HeldOwnerSlotScenario scenario;
@@ -3834,9 +3929,8 @@ void testHeldFifthOwnerRefusalIsFailureAtomic()
   g_heldOwnerSlotScenario = 0;
 }
 
-void testHeldCrossBranchHoldIsRefusedByAuditSubtreeWall()
+void testHeldCrossBranchHoldIsRefusedBySubtreeWall()
 {
-#ifdef LOKA_LIFECYCLE_AUDIT
   HeldOwnerSlotScenario scenario(HeldOwnerSlotScenario::MODE_CROSS_BRANCH);
   g_heldOwnerSlotScenario = &scenario;
   {
@@ -3852,7 +3946,6 @@ void testHeldCrossBranchHoldIsRefusedByAuditSubtreeWall()
   }
   assert(scenario.releaseCount == 1);
   g_heldOwnerSlotScenario = 0;
-#endif
 }
 
 void testHeldHandleCopiesDoNotChangeOwnerSlots()
